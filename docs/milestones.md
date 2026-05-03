@@ -8,7 +8,7 @@ Goal: board renders, server runs, and two browser tabs can sync room state.
 - [x] Add shared game package.
 - [x] Add WebSocket server with in-memory rooms.
 - [x] Add web client that connects to a room.
-- [ ] Render a board from server-provided `PlayerView.board`.
+- [x] Render a board from server-provided `PlayerView.board`.
 
 Checkpoint: `npm run dev` starts server and web app; two tabs receive the same room state.
 
@@ -18,12 +18,12 @@ Goal: two players join one link and choose from three legal Chess960 positions.
 
 - [x] Generate legal Chess960 starts.
 - [x] Generate deterministic three-start room offers.
-- [ ] Add seats: White, Black, and spectator.
-- [ ] Store per-seat pregame selections on the server.
-- [ ] Validate selection messages against the room offer.
-- [ ] Resolve selected start after both players pick.
-- [ ] Build the initial board from the resolved Chess960 start.
-- [ ] Broadcast per-client `PlayerView`s after resolution.
+- [x] Add seats: White, Black, and spectator.
+- [x] Store per-seat pregame selections on the server.
+- [x] Validate selection messages against the room offer.
+- [x] Resolve selected start after both players pick.
+- [x] Build the initial board from the resolved Chess960 start.
+- [x] Broadcast per-client `PlayerView`s after resolution.
 
 Checkpoint: two browser tabs choose starts and reach a shared initial position.
 

@@ -60,13 +60,19 @@ a {
   background: #2e332f;
 }
 
+.board.loading {
+  place-items: center;
+  color: #ffffff;
+}
+
 .square {
+  position: relative;
   display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: center;
   padding: 6px;
-  font-size: 12px;
-  color: rgba(29, 37, 34, 0.62);
+  min-width: 0;
+  min-height: 0;
 }
 
 .light {
@@ -75,6 +81,38 @@ a {
 
 .dark {
   background: #769656;
+}
+
+.coord {
+  position: absolute;
+  left: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  color: rgba(29, 37, 34, 0.56);
+}
+
+.piece {
+  display: grid;
+  place-items: center;
+  width: 72%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: clamp(20px, 5vw, 42px);
+  line-height: 1;
+  user-select: none;
+}
+
+.piece.white {
+  color: #17201c;
+  background: #f8faf7;
+  box-shadow: inset 0 -2px 0 rgba(23, 32, 28, 0.16);
+}
+
+.piece.black {
+  color: #f8faf7;
+  background: #252b29;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12);
 }
 
 aside {
@@ -109,6 +147,21 @@ aside h2 {
   border-color: #1f6f5b;
 }
 
+.starts button:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.starts button.selected {
+  border-color: #1f6f5b;
+  box-shadow: inset 4px 0 0 #1f6f5b;
+}
+
+.starts button.resolved {
+  border-color: #254d7a;
+  box-shadow: inset 4px 0 0 #254d7a;
+}
+
 .starts span {
   color: #5f6b66;
   letter-spacing: 0.08em;
@@ -127,4 +180,3 @@ ul {
     display: grid;
   }
 }
-
