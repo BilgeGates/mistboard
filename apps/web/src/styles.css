@@ -268,6 +268,39 @@ a {
   gap: 8px;
 }
 
+.share-room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.share-room input,
+.share-room button {
+  min-height: 38px;
+  border: 1px solid #bdc8bf;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2522;
+}
+
+.share-room input {
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.share-room button {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.share-room input:focus,
+.share-room button:hover,
+.share-room button:focus-visible {
+  border-color: #1f6f5b;
+  outline: 3px solid rgba(31, 111, 91, 0.18);
+}
+
 .room-actions a {
   display: block;
   min-height: 38px;

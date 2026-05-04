@@ -131,6 +131,7 @@ let replayIndex: number | null = null;
 let orientation: Color = 'white';
 let ground: Api | null = null;
 let pendingPromotion: PendingPromotion | null = null;
+let shareCopyStatus: 'idle' | 'copied' | 'failed' = 'idle';
 
 socket.addEventListener('message', (event) => {
   const message = JSON.parse(event.data) as ServerMessage;
@@ -192,6 +193,10 @@ function createLayout(target: HTMLDivElement) {
               <div data-game-info class="game-info"></div>
             </section>
             <section class="panel-section">
+              <h2>Room Link</h2>
+              <div data-share-room class="share-room"></div>
+            </section>
+            <section class="panel-section">
               <h2>Create Room</h2>
               <div data-room-actions class="room-actions"></div>
             </section>
@@ -237,6 +242,7 @@ function createLayout(target: HTMLDivElement) {
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
   const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
   const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');
+  const shareRoom = target.querySelector<HTMLDivElement>('[data-share-room]');
   const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
   const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
   const devViewsPanel = target.querySelector<HTMLDivElement>('[data-dev-views]');
@@ -252,7 +258,7 @@ function createLayout(target: HTMLDivElement) {
   const replayControls = target.querySelectorAll<HTMLButtonElement>('[data-replay]');
   const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
 
-  if (!newRoom || !roomMeta || !board || !boardStatus || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
+  if (!newRoom || !roomMeta || !board || !boardStatus || !clocks || !gameInfo || !shareRoom || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
     throw new Error('missing app region');
   }
 
@@ -275,6 +281,7 @@ function createLayout(target: HTMLDivElement) {
     replayMeta,
     roomActions,
     selectionSection,
+    shareRoom,
     roomMeta,
     selectionList,
     starts,
@@ -296,6 +303,7 @@ function render(): void {
 
   renderGameInfo(view);
   renderClocks(view);
+  renderShareRoom();
   renderRoomActions();
   renderDevViews();
   renderBid(view);
@@ -379,6 +387,27 @@ function renderRoomActions(): void {
   const actions = [roomAction('Fog of War', 'fog-of-war')];
   if (engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
   refs.roomActions.replaceChildren(...actions);
+}
+
+function renderShareRoom(): void {
+  refs.shareRoom.replaceChildren();
+
+  const input = document.createElement('input');
+  input.type = 'url';
+  input.readOnly = true;
+  input.value = shareRoomUrl();
+  input.setAttribute('aria-label', 'Room link');
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = shareCopyStatus === 'copied'
+    ? 'Copied'
+    : shareCopyStatus === 'failed'
+      ? 'Copy Failed'
+      : 'Copy Link';
+  button.addEventListener('click', () => copyShareLink(input));
+
+  refs.shareRoom.append(input, button);
 }
 
 function roomAction(label: string, variant: PlayerView['variant'], dev?: 'engine'): HTMLAnchorElement {
@@ -963,6 +992,32 @@ function roomUrl(variant: PlayerView['variant'], dev?: 'engine'): string {
   params.set('variant', variant);
   if (dev) params.set('dev', dev);
   return `/?${params}`;
+}
+
+function shareRoomUrl(): string {
+  const params = new URLSearchParams({ room });
+  const variant = currentView()?.variant ?? state?.variant ?? variantRequested ?? 'fog-of-war';
+  params.set('variant', variant);
+  if (engineRequested) params.set('dev', 'engine');
+  if (allViewsRequested) params.set('views', 'all');
+  return `${window.location.origin}${window.location.pathname}?${params}`;
+}
+
+async function copyShareLink(input: HTMLInputElement): Promise<void> {
+  const url = input.value;
+  try {
+    await navigator.clipboard.writeText(url);
+    shareCopyStatus = 'copied';
+  } catch {
+    input.select();
+    shareCopyStatus = document.execCommand('copy') ? 'copied' : 'failed';
+  }
+  renderShareRoom();
+  window.setTimeout(() => {
+    if (shareCopyStatus === 'idle') return;
+    shareCopyStatus = 'idle';
+    renderShareRoom();
+  }, 1600);
 }
 
 function boardStatusLabel(): string {

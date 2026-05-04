@@ -41,6 +41,7 @@ for (const viewport of viewports) {
         href: link.getAttribute('href') ?? '',
         label: link.textContent ?? '',
       })),
+      shareLink: document.querySelector('[data-share-room] input')?.value ?? '',
     };
   });
 
@@ -73,6 +74,12 @@ for (const viewport of viewports) {
   }
   if (metrics.roomLinks.some((link) => link.label === 'Bid For White' || link.href.includes('variant=bid-for-white'))) {
     failures.push(`${viewport.name}: Bid For White should not be in primary create-room links`);
+  }
+  if (!metrics.shareLink.includes(`room=${room}`) || !metrics.shareLink.includes('variant=fog-of-war')) {
+    failures.push(`${viewport.name}: share link does not target current Fog room: ${metrics.shareLink}`);
+  }
+  if (metrics.shareLink.includes('reset=1')) {
+    failures.push(`${viewport.name}: share link must not include reset=1: ${metrics.shareLink}`);
   }
 
   const screenshotPath = `${outputDir}/${viewport.name}.png`;
@@ -154,6 +161,7 @@ const engineMetrics = await enginePage.evaluate(() => {
     status: debug.currentView?.status,
     title: document.querySelector('h1')?.textContent,
     trueHiddenSquares: document.querySelectorAll('.dev-board[aria-label="True view"] .dev-square.hidden').length,
+    shareLink: document.querySelector('[data-share-room] input')?.value ?? '',
   };
 });
 if (engineMetrics.devBoards !== 3) {
@@ -176,6 +184,12 @@ if (engineMetrics.trueHiddenSquares !== 0) {
 }
 if (engineMetrics.scrollOverflow > 1) {
   failures.push(`engine harness: expected no vertical scroll, found ${engineMetrics.scrollOverflow}px overflow`);
+}
+if (!engineMetrics.shareLink.includes(`room=${engineRoom}`) || !engineMetrics.shareLink.includes('dev=engine')) {
+  failures.push(`engine harness: share link should preserve debug room params, found ${engineMetrics.shareLink}`);
+}
+if (engineMetrics.shareLink.includes('reset=1')) {
+  failures.push(`engine harness: share link must not include reset=1: ${engineMetrics.shareLink}`);
 }
 
 const enginePath = `${outputDir}/engine-harness.png`;
