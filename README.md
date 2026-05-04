@@ -1,25 +1,30 @@
 # Bichess
 
-Bichess is an open chess-variant lab for players who love the shape of chess and want more room to explore it together.
+Bichess is an open-source chess-variant site focused on hidden-information chess.
 
-It is built around simple shared links, thoughtful variants, and fair real-time play. The goal is to make experimental chess feel welcoming, legible, and worth returning to, whether someone is discovering a mode for the first time or testing serious ideas with a friend.
+Players can create a room, share a link, and play variants that still feel like chess while adding new decisions. The main focus is Fog of War: a version of chess where each player sees only what their pieces can legally see.
 
 Bichess is an independent open-source project. It is not affiliated with lichess, chess.com, or any other chess platform.
 
 ## Vision
 
-Bichess exists to become a small, open home for chess variants that are easy to share, honest in their implementation, and deep enough to reward repeated play. We want two people to be able to open a link, understand the premise quickly, and play a game that still feels like chess while inviting a new kind of decision.
+Bichess aims to be the best place to play, study, and understand Fog of War chess.
 
-Our north star is Fog of War: make Bichess the best place to play, study, and understand hidden-information chess. That starts with correctness and a smooth live game, then grows into replay, learning tools, analysis, and eventually a Fog-specific engine.
+That means:
+
+- correct hidden information, enforced by the server
+- fast shared-link games that are easy to start
+- clear player views, replay, and postgame reveal
+- future tools for learning, analysis, and Fog-specific engine work
 
 Primary modes:
 
-1. **Fog of War** - the flagship mode: hidden-information chess implemented correctly, where the server owns truth and clients receive only their legal player view.
-2. **Draft960** - the approachable second mode: both players choose from three legal Chess960 starts before the game begins.
+1. **Fog of War** - the flagship mode. The server owns the full board, and each player receives only their legal view.
+2. **Draft960** - the approachable second mode. Both players choose from three legal Chess960 starts before the game begins.
 
 Experimental lab mode:
 
-- **Bid For White** - players secretly bid clock time for the right to play White. It exists as an architecture exercise and may remain hidden from the main room picker unless testing suggests stronger product value.
+- **Bid For White** - players secretly bid clock time for the right to play White. It is useful for testing architecture, but it is not part of the main product focus.
 
 ## Why These Modes
 
