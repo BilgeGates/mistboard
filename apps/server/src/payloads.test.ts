@@ -50,6 +50,7 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
     projection,
   };
   const client: SnapshotClient = {
+    devViews: false,
     id: 'white-client',
     seat: 'white',
     solo: false,
@@ -67,6 +68,7 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
 test('live Fog of War spectator payload has no board or move events', () => {
   const room = fogRoomFixture({ status: { type: 'playing', turn: 'white' } });
   const payload = snapshotPayload(room, {
+    devViews: false,
     id: 'spectator-client',
     seat: 'spectator',
     solo: false,
@@ -83,6 +85,7 @@ test('finished Fog of War payload exposes full-truth replay', () => {
     status: { type: 'finished', winner: 'white', reason: 'king-captured' },
   });
   const payload = JSON.stringify(snapshotPayload(room, {
+    devViews: false,
     id: 'spectator-client',
     seat: 'spectator',
     solo: false,
@@ -93,9 +96,38 @@ test('finished Fog of War payload exposes full-truth replay', () => {
   assert.match(payload, /queen/);
 });
 
+test('dev Fog of War payload can include player, opponent, and true views', () => {
+  const room = fogRoomFixture({ status: { type: 'playing', turn: 'white' } });
+  const payload = snapshotPayload(room, {
+    devViews: true,
+    id: 'white-client',
+    seat: 'white',
+    solo: false,
+  });
+
+  assert.equal(payload.devViews?.opponent, 'black');
+  assert.deepEqual(payload.devViews?.player.board.a1, { color: 'white', role: 'rook' });
+  assert.deepEqual(payload.devViews?.opponentView.board.h8, { color: 'black', role: 'queen' });
+  assert.deepEqual(payload.devViews?.truth.board.h8, { color: 'black', role: 'queen' });
+  assert.equal(payload.devViews?.truth.visibleSquares.length, 64);
+});
+
+test('regular Fog of War payload does not include dev views', () => {
+  const room = fogRoomFixture({ status: { type: 'playing', turn: 'white' } });
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'white-client',
+    seat: 'white',
+    solo: false,
+  });
+
+  assert.equal(payload.devViews, null);
+});
+
 test('pregame Bid For White payload exposes only the client bid', () => {
   const room = bidRoomFixture({ status: { type: 'pregame' } });
   const payload = snapshotPayload(room, {
+    devViews: false,
     id: 'white-client',
     seat: 'white',
     solo: false,
@@ -111,6 +143,7 @@ test('pregame Bid For White payload exposes only the client bid', () => {
 test('resolved Bid For White payload exposes bids and resolution', () => {
   const room = bidRoomFixture({ status: { type: 'playing', turn: 'white' } });
   const payload = snapshotPayload(room, {
+    devViews: false,
     id: 'black-client',
     seat: 'white',
     solo: false,

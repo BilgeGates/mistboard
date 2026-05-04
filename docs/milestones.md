@@ -105,19 +105,34 @@ Goal: two players can privately bid clock time for the White pieces, then play a
 
 Checkpoint: two browser tabs submit bids, the higher bidder receives White with the bid deducted from their clock, and play starts.
 
-Product status: implemented as an experimental/lab mode and kept out of the primary Create Room picker. Draft960 and Fog of War are the current flagship modes.
+Product status: implemented as an experimental/lab mode and kept out of the primary Create Room picker. Fog of War is the flagship focus; Draft960 remains the approachable second mode.
 
-## Milestone 6: Private Alpha Hardening
+## Milestone 6: Fog of War Private Alpha
 
-Goal: turn the playable prototype into a reliable private alpha focused on Draft960 and Fog of War.
+Goal: turn Fog of War into a reliable private alpha that two people can share, play, finish, and understand.
 
-- [ ] Run the manual QA checklist for Draft960.
 - [ ] Run the manual QA checklist for Fog of War.
-- [ ] Convert manual bugs into focused regression tests.
-- [ ] Improve variant identity in the header and side panel.
+- [ ] Convert Fog QA issues into focused regression tests.
+- [ ] Improve Fog identity in the header and side panel.
 - [ ] Add copy/share room-link affordance.
-- [ ] Polish replay controls and move-list behavior.
+- [ ] Polish Fog board visuals, hidden-square styling, and mobile spacing.
+- [ ] Polish postgame reveal, replay controls, and move-list behavior.
+- [ ] Add visibility-history affordances that help players understand what each side could see.
 - [ ] Decide persistence strategy for event logs and room recovery.
 - [ ] Define the Fog engine/analysis direction.
 
-Checkpoint: Draft960 and Fog of War can be shared with private testers with known limitations documented.
+Checkpoint: Fog of War can be shared with private testers with known limitations documented.
+
+## Milestone 7: Fog of War Learning And Analysis
+
+Goal: make Fog of War understandable after the game, not just playable during the game.
+
+- [ ] Show a clean postgame transition from player view to full truth.
+- [ ] Let replay switch between White view, Black view, and full-truth view.
+- [ ] Mark moments where visibility changed materially.
+- [ ] Identify king exposure, missed king-capture chances, and high-risk scouting moves.
+- [ ] Add a basic legal-move bot that only consumes `PlayerView`.
+- [ ] Add a heuristic Fog bot that beats random play without hidden-state access.
+- [ ] Define the self-play data format for future model training.
+
+Checkpoint: players can review a Fog game and understand the hidden-information decisions that shaped the result.

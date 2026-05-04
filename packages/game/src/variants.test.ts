@@ -260,3 +260,51 @@ test('Fog of War ends when a king is captured', () => {
   assert.deepEqual(next.board.e2, { color: 'white', role: 'king' });
   assert.deepEqual(next.status, { type: 'finished', winner: 'white', reason: 'king-captured' });
 });
+
+test('Fog of War castling ignores attacked transit and destination squares', () => {
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-castle-through-check'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      h1: { color: 'white', role: 'rook' },
+      f8: { color: 'black', role: 'rook' },
+      g8: { color: 'black', role: 'bishop' },
+      e8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'white' } as const,
+    castlingRights: ['h1'],
+  };
+
+  const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+  assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'h1'));
+
+  const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'h1' });
+  assert.equal(next.board.e1, undefined);
+  assert.equal(next.board.h1, undefined);
+  assert.deepEqual(next.board.g1, { color: 'white', role: 'king' });
+  assert.deepEqual(next.board.f1, { color: 'white', role: 'rook' });
+});
+
+test('Fog of War applies en passant captures', () => {
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-en-passant-apply'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      e5: { color: 'white', role: 'pawn' },
+      d5: { color: 'black', role: 'pawn' },
+      e8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'white' } as const,
+    castlingRights: [],
+    enPassantSquare: 'd6',
+  };
+
+  const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+  assert.ok(moves.some((move) => move.from === 'e5' && move.to === 'd6'));
+
+  const next = fogOfWarVariant.applyMove(state, { from: 'e5', to: 'd6' });
+  assert.equal(next.board.e5, undefined);
+  assert.equal(next.board.d5, undefined);
+  assert.deepEqual(next.board.d6, { color: 'white', role: 'pawn' });
+  assert.deepEqual(next.status, { type: 'playing', turn: 'black' });
+});

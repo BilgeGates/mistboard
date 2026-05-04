@@ -29,9 +29,16 @@ type PendingPromotion = {
   to: Square;
 };
 type InfoTone = 'default' | 'pending' | 'success';
+type DevViews = {
+  opponent: Color;
+  opponentView: PlayerView;
+  player: PlayerView;
+  truth: PlayerView;
+};
 type DebugSnapshot = {
   clientCount: number;
   currentView: PlayerView | null;
+  devViews: DevViews | null;
   bids: Partial<Record<Color, number>>;
   bidResolution: BidResolution | null;
   events: GameEvent[];
@@ -57,6 +64,7 @@ type ServerMessage =
     offer: Chess960Start[];
     bids: Partial<Record<Color, number>>;
     bidResolution: BidResolution | null;
+    devViews: DevViews | null;
     events: GameEvent[];
     state: PlayerView;
   }
@@ -70,6 +78,7 @@ type ServerMessage =
     selections: Partial<Record<Color, number>>;
     bids: Partial<Record<Color, number>>;
     bidResolution: BidResolution | null;
+    devViews: DevViews | null;
     resolvedStartId: number | null;
     events: GameEvent[];
     state: PlayerView;
@@ -89,6 +98,7 @@ const pageParams = new URLSearchParams(window.location.search);
 const room = pageParams.get('room') ?? 'dev-room';
 const socketParams = new URLSearchParams({ room });
 const soloRequested = pageParams.get('dev') === 'solo';
+const engineRequested = pageParams.get('dev') === 'engine' || pageParams.get('engine') === 'random';
 const variantRequested = pageParams.get('variant');
 if (pageParams.get('reset') === '1') {
   socketParams.set('reset', '1');
@@ -97,6 +107,7 @@ if (pageParams.get('reset') === '1') {
   window.history.replaceState(null, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
 }
 if (soloRequested) socketParams.set('dev', 'solo');
+if (engineRequested) socketParams.set('dev', 'engine');
 if (variantRequested) socketParams.set('variant', variantRequested);
 const socket = new WebSocket(`ws://localhost:3001?${socketParams}`);
 const refs = createLayout(root);
@@ -109,6 +120,7 @@ let solo = soloRequested;
 let selections: Partial<Record<Color, number>> = {};
 let bids: Partial<Record<Color, number>> = {};
 let bidResolution: BidResolution | null = null;
+let devViews: DevViews | null = null;
 let resolvedStartId: number | null = null;
 let state: PlayerView | null = null;
 let events: GameEvent[] = [];
@@ -127,6 +139,7 @@ socket.addEventListener('message', (event) => {
     offer = message.offer;
     bids = message.bids;
     bidResolution = message.bidResolution;
+    devViews = message.devViews;
     events = message.events;
     state = message.state;
   }
@@ -137,6 +150,7 @@ socket.addEventListener('message', (event) => {
     selections = message.selections;
     bids = message.bids;
     bidResolution = message.bidResolution;
+    devViews = message.devViews;
     resolvedStartId = message.resolvedStartId;
     events = message.events;
     state = message.state;
@@ -152,10 +166,10 @@ window.setInterval(() => {
 
 function createLayout(target: HTMLDivElement) {
   target.innerHTML = `
-    <main class="shell">
+    <main class="shell${engineRequested ? ' debug-shell' : ''}">
       <section class="topbar">
         <div>
-          <h1>Bichess</h1>
+          <h1>${engineRequested ? 'Fog Debug' : 'Bichess'}</h1>
           <p data-room-meta>Connecting</p>
         </div>
         <a data-new-room href="/">New room</a>
@@ -203,6 +217,12 @@ function createLayout(target: HTMLDivElement) {
           </section>
         </aside>
       </section>
+      <section data-dev-views-section class="debug-page" hidden>
+        <div class="debug-header">
+          <h2>Debug Views</h2>
+        </div>
+        <div data-dev-views class="debug-views"></div>
+      </section>
     </main>
   `;
 
@@ -213,6 +233,8 @@ function createLayout(target: HTMLDivElement) {
   const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
   const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');
   const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
+  const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
+  const devViewsPanel = target.querySelector<HTMLDivElement>('[data-dev-views]');
   const bidControls = target.querySelector<HTMLDivElement>('[data-bid-controls]');
   const bidSection = target.querySelector<HTMLElement>('[data-bid-section]');
   const bidStatus = target.querySelector<HTMLDivElement>('[data-bid-status]');
@@ -225,11 +247,11 @@ function createLayout(target: HTMLDivElement) {
   const replayControls = target.querySelectorAll<HTMLButtonElement>('[data-replay]');
   const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
 
-  if (!newRoom || !roomMeta || !board || !boardStatus || !clocks || !gameInfo || !roomActions || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
+  if (!newRoom || !roomMeta || !board || !boardStatus || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
     throw new Error('missing app region');
   }
 
-  newRoom.href = roomUrl('draft960');
+  newRoom.href = roomUrl('fog-of-war');
 
   return {
     board,
@@ -238,6 +260,8 @@ function createLayout(target: HTMLDivElement) {
     bidSection,
     bidStatus,
     clocks,
+    devViews: devViewsPanel,
+    devViewsSection,
     gameInfo,
     moveList,
     offerSection,
@@ -268,6 +292,7 @@ function render(): void {
   renderGameInfo(view);
   renderClocks(view);
   renderRoomActions();
+  renderDevViews();
   renderBid(view);
   renderOffer(projection);
   renderSelections(projection);
@@ -346,17 +371,65 @@ function renderGameInfo(view: PlayerView | null): void {
 }
 
 function renderRoomActions(): void {
-  refs.roomActions.replaceChildren(
-    roomAction('Draft960', 'draft960'),
-    roomAction('Fog of War', 'fog-of-war'),
+  const actions = [roomAction('Fog of War', 'fog-of-war')];
+  if (engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
+  refs.roomActions.replaceChildren(...actions);
+}
+
+function roomAction(label: string, variant: PlayerView['variant'], dev?: 'engine'): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = roomUrl(variant, dev);
+  link.textContent = label;
+  return link;
+}
+
+function renderDevViews(): void {
+  refs.devViews.replaceChildren();
+  refs.devViewsSection.hidden = devViews === null;
+  if (!devViews) return;
+
+  refs.devViews.append(
+    devViewCard('Player view', devViews.player),
+    devViewCard(`${capitalize(devViews.opponent)} view`, devViews.opponentView),
+    devViewCard('True view', devViews.truth),
   );
 }
 
-function roomAction(label: string, variant: PlayerView['variant']): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.href = roomUrl(variant);
-  link.textContent = label;
-  return link;
+function devViewCard(label: string, view: PlayerView): HTMLDivElement {
+  const card = document.createElement('div');
+  card.className = 'dev-view-card';
+
+  const title = document.createElement('strong');
+  title.textContent = label;
+
+  const meta = document.createElement('span');
+  meta.textContent = `${view.perspective} · ${view.status.type === 'playing' ? `${view.status.turn} to move` : view.status.type}`;
+
+  const board = document.createElement('div');
+  board.className = 'dev-board';
+  board.setAttribute('aria-label', label);
+
+  const visible = new Set(view.visibleSquares);
+  const rankOrder = view.perspective === 'white' ? [...ranks].reverse() : [...ranks];
+  const fileOrder = view.perspective === 'white' ? files : [...files].reverse();
+  for (const rank of rankOrder) {
+    for (const file of fileOrder) {
+      const square = `${file}${rank}` as Square;
+      const cell = document.createElement('span');
+      const hidden = !visible.has(square);
+      cell.className = [
+        'dev-square',
+        (fileOrdinal(file) + rank) % 2 === 0 ? 'dark' : 'light',
+        hidden ? 'hidden' : '',
+      ].filter(Boolean).join(' ');
+      const piece = view.board[square];
+      cell.textContent = piece && !hidden ? pieceGlyphForRole(piece.role, piece.color) : '';
+      board.append(cell);
+    }
+  }
+
+  card.append(title, meta, board);
+  return card;
 }
 
 function renderBid(view: PlayerView | null): void {
@@ -464,7 +537,7 @@ function renderBoard(view: PlayerView | null): void {
   const config = {
     animation: { enabled: true, duration: 140 },
     autoCastle: true,
-    coordinates: true,
+    coordinates: false,
     coordinatesOnSquares: false,
     fen: view ? boardFen(view) : '8/8/8/8/8/8/8/8',
     highlight: { custom: hiddenSquareClasses(view), lastMove: true },
@@ -770,6 +843,7 @@ window.__BICHESS_DEBUG__ = () => ({
   bidResolution,
   clientCount,
   currentView: currentView(),
+  devViews,
   events,
   seat,
   solo,
@@ -852,12 +926,13 @@ function pickColorForSeat(): Color {
   return seat === 'black' ? 'black' : 'white';
 }
 
-function roomUrl(variant: PlayerView['variant']): string {
+function roomUrl(variant: PlayerView['variant'], dev?: 'engine'): string {
   const params = new URLSearchParams({
     reset: '1',
     room: crypto.randomUUID(),
   });
-  if (variant !== 'draft960') params.set('variant', variant);
+  params.set('variant', variant);
+  if (dev) params.set('dev', dev);
   return `/?${params}`;
 }
 
@@ -871,6 +946,36 @@ function escapeHtml(value: string): string {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
+}
+
+function pieceGlyphForRole(role: PieceRole, color: Color): string {
+  const labels = {
+    white: {
+      bishop: '♗',
+      king: '♔',
+      knight: '♘',
+      pawn: '♙',
+      queen: '♕',
+      rook: '♖',
+    },
+    black: {
+      bishop: '♝',
+      king: '♚',
+      knight: '♞',
+      pawn: '♟',
+      queen: '♛',
+      rook: '♜',
+    },
+  } satisfies Record<Color, Record<PieceRole, string>>;
+  return labels[color][role];
+}
+
+function fileOrdinal(file: typeof files[number]): number {
+  return files.indexOf(file);
+}
+
+function capitalize(value: string): string {
+  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }
 
 render();

@@ -21,6 +21,7 @@ import {
 import { snapshotPayload, type Seat } from './payloads.js';
 
 type Client = {
+  devViews: boolean;
   id: string;
   socket: WebSocket;
   roomId: string;
@@ -34,6 +35,7 @@ type Room = {
   events: GameEvent[];
   projection: GameProjection;
   clockTimer: ReturnType<typeof setTimeout> | null;
+  randomEngine: boolean;
 };
 
 const rooms = new Map<string, Room>();
@@ -50,10 +52,21 @@ wss.on('connection', (socket, request) => {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
   if (url.searchParams.get('reset') === '1') resetRoom(roomId);
-  const solo = url.searchParams.get('dev') === 'solo';
+  const devMode = url.searchParams.get('dev');
+  const solo = devMode === 'solo';
+  const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
+  const devViews = randomEngine || url.searchParams.get('views') === 'all';
   const room = getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
+  if (randomEngine) enableRandomEngine(room);
   const clientId = randomUUID();
-  const client: Client = { id: clientId, socket, roomId, seat: solo ? 'spectator' : assignSeat(room, clientId), solo };
+  const client: Client = {
+    devViews,
+    id: clientId,
+    socket,
+    roomId,
+    seat: solo ? 'spectator' : assignSeat(room, clientId),
+    solo,
+  };
   room.clients.add(client);
 
   const snapshot = snapshotPayload(room, client);
@@ -124,6 +137,7 @@ function getOrCreateRoom(roomId: string, variant: VariantId): Room {
     events,
     projection: replayGameEvents(events),
     clockTimer: null,
+    randomEngine: false,
   };
   rooms.set(roomId, room);
   return room;
@@ -151,6 +165,19 @@ function assignSeat(room: Room, clientId: string): Seat {
     return 'black';
   }
   return 'spectator';
+}
+
+function enableRandomEngine(room: Room): void {
+  room.randomEngine = true;
+  if (room.projection.variant !== 'fog-of-war') return;
+  if (room.projection.seats.black) return;
+  appendEvent(room, {
+    type: 'seat-assigned',
+    at: Date.now(),
+    roomId: room.id,
+    clientId: 'random-engine',
+    seat: 'black',
+  });
 }
 
 function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): void {
@@ -220,7 +247,27 @@ function playMove(room: Room, client: Client, move: ClientMoveMessage): void {
     color: moveColor,
     move: requestedMove,
   });
+  playRandomEngineMoveIfReady(room);
   broadcastSnapshot(room);
+}
+
+function playRandomEngineMoveIfReady(room: Room): void {
+  if (!room.randomEngine) return;
+  if (room.projection.variant !== 'fog-of-war') return;
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.state.status.turn !== 'black') return;
+
+  const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, 'black');
+  if (moves.length === 0) return;
+  const move = moves[randomInt(moves.length)];
+  if (!move) return;
+  appendEvent(room, {
+    type: 'move-played',
+    at: Date.now(),
+    roomId: room.id,
+    color: 'black',
+    move,
+  });
 }
 
 function resolveStartIfReady(room: Room): void {
@@ -376,8 +423,9 @@ function isColor(value: string | undefined): value is Color {
 }
 
 function parseVariantId(value: string | null): VariantId {
+  if (value === 'draft960') return 'draft960';
   if (value === 'bid-for-white') return 'bid-for-white';
-  return value === 'fog-of-war' ? 'fog-of-war' : 'draft960';
+  return 'fog-of-war';
 }
 
 function roomIdToSeed(roomId: string): number {

@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 
 const outputDir = '/private/tmp/bichess-visual-check';
+const baseUrl = process.env.BICHESS_WEB_URL ?? 'http://127.0.0.1:3000';
 const viewports = [
   { name: 'desktop', width: 1280, height: 900 },
   { name: 'mobile', width: 390, height: 844 },
@@ -16,12 +17,9 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 for (const viewport of viewports) {
   const page = await browser.newPage({ viewport });
   const room = `visual-${viewport.name}-${Date.now()}`;
-  await page.goto(`http://localhost:3000/?room=${room}&reset=1&dev=solo`, { waitUntil: 'networkidle' });
+  await page.goto(`${baseUrl}/?room=${room}&reset=1`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.board.cg-wrap');
-
-  await page.locator('.start-row').nth(0).locator('.solo-picks button').nth(0).click();
-  await page.locator('.start-row').nth(1).locator('.solo-picks button').nth(1).click();
-  await page.waitForFunction(() => document.body.textContent?.includes('to move'));
+  await page.waitForSelector('square.fog-hidden');
   await page.waitForSelector('piece');
   await page.waitForTimeout(250);
 
@@ -35,6 +33,7 @@ for (const viewport of viewports) {
     return {
       boardHeight: boardRect.height,
       boardWidth: boardRect.width,
+      fogHiddenCount: document.querySelectorAll('square.fog-hidden').length,
       horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
       mobilePanelBelowBoard: window.innerWidth > 780 ? true : panelRect.top >= boardRect.bottom - 1,
       pieceCount: document.querySelectorAll('piece:not(.fading)').length,
@@ -48,8 +47,11 @@ for (const viewport of viewports) {
   if (Math.abs(metrics.boardWidth - metrics.boardHeight) > 1) {
     failures.push(`${viewport.name}: board is not square (${metrics.boardWidth}x${metrics.boardHeight})`);
   }
-  if (metrics.pieceCount !== 32) {
-    failures.push(`${viewport.name}: expected 32 rendered pieces, found ${metrics.pieceCount}`);
+  if (metrics.pieceCount <= 0 || metrics.pieceCount >= 32) {
+    failures.push(`${viewport.name}: expected partial Fog piece render, found ${metrics.pieceCount}`);
+  }
+  if (metrics.fogHiddenCount <= 0) {
+    failures.push(`${viewport.name}: expected hidden fog squares`);
   }
   if (metrics.horizontalOverflow > 1) {
     failures.push(`${viewport.name}: horizontal overflow is ${metrics.horizontalOverflow}px`);
@@ -57,14 +59,17 @@ for (const viewport of viewports) {
   if (!metrics.mobilePanelBelowBoard) {
     failures.push(`${viewport.name}: side panel is not stacked below the board`);
   }
-  if (metrics.roomLinks.length !== 2) {
-    failures.push(`${viewport.name}: expected 2 create-room links, found ${metrics.roomLinks.length}`);
+  if (metrics.roomLinks.length !== 1) {
+    failures.push(`${viewport.name}: expected 1 create-room link, found ${metrics.roomLinks.length}`);
   }
-  if (!metrics.roomLinks.some((link) => link.label === 'Draft960' && !link.href.includes('variant='))) {
-    failures.push(`${viewport.name}: missing Draft960 create-room link`);
+  if (metrics.roomLinks.some((link) => link.label === 'Draft960' || link.href.includes('variant=draft960'))) {
+    failures.push(`${viewport.name}: Draft960 should be hidden from primary create-room links`);
   }
   if (!metrics.roomLinks.some((link) => link.label === 'Fog of War' && link.href.includes('variant=fog-of-war'))) {
     failures.push(`${viewport.name}: missing Fog of War create-room link`);
+  }
+  if (metrics.roomLinks.some((link) => link.href.includes('dev=engine'))) {
+    failures.push(`${viewport.name}: random-engine debug link should not be in the normal room picker`);
   }
   if (metrics.roomLinks.some((link) => link.label === 'Bid For White' || link.href.includes('variant=bid-for-white'))) {
     failures.push(`${viewport.name}: Bid For White should not be in primary create-room links`);
@@ -77,7 +82,7 @@ for (const viewport of viewports) {
 
   const fogPage = await browser.newPage({ viewport });
   const fogRoom = `visual-fog-${viewport.name}-${Date.now()}`;
-  await fogPage.goto(`http://localhost:3000/?room=${fogRoom}&reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
+  await fogPage.goto(`${baseUrl}/?room=${fogRoom}&reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
   await fogPage.waitForSelector('.board.cg-wrap');
   await fogPage.waitForSelector('square.fog-hidden');
   await fogPage.waitForSelector('piece');
@@ -122,11 +127,63 @@ for (const viewport of viewports) {
   await fogPage.close();
 }
 
+const engineRoom = `visual-engine-${Date.now()}`;
+const enginePage = await browser.newPage({ viewport: viewports[0] });
+await enginePage.goto(`${baseUrl}/?room=${engineRoom}&reset=1&variant=fog-of-war&dev=engine`, { waitUntil: 'networkidle' });
+await enginePage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
+await enginePage.waitForSelector('[data-dev-views-section]:not([hidden])');
+await enginePage.waitForSelector('.dev-board');
+await movePiece(enginePage, 'e2', 'e4');
+await enginePage.waitForFunction(() => {
+  const debug = window.__BICHESS_DEBUG__?.();
+  return debug?.currentView?.status.type === 'playing'
+    && debug.currentView.status.turn === 'white'
+    && debug.devViews?.truth.board.e4?.color === 'white';
+});
+await enginePage.waitForTimeout(250);
+
+const engineMetrics = await enginePage.evaluate(() => {
+  const debug = window.__BICHESS_DEBUG__?.();
+  if (!debug?.devViews) throw new Error('missing engine dev views');
+  return {
+    devBoards: document.querySelectorAll('.dev-board').length,
+    e4Truth: debug.devViews.truth.board.e4,
+    hiddenMoveEvents: debug.events.filter((event) => event.type === 'move-played').length,
+    opponent: debug.devViews.opponent,
+    status: debug.currentView?.status,
+    title: document.querySelector('h1')?.textContent,
+    trueHiddenSquares: document.querySelectorAll('.dev-board[aria-label="True view"] .dev-square.hidden').length,
+  };
+});
+if (engineMetrics.devBoards !== 3) {
+  failures.push(`engine harness: expected 3 dev boards, found ${engineMetrics.devBoards}`);
+}
+if (engineMetrics.opponent !== 'black') {
+  failures.push(`engine harness: expected black random opponent, found ${engineMetrics.opponent}`);
+}
+if (engineMetrics.e4Truth?.color !== 'white' || engineMetrics.e4Truth?.role !== 'pawn') {
+  failures.push(`engine harness: expected white pawn on e4 in true view, found ${JSON.stringify(engineMetrics.e4Truth)}`);
+}
+if (engineMetrics.hiddenMoveEvents !== 0) {
+  failures.push(`engine harness: expected live Fog move events hidden, found ${engineMetrics.hiddenMoveEvents}`);
+}
+if (engineMetrics.title !== 'Fog Debug') {
+  failures.push(`engine harness: expected Fog Debug page title, found ${engineMetrics.title}`);
+}
+if (engineMetrics.trueHiddenSquares !== 0) {
+  failures.push(`engine harness: expected true view to be fully clear, found ${engineMetrics.trueHiddenSquares} hidden squares`);
+}
+
+const enginePath = `${outputDir}/engine-harness.png`;
+await enginePage.screenshot({ path: enginePath, fullPage: true });
+console.log(`engine harness: ${JSON.stringify(engineMetrics)} screenshot=${enginePath}`);
+await enginePage.close();
+
 const fogVisionRoom = `visual-fog-vision-${Date.now()}`;
 const whiteVisionPage = await browser.newPage({ viewport: viewports[0] });
 const blackVisionPage = await browser.newPage({ viewport: viewports[0] });
-await whiteVisionPage.goto(`http://localhost:3000/?room=${fogVisionRoom}&reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
-await blackVisionPage.goto(`http://localhost:3000/?room=${fogVisionRoom}&variant=fog-of-war`, { waitUntil: 'networkidle' });
+await whiteVisionPage.goto(`${baseUrl}/?room=${fogVisionRoom}&reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
+await blackVisionPage.goto(`${baseUrl}/?room=${fogVisionRoom}&variant=fog-of-war`, { waitUntil: 'networkidle' });
 await whiteVisionPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
 await blackVisionPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'black');
 await whiteVisionPage.waitForSelector('.board.cg-wrap');
@@ -180,8 +237,8 @@ await blackVisionPage.close();
 const fogFlowRoom = `visual-fog-flow-${Date.now()}`;
 const whitePage = await browser.newPage({ viewport: viewports[0] });
 const blackPage = await browser.newPage({ viewport: viewports[0] });
-await whitePage.goto(`http://localhost:3000/?room=${fogFlowRoom}&reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
-await blackPage.goto(`http://localhost:3000/?room=${fogFlowRoom}&variant=fog-of-war`, { waitUntil: 'networkidle' });
+await whitePage.goto(`${baseUrl}/?room=${fogFlowRoom}&reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
+await blackPage.goto(`${baseUrl}/?room=${fogFlowRoom}&variant=fog-of-war`, { waitUntil: 'networkidle' });
 await whitePage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
 await blackPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'black');
 await whitePage.waitForSelector('.board.cg-wrap');
@@ -262,8 +319,8 @@ await blackPage.close();
 const bidRoom = `visual-bid-${Date.now()}`;
 const firstBidPage = await browser.newPage({ viewport: viewports[0] });
 const secondBidPage = await browser.newPage({ viewport: viewports[0] });
-await firstBidPage.goto(`http://localhost:3000/?room=${bidRoom}&reset=1&variant=bid-for-white`, { waitUntil: 'networkidle' });
-await secondBidPage.goto(`http://localhost:3000/?room=${bidRoom}&variant=bid-for-white`, { waitUntil: 'networkidle' });
+await firstBidPage.goto(`${baseUrl}/?room=${bidRoom}&reset=1&variant=bid-for-white`, { waitUntil: 'networkidle' });
+await secondBidPage.goto(`${baseUrl}/?room=${bidRoom}&variant=bid-for-white`, { waitUntil: 'networkidle' });
 await firstBidPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
 await secondBidPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'black');
 await firstBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('Enter seconds to give up'));
