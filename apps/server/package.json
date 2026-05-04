@@ -2,10 +2,12 @@
   "name": "@bichess/server",
   "version": "0.0.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node --test dist/**/*.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -18,4 +20,3 @@
     "typescript": "^5.8.0"
   }
 }
-

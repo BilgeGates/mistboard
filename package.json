@@ -2,6 +2,7 @@
   "name": "bichess",
   "version": "0.0.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -11,10 +12,13 @@
     "dev": "npm run dev --workspace @bichess/server & npm run dev --workspace @bichess/web",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "visual:check": "node scripts/visual-check.mjs"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }
-

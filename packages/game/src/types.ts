@@ -27,6 +27,14 @@ export type Move = {
   promotion?: Exclude<PieceRole, 'king' | 'pawn'>;
 };
 
+export type ClockState = {
+  activeColor: Color | null;
+  incrementMs: number;
+  initialMs: number;
+  remainingMs: Record<Color, number>;
+  runningSince: number | null;
+};
+
 export type GameStatus =
   | { type: 'pregame' }
   | { type: 'playing'; turn: Color }
@@ -38,6 +46,11 @@ export type GameState = {
   board: Board;
   status: GameStatus;
   moveNumber: number;
+  castlingRights: Square[];
+  enPassantSquare?: Square;
+  halfmoveClock: number;
+  lastMove?: Move;
+  clock?: ClockState;
 };
 
 export type PlayerView = {
@@ -45,9 +58,12 @@ export type PlayerView = {
   variant: VariantId;
   board: Board;
   visibleSquares: Square[];
+  legalMoves: Move[];
   status: GameStatus;
   perspective: Color;
   moveNumber: number;
+  lastMove?: Move;
+  clock?: ClockState;
 };
 
 export type Variant = {
@@ -58,4 +74,3 @@ export type Variant = {
   getPlayerView(state: GameState, player: Color): PlayerView;
   isGameOver(state: GameState): GameStatus | null;
 };
-

@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createChess960InitialBoard, generateChess960Starts, pickDraft960Offer } from './chess960.js';
+import {
+  createChess960CastlingRights,
+  createChess960InitialBoard,
+  generateChess960Starts,
+  pickDraft960Offer,
+} from './chess960.js';
 
 test('generates all 960 Chess960 starts', () => {
   const starts = generateChess960Starts();
@@ -46,4 +51,10 @@ test('creates an initial board from a Chess960 start', () => {
     ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => board[`${file}8` as keyof typeof board]?.role),
     start.backRank,
   );
+});
+
+test('creates castling rights from Chess960 rook files', () => {
+  const start = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'bbqnnrkr');
+  assert.ok(start);
+  assert.deepEqual(createChess960CastlingRights(start), ['f1', 'f8', 'h1', 'h8']);
 });

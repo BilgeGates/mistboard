@@ -114,3 +114,11 @@ export function createChess960InitialBoard(start: Chess960Start): Board {
 
   return board;
 }
+
+export function createChess960CastlingRights(start: Chess960Start): Square[] {
+  return start.backRank.flatMap((role, index) => {
+    if (role !== 'rook') return [];
+    const file = files[index];
+    return [`${file}1`, `${file}8`] as Square[];
+  });
+}

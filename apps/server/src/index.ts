@@ -2,30 +2,38 @@ import { createServer } from 'node:http';
 import { randomInt, randomUUID } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
-  createChess960InitialBoard,
-  draft960Variant,
+  advanceClock,
+  clockRemainingMs,
+  createClock,
+  defaultClockInitialMs,
+  expireClock,
+  replayGameEvents,
   pickDraft960Offer,
+  variantForId,
   type Color,
-  type PlayerView,
+  type GameEvent,
+  type GameProjection,
+  type Move,
+  type PieceRole,
+  type Square,
+  type VariantId,
 } from '@bichess/game';
-
-type Seat = Color | 'spectator';
+import { snapshotPayload, type Seat } from './payloads.js';
 
 type Client = {
   id: string;
   socket: WebSocket;
   roomId: string;
   seat: Seat;
+  solo: boolean;
 };
 
 type Room = {
   id: string;
   clients: Set<Client>;
-  offer: ReturnType<typeof pickDraft960Offer>;
-  state: ReturnType<typeof draft960Variant.createInitialState>;
-  seats: Partial<Record<Color, string>>;
-  selections: Partial<Record<Color, number>>;
-  resolvedStartId: number | null;
+  events: GameEvent[];
+  projection: GameProjection;
+  clockTimer: ReturnType<typeof setTimeout> | null;
 };
 
 const rooms = new Map<string, Room>();
@@ -41,18 +49,19 @@ const wss = new WebSocketServer({ server });
 wss.on('connection', (socket, request) => {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
-  const room = getOrCreateRoom(roomId);
+  if (url.searchParams.get('reset') === '1') resetRoom(roomId);
+  const solo = url.searchParams.get('dev') === 'solo';
+  const room = getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
   const clientId = randomUUID();
-  const client: Client = { id: clientId, socket, roomId, seat: assignSeat(room, clientId) };
+  const client: Client = { id: clientId, socket, roomId, seat: solo ? 'spectator' : assignSeat(room, clientId), solo };
   room.clients.add(client);
 
+  const snapshot = snapshotPayload(room, client);
   send(client, {
+    ...snapshot,
     type: 'hello',
     clientId: client.id,
-    roomId,
-    seat: client.seat,
-    offer: room.offer,
-    state: getClientView(room, client),
+    offer: room.projection.offer,
   });
   broadcastSnapshot(room);
 
@@ -61,19 +70,35 @@ wss.on('connection', (socket, request) => {
     if (!message) return;
     if (message.type === 'ping') send(client, { type: 'pong', at: Date.now() });
     if (message.type === 'select-start') {
-      selectStart(room, client, message.startId);
+      selectStart(room, client, message.startId, message.color);
+    }
+    if (message.type === 'submit-bid') {
+      submitBid(room, client, message.bidMs, message.color);
+    }
+    if (message.type === 'move' && typeof message.from === 'string' && typeof message.to === 'string') {
+      playMove(room, client, {
+        type: 'move',
+        from: message.from,
+        to: message.to,
+        promotion: message.promotion,
+      });
     }
   });
 
   socket.on('close', () => {
     room.clients.delete(client);
     if (
-      room.state.status.type === 'pregame'
+      room.projection.state.status.type === 'pregame'
       && client.seat !== 'spectator'
-      && room.seats[client.seat] === client.id
+      && room.projection.seats[client.seat] === client.id
     ) {
-      delete room.seats[client.seat];
-      delete room.selections[client.seat];
+      appendEvent(room, {
+        type: 'seat-vacated',
+        at: Date.now(),
+        roomId,
+        clientId: client.id,
+        seat: client.seat,
+      });
     }
     broadcastSnapshot(room);
   });
@@ -83,81 +108,233 @@ server.listen(port, () => {
   console.log(`bichess server listening on http://localhost:${port}`);
 });
 
-function getOrCreateRoom(roomId: string): Room {
+function getOrCreateRoom(roomId: string, variant: VariantId): Room {
   const existing = rooms.get(roomId);
   if (existing) return existing;
+  const events: GameEvent[] = [{
+    type: 'room-created',
+    at: Date.now(),
+    roomId,
+    variant,
+    offer: variant === 'draft960' ? pickDraft960Offer(roomIdToSeed(roomId)) : [],
+  }];
   const room: Room = {
     id: roomId,
     clients: new Set(),
-    offer: pickDraft960Offer(roomIdToSeed(roomId)),
-    state: draft960Variant.createInitialState(roomId),
-    seats: {},
-    selections: {},
-    resolvedStartId: null,
+    events,
+    projection: replayGameEvents(events),
+    clockTimer: null,
   };
   rooms.set(roomId, room);
   return room;
 }
 
 function assignSeat(room: Room, clientId: string): Seat {
-  if (!room.seats.white) {
-    room.seats.white = clientId;
+  if (!room.projection.seats.white) {
+    appendEvent(room, {
+      type: 'seat-assigned',
+      at: Date.now(),
+      roomId: room.id,
+      clientId,
+      seat: 'white',
+    });
     return 'white';
   }
-  if (!room.seats.black) {
-    room.seats.black = clientId;
+  if (!room.projection.seats.black) {
+    appendEvent(room, {
+      type: 'seat-assigned',
+      at: Date.now(),
+      roomId: room.id,
+      clientId,
+      seat: 'black',
+    });
     return 'black';
   }
   return 'spectator';
 }
 
-function selectStart(room: Room, client: Client, startId: number | undefined): void {
-  if (client.seat === 'spectator') return;
-  if (room.state.status.type !== 'pregame') return;
-  if (!room.offer.some((start) => start.id === startId)) return;
+function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): void {
+  const selectionColor = client.solo && isColor(color) ? color : client.seat;
+  if (selectionColor === 'spectator') return;
+  if (room.projection.state.status.type !== 'pregame') return;
+  if (!room.projection.offer.some((start) => start.id === startId)) return;
+  if (startId === undefined) return;
 
-  room.selections[client.seat] = startId;
+  appendEvent(room, {
+    type: 'draft-start-selected',
+    at: Date.now(),
+    roomId: room.id,
+    color: selectionColor,
+    startId,
+  });
   resolveStartIfReady(room);
   broadcastSnapshot(room);
 }
 
+function submitBid(room: Room, client: Client, bidMs: number | undefined, color: string | undefined): void {
+  if (room.projection.variant !== 'bid-for-white') return;
+  if (room.projection.state.status.type !== 'pregame') return;
+
+  const biddingSeat = client.solo && isColor(color) ? color : client.seat;
+  if (biddingSeat === 'spectator') return;
+  if (typeof bidMs !== 'number' || !Number.isInteger(bidMs)) return;
+
+  const requestedBidMs = bidMs;
+  const boundedBidMs = Math.max(0, Math.min(requestedBidMs, defaultClockInitialMs - 1000));
+  appendEvent(room, {
+    type: 'bid-submitted',
+    at: Date.now(),
+    roomId: room.id,
+    color: biddingSeat,
+    bidMs: boundedBidMs,
+  });
+  resolveBidIfReady(room);
+  broadcastSnapshot(room);
+}
+
+function playMove(room: Room, client: Client, move: ClientMoveMessage): void {
+  if (room.projection.state.status.type !== 'playing') return;
+  const now = Date.now();
+  const moveColor = room.projection.state.status.turn;
+  if (!client.solo && (client.seat === 'spectator' || moveColor !== client.seat)) return;
+  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, moveColor, now) <= 0) {
+    expireActiveClock(room, moveColor, now);
+    broadcastSnapshot(room);
+    return;
+  }
+
+  const requestedMove: Move = {
+    from: move.from as Square,
+    to: move.to as Square,
+    promotion: isPromotionRole(move.promotion) ? move.promotion : undefined,
+  };
+  const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, requestedMove);
+  if (nextState === room.projection.state) return;
+  const nextClock = advanceClock(room.projection.state.clock, now, moveColor, nextState.status);
+
+  appendEvent(room, {
+    type: 'move-played',
+    at: now,
+    roomId: room.id,
+    clock: nextClock,
+    color: moveColor,
+    move: requestedMove,
+  });
+  broadcastSnapshot(room);
+}
+
 function resolveStartIfReady(room: Room): void {
-  const whiteSelection = room.selections.white;
-  const blackSelection = room.selections.black;
+  if (room.projection.resolvedStartId !== null) return;
+
+  const whiteSelection = room.projection.selections.white;
+  const blackSelection = room.projection.selections.black;
   if (whiteSelection === undefined || blackSelection === undefined) return;
 
   const resolvedStartId = whiteSelection === blackSelection
     ? whiteSelection
     : [whiteSelection, blackSelection][randomInt(2)];
-  const resolvedStart = room.offer.find((start) => start.id === resolvedStartId);
+  const resolvedStart = room.projection.offer.find((start) => start.id === resolvedStartId);
   if (!resolvedStart) return;
+  const now = Date.now();
 
-  room.resolvedStartId = resolvedStart.id;
-  room.state = {
-    ...room.state,
-    board: createChess960InitialBoard(resolvedStart),
-    status: { type: 'playing', turn: 'white' },
+  appendEvent(room, {
+    type: 'draft-start-resolved',
+    at: now,
+    roomId: room.id,
+    clock: createClock(now),
+    startId: resolvedStart.id,
+  });
+}
+
+function resolveBidIfReady(room: Room): void {
+  if (room.projection.variant !== 'bid-for-white') return;
+  if (room.projection.state.status.type !== 'pregame') return;
+
+  const whiteBid = room.projection.bids.white;
+  const blackBid = room.projection.bids.black;
+  if (whiteBid === undefined || blackBid === undefined) return;
+
+  const whiteSeat: Color = whiteBid === blackBid
+    ? (randomInt(2) === 0 ? 'white' : 'black')
+    : (whiteBid > blackBid ? 'white' : 'black');
+  const blackSeat: Color = whiteSeat === 'white' ? 'black' : 'white';
+  const winningBidMs = whiteSeat === 'white' ? whiteBid : blackBid;
+  const now = Date.now();
+  const clock = createClock(now);
+  const adjustedClock = {
+    ...clock,
+    remainingMs: {
+      ...clock.remainingMs,
+      white: Math.max(0, clock.remainingMs.white - winningBidMs),
+    },
   };
+
+  appendEvent(room, {
+    type: 'bid-resolved',
+    at: now,
+    roomId: room.id,
+    bids: { white: whiteBid, black: blackBid },
+    blackSeat,
+    clock: adjustedClock,
+    winner: whiteBid === blackBid ? null : whiteSeat,
+    whiteSeat,
+    winningBidMs,
+  });
+  reconcileClientSeats(room);
+}
+
+function reconcileClientSeats(room: Room): void {
+  for (const client of room.clients) {
+    if (room.projection.seats.white === client.id) client.seat = 'white';
+    if (room.projection.seats.black === client.id) client.seat = 'black';
+  }
 }
 
 function broadcastSnapshot(room: Room): void {
   for (const client of room.clients) {
-    send(client, {
-      type: 'snapshot',
-      roomId: room.id,
-      clients: room.clients.size,
-      seat: client.seat,
-      seats: room.seats,
-      selections: room.selections,
-      resolvedStartId: room.resolvedStartId,
-      state: getClientView(room, client),
-    });
+    send(client, snapshotPayload(room, client));
   }
 }
 
-function getClientView(room: Room, client: Client): PlayerView {
-  const perspective = client.seat === 'black' ? 'black' : 'white';
-  return draft960Variant.getPlayerView(room.state, perspective);
+function appendEvent(room: Room, event: GameEvent): void {
+  room.events.push(event);
+  room.projection = replayGameEvents(room.events);
+  scheduleClockTimeout(room);
+}
+
+function resetRoom(roomId: string): void {
+  const room = rooms.get(roomId);
+  if (room?.clockTimer) clearTimeout(room.clockTimer);
+  rooms.delete(roomId);
+}
+
+function scheduleClockTimeout(room: Room): void {
+  if (room.clockTimer) clearTimeout(room.clockTimer);
+  room.clockTimer = null;
+
+  const { clock, status } = room.projection.state;
+  if (!clock || status.type !== 'playing' || !clock.activeColor) return;
+
+  const activeColor = clock.activeColor;
+  const delay = clockRemainingMs(clock, activeColor, Date.now());
+  room.clockTimer = setTimeout(() => {
+    if (room.projection.state.status.type !== 'playing') return;
+    if (room.projection.state.status.turn !== activeColor) return;
+    expireActiveClock(room, activeColor, Date.now());
+    broadcastSnapshot(room);
+  }, delay + 25);
+}
+
+function expireActiveClock(room: Room, color: Color, at: number): void {
+  const clock = expireClock(room.projection.state.clock, at, color);
+  if (!clock) return;
+  appendEvent(room, {
+    type: 'clock-expired',
+    at,
+    roomId: room.id,
+    color,
+    clock,
+  });
 }
 
 function send(client: Client, payload: unknown): void {
@@ -171,7 +348,14 @@ function broadcast(room: Room, payload: unknown): void {
   }
 }
 
-function parseMessage(raw: string): { type: string; startId?: number } | null {
+type ClientMoveMessage = {
+  type: 'move';
+  from: string;
+  to: string;
+  promotion?: string;
+};
+
+function parseMessage(raw: string): { type: string; bidMs?: number; startId?: number; color?: string; from?: string; to?: string; promotion?: string } | null {
   try {
     const value = JSON.parse(raw) as unknown;
     if (typeof value === 'object' && value !== null && 'type' in value) {
@@ -181,6 +365,19 @@ function parseMessage(raw: string): { type: string; startId?: number } | null {
     return null;
   }
   return null;
+}
+
+function isPromotionRole(value: string | undefined): value is Exclude<PieceRole, 'king' | 'pawn'> {
+  return value === 'queen' || value === 'rook' || value === 'bishop' || value === 'knight';
+}
+
+function isColor(value: string | undefined): value is Color {
+  return value === 'white' || value === 'black';
+}
+
+function parseVariantId(value: string | null): VariantId {
+  if (value === 'bid-for-white') return 'bid-for-white';
+  return value === 'fog-of-war' ? 'fog-of-war' : 'draft960';
 }
 
 function roomIdToSeed(roomId: string): number {
