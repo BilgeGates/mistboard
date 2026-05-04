@@ -76,10 +76,16 @@ function devViewsForClient(room: SnapshotRoom, client: SnapshotClient) {
   const perspective = client.seat === 'black' ? 'black' : 'white';
   const opponent = perspective === 'white' ? 'black' : 'white';
   const variant = variantForId(room.projection.variant);
+  const player = room.projection.state.status.type === 'finished'
+    ? fullTruthView(room, perspective)
+    : variant.getPlayerView(room.projection.state, perspective);
+  const opponentView = room.projection.state.status.type === 'finished'
+    ? fullTruthView(room, opponent)
+    : variant.getPlayerView(room.projection.state, opponent);
   return {
     opponent,
-    player: variant.getPlayerView(room.projection.state, perspective),
-    opponentView: variant.getPlayerView(room.projection.state, opponent),
+    player,
+    opponentView,
     truth: fullTruthView(room, perspective),
   };
 }

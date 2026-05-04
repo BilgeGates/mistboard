@@ -28,6 +28,8 @@ Working rule baseline:
 - There is no check or checkmate.
 - Legal moves are pseudo-legal chess moves: a king may move through, into, or remain in attacked squares.
 - The game ends when a king is captured.
+- The terminal king-capture state is postgame reveal: Fog is lifted for the main board, debug player/opponent views, spectators, and replay at that final state.
+- Earlier replay positions keep the player-specific Fog view until the replay reaches the terminal state.
 - Castling is legal even through, into, or out of attacked squares when the normal occupancy/castling-rights requirements are met.
 - En passant is legal. The en passant destination and threatened pawn are visible to the capturing player until that turn ends.
 - Promotion uses normal chess promotion choices; opponents only see the promoted piece if they can see the promotion square.

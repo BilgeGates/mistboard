@@ -50,6 +50,11 @@ a {
   text-decoration: none;
 }
 
+.play-grid {
+  display: grid;
+  gap: clamp(18px, 3vw, 32px);
+}
+
 .board-panel {
   display: grid;
   grid-template-columns: minmax(0, 680px) minmax(280px, 360px);
@@ -282,15 +287,13 @@ a {
 }
 
 .debug-shell {
-  max-width: 1360px;
+  max-width: 1480px;
 }
 
 .debug-page {
   display: grid;
-  gap: 14px;
-  margin-top: 28px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(95, 107, 102, 0.24);
+  align-self: start;
+  gap: 12px;
 }
 
 .debug-page[hidden] {
@@ -312,8 +315,7 @@ a {
 
 .debug-views {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(12px, 2vw, 20px);
+  gap: 12px;
 }
 
 .dev-views {
@@ -340,7 +342,7 @@ a {
 .dev-board {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
-  width: min(100%, 280px);
+  width: min(100%, 178px);
   border: 1px solid #87978e;
   background: #87978e;
 }
@@ -352,7 +354,7 @@ a {
   min-width: 0;
   color: #1d2522;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 18px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -589,5 +591,53 @@ a {
 
   .promotion-piece {
     font-size: 32px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .debug-shell {
+    padding-block: 16px;
+  }
+
+  .debug-shell .topbar {
+    margin-bottom: 14px;
+  }
+
+  .debug-shell .play-grid {
+    grid-template-columns: minmax(0, 1040px) minmax(176px, 210px);
+    align-items: start;
+    justify-content: center;
+  }
+
+  .debug-shell .board-panel {
+    grid-template-columns: minmax(0, min(64vh, 620px)) minmax(250px, 320px);
+    gap: clamp(14px, 2vw, 24px);
+  }
+
+  .debug-shell .board-shell,
+  .debug-shell .board.cg-wrap {
+    max-width: min(100%, 64vh, 620px);
+  }
+
+  .debug-shell .side-panel {
+    gap: 12px;
+  }
+
+  .debug-shell .panel-section {
+    gap: 8px;
+    padding-top: 12px;
+  }
+
+  .debug-shell .clocks div {
+    min-height: 36px;
+    padding: 6px 8px;
+  }
+
+  .debug-shell .clocks strong {
+    font-size: 18px;
+  }
+
+  .debug-shell .move-list {
+    max-height: 104px;
   }
 }

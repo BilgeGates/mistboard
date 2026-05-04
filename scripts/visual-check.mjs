@@ -150,6 +150,7 @@ const engineMetrics = await enginePage.evaluate(() => {
     e4Truth: debug.devViews.truth.board.e4,
     hiddenMoveEvents: debug.events.filter((event) => event.type === 'move-played').length,
     opponent: debug.devViews.opponent,
+    scrollOverflow: document.documentElement.scrollHeight - window.innerHeight,
     status: debug.currentView?.status,
     title: document.querySelector('h1')?.textContent,
     trueHiddenSquares: document.querySelectorAll('.dev-board[aria-label="True view"] .dev-square.hidden').length,
@@ -172,6 +173,9 @@ if (engineMetrics.title !== 'Fog Debug') {
 }
 if (engineMetrics.trueHiddenSquares !== 0) {
   failures.push(`engine harness: expected true view to be fully clear, found ${engineMetrics.trueHiddenSquares} hidden squares`);
+}
+if (engineMetrics.scrollOverflow > 1) {
+  failures.push(`engine harness: expected no vertical scroll, found ${engineMetrics.scrollOverflow}px overflow`);
 }
 
 const enginePath = `${outputDir}/engine-harness.png`;
@@ -237,7 +241,7 @@ await blackVisionPage.close();
 const fogFlowRoom = `visual-fog-flow-${Date.now()}`;
 const whitePage = await browser.newPage({ viewport: viewports[0] });
 const blackPage = await browser.newPage({ viewport: viewports[0] });
-await whitePage.goto(`${baseUrl}/?room=${fogFlowRoom}&reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
+await whitePage.goto(`${baseUrl}/?room=${fogFlowRoom}&reset=1&variant=fog-of-war&views=all`, { waitUntil: 'networkidle' });
 await blackPage.goto(`${baseUrl}/?room=${fogFlowRoom}&variant=fog-of-war`, { waitUntil: 'networkidle' });
 await whitePage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
 await blackPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'black');
@@ -260,49 +264,89 @@ await movePiece(whitePage, 'h5', 'f7');
 await whitePage.waitForFunction(() => {
   const debug = window.__BICHESS_DEBUG__?.();
   return debug?.currentView?.status.type === 'finished'
-    && debug.events.filter((event) => event.type === 'move-played').length === 5;
+    && debug.events.filter((event) => event.type === 'move-played').length === 5
+    && debug.devViews?.player.visibleSquares.length === 64
+    && debug.devViews.opponentView.visibleSquares.length === 64
+    && debug.devViews.truth.visibleSquares.length === 64;
 });
+
+const fogTerminalMetrics = await whitePage.evaluate(() => {
+  const debug = window.__BICHESS_DEBUG__?.();
+  if (!debug?.devViews || !debug.currentView) throw new Error('missing terminal Fog debug views');
+  return {
+    mainVisibleSquares: debug.currentView.visibleSquares.length,
+    opponentVisibleSquares: debug.devViews.opponentView.visibleSquares.length,
+    playerVisibleSquares: debug.devViews.player.visibleSquares.length,
+    trueVisibleSquares: debug.devViews.truth.visibleSquares.length,
+    hiddenSquares: document.querySelectorAll('square.fog-hidden').length,
+  };
+});
+if (
+  fogTerminalMetrics.mainVisibleSquares !== 64
+  || fogTerminalMetrics.playerVisibleSquares !== 64
+  || fogTerminalMetrics.opponentVisibleSquares !== 64
+  || fogTerminalMetrics.trueVisibleSquares !== 64
+  || fogTerminalMetrics.hiddenSquares !== 0
+) {
+  failures.push(`fog terminal reveal: expected all views clear, found ${JSON.stringify(fogTerminalMetrics)}`);
+}
 
 await whitePage.locator('[data-replay="first"]').click();
 await whitePage.waitForFunction(() => {
-  const view = window.__BICHESS_DEBUG__?.().currentView;
+  const debug = window.__BICHESS_DEBUG__?.();
+  const view = debug?.currentView;
   return view?.status.type === 'playing'
-    && view.board.e8?.color === 'black'
-    && view.board.f7?.color === 'black'
     && view.board.e2?.color === 'white'
+    && view.board.e8 === undefined
+    && view.board.f7 === undefined
     && view.board.e4 === undefined
     && view.board.f6 === undefined
     && view.board.h5 === undefined
-    && view.visibleSquares.length === 64;
+    && view.visibleSquares.length < 64
+    && debug?.devViews?.truth.board.e8?.color === 'black'
+    && debug.devViews.player.board.e8 === undefined
+    && debug.devViews.player.visibleSquares.length < 64
+    && debug.devViews.truth.visibleSquares.length === 64;
 });
 await whitePage.waitForTimeout(250);
 
 const fogFlowMetrics = await whitePage.evaluate(() => {
-  const view = window.__BICHESS_DEBUG__?.().currentView;
-  if (!view) throw new Error('missing Fog flow view');
+  const debug = window.__BICHESS_DEBUG__?.();
+  const view = debug?.currentView;
+  if (!debug || !view) throw new Error('missing Fog flow view');
   return {
+    debugPlayerE8Piece: debug.devViews?.player.board.e8,
+    debugPlayerVisibleSquares: debug.devViews?.player.visibleSquares.length,
+    debugTruthE8Piece: debug.devViews?.truth.board.e8,
+    debugTruthVisibleSquares: debug.devViews?.truth.visibleSquares.length,
     e8Piece: view.board.e8,
     e2Piece: view.board.e2,
     e4Piece: view.board.e4,
     f6Piece: view.board.f6,
     f7Piece: view.board.f7,
     fogHiddenCount: document.querySelectorAll('square.fog-hidden').length,
-    moveEvents: window.__BICHESS_DEBUG__?.().events.filter((event) => event.type === 'move-played').length ?? 0,
+    moveEvents: debug.events.filter((event) => event.type === 'move-played').length,
     pieceCount: document.querySelectorAll('piece:not(.fading)').length,
     replayVisibleSquares: view.visibleSquares.length,
   };
 });
-if (fogFlowMetrics.e8Piece?.color !== 'black' || fogFlowMetrics.e8Piece?.role !== 'king') {
-  failures.push(`fog flow replay: expected black king visible on e8, found ${JSON.stringify(fogFlowMetrics.e8Piece)}`);
+if (fogFlowMetrics.e8Piece !== undefined) {
+  failures.push(`fog flow replay: expected black king hidden on e8, found ${JSON.stringify(fogFlowMetrics.e8Piece)}`);
 }
-if (fogFlowMetrics.f7Piece?.color !== 'black' || fogFlowMetrics.f7Piece?.role !== 'pawn' || fogFlowMetrics.e2Piece?.color !== 'white') {
-  failures.push(`fog flow replay: expected first-position pawns on e2/f7, found e2=${JSON.stringify(fogFlowMetrics.e2Piece)} f7=${JSON.stringify(fogFlowMetrics.f7Piece)}`);
+if (fogFlowMetrics.f7Piece !== undefined || fogFlowMetrics.e2Piece?.color !== 'white') {
+  failures.push(`fog flow replay: expected white pawn visible and black pawn hidden, found e2=${JSON.stringify(fogFlowMetrics.e2Piece)} f7=${JSON.stringify(fogFlowMetrics.f7Piece)}`);
 }
 if (fogFlowMetrics.e4Piece !== undefined || fogFlowMetrics.f6Piece !== undefined) {
   failures.push(`fog flow replay: expected moved pawns absent from e4/f6 at first event, found e4=${JSON.stringify(fogFlowMetrics.e4Piece)} f6=${JSON.stringify(fogFlowMetrics.f6Piece)}`);
 }
-if (fogFlowMetrics.replayVisibleSquares !== 64 || fogFlowMetrics.fogHiddenCount !== 0) {
-  failures.push(`fog flow replay: expected full-truth board, found visible=${fogFlowMetrics.replayVisibleSquares} hidden=${fogFlowMetrics.fogHiddenCount}`);
+if (fogFlowMetrics.replayVisibleSquares >= 64 || fogFlowMetrics.fogHiddenCount <= 0) {
+  failures.push(`fog flow replay: expected fogged player replay board, found visible=${fogFlowMetrics.replayVisibleSquares} hidden=${fogFlowMetrics.fogHiddenCount}`);
+}
+if (fogFlowMetrics.debugTruthE8Piece?.color !== 'black' || fogFlowMetrics.debugTruthE8Piece?.role !== 'king' || fogFlowMetrics.debugTruthVisibleSquares !== 64) {
+  failures.push(`fog flow replay: expected debug true view to show full truth, found e8=${JSON.stringify(fogFlowMetrics.debugTruthE8Piece)} visible=${fogFlowMetrics.debugTruthVisibleSquares}`);
+}
+if (fogFlowMetrics.debugPlayerE8Piece !== undefined || (fogFlowMetrics.debugPlayerVisibleSquares ?? 64) >= 64) {
+  failures.push(`fog flow replay: expected debug player view to be fogged, found e8=${JSON.stringify(fogFlowMetrics.debugPlayerE8Piece)} visible=${fogFlowMetrics.debugPlayerVisibleSquares}`);
 }
 if (fogFlowMetrics.moveEvents !== 5) {
   failures.push(`fog flow: expected 5 released move events, found ${fogFlowMetrics.moveEvents}`);

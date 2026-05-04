@@ -99,6 +99,8 @@ const room = pageParams.get('room') ?? 'dev-room';
 const socketParams = new URLSearchParams({ room });
 const soloRequested = pageParams.get('dev') === 'solo';
 const engineRequested = pageParams.get('dev') === 'engine' || pageParams.get('engine') === 'random';
+const allViewsRequested = pageParams.get('views') === 'all';
+const debugRequested = engineRequested || allViewsRequested;
 const variantRequested = pageParams.get('variant');
 if (pageParams.get('reset') === '1') {
   socketParams.set('reset', '1');
@@ -108,6 +110,7 @@ if (pageParams.get('reset') === '1') {
 }
 if (soloRequested) socketParams.set('dev', 'solo');
 if (engineRequested) socketParams.set('dev', 'engine');
+if (allViewsRequested) socketParams.set('views', 'all');
 if (variantRequested) socketParams.set('variant', variantRequested);
 const socket = new WebSocket(`ws://localhost:3001?${socketParams}`);
 const refs = createLayout(root);
@@ -166,62 +169,64 @@ window.setInterval(() => {
 
 function createLayout(target: HTMLDivElement) {
   target.innerHTML = `
-    <main class="shell${engineRequested ? ' debug-shell' : ''}">
+    <main class="shell${debugRequested ? ' debug-shell' : ''}">
       <section class="topbar">
         <div>
-          <h1>${engineRequested ? 'Fog Debug' : 'Bichess'}</h1>
+          <h1>${debugRequested ? 'Fog Debug' : 'Bichess'}</h1>
           <p data-room-meta>Connecting</p>
         </div>
         <a data-new-room href="/">New room</a>
       </section>
 
-      <section class="board-panel">
-        <div class="board-shell">
-          <div data-board-status class="board-status">Connecting</div>
-          <div data-board class="board" aria-label="chess board"></div>
-          <div data-promotion class="promotion-picker" hidden></div>
-        </div>
-        <aside class="side-panel" aria-label="Game controls">
-          <section class="panel-section">
-            <h2>Game</h2>
-            <div data-clocks class="clocks"></div>
-            <div data-game-info class="game-info"></div>
-          </section>
-          <section class="panel-section">
-            <h2>Create Room</h2>
-            <div data-room-actions class="room-actions"></div>
-          </section>
-          <section data-bid-section class="panel-section">
-            <h2>Bid For White</h2>
-            <div data-bid-controls class="bid-controls"></div>
-            <div data-bid-status class="selection-list"></div>
-          </section>
-          <section data-offer-section class="panel-section">
-            <h2>Draft960 Offer</h2>
-            <div data-starts class="starts"></div>
-          </section>
-          <section data-selection-section class="panel-section">
-            <h2>Selections</h2>
-            <div data-selections class="selection-list"></div>
-          </section>
-          <section class="panel-section">
-            <h2>Replay</h2>
-            <div class="replay-controls">
-              <button type="button" data-replay="first" title="First position">|&lt;</button>
-              <button type="button" data-replay="prev" title="Previous event">&lt;</button>
-              <button type="button" data-replay="next" title="Next event">&gt;</button>
-              <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
-            </div>
-            <p data-replay-meta class="replay-meta">Live</p>
-            <ol data-move-list class="move-list"></ol>
-          </section>
-        </aside>
-      </section>
-      <section data-dev-views-section class="debug-page" hidden>
-        <div class="debug-header">
-          <h2>Debug Views</h2>
-        </div>
-        <div data-dev-views class="debug-views"></div>
+      <section class="play-grid">
+        <section class="board-panel">
+          <div class="board-shell">
+            <div data-board-status class="board-status">Connecting</div>
+            <div data-board class="board" aria-label="chess board"></div>
+            <div data-promotion class="promotion-picker" hidden></div>
+          </div>
+          <aside class="side-panel" aria-label="Game controls">
+            <section class="panel-section">
+              <h2>Game</h2>
+              <div data-clocks class="clocks"></div>
+              <div data-game-info class="game-info"></div>
+            </section>
+            <section class="panel-section">
+              <h2>Create Room</h2>
+              <div data-room-actions class="room-actions"></div>
+            </section>
+            <section data-bid-section class="panel-section">
+              <h2>Bid For White</h2>
+              <div data-bid-controls class="bid-controls"></div>
+              <div data-bid-status class="selection-list"></div>
+            </section>
+            <section data-offer-section class="panel-section">
+              <h2>Draft960 Offer</h2>
+              <div data-starts class="starts"></div>
+            </section>
+            <section data-selection-section class="panel-section">
+              <h2>Selections</h2>
+              <div data-selections class="selection-list"></div>
+            </section>
+            <section class="panel-section">
+              <h2>Replay</h2>
+              <div class="replay-controls">
+                <button type="button" data-replay="first" title="First position">|&lt;</button>
+                <button type="button" data-replay="prev" title="Previous event">&lt;</button>
+                <button type="button" data-replay="next" title="Next event">&gt;</button>
+                <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
+              </div>
+              <p data-replay-meta class="replay-meta">Live</p>
+              <ol data-move-list class="move-list"></ol>
+            </section>
+          </aside>
+        </section>
+        <section data-dev-views-section class="debug-page" hidden>
+          <div class="debug-header">
+            <h2>Debug Views</h2>
+          </div>
+          <div data-dev-views class="debug-views"></div>
+        </section>
       </section>
     </main>
   `;
@@ -384,14 +389,15 @@ function roomAction(label: string, variant: PlayerView['variant'], dev?: 'engine
 }
 
 function renderDevViews(): void {
+  const views = currentDevViews();
   refs.devViews.replaceChildren();
-  refs.devViewsSection.hidden = devViews === null;
-  if (!devViews) return;
+  refs.devViewsSection.hidden = views === null;
+  if (!views) return;
 
   refs.devViews.append(
-    devViewCard('Player view', devViews.player),
-    devViewCard(`${capitalize(devViews.opponent)} view`, devViews.opponentView),
-    devViewCard('True view', devViews.truth),
+    devViewCard('Player view', views.player),
+    devViewCard(`${capitalize(views.opponent)} view`, views.opponentView),
+    devViewCard('True view', views.truth),
   );
 }
 
@@ -792,10 +798,33 @@ function currentView(): PlayerView | null {
   const projection = currentProjection();
   if (!projection) return state;
   const perspective = seat === 'black' ? 'black' : 'white';
-  if (state?.variant === 'fog-of-war' && state.status.type === 'finished') {
+  if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished') {
     return fullTruthViewForProjection(projection, perspective);
   }
   return viewForProjection(projection, perspective);
+}
+
+function currentDevViews(): DevViews | null {
+  if (!devViews) return null;
+  if (isLive()) return devViews;
+
+  const projection = currentProjection();
+  if (!projection || projection.state.variant !== 'fog-of-war') return devViews;
+
+  const perspective = seat === 'black' ? 'black' : 'white';
+  const opponent = oppositeColor(perspective);
+  const player = projection.state.status.type === 'finished'
+    ? fullTruthViewForProjection(projection, perspective)
+    : viewForProjection(projection, perspective);
+  const opponentView = projection.state.status.type === 'finished'
+    ? fullTruthViewForProjection(projection, opponent)
+    : viewForProjection(projection, opponent);
+  return {
+    opponent,
+    opponentView,
+    player,
+    truth: fullTruthViewForProjection(projection, perspective),
+  };
 }
 
 function currentReplayIndex(): number {
@@ -843,7 +872,7 @@ window.__BICHESS_DEBUG__ = () => ({
   bidResolution,
   clientCount,
   currentView: currentView(),
-  devViews,
+  devViews: currentDevViews(),
   events,
   seat,
   solo,
