@@ -22,7 +22,8 @@ from typing import Iterator
 import chess
 import chess.engine
 
-from .engine import Evaluator
+from .engine import Evaluator, EvaluatorBuilder
+from .selfplay import PerspectiveView
 
 _KING_CAPTURE_SCORE = 100_000.0  # Bigger than any centipawn eval Stockfish returns.
 
@@ -118,6 +119,95 @@ def threat_aware_evaluator(threat_lambda: float = 0.3) -> Evaluator:
         return base - threat_lambda * threat_value
 
     return evaluate
+
+
+def visibility_threat_evaluator(threat_lambda: float = 0.3) -> EvaluatorBuilder:
+    """Material balance minus a threat discount counted from visible opp pieces only.
+
+    Counter to `threat_aware_evaluator`, which counts threats from every
+    particle's hypothesized opp positions (and hallucinates because particles
+    disperse opp pieces across many plausible squares), this builder uses the
+    PerspectiveView's `visible_piece_map` to count threats only from opp
+    pieces the perspective actually sees.
+
+    Implementation: per particle, evaluate as
+
+        base = material_score(advanced, perspective)
+        threats = pseudo-legal-moves on a synthetic board containing
+                  (own pieces post-move) ∪ (visible opp pieces still on the
+                  board after our move)
+        score = base - threat_lambda * sum(threatened own piece values)
+
+    Material balance is still computed on the particle (so capture moves on
+    hidden squares retain particle sensitivity). Threat counting uses observed
+    truth and ignores hidden hypothesized opp pieces, sidestepping the
+    hallucination problem.
+
+    Per-particle voting becomes near-degenerate with this evaluator for non-
+    capture moves — that's intentional. The structural fix for belief-noise-
+    driven heuristics is to not aggregate over noisy particles; aggregate
+    over observed truth instead.
+    """
+
+    def build(view: PerspectiveView) -> Evaluator:
+        perspective = view.perspective
+        visible_opp_pieces: dict[chess.Square, chess.Piece] = {
+            sq: piece
+            for sq, piece in view.visible_piece_map.items()
+            if piece.color != perspective
+        }
+
+        def evaluate(
+            board: chess.Board, move: chess.Move, perspective_: chess.Color
+        ) -> float:
+            target = board.piece_at(move.to_square)
+            if target is not None and target.piece_type == chess.KING:
+                return (
+                    _KING_CAPTURE_SCORE
+                    if target.color != perspective_
+                    else -_KING_CAPTURE_SCORE
+                )
+
+            advanced = board.copy()
+            advanced.push(move)
+            if (
+                advanced.king(chess.WHITE) is None
+                or advanced.king(chess.BLACK) is None
+            ):
+                return 0.0
+
+            base = material_score(advanced, perspective_)
+
+            visibility_board = chess.Board.empty()
+            for sq in chess.SquareSet(advanced.occupied_co[perspective_]):
+                piece = advanced.piece_at(sq)
+                if piece is not None:
+                    visibility_board.set_piece_at(sq, piece)
+            for sq, piece in visible_opp_pieces.items():
+                if advanced.piece_at(sq) is None:
+                    continue  # captured by `move`, no longer threatens
+                visibility_board.set_piece_at(sq, piece)
+            visibility_board.turn = not perspective_
+
+            threatened: set[int] = set()
+            for m in visibility_board.pseudo_legal_moves:
+                tgt = visibility_board.piece_at(m.to_square)
+                if (
+                    tgt is not None
+                    and tgt.color == perspective_
+                    and tgt.piece_type != chess.KING
+                ):
+                    threatened.add(m.to_square)
+            threat_value = sum(
+                _PIECE_VALUES[visibility_board.piece_at(sq).piece_type]
+                for sq in threatened
+            )
+
+            return base - threat_lambda * threat_value
+
+        return evaluate
+
+    return build
 
 
 @contextmanager

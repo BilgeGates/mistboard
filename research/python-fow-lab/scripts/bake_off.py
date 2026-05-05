@@ -24,12 +24,14 @@ sys.path.insert(0, str(_LAB_ROOT / "src"))
 
 from contextlib import nullcontext
 
+from fow_chess.engine import EvaluatorBuilder, static_builder
 from fow_chess.evaluator import (
     material_evaluator,
     stockfish_evaluator,
     threat_aware_evaluator,
+    visibility_threat_evaluator,
 )
-from fow_chess.selfplay import play_game
+from fow_chess.selfplay import PerspectiveView, play_game
 from fow_chess.strategies import RandomStrategy, Tier1Strategy
 
 
@@ -38,10 +40,13 @@ def main() -> int:
     parser.add_argument("--games", type=int, default=20)
     parser.add_argument(
         "--evaluator",
-        choices=("material", "threat", "stockfish"),
+        choices=("material", "threat", "visibility-threat", "stockfish"),
         default="material",
         help="Tier-1 evaluator. material: pure post-move material balance. "
-        "threat: material minus discounted hanging-piece value. stockfish: "
+        "threat: material minus particle-aggregated hanging-piece value "
+        "(hallucinates threats from hypothesized particles). "
+        "visibility-threat: material minus threats from visible opp pieces "
+        "only — observed truth, no particle aggregation. stockfish: "
         "Stockfish via UCI (flaky on FOW positions where side-to-move is "
         "in check).",
     )
@@ -77,19 +82,27 @@ def main() -> int:
 
     if args.evaluator == "stockfish":
         evaluator_ctx = stockfish_evaluator(path=args.stockfish, depth=args.depth)
+        builder_factory = lambda evaluate: static_builder(evaluate)
     elif args.evaluator == "threat":
         evaluator_ctx = nullcontext(threat_aware_evaluator(args.threat_lambda))
+        builder_factory = lambda evaluate: static_builder(evaluate)
+    elif args.evaluator == "visibility-threat":
+        # Builder closes over the per-move PerspectiveView; no static evaluator.
+        evaluator_ctx = nullcontext(visibility_threat_evaluator(args.threat_lambda))
+        builder_factory = lambda builder: builder
     else:
         evaluator_ctx = nullcontext(material_evaluator())
+        builder_factory = lambda evaluate: static_builder(evaluate)
 
-    with evaluator_ctx as evaluate:
+    with evaluator_ctx as evaluate_or_builder:
+        evaluator_builder: EvaluatorBuilder = builder_factory(evaluate_or_builder)
         for i in range(args.games):
             tier1_white = i % 2 == 0  # alternate colors
             seed_base = args.seed + i * 7919
 
             tier1 = _LatencyTracking(
                 Tier1Strategy(
-                    evaluator=evaluate,
+                    evaluator_builder=evaluator_builder,
                     target_n=args.target_n,
                     max_eval_particles=args.max_particles,
                     risk_aversion=args.risk_aversion,
@@ -171,9 +184,9 @@ class _LatencyTracking:
     def observe_opp_move(self, observation) -> None:
         self.inner.observe_opp_move(observation)
 
-    def pick_move(self, own_legal_moves):
+    def pick_move(self, view):
         t0 = time.time()
-        move = self.inner.pick_move(own_legal_moves)
+        move = self.inner.pick_move(view)
         self.total_seconds += time.time() - t0
         self.move_count += 1
         return move

@@ -9,24 +9,43 @@ from typing import Any, Protocol
 import chess
 
 from .observation import Observation, observation_from_transition
+from .visibility import visible_piece_map, visible_squares
 
 GameEvent = dict[str, Any]
+
+
+@dataclass(frozen=True)
+class PerspectiveView:
+    """The information a player has at decision time under fog of war.
+
+    Computed from the canonical board by the harness and handed to strategies
+    in place of the canonical board. Strategies see only their own pieces and
+    squares their pieces can reach — they cannot peek at hidden opp pieces or
+    squares outside their visibility set.
+
+    `visible_piece_map` includes both own pieces (always visible to self) and
+    visible opp pieces. Filter by `piece.color` to separate.
+    """
+
+    perspective: chess.Color
+    own_legal_moves: list[chess.Move]
+    visible_squares: chess.SquareSet
+    visible_piece_map: dict[chess.Square, chess.Piece]
 
 
 class Strategy(Protocol):
     """Per-game player. Receives observations; returns moves.
 
     `pick_move` is called when it is this strategy's turn. The harness hands it
-    the list of pseudo-legal moves available on the canonical board (not the
-    belief — the player's own pieces are fully known to them; legality of
-    those moves only depends on own pieces and the squares they attack/occupy,
-    which under FOW the player can compute from PlayerView).
+    a `PerspectiveView` — own legal moves plus visibility data. Visibility
+    enables evaluators that score from observed truth (e.g. visibility-grounded
+    threats) rather than particle-aggregated hypotheses.
     """
 
     def reset(self, perspective: chess.Color) -> None: ...
     def observe_own_move(self, move: chess.Move) -> None: ...
     def observe_opp_move(self, observation: Observation) -> None: ...
-    def pick_move(self, own_legal_moves: list[chess.Move]) -> chess.Move: ...
+    def pick_move(self, view: PerspectiveView) -> chess.Move: ...
 
 
 @dataclass
@@ -82,8 +101,14 @@ def play_game(
             end_reason = "no-legal-moves"
             break
 
+        view = PerspectiveView(
+            perspective=color,
+            own_legal_moves=own_legals,
+            visible_squares=visible_squares(board, color),
+            visible_piece_map=visible_piece_map(board, color),
+        )
         prev = board.copy()
-        move = active.pick_move(own_legals)
+        move = active.pick_move(view)
         board.push(move)
         plies += 1
 

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import random
-from typing import Protocol
+from typing import TYPE_CHECKING, Callable, Protocol
 
 import chess
 
 from .belief import BeliefState
+
+if TYPE_CHECKING:
+    from .selfplay import PerspectiveView
 
 
 class Evaluator(Protocol):
@@ -19,6 +22,22 @@ class Evaluator(Protocol):
         move: chess.Move,
         perspective: chess.Color,
     ) -> float: ...
+
+
+# An EvaluatorBuilder produces a per-move Evaluator, optionally informed by the
+# current PerspectiveView. Strategies that need visibility-grounded heuristics
+# (threats counted from observed truth rather than particle hypotheses) build a
+# fresh evaluator per move; view-independent evaluators wrap with `static_builder`.
+EvaluatorBuilder = Callable[["PerspectiveView"], Evaluator]
+
+
+def static_builder(evaluator: Evaluator) -> EvaluatorBuilder:
+    """Wrap a view-independent Evaluator as an EvaluatorBuilder."""
+
+    def build(view: "PerspectiveView") -> Evaluator:
+        return evaluator
+
+    return build
 
 
 def best_action(

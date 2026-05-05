@@ -8,9 +8,10 @@ from dataclasses import dataclass, field
 import chess
 
 from .belief import BeliefState
-from .engine import Evaluator, best_action
+from .engine import EvaluatorBuilder, best_action
 from .move_priors import OpponentMovePrior, uniform_prior
 from .observation import Observation
+from .selfplay import PerspectiveView
 
 
 class RandomStrategy:
@@ -28,19 +29,22 @@ class RandomStrategy:
     def observe_opp_move(self, observation: Observation) -> None:
         pass
 
-    def pick_move(self, own_legal_moves: list[chess.Move]) -> chess.Move:
-        return self.rng.choice(own_legal_moves)
+    def pick_move(self, view: PerspectiveView) -> chess.Move:
+        return self.rng.choice(view.own_legal_moves)
 
 
 @dataclass
 class Tier1Strategy:
-    """Belief tracker + per-particle Stockfish vote.
+    """Belief tracker + per-particle evaluator vote.
 
-    The evaluator is taken in via dependency injection so the caller controls
-    Stockfish lifetime via `stockfish_evaluator` (a context manager).
+    The evaluator is taken in via an `EvaluatorBuilder`: a callable that
+    produces a per-move Evaluator given the current PerspectiveView. View-
+    independent evaluators (material, Stockfish) wrap with
+    `engine.static_builder`. Visibility-grounded evaluators close over the
+    view to compute threats from observed truth.
     """
 
-    evaluator: Evaluator
+    evaluator_builder: EvaluatorBuilder
     move_prior: OpponentMovePrior = field(default=uniform_prior)
     target_n: int = 256
     max_eval_particles: int = 16
@@ -67,12 +71,13 @@ class Tier1Strategy:
         assert self._belief is not None
         self._belief.update_after_opp_move(observation)
 
-    def pick_move(self, own_legal_moves: list[chess.Move]) -> chess.Move:
+    def pick_move(self, view: PerspectiveView) -> chess.Move:
         assert self._belief is not None
+        evaluator = self.evaluator_builder(view)
         return best_action(
             self._belief,
-            self.evaluator,
-            own_legal_moves,
+            evaluator,
+            view.own_legal_moves,
             max_particles=self.max_eval_particles,
             risk_aversion=self.risk_aversion,
             rng=self._rng,
