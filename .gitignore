@@ -8,4 +8,6 @@ apps/web/.vite
 .venv
 __pycache__
 *.egg-info
+research/python-fow-lab/corpora/*/games/
+research/python-fow-lab/corpora/*/views/
 
