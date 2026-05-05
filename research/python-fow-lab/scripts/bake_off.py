@@ -24,7 +24,11 @@ sys.path.insert(0, str(_LAB_ROOT / "src"))
 
 from contextlib import nullcontext
 
-from fow_chess.evaluator import material_evaluator, stockfish_evaluator
+from fow_chess.evaluator import (
+    material_evaluator,
+    stockfish_evaluator,
+    threat_aware_evaluator,
+)
 from fow_chess.selfplay import play_game
 from fow_chess.strategies import RandomStrategy, Tier1Strategy
 
@@ -34,11 +38,14 @@ def main() -> int:
     parser.add_argument("--games", type=int, default=20)
     parser.add_argument(
         "--evaluator",
-        choices=("material", "stockfish"),
+        choices=("material", "threat", "stockfish"),
         default="material",
-        help="Tier-1 evaluator. Material is fast and reliable; stockfish is "
-        "stronger but flaky on FOW positions where side-to-move is in check.",
+        help="Tier-1 evaluator. material: pure post-move material balance. "
+        "threat: material minus discounted hanging-piece value. stockfish: "
+        "Stockfish via UCI (flaky on FOW positions where side-to-move is "
+        "in check).",
     )
+    parser.add_argument("--threat-lambda", type=float, default=0.3)
     parser.add_argument("--depth", type=int, default=4)
     parser.add_argument("--max-particles", type=int, default=16)
     parser.add_argument("--target-n", type=int, default=256)
@@ -70,6 +77,8 @@ def main() -> int:
 
     if args.evaluator == "stockfish":
         evaluator_ctx = stockfish_evaluator(path=args.stockfish, depth=args.depth)
+    elif args.evaluator == "threat":
+        evaluator_ctx = nullcontext(threat_aware_evaluator(args.threat_lambda))
     else:
         evaluator_ctx = nullcontext(material_evaluator())
 

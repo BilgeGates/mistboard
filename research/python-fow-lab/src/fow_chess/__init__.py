@@ -2,7 +2,12 @@
 
 from .belief import BeliefState
 from .engine import Evaluator, best_action
-from .evaluator import material_evaluator, material_score, stockfish_evaluator
+from .evaluator import (
+    material_evaluator,
+    material_score,
+    stockfish_evaluator,
+    threat_aware_evaluator,
+)
 from .event_log import (
     PerspectiveStep,
     iter_steps,
@@ -43,6 +48,7 @@ __all__ = [
     "play_game",
     "replay_canonical",
     "stockfish_evaluator",
+    "threat_aware_evaluator",
     "uniform_prior",
     "visible_piece_map",
     "visible_squares",

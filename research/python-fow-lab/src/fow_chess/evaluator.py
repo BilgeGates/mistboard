@@ -70,6 +70,56 @@ def material_evaluator() -> Evaluator:
     return evaluate
 
 
+def threat_aware_evaluator(threat_lambda: float = 0.3) -> Evaluator:
+    """Material balance minus a discount for `perspective`'s pieces opp can capture.
+
+    For each candidate post-move position, sums the values of `perspective`'s
+    non-king pieces that opp's pseudo-legal moves could capture (each piece
+    counted once even if multiply attacked, since opp only captures one per
+    turn). Subtracts `threat_lambda * threatened_value` from the material
+    balance. With a lambda around 0.3, this approximates the expected loss
+    from a moderately-active opponent without over-penalizing every threat.
+
+    Threat counting depends on opponent piece positions, which differ across
+    belief particles — this is the first evaluator that returns
+    particle-dependent scores for non-capture moves, making per-particle
+    voting and risk_aversion meaningful.
+    """
+
+    def evaluate(
+        board: chess.Board, move: chess.Move, perspective: chess.Color
+    ) -> float:
+        target = board.piece_at(move.to_square)
+        if target is not None and target.piece_type == chess.KING:
+            return (
+                _KING_CAPTURE_SCORE
+                if target.color != perspective
+                else -_KING_CAPTURE_SCORE
+            )
+
+        advanced = board.copy()
+        advanced.push(move)
+        if advanced.king(chess.WHITE) is None or advanced.king(chess.BLACK) is None:
+            return 0.0
+
+        base = material_score(advanced, perspective)
+
+        # advanced.turn is now opp; iterate their pseudo-legal moves and
+        # collect the squares of `perspective`'s pieces under attack.
+        threatened_squares: set[int] = set()
+        for m in advanced.pseudo_legal_moves:
+            tgt = advanced.piece_at(m.to_square)
+            if tgt is not None and tgt.color == perspective and tgt.piece_type != chess.KING:
+                threatened_squares.add(m.to_square)
+
+        threat_value = sum(
+            _PIECE_VALUES[advanced.piece_at(sq).piece_type] for sq in threatened_squares
+        )
+        return base - threat_lambda * threat_value
+
+    return evaluate
+
+
 @contextmanager
 def stockfish_evaluator(
     *,
