@@ -42,6 +42,14 @@ def main() -> int:
     parser.add_argument("--depth", type=int, default=4)
     parser.add_argument("--max-particles", type=int, default=16)
     parser.add_argument("--target-n", type=int, default=256)
+    parser.add_argument(
+        "--risk-aversion",
+        type=float,
+        default=0.0,
+        help="Mean-vs-worst-case interpolation in [0, 1]. 0 = pure mean (default), "
+        "1 = pure worst-case across particles. ~0.3-0.5 typically reduces "
+        "Tier-1 walking into multi-particle traps.",
+    )
     parser.add_argument("--max-plies", type=int, default=300)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--stockfish", default="stockfish")
@@ -49,7 +57,8 @@ def main() -> int:
 
     print(
         f"bake-off: {args.games} games, evaluator={args.evaluator}, "
-        f"max_particles={args.max_particles}, target_n={args.target_n}"
+        f"max_particles={args.max_particles}, target_n={args.target_n}, "
+        f"risk_aversion={args.risk_aversion}"
     )
 
     tier1_wins = 0
@@ -74,6 +83,7 @@ def main() -> int:
                     evaluator=evaluate,
                     target_n=args.target_n,
                     max_eval_particles=args.max_particles,
+                    risk_aversion=args.risk_aversion,
                     seed=seed_base,
                 )
             )

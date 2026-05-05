@@ -44,6 +44,7 @@ class Tier1Strategy:
     move_prior: OpponentMovePrior = field(default=uniform_prior)
     target_n: int = 256
     max_eval_particles: int = 16
+    risk_aversion: float = 0.0
     seed: int = 0
 
     def __post_init__(self) -> None:
@@ -73,5 +74,6 @@ class Tier1Strategy:
             self.evaluator,
             own_legal_moves,
             max_particles=self.max_eval_particles,
+            risk_aversion=self.risk_aversion,
             rng=self._rng,
         )
