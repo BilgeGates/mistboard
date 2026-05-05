@@ -179,6 +179,30 @@ test('Fog of War pawn visibility reveals diagonal captures but not direct blocke
   assert.equal(view.visibleSquares.includes('f5'), false);
 });
 
+test('Fog of War en passant does not leak visibility to the pushing side', () => {
+  // Right after white plays b2-b4, enPassantSquare=b3. The pushing side
+  // (white) cannot legally capture EP (b3 is on rank 3, white's EP target
+  // rank is 6). White pawns at c2/a2 must NOT treat b3 as a capture target.
+  // Regression for the bug surfaced by cross-language visibility parity.
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-ep-no-pushing-side-leak'),
+    board: {
+      a2: { color: 'white', role: 'pawn' },
+      b4: { color: 'white', role: 'pawn' },
+      c2: { color: 'white', role: 'pawn' },
+      e1: { color: 'white', role: 'king' },
+      e8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'black' } as const,
+    castlingRights: [],
+    enPassantSquare: 'b3',
+  };
+
+  const view = fogOfWarVariant.getPlayerView(state, 'white');
+
+  assert.ok(!view.visibleSquares.includes('b3'));
+});
+
 test('Fog of War en passant visibility includes the captured pawn square', () => {
   const state: GameState = {
     ...fogOfWarVariant.createInitialState('fog-en-passant-visibility'),

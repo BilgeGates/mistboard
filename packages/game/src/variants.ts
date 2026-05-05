@@ -259,6 +259,7 @@ function fogPawnMoves(state: GameState, from: Square, color: Color): Move[] {
   const moves: Move[] = [];
   const direction = color === 'white' ? 1 : -1;
   const startRank = color === 'white' ? 2 : 7;
+  const epCaptureFromRank = color === 'white' ? 5 : 4;
   const oneStep = offsetSquare(from, 0, direction);
   if (oneStep && !state.board[oneStep]) {
     addMaybePromotion(moves, from, oneStep);
@@ -273,7 +274,8 @@ function fogPawnMoves(state: GameState, from: Square, color: Color): Move[] {
     const to = offsetSquare(from, fileOffset, direction);
     if (!to) continue;
     const target = state.board[to];
-    if ((target && target.color !== color) || to === state.enPassantSquare) {
+    const isEnPassantCapture = to === state.enPassantSquare && rankOf(from) === epCaptureFromRank;
+    if ((target && target.color !== color) || isEnPassantCapture) {
       addMaybePromotion(moves, from, to);
     }
   }
