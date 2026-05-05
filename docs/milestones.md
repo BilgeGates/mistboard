@@ -92,6 +92,10 @@ Goal: two players can complete a Fog game online.
 
 Checkpoint: complete a Fog game without hidden-state leaks in network payloads.
 
+## Note On Draft960 Framing (2026-05-05)
+
+Milestones 1, 1.5, and 2 below describe Draft960 work that originally shipped as a peer mode alongside Fog of War. As of 2026-05-05 Bichess is sharpened to **Fog of War only** as the product, with Draft960 reframed as a Fog of War **pregame feature** (optional start-position draft inside a FOW game). The historical Draft960 work below is preserved as completed scaffolding — it built the shared play surface and pregame state machine that Fog of War depends on. New Draft960 work happens as part of Fog of War milestones, not as standalone Draft960 polish.
+
 ## Milestone 5: Bid For White Experimental
 
 Goal: two players can privately bid clock time for the White pieces, then play a normal timed game.
@@ -105,7 +109,7 @@ Goal: two players can privately bid clock time for the White pieces, then play a
 
 Checkpoint: two browser tabs submit bids, the higher bidder receives White with the bid deducted from their clock, and play starts.
 
-Product status: implemented as an experimental/lab mode and kept out of the primary Create Room picker. Fog of War is the flagship focus; Draft960 remains the approachable second mode.
+Product status: implemented as an experimental/lab mode and kept out of the primary Create Room picker. Fog of War is the only flagship; Bid For White stays in the lab.
 
 ## Milestone 6: Fog of War Private Alpha
 
@@ -136,3 +140,16 @@ Goal: make Fog of War understandable after the game, not just playable during th
 - [ ] Define the self-play data format for future model training.
 
 Checkpoint: players can review a Fog game and understand the hidden-information decisions that shaped the result.
+
+## Milestone 8: Fog of War + Draft960 Pregame Integration
+
+Goal: Draft960 pregame becomes an optional starting-position picker inside Fog of War, replacing the standalone Draft960 mode as a primary product surface.
+
+- [ ] Add a "starting position" choice on Fog of War room creation: standard start (default) or Draft960 draft.
+- [ ] When Draft960 is chosen, generate three legal Chess960 starts and run the existing pregame selection state machine; resolve into a Fog of War game on the selected start.
+- [ ] Verify visibility tests cover non-mirrored Chess960 starts (asymmetric vision from non-classical positions).
+- [ ] Update the postgame reveal and replay flows to label and replay Draft960-start FOW games correctly.
+- [ ] Demote standalone Draft960 mode from the primary Create Room flow; keep the URL accessible during the transition for existing tests but stop investing in standalone Draft960 polish.
+
+Checkpoint: a single Create Room flow lets two players choose Fog of War with either standard or Draft960 start, and both paths play through to a clean reveal.
+

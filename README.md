@@ -1,8 +1,8 @@
 # Bichess
 
-Bichess is an open-source chess-variant site focused on hidden-information chess.
+Bichess is an open-source site for **Fog of War chess**: a hidden-information chess variant where each player sees only what their pieces can legally see, enforced by the server.
 
-Players can create a room, share a link, and play variants that still feel like chess while adding new decisions. The main focus is Fog of War: a version of chess where each player sees only what their pieces can legally see.
+Players create a room, share a link, and play. The full board exists only on the server; clients receive only their own legal view.
 
 Bichess is an independent open-source project. It is not affiliated with lichess, chess.com, or any other chess platform.
 
@@ -15,39 +15,51 @@ That means:
 - correct hidden information, enforced by the server
 - fast shared-link games that are easy to start
 - clear player views, replay, and postgame reveal
+- pregame agency over the starting position when players want it
 - future tools for learning, analysis, and Fog-specific engine work
 
-Primary modes:
+## How A Game Works
 
-1. **Fog of War** - the flagship mode. The server owns the full board, and each player receives only their legal view.
-2. **Draft960** - the approachable second mode. Both players choose from three legal Chess960 starts before the game begins.
+The flagship and only flagship mode is **Fog of War**. Two players open a room link, optionally pick their starting position, and play a hidden-information chess game.
 
-Experimental lab mode:
+### Pregame: Standard Start vs Draft960
 
-- **Bid For White** - players secretly bid clock time for the right to play White. It is useful for testing architecture, but it is not part of the main product focus.
+Before the game begins, the room can be configured with one of two starting-position policies:
 
-## Why These Modes
+- **Standard start** — the classical chess opening position. The fastest path to a Fog of War game.
+- **Draft960** — both players are offered three legal Chess960 positions and each picks one. The selected position becomes the Fog of War starting position.
 
-### Fog of War
+Draft960 is a pregame **feature** of Fog of War, not a separate mode. It exists because Fog of War is more interesting from non-mirrored starts: asymmetric setups create asymmetric vision, and the pregame draft adds agency over the kind of positional texture both players want before move one.
 
-Fog of War is broken if the client receives the opponent's true move and then hides it visually. A player can inspect network payloads or parse client events and recover hidden information. Bichess treats fog as a server-authoritative hidden-information game:
+### In-Game: Fog of War
+
+During play, Bichess treats fog as a server-authoritative hidden-information game:
 
 - the server stores the canonical full board
 - the browser never receives hidden pieces or hidden opponent moves
 - each player receives only a `PlayerView`
 - spectators and replay modes are explicitly separated from live player views
 
-Longer term, Fog of War is where Bichess should build durable advantage: visibility history, postgame reveal, partial-information analysis, and engine work that understands uncertainty instead of pretending the full board is known.
+A correct Fog of War implementation must never send hidden truth to the wrong client. Existing UI-layer fog implementations leak the real opponent move in network payloads and rely on client code to hide it visually — anyone inspecting payloads or parsing client events can recover hidden information. Bichess does not do that.
 
-### Draft960
+### Postgame: Reveal And Replay
 
-Chess960 disrupts memorized piece arrangements, but it preserves mirrored setup and White's first-move initiative. Draft960 adds a tiny pregame choice layer: players select the kind of starting-position texture they want before move one.
+After the game ends, the canonical truth is revealed. Replay can be viewed from White's perspective, Black's perspective, or full truth.
 
-Draft960 remains valuable because it is easy to understand, exercises the shared play surface, and keeps Bichess welcoming to players who want a smaller step away from classical chess. It is not the primary strategic wedge.
+## Why Fog of War
 
-### Bid For White
+Fog of War is where Bichess builds durable advantage. The medium-term roadmap centers on partial-information understanding:
 
-Bid For White changes incentives without changing chess rules: both players secretly bid clock time, the higher bidder gets White and pays the time. It is implemented and testable, but not currently a flagship mode because the game after resolution is still normal chess.
+- visibility history (when did each side see what)
+- postgame reveal that highlights hidden-information turning points
+- analysis tooling that marks king exposure, missed king-capture chances, and high-information moves
+- engine and bot work that reasons about uncertainty instead of pretending the full board is known
+
+This is structurally different from analyzing classical chess. Mainstream platforms do not address it well, and the better the tooling here, the harder Bichess is to replace.
+
+## Experimental Lab
+
+**Bid For White** — players secretly bid clock time for the right to play White. After resolution, the game proceeds as normal Fog of War. Implemented and accessible via direct URL, but not part of the primary Create Room flow. Useful for testing the bid/resolve event architecture; not currently a flagship feature.
 
 ## Scope
 
@@ -57,10 +69,9 @@ In scope for v1:
 - WebSocket game rooms
 - server-authoritative state
 - correct Fog of War player views
-- playable timed Fog of War games
+- playable timed Fog of War games (standard start)
+- Fog of War games with Draft960 pregame start selection
 - Fog postgame reveal and replay foundations
-- Draft960 pregame flow
-- complete timed Draft960 games
 - replay from event history
 
 Out of scope for v1:
@@ -68,11 +79,11 @@ Out of scope for v1:
 - ratings
 - matchmaking
 - tournaments
-- chat/moderation
+- chat / moderation
 - engine analysis
 - OAuth
 - monetization
-- full lila fork
+- standalone non-Fog game modes as primary product surface
 
 ## Architecture
 
@@ -82,7 +93,18 @@ apps/server   WebSocket game rooms, clocks, event log
 packages/game shared variant kernel, state types, player views
 ```
 
-The critical abstraction is `getPlayerView(state, color)`. Standard and Draft960 games can expose full board state. Fog of War must return only the visible partial state for that player.
+The critical abstraction is `getPlayerView(state, color)`. For Fog of War, this returns only the visible partial state for that player. For other game shapes used internally (e.g., the classical/Draft960 surface used to validate the play surface), it returns the full board.
+
+## Repository Layout
+
+```text
+apps/                  Production app (TS)
+packages/              Shared game kernel (TS)
+docs/                  Product docs and rules
+docs/fog-of-war/       FOW-specific rule and research notes
+research/              Offline research, not shipped in the product
+research/python-fow-lab/  Python sidecar for visibility/bot/inference experiments
+```
 
 ## Development
 
@@ -92,17 +114,7 @@ npm run dev
 npm test
 ```
 
-The scaffold starts with in-memory rooms. Persistence comes after Fog of War and Draft960 are reliable enough for private alpha testing.
-
-For one-browser local testing, use solo dev mode:
-
-```text
-http://localhost:3000/?room=dev-room&reset=1&variant=draft960&dev=solo
-```
-
-Solo mode remains a Draft960-only utility that lets one browser make both start selections and move for whichever color is on turn. Normal rooms still use two browser tabs.
-
-The app sidebar includes Create Room links for Fog of War and Fog vs Random. Direct room URLs are still useful for repeatable tests and hidden experimental modes.
+The scaffold starts with in-memory rooms. Persistence comes after Fog of War is reliable enough for private alpha testing.
 
 Fog of War rooms can be created with:
 
@@ -118,6 +130,14 @@ http://localhost:3000/?room=fog-engine-dev&reset=1&variant=fog-of-war&dev=engine
 
 This harness seats the human as White, reserves Black for a basic random-move engine, and shows dev-only Player, Black, and True view boards in the sidebar.
 
+For the Draft960 pregame surface (currently still wired to a standalone variant URL during the transition):
+
+```text
+http://localhost:3000/?room=dev-room&reset=1&variant=draft960&dev=solo
+```
+
+Solo dev mode lets one browser make both start selections and move for whichever color is on turn. Normal rooms still use two browser tabs.
+
 Bid For White remains available as an experimental direct URL:
 
 ```text
@@ -126,7 +146,7 @@ http://localhost:3000/?room=bid-dev&reset=1&variant=bid-for-white
 
 ## Repository Policy
 
-Bichess is intended to be a public/open-source repo from day one. The project uses GPL-family chess libraries such as `chessops`, and future board work may use `chessground`, so the repo is licensed as GPL-3.0-or-later.
+Bichess is a public/open-source repo from day one. The project uses GPL-family chess libraries (`chessops`, `chessground`), so the repo is licensed as GPL-3.0-or-later.
 
 The npm packages remain marked `"private": true` to prevent accidental package publishing. That setting does not imply a private GitHub repository.
 
