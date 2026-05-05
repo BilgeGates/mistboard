@@ -47,14 +47,17 @@ def best_action(
         # Caller should treat this as a known degenerate case.
         return own_legal_moves[0]
 
-    sampled_particles, sampled_weights = _sample_particles(
-        belief, max_particles, rng or random.Random(0)
-    )
+    rng = rng or random.Random(0)
+    sampled_particles, sampled_weights = _sample_particles(belief, max_particles, rng)
 
-    best_move = own_legal_moves[0]
+    # Score each candidate move; break ties uniformly at random over moves
+    # whose score is within an epsilon band of the best. Without this, all
+    # equal-scored moves resolve to the first legal one (alphabetic on
+    # from-square), so an early-opening move set with no captures collapses
+    # to a fixed deterministic line — a real handicap when the opening has
+    # no material gradient.
+    move_scores: list[tuple[chess.Move, float, float]] = []
     best_score = float("-inf")
-    best_support = 0.0
-
     for move in own_legal_moves:
         weighted_sum = 0.0
         total_weight = 0.0
@@ -64,17 +67,27 @@ def best_action(
             score = evaluator(particle, move, belief.perspective)
             weighted_sum += weight * score
             total_weight += weight
-
         if total_weight <= 0.0:
             continue
         avg = weighted_sum / total_weight
-        # Tiebreak: prefer the move with broader legal support across particles.
-        if (avg, total_weight) > (best_score, best_support):
+        move_scores.append((move, avg, total_weight))
+        if avg > best_score:
             best_score = avg
-            best_support = total_weight
-            best_move = move
 
-    return best_move
+    if not move_scores:
+        return own_legal_moves[0]
+
+    epsilon = 1e-6
+    candidates = [
+        (move, support)
+        for move, score, support in move_scores
+        if score >= best_score - epsilon
+    ]
+    # Tiebreak by sample over equal-score moves; weight by support so moves
+    # legal in more particles are slightly preferred among equals.
+    moves = [m for m, _ in candidates]
+    weights = [s for _, s in candidates]
+    return rng.choices(moves, weights=weights, k=1)[0]
 
 
 def _sample_particles(
