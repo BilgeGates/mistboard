@@ -5,4 +5,7 @@ dist
 *.log
 .DS_Store
 apps/web/.vite
+.venv
+__pycache__
+*.egg-info
 
