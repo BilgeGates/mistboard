@@ -61,6 +61,13 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--target-n", type=int, default=256)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=6,
+        help="Render the top-K unique particle boards (by population) per ply. "
+        "0 to disable.",
+    )
     args = parser.parse_args()
 
     perspective = chess.WHITE if args.perspective == "white" else chess.BLACK
@@ -101,6 +108,7 @@ def main() -> int:
                 belief=belief,
                 perspective=perspective,
                 diag=diag,
+                top_k=args.top_k,
             )
         )
 
@@ -178,6 +186,7 @@ def _render_ply_html(
     belief: BeliefState,
     perspective: chess.Color,
     diag: PlyDiagnostic,
+    top_k: int,
 ) -> str:
     canonical_svg = chess.svg.board(
         step.canonical_after,
@@ -191,6 +200,16 @@ def _render_ply_html(
     )
     truth_label = "✓" if diag.truth_in_set else "✗ truth out of set"
     section_class = "ply" if diag.truth_in_set else "ply truth-lost"
+    top_html = (
+        _render_top_particles_html(
+            belief=belief,
+            canonical=step.canonical_after,
+            perspective=perspective,
+            k=top_k,
+        )
+        if top_k > 0 and diag.unique_particles > 1
+        else ""
+    )
     return f"""
     <section class="{section_class}" id="ply-{diag.ply}">
       <h3>ply {diag.ply} — {diag.actor}</h3>
@@ -203,8 +222,92 @@ def _render_ply_html(
         <div><h4>canonical truth</h4>{canonical_svg}</div>
         <div><h4>belief (opp marginals shaded)</h4>{belief_svg}</div>
       </div>
+      {top_html}
     </section>
     """
+
+
+def _render_top_particles_html(
+    *,
+    belief: BeliefState,
+    canonical: chess.Board,
+    perspective: chess.Color,
+    k: int,
+) -> str:
+    """Render the top-K most-populated unique particle worlds as a row of mini-boards.
+
+    If the canonical truth is in the set but doesn't fall in the top K (common
+    early-game when populations are spread thin), it's appended as an extra
+    card so the truth comparison stays visible.
+    """
+    groups = _group_particles_by_piece_map(belief)
+    if not groups:
+        return ""
+    truth_key = _piece_map_key(canonical)
+    top = list(groups[:k])
+    truth_in_set = any(key == truth_key for key, _ in groups)
+    truth_in_top = any(key == truth_key for key, _ in top)
+    appended_truth = False
+    if truth_in_set and not truth_in_top:
+        for key, val in groups:
+            if key == truth_key:
+                top.append((key, val))
+                appended_truth = True
+                break
+
+    cards: list[str] = []
+    for key, (board, count) in top:
+        is_truth = key == truth_key
+        svg = chess.svg.board(board, size=180, orientation=perspective)
+        truth_marker = (
+            " · <strong style='color:#2a2;'>TRUTH</strong>" if is_truth else ""
+        )
+        border = "3px solid #2a2" if is_truth else "1px solid #ccc"
+        cards.append(
+            f'<div style="border: {border}; padding: 4px; background: #fafafa;">'
+            f'<div>{svg}</div>'
+            f'<div style="font-size: 11px; text-align: center; padding-top: 2px;">'
+            f'{count} particle{"" if count == 1 else "s"}{truth_marker}'
+            f'</div>'
+            f'</div>'
+        )
+    total_unique = len(groups)
+    shown = min(k, total_unique)
+    header = f"top {shown} of {total_unique} unique worlds"
+    if appended_truth:
+        header += " (+ truth, appended)"
+    elif truth_in_set:
+        header += " · truth in top"
+    return (
+        f'<details style="margin-top: 8px;"><summary style="cursor: pointer;'
+        f' font-size: 12px; color: #555;">{header}</summary>'
+        f'<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">'
+        f'{"".join(cards)}</div></details>'
+    )
+
+
+def _group_particles_by_piece_map(
+    belief: BeliefState,
+) -> list[tuple[tuple, tuple[chess.Board, int]]]:
+    """Group particles by piece-map; return (key, (representative_board, count)), sorted desc by count."""
+    groups: dict[tuple, tuple[chess.Board, int]] = {}
+    for board in belief.particles:
+        key = _piece_map_key(board)
+        if key in groups:
+            b, c = groups[key]
+            groups[key] = (b, c + 1)
+        else:
+            groups[key] = (board, 1)
+    return sorted(groups.items(), key=lambda item: -item[1][1])
+
+
+def _piece_map_key(board: chess.Board) -> tuple:
+    return tuple(
+        sorted(
+            (sq, piece.piece_type, piece.color)
+            for sq, piece in board.piece_map().items()
+        )
+    )
 
 
 def _render_belief_svg(
