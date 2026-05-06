@@ -348,6 +348,97 @@ class _UCIEngine:
                     break
         return last_score
 
+    def _ensure_alive(self) -> None:
+        """Restart the Stockfish subprocess if it has died.
+
+        Stockfish has been observed to crash on some FOW-edge positions
+        (the same UB surface that broke python-chess in P2.0). When the
+        subprocess exits, stdin writes silently succeed into a closed pipe
+        and stdout reads return EOF, so every subsequent call returns
+        (None, None) instantly. Self-heal so one bad position doesn't
+        zero out analyzer success across the rest of the run.
+        """
+        if self.proc is None or self.proc.poll() is not None:
+            try:
+                self.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._buffer = ""
+            self._open()
+
+    def analyze_fen_for_move(
+        self, fen: str, depth: int, movetime_ms: int, slack_seconds: float = 1.5
+    ) -> tuple[str | None, float | None]:
+        """Best move (UCI string) + score from side-to-move POV. (None, None) on timeout/no-bestmove.
+
+        Drains any leftover output from a previous (possibly interrupted)
+        `go` with isready/readyok before issuing the next position. Without
+        this, a single timeout cascades — leftover info/bestmove lines from
+        the prior call get parsed as the current call's response and
+        Stockfish ends up out of sync with our buffer.
+        """
+        self._ensure_alive()
+        # Drain pending output from any previous go that may not have
+        # cleanly ended. `stop` is a no-op if no search is running; the
+        # subsequent isready/readyok handshake guarantees Stockfish is idle
+        # and our buffer is drained of stale info/bestmove lines.
+        try:
+            self._send("stop")
+            self._send("isready")
+            self._wait_for_token("readyok", timeout=2.0)
+        except TimeoutError:
+            self._ensure_alive()
+            return None, None
+        except (BrokenPipeError, OSError):
+            self._ensure_alive()
+            return None, None
+
+        self._send(f"position fen {fen}")
+        self._send(f"go depth {depth} movetime {movetime_ms}")
+
+        last_score: float | None = None
+        bestmove: str | None = None
+        deadline = time.monotonic() + (movetime_ms / 1000.0) + slack_seconds
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            line = self._readline(remaining)
+            if line is None:
+                break
+            stripped = line.strip()
+            if stripped.startswith("info "):
+                parsed = _parse_info_score(stripped)
+                if parsed is not None:
+                    last_score = parsed
+            elif stripped.startswith("bestmove"):
+                tokens = stripped.split()
+                if len(tokens) >= 2 and tokens[1] not in ("(none)", "0000"):
+                    bestmove = tokens[1]
+                break
+
+        if bestmove is None:
+            self._send("stop")
+            drain_deadline = time.monotonic() + 0.5
+            while True:
+                rem = drain_deadline - time.monotonic()
+                if rem <= 0:
+                    break
+                line = self._readline(rem)
+                if line is None:
+                    break
+                stripped = line.strip()
+                if stripped.startswith("info "):
+                    parsed = _parse_info_score(stripped)
+                    if parsed is not None:
+                        last_score = parsed
+                elif stripped.startswith("bestmove"):
+                    tokens = stripped.split()
+                    if len(tokens) >= 2 and tokens[1] not in ("(none)", "0000"):
+                        bestmove = tokens[1]
+                    break
+        return bestmove, last_score
+
     def close(self) -> None:
         if self.proc is None:
             return

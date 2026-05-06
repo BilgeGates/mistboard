@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 import chess
 
@@ -57,6 +57,9 @@ class GameResult:
     truncated: bool
 
 
+MoveAnalyzer = Callable[[chess.Board, chess.Move, chess.Color], None]
+
+
 def play_game(
     white: Strategy,
     black: Strategy,
@@ -64,11 +67,17 @@ def play_game(
     max_plies: int = 300,
     room_id: str = "engine-play",
     seed: int = 0,
+    analyzer: MoveAnalyzer | None = None,
 ) -> GameResult:
     """Run one FOW game from the standard start to a terminal state.
 
     Game-over: a king is captured. Otherwise truncated at max_plies.
     Stalemate-like positions (no pseudo-legal moves) end as 'no-legal-moves'.
+
+    `analyzer`, if provided, is called after each move with the canonical
+    board state BEFORE the move, the move played, and the mover's color.
+    Used by the P3.2 move-quality-vs-truth instrumentation; harness-side
+    cost only when set.
     """
     _ = seed  # reserved for future deterministic harness wiring
     board = chess.Board()
@@ -109,6 +118,8 @@ def play_game(
         )
         prev = board.copy()
         move = active.pick_move(view)
+        if analyzer is not None:
+            analyzer(prev, move, color)
         board.push(move)
         plies += 1
 

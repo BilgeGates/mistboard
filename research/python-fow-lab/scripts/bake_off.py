@@ -32,8 +32,11 @@ from fow_chess.evaluator import (
     threat_aware_evaluator,
     visibility_threat_evaluator,
 )
+from fow_chess.move_quality import MoveQualityAnalyzer
 from fow_chess.selfplay import PerspectiveView, play_game
 from fow_chess.strategies import RandomStrategy, Tier1Strategy
+
+import chess
 
 
 def main() -> int:
@@ -73,6 +76,33 @@ def main() -> int:
         help="If set, save each game's events as JSONL plus a manifest.json "
         "into this directory. Compatible with inspect_belief.py and the "
         "corpus loader.",
+    )
+    parser.add_argument(
+        "--analyze-vs-truth",
+        action="store_true",
+        help="P3.2: for every Tier-1 move, ask Stockfish on the canonical full-info "
+        "board what move it would have picked. Records agreement per ply, writes "
+        "CSV + summary. Roughly doubles wall time per Tier-1 move.",
+    )
+    parser.add_argument(
+        "--analyze-vs-truth-depth",
+        type=int,
+        default=8,
+        help="Stockfish depth for the move-quality analyzer.",
+    )
+    parser.add_argument(
+        "--analyze-vs-truth-movetime-ms",
+        type=int,
+        default=200,
+        help="Stockfish movetime for the move-quality analyzer (per-move cap).",
+    )
+    parser.add_argument(
+        "--analyze-vs-truth-csv",
+        type=Path,
+        default=None,
+        help="Output path for the move-quality CSV. Defaults to "
+        "<save-dir>/move_quality.csv if --save-dir is set, else "
+        "/tmp/move_quality.csv.",
     )
     parser.add_argument(
         "--save-only",
@@ -117,7 +147,17 @@ def main() -> int:
         evaluator_ctx = nullcontext(material_evaluator())
         builder_factory = lambda evaluate: static_builder(evaluate)
 
-    with evaluator_ctx as evaluate_or_builder:
+    analyzer_ctx = (
+        MoveQualityAnalyzer(
+            depth=args.analyze_vs_truth_depth,
+            movetime_ms=args.analyze_vs_truth_movetime_ms,
+            stockfish_path=args.stockfish,
+        )
+        if args.analyze_vs_truth
+        else nullcontext(None)
+    )
+
+    with evaluator_ctx as evaluate_or_builder, analyzer_ctx as analyzer:
         evaluator_builder: EvaluatorBuilder = builder_factory(evaluate_or_builder)
         for i in range(args.games):
             tier1_white = i % 2 == 0  # alternate colors
@@ -137,6 +177,18 @@ def main() -> int:
             white = tier1 if tier1_white else opp
             black = opp if tier1_white else tier1
 
+            game_analyzer = None
+            if analyzer is not None:
+                analyzer.begin_game(i)
+                tier1_chess_color = chess.WHITE if tier1_white else chess.BLACK
+
+                def game_analyzer(
+                    canonical_board, move_played, mover_color,
+                    _color=tier1_chess_color, _a=analyzer,
+                ):
+                    if mover_color == _color:
+                        _a.record_move(canonical_board, move_played, mover_color)
+
             t0 = time.time()
             result = play_game(
                 white,
@@ -144,6 +196,7 @@ def main() -> int:
                 max_plies=args.max_plies,
                 room_id=f"bakeoff-{i:04d}",
                 seed=seed_base,
+                analyzer=game_analyzer,
             )
             wall = time.time() - t0
 
@@ -199,6 +252,27 @@ def main() -> int:
                 f"tier1_avg={avg_per_move:5.2f}s "
                 f"wall={wall:6.1f}s"
             )
+
+        if analyzer is not None:
+            csv_path = (
+                args.analyze_vs_truth_csv
+                if args.analyze_vs_truth_csv is not None
+                else (
+                    (args.save_dir / "move_quality.csv")
+                    if args.save_dir is not None
+                    else Path("/tmp/move_quality.csv")
+                )
+            )
+            analyzer.write_csv(csv_path)
+            mq = analyzer.summary()
+            print()
+            print("move-quality vs truth (Tier-1 plies only):")
+            print(f"  moves recorded:        {mq['moves_recorded']}")
+            print(f"  moves analyzed by SF:  {mq['moves_analyzed']} "
+                  f"({mq['analyze_success_rate']:.1%})")
+            print(f"  agreement w/ SF-truth: {mq['moves_agreed']} "
+                  f"({mq['agreement_rate_over_analyzed']:.1%} of analyzed)")
+            print(f"  csv:                   {csv_path}")
 
     print()
     print(f"games:                {args.games}")
