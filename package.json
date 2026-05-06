@@ -5,12 +5,13 @@
   "license": "GPL-3.0-or-later",
   "type": "module",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "dev": "npm run dev --workspace @bichess/server & npm run dev --workspace @bichess/web",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=@bichess/game && npm run build --workspace=@bichess/web",
+    "build:all": "npm run build --workspaces",
     "start": "serve apps/web/dist -l tcp://0.0.0.0:${PORT:-8080}",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
