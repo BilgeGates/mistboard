@@ -73,6 +73,15 @@ class Tier1Strategy:
 
     def pick_move(self, view: PerspectiveView) -> chess.Move:
         assert self._belief is not None
+        king_captures = [
+            move
+            for move in view.own_legal_moves
+            if (piece := view.visible_piece_map.get(move.to_square)) is not None
+            and piece.color != view.perspective
+            and piece.piece_type == chess.KING
+        ]
+        if king_captures:
+            return self._rng.choice(king_captures)
         if not self._belief.particles:
             # Belief filter collapsed (no particles consistent with observation).
             # Without this fallback, best_action returns own_legal_moves[0] —
