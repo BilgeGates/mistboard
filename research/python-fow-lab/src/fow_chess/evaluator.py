@@ -1,26 +1,34 @@
 """Evaluators for Tier-1 fog-of-war engines.
 
-Two evaluators are exposed:
+Evaluators exposed:
 
 - `material_evaluator()` — fast, pure-Python centipawn material balance.
   Always usable, no external dependencies, no quirks. The Tier-1 baseline
   uses this.
 
-- `stockfish_evaluator(...)` — Stockfish via UCI for stronger evaluation.
-  Falls back to material on FOW positions Stockfish can't analyse safely:
-  mid-game positions with side-to-move in check that wasn't escaped on the
-  previous ply (FOW doesn't enforce escape) routinely cause Stockfish to
-  return moves python-chess rejects, raising EngineError. Detected via a
-  cheap pre-check, plus a try/except backstop.
+- `visibility_threat_evaluator(threat_lambda)` — material minus threats from
+  visible opp pieces only (observed truth, no particle aggregation). Builder
+  form; closes over `PerspectiveView` per move.
+
+- `stockfish_evaluator(...)` — Stockfish via raw UCI subprocess. Sends
+  positions, parses `info`-line scores, never reads or validates `bestmove`
+  — that's the failure path in python-chess's wrapper, which rejects moves
+  Stockfish emits for FOW positions where side-to-move is in check (FOW
+  doesn't enforce check escape). Falls back to material on timeout or
+  subprocess errors.
 """
 
 from __future__ import annotations
 
+import os
+import pty
+import select
+import subprocess
+import time
 from contextlib import contextmanager
 from typing import Iterator
 
 import chess
-import chess.engine
 
 from .engine import Evaluator, EvaluatorBuilder
 from .selfplay import PerspectiveView
@@ -210,6 +218,182 @@ def visibility_threat_evaluator(threat_lambda: float = 0.3) -> EvaluatorBuilder:
     return build
 
 
+class _UCIEngine:
+    """Minimal UCI client over a Stockfish subprocess.
+
+    Sends `position` and `go`, parses `info`-line scores, ignores `bestmove`.
+    Bypasses python-chess's `engine.analyse` because that path validates
+    bestmove against the position and crashes on FOW positions where
+    side-to-move is in check (Stockfish emits a move that doesn't reconcile
+    with the position python-chess validates against).
+
+    Reads stdout via `select` so the analyse loop has a real wall-clock
+    timeout — Stockfish has been observed to deadlock on some FOW positions,
+    and python-chess's `Limit(time=...)` only bounds Stockfish's compute, not
+    its response time.
+    """
+
+    def __init__(self, path: str = "stockfish", threads: int = 1) -> None:
+        self.path = path
+        self.threads = threads
+        self.proc: subprocess.Popen[bytes] | None = None
+        self._master_fd: int | None = None
+        self._buffer: str = ""
+        self._open()
+
+    def _open(self) -> None:
+        # Stockfish block-buffers stdout when its output is a pipe; give it a
+        # pty so it line-buffers. Stdin stays a regular pipe (we control that
+        # side and flush after every command).
+        master_fd, slave_fd = pty.openpty()
+        self._master_fd = master_fd
+        self.proc = subprocess.Popen(
+            [self.path],
+            stdin=subprocess.PIPE,
+            stdout=slave_fd,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+        os.close(slave_fd)
+        self._send("uci")
+        self._wait_for_token("uciok", timeout=5.0)
+        self._send(f"setoption name Threads value {self.threads}")
+        self._send("isready")
+        self._wait_for_token("readyok", timeout=5.0)
+
+    def _send(self, cmd: str) -> None:
+        if self.proc is None or self.proc.stdin is None:
+            raise BrokenPipeError("UCI engine not running")
+        self.proc.stdin.write((cmd + "\n").encode("utf-8"))
+        self.proc.stdin.flush()
+
+    def _readline(self, timeout: float) -> str | None:
+        if self._master_fd is None:
+            return None
+        deadline = time.monotonic() + timeout
+        while True:
+            if "\n" in self._buffer:
+                line, self._buffer = self._buffer.split("\n", 1)
+                return line + "\n"
+            rem = deadline - time.monotonic()
+            if rem <= 0:
+                return None
+            ready, _, _ = select.select([self._master_fd], [], [], rem)
+            if not ready:
+                return None
+            try:
+                chunk = os.read(self._master_fd, 4096)
+            except OSError:
+                return None
+            if not chunk:
+                return None
+            self._buffer += chunk.decode("utf-8", errors="replace")
+
+    def _wait_for_token(self, token: str, timeout: float) -> None:
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"UCI: timed out waiting for {token}")
+            line = self._readline(remaining)
+            if line is None:
+                raise TimeoutError(f"UCI: timed out waiting for {token}")
+            stripped = line.strip()
+            if stripped == token or stripped.startswith(token + " "):
+                return
+
+    def evaluate_fen(
+        self, fen: str, depth: int, movetime_ms: int, slack_seconds: float = 0.5
+    ) -> float | None:
+        """Score a position from side-to-move's POV in centipawns, or None on timeout."""
+        self._send(f"position fen {fen}")
+        self._send(f"go depth {depth} movetime {movetime_ms}")
+
+        last_score: float | None = None
+        deadline = time.monotonic() + (movetime_ms / 1000.0) + slack_seconds
+        got_bestmove = False
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            line = self._readline(remaining)
+            if line is None:
+                break
+            stripped = line.strip()
+            if stripped.startswith("info "):
+                parsed = _parse_info_score(stripped)
+                if parsed is not None:
+                    last_score = parsed
+            elif stripped.startswith("bestmove"):
+                got_bestmove = True
+                break
+
+        if not got_bestmove:
+            # Bail Stockfish out so it's ready for the next position.
+            self._send("stop")
+            drain_deadline = time.monotonic() + 0.5
+            while True:
+                rem = drain_deadline - time.monotonic()
+                if rem <= 0:
+                    break
+                line = self._readline(rem)
+                if line is None:
+                    break
+                stripped = line.strip()
+                if stripped.startswith("info "):
+                    parsed = _parse_info_score(stripped)
+                    if parsed is not None:
+                        last_score = parsed
+                elif stripped.startswith("bestmove"):
+                    break
+        return last_score
+
+    def close(self) -> None:
+        if self.proc is None:
+            return
+        try:
+            self._send("quit")
+        except Exception:  # noqa: BLE001
+            pass
+        if self.proc.stdin is not None:
+            try:
+                self.proc.stdin.close()
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            self.proc.wait(timeout=2.0)
+        except Exception:  # noqa: BLE001
+            try:
+                self.proc.kill()
+            except Exception:  # noqa: BLE001
+                pass
+        self.proc = None
+        if self._master_fd is not None:
+            try:
+                os.close(self._master_fd)
+            except OSError:
+                pass
+            self._master_fd = None
+
+
+def _parse_info_score(line: str) -> float | None:
+    tokens = line.split()
+    for i, t in enumerate(tokens):
+        if t == "score" and i + 2 < len(tokens):
+            kind = tokens[i + 1]
+            try:
+                value = int(tokens[i + 2])
+            except ValueError:
+                return None
+            if kind == "cp":
+                return float(value)
+            if kind == "mate":
+                return float(
+                    _KING_CAPTURE_SCORE if value > 0 else -_KING_CAPTURE_SCORE
+                )
+    return None
+
+
 @contextmanager
 def stockfish_evaluator(
     *,
@@ -218,36 +402,34 @@ def stockfish_evaluator(
     time_cap_seconds: float = 0.5,
     threads: int = 1,
 ) -> Iterator[Evaluator]:
-    """Yield a Stockfish-backed Evaluator with material fallback.
+    """Yield a Stockfish-backed Evaluator using raw UCI.
 
-    Falls back to `material_score` on positions Stockfish refuses (raises
-    `chess.engine.EngineError`) or that are standard-chess-invalid.
+    Bypasses python-chess's `engine.analyse` so FOW positions that produce
+    illegal bestmoves don't crash the evaluator pipeline. We never parse
+    `bestmove` — only `info`-line scores. Mate scores are clamped to
+    ±_KING_CAPTURE_SCORE.
+
+    Falls back to material on timeout, subprocess error, or no parsable score.
+    The engine subprocess is restarted on hard errors but kept alive across
+    "no score parsed" misses to avoid restart thrashing.
     """
-    engine_holder: dict[str, chess.engine.SimpleEngine | None] = {"engine": None}
-
-    def _open() -> chess.engine.SimpleEngine:
-        eng = chess.engine.SimpleEngine.popen_uci(path)
-        try:
-            eng.configure({"Threads": threads})
-        except chess.engine.EngineError:
-            pass
-        return eng
-
-    def _ensure() -> chess.engine.SimpleEngine:
-        if engine_holder["engine"] is None:
-            engine_holder["engine"] = _open()
-        return engine_holder["engine"]
+    engine_holder: dict[str, _UCIEngine | None] = {
+        "engine": _UCIEngine(path=path, threads=threads)
+    }
+    movetime_ms = int(time_cap_seconds * 1000)
 
     def _restart() -> None:
         if engine_holder["engine"] is not None:
             try:
-                engine_holder["engine"].quit()
+                engine_holder["engine"].close()
             except Exception:  # noqa: BLE001
                 pass
         engine_holder["engine"] = None
 
-    engine_holder["engine"] = _open()
-    limit = chess.engine.Limit(depth=depth, time=time_cap_seconds)
+    def _ensure() -> _UCIEngine:
+        if engine_holder["engine"] is None:
+            engine_holder["engine"] = _UCIEngine(path=path, threads=threads)
+        return engine_holder["engine"]
 
     try:
 
@@ -267,32 +449,23 @@ def stockfish_evaluator(
 
             if advanced.king(chess.WHITE) is None or advanced.king(chess.BLACK) is None:
                 return 0.0
-            if advanced.is_game_over(claim_draw=False):
-                if advanced.is_checkmate():
-                    return (
-                        _KING_CAPTURE_SCORE
-                        if advanced.turn != perspective
-                        else -_KING_CAPTURE_SCORE
-                    )
-                return 0.0
-            if not advanced.is_valid() or advanced.is_check():
-                # FOW reaches in-check positions Stockfish can't reliably
-                # analyse (returns moves python-chess deems illegal).
-                return material_score(advanced, perspective)
 
             try:
                 eng = _ensure()
-                info = eng.analyse(advanced, limit)
-            except (
-                chess.engine.EngineError,
-                chess.engine.EngineTerminatedError,
-                OSError,
-            ):
+                score_from_stm = eng.evaluate_fen(advanced.fen(), depth, movetime_ms)
+            except (TimeoutError, OSError, BrokenPipeError):
                 _restart()
                 return material_score(advanced, perspective)
-            score_obj = info["score"].pov(perspective)
-            cp = score_obj.score(mate_score=_KING_CAPTURE_SCORE)
-            return float(cp) if cp is not None else 0.0
+
+            if score_from_stm is None:
+                return material_score(advanced, perspective)
+
+            # Stockfish reports from advanced.turn (= side to move on `advanced`).
+            return (
+                score_from_stm
+                if advanced.turn == perspective
+                else -score_from_stm
+            )
 
         yield evaluate
     finally:
