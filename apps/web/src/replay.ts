@@ -38,6 +38,13 @@ export type ReplayOptions = {
   loopSamples?: string[];
   /** Pause length on the reveal frame before cycling to the next loop sample. */
   betweenGameDelayMs?: number;
+  /**
+   * Override URL construction for sample ids. Default loads from
+   * `/replay-samples/<safe-id>.jsonl`. Bakeoff browser uses this to point
+   * at `/bakeoff/<path>` without the safe-id sanitization that would mangle
+   * filenames containing slashes or dots.
+   */
+  urlForId?: (sampleId: string) => string;
 };
 
 export async function mountReplay(
@@ -50,6 +57,7 @@ export async function mountReplay(
   const loopSamples = options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const autoplay = options.autoplay === true || loopSamples !== undefined;
+  const urlForId = options.urlForId ?? defaultUrlForId;
 
   root.replaceChildren();
   root.classList.add('replay-page');
@@ -205,7 +213,7 @@ export async function mountReplay(
     stopPlay();
     clearLoopTimer();
     activeSample = sampleId;
-    events = await loadEvents(sampleId);
+    events = await loadEvents(sampleId, urlForId);
     moveCount = events.filter((e) => e.type === 'move-played').length;
     currentPly = 0;
     finishedAck = false;
@@ -307,11 +315,19 @@ function sliceToPly(events: GameEvent[], ply: number): GameEvent[] {
   return result;
 }
 
-async function loadEvents(sampleId: string): Promise<GameEvent[]> {
+function defaultUrlForId(sampleId: string): string {
   const safeId = sampleId.replace(/[^a-zA-Z0-9_-]/g, '');
   if (!safeId) throw new Error(`invalid replay id: ${sampleId}`);
-  const resp = await fetch(`/replay-samples/${safeId}.jsonl`);
-  if (!resp.ok) throw new Error(`failed to load replay sample ${safeId}: ${resp.status}`);
+  return `/replay-samples/${safeId}.jsonl`;
+}
+
+async function loadEvents(
+  sampleId: string,
+  urlForId: (id: string) => string = defaultUrlForId,
+): Promise<GameEvent[]> {
+  const url = urlForId(sampleId);
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`failed to load replay sample ${sampleId} at ${url}: ${resp.status}`);
   const text = await resp.text();
   return text
     .split('\n')

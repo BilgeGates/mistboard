@@ -973,3 +973,116 @@ a {
   padding: 0;
   min-height: 0;
 }
+
+/* Bake-off browser: sidebar with game list + replay area on the right */
+.bakeoff-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.bakeoff-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  min-height: 100vh;
+}
+
+.bakeoff-sidebar {
+  background: #f4f1ea;
+  border-right: 1px solid #d6cfbf;
+  padding: 16px 12px;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+.bakeoff-header {
+  font-size: 13px;
+  color: #3d463f;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d6cfbf;
+}
+
+.bakeoff-header-line {
+  font-weight: 700;
+}
+
+.bakeoff-header-meta {
+  margin-top: 4px;
+  color: #6c766c;
+  font-size: 11px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.bakeoff-game-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bakeoff-game-item {
+  display: grid;
+  grid-template-columns: 36px 22px 56px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: #2c332e;
+  text-align: left;
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease;
+}
+
+.bakeoff-game-item:hover {
+  background: #ece6d6;
+}
+
+.bakeoff-game-item.active {
+  background: #e3dcc7;
+  border-color: #b9b09a;
+}
+
+.bakeoff-game-item .bakeoff-game-id {
+  color: #6c766c;
+}
+
+.bakeoff-game-item .bakeoff-game-outcome {
+  font-weight: 700;
+  text-align: center;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.bakeoff-game-item.bakeoff-W .bakeoff-game-outcome {
+  color: #2f7d3d;
+}
+
+.bakeoff-game-item.bakeoff-L .bakeoff-game-outcome {
+  color: #b13935;
+}
+
+.bakeoff-game-item.bakeoff-D .bakeoff-game-outcome {
+  color: #6c766c;
+}
+
+.bakeoff-replay-area {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+/* Compact replay layout when nested in the bakeoff browser */
+.bakeoff-replay-area .replay-page {
+  padding: 0;
+  min-height: 0;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.bakeoff-replay-area .replay-layout {
+  max-width: none;
+}
