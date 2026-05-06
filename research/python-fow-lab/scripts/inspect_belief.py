@@ -68,6 +68,12 @@ def main() -> int:
         help="Render the top-K unique particle boards (by population) per ply. "
         "0 to disable.",
     )
+    parser.add_argument(
+        "--no-html",
+        action="store_true",
+        help="Skip HTML rendering; emit only diagnostics.csv. Useful for "
+        "cross-game aggregate passes.",
+    )
     args = parser.parse_args()
 
     perspective = chess.WHITE if args.perspective == "white" else chess.BLACK
@@ -102,25 +108,27 @@ def main() -> int:
             canonical=step.canonical_after,
         )
         diagnostics.append(diag)
-        html_sections.append(
-            _render_ply_html(
-                step=step,
-                belief=belief,
-                perspective=perspective,
-                diag=diag,
-                top_k=args.top_k,
+        if not args.no_html:
+            html_sections.append(
+                _render_ply_html(
+                    step=step,
+                    belief=belief,
+                    perspective=perspective,
+                    diag=diag,
+                    top_k=args.top_k,
+                )
             )
-        )
 
     _write_csv(args.out / "diagnostics.csv", diagnostics)
-    _write_html(
-        args.out / "index.html",
-        sections=html_sections,
-        diagnostics=diagnostics,
-        events_name=args.events.name,
-        perspective_name=args.perspective,
-        target_n=args.target_n,
-    )
+    if not args.no_html:
+        _write_html(
+            args.out / "index.html",
+            sections=html_sections,
+            diagnostics=diagnostics,
+            events_name=args.events.name,
+            perspective_name=args.perspective,
+            target_n=args.target_n,
+        )
 
     print(f"plies inspected:        {len(diagnostics)}")
     print(

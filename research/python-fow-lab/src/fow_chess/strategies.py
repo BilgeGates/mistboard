@@ -73,6 +73,13 @@ class Tier1Strategy:
 
     def pick_move(self, view: PerspectiveView) -> chess.Move:
         assert self._belief is not None
+        if not self._belief.particles:
+            # Belief filter collapsed (no particles consistent with observation).
+            # Without this fallback, best_action returns own_legal_moves[0] —
+            # deterministic first-alphabetical, worse than random. Score moves
+            # on a visibility-only synthesized board instead so visible captures
+            # and threats still drive selection.
+            return self._fallback_pick_move(view)
         evaluator = self.evaluator_builder(view)
         return best_action(
             self._belief,
@@ -82,3 +89,27 @@ class Tier1Strategy:
             risk_aversion=self.risk_aversion,
             rng=self._rng,
         )
+
+    def _fallback_pick_move(self, view: PerspectiveView) -> chess.Move:
+        """Score moves on a visibility-only board. Used when belief has collapsed."""
+        synthesized = chess.Board.empty()
+        for sq, piece in view.visible_piece_map.items():
+            synthesized.set_piece_at(sq, piece)
+        synthesized.turn = view.perspective
+
+        evaluator = self.evaluator_builder(view)
+        scored: list[tuple[chess.Move, float]] = []
+        best_score = float("-inf")
+        for move in view.own_legal_moves:
+            try:
+                score = evaluator(synthesized, move, view.perspective)
+            except (ValueError, AssertionError):
+                continue
+            scored.append((move, score))
+            if score > best_score:
+                best_score = score
+        if not scored:
+            return view.own_legal_moves[0]
+        eps = 1e-6
+        top = [m for m, s in scored if s >= best_score - eps]
+        return self._rng.choice(top)
