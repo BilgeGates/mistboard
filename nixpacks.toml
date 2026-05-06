@@ -1,0 +1,16 @@
+# Railway / Nixpacks build config.
+#
+# Builds the static landing-page bundle and serves it via `serve`.
+# No WebSocket server in v1 — apps/server is built but not run.
+
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"
