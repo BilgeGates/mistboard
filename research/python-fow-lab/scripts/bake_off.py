@@ -13,6 +13,7 @@ per-move time under 5 seconds, no crashes.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -65,7 +66,29 @@ def main() -> int:
     parser.add_argument("--max-plies", type=int, default=300)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--stockfish", default="stockfish")
+    parser.add_argument(
+        "--save-dir",
+        type=Path,
+        default=None,
+        help="If set, save each game's events as JSONL plus a manifest.json "
+        "into this directory. Compatible with inspect_belief.py and the "
+        "corpus loader.",
+    )
+    parser.add_argument(
+        "--save-only",
+        choices=("all", "loss", "loss-or-draw"),
+        default="loss-or-draw",
+        help="Which games to save when --save-dir is set. Default: loss-or-draw "
+        "(the games worth investigating).",
+    )
     args = parser.parse_args()
+
+    save_games_dir: Path | None = None
+    save_manifest: list[dict] | None = None
+    if args.save_dir is not None:
+        save_games_dir = args.save_dir / "games"
+        save_games_dir.mkdir(parents=True, exist_ok=True)
+        save_manifest = []
 
     print(
         f"bake-off: {args.games} games, evaluator={args.evaluator}, "
@@ -135,6 +158,31 @@ def main() -> int:
                 outcome = "L"
                 random_wins += 1
 
+            if save_games_dir is not None and save_manifest is not None:
+                should_save = (
+                    args.save_only == "all"
+                    or (args.save_only == "loss" and outcome == "L")
+                    or (args.save_only == "loss-or-draw" and outcome in ("L", "D"))
+                )
+                if should_save:
+                    game_path = save_games_dir / f"game-{i:04d}-{outcome}-tier1-{tier1_color}.jsonl"
+                    with game_path.open("w") as fh:
+                        for event in result.events:
+                            fh.write(json.dumps(event) + "\n")
+                    save_manifest.append(
+                        {
+                            "index": i,
+                            "tier1_color": tier1_color,
+                            "outcome": outcome,
+                            "plies": result.plies,
+                            "end_reason": result.end_reason,
+                            "truncated": result.truncated,
+                            "tier1_seed": seed_base,
+                            "random_seed": seed_base + 1,
+                            "path": game_path.relative_to(args.save_dir).as_posix(),
+                        }
+                    )
+
             total_tier1_moves += tier1.move_count
             total_tier1_seconds += tier1.total_seconds
             total_plies += result.plies
@@ -164,6 +212,34 @@ def main() -> int:
         avg = total_tier1_seconds / total_tier1_moves
         print(f"avg per tier-1 move:  {avg:.2f}s (gate: <5.0s)")
     print(f"total plies:          {total_plies}")
+
+    if save_games_dir is not None and save_manifest is not None:
+        manifest_path = args.save_dir / "manifest.json"
+        with manifest_path.open("w") as fh:
+            json.dump(
+                {
+                    "evaluator": args.evaluator,
+                    "depth": args.depth,
+                    "max_particles": args.max_particles,
+                    "target_n": args.target_n,
+                    "risk_aversion": args.risk_aversion,
+                    "threat_lambda": args.threat_lambda,
+                    "max_plies": args.max_plies,
+                    "base_seed": args.seed,
+                    "games_total": args.games,
+                    "games_saved": len(save_manifest),
+                    "save_only": args.save_only,
+                    "tier1_record": {
+                        "wins": tier1_wins,
+                        "losses": random_wins,
+                        "draws": draws_or_truncated,
+                    },
+                    "games": save_manifest,
+                },
+                fh,
+                indent=2,
+            )
+        print(f"saved games:          {len(save_manifest)} → {args.save_dir}")
     return 0
 
 
