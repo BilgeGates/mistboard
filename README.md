@@ -1,10 +1,16 @@
 # Bichess
 
+> **Live at [bichess.org](https://bichess.org)** — a looping demo of two Fog of War engines playing each other, dual-perspective + truth.
+
 Bichess is an open-source site for **Fog of War chess**: a hidden-information chess variant where each player sees only what their pieces can legally see, enforced by the server.
 
 Players create a room, share a link, and play. The full board exists only on the server; clients receive only their own legal view.
 
 Bichess is an independent open-source project. It is not affiliated with lichess, chess.com, or any other chess platform.
+
+## Status
+
+The site at [bichess.org](https://bichess.org) currently shows a curated corpus of Tier-1 self-play games as a looping demo. Playable rooms are working in dev and are gated off in prod while the human-vs-bot path is built out. See [`docs/milestones.md`](docs/milestones.md) for the roadmap.
 
 ## Vision
 
@@ -106,6 +112,17 @@ research/              Offline research, not shipped in the product
 research/python-fow-lab/  Python sidecar for visibility/bot/inference experiments
 ```
 
+## Persistence
+
+Events and games are persisted to Postgres. The `events` table is an append-only log of every `GameEvent` (JSONB payload, keyed by `(room_id, seq)`). The `games` table is a one-row-per-finished-game aggregate, written when a terminal projection state is observed. See [`docs/persistence.md`](docs/persistence.md).
+
+In dev, persistence is optional — `apps/server` falls back to in-memory rooms if `DATABASE_URL` is unset.
+
+```bash
+docker compose up -d postgres   # local Postgres on host port 5435
+TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
+```
+
 ## Development
 
 ```bash
@@ -113,8 +130,6 @@ npm install
 npm run dev
 npm test
 ```
-
-The scaffold starts with in-memory rooms. Persistence comes after Fog of War is reliable enough for private alpha testing.
 
 Fog of War rooms can be created with:
 
@@ -144,10 +159,14 @@ Bid For White remains available as an experimental direct URL:
 http://localhost:3000/?room=bid-dev&reset=1&variant=bid-for-white
 ```
 
-## Repository Policy
+## Deployment
 
-Bichess is a public/open-source repo from day one. The project uses GPL-family chess libraries (`chessops`, `chessground`), so the repo is licensed as GPL-3.0-or-later.
+bichess.org runs on a single Railway service: `apps/server` serves both the static `apps/web/dist` bundle and the WebSocket upgrade on the same `$PORT`. Postgres is provided by Railway's Postgres plugin and connected via the project's private network. Cloudflare handles DNS only (gray cloud); SSL is auto-provisioned by Railway.
 
-The npm packages remain marked `"private": true` to prevent accidental package publishing. That setting does not imply a private GitHub repository.
+Push to `main` triggers an auto-deploy. Migrations apply on container boot.
 
-This is a quiet build artifact for now, not a public product launch. Broad distribution should wait until Fog of War is reliable, understandable, and pleasant to play.
+## License
+
+GPL-3.0-or-later. Bichess uses GPL-family chess libraries (`chessops`, `chessground`).
+
+The npm packages are marked `"private": true` to prevent accidental package publishing — this is intentional and does not affect the repository's public/open-source status.
