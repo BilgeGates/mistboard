@@ -3,10 +3,25 @@ import type { GameEvent } from '@bichess/game';
 
 let pool: pg.Pool | null = null;
 
+export type GameMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
+export type GameResult = 'white-wins' | 'black-wins' | 'draw';
+export type GameTermination =
+  | 'king-captured'
+  | 'timeout'
+  | 'checkmate'
+  | 'draw'
+  | 'engine-failure'
+  | 'worker-aborted'
+  | 'server-restarted'
+  | 'no-legal-moves'
+  | 'truncated';
+export type GameReviewStatus = 'unreviewed' | 'flagged' | 'reviewed' | 'training' | 'rejected';
+
 export type GameSummary = {
   variant: string;
-  result: 'white-wins' | 'black-wins' | 'draw';
-  termination: 'king-captured' | 'timeout' | 'checkmate' | 'draw';
+  mode?: GameMode;
+  result: GameResult;
+  termination: GameTermination;
   plyCount: number;
   startedAt: Date;
   endedAt: Date;
@@ -15,6 +30,7 @@ export type GameSummary = {
   whiteName: string | null;
   blackName: string | null;
   corpusId: string | null;
+  reviewStatus?: GameReviewStatus;
 };
 
 export type GameRecord = {
@@ -65,7 +81,9 @@ export async function listActiveRoomIds(since: Date): Promise<string[]> {
   const { rows } = await getPool().query<{ room_id: string }>(
     `SELECT DISTINCT room_id FROM events
      WHERE created_at >= $1
-       AND room_id NOT IN (SELECT room_id FROM games)
+       AND room_id NOT IN (
+         SELECT room_id FROM games WHERE status IN ('completed', 'aborted')
+       )
      ORDER BY room_id`,
     [since],
   );
@@ -89,6 +107,7 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
             white_name, black_name, corpus_id
      FROM games
      WHERE corpus_id = $1
+       AND status = 'completed'
      ORDER BY room_id
      LIMIT $2`,
     [corpusId, limit],
@@ -111,9 +130,26 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
   await getPool().query(
     `INSERT INTO games
        (room_id, variant, result, termination, ply_count, started_at, ended_at,
-        white_client, black_client, white_name, black_name, corpus_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-     ON CONFLICT (room_id) DO NOTHING`,
+        white_client, black_client, white_name, black_name, corpus_id,
+        mode, status, review_status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed', $14)
+     ON CONFLICT (room_id) DO UPDATE SET
+       variant = EXCLUDED.variant,
+       result = EXCLUDED.result,
+       termination = EXCLUDED.termination,
+       ply_count = EXCLUDED.ply_count,
+       started_at = EXCLUDED.started_at,
+       ended_at = EXCLUDED.ended_at,
+       white_client = EXCLUDED.white_client,
+       black_client = EXCLUDED.black_client,
+       white_name = EXCLUDED.white_name,
+       black_name = EXCLUDED.black_name,
+       corpus_id = EXCLUDED.corpus_id,
+       mode = EXCLUDED.mode,
+       status = 'completed',
+       review_status = EXCLUDED.review_status,
+       aborted_reason = NULL
+     WHERE games.status = 'running'`,
     [
       roomId,
       summary.variant,
@@ -127,6 +163,8 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
       summary.whiteName,
       summary.blackName,
       summary.corpusId,
+      summary.mode ?? (summary.corpusId ? 'imported' : 'pvp'),
+      summary.reviewStatus ?? 'unreviewed',
     ],
   );
 }

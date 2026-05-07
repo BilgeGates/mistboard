@@ -84,6 +84,7 @@ async function importFile(filePath: string, corpusId: string, whiteName: string,
 
   const summary: GameSummary = {
     variant: projection.variant,
+    mode: 'imported',
     result,
     termination,
     plyCount: moveEvents.length,

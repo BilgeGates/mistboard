@@ -39,7 +39,16 @@ if (!TEST_DATABASE_URL) {
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
-      await client.query('TRUNCATE events, games');
+      await client.query(
+        `TRUNCATE
+           game_debug_artifacts,
+           eve_games,
+           eve_jobs,
+           engine_versions,
+           events,
+           games
+         RESTART IDENTITY CASCADE`,
+      );
     } finally {
       await client.end();
     }
@@ -166,6 +175,35 @@ if (!TEST_DATABASE_URL) {
     assert.deepEqual(active, ['active-room']);
   });
 
+  test('listActiveRoomIds includes running games', async () => {
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 60_000);
+
+    await appendEvent('running-room', 0, {
+      type: 'room-created',
+      at: now.getTime(),
+      roomId: 'running-room',
+      variant: 'fog-of-war',
+      offer: [],
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
+         VALUES ($1, 'fog-of-war', NULL, NULL, 0, $2, NULL, 'eve', 'running')`,
+        ['running-room', now],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const active = await listActiveRoomIds(earlier);
+    assert.deepEqual(active, ['running-room']);
+  });
+
   test('recordGameEnd is idempotent', async () => {
     const now = new Date();
     const summary = {
@@ -184,5 +222,59 @@ if (!TEST_DATABASE_URL) {
     await recordGameEnd('idempotent-room', summary);
     await recordGameEnd('idempotent-room', summary);
     // Second call should not throw and should leave a single row.
+  });
+
+  test('recordGameEnd completes an existing running game row', async () => {
+    const now = new Date();
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
+         VALUES ($1, 'fog-of-war', NULL, NULL, 0, $2, NULL, 'eve', 'running')`,
+        ['running-to-finished', now],
+      );
+    } finally {
+      await client.end();
+    }
+
+    await recordGameEnd('running-to-finished', {
+      variant: 'fog-of-war',
+      mode: 'eve',
+      result: 'black-wins',
+      termination: 'timeout',
+      plyCount: 42,
+      startedAt: now,
+      endedAt: now,
+      whiteClient: null,
+      blackClient: null,
+      whiteName: 'engine-a',
+      blackName: 'engine-b',
+      corpusId: null,
+    });
+
+    const verifyClient = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await verifyClient.connect();
+    try {
+      const { rows } = await verifyClient.query<{
+        status: string;
+        result: string | null;
+        termination: string | null;
+        ply_count: number;
+      }>('SELECT status, result, termination, ply_count FROM games WHERE room_id = $1', [
+        'running-to-finished',
+      ]);
+      assert.deepEqual(rows, [
+        {
+          status: 'completed',
+          result: 'black-wins',
+          termination: 'timeout',
+          ply_count: 42,
+        },
+      ]);
+    } finally {
+      await verifyClient.end();
+    }
   });
 }
