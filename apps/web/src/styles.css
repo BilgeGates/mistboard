@@ -679,8 +679,8 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  padding: 32px 16px;
+  gap: 16px;
+  padding: 16px 16px 12px;
   min-height: 100vh;
   box-sizing: border-box;
 }
@@ -698,13 +698,13 @@ a {
   font-weight: 600;
   color: #d8d8d8;
   letter-spacing: 0.01em;
-  margin-top: 2px;
+  margin-top: 0;
   min-height: 18px;
   text-align: center;
 }
 
 .replay-pane-name:empty {
-  display: none;
+  visibility: hidden;
 }
 
 .replay-pane-status {
@@ -714,7 +714,7 @@ a {
   text-transform: uppercase;
   color: #888;
   min-height: 14px;
-  margin-top: 6px;
+  margin-top: 2px;
   text-align: center;
 }
 
@@ -767,7 +767,7 @@ a {
 .replay-pane {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
 }
 

@@ -24,7 +24,7 @@ const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;
 const MIN_PLAY_MS = 700;
 const MAX_PLAY_MS = 2500;
-const DEFAULT_BETWEEN_GAME_DELAY_MS = 4000;
+const DEFAULT_BETWEEN_GAME_DELAY_MS = 8000;
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
