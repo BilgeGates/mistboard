@@ -1,5 +1,20 @@
 import './styles.css';
 
+const phKey = import.meta.env.VITE_POSTHOG_KEY;
+const phHost = import.meta.env.VITE_POSTHOG_HOST;
+if (phKey && phHost && import.meta.env.PROD) {
+  void import('posthog-js').then(({ default: posthog }) => {
+    posthog.init(phKey, {
+      api_host: phHost,
+      autocapture: true,
+      capture_pageview: true,
+      persistence: 'localStorage',
+      disable_session_recording: true,
+      respect_dnt: true,
+    });
+  });
+}
+
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('missing #app');
 
