@@ -157,6 +157,9 @@ if (!TEST_DATABASE_URL) {
       endedAt: now,
       whiteClient: 'client-w',
       blackClient: 'client-b',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
     } satisfies GameSummary);
 
     const active = await listActiveRoomIds(earlier);
@@ -174,6 +177,9 @@ if (!TEST_DATABASE_URL) {
       endedAt: now,
       whiteClient: 'client-w',
       blackClient: 'client-b',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
     };
     await recordGameEnd('idempotent-room', summary);
     await recordGameEnd('idempotent-room', summary);

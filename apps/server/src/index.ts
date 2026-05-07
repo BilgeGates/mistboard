@@ -535,6 +535,9 @@ function buildGameSummary(room: Room): GameSummary {
     endedAt: new Date(lastAt),
     whiteClient: room.projection.seats.white ?? null,
     blackClient: room.projection.seats.black ?? null,
+    whiteName: null,
+    blackName: null,
+    corpusId: null,
   };
 }
 

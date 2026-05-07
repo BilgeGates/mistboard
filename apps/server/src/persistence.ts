@@ -12,6 +12,9 @@ export type GameSummary = {
   endedAt: Date;
   whiteClient: string | null;
   blackClient: string | null;
+  whiteName: string | null;
+  blackName: string | null;
+  corpusId: string | null;
 };
 
 export function init(connectionString: string): void {
@@ -59,8 +62,9 @@ export async function listActiveRoomIds(since: Date): Promise<string[]> {
 export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void> {
   await getPool().query(
     `INSERT INTO games
-       (room_id, variant, result, termination, ply_count, started_at, ended_at, white_client, black_client)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       (room_id, variant, result, termination, ply_count, started_at, ended_at,
+        white_client, black_client, white_name, black_name, corpus_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      ON CONFLICT (room_id) DO NOTHING`,
     [
       roomId,
@@ -72,6 +76,9 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
       summary.endedAt,
       summary.whiteClient,
       summary.blackClient,
+      summary.whiteName,
+      summary.blackName,
+      summary.corpusId,
     ],
   );
 }
