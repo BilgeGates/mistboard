@@ -1,4 +1,5 @@
 import { mountReplay } from './replay.js';
+import { loadAnnotations, type Annotation } from './annotations.js';
 
 type ManifestGame = {
   index: number;
@@ -13,6 +14,8 @@ type ManifestGame = {
 };
 
 type Manifest = {
+  tier1_version?: string;
+  tier1_commit?: string;
   evaluator: string;
   depth: number;
   max_particles: number;
@@ -28,7 +31,7 @@ type Manifest = {
   games: ManifestGame[];
 };
 
-const DEFAULT_MANIFEST_URL = '/bakeoff/manifest.json';
+const DEFAULT_MANIFEST_URL = '/bakeoff-v0.6.0-mirror/manifest.json';
 
 export async function mountBakeoff(
   root: HTMLElement,
@@ -49,6 +52,22 @@ export async function mountBakeoff(
   root.replaceChildren();
   root.classList.add('bakeoff-page');
 
+  const topbar = document.createElement('header');
+  topbar.className = 'bakeoff-topbar';
+
+  const titleWrap = document.createElement('div');
+  const title = document.createElement('h1');
+  title.textContent = 'Engine Lab';
+  const subtitle = document.createElement('p');
+  subtitle.textContent = 'Review engine games and annotate what to fix next.';
+  titleWrap.append(title, subtitle);
+
+  const homeLink = document.createElement('a');
+  homeLink.href = '/';
+  homeLink.textContent = 'Home';
+
+  topbar.append(titleWrap, homeLink);
+
   const layout = document.createElement('div');
   layout.className = 'bakeoff-layout';
 
@@ -59,12 +78,16 @@ export async function mountBakeoff(
   replayArea.className = 'bakeoff-replay-area';
 
   layout.append(sidebar, replayArea);
-  root.append(layout);
+  root.append(topbar, layout);
 
   const r = manifest.tier1_record;
   const header = document.createElement('div');
   header.className = 'bakeoff-header';
+  const versionLine = manifest.tier1_version
+    ? `<div class="bakeoff-header-version">Tier-1 v${manifest.tier1_version}${manifest.tier1_commit ? ` · ${manifest.tier1_commit}` : ''}</div>`
+    : '';
   header.innerHTML = `
+    ${versionLine}
     <div class="bakeoff-header-line">${manifest.games.length} games saved</div>
     <div class="bakeoff-header-line">Tier-1 ${r.wins}W ${r.losses}L ${r.draws}D</div>
     <div class="bakeoff-header-meta">eval=${manifest.evaluator} mp=${manifest.max_particles} target_n=${manifest.target_n}</div>
@@ -79,11 +102,43 @@ export async function mountBakeoff(
 
   const urlForId = (id: string) => `${baseDir}/${id}`;
 
+  const gameByPath = new Map<string, ManifestGame>();
+  for (const g of manifest.games) gameByPath.set(g.path, g);
+  const gameIndexForSampleId = (sampleId: string): number | null => {
+    return gameByPath.get(sampleId)?.index ?? null;
+  };
+  const tier1ColorForSampleId = (sampleId: string): 'white' | 'black' | null => {
+    return gameByPath.get(sampleId)?.tier1_color ?? null;
+  };
+
+  const badgeByIndex = new Map<number, HTMLSpanElement>();
+
+  async function refreshAnnotationCounts(): Promise<void> {
+    const all: Annotation[] = await loadAnnotations();
+    const counts = new Map<number, number>();
+    for (const a of all) {
+      if (a.manifest_url !== manifestUrl) continue;
+      counts.set(a.game_index, (counts.get(a.game_index) ?? 0) + 1);
+    }
+    for (const [idx, badge] of badgeByIndex) {
+      const n = counts.get(idx) ?? 0;
+      badge.textContent = n > 0 ? `★${n}` : '';
+    }
+  }
+
   function loadGame(game: ManifestGame, btn: HTMLButtonElement): void {
     if (activeBtn) activeBtn.classList.remove('active');
     btn.classList.add('active');
     activeBtn = btn;
-    void mountReplay(replayArea, game.path, { urlForId });
+    void mountReplay(replayArea, game.path, {
+      urlForId,
+      annotation: {
+        manifestUrl,
+        gameIndexForSampleId,
+        tier1ColorForSampleId,
+        onSaved: () => void refreshAnnotationCounts(),
+      },
+    });
   }
 
   for (const game of manifest.games) {
@@ -96,11 +151,16 @@ export async function mountBakeoff(
       <span class="bakeoff-game-outcome">${game.outcome}</span>
       <span class="bakeoff-game-color">tier1=${game.tier1_color[0]}</span>
       <span class="bakeoff-game-plies">${game.plies}p${truncMark}</span>
+      <span class="bakeoff-game-notes"></span>
     `;
     btn.title = `seed=${game.tier1_seed} end=${game.end_reason}`;
     btn.addEventListener('click', () => loadGame(game, btn));
     list.append(btn);
+    const badge = btn.querySelector('.bakeoff-game-notes') as HTMLSpanElement;
+    badgeByIndex.set(game.index, badge);
   }
+
+  await refreshAnnotationCounts();
 
   if (manifest.games.length > 0) {
     const firstBtn = list.firstElementChild as HTMLButtonElement | null;

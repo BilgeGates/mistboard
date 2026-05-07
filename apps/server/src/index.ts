@@ -97,6 +97,7 @@ async function initPersistence(): Promise<void> {
 
 function handleHttpRequest(request: IncomingMessage, response: ServerResponse): void {
   const url = request.url ?? '/';
+  const pathname = url.split('?', 1)[0] ?? '/';
 
   if (url === '/health') {
     const cutoff1m = Date.now() - 60_000;
@@ -131,7 +132,16 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
+  if (isClientRoute(pathname)) {
+    request.url = '/';
+  }
+
   void serveHandler(request, response, { public: staticDir });
+}
+
+function isClientRoute(pathname: string): boolean {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return normalized === '/about' || normalized === '/engine-lab' || normalized === '/arena';
 }
 
 async function handleApiRequest(url: string, response: ServerResponse): Promise<void> {

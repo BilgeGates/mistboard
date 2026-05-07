@@ -13,6 +13,8 @@ type FeaturedGame = {
 };
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
+const ENGINE_LAB_ENABLED =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -87,7 +89,7 @@ function buildNav(): HTMLElement {
   links.className = 'site-nav-links';
 
   const aboutLink = document.createElement('a');
-  aboutLink.href = '/?page=about';
+  aboutLink.href = '/about';
   aboutLink.textContent = 'About';
   aboutLink.className = 'site-nav-link';
 
@@ -98,6 +100,13 @@ function buildNav(): HTMLElement {
   ghLink.textContent = 'GitHub';
   ghLink.className = 'site-nav-link';
 
+  if (ENGINE_LAB_ENABLED) {
+    const labLink = document.createElement('a');
+    labLink.href = '/engine-lab';
+    labLink.textContent = 'Engine Lab';
+    labLink.className = 'site-nav-link';
+    links.append(labLink);
+  }
   links.append(aboutLink, ghLink);
   nav.append(brand, links);
   return nav;
@@ -130,6 +139,13 @@ function buildHero(): HTMLElement {
   playBtn.textContent = 'Play vs the engine — coming soon';
 
   ctas.append(playBtn);
+  if (ENGINE_LAB_ENABLED) {
+    const labLink = document.createElement('a');
+    labLink.href = '/engine-lab';
+    labLink.className = 'landing-cta-secondary';
+    labLink.textContent = 'Open Engine Lab';
+    ctas.append(labLink);
+  }
   hero.append(title, subtitle, tag, ctas);
   return hero;
 }

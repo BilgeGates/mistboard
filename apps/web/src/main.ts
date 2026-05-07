@@ -19,22 +19,42 @@ const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('missing #app');
 
 const params = new URLSearchParams(window.location.search);
+const path = window.location.pathname.replace(/\/+$/, '') || '/';
 const replaySample = params.get('replay');
 const bakeoffParam = params.get('bakeoff');
 const wantsLive =
   import.meta.env.DEV &&
   (params.has('room') || params.has('variant') || params.has('dev'));
 const page = params.get('page');
+const engineLabEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
+const wantsEngineLab =
+  bakeoffParam !== null ||
+  path === '/engine-lab' ||
+  path === '/arena' ||
+  page === 'engine-lab' ||
+  page === 'arena';
+const wantsAbout = path === '/about' || page === 'about';
 
 if (replaySample) {
   void import('./replay.js').then(({ mountReplay }) => mountReplay(app, replaySample));
-} else if (bakeoffParam !== null) {
+} else if (wantsEngineLab && engineLabEnabled) {
   // ?bakeoff loads the default manifest; ?bakeoff=<url> loads a specific one.
-  const manifestUrl = bakeoffParam.length > 0 ? bakeoffParam : undefined;
+  const manifestUrl = bakeoffParam && bakeoffParam.length > 0 ? bakeoffParam : undefined;
   void import('./bakeoff.js').then(({ mountBakeoff }) => mountBakeoff(app, manifestUrl));
+} else if (wantsEngineLab) {
+  app.replaceChildren();
+  app.classList.add('landing-page');
+  const shell = document.createElement('main');
+  shell.className = 'site-section';
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Not found';
+  shell.append(heading);
+  app.append(shell);
 } else if (wantsLive) {
   void import('./live.js');
-} else if (page === 'about') {
+} else if (wantsAbout) {
   void import('./landing.js').then(({ mountAbout }) => mountAbout(app));
 } else {
   void import('./landing.js').then(({ mountLanding }) => mountLanding(app));
