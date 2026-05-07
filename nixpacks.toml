@@ -1,7 +1,10 @@
 # Railway / Nixpacks build config.
 #
-# Builds the static landing-page bundle and serves it via `serve`.
-# No WebSocket server in v1 — apps/server is built but not run.
+# Builds the full monorepo (game → server → web) and runs apps/server,
+# which serves both the static apps/web/dist bundle and the WebSocket
+# upgrade on $PORT. Postgres is required in prod (DATABASE_URL injected
+# by the Railway Postgres plugin); without it, apps/server falls back
+# to in-memory rooms.
 
 [phases.setup]
 nixPkgs = ["nodejs_22"]

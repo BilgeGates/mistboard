@@ -10,9 +10,9 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace @bichess/server & npm run dev --workspace @bichess/web",
-    "build": "npm run build --workspace=@bichess/game && npm run build --workspace=@bichess/web",
+    "build": "npm run build --workspace=@bichess/game && npm run build --workspace=@bichess/server && npm run build --workspace=@bichess/web",
     "build:all": "npm run build --workspaces",
-    "start": "serve apps/web/dist -l tcp://0.0.0.0:${PORT:-8080}",
+    "start": "node apps/server/dist/index.js",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "visual:check": "node scripts/visual-check.mjs"
@@ -22,8 +22,5 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1"
-  },
-  "dependencies": {
-    "serve": "^14.2.6"
   }
 }

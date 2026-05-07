@@ -1,6 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomInt, randomUUID } from 'node:crypto';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import serveHandler from 'serve-handler';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   advanceClock,
@@ -49,6 +52,8 @@ const port = Number(process.env.PORT ?? 3001);
 
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
+
+const staticDir = resolveStaticDir();
 
 await initPersistence();
 
@@ -106,8 +111,15 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     }));
     return;
   }
-  response.writeHead(200, { 'content-type': 'application/json' });
-  response.end(JSON.stringify({ ok: true, service: 'bichess-server' }));
+
+  void serveHandler(request, response, { public: staticDir });
+}
+
+function resolveStaticDir(): string {
+  if (process.env.STATIC_DIR) return resolve(process.env.STATIC_DIR);
+  const here = dirname(fileURLToPath(import.meta.url));
+  // dist/index.js → ../../web/dist; src/index.ts (tsx dev) → same path
+  return resolve(here, '..', '..', 'web', 'dist');
 }
 
 async function handleConnection(socket: WebSocket, request: IncomingMessage): Promise<void> {

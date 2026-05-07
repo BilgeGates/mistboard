@@ -14,10 +14,12 @@
   "dependencies": {
     "@bichess/game": "0.0.0",
     "pg": "^8.20.0",
+    "serve-handler": "^6.1.7",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/pg": "^8.20.0",
+    "@types/serve-handler": "^6.1.4",
     "@types/ws": "^8.5.13",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0"
