@@ -1,5 +1,6 @@
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomInt, randomUUID } from 'node:crypto';
+import pg from 'pg';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   advanceClock,
@@ -18,6 +19,9 @@ import {
   type Square,
   type VariantId,
 } from '@bichess/game';
+import { runMigrations } from './migrate.js';
+import * as persistence from './persistence.js';
+import type { GameSummary } from './persistence.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 
 type Client = {
@@ -36,19 +40,77 @@ type Room = {
   projection: GameProjection;
   clockTimer: ReturnType<typeof setTimeout> | null;
   randomEngine: boolean;
+  pendingWrites: Promise<void>;
+  gameEndRecorded: boolean;
 };
 
 const rooms = new Map<string, Room>();
 const port = Number(process.env.PORT ?? 3001);
 
-const server = createServer((_request, response) => {
-  response.writeHead(200, { 'content-type': 'application/json' });
-  response.end(JSON.stringify({ ok: true, service: 'bichess-server' }));
-});
+const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
+const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 
+await initPersistence();
+
+const server = createServer(handleHttpRequest);
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (socket, request) => {
+  void handleConnection(socket, request).catch((err) => {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'connection_handler_failure',
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
+    try { socket.close(1011, 'internal error'); } catch { /* socket already closed */ }
+  });
+});
+
+server.listen(port, () => {
+  console.log(`bichess server listening on http://localhost:${port}`);
+});
+
+async function initPersistence(): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    console.log('persistence: disabled (set DATABASE_URL to enable)');
+    return;
+  }
+
+  const client = new pg.Client({ connectionString: databaseUrl });
+  await client.connect();
+  try {
+    const applied = await runMigrations(client);
+    if (applied.length > 0) console.log(`migrations applied: ${applied.join(', ')}`);
+  } finally {
+    await client.end();
+  }
+  persistence.init(databaseUrl);
+  console.log('persistence: enabled');
+}
+
+function handleHttpRequest(request: IncomingMessage, response: ServerResponse): void {
+  if (request.url === '/health') {
+    const cutoff1m = Date.now() - 60_000;
+    const recent = persistenceErrors.filter((entry) => entry.at > cutoff1m);
+    const lastAt = persistenceErrors.length > 0
+      ? persistenceErrors[persistenceErrors.length - 1]!.at
+      : null;
+    const ok = recent.length === 0;
+    response.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({
+      ok,
+      persistence: persistence.isInitialized() ? 'enabled' : 'disabled',
+      persistenceErrors: { count1m: recent.length, lastAt },
+    }));
+    return;
+  }
+  response.writeHead(200, { 'content-type': 'application/json' });
+  response.end(JSON.stringify({ ok: true, service: 'bichess-server' }));
+}
+
+async function handleConnection(socket: WebSocket, request: IncomingMessage): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
   if (url.searchParams.get('reset') === '1') resetRoom(roomId);
@@ -56,15 +118,15 @@ wss.on('connection', (socket, request) => {
   const solo = devMode === 'solo';
   const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
   const devViews = randomEngine || url.searchParams.get('views') === 'all';
-  const room = getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
-  if (randomEngine) enableRandomEngine(room);
+  const room = await getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
+  if (randomEngine) await enableRandomEngine(room);
   const clientId = randomUUID();
   const client: Client = {
     devViews,
     id: clientId,
     socket,
     roomId,
-    seat: solo ? 'spectator' : assignSeat(room, clientId),
+    seat: solo ? 'spectator' : await assignSeat(room, clientId),
     solo,
   };
   room.clients.add(client);
@@ -79,73 +141,123 @@ wss.on('connection', (socket, request) => {
   broadcastSnapshot(room);
 
   socket.on('message', (raw) => {
-    const message = parseMessage(raw.toString());
-    if (!message) return;
+    void handleMessage(room, client, raw.toString());
+  });
+
+  socket.on('close', () => {
+    void handleClose(room, client);
+  });
+}
+
+async function handleMessage(room: Room, client: Client, raw: string): Promise<void> {
+  const message = parseMessage(raw);
+  if (!message) return;
+  try {
     if (message.type === 'ping') send(client, { type: 'pong', at: Date.now() });
     if (message.type === 'select-start') {
-      selectStart(room, client, message.startId, message.color);
+      await selectStart(room, client, message.startId, message.color);
     }
     if (message.type === 'submit-bid') {
-      submitBid(room, client, message.bidMs, message.color);
+      await submitBid(room, client, message.bidMs, message.color);
     }
     if (message.type === 'move' && typeof message.from === 'string' && typeof message.to === 'string') {
-      playMove(room, client, {
+      await playMove(room, client, {
         type: 'move',
         from: message.from,
         to: message.to,
         promotion: message.promotion,
       });
     }
-  });
+  } catch (err) {
+    if (err instanceof PersistenceFailure) {
+      send(client, { type: 'error', reason: 'persistence_failure' });
+      return;
+    }
+    throw err;
+  }
+}
 
-  socket.on('close', () => {
-    room.clients.delete(client);
-    if (
-      room.projection.state.status.type === 'pregame'
-      && client.seat !== 'spectator'
-      && room.projection.seats[client.seat] === client.id
-    ) {
-      appendEvent(room, {
+async function handleClose(room: Room, client: Client): Promise<void> {
+  room.clients.delete(client);
+  if (
+    room.projection.state.status.type === 'pregame'
+    && client.seat !== 'spectator'
+    && room.projection.seats[client.seat] === client.id
+  ) {
+    try {
+      await appendEvent(room, {
         type: 'seat-vacated',
         at: Date.now(),
-        roomId,
+        roomId: room.id,
         clientId: client.id,
         seat: client.seat,
       });
+    } catch (err) {
+      // Already logged inside appendEvent. Don't crash the close handler.
+      if (!(err instanceof PersistenceFailure)) throw err;
     }
-    broadcastSnapshot(room);
-  });
-});
+  }
+  broadcastSnapshot(room);
+}
 
-server.listen(port, () => {
-  console.log(`bichess server listening on http://localhost:${port}`);
-});
-
-function getOrCreateRoom(roomId: string, variant: VariantId): Room {
+async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room> {
   const existing = rooms.get(roomId);
   if (existing) return existing;
-  const events: GameEvent[] = [{
-    type: 'room-created',
-    at: Date.now(),
-    roomId,
-    variant,
-    offer: variant === 'draft960' ? pickDraft960Offer(roomIdToSeed(roomId)) : [],
-  }];
+
+  let events: GameEvent[] | null = null;
+  if (persistence.isInitialized()) {
+    try {
+      events = await persistence.loadRoom(roomId);
+    } catch (err) {
+      console.error(JSON.stringify({
+        level: 'error',
+        kind: 'persistence_load_failure',
+        roomId,
+        error: (err as Error).message,
+        at: Date.now(),
+      }));
+      events = null;
+    }
+  }
+
+  if (!events) {
+    const created: GameEvent = {
+      type: 'room-created',
+      at: Date.now(),
+      roomId,
+      variant,
+      offer: variant === 'draft960' ? pickDraft960Offer(roomIdToSeed(roomId)) : [],
+    };
+    if (persistence.isInitialized()) {
+      try {
+        await persistence.appendEvent(roomId, 0, created);
+      } catch (err) {
+        recordPersistenceError(roomId, 0, created, err as Error);
+        throw new PersistenceFailure();
+      }
+    }
+    events = [created];
+  }
+
+  const projection = replayGameEvents(events);
   const room: Room = {
     id: roomId,
     clients: new Set(),
     events,
-    projection: replayGameEvents(events),
+    projection,
     clockTimer: null,
     randomEngine: false,
+    pendingWrites: Promise.resolve(),
+    gameEndRecorded: projection.state.status.type === 'finished',
   };
   rooms.set(roomId, room);
+  scheduleClockTimeout(room);
   return room;
 }
 
-function assignSeat(room: Room, clientId: string): Seat {
+async function assignSeat(room: Room, clientId: string): Promise<Seat> {
   if (!room.projection.seats.white) {
-    appendEvent(room, {
+    await appendEvent(room, {
       type: 'seat-assigned',
       at: Date.now(),
       roomId: room.id,
@@ -155,7 +267,7 @@ function assignSeat(room: Room, clientId: string): Seat {
     return 'white';
   }
   if (!room.projection.seats.black) {
-    appendEvent(room, {
+    await appendEvent(room, {
       type: 'seat-assigned',
       at: Date.now(),
       roomId: room.id,
@@ -167,11 +279,11 @@ function assignSeat(room: Room, clientId: string): Seat {
   return 'spectator';
 }
 
-function enableRandomEngine(room: Room): void {
+async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.seats.black) return;
-  appendEvent(room, {
+  await appendEvent(room, {
     type: 'seat-assigned',
     at: Date.now(),
     roomId: room.id,
@@ -180,25 +292,25 @@ function enableRandomEngine(room: Room): void {
   });
 }
 
-function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): void {
+async function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): Promise<void> {
   const selectionColor = client.solo && isColor(color) ? color : client.seat;
   if (selectionColor === 'spectator') return;
   if (room.projection.state.status.type !== 'pregame') return;
   if (!room.projection.offer.some((start) => start.id === startId)) return;
   if (startId === undefined) return;
 
-  appendEvent(room, {
+  await appendEvent(room, {
     type: 'draft-start-selected',
     at: Date.now(),
     roomId: room.id,
     color: selectionColor,
     startId,
   });
-  resolveStartIfReady(room);
+  await resolveStartIfReady(room);
   broadcastSnapshot(room);
 }
 
-function submitBid(room: Room, client: Client, bidMs: number | undefined, color: string | undefined): void {
+async function submitBid(room: Room, client: Client, bidMs: number | undefined, color: string | undefined): Promise<void> {
   if (room.projection.variant !== 'bid-for-white') return;
   if (room.projection.state.status.type !== 'pregame') return;
 
@@ -208,24 +320,24 @@ function submitBid(room: Room, client: Client, bidMs: number | undefined, color:
 
   const requestedBidMs = bidMs;
   const boundedBidMs = Math.max(0, Math.min(requestedBidMs, defaultClockInitialMs - 1000));
-  appendEvent(room, {
+  await appendEvent(room, {
     type: 'bid-submitted',
     at: Date.now(),
     roomId: room.id,
     color: biddingSeat,
     bidMs: boundedBidMs,
   });
-  resolveBidIfReady(room);
+  await resolveBidIfReady(room);
   broadcastSnapshot(room);
 }
 
-function playMove(room: Room, client: Client, move: ClientMoveMessage): void {
+async function playMove(room: Room, client: Client, move: ClientMoveMessage): Promise<void> {
   if (room.projection.state.status.type !== 'playing') return;
   const now = Date.now();
   const moveColor = room.projection.state.status.turn;
   if (!client.solo && (client.seat === 'spectator' || moveColor !== client.seat)) return;
   if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, moveColor, now) <= 0) {
-    expireActiveClock(room, moveColor, now);
+    await expireActiveClock(room, moveColor, now);
     broadcastSnapshot(room);
     return;
   }
@@ -239,7 +351,7 @@ function playMove(room: Room, client: Client, move: ClientMoveMessage): void {
   if (nextState === room.projection.state) return;
   const nextClock = advanceClock(room.projection.state.clock, now, moveColor, nextState.status);
 
-  appendEvent(room, {
+  await appendEvent(room, {
     type: 'move-played',
     at: now,
     roomId: room.id,
@@ -247,11 +359,11 @@ function playMove(room: Room, client: Client, move: ClientMoveMessage): void {
     color: moveColor,
     move: requestedMove,
   });
-  playRandomEngineMoveIfReady(room);
+  await playRandomEngineMoveIfReady(room);
   broadcastSnapshot(room);
 }
 
-function playRandomEngineMoveIfReady(room: Room): void {
+async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
   if (!room.randomEngine) return;
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.state.status.type !== 'playing') return;
@@ -261,7 +373,7 @@ function playRandomEngineMoveIfReady(room: Room): void {
   if (moves.length === 0) return;
   const move = moves[randomInt(moves.length)];
   if (!move) return;
-  appendEvent(room, {
+  await appendEvent(room, {
     type: 'move-played',
     at: Date.now(),
     roomId: room.id,
@@ -270,7 +382,7 @@ function playRandomEngineMoveIfReady(room: Room): void {
   });
 }
 
-function resolveStartIfReady(room: Room): void {
+async function resolveStartIfReady(room: Room): Promise<void> {
   if (room.projection.resolvedStartId !== null) return;
 
   const whiteSelection = room.projection.selections.white;
@@ -284,7 +396,7 @@ function resolveStartIfReady(room: Room): void {
   if (!resolvedStart) return;
   const now = Date.now();
 
-  appendEvent(room, {
+  await appendEvent(room, {
     type: 'draft-start-resolved',
     at: now,
     roomId: room.id,
@@ -293,7 +405,7 @@ function resolveStartIfReady(room: Room): void {
   });
 }
 
-function resolveBidIfReady(room: Room): void {
+async function resolveBidIfReady(room: Room): Promise<void> {
   if (room.projection.variant !== 'bid-for-white') return;
   if (room.projection.state.status.type !== 'pregame') return;
 
@@ -316,7 +428,7 @@ function resolveBidIfReady(room: Room): void {
     },
   };
 
-  appendEvent(room, {
+  await appendEvent(room, {
     type: 'bid-resolved',
     at: now,
     roomId: room.id,
@@ -343,10 +455,100 @@ function broadcastSnapshot(room: Room): void {
   }
 }
 
-function appendEvent(room: Room, event: GameEvent): void {
-  room.events.push(event);
-  room.projection = replayGameEvents(room.events);
-  scheduleClockTimeout(room);
+async function appendEvent(room: Room, event: GameEvent): Promise<void> {
+  // Serialize per-room writes. Chaining onto pendingWrites guarantees
+  // sequence assignment is atomic with the persistence write.
+  const myWrite = room.pendingWrites.then(async () => {
+    const seq = room.events.length;
+    if (persistence.isInitialized()) {
+      try {
+        await persistence.appendEvent(room.id, seq, event);
+      } catch (err) {
+        recordPersistenceError(room.id, seq, event, err as Error);
+        throw new PersistenceFailure();
+      }
+    }
+    room.events.push(event);
+    room.projection = replayGameEvents(room.events);
+    scheduleClockTimeout(room);
+
+    if (
+      persistence.isInitialized()
+      && room.projection.state.status.type === 'finished'
+      && !room.gameEndRecorded
+    ) {
+      room.gameEndRecorded = true;
+      try {
+        await persistence.recordGameEnd(room.id, buildGameSummary(room));
+      } catch (err) {
+        // Events are durable; the games-row aggregate can be backfilled.
+        // Log loudly so it's visible.
+        console.error(JSON.stringify({
+          level: 'error',
+          kind: 'game_end_record_failure',
+          roomId: room.id,
+          error: (err as Error).message,
+          at: Date.now(),
+        }));
+      }
+    }
+  });
+  // Don't break the chain if this write rejects — caller surfaces the error.
+  room.pendingWrites = myWrite.catch(() => {});
+  await myWrite;
+}
+
+function buildGameSummary(room: Room): GameSummary {
+  const status = room.projection.state.status;
+  if (status.type !== 'finished') {
+    throw new Error('buildGameSummary called on non-terminal state');
+  }
+  const result: GameSummary['result'] = status.winner === 'white' ? 'white-wins'
+    : status.winner === 'black' ? 'black-wins'
+    : 'draw';
+
+  // status.reason is loosely typed as string in @bichess/game; narrow here.
+  const termination = status.reason as GameSummary['termination'];
+
+  const moveEvents = room.events.filter((e) => e.type === 'move-played');
+  const firstAt = room.events[0]?.at ?? Date.now();
+  const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
+
+  return {
+    variant: room.projection.variant,
+    result,
+    termination,
+    plyCount: moveEvents.length,
+    startedAt: new Date(firstAt),
+    endedAt: new Date(lastAt),
+    whiteClient: room.projection.seats.white ?? null,
+    blackClient: room.projection.seats.black ?? null,
+  };
+}
+
+function recordPersistenceError(roomId: string, seq: number, event: GameEvent, err: Error): void {
+  const entry = { at: Date.now(), roomId, eventType: event.type };
+  persistenceErrors.push(entry);
+  const cutoff = Date.now() - PERSISTENCE_ERROR_RETENTION_MS;
+  while (persistenceErrors.length > 0 && persistenceErrors[0]!.at < cutoff) {
+    persistenceErrors.shift();
+  }
+  console.error(JSON.stringify({
+    level: 'error',
+    kind: 'persistence_failure',
+    roomId,
+    seq,
+    eventType: event.type,
+    error: err.message,
+    at: entry.at,
+  }));
+}
+
+class PersistenceFailure extends Error {
+  constructor() {
+    super('persistence_failure');
+    this.name = 'PersistenceFailure';
+  }
 }
 
 function resetRoom(roomId: string): void {
@@ -367,15 +569,26 @@ function scheduleClockTimeout(room: Room): void {
   room.clockTimer = setTimeout(() => {
     if (room.projection.state.status.type !== 'playing') return;
     if (room.projection.state.status.turn !== activeColor) return;
-    expireActiveClock(room, activeColor, Date.now());
-    broadcastSnapshot(room);
+    void expireActiveClock(room, activeColor, Date.now())
+      .then(() => broadcastSnapshot(room))
+      .catch((err) => {
+        if (!(err instanceof PersistenceFailure)) {
+          console.error(JSON.stringify({
+            level: 'error',
+            kind: 'clock_expire_failure',
+            roomId: room.id,
+            error: (err as Error).message,
+            at: Date.now(),
+          }));
+        }
+      });
   }, delay + 25);
 }
 
-function expireActiveClock(room: Room, color: Color, at: number): void {
+async function expireActiveClock(room: Room, color: Color, at: number): Promise<void> {
   const clock = expireClock(room.projection.state.clock, at, color);
   if (!clock) return;
-  appendEvent(room, {
+  await appendEvent(room, {
     type: 'clock-expired',
     at,
     roomId: room.id,
@@ -386,13 +599,6 @@ function expireActiveClock(room: Room, color: Color, at: number): void {
 
 function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
-}
-
-function broadcast(room: Room, payload: unknown): void {
-  const body = JSON.stringify(payload);
-  for (const client of room.clients) {
-    client.socket.send(body);
-  }
 }
 
 type ClientMoveMessage = {
