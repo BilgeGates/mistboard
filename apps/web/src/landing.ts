@@ -1,14 +1,16 @@
-import { mountReplay } from './replay.js';
+import type { GameEvent } from '@bichess/game';
+import { mountReplay, type GameMeta } from './replay.js';
 
-const SAMPLE_IDS = [
-  'sample-1',
-  'sample-2',
-  'sample-3',
-  'sample-4',
-  'sample-5',
-  'sample-6',
-  'sample-7',
-];
+type FeaturedGame = {
+  roomId: string;
+  variant: string;
+  result: string;
+  termination: string;
+  plyCount: number;
+  whiteName: string | null;
+  blackName: string | null;
+  corpusId: string | null;
+};
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 
@@ -16,21 +18,54 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
 
+  const demo = buildDemoSection();
+  root.append(buildNav(), buildHero(), demo.el, buildFooter());
+
+  const games = await fetchFeaturedGames();
+  if (games.length === 0) {
+    demo.replayRoot.textContent = 'No games available yet.';
+    return;
+  }
+
+  const metadataByRoomId: Record<string, GameMeta> = {};
+  for (const g of games) {
+    metadataByRoomId[g.roomId] = {
+      whiteName: g.whiteName,
+      blackName: g.blackName,
+      result: g.result,
+      termination: g.termination,
+      plyCount: g.plyCount,
+    };
+  }
+
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('demo');
+  const sampleIds = games.map((g) => g.roomId);
   const currentSample =
-    requested && SAMPLE_IDS.includes(requested) ? requested : pickSample();
-
-  const demo = buildDemoSection();
-
-  root.append(buildNav(), buildHero(), demo.el, buildFooter());
+    requested && sampleIds.includes(requested) ? requested : pickSample(sampleIds);
 
   await mountReplay(demo.replayRoot, currentSample, {
     autoplay: true,
     showControls: false,
     revealOnFinish: false,
-    loopSamples: SAMPLE_IDS,
+    loopSamples: sampleIds,
+    loaderForId: apiEventLoader,
+    metadataByRoomId,
   });
+}
+
+async function fetchFeaturedGames(): Promise<FeaturedGame[]> {
+  const resp = await fetch('/api/featured-games');
+  if (!resp.ok) throw new Error(`failed to load featured games: ${resp.status}`);
+  const data = (await resp.json()) as { games: FeaturedGame[] };
+  return data.games;
+}
+
+async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
+  const resp = await fetch(`/api/games/${encodeURIComponent(roomId)}/events`);
+  if (!resp.ok) throw new Error(`failed to load events for ${roomId}: ${resp.status}`);
+  const data = (await resp.json()) as { events: GameEvent[] };
+  return data.events;
 }
 
 export function mountAbout(root: HTMLElement): void {
@@ -164,7 +199,7 @@ function buildFooter(): HTMLElement {
   return footer;
 }
 
-function pickSample(exclude?: string): string {
-  const pool = exclude ? SAMPLE_IDS.filter((id) => id !== exclude) : SAMPLE_IDS;
-  return pool[Math.floor(Math.random() * pool.length)] ?? SAMPLE_IDS[0];
+function pickSample(pool: string[], exclude?: string): string {
+  const candidates = exclude ? pool.filter((id) => id !== exclude) : pool;
+  return candidates[Math.floor(Math.random() * candidates.length)] ?? pool[0]!;
 }

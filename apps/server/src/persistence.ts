@@ -17,6 +17,19 @@ export type GameSummary = {
   corpusId: string | null;
 };
 
+export type GameRecord = {
+  roomId: string;
+  variant: string;
+  result: string;
+  termination: string;
+  plyCount: number;
+  startedAt: Date;
+  endedAt: Date;
+  whiteName: string | null;
+  blackName: string | null;
+  corpusId: string | null;
+};
+
 export function init(connectionString: string): void {
   if (pool) throw new Error('persistence already initialized');
   pool = new pg.Pool({ connectionString, max: 10 });
@@ -57,6 +70,41 @@ export async function listActiveRoomIds(since: Date): Promise<string[]> {
     [since],
   );
   return rows.map((row) => row.room_id);
+}
+
+export async function listCorpusGames(limit = 100): Promise<GameRecord[]> {
+  const { rows } = await getPool().query<{
+    room_id: string;
+    variant: string;
+    result: string;
+    termination: string;
+    ply_count: number;
+    started_at: Date;
+    ended_at: Date;
+    white_name: string | null;
+    black_name: string | null;
+    corpus_id: string | null;
+  }>(
+    `SELECT room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_name, black_name, corpus_id
+     FROM games
+     WHERE corpus_id IS NOT NULL
+     ORDER BY corpus_id, room_id
+     LIMIT $1`,
+    [limit],
+  );
+  return rows.map((row) => ({
+    roomId: row.room_id,
+    variant: row.variant,
+    result: row.result,
+    termination: row.termination,
+    plyCount: row.ply_count,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    whiteName: row.white_name,
+    blackName: row.black_name,
+    corpusId: row.corpus_id,
+  }));
 }
 
 export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void> {

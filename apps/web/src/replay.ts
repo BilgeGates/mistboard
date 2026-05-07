@@ -20,15 +20,23 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const allSquares: Square[] = ranks.flatMap((r) => files.map((f) => `${f}${r}` as Square));
 
-const FALLBACK_PLAY_MS = 600;
+const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;
-const MIN_PLAY_MS = 350;
-const MAX_PLAY_MS = 1500;
+const MIN_PLAY_MS = 700;
+const MAX_PLAY_MS = 2500;
 const DEFAULT_BETWEEN_GAME_DELAY_MS = 4000;
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 type MovePlayedExt = { type: 'move-played'; compute_ms?: number };
+
+export type GameMeta = {
+  whiteName: string | null;
+  blackName: string | null;
+  result: string;
+  termination: string;
+  plyCount: number;
+};
 
 export type ReplayOptions = {
   autoplay?: boolean;
@@ -47,6 +55,16 @@ export type ReplayOptions = {
    * filenames containing slashes or dots.
    */
   urlForId?: (sampleId: string) => string;
+  /**
+   * Custom loader. Bypasses urlForId entirely — for callers that fetch
+   * events from a JSON API rather than a static JSONL file.
+   */
+  loaderForId?: (sampleId: string) => Promise<GameEvent[]>;
+  /**
+   * Per-game metadata to display in a header bar above the boards. Keyed
+   * by sampleId. When absent, no bar renders.
+   */
+  metadataByRoomId?: Record<string, GameMeta>;
 };
 
 export async function mountReplay(
@@ -60,6 +78,8 @@ export async function mountReplay(
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const autoplay = options.autoplay === true || loopSamples !== undefined;
   const urlForId = options.urlForId ?? defaultUrlForId;
+  const loaderForId = options.loaderForId;
+  const metadataByRoomId = options.metadataByRoomId;
 
   // If mountReplay is called again on the same root (e.g. switching games
   // in the bakeoff browser), abort any keyboard listeners from the prior
@@ -71,6 +91,9 @@ export async function mountReplay(
 
   root.replaceChildren();
   root.classList.add('replay-page');
+
+  const metadataBar = metadataByRoomId ? createMetadataBar() : null;
+  if (metadataBar) root.append(metadataBar);
 
   const layout = document.createElement('div');
   layout.className = 'replay-layout';
@@ -223,12 +246,21 @@ export async function mountReplay(
     stopPlay();
     clearLoopTimer();
     activeSample = sampleId;
-    events = await loadEvents(sampleId, urlForId);
+    events = loaderForId
+      ? await loaderForId(sampleId)
+      : await loadEvents(sampleId, urlForId);
     moveCount = events.filter((e) => e.type === 'move-played').length;
     currentPly = 0;
     finishedAck = false;
+    updateMetadataBar();
     render();
     if (autoplay) startPlay();
+  }
+
+  function updateMetadataBar(): void {
+    if (!metadataBar) return;
+    const meta = metadataByRoomId?.[activeSample];
+    metadataBar.textContent = meta ? formatMeta(meta) : '';
   }
 
   if (showControls) {
@@ -311,6 +343,28 @@ function pickNextSample(pool: string[], current: string): string {
   if (pool.length <= 1) return pool[0] ?? current;
   const others = pool.filter((id) => id !== current);
   return others[Math.floor(Math.random() * others.length)] ?? pool[0];
+}
+
+function createMetadataBar(): HTMLDivElement {
+  const bar = document.createElement('div');
+  bar.className = 'replay-metadata';
+  return bar;
+}
+
+function formatMeta(meta: GameMeta): string {
+  const white = meta.whiteName ?? 'anonymous';
+  const black = meta.blackName ?? 'anonymous';
+  const outcome = formatOutcome(meta.result, meta.termination);
+  return `${white} (white) vs ${black} (black) — ${outcome} · ${meta.plyCount} plies`;
+}
+
+function formatOutcome(result: string, termination: string): string {
+  const reason = termination === 'king-captured' ? 'king capture'
+    : termination === 'timeout' ? 'time'
+    : termination;
+  if (result === 'white-wins') return `white wins by ${reason}`;
+  if (result === 'black-wins') return `black wins by ${reason}`;
+  return `draw (${reason})`;
 }
 
 function createPane(label: string): {

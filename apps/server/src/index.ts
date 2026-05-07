@@ -96,7 +96,9 @@ async function initPersistence(): Promise<void> {
 }
 
 function handleHttpRequest(request: IncomingMessage, response: ServerResponse): void {
-  if (request.url === '/health') {
+  const url = request.url ?? '/';
+
+  if (url === '/health') {
     const cutoff1m = Date.now() - 60_000;
     const recent = persistenceErrors.filter((entry) => entry.at > cutoff1m);
     const lastAt = persistenceErrors.length > 0
@@ -112,7 +114,56 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
+  if (url.startsWith('/api/')) {
+    void handleApiRequest(url, response).catch((err) => {
+      console.error(JSON.stringify({
+        level: 'error',
+        kind: 'api_handler_failure',
+        url,
+        error: (err as Error).message,
+        at: Date.now(),
+      }));
+      if (!response.headersSent) {
+        response.writeHead(500, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ error: 'internal_error' }));
+      }
+    });
+    return;
+  }
+
   void serveHandler(request, response, { public: staticDir });
+}
+
+async function handleApiRequest(url: string, response: ServerResponse): Promise<void> {
+  if (!persistence.isInitialized()) {
+    response.writeHead(503, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ error: 'persistence_disabled' }));
+    return;
+  }
+
+  if (url === '/api/featured-games') {
+    const games = await persistence.listCorpusGames();
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ games }));
+    return;
+  }
+
+  const eventsMatch = url.match(/^\/api\/games\/([^/]+)\/events$/);
+  if (eventsMatch) {
+    const roomId = decodeURIComponent(eventsMatch[1]!);
+    const events = await persistence.loadRoom(roomId);
+    if (!events) {
+      response.writeHead(404, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'not_found' }));
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ events }));
+    return;
+  }
+
+  response.writeHead(404, { 'content-type': 'application/json' });
+  response.end(JSON.stringify({ error: 'not_found' }));
 }
 
 function resolveStaticDir(): string {

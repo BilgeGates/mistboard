@@ -693,6 +693,19 @@ a {
   max-width: 1280px;
 }
 
+.replay-metadata {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: #b8b8b8;
+  text-align: center;
+  width: 100%;
+  max-width: 1280px;
+}
+
+.replay-metadata:empty {
+  display: none;
+}
+
 .replay-pane {
   display: flex;
   flex-direction: column;
