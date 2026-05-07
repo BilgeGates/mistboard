@@ -27,10 +27,16 @@ from contextlib import nullcontext
 
 from fow_chess.engine import EvaluatorBuilder, static_builder
 from fow_chess.evaluator import (
+    fog_aware_evaluator,
     material_evaluator,
     stockfish_evaluator,
     threat_aware_evaluator,
     visibility_threat_evaluator,
+)
+from fow_chess.move_priors import (
+    OpponentMovePrior,
+    stockfish_shallow_prior_ctx,
+    uniform_prior,
 )
 from fow_chess.move_quality import MoveQualityAnalyzer
 from fow_chess.selfplay import PerspectiveView, play_game
@@ -55,6 +61,15 @@ def main() -> int:
         "in check).",
     )
     parser.add_argument("--threat-lambda", type=float, default=0.3)
+    parser.add_argument(
+        "--fog-lambda",
+        type=float,
+        default=0.0,
+        help="P2.3 fog discount weight. When >0, wraps the chosen evaluator with "
+        "a fog-discount penalty: per friendly piece, (depth into enemy territory) "
+        "× (1 if undefended) × piece_value, scaled by fog_lambda. Captures "
+        "FOW-implicit risk for exposed pieces. Suggested 0.05-0.2.",
+    )
     parser.add_argument("--depth", type=int, default=4)
     parser.add_argument("--max-particles", type=int, default=16)
     parser.add_argument("--target-n", type=int, default=256)
@@ -77,6 +92,20 @@ def main() -> int:
         "into this directory. Compatible with inspect_belief.py and the "
         "corpus loader.",
     )
+    parser.add_argument(
+        "--prior",
+        choices=("uniform", "stockfish-shallow"),
+        default="uniform",
+        help="Tier-1 opponent move prior. uniform: equal weight to all legal "
+        "opp moves (the original baseline). stockfish-shallow: top-K Stockfish "
+        "depth-4 moves softmaxed and blended with uniform; pruning that "
+        "preserves truth-particle survival.",
+    )
+    parser.add_argument("--prior-depth", type=int, default=4)
+    parser.add_argument("--prior-movetime-ms", type=int, default=50)
+    parser.add_argument("--prior-top-k", type=int, default=8)
+    parser.add_argument("--prior-temperature-cp", type=float, default=100.0)
+    parser.add_argument("--prior-uniform-blend", type=float, default=0.3)
     parser.add_argument(
         "--analyze-vs-truth",
         action="store_true",
@@ -122,6 +151,7 @@ def main() -> int:
 
     print(
         f"bake-off: {args.games} games, evaluator={args.evaluator}, "
+        f"prior={args.prior}, fog_lambda={args.fog_lambda}, "
         f"max_particles={args.max_particles}, target_n={args.target_n}, "
         f"risk_aversion={args.risk_aversion}"
     )
@@ -157,8 +187,30 @@ def main() -> int:
         else nullcontext(None)
     )
 
-    with evaluator_ctx as evaluate_or_builder, analyzer_ctx as analyzer:
+    if args.prior == "stockfish-shallow":
+        prior_ctx = stockfish_shallow_prior_ctx(
+            path=args.stockfish,
+            depth=args.prior_depth,
+            movetime_ms=args.prior_movetime_ms,
+            top_k=args.prior_top_k,
+            softmax_temperature_cp=args.prior_temperature_cp,
+            uniform_blend=args.prior_uniform_blend,
+        )
+    else:
+        prior_ctx = nullcontext(uniform_prior)
+
+    with (
+        evaluator_ctx as evaluate_or_builder,
+        analyzer_ctx as analyzer,
+        prior_ctx as move_prior,
+    ):
         evaluator_builder: EvaluatorBuilder = builder_factory(evaluate_or_builder)
+        if args.fog_lambda > 0:
+            base_builder = evaluator_builder
+            fog_lambda = args.fog_lambda
+
+            def evaluator_builder(view, _b=base_builder, _l=fog_lambda):
+                return fog_aware_evaluator(_b(view), _l)
         for i in range(args.games):
             tier1_white = i % 2 == 0  # alternate colors
             seed_base = args.seed + i * 7919
@@ -166,6 +218,7 @@ def main() -> int:
             tier1 = _LatencyTracking(
                 Tier1Strategy(
                     evaluator_builder=evaluator_builder,
+                    move_prior=move_prior,
                     target_n=args.target_n,
                     max_eval_particles=args.max_particles,
                     risk_aversion=args.risk_aversion,

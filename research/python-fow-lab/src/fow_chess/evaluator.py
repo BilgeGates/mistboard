@@ -54,6 +54,61 @@ def material_score(board: chess.Board, perspective: chess.Color) -> float:
     return float(total)
 
 
+def fog_discount_term(board: chess.Board, perspective: chess.Color) -> float:
+    """Static fog-discount penalty: sum over `perspective`'s non-king pieces
+    in opp territory of (depth into enemy) × (1 if undefended) × piece_value.
+
+    Captures the FOW-implicit risk that an exposed piece in opp territory
+    could be captured by a hidden attacker we don't see. Independent of
+    particle hypotheses — doesn't dilute under uniform-prior dispersion the
+    way per-particle threat aggregation does.
+
+    Depth: rank distance past midfield (1-4). Pieces on our own half
+    contribute zero. Defended-ness checked against own-color attackers
+    targeting the piece's square (recapture availability).
+    """
+    penalty = 0.0
+    for square, piece in board.piece_map().items():
+        if piece.color != perspective:
+            continue
+        if piece.piece_type == chess.KING:
+            continue
+        rank = chess.square_rank(square)
+        if perspective == chess.WHITE:
+            depth = max(0, rank - 3)
+        else:
+            depth = max(0, 4 - rank)
+        if depth == 0:
+            continue
+        if board.attackers(perspective, square):
+            continue
+        penalty += depth * _PIECE_VALUES[piece.piece_type]
+    return penalty
+
+
+def fog_aware_evaluator(base: Evaluator, fog_lambda: float) -> Evaluator:
+    """Wrap `base` with a fog-discount penalty on the post-move position.
+
+    The wrapped evaluator returns base_score - fog_lambda * fog_discount_term.
+    King-capture scores from the base (±_KING_CAPTURE_SCORE) pass through
+    unchanged — winning the game outweighs any exposure penalty.
+    """
+
+    def evaluate(
+        board: chess.Board, move: chess.Move, perspective: chess.Color
+    ) -> float:
+        base_score = base(board, move, perspective)
+        if abs(base_score) >= _KING_CAPTURE_SCORE / 2:
+            return base_score
+        advanced = board.copy()
+        advanced.push(move)
+        if advanced.king(chess.WHITE) is None or advanced.king(chess.BLACK) is None:
+            return base_score
+        return base_score - fog_lambda * fog_discount_term(advanced, perspective)
+
+    return evaluate
+
+
 def material_evaluator() -> Evaluator:
     """Evaluator that scores a candidate move by post-move material balance.
 
@@ -239,6 +294,10 @@ class _UCIEngine:
         self.proc: subprocess.Popen[bytes] | None = None
         self._master_fd: int | None = None
         self._buffer: str = ""
+        # Tracked so they get re-applied automatically when _ensure_alive
+        # restarts the subprocess after a crash. Threads is special-cased
+        # in _open; everything else (e.g. MultiPV) goes here.
+        self._extra_options: list[tuple[str, str]] = []
         self._open()
 
     def _open(self) -> None:
@@ -258,6 +317,16 @@ class _UCIEngine:
         self._send("uci")
         self._wait_for_token("uciok", timeout=5.0)
         self._send(f"setoption name Threads value {self.threads}")
+        for name, value in self._extra_options:
+            self._send(f"setoption name {name} value {value}")
+        self._send("isready")
+        self._wait_for_token("readyok", timeout=5.0)
+
+    def setoption(self, name: str, value: str) -> None:
+        """Set a UCI option and remember it so restart-on-crash reapplies it."""
+        self._extra_options = [(n, v) for n, v in self._extra_options if n != name]
+        self._extra_options.append((name, value))
+        self._send(f"setoption name {name} value {value}")
         self._send("isready")
         self._wait_for_token("readyok", timeout=5.0)
 
@@ -439,6 +508,83 @@ class _UCIEngine:
                     break
         return bestmove, last_score
 
+    def analyze_fen_multipv(
+        self, fen: str, depth: int, movetime_ms: int, slack_seconds: float = 1.5
+    ) -> dict[str, float] | None:
+        """Top-K candidate moves with cp scores from side-to-move POV.
+
+        Returns dict mapping UCI move string to cp score, with at most K
+        entries (K = the current MultiPV setoption value). Caller should
+        configure MultiPV via setoption before calling. Returns None on
+        timeout / no bestmove / engine crash; caller should fall back to
+        uniform when None.
+        """
+        self._ensure_alive()
+        try:
+            self._send("stop")
+            self._send("isready")
+            # Tight handshake: under 3-Stockfish load, healthy SF responds
+            # in <50ms. If we don't see readyok in 300ms, the process is
+            # thrashing — kill+restart and fall back, don't sit on it.
+            self._wait_for_token("readyok", timeout=0.3)
+        except (TimeoutError, BrokenPipeError, OSError):
+            self._ensure_alive()
+            return None
+
+        try:
+            self._send(f"position fen {fen}")
+            self._send(f"go depth {depth} movetime {movetime_ms}")
+        except (BrokenPipeError, OSError):
+            self._ensure_alive()
+            return None
+
+        candidates: dict[int, tuple[str, float]] = {}
+        deadline = time.monotonic() + (movetime_ms / 1000.0) + slack_seconds
+        got_bestmove = False
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            line = self._readline(remaining)
+            if line is None:
+                break
+            stripped = line.strip()
+            if stripped.startswith("info "):
+                parsed = _parse_info_multipv(stripped)
+                if parsed is not None:
+                    idx, move_uci, cp = parsed
+                    candidates[idx] = (move_uci, cp)
+            elif stripped.startswith("bestmove"):
+                got_bestmove = True
+                break
+
+        if not got_bestmove:
+            try:
+                self._send("stop")
+            except (BrokenPipeError, OSError):
+                self._ensure_alive()
+                return None
+            drain_deadline = time.monotonic() + 0.5
+            while True:
+                rem = drain_deadline - time.monotonic()
+                if rem <= 0:
+                    break
+                line = self._readline(rem)
+                if line is None:
+                    break
+                stripped = line.strip()
+                if stripped.startswith("info "):
+                    parsed = _parse_info_multipv(stripped)
+                    if parsed is not None:
+                        idx, move_uci, cp = parsed
+                        candidates[idx] = (move_uci, cp)
+                elif stripped.startswith("bestmove"):
+                    break
+
+        if not candidates:
+            return None
+        return {move: cp for (move, cp) in candidates.values()}
+
     def close(self) -> None:
         if self.proc is None:
             return
@@ -465,6 +611,46 @@ class _UCIEngine:
             except OSError:
                 pass
             self._master_fd = None
+
+
+def _parse_info_multipv(line: str) -> tuple[int, str, float] | None:
+    """Parse (multipv_index, first_pv_move_uci, cp_score) from an info line.
+
+    Returns None when the info line lacks any of the three fields (e.g. the
+    initial low-depth chatter Stockfish emits before scoring is stable).
+    """
+    tokens = line.split()
+    multipv: int | None = None
+    cp: float | None = None
+    move_uci: str | None = None
+    i = 0
+    while i < len(tokens):
+        t = tokens[i]
+        if t == "multipv" and i + 1 < len(tokens):
+            try:
+                multipv = int(tokens[i + 1])
+            except ValueError:
+                return None
+            i += 2
+        elif t == "score" and i + 2 < len(tokens):
+            kind = tokens[i + 1]
+            try:
+                value = int(tokens[i + 2])
+            except ValueError:
+                return None
+            if kind == "cp":
+                cp = float(value)
+            elif kind == "mate":
+                cp = float(_KING_CAPTURE_SCORE if value > 0 else -_KING_CAPTURE_SCORE)
+            i += 3
+        elif t == "pv" and i + 1 < len(tokens):
+            move_uci = tokens[i + 1]
+            break
+        else:
+            i += 1
+    if multipv is None or cp is None or move_uci is None:
+        return None
+    return multipv, move_uci, cp
 
 
 def _parse_info_score(line: str) -> float | None:
