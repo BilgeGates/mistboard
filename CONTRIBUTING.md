@@ -56,6 +56,7 @@ Before opening a PR:
 
 - run the relevant tests
 - update docs when behavior changes
+- follow `docs/documentation-policy.md` for public vs private documentation
 - avoid committing generated corpora, large tournament logs, or local artifacts unless they are explicitly part of a reviewed benchmark/release artifact
 - do not include secrets, production URLs, API keys, or private credentials
 
