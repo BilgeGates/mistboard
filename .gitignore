@@ -11,3 +11,7 @@ __pycache__
 research/python-fow-lab/corpora/*/games/
 research/python-fow-lab/corpora/*/views/
 
+# Local-only symlink for the ?bakeoff browser route. Points at a bake-off
+# output directory under /tmp; not part of the repo.
+apps/web/public/bakeoff
+
