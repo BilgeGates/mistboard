@@ -693,16 +693,74 @@ a {
   max-width: 1280px;
 }
 
-.replay-metadata {
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  color: #b8b8b8;
+.replay-pane-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #d8d8d8;
+  letter-spacing: 0.01em;
+  margin-top: 2px;
+  min-height: 18px;
   text-align: center;
-  width: 100%;
-  max-width: 1280px;
 }
 
-.replay-metadata:empty {
+.replay-pane-name:empty {
+  display: none;
+}
+
+.replay-pane-status {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #888;
+  min-height: 14px;
+  margin-top: 6px;
+  text-align: center;
+}
+
+.replay-pane-status:empty {
+  visibility: hidden;
+}
+
+.replay-pane.winner .replay-board {
+  box-shadow: 0 0 0 3px rgba(214, 175, 78, 0.85), 0 0 24px rgba(214, 175, 78, 0.45);
+  border-radius: 4px;
+  animation: replay-winner-pulse 1.6s ease-in-out 1;
+}
+
+.replay-pane.winner .replay-pane-status {
+  color: #d6af4e;
+}
+
+.replay-pane.loser .replay-board {
+  filter: brightness(0.7) saturate(0.8);
+  transition: filter 600ms ease-out;
+}
+
+.replay-pane.loser .replay-pane-status {
+  color: #6c6c6c;
+}
+
+.replay-pane.finished .replay-pane-status {
+  color: #b8b8b8;
+}
+
+@keyframes replay-winner-pulse {
+  0%   { transform: scale(1.0); }
+  35%  { transform: scale(1.015); }
+  100% { transform: scale(1.0); }
+}
+
+.replay-game-id {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #6c6c6c;
+  text-align: center;
+  width: 100%;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.replay-game-id:empty {
   display: none;
 }
 

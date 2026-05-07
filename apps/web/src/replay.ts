@@ -92,9 +92,6 @@ export async function mountReplay(
   root.replaceChildren();
   root.classList.add('replay-page');
 
-  const metadataBar = metadataByRoomId ? createMetadataBar() : null;
-  if (metadataBar) root.append(metadataBar);
-
   const layout = document.createElement('div');
   layout.className = 'replay-layout';
 
@@ -106,6 +103,9 @@ export async function mountReplay(
   const blackPane = createPane(blackBaseLabel);
   layout.append(whitePane.el, truthPane.el, blackPane.el);
   root.append(layout);
+
+  const gameIdFooter = metadataByRoomId ? createGameIdFooter() : null;
+  if (gameIdFooter) root.append(gameIdFooter);
 
   const firstBtn = controlButton('|◀', 'Jump to start');
   const prevBtn = controlButton('◀', 'Previous ply');
@@ -170,6 +170,17 @@ export async function mountReplay(
       prevBtn.disabled = currentPly === 0;
       nextBtn.disabled = currentPly >= moveCount;
       lastBtn.disabled = currentPly >= moveCount;
+    }
+
+    if (finished) {
+      applyEndGameState(state);
+    } else {
+      whitePane.el.classList.remove('winner', 'loser');
+      blackPane.el.classList.remove('winner', 'loser');
+      truthPane.el.classList.remove('finished');
+      whitePane.statusEl.textContent = '';
+      blackPane.statusEl.textContent = '';
+      truthPane.statusEl.textContent = '';
     }
 
     if (finished && !finishedAck) {
@@ -252,15 +263,57 @@ export async function mountReplay(
     moveCount = events.filter((e) => e.type === 'move-played').length;
     currentPly = 0;
     finishedAck = false;
-    updateMetadataBar();
+    applyMetadata();
     render();
     if (autoplay) startPlay();
   }
 
-  function updateMetadataBar(): void {
-    if (!metadataBar) return;
+  function applyMetadata(): void {
     const meta = metadataByRoomId?.[activeSample];
-    metadataBar.textContent = meta ? formatMeta(meta) : '';
+    whitePane.nameEl.textContent = meta?.whiteName ?? '';
+    blackPane.nameEl.textContent = meta?.blackName ?? '';
+    if (gameIdFooter) {
+      gameIdFooter.textContent = meta ? `game ${activeSample}` : '';
+    }
+    // Reset any prior end-game state (returning to ply 0).
+    whitePane.el.classList.remove('winner', 'loser');
+    blackPane.el.classList.remove('winner', 'loser');
+    truthPane.el.classList.remove('finished');
+    whitePane.statusEl.textContent = '';
+    blackPane.statusEl.textContent = '';
+    truthPane.statusEl.textContent = '';
+  }
+
+  function applyEndGameState(state: GameState): void {
+    if (state.status.type !== 'finished') return;
+    const winner = state.status.winner;
+    const reasonLabel = endGameReasonLabel(state.status.reason);
+
+    if (winner === 'white') {
+      whitePane.el.classList.add('winner');
+      blackPane.el.classList.add('loser');
+      whitePane.statusEl.textContent = 'WINNER';
+      blackPane.statusEl.textContent = 'LOST';
+    } else if (winner === 'black') {
+      blackPane.el.classList.add('winner');
+      whitePane.el.classList.add('loser');
+      blackPane.statusEl.textContent = 'WINNER';
+      whitePane.statusEl.textContent = 'LOST';
+    } else {
+      // Draw — neither side gets winner/loser visual state.
+      whitePane.statusEl.textContent = 'DRAW';
+      blackPane.statusEl.textContent = 'DRAW';
+    }
+    truthPane.el.classList.add('finished');
+    truthPane.statusEl.textContent = reasonLabel;
+  }
+
+  function endGameReasonLabel(reason: string): string {
+    if (reason === 'king-captured') return 'King captured';
+    if (reason === 'timeout') return 'Timeout';
+    if (reason === 'checkmate') return 'Checkmate';
+    if (reason === 'draw') return 'Draw';
+    return reason;
   }
 
   if (showControls) {
@@ -345,42 +398,32 @@ function pickNextSample(pool: string[], current: string): string {
   return others[Math.floor(Math.random() * others.length)] ?? pool[0];
 }
 
-function createMetadataBar(): HTMLDivElement {
-  const bar = document.createElement('div');
-  bar.className = 'replay-metadata';
-  return bar;
-}
-
-function formatMeta(meta: GameMeta): string {
-  const white = meta.whiteName ?? 'anonymous';
-  const black = meta.blackName ?? 'anonymous';
-  const outcome = formatOutcome(meta.result, meta.termination);
-  return `${white} (white) vs ${black} (black) — ${outcome} · ${meta.plyCount} plies`;
-}
-
-function formatOutcome(result: string, termination: string): string {
-  const reason = termination === 'king-captured' ? 'king capture'
-    : termination === 'timeout' ? 'time'
-    : termination;
-  if (result === 'white-wins') return `white wins by ${reason}`;
-  if (result === 'black-wins') return `black wins by ${reason}`;
-  return `draw (${reason})`;
+function createGameIdFooter(): HTMLDivElement {
+  const footer = document.createElement('div');
+  footer.className = 'replay-game-id';
+  return footer;
 }
 
 function createPane(label: string): {
   el: HTMLDivElement;
   boardEl: HTMLDivElement;
   labelEl: HTMLDivElement;
+  nameEl: HTMLDivElement;
+  statusEl: HTMLDivElement;
 } {
   const el = document.createElement('div');
   el.className = 'replay-pane';
   const labelEl = document.createElement('div');
   labelEl.className = 'replay-pane-label';
   labelEl.textContent = label;
+  const nameEl = document.createElement('div');
+  nameEl.className = 'replay-pane-name';
   const boardEl = document.createElement('div');
   boardEl.className = 'board replay-board';
-  el.append(labelEl, boardEl);
-  return { el, boardEl, labelEl };
+  const statusEl = document.createElement('div');
+  statusEl.className = 'replay-pane-status';
+  el.append(labelEl, nameEl, boardEl, statusEl);
+  return { el, boardEl, labelEl, nameEl, statusEl };
 }
 
 function controlButton(text: string, title: string): HTMLButtonElement {
