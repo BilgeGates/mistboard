@@ -15,6 +15,7 @@
     "start": "node apps/server/dist/index.js",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "hooks:install": "git config core.hooksPath .githooks",
     "visual:check": "node scripts/visual-check.mjs"
   },
   "engines": {
