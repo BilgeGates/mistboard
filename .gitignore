@@ -16,3 +16,11 @@ research/python-fow-lab/corpora/*/views/
 # output directory under /tmp; not part of the repo.
 apps/web/public/bakeoff
 
+# Versioned bake-off output dirs (per Tier-1 release). Local development
+# artifact only — multi-MB JSONL traces + per-game event logs the engine
+# lab viewer reads. Regenerate with research/python-fow-lab/scripts/bake_off.py.
+apps/web/public/bakeoff-*/
+
+# Private founder/operator notes. Public docs should be contributor-safe.
+docs-private/
+.claude/
