@@ -26,6 +26,8 @@ const MIN_PLAY_MS = 350;
 const MAX_PLAY_MS = 1500;
 const DEFAULT_BETWEEN_GAME_DELAY_MS = 4000;
 
+const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
+
 type MovePlayedExt = { type: 'move-played'; compute_ms?: number };
 
 export type ReplayOptions = {
@@ -58,6 +60,14 @@ export async function mountReplay(
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const autoplay = options.autoplay === true || loopSamples !== undefined;
   const urlForId = options.urlForId ?? defaultUrlForId;
+
+  // If mountReplay is called again on the same root (e.g. switching games
+  // in the bakeoff browser), abort any keyboard listeners from the prior
+  // mount so we don't leak handlers.
+  const priorAbort = replayAbortControllers.get(root);
+  if (priorAbort) priorAbort.abort();
+  const abortController = new AbortController();
+  replayAbortControllers.set(root, abortController);
 
   root.replaceChildren();
   root.classList.add('replay-page');
@@ -265,6 +275,34 @@ export async function mountReplay(
       }
     });
   }
+
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        stopPlay();
+        clearLoopTimer();
+        finishedAck = false;
+        if (currentPly > 0) {
+          currentPly -= 1;
+          render();
+        }
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        stopPlay();
+        clearLoopTimer();
+        if (currentPly < moveCount) {
+          currentPly += 1;
+          render();
+        }
+      }
+    },
+    { signal: abortController.signal },
+  );
 
   await loadGame(initialSampleId);
 }
