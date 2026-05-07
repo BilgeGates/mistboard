@@ -5,8 +5,8 @@ let pool: pg.Pool | null = null;
 
 export type GameSummary = {
   variant: string;
-  result: 'white-wins' | 'black-wins' | 'draw' | 'aborted';
-  termination: string;
+  result: 'white-wins' | 'black-wins' | 'draw';
+  termination: 'king-captured' | 'timeout' | 'checkmate' | 'draw';
   plyCount: number;
   startedAt: Date;
   endedAt: Date;

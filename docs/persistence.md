@@ -47,14 +47,16 @@ CREATE INDEX events_created_at_idx ON events (created_at);
 
 ### `games`
 
-Aggregate row updated when a game terminates (king capture, clock expiry, resignation later). One row per finished room.
+Aggregate row written when a game terminates (king capture, clock expiry, etc.). One row per finished room.
+
+A `games` row is written **if and only if a terminal event fires**. Pregame-only rooms (one player joined, never made a move) produce no `games` row — they remain orphan events in the `events` table, eligible for GC later. Mid-game disconnect doesn't need special handling: the server clock keeps running, the disconnected player times out, `clock-expired` fires, and the standard game-over path produces a normal `games` row with the opposing color winning.
 
 ```sql
 CREATE TABLE games (
   room_id        TEXT        PRIMARY KEY,
   variant        TEXT        NOT NULL,
-  result         TEXT        NOT NULL,    -- 'white-wins' | 'black-wins' | 'draw' | 'aborted'
-  termination    TEXT        NOT NULL,    -- 'king-capture' | 'clock-expiry' | ...
+  result         TEXT        NOT NULL    CHECK (result IN ('white-wins', 'black-wins', 'draw')),
+  termination    TEXT        NOT NULL    CHECK (termination IN ('king-captured', 'timeout', 'checkmate', 'draw')),
   ply_count      INTEGER     NOT NULL,
   started_at     TIMESTAMPTZ NOT NULL,
   ended_at       TIMESTAMPTZ NOT NULL,

@@ -6,6 +6,7 @@ import { runMigrations } from './migrate.js';
 import {
   appendEvent,
   close,
+  type GameSummary,
   init,
   isInitialized,
   listActiveRoomIds,
@@ -150,13 +151,13 @@ if (!TEST_DATABASE_URL) {
     await recordGameEnd('finished-room', {
       variant: 'fog-of-war',
       result: 'white-wins',
-      termination: 'king-capture',
+      termination: 'king-captured',
       plyCount: 12,
       startedAt: now,
       endedAt: now,
       whiteClient: 'client-w',
       blackClient: 'client-b',
-    });
+    } satisfies GameSummary);
 
     const active = await listActiveRoomIds(earlier);
     assert.deepEqual(active, ['active-room']);
@@ -167,7 +168,7 @@ if (!TEST_DATABASE_URL) {
     const summary = {
       variant: 'fog-of-war',
       result: 'white-wins' as const,
-      termination: 'king-capture',
+      termination: 'king-captured' as const,
       plyCount: 12,
       startedAt: now,
       endedAt: now,
