@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bichess-postgres
+    environment:
+      POSTGRES_DB: bichess
+      POSTGRES_USER: bichess
+      POSTGRES_PASSWORD: bichess
+    ports:
+      - "5435:5432"
+    volumes:
+      - bichess-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bichess -d bichess"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bichess-postgres:
