@@ -160,11 +160,11 @@ function buildAbout(): HTMLElement {
 
   const p2 = document.createElement('p');
   p2.textContent =
-    'Bichess enforces hidden information at the server. The opponent’s moves and pieces never reach your browser until your pieces can legally see them. Existing implementations send hidden truth and rely on the UI to hide it; bichess does not.';
+    'Bichess enforces hidden information at the server. Your opponent’s pieces and moves never reach your browser until your pieces can see them. Most fog implementations send the full board and rely on the UI to hide it — anyone inspecting network traffic can recover hidden information. Bichess doesn’t.';
 
   const p3 = document.createElement('p');
   p3.textContent =
-    'We’re building bichess as the place to play, study, and understand Fog of War — with replay, postgame reveal, and engines that reason about uncertainty rather than pretending the full board is known.';
+    'We’re building bichess as the place to play, study, and understand Fog of War — with perspective replay, postgame reveal, and engines that reason about uncertainty. Open source under GPL-3.0.';
 
   section.append(heading, p1, p2, p3);
   return section;
