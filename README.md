@@ -170,3 +170,18 @@ Push to `main` triggers an auto-deploy. Migrations apply on container boot.
 GPL-3.0-or-later. Bichess uses GPL-family chess libraries (`chessops`, `chessground`).
 
 The npm packages are marked `"private": true` to prevent accidental package publishing — this is intentional and does not affect the repository's public/open-source status.
+
+## Governance And Funding
+
+Bichess is founder-led. The code is open source, but the official project identity, `bichess.org`, hosted service, package publishing, roadmap, tournaments, sponsorships, and production infrastructure remain controlled project assets.
+
+See:
+
+- [`GOVERNANCE.md`](GOVERNANCE.md)
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- [`SECURITY.md`](SECURITY.md)
+- [`TRADEMARK.md`](TRADEMARK.md)
+- [`SPONSORSHIP.md`](SPONSORSHIP.md)
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+- [`docs/documentation-policy.md`](docs/documentation-policy.md)
+- [`docs/legal-and-fiscal.md`](docs/legal-and-fiscal.md)
