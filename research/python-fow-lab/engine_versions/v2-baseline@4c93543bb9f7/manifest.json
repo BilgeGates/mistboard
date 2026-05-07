@@ -1,0 +1,29 @@
+{
+  "name": "v2-baseline",
+  "play_signature": "4c93543bb9f7",
+  "captured_at": "2026-05-07T20:12:04.221834+00:00",
+  "git_head": "ed7461902903ffe1cef7a5e57d8b0645ad1be7b0",
+  "git_dirty_in_src": true,
+  "stockfish_version_line": "Stockfish 18 by the Stockfish developers (see AUTHORS file)",
+  "files_in_play_signature": [
+    "strategies.py",
+    "engine.py",
+    "belief.py",
+    "evaluator.py",
+    "move_priors.py",
+    "selfplay.py",
+    "observation.py",
+    "visibility.py"
+  ],
+  "per_file_signatures": {
+    "belief.py": "60a777f9103b",
+    "engine.py": "18917e71e8e2",
+    "evaluator.py": "b4e71c430176",
+    "move_priors.py": "ce7a117f09c4",
+    "observation.py": "682511d6257f",
+    "selfplay.py": "3f5c7560093c",
+    "strategies.py": "f4ba1a3406b8",
+    "visibility.py": "4f774ffef7df"
+  },
+  "notes": "Post-tournament-1 engine state: queen short-circuits + Stage A observation pruning + king_safety_evaluator defined (not yet wired in tournament path) + out_scored_moves inspection plumbing. The first canonical pin in the engine_versions/ archive. Tournament 1's anchor (play_signature 777dee603a9b) cannot be retroactively pinned \u2014 its source is no longer on disk; only game records survive in tournaments/2026-05-tournament-1-tc10i2/."
+}

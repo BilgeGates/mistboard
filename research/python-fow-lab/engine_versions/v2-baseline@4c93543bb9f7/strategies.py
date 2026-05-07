@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.6.3"
+TIER1_VERSION = "0.6.0"
 
 
 def tier1_commit() -> str:
@@ -56,31 +56,6 @@ def _squares_attacked_by_visible_enemy(view: PerspectiveView) -> set[chess.Squar
     board = _visibility_board(view)
     board.turn = not view.perspective
     return {move.to_square for move in board.pseudo_legal_moves}
-
-
-def _squares_attacked_by_visible_enemy_full(view: PerspectiveView) -> set[chess.Square]:
-    """Squares attacked by visible enemy pieces, *including* squares blocked
-    by enemy's own pieces.
-
-    Uses `chess.Board.attacks(square)` per enemy piece, which returns all
-    squares the piece attacks regardless of own-piece blockade. Differs from
-    `_squares_attacked_by_visible_enemy`, which uses pseudo-legal moves and
-    omits enemy-own-piece-blocked squares (so misses defender detection: a
-    bishop on f1 defended by king on e1 wouldn't show f1 as 'attacked' under
-    the pseudo-legal version, since the king can't move onto its own bishop).
-
-    Used by Pattern B's safe-capture check: after we capture the bishop on
-    f1, is our piece now sitting on a square the enemy attacks? That requires
-    the full attack set, not just the moves-to set.
-    """
-    board = _visibility_board(view)
-    own = view.perspective
-    attacked: set[chess.Square] = set()
-    for sq, piece in view.visible_piece_map.items():
-        if piece.color == own:
-            continue
-        attacked.update(board.attacks(sq))
-    return attacked
 
 
 def _king_defense_moves(view: PerspectiveView) -> list[chess.Move]:
@@ -127,134 +102,6 @@ def _king_defense_moves(view: PerspectiveView) -> list[chess.Move]:
         if king_after not in post_attacked:
             resolving.append(own_move)
     return resolving
-
-
-# Material values used for ranking captures within short-circuits. Numbers
-# match the Stockfish-shallow evaluator's piece values closely enough; ties
-# (B = N) are intentionally unbroken so the rng picks among equivalent options.
-_MATERIAL_VALUE: dict[chess.PieceType, int] = {
-    chess.PAWN: 1,
-    chess.KNIGHT: 3,
-    chess.BISHOP: 3,
-    chess.ROOK: 5,
-    chess.QUEEN: 9,
-    chess.KING: 1000,  # short-circuited elsewhere; included for completeness
-}
-
-
-def _categorize_king_defense_moves(
-    view: PerspectiveView,
-) -> tuple[list[chess.Move], list[chess.Move], list[chess.Move]]:
-    """Partition king-defense moves into (attacker_captures, blocks, flights).
-
-    Same legality criterion as `_king_defense_moves` (move resolves the visible
-    check on the visibility-only board), but classified by mechanism. The
-    pick_move ranking — captures > blocks > flights — is what v0.6.1 added in
-    response to the v0.6.0-mirror corpus showing the engine choosing flight
-    when a free attacker-capture was available (g4 ply 17, g12 ply 17 majors).
-
-    `attacker_captures`: own move lands on a square holding a visible enemy
-    piece that was attacking our king pre-move. Material gain is the captured
-    piece's value (we don't separately rank within captures here; callers
-    apply `_prefer_higher_value_capture`).
-
-    `blocks`: own move lands on a square BETWEEN the visible attacker and our
-    king, breaking the line of attack. Includes interpose moves only when the
-    attacker is a sliding piece — knights and pawns can't be blocked.
-
-    `flights`: own king moves to a square not attacked by any visible enemy.
-    """
-    own_color = view.perspective
-    own_king_squares = [
-        sq
-        for sq, piece in view.visible_piece_map.items()
-        if piece.color == own_color and piece.piece_type == chess.KING
-    ]
-    if not own_king_squares:
-        return [], [], []
-
-    pre_attacked = _squares_attacked_by_visible_enemy(view)
-    if not any(sq in pre_attacked for sq in own_king_squares):
-        return [], [], []
-
-    # Visible enemy attackers of our king.
-    attacker_squares = _visible_attackers_of_squares(view, set(own_king_squares))
-
-    captures: list[chess.Move] = []
-    blocks: list[chess.Move] = []
-    flights: list[chess.Move] = []
-    for own_move in view.own_legal_moves:
-        sim = _visibility_board(view)
-        sim.turn = own_color
-        if not sim.is_pseudo_legal(own_move):
-            continue
-        sim.push(own_move)
-        king_after: chess.Square | None = None
-        for sq, piece in sim.piece_map().items():
-            if piece.color == own_color and piece.piece_type == chess.KING:
-                king_after = sq
-                break
-        if king_after is None:
-            continue
-        sim.turn = not own_color
-        post_attacked = {m.to_square for m in sim.pseudo_legal_moves}
-        if king_after in post_attacked:
-            continue  # didn't resolve the check
-
-        # Categorize. Order matters: a king move CAN also be a capture
-        # (king-takes-attacker), and we treat that as capture, not flight.
-        if own_move.to_square in attacker_squares:
-            captures.append(own_move)
-        elif (
-            view.visible_piece_map.get(own_move.from_square) is not None
-            and view.visible_piece_map[own_move.from_square].piece_type == chess.KING
-        ):
-            flights.append(own_move)
-        else:
-            blocks.append(own_move)
-
-    return captures, blocks, flights
-
-
-def _visible_attackers_of_squares(
-    view: PerspectiveView, target_squares: set[chess.Square]
-) -> set[chess.Square]:
-    """Return squares of visible enemy pieces that attack any of `target_squares`.
-
-    Used by king-defense to identify "the attacker(s) we want to capture."
-    Built from a synthetic visibility-only board with the enemy as side-to-move.
-    """
-    sim = _visibility_board(view)
-    sim.turn = not view.perspective
-    attackers: set[chess.Square] = set()
-    for move in sim.pseudo_legal_moves:
-        if move.to_square in target_squares:
-            attackers.add(move.from_square)
-    return attackers
-
-
-def _prefer_higher_value_capture(
-    moves: list[chess.Move], view: PerspectiveView
-) -> list[chess.Move]:
-    """Among capture moves, restrict to those that capture the highest-material piece.
-
-    Captures here are identified by `view.visible_piece_map[move.to_square]`
-    being an enemy piece. Moves where to_square has no visible piece (or is
-    own piece) are passed through unchanged at the END, after the max-tier is
-    chosen — meaning a list of mixed captures and non-captures is reduced to
-    only the highest-material captures. Used inside king-defense's
-    attacker-capture set to prefer Rxattacker over Pxattacker, etc.
-    """
-    own = view.perspective
-    valued: list[tuple[chess.Move, int]] = []
-    for m in moves:
-        target = view.visible_piece_map.get(m.to_square)
-        if target is not None and target.color != own:
-            valued.append((m, _MATERIAL_VALUE.get(target.piece_type, 0)))
-    if not valued:
-        return moves
-    max_value = max(v for _, v in valued)
-    return [m for m, v in valued if v == max_value]
 
 
 def _queen_save_moves(view: PerspectiveView) -> list[chess.Move]:
@@ -304,51 +151,6 @@ def _queen_save_moves(view: PerspectiveView) -> list[chess.Move]:
         if all(q not in post_attacked for q in queens_after):
             resolving.append(own_move)
     return resolving
-
-
-def _safe_visible_minor_or_rook_captures(
-    view: PerspectiveView,
-) -> list[chess.Move]:
-    """Visible captures of bishop/knight/rook on squares not attacked by other visible enemies.
-
-    v0.6.1 Pattern B fix: v0.6.0-mirror corpus (g4 p18 major) showed the
-    engine choosing a pawn capture over a free bishop capture, because main-
-    eval's per-particle Stockfish vote diluted the material delta. Catching
-    the obvious case here — a hanging visible minor/rook — bypasses the dilution.
-
-    Conditions:
-      - Move captures a visible enemy piece of type B/N/R (queen/king covered
-        by their own short-circuits; pawns let through to main-eval since the
-        material delta is small).
-      - Destination square is NOT attacked by any other visible enemy piece
-        (so we don't trade our piece into a visible defender).
-
-    Returns highest-material captures only (R > B = N), so a knight-takes-rook
-    beats a knight-takes-bishop when both are safe.
-    """
-    own = view.perspective
-    # Use the FULL attack set (includes squares defended through own pieces),
-    # not pseudo_legal_moves. The captured target is itself an enemy piece, so
-    # any enemy attacker behind it (that would be blocked by it pre-capture) is
-    # invisible to a pseudo-legal-moves check; we'd misclassify a defended
-    # bishop as 'safe'.
-    pre_attacked = _squares_attacked_by_visible_enemy_full(view)
-    candidates: list[tuple[chess.Move, int]] = []
-    for move in view.own_legal_moves:
-        target = view.visible_piece_map.get(move.to_square)
-        if target is None or target.color == own:
-            continue
-        if target.piece_type not in (chess.BISHOP, chess.KNIGHT, chess.ROOK):
-            continue
-        if move.to_square in pre_attacked:
-            # Visible defender on the destination — main-eval can decide
-            # whether the trade is worth it. Don't auto-fire.
-            continue
-        candidates.append((move, _MATERIAL_VALUE[target.piece_type]))
-    if not candidates:
-        return []
-    max_value = max(v for _, v in candidates)
-    return [m for m, v in candidates if v == max_value]
 
 
 def _prefer_queen_promotion(moves: list[chess.Move]) -> list[chess.Move]:
@@ -560,70 +362,6 @@ class Tier1Strategy:
         self._pending_belief_steps["belief_post_stage_a"] = after
         self._pending_belief_steps["belief_post_stage_a_unique"] = after_unique
 
-    def _belief_supports_move(self, move: chess.Move, threshold: float = 0.5) -> bool:
-        """True iff `move` is pseudo-legal in at least `threshold` fraction of particles.
-
-        Used to filter short-circuit candidates that would wipe belief on the
-        next Stage A update (because no particle has `my_move` pseudo-legal,
-        BeliefState.update_after_own_move drops every particle in step 1 — an
-        unrecoverable collapse). Catches cases where the new visibility-grounded
-        short-circuits pick moves that diverge sharply from belief's stale view
-        of opp positions, e.g., sliding-piece moves through squares particles
-        hallucinate as occupied.
-
-        Threshold defaults to 0.5: only filter when a clear minority of
-        particles agree. With <50% support the move is risky for belief
-        survival; with ≥50% support belief will recover.
-
-        Returns True when belief is empty (no signal).
-        """
-        if self._belief is None or not self._belief.particles:
-            return True
-        ok = sum(1 for p in self._belief.particles if p.is_pseudo_legal(move))
-        return ok / len(self._belief.particles) >= threshold
-
-    def _belief_veto_king_attack(
-        self,
-        candidates: list[chess.Move],
-        view: PerspectiveView,
-        threshold: float = 0.5,
-    ) -> list[chess.Move]:
-        """Drop king-defense candidates where >threshold fraction of particles
-        place our king under attack after the move.
-
-        Catches hidden discovered checks the visibility-only board can't see —
-        e.g., capturing the visible attacker but unblocking a hidden bishop.
-        Threshold > 0.5 protects against single-particle hallucination: only
-        veto when a majority of particles agree.
-
-        Returns the subset of `candidates` not vetoed. Caller falls back to
-        the full set when this returns empty (better to make some defense
-        than none).
-        """
-        if self._belief is None or not self._belief.particles:
-            return candidates
-        own = view.perspective
-        survivors: list[chess.Move] = []
-        for move in candidates:
-            attacked = 0
-            total = 0
-            for particle in self._belief.particles:
-                if not particle.is_pseudo_legal(move):
-                    continue
-                total += 1
-                sim = particle.copy()
-                sim.push(move)
-                king_sq = sim.king(own)
-                if king_sq is None:
-                    attacked += 1
-                    continue
-                sim.turn = not own
-                if any(m.to_square == king_sq for m in sim.pseudo_legal_moves):
-                    attacked += 1
-            if total == 0 or attacked / total <= threshold:
-                survivors.append(move)
-        return survivors
-
     def _detect_capture_type(
         self,
         move: chess.Move,
@@ -710,36 +448,11 @@ class Tier1Strategy:
         # Stockfish-eval underweights "own king visibly attacked" because under
         # standard-chess rules it expects opp to be unable to capture the king;
         # in FOW opp will, so we have to bake the rule in here.
-        # v0.6.1 Pattern A fix: rank king-defense as captures > blocks > flights.
-        # Within attacker-captures, prefer max-material capture. Within each
-        # tier, apply belief-grounded king-attack veto (drop candidates >50% of
-        # particles agree leave the king attacked, which catches hidden
-        # discovered checks). v0.6.0-mirror corpus showed two majors (g4 p17,
-        # g12 p17) where the engine fled the king when a free pawn-takes-knight
-        # was available.
-        kd_captures, kd_blocks, kd_flights = _categorize_king_defense_moves(view)
-        if kd_captures or kd_blocks or kd_flights:
-            tier: list[chess.Move]
-            tier_label: str
-            if kd_captures:
-                tier = _prefer_higher_value_capture(kd_captures, view)
-                tier_label = "king-defense-capture"
-            elif kd_blocks:
-                tier = kd_blocks
-                tier_label = "king-defense-block"
-            else:
-                tier = kd_flights
-                tier_label = "king-defense-flight"
-            # v0.6.2 fix: filter to belief-supported candidates first (avoid
-            # picking a move that would wipe belief in Stage A). Then apply
-            # belief-grounded king-attack veto. Either filter falling back to
-            # the unfiltered tier preserves "make some defense" over none.
-            belief_ok = [m for m in tier if self._belief_supports_move(m)]
-            tier_filtered = belief_ok or tier
-            survivors = self._belief_veto_king_attack(tier_filtered, view)
-            chosen = self._rng.choice(survivors or tier_filtered)
+        king_defense = _king_defense_moves(view)
+        if king_defense:
+            chosen = self._rng.choice(king_defense)
             self._pending_capture_type = self._detect_capture_type(chosen, view)
-            self._emit_trace(tier_label, particle_count_pre, chosen)
+            self._emit_trace("king-defense", particle_count_pre, chosen)
             return chosen
 
         # Queen-capture short-circuit. Same shape as king-capture: if any legal
@@ -769,20 +482,6 @@ class Tier1Strategy:
             chosen = self._rng.choice(queen_save)
             self._pending_capture_type = self._detect_capture_type(chosen, view)
             self._emit_trace("queen-save", particle_count_pre, chosen)
-            return chosen
-
-        # v0.6.1 Pattern B: a visible bishop/knight/rook on a square not
-        # attacked by any visible enemy is a free piece. Capture it before
-        # main-eval gets a chance to dilute the material delta.
-        safe_minor_rook = _safe_visible_minor_or_rook_captures(view)
-        if safe_minor_rook:
-            # v0.6.2: filter to belief-supported candidates so we don't wipe
-            # belief by picking a move particles can't accommodate.
-            belief_ok = [m for m in safe_minor_rook if self._belief_supports_move(m)]
-            candidates = belief_ok or safe_minor_rook
-            chosen = self._rng.choice(_prefer_queen_promotion(candidates))
-            self._pending_capture_type = self._detect_capture_type(chosen, view)
-            self._emit_trace("visible-minor-rook-capture", particle_count_pre, chosen)
             return chosen
 
         if not self._belief.particles:

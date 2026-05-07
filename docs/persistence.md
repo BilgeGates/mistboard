@@ -51,6 +51,8 @@ Aggregate row written when a game terminates (king capture, clock expiry, etc.).
 
 A `games` row is written **if and only if a terminal event fires**. Pregame-only rooms (one player joined, never made a move) produce no `games` row — they remain orphan events in the `events` table, eligible for GC later. Mid-game disconnect doesn't need special handling: the server clock keeps running, the disconnected player times out, `clock-expired` fires, and the standard game-over path produces a normal `games` row with the opposing color winning.
 
+EvE broadens this model without replacing it. PvP still writes `games` on completion, but engine-mined games may create a `games` row at start with `mode = 'eve'` and `status = 'running'`, then update it to `completed` or `aborted`. EvE-specific job, engine identity, and debug data lives in side tables keyed back to the canonical `games.room_id`.
+
 ```sql
 CREATE TABLE games (
   room_id        TEXT        PRIMARY KEY,

@@ -227,8 +227,8 @@ class _TimingWrapper:
     def reset(self, perspective: chess.Color) -> None:
         self.inner.reset(perspective)
 
-    def observe_own_move(self, move: chess.Move) -> None:
-        self.inner.observe_own_move(move)
+    def observe_own_move(self, move: chess.Move, observation) -> None:
+        self.inner.observe_own_move(move, observation)
 
     def observe_opp_move(self, observation) -> None:
         self.inner.observe_opp_move(observation)

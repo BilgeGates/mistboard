@@ -28,6 +28,7 @@ from contextlib import nullcontext
 from fow_chess.engine import EvaluatorBuilder, static_builder
 from fow_chess.evaluator import (
     fog_aware_evaluator,
+    king_safety_evaluator,
     material_evaluator,
     stockfish_evaluator,
     threat_aware_evaluator,
@@ -40,7 +41,12 @@ from fow_chess.move_priors import (
 )
 from fow_chess.move_quality import MoveQualityAnalyzer
 from fow_chess.selfplay import PerspectiveView, play_game
-from fow_chess.strategies import RandomStrategy, Tier1Strategy
+from fow_chess.strategies import (
+    TIER1_VERSION,
+    RandomStrategy,
+    Tier1Strategy,
+    tier1_commit,
+)
 
 import chess
 
@@ -84,6 +90,15 @@ def main() -> int:
     parser.add_argument("--max-plies", type=int, default=300)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--stockfish", default="stockfish")
+    parser.add_argument(
+        "--opponent",
+        choices=("random", "tier1"),
+        default="random",
+        help="Tier-1's adversary. random: uniform-random legal moves (the "
+        "original baseline; saturated as of v0.5.2). tier1: a second "
+        "Tier-1 instance with a distinct seed — mirror games / self-play. "
+        "Both sides traced; analyzer fires on every ply.",
+    )
     parser.add_argument(
         "--save-dir",
         type=Path,
@@ -149,6 +164,16 @@ def main() -> int:
         save_games_dir.mkdir(parents=True, exist_ok=True)
         save_manifest = []
 
+    # Per-Tier-1-ply decision trace. Each row: {game_index, tier1_move_count,
+    # ply, decision_path, particle_count_pre_sample, move_chosen_uci,
+    # top_k_scores}. Lets later analysis distinguish "short-circuit fired" vs
+    # "main-eval ran" without re-running the engine.
+    trace_file = (
+        (args.save_dir / "trace.jsonl").open("w")
+        if args.save_dir is not None
+        else None
+    )
+
     print(
         f"bake-off: {args.games} games, evaluator={args.evaluator}, "
         f"prior={args.prior}, fog_lambda={args.fog_lambda}, "
@@ -211,21 +236,39 @@ def main() -> int:
 
             def evaluator_builder(view, _b=base_builder, _l=fog_lambda):
                 return fog_aware_evaluator(_b(view), _l)
+
+        # Always wrap with king-safety. The corpus from v0.4.0 showed that
+        # belief-inferred king-attacks need a per-particle penalty; without
+        # this, Stockfish-eval treats own-king-attacked positions as recoverable
+        # under standard-chess check rules. Wrapping is cheap and only fires
+        # when post-move particle has own king attacked.
+        base_builder_for_safety = evaluator_builder
+
+        def evaluator_builder(view, _b=base_builder_for_safety):
+            return king_safety_evaluator(_b(view))
+        def make_tier1(seed: int) -> Tier1Strategy:
+            return Tier1Strategy(
+                evaluator_builder=evaluator_builder,
+                move_prior=move_prior,
+                target_n=args.target_n,
+                max_eval_particles=args.max_particles,
+                risk_aversion=args.risk_aversion,
+                seed=seed,
+            )
+
+        mirror_mode = args.opponent == "tier1"
+
         for i in range(args.games):
-            tier1_white = i % 2 == 0  # alternate colors
+            tier1_white = i % 2 == 0  # alternate colors (mirror: which side gets the lower-seed engine)
             seed_base = args.seed + i * 7919
 
-            tier1 = _LatencyTracking(
-                Tier1Strategy(
-                    evaluator_builder=evaluator_builder,
-                    move_prior=move_prior,
-                    target_n=args.target_n,
-                    max_eval_particles=args.max_particles,
-                    risk_aversion=args.risk_aversion,
-                    seed=seed_base,
-                )
-            )
-            opp = RandomStrategy(seed=seed_base + 1)
+            tier1 = _LatencyTracking(make_tier1(seed_base))
+            if mirror_mode:
+                # Second Tier-1 with a different seed; tracked just like the first
+                # so we can read trace_log + latency from both sides.
+                opp = _LatencyTracking(make_tier1(seed_base + 1))
+            else:
+                opp = RandomStrategy(seed=seed_base + 1)
 
             white = tier1 if tier1_white else opp
             black = opp if tier1_white else tier1
@@ -238,8 +281,11 @@ def main() -> int:
                 def game_analyzer(
                     canonical_board, move_played, mover_color,
                     _color=tier1_chess_color, _a=analyzer,
+                    _mirror=mirror_mode,
                 ):
-                    if mover_color == _color:
+                    # In mirror mode every ply is a tier1 ply — analyze all.
+                    # Otherwise gate to the single tier1 side.
+                    if _mirror or mover_color == _color:
                         _a.record_move(canonical_board, move_played, mover_color)
 
             t0 = time.time()
@@ -291,7 +337,35 @@ def main() -> int:
 
             total_tier1_moves += tier1.move_count
             total_tier1_seconds += tier1.total_seconds
+            if mirror_mode:
+                total_tier1_moves += opp.move_count
+                total_tier1_seconds += opp.total_seconds
             total_plies += result.plies
+
+            if trace_file is not None:
+                # Tier-1's trace, tagged with which side it played.
+                inner_strategy = tier1.inner
+                for entry in getattr(inner_strategy, "trace_log", []):
+                    record = {
+                        "game_index": i,
+                        "tier1_side": tier1_color,
+                        "tier1_seat": "tier1_a",
+                        **entry,
+                    }
+                    trace_file.write(json.dumps(record) + "\n")
+                # In mirror mode, also dump the opponent Tier-1's trace.
+                if mirror_mode:
+                    opp_color = "black" if tier1_white else "white"
+                    opp_inner = opp.inner
+                    for entry in getattr(opp_inner, "trace_log", []):
+                        record = {
+                            "game_index": i,
+                            "tier1_side": opp_color,
+                            "tier1_seat": "tier1_b",
+                            **entry,
+                        }
+                        trace_file.write(json.dumps(record) + "\n")
+                trace_file.flush()
             avg_per_move = (
                 tier1.total_seconds / tier1.move_count if tier1.move_count else 0.0
             )
@@ -345,6 +419,9 @@ def main() -> int:
         with manifest_path.open("w") as fh:
             json.dump(
                 {
+                    "tier1_version": TIER1_VERSION,
+                    "tier1_commit": tier1_commit(),
+                    "opponent": args.opponent,
                     "evaluator": args.evaluator,
                     "depth": args.depth,
                     "max_particles": args.max_particles,
@@ -367,6 +444,11 @@ def main() -> int:
                 indent=2,
             )
         print(f"saved games:          {len(save_manifest)} → {args.save_dir}")
+
+    if trace_file is not None:
+        trace_file.close()
+        print(f"trace written to:     {args.save_dir / 'trace.jsonl'}")
+
     return 0
 
 
@@ -381,8 +463,8 @@ class _LatencyTracking:
     def reset(self, perspective: chess.Color) -> None:
         self.inner.reset(perspective)
 
-    def observe_own_move(self, move: chess.Move) -> None:
-        self.inner.observe_own_move(move)
+    def observe_own_move(self, move: chess.Move, observation) -> None:
+        self.inner.observe_own_move(move, observation)
 
     def observe_opp_move(self, observation) -> None:
         self.inner.observe_opp_move(observation)

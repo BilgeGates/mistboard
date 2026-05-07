@@ -171,31 +171,12 @@ class BeliefState:
         if consistent:
             self.particles = consistent
             self.weights = consistent_weights
-        elif pushed:
+        else:
             # Step 2 would wipe belief. Fall back to step 1 particles to keep
             # belief alive (stale w.r.t. this Stage A observation, but the
             # next Stage B expansion + resample will re-stabilize).
             self.particles = pushed
             self.weights = pushed_weights
-        elif observation is not None:
-            # v0.6.3: step 1 wiped everything — `my_move` was not pseudo-legal
-            # in any particle. Without recovery, belief stays empty and the
-            # engine plays the rest of the game in the visibility-only fallback
-            # path (worse than random). Reseed from the post-move observation:
-            # a single particle whose state is the visible_pieces dict (own
-            # pieces + visible enemy pieces, hidden squares empty). It's an
-            # under-specified board (no hidden enemies, no castling rights),
-            # but Stage B's expansion + opp move prior will broaden it back
-            # within a few plies. Strictly better than zero particles.
-            seed = chess.Board.empty()
-            for sq, piece in observation.visible_pieces.items():
-                seed.set_piece_at(sq, piece)
-            seed.turn = not self.perspective
-            self.particles = [seed]
-            self.weights = [1.0]
-        else:
-            self.particles = []
-            self.weights = []
 
     def update_after_opp_move(self, obs: Observation) -> None:
         """Expand each particle by opp's pseudo-legal moves, filter by `obs` + count constraint, then resample.

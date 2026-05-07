@@ -21,6 +21,11 @@ apps/web/public/bakeoff
 # lab viewer reads. Regenerate with research/python-fow-lab/scripts/bake_off.py.
 apps/web/public/bakeoff-*/
 
+# Tournament run output dirs (timestamped per-run game logs + manifests,
+# multi-MB each). Local-only artifact. Regenerate with
+# research/python-fow-lab/scripts/tournament.py.
+research/python-fow-lab/tournaments/
+
 # Private founder/operator notes. Public docs should be contributor-safe.
 docs-private/
 .claude/
