@@ -72,7 +72,7 @@ export async function listActiveRoomIds(since: Date): Promise<string[]> {
   return rows.map((row) => row.room_id);
 }
 
-export async function listCorpusGames(limit = 100): Promise<GameRecord[]> {
+export async function listCorpusGames(corpusId: string, limit = 100): Promise<GameRecord[]> {
   const { rows } = await getPool().query<{
     room_id: string;
     variant: string;
@@ -88,10 +88,10 @@ export async function listCorpusGames(limit = 100): Promise<GameRecord[]> {
     `SELECT room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_name, black_name, corpus_id
      FROM games
-     WHERE corpus_id IS NOT NULL
-     ORDER BY corpus_id, room_id
-     LIMIT $1`,
-    [limit],
+     WHERE corpus_id = $1
+     ORDER BY room_id
+     LIMIT $2`,
+    [corpusId, limit],
   );
   return rows.map((row) => ({
     roomId: row.room_id,

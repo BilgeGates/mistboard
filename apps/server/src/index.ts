@@ -142,7 +142,8 @@ async function handleApiRequest(url: string, response: ServerResponse): Promise<
   }
 
   if (url === '/api/featured-games') {
-    const games = await persistence.listCorpusGames();
+    const corpusId = process.env.FEATURED_CORPUS_ID ?? 'tier1-self-v1';
+    const games = await persistence.listCorpusGames(corpusId);
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ games }));
     return;
