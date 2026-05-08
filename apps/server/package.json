@@ -12,6 +12,7 @@
     "migrate": "tsx src/migrate.ts",
     "import-corpus": "tsx src/import-corpus.ts",
     "engine:enqueue-smoke": "tsx src/enqueue-engine-smoke.ts",
+    "engine:queue-status": "tsx src/engine-queue-status.ts",
     "worker": "node dist/worker.js",
     "worker:execute": "node dist/worker.js --execute",
     "worker:service": "node dist/worker.js --execute --loop",
