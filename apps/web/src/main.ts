@@ -36,6 +36,7 @@ const wantsEngineLab =
   page === 'engine-lab' ||
   page === 'arena';
 const gameRoomId = gameRoomIdFromPath(path);
+const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsLearn = path === '/learn' || page === 'learn';
 const wantsPlay = path === '/play' || page === 'play';
@@ -57,7 +58,7 @@ if (replaySample) {
   heading.textContent = 'Not found';
   shell.append(heading);
   app.append(shell);
-} else if (wantsLive) {
+} else if (liveRoomId || wantsLive) {
   void import('./live.js');
 } else if (gameRoomId) {
   void import('./landing.js').then(({ mountGame }) => mountGame(app, gameRoomId));
@@ -75,5 +76,10 @@ if (replaySample) {
 
 function gameRoomIdFromPath(value: string): string | null {
   const match = value.match(/^\/game\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function liveRoomIdFromPath(value: string): string | null {
+  const match = value.match(/^\/room\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }

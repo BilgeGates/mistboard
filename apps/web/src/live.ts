@@ -95,8 +95,10 @@ if (!app) throw new Error('missing #app');
 const root = app;
 
 const pageParams = new URLSearchParams(window.location.search);
-const room = pageParams.get('room') ?? 'dev-room';
+const pathRoom = roomIdFromPath(window.location.pathname);
+const room = pathRoom ?? pageParams.get('room') ?? 'dev-room';
 const socketParams = new URLSearchParams({ room });
+socketParams.set('client', clientIdForRoom(room));
 const soloRequested = pageParams.get('dev') === 'solo';
 const engineRequested = pageParams.get('dev') === 'engine' || pageParams.get('engine') === 'random';
 const allViewsRequested = pageParams.get('views') === 'all';
@@ -270,7 +272,7 @@ function createLayout(target: HTMLDivElement) {
     throw new Error('missing app region');
   }
 
-  newRoom.href = roomUrl('fog-of-war');
+  newRoom.href = '/play';
 
   return {
     board,
@@ -392,7 +394,7 @@ function renderGameInfo(view: PlayerView | null): void {
 }
 
 function renderRoomActions(): void {
-  const actions = [roomAction('Fog of War', 'fog-of-war')];
+  const actions = [roomAction('New game', 'fog-of-war')];
   if (engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
   refs.roomActions.replaceChildren(...actions);
 }
@@ -420,7 +422,7 @@ function renderShareRoom(): void {
 
 function roomAction(label: string, variant: PlayerView['variant'], dev?: 'engine'): HTMLAnchorElement {
   const link = document.createElement('a');
-  link.href = roomUrl(variant, dev);
+  link.href = dev ? roomUrl(variant, dev) : '/play';
   link.textContent = label;
   return link;
 }
@@ -1003,12 +1005,44 @@ function roomUrl(variant: PlayerView['variant'], dev?: 'engine'): string {
 }
 
 function shareRoomUrl(): string {
+  if (pathRoom) return `${window.location.origin}/room/${encodeURIComponent(room)}`;
+
   const params = new URLSearchParams({ room });
   const variant = currentView()?.variant ?? state?.variant ?? variantRequested ?? 'fog-of-war';
   params.set('variant', variant);
   if (engineRequested) params.set('dev', 'engine');
   if (allViewsRequested) params.set('views', 'all');
   return `${window.location.origin}${window.location.pathname}?${params}`;
+}
+
+function roomIdFromPath(pathname: string): string | null {
+  const match = pathname.replace(/\/+$/, '').match(/^\/room\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function clientIdForRoom(roomId: string): string {
+  const key = `bichess.client.${roomId}`;
+  const existing = readLocalStorage(key);
+  if (existing && /^[a-zA-Z0-9:_-]{8,80}$/.test(existing)) return existing;
+  const next = window.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+  writeLocalStorage(key, next);
+  return next;
+}
+
+function readLocalStorage(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStorage(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // The room still works without seat recovery if storage is unavailable.
+  }
 }
 
 async function copyShareLink(input: HTMLInputElement): Promise<void> {

@@ -142,7 +142,11 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   }
 
   if (event.type === 'seat-vacated') {
-    if (projection.state.status.type !== 'pregame' || projection.seats[event.seat] !== event.clientId) {
+    const beforeFirstMove = projection.state.moveNumber === 1 && projection.state.lastMove === undefined;
+    if (
+      (projection.state.status.type !== 'pregame' && !beforeFirstMove)
+      || projection.seats[event.seat] !== event.clientId
+    ) {
       return projection;
     }
 

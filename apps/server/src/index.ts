@@ -54,6 +54,7 @@ type Room = {
   events: GameEvent[];
   projection: GameProjection;
   clockTimer: ReturnType<typeof setTimeout> | null;
+  mode: persistence.GameMode;
   randomEngine: boolean;
   pendingWrites: Promise<void>;
   gameEndRecorded: boolean;
@@ -148,7 +149,7 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   }
 
   if (url.startsWith('/api/')) {
-    void handleApiRequest(url, response).catch((err) => {
+    void handleApiRequest(request, response).catch((err) => {
       console.error(JSON.stringify({
         level: 'error',
         kind: 'api_handler_failure',
@@ -179,10 +180,39 @@ function isClientRoute(pathname: string): boolean {
     || normalized === '/watch'
     || normalized === '/engine-lab'
     || normalized === '/arena'
-    || normalized.startsWith('/game/');
+    || normalized.startsWith('/game/')
+    || normalized.startsWith('/room/');
 }
 
-async function handleApiRequest(url: string, response: ServerResponse): Promise<void> {
+async function handleApiRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  const url = request.url ?? '/';
+  const method = request.method ?? 'GET';
+
+  if (url === '/api/rooms') {
+    if (method !== 'POST') {
+      response.writeHead(405, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'method_not_allowed' }));
+      return;
+    }
+    const body = await readJsonBody(request);
+    const mode = parseRoomMode(body);
+    const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
+    if (!mode) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'invalid_mode' }));
+      return;
+    }
+    if (databaseRequired && !persistence.isInitialized()) {
+      response.writeHead(503, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'persistence_disabled' }));
+      return;
+    }
+    const room = await createRoom(mode, variant);
+    response.writeHead(201, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
+    return;
+  }
+
   if (!persistence.isInitialized()) {
     response.writeHead(503, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ error: 'persistence_disabled' }));
@@ -232,6 +262,26 @@ async function handleApiRequest(url: string, response: ServerResponse): Promise<
   response.end(JSON.stringify({ error: 'not_found' }));
 }
 
+async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buffer.byteLength;
+    if (total > 16_384) throw new Error('request_body_too_large');
+    chunks.push(buffer);
+  }
+  if (chunks.length === 0) return {};
+  const raw = Buffer.concat(chunks).toString('utf-8');
+  const parsed = JSON.parse(raw) as unknown;
+  return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, unknown> : {};
+}
+
+function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
+  if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
+  return null;
+}
+
 function resolveStaticDir(): string {
   if (process.env.STATIC_DIR) return resolve(process.env.STATIC_DIR);
   const here = dirname(fileURLToPath(import.meta.url));
@@ -250,7 +300,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const devViews = debugRequested && isDebugViewAuthorized(request);
   const room = await getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
   if (randomEngine) await enableRandomEngine(room);
-  const clientId = randomUUID();
+  const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
   const client: Client = {
     debugRequested,
     devViews,
@@ -319,8 +369,9 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
 
 async function handleClose(room: Room, client: Client): Promise<void> {
   room.clients.delete(client);
+  const beforeFirstMove = room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined;
   if (
-    room.projection.state.status.type === 'pregame'
+    (room.projection.state.status.type === 'pregame' || beforeFirstMove)
     && client.seat !== 'spectator'
     && room.projection.seats[client.seat] === client.id
   ) {
@@ -386,7 +437,8 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
     events,
     projection,
     clockTimer: null,
-    randomEngine: false,
+    mode: modeForProjection(projection),
+    randomEngine: projection.seats.black === 'random-engine',
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
   };
@@ -395,7 +447,63 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
   return room;
 }
 
+async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const roomId = randomUUID();
+    const existing = rooms.get(roomId) ?? (persistence.isInitialized() ? await persistence.loadRoom(roomId) : null);
+    if (existing) continue;
+
+    const at = Date.now();
+    const events: GameEvent[] = [{
+      type: 'room-created',
+      at,
+      roomId,
+      variant,
+      offer: variant === 'draft960' ? pickDraft960Offer(roomIdToSeed(roomId)) : [],
+    }];
+    if (mode === 'pve') {
+      events.push({
+        type: 'seat-assigned',
+        at,
+        roomId,
+        clientId: 'random-engine',
+        seat: 'black',
+      });
+    }
+
+    if (persistence.isInitialized()) {
+      for (const [seq, event] of events.entries()) {
+        try {
+          await persistence.appendEvent(roomId, seq, event);
+        } catch (err) {
+          recordPersistenceError(roomId, seq, event, err as Error);
+          throw new PersistenceFailure();
+        }
+      }
+    }
+
+    const projection = replayGameEvents(events);
+    const room: Room = {
+      id: roomId,
+      clients: new Set(),
+      events,
+      projection,
+      clockTimer: null,
+      mode,
+      randomEngine: mode === 'pve',
+      pendingWrites: Promise.resolve(),
+      gameEndRecorded: false,
+    };
+    rooms.set(roomId, room);
+    scheduleClockTimeout(room);
+    return room;
+  }
+  throw new Error('room_id_collision');
+}
+
 async function assignSeat(room: Room, clientId: string): Promise<Seat> {
+  if (room.projection.seats.white === clientId) return 'white';
+  if (room.projection.seats.black === clientId) return 'black';
   if (!room.projection.seats.white) {
     await appendEvent(room, {
       type: 'seat-assigned',
@@ -656,6 +764,7 @@ function buildGameSummary(room: Room): GameSummary {
 
   return {
     variant: room.projection.variant,
+    mode: room.mode,
     result,
     termination,
     plyCount: moveEvents.length,
@@ -775,6 +884,17 @@ function parseVariantId(value: string | null): VariantId {
   if (value === 'draft960') return 'draft960';
   if (value === 'bid-for-white') return 'bid-for-white';
   return 'fog-of-war';
+}
+
+function parseClientId(value: string | null): string | null {
+  if (!value) return null;
+  return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
+}
+
+function modeForProjection(projection: GameProjection): persistence.GameMode {
+  if (projection.seats.black === 'random-engine') return 'pve';
+  if (projection.seats.white === 'engine:white' && projection.seats.black === 'engine:black') return 'eve';
+  return 'pvp';
 }
 
 function roomIdToSeed(roomId: string): number {

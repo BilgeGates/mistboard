@@ -26,7 +26,6 @@ type LandingGameSource = 'eve' | 'featured';
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const ENGINE_LAB_ENABLED =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
-const LIVE_ROOM_LINKS_ENABLED = import.meta.env.DEV;
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -530,7 +529,7 @@ function buildPlay(): HTMLElement {
   const copy = document.createElement('p');
   copy.className = 'play-copy';
   copy.textContent =
-    'Choose the Fog of War surface. Engine games are available now; human and engine rooms are wired for dev while the production flow is hardened.';
+    'Choose the Fog of War surface. Watch engine games, play the baseline engine, or create a friend challenge.';
   header.append(heading, copy);
 
   const modes = document.createElement('section');
@@ -547,18 +546,18 @@ function buildPlay(): HTMLElement {
     buildPlayMode({
       label: 'PvE',
       title: 'Play vs engine',
-      body: 'A single-player room against the built-in Fog engine path.',
-      href: LIVE_ROOM_LINKS_ENABLED ? createLiveRoomHref('pve') : undefined,
-      cta: LIVE_ROOM_LINKS_ENABLED ? 'Open dev room' : 'Coming soon',
-      status: LIVE_ROOM_LINKS_ENABLED ? 'Dev' : 'Upcoming',
+      body: 'A single-player room against the built-in baseline Fog engine.',
+      mode: 'pve',
+      cta: 'Play engine',
+      status: 'Ready',
     }),
     buildPlayMode({
       label: 'PvP',
       title: 'Challenge a friend',
       body: 'A share-link room for two humans with server-enforced hidden information.',
-      href: LIVE_ROOM_LINKS_ENABLED ? createLiveRoomHref('pvp') : undefined,
-      cta: LIVE_ROOM_LINKS_ENABLED ? 'Create dev room' : 'Coming soon',
-      status: LIVE_ROOM_LINKS_ENABLED ? 'Dev' : 'Upcoming',
+      mode: 'pvp',
+      cta: 'Create challenge',
+      status: 'Ready',
     }),
   );
 
@@ -571,6 +570,7 @@ function buildPlayMode(options: {
   cta: string;
   href?: string;
   label: string;
+  mode?: 'pvp' | 'pve';
   status: string;
   title: string;
 }): HTMLElement {
@@ -604,6 +604,15 @@ function buildPlayMode(options: {
     action.href = options.href;
     action.textContent = options.cta;
     meta.append(action);
+  } else if (options.mode) {
+    const action = document.createElement('button');
+    action.className = 'landing-cta-secondary play-mode-action';
+    action.type = 'button';
+    action.textContent = options.cta;
+    action.addEventListener('click', () => {
+      void createRoomFromPlay(action, options.mode!);
+    });
+    meta.append(action);
   } else {
     const action = document.createElement('button');
     action.className = 'landing-cta-secondary play-mode-action';
@@ -617,18 +626,29 @@ function buildPlayMode(options: {
   return row;
 }
 
-function createLiveRoomHref(mode: 'pve' | 'pvp'): string {
-  const params = new URLSearchParams({
-    reset: '1',
-    room: `room-${randomRoomId()}`,
-    variant: 'fog-of-war',
-  });
-  if (mode === 'pve') params.set('dev', 'engine');
-  return `/?${params}`;
-}
-
-function randomRoomId(): string {
-  return window.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve'): Promise<void> {
+  const originalText = button.textContent ?? '';
+  button.disabled = true;
+  button.textContent = 'Creating';
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode, variant: 'fog-of-war' }),
+    });
+    if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
+    const data = await response.json() as { url?: string };
+    if (!data.url) throw new Error('room creation did not return a URL');
+    window.location.href = data.url;
+  } catch (err) {
+    console.warn(err);
+    button.textContent = 'Try again';
+    button.disabled = false;
+    window.setTimeout(() => {
+      if (button.disabled) return;
+      button.textContent = originalText;
+    }, 1800);
+  }
 }
 
 function buildLearn(): { el: HTMLElement; boardEl: HTMLElement } {

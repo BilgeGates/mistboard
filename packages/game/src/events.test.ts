@@ -117,6 +117,73 @@ test('replays move events through the Draft960 rules adapter', () => {
   assert.deepEqual(projection.state.lastMove, { from: 'e2', to: 'e4' });
 });
 
+test('vacates Fog of War seats before the first move', () => {
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'fresh-fog-room',
+      variant: 'fog-of-war',
+      offer: [],
+    },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'fresh-fog-room',
+      clientId: 'white-client',
+      seat: 'white',
+    },
+    {
+      type: 'seat-vacated',
+      at: 3,
+      roomId: 'fresh-fog-room',
+      clientId: 'white-client',
+      seat: 'white',
+    },
+  ];
+
+  const projection = replayGameEvents(events);
+
+  assert.deepEqual(projection.seats, {});
+});
+
+test('keeps Fog of War seats after play starts', () => {
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'active-fog-room',
+      variant: 'fog-of-war',
+      offer: [],
+    },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'active-fog-room',
+      clientId: 'white-client',
+      seat: 'white',
+    },
+    {
+      type: 'move-played',
+      at: 3,
+      roomId: 'active-fog-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'seat-vacated',
+      at: 4,
+      roomId: 'active-fog-room',
+      clientId: 'white-client',
+      seat: 'white',
+    },
+  ];
+
+  const projection = replayGameEvents(events);
+
+  assert.deepEqual(projection.seats, { white: 'white-client' });
+});
+
 test('replays clock snapshots on start and move events', () => {
   const offer = pickDraft960Offer(8);
   const start = offer[0];
