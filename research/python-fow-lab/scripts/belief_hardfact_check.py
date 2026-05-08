@@ -144,6 +144,33 @@ def validate_run(
                     )
                 )
 
+        if _previous_move_was_by_opponent(boards, board_index, perspective):
+            captured_square = _normal_opp_capture_landing_square(
+                boards[board_index - 1], board, perspective
+            )
+            if captured_square is not None:
+                prob = _opp_non_empty_prob(marginal, captured_square, perspective)
+                if prob < required_prob:
+                    violations.append(
+                        Violation(
+                            game_index=game_index,
+                            game_path=str(game["path"]),
+                            ply=ply,
+                            side=side,
+                            tier1_seat=str(row.get("tier1_seat") or ""),
+                            snapshot_kind=str(row.get("snapshot_kind") or ""),
+                            square=chess.square_name(captured_square),
+                            kind="hidden-capture-landing-missing",
+                            expected="opponent-piece",
+                            observed_prob=prob,
+                            detail=(
+                                "own piece was captured on this square; belief "
+                                "must assign an opponent piece there after an "
+                                "ordinary capture"
+                            ),
+                        )
+                    )
+
     return violations
 
 
@@ -176,6 +203,58 @@ def _non_empty_prob(
         for entry in entries
         if entry.get("piece") is not None
     )
+
+
+def _opp_non_empty_prob(
+    marginal: dict[str, list[dict[str, Any]]],
+    square: chess.Square,
+    perspective: chess.Color,
+) -> float:
+    entries = marginal.get(chess.square_name(square)) or []
+    if not entries:
+        return 0.0
+    # Belief snapshots intentionally store sparse marginals: low-probability
+    # piece identities can be omitted even when total occupancy is certain. For
+    # hidden capture landings, the hard fact is occupancy first; exact type is
+    # often unknown. So estimate occupancy as 1 - explicit empty probability
+    # once the square is present in the marginal.
+    empty_prob = sum(
+        float(entry.get("prob") or 0.0)
+        for entry in entries
+        if entry.get("piece") is None
+    )
+    return max(0.0, min(1.0, 1.0 - empty_prob))
+
+
+def _previous_move_was_by_opponent(
+    boards: list[chess.Board],
+    board_index: int,
+    perspective: chess.Color,
+) -> bool:
+    if board_index <= 0 or board_index >= len(boards):
+        return False
+    return boards[board_index - 1].turn != perspective
+
+
+def _normal_opp_capture_landing_square(
+    prev_board: chess.Board,
+    next_board: chess.Board,
+    perspective: chess.Color,
+) -> chess.Square | None:
+    own_before = {
+        sq for sq, piece in prev_board.piece_map().items() if piece.color == perspective
+    }
+    own_after = {
+        sq for sq, piece in next_board.piece_map().items() if piece.color == perspective
+    }
+    captures = own_before - own_after
+    if len(captures) != 1:
+        return None
+    captured_square = next(iter(captures))
+    landing_piece = next_board.piece_at(captured_square)
+    if landing_piece is None or landing_piece.color == perspective:
+        return None
+    return captured_square
 
 
 def write_json(path: Path, violations: list[Violation]) -> None:
@@ -249,4 +328,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

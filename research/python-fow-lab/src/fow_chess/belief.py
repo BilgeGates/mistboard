@@ -525,10 +525,29 @@ def _matches_hard_observation(
     elif captures != {obs.own_capture_square}:
         return False
 
+    if obs.opp_capture_landing_square is not None:
+        landing_piece = next_board.piece_at(obs.opp_capture_landing_square)
+        if landing_piece is None or landing_piece.color == perspective:
+            return False
+
     if obs.game_over is not None and next_board.king(perspective) is not None:
         return False
 
     return True
+
+
+def _required_hidden_opp_squares_from_observation(
+    observation: Observation,
+    perspective: chess.Color,
+) -> set[chess.Square]:
+    """Hidden squares that hard observation says must contain opp pieces."""
+    required = set(
+        _required_hidden_opp_blockers_from_pawn_affordance(observation, perspective)
+    )
+    landing = observation.opp_capture_landing_square
+    if landing is not None and landing not in observation.visible_pieces:
+        required.add(landing)
+    return required
 
 
 def _required_hidden_opp_blockers_from_pawn_affordance(
@@ -643,12 +662,12 @@ def _repair_particle_to_observation(
     for sq, piece in visible_pieces.items():
         repaired.set_piece_at(sq, piece)
 
-    required_blockers = _required_hidden_opp_blockers_from_pawn_affordance(
+    required_hidden_opp_squares = _required_hidden_opp_squares_from_observation(
         observation, perspective
     )
     if not _repair_required_blockers(
         repaired,
-        required_blockers,
+        required_hidden_opp_squares,
         visibility_set,
         opp,
         rng,
@@ -661,7 +680,7 @@ def _repair_particle_to_observation(
         opp_remaining_counts,
         opp_bishop_colors_remaining,
         perspective,
-        required_blockers,
+        required_hidden_opp_squares,
         rng,
     ):
         return None
@@ -827,7 +846,7 @@ def _csp_reseed(
     visibility_set = set(observation.visibility_mask)
     visible_pieces = observation.visible_pieces
     hidden_squares = [sq for sq in chess.SQUARES if sq not in visibility_set]
-    required_blockers = _required_hidden_opp_blockers_from_pawn_affordance(
+    required_blockers = _required_hidden_opp_squares_from_observation(
         observation, perspective
     )
     opp = not perspective

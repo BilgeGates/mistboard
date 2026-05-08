@@ -458,6 +458,58 @@ def test_stage_b_does_not_relax_visible_opponent_piece() -> None:
     )
 
 
+def test_stage_b_repairs_hidden_capture_landing_square() -> None:
+    """If our piece is captured in fog, the capturer occupies that square.
+
+    Regression for v0.7.4 rung2 game 13 plies 43/45: black knew its pawn on c7
+    disappeared, but belief did not put any white piece on c7 afterward. The
+    player may not know the capturer type, but ordinary captures still give a
+    hard occupancy fact for the captured square.
+    """
+    import random
+
+    stale = chess.Board.empty()
+    stale.turn = chess.WHITE
+    stale.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    stale.set_piece_at(chess.C7, chess.Piece(chess.PAWN, chess.BLACK))
+    stale.set_piece_at(chess.A1, chess.Piece(chess.ROOK, chess.WHITE))
+
+    truth_post = chess.Board.empty()
+    truth_post.turn = chess.BLACK
+    truth_post.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    truth_post.set_piece_at(chess.C7, chess.Piece(chess.ROOK, chess.WHITE))
+
+    obs = Observation(
+        visibility_mask=visible_squares(truth_post, chess.BLACK),
+        visible_pieces=visible_piece_map(truth_post, chess.BLACK),
+        own_capture_square=chess.C7,
+        opp_capture_landing_square=chess.C7,
+    )
+
+    belief = BeliefState(
+        perspective=chess.BLACK,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {chess.ROOK: 1}
+    belief.opp_bishop_colors_remaining = {True: 0, False: 0}
+
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_repair_fired == 1
+    assert all(
+        (piece := particle.piece_at(chess.C7)) is not None
+        and piece.color == chess.WHITE
+        for particle in belief.particles
+    )
+    assert belief.marginal_piece_at(chess.C7) == {
+        chess.Piece(chess.ROOK, chess.WHITE): 1.0
+    }
+
+
 def test_stage_b_does_not_relax_visible_empty_square() -> None:
     """Visible empty squares are hard facts too.
 

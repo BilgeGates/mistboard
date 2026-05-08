@@ -46,6 +46,8 @@ Hard facts include:
 - visible opponent pieces, including pieces visible for only one ply before
   they leave the visibility mask;
 - own pieces that disappeared because the opponent captured them;
+- opponent occupancy on an ordinary capture landing square, even when the
+  capturer's exact type is hidden;
 - king-capture/game-over signals;
 - piece-count facts from captures we performed;
 - ruleset facts such as pawn ranks and bishop square color where currently
@@ -296,3 +298,20 @@ right.
 Large bake-offs should not proceed just because generic CSP kept belief alive.
 If a short rung shows repeated `generic-csp-reseed`, stop, annotate one or two
 instances, and improve particle generation before scaling the run.
+
+## Rung-2 Learning: Hidden Capture Landings Are Hard Facts
+
+`bakeoff-v0.7.4-rung2-3game`, game `13`, exposed a capture-observation gap.
+White played `Rc1xc7` and later `Rc7xe7`. From black's point of view, the
+captured pawn disappeared from `c7`/`e7`. The exact capturer type could still
+be uncertain in fog, but the occupancy fact is not uncertain: an ordinary
+capture means an opponent piece landed on the captured square.
+
+The old observation model only carried `own_capture_square`, so Stage B could
+remove the black pawn without assigning any white piece to the square. `v0.7.5`
+adds `opp_capture_landing_square` and treats it like a hard hidden occupancy
+fact in Stage B matching, repair, CSP reseed, and `belief_hardfact_check.py`.
+
+Prevention rule: "my piece disappeared" and "an opponent piece landed there"
+are two separate facts. The first is material accounting; the second is a
+board-state constraint. The particle engine must preserve both.
