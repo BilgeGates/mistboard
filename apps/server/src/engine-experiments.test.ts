@@ -7,7 +7,9 @@ import {
   cleanupStaleEngineGameTasks,
   createEngineGameTask,
   createExperimentJob,
+  heartbeatEngineGameTask,
   heartbeatWorkerRun,
+  reconcileExperimentJob,
   registerWorkerRun,
   releaseEngineGameTaskClaim,
   stopWorkerRun,
@@ -109,6 +111,116 @@ if (!TEST_DATABASE_URL) {
 
     const stopped = await stopWorkerRun(getPool(), worker.id);
     assert.equal(stopped.status, 'stopped');
+  });
+
+  test('worker only claims tasks matching provider and capabilities', async () => {
+    const job = await createExperimentJob(getPool(), {
+      id: 'job-resource-policy-test',
+      purpose: 'bakeoff',
+      targetGames: 3,
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-modal',
+      jobId: job.id,
+      gameIndex: 0,
+      priority: 10,
+      seed: 110,
+      timeControl: { kind: 'none' },
+      resourcePolicy: { providers: ['modal'] },
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-gpu',
+      jobId: job.id,
+      gameIndex: 1,
+      priority: 9,
+      seed: 111,
+      timeControl: { kind: 'none' },
+      resourcePolicy: { providers: ['railway'], required_capabilities: ['gpu'] },
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-railway',
+      jobId: job.id,
+      gameIndex: 2,
+      priority: 8,
+      seed: 112,
+      timeControl: { kind: 'none' },
+      resourcePolicy: { providers: ['railway'], required_capabilities: ['engine_games'] },
+    });
+
+    const railwayWorker = await registerWorkerRun(getPool(), {
+      id: 'worker-railway-resource-test',
+      provider: 'railway',
+      capabilities: { engine_games: true },
+    });
+    const railwayTask = await claimNextEngineGameTask(getPool(), {
+      workerRunId: railwayWorker.id,
+      workerId: 'railway-test-worker',
+      provider: 'railway',
+      capabilities: { engine_games: true },
+      claimToken: 'railway-resource-token',
+    });
+    assert.equal(railwayTask?.id, 'task-railway');
+
+    const modalWorker = await registerWorkerRun(getPool(), {
+      id: 'worker-modal-resource-test',
+      provider: 'modal',
+      capabilities: { engine_games: true, gpu: true },
+    });
+    const modalTask = await claimNextEngineGameTask(getPool(), {
+      workerRunId: modalWorker.id,
+      workerId: 'modal-test-worker',
+      provider: 'modal',
+      capabilities: { engine_games: true, gpu: true },
+      claimToken: 'modal-resource-token',
+    });
+    assert.equal(modalTask?.id, 'task-modal');
+
+    const noTask = await claimNextEngineGameTask(getPool(), {
+      workerRunId: railwayWorker.id,
+      workerId: 'railway-test-worker',
+      provider: 'railway',
+      capabilities: { engine_games: true },
+      claimToken: 'railway-resource-token-2',
+    });
+    assert.equal(noTask, null);
+  });
+
+  test('task heartbeat extends an active claim', async () => {
+    const job = await createExperimentJob(getPool(), {
+      id: 'job-heartbeat-test',
+      purpose: 'smoke',
+      targetGames: 1,
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-heartbeat',
+      jobId: job.id,
+      gameIndex: 0,
+      seed: 120,
+      timeControl: { kind: 'none' },
+    });
+    const worker = await registerWorkerRun(getPool(), {
+      id: 'worker-heartbeat-test',
+      provider: 'local',
+    });
+    const task = await claimNextEngineGameTask(getPool(), {
+      workerRunId: worker.id,
+      workerId: 'test-worker',
+      provider: 'local',
+      claimToken: 'heartbeat-token',
+      claimTtlMs: 60_000,
+    });
+    assert.equal(task?.id, 'task-heartbeat');
+    const originalClaimExpiresAt = task.claimExpiresAt?.getTime() ?? 0;
+
+    await getPool().query(
+      `UPDATE engine_game_tasks
+       SET heartbeat_at = now() - interval '30 seconds',
+           claim_expires_at = now() + interval '30 seconds'
+       WHERE id = $1`,
+      [task.id],
+    );
+    const heartbeat = await heartbeatEngineGameTask(getPool(), task.id, 'heartbeat-token');
+    assert.ok((heartbeat.claimExpiresAt?.getTime() ?? 0) > originalClaimExpiresAt);
   });
 
   test('cleanup retries stale claimed tasks that have not started a game', async () => {
@@ -314,6 +426,48 @@ if (!TEST_DATABASE_URL) {
       job.id,
     ]);
     assert.deepEqual(jobs, [{ status: 'completed', completed_games: 1, failed_games: 0 }]);
+  });
+
+  test('job reconciliation derives counters from task state idempotently', async () => {
+    const job = await createExperimentJob(getPool(), {
+      id: 'job-reconcile-test',
+      purpose: 'bakeoff',
+      targetGames: 2,
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-reconcile-completed',
+      jobId: job.id,
+      gameIndex: 0,
+      seed: 400,
+      timeControl: { kind: 'none' },
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-reconcile-failed',
+      jobId: job.id,
+      gameIndex: 1,
+      seed: 401,
+      timeControl: { kind: 'none' },
+    });
+    await getPool().query(
+      `UPDATE engine_game_tasks
+       SET status = CASE WHEN id = 'task-reconcile-completed' THEN 'completed' ELSE 'failed' END,
+           started_at = now(),
+           finished_at = now()
+       WHERE job_id = $1`,
+      [job.id],
+    );
+
+    await reconcileExperimentJob(getPool(), job.id);
+    await reconcileExperimentJob(getPool(), job.id);
+
+    const { rows } = await getPool().query<{
+      status: string;
+      completed_games: number;
+      failed_games: number;
+    }>('SELECT status, completed_games, failed_games FROM eve_jobs WHERE id = $1', [
+      job.id,
+    ]);
+    assert.deepEqual(rows, [{ status: 'completed', completed_games: 1, failed_games: 1 }]);
   });
 
   test('cleanup marks stale workers failed even without claimed tasks', async () => {

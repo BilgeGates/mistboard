@@ -104,6 +104,7 @@ export type ClaimNextTaskInput = {
   workerId: string;
   provider: string;
   providerRunId?: string | null;
+  capabilities?: JsonObject;
   claimTtlMs?: number;
   claimToken?: string;
 };
@@ -232,12 +233,27 @@ export async function claimNextEngineGameTask(
     await client.query('BEGIN');
     const { rows } = await client.query<EngineGameTaskRow>(
       `WITH next_task AS (
-         SELECT id
-         FROM engine_game_tasks
-         WHERE status = 'queued'
-           AND scheduled_at <= now()
-           AND attempt_count < max_attempts
-         ORDER BY priority DESC, scheduled_at, created_at
+         SELECT queued_task.id
+         FROM engine_game_tasks queued_task
+         WHERE queued_task.status = 'queued'
+           AND queued_task.scheduled_at <= now()
+           AND queued_task.attempt_count < queued_task.max_attempts
+           AND (
+             NOT (queued_task.resource_policy ? 'providers')
+             OR jsonb_typeof(queued_task.resource_policy->'providers') <> 'array'
+             OR jsonb_array_length(queued_task.resource_policy->'providers') = 0
+             OR queued_task.resource_policy->'providers' ? $3
+           )
+           AND (
+             NOT (queued_task.resource_policy ? 'required_capabilities')
+             OR jsonb_typeof(queued_task.resource_policy->'required_capabilities') <> 'array'
+             OR NOT EXISTS (
+               SELECT 1
+               FROM jsonb_array_elements_text(queued_task.resource_policy->'required_capabilities') required(capability)
+               WHERE COALESCE(($7::jsonb ->> required.capability)::boolean, false) IS DISTINCT FROM true
+             )
+           )
+         ORDER BY queued_task.priority DESC, queued_task.scheduled_at, queued_task.created_at
          FOR UPDATE SKIP LOCKED
          LIMIT 1
        )
@@ -264,6 +280,7 @@ export async function claimNextEngineGameTask(
         input.providerRunId ?? null,
         claimToken,
         claimExpiresAt,
+        input.capabilities ?? {},
       ],
     );
     await client.query('COMMIT');
@@ -342,7 +359,6 @@ export async function cleanupStaleEngineGameTasks(
              AND status = 'running'`,
           [task.id],
         );
-        await incrementJobCounter(client, task.job_id, 'failed');
         result.aborted += 1;
       } else if (task.attempt_count < task.max_attempts) {
         await client.query(
@@ -375,9 +391,9 @@ export async function cleanupStaleEngineGameTasks(
              AND status = 'running'`,
           [task.id],
         );
-        await incrementJobCounter(client, task.job_id, 'failed');
         result.failed += 1;
       }
+      await reconcileExperimentJob(client, task.job_id);
     }
 
     const staleWorkers = await client.query(
@@ -476,24 +492,39 @@ export async function finishEngineGameTask(
   return mapTask(rows[0]!);
 }
 
-export async function incrementJobCounter(
+export async function reconcileExperimentJob(
   db: Queryable,
   jobId: string,
-  counter: 'completed' | 'failed',
 ): Promise<void> {
-  const column = counter === 'completed' ? 'completed_games' : 'failed_games';
   await db.query(
-    `UPDATE eve_jobs
-     SET ${column} = ${column} + 1,
+    `WITH counts AS (
+       SELECT
+         count(*) FILTER (WHERE status = 'queued') AS queued,
+         count(*) FILTER (WHERE status = 'running') AS running,
+         count(*) FILTER (WHERE status = 'completed') AS completed,
+         count(*) FILTER (WHERE status IN ('failed', 'aborted')) AS failed
+       FROM engine_game_tasks
+       WHERE job_id = $1
+     )
+     UPDATE eve_jobs job
+     SET completed_games = counts.completed,
+         failed_games = counts.failed,
          status = CASE
-           WHEN completed_games + failed_games + 1 >= target_games THEN 'completed'
-           ELSE status
+           WHEN counts.completed + counts.failed >= job.target_games THEN 'completed'
+           WHEN counts.running > 0 OR counts.completed + counts.failed > 0 THEN 'running'
+           ELSE 'queued'
+         END,
+         started_at = CASE
+           WHEN counts.running > 0 OR counts.completed + counts.failed > 0 THEN COALESCE(job.started_at, now())
+           ELSE job.started_at
          END,
          finished_at = CASE
-           WHEN completed_games + failed_games + 1 >= target_games THEN now()
-           ELSE finished_at
+           WHEN counts.completed + counts.failed >= job.target_games THEN COALESCE(job.finished_at, now())
+           ELSE NULL
          END
-     WHERE id = $1`,
+     FROM counts
+     WHERE job.id = $1
+       AND job.status NOT IN ('aborted', 'failed')`,
     [jobId],
   );
 }

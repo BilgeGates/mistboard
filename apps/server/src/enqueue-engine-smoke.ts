@@ -37,7 +37,7 @@ try {
       seed: nextSeed(seed, gameIndex),
       timeControl: { kind: 'none' },
       openingPolicy: { kind: 'standard' },
-      resourcePolicy: { providers: ['local'], concurrency: 1 },
+      resourcePolicy: { providers: ['local', 'railway'], concurrency: 1 },
       config: { variant: 'fog-of-war', max_plies: maxPlies },
     }));
   }

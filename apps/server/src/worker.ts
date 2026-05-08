@@ -5,7 +5,7 @@ import {
   cleanupStaleEngineGameTasks,
   finishEngineGameTask,
   heartbeatWorkerRun,
-  incrementJobCounter,
+  reconcileExperimentJob,
   registerWorkerRun,
   releaseEngineGameTaskClaim,
   stopWorkerRun,
@@ -29,6 +29,10 @@ const dryRun = !execute;
 const maxTasks = parsePositiveInteger(process.env.WORKER_MAX_TASKS) ?? (loop ? Number.POSITIVE_INFINITY : 1);
 const idleSleepMs = parsePositiveInteger(process.env.WORKER_IDLE_SLEEP_MS) ?? 5_000;
 const cleanupIntervalMs = parsePositiveInteger(process.env.WORKER_CLEANUP_INTERVAL_MS) ?? 60_000;
+const workerCapabilities = { engine_games: true };
+const workerResourceLimits = {
+  concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '1', 10),
+};
 
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 4 });
 let activeWorkerRunId: string | null = null;
@@ -52,10 +56,8 @@ try {
   const workerRun = await registerWorkerRun(pool, {
     provider,
     providerRunId,
-    capabilities: { engine_games: true },
-    resourceLimits: {
-      concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '1', 10),
-    },
+    capabilities: workerCapabilities,
+    resourceLimits: workerResourceLimits,
   });
   activeWorkerRunId = workerRun.id;
 
@@ -83,6 +85,7 @@ try {
       workerId,
       provider,
       providerRunId,
+      capabilities: workerCapabilities,
     });
     activeTask = task;
 
@@ -172,21 +175,24 @@ async function migrate(connectionString: string): Promise<void> {
 
 async function cleanupStaleTasks(): Promise<void> {
   const cleanup = await cleanupStaleEngineGameTasks(pool);
-  if (
-    cleanup.retried > 0
+  if (hasStaleCleanupWork(cleanup)) {
+    log('worker_stale_tasks_cleaned', cleanup);
+  }
+}
+
+function hasStaleCleanupWork(cleanup: Awaited<ReturnType<typeof cleanupStaleEngineGameTasks>>): boolean {
+  return cleanup.retried > 0
     || cleanup.failed > 0
     || cleanup.aborted > 0
     || cleanup.failedWorkerRuns > 0
-  ) {
-    log('worker_stale_tasks_cleaned', cleanup);
-  }
+    || cleanup.staleWorkerRuns > 0;
 }
 
 async function finishFailedTask(task: EngineGameTask, error: string): Promise<void> {
   if (!task.claimToken) return;
   try {
     await finishEngineGameTask(pool, task.id, task.claimToken, 'failed', error);
-    await incrementJobCounter(pool, task.jobId, 'failed');
+    await reconcileExperimentJob(pool, task.jobId);
   } catch (finishErr) {
     log('worker_task_failure_record_failed', { error: (finishErr as Error).message });
   }

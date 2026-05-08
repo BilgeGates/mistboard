@@ -9,11 +9,13 @@ import {
 } from '@bichess/game';
 import {
   finishEngineGameTask,
-  incrementJobCounter,
+  heartbeatEngineGameTask,
+  reconcileExperimentJob,
   type EngineGameTask,
 } from './engine-experiments.js';
 
 const BUILTIN_ENGINE_ID = 'builtin-random-legal';
+const HEARTBEAT_EVERY_PLIES = 8;
 
 export async function runRandomLegalEngineGame(
   pool: pg.Pool,
@@ -65,6 +67,9 @@ export async function runRandomLegalEngineGame(
     };
     await appendEvent(pool, gameId, events.length, event);
     events.push(event);
+    if ((events.length - 3) % HEARTBEAT_EVERY_PLIES === 0) {
+      await heartbeatEngineGameTask(pool, task.id, task.claimToken);
+    }
     projection = replayGameEvents(events);
   }
 
@@ -92,7 +97,7 @@ export async function runRandomLegalEngineGame(
     [gameId, result, termination, plyCount, new Date()],
   );
   await finishEngineGameTask(pool, task.id, task.claimToken, 'completed');
-  await incrementJobCounter(pool, task.jobId, 'completed');
+  await reconcileExperimentJob(pool, task.jobId);
 
   return { gameId, plyCount, status: 'completed' };
 }
@@ -193,7 +198,7 @@ async function completeTruncatedGame(
     [gameId, plyCount, new Date()],
   );
   await finishEngineGameTask(pool, task.id, task.claimToken!, 'completed');
-  await incrementJobCounter(pool, task.jobId, 'completed');
+  await reconcileExperimentJob(pool, task.jobId);
 }
 
 async function abortGame(
@@ -215,7 +220,7 @@ async function abortGame(
     [gameId, termination, plyCount, new Date()],
   );
   await finishEngineGameTask(pool, task.id, task.claimToken!, 'aborted', termination);
-  await incrementJobCounter(pool, task.jobId, 'failed');
+  await reconcileExperimentJob(pool, task.jobId);
 }
 
 function variantFromTask(task: EngineGameTask): VariantId {
