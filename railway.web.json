@@ -9,8 +9,6 @@
       "/package.json",
       "/package-lock.json",
       "/nixpacks.toml",
-      "/railway.engine-worker.json",
-      "/railway.json",
       "/railway.web.json",
       "/tsconfig.base.json"
     ]
