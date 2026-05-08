@@ -12,5 +12,9 @@
       "/railway.web.json",
       "/tsconfig.base.json"
     ]
+  },
+  "deploy": {
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30
   }
 }

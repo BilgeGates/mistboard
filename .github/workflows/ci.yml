@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  node:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -31,6 +31,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build
-      - run: npm run typecheck
-      - run: npm test
+      - name: Build
+        run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test with Postgres
+        run: npm test
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
+  python-research:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: research/python-fow-lab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: research/python-fow-lab/pyproject.toml
+      - run: python -m pip install -e ".[dev]"
+      - run: pytest
