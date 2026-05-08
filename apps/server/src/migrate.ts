@@ -4,35 +4,38 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 const MIGRATIONS_TABLE = '_migrations';
+const MIGRATIONS_LOCK_KEY = 'bichess:migrations';
 
 export async function runMigrations(client: pg.Client | pg.PoolClient, migrationsDir?: string): Promise<string[]> {
   const dir = migrationsDir ?? defaultMigrationsDir();
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
-      name       TEXT        PRIMARY KEY,
-      applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )
-  `);
-
-  const applied = await client.query<{ name: string }>(`SELECT name FROM ${MIGRATIONS_TABLE}`);
-  const appliedSet = new Set(applied.rows.map((row) => row.name));
-
-  const files = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
   const newlyApplied: string[] = [];
 
-  for (const file of files) {
-    if (appliedSet.has(file)) continue;
-    const sql = await readFile(join(dir, file), 'utf-8');
-    await client.query('BEGIN');
-    try {
+  await client.query('BEGIN');
+  try {
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [MIGRATIONS_LOCK_KEY]);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
+        name       TEXT        PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+
+    const applied = await client.query<{ name: string }>(`SELECT name FROM ${MIGRATIONS_TABLE}`);
+    const appliedSet = new Set(applied.rows.map((row) => row.name));
+
+    const files = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
+
+    for (const file of files) {
+      if (appliedSet.has(file)) continue;
+      const sql = await readFile(join(dir, file), 'utf-8');
       await client.query(sql);
       await client.query(`INSERT INTO ${MIGRATIONS_TABLE} (name) VALUES ($1)`, [file]);
-      await client.query('COMMIT');
       newlyApplied.push(file);
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw new Error(`Migration ${file} failed: ${(err as Error).message}`);
     }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
   }
 
   return newlyApplied;
