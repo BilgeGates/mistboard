@@ -21,6 +21,7 @@ export type SnapshotRoom = {
   id: string;
   clients: { size: number };
   events: GameEvent[];
+  mode?: string;
   projection: GameProjection;
 };
 
@@ -32,6 +33,8 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
   return {
     type: 'snapshot',
     roomId: room.id,
+    mode: room.mode ?? 'pvp',
+    serverAt: Date.now(),
     clients: room.clients.size,
     seat: client.seat,
     solo: client.solo,

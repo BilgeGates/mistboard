@@ -202,10 +202,62 @@ a {
 }
 
 .game-info,
+.action-status,
 .selection-list,
 .clocks {
   display: grid;
   gap: 6px;
+}
+
+.action-notice {
+  display: grid;
+  gap: 4px;
+  min-height: 64px;
+  border: 1px solid #d3d9d2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #3f4a44;
+  padding: 10px 12px;
+}
+
+.action-notice strong {
+  color: #1d2522;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.action-notice span {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.action-notice a {
+  justify-self: start;
+  margin-top: 4px;
+  color: #1f6f5b;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.action-notice a:hover,
+.action-notice a:focus-visible {
+  text-decoration: underline;
+}
+
+.action-notice.pending {
+  border-color: #c8bd90;
+  background: #fff8df;
+}
+
+.action-notice.success {
+  border-color: #9bbdaf;
+  background: #eef8f2;
+}
+
+.action-notice.danger {
+  border-color: #c79898;
+  background: #fff1ef;
 }
 
 .game-info div,
@@ -317,6 +369,17 @@ a {
 .room-actions a:focus-visible {
   border-color: #1f6f5b;
   outline: 3px solid rgba(31, 111, 91, 0.18);
+}
+
+.room-actions a.primary {
+  border-color: #1f6f5b;
+  background: #1f6f5b;
+  color: #ffffff;
+}
+
+.room-actions a.primary:hover,
+.room-actions a.primary:focus-visible {
+  background: #185947;
 }
 
 .debug-shell {
@@ -527,6 +590,12 @@ a {
   border-color: #9bbdaf;
   background: #eef8f2;
   color: #225a46;
+}
+
+.info-notice.danger {
+  border-color: #c79898;
+  background: #fff1ef;
+  color: #7a2f2f;
 }
 
 .replay-controls {
