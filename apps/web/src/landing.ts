@@ -26,6 +26,7 @@ type LandingGameSource = 'eve' | 'featured';
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const ENGINE_LAB_ENABLED =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
+const LIVE_ROOM_LINKS_ENABLED = import.meta.env.DEV;
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -272,6 +273,12 @@ export function mountLearn(root: HTMLElement): void {
   mountLearnBoard(learn.boardEl);
 }
 
+export function mountPlay(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'play-route');
+  root.append(buildNav(), buildPlay(), buildFooter());
+}
+
 function buildNav(): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
@@ -303,6 +310,11 @@ function buildNav(): HTMLElement {
   watchLink.textContent = 'Watch';
   watchLink.className = 'site-nav-link';
 
+  const playLink = document.createElement('a');
+  playLink.href = '/play';
+  playLink.textContent = 'Play';
+  playLink.className = 'site-nav-link';
+
   const learnLink = document.createElement('a');
   learnLink.href = '/learn';
   learnLink.textContent = 'Learn';
@@ -322,7 +334,7 @@ function buildNav(): HTMLElement {
     labLink.className = 'site-nav-link';
     links.append(labLink);
   }
-  links.append(watchLink, learnLink, aboutLink, ghLink);
+  links.append(watchLink, playLink, learnLink, aboutLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
@@ -349,11 +361,10 @@ function buildHero(source: LandingGameSource): HTMLElement {
   const ctas = document.createElement('div');
   ctas.className = 'landing-ctas';
 
-  const playBtn = document.createElement('button');
-  playBtn.type = 'button';
+  const playBtn = document.createElement('a');
+  playBtn.href = '/play';
   playBtn.className = 'landing-cta-primary';
-  playBtn.disabled = true;
-  playBtn.textContent = 'Play vs engine — coming soon';
+  playBtn.textContent = 'Play';
 
   ctas.append(playBtn);
   const watchLink = document.createElement('a');
@@ -505,6 +516,119 @@ function buildAbout(): HTMLElement {
 
   section.append(heading, p1, p2, p3);
   return section;
+}
+
+function buildPlay(): HTMLElement {
+  const shell = document.createElement('main');
+  shell.className = 'play-shell';
+
+  const header = document.createElement('section');
+  header.className = 'play-header';
+  const heading = document.createElement('h1');
+  heading.className = 'play-heading';
+  heading.textContent = 'Play';
+  const copy = document.createElement('p');
+  copy.className = 'play-copy';
+  copy.textContent =
+    'Choose the Fog of War surface. Engine games are available now; human and engine rooms are wired for dev while the production flow is hardened.';
+  header.append(heading, copy);
+
+  const modes = document.createElement('section');
+  modes.className = 'play-modes';
+  modes.append(
+    buildPlayMode({
+      label: 'EvE',
+      title: 'Watch engine games',
+      body: 'Recent engine games with perspective replay, fog views, and postgame reveal.',
+      href: '/watch',
+      cta: 'Watch',
+      status: 'Ready',
+    }),
+    buildPlayMode({
+      label: 'PvE',
+      title: 'Play vs engine',
+      body: 'A single-player room against the built-in Fog engine path.',
+      href: LIVE_ROOM_LINKS_ENABLED ? createLiveRoomHref('pve') : undefined,
+      cta: LIVE_ROOM_LINKS_ENABLED ? 'Open dev room' : 'Coming soon',
+      status: LIVE_ROOM_LINKS_ENABLED ? 'Dev' : 'Upcoming',
+    }),
+    buildPlayMode({
+      label: 'PvP',
+      title: 'Challenge a friend',
+      body: 'A share-link room for two humans with server-enforced hidden information.',
+      href: LIVE_ROOM_LINKS_ENABLED ? createLiveRoomHref('pvp') : undefined,
+      cta: LIVE_ROOM_LINKS_ENABLED ? 'Create dev room' : 'Coming soon',
+      status: LIVE_ROOM_LINKS_ENABLED ? 'Dev' : 'Upcoming',
+    }),
+  );
+
+  shell.append(header, modes);
+  return shell;
+}
+
+function buildPlayMode(options: {
+  body: string;
+  cta: string;
+  href?: string;
+  label: string;
+  status: string;
+  title: string;
+}): HTMLElement {
+  const row = document.createElement('article');
+  row.className = 'play-mode';
+
+  const badge = document.createElement('div');
+  badge.className = 'play-mode-label';
+  badge.textContent = options.label;
+
+  const body = document.createElement('div');
+  body.className = 'play-mode-body';
+  const title = document.createElement('h2');
+  title.className = 'play-mode-title';
+  title.textContent = options.title;
+  const copy = document.createElement('p');
+  copy.className = 'play-mode-copy';
+  copy.textContent = options.body;
+  body.append(title, copy);
+
+  const meta = document.createElement('div');
+  meta.className = 'play-mode-meta';
+  const status = document.createElement('span');
+  status.className = 'play-mode-status';
+  status.textContent = options.status;
+  meta.append(status);
+
+  if (options.href) {
+    const action = document.createElement('a');
+    action.className = 'landing-cta-secondary play-mode-action';
+    action.href = options.href;
+    action.textContent = options.cta;
+    meta.append(action);
+  } else {
+    const action = document.createElement('button');
+    action.className = 'landing-cta-secondary play-mode-action';
+    action.type = 'button';
+    action.disabled = true;
+    action.textContent = options.cta;
+    meta.append(action);
+  }
+
+  row.append(badge, body, meta);
+  return row;
+}
+
+function createLiveRoomHref(mode: 'pve' | 'pvp'): string {
+  const params = new URLSearchParams({
+    reset: '1',
+    room: `room-${randomRoomId()}`,
+    variant: 'fog-of-war',
+  });
+  if (mode === 'pve') params.set('dev', 'engine');
+  return `/?${params}`;
+}
+
+function randomRoomId(): string {
+  return window.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
 }
 
 function buildLearn(): { el: HTMLElement; boardEl: HTMLElement } {

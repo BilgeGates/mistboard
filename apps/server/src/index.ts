@@ -175,6 +175,7 @@ function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return normalized === '/about'
     || normalized === '/learn'
+    || normalized === '/play'
     || normalized === '/watch'
     || normalized === '/engine-lab'
     || normalized === '/arena'
