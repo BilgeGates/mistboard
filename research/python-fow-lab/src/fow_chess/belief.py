@@ -18,9 +18,10 @@ from .visibility import visible_piece_map, visible_squares
 # on every belief particle's opp piece count after captures we register: any
 # particle hallucinating extra pieces of a captured type gets pruned.
 #
-# Promotion edge case: opp pawn -> opp queen (or other) increments their count.
-# v0.6.0 does NOT auto-detect this and could over-prune in promotion games
-# (still rare in current bake-offs). Track as TODO for v0.6.1.
+# Promotion edge case: opp pawn -> opp queen (or other) increments their
+# non-pawn count while decrementing pawn count. Count constraints are promotion-
+# aware below: non-pawn excess is allowed only when compensated by missing
+# pawns.
 _STANDARD_OPP_COUNTS: dict[chess.PieceType, int] = {
     chess.PAWN: 8,
     chess.KNIGHT: 2,
@@ -63,10 +64,22 @@ def _violates_count_constraint(
     counts: dict[chess.PieceType, int],
     bound: dict[chess.PieceType, int],
 ) -> bool:
+    promotion_credit = max(
+        0, bound.get(chess.PAWN, 0) - counts.get(chess.PAWN, 0)
+    )
+    promoted_excess = 0
     for piece_type, n in counts.items():
+        if piece_type == chess.PAWN:
+            if n > bound.get(piece_type, 0):
+                return True
+            continue
+        if piece_type == chess.KING:
+            if n > bound.get(piece_type, 0):
+                return True
+            continue
         if n > bound.get(piece_type, 0):
-            return True
-    return False
+            promoted_excess += n - bound.get(piece_type, 0)
+    return promoted_excess > promotion_credit
 
 
 @dataclass

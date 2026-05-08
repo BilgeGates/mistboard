@@ -281,6 +281,51 @@ def test_stage_b_constraint_prunes_phantom_pieces() -> None:
         assert knight_count <= 1
 
 
+def test_stage_b_count_constraint_allows_promotion_excess() -> None:
+    """A promoted queen is legal when it is compensated by a missing pawn.
+
+    Regression for v0.7.6 rung2 game 13 ply 76/77: black promoted after the
+    original queen had been captured. The old count constraint rejected every
+    expanded particle because queen count exceeded the captured-queen bound,
+    even though black had one fewer pawn.
+    """
+    seed = chess.Board.empty()
+    seed.turn = chess.BLACK
+    seed.set_piece_at(chess.G2, chess.Piece(chess.KING, chess.WHITE))
+    seed.set_piece_at(chess.A1, chess.Piece(chess.ROOK, chess.WHITE))
+    seed.set_piece_at(chess.G7, chess.Piece(chess.KING, chess.BLACK))
+    seed.set_piece_at(chess.D2, chess.Piece(chess.PAWN, chess.BLACK))
+
+    truth = seed.copy()
+    truth.push(chess.Move.from_uci("d2d1q"))
+    obs = observation_from_transition(seed, truth, chess.WHITE)
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[seed],
+        weights=[1.0],
+    )
+    belief.opp_remaining_counts = {
+        chess.KING: 1,
+        chess.QUEEN: 0,
+        chess.ROOK: 0,
+        chess.BISHOP: 0,
+        chess.KNIGHT: 0,
+        chess.PAWN: 1,
+    }
+    belief.opp_bishop_colors_remaining = {True: 0, False: 0}
+
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_csp_reseed_fired == 0
+    assert any(
+        particle.piece_at(chess.D1) == chess.Piece(chess.QUEEN, chess.BLACK)
+        for particle in belief.particles
+    )
+
+
 def test_stage_a_reseed_when_step1_wipes_all_particles() -> None:
     """v0.7.0: when no particle has my_move pseudo-legal, reseed from the
     post-move observation rather than collapsing to zero particles.
