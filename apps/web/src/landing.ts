@@ -454,7 +454,7 @@ function renderRecentGames(
 
     const meta = document.createElement('span');
     meta.className = 'landing-game-meta';
-    meta.textContent = `${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+    meta.textContent = `${sourceLabel(game.mode)} · ${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
 
     link.append(matchup, meta);
     item.append(link);
