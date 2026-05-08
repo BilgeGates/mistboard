@@ -112,7 +112,7 @@ if (soloRequested) socketParams.set('dev', 'solo');
 if (engineRequested) socketParams.set('dev', 'engine');
 if (allViewsRequested) socketParams.set('views', 'all');
 if (variantRequested) socketParams.set('variant', variantRequested);
-const socket = new WebSocket(`ws://localhost:3001?${socketParams}`);
+const socket = new WebSocket(`${resolveWebSocketBaseUrl()}?${socketParams}`);
 const refs = createLayout(root);
 
 let offer: Chess960Start[] = [];
@@ -132,6 +132,14 @@ let orientation: Color = 'white';
 let ground: Api | null = null;
 let pendingPromotion: PendingPromotion | null = null;
 let shareCopyStatus: 'idle' | 'copied' | 'failed' = 'idle';
+
+function resolveWebSocketBaseUrl(): string {
+  const configured = import.meta.env.VITE_BICHESS_WS_URL;
+  if (configured) return configured.replace(/\?$/, '');
+  if (import.meta.env.DEV) return 'ws://localhost:3001';
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}`;
+}
 
 socket.addEventListener('message', (event) => {
   const message = JSON.parse(event.data) as ServerMessage;

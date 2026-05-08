@@ -165,6 +165,8 @@ bichess.org runs on a single Railway service: `apps/server` serves both the stat
 
 Push to `main` triggers an auto-deploy. Migrations apply on container boot.
 
+Production-like runtimes require `DATABASE_URL` by default. If it is missing, the server should fail startup or report unhealthy instead of silently falling back to in-memory rooms. Live game snapshots and event history are private until the game is over; public replay APIs only expose full events after terminal state.
+
 ## License
 
 GPL-3.0-or-later. Bichess uses GPL-family chess libraries (`chessops`, `chessground`).

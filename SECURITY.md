@@ -32,6 +32,12 @@ The central product invariant:
 
 Any code path that sends full board state, hidden moves, hidden legal moves, or reconstructable hidden metadata to the wrong consumer is a security bug, even if the UI hides it afterward.
 
+Live game traffic is private data. WebSocket snapshots, live event history, bids, clocks, and debug payloads must be scoped to the receiving seat or to an explicitly authorized administrator. A room id is not permission to observe a live game.
+
+Full event replay is public only after a game reaches a terminal state. Before then, `/api/games/:roomId/events` and any equivalent replay/export path must reject the request or return only a seat-scoped private view.
+
+Truth/debug views are administrative capability, not a client preference. Production deployments must not enable `devViews`, `views=all`, random-engine truth views, or similar hidden-state inspection paths unless the server has authorized the requester as an administrator.
+
 ## Supported Versions
 
 Bichess is pre-1.0. Security fixes target the current `main` branch and the live `bichess.org` deployment.

@@ -89,6 +89,13 @@ Wire-up:
 - `appendEvent` (existing in-memory function) gains an `await persistence.appendEvent(...)` before the broadcast. Synchronous insert per event — Postgres handles dozens-of-rooms × low-frequency moves trivially.
 - On terminal game state in `appendEvent`'s post-projection check, call `recordGameEnd`.
 
+Replay visibility:
+
+- Persisted events are canonical truth and are private while a game is live.
+- `GET /api/games/:roomId/events` must only return full events after replaying them produces a terminal game state.
+- Live and pregame observers receive only WebSocket snapshots that are scoped to their seat. Spectators of live Fog of War games do not receive board truth or move events.
+- Administrative debug views are a separate capability. They are not authorized by room id, query params, or client-side UI state.
+
 ## Hosting
 
 **Railway Postgres plugin.** One-click provision, injects `DATABASE_URL` as a service-scoped env var. Same Railway project as the bichess service; private network connection (no egress, no TLS overhead in-cluster).
@@ -101,6 +108,11 @@ Env:
 
 - `DATABASE_URL` — required in prod, set automatically by the plugin.
 - `DATABASE_URL` in dev — optional; if absent, `apps/server` falls back to in-memory rooms (current behavior, useful for quick local iteration without a DB running).
+- `BICHESS_ALLOW_IN_MEMORY_PERSISTENCE=true` — explicit escape hatch for intentionally ephemeral production-like environments. Do not set this on the live service.
+- `BICHESS_ADMIN_DEBUG_TOKEN` — optional bearer token for administrative truth/debug views in production-like runtimes. Prefer sending it in a WebSocket message or subprotocol, not in URLs.
+- `BICHESS_ALLOWED_ORIGINS` — optional comma-separated WebSocket origin allowlist. If unset in production-like runtimes, the server allows only `https://$HOST`.
+- `BICHESS_WS_MAX_PAYLOAD_BYTES`, `BICHESS_WS_MESSAGE_LIMIT`, `BICHESS_WS_MESSAGE_WINDOW_MS` — optional WebSocket abuse-control knobs.
+- `BICHESS_SHUTDOWN_GRACE_MS` — optional graceful shutdown budget for closing sockets, pending writes, and the Postgres pool.
 
 Local dev DB: `docker compose up postgres` (compose file added alongside this work) or any local Postgres. Migrations run via a tiny in-repo script — no ORM, no migration framework. Schema is two tables; raw SQL files in `apps/server/migrations/` applied in order.
 
@@ -180,8 +192,9 @@ The dangerous failure mode is silent: Postgres degrades, writes start failing, a
 - **Health endpoint surfaces recent failures.**
   ```
   GET /health
-  → 200 { ok: true, persistenceErrors: { count1m: 0, lastAt: null } }
-  → 503 { ok: false, persistenceErrors: { count1m: 4, lastAt: 1714... } }
+  → 200 { ok: true, databaseRequired: true, persistence: "enabled", persistenceErrors: { count1m: 0, lastAt: null } }
+  → 503 { ok: false, databaseRequired: true, persistence: "disabled", persistenceErrors: { count1m: 0, lastAt: null } }
+  → 503 { ok: false, databaseRequired: true, persistence: "enabled", persistenceErrors: { count1m: 4, lastAt: 1714... } }
   ```
   Railway can be configured to alert on 503s; this gives operational visibility without standing up Prometheus.
 

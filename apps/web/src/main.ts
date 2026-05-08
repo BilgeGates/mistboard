@@ -6,12 +6,13 @@ if (phKey && phHost && import.meta.env.PROD) {
   void import('posthog-js').then(({ default: posthog }) => {
     posthog.init(phKey, {
       api_host: phHost,
-      autocapture: true,
-      capture_pageview: true,
+      autocapture: false,
+      capture_pageview: false,
       persistence: 'localStorage',
       disable_session_recording: true,
       respect_dnt: true,
     });
+    posthog.capture('$pageview', { path: window.location.pathname });
   });
 }
 

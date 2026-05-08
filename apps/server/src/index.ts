@@ -26,10 +26,22 @@ import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { GameSummary } from './persistence.js';
 import { snapshotPayload, type Seat } from './payloads.js';
+import {
+  adminDebugTokenFromProtocolHeader,
+  eventReplayResponse,
+  isAdminDebugToken,
+  isAllowedWebSocketOrigin,
+  isDatabaseRequired,
+  isProductionLikeRuntime,
+  parsePositiveInteger,
+  recordMessageTimestamp,
+} from './server-policy.js';
 
 type Client = {
+  debugRequested: boolean;
   devViews: boolean;
   id: string;
+  messageTimestamps: number[];
   socket: WebSocket;
   roomId: string;
   seat: Seat;
@@ -49,6 +61,11 @@ type Room = {
 
 const rooms = new Map<string, Room>();
 const port = Number(process.env.PORT ?? 3001);
+const databaseRequired = isDatabaseRequired();
+const wsMaxPayloadBytes = parsePositiveInteger(process.env.BICHESS_WS_MAX_PAYLOAD_BYTES) ?? 8_192;
+const wsMessageLimit = parsePositiveInteger(process.env.BICHESS_WS_MESSAGE_LIMIT) ?? 40;
+const wsMessageWindowMs = parsePositiveInteger(process.env.BICHESS_WS_MESSAGE_WINDOW_MS) ?? 10_000;
+const shutdownGraceMs = parsePositiveInteger(process.env.BICHESS_SHUTDOWN_GRACE_MS) ?? 10_000;
 
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
@@ -58,9 +75,14 @@ const staticDir = resolveStaticDir();
 await initPersistence();
 
 const server = createServer(handleHttpRequest);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, maxPayload: wsMaxPayloadBytes });
+let shuttingDown = false;
 
 wss.on('connection', (socket, request) => {
+  if (!isAllowedWebSocketRequest(request)) {
+    socket.close(1008, 'origin not allowed');
+    return;
+  }
   void handleConnection(socket, request).catch((err) => {
     console.error(JSON.stringify({
       level: 'error',
@@ -76,9 +98,18 @@ server.listen(port, () => {
   console.log(`bichess server listening on http://localhost:${port}`);
 });
 
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    void shutdown(signal);
+  });
+}
+
 async function initPersistence(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
+    if (databaseRequired) {
+      throw new Error('DATABASE_URL is required in this runtime; set BICHESS_ALLOW_IN_MEMORY_PERSISTENCE=true only for intentional ephemeral environments');
+    }
     console.log('persistence: disabled (set DATABASE_URL to enable)');
     return;
   }
@@ -105,10 +136,11 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     const lastAt = persistenceErrors.length > 0
       ? persistenceErrors[persistenceErrors.length - 1]!.at
       : null;
-    const ok = recent.length === 0;
+    const ok = recent.length === 0 && (!databaseRequired || persistence.isInitialized());
     response.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' });
     response.end(JSON.stringify({
       ok,
+      databaseRequired,
       persistence: persistence.isInitialized() ? 'enabled' : 'disabled',
       persistenceErrors: { count1m: recent.length, lastAt },
     }));
@@ -163,13 +195,9 @@ async function handleApiRequest(url: string, response: ServerResponse): Promise<
   if (eventsMatch) {
     const roomId = decodeURIComponent(eventsMatch[1]!);
     const events = await persistence.loadRoom(roomId);
-    if (!events) {
-      response.writeHead(404, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'not_found' }));
-      return;
-    }
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ events }));
+    const replayResponse = eventReplayResponse(events);
+    response.writeHead(replayResponse.status, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(replayResponse.body));
     return;
   }
 
@@ -191,13 +219,16 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const devMode = url.searchParams.get('dev');
   const solo = devMode === 'solo';
   const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
-  const devViews = randomEngine || url.searchParams.get('views') === 'all';
+  const debugRequested = randomEngine || url.searchParams.get('views') === 'all';
+  const devViews = debugRequested && isDebugViewAuthorized(request);
   const room = await getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
   if (randomEngine) await enableRandomEngine(room);
   const clientId = randomUUID();
   const client: Client = {
+    debugRequested,
     devViews,
     id: clientId,
+    messageTimestamps: [],
     socket,
     roomId,
     seat: solo ? 'spectator' : await assignSeat(room, clientId),
@@ -215,6 +246,10 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   broadcastSnapshot(room);
 
   socket.on('message', (raw) => {
+    if (!recordClientMessage(client)) {
+      socket.close(1008, 'rate limit');
+      return;
+    }
     void handleMessage(room, client, raw.toString());
   });
 
@@ -228,6 +263,10 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
   if (!message) return;
   try {
     if (message.type === 'ping') send(client, { type: 'pong', at: Date.now() });
+    if (message.type === 'admin-debug-auth') {
+      handleAdminDebugAuth(room, client, typeof message.token === 'string' ? message.token : undefined);
+      return;
+    }
     if (message.type === 'select-start') {
       await selectStart(room, client, message.startId, message.color);
     }
@@ -685,7 +724,7 @@ type ClientMoveMessage = {
   promotion?: string;
 };
 
-function parseMessage(raw: string): { type: string; bidMs?: number; startId?: number; color?: string; from?: string; to?: string; promotion?: string } | null {
+function parseMessage(raw: string): { type: string; bidMs?: number; startId?: number; color?: string; from?: string; to?: string; promotion?: string; token?: string } | null {
   try {
     const value = JSON.parse(raw) as unknown;
     if (typeof value === 'object' && value !== null && 'type' in value) {
@@ -715,4 +754,83 @@ function roomIdToSeed(roomId: string): number {
   let hash = 0;
   for (const char of roomId) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
   return hash;
+}
+
+function handleAdminDebugAuth(room: Room, client: Client, token: string | undefined): void {
+  if (!client.debugRequested) {
+    send(client, { type: 'error', reason: 'debug_not_requested' });
+    return;
+  }
+  if (!isAdminDebugToken(token)) {
+    send(client, { type: 'error', reason: 'debug_unauthorized' });
+    return;
+  }
+  client.devViews = true;
+  send(client, snapshotPayload(room, client));
+}
+
+function isDebugViewAuthorized(request: IncomingMessage): boolean {
+  if (!isProductionLikeRuntime()) return true;
+  return isAdminDebugToken(adminDebugTokenFromProtocolHeader(request.headers['sec-websocket-protocol']));
+}
+
+function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
+  return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
+}
+
+function recordClientMessage(client: Client): boolean {
+  return recordMessageTimestamp(client.messageTimestamps, Date.now(), wsMessageLimit, wsMessageWindowMs);
+}
+
+async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(JSON.stringify({ level: 'info', kind: 'server_shutdown_requested', signal, at: Date.now() }));
+
+  const forceExit = setTimeout(() => {
+    console.error(JSON.stringify({ level: 'error', kind: 'server_shutdown_timeout', signal, at: Date.now() }));
+    process.exit(1);
+  }, shutdownGraceMs);
+  forceExit.unref();
+
+  for (const room of rooms.values()) {
+    if (room.clockTimer) clearTimeout(room.clockTimer);
+  }
+  for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
+    try { client.socket.close(1001, 'server shutting down'); } catch { /* socket already closed */ }
+  }
+
+  let exitCode = 0;
+  try {
+    await Promise.allSettled([...rooms.values()].map((room) => room.pendingWrites));
+    await closeWebSocketServer();
+    await closeHttpServer();
+    await persistence.close();
+  } catch (err) {
+    exitCode = 1;
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'server_shutdown_failure',
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
+  } finally {
+    clearTimeout(forceExit);
+  }
+  process.exit(exitCode);
+}
+
+function closeWebSocketServer(): Promise<void> {
+  return new Promise((resolve) => {
+    wss.close(() => resolve());
+  });
+}
+
+function closeHttpServer(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    server.close((err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
 }
