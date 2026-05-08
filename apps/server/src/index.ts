@@ -176,7 +176,8 @@ function isClientRoute(pathname: string): boolean {
   return normalized === '/about'
     || normalized === '/watch'
     || normalized === '/engine-lab'
-    || normalized === '/arena';
+    || normalized === '/arena'
+    || normalized.startsWith('/game/');
 }
 
 async function handleApiRequest(url: string, response: ServerResponse): Promise<void> {
@@ -198,6 +199,20 @@ async function handleApiRequest(url: string, response: ServerResponse): Promise<
     const games = await persistence.listRecentEveGames();
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ games }));
+    return;
+  }
+
+  const summaryMatch = url.match(/^\/api\/games\/([^/]+)$/);
+  if (summaryMatch) {
+    const roomId = decodeURIComponent(summaryMatch[1]!);
+    const game = await persistence.getGameSummary(roomId);
+    if (!game) {
+      response.writeHead(404, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'not_found' }));
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ game }));
     return;
   }
 

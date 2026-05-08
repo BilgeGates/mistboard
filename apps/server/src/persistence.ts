@@ -36,6 +36,7 @@ export type GameSummary = {
 export type GameRecord = {
   roomId: string;
   variant: string;
+  mode: GameMode;
   result: string;
   termination: string;
   plyCount: number;
@@ -102,6 +103,7 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
   const { rows } = await getPool().query<{
     room_id: string;
     variant: string;
+    mode: GameMode;
     result: string;
     termination: string;
     ply_count: number;
@@ -111,7 +113,7 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
     black_name: string | null;
     corpus_id: string | null;
   }>(
-    `SELECT room_id, variant, result, termination, ply_count, started_at, ended_at,
+    `SELECT room_id, variant, mode, result, termination, ply_count, started_at, ended_at,
             white_name, black_name, corpus_id
      FROM games
      WHERE corpus_id = $1
@@ -123,6 +125,7 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
   return rows.map((row) => ({
     roomId: row.room_id,
     variant: row.variant,
+    mode: row.mode,
     result: row.result,
     termination: row.termination,
     plyCount: row.ply_count,
@@ -138,6 +141,7 @@ export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecor
   const { rows } = await getPool().query<{
     room_id: string;
     variant: string;
+    mode: GameMode;
     result: string;
     termination: string;
     ply_count: number;
@@ -152,7 +156,7 @@ export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecor
     black_engine_id: string | null;
     time_control: Record<string, unknown> | null;
   }>(
-    `SELECT games.room_id, games.variant, games.result, games.termination,
+    `SELECT games.room_id, games.variant, games.mode, games.result, games.termination,
             games.ply_count, games.started_at, games.ended_at,
             games.white_name, games.black_name, games.corpus_id,
             eve_games.job_id, eve_games.game_index,
@@ -169,6 +173,7 @@ export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecor
   return rows.map((row) => ({
     roomId: row.room_id,
     variant: row.variant,
+    mode: row.mode,
     result: row.result,
     termination: row.termination,
     plyCount: row.ply_count,
@@ -183,6 +188,60 @@ export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecor
     blackEngineId: row.black_engine_id,
     timeControl: row.time_control,
   }));
+}
+
+export async function getGameSummary(roomId: string): Promise<RecentEveGameRecord | null> {
+  const { rows } = await getPool().query<{
+    room_id: string;
+    variant: string;
+    mode: GameMode;
+    result: string;
+    termination: string;
+    ply_count: number;
+    started_at: Date;
+    ended_at: Date;
+    white_name: string | null;
+    black_name: string | null;
+    corpus_id: string | null;
+    job_id: string | null;
+    game_index: number | null;
+    white_engine_id: string | null;
+    black_engine_id: string | null;
+    time_control: Record<string, unknown> | null;
+  }>(
+    `SELECT games.room_id, games.variant, games.mode, games.result, games.termination,
+            games.ply_count, games.started_at, games.ended_at,
+            games.white_name, games.black_name, games.corpus_id,
+            eve_games.job_id, eve_games.game_index,
+            eve_games.white_engine_id, eve_games.black_engine_id,
+            eve_games.time_control
+     FROM games
+     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     WHERE games.room_id = $1
+       AND games.status = 'completed'
+     LIMIT 1`,
+    [roomId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    roomId: row.room_id,
+    variant: row.variant,
+    mode: row.mode,
+    result: row.result,
+    termination: row.termination,
+    plyCount: row.ply_count,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    whiteName: row.white_name,
+    blackName: row.black_name,
+    corpusId: row.corpus_id,
+    jobId: row.job_id,
+    gameIndex: row.game_index,
+    whiteEngineId: row.white_engine_id,
+    blackEngineId: row.black_engine_id,
+    timeControl: row.time_control,
+  };
 }
 
 export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void> {

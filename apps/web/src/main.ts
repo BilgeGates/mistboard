@@ -35,6 +35,7 @@ const wantsEngineLab =
   path === '/arena' ||
   page === 'engine-lab' ||
   page === 'arena';
+const gameRoomId = gameRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsWatch = path === '/watch' || page === 'watch';
 
@@ -56,10 +57,17 @@ if (replaySample) {
   app.append(shell);
 } else if (wantsLive) {
   void import('./live.js');
+} else if (gameRoomId) {
+  void import('./landing.js').then(({ mountGame }) => mountGame(app, gameRoomId));
 } else if (wantsWatch) {
   void import('./landing.js').then(({ mountWatch }) => mountWatch(app));
 } else if (wantsAbout) {
   void import('./landing.js').then(({ mountAbout }) => mountAbout(app));
 } else {
   void import('./landing.js').then(({ mountLanding }) => mountLanding(app));
+}
+
+function gameRoomIdFromPath(value: string): string | null {
+  const match = value.match(/^\/game\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
 }

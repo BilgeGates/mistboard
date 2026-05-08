@@ -4,6 +4,7 @@ import { mountReplay, type GameMeta } from './replay.js';
 type FeaturedGame = {
   roomId: string;
   variant: string;
+  mode?: 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
   result: string;
   termination: string;
   plyCount: number;
@@ -39,13 +40,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
 
   const metadataByRoomId: Record<string, GameMeta> = {};
   for (const g of games) {
-    metadataByRoomId[g.roomId] = {
-      whiteName: g.whiteName,
-      blackName: g.blackName,
-      result: g.result,
-      termination: g.termination,
-      plyCount: g.plyCount,
-    };
+    metadataByRoomId[g.roomId] = gameMetaForGame(g);
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -81,13 +76,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
 
   const metadataByRoomId: Record<string, GameMeta> = {};
   for (const g of games) {
-    metadataByRoomId[g.roomId] = {
-      whiteName: g.whiteName,
-      blackName: g.blackName,
-      result: g.result,
-      termination: g.termination,
-      plyCount: g.plyCount,
-    };
+    metadataByRoomId[g.roomId] = gameMetaForGame(g);
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -104,7 +93,38 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     loaderForId: apiEventLoader,
     metadataByRoomId,
   });
-  renderRecentGames(watch.listRoot, games, source, currentSample, '/watch?game=');
+  renderRecentGames(watch.listRoot, games, source, currentSample, '/game/');
+}
+
+export async function mountGame(root: HTMLElement, roomId: string): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'game-route');
+
+  const shell = document.createElement('main');
+  shell.className = 'game-shell';
+  const replayRoot = document.createElement('div');
+  replayRoot.className = 'game-replay';
+  shell.append(replayRoot);
+  root.append(buildNav(), shell, buildFooter());
+
+  const game = await fetchGameSummary(roomId).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  if (!game) {
+    replayRoot.append(buildNotice('Game not found', 'This game is not available as a public replay.'));
+    return;
+  }
+
+  await mountReplay(replayRoot, game.roomId, {
+    autoplay: false,
+    showControls: true,
+    revealOnFinish: true,
+    loaderForId: apiEventLoader,
+    metadataByRoomId: {
+      [game.roomId]: gameMetaForGame(game),
+    },
+  });
 }
 
 async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
@@ -114,6 +134,14 @@ async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: Lan
   });
   if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
   return { games: await fetchFeaturedGames(), source: 'featured' };
+}
+
+async function fetchGameSummary(roomId: string): Promise<FeaturedGame | null> {
+  const resp = await fetch(`/api/games/${encodeURIComponent(roomId)}`);
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`failed to load game summary for ${roomId}: ${resp.status}`);
+  const data = (await resp.json()) as { game: FeaturedGame };
+  return data.game;
 }
 
 async function fetchFeaturedGames(): Promise<FeaturedGame[]> {
@@ -135,6 +163,16 @@ async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
   if (!resp.ok) throw new Error(`failed to load events for ${roomId}: ${resp.status}`);
   const data = (await resp.json()) as { events: GameEvent[] };
   return data.events;
+}
+
+function gameMetaForGame(game: FeaturedGame): GameMeta {
+  return {
+    whiteName: game.whiteEngineId ?? game.whiteName,
+    blackName: game.blackEngineId ?? game.blackName,
+    result: game.result,
+    termination: game.termination,
+    plyCount: game.plyCount,
+  };
 }
 
 export function mountAbout(root: HTMLElement): void {
@@ -264,6 +302,18 @@ function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRo
 
   section.append(listRoot, replayRoot);
   return { el: section, replayRoot, listRoot };
+}
+
+function buildNotice(titleText: string, bodyText: string): HTMLElement {
+  const notice = document.createElement('section');
+  notice.className = 'site-section game-notice';
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = titleText;
+  const body = document.createElement('p');
+  body.textContent = bodyText;
+  notice.append(heading, body);
+  return notice;
 }
 
 function renderRecentGames(

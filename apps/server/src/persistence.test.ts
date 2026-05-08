@@ -7,6 +7,7 @@ import {
   appendEvent,
   close,
   type GameSummary,
+  getGameSummary,
   init,
   isInitialized,
   listActiveRoomIds,
@@ -339,6 +340,37 @@ if (!TEST_DATABASE_URL) {
     assert.deepEqual(games.map((game) => game.roomId), ['eve-newer', 'eve-older']);
     assert.equal(games[0]?.jobId, 'job-recent');
     assert.equal(games[0]?.gameIndex, 1);
+    assert.equal(games[0]?.mode, 'eve');
     assert.deepEqual(games[0]?.timeControl, { kind: 'per-move', milliseconds: 100 });
+  });
+
+  test('getGameSummary returns completed game metadata without events', async () => {
+    const now = new Date();
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_name, black_name, mode, status)
+         VALUES
+           ('summary-pve', 'fog-of-war', 'white-wins', 'king-captured', 17, $1, $1,
+            'human', 'engine', 'pve', 'completed'),
+           ('summary-running', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            NULL, NULL, 'pvp', 'running')`,
+        [now],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const summary = await getGameSummary('summary-pve');
+    assert.equal(summary?.roomId, 'summary-pve');
+    assert.equal(summary?.mode, 'pve');
+    assert.equal(summary?.whiteName, 'human');
+    assert.equal(summary?.blackName, 'engine');
+    assert.equal(summary?.plyCount, 17);
+    assert.equal(await getGameSummary('summary-running'), null);
+    assert.equal(await getGameSummary('missing-summary'), null);
   });
 }
