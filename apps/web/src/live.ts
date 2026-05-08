@@ -22,7 +22,7 @@ import './styles.css';
 
 type Seat = Color | 'spectator';
 type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
-type ConnectionState = 'connecting' | 'connected' | 'disconnected';
+type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
 type PendingPromotion = {
   color: Color;
@@ -121,9 +121,12 @@ if (soloRequested) socketParams.set('dev', 'solo');
 if (engineRequested) socketParams.set('dev', 'engine');
 if (allViewsRequested) socketParams.set('views', 'all');
 if (variantRequested) socketParams.set('variant', variantRequested);
-const socket = new WebSocket(`${resolveWebSocketBaseUrl()}?${socketParams}`);
+const socketUrl = `${resolveWebSocketBaseUrl()}?${socketParams}`;
 const refs = createLayout(root);
 
+let socket: WebSocket | null = null;
+let reconnectTimer: number | null = null;
+let reconnectAttempt = 0;
 let offer: Chess960Start[] = [];
 let clientId = '';
 let clientCount = 0;
@@ -155,7 +158,39 @@ function resolveWebSocketBaseUrl(): string {
   return `${protocol}//${window.location.host}`;
 }
 
-socket.addEventListener('message', (event) => {
+connectSocket();
+
+function connectSocket(): void {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  connectionState = clientId ? 'reconnecting' : 'connecting';
+  render();
+
+  const nextSocket = new WebSocket(socketUrl);
+  socket = nextSocket;
+  nextSocket.addEventListener('message', handleSocketMessage);
+  nextSocket.addEventListener('open', () => {
+    if (socket !== nextSocket) return;
+    reconnectAttempt = 0;
+    connectionState = 'connected';
+    render();
+  });
+  nextSocket.addEventListener('close', () => {
+    if (socket !== nextSocket) return;
+    connectionState = 'disconnected';
+    render();
+    scheduleReconnect();
+  });
+  nextSocket.addEventListener('error', () => {
+    if (socket !== nextSocket) return;
+    connectionState = 'disconnected';
+    render();
+  });
+}
+
+function handleSocketMessage(event: MessageEvent<string>): void {
   const message = JSON.parse(event.data) as ServerMessage;
   if (message.type === 'pong') {
     latencyMs = Math.max(0, Date.now() - message.at);
@@ -195,26 +230,34 @@ socket.addEventListener('message', (event) => {
   }
   reconcileInteractionState();
   render();
-});
+}
 
-socket.addEventListener('open', () => {
-  connectionState = 'connected';
+function scheduleReconnect(): void {
+  if (reconnectTimer) return;
+  reconnectAttempt += 1;
+  const delay = Math.min(10_000, 750 * 2 ** Math.min(reconnectAttempt - 1, 4));
+  connectionState = 'reconnecting';
   render();
-});
+  reconnectTimer = window.setTimeout(() => connectSocket(), delay);
+}
 
-socket.addEventListener('close', () => {
-  connectionState = 'disconnected';
-  render();
-});
+function reconnectNow(): void {
+  reconnectAttempt = 0;
+  connectSocket();
+}
 
-socket.addEventListener('error', () => {
-  connectionState = 'disconnected';
-  render();
-});
+function sendSocket(payload: unknown): boolean {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    connectionState = 'reconnecting';
+    scheduleReconnect();
+    return false;
+  }
+  socket.send(JSON.stringify(payload));
+  return true;
+}
 
 window.setInterval(() => {
-  if (socket.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify({ type: 'ping' }));
+  void sendSocket({ type: 'ping' });
 }, 5_000);
 
 window.setInterval(() => {
@@ -392,7 +435,7 @@ function renderOffer(projection: GameProjection | null): void {
     button.disabled = !isLive() || view?.status.type !== 'pregame' || seat === 'spectator';
     button.dataset.start = String(start.id);
     button.addEventListener('click', () => {
-      socket.send(JSON.stringify({ type: 'select-start', startId: start.id }));
+      sendSocket({ type: 'select-start', startId: start.id });
     });
 
     const id = document.createElement('strong');
@@ -423,7 +466,7 @@ function soloPickButton(label: string, color: Color, startId: number, projection
   button.className = projection?.selections[color] === startId ? 'selected' : '';
   button.disabled = !isLive() || currentView()?.status.type !== 'pregame';
   button.addEventListener('click', () => {
-    socket.send(JSON.stringify({ type: 'select-start', color, startId }));
+    sendSocket({ type: 'select-start', color, startId });
   });
   return button;
 }
@@ -453,6 +496,12 @@ function renderActionStatus(view: PlayerView | null): void {
     review.href = `/game/${encodeURIComponent(room)}`;
     review.textContent = 'Review game';
     notice.append(review);
+  } else if (connectionState === 'disconnected' || connectionState === 'reconnecting') {
+    const reconnect = document.createElement('button');
+    reconnect.type = 'button';
+    reconnect.textContent = 'Reconnect now';
+    reconnect.addEventListener('click', reconnectNow);
+    notice.append(reconnect);
   }
 
   refs.actionStatus.append(notice);
@@ -590,10 +639,10 @@ function renderBid(view: PlayerView | null): void {
   button.addEventListener('click', () => {
     const seconds = Number(input.value);
     if (!Number.isFinite(seconds)) return;
-    socket.send(JSON.stringify({
+    sendSocket({
       type: 'submit-bid',
       bidMs: Math.max(0, Math.round(seconds * 1000)),
-    }));
+    });
   });
 
   refs.bidControls.append(input, button);
@@ -776,7 +825,7 @@ function sendBoardMove(from: cg.Key, to: cg.Key): void {
     renderBoard(currentView());
     return;
   }
-  socket.send(JSON.stringify({ type: 'move', ...move }));
+  sendSocket({ type: 'move', ...move });
 }
 
 function bestMove(from: Square, to: Square) {
@@ -809,7 +858,7 @@ function renderPromotion(): void {
     button.addEventListener('click', () => {
       pendingPromotion = null;
       refs.promotion.hidden = true;
-      socket.send(JSON.stringify({ type: 'move', ...move }));
+      sendSocket({ type: 'move', ...move });
     });
     refs.promotion.append(button);
   }
@@ -1032,7 +1081,7 @@ function replayMetaLabel(): string {
 
 function actionTone(view: PlayerView | null): InfoTone {
   if (connectionState === 'disconnected') return 'danger';
-  if (!view || connectionState === 'connecting') return 'pending';
+  if (!view || connectionState === 'connecting' || connectionState === 'reconnecting') return 'pending';
   if (view.status.type === 'finished') return 'success';
   if (seat === 'spectator') return 'default';
   if (view.status.type === 'playing' && roomMode === 'pve' && view.status.turn === 'black') return 'pending';
@@ -1041,7 +1090,7 @@ function actionTone(view: PlayerView | null): InfoTone {
 }
 
 function actionTitle(view: PlayerView | null): string {
-  if (connectionState === 'disconnected') return 'Reconnecting';
+  if (connectionState === 'disconnected' || connectionState === 'reconnecting') return 'Reconnecting';
   if (!view || connectionState === 'connecting') return 'Connecting';
   if (view.status.type === 'finished') return resultTitle(view.status.winner);
   if (seat === 'spectator') return 'Watching';
@@ -1052,7 +1101,8 @@ function actionTitle(view: PlayerView | null): string {
 }
 
 function actionBody(view: PlayerView | null): string {
-  if (connectionState === 'disconnected') return 'The socket is closed. Refresh if it does not recover.';
+  if (connectionState === 'disconnected') return 'The socket closed. Bichess will retry automatically.';
+  if (connectionState === 'reconnecting') return 'Trying to restore your room state and seat.';
   if (!view || connectionState === 'connecting') return 'Opening the room and loading the current server state.';
   if (view.status.type === 'finished') {
     return `Board is fully revealed. ${resultReasonLabel(view.status.reason)}.`;
@@ -1101,6 +1151,7 @@ function turnLabel(view: PlayerView | null): string {
 
 function connectionLabel(): string {
   if (connectionState === 'connected' && latencyMs !== null) return `Connected · ${latencyMs}ms`;
+  if (connectionState === 'reconnecting') return `Reconnecting · attempt ${reconnectAttempt}`;
   return capitalize(connectionState);
 }
 
@@ -1250,7 +1301,7 @@ async function copyShareLink(input: HTMLInputElement): Promise<void> {
 }
 
 function boardStatusLabel(): string {
-  if (connectionState === 'disconnected') return 'Reconnecting';
+  if (connectionState === 'disconnected' || connectionState === 'reconnecting') return 'Reconnecting';
   return clientId ? 'Waiting for board' : 'Connecting';
 }
 

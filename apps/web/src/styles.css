@@ -290,17 +290,25 @@ a {
   line-height: 1.4;
 }
 
-.action-notice a {
+.action-notice a,
+.action-notice button {
   justify-self: start;
   margin-top: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: #1f6f5b;
+  cursor: pointer;
   font-size: 13px;
   font-weight: 700;
+  padding: 0;
   text-decoration: none;
 }
 
 .action-notice a:hover,
-.action-notice a:focus-visible {
+.action-notice a:focus-visible,
+.action-notice button:hover,
+.action-notice button:focus-visible {
   text-decoration: underline;
 }
 
