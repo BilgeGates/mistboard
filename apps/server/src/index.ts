@@ -174,6 +174,7 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
 function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return normalized === '/about'
+    || normalized === '/learn'
     || normalized === '/watch'
     || normalized === '/engine-lab'
     || normalized === '/arena'

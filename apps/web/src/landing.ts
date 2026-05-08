@@ -243,6 +243,12 @@ export function mountAbout(root: HTMLElement): void {
   root.append(buildNav(), buildAbout(), buildFooter());
 }
 
+export function mountLearn(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'learn-route');
+  root.append(buildNav(), buildLearn(), buildFooter());
+}
+
 function buildNav(): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
@@ -274,6 +280,11 @@ function buildNav(): HTMLElement {
   watchLink.textContent = 'Watch';
   watchLink.className = 'site-nav-link';
 
+  const learnLink = document.createElement('a');
+  learnLink.href = '/learn';
+  learnLink.textContent = 'Learn';
+  learnLink.className = 'site-nav-link';
+
   const ghLink = document.createElement('a');
   ghLink.href = GITHUB_URL;
   ghLink.target = '_blank';
@@ -288,7 +299,7 @@ function buildNav(): HTMLElement {
     labLink.className = 'site-nav-link';
     links.append(labLink);
   }
-  links.append(watchLink, aboutLink, ghLink);
+  links.append(watchLink, learnLink, aboutLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
@@ -327,6 +338,11 @@ function buildHero(source: LandingGameSource): HTMLElement {
   watchLink.className = 'landing-cta-secondary';
   watchLink.textContent = 'Watch games';
   ctas.append(watchLink);
+  const learnLink = document.createElement('a');
+  learnLink.href = '/learn';
+  learnLink.className = 'landing-cta-secondary';
+  learnLink.textContent = 'Learn Fog of War';
+  ctas.append(learnLink);
   if (ENGINE_LAB_ENABLED) {
     const labLink = document.createElement('a');
     labLink.href = '/engine-lab';
@@ -464,6 +480,36 @@ function buildAbout(): HTMLElement {
     'We’re building bichess as the place to play, study, and understand Fog of War — with perspective replay, postgame reveal, and engines that reason about uncertainty. Open source under GPL-3.0.';
 
   section.append(heading, p1, p2, p3);
+  return section;
+}
+
+function buildLearn(): HTMLElement {
+  const section = document.createElement('main');
+  section.className = 'site-section learn-section';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Learn Fog of War';
+
+  const intro = document.createElement('p');
+  intro.textContent =
+    'A board-first tutorial is coming here. It will teach vision, hidden moves, king capture, and replay through playable positions.';
+
+  const actions = document.createElement('div');
+  actions.className = 'learn-actions';
+
+  const watch = document.createElement('a');
+  watch.href = '/watch';
+  watch.className = 'landing-cta-secondary';
+  watch.textContent = 'Watch games';
+
+  const home = document.createElement('a');
+  home.href = '/';
+  home.className = 'landing-cta-secondary';
+  home.textContent = 'Back home';
+
+  actions.append(watch, home);
+  section.append(heading, intro, actions);
   return section;
 }
 

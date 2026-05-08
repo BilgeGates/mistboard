@@ -37,6 +37,7 @@ const wantsEngineLab =
   page === 'arena';
 const gameRoomId = gameRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
+const wantsLearn = path === '/learn' || page === 'learn';
 const wantsWatch = path === '/watch' || page === 'watch';
 
 if (replaySample) {
@@ -61,6 +62,8 @@ if (replaySample) {
   void import('./landing.js').then(({ mountGame }) => mountGame(app, gameRoomId));
 } else if (wantsWatch) {
   void import('./landing.js').then(({ mountWatch }) => mountWatch(app));
+} else if (wantsLearn) {
+  void import('./landing.js').then(({ mountLearn }) => mountLearn(app));
 } else if (wantsAbout) {
   void import('./landing.js').then(({ mountAbout }) => mountAbout(app));
 } else {
