@@ -448,7 +448,9 @@ def test_stage_b_does_not_relax_visible_opponent_piece() -> None:
 
     belief.update_after_opp_move(obs)
 
-    assert belief.last_csp_reseed_fired == 1
+    assert belief.last_csp_reseed_fired == 0
+    assert belief.last_repair_fired == 1
+    assert belief.last_repair_count > 0
     assert len(belief.particles) == belief.target_n
     assert all(
         particle.piece_at(chess.B6) == chess.Piece(chess.PAWN, chess.BLACK)

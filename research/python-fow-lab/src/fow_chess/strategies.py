@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.1"
+TIER1_VERSION = "0.7.4"
 
 
 def tier1_commit() -> str:
@@ -393,6 +393,9 @@ def _safe_visible_minor_or_rook_captures(
             continue
         if target.piece_type not in (chess.BISHOP, chess.KNIGHT, chess.ROOK):
             continue
+        attacker = view.visible_piece_map.get(move.from_square)
+        if attacker is not None and attacker.piece_type == chess.KING:
+            continue
         if move.to_square in pre_attacked:
             # Visible defender on the destination — main-eval can decide
             # whether the trade is worth it. Don't auto-fire.
@@ -402,6 +405,30 @@ def _safe_visible_minor_or_rook_captures(
         return []
     max_value = max(v for _, v in candidates)
     return [m for m, v in candidates if v == max_value]
+
+
+def _nonterminal_king_material_capture(
+    move: chess.Move,
+    view: PerspectiveView,
+) -> bool:
+    """True for king captures of visible non-king material.
+
+    In Fog of War, using the king as a generic material attacker is especially
+    dangerous: the target square may be defended by hidden pieces, and king
+    capture is terminal. Keep terminal king captures and king-defense moves
+    available through their dedicated short-circuits, but remove ordinary
+    king-takes-piece candidates from material and main-eval paths when there
+    are alternatives.
+    """
+    attacker = view.visible_piece_map.get(move.from_square)
+    target = view.visible_piece_map.get(move.to_square)
+    return (
+        attacker is not None
+        and attacker.piece_type == chess.KING
+        and target is not None
+        and target.color != view.perspective
+        and target.piece_type != chess.KING
+    )
 
 
 def _king_shelter_moves(view: PerspectiveView) -> list[chess.Move]:
@@ -644,6 +671,14 @@ class Tier1Strategy:
             pending_steps.get("csp_reseed_count_stage_a", 0),
             pending_steps.get("csp_reseed_count_stage_b", 0),
         )
+        repair_fired = bool(
+            pending_steps.get("repair_stage_a", 0)
+            or pending_steps.get("repair_stage_b", 0)
+        )
+        repair_count = max(
+            pending_steps.get("repair_count_stage_a", 0),
+            pending_steps.get("repair_count_stage_b", 0),
+        )
         record = {
             "tier1_move_count": self._tier1_move_count,
             "ply": ply,
@@ -657,6 +692,8 @@ class Tier1Strategy:
             "opp_remaining_counts": opp_counts,
             "csp_reseed_fired": csp_reseed_fired,
             "csp_reseed_count": csp_reseed_count,
+            "repair_fired": repair_fired,
+            "repair_count": repair_count,
         }
         # Carry over belief-step diagnostics from the most recent Stage A/B
         # observation updates, then clear so the next pick_move starts fresh.
@@ -671,6 +708,8 @@ class Tier1Strategy:
                 move=chosen,
                 csp_reseed_fired=csp_reseed_fired,
                 csp_reseed_count=csp_reseed_count,
+                repair_fired=repair_fired,
+                repair_count=repair_count,
             )
 
     def _opp_counts_for_json(self) -> dict[str, int]:
@@ -697,6 +736,8 @@ class Tier1Strategy:
         move: chess.Move | None = None,
         csp_reseed_fired: bool | None = None,
         csp_reseed_count: int | None = None,
+        repair_fired: bool | None = None,
+        repair_count: int | None = None,
     ) -> None:
         assert self._belief is not None
         if not self.verbose_belief_capture:
@@ -712,6 +753,16 @@ class Tier1Strategy:
             if csp_reseed_count is None
             else csp_reseed_count
         )
+        repair_did_fire = (
+            bool(self._belief.last_repair_fired)
+            if repair_fired is None
+            else repair_fired
+        )
+        repair_n = (
+            self._belief.last_repair_count
+            if repair_count is None
+            else repair_count
+        )
         self.belief_log.append(
             {
                 "ply": ply,
@@ -724,6 +775,8 @@ class Tier1Strategy:
                 "last_constraint_pruned": self._belief.last_constraint_pruned,
                 "csp_reseed_fired": csp_fired,
                 "csp_reseed_count": csp_count,
+                "repair_fired": repair_did_fire,
+                "repair_count": repair_n,
                 "marginal_field": _marginal_field_for_json(
                     self._belief.marginal_piece_field()
                 ),
@@ -760,6 +813,10 @@ class Tier1Strategy:
         )
         self._pending_belief_steps["csp_reseed_count_stage_a"] = (
             self._belief.last_csp_reseed_count
+        )
+        self._pending_belief_steps["repair_stage_a"] = self._belief.last_repair_fired
+        self._pending_belief_steps["repair_count_stage_a"] = (
+            self._belief.last_repair_count
         )
         self._observed_ply += 1
         self._append_belief_snapshot(
@@ -907,6 +964,10 @@ class Tier1Strategy:
         self._pending_belief_steps["csp_reseed_count_stage_b"] = (
             self._belief.last_csp_reseed_count
         )
+        self._pending_belief_steps["repair_stage_b"] = self._belief.last_repair_fired
+        self._pending_belief_steps["repair_count_stage_b"] = (
+            self._belief.last_repair_count
+        )
         self._observed_ply += 1
         self._append_belief_snapshot(
             ply=self._observed_ply,
@@ -984,10 +1045,12 @@ class Tier1Strategy:
         ]
         if queen_captures:
             candidates = _prefer_lower_value_attacker(queen_captures, view)
-            chosen = self._rng.choice(_prefer_queen_promotion(candidates))
-            self._stage_pending_capture(chosen, view)
-            self._emit_trace("queen-capture", particle_count_pre, chosen)
-            return chosen
+            candidates = self._belief_veto_king_attack(candidates, view)
+            if candidates:
+                chosen = self._rng.choice(_prefer_queen_promotion(candidates))
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("queen-capture", particle_count_pre, chosen)
+                return chosen
 
         # Queen-save short-circuit. If our queen is on a square a visible enemy
         # piece could capture next turn AND we have a queen move to a square
@@ -996,10 +1059,12 @@ class Tier1Strategy:
         # hidden attackers don't fire this.
         queen_save = _queen_save_moves(view)
         if queen_save:
-            chosen = self._rng.choice(queen_save)
-            self._stage_pending_capture(chosen, view)
-            self._emit_trace("queen-save", particle_count_pre, chosen)
-            return chosen
+            candidates = self._belief_veto_king_attack(queen_save, view)
+            if candidates:
+                chosen = self._rng.choice(candidates)
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("queen-save", particle_count_pre, chosen)
+                return chosen
 
         # v0.6.1 Pattern B: a visible bishop/knight/rook on a square not
         # attacked by any visible enemy is a free piece. Capture it before
@@ -1007,22 +1072,28 @@ class Tier1Strategy:
         safe_minor_rook = _safe_visible_minor_or_rook_captures(view)
         if safe_minor_rook:
             # v0.6.2: filter to belief-supported candidates so we don't wipe
-            # belief by picking a move particles can't accommodate.
+            # belief by picking a move particles can't accommodate. v0.7.3:
+            # also drop captures that belief says leave our king capturable;
+            # material shortcuts are not allowed to override terminal FOW risk.
             belief_ok = [m for m in safe_minor_rook if self._belief_supports_move(m)]
             candidates = belief_ok or safe_minor_rook
-            chosen = self._rng.choice(_prefer_queen_promotion(candidates))
-            self._stage_pending_capture(chosen, view)
-            self._emit_trace("visible-minor-rook-capture", particle_count_pre, chosen)
-            return chosen
+            candidates = self._belief_veto_king_attack(candidates, view)
+            if candidates:
+                chosen = self._rng.choice(_prefer_queen_promotion(candidates))
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("visible-minor-rook-capture", particle_count_pre, chosen)
+                return chosen
 
         king_shelter = _king_shelter_moves(view)
         if king_shelter:
             belief_ok = [m for m in king_shelter if self._belief_supports_move(m)]
             candidates = belief_ok or king_shelter
-            chosen = self._rng.choice(candidates)
-            self._stage_pending_capture(chosen, view)
-            self._emit_trace("king-shelter", particle_count_pre, chosen)
-            return chosen
+            candidates = self._belief_veto_king_attack(candidates, view)
+            if candidates:
+                chosen = self._rng.choice(candidates)
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("king-shelter", particle_count_pre, chosen)
+                return chosen
 
         if not self._belief.particles:
             # Belief filter collapsed (no particles consistent with observation).
@@ -1050,10 +1121,18 @@ class Tier1Strategy:
 
         evaluator = self.evaluator_builder(view)
         scored: list[tuple[chess.Move, float, float]] = []
+        safe_legal_moves = self._belief_veto_king_attack(view.own_legal_moves, view)
+        legal_moves = safe_legal_moves or view.own_legal_moves
+        non_king_capture_moves = [
+            move
+            for move in legal_moves
+            if not _nonterminal_king_material_capture(move, view)
+        ]
+        legal_moves = non_king_capture_moves or legal_moves
         chosen = best_action(
             self._belief,
             evaluator,
-            view.own_legal_moves,
+            legal_moves,
             max_particles=self.max_eval_particles,
             risk_aversion=self.risk_aversion,
             rng=self._rng,

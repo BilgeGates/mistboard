@@ -101,6 +101,11 @@ class BeliefState:
     # cycle (Stage A + Stage B). Surfaced in the trace.
     last_csp_reseed_fired: int = 0
     last_csp_reseed_count: int = 0
+    # v0.7.2: count of times continuity repair avoided generic CSP reseed.
+    # Generic CSP is deliberately treated as a last resort because it preserves
+    # hard facts but can scramble previously good hidden-piece tracks.
+    last_repair_fired: int = 0
+    last_repair_count: int = 0
 
     @classmethod
     def initial(
@@ -199,6 +204,8 @@ class BeliefState:
         # Reset per-update CSP diagnostics; they're set if reseed fires below.
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
+        self.last_repair_fired = 0
+        self.last_repair_count = 0
 
         pushed: list[chess.Board] = []
         pushed_weights: list[float] = []
@@ -248,6 +255,8 @@ class BeliefState:
                 self.particles, self.weights = _resample(
                     repaired, repaired_weights, self.target_n, self.rng
                 )
+                self.last_repair_fired += 1
+                self.last_repair_count = len(repaired)
             else:
                 self.particles, self.weights = _csp_reseed(
                     observation,
@@ -303,6 +312,8 @@ class BeliefState:
         # Reset per-update CSP diagnostics; they're set if Trigger-B fires below.
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
+        self.last_repair_fired = 0
+        self.last_repair_count = 0
 
         expanded: list[tuple[chess.Board, float, bool, bool, bool]] = []
         for prev_board, prev_weight in zip(self.particles, self.weights):
@@ -347,11 +358,42 @@ class BeliefState:
             chosen_particles = constraint_p
             chosen_weights = constraint_w
         elif expanded:
-            # v0.7.0 Trigger B: all-expansions fallback means observation is
-            # genuinely inconsistent with what we expanded. CSP reseed gives
-            # us N constraint-satisfying particles instead of a polluted set
-            # where every particle violates the observation. Skipped only
-            # when expanded is empty AND we already returned above.
+            # v0.7.2 Trigger B: all expanded opponent moves missed hard
+            # observation. Before generic CSP, try the same continuity repair
+            # Stage A uses: force current hard facts into count-valid expanded
+            # worlds, preserve hidden history that still fits, then recompute
+            # fog exactly. This is allowed to break exact opponent-move
+            # reachability, but it keeps stable pawn/piece tracks instead of
+            # random-filling from scratch.
+            repaired: list[chess.Board] = []
+            repaired_weights: list[float] = []
+            for board, weight, _, _, count_ok in expanded:
+                if not count_ok:
+                    continue
+                repaired_board = _repair_particle_to_observation(
+                    board,
+                    obs,
+                    self.opp_remaining_counts,
+                    self.opp_bishop_colors_remaining,
+                    self.perspective,
+                    side_to_move=self.perspective,
+                    rng=self.rng,
+                )
+                if repaired_board is not None:
+                    repaired.append(repaired_board)
+                    repaired_weights.append(weight)
+
+            if repaired:
+                self.particles, self.weights = _resample(
+                    repaired, repaired_weights, self.target_n, self.rng
+                )
+                self.last_repair_fired += 1
+                self.last_repair_count = len(repaired)
+                return
+
+            # Generic CSP remains the final emergency path. It preserves hard
+            # facts but discards identity continuity, so repeated rows should
+            # still enter the annotation queue.
             self.particles, self.weights = _csp_reseed(
                 obs,
                 self.opp_remaining_counts,

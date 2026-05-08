@@ -268,8 +268,9 @@ not reseed collapses.
 
 Generic CSP fallback is now a named failure/recovery mode, not an acceptable
 steady-state update. When it appears in `trace.jsonl` as `csp_reseed_fired =
-true`, the review queue labels it `generic-csp-reseed` so it competes with
-loss-window and tactical blunder moments for annotation attention.
+true`, the review queue labels it as Stage A or Stage B generic CSP where the
+trace has enough detail, so it competes with loss-window and tactical blunder
+moments for annotation attention.
 
 The product direction for the particle sub-engine is to make that reason
 disappear over time:
@@ -283,6 +284,14 @@ disappear over time:
   tracks rather than random-filling remaining pieces.
 - Any repeated generic-CSP pattern should get a regression test and a named
   repair path before larger bake-offs.
+
+`v0.7.2` adds the first Stage B repair rung: when all expanded opponent moves
+miss hard observation, try to repair count-valid expanded worlds before
+generic CSP. This deliberately preserves good hidden-piece continuity over
+exact one-ply reachability. Exact legal reachability is the long-term particle
+engine goal, but local repair is a better emergency recovery than random fill
+when the alternative is scrambling pawn/king tracks that were already likely
+right.
 
 Large bake-offs should not proceed just because generic CSP kept belief alive.
 If a short rung shows repeated `generic-csp-reseed`, stop, annotate one or two

@@ -632,6 +632,36 @@ def test_safe_visible_capture_skips_when_destination_visibly_attacked() -> None:
     )
 
 
+def test_safe_visible_capture_skips_king_as_material_attacker() -> None:
+    """Regression for v0.7.2 g11: black king captured a visible knight on c7
+    and was immediately captured. Generic material shortcuts should not use
+    the king as the attacker for non-terminal captures."""
+    board = chess.Board(
+        "2kn1b2/ppN2ppp/2p5/8/4NB2/8/PPP3PP/3K3R b - - 1 18"
+    )
+    unsafe = chess.Move.from_uci("c8c7")
+    assert unsafe in board.pseudo_legal_moves
+
+    # Black sees its own pieces and the knight on c7, but not the bishop on f4.
+    visible_pieces = {
+        sq: piece
+        for sq, piece in board.piece_map().items()
+        if piece.color == chess.BLACK or sq == chess.C7
+    }
+    view = _build_view(board, chess.BLACK, visible_pieces=visible_pieces)
+    assert unsafe not in _safe_visible_minor_or_rook_captures(view)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen != unsafe
+    assert strategy.trace_log[-1]["decision_path"] != "visible-minor-rook-capture"
+
+
 def test_safe_visible_capture_prefers_higher_material() -> None:
     """Knight can capture either a bishop on f1 or a rook on h6, both safe.
     Rook (5) > bishop (3) — short-circuit should restrict to rook capture."""

@@ -126,9 +126,12 @@ def score_trace_row(
     score = 0
     reasons: list[str] = []
 
-    if row.get("csp_reseed_fired") is True:
-        add(reasons, "generic-csp-reseed", 50)
-        score += 50
+    csp_score = score_csp_reseed(reasons, row)
+    score += csp_score
+
+    if row.get("repair_fired") is True:
+        add(reasons, "belief-repair", 10)
+        score += 10
 
     score += score_particle_drop(reasons, row, "stage_a")
     score += score_particle_drop(reasons, row, "stage_b")
@@ -238,8 +241,32 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "constraint_pruned_stage_b",
         "csp_reseed_fired",
         "csp_reseed_count",
+        "csp_reseed_stage_a",
+        "csp_reseed_stage_b",
+        "repair_fired",
+        "repair_count",
+        "repair_stage_a",
+        "repair_stage_b",
     ]
     return {key: row[key] for key in keys if key in row}
+
+
+def score_csp_reseed(reasons: list[str], row: dict[str, Any]) -> int:
+    stage_a = bool(row.get("csp_reseed_stage_a"))
+    stage_b = bool(row.get("csp_reseed_stage_b"))
+    if stage_a and stage_b:
+        add(reasons, "generic-csp-reseed-stage-a+b", 60)
+        return 60
+    if stage_b:
+        add(reasons, "generic-csp-reseed-stage-b", 54)
+        return 54
+    if stage_a:
+        add(reasons, "generic-csp-reseed-stage-a", 50)
+        return 50
+    if row.get("csp_reseed_fired") is True:
+        add(reasons, "generic-csp-reseed", 50)
+        return 50
+    return 0
 
 
 def write_json(path: Path, items: list[QueueItem]) -> None:
