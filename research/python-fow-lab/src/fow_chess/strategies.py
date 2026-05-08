@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.5"
+TIER1_VERSION = "0.7.6"
 
 
 def tier1_commit() -> str:
@@ -890,6 +890,59 @@ class Tier1Strategy:
                 survivors.append(move)
         return survivors
 
+    def _belief_veto_bad_capture_trade(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+        threshold: float = 0.35,
+    ) -> list[chess.Move]:
+        """Drop material-shortcut captures that belief says are likely bad trades.
+
+        `visible-minor-rook-capture` is meant for hanging material. In fog,
+        "not visibly defended" is not enough: particles may strongly believe a
+        hidden rook/bishop/king can recapture the destination. If the captured
+        piece is not more valuable than the attacker, and >threshold of
+        supporting particles allow an immediate recapture, let main-eval decide
+        instead of auto-firing the shortcut.
+        """
+        if self._belief is None or not self._belief.particles:
+            return candidates
+
+        survivors: list[chess.Move] = []
+        for move in candidates:
+            attacker = view.visible_piece_map.get(move.from_square)
+            target = view.visible_piece_map.get(move.to_square)
+            if (
+                attacker is None
+                or target is None
+                or attacker.color != view.perspective
+                or target.color == view.perspective
+            ):
+                survivors.append(move)
+                continue
+
+            attacker_value = _MATERIAL_VALUE.get(attacker.piece_type, 0)
+            target_value = _MATERIAL_VALUE.get(target.piece_type, 0)
+            if target_value > attacker_value:
+                survivors.append(move)
+                continue
+
+            recapturable = 0
+            total = 0
+            for particle in self._belief.particles:
+                if not particle.is_pseudo_legal(move):
+                    continue
+                total += 1
+                sim = particle.copy()
+                sim.push(move)
+                sim.turn = not view.perspective
+                if any(reply.to_square == move.to_square for reply in sim.pseudo_legal_moves):
+                    recapturable += 1
+
+            if total == 0 or recapturable / total <= threshold:
+                survivors.append(move)
+        return survivors
+
     def _detect_capture(
         self,
         move: chess.Move,
@@ -1078,6 +1131,7 @@ class Tier1Strategy:
             belief_ok = [m for m in safe_minor_rook if self._belief_supports_move(m)]
             candidates = belief_ok or safe_minor_rook
             candidates = self._belief_veto_king_attack(candidates, view)
+            candidates = self._belief_veto_bad_capture_trade(candidates, view)
             if candidates:
                 chosen = self._rng.choice(_prefer_queen_promotion(candidates))
                 self._stage_pending_capture(chosen, view)
@@ -1129,6 +1183,8 @@ class Tier1Strategy:
             if not _nonterminal_king_material_capture(move, view)
         ]
         legal_moves = non_king_capture_moves or legal_moves
+        trade_safe_moves = self._belief_veto_bad_capture_trade(legal_moves, view)
+        legal_moves = trade_safe_moves or legal_moves
         chosen = best_action(
             self._belief,
             evaluator,

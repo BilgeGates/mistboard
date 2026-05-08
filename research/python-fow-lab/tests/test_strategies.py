@@ -662,6 +662,35 @@ def test_safe_visible_capture_skips_king_as_material_attacker() -> None:
     assert strategy.trace_log[-1]["decision_path"] != "visible-minor-rook-capture"
 
 
+def test_safe_visible_capture_vetoes_belief_defended_bad_trade() -> None:
+    """Regression for v0.7.4 g14 ply 31: white auto-played Rxd8 even though
+    belief worlds showed the knight was defended and the rook would be lost."""
+    board = chess.Board("2rn1rk1/1p2b1pp/p3bn2/8/4P3/2P1B3/P3BPPP/3R1RK1 w - - 0 16")
+    capture = chess.Move.from_uci("d1d8")
+    assert capture in board.pseudo_legal_moves
+
+    # White sees its own pieces and the visible knight on d8, but not the rook
+    # on f8/c8 that belief carries as hidden defender candidates.
+    visible_pieces = {
+        sq: piece
+        for sq, piece in board.piece_map().items()
+        if piece.color == chess.WHITE or sq == chess.D8
+    }
+    view = _build_view(board, chess.WHITE, visible_pieces=visible_pieces)
+    assert capture in _safe_visible_minor_or_rook_captures(view)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    assert strategy._belief_veto_bad_capture_trade([capture], view) == []
+    chosen = strategy.pick_move(view)
+
+    assert strategy.trace_log[-1]["decision_path"] != "visible-minor-rook-capture"
+    assert chosen != capture
+
+
 def test_safe_visible_capture_prefers_higher_material() -> None:
     """Knight can capture either a bishop on f1 or a rook on h6, both safe.
     Rook (5) > bishop (3) — short-circuit should restrict to rook capture."""
