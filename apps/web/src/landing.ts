@@ -150,7 +150,16 @@ function buildNav(): HTMLElement {
   const brand = document.createElement('a');
   brand.className = 'site-nav-brand';
   brand.href = '/';
-  brand.textContent = 'BICHESS';
+  const brandLogo = document.createElement('img');
+  brandLogo.className = 'site-nav-logo';
+  brandLogo.src = '/logo.svg';
+  brandLogo.alt = '';
+  brandLogo.width = 28;
+  brandLogo.height = 28;
+
+  const brandText = document.createElement('span');
+  brandText.textContent = 'BICHESS';
+  brand.append(brandLogo, brandText);
 
   const links = document.createElement('div');
   links.className = 'site-nav-links';

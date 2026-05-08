@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Bichess logo</title>
+  <desc id="desc">A rounded four-square board mark with fog in the lower-right square.</desc>
+  <defs>
+    <linearGradient id="frame" x1="154" y1="95" x2="870" y2="929" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#303230"/>
+      <stop offset="1" stop-color="#202321"/>
+    </linearGradient>
+    <linearGradient id="dark-square" x1="128" y1="128" x2="894" y2="891" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#414441"/>
+      <stop offset="1" stop-color="#2c302d"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-12%" y="-12%" width="124%" height="124%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#101210" flood-opacity="0.16"/>
+    </filter>
+    <clipPath id="fog-square">
+      <rect x="534" y="534" width="374" height="374" rx="46"/>
+    </clipPath>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="142" fill="url(#frame)" filter="url(#soft-shadow)"/>
+  <rect x="128" y="128" width="374" height="374" rx="46" fill="url(#dark-square)" opacity="0.92"/>
+  <rect x="534" y="128" width="374" height="374" rx="46" fill="#fffdfa"/>
+  <rect x="128" y="534" width="374" height="374" rx="46" fill="#fffdfa"/>
+  <rect x="534" y="534" width="374" height="374" rx="46" fill="url(#dark-square)"/>
+
+  <g clip-path="url(#fog-square)">
+    <circle cx="636" cy="902" r="96" fill="#fffdfa"/>
+    <circle cx="736" cy="820" r="96" fill="#fffdfa"/>
+    <circle cx="858" cy="774" r="134" fill="#fffdfa"/>
+    <rect x="550" y="852" width="370" height="110" fill="#fffdfa"/>
+  </g>
+</svg>
