@@ -24,6 +24,17 @@ Workers are separate stateless processes:
 
 Postgres is the queue and source of truth. No external queue is required until we have evidence that Postgres row claiming is the bottleneck.
 
+Current worker entrypoint:
+
+```sh
+npm run engine:enqueue-smoke
+npm run worker:dev
+```
+
+By default this is a dry-run claimer: it registers a worker run, claims the next queued task if one exists, releases it without consuming an attempt, and exits. Engine execution is intentionally gated behind `--execute`.
+
+The first execution runner is intentionally simple: `npm run worker:dev -- --execute` plays one claimed Fog of War game with a built-in deterministic random-legal move selector. This is a smoke path for the worker/DB lifecycle, not a production engine identity.
+
 ## Data Model
 
 `eve_jobs` is the experiment/job row. It describes intent: mining, bake-off, calibration, smoke, or regression.

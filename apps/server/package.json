@@ -10,7 +10,10 @@
     "test": "tsc -p tsconfig.json && node --test dist/**/*.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "tsx src/migrate.ts",
-    "import-corpus": "tsx src/import-corpus.ts"
+    "import-corpus": "tsx src/import-corpus.ts",
+    "engine:enqueue-smoke": "tsx src/enqueue-engine-smoke.ts",
+    "worker": "node dist/worker.js",
+    "worker:dev": "tsx src/worker.ts"
   },
   "dependencies": {
     "@bichess/game": "0.0.0",
