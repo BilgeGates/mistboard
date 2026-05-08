@@ -76,6 +76,7 @@ async function loadActiveWorkers(db: pg.Pool): Promise<Array<Record<string, unkn
     `SELECT id, provider, provider_run_id, status, started_at, heartbeat_at
      FROM engine_worker_runs
      WHERE status IN ('running', 'draining')
+       AND heartbeat_at >= now() - interval '2 minutes'
      ORDER BY heartbeat_at DESC
      LIMIT 10`,
   );

@@ -113,6 +113,7 @@ export type CleanupStaleTasksResult = {
   failed: number;
   aborted: number;
   failedWorkerRuns: number;
+  staleWorkerRuns: number;
 };
 
 export async function createExperimentJob(
@@ -278,6 +279,7 @@ export async function claimNextEngineGameTask(
 export async function cleanupStaleEngineGameTasks(
   pool: pg.Pool,
   staleBefore = new Date(),
+  staleWorkerBefore = new Date(Date.now() - 2 * 60_000),
 ): Promise<CleanupStaleTasksResult> {
   const client = await pool.connect();
   const result: CleanupStaleTasksResult = {
@@ -285,6 +287,7 @@ export async function cleanupStaleEngineGameTasks(
     failed: 0,
     aborted: 0,
     failedWorkerRuns: 0,
+    staleWorkerRuns: 0,
   };
 
   try {
@@ -376,6 +379,17 @@ export async function cleanupStaleEngineGameTasks(
         result.failed += 1;
       }
     }
+
+    const staleWorkers = await client.query(
+      `UPDATE engine_worker_runs
+       SET status = 'failed',
+           stopped_at = now(),
+           failure_reason = 'stale worker heartbeat'
+       WHERE status IN ('running', 'draining')
+         AND heartbeat_at < $1`,
+      [staleWorkerBefore],
+    );
+    result.staleWorkerRuns = staleWorkers.rowCount ?? 0;
 
     await client.query('COMMIT');
     return result;

@@ -145,6 +145,7 @@ if (!TEST_DATABASE_URL) {
       failed: 0,
       aborted: 0,
       failedWorkerRuns: 1,
+      staleWorkerRuns: 0,
     });
 
     const { rows } = await getPool().query<{
@@ -210,6 +211,7 @@ if (!TEST_DATABASE_URL) {
       failed: 0,
       aborted: 1,
       failedWorkerRuns: 1,
+      staleWorkerRuns: 0,
     });
 
     const { rows: tasks } = await getPool().query<{
@@ -312,6 +314,40 @@ if (!TEST_DATABASE_URL) {
       job.id,
     ]);
     assert.deepEqual(jobs, [{ status: 'completed', completed_games: 1, failed_games: 0 }]);
+  });
+
+  test('cleanup marks stale workers failed even without claimed tasks', async () => {
+    const worker = await registerWorkerRun(getPool(), {
+      id: 'worker-stale-heartbeat-test',
+      provider: 'local',
+    });
+    await getPool().query(
+      `UPDATE engine_worker_runs
+       SET heartbeat_at = now() - interval '10 minutes'
+       WHERE id = $1`,
+      [worker.id],
+    );
+
+    const cleanup = await cleanupStaleEngineGameTasks(
+      getPool(),
+      new Date(),
+      new Date(Date.now() - 2 * 60_000),
+    );
+    assert.deepEqual(cleanup, {
+      retried: 0,
+      failed: 0,
+      aborted: 0,
+      failedWorkerRuns: 0,
+      staleWorkerRuns: 1,
+    });
+
+    const { rows } = await getPool().query<{
+      status: string;
+      failure_reason: string | null;
+    }>('SELECT status, failure_reason FROM engine_worker_runs WHERE id = $1', [
+      worker.id,
+    ]);
+    assert.deepEqual(rows, [{ status: 'failed', failure_reason: 'stale worker heartbeat' }]);
   });
 }
 
