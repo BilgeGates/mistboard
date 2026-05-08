@@ -173,7 +173,10 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
 
 function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
-  return normalized === '/about' || normalized === '/engine-lab' || normalized === '/arena';
+  return normalized === '/about'
+    || normalized === '/watch'
+    || normalized === '/engine-lab'
+    || normalized === '/arena';
 }
 
 async function handleApiRequest(url: string, response: ServerResponse): Promise<void> {
@@ -186,6 +189,13 @@ async function handleApiRequest(url: string, response: ServerResponse): Promise<
   if (url === '/api/featured-games') {
     const corpusId = process.env.FEATURED_CORPUS_ID ?? 'tier1-self-v1';
     const games = await persistence.listCorpusGames(corpusId);
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ games }));
+    return;
+  }
+
+  if (url === '/api/eve-games/recent') {
+    const games = await persistence.listRecentEveGames();
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ games }));
     return;

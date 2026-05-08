@@ -10,7 +10,15 @@ type FeaturedGame = {
   whiteName: string | null;
   blackName: string | null;
   corpusId: string | null;
+  endedAt?: string;
+  jobId?: string | null;
+  gameIndex?: number | null;
+  whiteEngineId?: string | null;
+  blackEngineId?: string | null;
+  timeControl?: Record<string, unknown> | null;
 };
+
+type LandingGameSource = 'eve' | 'featured';
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const ENGINE_LAB_ENABLED =
@@ -20,12 +28,12 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
 
+  const { games, source } = await fetchLandingGames();
   const demo = buildDemoSection();
-  root.append(buildNav(), buildHero(), demo.el, buildFooter());
-
-  const games = await fetchFeaturedGames();
+  root.append(buildNav(), buildHero(source), demo.el, buildFooter());
   if (games.length === 0) {
     demo.replayRoot.textContent = 'No games available yet.';
+    renderRecentGames(demo.listRoot, games, source);
     return;
   }
 
@@ -54,11 +62,70 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     loaderForId: apiEventLoader,
     metadataByRoomId,
   });
+  renderRecentGames(demo.listRoot, games, source, currentSample);
+}
+
+export async function mountWatch(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'watch-route');
+
+  const { games, source } = await fetchLandingGames();
+  const watch = buildWatchSection();
+  root.append(buildNav(), watch.el, buildFooter());
+
+  if (games.length === 0) {
+    watch.replayRoot.textContent = 'No games available yet.';
+    renderRecentGames(watch.listRoot, games, source);
+    return;
+  }
+
+  const metadataByRoomId: Record<string, GameMeta> = {};
+  for (const g of games) {
+    metadataByRoomId[g.roomId] = {
+      whiteName: g.whiteName,
+      blackName: g.blackName,
+      result: g.result,
+      termination: g.termination,
+      plyCount: g.plyCount,
+    };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get('game');
+  const sampleIds = games.map((g) => g.roomId);
+  const currentSample =
+    requested && sampleIds.includes(requested) ? requested : sampleIds[0]!;
+
+  await mountReplay(watch.replayRoot, currentSample, {
+    autoplay: false,
+    showControls: true,
+    revealOnFinish: true,
+    loopSamples: sampleIds,
+    loaderForId: apiEventLoader,
+    metadataByRoomId,
+  });
+  renderRecentGames(watch.listRoot, games, source, currentSample, '/watch?game=');
+}
+
+async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
+  const eveGames = await fetchRecentEveGames().catch((err) => {
+    console.warn(err);
+    return [];
+  });
+  if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
+  return { games: await fetchFeaturedGames(), source: 'featured' };
 }
 
 async function fetchFeaturedGames(): Promise<FeaturedGame[]> {
   const resp = await fetch('/api/featured-games');
   if (!resp.ok) throw new Error(`failed to load featured games: ${resp.status}`);
+  const data = (await resp.json()) as { games: FeaturedGame[] };
+  return data.games;
+}
+
+async function fetchRecentEveGames(): Promise<FeaturedGame[]> {
+  const resp = await fetch('/api/eve-games/recent');
+  if (!resp.ok) throw new Error(`failed to load recent EvE games: ${resp.status}`);
   const data = (await resp.json()) as { games: FeaturedGame[] };
   return data.games;
 }
@@ -93,6 +160,11 @@ function buildNav(): HTMLElement {
   aboutLink.textContent = 'About';
   aboutLink.className = 'site-nav-link';
 
+  const watchLink = document.createElement('a');
+  watchLink.href = '/watch';
+  watchLink.textContent = 'Watch';
+  watchLink.className = 'site-nav-link';
+
   const ghLink = document.createElement('a');
   ghLink.href = GITHUB_URL;
   ghLink.target = '_blank';
@@ -107,18 +179,18 @@ function buildNav(): HTMLElement {
     labLink.className = 'site-nav-link';
     links.append(labLink);
   }
-  links.append(aboutLink, ghLink);
+  links.append(watchLink, aboutLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
 
-function buildHero(): HTMLElement {
+function buildHero(source: LandingGameSource): HTMLElement {
   const hero = document.createElement('section');
   hero.className = 'landing-hero';
 
   const title = document.createElement('h1');
   title.className = 'landing-title';
-  title.textContent = 'Fog of War Chess';
+  title.textContent = 'Bichess';
 
   const subtitle = document.createElement('p');
   subtitle.className = 'landing-subtitle';
@@ -127,7 +199,9 @@ function buildHero(): HTMLElement {
 
   const tag = document.createElement('p');
   tag.className = 'landing-tag';
-  tag.textContent = 'Watch what each side saw — and what was really there.';
+  tag.textContent = source === 'eve'
+    ? 'Engines are playing now. Watch the latest finished games.'
+    : 'Watch what each side saw — and what was really there.';
 
   const ctas = document.createElement('div');
   ctas.className = 'landing-ctas';
@@ -139,6 +213,11 @@ function buildHero(): HTMLElement {
   playBtn.textContent = 'Play vs the engine — coming soon';
 
   ctas.append(playBtn);
+  const watchLink = document.createElement('a');
+  watchLink.href = '/watch';
+  watchLink.className = 'landing-cta-secondary';
+  watchLink.textContent = 'Watch games';
+  ctas.append(watchLink);
   if (ENGINE_LAB_ENABLED) {
     const labLink = document.createElement('a');
     labLink.href = '/engine-lab';
@@ -150,15 +229,96 @@ function buildHero(): HTMLElement {
   return hero;
 }
 
-function buildDemoSection(): { el: HTMLElement; replayRoot: HTMLElement } {
+function buildDemoSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
+  const listRoot = document.createElement('aside');
+  listRoot.className = 'landing-games';
+
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
-  section.append(replayRoot);
+  section.append(replayRoot, listRoot);
 
-  return { el: section, replayRoot };
+  return { el: section, replayRoot, listRoot };
+}
+
+function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
+  const section = document.createElement('main');
+  section.className = 'watch-shell';
+
+  const listRoot = document.createElement('aside');
+  listRoot.className = 'landing-games watch-games';
+
+  const replayRoot = document.createElement('div');
+  replayRoot.className = 'watch-replay';
+
+  section.append(listRoot, replayRoot);
+  return { el: section, replayRoot, listRoot };
+}
+
+function renderRecentGames(
+  root: HTMLElement,
+  games: FeaturedGame[],
+  source: LandingGameSource,
+  activeRoomId?: string,
+  hrefPrefix = '/?demo=',
+): void {
+  root.replaceChildren();
+
+  const heading = document.createElement('div');
+  heading.className = 'landing-games-heading';
+  heading.textContent = source === 'eve' ? 'Recent EvE' : 'Featured games';
+  root.append(heading);
+
+  if (games.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'landing-games-empty';
+    empty.textContent = 'No games yet.';
+    root.append(empty);
+    return;
+  }
+
+  const list = document.createElement('ol');
+  list.className = 'landing-games-list';
+
+  for (const game of games.slice(0, 8)) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = `${hrefPrefix}${encodeURIComponent(game.roomId)}`;
+    link.className = game.roomId === activeRoomId ? 'active' : '';
+
+    const matchup = document.createElement('span');
+    matchup.className = 'landing-game-matchup';
+    matchup.textContent = `${shortEngineName(game.whiteEngineId ?? game.whiteName)} vs ${shortEngineName(game.blackEngineId ?? game.blackName)}`;
+
+    const meta = document.createElement('span');
+    meta.className = 'landing-game-meta';
+    meta.textContent = `${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+
+    link.append(matchup, meta);
+    item.append(link);
+    list.append(item);
+  }
+
+  root.append(list);
+}
+
+function shortEngineName(name: string | null | undefined): string {
+  if (!name) return 'engine';
+  return name
+    .replace(/^builtin-/, '')
+    .replace(/-/g, ' ');
+}
+
+function resultLabel(result: string): string {
+  if (result === 'white-wins') return 'White wins';
+  if (result === 'black-wins') return 'Black wins';
+  return 'Draw';
+}
+
+function terminationLabel(termination: string): string {
+  return termination.replace(/-/g, ' ');
 }
 
 function buildAbout(): HTMLElement {

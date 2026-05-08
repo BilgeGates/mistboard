@@ -11,6 +11,7 @@ import {
   isInitialized,
   listActiveRoomIds,
   loadRoom,
+  listRecentEveGames,
   recordGameEnd,
 } from './persistence.js';
 
@@ -47,6 +48,7 @@ if (!TEST_DATABASE_URL) {
            engine_worker_runs,
            eve_jobs,
            engine_versions,
+           engines,
            events,
            games
          RESTART IDENTITY CASCADE`,
@@ -278,5 +280,65 @@ if (!TEST_DATABASE_URL) {
     } finally {
       await verifyClient.end();
     }
+  });
+
+  test('listRecentEveGames returns completed EvE games newest first', async () => {
+    const now = new Date();
+    const older = new Date(now.getTime() - 60_000);
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO engines (id, name, visibility, status)
+         VALUES
+           ('engine-white', 'White Engine', 'admin', 'active'),
+           ('engine-black', 'Black Engine', 'admin', 'active')`,
+      );
+      await client.query(
+        `INSERT INTO engine_versions (id, name, config_hash, play_signature, engine_id)
+         VALUES
+           ('engine-white-v1', 'White Engine', 'white-hash', 'white-signature', 'engine-white'),
+           ('engine-black-v1', 'Black Engine', 'black-hash', 'black-signature', 'engine-black')`,
+      );
+      await client.query(
+        `INSERT INTO eve_jobs (id, purpose, target_games, status, completed_games, finished_at)
+         VALUES ('job-recent', 'smoke', 2, 'completed', 2, $1)`,
+        [now],
+      );
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_name, black_name, mode, status)
+         VALUES
+           ('eve-older', 'fog-of-war', 'draw', 'truncated', 32, $1, $1,
+            'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
+           ('eve-newer', 'fog-of-war', 'white-wins', 'king-captured', 15, $2, $2,
+            'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
+           ('pvp-newer', 'fog-of-war', 'black-wins', 'king-captured', 10, $2, $2,
+            'white', 'black', 'pvp', 'completed')`,
+        [older, now],
+      );
+      await client.query(
+        `INSERT INTO eve_games
+           (game_id, job_id, game_index, white_engine_id, black_engine_id,
+            white_config_hash, black_config_hash, white_play_signature, black_play_signature,
+            time_control, opening_policy, seed)
+         VALUES
+           ('eve-older', 'job-recent', 0, 'engine-white-v1', 'engine-black-v1',
+            'white-hash', 'black-hash', 'white-signature', 'black-signature',
+            '{"kind":"none"}', '{}', 1),
+           ('eve-newer', 'job-recent', 1, 'engine-white-v1', 'engine-black-v1',
+            'white-hash', 'black-hash', 'white-signature', 'black-signature',
+            '{"kind":"per-move","milliseconds":100}', '{}', 2)`,
+      );
+    } finally {
+      await client.end();
+    }
+
+    const games = await listRecentEveGames();
+    assert.deepEqual(games.map((game) => game.roomId), ['eve-newer', 'eve-older']);
+    assert.equal(games[0]?.jobId, 'job-recent');
+    assert.equal(games[0]?.gameIndex, 1);
+    assert.deepEqual(games[0]?.timeControl, { kind: 'per-move', milliseconds: 100 });
   });
 }

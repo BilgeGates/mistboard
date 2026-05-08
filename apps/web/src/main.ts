@@ -36,6 +36,7 @@ const wantsEngineLab =
   page === 'engine-lab' ||
   page === 'arena';
 const wantsAbout = path === '/about' || page === 'about';
+const wantsWatch = path === '/watch' || page === 'watch';
 
 if (replaySample) {
   void import('./replay.js').then(({ mountReplay }) => mountReplay(app, replaySample));
@@ -55,6 +56,8 @@ if (replaySample) {
   app.append(shell);
 } else if (wantsLive) {
   void import('./live.js');
+} else if (wantsWatch) {
+  void import('./landing.js').then(({ mountWatch }) => mountWatch(app));
 } else if (wantsAbout) {
   void import('./landing.js').then(({ mountAbout }) => mountAbout(app));
 } else {

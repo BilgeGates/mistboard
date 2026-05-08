@@ -46,6 +46,14 @@ export type GameRecord = {
   corpusId: string | null;
 };
 
+export type RecentEveGameRecord = GameRecord & {
+  jobId: string | null;
+  gameIndex: number | null;
+  whiteEngineId: string | null;
+  blackEngineId: string | null;
+  timeControl: Record<string, unknown> | null;
+};
+
 export function init(connectionString: string): void {
   if (pool) throw new Error('persistence already initialized');
   pool = new pg.Pool({ connectionString, max: 10 });
@@ -123,6 +131,57 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
     whiteName: row.white_name,
     blackName: row.black_name,
     corpusId: row.corpus_id,
+  }));
+}
+
+export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecord[]> {
+  const { rows } = await getPool().query<{
+    room_id: string;
+    variant: string;
+    result: string;
+    termination: string;
+    ply_count: number;
+    started_at: Date;
+    ended_at: Date;
+    white_name: string | null;
+    black_name: string | null;
+    corpus_id: string | null;
+    job_id: string | null;
+    game_index: number | null;
+    white_engine_id: string | null;
+    black_engine_id: string | null;
+    time_control: Record<string, unknown> | null;
+  }>(
+    `SELECT games.room_id, games.variant, games.result, games.termination,
+            games.ply_count, games.started_at, games.ended_at,
+            games.white_name, games.black_name, games.corpus_id,
+            eve_games.job_id, eve_games.game_index,
+            eve_games.white_engine_id, eve_games.black_engine_id,
+            eve_games.time_control
+     FROM games
+     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     WHERE games.mode = 'eve'
+       AND games.status = 'completed'
+     ORDER BY games.ended_at DESC, games.room_id DESC
+     LIMIT $1`,
+    [limit],
+  );
+  return rows.map((row) => ({
+    roomId: row.room_id,
+    variant: row.variant,
+    result: row.result,
+    termination: row.termination,
+    plyCount: row.ply_count,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    whiteName: row.white_name,
+    blackName: row.black_name,
+    corpusId: row.corpus_id,
+    jobId: row.job_id,
+    gameIndex: row.game_index,
+    whiteEngineId: row.white_engine_id,
+    blackEngineId: row.black_engine_id,
+    timeControl: row.time_control,
   }));
 }
 
