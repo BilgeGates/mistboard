@@ -42,6 +42,28 @@ Create the `games` row at game start with `mode = 'eve'` and `status = 'running'
 
 If the worker aborts for infrastructure reasons, update the row to `status = 'aborted'`, keep `result = NULL`, set a non-scoring `termination`, and leave the events available for debugging.
 
+## Annotations
+
+Engine Lab annotations are first-class state, not a debug artifact. Local development has been accumulating them as `research/python-fow-lab/feedback/annotations.jsonl` — by the time EvE ships in production this file is the most precious asset in the lab (90+ rows across multiple Tier-1 versions, dollars of human review time per row).
+
+Migrate as a real table — at minimum:
+
+- `annotations` keyed by `game_room_id` + `ply` (FK into `games.room_id`).
+- Fields: `severity` (major/minor/good/neutral), `note`, optional `suggested_move_uci`, optional `tags` array, `engine_version` snapshot at annotation time, `created_at`, `created_by`.
+- Engine version is denormalized intentionally — annotations are about a specific bot's specific decision; engine version is part of the annotation's primary content, not a join field.
+
+Do not re-derive annotations from the JSONL on each migration run. Backfill once at cutover, then JSONL becomes read-only history.
+
+## Verbose Belief Capture
+
+The Engine Lab belief debug viz (see `docs/build-log/2026-05-07-fow-belief-debug-viz-design.md`) introduces `--verbose-belief` capture for per-ply marginal piece occupancy + top-K particle clusters. In production EvE this lives at the **job** level, not the engine level:
+
+- `eve_jobs.config` JSON includes `verbose_belief: true` when the operator wants belief snapshots.
+- The worker reads the flag, configures Tier-1 with `verbose_belief_capture=True`, and on each ply persists one row to `game_debug_artifacts` with `kind = 'belief-snapshot'` and the marginal+top-K payload.
+- Engine identity does NOT change with the verbose flag — same `engine_versions` row, same play signature. The flag is operational telemetry, not bot identity.
+
+Pre-deciding this prevents a class of bugs where verbose-belief variants of the same engine accumulate as distinct identities and fragment the Elo pool.
+
 ## Build Order
 
 1. Land the schema foundation.
@@ -49,3 +71,5 @@ If the worker aborts for infrastructure reasons, update the row to `status = 'ab
 3. Add a single-game EvE worker that records one game end to end.
 4. Add startup cleanup that aborts stale running EvE games owned by the worker.
 5. Add batch `eve_jobs` scheduling and progress accounting.
+6. Add the `annotations` table + JSONL backfill at cutover.
+7. Add `verbose_belief` job-config flag + `game_debug_artifacts` writes.
