@@ -962,19 +962,6 @@ a {
   margin-bottom: 0;
 }
 
-.learn-section p {
-  margin: 0 0 18px;
-  color: #3f4742;
-  line-height: 1.65;
-  font-size: 16px;
-}
-
-.learn-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .site-footer {
   display: flex;
   justify-content: space-between;
@@ -1076,6 +1063,78 @@ a {
 
 .landing-cta-secondary:hover {
   background: #ece8de;
+}
+
+.learn-shell {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 16px 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 620px) minmax(280px, 380px);
+  gap: 28px;
+  align-items: start;
+}
+
+.learn-board-panel {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+}
+
+.learn-board {
+  width: min(100%, 620px, calc(100vh - 180px));
+  aspect-ratio: 1;
+  border: 2px solid #2e332f;
+  background: #2e332f;
+  box-shadow: 0 14px 40px rgba(29, 37, 34, 0.14);
+}
+
+.learn-board cg-board square.learn-highlight {
+  box-shadow: inset 0 0 0 4px rgba(214, 175, 78, 0.78);
+}
+
+.learn-panel {
+  display: grid;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.learn-progress {
+  color: #5a6960;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.learn-heading {
+  margin: 0;
+  color: #1f2521;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.05;
+}
+
+.learn-copy {
+  margin: 0;
+  color: #3f4742;
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.learn-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+  color: #3f4742;
+  line-height: 1.45;
+}
+
+.learn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 #landing-replay {
@@ -1273,6 +1332,15 @@ a {
 
   .watch-replay {
     order: 1;
+  }
+
+  .learn-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .learn-board {
+    width: min(100%, calc(100vh - 240px));
   }
 
   .game-header {
