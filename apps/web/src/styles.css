@@ -1150,7 +1150,7 @@ a {
 
 .bakeoff-game-item {
   display: grid;
-  grid-template-columns: 36px 22px 56px 1fr;
+  grid-template-columns: 34px 34px 22px 56px 1fr;
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
@@ -1178,6 +1178,11 @@ a {
   color: #6c766c;
 }
 
+.bakeoff-game-item .bakeoff-game-qid {
+  color: #273d5a;
+  font-weight: 700;
+}
+
 .bakeoff-game-item .bakeoff-game-outcome {
   font-weight: 700;
   text-align: center;
@@ -1195,6 +1200,22 @@ a {
 
 .bakeoff-game-item.bakeoff-D .bakeoff-game-outcome {
   color: #6c766c;
+}
+
+.bakeoff-active-meta {
+  margin-top: 10px;
+  border-top: 1px solid #d6cfbf;
+  padding-top: 10px;
+  color: #5f675f;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.bakeoff-active-title {
+  color: #1f2521;
+  font-weight: 700;
 }
 
 .bakeoff-replay-area {

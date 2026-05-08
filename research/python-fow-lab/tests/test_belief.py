@@ -338,6 +338,51 @@ def test_stage_b_csp_reseed_uses_post_opp_side_to_move() -> None:
     )
 
 
+def test_stage_b_reseeds_when_own_piece_capture_observation_would_be_relaxed() -> None:
+    """Own-piece captures are hard observations, not visibility noise.
+
+    Regression for game 0008 ply 22 from v0.7.0 mirror: black played Re8xe2,
+    capturing a visible white bishop. White's belief had no particle where that
+    rook move matched the observation, so the old constraint-only fallback kept
+    particles with the white bishop still on e2.
+    """
+    import random
+    from fow_chess.observation import Observation
+
+    stale = chess.Board.empty()
+    stale.turn = chess.BLACK
+    stale.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    stale.set_piece_at(chess.E2, chess.Piece(chess.BISHOP, chess.WHITE))
+    stale.set_piece_at(chess.A8, chess.Piece(chess.ROOK, chess.BLACK))
+    stale.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=8,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+
+    obs = Observation(
+        visibility_mask=chess.SquareSet([chess.E1, chess.E2]),
+        visible_pieces={
+            chess.E1: chess.Piece(chess.KING, chess.WHITE),
+            chess.E2: chess.Piece(chess.ROOK, chess.BLACK),
+        },
+        own_capture_square=chess.E2,
+    )
+
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_csp_reseed_fired == 1
+    assert belief.last_csp_reseed_count == belief.target_n
+    assert all(particle.piece_at(chess.E2) == chess.Piece(chess.ROOK, chess.BLACK)
+               for particle in belief.particles)
+    assert all(particle.piece_at(chess.E1) == chess.Piece(chess.KING, chess.WHITE)
+               for particle in belief.particles)
+
+
 def test_stage_b_constraint_pruned_diagnostic_increments() -> None:
     """`last_constraint_pruned` should be > 0 when the constraint actually
     rejects expanded particles."""

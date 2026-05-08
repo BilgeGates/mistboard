@@ -120,6 +120,10 @@ export async function mountBakeoff(
   list.className = 'bakeoff-game-list';
   sidebar.append(list);
 
+  const activeMeta = document.createElement('div');
+  activeMeta.className = 'bakeoff-active-meta';
+  sidebar.append(activeMeta);
+
   let activeBtn: HTMLButtonElement | null = null;
 
   const urlForId = (id: string) => `${baseDir}/${id}`;
@@ -152,6 +156,12 @@ export async function mountBakeoff(
     if (activeBtn) activeBtn.classList.remove('active');
     btn.classList.add('active');
     activeBtn = btn;
+    activeMeta.innerHTML = `
+      <div class="bakeoff-active-title">queue game ${game.index} · sidebar #${game.index + 1}</div>
+      <div>${game.path}</div>
+      <div>outcome=${game.outcome} tier1=${game.tier1_color} plies=${game.plies} end=${game.end_reason}</div>
+      <div>seed=${game.tier1_seed}${game.truncated ? ' truncated' : ''}</div>
+    `;
     void mountReplay(replayArea, game.path, {
       urlForId,
       annotation: {
@@ -178,12 +188,13 @@ export async function mountBakeoff(
     const truncMark = game.truncated ? ' ⏱' : '';
     btn.innerHTML = `
       <span class="bakeoff-game-id">#${game.index + 1}</span>
+      <span class="bakeoff-game-qid">q${game.index}</span>
       <span class="bakeoff-game-outcome">${game.outcome}</span>
       <span class="bakeoff-game-color">tier1=${game.tier1_color[0]}</span>
       <span class="bakeoff-game-plies">${game.plies}p${truncMark}</span>
       <span class="bakeoff-game-notes"></span>
     `;
-    btn.title = `seed=${game.tier1_seed} end=${game.end_reason}`;
+    btn.title = `queue game ${game.index}; sidebar #${game.index + 1}; ${game.path}; seed=${game.tier1_seed}; end=${game.end_reason}`;
     btn.addEventListener('click', () => loadGame(game, btn));
     list.append(btn);
     const badge = btn.querySelector('.bakeoff-game-notes') as HTMLSpanElement;

@@ -18,8 +18,14 @@ The core rule is simple:
 - engine-facing view types
 - random and heuristic baselines
 - legal-observation belief tracking
+- belief particle generation as its own sub-engine
 - tournament harness reliability
 - benchmark manifests
 - reproducibility checks
+
+The Belief Particle Engine subtrack is documented in
+`docs/fog-of-war/belief-particle-engine.md`. Its first contract is that belief
+state may be uncertain, but it must not contradict hard facts in the observation
+stream.
 
 Internal compute budgets, training plans, research bets, and platform strategy belong outside the public repository.

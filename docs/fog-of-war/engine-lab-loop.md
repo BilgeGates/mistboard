@@ -25,6 +25,8 @@ and the next concrete patch.
 5. Convert annotations into hypotheses.
    - Each annotation should map to a belief bug, evaluator bug, tactical
      short-circuit bug, acceptable Fog of War uncertainty, or process/UI issue.
+   - Belief bugs that contradict hard observations are blocking defects in the
+     Belief Particle Engine subtrack, not normal engine-quality misses.
 6. Promote, reject, or patch the candidate.
    - Promotion is not just win rate. The candidate needs fewer unexplained major
      errors, no new collapse class, and reproducible artifacts.
@@ -47,6 +49,7 @@ Flag plies when any of these fire:
 - `csp_reseed_fired = true`;
 - Stage A or Stage B particle count falls sharply;
 - `belief_unique_count` is low;
+- belief snapshots contradict hard visible facts or own-capture observations;
 - decision path is king capture, king defense, queen capture, queen save, or
   visible minor/rook capture;
 - Stockfish-truth comparison shows a large disagreement;
@@ -85,6 +88,11 @@ artifacts. The current scorer is intentionally simple and transparent: it ranks
 CSP reseeds, particle drops, low belief diversity, critical tactical decision
 paths, constraint pruning, and late plies in losses/draws. Treat the score as a
 triage priority, not a verdict on the move.
+
+Hard-observation contradictions are higher priority than score implies. If a
+belief snapshot shows an impossible own piece, misses a visible opponent piece,
+or ignores an `own_capture_square` signal, stop and fix the Belief Particle
+Engine before using that artifact for move-quality conclusions.
 
 ## Current Local Question
 

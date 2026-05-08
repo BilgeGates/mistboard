@@ -300,7 +300,7 @@ class BeliefState:
         if primary_p:
             chosen_particles = primary_p
             chosen_weights = primary_w
-        elif constraint_p:
+        elif constraint_p and not _requires_hard_observation_reseed(obs):
             chosen_particles = constraint_p
             chosen_weights = constraint_w
         elif expanded:
@@ -407,6 +407,17 @@ class BeliefState:
     def collapsed(self) -> bool:
         """True if no particle survived the most recent update; signals a tracker bug or rule mismatch."""
         return not self.particles
+
+
+def _requires_hard_observation_reseed(obs: Observation) -> bool:
+    """True when relaxing observation would contradict a hard state change.
+
+    The constraint-only Stage-B fallback is useful for noisy visibility mismatch,
+    but not when the observation says one of our pieces disappeared or our king
+    was captured. Those are hard facts about our own material, so preserving
+    particles that ignore them leaves impossible own pieces on the board.
+    """
+    return obs.own_capture_square is not None or obs.game_over is not None
 
 
 def _csp_reseed(
