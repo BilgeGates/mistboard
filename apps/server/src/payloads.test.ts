@@ -81,6 +81,33 @@ test('live Fog of War spectator payload has no board or move events', () => {
   assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
 });
 
+test('live Fog of War seated payload can expose own last move without move events', () => {
+  const room = lastMoveRoomFixture();
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'white-client',
+    seat: 'white',
+    solo: false,
+  });
+
+  assert.deepEqual(payload.state.lastMove, { from: 'e2', to: 'e4' });
+  assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+});
+
+test('live Fog of War seated payload does not expose opponent last-move coordinates', () => {
+  const room = lastMoveRoomFixture();
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'black-client',
+    seat: 'black',
+    solo: false,
+  });
+
+  assert.deepEqual(payload.state.board.e4, { color: 'white', role: 'pawn' });
+  assert.equal(payload.state.lastMove, undefined);
+  assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+});
+
 test('live PvE spectator sees human perspective and not engine move events', () => {
   const room = replayRoomFixture({
     roomId: 'pve-payload',
@@ -307,6 +334,53 @@ function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.
     clients: { size: 2 },
     events,
     projection,
+  };
+}
+
+function lastMoveRoomFixture(): SnapshotRoom {
+  const state = {
+    ...fogOfWarVariant.createInitialState('fog-last-move-payload'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      e4: { color: 'white', role: 'pawn' },
+      e8: { color: 'black', role: 'rook' },
+      h8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'black' } as const,
+    castlingRights: [],
+    lastMove: { from: 'e2', to: 'e4' },
+  } satisfies ReturnType<typeof fogOfWarVariant.createInitialState>;
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'fog-last-move-payload',
+      variant: 'fog-of-war',
+      offer: [],
+    },
+    {
+      type: 'move-played',
+      at: 2,
+      roomId: 'fog-last-move-payload',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+  ];
+  return {
+    id: 'fog-last-move-payload',
+    clients: { size: 2 },
+    events,
+    projection: {
+      roomId: 'fog-last-move-payload',
+      variant: 'fog-of-war',
+      offer: [],
+      state,
+      seats: { white: 'white-client', black: 'black-client' },
+      selections: {},
+      bids: {},
+      bidResolution: null,
+      resolvedStartId: null,
+    },
   };
 }
 
