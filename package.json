@@ -13,6 +13,7 @@
     "build": "node scripts/build.mjs",
     "build:all": "npm run build --workspaces",
     "start": "node scripts/start.mjs",
+    "engine:enqueue": "npm run engine:enqueue --workspace=@bichess/server",
     "engine:enqueue-smoke": "npm run engine:enqueue-smoke --workspace=@bichess/server",
     "engine:queue-status": "npm run engine:queue-status --workspace=@bichess/server",
     "worker": "npm run worker --workspace=@bichess/server",

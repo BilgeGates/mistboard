@@ -49,6 +49,7 @@ if (!TEST_DATABASE_URL) {
          engine_worker_runs,
          eve_jobs,
          engine_versions,
+         engines,
          events,
          games
        RESTART IDENTITY CASCADE`,
@@ -476,6 +477,32 @@ if (!TEST_DATABASE_URL) {
         black_engine_id: 'builtin-random-legal',
         white_play_signature: 'builtin-capture-seeker-v1',
         black_play_signature: 'builtin-random-legal-v1',
+      },
+    ]);
+
+    const { rows: versions } = await getPool().query<{
+      id: string;
+      engine_id: string;
+      kind: string;
+      status: string;
+    }>(
+      `SELECT id, engine_id, kind, status
+       FROM engine_versions
+       WHERE id IN ('builtin-capture-seeker', 'builtin-random-legal')
+       ORDER BY id`,
+    );
+    assert.deepEqual(versions, [
+      {
+        id: 'builtin-capture-seeker',
+        engine_id: 'capture-seeker',
+        kind: 'builtin',
+        status: 'active',
+      },
+      {
+        id: 'builtin-random-legal',
+        engine_id: 'random-legal',
+        kind: 'builtin',
+        status: 'active',
       },
     ]);
 
