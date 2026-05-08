@@ -465,8 +465,9 @@ def _matches_hard_observation(
     if the player sees a black pawn on b6, a particle without that pawn is
     impossible. Same for own pieces that disappeared and game-over.
     """
-    if visible_piece_map(next_board, perspective) != obs.visible_pieces:
-        return False
+    for sq in obs.visibility_mask:
+        if next_board.piece_at(sq) != obs.visible_pieces.get(sq):
+            return False
 
     own_before = {
         sq for sq, p in prev_board.piece_map().items() if p.color == perspective

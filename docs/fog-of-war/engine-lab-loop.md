@@ -112,6 +112,27 @@ The next process upgrade is an annotation replay gate. Annotations that include
 run the current engine, and report whether it now chooses the suggested move,
 an equivalent move class, or the same rejected behavior.
 
+Local command:
+
+```sh
+.venv/bin/python scripts/annotation_replay.py --manifest-url /bakeoff-v0.7.0-hardobs-rung2-3game/manifest.json
+```
+
+This writes `feedback/annotation_replay.json` and
+`feedback/annotation_replay.md`. Use `--strict` when turning the current set of
+annotations into a blocking local gate.
+
+The hard-fact belief validator checks verbose belief snapshots against the
+saved game log:
+
+```sh
+.venv/bin/python scripts/belief_hardfact_check.py ../../apps/web/public/bakeoff-v0.7.0-hardobs-rung2-3game
+```
+
+This writes `hardfact_report.json` and `hardfact_report.md` next to the
+bake-off artifacts. Use `--strict` when a candidate should be blocked by any
+visible-piece or visible-empty contradiction.
+
 The current review-queue generator ranks the top moments from `trace.jsonl`,
 `belief.jsonl`, and `move_quality.csv`.
 

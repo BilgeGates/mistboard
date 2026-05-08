@@ -456,6 +456,52 @@ def test_stage_b_does_not_relax_visible_opponent_piece() -> None:
     )
 
 
+def test_stage_b_does_not_relax_visible_empty_square() -> None:
+    """Visible empty squares are hard facts too.
+
+    Regression for v0.7.1-g12-check: black's belief kept a white bishop on g5
+    even though black's current observation saw g5 as empty. The old hard-
+    observation fallback checked visible pieces but allowed pieces to remain on
+    squares that were visible-empty in the true observation when the particle's
+    own visibility mask differed.
+    """
+    import random
+
+    truth_pre = chess.Board(
+        "2kr1bnr/ppp2ppp/4p3/8/8/P2b1N2/1P2NPPP/R1B2RK1 w - - 1 12"
+    )
+    truth_post = truth_pre.copy()
+    truth_post.push(chess.Move.from_uci("f3e5"))
+    obs = observation_from_transition(truth_pre, truth_post, chess.BLACK)
+    assert chess.G5 in obs.visibility_mask
+    assert chess.G5 not in obs.visible_pieces
+
+    stale = truth_pre.copy()
+    stale.set_piece_at(chess.G5, chess.Piece(chess.BISHOP, chess.WHITE))
+
+    belief = BeliefState(
+        perspective=chess.BLACK,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {
+        chess.KING: 1,
+        chess.QUEEN: 0,
+        chess.ROOK: 2,
+        chess.BISHOP: 2,
+        chess.KNIGHT: 2,
+        chess.PAWN: 5,
+    }
+    belief.opp_bishop_colors_remaining = {True: 1, False: 1}
+
+    belief.update_after_opp_move(obs)
+
+    assert all(particle.piece_at(chess.G5) is None for particle in belief.particles)
+
+
 def test_csp_reseed_preserves_pawn_blocker_from_move_affordance() -> None:
     """If an own pawn cannot push, CSP reseed must infer a hidden blocker.
 

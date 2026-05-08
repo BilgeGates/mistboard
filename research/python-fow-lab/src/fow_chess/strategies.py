@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.0"
+TIER1_VERSION = "0.7.1"
 
 
 def tier1_commit() -> str:
@@ -402,6 +402,56 @@ def _safe_visible_minor_or_rook_captures(
         return []
     max_value = max(v for _, v in candidates)
     return [m for m, v in candidates if v == max_value]
+
+
+def _king_shelter_moves(view: PerspectiveView) -> list[chess.Move]:
+    """Minor-piece interpositions that shelter an uncastled king on the e-file.
+
+    FOW-specific move-selection guardrail from the annotation replay gate:
+    when our king is still on e1/e8, the e-pawn is gone, and the direct shelter
+    square e2/e7 is empty, moving a minor piece there is often worth more than
+    grabbing a pawn or making a generic material move. It reduces immediate
+    central-file exposure without requiring us to know every hidden attacker.
+
+    This is deliberately conservative:
+      - only e1/e8 kings;
+      - only bishop/knight moves to e2/e7;
+      - only when the shelter square is not visibly attacked;
+      - home-square bishop is preferred; otherwise knight is preferred over
+        pulling back an already-developed bishop.
+    """
+    own = view.perspective
+    king_sq = chess.E1 if own == chess.WHITE else chess.E8
+    shelter_sq = chess.E2 if own == chess.WHITE else chess.E7
+
+    king = view.visible_piece_map.get(king_sq)
+    if king is None or king.color != own or king.piece_type != chess.KING:
+        return []
+    if shelter_sq in view.visible_piece_map:
+        return []
+    if shelter_sq in _squares_attacked_by_visible_enemy_full(view):
+        return []
+
+    candidates: list[tuple[chess.Move, int]] = []
+    for move in view.own_legal_moves:
+        if move.to_square != shelter_sq:
+            continue
+        piece = view.visible_piece_map.get(move.from_square)
+        if piece is None or piece.color != own:
+            continue
+        if piece.piece_type == chess.BISHOP:
+            bishop_home = chess.F1 if own == chess.WHITE else chess.F8
+            pref = 0 if move.from_square == bishop_home else 2
+        elif piece.piece_type == chess.KNIGHT:
+            pref = 1
+        else:
+            continue
+        candidates.append((move, pref))
+
+    if not candidates:
+        return []
+    best_pref = min(pref for _, pref in candidates)
+    return [move for move, pref in candidates if pref == best_pref]
 
 
 def _prefer_queen_promotion(moves: list[chess.Move]) -> list[chess.Move]:
@@ -963,6 +1013,15 @@ class Tier1Strategy:
             chosen = self._rng.choice(_prefer_queen_promotion(candidates))
             self._stage_pending_capture(chosen, view)
             self._emit_trace("visible-minor-rook-capture", particle_count_pre, chosen)
+            return chosen
+
+        king_shelter = _king_shelter_moves(view)
+        if king_shelter:
+            belief_ok = [m for m in king_shelter if self._belief_supports_move(m)]
+            candidates = belief_ok or king_shelter
+            chosen = self._rng.choice(candidates)
+            self._stage_pending_capture(chosen, view)
+            self._emit_trace("king-shelter", particle_count_pre, chosen)
             return chosen
 
         if not self._belief.particles:

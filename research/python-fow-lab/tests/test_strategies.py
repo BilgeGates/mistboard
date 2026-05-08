@@ -12,6 +12,7 @@ from fow_chess.strategies import (
     Tier1Strategy,
     _categorize_king_defense_moves,
     _king_defense_moves,
+    _king_shelter_moves,
     _prefer_higher_value_capture,
     _prefer_lower_value_attacker,
     _prefer_queen_promotion,
@@ -150,6 +151,61 @@ def test_queen_save_skips_when_queen_not_visibly_attacked() -> None:
     view = _build_view(board, chess.WHITE)
     saves = _queen_save_moves(view)
     assert saves == [], f"expected empty (queen not under visible attack) but got {saves}"
+
+
+def test_king_shelter_prefers_bishop_on_e_file_annotation_position() -> None:
+    # Regression for annotation replay gate, hardobs g12 ply 23. White's
+    # e-pawn is gone, king is still on e1, and both Bf1-e2 and Ng1-e2 can
+    # shelter the king. Prefer bishop before main eval grabs material.
+    board = chess.Board("r1b2rk1/pp3ppp/2n5/3p4/5P2/2P5/P4PPP/2RQKBNR w - - 0 1")
+
+    s = _strategy()
+    s.reset(perspective=chess.WHITE)
+    view = _build_view(board, chess.WHITE)
+    shelter = _king_shelter_moves(view)
+    chosen = s.pick_move(view)
+
+    assert {move.uci() for move in shelter} == {"f1e2"}
+    assert chosen.uci() == "f1e2"
+    assert s.trace_log[-1]["decision_path"] == "king-shelter"
+
+
+def test_king_shelter_prefers_knight_over_retracting_developed_bishop() -> None:
+    # Follow-up annotation replay case, hardobs g12 ply 25. Once the bishop
+    # has already developed to d3, don't pull it back to e2 when the knight can
+    # provide the same shelter from g1.
+    board = chess.Board("r1b2rk1/pp3ppp/2n5/8/3p1P2/2PB4/P4PPP/2RQK1NR w - - 0 1")
+
+    s = _strategy()
+    s.reset(perspective=chess.WHITE)
+    view = _build_view(board, chess.WHITE)
+    shelter = _king_shelter_moves(view)
+    chosen = s.pick_move(view)
+
+    assert {move.uci() for move in shelter} == {"g1e2"}
+    assert chosen.uci() == "g1e2"
+    assert s.trace_log[-1]["decision_path"] == "king-shelter"
+
+
+def test_king_shelter_skips_visibly_attacked_shelter_square() -> None:
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.F1, chess.Piece(chess.BISHOP, chess.WHITE))
+    board.set_piece_at(chess.G1, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.H5, chess.Piece(chess.BISHOP, chess.BLACK))
+    board.turn = chess.WHITE
+    pieces = {
+        chess.E1: chess.Piece(chess.KING, chess.WHITE),
+        chess.F1: chess.Piece(chess.BISHOP, chess.WHITE),
+        chess.G1: chess.Piece(chess.KNIGHT, chess.WHITE),
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+        chess.H5: chess.Piece(chess.BISHOP, chess.BLACK),
+    }
+
+    view = _build_view(board, chess.WHITE, visible_pieces=pieces)
+
+    assert _king_shelter_moves(view) == []
 
 
 def test_king_defense_picks_king_flight() -> None:
