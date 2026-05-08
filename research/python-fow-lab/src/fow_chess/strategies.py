@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.6.3"
+TIER1_VERSION = "0.7.0"
 
 
 def tier1_commit() -> str:
@@ -36,6 +36,30 @@ from .engine import EvaluatorBuilder, best_action
 from .move_priors import OpponentMovePrior, uniform_prior
 from .observation import Observation
 from .selfplay import PerspectiveView
+
+
+def _piece_color_name(color: chess.Color) -> str:
+    return "white" if color == chess.WHITE else "black"
+
+
+def _marginal_field_for_json(
+    field: dict[chess.Square, list[tuple[chess.Piece | None, float]]]
+) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    for sq, entries in field.items():
+        result[chess.square_name(sq)] = [
+            (
+                {"piece": None, "prob": prob}
+                if piece is None
+                else {
+                    "piece": piece.symbol(),
+                    "color": _piece_color_name(piece.color),
+                    "prob": prob,
+                }
+            )
+            for piece, prob in entries
+        ]
+    return result
 
 
 def _visibility_board(view: PerspectiveView) -> chess.Board:
@@ -466,11 +490,14 @@ class Tier1Strategy:
     # move_chosen_uci, top_k_scores}. top_k_scores is empty when a short-circuit
     # fired (no main-eval scoring happened).
     trace_log: list[dict] = field(default_factory=list)
+    verbose_belief_capture: bool = False
+    belief_log: list[dict] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
         self._belief: BeliefState | None = None
         self._tier1_move_count = 0
+        self._observed_ply = 0
         # Belief-step diagnostics for the next emit_trace. Captured by
         # observe_own_move (Stage A) and observe_opp_move (Stage B) and
         # consumed (cleared) by the next pick_move's _emit_trace.
@@ -479,6 +506,7 @@ class Tier1Strategy:
         # visible_piece_map. Consumed by observe_own_move to update belief's
         # opp_remaining_counts.
         self._pending_capture_type: chess.PieceType | None = None
+        self._pending_capture_square: chess.Square | None = None
         # Pre-move visibility snapshot, captured at the start of pick_move and
         # used during capture detection. Avoids needing to plumb the view
         # through observe_own_move.
@@ -492,9 +520,12 @@ class Tier1Strategy:
             rng=random.Random(self.seed + (1 if perspective == chess.BLACK else 0)),
         )
         self.trace_log.clear()
+        self.belief_log.clear()
         self._tier1_move_count = 0
+        self._observed_ply = 0
         self._pending_belief_steps = {}
         self._pending_capture_type = None
+        self._pending_capture_square = None
         self._last_view_visible = {}
 
     def _emit_trace(
@@ -505,10 +536,11 @@ class Tier1Strategy:
         top_k_scores: list[tuple[str, float]] | None = None,
     ) -> None:
         self._tier1_move_count += 1
-        # Tier-1 plays half the moves; ply is 2k-1 for white, 2k for black.
+        # Decision snapshot is for the move about to be played. Observed-ply
+        # tracking stays correct even if a random opening ran before control
+        # reached this strategy.
         assert self._belief is not None
-        is_white = self._belief.perspective == chess.WHITE
-        ply = 2 * self._tier1_move_count - (1 if is_white else 0)
+        ply = self._observed_ply + 1
         belief_unique = len({p.fen() for p in self._belief.particles}) if self._belief else 0
         # Snapshot opp_remaining_counts as a string-keyed dict (chess.PieceType
         # is an int alias, so JSON serializes — but readability suffers).
@@ -524,6 +556,15 @@ class Tier1Strategy:
             piece_type_names[pt]: n
             for pt, n in self._belief.opp_remaining_counts.items()
         }
+        pending_steps = dict(self._pending_belief_steps)
+        csp_reseed_fired = bool(
+            pending_steps.get("csp_reseed_stage_a", 0)
+            or pending_steps.get("csp_reseed_stage_b", 0)
+        )
+        csp_reseed_count = max(
+            pending_steps.get("csp_reseed_count_stage_a", 0),
+            pending_steps.get("csp_reseed_count_stage_b", 0),
+        )
         record = {
             "tier1_move_count": self._tier1_move_count,
             "ply": ply,
@@ -535,12 +576,84 @@ class Tier1Strategy:
                 {"uci": uci, "score": score} for uci, score in (top_k_scores or [])
             ],
             "opp_remaining_counts": opp_counts,
+            "csp_reseed_fired": csp_reseed_fired,
+            "csp_reseed_count": csp_reseed_count,
         }
         # Carry over belief-step diagnostics from the most recent Stage A/B
         # observation updates, then clear so the next pick_move starts fresh.
-        record.update(self._pending_belief_steps)
+        record.update(pending_steps)
         self._pending_belief_steps = {}
         self.trace_log.append(record)
+        if self.verbose_belief_capture:
+            self._append_belief_snapshot(
+                ply=ply,
+                snapshot_kind="decision",
+                decision_path=decision_path,
+                move=chosen,
+                csp_reseed_fired=csp_reseed_fired,
+                csp_reseed_count=csp_reseed_count,
+            )
+
+    def _opp_counts_for_json(self) -> dict[str, int]:
+        assert self._belief is not None
+        piece_type_names = {
+            chess.PAWN: "pawn",
+            chess.KNIGHT: "knight",
+            chess.BISHOP: "bishop",
+            chess.ROOK: "rook",
+            chess.QUEEN: "queen",
+            chess.KING: "king",
+        }
+        return {
+            piece_type_names[pt]: n
+            for pt, n in self._belief.opp_remaining_counts.items()
+        }
+
+    def _append_belief_snapshot(
+        self,
+        *,
+        ply: int,
+        snapshot_kind: str,
+        decision_path: str,
+        move: chess.Move | None = None,
+        csp_reseed_fired: bool | None = None,
+        csp_reseed_count: int | None = None,
+    ) -> None:
+        assert self._belief is not None
+        if not self.verbose_belief_capture:
+            return
+        belief_unique = len({p.fen() for p in self._belief.particles})
+        csp_fired = (
+            bool(self._belief.last_csp_reseed_fired)
+            if csp_reseed_fired is None
+            else csp_reseed_fired
+        )
+        csp_count = (
+            self._belief.last_csp_reseed_count
+            if csp_reseed_count is None
+            else csp_reseed_count
+        )
+        self.belief_log.append(
+            {
+                "ply": ply,
+                "snapshot_kind": snapshot_kind,
+                "decision_path": decision_path,
+                "particle_count": len(self._belief.particles),
+                "particle_count_unique": belief_unique,
+                "move_chosen_uci": move.uci() if move is not None else None,
+                "opp_remaining_counts": self._opp_counts_for_json(),
+                "last_constraint_pruned": self._belief.last_constraint_pruned,
+                "csp_reseed_fired": csp_fired,
+                "csp_reseed_count": csp_count,
+                "marginal_field": _marginal_field_for_json(
+                    self._belief.marginal_piece_field()
+                ),
+                "top_k_clusters": [
+                    {"fen": fen, "weight": weight, "particle_count": count}
+                    for fen, weight, count in self._belief.top_k_clusters()
+                ],
+            }
+        )
 
     def observe_own_move(self, move: chess.Move, observation: Observation) -> None:
         assert self._belief is not None
@@ -548,8 +661,12 @@ class Tier1Strategy:
         # the destination, or en-passant). Decrements opp_remaining_counts so
         # the next Stage B can prune particles hallucinating extra pieces.
         if self._pending_capture_type is not None:
-            self._belief.register_capture(self._pending_capture_type)
+            self._belief.register_capture(
+                self._pending_capture_type,
+                self._pending_capture_square,
+            )
             self._pending_capture_type = None
+            self._pending_capture_square = None
         before = len(self._belief.particles)
         before_unique = len({p.fen() for p in self._belief.particles})
         self._belief.update_after_own_move(move, observation)
@@ -559,6 +676,19 @@ class Tier1Strategy:
         self._pending_belief_steps["belief_pre_stage_a_unique"] = before_unique
         self._pending_belief_steps["belief_post_stage_a"] = after
         self._pending_belief_steps["belief_post_stage_a_unique"] = after_unique
+        self._pending_belief_steps["csp_reseed_stage_a"] = (
+            self._belief.last_csp_reseed_fired
+        )
+        self._pending_belief_steps["csp_reseed_count_stage_a"] = (
+            self._belief.last_csp_reseed_count
+        )
+        self._observed_ply += 1
+        self._append_belief_snapshot(
+            ply=self._observed_ply,
+            snapshot_kind="after-own-move",
+            decision_path="after-own-move",
+            move=move,
+        )
 
     def _belief_supports_move(self, move: chess.Move, threshold: float = 0.5) -> bool:
         """True iff `move` is pseudo-legal in at least `threshold` fraction of particles.
@@ -624,12 +754,12 @@ class Tier1Strategy:
                 survivors.append(move)
         return survivors
 
-    def _detect_capture_type(
+    def _detect_capture(
         self,
         move: chess.Move,
         view: PerspectiveView,
-    ) -> chess.PieceType | None:
-        """Return the type of opp piece captured by `move`, or None if no capture.
+    ) -> tuple[chess.PieceType, chess.Square] | None:
+        """Return opp piece type/square captured by `move`, or None.
 
         Two cases (FOW visibility-grounded — only fires on captures we observe):
           1. Direct capture: pre-move `view.visible_piece_map[move.to_square]`
@@ -646,7 +776,7 @@ class Tier1Strategy:
         own_color = view.perspective
         target = view.visible_piece_map.get(move.to_square)
         if target is not None and target.color != own_color:
-            return target.piece_type
+            return target.piece_type, move.to_square
 
         from_piece = view.visible_piece_map.get(move.from_square)
         if (
@@ -665,9 +795,17 @@ class Tier1Strategy:
                 and ep_target.color != own_color
                 and ep_target.piece_type == chess.PAWN
             ):
-                return chess.PAWN
+                return chess.PAWN, ep_capture_sq
 
         return None
+
+    def _stage_pending_capture(self, move: chess.Move, view: PerspectiveView) -> None:
+        capture = self._detect_capture(move, view)
+        if capture is None:
+            self._pending_capture_type = None
+            self._pending_capture_square = None
+            return
+        self._pending_capture_type, self._pending_capture_square = capture
 
     def observe_opp_move(self, observation: Observation) -> None:
         assert self._belief is not None
@@ -683,6 +821,18 @@ class Tier1Strategy:
         # v0.6.0: how many expanded particles the count-constraint filter killed.
         self._pending_belief_steps["constraint_pruned_stage_b"] = (
             self._belief.last_constraint_pruned
+        )
+        self._pending_belief_steps["csp_reseed_stage_b"] = (
+            self._belief.last_csp_reseed_fired
+        )
+        self._pending_belief_steps["csp_reseed_count_stage_b"] = (
+            self._belief.last_csp_reseed_count
+        )
+        self._observed_ply += 1
+        self._append_belief_snapshot(
+            ply=self._observed_ply,
+            snapshot_kind="after-opp-move",
+            decision_path="after-opp-move",
         )
 
     def pick_move(self, view: PerspectiveView) -> chess.Move:
@@ -700,7 +850,7 @@ class Tier1Strategy:
         ]
         if king_captures:
             chosen = self._rng.choice(_prefer_queen_promotion(king_captures))
-            self._pending_capture_type = self._detect_capture_type(chosen, view)
+            self._stage_pending_capture(chosen, view)
             self._emit_trace("king-capture", particle_count_pre, chosen)
             return chosen
 
@@ -738,7 +888,7 @@ class Tier1Strategy:
             tier_filtered = belief_ok or tier
             survivors = self._belief_veto_king_attack(tier_filtered, view)
             chosen = self._rng.choice(survivors or tier_filtered)
-            self._pending_capture_type = self._detect_capture_type(chosen, view)
+            self._stage_pending_capture(chosen, view)
             self._emit_trace(tier_label, particle_count_pre, chosen)
             return chosen
 
@@ -755,7 +905,7 @@ class Tier1Strategy:
         ]
         if queen_captures:
             chosen = self._rng.choice(_prefer_queen_promotion(queen_captures))
-            self._pending_capture_type = self._detect_capture_type(chosen, view)
+            self._stage_pending_capture(chosen, view)
             self._emit_trace("queen-capture", particle_count_pre, chosen)
             return chosen
 
@@ -767,7 +917,7 @@ class Tier1Strategy:
         queen_save = _queen_save_moves(view)
         if queen_save:
             chosen = self._rng.choice(queen_save)
-            self._pending_capture_type = self._detect_capture_type(chosen, view)
+            self._stage_pending_capture(chosen, view)
             self._emit_trace("queen-save", particle_count_pre, chosen)
             return chosen
 
@@ -781,7 +931,7 @@ class Tier1Strategy:
             belief_ok = [m for m in safe_minor_rook if self._belief_supports_move(m)]
             candidates = belief_ok or safe_minor_rook
             chosen = self._rng.choice(_prefer_queen_promotion(candidates))
-            self._pending_capture_type = self._detect_capture_type(chosen, view)
+            self._stage_pending_capture(chosen, view)
             self._emit_trace("visible-minor-rook-capture", particle_count_pre, chosen)
             return chosen
 
@@ -792,7 +942,7 @@ class Tier1Strategy:
             # on a visibility-only synthesized board instead so visible captures
             # and threats still drive selection.
             chosen = self._fallback_pick_move(view)
-            self._pending_capture_type = self._detect_capture_type(chosen, view)
+            self._stage_pending_capture(chosen, view)
             self._emit_trace("fallback", particle_count_pre, chosen)
             return chosen
 
@@ -824,7 +974,7 @@ class Tier1Strategy:
         # Top 5 moves by aggregated score; only surface what the trace actually needs.
         scored.sort(key=lambda r: -r[1])
         top_k = [(m.uci(), s) for m, s, _support in scored[:5]]
-        self._pending_capture_type = self._detect_capture_type(chosen, view)
+        self._stage_pending_capture(chosen, view)
         self._emit_trace("main-eval", particle_count_pre, chosen, top_k_scores=top_k)
         return chosen
 

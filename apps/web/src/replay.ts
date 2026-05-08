@@ -24,6 +24,7 @@ import {
   type Annotation,
   type AnnotationContext,
 } from './annotations.js';
+import { createBeliefPanel, type BeliefConfig, type BeliefPanelHandle } from './belief-panel.js';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
@@ -80,6 +81,7 @@ export type ReplayOptions = {
    * POST /api/annotations (handled by the Vite dev plugin in development).
    */
   annotation?: AnnotationConfig;
+  belief?: BeliefConfig;
 };
 
 export type AnnotationConfig = {
@@ -152,13 +154,25 @@ export async function mountReplay(
   const blackCg = createBoard(blackPane.boardEl, 'black');
 
   const annotation = options.annotation;
+  const belief = options.belief;
+  const toolsRow = belief || annotation ? document.createElement('div') : null;
+  if (toolsRow) {
+    toolsRow.className = 'replay-tools-row';
+    root.append(toolsRow);
+  }
+  let beliefPanel: BeliefPanelHandle | null = null;
+  if (belief) {
+    beliefPanel = createBeliefPanel();
+    toolsRow?.append(beliefPanel.el);
+  }
+
   let annotPanel: HTMLDivElement | null = null;
   let annotForm: AnnotFormHandle | null = null;
   let annotListEl: HTMLDivElement | null = null;
   if (annotation) {
     annotPanel = document.createElement('div');
     annotPanel.className = 'annot-panel';
-    root.append(annotPanel);
+    toolsRow?.append(annotPanel);
 
     annotForm = createAnnotForm({
       onSave: handleAnnotSave,
@@ -235,6 +249,7 @@ export async function mountReplay(
     }
 
     renderAnnotPanel();
+    beliefPanel?.render(currentPly);
   }
 
   function annotationsAtPly(ply: number): Annotation[] {
@@ -459,6 +474,7 @@ export async function mountReplay(
       ? await loaderForId(sampleId)
       : await loadEvents(sampleId, urlForId);
     moveCount = events.filter((e) => e.type === 'move-played').length;
+    beliefPanel?.setRows(belief?.rowsForSampleId(sampleId) ?? []);
     currentPly = 0;
     finishedAck = false;
     applyMetadata();

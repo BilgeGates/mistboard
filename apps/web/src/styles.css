@@ -830,8 +830,22 @@ a {
   color: #2e332f;
 }
 
+.replay-tools-row {
+  display: grid;
+  grid-template-columns: minmax(560px, 1.35fr) minmax(340px, 0.8fr);
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: 1280px;
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .replay-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .replay-tools-row {
     grid-template-columns: 1fr;
   }
 }
@@ -1056,7 +1070,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 18px;
+  padding: 9px 14px;
   border-bottom: 1px solid #d6cfbf;
   background: #f4f1ea;
 }
@@ -1064,14 +1078,14 @@ a {
 .bakeoff-topbar h1 {
   margin: 0;
   color: #1f2521;
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.1;
 }
 
 .bakeoff-topbar p {
-  margin: 3px 0 0;
+  margin: 1px 0 0;
   color: #5a6960;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .bakeoff-topbar a {
@@ -1089,17 +1103,17 @@ a {
 
 .bakeoff-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 16px;
-  min-height: calc(100vh - 70px);
+  grid-template-columns: 230px 1fr;
+  gap: 10px;
+  min-height: calc(100vh - 51px);
 }
 
 .bakeoff-sidebar {
   background: #f4f1ea;
   border-right: 1px solid #d6cfbf;
-  padding: 16px 12px;
+  padding: 10px 8px;
   overflow-y: auto;
-  max-height: calc(100vh - 70px);
+  max-height: calc(100vh - 51px);
 }
 
 .bakeoff-header {
@@ -1131,7 +1145,7 @@ a {
 .bakeoff-game-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .bakeoff-game-item {
@@ -1139,12 +1153,12 @@ a {
   grid-template-columns: 36px 22px 56px 1fr;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 4px 6px;
   border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 12px;
+  font-size: 11px;
   color: #2c332e;
   text-align: left;
   cursor: pointer;
@@ -1184,21 +1198,66 @@ a {
 }
 
 .bakeoff-replay-area {
-  padding: 16px;
-  overflow-y: auto;
-  max-height: calc(100vh - 70px);
+  padding: 10px;
+  overflow: hidden;
+  max-height: calc(100vh - 51px);
 }
 
 /* Compact replay layout when nested in the bakeoff browser */
 .bakeoff-replay-area .replay-page {
   padding: 0;
   min-height: 0;
-  gap: 16px;
+  gap: 8px;
   align-items: stretch;
 }
 
 .bakeoff-replay-area .replay-layout {
+  gap: 12px;
   max-width: none;
+}
+
+.bakeoff-replay-area .replay-pane {
+  gap: 2px;
+}
+
+.bakeoff-replay-area .replay-pane-name {
+  min-height: 14px;
+  font-size: 11px;
+}
+
+.bakeoff-replay-area .replay-pane-label {
+  font-size: 10px;
+}
+
+.bakeoff-replay-area .replay-pane-status {
+  min-height: 10px;
+  font-size: 9px;
+  margin-top: 0;
+}
+
+.bakeoff-replay-area .replay-board.cg-wrap {
+  max-width: min(26vw, 260px);
+}
+
+.bakeoff-replay-area .replay-controls {
+  gap: 5px;
+}
+
+.bakeoff-replay-area .replay-tools-row {
+  grid-template-columns: minmax(650px, 1.7fr) minmax(330px, 0.8fr);
+  gap: 8px;
+  max-width: none;
+}
+
+.bakeoff-replay-area .replay-button {
+  border-radius: 5px;
+  font-size: 11px;
+  min-width: 32px;
+  padding: 4px 8px;
+}
+
+.bakeoff-replay-area .replay-ply-label {
+  font-size: 11px;
 }
 
 .bakeoff-game-notes {
@@ -1206,6 +1265,17 @@ a {
   font-size: 11px;
   color: #d4a017;
   font-weight: 600;
+}
+
+.bakeoff-belief-warning {
+  margin-top: 10px;
+  border: 1px solid #68442e;
+  border-radius: 4px;
+  background: #241811;
+  color: #d8a06f;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 @media (max-width: 820px) {
@@ -1235,9 +1305,303 @@ a {
   }
 }
 
+/* Belief inspector */
+.belief-panel {
+  margin-top: 0;
+  border: 1px solid #2b3640;
+  border-radius: 6px;
+  background: #14191d;
+  color: #d6dde0;
+  font-size: 11px;
+}
+
+.belief-panel[hidden] {
+  display: none;
+}
+
+.belief-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid #242d34;
+}
+
+.belief-panel-header h2 {
+  margin: 0;
+  color: #edf2f4;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.belief-panel-status {
+  color: #8f9aa3;
+  font-size: 10px;
+  margin-top: 1px;
+}
+
+.belief-seat-select {
+  background: #0f1418;
+  border: 1px solid #33424d;
+  border-radius: 4px;
+  color: #e6ecef;
+  font: inherit;
+  font-size: 11px;
+  min-width: 76px;
+  padding: 3px 5px;
+}
+
+.belief-panel-body {
+  display: grid;
+  grid-template-columns: minmax(168px, 210px) minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+}
+
+.belief-board {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  aspect-ratio: 1;
+  border: 1px solid #29343c;
+  background: #0f1418;
+  min-width: 0;
+}
+
+.belief-square {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(194, 73, 67, var(--opp-alpha, 0)), rgba(194, 73, 67, var(--opp-alpha, 0))),
+    linear-gradient(rgba(73, 139, 176, var(--own-alpha, 0)), rgba(73, 139, 176, var(--own-alpha, 0))),
+    #171e22;
+  box-shadow: inset 0 0 0 1px rgba(214, 221, 224, 0.04);
+  color: #e8eef0;
+  cursor: pointer;
+  font: inherit;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.belief-square:nth-child(16n + 1),
+.belief-square:nth-child(16n + 3),
+.belief-square:nth-child(16n + 5),
+.belief-square:nth-child(16n + 7),
+.belief-square:nth-child(16n + 10),
+.belief-square:nth-child(16n + 12),
+.belief-square:nth-child(16n + 14),
+.belief-square:nth-child(16n + 16) {
+  filter: brightness(1.14);
+}
+
+.belief-square:hover,
+.belief-square.selected {
+  box-shadow: inset 0 0 0 2px #e7c56d;
+}
+
+.belief-square-coord {
+  position: absolute;
+  left: 2px;
+  bottom: 1px;
+  color: rgba(230, 236, 239, 0.48);
+  font-size: 7px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.belief-square-label {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.belief-sidebar {
+  display: grid;
+  grid-template-columns: 190px minmax(180px, 1fr) minmax(150px, 0.85fr);
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.belief-meta,
+.belief-square-detail,
+.belief-clusters {
+  border: 1px solid #242d34;
+  border-radius: 4px;
+  background: #10161a;
+  padding: 6px 7px;
+  min-width: 0;
+}
+
+.belief-metric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #202a31;
+  padding: 2px 0;
+}
+
+.belief-metric:first-child {
+  padding-top: 0;
+}
+
+.belief-metric span,
+.belief-empty {
+  color: #8f9aa3;
+}
+
+.belief-metric strong {
+  color: #eef3f5;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.belief-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.belief-counts span {
+  border: 1px solid #2f3c45;
+  border-radius: 3px;
+  color: #c6d0d5;
+  padding: 1px 4px;
+  font-size: 9px;
+}
+
+.belief-square-detail h3,
+.belief-clusters h3 {
+  margin: 0 0 7px;
+  color: #edf2f4;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.belief-dist-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid #202a31;
+  padding: 2px 0;
+}
+
+.belief-dist-line span:first-child {
+  color: #c9d3d7;
+}
+
+.belief-dist-line span:last-child {
+  color: #eef3f5;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.belief-cluster {
+  border-top: 1px solid #202a31;
+  padding: 3px 0;
+}
+
+.belief-cluster summary {
+  color: #d8e0e4;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.belief-cluster-fen {
+  display: none;
+  margin-top: 4px;
+  color: #8f9aa3;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 8px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.belief-mini-board.cg-wrap {
+  --belief-mini-square: 13px;
+  --belief-mini-board-size: 106px;
+  display: grid;
+  grid-template-columns: repeat(8, var(--belief-mini-square));
+  grid-auto-rows: var(--belief-mini-square);
+  margin-top: 4px;
+  border: 1px solid #29343c;
+  width: var(--belief-mini-board-size);
+  height: var(--belief-mini-board-size);
+  min-width: var(--belief-mini-board-size);
+  min-height: var(--belief-mini-board-size);
+}
+
+.belief-mini-board span {
+  display: grid;
+  place-items: center;
+  width: var(--belief-mini-square);
+  height: var(--belief-mini-square);
+  background: #151d22;
+  box-shadow: inset 0 0 0 1px rgba(214, 221, 224, 0.04);
+  color: #d9e1e4;
+  position: relative;
+}
+
+.belief-mini-board.cg-wrap piece {
+  display: block;
+  position: static;
+  width: 100%;
+  height: 100%;
+  transform: none;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.belief-mini-board span:nth-child(16n + 1),
+.belief-mini-board span:nth-child(16n + 3),
+.belief-mini-board span:nth-child(16n + 5),
+.belief-mini-board span:nth-child(16n + 7),
+.belief-mini-board span:nth-child(16n + 10),
+.belief-mini-board span:nth-child(16n + 12),
+.belief-mini-board span:nth-child(16n + 14),
+.belief-mini-board span:nth-child(16n + 16) {
+  filter: brightness(1.18);
+}
+
+@media (max-width: 1120px) {
+  .belief-sidebar {
+    grid-template-columns: minmax(160px, 0.8fr) minmax(220px, 1fr);
+  }
+
+  .belief-square-detail {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .belief-panel-body {
+    grid-template-columns: 1fr;
+  }
+
+  .belief-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .belief-board {
+    max-width: 240px;
+    width: 100%;
+  }
+}
+
 /* Annotation panel (sits below the replay controls in the bakeoff browser) */
 .annot-panel {
-  margin-top: 12px;
+  margin-top: 0;
   border: 1px solid #2a3329;
   border-radius: 6px;
   background: #161a16;
@@ -1245,6 +1609,79 @@ a {
   font-size: 13px;
   display: flex;
   flex-direction: column;
+}
+
+.bakeoff-replay-area .annot-panel {
+  min-height: 0;
+  overflow: hidden;
+  font-size: 11px;
+}
+
+.bakeoff-replay-area .annot-form {
+  padding: 6px 8px;
+}
+
+.bakeoff-replay-area .annot-form-header {
+  margin-bottom: 5px;
+}
+
+.bakeoff-replay-area .annot-form-row {
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.bakeoff-replay-area .annot-form-row-note {
+  margin-bottom: 0;
+}
+
+.bakeoff-replay-area .annot-form-radios {
+  gap: 5px;
+}
+
+.bakeoff-replay-area .annot-form-radios label,
+.bakeoff-replay-area .annot-form-context,
+.bakeoff-replay-area .annot-panel-item,
+.bakeoff-replay-area .annot-panel-empty {
+  font-size: 11px;
+}
+
+.bakeoff-replay-area .annot-form-input,
+.bakeoff-replay-area .annot-form-note {
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.bakeoff-replay-area .annot-form-input-better {
+  width: 96px;
+}
+
+.bakeoff-replay-area .annot-form-note {
+  min-height: 30px;
+}
+
+.bakeoff-replay-area .annot-form-save {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.bakeoff-replay-area .annot-form-status {
+  margin-top: 4px;
+  min-height: 12px;
+}
+
+.bakeoff-replay-area .annot-panel-list-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 8px;
+}
+
+.bakeoff-replay-area .annot-panel-list-heading {
+  margin-bottom: 4px;
+}
+
+.bakeoff-replay-area .annot-panel-list {
+  gap: 3px;
 }
 
 /* Inline form */

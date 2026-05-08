@@ -1,5 +1,6 @@
 import { mountReplay } from './replay.js';
 import { loadAnnotations, type Annotation } from './annotations.js';
+import { loadBeliefRows, type BeliefRow } from './belief-panel.js';
 
 type ManifestGame = {
   index: number;
@@ -27,6 +28,7 @@ type Manifest = {
   games_total: number;
   games_saved: number;
   save_only: string;
+  verbose_belief?: boolean;
   tier1_record: { wins: number; losses: number; draws: number };
   games: ManifestGame[];
 };
@@ -48,6 +50,20 @@ export async function mountBakeoff(
   // (e.g. "games/game-0021-W-tier1-white.jsonl"). Derive base from the URL.
   const lastSlash = manifestUrl.lastIndexOf('/');
   const baseDir = lastSlash >= 0 ? manifestUrl.slice(0, lastSlash) : '';
+  const beliefRowsByGame = new Map<number, BeliefRow[]>();
+  let beliefLoadError: string | null = null;
+  if (manifest.verbose_belief === true) {
+    try {
+      const rows = await loadBeliefRows(`${baseDir}/belief.jsonl`);
+      for (const row of rows) {
+        const group = beliefRowsByGame.get(row.game_index) ?? [];
+        group.push(row);
+        beliefRowsByGame.set(row.game_index, group);
+      }
+    } catch (err) {
+      beliefLoadError = (err as Error).message;
+    }
+  }
 
   root.replaceChildren();
   root.classList.add('bakeoff-page');
@@ -93,6 +109,12 @@ export async function mountBakeoff(
     <div class="bakeoff-header-meta">eval=${manifest.evaluator} mp=${manifest.max_particles} target_n=${manifest.target_n}</div>
   `;
   sidebar.append(header);
+  if (beliefLoadError) {
+    const warning = document.createElement('div');
+    warning.className = 'bakeoff-belief-warning';
+    warning.textContent = beliefLoadError;
+    sidebar.append(warning);
+  }
 
   const list = document.createElement('div');
   list.className = 'bakeoff-game-list';
@@ -138,6 +160,14 @@ export async function mountBakeoff(
         tier1ColorForSampleId,
         onSaved: () => void refreshAnnotationCounts(),
       },
+      belief: manifest.verbose_belief === true
+        ? {
+            rowsForSampleId(sampleId) {
+              const idx = gameIndexForSampleId(sampleId);
+              return idx === null ? [] : (beliefRowsByGame.get(idx) ?? []);
+            },
+          }
+        : undefined,
     });
   }
 

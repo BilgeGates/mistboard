@@ -149,6 +149,13 @@ def main() -> int:
         "/tmp/move_quality.csv.",
     )
     parser.add_argument(
+        "--verbose-belief",
+        action="store_true",
+        help="When --save-dir is set, write <save-dir>/belief.jsonl with one "
+        "per-Tier-1-ply belief snapshot: marginal piece field, top particle "
+        "clusters, constraint counts, and decision metadata.",
+    )
+    parser.add_argument(
         "--save-only",
         choices=("all", "loss", "loss-or-draw"),
         default="loss-or-draw",
@@ -156,6 +163,8 @@ def main() -> int:
         "(the games worth investigating).",
     )
     args = parser.parse_args()
+    if args.verbose_belief and args.save_dir is None:
+        parser.error("--verbose-belief requires --save-dir")
 
     save_games_dir: Path | None = None
     save_manifest: list[dict] | None = None
@@ -171,6 +180,11 @@ def main() -> int:
     trace_file = (
         (args.save_dir / "trace.jsonl").open("w")
         if args.save_dir is not None
+        else None
+    )
+    belief_file = (
+        (args.save_dir / "belief.jsonl").open("w")
+        if args.save_dir is not None and args.verbose_belief
         else None
     )
 
@@ -254,6 +268,7 @@ def main() -> int:
                 max_eval_particles=args.max_particles,
                 risk_aversion=args.risk_aversion,
                 seed=seed,
+                verbose_belief_capture=args.verbose_belief,
             )
 
         mirror_mode = args.opponent == "tier1"
@@ -353,6 +368,15 @@ def main() -> int:
                         **entry,
                     }
                     trace_file.write(json.dumps(record) + "\n")
+                if belief_file is not None:
+                    for entry in getattr(inner_strategy, "belief_log", []):
+                        record = {
+                            "game_index": i,
+                            "tier1_side": tier1_color,
+                            "tier1_seat": "tier1_a",
+                            **entry,
+                        }
+                        belief_file.write(json.dumps(record) + "\n")
                 # In mirror mode, also dump the opponent Tier-1's trace.
                 if mirror_mode:
                     opp_color = "black" if tier1_white else "white"
@@ -365,7 +389,18 @@ def main() -> int:
                             **entry,
                         }
                         trace_file.write(json.dumps(record) + "\n")
+                    if belief_file is not None:
+                        for entry in getattr(opp_inner, "belief_log", []):
+                            record = {
+                                "game_index": i,
+                                "tier1_side": opp_color,
+                                "tier1_seat": "tier1_b",
+                                **entry,
+                            }
+                            belief_file.write(json.dumps(record) + "\n")
                 trace_file.flush()
+                if belief_file is not None:
+                    belief_file.flush()
             avg_per_move = (
                 tier1.total_seconds / tier1.move_count if tier1.move_count else 0.0
             )
@@ -427,6 +462,7 @@ def main() -> int:
                     "max_particles": args.max_particles,
                     "target_n": args.target_n,
                     "risk_aversion": args.risk_aversion,
+                    "verbose_belief": args.verbose_belief,
                     "threat_lambda": args.threat_lambda,
                     "max_plies": args.max_plies,
                     "base_seed": args.seed,
@@ -448,6 +484,9 @@ def main() -> int:
     if trace_file is not None:
         trace_file.close()
         print(f"trace written to:     {args.save_dir / 'trace.jsonl'}")
+    if belief_file is not None:
+        belief_file.close()
+        print(f"belief written to:    {args.save_dir / 'belief.jsonl'}")
 
     return 0
 

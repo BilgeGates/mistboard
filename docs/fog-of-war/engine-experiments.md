@@ -2,6 +2,10 @@
 
 Engine experiments are the generalized system behind EvE mining, bake-offs, calibration, and regression checks. EvE remains the game mode for engine-vs-engine games; the experiment layer is the provider-neutral orchestration around those games.
 
+The local learning loop is documented in `docs/fog-of-war/engine-lab-loop.md`.
+That loop governs how bake-offs become trace artifacts, annotation queues, and
+next-engine hypotheses before the workflow is promoted into EvE.
+
 ## Use Cases
 
 - Continuous mining: generate EvE games for Engine Lab review and training data.
@@ -29,11 +33,12 @@ Current worker entrypoint:
 ```sh
 npm run engine:enqueue-smoke
 npm run worker:dev
+npm run worker:dev:execute
 ```
 
 By default this is a dry-run claimer: it registers a worker run, claims the next queued task if one exists, releases it without consuming an attempt, and exits. Engine execution is intentionally gated behind `--execute`.
 
-The first execution runner is intentionally simple: `npm run worker:dev -- --execute` plays one claimed Fog of War game with a built-in deterministic random-legal move selector. This is a smoke path for the worker/DB lifecycle, not a production engine identity.
+The first execution runner is intentionally simple: `npm run worker:dev:execute` plays one claimed Fog of War game with a built-in deterministic random-legal move selector. This is a smoke path for the worker/DB lifecycle, not a production engine identity.
 
 ## Data Model
 

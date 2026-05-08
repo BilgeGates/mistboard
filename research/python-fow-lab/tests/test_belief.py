@@ -93,6 +93,49 @@ def test_marginals_sum_to_one_when_belief_is_alive() -> None:
     assert abs(total - 1.0) < 1e-9
 
 
+def test_marginal_piece_field_exposes_sparse_piece_distribution() -> None:
+    knight_f3 = chess.Board()
+    knight_f3.remove_piece_at(chess.G1)
+    knight_f3.set_piece_at(chess.F3, chess.Piece(chess.KNIGHT, chess.WHITE))
+    knight_g1 = chess.Board()
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        particles=[knight_f3, knight_g1],
+        weights=[1.0, 1.0],
+    )
+
+    sparse = belief.marginal_piece_field(min_prob=0.05)
+
+    assert sparse[chess.F3] == [
+        (chess.Piece(chess.KNIGHT, chess.WHITE), 0.5),
+        (None, 0.5),
+    ]
+    assert sparse[chess.G1] == [
+        (chess.Piece(chess.KNIGHT, chess.WHITE), 0.5),
+        (None, 0.5),
+    ]
+
+
+def test_top_k_clusters_are_weighted_and_deterministically_ordered() -> None:
+    e4 = chess.Board()
+    e4.push_uci("e2e4")
+    d4 = chess.Board()
+    d4.push_uci("d2d4")
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        particles=[e4, d4],
+        weights=[1.0, 1.0],
+    )
+
+    clusters = belief.top_k_clusters(k=2)
+
+    assert clusters == sorted(clusters, key=lambda item: (-item[1], item[0]))
+    assert clusters[0][1] == 0.5
+    assert clusters[0][2] == 1
+
+
 def test_stage_a_rollback_when_observation_kills_all_particles() -> None:
     """Stage A's observation filter should fall back to pre-filter particles
     rather than letting belief drop to zero. Construct a belief where the
@@ -155,6 +198,21 @@ def test_register_capture_decrements_count() -> None:
     assert belief.opp_remaining_counts[chess.KNIGHT] == 0
 
 
+def test_register_bishop_capture_decrements_matching_square_color() -> None:
+    belief = BeliefState.initial(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=8,
+    )
+
+    assert belief.opp_bishop_colors_remaining == {True: 1, False: 1}
+
+    belief.register_capture(chess.BISHOP, chess.C8)
+
+    assert belief.opp_remaining_counts[chess.BISHOP] == 1
+    assert belief.opp_bishop_colors_remaining == {True: 0, False: 1}
+
+
 def test_stage_b_constraint_prunes_phantom_pieces() -> None:
     """If we've captured an opp knight, no surviving particle should have 2 opp knights.
 
@@ -197,13 +255,13 @@ def test_stage_b_constraint_prunes_phantom_pieces() -> None:
 
 
 def test_stage_a_reseed_when_step1_wipes_all_particles() -> None:
-    """v0.6.3: when no particle has my_move pseudo-legal, reseed from the
+    """v0.7.0: when no particle has my_move pseudo-legal, reseed from the
     post-move observation rather than collapsing to zero particles.
 
     Construct a contrived case: belief has one particle where the move
     isn't pseudo-legal (a piece is missing from from_square in the
-    particle). With reseed enabled, post-update belief should have one
-    particle reflecting the visible post-move state.
+    particle). With CSP reseed enabled, post-update belief should have
+    particles reflecting the visible post-move state.
     """
     import random
     # Belief seeded with an empty board (no piece on e2). The move e2e4
@@ -226,10 +284,58 @@ def test_stage_a_reseed_when_step1_wipes_all_particles() -> None:
     truth_post.push(move)
     obs = observation_from_transition(truth_pre, truth_post, chess.WHITE)
     belief.update_after_own_move(move, obs)
-    # Reseed produces exactly one particle.
-    assert len(belief.particles) == 1
-    # The reseeded particle reflects the visible post-move state.
-    assert belief.particles[0].piece_at(chess.E4) == chess.Piece(chess.PAWN, chess.WHITE)
+    assert len(belief.particles) == belief.target_n
+    assert belief.last_csp_reseed_fired == 1
+    assert belief.last_csp_reseed_count == belief.target_n
+    # Every reseeded particle reflects the visible post-move state.
+    assert all(
+        particle.piece_at(chess.E4) == chess.Piece(chess.PAWN, chess.WHITE)
+        for particle in belief.particles
+    )
+    assert all(particle.turn == chess.BLACK for particle in belief.particles)
+    for particle in belief.particles:
+        black_counts: dict[chess.PieceType, int] = {}
+        bishop_colors = {True: 0, False: 0}
+        for sq, piece in particle.piece_map().items():
+            if piece.color != chess.BLACK:
+                continue
+            black_counts[piece.piece_type] = black_counts.get(piece.piece_type, 0) + 1
+            if piece.piece_type == chess.BISHOP:
+                bishop_colors[(chess.square_file(sq) + chess.square_rank(sq)) % 2 == 1] += 1
+            if piece.piece_type == chess.PAWN:
+                assert chess.square_rank(sq) not in (0, 7)
+        assert black_counts == belief.opp_remaining_counts
+        assert bishop_colors == belief.opp_bishop_colors_remaining
+
+
+def test_stage_b_csp_reseed_uses_post_opp_side_to_move() -> None:
+    seed = chess.Board()
+    seed.push_uci("e2e4")
+    belief = BeliefState.initial(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=8,
+        start_board=seed,
+    )
+    # Make every ordinary expansion violate the count constraint so Stage B's
+    # old all-expansions rollback is replaced by CSP reseed.
+    belief.opp_remaining_counts[chess.KNIGHT] = 0
+
+    truth = seed.copy()
+    truth.push_uci("d7d5")
+    obs = observation_from_transition(seed, truth, chess.WHITE)
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_csp_reseed_fired == 1
+    assert belief.last_csp_reseed_count == belief.target_n
+    assert all(particle.turn == chess.WHITE for particle in belief.particles)
+    assert all(
+        not any(
+            piece.color == chess.BLACK and piece.piece_type == chess.KNIGHT
+            for piece in particle.piece_map().values()
+        )
+        for particle in belief.particles
+    )
 
 
 def test_stage_b_constraint_pruned_diagnostic_increments() -> None:
