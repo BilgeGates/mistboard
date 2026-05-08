@@ -104,9 +104,16 @@ trace summary, and whether a belief snapshot exists.
 - **Annotations:** turned human review into durable data.
 - **Verbose belief capture:** made hidden-state hypotheses visible enough to
   debug reseeds and collapse recovery.
+- **Review queues:** made bake-off artifacts triageable, so humans review a
+  handful of high-signal moments instead of whole games.
 
-The next process upgrade is an automatic review-queue generator that ranks the
-top moments from `trace.jsonl`, `belief.jsonl`, and `move_quality.csv`.
+The next process upgrade is an annotation replay gate. Annotations that include
+`suggested_move_uci` should become executable checks: replay to the exact ply,
+run the current engine, and report whether it now chooses the suggested move,
+an equivalent move class, or the same rejected behavior.
+
+The current review-queue generator ranks the top moments from `trace.jsonl`,
+`belief.jsonl`, and `move_quality.csv`.
 
 Local command:
 
@@ -116,9 +123,9 @@ Local command:
 
 This writes `review_queue.json` and `review_queue.md` next to the bake-off
 artifacts. The current scorer is intentionally simple and transparent: it ranks
-CSP reseeds, particle drops, low belief diversity, critical tactical decision
-paths, constraint pruning, and late plies in losses/draws. Treat the score as a
-triage priority, not a verdict on the move.
+generic CSP reseeds, particle drops, low belief diversity, critical tactical
+decision paths, constraint pruning, and late plies in losses/draws. Treat the
+score as a triage priority, not a verdict on the move.
 
 Hard-observation contradictions are higher priority than score implies. If a
 belief snapshot shows an impossible own piece, misses a visible opponent piece,

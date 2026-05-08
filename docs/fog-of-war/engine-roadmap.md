@@ -28,4 +28,9 @@ The Belief Particle Engine subtrack is documented in
 state may be uncertain, but it must not contradict hard facts in the observation
 stream.
 
+The longer-term search and synthesis architecture is documented in
+`docs/fog-of-war/engine-architecture-roadmap.md`. It treats move selection as a
+hybrid system: belief generation, parallel analysis workers, an explicit
+synthesis layer, and annotation-driven regression gates.
+
 Internal compute budgets, training plans, research bets, and platform strategy belong outside the public repository.
