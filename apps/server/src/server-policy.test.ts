@@ -10,6 +10,7 @@ import {
   isAllowedWebSocketOrigin,
   isDatabaseRequired,
   recordMessageTimestamp,
+  seatTokenFromProtocolHeader,
   type RuntimeEnv,
 } from './server-policy.js';
 
@@ -127,6 +128,18 @@ test('admin debug token can be read from a websocket subprotocol header', () => 
     'secret-admin-token',
   );
   assert.equal(adminDebugTokenFromProtocolHeader('foo, bar'), undefined);
+});
+
+test('seat token can be read from a websocket subprotocol header', () => {
+  assert.equal(
+    seatTokenFromProtocolHeader('foo, bichess-seat.seat-token-123, bar'),
+    'seat-token-123',
+  );
+  assert.equal(
+    seatTokenFromProtocolHeader(['foo', 'bichess-seat.seat-token-456']),
+    'seat-token-456',
+  );
+  assert.equal(seatTokenFromProtocolHeader('foo, bar'), undefined);
 });
 
 test('production websocket origin defaults to https host and supports explicit allowlist', () => {

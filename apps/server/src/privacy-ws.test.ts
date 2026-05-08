@@ -10,9 +10,11 @@ import type { Color, GameEvent, Move, PlayerView } from '@bichess/game';
 
 type SnapshotMessage = {
   type: 'hello' | 'snapshot';
+  clientId?: string;
   events: GameEvent[];
   mode?: 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
   seat: Color | 'spectator';
+  seatToken?: string;
   state: PlayerView;
 };
 
@@ -32,6 +34,88 @@ test('live PvP third client is rejected before any snapshot', async (t) => {
   clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
 
   const rejected = await connectForClose(port, `room=${room}&client=third-client-0001`);
+
+  assert.equal(rejected.code, 1008);
+  assert.equal(rejected.reason, 'private room');
+  assert.deepEqual(rejected.messages, []);
+});
+
+test('seated clients receive seat tokens only in hello payloads', async (t) => {
+  const { port } = await startServer(t);
+  const clients: TestClient[] = [];
+  t.after(async () => closeClients(clients));
+
+  const room = `ws-token-${Date.now()}`;
+  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
+  clients.push(white);
+  const hello = white.messages[0];
+  assert.equal(hello?.seat, 'white');
+  assert.match(hello?.seatToken ?? '', /^[a-zA-Z0-9_-]{32,128}$/);
+
+  const snapshot = await waitForMessage(
+    white.messages,
+    (message) => message.type === 'snapshot',
+    'token-free snapshot',
+  );
+  assert.equal('seatToken' in snapshot, false);
+});
+
+test('valid seat token reclaims a seat and displaces the older socket', async (t) => {
+  const { port } = await startServer(t);
+  const clients: TestClient[] = [];
+  t.after(async () => closeClients(clients));
+
+  const room = `ws-reclaim-${Date.now()}`;
+  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
+  const token = white.messages[0]?.seatToken;
+  assert.ok(token);
+  clients.push(white);
+
+  const black = await connectForHello(port, `room=${room}&client=black-client-0001`);
+  clients.push(black);
+  await waitForMessage(
+    white.messages,
+    (message) => message.state.status.type === 'playing'
+      && message.state.status.turn === 'white'
+      && message.state.legalMoves.length > 0,
+    'initial white turn',
+  );
+
+  const oldWhiteClosed = waitForSocketClose(white.socket);
+  const replacement = await connectForHello(
+    port,
+    `room=${room}&client=white-replacement-0001`,
+    { seatToken: token },
+  );
+  clients.push(replacement);
+
+  const closed = await oldWhiteClosed;
+  assert.equal(closed.code, 4000);
+  assert.equal(closed.reason, 'duplicate session');
+  assert.equal(replacement.messages[0]?.seat, 'white');
+  assert.equal(replacement.messages[0]?.clientId, 'white-replacement-0001');
+  assert.equal(replacement.messages[0]?.seatToken, undefined);
+
+  const move = firstLegalMove(replacement.messages[0]);
+  replacement.socket.send(JSON.stringify({ type: 'move', ...move }));
+  await waitForMessage(
+    black.messages,
+    (message) => message.state.status.type === 'playing'
+      && message.state.status.turn === 'black',
+    'replacement move accepted',
+  );
+});
+
+test('copied client id without a seat token cannot reclaim a private PvP seat', async (t) => {
+  const { port } = await startServer(t);
+  const clients: TestClient[] = [];
+  t.after(async () => closeClients(clients));
+
+  const room = `ws-token-required-${Date.now()}`;
+  clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
+  clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
+
+  const rejected = await connectForClose(port, `room=${room}&client=white-client-0001`);
 
   assert.equal(rejected.code, 1008);
   assert.equal(rejected.reason, 'private room');
@@ -197,8 +281,9 @@ function stopServer(child: ServerProcess): Promise<void> {
   });
 }
 
-function connectForHello(port: number, query: string): Promise<TestClient> {
-  const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`);
+function connectForHello(port: number, query: string, options: { seatToken?: string } = {}): Promise<TestClient> {
+  const protocols = options.seatToken ? [`bichess-seat.${options.seatToken}`] : undefined;
+  const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`, protocols);
   const messages: SnapshotMessage[] = [];
   socket.on('message', (raw) => {
     const message = JSON.parse(String(raw)) as SnapshotMessage;
@@ -237,6 +322,14 @@ function connectForClose(port: number, query: string): Promise<{ code: number; m
     socket.once('close', (code, reason) => {
       clearTimeout(timeout);
       resolve({ code, messages, reason: reason.toString('utf8') });
+    });
+  });
+}
+
+function waitForSocketClose(socket: WebSocket): Promise<{ code: number; reason: string }> {
+  return new Promise((resolve) => {
+    socket.once('close', (code, reason) => {
+      resolve({ code, reason: reason.toString('utf8') });
     });
   });
 }

@@ -12,8 +12,12 @@ import {
   isInitialized,
   listActiveRoomIds,
   loadRoom,
+  loadRoomSeatTokens,
   listRecentEveGames,
   recordGameEnd,
+  replaceRoomSeatTokens,
+  touchRoomSeatToken,
+  upsertRoomSeatToken,
 } from './persistence.js';
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -43,6 +47,7 @@ if (!TEST_DATABASE_URL) {
     try {
       await client.query(
         `TRUNCATE
+           room_seat_tokens,
            game_debug_artifacts,
            eve_games,
            engine_game_tasks,
@@ -142,6 +147,68 @@ if (!TEST_DATABASE_URL) {
 
     assert.deepEqual(await loadRoom('room-a'), [eventA]);
     assert.deepEqual(await loadRoom('room-b'), [eventB]);
+  });
+
+  test('room seat tokens persist only token hashes and seat metadata', async () => {
+    const issuedAt = new Date('2026-05-08T10:00:00.000Z');
+    const lastSeenAt = new Date('2026-05-08T10:00:01.000Z');
+    await upsertRoomSeatToken('token-room', {
+      seat: 'white',
+      clientId: 'white-client',
+      tokenHash: 'hash-white',
+      issuedAt,
+      lastSeenAt,
+      revokedAt: null,
+    });
+
+    assert.deepEqual(await loadRoomSeatTokens('token-room'), {
+      white: {
+        seat: 'white',
+        clientId: 'white-client',
+        tokenHash: 'hash-white',
+        issuedAt,
+        lastSeenAt,
+        revokedAt: null,
+      },
+    });
+  });
+
+  test('room seat token last seen and replacement are durable', async () => {
+    const issuedAt = new Date('2026-05-08T10:00:00.000Z');
+    await upsertRoomSeatToken('replace-token-room', {
+      seat: 'white',
+      clientId: 'white-client',
+      tokenHash: 'hash-white',
+      issuedAt,
+      lastSeenAt: issuedAt,
+      revokedAt: null,
+    });
+
+    const touchedAt = new Date('2026-05-08T10:05:00.000Z');
+    await touchRoomSeatToken('replace-token-room', 'white', 'hash-white', touchedAt);
+    assert.equal((await loadRoomSeatTokens('replace-token-room')).white?.lastSeenAt.getTime(), touchedAt.getTime());
+
+    await replaceRoomSeatTokens('replace-token-room', {
+      black: {
+        seat: 'black',
+        clientId: 'white-client',
+        tokenHash: 'hash-white',
+        issuedAt,
+        lastSeenAt: touchedAt,
+        revokedAt: null,
+      },
+    });
+
+    assert.deepEqual(await loadRoomSeatTokens('replace-token-room'), {
+      black: {
+        seat: 'black',
+        clientId: 'white-client',
+        tokenHash: 'hash-white',
+        issuedAt,
+        lastSeenAt: touchedAt,
+        revokedAt: null,
+      },
+    });
   });
 
   test('listActiveRoomIds excludes finished games', async () => {

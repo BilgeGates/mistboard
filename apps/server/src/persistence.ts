@@ -1,5 +1,5 @@
 import pg from 'pg';
-import type { GameEvent } from '@bichess/game';
+import type { Color, GameEvent } from '@bichess/game';
 
 let pool: pg.Pool | null = null;
 
@@ -55,6 +55,15 @@ export type RecentEveGameRecord = GameRecord & {
   timeControl: Record<string, unknown> | null;
 };
 
+export type RoomSeatTokenRecord = {
+  seat: Color;
+  clientId: string;
+  tokenHash: string;
+  issuedAt: Date;
+  lastSeenAt: Date;
+  revokedAt: Date | null;
+};
+
 export function init(connectionString: string): void {
   if (pool) throw new Error('persistence already initialized');
   pool = new pg.Pool({ connectionString, max: 10 });
@@ -84,6 +93,111 @@ export async function appendEvent(roomId: string, seq: number, event: GameEvent)
     'INSERT INTO events (room_id, seq, type, payload) VALUES ($1, $2, $3, $4)',
     [roomId, seq, event.type, event],
   );
+}
+
+export async function loadRoomSeatTokens(roomId: string): Promise<Partial<Record<Color, RoomSeatTokenRecord>>> {
+  const { rows } = await getPool().query<{
+    seat: Color;
+    client_id: string;
+    token_hash: string;
+    issued_at: Date;
+    last_seen_at: Date;
+    revoked_at: Date | null;
+  }>(
+    `SELECT seat, client_id, token_hash, issued_at, last_seen_at, revoked_at
+     FROM room_seat_tokens
+     WHERE room_id = $1
+       AND revoked_at IS NULL`,
+    [roomId],
+  );
+  const tokens: Partial<Record<Color, RoomSeatTokenRecord>> = {};
+  for (const row of rows) {
+    tokens[row.seat] = {
+      seat: row.seat,
+      clientId: row.client_id,
+      tokenHash: row.token_hash,
+      issuedAt: row.issued_at,
+      lastSeenAt: row.last_seen_at,
+      revokedAt: row.revoked_at,
+    };
+  }
+  return tokens;
+}
+
+export async function upsertRoomSeatToken(
+  roomId: string,
+  token: Omit<RoomSeatTokenRecord, 'issuedAt' | 'lastSeenAt' | 'revokedAt'> & {
+    issuedAt: Date;
+    lastSeenAt: Date;
+    revokedAt?: Date | null;
+  },
+): Promise<void> {
+  await getPool().query(
+    `INSERT INTO room_seat_tokens
+       (room_id, seat, client_id, token_hash, issued_at, last_seen_at, revoked_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (room_id, seat) DO UPDATE SET
+       client_id = EXCLUDED.client_id,
+       token_hash = EXCLUDED.token_hash,
+       issued_at = EXCLUDED.issued_at,
+       last_seen_at = EXCLUDED.last_seen_at,
+       revoked_at = EXCLUDED.revoked_at`,
+    [
+      roomId,
+      token.seat,
+      token.clientId,
+      token.tokenHash,
+      token.issuedAt,
+      token.lastSeenAt,
+      token.revokedAt ?? null,
+    ],
+  );
+}
+
+export async function touchRoomSeatToken(roomId: string, seat: Color, tokenHash: string, at: Date): Promise<void> {
+  await getPool().query(
+    `UPDATE room_seat_tokens
+     SET last_seen_at = $4
+     WHERE room_id = $1
+       AND seat = $2
+       AND token_hash = $3
+       AND revoked_at IS NULL`,
+    [roomId, seat, tokenHash, at],
+  );
+}
+
+export async function replaceRoomSeatTokens(
+  roomId: string,
+  tokens: Partial<Record<Color, RoomSeatTokenRecord>>,
+): Promise<void> {
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM room_seat_tokens WHERE room_id = $1', [roomId]);
+    for (const token of Object.values(tokens)) {
+      if (!token || token.revokedAt) continue;
+      await client.query(
+        `INSERT INTO room_seat_tokens
+           (room_id, seat, client_id, token_hash, issued_at, last_seen_at, revoked_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          roomId,
+          token.seat,
+          token.clientId,
+          token.tokenHash,
+          token.issuedAt,
+          token.lastSeenAt,
+          token.revokedAt,
+        ],
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export async function listActiveRoomIds(since: Date): Promise<string[]> {

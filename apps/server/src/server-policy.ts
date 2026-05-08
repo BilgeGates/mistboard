@@ -102,9 +102,16 @@ function redactLivePveEvents(events: GameEvent[], projection: GameProjection): G
 }
 
 export function adminDebugTokenFromProtocolHeader(value: string | string[] | undefined): string | undefined {
+  return tokenFromProtocolHeader(value, 'bichess-admin-debug.');
+}
+
+export function seatTokenFromProtocolHeader(value: string | string[] | undefined): string | undefined {
+  return tokenFromProtocolHeader(value, 'bichess-seat.');
+}
+
+function tokenFromProtocolHeader(value: string | string[] | undefined, prefix: string): string | undefined {
   const header = Array.isArray(value) ? value.join(',') : value;
   if (!header) return undefined;
-  const prefix = 'bichess-admin-debug.';
   return header.split(',')
     .map((part) => part.trim())
     .find((part) => part.startsWith(prefix))

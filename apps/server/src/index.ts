@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { randomInt, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
@@ -31,12 +31,14 @@ import {
   canObserveLiveRoom,
   eventReplayResponse,
   isAdminDebugToken,
+  isServerEngineClient,
   isAllowedWebSocketOrigin,
   isDatabaseRequired,
   isProductionLikeRuntime,
   modeForProjection,
   parsePositiveInteger,
   recordMessageTimestamp,
+  seatTokenFromProtocolHeader,
 } from './server-policy.js';
 
 type Client = {
@@ -47,7 +49,24 @@ type Client = {
   socket: WebSocket;
   roomId: string;
   seat: Seat;
+  seatTokenHash?: string;
+  displaced: boolean;
   solo: boolean;
+};
+
+type SeatTokenState = {
+  clientId: string;
+  seat: Color;
+  tokenHash: string;
+  issuedAt: Date;
+  lastSeenAt: Date;
+  revokedAt: Date | null;
+};
+
+type SeatAssignment = {
+  seat: Seat;
+  seatToken?: string;
+  seatTokenHash?: string;
 };
 
 type Room = {
@@ -55,6 +74,7 @@ type Room = {
   clients: Set<Client>;
   events: GameEvent[];
   projection: GameProjection;
+  seatTokens: Partial<Record<Color, SeatTokenState>>;
   clockTimer: ReturnType<typeof setTimeout> | null;
   mode: persistence.GameMode;
   randomEngine: boolean;
@@ -305,7 +325,9 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const room = await getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
   if (randomEngine) await enableRandomEngine(room);
   const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
-  const seat = solo ? 'spectator' : await assignSeat(room, clientId);
+  const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
+  const assignment = solo ? { seat: 'spectator' } satisfies SeatAssignment : await assignSeat(room, clientId, seatToken);
+  const seat = assignment.seat;
   if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection, room.mode)) {
     socket.close(1008, 'private room');
     return;
@@ -318,9 +340,12 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     socket,
     roomId,
     seat,
+    seatTokenHash: assignment.seatTokenHash,
+    displaced: false,
     solo,
   };
   room.clients.add(client);
+  if (!solo && seat !== 'spectator') displaceOlderSeatClients(room, client);
 
   const snapshot = snapshotPayload(room, client);
   send(client, {
@@ -328,6 +353,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     type: 'hello',
     clientId: client.id,
     offer: room.projection.offer,
+    ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
   broadcastSnapshot(room);
 
@@ -378,6 +404,10 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
 
 async function handleClose(room: Room, client: Client): Promise<void> {
   room.clients.delete(client);
+  if (client.displaced) {
+    broadcastSnapshot(room);
+    return;
+  }
   const beforeFirstMove = room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined;
   const clockStarted = room.projection.state.clock !== undefined;
   if (
@@ -442,11 +472,15 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
   }
 
   const projection = replayGameEvents(events);
+  const seatTokens = persistence.isInitialized()
+    ? seatTokenStatesFromPersistence(await persistence.loadRoomSeatTokens(roomId))
+    : {};
   const room: Room = {
     id: roomId,
     clients: new Set(),
     events,
     projection,
+    seatTokens,
     clockTimer: null,
     mode: modeForProjection(projection),
     randomEngine: projection.seats.black === 'random-engine',
@@ -499,6 +533,7 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
       clients: new Set(),
       events,
       projection,
+      seatTokens: {},
       clockTimer: null,
       mode,
       randomEngine: mode === 'pve',
@@ -512,14 +547,24 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
   throw new Error('room_id_collision');
 }
 
-async function assignSeat(room: Room, clientId: string): Promise<Seat> {
+async function assignSeat(room: Room, clientId: string, suppliedSeatToken: string | undefined): Promise<SeatAssignment> {
+  const tokenSeat = verifySeatToken(room, suppliedSeatToken);
+  if (tokenSeat) {
+    tokenSeat.lastSeenAt = new Date();
+    await touchSeatToken(room, tokenSeat);
+    await startLiveClockIfReady(room);
+    return {
+      seat: tokenSeat.seat,
+      seatTokenHash: tokenSeat.tokenHash,
+    };
+  }
   if (room.projection.seats.white === clientId) {
     await startLiveClockIfReady(room);
-    return 'white';
+    return await existingSeatAssignment(room, 'white', clientId);
   }
   if (room.projection.seats.black === clientId) {
     await startLiveClockIfReady(room);
-    return 'black';
+    return await existingSeatAssignment(room, 'black', clientId);
   }
   if (!room.projection.seats.white) {
     await appendEvent(room, {
@@ -530,7 +575,7 @@ async function assignSeat(room: Room, clientId: string): Promise<Seat> {
       seat: 'white',
     });
     await startLiveClockIfReady(room);
-    return 'white';
+    return await newSeatAssignment(room, 'white', clientId);
   }
   if (!room.projection.seats.black) {
     await appendEvent(room, {
@@ -541,9 +586,88 @@ async function assignSeat(room: Room, clientId: string): Promise<Seat> {
       seat: 'black',
     });
     await startLiveClockIfReady(room);
-    return 'black';
+    return await newSeatAssignment(room, 'black', clientId);
   }
-  return 'spectator';
+  return { seat: 'spectator' };
+}
+
+async function existingSeatAssignment(room: Room, seat: Color, clientId: string): Promise<SeatAssignment> {
+  const existing = room.seatTokens[seat];
+  if (existing) {
+    return { seat: 'spectator' };
+  }
+  return newSeatAssignment(room, seat, clientId);
+}
+
+async function newSeatAssignment(room: Room, seat: Color, clientId: string): Promise<SeatAssignment> {
+  if (isServerEngineClient(clientId)) return { seat };
+  const rawToken = randomBytes(32).toString('base64url');
+  const tokenHash = hashSeatToken(rawToken);
+  const now = new Date();
+  const tokenState: SeatTokenState = {
+    clientId,
+    seat,
+    tokenHash,
+    issuedAt: now,
+    lastSeenAt: now,
+    revokedAt: null,
+  };
+  await persistSeatToken(room, tokenState);
+  room.seatTokens[seat] = tokenState;
+  return {
+    seat,
+    seatToken: rawToken,
+    seatTokenHash: tokenHash,
+  };
+}
+
+function verifySeatToken(room: Room, suppliedSeatToken: string | undefined): SeatTokenState | null {
+  if (!suppliedSeatToken) return null;
+  const tokenHash = hashSeatToken(suppliedSeatToken);
+  const supplied = Buffer.from(tokenHash, 'hex');
+  for (const state of Object.values(room.seatTokens)) {
+    if (!state) continue;
+    const expected = Buffer.from(state.tokenHash, 'hex');
+    if (expected.length === supplied.length && timingSafeEqual(expected, supplied)) {
+      return state;
+    }
+  }
+  return null;
+}
+
+function hashSeatToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function displaceOlderSeatClients(room: Room, replacement: Client): void {
+  for (const client of room.clients) {
+    if (client === replacement) continue;
+    if (client.seat !== replacement.seat) continue;
+    if (client.seat === 'spectator') continue;
+    if (!sameSeatAuthority(client, replacement)) continue;
+    client.displaced = true;
+    try {
+      client.socket.close(4000, 'duplicate session');
+    } catch {
+      // The close handler will clear already-closed sockets.
+    }
+  }
+}
+
+function sameSeatAuthority(left: Client, right: Client): boolean {
+  if (left.seat !== right.seat) return false;
+  if (left.seat === 'spectator') return false;
+  if (left.seatTokenHash && right.seatTokenHash) return left.seatTokenHash === right.seatTokenHash;
+  return isServerEngineClient(left.id) && left.id === right.id;
+}
+
+function canClientAct(room: Room, client: Client): boolean {
+  if (client.solo) return true;
+  if (client.displaced) return false;
+  if (client.seat === 'spectator') return false;
+  if (isServerEngineClient(client.id)) return room.projection.seats[client.seat] === client.id;
+  const token = room.seatTokens[client.seat];
+  return token !== undefined && token.tokenHash === client.seatTokenHash;
 }
 
 async function enableRandomEngine(room: Room): Promise<void> {
@@ -560,6 +684,7 @@ async function enableRandomEngine(room: Room): Promise<void> {
 }
 
 async function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): Promise<void> {
+  if (!canClientAct(room, client)) return;
   const selectionColor = client.solo && isColor(color) ? color : client.seat;
   if (selectionColor === 'spectator') return;
   if (room.projection.state.status.type !== 'pregame') return;
@@ -578,6 +703,7 @@ async function selectStart(room: Room, client: Client, startId: number | undefin
 }
 
 async function submitBid(room: Room, client: Client, bidMs: number | undefined, color: string | undefined): Promise<void> {
+  if (!canClientAct(room, client)) return;
   if (room.projection.variant !== 'bid-for-white') return;
   if (room.projection.state.status.type !== 'pregame') return;
 
@@ -602,6 +728,7 @@ async function playMove(room: Room, client: Client, move: ClientMoveMessage): Pr
   if (room.projection.state.status.type !== 'playing') return;
   const now = Date.now();
   const moveColor = room.projection.state.status.turn;
+  if (!canClientAct(room, client)) return;
   if (!client.solo && (client.seat === 'spectator' || moveColor !== client.seat)) return;
   if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, moveColor, now) <= 0) {
     await expireActiveClock(room, moveColor, now);
@@ -731,13 +858,96 @@ async function resolveBidIfReady(room: Room): Promise<void> {
     whiteSeat,
     winningBidMs,
   });
-  reconcileClientSeats(room);
+  await reconcileClientSeats(room);
 }
 
-function reconcileClientSeats(room: Room): void {
+async function reconcileClientSeats(room: Room): Promise<void> {
+  const nextTokens = reconciledSeatTokens(room);
+  await replaceSeatTokens(room, nextTokens);
+  room.seatTokens = nextTokens;
   for (const client of room.clients) {
     if (room.projection.seats.white === client.id) client.seat = 'white';
     if (room.projection.seats.black === client.id) client.seat = 'black';
+  }
+}
+
+function reconciledSeatTokens(room: Room): Partial<Record<Color, SeatTokenState>> {
+  const tokenByClientId = new Map<string, SeatTokenState>();
+  for (const token of Object.values(room.seatTokens)) {
+    if (token) tokenByClientId.set(token.clientId, token);
+  }
+
+  const nextTokens: Partial<Record<Color, SeatTokenState>> = {};
+  for (const seat of ['white', 'black'] as const) {
+    const clientId = room.projection.seats[seat];
+    if (!clientId) continue;
+    const token = tokenByClientId.get(clientId);
+    if (!token) continue;
+    nextTokens[seat] = { ...token, seat };
+  }
+  return nextTokens;
+}
+
+function seatTokenStatesFromPersistence(
+  tokens: Partial<Record<Color, persistence.RoomSeatTokenRecord>>,
+): Partial<Record<Color, SeatTokenState>> {
+  const states: Partial<Record<Color, SeatTokenState>> = {};
+  for (const token of Object.values(tokens)) {
+    if (!token || token.revokedAt) continue;
+    states[token.seat] = {
+      clientId: token.clientId,
+      seat: token.seat,
+      tokenHash: token.tokenHash,
+      issuedAt: token.issuedAt,
+      lastSeenAt: token.lastSeenAt,
+      revokedAt: token.revokedAt,
+    };
+  }
+  return states;
+}
+
+function persistenceRecordForSeatToken(token: SeatTokenState): persistence.RoomSeatTokenRecord {
+  return {
+    seat: token.seat,
+    clientId: token.clientId,
+    tokenHash: token.tokenHash,
+    issuedAt: token.issuedAt,
+    lastSeenAt: token.lastSeenAt,
+    revokedAt: token.revokedAt,
+  };
+}
+
+async function persistSeatToken(room: Room, token: SeatTokenState): Promise<void> {
+  if (!persistence.isInitialized()) return;
+  try {
+    await persistence.upsertRoomSeatToken(room.id, persistenceRecordForSeatToken(token));
+  } catch (err) {
+    recordSeatTokenPersistenceError(room.id, token.seat, err as Error);
+    throw new PersistenceFailure();
+  }
+}
+
+async function touchSeatToken(room: Room, token: SeatTokenState): Promise<void> {
+  if (!persistence.isInitialized()) return;
+  try {
+    await persistence.touchRoomSeatToken(room.id, token.seat, token.tokenHash, token.lastSeenAt);
+  } catch (err) {
+    recordSeatTokenPersistenceError(room.id, token.seat, err as Error);
+    throw new PersistenceFailure();
+  }
+}
+
+async function replaceSeatTokens(room: Room, seatTokens: Partial<Record<Color, SeatTokenState>>): Promise<void> {
+  if (!persistence.isInitialized()) return;
+  try {
+    const tokens: Partial<Record<Color, persistence.RoomSeatTokenRecord>> = {};
+    for (const token of Object.values(seatTokens)) {
+      if (token) tokens[token.seat] = persistenceRecordForSeatToken(token);
+    }
+    await persistence.replaceRoomSeatTokens(room.id, tokens);
+  } catch (err) {
+    recordSeatTokenPersistenceError(room.id, null, err as Error);
+    throw new PersistenceFailure();
   }
 }
 
@@ -838,6 +1048,17 @@ function recordPersistenceError(roomId: string, seq: number, event: GameEvent, e
     eventType: event.type,
     error: err.message,
     at: entry.at,
+  }));
+}
+
+function recordSeatTokenPersistenceError(roomId: string, seat: Color | null, err: Error): void {
+  console.error(JSON.stringify({
+    level: 'error',
+    kind: 'seat_token_persistence_failure',
+    roomId,
+    seat,
+    error: err.message,
+    at: Date.now(),
   }));
 }
 

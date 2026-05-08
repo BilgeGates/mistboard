@@ -22,7 +22,7 @@ import './styles.css';
 
 type Seat = Color | 'spectator';
 type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
-type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'displaced';
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
 type PendingPromotion = {
   color: Color;
@@ -49,6 +49,10 @@ type DebugSnapshot = {
   solo: boolean;
   state: PlayerView | null;
 };
+type StoredSeatToken = {
+  seat: Color;
+  token: string;
+};
 
 declare global {
   interface Window {
@@ -65,6 +69,7 @@ type ServerMessage =
     roomId: string;
     serverAt?: number;
     seat: Seat;
+    seatToken?: string;
     solo: boolean;
     offer: Chess960Start[];
     bids: Partial<Record<Color, number>>;
@@ -113,6 +118,7 @@ const debugRequested = engineRequested || allViewsRequested;
 const variantRequested = pageParams.get('variant');
 if (pageParams.get('reset') === '1') {
   socketParams.set('reset', '1');
+  clearSeatTokenForRoom(room);
   pageParams.delete('reset');
   const nextSearch = pageParams.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
@@ -168,7 +174,7 @@ function connectSocket(): void {
   connectionState = clientId ? 'reconnecting' : 'connecting';
   render();
 
-  const nextSocket = new WebSocket(socketUrl);
+  const nextSocket = connectWebSocket();
   socket = nextSocket;
   nextSocket.addEventListener('message', handleSocketMessage);
   nextSocket.addEventListener('open', () => {
@@ -177,8 +183,14 @@ function connectSocket(): void {
     connectionState = 'connected';
     render();
   });
-  nextSocket.addEventListener('close', () => {
+  nextSocket.addEventListener('close', (event) => {
     if (socket !== nextSocket) return;
+    if (event.code === 4000 && event.reason === 'duplicate session') {
+      connectionState = 'displaced';
+      socket = null;
+      render();
+      return;
+    }
     connectionState = 'disconnected';
     render();
     scheduleReconnect();
@@ -188,6 +200,12 @@ function connectSocket(): void {
     connectionState = 'disconnected';
     render();
   });
+}
+
+function connectWebSocket(): WebSocket {
+  const token = seatTokenForRoom(room);
+  if (!token) return new WebSocket(socketUrl);
+  return new WebSocket(socketUrl, [`bichess-seat.${token}`]);
 }
 
 function handleSocketMessage(event: MessageEvent<string>): void {
@@ -200,6 +218,9 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   lastSnapshotAt = Date.now();
   if (message.type === 'hello') {
     clientId = message.clientId;
+    if (message.seatToken && isColor(message.seat)) {
+      writeSeatTokenForRoom(room, { seat: message.seat, token: message.seatToken });
+    }
     clientCount = message.clients;
     connectionState = 'connected';
     roomMode = message.mode ?? roomMode;
@@ -233,6 +254,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
 }
 
 function scheduleReconnect(): void {
+  if (connectionState === 'displaced') return;
   if (reconnectTimer) return;
   reconnectAttempt += 1;
   const delay = Math.min(10_000, 750 * 2 ** Math.min(reconnectAttempt - 1, 4));
@@ -242,11 +264,13 @@ function scheduleReconnect(): void {
 }
 
 function reconnectNow(): void {
+  if (connectionState === 'displaced') return;
   reconnectAttempt = 0;
   connectSocket();
 }
 
 function sendSocket(payload: unknown): boolean {
+  if (connectionState === 'displaced') return false;
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     connectionState = 'reconnecting';
     scheduleReconnect();
@@ -1081,6 +1105,7 @@ function replayMetaLabel(): string {
 }
 
 function actionTone(view: PlayerView | null): InfoTone {
+  if (connectionState === 'displaced') return 'danger';
   if (connectionState === 'disconnected') return 'danger';
   if (!view || connectionState === 'connecting' || connectionState === 'reconnecting') return 'pending';
   if (view.status.type === 'finished') return 'success';
@@ -1091,6 +1116,7 @@ function actionTone(view: PlayerView | null): InfoTone {
 }
 
 function actionTitle(view: PlayerView | null): string {
+  if (connectionState === 'displaced') return 'Session moved';
   if (connectionState === 'disconnected' || connectionState === 'reconnecting') return 'Reconnecting';
   if (!view || connectionState === 'connecting') return 'Connecting';
   if (view.status.type === 'finished') return resultTitle(view.status.winner);
@@ -1102,6 +1128,7 @@ function actionTitle(view: PlayerView | null): string {
 }
 
 function actionBody(view: PlayerView | null): string {
+  if (connectionState === 'displaced') return 'A newer tab is now controlling this seat.';
   if (connectionState === 'disconnected') return 'The socket closed. Bichess will retry automatically.';
   if (connectionState === 'reconnecting') return 'Trying to restore your room state and seat.';
   if (!view || connectionState === 'connecting') return 'Opening the room and loading the current server state.';
@@ -1158,6 +1185,7 @@ function timeControlLabel(view: PlayerView | null): string {
 }
 
 function connectionLabel(): string {
+  if (connectionState === 'displaced') return 'Session moved';
   if (connectionState === 'connected' && latencyMs !== null) return `Connected · ${latencyMs}ms`;
   if (connectionState === 'reconnecting') return `Reconnecting · attempt ${reconnectAttempt}`;
   return capitalize(connectionState);
@@ -1223,6 +1251,10 @@ function oppositeColor(color: Color): Color {
   return color === 'white' ? 'black' : 'white';
 }
 
+function isColor(value: unknown): value is Color {
+  return value === 'white' || value === 'black';
+}
+
 function selectionLabel(startId: number | null | undefined): string {
   return startId === null || startId === undefined ? 'none' : `#${startId}`;
 }
@@ -1275,6 +1307,36 @@ function clientIdForRoom(roomId: string): string {
   return next;
 }
 
+function seatTokenForRoom(roomId: string): string | null {
+  const stored = readSeatTokenForRoom(roomId);
+  return stored?.token ?? null;
+}
+
+function readSeatTokenForRoom(roomId: string): StoredSeatToken | null {
+  const raw = readLocalStorage(`bichess.seatToken.${roomId}`);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredSeatToken>;
+    if (!isColor(parsed.seat)) return null;
+    if (typeof parsed.token !== 'string' || !/^[a-zA-Z0-9_-]{32,128}$/.test(parsed.token)) return null;
+    return { seat: parsed.seat, token: parsed.token };
+  } catch {
+    return null;
+  }
+}
+
+function writeSeatTokenForRoom(roomId: string, token: StoredSeatToken): void {
+  writeLocalStorage(`bichess.seatToken.${roomId}`, JSON.stringify(token));
+}
+
+function clearSeatTokenForRoom(roomId: string): void {
+  try {
+    window.localStorage.removeItem(`bichess.seatToken.${roomId}`);
+  } catch {
+    // Storage may be unavailable; reset still proceeds server-side.
+  }
+}
+
 function readLocalStorage(key: string): string | null {
   try {
     return window.localStorage.getItem(key);
@@ -1309,6 +1371,7 @@ async function copyShareLink(input: HTMLInputElement): Promise<void> {
 }
 
 function boardStatusLabel(): string {
+  if (connectionState === 'displaced') return 'Session moved';
   if (connectionState === 'disconnected' || connectionState === 'reconnecting') return 'Reconnecting';
   return clientId ? 'Waiting for board' : 'Connecting';
 }
