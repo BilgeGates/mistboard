@@ -36,7 +36,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.append(buildNav(), buildHero(source), demo.el, buildFooter());
   if (games.length === 0) {
     demo.replayRoot.textContent = 'No games available yet.';
-    renderRecentGames(demo.listRoot, games, source);
+    renderRecentGames(demo.listRoot, games, source, undefined, '/game/', 'Now showing');
     return;
   }
 
@@ -59,7 +59,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     loaderForId: apiEventLoader,
     metadataByRoomId,
   });
-  renderRecentGames(demo.listRoot, games, source, currentSample);
+  renderRecentGames(demo.listRoot, games, source, currentSample, '/game/', 'Now showing');
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -343,7 +343,7 @@ function buildHero(source: LandingGameSource): HTMLElement {
   const tag = document.createElement('p');
   tag.className = 'landing-tag';
   tag.textContent = source === 'eve'
-    ? 'Engines are playing now. Watch the latest finished games.'
+    ? 'Now showing recent engine games.'
     : 'Watch what each side saw — and what was really there.';
 
   const ctas = document.createElement('div');
@@ -353,7 +353,7 @@ function buildHero(source: LandingGameSource): HTMLElement {
   playBtn.type = 'button';
   playBtn.className = 'landing-cta-primary';
   playBtn.disabled = true;
-  playBtn.textContent = 'Play vs the engine — coming soon';
+  playBtn.textContent = 'Play vs engine — coming soon';
 
   ctas.append(playBtn);
   const watchLink = document.createElement('a');
@@ -423,12 +423,13 @@ function renderRecentGames(
   source: LandingGameSource,
   activeRoomId?: string,
   hrefPrefix = '/?demo=',
+  headingText?: string,
 ): void {
   root.replaceChildren();
 
   const heading = document.createElement('div');
   heading.className = 'landing-games-heading';
-  heading.textContent = source === 'eve' ? 'Recent EvE' : 'Featured games';
+  heading.textContent = headingText ?? (source === 'eve' ? 'Recent EvE' : 'Featured games');
   root.append(heading);
 
   if (games.length === 0) {

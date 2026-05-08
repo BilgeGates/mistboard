@@ -912,9 +912,9 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   text-align: center;
-  padding: 28px 16px 14px;
+  padding: 22px 16px 14px;
 }
 
 .landing-hero .landing-title,
@@ -927,10 +927,10 @@ a {
 }
 
 .landing-demo {
-  padding: 0 16px 28px;
+  padding: 0 16px 32px;
   display: grid;
-  grid-template-columns: minmax(0, 820px) minmax(220px, 280px);
-  gap: 14px;
+  grid-template-columns: minmax(0, 860px) minmax(220px, 292px);
+  gap: 16px;
   align-items: start;
   justify-content: center;
   width: 100%;
@@ -1006,14 +1006,14 @@ a {
 }
 
 .landing-title {
-  font-size: clamp(36px, 5vw, 56px);
+  font-size: clamp(34px, 4.5vw, 52px);
   margin: 0;
   letter-spacing: 0;
   color: #1f2521;
 }
 
 .landing-subtitle {
-  font-size: clamp(16px, 2vw, 20px);
+  font-size: clamp(16px, 1.8vw, 19px);
   margin: 0;
   color: #3f4742;
   max-width: 560px;
@@ -1028,7 +1028,7 @@ a {
 .landing-ctas {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 6px;
   flex-wrap: wrap;
   justify-content: center;
 }
