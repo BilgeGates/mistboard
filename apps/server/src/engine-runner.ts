@@ -50,8 +50,8 @@ export async function runRandomLegalEngineGame(
     }
 
     if (events.length - 3 >= maxPlies) {
-      await abortGame(pool, task, gameId, events.length - 3, 'truncated');
-      return { gameId, plyCount: events.length - 3, status: 'aborted' };
+      await completeTruncatedGame(pool, task, gameId, events.length - 3);
+      return { gameId, plyCount: events.length - 3, status: 'completed' };
     }
 
     const move = chooseMove(moves, seed);
@@ -70,8 +70,8 @@ export async function runRandomLegalEngineGame(
 
   const status = projection.state.status;
   if (status.type !== 'finished') {
-    await abortGame(pool, task, gameId, events.length - 3, 'truncated');
-    return { gameId, plyCount: events.length - 3, status: 'aborted' };
+    await completeTruncatedGame(pool, task, gameId, events.length - 3);
+    return { gameId, plyCount: events.length - 3, status: 'completed' };
   }
 
   const result = status.winner === 'white' ? 'white-wins'
@@ -173,6 +173,27 @@ async function appendEvent(pool: pg.Pool, gameId: string, seq: number, event: Ga
      VALUES ($1, $2, $3, $4)`,
     [gameId, seq, event.type, event],
   );
+}
+
+async function completeTruncatedGame(
+  pool: pg.Pool,
+  task: EngineGameTask,
+  gameId: string,
+  plyCount: number,
+): Promise<void> {
+  await pool.query(
+    `UPDATE games
+     SET status = 'completed',
+         result = 'draw',
+         termination = 'truncated',
+         ply_count = $2,
+         ended_at = $3,
+         aborted_reason = NULL
+     WHERE room_id = $1`,
+    [gameId, plyCount, new Date()],
+  );
+  await finishEngineGameTask(pool, task.id, task.claimToken!, 'completed');
+  await incrementJobCounter(pool, task.jobId, 'completed');
 }
 
 async function abortGame(

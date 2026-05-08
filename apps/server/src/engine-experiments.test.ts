@@ -12,6 +12,7 @@ import {
   releaseEngineGameTaskClaim,
   stopWorkerRun,
 } from './engine-experiments.js';
+import { runRandomLegalEngineGame } from './engine-runner.js';
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
 
@@ -246,6 +247,71 @@ if (!TEST_DATABASE_URL) {
       [job.id],
     );
     assert.deepEqual(jobs, [{ status: 'completed', failed_games: 1 }]);
+  });
+
+  test('max-ply truncation completes the task as a draw', async () => {
+    const job = await createExperimentJob(getPool(), {
+      id: 'job-truncated-draw-test',
+      purpose: 'smoke',
+      targetGames: 1,
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-truncated-draw',
+      jobId: job.id,
+      gameIndex: 0,
+      seed: 300,
+      timeControl: { kind: 'none' },
+      config: { variant: 'fog-of-war', max_plies: 1 },
+    });
+    const worker = await registerWorkerRun(getPool(), {
+      id: 'worker-truncated-draw-test',
+      provider: 'local',
+    });
+    const task = await claimNextEngineGameTask(getPool(), {
+      workerRunId: worker.id,
+      workerId: 'test-worker',
+      provider: 'local',
+      claimToken: 'truncated-draw-token',
+    });
+    assert.equal(task?.id, 'task-truncated-draw');
+
+    const result = await runRandomLegalEngineGame(getPool(), task);
+    assert.equal(result.status, 'completed');
+    assert.equal(result.plyCount, 1);
+
+    const { rows: tasks } = await getPool().query<{
+      status: string;
+      failure_reason: string | null;
+    }>('SELECT status, failure_reason FROM engine_game_tasks WHERE id = $1', [
+      task.id,
+    ]);
+    assert.deepEqual(tasks, [{ status: 'completed', failure_reason: null }]);
+
+    const { rows: games } = await getPool().query<{
+      status: string;
+      result: string | null;
+      termination: string | null;
+      ply_count: number;
+    }>('SELECT status, result, termination, ply_count FROM games WHERE room_id = $1', [
+      result.gameId,
+    ]);
+    assert.deepEqual(games, [
+      {
+        status: 'completed',
+        result: 'draw',
+        termination: 'truncated',
+        ply_count: 1,
+      },
+    ]);
+
+    const { rows: jobs } = await getPool().query<{
+      status: string;
+      completed_games: number;
+      failed_games: number;
+    }>('SELECT status, completed_games, failed_games FROM eve_jobs WHERE id = $1', [
+      job.id,
+    ]);
+    assert.deepEqual(jobs, [{ status: 'completed', completed_games: 1, failed_games: 0 }]);
   });
 }
 
