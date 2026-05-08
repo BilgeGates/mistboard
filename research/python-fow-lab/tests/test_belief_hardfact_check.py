@@ -200,3 +200,75 @@ def test_validate_run_flags_hidden_capture_landing_missing(tmp_path: Path) -> No
     assert violations[0].kind == "hidden-capture-landing-missing"
     assert violations[0].square == "c7"
     assert violations[0].expected == "opponent-piece"
+
+
+def test_validate_run_flags_hidden_capture_identity_mismatch(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    games_dir = run_dir / "games"
+    games_dir.mkdir(parents=True)
+    (run_dir / "manifest.json").write_text(
+        json.dumps({"games": [{"index": 0, "path": "games/game-0000.jsonl"}]})
+    )
+    write_jsonl(
+        games_dir / "game-0000.jsonl",
+        [
+            {"type": "room-created", "at": 0, "roomId": "test"},
+            {
+                "type": "move-played",
+                "at": 1,
+                "roomId": "test",
+                "color": "white",
+                "move": {"from": "e2", "to": "e4"},
+            },
+            {
+                "type": "move-played",
+                "at": 2,
+                "roomId": "test",
+                "color": "black",
+                "move": {"from": "d7", "to": "d5"},
+            },
+            {
+                "type": "move-played",
+                "at": 3,
+                "roomId": "test",
+                "color": "white",
+                "move": {"from": "d1", "to": "h5"},
+            },
+            {
+                "type": "move-played",
+                "at": 4,
+                "roomId": "test",
+                "color": "black",
+                "move": {"from": "d5", "to": "e4"},
+            },
+        ],
+    )
+    board = chess.Board()
+    board.push(chess.Move.from_uci("e2e4"))
+    board.push(chess.Move.from_uci("d7d5"))
+    board.push(chess.Move.from_uci("d1h5"))
+    board.push(chess.Move.from_uci("d5e4"))
+    marginal = visible_marginal(board, chess.WHITE)
+    assert "d5" in marginal
+    assert "e4" not in marginal
+    marginal["e4"] = [{"piece": "r", "color": "black", "prob": 1.0}]
+    write_jsonl(
+        run_dir / "belief.jsonl",
+        [
+            {
+                "game_index": 0,
+                "tier1_side": "white",
+                "tier1_seat": "tier1_a",
+                "ply": 4,
+                "snapshot_kind": "after-opp-move",
+                "marginal_field": marginal,
+            }
+        ],
+    )
+
+    violations = belief_hardfact_check.validate_run(run_dir)
+
+    assert len(violations) == 1
+    assert violations[0].kind == "hidden-capture-identity-mismatch"
+    assert violations[0].square == "e4"
+    assert violations[0].expected == "p"

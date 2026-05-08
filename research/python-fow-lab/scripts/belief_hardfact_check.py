@@ -145,8 +145,9 @@ def validate_run(
                 )
 
         if _previous_move_was_by_opponent(boards, board_index, perspective):
+            prev_board = boards[board_index - 1]
             captured_square = _normal_opp_capture_landing_square(
-                boards[board_index - 1], board, perspective
+                prev_board, board, perspective
             )
             if captured_square is not None:
                 prob = _opp_non_empty_prob(marginal, captured_square, perspective)
@@ -167,6 +168,33 @@ def validate_run(
                                 "own piece was captured on this square; belief "
                                 "must assign an opponent piece there after an "
                                 "ordinary capture"
+                            ),
+                        )
+                    )
+            forced_capture = _forced_visible_source_capture_identity(
+                prev_board, board, perspective
+            )
+            if forced_capture is not None:
+                _source_square, landing_square, expected_piece = forced_capture
+                prob = _piece_prob(marginal, landing_square, expected_piece)
+                if prob < required_prob:
+                    violations.append(
+                        Violation(
+                            game_index=game_index,
+                            game_path=str(game["path"]),
+                            ply=ply,
+                            side=side,
+                            tier1_seat=str(row.get("tier1_seat") or ""),
+                            snapshot_kind=str(row.get("snapshot_kind") or ""),
+                            square=chess.square_name(landing_square),
+                            kind="hidden-capture-identity-mismatch",
+                            expected=expected_piece.symbol(),
+                            observed_prob=prob,
+                            detail=(
+                                "opponent capture came from a visible source "
+                                f"square ({chess.square_name(_source_square)}) "
+                                "that is now empty; belief must preserve the "
+                                "capturer identity"
                             ),
                         )
                     )
@@ -255,6 +283,38 @@ def _normal_opp_capture_landing_square(
     if landing_piece is None or landing_piece.color == perspective:
         return None
     return captured_square
+
+
+def _forced_visible_source_capture_identity(
+    prev_board: chess.Board,
+    next_board: chess.Board,
+    perspective: chess.Color,
+) -> tuple[chess.Square, chess.Square, chess.Piece] | None:
+    """Return exact capturer identity when a visible source square was vacated."""
+    landing = _normal_opp_capture_landing_square(prev_board, next_board, perspective)
+    if landing is None:
+        return None
+    landing_piece = next_board.piece_at(landing)
+    if landing_piece is None or landing_piece.color == perspective:
+        return None
+
+    opp = not perspective
+    changed_opp_sources = [
+        sq
+        for sq, piece in prev_board.piece_map().items()
+        if piece.color == opp
+        and sq != landing
+        and next_board.piece_at(sq) != piece
+    ]
+    if len(changed_opp_sources) != 1:
+        return None
+
+    source = changed_opp_sources[0]
+    vsquares = visible_squares(next_board, perspective)
+    vpieces = visible_piece_map(next_board, perspective)
+    if source not in vsquares or source in vpieces:
+        return None
+    return source, landing, landing_piece
 
 
 def write_json(path: Path, violations: list[Violation]) -> None:

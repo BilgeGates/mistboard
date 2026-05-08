@@ -11,6 +11,7 @@ from fow_chess.selfplay import PerspectiveView
 from fow_chess.strategies import (
     Tier1Strategy,
     _categorize_king_defense_moves,
+    _castle_moves,
     _king_defense_moves,
     _king_shelter_moves,
     _prefer_higher_value_capture,
@@ -456,6 +457,24 @@ def test_king_defense_prefers_attacker_capture_over_flight() -> None:
     )
 
 
+def test_king_defense_prefers_flight_over_king_capture_of_material() -> None:
+    """Regression for v0.7.10 g12: don't walk king into fog for a pawn."""
+    board = chess.Board("rnbq1rk1/p3nppp/1p1ppb2/8/P4P1P/2pPP3/2PK2P1/R1BQ1BNR w - - 0 11")
+    risky = chess.Move.from_uci("d2c3")
+    assert risky in board.pseudo_legal_moves
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+    view = _build_view(board, chess.WHITE)
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen != risky
+    assert strategy.trace_log[-1]["decision_path"] == "king-defense-flight"
+
+
 def test_king_defense_prefers_higher_material_attacker_capture() -> None:
     """King attacked by visible queen; both a pawn and a rook can capture the
     queen. Pawn-takes-queen wins on material — but attacker-capture preference
@@ -751,6 +770,27 @@ def test_queen_fog_risk_vetoes_visible_enemy_attack_square() -> None:
     assert strategy._belief_veto_queen_fog_risk([unsafe], view) == []
 
 
+def test_queen_fog_risk_vetoes_low_value_visible_capture_recapture() -> None:
+    """Regression for v0.7.8 g13 ply 32: Qxh4 wins a pawn but loses queen."""
+    board = chess.Board("r1bqk2r/p6p/npp1p3/7p/4P2P/3P4/P1P1NP2/b4K1R b kq - 1 16")
+    capture = chess.Move.from_uci("d8h4")
+    assert capture in board.pseudo_legal_moves
+
+    view = _build_view(
+        board,
+        chess.BLACK,
+        visible_pieces={
+            sq: piece for sq, piece in board.piece_map().items() if piece.color == chess.BLACK or sq == chess.H4
+        },
+    )
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    assert strategy._belief_veto_queen_fog_risk([capture], view) == []
+
+
 def test_queen_king_pressure_prefers_safe_belief_attack() -> None:
     """After unsafe Qe4 is filtered, Qe6 should be recognized as safe pressure
     on the believed white king instead of falling through to quiet development."""
@@ -812,6 +852,160 @@ def test_queen_king_pressure_skips_after_generic_csp() -> None:
     strategy._pending_belief_steps["csp_reseed_stage_b"] = 1
 
     assert strategy._belief_queen_king_pressure_moves([pressure], view) == []
+
+
+def test_castle_preferred_over_flat_material_tie() -> None:
+    """Regression for v0.7.8 g12: with castling legal and no tactic, castle."""
+    board = chess.Board("rn2kbnr/pp2pppp/2p5/3p4/1qP3b1/N3PN2/PP1PBPPP/R1BQK2R w KQkq - 3 6")
+    castle = chess.Move.from_uci("e1g1")
+    assert castle in board.pseudo_legal_moves
+    view = _build_view(board, chess.WHITE)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    assert castle in _castle_moves(view)
+    chosen = strategy.pick_move(view)
+    assert chosen == castle
+    assert strategy.trace_log[-1]["decision_path"] == "castle"
+
+
+def test_high_value_piece_save_blocks_rook_skewer() -> None:
+    """Regression for v0.7.8 g12 ply 31: block believed Qe4-h1 rook threat."""
+    board = chess.Board("r3k1nr/3nb1pp/1p1p1p2/pp6/4q2N/6Pb/PP1PBP1P/R1BQK2R w kq - 0 16")
+    block = chess.Move.from_uci("f2f3")
+    assert block in board.pseudo_legal_moves
+    view = _build_view(board, chess.WHITE)
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+    strategy._observed_ply = 30
+
+    saves = strategy._belief_high_value_piece_save_moves(view.own_legal_moves, view)
+
+    assert block in saves
+    chosen = strategy.pick_move(view)
+    assert chosen == block
+    assert strategy.trace_log[-1]["decision_path"] in (
+        "belief-high-value-save",
+        "belief-piece-save",
+    )
+
+
+def test_early_development_prefers_e_pawn_over_rook_pawn_drift() -> None:
+    """Regression for v0.7.8 g13 ply 6: develop before pushing h-pawn."""
+    board = chess.Board("rnbqkb1r/ppppp1pp/5n2/5P2/8/7N/PPPPPP1P/RNBQKB1R b KQkq - 2 3")
+    develop = chess.Move.from_uci("e7e6")
+    assert develop in board.pseudo_legal_moves
+    view = _build_view(board, chess.BLACK)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen == develop
+    assert strategy.trace_log[-1]["decision_path"] == "early-development"
+
+
+def test_advanced_minor_retreats_before_more_pawn_drift() -> None:
+    """Regression for v0.7.8 g13 ply 8: pull the loose knight back to f6."""
+    board = chess.Board("rnbqkb1r/ppppp1pp/8/5P2/4P1n1/7N/PPPP1P1P/RNBQKB1R b KQkq - 0 4")
+    retreat = chess.Move.from_uci("g4f6")
+    assert retreat in board.pseudo_legal_moves
+    view = _build_view(board, chess.BLACK)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen == retreat
+    assert strategy.trace_log[-1]["decision_path"] in (
+        "advanced-minor-retreat",
+        "belief-piece-save",
+    )
+
+
+def test_deep_advanced_bishop_retreat_beats_castling() -> None:
+    """Regression for v0.7.9 g13 ply 18: bank the rook win by saving bishop."""
+    board = chess.Board("r1b1k2r/pppqnppp/n2pp3/B7/8/1P1PPP1N/P1P1B1PP/bN1Q1RK1 b kq - 1 9")
+    retreat = chess.Move.from_uci("a1f6")
+    assert retreat in board.pseudo_legal_moves
+    view = _build_view(board, chess.BLACK)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+    strategy._observed_ply = 17
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen == retreat
+    assert strategy.trace_log[-1]["decision_path"] == "advanced-minor-retreat"
+
+
+def test_visible_piece_save_moves_attacked_bishop_before_capture() -> None:
+    """Regression for v0.7.9 g13 ply 42: save bishop attacked by visible pawn."""
+    board = chess.Board("r4rk1/p5pp/2pp4/p4b2/qn4P1/N2PP3/2P1B2P/4Q1K1 b - - 0 21")
+    save = chess.Move.from_uci("f5e6")
+    assert save in board.pseudo_legal_moves
+    view = _build_view(board, chess.BLACK)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+    strategy._observed_ply = 41
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen == save
+    assert strategy.trace_log[-1]["decision_path"] == "visible-piece-save"
+
+
+def test_belief_piece_save_moves_attacked_knight_from_observed_capture() -> None:
+    """Regression for v0.7.9 g13 ply 36: belief says pawn attacks knight."""
+    board = chess.Board("r1b2rk1/p1p3pp/3pp3/p4n2/qn4P1/N2PP3/2P1B1PP/4QRK1 b - - 0 18")
+    save = chess.Move.from_uci("f5e7")
+    assert save in board.pseudo_legal_moves
+    view = _build_view(board, chess.BLACK)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+    strategy._observed_ply = 35
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen != chess.Move.from_uci("c7c6")
+    assert strategy.trace_log[-1]["decision_path"] == "belief-piece-save"
+
+
+def test_piece_fog_risk_vetoes_minor_jump_to_pawn_defended_square() -> None:
+    """Regression for v0.7.9 g14 ply 23: don't leap knight onto defended d5."""
+    board = chess.Board("r1bq1rk1/1p1n1ppp/p2pp1n1/7B/Pp3N1b/1N1PP3/2P2PPP/R1BQ1RK1 w - - 2 12")
+    jump = chess.Move.from_uci("f4d5")
+    assert jump in board.pseudo_legal_moves
+    view = _build_view(board, chess.WHITE)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    filtered = strategy._belief_veto_piece_fog_risk([jump], view)
+
+    assert filtered == []
 
 
 def test_safe_visible_capture_prefers_higher_material() -> None:

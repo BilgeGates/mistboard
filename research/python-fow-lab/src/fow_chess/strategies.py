@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.8"
+TIER1_VERSION = "0.7.12"
 
 
 def tier1_commit() -> str:
@@ -357,6 +357,249 @@ def _queen_save_moves(view: PerspectiveView) -> list[chess.Move]:
         if all(q not in post_attacked for q in queens_after):
             resolving.append(own_move)
     return resolving
+
+
+def _high_value_piece_save_moves(view: PerspectiveView) -> list[chess.Move]:
+    """Resolve visible attacks on own queens/rooks using the cheapest mover.
+
+    Generalizes queen-save to rooks. v0.7.8 rung annotations showed White
+    ignoring a visible queen line on the h1 rook (`...Qe4xh1`) when a pawn
+    block (`f2f3`) was available. In Fog, visible attacks on queen/rook are
+    tactical facts; do not leave them to flat material-eval tie breaks.
+    """
+    own = view.perspective
+    high_value_squares = [
+        sq
+        for sq, piece in view.visible_piece_map.items()
+        if piece.color == own and piece.piece_type in (chess.QUEEN, chess.ROOK)
+    ]
+    if not high_value_squares:
+        return []
+
+    pre_attacked = _squares_attacked_by_visible_enemy(view)
+    threatened = [sq for sq in high_value_squares if sq in pre_attacked]
+    if not threatened:
+        return []
+
+    resolving: list[tuple[chess.Move, int]] = []
+    for own_move in view.own_legal_moves:
+        sim = _visibility_board(view)
+        sim.turn = own
+        if not sim.is_pseudo_legal(own_move):
+            continue
+        sim.push(own_move)
+        still_valuable = [
+            sq
+            for sq, piece in sim.piece_map().items()
+            if piece.color == own and piece.piece_type in (chess.QUEEN, chess.ROOK)
+        ]
+        sim.turn = not own
+        post_attacked = {move.to_square for move in sim.pseudo_legal_moves}
+        if any(sq in post_attacked for sq in still_valuable):
+            continue
+        mover = view.visible_piece_map.get(own_move.from_square)
+        mover_value = (
+            _MATERIAL_VALUE.get(mover.piece_type, 1000)
+            if mover is not None and mover.color == own
+            else 1000
+        )
+        resolving.append((own_move, mover_value))
+
+    if not resolving:
+        return []
+    best_value = min(value for _, value in resolving)
+    return [move for move, value in resolving if value == best_value]
+
+
+def _castle_moves(view: PerspectiveView) -> list[chess.Move]:
+    """Return safe castling moves available in the perspective move list."""
+    own = view.perspective
+    attacked = _squares_attacked_by_visible_enemy_full(view)
+    candidates: list[chess.Move] = []
+    for move in view.own_legal_moves:
+        piece = view.visible_piece_map.get(move.from_square)
+        if (
+            piece is None
+            or piece.color != own
+            or piece.piece_type != chess.KING
+            or abs(chess.square_file(move.to_square) - chess.square_file(move.from_square)) != 2
+        ):
+            continue
+        if move.from_square in attacked or move.to_square in attacked:
+            continue
+        candidates.append(move)
+    return candidates
+
+
+def _fog_depth(square: chess.Square, perspective: chess.Color) -> int:
+    rank = chess.square_rank(square)
+    if perspective == chess.WHITE:
+        return max(0, rank - 3)
+    return max(0, 4 - rank)
+
+
+def _center_file_distance(square: chess.Square) -> float:
+    return abs(chess.square_file(square) - 3.5)
+
+
+def _advanced_minor_retreat_moves(
+    view: PerspectiveView, *, min_from_depth: int = 1
+) -> list[chess.Move]:
+    """Early FOW retreat for minors that have drifted into enemy territory."""
+    own = view.perspective
+    attacked = _squares_attacked_by_visible_enemy_full(view)
+    candidates: list[tuple[chess.Move, int, int, float]] = []
+    for move in view.own_legal_moves:
+        piece = view.visible_piece_map.get(move.from_square)
+        if (
+            piece is None
+            or piece.color != own
+            or piece.piece_type not in (chess.BISHOP, chess.KNIGHT)
+        ):
+            continue
+        if view.visible_piece_map.get(move.to_square) is not None:
+            continue
+        from_depth = _fog_depth(move.from_square, own)
+        to_depth = _fog_depth(move.to_square, own)
+        if from_depth < min_from_depth or to_depth >= from_depth:
+            continue
+        if move.to_square in attacked:
+            continue
+        to_rank = chess.square_rank(move.to_square)
+        home_pref = to_rank if own == chess.WHITE else 7 - to_rank
+        candidates.append(
+            (move, to_depth, home_pref, _center_file_distance(move.to_square))
+        )
+
+    if not candidates:
+        return []
+    best_depth = min(depth for _, depth, _, _ in candidates)
+    best = [row for row in candidates if row[1] == best_depth]
+    best_home = min(home for _, _, home, _ in best)
+    best = [row for row in best if row[2] == best_home]
+    best_center = min(center for _, _, _, center in best)
+    return [move for move, _, _, center in best if center == best_center]
+
+
+def _visible_piece_save_moves(
+    view: PerspectiveView,
+    *,
+    piece_types: tuple[chess.PieceType, ...] = (
+        chess.KNIGHT,
+        chess.BISHOP,
+        chess.ROOK,
+    ),
+) -> list[chess.Move]:
+    """Resolve visible attacks on own non-queen material.
+
+    Queen/rook high-value saves have dedicated handling, but v0.7.9 review
+    showed the same blind spot for bishops and knights: when a visible enemy
+    pawn or minor attacks an own piece, main-eval may still prefer unrelated
+    material. Simulate candidate moves on the visibility board and keep only
+    moves that reduce the threatened own material value.
+    """
+    own = view.perspective
+    pre_attacked = _squares_attacked_by_visible_enemy(view)
+    threatened_before = {
+        sq
+        for sq, piece in view.visible_piece_map.items()
+        if piece.color == own and piece.piece_type in piece_types and sq in pre_attacked
+    }
+    if not threatened_before:
+        return []
+
+    before_value = sum(
+        _MATERIAL_VALUE[view.visible_piece_map[sq].piece_type]
+        for sq in threatened_before
+    )
+    candidates: list[tuple[chess.Move, int, int, float]] = []
+    for move in view.own_legal_moves:
+        sim = _visibility_board(view)
+        sim.turn = own
+        if not sim.is_pseudo_legal(move):
+            continue
+        sim.push(move)
+        sim.turn = not own
+        post_attacked = {reply.to_square for reply in sim.pseudo_legal_moves}
+        post_value = sum(
+            _MATERIAL_VALUE[piece.piece_type]
+            for sq, piece in sim.piece_map().items()
+            if piece.color == own
+            and piece.piece_type in piece_types
+            and sq in post_attacked
+        )
+        if post_value >= before_value:
+            continue
+        mover = view.visible_piece_map.get(move.from_square)
+        mover_value = (
+            _MATERIAL_VALUE.get(mover.piece_type, 1000)
+            if mover is not None and mover.color == own
+            else 1000
+        )
+        moved_piece_depth = _fog_depth(move.to_square, own)
+        candidates.append(
+            (move, post_value, mover_value, moved_piece_depth)
+        )
+
+    if not candidates:
+        return []
+    best_post = min(post for _, post, _, _ in candidates)
+    best = [row for row in candidates if row[1] == best_post]
+    best_mover = min(mover for _, _, mover, _ in best)
+    best = [row for row in best if row[2] == best_mover]
+    best_depth = min(depth for _, _, _, depth in best)
+    return [move for move, _, _, depth in best if depth == best_depth]
+
+
+def _early_development_moves(view: PerspectiveView) -> list[chess.Move]:
+    """Quiet central development while the king is still on its home square.
+
+    The material evaluator treats many opening quiet moves as equivalent, which
+    lets random tie breaks pick rook-pawn pushes while pieces remain undeveloped.
+    In FOW that creates avoidable loose-piece and king-safety problems. Keep the
+    policy narrow: only home-king positions, only non-capturing d/e pawn moves,
+    and prefer one-square e-pawn development before broader central pushes.
+    """
+    own = view.perspective
+    king_home = chess.E1 if own == chess.WHITE else chess.E8
+    king = view.visible_piece_map.get(king_home)
+    if king is None or king.color != own or king.piece_type != chess.KING:
+        return []
+
+    pawn_rank = 1 if own == chess.WHITE else 6
+    direction = 1 if own == chess.WHITE else -1
+    attacked = _squares_attacked_by_visible_enemy_full(view)
+    candidates: list[tuple[chess.Move, int, int]] = []
+    for move in view.own_legal_moves:
+        piece = view.visible_piece_map.get(move.from_square)
+        if piece is None or piece.color != own or piece.piece_type != chess.PAWN:
+            continue
+        if chess.square_rank(move.from_square) != pawn_rank:
+            continue
+        from_file = chess.square_file(move.from_square)
+        if from_file not in (3, 4):
+            continue
+        if view.visible_piece_map.get(move.to_square) is not None:
+            continue
+        if move.to_square in attacked:
+            continue
+
+        rank_delta = chess.square_rank(move.to_square) - chess.square_rank(
+            move.from_square
+        )
+        steps = rank_delta * direction
+        if steps not in (1, 2):
+            continue
+        file_pref = 0 if from_file == 4 else 1
+        step_pref = 0 if steps == 1 else 1
+        candidates.append((move, file_pref, step_pref))
+
+    if not candidates:
+        return []
+    best_file = min(file_pref for _, file_pref, _ in candidates)
+    best = [row for row in candidates if row[1] == best_file]
+    best_step = min(step_pref for _, _, step_pref in best)
+    return [move for move, _, step_pref in best if step_pref == best_step]
 
 
 def _safe_visible_minor_or_rook_captures(
@@ -955,7 +1198,9 @@ class Tier1Strategy:
         the queen onto a square controlled by a hidden knight in a material
         minority of particles. For queens, even a 20% immediate-loss risk is
         enough to reject a speculative fog move. Keep this guardrail narrow:
-        non-queen moves and visible captures are handled by existing paths.
+        non-queen moves are handled by existing paths. Visible queen captures
+        of low-value material still go through this filter because `Qx pawn`
+        can be a losing tactic in fog.
         """
         if self._belief is None or not self._belief.particles:
             return candidates
@@ -973,10 +1218,12 @@ class Tier1Strategy:
 
             target = view.visible_piece_map.get(move.to_square)
             if target is not None and target.color != view.perspective:
-                # Captures are already ranked/filtered by queen-capture and
-                # bad-trade logic. This guardrail is for queen moves into fog.
-                survivors.append(move)
-                continue
+                target_value = _MATERIAL_VALUE.get(target.piece_type, 0)
+                if target_value >= _MATERIAL_VALUE[chess.QUEEN]:
+                    # Queen-vs-queen captures are handled by the dedicated
+                    # queen-capture path before this fallback filter.
+                    survivors.append(move)
+                    continue
             if move.to_square in _squares_attacked_by_visible_enemy_full(view):
                 continue
 
@@ -1076,6 +1323,235 @@ class Tier1Strategy:
         ]
         best_risk = min(risk for _, _, risk in pressure_top)
         return [move for move, _, risk in pressure_top if risk <= best_risk + 1e-9]
+
+    def _belief_high_value_piece_save_moves(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+        *,
+        min_before_risk: float = 4.0,
+        min_improvement: float = 1.0,
+    ) -> list[chess.Move]:
+        """Moves that reduce belief-weighted attacks on own queens/rooks.
+
+        Visible queen-save handles directly observed attacks. This catches the
+        FOW/belief version: particles place an enemy queen, bishop, rook, or
+        knight attacking an own rook/queen even when the attacker is not in the
+        current visibility map. Rank by lowest remaining threatened value, then
+        cheapest mover, so pawn blocks like `f2f3` beat shuffling material.
+        """
+        if self._belief is None or not self._belief.particles:
+            return []
+
+        own = view.perspective
+
+        def threatened_value(board: chess.Board) -> float:
+            sim = board.copy()
+            sim.turn = not own
+            threatened: set[chess.Square] = set()
+            for reply in sim.pseudo_legal_moves:
+                target = sim.piece_at(reply.to_square)
+                if (
+                    target is not None
+                    and target.color == own
+                    and target.piece_type in (chess.QUEEN, chess.ROOK)
+                ):
+                    threatened.add(reply.to_square)
+            return float(
+                sum(
+                    _MATERIAL_VALUE[sim.piece_at(sq).piece_type]
+                    for sq in threatened
+                    if sim.piece_at(sq) is not None
+                )
+            )
+
+        before = sum(
+            threatened_value(particle) * weight
+            for particle, weight in zip(self._belief.particles, self._belief.weights)
+        )
+        if before < min_before_risk:
+            return []
+
+        scored: list[tuple[chess.Move, float, int]] = []
+        for move in candidates:
+            total_weight = 0.0
+            post = 0.0
+            for particle, weight in zip(self._belief.particles, self._belief.weights):
+                if not particle.is_pseudo_legal(move):
+                    continue
+                sim = particle.copy()
+                sim.push(move)
+                post += threatened_value(sim) * weight
+                total_weight += weight
+            if total_weight <= 0:
+                continue
+            # Normalize when only a subset of particles support the move.
+            post = post / total_weight
+            if before - post < min_improvement:
+                continue
+            mover = view.visible_piece_map.get(move.from_square)
+            mover_value = (
+                _MATERIAL_VALUE.get(mover.piece_type, 1000)
+                if mover is not None and mover.color == own
+                else 1000
+            )
+            scored.append((move, post, mover_value))
+
+        if not scored:
+            return []
+        best_post = min(post for _, post, _ in scored)
+        best = [row for row in scored if row[1] <= best_post + 1e-9]
+        best_mover = min(mover_value for _, _, mover_value in best)
+        return [move for move, _, mover_value in best if mover_value == best_mover]
+
+    def _belief_piece_save_moves(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+        *,
+        piece_types: tuple[chess.PieceType, ...] = (
+            chess.KNIGHT,
+            chess.BISHOP,
+            chess.ROOK,
+        ),
+        min_before_risk: float = 3.0,
+        min_improvement: float = 1.0,
+    ) -> list[chess.Move]:
+        """Moves that reduce belief-weighted attacks on own material.
+
+        This is the non-terminal sibling of king safety and queen/rook saves.
+        The perspective may not literally see the attacker, but if particles
+        consistently say a knight, bishop, or rook is hanging, prioritize
+        saving it before unrelated material moves.
+        """
+        if self._belief is None or not self._belief.particles:
+            return []
+
+        own = view.perspective
+
+        def threatened_value(board: chess.Board) -> float:
+            sim = board.copy()
+            sim.turn = not own
+            threatened: set[chess.Square] = set()
+            for reply in sim.pseudo_legal_moves:
+                target = sim.piece_at(reply.to_square)
+                if (
+                    target is not None
+                    and target.color == own
+                    and target.piece_type in piece_types
+                ):
+                    threatened.add(reply.to_square)
+            return float(
+                sum(
+                    _MATERIAL_VALUE[sim.piece_at(sq).piece_type]
+                    for sq in threatened
+                    if sim.piece_at(sq) is not None
+                )
+            )
+
+        before = sum(
+            threatened_value(particle) * weight
+            for particle, weight in zip(self._belief.particles, self._belief.weights)
+        )
+        if before < min_before_risk:
+            return []
+
+        scored: list[tuple[chess.Move, float, int, int]] = []
+        for move in candidates:
+            total_weight = 0.0
+            post = 0.0
+            for particle, weight in zip(self._belief.particles, self._belief.weights):
+                if not particle.is_pseudo_legal(move):
+                    continue
+                sim = particle.copy()
+                sim.push(move)
+                post += threatened_value(sim) * weight
+                total_weight += weight
+            if total_weight <= 0:
+                continue
+            post = post / total_weight
+            if before - post < min_improvement:
+                continue
+            mover = view.visible_piece_map.get(move.from_square)
+            mover_value = (
+                _MATERIAL_VALUE.get(mover.piece_type, 1000)
+                if mover is not None and mover.color == own
+                else 1000
+            )
+            scored.append((move, post, mover_value, _fog_depth(move.to_square, own)))
+
+        if not scored:
+            return []
+        best_post = min(post for _, post, _, _ in scored)
+        best = [row for row in scored if row[1] <= best_post + 1e-9]
+        best_mover = min(mover_value for _, _, mover_value, _ in best)
+        best = [row for row in best if row[2] == best_mover]
+        best_depth = min(depth for _, _, _, depth in best)
+        return [move for move, _, _, depth in best if depth == best_depth]
+
+    def _belief_veto_piece_fog_risk(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+        *,
+        max_capture_risk: float = 0.25,
+    ) -> list[chess.Move]:
+        """Drop non-pawn piece moves into likely immediate capture.
+
+        Generalizes the queen-specific fog-risk veto to rooks/minors. It is
+        intentionally a veto, not a chooser: if every candidate is risky the
+        caller can fall back to the original candidate set.
+        """
+        if self._belief is None or not self._belief.particles:
+            return candidates
+
+        own = view.perspective
+        visible_attacks = _squares_attacked_by_visible_enemy_full(view)
+        survivors: list[chess.Move] = []
+        for move in candidates:
+            mover = view.visible_piece_map.get(move.from_square)
+            if (
+                mover is None
+                or mover.color != own
+                or mover.piece_type in (chess.PAWN, chess.KING)
+            ):
+                survivors.append(move)
+                continue
+
+            target = view.visible_piece_map.get(move.to_square)
+            if (
+                target is not None
+                and target.color != own
+                and _MATERIAL_VALUE.get(target.piece_type, 0)
+                >= _MATERIAL_VALUE.get(mover.piece_type, 0)
+            ):
+                survivors.append(move)
+                continue
+
+            if move.to_square in visible_attacks:
+                continue
+
+            risk_weight = 0.0
+            support = 0.0
+            for particle, weight in zip(self._belief.particles, self._belief.weights):
+                if not particle.is_pseudo_legal(move):
+                    continue
+                sim = particle.copy()
+                sim.push(move)
+                moved = sim.piece_at(move.to_square)
+                if moved is None or moved.color != own:
+                    continue
+                support += weight
+                sim.turn = not own
+                if any(reply.to_square == move.to_square for reply in sim.pseudo_legal_moves):
+                    risk_weight += weight
+            if support <= 0:
+                survivors.append(move)
+                continue
+            if risk_weight / support <= max_capture_risk:
+                survivors.append(move)
+
+        return survivors
 
     def _detect_capture(
         self,
@@ -1198,15 +1674,30 @@ class Tier1Strategy:
         if kd_captures or kd_blocks or kd_flights:
             tier: list[chess.Move]
             tier_label: str
-            if kd_captures:
-                tier = _prefer_higher_value_capture(kd_captures, view)
+            non_king_captures = [
+                move
+                for move in kd_captures
+                if (piece := view.visible_piece_map.get(move.from_square)) is not None
+                and piece.piece_type != chess.KING
+            ]
+            king_captures = [
+                move
+                for move in kd_captures
+                if (piece := view.visible_piece_map.get(move.from_square)) is not None
+                and piece.piece_type == chess.KING
+            ]
+            if non_king_captures:
+                tier = _prefer_higher_value_capture(non_king_captures, view)
                 tier_label = "king-defense-capture"
             elif kd_blocks:
                 tier = kd_blocks
                 tier_label = "king-defense-block"
-            else:
+            elif kd_flights:
                 tier = kd_flights
                 tier_label = "king-defense-flight"
+            else:
+                tier = king_captures
+                tier_label = "king-defense-king-capture"
             # v0.6.2 fix: filter to belief-supported candidates first (avoid
             # picking a move that would wipe belief in Stage A). Then apply
             # belief-grounded king-attack veto. Either filter falling back to
@@ -1253,6 +1744,48 @@ class Tier1Strategy:
                 self._emit_trace("queen-save", particle_count_pre, chosen)
                 return chosen
 
+        high_value_save = _high_value_piece_save_moves(view)
+        if high_value_save:
+            candidates = self._belief_veto_king_attack(high_value_save, view)
+            if candidates:
+                chosen = self._rng.choice(candidates)
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("high-value-save", particle_count_pre, chosen)
+                return chosen
+
+        piece_save = _visible_piece_save_moves(view)
+        if piece_save:
+            candidates = self._belief_veto_king_attack(piece_save, view)
+            if candidates:
+                chosen = self._rng.choice(candidates)
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("visible-piece-save", particle_count_pre, chosen)
+                return chosen
+
+        belief_piece_save = (
+            []
+            if _castle_moves(view)
+            else self._belief_piece_save_moves(view.own_legal_moves, view)
+        )
+        if belief_piece_save:
+            candidates = self._belief_veto_king_attack(belief_piece_save, view)
+            if candidates:
+                chosen = self._rng.choice(candidates)
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("belief-piece-save", particle_count_pre, chosen)
+                return chosen
+
+        deep_minor_retreat = _advanced_minor_retreat_moves(view, min_from_depth=2)
+        if deep_minor_retreat:
+            belief_ok = [m for m in deep_minor_retreat if self._belief_supports_move(m)]
+            candidates = belief_ok or deep_minor_retreat
+            candidates = self._belief_veto_king_attack(candidates, view)
+            if candidates:
+                chosen = self._rng.choice(candidates)
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("advanced-minor-retreat", particle_count_pre, chosen)
+                return chosen
+
         # v0.6.1 Pattern B: a visible bishop/knight/rook on a square not
         # attacked by any visible enemy is a free piece. Capture it before
         # main-eval gets a chance to dilute the material delta.
@@ -1272,6 +1805,17 @@ class Tier1Strategy:
                 self._emit_trace("visible-minor-rook-capture", particle_count_pre, chosen)
                 return chosen
 
+        castle = _castle_moves(view)
+        if castle:
+            belief_ok = [m for m in castle if self._belief_supports_move(m)]
+            candidates = belief_ok or castle
+            candidates = self._belief_veto_king_attack(candidates, view)
+            if candidates:
+                chosen = self._rng.choice(candidates)
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("castle", particle_count_pre, chosen)
+                return chosen
+
         king_shelter = _king_shelter_moves(view)
         if king_shelter:
             belief_ok = [m for m in king_shelter if self._belief_supports_move(m)]
@@ -1282,6 +1826,31 @@ class Tier1Strategy:
                 self._stage_pending_capture(chosen, view)
                 self._emit_trace("king-shelter", particle_count_pre, chosen)
                 return chosen
+
+        if self._observed_ply + 1 <= 12:
+            minor_retreat = _advanced_minor_retreat_moves(view)
+            if minor_retreat:
+                belief_ok = [m for m in minor_retreat if self._belief_supports_move(m)]
+                candidates = belief_ok or minor_retreat
+                candidates = self._belief_veto_king_attack(candidates, view)
+                if candidates:
+                    chosen = self._rng.choice(candidates)
+                    self._stage_pending_capture(chosen, view)
+                    self._emit_trace(
+                        "advanced-minor-retreat", particle_count_pre, chosen
+                    )
+                    return chosen
+
+            development = _early_development_moves(view)
+            if development:
+                belief_ok = [m for m in development if self._belief_supports_move(m)]
+                candidates = belief_ok or development
+                candidates = self._belief_veto_king_attack(candidates, view)
+                if candidates:
+                    chosen = self._rng.choice(candidates)
+                    self._stage_pending_capture(chosen, view)
+                    self._emit_trace("early-development", particle_count_pre, chosen)
+                    return chosen
 
         if not self._belief.particles:
             # Belief filter collapsed (no particles consistent with observation).
@@ -1321,6 +1890,22 @@ class Tier1Strategy:
         legal_moves = trade_safe_moves or legal_moves
         queen_fog_safe_moves = self._belief_veto_queen_fog_risk(legal_moves, view)
         legal_moves = queen_fog_safe_moves or legal_moves
+        piece_fog_safe_moves = self._belief_veto_piece_fog_risk(legal_moves, view)
+        legal_moves = piece_fog_safe_moves or legal_moves
+        belief_piece_save = self._belief_piece_save_moves(legal_moves, view)
+        if belief_piece_save:
+            chosen = self._rng.choice(belief_piece_save)
+            self._stage_pending_capture(chosen, view)
+            self._emit_trace("belief-piece-save", particle_count_pre, chosen)
+            return chosen
+        high_value_belief_save = self._belief_high_value_piece_save_moves(
+            legal_moves, view
+        )
+        if high_value_belief_save:
+            chosen = self._rng.choice(high_value_belief_save)
+            self._stage_pending_capture(chosen, view)
+            self._emit_trace("belief-high-value-save", particle_count_pre, chosen)
+            return chosen
         queen_pressure = self._belief_queen_king_pressure_moves(legal_moves, view)
         if queen_pressure:
             chosen = self._rng.choice(queen_pressure)

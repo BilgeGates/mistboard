@@ -580,6 +580,70 @@ def test_stage_b_repairs_hidden_capture_landing_square() -> None:
     }
 
 
+def test_stage_b_repair_preserves_forced_visible_source_capture_identity() -> None:
+    """A visible source vacating into a hidden capture fixes capturer identity.
+
+    Regression for v0.7.11 rung2 game 14 ply 28: white had seen a black pawn on
+    d5. After black captured the white pawn on e4, d5 was still visible and
+    empty while e4 was hidden. Belief repair must infer d5xe4 as a black pawn,
+    not random-fill e4 with another hidden opponent piece.
+    """
+    import random
+
+    truth_pre = chess.Board.empty()
+    truth_pre.turn = chess.BLACK
+    truth_pre.set_piece_at(chess.H1, chess.Piece(chess.KING, chess.WHITE))
+    truth_pre.set_piece_at(chess.D1, chess.Piece(chess.ROOK, chess.WHITE))
+    truth_pre.set_piece_at(chess.E4, chess.Piece(chess.PAWN, chess.WHITE))
+    truth_pre.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    truth_pre.set_piece_at(chess.D5, chess.Piece(chess.PAWN, chess.BLACK))
+
+    truth_post = truth_pre.copy()
+    truth_post.push(chess.Move.from_uci("d5e4"))
+    obs = observation_from_transition(truth_pre, truth_post, chess.WHITE)
+    assert chess.D5 in obs.visibility_mask
+    assert chess.D5 not in obs.visible_pieces
+    assert chess.E4 not in obs.visibility_mask
+    assert obs.opp_capture_landing_square == chess.E4
+
+    stale = truth_pre.copy()
+    # Extra hidden capturer candidate that can also capture e4, plus a stale
+    # piece on a visible-empty square to force the Stage-B repair path. Before
+    # the forced-source rule, repair could keep the rook on e4 and diffuse the
+    # marginal away from the known d5 pawn identity.
+    stale.set_piece_at(chess.E8, chess.Piece(chess.ROOK, chess.BLACK))
+    stale.set_piece_at(chess.D6, chess.Piece(chess.BISHOP, chess.BLACK))
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=32,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {
+        chess.KING: 1,
+        chess.ROOK: 1,
+        chess.BISHOP: 1,
+        chess.PAWN: 1,
+    }
+    belief.opp_bishop_colors_remaining = {True: 0, False: 1}
+
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_repair_fired == 1
+    assert belief.last_csp_reseed_fired == 0
+    assert belief.marginal_piece_at(chess.E4) == {
+        chess.Piece(chess.PAWN, chess.BLACK): 1.0
+    }
+    assert all(particle.piece_at(chess.D5) is None for particle in belief.particles)
+    assert all(
+        visible_squares(particle, chess.WHITE) == obs.visibility_mask
+        for particle in belief.particles
+    )
+
+
 def test_stage_b_does_not_relax_visible_empty_square() -> None:
     """Visible empty squares are hard facts too.
 

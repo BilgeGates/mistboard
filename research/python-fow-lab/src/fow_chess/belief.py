@@ -329,7 +329,9 @@ class BeliefState:
         self.last_repair_fired = 0
         self.last_repair_count = 0
 
-        expanded: list[tuple[chess.Board, float, bool, bool, bool]] = []
+        expanded: list[
+            tuple[chess.Board, chess.Board, float, bool, bool, bool]
+        ] = []
         for prev_board, prev_weight in zip(self.particles, self.weights):
             legal = list(prev_board.pseudo_legal_moves)
             if not legal:
@@ -349,20 +351,31 @@ class BeliefState:
                     counts, self.opp_remaining_counts
                 )
                 expanded.append(
-                    (next_board, prev_weight * p, obs_ok, hard_obs_ok, count_ok)
+                    (
+                        prev_board,
+                        next_board,
+                        prev_weight * p,
+                        obs_ok,
+                        hard_obs_ok,
+                        count_ok,
+                    )
                 )
 
         # Tier 1: obs + constraint
-        primary_p = [b for b, _, obs_ok, _, c_ok in expanded if obs_ok and c_ok]
-        primary_w = [w for _, w, obs_ok, _, c_ok in expanded if obs_ok and c_ok]
+        primary_p = [b for _, b, _, obs_ok, _, c_ok in expanded if obs_ok and c_ok]
+        primary_w = [w for _, _, w, obs_ok, _, c_ok in expanded if obs_ok and c_ok]
         # Tier 2: hard observation + constraint. Relax only the soft visibility
         # mask shape; never relax visible pieces, own captures, or game-over.
-        constraint_p = [b for b, _, _, hard_ok, c_ok in expanded if hard_ok and c_ok]
-        constraint_w = [w for _, w, _, hard_ok, c_ok in expanded if hard_ok and c_ok]
+        constraint_p = [
+            b for _, b, _, _, hard_ok, c_ok in expanded if hard_ok and c_ok
+        ]
+        constraint_w = [
+            w for _, _, w, _, hard_ok, c_ok in expanded if hard_ok and c_ok
+        ]
 
         # Diagnostic: how many particles the constraint pruned (regardless of obs match).
         self.last_constraint_pruned = sum(
-            1 for _, _, _, _, c_ok in expanded if not c_ok
+            1 for _, _, _, _, _, c_ok in expanded if not c_ok
         )
 
         if primary_p:
@@ -381,7 +394,7 @@ class BeliefState:
             # random-filling from scratch.
             repaired: list[chess.Board] = []
             repaired_weights: list[float] = []
-            for board, weight, _, _, count_ok in expanded:
+            for prev_board, board, weight, _, _, count_ok in expanded:
                 if not count_ok:
                     continue
                 repaired_board = _repair_particle_to_observation(
@@ -392,6 +405,7 @@ class BeliefState:
                     self.perspective,
                     side_to_move=self.perspective,
                     rng=self.rng,
+                    prev_board=prev_board,
                 )
                 if repaired_board is not None:
                     repaired.append(repaired_board)
@@ -576,6 +590,53 @@ def _required_hidden_opp_squares_from_observation(
     return required
 
 
+def _forced_capture_transition_from_observation(
+    prev_board: chess.Board,
+    observation: Observation,
+    perspective: chess.Color,
+) -> tuple[chess.Square, chess.Square, chess.Piece] | None:
+    """Infer a strict hidden capture identity from a visible vacated source.
+
+    If our piece disappeared on a hidden landing square and exactly one
+    opponent piece from a now-visible-empty source could have captured it,
+    repair must preserve that identity. This covers the game-14 class where a
+    previously visible pawn moved from d5 to e4 in fog; the landing square is
+    hidden, but the vacated visible source makes the capturer's identity hard
+    evidence, not a soft CSP guess.
+    """
+    landing = observation.opp_capture_landing_square
+    if landing is None:
+        return None
+    captured_piece = prev_board.piece_at(landing)
+    if captured_piece is None or captured_piece.color != perspective:
+        return None
+
+    visibility_set = set(observation.visibility_mask)
+    opp = not perspective
+    candidates: list[tuple[chess.Square, chess.Square, chess.Piece]] = []
+    for move in prev_board.pseudo_legal_moves:
+        if move.to_square != landing:
+            continue
+        piece = prev_board.piece_at(move.from_square)
+        if piece is None or piece.color != opp:
+            continue
+        # This is only a hard identity fact when the source is visible after
+        # the move and observed empty. Hidden sources remain plausible but not
+        # forced, so they stay in the soft particle-ranking problem.
+        if move.from_square not in visibility_set:
+            continue
+        if observation.visible_pieces.get(move.from_square) is not None:
+            continue
+        landed_type = move.promotion or piece.piece_type
+        candidates.append(
+            (move.from_square, landing, chess.Piece(landed_type, opp))
+        )
+
+    if len(candidates) != 1:
+        return None
+    return candidates[0]
+
+
 def _required_hidden_opp_blockers_from_pawn_affordance(
     observation: Observation, perspective: chess.Color
 ) -> set[chess.Square]:
@@ -651,6 +712,7 @@ def _repair_particle_to_observation(
     perspective: chess.Color,
     side_to_move: chess.Color,
     rng: random.Random,
+    prev_board: chess.Board | None = None,
 ) -> chess.Board | None:
     """Minimally repair a pushed particle against current hard observation.
 
@@ -688,9 +750,25 @@ def _repair_particle_to_observation(
     for sq, piece in visible_pieces.items():
         repaired.set_piece_at(sq, piece)
 
+    forced_capture = (
+        _forced_capture_transition_from_observation(
+            prev_board, observation, perspective
+        )
+        if prev_board is not None
+        else None
+    )
+    forced_squares: set[chess.Square] = set()
+    if forced_capture is not None:
+        source, landing, landed_piece = forced_capture
+        if source != landing:
+            repaired.remove_piece_at(source)
+        repaired.set_piece_at(landing, landed_piece)
+        forced_squares.add(landing)
+
     required_hidden_opp_squares = _required_hidden_opp_squares_from_observation(
         observation, perspective
     )
+    required_hidden_opp_squares |= forced_squares
     if not _repair_required_blockers(
         repaired,
         required_hidden_opp_squares,

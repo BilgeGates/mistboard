@@ -122,6 +122,84 @@ The lab loop turns artifacts into stronger gates:
 
 This layer answers "what should the next patch prevent from happening again?"
 
+## Learning Targets And Weight Surfaces
+
+The long-term engine should learn from saved engine games, human annotations,
+truth-board analysis, and replayed counterfactuals. The first goal is not an
+opaque end-to-end neural player. The first goal is to make the engine's
+decision surfaces explicit enough that local bake-offs and EvE jobs can tune
+them over time.
+
+Keep hard legality and observation facts outside the learned layer. A model may
+rank particles, allocate compute, or score risk; it may not decide that a
+visible-empty square contains a piece, that a bishop changed color complex, or
+that a known capture did not happen.
+
+### Particle Generation And Ranking
+
+The Belief Particle Engine has two jobs: enumerate worlds consistent with the
+observation stream, then rank which worlds deserve probability and compute.
+Learnable weights here include:
+
+- identity continuity for pieces and pawn tracks;
+- minimal hidden movement versus surprising hidden movement;
+- opponent move plausibility under style or engine-version priors;
+- danger upweighting for unlikely but catastrophic worlds;
+- repair preference versus generic CSP reseed;
+- strict constraints versus soft plausibility constraints;
+- compute allocation toward low-probability high-risk particles.
+
+Training signals:
+
+- hardfact violations;
+- truth-particle survival;
+- generic CSP frequency;
+- human annotations that call out belief contradictions;
+- Stockfish-on-truth deltas where the engine ignored a dangerous hidden world;
+- replayed counterfactuals showing which particle families would have avoided
+  the mistake.
+
+### Decision Evaluation Under Uncertainty
+
+Once particles are reliable, move evaluation should learn how much to value or
+penalize board features under uncertainty.
+
+Learnable weights here include:
+
+- material value by game phase;
+- king-safety penalties under visible and hidden threats;
+- defended-square risk for captures into fog;
+- opportunity value for tactics that work across many worlds;
+- downside-risk penalties such as worst-case or CVaR-style loss;
+- information-gain value from revealing critical uncertainty;
+- annotation priors for known move classes such as least-valuable attacker.
+
+Training signals:
+
+- game outcomes;
+- missed tactical opportunities found on revealed truth boards;
+- human labels for better move classes;
+- losses caused by underestimated fog risk;
+- replay comparisons between chosen moves and annotated alternatives.
+
+### Synthesis Weights
+
+Parallel workers will eventually produce conflicting recommendations. The
+synthesis layer needs explicit weights for combining them:
+
+- expected value across particles;
+- tail-risk avoidance;
+- terminal safety vetoes;
+- tactical urgency;
+- information gain;
+- annotation-regression pressure;
+- confidence penalties when belief diversity is low or repair just fired.
+
+Early tuning can use hand-edited constants, grid search, Bayesian optimization,
+or evolutionary search over replay suites. Gradient descent becomes natural
+once a neural policy/value/risk prior exists, but it should optimize these
+named surfaces rather than replace the observation contract.
+
 ## Milestones
 
 ### M0: Current Local Baseline
@@ -258,4 +336,3 @@ and artifact persistence as separate resumable tasks with saved diagnostics.
 Do not start with a large neural or distributed architecture. The immediate
 compounding asset is a local loop that converts four reviewed games into
 failing tests, fixes, and cleaner next bake-offs.
-
