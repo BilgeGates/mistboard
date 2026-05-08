@@ -134,6 +134,7 @@ export const fogOfWarVariant: Variant = {
     const ownSquares = ownPieceSquares(state.board, player);
     const visibleSquares = fogVisibleSquares(state, player);
     const board = boardVisibleTo(state.board, visibleSquares);
+    const lastMove = visibleLastMoveForPlayer(state, player, ownSquares);
 
     return {
       id: state.id,
@@ -146,7 +147,7 @@ export const fogOfWarVariant: Variant = {
       status: state.status,
       perspective: player,
       moveNumber: state.moveNumber,
-      lastMove: ownSquares.includes(state.lastMove?.from as Square) ? state.lastMove : undefined,
+      lastMove,
       clock: state.clock,
     };
   },
@@ -187,6 +188,14 @@ function boardVisibleTo(board: Board, visibleSquares: Square[]): Board {
     if (piece && visible.has(square as Square)) playerBoard[square as Square] = piece;
   }
   return playerBoard;
+}
+
+function visibleLastMoveForPlayer(state: GameState, player: Color, ownSquares: Square[]): Move | undefined {
+  const lastMove = state.lastMove;
+  if (!lastMove) return undefined;
+  if (state.status.type === 'playing') return state.status.turn === player ? undefined : lastMove;
+  if (ownSquares.includes(lastMove.from)) return lastMove;
+  return state.board[lastMove.to]?.color === player ? lastMove : undefined;
 }
 
 function applyFogMove(state: GameState, move: Move): GameState {
