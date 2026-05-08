@@ -35,8 +35,11 @@ Do not build in v1:
 - `CONTRIBUTING.md` — contribution process.
 - `SECURITY.md` — hidden-information security boundary and reports.
 - `docs/fog-of-war/rulesets.md` — Fog of War rules notes.
+- `docs/identity-and-profiles.md` — identity, authority, ownership, and future profile model.
 - `docs/rules.md` — current rule behavior.
 - `docs/milestones.md` — public implementation milestones.
+- `docs/product-stage-definition.md` — product stages and decision-leverage order.
+- `docs/product-reference-lichess.md` — mature chess-platform reference and Bichess/Fog translation.
 - `docs/documentation-policy.md` — public/private documentation policy.
 
 ## Decision Rule
