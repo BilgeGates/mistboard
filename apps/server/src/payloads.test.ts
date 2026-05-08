@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { bidForWhiteVariant, fogOfWarVariant, replayGameEvents, type GameEvent, type GameProjection } from '@bichess/game';
 import { snapshotPayload, type SnapshotClient, type SnapshotRoom } from './payloads.js';
+import { eventReplayResponse } from './server-policy.js';
 
 test('Fog of War snapshot payload does not include hidden opponent pieces or move events', () => {
   const state = {
@@ -149,6 +150,37 @@ test('live EvE spectator sees full truth and full event stream', () => {
     payload.events.filter((event) => event.type === 'move-played').length,
     2,
   );
+});
+
+test('live replay API and WebSocket snapshot event policies stay aligned', () => {
+  const pveRoom = replayRoomFixture({
+    roomId: 'pve-policy-alignment',
+    seats: { white: 'human-white', black: 'random-engine' },
+    mode: 'pve',
+  });
+  const pvePayload = snapshotPayload(pveRoom, spectatorClient());
+  const pveReplay = eventReplayResponse(pveRoom.events);
+  assert.equal(pveReplay.status, 200);
+  assert.deepEqual(pvePayload.events, pveReplay.body.events);
+
+  const eveRoom = replayRoomFixture({
+    roomId: 'eve-policy-alignment',
+    seats: { white: 'engine:white', black: 'engine:black' },
+    mode: 'eve',
+  });
+  const evePayload = snapshotPayload(eveRoom, spectatorClient());
+  const eveReplay = eventReplayResponse(eveRoom.events);
+  assert.equal(eveReplay.status, 200);
+  assert.deepEqual(evePayload.events, eveReplay.body.events);
+
+  const pvpRoom = replayRoomFixture({
+    roomId: 'pvp-policy-alignment',
+    seats: { white: 'human-white', black: 'human-black' },
+    mode: 'pvp',
+  });
+  const pvpPayload = snapshotPayload(pvpRoom, spectatorClient());
+  assert.deepEqual(eventReplayResponse(pvpRoom.events), { status: 403, body: { error: 'game_not_public' } });
+  assert.equal(pvpPayload.events.some((event) => event.type === 'move-played'), false);
 });
 
 test('finished Fog of War payload exposes full-truth replay', () => {
@@ -300,6 +332,15 @@ function replayRoomFixture({
     events,
     mode,
     projection: replayGameEvents(events),
+  };
+}
+
+function spectatorClient(): SnapshotClient {
+  return {
+    devViews: false,
+    id: 'spectator-client',
+    seat: 'spectator',
+    solo: false,
   };
 }
 
