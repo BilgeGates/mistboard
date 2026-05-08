@@ -1,0 +1,16 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "watchPatterns": [
+      "/apps/server/**",
+      "/apps/web/**",
+      "/packages/game/**",
+      "/scripts/**",
+      "/package.json",
+      "/package-lock.json",
+      "/nixpacks.toml",
+      "/railway.json",
+      "/tsconfig.base.json"
+    ]
+  }
+}
