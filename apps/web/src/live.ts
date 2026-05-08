@@ -238,6 +238,7 @@ function createLayout(target: HTMLDivElement) {
           <div class="board-shell">
             <div data-board-status class="board-status">Connecting</div>
             <div data-board class="board" aria-label="chess board"></div>
+            <div data-board-result class="board-result" hidden></div>
             <div data-promotion class="promotion-picker" hidden></div>
           </div>
           <aside class="side-panel" aria-label="Game controls">
@@ -294,6 +295,7 @@ function createLayout(target: HTMLDivElement) {
   const newRoom = target.querySelector<HTMLAnchorElement>('[data-new-room]');
   const roomMeta = target.querySelector<HTMLParagraphElement>('[data-room-meta]');
   const board = target.querySelector<HTMLDivElement>('[data-board]');
+  const boardResult = target.querySelector<HTMLDivElement>('[data-board-result]');
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
   const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
   const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
@@ -314,7 +316,7 @@ function createLayout(target: HTMLDivElement) {
   const replayControls = target.querySelectorAll<HTMLButtonElement>('[data-replay]');
   const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
 
-  if (!newRoom || !roomMeta || !board || !boardStatus || !actionStatus || !clocks || !gameInfo || !shareRoom || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
+  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !shareRoom || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
     throw new Error('missing app region');
   }
 
@@ -322,6 +324,7 @@ function createLayout(target: HTMLDivElement) {
 
   return {
     board,
+    boardResult,
     boardStatus,
     actionStatus,
     bidControls,
@@ -369,6 +372,7 @@ function render(): void {
   renderSelections(projection);
   renderReplay();
   renderBoard(view);
+  renderBoardResult(view);
   renderPromotion();
 }
 
@@ -658,6 +662,7 @@ function selectionItem(label: string, value: number | string | null | undefined)
 function renderBoard(view: PlayerView | null): void {
   const moveColor = activeMoveColor();
   const boardIsLive = isLive() && view?.status.type === 'playing' && moveColor !== null && pendingPromotion === null;
+  refs.board.classList.toggle('finished-board', view?.status.type === 'finished');
   const config = {
     animation: { enabled: true, duration: 140 },
     autoCastle: true,
@@ -692,6 +697,27 @@ function renderBoard(view: PlayerView | null): void {
   }
 
   ground = Chessground(refs.board, config);
+}
+
+function renderBoardResult(view: PlayerView | null): void {
+  refs.boardResult.replaceChildren();
+  if (view?.status.type !== 'finished' || !isLive()) {
+    refs.boardResult.hidden = true;
+    return;
+  }
+
+  refs.boardResult.hidden = false;
+  const title = document.createElement('strong');
+  title.textContent = resultTitle(view.status.winner);
+
+  const body = document.createElement('span');
+  body.textContent = `${resultReasonLabel(view.status.reason)}. Board fully revealed.`;
+
+  const review = document.createElement('a');
+  review.href = `/game/${encodeURIComponent(room)}`;
+  review.textContent = 'Review game';
+
+  refs.boardResult.append(title, body, review);
 }
 
 function reconcileInteractionState(): void {
