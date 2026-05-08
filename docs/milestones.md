@@ -4,6 +4,10 @@
 
 Use this section as the current planning index. Historical milestones below
 remain useful context, but private-alpha work should be driven by these tracks.
+See [`docs/private-alpha-priority-0-tech-scope.md`](private-alpha-priority-0-tech-scope.md)
+for the technical scope behind the Priority 0 gate.
+See [`docs/private-alpha-priority-1-tech-scope.md`](private-alpha-priority-1-tech-scope.md)
+for the technical scope behind Priority 1 usefulness work.
 
 ### Already In Flight
 
@@ -119,10 +123,11 @@ Work:
 Verification gate: run a two-human Fog game on desktop and mobile-width layout
 without horizontal overflow or ambiguous status.
 
-#### Fog Rules Correctness
+#### Fog Rules Regression Coverage
 
-Outcome: the server rules and player views match the documented Fog of War
-behavior in ordinary play and known edge cases.
+Outcome: the implemented Fog rules have enough focused regression coverage that
+private-alpha testers can stress ordinary play and known edge cases without
+rediscovering already-understood rules bugs.
 
 Work:
 
