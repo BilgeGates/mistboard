@@ -30,8 +30,9 @@ type QueueStatusOptions = {
 };
 
 async function loadQueueStatus(db: pg.Pool, options: QueueStatusOptions): Promise<Record<string, unknown>> {
-  const [taskTotals, activeWorkers, recentJobs, recentTasks] = await Promise.all([
+  const [taskTotals, artifactTotals, activeWorkers, recentJobs, recentTasks] = await Promise.all([
     loadTaskTotals(db, options.jobId),
+    loadArtifactTotals(db, options.jobId),
     loadActiveWorkers(db),
     loadRecentJobs(db, options),
     loadRecentTasks(db, options),
@@ -40,10 +41,30 @@ async function loadQueueStatus(db: pg.Pool, options: QueueStatusOptions): Promis
   return {
     jobId: options.jobId,
     taskTotals,
+    artifactTotals,
     activeWorkers,
     recentJobs,
     recentTasks,
   };
+}
+
+async function loadArtifactTotals(db: pg.Pool, jobId: string | null): Promise<Array<Record<string, unknown>>> {
+  const { rows } = await db.query<{
+    artifact_type: string;
+    count: string;
+  }>(
+    `SELECT artifact.artifact_type, count(*) AS count
+     FROM game_debug_artifacts artifact
+     JOIN eve_games eve_game ON eve_game.game_id = artifact.game_id
+     WHERE ($1::text IS NULL OR eve_game.job_id = $1)
+     GROUP BY artifact.artifact_type
+     ORDER BY artifact.artifact_type`,
+    [jobId],
+  );
+  return rows.map((row) => ({
+    artifactType: row.artifact_type,
+    count: Number.parseInt(row.count, 10),
+  }));
 }
 
 async function loadTaskTotals(db: pg.Pool, jobId: string | null): Promise<Array<Record<string, unknown>>> {
