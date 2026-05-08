@@ -123,6 +123,8 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   headerRoot.append(buildGameHeader(game));
   await mountReplay(replayRoot, game.roomId, {
     autoplay: false,
+    initialPly: initialGamePly(),
+    onPlyChange: syncGamePlyUrl,
     showControls: true,
     revealOnFinish: true,
     loaderForId: apiEventLoader,
@@ -237,6 +239,23 @@ async function copyGameLink(button: HTMLButtonElement): Promise<void> {
   window.setTimeout(() => {
     button.textContent = 'Copy link';
   }, 1600);
+}
+
+function initialGamePly(): number {
+  const value = new URLSearchParams(window.location.search).get('ply');
+  if (!value) return 0;
+  const ply = Number.parseInt(value, 10);
+  return Number.isFinite(ply) ? ply : 0;
+}
+
+function syncGamePlyUrl(ply: number): void {
+  const url = new URL(window.location.href);
+  if (ply <= 0) {
+    url.searchParams.delete('ply');
+  } else {
+    url.searchParams.set('ply', String(ply));
+  }
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 export function mountAbout(root: HTMLElement): void {
