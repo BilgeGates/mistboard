@@ -14,6 +14,7 @@ import {
   releaseEngineGameTaskClaim,
   stopWorkerRun,
 } from './engine-experiments.js';
+import { upsertBuiltinEngineVersions } from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -426,6 +427,75 @@ if (!TEST_DATABASE_URL) {
       job.id,
     ]);
     assert.deepEqual(jobs, [{ status: 'completed', completed_games: 1, failed_games: 0 }]);
+  });
+
+  test('runner loads pinned built-in engines and records move-choice artifacts', async () => {
+    await upsertBuiltinEngineVersions(getPool(), ['builtin-capture-seeker', 'builtin-random-legal']);
+    const job = await createExperimentJob(getPool(), {
+      id: 'job-engine-artifact-test',
+      purpose: 'smoke',
+      targetGames: 1,
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-engine-artifact',
+      jobId: job.id,
+      gameIndex: 0,
+      whiteEngineId: 'builtin-capture-seeker',
+      blackEngineId: 'builtin-random-legal',
+      seed: 500,
+      timeControl: { kind: 'none' },
+      artifactPolicy: { move_choices: 'all' },
+      config: { variant: 'fog-of-war', max_plies: 2 },
+    });
+    const worker = await registerWorkerRun(getPool(), {
+      id: 'worker-engine-artifact-test',
+      provider: 'local',
+    });
+    const task = await claimNextEngineGameTask(getPool(), {
+      workerRunId: worker.id,
+      workerId: 'test-worker',
+      provider: 'local',
+      claimToken: 'engine-artifact-token',
+    });
+    assert.equal(task?.id, 'task-engine-artifact');
+
+    const result = await runRandomLegalEngineGame(getPool(), task);
+    assert.equal(result.status, 'completed');
+
+    const { rows: eveGames } = await getPool().query<{
+      white_engine_id: string | null;
+      black_engine_id: string | null;
+      white_play_signature: string;
+      black_play_signature: string;
+    }>('SELECT white_engine_id, black_engine_id, white_play_signature, black_play_signature FROM eve_games WHERE game_id = $1', [
+      result.gameId,
+    ]);
+    assert.deepEqual(eveGames, [
+      {
+        white_engine_id: 'builtin-capture-seeker',
+        black_engine_id: 'builtin-random-legal',
+        white_play_signature: 'builtin-capture-seeker-v1',
+        black_play_signature: 'builtin-random-legal-v1',
+      },
+    ]);
+
+    const { rows: artifacts } = await getPool().query<{
+      artifact_type: string;
+      engine_color: string | null;
+      payload: { engine_id?: string; selected_move?: unknown; scored_moves?: unknown[] };
+    }>(
+      `SELECT artifact_type, engine_color, payload
+       FROM game_debug_artifacts
+       WHERE game_id = $1
+       ORDER BY ply`,
+      [result.gameId],
+    );
+    assert.equal(artifacts.length, 2);
+    assert.equal(artifacts[0]?.artifact_type, 'engine-move-choice');
+    assert.equal(artifacts[0]?.engine_color, 'white');
+    assert.equal(artifacts[0]?.payload.engine_id, 'builtin-capture-seeker');
+    assert.ok(artifacts[0]?.payload.selected_move);
+    assert.ok((artifacts[0]?.payload.scored_moves?.length ?? 0) > 0);
   });
 
   test('job reconciliation derives counters from task state idempotently', async () => {

@@ -4,7 +4,6 @@ import {
   variantForId,
   type Color,
   type GameEvent,
-  type Move,
   type VariantId,
 } from '@bichess/game';
 import {
@@ -13,8 +12,13 @@ import {
   reconcileExperimentJob,
   type EngineGameTask,
 } from './engine-experiments.js';
+import {
+  loadEngine,
+  type EngineDefinition,
+  type EngineMoveDecision,
+  upsertBuiltinEngineVersions,
+} from './engine-registry.js';
 
-const BUILTIN_ENGINE_ID = 'builtin-random-legal';
 const HEARTBEAT_EVERY_PLIES = 8;
 
 export async function runRandomLegalEngineGame(
@@ -26,8 +30,11 @@ export async function runRandomLegalEngineGame(
   const variant = variantFromTask(task);
   const gameId = task.gameId ?? `eve_${task.id}`;
   const startedAt = new Date();
+  const whiteEngine = loadEngine(task.whiteEngineId ?? engineIdFromConfig(task.config, 'white_engine_id'));
+  const blackEngine = loadEngine(task.blackEngineId ?? engineIdFromConfig(task.config, 'black_engine_id'));
+  await upsertBuiltinEngineVersions(pool, [whiteEngine.id, blackEngine.id]);
 
-  await createRunningGame(pool, task, gameId, variant, startedAt);
+  await createRunningGame(pool, task, gameId, variant, startedAt, whiteEngine, blackEngine);
 
   const events: GameEvent[] = [
     { type: 'room-created', at: startedAt.getTime(), roomId: gameId, variant, offer: [] },
@@ -56,7 +63,15 @@ export async function runRandomLegalEngineGame(
       return { gameId, plyCount: events.length - 3, status: 'completed' };
     }
 
-    const move = chooseMove(moves, seed);
+    const engine = color === 'white' ? whiteEngine : blackEngine;
+    const decision = engine.chooseMove({
+      state: projection.state,
+      color,
+      legalMoves: moves,
+      seed,
+      ply: events.length - 3,
+    });
+    const move = decision.move;
     seed = nextSeed(seed);
     const event: GameEvent = {
       type: 'move-played',
@@ -66,6 +81,7 @@ export async function runRandomLegalEngineGame(
       move,
     };
     await appendEvent(pool, gameId, events.length, event);
+    await recordMoveDecision(pool, task, gameId, events.length - 3, color, engine, decision);
     events.push(event);
     if ((events.length - 3) % HEARTBEAT_EVERY_PLIES === 0) {
       await heartbeatEngineGameTask(pool, task.id, task.claimToken);
@@ -108,6 +124,8 @@ async function createRunningGame(
   gameId: string,
   variant: VariantId,
   startedAt: Date,
+  whiteEngine: EngineDefinition,
+  blackEngine: EngineDefinition,
 ): Promise<void> {
   await pool.query(
     `INSERT INTO games
@@ -122,8 +140,8 @@ async function createRunningGame(
       gameId,
       variant,
       startedAt,
-      task.whiteEngineId ?? BUILTIN_ENGINE_ID,
-      task.blackEngineId ?? BUILTIN_ENGINE_ID,
+      whiteEngine.id,
+      blackEngine.id,
     ],
   );
 
@@ -150,12 +168,12 @@ async function createRunningGame(
       task.id,
       task.gameIndex,
       task.workerId,
-      task.whiteEngineId,
-      task.blackEngineId,
-      task.whiteEngineId ?? BUILTIN_ENGINE_ID,
-      task.blackEngineId ?? BUILTIN_ENGINE_ID,
-      task.whiteEngineId ?? BUILTIN_ENGINE_ID,
-      task.blackEngineId ?? BUILTIN_ENGINE_ID,
+      whiteEngine.id,
+      blackEngine.id,
+      whiteEngine.configHash,
+      blackEngine.configHash,
+      whiteEngine.playSignature,
+      blackEngine.playSignature,
       task.timeControl,
       task.openingPolicy,
       task.seed,
@@ -232,16 +250,50 @@ function maxPliesFromTask(task: EngineGameTask): number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 160;
 }
 
+function engineIdFromConfig(config: Record<string, unknown>, key: string): string | null {
+  const value = config[key];
+  return typeof value === 'string' ? value : null;
+}
+
+async function recordMoveDecision(
+  pool: pg.Pool,
+  task: EngineGameTask,
+  gameId: string,
+  ply: number,
+  color: Color,
+  engine: EngineDefinition,
+  decision: EngineMoveDecision,
+): Promise<void> {
+  if (!shouldRecordMoveChoices(task)) return;
+  await pool.query(
+    `INSERT INTO game_debug_artifacts
+       (game_id, ply, engine_color, artifact_type, storage, payload)
+     VALUES ($1, $2, $3, 'engine-move-choice', 'jsonb', $4)`,
+    [
+      gameId,
+      ply,
+      color,
+      {
+        engine_id: engine.id,
+        play_signature: engine.playSignature,
+        selected_move: decision.move,
+        scored_moves: decision.scores,
+      },
+    ],
+  );
+}
+
+function shouldRecordMoveChoices(task: EngineGameTask): boolean {
+  return task.artifactPolicy.move_choices === 'all'
+    || task.artifactPolicy.engine_move_choices === 'all';
+}
+
 function seedFromTask(task: EngineGameTask): bigint {
   try {
     return BigInt(task.seed);
   } catch {
     return 1n;
   }
-}
-
-function chooseMove(moves: Move[], seed: bigint): Move {
-  return moves[Number(seed % BigInt(moves.length))]!;
 }
 
 function nextSeed(seed: bigint): bigint {
