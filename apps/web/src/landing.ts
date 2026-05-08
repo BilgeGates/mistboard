@@ -102,9 +102,11 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
 
   const shell = document.createElement('main');
   shell.className = 'game-shell';
+  const headerRoot = document.createElement('div');
+  headerRoot.className = 'game-header-root';
   const replayRoot = document.createElement('div');
   replayRoot.className = 'game-replay';
-  shell.append(replayRoot);
+  shell.append(headerRoot, replayRoot);
   root.append(buildNav(), shell, buildFooter());
 
   const game = await fetchGameSummary(roomId).catch((err) => {
@@ -116,6 +118,7 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
     return;
   }
 
+  headerRoot.append(buildGameHeader(game));
   await mountReplay(replayRoot, game.roomId, {
     autoplay: false,
     showControls: true,
@@ -173,6 +176,65 @@ function gameMetaForGame(game: FeaturedGame): GameMeta {
     termination: game.termination,
     plyCount: game.plyCount,
   };
+}
+
+function buildGameHeader(game: FeaturedGame): HTMLElement {
+  const header = document.createElement('section');
+  header.className = 'game-header';
+
+  const text = document.createElement('div');
+  text.className = 'game-header-text';
+
+  const source = document.createElement('div');
+  source.className = 'game-source';
+  source.textContent = sourceLabel(game.mode);
+
+  const title = document.createElement('h1');
+  title.className = 'game-title';
+  title.textContent = `${displayParticipant(game.whiteEngineId ?? game.whiteName, 'White')} vs ${displayParticipant(game.blackEngineId ?? game.blackName, 'Black')}`;
+
+  const meta = document.createElement('p');
+  meta.className = 'game-summary-line';
+  meta.textContent = `${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+  text.append(source, title, meta);
+
+  const actions = document.createElement('div');
+  actions.className = 'game-header-actions';
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'game-copy-link';
+  copy.textContent = 'Copy link';
+  copy.addEventListener('click', () => copyGameLink(copy));
+  actions.append(copy);
+
+  header.append(text, actions);
+  return header;
+}
+
+function displayParticipant(name: string | null | undefined, fallback: string): string {
+  if (!name) return fallback;
+  return shortEngineName(name);
+}
+
+function sourceLabel(mode: FeaturedGame['mode']): string {
+  if (mode === 'eve') return 'Engine vs engine';
+  if (mode === 'pve') return 'Human vs engine';
+  if (mode === 'pvp') return 'Human vs human';
+  if (mode === 'imported') return 'Imported game';
+  if (mode === 'manual') return 'Manual game';
+  return 'Fog of War game';
+}
+
+async function copyGameLink(button: HTMLButtonElement): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    button.textContent = 'Copied';
+  } catch {
+    button.textContent = 'Copy failed';
+  }
+  window.setTimeout(() => {
+    button.textContent = 'Copy link';
+  }, 1600);
 }
 
 export function mountAbout(root: HTMLElement): void {
