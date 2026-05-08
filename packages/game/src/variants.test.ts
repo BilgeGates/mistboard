@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { GameState } from './types.js';
+import type { GameState, Move } from './types.js';
 import { draft960Variant, fogOfWarVariant } from './variants.js';
 
 test('Draft960 exposes legal moves once playing', () => {
@@ -283,6 +283,54 @@ test('Fog of War ends when a king is captured', () => {
   const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'e2' });
   assert.deepEqual(next.board.e2, { color: 'white', role: 'king' });
   assert.deepEqual(next.status, { type: 'finished', winner: 'white', reason: 'king-captured' });
+});
+
+test('Fog of War draws on the 50-move rule', () => {
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-fifty-move'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      b1: { color: 'white', role: 'knight' },
+      e8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'white' } as const,
+    castlingRights: [],
+    halfmoveClock: 99,
+  };
+
+  const next = fogOfWarVariant.applyMove(state, { from: 'b1', to: 'c3' });
+  assert.deepEqual(next.status, { type: 'finished', winner: null, reason: 'draw' });
+  assert.equal(next.halfmoveClock, 100);
+});
+
+test('Fog of War draws on threefold repetition', () => {
+  let state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-threefold'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      g1: { color: 'white', role: 'knight' },
+      e8: { color: 'black', role: 'king' },
+      g8: { color: 'black', role: 'knight' },
+    },
+    status: { type: 'playing', turn: 'white' } as const,
+    castlingRights: [],
+  };
+
+  for (const move of [
+    { from: 'g1', to: 'f3' },
+    { from: 'g8', to: 'f6' },
+    { from: 'f3', to: 'g1' },
+    { from: 'f6', to: 'g8' },
+    { from: 'g1', to: 'f3' },
+    { from: 'g8', to: 'f6' },
+    { from: 'f3', to: 'g1' },
+  ] satisfies Move[]) {
+    state = fogOfWarVariant.applyMove(state, move);
+    assert.equal(state.status.type, 'playing');
+  }
+
+  const repeated = fogOfWarVariant.applyMove(state, { from: 'f6', to: 'g8' });
+  assert.deepEqual(repeated.status, { type: 'finished', winner: null, reason: 'draw' });
 });
 
 test('Fog of War castling ignores attacked transit and destination squares', () => {

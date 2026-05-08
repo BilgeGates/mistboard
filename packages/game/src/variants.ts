@@ -113,10 +113,14 @@ export const fogOfWarVariant: Variant = {
   ...draft960Variant,
   id: 'fog-of-war',
   createInitialState(gameId: string): GameState {
-    return {
+    const state: GameState = {
       ...draft960Variant.createInitialState(gameId),
       variant: 'fog-of-war',
       status: { type: 'playing', turn: 'white' },
+    };
+    return {
+      ...state,
+      positionCounts: { [positionRepetitionKey(state)]: 1 },
     };
   },
   getLegalMoves(state: GameState, player: Color): Move[] {
@@ -216,20 +220,64 @@ function applyFogMove(state: GameState, move: Move): GameState {
     };
   }
 
+  const nextMoveNumber = state.moveNumber + (player === 'black' ? 1 : 0);
+  const updatedCastlingRights = nextCastlingRights(state, legalMove, piece.role);
+  const updatedEnPassantSquare = nextEnPassantSquare(legalMove, piece.role, player);
+  const nextHalfmoveClock = piece.role === 'pawn' || capturedPiece || enPassantCapture ? 0 : state.halfmoveClock + 1;
+  const playingStatus = { type: 'playing', turn: oppositeColor(player) } as const;
+  const nextPositionState: GameState = {
+    ...state,
+    board,
+    status: playingStatus,
+    moveNumber: nextMoveNumber,
+    castlingRights: updatedCastlingRights,
+    enPassantSquare: updatedEnPassantSquare,
+    halfmoveClock: nextHalfmoveClock,
+    lastMove: legalMove,
+  };
+  const positionCounts = nextPositionCounts(state, nextPositionState);
   const nextStatus = capturedPiece?.role === 'king'
     ? { type: 'finished', winner: player, reason: 'king-captured' } as const
-    : { type: 'playing', turn: oppositeColor(player) } as const;
+    : nextHalfmoveClock >= 100 || positionCounts[positionRepetitionKey(nextPositionState)]! >= 3
+      ? { type: 'finished', winner: null, reason: 'draw' } as const
+      : playingStatus;
 
   return {
     ...state,
     board,
     status: nextStatus,
-    moveNumber: state.moveNumber + (player === 'black' ? 1 : 0),
-    castlingRights: nextCastlingRights(state, legalMove, piece.role),
-    enPassantSquare: nextEnPassantSquare(legalMove, piece.role, player),
-    halfmoveClock: piece.role === 'pawn' || capturedPiece || enPassantCapture ? 0 : state.halfmoveClock + 1,
+    moveNumber: nextMoveNumber,
+    castlingRights: updatedCastlingRights,
+    enPassantSquare: updatedEnPassantSquare,
+    halfmoveClock: nextHalfmoveClock,
     lastMove: legalMove,
+    positionCounts,
   };
+}
+
+function nextPositionCounts(previousState: GameState, nextState: GameState): Record<string, number> {
+  const currentKey = positionRepetitionKey(previousState);
+  const counts = { ...(previousState.positionCounts ?? { [currentKey]: 1 }) };
+  counts[currentKey] ??= 1;
+  const nextKey = positionRepetitionKey(nextState);
+  counts[nextKey] = (counts[nextKey] ?? 0) + 1;
+  return counts;
+}
+
+function positionRepetitionKey(state: GameState): string {
+  const turn = state.status.type === 'playing' ? state.status.turn : '-';
+  const board = Object.entries(state.board)
+    .filter(([, piece]) => piece)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([square, piece]) => `${square}:${piece!.color[0]}${piece!.role[0]}`)
+    .join(',');
+  const castling = [...state.castlingRights].sort().join(',');
+  return [
+    `turn=${turn}`,
+    `board=${board}`,
+    `castling=${castling}`,
+    `ep=${state.enPassantSquare ?? '-'}`,
+  ].join('|');
 }
 
 function getFogMovesForPlayer(state: GameState, player: Color): Move[] {

@@ -1,3 +1,7 @@
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import {
   replayGameEvents,
@@ -20,6 +24,7 @@ import {
 } from './engine-registry.js';
 
 const HEARTBEAT_EVERY_PLIES = 8;
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 export async function runRandomLegalEngineGame(
   pool: pg.Pool,
@@ -33,6 +38,10 @@ export async function runRandomLegalEngineGame(
   const whiteEngine = loadEngine(task.whiteEngineId ?? engineIdFromConfig(task.config, 'white_engine_id'));
   const blackEngine = loadEngine(task.blackEngineId ?? engineIdFromConfig(task.config, 'black_engine_id'));
   await upsertBuiltinEngineVersions(pool, [whiteEngine.id, blackEngine.id]);
+
+  if (requiresPythonGameRunner(whiteEngine, blackEngine)) {
+    return runPythonSubprocessEngineGame(pool, task, gameId, variant, startedAt, whiteEngine, blackEngine);
+  }
 
   await createRunningGame(pool, task, gameId, variant, startedAt, whiteEngine, blackEngine);
 
@@ -64,6 +73,7 @@ export async function runRandomLegalEngineGame(
     }
 
     const engine = color === 'white' ? whiteEngine : blackEngine;
+    if (!engine.chooseMove) throw new Error(`engine ${engine.id} does not support in-process move selection`);
     const decision = engine.chooseMove({
       state: projection.state,
       color,
@@ -114,6 +124,85 @@ export async function runRandomLegalEngineGame(
   );
   await finishEngineGameTask(pool, task.id, task.claimToken, 'completed');
   await reconcileExperimentJob(pool, task.jobId);
+
+  return { gameId, plyCount, status: 'completed' };
+}
+
+async function runPythonSubprocessEngineGame(
+  pool: pg.Pool,
+  task: EngineGameTask,
+  gameId: string,
+  variant: VariantId,
+  startedAt: Date,
+  whiteEngine: EngineDefinition,
+  blackEngine: EngineDefinition,
+): Promise<{ gameId: string; plyCount: number; status: 'completed' | 'aborted' }> {
+  await createRunningGame(pool, task, gameId, variant, startedAt, whiteEngine, blackEngine);
+
+  const baseEvents: GameEvent[] = [
+    { type: 'room-created', at: startedAt.getTime(), roomId: gameId, variant, offer: [] },
+    { type: 'seat-assigned', at: startedAt.getTime(), roomId: gameId, clientId: 'engine:white', seat: 'white' },
+    { type: 'seat-assigned', at: startedAt.getTime(), roomId: gameId, clientId: 'engine:black', seat: 'black' },
+  ];
+  for (let seq = 0; seq < baseEvents.length; seq++) {
+    await appendEvent(pool, gameId, seq, baseEvents[seq]!);
+  }
+
+  const result = await runPythonGameProcess({
+    roomId: gameId,
+    seed: task.seed,
+    maxPlies: maxPliesFromTask(task),
+    timeControl: task.timeControl,
+    openingPolicy: task.openingPolicy,
+    white: { id: whiteEngine.id },
+    black: { id: blackEngine.id },
+  });
+
+  const moveEvents = sanitizePythonMoveEvents(result.events, gameId);
+  for (let index = 0; index < moveEvents.length; index++) {
+    await appendEvent(pool, gameId, baseEvents.length + index, moveEvents[index]!);
+    if ((index + 1) % HEARTBEAT_EVERY_PLIES === 0) {
+      await heartbeatEngineGameTask(pool, task.id, task.claimToken!);
+    }
+  }
+
+  const projection = replayGameEvents([...baseEvents, ...moveEvents]);
+  const plyCount = moveEvents.length;
+  if (result.endReason === 'no-legal-moves') {
+    await abortGame(pool, task, gameId, plyCount, 'no-legal-moves');
+    return { gameId, plyCount, status: 'aborted' };
+  }
+
+  const status = projection.state.status;
+  const resultLabel = status.type === 'finished'
+    ? status.winner === 'white' ? 'white-wins'
+      : status.winner === 'black' ? 'black-wins'
+        : 'draw'
+    : result.winner === 'white' ? 'white-wins'
+      : result.winner === 'black' ? 'black-wins'
+        : 'draw';
+  const termination = result.endReason === 'clock-expired'
+    ? 'timeout'
+    : result.endReason === 'truncated'
+      ? 'truncated'
+      : status.type === 'finished'
+        ? status.reason
+        : result.endReason;
+
+  await pool.query(
+    `UPDATE games
+     SET status = 'completed',
+         result = $2,
+         termination = $3,
+         ply_count = $4,
+         ended_at = $5,
+         aborted_reason = NULL
+     WHERE room_id = $1`,
+    [gameId, resultLabel, termination, plyCount, new Date()],
+  );
+  await finishEngineGameTask(pool, task.id, task.claimToken!, 'completed');
+  await reconcileExperimentJob(pool, task.jobId);
+  await recordPythonGameSummary(pool, task, gameId, result);
 
   return { gameId, plyCount, status: 'completed' };
 }
@@ -253,6 +342,135 @@ function maxPliesFromTask(task: EngineGameTask): number {
 function engineIdFromConfig(config: Record<string, unknown>, key: string): string | null {
   const value = config[key];
   return typeof value === 'string' ? value : null;
+}
+
+function requiresPythonGameRunner(whiteEngine: EngineDefinition, blackEngine: EngineDefinition): boolean {
+  return isPythonEngine(whiteEngine) || isPythonEngine(blackEngine);
+}
+
+function isPythonEngine(engine: EngineDefinition): boolean {
+  return engine.config.kind === 'python-subprocess';
+}
+
+type PythonGameRequest = {
+  roomId: string;
+  seed: string;
+  maxPlies: number;
+  timeControl: Record<string, unknown>;
+  openingPolicy: Record<string, unknown>;
+  white: { id: string };
+  black: { id: string };
+};
+
+type PythonGameResult = {
+  roomId: string;
+  plies: number;
+  winner: 'white' | 'black' | null;
+  endReason: 'king-captured' | 'truncated' | 'draw' | 'no-legal-moves' | 'clock-expired';
+  truncated: boolean;
+  events: unknown[];
+  engines?: unknown;
+};
+
+async function runPythonGameProcess(request: PythonGameRequest): Promise<PythonGameResult> {
+  const python = process.env.PYTHON_ENGINE_PYTHON ?? defaultPythonEngineBinary();
+  const script = process.env.PYTHON_ENGINE_RUNNER
+    ?? resolve(REPO_ROOT, 'research', 'python-fow-lab', 'scripts', 'eve_game_runner.py');
+  const stockfishPath = process.env.PYTHON_ENGINE_STOCKFISH_PATH ?? process.env.STOCKFISH_PATH;
+  const payload = stockfishPath ? { ...request, stockfishPath } : request;
+
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(python, [script], {
+      cwd: REPO_ROOT,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
+    child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk));
+    child.on('error', reject);
+    child.on('close', (code) => {
+      const stderrText = Buffer.concat(stderr).toString('utf8').trim();
+      const stdoutText = Buffer.concat(stdout).toString('utf8').trim();
+      if (code !== 0) {
+        reject(new Error(`python engine runner exited ${code}: ${stderrText || stdoutText}`));
+        return;
+      }
+      try {
+        resolvePromise(parsePythonGameResult(JSON.parse(stdoutText)));
+      } catch (err) {
+        reject(new Error(`invalid python engine runner output: ${(err as Error).message}`));
+      }
+    });
+    child.stdin.end(JSON.stringify(payload));
+  });
+}
+
+function defaultPythonEngineBinary(): string {
+  const venvPython = resolve(REPO_ROOT, 'research', 'python-fow-lab', '.venv', 'bin', 'python');
+  return existsSync(venvPython) ? venvPython : 'python3';
+}
+
+function parsePythonGameResult(value: unknown): PythonGameResult {
+  if (!isObject(value)) throw new Error('top-level response is not an object');
+  if (typeof value.roomId !== 'string') throw new Error('missing roomId');
+  if (!Array.isArray(value.events)) throw new Error('missing events');
+  if (!['king-captured', 'truncated', 'draw', 'no-legal-moves', 'clock-expired'].includes(String(value.endReason))) {
+    throw new Error(`unsupported endReason ${String(value.endReason)}`);
+  }
+  return value as PythonGameResult;
+}
+
+function sanitizePythonMoveEvents(events: unknown[], gameId: string): GameEvent[] {
+  const result: GameEvent[] = [];
+  for (const event of events) {
+    if (!isObject(event) || event.type !== 'move-played') continue;
+    const move = event.move;
+    if (!isObject(move)) throw new Error('python move-played event is missing move');
+    if (event.color !== 'white' && event.color !== 'black') throw new Error('python move-played event has invalid color');
+    if (typeof move.from !== 'string' || typeof move.to !== 'string') {
+      throw new Error('python move-played event has invalid move squares');
+    }
+    result.push({
+      type: 'move-played',
+      at: Date.now(),
+      roomId: gameId,
+      color: event.color,
+      move: {
+        from: move.from,
+        to: move.to,
+        ...(typeof move.promotion === 'string' ? { promotion: move.promotion } : {}),
+      },
+    } as GameEvent);
+  }
+  return result;
+}
+
+async function recordPythonGameSummary(
+  pool: pg.Pool,
+  task: EngineGameTask,
+  gameId: string,
+  result: PythonGameResult,
+): Promise<void> {
+  if (!shouldRecordMoveChoices(task)) return;
+  await pool.query(
+    `INSERT INTO game_debug_artifacts
+       (game_id, ply, engine_color, artifact_type, storage, payload)
+     VALUES ($1, 0, NULL, 'python-engine-game-summary', 'jsonb', $2)`,
+    [
+      gameId,
+      {
+        end_reason: result.endReason,
+        winner: result.winner,
+        plies: result.plies,
+        engines: result.engines ?? null,
+      },
+    ],
+  );
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 async function recordMoveDecision(

@@ -51,6 +51,7 @@ export type GameState = {
   halfmoveClock: number;
   lastMove?: Move;
   clock?: ClockState;
+  positionCounts?: Record<string, number>;
 };
 
 export type PlayerView = {

@@ -31,5 +31,5 @@ export type EngineDefinition = {
   playSignature: string;
   config: Record<string, unknown>;
   notes?: string;
-  chooseMove(context: EngineMoveContext): EngineMoveDecision;
+  chooseMove?: (context: EngineMoveContext) => EngineMoveDecision;
 };

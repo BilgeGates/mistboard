@@ -17,6 +17,19 @@ A player cannot see:
 - Empty or occupied status of hidden squares.
 - Opponent king location unless it is visible.
 
+## Bichess Fog of War Ruleset
+
+Status: implemented.
+
+- The server owns the canonical full board.
+- Players receive only their own player view during live play.
+- Legal moves are pseudo-legal chess moves generated from the true board. Check constraints are removed: kings may move through, into, or remain in attacked squares.
+- The primary win condition is king capture.
+- The 50-move rule is enforced automatically as a draw.
+- Threefold repetition is enforced automatically as a draw.
+- Repetition identity is based on true board placement, side to move, castling rights, and en-passant square. Clocks, move number, halfmove clock, and visibility state are not part of repetition identity.
+- Draws are currently persisted as generic `draw` termination; we do not yet distinguish `fifty-move-rule` from `threefold-repetition` in the database.
+
 ## Open Ruleset Questions
 
 - Are check announcements hidden, transformed, or removed?
@@ -79,4 +92,3 @@ When this configuration is active, the canonical starting position is replaced w
 
 - On game end, the server reveals both players' chosen back-ranks alongside the standard postgame reveal.
 - Replay supports both per-side perspectives (preserving each player's initial back-rank uncertainty) and a full-truth mode that shows both back-ranks from t=0.
-

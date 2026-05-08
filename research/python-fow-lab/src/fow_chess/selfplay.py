@@ -103,7 +103,7 @@ class GameResult:
     events: list[GameEvent]
     plies: int
     winner: str | None  # 'white' | 'black' | None
-    end_reason: str  # 'king-captured' | 'truncated' | 'no-legal-moves' | 'clock-expired'
+    end_reason: str  # 'king-captured' | 'truncated' | 'draw' | 'no-legal-moves' | 'clock-expired'
     truncated: bool
     final_clocks_ms: tuple[int | None, int | None] = (None, None)  # (white, black)
 
@@ -124,8 +124,9 @@ def play_game(
 ) -> GameResult:
     """Run one FOW game from the standard start to a terminal state.
 
-    Game-over: king-captured | clock-expired | truncated (max_plies) |
-    no-legal-moves. Clock is enforced if `time_control` is set: each side
+    Game-over: king-captured | draw | clock-expired | truncated (max_plies) |
+    no-legal-moves. Draw is automatic on threefold repetition or the 50-move
+    rule. Clock is enforced if `time_control` is set: each side
     starts at initial_seconds; pick_move wall time is debited from the
     moving side; `increment_seconds` added after the move. Side whose
     clock hits 0 forfeits.
@@ -269,6 +270,13 @@ def play_game(
         active.observe_own_move(move, observation_from_transition(prev, board, color))
         opp = chess.BLACK if color == chess.WHITE else chess.WHITE
         passive.observe_opp_move(observation_from_transition(prev, board, opp))
+
+        if board.king(chess.WHITE) is None or board.king(chess.BLACK) is None:
+            end_reason = "king-captured"
+            break
+        if board.halfmove_clock >= 100 or board.is_repetition(3):
+            end_reason = "draw"
+            break
 
     truncated = end_reason == "truncated"
     if end_reason == "clock-expired":

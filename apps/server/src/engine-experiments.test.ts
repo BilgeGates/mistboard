@@ -14,7 +14,7 @@ import {
   releaseEngineGameTaskClaim,
   stopWorkerRun,
 } from './engine-experiments.js';
-import { upsertBuiltinEngineVersions } from './engine-registry.js';
+import { loadEngine, upsertBuiltinEngineVersions } from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -523,6 +523,45 @@ if (!TEST_DATABASE_URL) {
     assert.equal(artifacts[0]?.payload.engine_id, 'builtin-capture-seeker');
     assert.ok(artifacts[0]?.payload.selected_move);
     assert.ok((artifacts[0]?.payload.scored_moves?.length ?? 0) > 0);
+  });
+
+  test('registry stores owner-only Python engine versions', async () => {
+    await upsertBuiltinEngineVersions(getPool(), ['python-tier1-v0.7.0', 'python-random-legal']);
+    const tier1 = loadEngine('python-tier1-v0.7.0');
+    assert.equal(tier1.kind, 'container');
+    assert.equal(tier1.chooseMove, undefined);
+
+    const { rows } = await getPool().query<{
+      id: string;
+      engine_id: string;
+      kind: string;
+      config_hash: string;
+      play_signature: string;
+      metadata: { runtime?: string };
+    }>(
+      `SELECT id, engine_id, kind, config_hash, play_signature, metadata
+       FROM engine_versions
+       WHERE id IN ('python-tier1-v0.7.0', 'python-random-legal')
+       ORDER BY id`,
+    );
+    assert.deepEqual(rows, [
+      {
+        id: 'python-random-legal',
+        engine_id: 'random-legal',
+        kind: 'container',
+        config_hash: 'python-random-legal-v1',
+        play_signature: 'python-random-legal-v1',
+        metadata: { owner: 'admin', runtime: 'python-subprocess' },
+      },
+      {
+        id: 'python-tier1-v0.7.0',
+        engine_id: 'tier1',
+        kind: 'container',
+        config_hash: 'tier1-v0.7.0-b22f29dd73f5',
+        play_signature: 'tier1-v0.7.0-b22f29dd73f5',
+        metadata: { owner: 'admin', runtime: 'python-subprocess' },
+      },
+    ]);
   });
 
   test('job reconciliation derives counters from task state idempotently', async () => {
