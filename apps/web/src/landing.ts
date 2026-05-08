@@ -140,7 +140,11 @@ async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: Lan
     return [];
   });
   if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
-  return { games: await fetchFeaturedGames(), source: 'featured' };
+  const featuredGames = await fetchFeaturedGames().catch((err) => {
+    console.warn(err);
+    return [];
+  });
+  return { games: featuredGames, source: 'featured' };
 }
 
 async function fetchGameSummary(roomId: string): Promise<FeaturedGame | null> {
