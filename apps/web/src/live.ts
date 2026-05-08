@@ -512,6 +512,7 @@ function renderGameInfo(view: PlayerView | null): void {
     infoItem('Mode', modeLabel()),
     infoItem('Seat', seatLabel(seat)),
     infoItem('Turn', turnLabel(view)),
+    infoItem('Time', timeControlLabel(view)),
     infoItem('Connection', connectionLabel()),
     infoItem('Server', serverTimeLabel()),
     infoItem('Clients', String(clientCount)),
@@ -680,7 +681,7 @@ function infoItem(label: string, value: string): HTMLDivElement {
 function renderClocks(view: PlayerView | null): void {
   refs.clocks.replaceChildren();
   if (!view?.clock) {
-    refs.clocks.append(infoNotice('default', 'Server clock will appear here when time controls are active.'));
+    refs.clocks.append(infoNotice('default', 'The 0:30+2 server clock starts when both seats are ready.'));
     return;
   }
 
@@ -1110,7 +1111,7 @@ function actionBody(view: PlayerView | null): string {
   if (seat === 'spectator') return spectatorBody(view);
   if (view.status.type === 'pregame') return 'Share the room link when you are ready.';
   if (view.status.type === 'playing' && roomMode === 'pve' && view.status.turn === 'black') {
-    return 'The engine has the move. Your clock is not active.';
+    return 'The engine is on its own clock. Your clock resumes after its move.';
   }
   if (view.status.type === 'playing' && view.status.turn === seat) {
     return 'Move one of your visible pieces on the board.';
@@ -1147,6 +1148,13 @@ function turnLabel(view: PlayerView | null): string {
   if (view.status.type === 'playing') return `${capitalize(view.status.turn)} to move`;
   if (view.status.type === 'finished') return resultTitle(view.status.winner);
   return 'Pregame';
+}
+
+function timeControlLabel(view: PlayerView | null): string {
+  if (!view?.clock) return '0:30+2';
+  const base = formatClock(view.clock.initialMs);
+  const increment = Math.round(view.clock.incrementMs / 1000);
+  return increment > 0 ? `${base}+${increment}` : base;
 }
 
 function connectionLabel(): string {

@@ -38,6 +38,12 @@ export type GameEvent =
     seat: Color;
   }
   | {
+    type: 'clock-started';
+    at: number;
+    roomId: string;
+    clock: ClockState;
+  }
+  | {
     type: 'draft-start-selected';
     at: number;
     roomId: string;
@@ -162,6 +168,17 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       bids,
       seats,
       selections,
+    };
+  }
+
+  if (event.type === 'clock-started') {
+    if (projection.state.status.type !== 'playing' || projection.state.clock) return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        clock: event.clock,
+      },
     };
   }
 

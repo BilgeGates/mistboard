@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createClock, expireClock, type GameEvent } from '@bichess/game';
+import { createClock, expireClock, replayGameEvents, type GameEvent } from '@bichess/game';
 import {
   adminDebugTokenFromProtocolHeader,
   canExposeFullEventReplay,
+  canObserveLiveRoom,
   eventReplayResponse,
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
@@ -20,6 +21,51 @@ test('live persisted events are not public replay data', () => {
 
   assert.equal(canExposeFullEventReplay(events), false);
   assert.deepEqual(eventReplayResponse(events), { status: 403, body: { error: 'game_not_public' } });
+});
+
+test('live PvE replay API exposes human moves but redacts engine moves', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'pve-live', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 1, roomId: 'pve-live', clientId: 'human-white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'pve-live', clientId: 'random-engine', seat: 'black' },
+    { type: 'move-played', at: 2, roomId: 'pve-live', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 3, roomId: 'pve-live', color: 'black', move: { from: 'e7', to: 'e5' } },
+  ];
+
+  assert.equal(canExposeFullEventReplay(events), false);
+  assert.deepEqual(eventReplayResponse(events), {
+    status: 200,
+    body: { events: events.filter((event) => event.type !== 'move-played' || event.color !== 'black') },
+  });
+});
+
+test('live EvE replay API exposes full truth stream', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'eve-live', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 1, roomId: 'eve-live', clientId: 'engine:white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'eve-live', clientId: 'engine:black', seat: 'black' },
+    { type: 'move-played', at: 2, roomId: 'eve-live', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 3, roomId: 'eve-live', color: 'black', move: { from: 'e7', to: 'e5' } },
+  ];
+
+  assert.equal(canExposeFullEventReplay(events), false);
+  assert.deepEqual(eventReplayResponse(events), { status: 200, body: { events } });
+});
+
+test('live room observation policy allows EvE and PvE but not PvP', () => {
+  const roomCreated: GameEvent = { type: 'room-created', at: 1, roomId: 'policy-room', variant: 'fog-of-war', offer: [] };
+
+  assert.equal(canObserveLiveRoom(replayGameEvents([roomCreated])), false);
+  assert.equal(canObserveLiveRoom(replayGameEvents([
+    roomCreated,
+    { type: 'seat-assigned', at: 1, roomId: 'policy-room', clientId: 'human-white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'policy-room', clientId: 'random-engine', seat: 'black' },
+  ])), true);
+  assert.equal(canObserveLiveRoom(replayGameEvents([
+    roomCreated,
+    { type: 'seat-assigned', at: 1, roomId: 'policy-room', clientId: 'engine:white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'policy-room', clientId: 'engine:black', seat: 'black' },
+  ])), true);
 });
 
 test('finished persisted events are public replay data', () => {

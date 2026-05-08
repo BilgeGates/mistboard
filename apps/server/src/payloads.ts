@@ -7,6 +7,12 @@ import {
   type PlayerView,
   type Square,
 } from '@bichess/game';
+import {
+  modeForProjection,
+  publicLivePerspective,
+  visibleEventsForLiveSnapshot,
+  type GameAccessMode,
+} from './server-policy.js';
 
 export type Seat = Color | 'spectator';
 
@@ -21,7 +27,7 @@ export type SnapshotRoom = {
   id: string;
   clients: { size: number };
   events: GameEvent[];
-  mode?: string;
+  mode?: GameAccessMode;
   projection: GameProjection;
 };
 
@@ -53,9 +59,7 @@ export function eventsForClient(room: SnapshotRoom): GameEvent[] {
   if (room.projection.variant === 'bid-for-white' && room.projection.state.status.type === 'pregame') {
     return room.events.filter((event) => event.type !== 'bid-submitted' && event.type !== 'bid-resolved');
   }
-  if (room.projection.variant !== 'fog-of-war') return room.events;
-  if (room.projection.state.status.type === 'finished') return room.events;
-  return room.events.filter((event) => event.type !== 'move-played');
+  return visibleEventsForLiveSnapshot(room.events, room.projection, room.mode ?? modeForProjection(room.projection));
 }
 
 function bidsForClient(room: SnapshotRoom, client: SnapshotClient): Partial<Record<Color, number>> {
@@ -112,6 +116,15 @@ export function getClientView(room: SnapshotRoom, client: SnapshotClient): Playe
 }
 
 function publicFogView(room: SnapshotRoom, perspective: Color): PlayerView {
+  const publicPerspective = publicLivePerspective(room.projection, room.mode ?? modeForProjection(room.projection));
+  if (publicPerspective === 'truth') return fullTruthView(room, perspective);
+  if (publicPerspective) {
+    return {
+      ...variantForId(room.projection.variant).getPlayerView(room.projection.state, publicPerspective),
+      legalMoves: [],
+    };
+  }
+
   return {
     id: room.projection.state.id,
     variant: room.projection.state.variant,

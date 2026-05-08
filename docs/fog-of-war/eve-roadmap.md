@@ -17,7 +17,7 @@ Only add side tables when the shape is genuinely different. EvE has different li
 - `engine_versions` stores pinned engine identities, config hashes, and play signatures.
 - `eve_jobs` stores mining/calibration batches and their progress.
 - `engine_game_tasks` stores provider-neutral queued/running/completed game work.
-- `engine_worker_runs` stores local, Railway, Modal, or future worker heartbeats.
+- `engine_worker_runs` stores local, always-on, burst, or future worker heartbeats.
 - `eve_games` links a canonical game row to an EvE job, task, engines, seed, time control, and worker metadata.
 - `game_debug_artifacts` stores optional per-game/per-ply debug blobs or object-store URIs.
 
@@ -48,7 +48,7 @@ If the worker aborts for infrastructure reasons, update the row to `status = 'ab
 
 ## Annotations
 
-Engine Lab annotations are first-class state, not a debug artifact. Local development has been accumulating them as `research/python-fow-lab/feedback/annotations.jsonl` — by the time EvE ships in production this file is the most precious asset in the lab (90+ rows across multiple Tier-1 versions, dollars of human review time per row).
+Engine Lab annotations are first-class state, not a debug artifact. Local development has been accumulating them as `research/python-fow-lab/feedback/annotations.jsonl`; by the time EvE ships in production, that history should be preserved as reviewed training and evaluation data rather than treated as a disposable local file.
 
 Migrate as a real table — at minimum:
 

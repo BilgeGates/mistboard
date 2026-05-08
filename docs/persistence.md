@@ -16,7 +16,7 @@ In priority order:
 ## Non-goals (v1)
 
 - Multi-instance WS scale-out. Single Node process is the assumption.
-- Multi-region replication. Single-region Postgres on Railway.
+- Multi-region replication. v1 assumes a single-region Postgres deployment.
 - Real-time analytics / OLAP. Standard transactional Postgres only.
 - User accounts, registered identities. v1 stays anonymous + link-based.
 
@@ -96,17 +96,18 @@ Replay visibility:
 - Live and pregame observers receive only WebSocket snapshots that are scoped to their seat. Spectators of live Fog of War games do not receive board truth or move events.
 - Administrative debug views are a separate capability. They are not authorized by room id, query params, or client-side UI state.
 
-## Hosting
+## Runtime Shape
 
-**Railway Postgres plugin.** One-click provision, injects `DATABASE_URL` as a service-scoped env var. Same Railway project as the bichess service; private network connection (no egress, no TLS overhead in-cluster).
+Production-like deployments run one Node service for HTTP and WebSocket traffic,
+backed by Postgres. The exact provider, account setup, network topology, and
+deployment runbook are operational details and do not belong in this public
+architecture note.
 
-- Plan: starter plan, scales storage and connections as needed.
-- Region: same as the WS service.
 - Connection pooling: `pg.Pool` with low max (5–10) is sufficient for v1; PgBouncer becomes a question only if WS instance count rises above 1 (which it shouldn't for this roadmap).
 
 Env:
 
-- `DATABASE_URL` — required in prod, set automatically by the plugin.
+- `DATABASE_URL` — required in production-like runtimes.
 - `DATABASE_URL` in dev — optional; if absent, `apps/server` falls back to in-memory rooms (current behavior, useful for quick local iteration without a DB running).
 - `BICHESS_ALLOW_IN_MEMORY_PERSISTENCE=true` — explicit escape hatch for intentionally ephemeral production-like environments. Do not set this on the live service.
 - `BICHESS_ADMIN_DEBUG_TOKEN` — optional bearer token for administrative truth/debug views in production-like runtimes. Prefer sending it in a WebSocket message or subprotocol, not in URLs.
@@ -116,33 +117,24 @@ Env:
 
 Local dev DB: `docker compose up postgres` (compose file added alongside this work) or any local Postgres. Migrations run via a tiny in-repo script — no ORM, no migration framework. Schema is two tables; raw SQL files in `apps/server/migrations/` applied in order.
 
-## Apps/server in prod (the deploy transition)
+## Apps/server In Production-Like Runtimes
 
-Today: `nixpacks.toml` runs `npm start` → `serve apps/web/dist`. apps/server is built but not run.
-
-After this work: `npm start` → `node apps/server/dist/index.js`, which serves both:
+`npm start` runs `node apps/server/dist/index.js`, which serves both:
 
 - Static `apps/web/dist/*` over HTTP from the same `$PORT`.
 - WebSocket upgrades on the same port.
 
-This is the path the build log already telegraphed ("when phase E lands, apps/server takes over and serves both static + WebSocket on the same port"). Persistence forces the issue because there's no point persisting events from a server that doesn't run in prod.
+The build pipeline must produce `apps/web/dist` before `apps/server` starts.
 
-Concrete server changes:
+## Public Rollout Checks
 
-- Add a static-file handler (e.g., `serve-handler` or hand-rolled `fs.createReadStream`) wired into the existing `createServer` in `apps/server/src/index.ts`.
-- Keep the existing JSON `{ ok: true, service: 'bichess-server' }` response for `/health` only.
-- Build pipeline: `npm run build` must produce `apps/web/dist` before `apps/server` starts (already true today).
+For public verification, the important checks are provider-neutral:
 
-## Rollout
-
-1. Provision Railway Postgres plugin (user, dashboard).
-2. Land schema + migration runner; commit migrations to repo.
-3. Land `persistence.ts` + tests behind a `DATABASE_URL`-present check (no behavior change when unset).
-4. Land server wire-up (hydration + write-through). Deploy to a Railway preview environment first; verify cold-restart preserves a finished game.
-5. Land `apps/server` static-serving + flip `nixpacks.toml` to run apps/server. Single deploy that swaps prod posture.
-6. Smoke-test bichess.org: landing still loads, replay URLs work, can create a room and finish a game, redeploy, replay URL still works.
-
-Each step is a separate PR / commit. Steps 1–5 can land while prod stays static-only (no user-visible change). Step 5 is the cutover.
+1. Migrations apply before the server accepts traffic.
+2. `/health` reports unhealthy if persistence is required but unavailable.
+3. A completed game remains replayable after a restart.
+4. A live room rehydrates from events after a restart.
+5. Live Fog of War replay APIs still reject full event access until terminal state.
 
 ## Write ordering: persist-then-apply
 
@@ -182,7 +174,7 @@ The dangerous failure mode is silent: Postgres degrades, writes start failing, a
     at: Date.now(),
   }));
   ```
-  Railway captures stdout. Future alerting (Logtail / Better Stack / etc.) hooks `kind: persistence_failure`.
+  Deployment logs should capture stdout. Alerting can hook on `kind: persistence_failure`.
 
 - **Don't swallow.** Errors propagate up to the WS message handler, which:
   1. Skips the broadcast (in-memory state was never updated, so there's nothing consistent to broadcast).
@@ -196,7 +188,7 @@ The dangerous failure mode is silent: Postgres degrades, writes start failing, a
   → 503 { ok: false, databaseRequired: true, persistence: "disabled", persistenceErrors: { count1m: 0, lastAt: null } }
   → 503 { ok: false, databaseRequired: true, persistence: "enabled", persistenceErrors: { count1m: 4, lastAt: 1714... } }
   ```
-  Railway can be configured to alert on 503s; this gives operational visibility without standing up Prometheus.
+  Production monitoring can alert on 503s; this gives operational visibility without requiring a metrics stack.
 
 - **No silent retries in v1.** Retry logic adds complexity ahead of evidence. We'd rather see real failure modes first and design retries around what actually breaks.
 

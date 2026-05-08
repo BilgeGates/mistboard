@@ -1,5 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
-import { replayGameEvents, type GameEvent } from '@bichess/game';
+import { replayGameEvents, type Color, type GameEvent, type GameProjection } from '@bichess/game';
+
+export type GameAccessMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 
 type RuntimeEnvKey =
   | 'BICHESS_ADMIN_DEBUG_TOKEN'
@@ -20,12 +22,83 @@ export type EventReplayResponse =
 
 export function eventReplayResponse(events: GameEvent[] | null): EventReplayResponse {
   if (!events) return { status: 404, body: { error: 'not_found' } };
-  if (!canExposeFullEventReplay(events)) return { status: 403, body: { error: 'game_not_public' } };
-  return { status: 200, body: { events } };
+  if (canExposeFullEventReplay(events)) return { status: 200, body: { events } };
+
+  const projection = replayGameEvents(events);
+  const mode = modeForProjection(projection);
+  if (mode === 'eve') return { status: 200, body: { events } };
+  if (mode === 'pve') return { status: 200, body: { events: redactLivePveEvents(events, projection) } };
+
+  return { status: 403, body: { error: 'game_not_public' } };
 }
 
 export function canExposeFullEventReplay(events: GameEvent[]): boolean {
   return replayGameEvents(events).state.status.type === 'finished';
+}
+
+export function visibleEventsForLiveSnapshot(
+  events: GameEvent[],
+  projection: GameProjection,
+  mode = modeForProjection(projection),
+): GameEvent[] {
+  if (projection.variant !== 'fog-of-war') return events;
+  if (projection.state.status.type === 'finished') return events;
+  if (mode === 'eve') return events;
+  if (mode === 'pve') return redactLivePveEvents(events, projection);
+  return events.filter((event) => event.type !== 'move-played');
+}
+
+export function modeForProjection(projection: GameProjection): GameAccessMode {
+  const whiteIsEngine = isServerEngineClient(projection.seats.white);
+  const blackIsEngine = isServerEngineClient(projection.seats.black);
+  if (whiteIsEngine && blackIsEngine) return 'eve';
+  if (whiteIsEngine !== blackIsEngine) return 'pve';
+  return 'pvp';
+}
+
+export function humanColor(projection: GameProjection): Color | null {
+  const whiteIsEngine = isServerEngineClient(projection.seats.white);
+  const blackIsEngine = isServerEngineClient(projection.seats.black);
+  if (whiteIsEngine === blackIsEngine) return null;
+  return whiteIsEngine ? 'black' : 'white';
+}
+
+export function engineColor(projection: GameProjection): Color | null {
+  const whiteIsEngine = isServerEngineClient(projection.seats.white);
+  const blackIsEngine = isServerEngineClient(projection.seats.black);
+  if (whiteIsEngine === blackIsEngine) return null;
+  return whiteIsEngine ? 'white' : 'black';
+}
+
+export function isServerEngineClient(clientId: string | undefined): boolean {
+  if (!clientId) return false;
+  return clientId === 'random-engine'
+    || clientId === 'engine:white'
+    || clientId === 'engine:black'
+    || clientId.startsWith('engine:')
+    || clientId.startsWith('builtin-')
+    || clientId.startsWith('python-');
+}
+
+export function canObserveLiveRoom(projection: GameProjection, mode = modeForProjection(projection)): boolean {
+  if (projection.state.status.type === 'finished') return true;
+  return mode !== 'pvp';
+}
+
+export function publicLivePerspective(
+  projection: GameProjection,
+  mode = modeForProjection(projection),
+): Color | 'truth' | null {
+  if (projection.state.status.type === 'finished') return 'truth';
+  if (mode === 'eve') return 'truth';
+  if (mode === 'pve') return humanColor(projection);
+  return null;
+}
+
+function redactLivePveEvents(events: GameEvent[], projection: GameProjection): GameEvent[] {
+  const engine = engineColor(projection);
+  if (!engine) return events.filter((event) => event.type !== 'move-played');
+  return events.filter((event) => event.type !== 'move-played' || event.color !== engine);
 }
 
 export function adminDebugTokenFromProtocolHeader(value: string | string[] | undefined): string | undefined {
