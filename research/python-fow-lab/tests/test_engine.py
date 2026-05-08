@@ -6,6 +6,7 @@ import chess
 
 from fow_chess.belief import BeliefState
 from fow_chess.engine import best_action
+from fow_chess.evaluator import king_safety_evaluator
 from fow_chess.move_priors import uniform_prior
 
 
@@ -61,3 +62,22 @@ def test_best_action_skips_moves_no_particle_considers_legal() -> None:
         belief, evaluator, [e7e5_white_attempt, e2e4], max_particles=None
     )
     assert chosen == e2e4
+
+
+def test_king_safety_penalizes_mate_score_when_own_king_remains_attacked() -> None:
+    # Regression for q10 ply 53: a Stockfish-like base evaluator returned a
+    # mate-sized score for Kg3 even though the believed black king on h3 could
+    # capture our king immediately. FOW king safety must not pass that score
+    # through unless our move is itself a king capture.
+    board = chess.Board.empty()
+    board.set_piece_at(chess.F4, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.H3, chess.Piece(chess.KING, chess.BLACK))
+    board.turn = chess.WHITE
+    move = chess.Move.from_uci("f4g3")
+
+    def mate_happy_base(_board, _move, _perspective):
+        return 100_000.0
+
+    score = king_safety_evaluator(mate_happy_base)(board, move, chess.WHITE)
+
+    assert score <= -50_000.0

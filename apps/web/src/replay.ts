@@ -386,7 +386,10 @@ export async function mountReplay(
     }
     const all = await loadAnnotations();
     annotationsForGame = all.filter(
-      (a) => a.game_index === idx && a.manifest_url === annotation.manifestUrl,
+      (a) =>
+        a.game_index === idx
+        && a.game_path === activeSample
+        && a.manifest_url === annotation.manifestUrl,
     );
   }
 
@@ -470,6 +473,7 @@ export async function mountReplay(
     stopPlay();
     clearLoopTimer();
     activeSample = sampleId;
+    annotationsForGame = [];
     events = loaderForId
       ? await loaderForId(sampleId)
       : await loadEvents(sampleId, urlForId);

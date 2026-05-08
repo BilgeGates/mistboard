@@ -127,7 +127,7 @@ def score_trace_row(
     reasons: list[str] = []
 
     if row.get("csp_reseed_fired") is True:
-        add(reasons, "csp-reseed", 50)
+        add(reasons, "generic-csp-reseed", 50)
         score += 50
 
     score += score_particle_drop(reasons, row, "stage_a")

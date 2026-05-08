@@ -112,17 +112,22 @@ def king_safety_evaluator(base: Evaluator) -> Evaluator:
     def evaluate(
         board: chess.Board, move: chess.Move, perspective: chess.Color
     ) -> float:
+        target = board.piece_at(move.to_square)
+        if (
+            target is not None
+            and target.color != perspective
+            and target.piece_type == chess.KING
+        ):
+            return base(board, move, perspective)
+
         base_score = base(board, move, perspective)
-        # Already a king-capture (winning) or terminal score — pass through.
-        if abs(base_score) >= _KING_CAPTURE_SCORE / 2:
-            return base_score
         advanced = board.copy()
         advanced.push(move)
         own_king = advanced.king(perspective)
         if own_king is None:
             return base_score
         if advanced.attackers(not perspective, own_king):
-            return base_score - _KING_CAPTURE_SCORE / 2
+            return min(base_score - _KING_CAPTURE_SCORE, -_KING_CAPTURE_SCORE / 2)
         return base_score
 
     return evaluate

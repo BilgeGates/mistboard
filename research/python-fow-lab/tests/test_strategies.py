@@ -13,6 +13,7 @@ from fow_chess.strategies import (
     _categorize_king_defense_moves,
     _king_defense_moves,
     _prefer_higher_value_capture,
+    _prefer_lower_value_attacker,
     _prefer_queen_promotion,
     _queen_save_moves,
     _safe_visible_minor_or_rook_captures,
@@ -70,6 +71,33 @@ def test_queen_capture_fires_when_visible() -> None:
     chosen = s.pick_move(view)
     assert chosen.from_square == chess.A3
     assert chosen.to_square == chess.C5, f"expected queen capture, got {chosen}"
+
+
+def test_queen_capture_prefers_least_valuable_attacker() -> None:
+    # White can capture a visible black queen on d4 with either Qxd4 or Nxd4.
+    # In fog, choose the knight first because d4 may be defended by hidden
+    # pieces. Regression for q10 ply 11 from v0.7.0 affordance-check.
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.D1, chess.Piece(chess.QUEEN, chess.WHITE))
+    board.set_piece_at(chess.F3, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.set_piece_at(chess.D4, chess.Piece(chess.QUEEN, chess.BLACK))
+    board.turn = chess.WHITE
+    pieces = {
+        chess.E1: chess.Piece(chess.KING, chess.WHITE),
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+        chess.D1: chess.Piece(chess.QUEEN, chess.WHITE),
+        chess.F3: chess.Piece(chess.KNIGHT, chess.WHITE),
+        chess.D4: chess.Piece(chess.QUEEN, chess.BLACK),
+    }
+
+    s = _strategy()
+    s.reset(perspective=chess.WHITE)
+    view = _build_view(board, chess.WHITE, visible_pieces=pieces)
+    chosen = s.pick_move(view)
+
+    assert chosen.uci() == "f3d4"
 
 
 def test_king_capture_beats_queen_capture() -> None:

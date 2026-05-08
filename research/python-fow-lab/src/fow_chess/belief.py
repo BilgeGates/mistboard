@@ -10,6 +10,7 @@ import chess
 
 from .move_priors import OpponentMovePrior
 from .observation import Observation, consistent_with
+from .visibility import visible_piece_map, visible_squares
 
 
 # Standard starting piece counts (per side). Used to seed
@@ -190,13 +191,10 @@ class BeliefState:
              visibility / piece map disagree with what we now actually see.
              (Pruning class: belief was over-broad; observation evidence narrows.)
 
-        **Rollback on collapse.** If step 2 wipes every particle (the
-        observation is too strict for any surviving hypothesis), we keep the
-        step 1 particles instead. Belief then has my move applied but is
-        inconsistent with the post-move observation — strictly worse than
-        ideal, but strictly better than zero particles, which forces the
-        engine into the visibility-only fallback path. Stage B's resample on
-        the next opp-move will re-tighten.
+        If step 2 wipes every particle, the pushed particles are stale against
+        hard post-own-move evidence. Reseed from the observation instead of
+        carrying an impossible belief forward; post-move visible pieces and
+        move-affordance facts are current truth, not optional hints.
         """
         # Reset per-update CSP diagnostics; they're set if reseed fires below.
         self.last_csp_reseed_fired = 0
@@ -222,10 +220,47 @@ class BeliefState:
         if consistent:
             self.particles = consistent
             self.weights = consistent_weights
+        elif pushed and observation is not None:
+            # v0.7.0: step 2 would wipe belief. Older builds rolled back to
+            # the pushed particles, but that meant belief could contradict
+            # what our own move just revealed (e.g. a newly visible rook still
+            # represented as a queen). First try an identity-preserving repair:
+            # force current hard observation facts into each pushed particle,
+            # keep hidden history that remains legal, and validate by
+            # recomputing fog. Fall back to generic CSP only if repair fails.
+            repaired: list[chess.Board] = []
+            repaired_weights: list[float] = []
+            for board, weight in zip(pushed, pushed_weights):
+                repaired_board = _repair_particle_to_observation(
+                    board,
+                    observation,
+                    self.opp_remaining_counts,
+                    self.opp_bishop_colors_remaining,
+                    self.perspective,
+                    side_to_move=not self.perspective,
+                    rng=self.rng,
+                )
+                if repaired_board is not None:
+                    repaired.append(repaired_board)
+                    repaired_weights.append(weight)
+
+            if repaired:
+                self.particles, self.weights = _resample(
+                    repaired, repaired_weights, self.target_n, self.rng
+                )
+            else:
+                self.particles, self.weights = _csp_reseed(
+                    observation,
+                    self.opp_remaining_counts,
+                    self.opp_bishop_colors_remaining,
+                    self.perspective,
+                    side_to_move=not self.perspective,
+                    n=min(self.target_n, 64),
+                    rng=self.rng,
+                )
+                self.last_csp_reseed_fired += 1
+                self.last_csp_reseed_count = len(self.particles)
         elif pushed:
-            # Step 2 would wipe belief. Fall back to step 1 particles to keep
-            # belief alive (stale w.r.t. this Stage A observation, but the
-            # next Stage B expansion + resample will re-stabilize).
             self.particles = pushed
             self.weights = pushed_weights
         elif observation is not None:
@@ -269,7 +304,7 @@ class BeliefState:
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
 
-        expanded: list[tuple[chess.Board, float, bool, bool]] = []
+        expanded: list[tuple[chess.Board, float, bool, bool, bool]] = []
         for prev_board, prev_weight in zip(self.particles, self.weights):
             legal = list(prev_board.pseudo_legal_moves)
             if not legal:
@@ -281,26 +316,34 @@ class BeliefState:
                 next_board = prev_board.copy()
                 next_board.push(mv)
                 obs_ok = consistent_with(next_board, prev_board, obs, self.perspective)
+                hard_obs_ok = _matches_hard_observation(
+                    next_board, prev_board, obs, self.perspective
+                )
                 counts = _opp_piece_counts(next_board, self.perspective)
                 count_ok = not _violates_count_constraint(
                     counts, self.opp_remaining_counts
                 )
-                expanded.append((next_board, prev_weight * p, obs_ok, count_ok))
+                expanded.append(
+                    (next_board, prev_weight * p, obs_ok, hard_obs_ok, count_ok)
+                )
 
         # Tier 1: obs + constraint
-        primary_p = [b for b, _, obs_ok, c_ok in expanded if obs_ok and c_ok]
-        primary_w = [w for _, w, obs_ok, c_ok in expanded if obs_ok and c_ok]
-        # Tier 2: constraint only (relax obs)
-        constraint_p = [b for b, _, _, c_ok in expanded if c_ok]
-        constraint_w = [w for _, w, _, c_ok in expanded if c_ok]
+        primary_p = [b for b, _, obs_ok, _, c_ok in expanded if obs_ok and c_ok]
+        primary_w = [w for _, w, obs_ok, _, c_ok in expanded if obs_ok and c_ok]
+        # Tier 2: hard observation + constraint. Relax only the soft visibility
+        # mask shape; never relax visible pieces, own captures, or game-over.
+        constraint_p = [b for b, _, _, hard_ok, c_ok in expanded if hard_ok and c_ok]
+        constraint_w = [w for _, w, _, hard_ok, c_ok in expanded if hard_ok and c_ok]
 
         # Diagnostic: how many particles the constraint pruned (regardless of obs match).
-        self.last_constraint_pruned = sum(1 for _, _, _, c_ok in expanded if not c_ok)
+        self.last_constraint_pruned = sum(
+            1 for _, _, _, _, c_ok in expanded if not c_ok
+        )
 
         if primary_p:
             chosen_particles = primary_p
             chosen_weights = primary_w
-        elif constraint_p and not _requires_hard_observation_reseed(obs):
+        elif constraint_p:
             chosen_particles = constraint_p
             chosen_weights = constraint_w
         elif expanded:
@@ -409,15 +452,298 @@ class BeliefState:
         return not self.particles
 
 
-def _requires_hard_observation_reseed(obs: Observation) -> bool:
-    """True when relaxing observation would contradict a hard state change.
+def _matches_hard_observation(
+    next_board: chess.Board,
+    prev_board: chess.Board,
+    obs: Observation,
+    perspective: chess.Color,
+) -> bool:
+    """True iff non-relaxable observation facts match.
 
-    The constraint-only Stage-B fallback is useful for noisy visibility mismatch,
-    but not when the observation says one of our pieces disappeared or our king
-    was captured. Those are hard facts about our own material, so preserving
-    particles that ignore them leaves impossible own pieces on the board.
+    The full visibility mask can be noisy for belief recovery because it
+    encodes many move-affordance negatives. Visible pieces are different:
+    if the player sees a black pawn on b6, a particle without that pawn is
+    impossible. Same for own pieces that disappeared and game-over.
     """
-    return obs.own_capture_square is not None or obs.game_over is not None
+    if visible_piece_map(next_board, perspective) != obs.visible_pieces:
+        return False
+
+    own_before = {
+        sq for sq, p in prev_board.piece_map().items() if p.color == perspective
+    }
+    own_after = {
+        sq for sq, p in next_board.piece_map().items() if p.color == perspective
+    }
+    captures = own_before - own_after
+
+    if obs.own_capture_square is None:
+        if captures:
+            return False
+    elif captures != {obs.own_capture_square}:
+        return False
+
+    if obs.game_over is not None and next_board.king(perspective) is not None:
+        return False
+
+    return True
+
+
+def _required_hidden_opp_blockers_from_pawn_affordance(
+    observation: Observation, perspective: chess.Color
+) -> set[chess.Square]:
+    """Squares that must contain hidden opp pieces due to pawn move affordance.
+
+    Fog visibility includes destinations of pseudo-legal own moves. Therefore,
+    if an own pawn's forward square is not visible, and no own piece sits there,
+    the square is not merely unknown: it is occupied by a hidden opponent piece
+    blocking the pawn. Same for a starting-rank double push when the one-step
+    square is visibly empty but the two-step destination is not visible.
+    """
+    visibility_set = set(observation.visibility_mask)
+    visible_pieces = observation.visible_pieces
+    direction = 8 if perspective == chess.WHITE else -8
+    start_rank = 1 if perspective == chess.WHITE else 6
+    required: set[chess.Square] = set()
+
+    for sq, piece in visible_pieces.items():
+        if piece.color != perspective or piece.piece_type != chess.PAWN:
+            continue
+
+        one_step = sq + direction
+        if not 0 <= one_step < 64:
+            continue
+        one_step_piece = visible_pieces.get(one_step)
+        if one_step_piece is not None and one_step_piece.color == perspective:
+            continue
+        if one_step not in visibility_set:
+            required.add(one_step)
+            continue
+
+        rank = chess.square_rank(sq)
+        two_step = sq + 2 * direction
+        if rank != start_rank or not 0 <= two_step < 64:
+            continue
+        one_step_empty = one_step in visibility_set and one_step not in visible_pieces
+        two_step_piece = visible_pieces.get(two_step)
+        own_piece_on_two_step = (
+            two_step_piece is not None and two_step_piece.color == perspective
+        )
+        if one_step_empty and not own_piece_on_two_step and two_step not in visibility_set:
+            required.add(two_step)
+
+    return required
+
+
+def _choose_required_blocker_piece_type(
+    square: chess.Square,
+    remaining_counts: dict[chess.PieceType, int],
+    remaining_bishops_by_color: dict[bool, int],
+    rng: random.Random,
+) -> chess.PieceType | None:
+    candidates: list[chess.PieceType] = []
+    for pt, count in remaining_counts.items():
+        if count <= 0:
+            continue
+        if pt == chess.PAWN and chess.square_rank(square) in {0, 7}:
+            continue
+        if pt == chess.BISHOP:
+            if remaining_bishops_by_color.get(_is_light_square(square), 0) <= 0:
+                continue
+        candidates.extend([pt] * count)
+    if not candidates:
+        return None
+    return rng.choice(candidates)
+
+
+def _repair_particle_to_observation(
+    board: chess.Board,
+    observation: Observation,
+    opp_remaining_counts: dict[chess.PieceType, int],
+    opp_bishop_colors_remaining: dict[bool, int],
+    perspective: chess.Color,
+    side_to_move: chess.Color,
+    rng: random.Random,
+) -> chess.Board | None:
+    """Minimally repair a pushed particle against current hard observation.
+
+    Used before generic CSP reseed for Stage A post-own-move mismatches. The
+    repair is intentionally conservative:
+
+    - all own pieces are forced to the observed visible-piece map;
+    - every visible square is forced to its observed piece or observed empty;
+    - hidden opponent pieces are preserved unless they violate count/color
+      bounds or are needed as movement-affordance blockers;
+    - the candidate must exactly recompute the observation before it survives.
+
+    This is not a full legal-reachability solver. It is a local continuity
+    repair that keeps good hidden history when hard current facts changed.
+    """
+    repaired = board.copy()
+    visibility_set = set(observation.visibility_mask)
+    visible_pieces = observation.visible_pieces
+    opp = not perspective
+
+    # Own pieces are always visible to the player. Any perspective-colored
+    # piece missing from the visible map is stale.
+    for sq, piece in list(repaired.piece_map().items()):
+        if piece.color == perspective and visible_pieces.get(sq) != piece:
+            repaired.remove_piece_at(sq)
+
+    # Visible squares are hard facts: either an exact piece or exact emptiness.
+    for sq in visibility_set:
+        expected = visible_pieces.get(sq)
+        if expected is None:
+            repaired.remove_piece_at(sq)
+        else:
+            repaired.set_piece_at(sq, expected)
+
+    for sq, piece in visible_pieces.items():
+        repaired.set_piece_at(sq, piece)
+
+    required_blockers = _required_hidden_opp_blockers_from_pawn_affordance(
+        observation, perspective
+    )
+    if not _repair_required_blockers(
+        repaired,
+        required_blockers,
+        visibility_set,
+        opp,
+        rng,
+    ):
+        return None
+
+    if not _trim_opp_excess_hidden_pieces(
+        repaired,
+        visible_pieces,
+        opp_remaining_counts,
+        opp_bishop_colors_remaining,
+        perspective,
+        required_blockers,
+        rng,
+    ):
+        return None
+
+    repaired.turn = side_to_move
+    if _violates_count_constraint(
+        _opp_piece_counts(repaired, perspective), opp_remaining_counts
+    ):
+        return None
+    if _violates_bishop_color_constraint(
+        repaired, perspective, opp_bishop_colors_remaining
+    ):
+        return None
+    if (
+        visible_squares(repaired, perspective) != observation.visibility_mask
+        or visible_piece_map(repaired, perspective) != visible_pieces
+    ):
+        return None
+    return repaired
+
+
+def _repair_required_blockers(
+    board: chess.Board,
+    required_blockers: set[chess.Square],
+    visibility_set: set[chess.Square],
+    opp: chess.Color,
+    rng: random.Random,
+) -> bool:
+    """Ensure hidden movement-affordance blockers are occupied by opp pieces."""
+    blocker_squares = list(required_blockers)
+    rng.shuffle(blocker_squares)
+    for sq in blocker_squares:
+        current = board.piece_at(sq)
+        if current is not None and current.color == opp:
+            if _piece_can_occupy_hidden_square(current, sq):
+                continue
+            board.remove_piece_at(sq)
+        elif current is not None:
+            board.remove_piece_at(sq)
+
+        candidates = [
+            cand_sq
+            for cand_sq, piece in board.piece_map().items()
+            if piece.color == opp
+            and cand_sq not in visibility_set
+            and cand_sq not in required_blockers
+            and _piece_can_occupy_hidden_square(piece, sq)
+        ]
+        if not candidates:
+            return False
+        from_sq = rng.choice(candidates)
+        piece = board.remove_piece_at(from_sq)
+        if piece is None:
+            return False
+        board.set_piece_at(sq, piece)
+    return True
+
+
+def _piece_can_occupy_hidden_square(piece: chess.Piece, square: chess.Square) -> bool:
+    if piece.piece_type == chess.PAWN and chess.square_rank(square) in {0, 7}:
+        return False
+    if piece.piece_type == chess.BISHOP:
+        # A bishop's color complex is identity-preserving in ordinary play.
+        return True
+    return True
+
+
+def _trim_opp_excess_hidden_pieces(
+    board: chess.Board,
+    visible_pieces: dict[chess.Square, chess.Piece],
+    opp_remaining_counts: dict[chess.PieceType, int],
+    opp_bishop_colors_remaining: dict[bool, int],
+    perspective: chess.Color,
+    required_blockers: set[chess.Square],
+    rng: random.Random,
+) -> bool:
+    """Remove hidden opp pieces that exceed hard count/color bounds."""
+    opp = not perspective
+    protected = set(visible_pieces) | set(required_blockers)
+
+    for piece_type, count in _opp_piece_counts(board, perspective).items():
+        excess = count - opp_remaining_counts.get(piece_type, 0)
+        if excess <= 0:
+            continue
+        candidates = [
+            sq
+            for sq, piece in board.piece_map().items()
+            if piece.color == opp
+            and piece.piece_type == piece_type
+            and sq not in protected
+        ]
+        if len(candidates) < excess:
+            return False
+        rng.shuffle(candidates)
+        for sq in candidates[:excess]:
+            board.remove_piece_at(sq)
+
+    for color_light, allowed in opp_bishop_colors_remaining.items():
+        squares = [
+            sq
+            for sq, piece in board.piece_map().items()
+            if piece.color == opp
+            and piece.piece_type == chess.BISHOP
+            and _is_light_square(sq) == color_light
+        ]
+        excess = len(squares) - allowed
+        if excess <= 0:
+            continue
+        candidates = [sq for sq in squares if sq not in protected]
+        if len(candidates) < excess:
+            return False
+        rng.shuffle(candidates)
+        for sq in candidates[:excess]:
+            board.remove_piece_at(sq)
+
+    return True
+
+
+def _violates_bishop_color_constraint(
+    board: chess.Board,
+    perspective: chess.Color,
+    bound: dict[bool, int],
+) -> bool:
+    counts = _opp_bishop_color_counts(board, perspective)
+    return any(count > bound.get(color_light, 0) for color_light, count in counts.items())
 
 
 def _csp_reseed(
@@ -458,6 +784,9 @@ def _csp_reseed(
     visibility_set = set(observation.visibility_mask)
     visible_pieces = observation.visible_pieces
     hidden_squares = [sq for sq in chess.SQUARES if sq not in visibility_set]
+    required_blockers = _required_hidden_opp_blockers_from_pawn_affordance(
+        observation, perspective
+    )
     opp = not perspective
 
     # Tally what's visible so we know what's left to place on hidden squares.
@@ -469,11 +798,11 @@ def _csp_reseed(
             if piece.piece_type == chess.BISHOP:
                 visible_bishop_colors[_is_light_square(sq)] += 1
 
-    # Pieces to assign to hidden squares (one entry per piece instance).
-    hidden_to_place: list[chess.PieceType] = []
+    # Pieces to assign to hidden squares.
+    hidden_counts: dict[chess.PieceType, int] = {}
     for pt, total in opp_remaining_counts.items():
         deficit = max(0, total - visible_opp_by_type[pt])
-        hidden_to_place.extend([pt] * deficit)
+        hidden_counts[pt] = deficit
 
     # Bishops by color — placed first because their constraint is tightest.
     hidden_bishops_light = max(
@@ -482,8 +811,6 @@ def _csp_reseed(
     hidden_bishops_dark = max(
         0, opp_bishop_colors_remaining.get(False, 0) - visible_bishop_colors[False]
     )
-    # Drop bishops from hidden_to_place — placed via the color-aware path below.
-    hidden_to_place_non_bishop = [pt for pt in hidden_to_place if pt != chess.BISHOP]
 
     particles: list[chess.Board] = []
     max_attempts = n * 10
@@ -499,16 +826,46 @@ def _csp_reseed(
         squares_shuffled = list(hidden_squares)
         rng.shuffle(squares_shuffled)
         used: set[chess.Square] = set()
+        remaining_counts = dict(hidden_counts)
+        remaining_bishops_by_color = {
+            True: hidden_bishops_light,
+            False: hidden_bishops_dark,
+        }
         valid = True
 
+        # 0. Required hidden blockers from move-affordance evidence.
+        # Example: if our pawn cannot push one square forward, and our own
+        # piece is not on that square, the square must contain a hidden opp
+        # piece. Put those pieces down before random fill so CSP reseed does
+        # not erase hard "fog from movement restriction" facts.
+        blocker_squares = list(required_blockers)
+        rng.shuffle(blocker_squares)
+        for sq in blocker_squares:
+            if sq in used:
+                continue
+            pt = _choose_required_blocker_piece_type(
+                sq, remaining_counts, remaining_bishops_by_color, rng
+            )
+            if pt is None:
+                valid = False
+                break
+            board.set_piece_at(sq, chess.Piece(pt, opp))
+            used.add(sq)
+            remaining_counts[pt] -= 1
+            if pt == chess.BISHOP:
+                remaining_bishops_by_color[_is_light_square(sq)] -= 1
+        if not valid:
+            continue
+
         # 1. Light-square bishops.
-        for _ in range(hidden_bishops_light):
+        for _ in range(remaining_bishops_by_color[True]):
             placed = False
             for sq in squares_shuffled:
                 if sq in used or not _is_light_square(sq):
                     continue
                 board.set_piece_at(sq, chess.Piece(chess.BISHOP, opp))
                 used.add(sq)
+                remaining_counts[chess.BISHOP] -= 1
                 placed = True
                 break
             if not placed:
@@ -518,13 +875,14 @@ def _csp_reseed(
             continue
 
         # 2. Dark-square bishops.
-        for _ in range(hidden_bishops_dark):
+        for _ in range(remaining_bishops_by_color[False]):
             placed = False
             for sq in squares_shuffled:
                 if sq in used or _is_light_square(sq):
                     continue
                 board.set_piece_at(sq, chess.Piece(chess.BISHOP, opp))
                 used.add(sq)
+                remaining_counts[chess.BISHOP] -= 1
                 placed = True
                 break
             if not placed:
@@ -534,6 +892,13 @@ def _csp_reseed(
             continue
 
         # 3. Other pieces (pawns + non-bishop). Pawns get rank constraint.
+        hidden_to_place_non_bishop = [
+            pt
+            for pt, count in remaining_counts.items()
+            if pt != chess.BISHOP
+            for _ in range(count)
+        ]
+        rng.shuffle(hidden_to_place_non_bishop)
         for pt in hidden_to_place_non_bishop:
             placed = False
             for sq in squares_shuffled:
@@ -554,6 +919,11 @@ def _csp_reseed(
             continue
 
         board.turn = side_to_move
+        if (
+            visible_squares(board, perspective) != observation.visibility_mask
+            or visible_piece_map(board, perspective) != observation.visible_pieces
+        ):
+            continue
         particles.append(board)
 
     if not particles:
@@ -566,6 +936,13 @@ def _csp_reseed(
             fallback.set_piece_at(sq, piece)
         fallback.turn = side_to_move
         particles = [fallback]
+    elif len(particles) < n:
+        # Full visibility validation is intentionally stricter than the early
+        # v0.7.0 CSP fill. In tight positions it may find only a few valid
+        # worlds inside the attempt budget. Keep the engine's expected particle
+        # count stable by resampling those valid worlds with replacement; the
+        # unique-particle diagnostic still exposes low diversity.
+        particles = [rng.choice(particles).copy() for _ in range(n)]
 
     weights = [1.0 / len(particles)] * len(particles)
     return particles, weights

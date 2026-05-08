@@ -137,17 +137,20 @@ export async function mountBakeoff(
     return gameByPath.get(sampleId)?.tier1_color ?? null;
   };
 
-  const badgeByIndex = new Map<number, HTMLSpanElement>();
+  const annotationKey = (game: Pick<ManifestGame, 'index' | 'path'>): string =>
+    `${game.index}\u0000${game.path}`;
+  const badgeByGame = new Map<string, HTMLSpanElement>();
 
   async function refreshAnnotationCounts(): Promise<void> {
     const all: Annotation[] = await loadAnnotations();
-    const counts = new Map<number, number>();
+    const counts = new Map<string, number>();
     for (const a of all) {
       if (a.manifest_url !== manifestUrl) continue;
-      counts.set(a.game_index, (counts.get(a.game_index) ?? 0) + 1);
+      const key = `${a.game_index}\u0000${a.game_path}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
     }
-    for (const [idx, badge] of badgeByIndex) {
-      const n = counts.get(idx) ?? 0;
+    for (const [key, badge] of badgeByGame) {
+      const n = counts.get(key) ?? 0;
       badge.textContent = n > 0 ? `★${n}` : '';
     }
   }
@@ -198,7 +201,7 @@ export async function mountBakeoff(
     btn.addEventListener('click', () => loadGame(game, btn));
     list.append(btn);
     const badge = btn.querySelector('.bakeoff-game-notes') as HTMLSpanElement;
-    badgeByIndex.set(game.index, badge);
+    badgeByGame.set(annotationKey(game), badge);
   }
 
   await refreshAnnotationCounts();

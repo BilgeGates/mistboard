@@ -11,7 +11,9 @@ and the next concrete patch.
      expected signal.
    - Example: v0.7.0 asks whether CSP reseed eliminates belief collapse and
      produces plausible recovery states.
-2. Run a reproducible bake-off.
+2. Run the smallest useful validation rung.
+   - Start with a regression for the exact bug or tuning question.
+   - Expand only when the lower rung is clean.
    - Every run should produce a manifest, saved games, trace rows, and pinned
      engine identity.
    - Use verbose belief snapshots when the experiment is about belief state,
@@ -30,6 +32,35 @@ and the next concrete patch.
 6. Promote, reject, or patch the candidate.
    - Promotion is not just win rate. The candidate needs fewer unexplained major
      errors, no new collapse class, and reproducible artifacts.
+
+## Laddered Rollout
+
+Large bake-offs are confirmation tools, not the first discovery step. During
+active belief or evaluator work, default to this ladder:
+
+1. **Rung 0 — exact regression.**
+   - Add or run a unit/replay regression for the specific bug just found.
+   - Example: after black `Re8xe2`, white belief must remove the captured bishop
+     from `e2` and represent the visible black rook.
+2. **Rung 1 — one targeted game.**
+   - Re-run the exact game, seed, or smallest corpus that exposed the bug.
+   - The goal is only to prove the previous bug is gone in artifact form.
+   - Example:
+     `.venv/bin/python scripts/bake_off.py --games 1 --start-index 8 --seed 1 --opponent tier1 --verbose-belief --save-only all --save-dir ../../apps/web/public/bakeoff-v0.7.1-q8-check`
+3. **Rung 2 — 3-5 targeted annotation games.**
+   - Generate a tiny queue with verbose belief enabled.
+   - Pick only a few critical moments per game for human review.
+4. **Rung 3 — 10-game smoke.**
+   - Use this when the first annotation set shows no obvious hard-fact bugs and
+     no immediate tuning reversal.
+5. **Rung 4 — 30+ comparable mirror.**
+   - Run this only when lower rungs show a stable candidate worth measuring.
+   - Use it for promotion confidence, not for finding the first obvious bug.
+
+If any rung finds a hard-observation contradiction, repeated collapse, or
+obvious tuning defect, stop the ladder and patch first. Do not spend hours on a
+30-game mirror when one targeted artifact already tells us the candidate is not
+ready.
 
 ## Standard Artifacts
 

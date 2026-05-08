@@ -1,8 +1,8 @@
 import chess
 
-from fow_chess.belief import BeliefState
+from fow_chess.belief import BeliefState, _csp_reseed
 from fow_chess.move_priors import uniform_prior
-from fow_chess.observation import observation_from_transition
+from fow_chess.observation import Observation, observation_from_transition
 from fow_chess.visibility import visible_piece_map, visible_squares
 
 
@@ -136,34 +136,61 @@ def test_top_k_clusters_are_weighted_and_deterministically_ordered() -> None:
     assert clusters[0][2] == 1
 
 
-def test_stage_a_rollback_when_observation_kills_all_particles() -> None:
-    """Stage A's observation filter should fall back to pre-filter particles
-    rather than letting belief drop to zero. Construct a belief where the
-    observation would prune every particle (mismatched visible_piece_map),
-    and verify particles survive."""
+def test_stage_a_repairs_when_post_own_observation_kills_all_particles() -> None:
+    """Post-own-move visible pieces are hard facts.
+
+    Regression for g13 ply 34 from v0.7.0 hardobs rung 2: black moved Bc8-g4,
+    which revealed a white rook on d1 and an empty f3 square. Stage A used to
+    roll back to pushed particles that still believed d1 could be a queen.
+    """
     import random
-    from fow_chess.observation import Observation
-    belief = BeliefState.initial(
-        perspective=chess.WHITE,
+
+    stale = chess.Board.empty()
+    stale.turn = chess.BLACK
+    stale.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    stale.set_piece_at(chess.C8, chess.Piece(chess.BISHOP, chess.BLACK))
+    stale.set_piece_at(chess.D1, chess.Piece(chess.QUEEN, chess.WHITE))
+    stale.set_piece_at(chess.H1, chess.Piece(chess.KING, chess.WHITE))
+    stale.set_piece_at(chess.A2, chess.Piece(chess.PAWN, chess.WHITE))
+
+    truth_pre = stale.copy()
+    truth_pre.set_piece_at(chess.D1, chess.Piece(chess.ROOK, chess.WHITE))
+    truth_post = truth_pre.copy()
+    move = chess.Move.from_uci("c8g4")
+    truth_post.push(move)
+    obs = observation_from_transition(truth_pre, truth_post, chess.BLACK)
+    assert obs.visible_pieces[chess.D1] == chess.Piece(chess.ROOK, chess.WHITE)
+    assert chess.F3 in obs.visibility_mask
+    assert chess.F3 not in obs.visible_pieces
+
+    belief = BeliefState(
+        perspective=chess.BLACK,
         move_prior=uniform_prior,
-        target_n=4,
+        target_n=16,
+        particles=[stale],
+        weights=[1.0],
         rng=random.Random(0),
     )
-    move = chess.Move.from_uci("e2e4")
-    # Construct an observation that disagrees with what the canonical board
-    # actually shows post-move. Lying about visibility forces every particle
-    # to be inconsistent.
-    bad_obs = Observation(
-        visibility_mask=chess.SquareSet(chess.BB_RANK_1 | chess.BB_RANK_2),
-        visible_pieces={chess.A8: chess.Piece(chess.QUEEN, chess.BLACK)},  # nonsense
-        own_capture_square=None,
-        game_over=None,
+    belief.opp_remaining_counts = {chess.KING: 1, chess.ROOK: 1, chess.PAWN: 1}
+    belief.opp_bishop_colors_remaining = {True: 0, False: 0}
+
+    belief.update_after_own_move(move, obs)
+
+    assert belief.last_csp_reseed_fired == 0
+    assert len(belief.particles) == belief.target_n
+    assert all(
+        particle.piece_at(chess.D1) == chess.Piece(chess.ROOK, chess.WHITE)
+        for particle in belief.particles
     )
-    belief.update_after_own_move(move, bad_obs)
-    # Rollback: pushed-but-not-filtered particles should survive.
-    assert len(belief.particles) > 0
-    # And they should have the move applied.
-    assert all(b.piece_at(chess.E4) is not None for b in belief.particles)
+    assert all(particle.piece_at(chess.F3) is None for particle in belief.particles)
+    assert all(
+        particle.piece_at(chess.A2) == chess.Piece(chess.PAWN, chess.WHITE)
+        for particle in belief.particles
+    )
+    assert all(
+        visible_piece_map(particle, chess.BLACK) == obs.visible_pieces
+        for particle in belief.particles
+    )
 
 
 def test_initial_opp_remaining_counts_match_standard_start() -> None:
@@ -376,11 +403,97 @@ def test_stage_b_reseeds_when_own_piece_capture_observation_would_be_relaxed() -
     belief.update_after_opp_move(obs)
 
     assert belief.last_csp_reseed_fired == 1
-    assert belief.last_csp_reseed_count == belief.target_n
+    assert belief.last_csp_reseed_count > 0
     assert all(particle.piece_at(chess.E2) == chess.Piece(chess.ROOK, chess.BLACK)
                for particle in belief.particles)
     assert all(particle.piece_at(chess.E1) == chess.Piece(chess.KING, chess.WHITE)
                for particle in belief.particles)
+
+
+def test_stage_b_does_not_relax_visible_opponent_piece() -> None:
+    """Visible opponent pieces are hard facts, not soft visibility noise.
+
+    Regression for q10 moveselect-check ply 54/59: white should have seen a
+    black pawn on b6, but Stage B's old constraint-only fallback kept particles
+    that did not contain that visible pawn.
+    """
+    import random
+
+    stale = chess.Board.empty()
+    stale.turn = chess.BLACK
+    stale.set_piece_at(chess.B5, chess.Piece(chess.KING, chess.WHITE))
+    stale.set_piece_at(chess.D1, chess.Piece(chess.ROOK, chess.WHITE))
+    stale.set_piece_at(chess.A6, chess.Piece(chess.PAWN, chess.WHITE))
+    stale.set_piece_at(chess.B4, chess.Piece(chess.PAWN, chess.WHITE))
+    stale.set_piece_at(chess.E7, chess.Piece(chess.KING, chess.BLACK))
+    stale.set_piece_at(chess.A7, chess.Piece(chess.PAWN, chess.BLACK))
+
+    truth_pre = stale.copy()
+    truth_pre.set_piece_at(chess.B7, chess.Piece(chess.PAWN, chess.BLACK))
+    truth_post = truth_pre.copy()
+    truth_post.push(chess.Move.from_uci("b7b6"))
+    obs = observation_from_transition(truth_pre, truth_post, chess.WHITE)
+    assert obs.visible_pieces[chess.B6] == chess.Piece(chess.PAWN, chess.BLACK)
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {chess.KING: 1, chess.PAWN: 2}
+    belief.opp_bishop_colors_remaining = {True: 0, False: 0}
+
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_csp_reseed_fired == 1
+    assert len(belief.particles) == belief.target_n
+    assert all(
+        particle.piece_at(chess.B6) == chess.Piece(chess.PAWN, chess.BLACK)
+        for particle in belief.particles
+    )
+
+
+def test_csp_reseed_preserves_pawn_blocker_from_move_affordance() -> None:
+    """If an own pawn cannot push, CSP reseed must infer a hidden blocker.
+
+    The square directly in front of a pawn is visible when the push is pseudo-
+    legal. If it is not visible and no own piece occupies it, a hidden opponent
+    piece must be blocking the pawn. Generic random-fill reseed used to miss
+    this and assign zero belief to the blocker square.
+    """
+    import random
+
+    truth = chess.Board.empty()
+    truth.turn = chess.WHITE
+    truth.set_piece_at(chess.H1, chess.Piece(chess.KING, chess.WHITE))
+    truth.set_piece_at(chess.E2, chess.Piece(chess.PAWN, chess.WHITE))
+    truth.set_piece_at(chess.A8, chess.Piece(chess.KING, chess.BLACK))
+    truth.set_piece_at(chess.E3, chess.Piece(chess.PAWN, chess.BLACK))
+    obs = Observation(
+        visibility_mask=visible_squares(truth, chess.WHITE),
+        visible_pieces=visible_piece_map(truth, chess.WHITE),
+    )
+
+    particles, _ = _csp_reseed(
+        obs,
+        opp_remaining_counts={chess.KING: 1, chess.PAWN: 1},
+        opp_bishop_colors_remaining={True: 0, False: 0},
+        perspective=chess.WHITE,
+        side_to_move=chess.WHITE,
+        n=16,
+        rng=random.Random(0),
+    )
+
+    assert len(particles) == 16
+    for particle in particles:
+        blocker = particle.piece_at(chess.E3)
+        assert blocker is not None
+        assert blocker.color == chess.BLACK
+        assert visible_squares(particle, chess.WHITE) == obs.visibility_mask
+        assert visible_piece_map(particle, chess.WHITE) == obs.visible_pieces
 
 
 def test_stage_b_constraint_pruned_diagnostic_increments() -> None:

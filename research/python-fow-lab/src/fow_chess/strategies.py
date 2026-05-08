@@ -281,6 +281,35 @@ def _prefer_higher_value_capture(
     return [m for m, v in valued if v == max_value]
 
 
+def _prefer_lower_value_attacker(
+    moves: list[chess.Move], view: PerspectiveView
+) -> list[chess.Move]:
+    """Among captures of the same target, prefer the least valuable attacker.
+
+    In fog, a visible high-value target may still sit on a square defended by
+    hidden pieces. When multiple own pieces can capture it, spend the cheapest
+    attacker first. This prevents avoidable queen-first captures on contested
+    squares when a knight/pawn capture is also available.
+    """
+    own = view.perspective
+    valued: list[tuple[chess.Move, int]] = []
+    for move in moves:
+        attacker = view.visible_piece_map.get(move.from_square)
+        target = view.visible_piece_map.get(move.to_square)
+        if (
+            attacker is None
+            or attacker.color != own
+            or target is None
+            or target.color == own
+        ):
+            continue
+        valued.append((move, _MATERIAL_VALUE.get(attacker.piece_type, 0)))
+    if not valued:
+        return moves
+    min_value = min(v for _, v in valued)
+    return [m for m, v in valued if v == min_value]
+
+
 def _queen_save_moves(view: PerspectiveView) -> list[chess.Move]:
     """If own queen is on a square attacked by a visible enemy, return moves that resolve the threat.
 
@@ -904,7 +933,8 @@ class Tier1Strategy:
             and piece.piece_type == chess.QUEEN
         ]
         if queen_captures:
-            chosen = self._rng.choice(_prefer_queen_promotion(queen_captures))
+            candidates = _prefer_lower_value_attacker(queen_captures, view)
+            chosen = self._rng.choice(_prefer_queen_promotion(candidates))
             self._stage_pending_capture(chosen, view)
             self._emit_trace("queen-capture", particle_count_pre, chosen)
             return chosen

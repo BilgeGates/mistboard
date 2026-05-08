@@ -55,6 +55,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--games", type=int, default=20)
     parser.add_argument(
+        "--start-index",
+        type=int,
+        default=0,
+        help="First bake-off game index to run. Use with --games 1 to rerun a "
+        "specific prior artifact without replaying every earlier game.",
+    )
+    parser.add_argument(
         "--evaluator",
         choices=("material", "threat", "visibility-threat", "stockfish"),
         default="material",
@@ -189,7 +196,8 @@ def main() -> int:
     )
 
     print(
-        f"bake-off: {args.games} games, evaluator={args.evaluator}, "
+        f"bake-off: {args.games} games, start_index={args.start_index}, "
+        f"evaluator={args.evaluator}, "
         f"prior={args.prior}, fog_lambda={args.fog_lambda}, "
         f"max_particles={args.max_particles}, target_n={args.target_n}, "
         f"risk_aversion={args.risk_aversion}"
@@ -273,9 +281,10 @@ def main() -> int:
 
         mirror_mode = args.opponent == "tier1"
 
-        for i in range(args.games):
+        for offset in range(args.games):
+            i = args.start_index + offset
             tier1_white = i % 2 == 0  # alternate colors (mirror: which side gets the lower-seed engine)
-            seed_base = args.seed + i * 7919
+            seed_base = _game_seed(args.seed, i)
 
             tier1 = _LatencyTracking(make_tier1(seed_base))
             if mirror_mode:
@@ -405,7 +414,8 @@ def main() -> int:
                 tier1.total_seconds / tier1.move_count if tier1.move_count else 0.0
             )
             print(
-                f"  game {i + 1}/{args.games} "
+                f"  game {offset + 1}/{args.games} "
+                f"index={i} "
                 f"tier1={tier1_color} "
                 f"outcome={outcome} "
                 f"plies={result.plies:3d} "
@@ -466,6 +476,7 @@ def main() -> int:
                     "threat_lambda": args.threat_lambda,
                     "max_plies": args.max_plies,
                     "base_seed": args.seed,
+                    "start_index": args.start_index,
                     "games_total": args.games,
                     "games_saved": len(save_manifest),
                     "save_only": args.save_only,
@@ -514,6 +525,11 @@ class _LatencyTracking:
         self.total_seconds += time.time() - t0
         self.move_count += 1
         return move
+
+
+def _game_seed(base_seed: int, game_index: int) -> int:
+    """Deterministic seed schedule for a saved bake-off game index."""
+    return base_seed + game_index * 7919
 
 
 if __name__ == "__main__":

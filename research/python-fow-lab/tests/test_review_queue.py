@@ -16,7 +16,7 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
     path.write_text("".join(json.dumps(row) + "\n" for row in rows))
 
 
-def test_generate_queue_prioritizes_csp_and_loss_window(tmp_path: Path) -> None:
+def test_generate_queue_prioritizes_generic_csp_and_loss_window(tmp_path: Path) -> None:
     (tmp_path / "manifest.json").write_text(
         json.dumps(
             {
@@ -80,7 +80,7 @@ def test_generate_queue_prioritizes_csp_and_loss_window(tmp_path: Path) -> None:
     assert "loss-window+26" in items[0].reasons
     assert "decision:king-defense-flight+28" in items[0].reasons
     assert "belief-unique<=1+14" in items[0].reasons
-    assert "csp-reseed+50" in items[1].reasons
+    assert "generic-csp-reseed+50" in items[1].reasons
     assert items[1].has_belief_snapshot is True
     assert items[1].belief_snapshot_kinds == ["decision", "after-own-move"]
 
