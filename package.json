@@ -12,7 +12,7 @@
     "dev": "npm run dev --workspace @bichess/server & npm run dev --workspace @bichess/web",
     "build": "npm run build --workspace=@bichess/game && npm run build --workspace=@bichess/server && npm run build --workspace=@bichess/web",
     "build:all": "npm run build --workspaces",
-    "start": "node apps/server/dist/index.js",
+    "start": "node scripts/start.mjs",
     "engine:enqueue-smoke": "npm run engine:enqueue-smoke --workspace=@bichess/server",
     "worker": "npm run worker --workspace=@bichess/server",
     "worker:execute": "npm run worker:execute --workspace=@bichess/server",
