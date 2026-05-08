@@ -2,6 +2,7 @@ import { hostname } from 'node:os';
 import pg from 'pg';
 import {
   claimNextEngineGameTask,
+  cleanupStaleEngineGameTasks,
   finishEngineGameTask,
   heartbeatWorkerRun,
   registerWorkerRun,
@@ -29,6 +30,16 @@ let activeTask: EngineGameTask | null = null;
 
 try {
   await migrate(databaseUrl);
+  const cleanup = await cleanupStaleEngineGameTasks(pool);
+  if (
+    cleanup.retried > 0
+    || cleanup.failed > 0
+    || cleanup.aborted > 0
+    || cleanup.failedWorkerRuns > 0
+  ) {
+    log('worker_stale_tasks_cleaned', cleanup);
+  }
+
   const workerRun = await registerWorkerRun(pool, {
     provider,
     providerRunId,

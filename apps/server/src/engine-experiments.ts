@@ -108,6 +108,13 @@ export type ClaimNextTaskInput = {
   claimToken?: string;
 };
 
+export type CleanupStaleTasksResult = {
+  retried: number;
+  failed: number;
+  aborted: number;
+  failedWorkerRuns: number;
+};
+
 export async function createExperimentJob(
   db: Queryable,
   input: CreateExperimentJobInput,
@@ -268,6 +275,118 @@ export async function claimNextEngineGameTask(
   }
 }
 
+export async function cleanupStaleEngineGameTasks(
+  pool: pg.Pool,
+  staleBefore = new Date(),
+): Promise<CleanupStaleTasksResult> {
+  const client = await pool.connect();
+  const result: CleanupStaleTasksResult = {
+    retried: 0,
+    failed: 0,
+    aborted: 0,
+    failedWorkerRuns: 0,
+  };
+
+  try {
+    await client.query('BEGIN');
+    const { rows: staleTasks } = await client.query<Pick<
+      EngineGameTaskRow,
+      'id' | 'job_id' | 'game_id' | 'worker_run_id' | 'attempt_count' | 'max_attempts'
+    >>(
+      `SELECT id, job_id, game_id, worker_run_id, attempt_count, max_attempts
+       FROM engine_game_tasks
+       WHERE status = 'running'
+         AND COALESCE(claim_expires_at, heartbeat_at, started_at) < $1
+       FOR UPDATE SKIP LOCKED`,
+      [staleBefore],
+    );
+
+    for (const task of staleTasks) {
+      if (task.worker_run_id) {
+        const failedWorker = await client.query(
+          `UPDATE engine_worker_runs
+           SET status = 'failed',
+               stopped_at = now(),
+               failure_reason = 'stale engine task claim'
+           WHERE id = $1
+             AND status IN ('running', 'draining')`,
+          [task.worker_run_id],
+        );
+        result.failedWorkerRuns += failedWorker.rowCount ?? 0;
+      }
+
+      if (task.game_id) {
+        await client.query(
+          `UPDATE games
+           SET status = 'aborted',
+               result = NULL,
+               termination = 'worker-aborted',
+               ended_at = now(),
+               aborted_reason = 'stale engine task claim'
+           WHERE room_id = $1
+             AND status = 'running'`,
+          [task.game_id],
+        );
+        await client.query(
+          `UPDATE engine_game_tasks
+           SET status = 'aborted',
+               claim_token = NULL,
+               claim_expires_at = NULL,
+               heartbeat_at = NULL,
+               finished_at = now(),
+               failure_reason = 'stale engine task claim'
+           WHERE id = $1
+             AND status = 'running'`,
+          [task.id],
+        );
+        await incrementJobCounter(client, task.job_id, 'failed');
+        result.aborted += 1;
+      } else if (task.attempt_count < task.max_attempts) {
+        await client.query(
+          `UPDATE engine_game_tasks
+           SET status = 'queued',
+               worker_run_id = NULL,
+               worker_id = NULL,
+               provider = NULL,
+               provider_run_id = NULL,
+               claim_token = NULL,
+               claim_expires_at = NULL,
+               heartbeat_at = NULL,
+               started_at = NULL,
+               failure_reason = 'stale engine task claim released for retry'
+           WHERE id = $1
+             AND status = 'running'`,
+          [task.id],
+        );
+        result.retried += 1;
+      } else {
+        await client.query(
+          `UPDATE engine_game_tasks
+           SET status = 'failed',
+               claim_token = NULL,
+               claim_expires_at = NULL,
+               heartbeat_at = NULL,
+               finished_at = now(),
+               failure_reason = 'stale engine task claim exhausted retry budget'
+           WHERE id = $1
+             AND status = 'running'`,
+          [task.id],
+        );
+        await incrementJobCounter(client, task.job_id, 'failed');
+        result.failed += 1;
+      }
+    }
+
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function heartbeatEngineGameTask(
   db: Queryable,
   taskId: string,
@@ -341,6 +460,28 @@ export async function finishEngineGameTask(
   );
   if (rows.length === 0) throw new Error(`task ${taskId} is not claimed by this worker`);
   return mapTask(rows[0]!);
+}
+
+export async function incrementJobCounter(
+  db: Queryable,
+  jobId: string,
+  counter: 'completed' | 'failed',
+): Promise<void> {
+  const column = counter === 'completed' ? 'completed_games' : 'failed_games';
+  await db.query(
+    `UPDATE eve_jobs
+     SET ${column} = ${column} + 1,
+         status = CASE
+           WHEN completed_games + failed_games + 1 >= target_games THEN 'completed'
+           ELSE status
+         END,
+         finished_at = CASE
+           WHEN completed_games + failed_games + 1 >= target_games THEN now()
+           ELSE finished_at
+         END
+     WHERE id = $1`,
+    [jobId],
+  );
 }
 
 type EveJobRow = {

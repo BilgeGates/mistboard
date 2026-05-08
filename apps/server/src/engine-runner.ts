@@ -9,6 +9,7 @@ import {
 } from '@bichess/game';
 import {
   finishEngineGameTask,
+  incrementJobCounter,
   type EngineGameTask,
 } from './engine-experiments.js';
 
@@ -194,28 +195,6 @@ async function abortGame(
   );
   await finishEngineGameTask(pool, task.id, task.claimToken!, 'aborted', termination);
   await incrementJobCounter(pool, task.jobId, 'failed');
-}
-
-async function incrementJobCounter(
-  pool: pg.Pool,
-  jobId: string,
-  counter: 'completed' | 'failed',
-): Promise<void> {
-  const column = counter === 'completed' ? 'completed_games' : 'failed_games';
-  await pool.query(
-    `UPDATE eve_jobs
-     SET ${column} = ${column} + 1,
-         status = CASE
-           WHEN completed_games + failed_games + 1 >= target_games THEN 'completed'
-           ELSE status
-         END,
-         finished_at = CASE
-           WHEN completed_games + failed_games + 1 >= target_games THEN now()
-           ELSE finished_at
-         END
-     WHERE id = $1`,
-    [jobId],
-  );
 }
 
 function variantFromTask(task: EngineGameTask): VariantId {
