@@ -13,36 +13,42 @@ if (!databaseUrl) {
 
 const seed = process.env.ENGINE_SMOKE_SEED ?? Date.now().toString();
 const maxPlies = Number.parseInt(process.env.ENGINE_SMOKE_MAX_PLIES ?? '160', 10);
+const gameCount = Number.parseInt(process.env.ENGINE_SMOKE_GAMES ?? '1', 10);
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 });
 
 try {
   await migrate(databaseUrl);
   const job = await createExperimentJob(pool, {
     purpose: 'smoke',
-    targetGames: 1,
+    targetGames: gameCount,
     config: {
       pairing: { kind: 'builtin-random-legal' },
-      sample: { target_games: 1 },
+      sample: { target_games: gameCount },
       review_policy: { enqueue_engine_lab: true, initial_review_status: 'unreviewed' },
     },
     createdBy: 'engine-smoke-cli',
   });
-  const task = await createEngineGameTask(pool, {
-    jobId: job.id,
-    gameIndex: 0,
-    seed,
-    timeControl: { kind: 'none' },
-    openingPolicy: { kind: 'standard' },
-    resourcePolicy: { providers: ['local'], concurrency: 1 },
-    config: { variant: 'fog-of-war', max_plies: maxPlies },
-  });
+
+  const tasks = [];
+  for (let gameIndex = 0; gameIndex < gameCount; gameIndex++) {
+    tasks.push(await createEngineGameTask(pool, {
+      jobId: job.id,
+      gameIndex,
+      seed: nextSeed(seed, gameIndex),
+      timeControl: { kind: 'none' },
+      openingPolicy: { kind: 'standard' },
+      resourcePolicy: { providers: ['local'], concurrency: 1 },
+      config: { variant: 'fog-of-war', max_plies: maxPlies },
+    }));
+  }
 
   console.log(JSON.stringify({
     level: 'info',
-    kind: 'engine_smoke_task_enqueued',
+    kind: 'engine_smoke_tasks_enqueued',
     jobId: job.id,
-    taskId: task.id,
-    seed: task.seed,
+    taskIds: tasks.map((task) => task.id),
+    gameCount,
+    seed,
     maxPlies,
   }));
 } finally {
@@ -59,5 +65,13 @@ async function migrate(connectionString: string): Promise<void> {
     }
   } finally {
     await client.end();
+  }
+}
+
+function nextSeed(baseSeed: string, offset: number): string {
+  try {
+    return (BigInt(baseSeed) + BigInt(offset)).toString();
+  } catch {
+    return `${baseSeed}-${offset}`;
   }
 }

@@ -5,6 +5,7 @@ import {
   cleanupStaleEngineGameTasks,
   finishEngineGameTask,
   heartbeatWorkerRun,
+  incrementJobCounter,
   registerWorkerRun,
   releaseEngineGameTaskClaim,
   stopWorkerRun,
@@ -22,23 +23,31 @@ if (!databaseUrl) {
 const provider = process.env.WORKER_PROVIDER ?? 'local';
 const providerRunId = process.env.WORKER_PROVIDER_RUN_ID ?? null;
 const workerId = process.env.WORKER_ID ?? `${hostname()}:${process.pid}`;
-const dryRun = !process.argv.includes('--execute');
+const execute = process.argv.includes('--execute');
+const loop = process.argv.includes('--loop');
+const dryRun = !execute;
+const maxTasks = parsePositiveInteger(process.env.WORKER_MAX_TASKS) ?? (loop ? Number.POSITIVE_INFINITY : 1);
+const idleSleepMs = parsePositiveInteger(process.env.WORKER_IDLE_SLEEP_MS) ?? 5_000;
+const cleanupIntervalMs = parsePositiveInteger(process.env.WORKER_CLEANUP_INTERVAL_MS) ?? 60_000;
 
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 4 });
 let activeWorkerRunId: string | null = null;
 let activeTask: EngineGameTask | null = null;
+let shuttingDown = false;
+
+process.on('SIGINT', () => {
+  shuttingDown = true;
+  log('worker_shutdown_requested', { signal: 'SIGINT' });
+});
+process.on('SIGTERM', () => {
+  shuttingDown = true;
+  log('worker_shutdown_requested', { signal: 'SIGTERM' });
+});
 
 try {
   await migrate(databaseUrl);
-  const cleanup = await cleanupStaleEngineGameTasks(pool);
-  if (
-    cleanup.retried > 0
-    || cleanup.failed > 0
-    || cleanup.aborted > 0
-    || cleanup.failedWorkerRuns > 0
-  ) {
-    log('worker_stale_tasks_cleaned', cleanup);
-  }
+  await cleanupStaleTasks();
+  let nextCleanupAt = Date.now() + cleanupIntervalMs;
 
   const workerRun = await registerWorkerRun(pool, {
     provider,
@@ -56,22 +65,34 @@ try {
     provider,
     providerRunId,
     dryRun,
+    loop,
+    maxTasks: Number.isFinite(maxTasks) ? maxTasks : 'unbounded',
   });
 
-  await heartbeatWorkerRun(pool, workerRun.id);
-  const task = await claimNextEngineGameTask(pool, {
-    workerRunId: workerRun.id,
-    workerId,
-    provider,
-    providerRunId,
-  });
-  activeTask = task;
+  let processedTasks = 0;
+  while (!shuttingDown && processedTasks < maxTasks) {
+    await heartbeatWorkerRun(pool, workerRun.id);
 
-  if (!task) {
-    log('worker_no_task', { workerRunId: workerRun.id });
-    await stopWorkerRun(pool, workerRun.id);
-    activeWorkerRunId = null;
-  } else if (dryRun) {
+    if (Date.now() >= nextCleanupAt) {
+      await cleanupStaleTasks();
+      nextCleanupAt = Date.now() + cleanupIntervalMs;
+    }
+
+    const task = await claimNextEngineGameTask(pool, {
+      workerRunId: workerRun.id,
+      workerId,
+      provider,
+      providerRunId,
+    });
+    activeTask = task;
+
+    if (!task) {
+      log('worker_no_task', { workerRunId: workerRun.id });
+      if (!loop) break;
+      await sleep(idleSleepMs);
+      continue;
+    }
+
     log('worker_task_claimed', {
       workerRunId: workerRun.id,
       taskId: task.id,
@@ -79,43 +100,51 @@ try {
       gameIndex: task.gameIndex,
       dryRun,
     });
-    await releaseEngineGameTaskClaim(pool, task.id, task.claimToken!, { decrementAttempt: true });
-    log('worker_task_released', {
-      workerRunId: workerRun.id,
-      taskId: task.id,
-      reason: 'dry-run',
-    });
-    await stopWorkerRun(pool, workerRun.id);
+
+    if (dryRun) {
+      await releaseEngineGameTaskClaim(pool, task.id, task.claimToken!, { decrementAttempt: true });
+      log('worker_task_released', {
+        workerRunId: workerRun.id,
+        taskId: task.id,
+        reason: 'dry-run',
+      });
+    } else {
+      try {
+        const result = await runRandomLegalEngineGame(pool, task);
+        log('worker_task_finished', {
+          workerRunId: workerRun.id,
+          taskId: task.id,
+          gameId: result.gameId,
+          status: result.status,
+          plyCount: result.plyCount,
+        });
+      } catch (taskErr) {
+        const error = (taskErr as Error).message;
+        await finishFailedTask(task, error);
+        log('worker_task_failed', {
+          workerRunId: workerRun.id,
+          taskId: task.id,
+          error,
+        });
+      }
+    }
+
+    processedTasks += 1;
     activeTask = null;
-    activeWorkerRunId = null;
-  } else {
-    log('worker_task_claimed', {
-      workerRunId: workerRun.id,
-      taskId: task.id,
-      jobId: task.jobId,
-      gameIndex: task.gameIndex,
-      dryRun,
-    });
-    const result = await runRandomLegalEngineGame(pool, task);
-    log('worker_task_finished', {
-      workerRunId: workerRun.id,
-      taskId: task.id,
-      gameId: result.gameId,
-      status: result.status,
-      plyCount: result.plyCount,
-    });
-    await stopWorkerRun(pool, workerRun.id);
-    activeTask = null;
-    activeWorkerRunId = null;
+    if (!loop) break;
   }
+
+  await stopWorkerRun(pool, workerRun.id, shuttingDown ? 'stopped' : 'stopped');
+  activeWorkerRunId = null;
+  log('worker_stopped', {
+    workerRunId: workerRun.id,
+    processedTasks,
+    shuttingDown,
+  });
 } catch (err) {
   const error = (err as Error).message;
   if (activeTask?.claimToken) {
-    try {
-      await finishEngineGameTask(pool, activeTask.id, activeTask.claimToken, 'failed', error);
-    } catch (finishErr) {
-      log('worker_task_failure_record_failed', { error: (finishErr as Error).message });
-    }
+    await finishFailedTask(activeTask, error);
   }
   if (activeWorkerRunId) {
     try {
@@ -139,6 +168,40 @@ async function migrate(connectionString: string): Promise<void> {
   } finally {
     await client.end();
   }
+}
+
+async function cleanupStaleTasks(): Promise<void> {
+  const cleanup = await cleanupStaleEngineGameTasks(pool);
+  if (
+    cleanup.retried > 0
+    || cleanup.failed > 0
+    || cleanup.aborted > 0
+    || cleanup.failedWorkerRuns > 0
+  ) {
+    log('worker_stale_tasks_cleaned', cleanup);
+  }
+}
+
+async function finishFailedTask(task: EngineGameTask, error: string): Promise<void> {
+  if (!task.claimToken) return;
+  try {
+    await finishEngineGameTask(pool, task.id, task.claimToken, 'failed', error);
+    await incrementJobCounter(pool, task.jobId, 'failed');
+  } catch (finishErr) {
+    log('worker_task_failure_record_failed', { error: (finishErr as Error).message });
+  }
+}
+
+function parsePositiveInteger(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 function log(kind: string, data: Record<string, unknown>): void {
