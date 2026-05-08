@@ -39,6 +39,22 @@ test('live PvE replay API exposes human moves but redacts engine moves', () => {
   });
 });
 
+test('live PvE replay API redaction follows the human color', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'pve-live-engine-white', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 1, roomId: 'pve-live-engine-white', clientId: 'engine:white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'pve-live-engine-white', clientId: 'human-black', seat: 'black' },
+    { type: 'move-played', at: 2, roomId: 'pve-live-engine-white', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 3, roomId: 'pve-live-engine-white', color: 'black', move: { from: 'e7', to: 'e5' } },
+  ];
+
+  assert.equal(canExposeFullEventReplay(events), false);
+  assert.deepEqual(eventReplayResponse(events), {
+    status: 200,
+    body: { events: events.filter((event) => event.type !== 'move-played' || event.color !== 'white') },
+  });
+});
+
 test('live EvE replay API exposes full truth stream', () => {
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'eve-live', variant: 'fog-of-war', offer: [] },

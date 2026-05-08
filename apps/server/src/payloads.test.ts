@@ -105,6 +105,31 @@ test('live PvE spectator sees human perspective and not engine move events', () 
   );
 });
 
+test('live PvE spectator follows the human perspective when the engine is white', () => {
+  const room = replayRoomFixture({
+    roomId: 'pve-engine-white-payload',
+    seats: { white: 'engine:white', black: 'human-black' },
+    mode: 'pve',
+  });
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'spectator-client',
+    seat: 'spectator',
+    solo: false,
+  });
+
+  assert.equal(payload.state.perspective, 'black');
+  assert.notDeepEqual(payload.state.board, {});
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played' && event.color === 'black'),
+    true,
+  );
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played' && event.color === 'white'),
+    false,
+  );
+});
+
 test('live EvE spectator sees full truth and full event stream', () => {
   const room = replayRoomFixture({
     roomId: 'eve-payload',

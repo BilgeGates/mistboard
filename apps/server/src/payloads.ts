@@ -36,10 +36,12 @@ const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const allSquares = ranks.flatMap((rank) => files.map((file) => `${file}${rank}` as Square));
 
 export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
+  const mode = room.mode ?? modeForProjection(room.projection);
+  const normalizedRoom = room.mode === mode ? room : { ...room, mode };
   return {
     type: 'snapshot',
     roomId: room.id,
-    mode: room.mode ?? 'pvp',
+    mode,
     serverAt: Date.now(),
     clients: room.clients.size,
     seat: client.seat,
@@ -50,8 +52,8 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     bidResolution: bidResolutionForClient(room),
     devViews: devViewsForClient(room, client),
     resolvedStartId: room.projection.resolvedStartId,
-    events: eventsForClient(room),
-    state: getClientView(room, client),
+    events: eventsForClient(normalizedRoom),
+    state: getClientView(normalizedRoom, client),
   };
 }
 
