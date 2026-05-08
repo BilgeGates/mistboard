@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.7"
+TIER1_VERSION = "0.7.8"
 
 
 def tier1_commit() -> str:
@@ -943,6 +943,140 @@ class Tier1Strategy:
                 survivors.append(move)
         return survivors
 
+    def _belief_veto_queen_fog_risk(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+        threshold: float = 0.20,
+    ) -> list[chess.Move]:
+        """Drop queen moves that belief says are likely immediately capturable.
+
+        Regression shape: early v0.7 replay gate still chose `Qd5-e4`, moving
+        the queen onto a square controlled by a hidden knight in a material
+        minority of particles. For queens, even a 20% immediate-loss risk is
+        enough to reject a speculative fog move. Keep this guardrail narrow:
+        non-queen moves and visible captures are handled by existing paths.
+        """
+        if self._belief is None or not self._belief.particles:
+            return candidates
+
+        survivors: list[chess.Move] = []
+        for move in candidates:
+            mover = view.visible_piece_map.get(move.from_square)
+            if (
+                mover is None
+                or mover.color != view.perspective
+                or mover.piece_type != chess.QUEEN
+            ):
+                survivors.append(move)
+                continue
+
+            target = view.visible_piece_map.get(move.to_square)
+            if target is not None and target.color != view.perspective:
+                # Captures are already ranked/filtered by queen-capture and
+                # bad-trade logic. This guardrail is for queen moves into fog.
+                survivors.append(move)
+                continue
+            if move.to_square in _squares_attacked_by_visible_enemy_full(view):
+                continue
+
+            recapturable = 0
+            total = 0
+            for particle in self._belief.particles:
+                if not particle.is_pseudo_legal(move):
+                    continue
+                total += 1
+                sim = particle.copy()
+                sim.push(move)
+                landed = sim.piece_at(move.to_square)
+                if (
+                    landed is None
+                    or landed.color != view.perspective
+                    or landed.piece_type != chess.QUEEN
+                ):
+                    continue
+                sim.turn = not view.perspective
+                if any(reply.to_square == move.to_square for reply in sim.pseudo_legal_moves):
+                    recapturable += 1
+
+            if total == 0 or recapturable / total <= threshold:
+                survivors.append(move)
+        return survivors
+
+    def _belief_queen_king_pressure_moves(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+        *,
+        min_pressure: float = 0.70,
+        max_recapture_risk: float = 0.15,
+        min_unique_particles: int = 4,
+    ) -> list[chess.Move]:
+        """Queen moves that safely attack the believed opponent king.
+
+        This is a narrow Fog-of-War pressure rule for positions where the
+        opponent king is not visible but belief strongly preserves its home or
+        tracked square. A queen move that attacks that king in most particles
+        and is not immediately recapturable deserves to beat quiet development.
+        Skip immediately after generic CSP and on near-singleton belief sets:
+        those rows need main-eval or review, not another tactical override.
+        """
+        if self._belief is None or not self._belief.particles:
+            return []
+        if (
+            self._pending_belief_steps.get("csp_reseed_stage_a", 0)
+            or self._pending_belief_steps.get("csp_reseed_stage_b", 0)
+        ):
+            return []
+        if len({particle.fen() for particle in self._belief.particles}) < min_unique_particles:
+            return []
+
+        scored: list[tuple[chess.Move, float, float]] = []
+        for move in candidates:
+            mover = view.visible_piece_map.get(move.from_square)
+            target = view.visible_piece_map.get(move.to_square)
+            if (
+                mover is None
+                or mover.color != view.perspective
+                or mover.piece_type != chess.QUEEN
+                or (target is not None and target.color != view.perspective)
+            ):
+                continue
+
+            total = 0
+            pressures = 0
+            recaptures = 0
+            for particle in self._belief.particles:
+                if not particle.is_pseudo_legal(move):
+                    continue
+                total += 1
+                sim = particle.copy()
+                sim.push(move)
+                opp_king = sim.king(not view.perspective)
+                if opp_king is not None and move.to_square in sim.attackers(
+                    view.perspective, opp_king
+                ):
+                    pressures += 1
+                sim.turn = not view.perspective
+                if any(reply.to_square == move.to_square for reply in sim.pseudo_legal_moves):
+                    recaptures += 1
+
+            if total == 0:
+                continue
+            pressure = pressures / total
+            recapture_risk = recaptures / total
+            if pressure >= min_pressure and recapture_risk <= max_recapture_risk:
+                scored.append((move, pressure, recapture_risk))
+
+        if not scored:
+            return []
+        best_pressure = max(pressure for _, pressure, _ in scored)
+        pressure_top = [
+            row for row in scored if row[1] >= best_pressure - 1e-9
+        ]
+        best_risk = min(risk for _, _, risk in pressure_top)
+        return [move for move, _, risk in pressure_top if risk <= best_risk + 1e-9]
+
     def _detect_capture(
         self,
         move: chess.Move,
@@ -1185,6 +1319,14 @@ class Tier1Strategy:
         legal_moves = non_king_capture_moves or legal_moves
         trade_safe_moves = self._belief_veto_bad_capture_trade(legal_moves, view)
         legal_moves = trade_safe_moves or legal_moves
+        queen_fog_safe_moves = self._belief_veto_queen_fog_risk(legal_moves, view)
+        legal_moves = queen_fog_safe_moves or legal_moves
+        queen_pressure = self._belief_queen_king_pressure_moves(legal_moves, view)
+        if queen_pressure:
+            chosen = self._rng.choice(queen_pressure)
+            self._stage_pending_capture(chosen, view)
+            self._emit_trace("queen-king-pressure", particle_count_pre, chosen)
+            return chosen
         chosen = best_action(
             self._belief,
             evaluator,

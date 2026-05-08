@@ -79,6 +79,31 @@ def test_observation_filter_rejects_inconsistent_particle_branches() -> None:
         assert visible_piece_map(particle, chess.WHITE) == truth_pieces
 
 
+def test_opp_move_update_reseeds_when_no_particle_can_expand() -> None:
+    """Stage B must not leave belief empty when every particle has no legal
+    opponent expansion; current hard observations are still available."""
+    stale = chess.Board.empty()
+    stale.turn = chess.BLACK
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=8,
+        particles=[stale],
+        weights=[1.0],
+    )
+    own_king = chess.Piece(chess.KING, chess.WHITE)
+    obs = Observation(
+        visibility_mask=chess.SquareSet([chess.E1]),
+        visible_pieces={chess.E1: own_king},
+    )
+
+    belief.update_after_opp_move(obs)
+
+    assert not belief.collapsed()
+    assert belief.last_csp_reseed_fired == 1
+    assert belief.marginal_piece_at(chess.E1) == {own_king: 1.0}
+
+
 def test_marginals_sum_to_one_when_belief_is_alive() -> None:
     belief = BeliefState.initial(
         perspective=chess.WHITE,

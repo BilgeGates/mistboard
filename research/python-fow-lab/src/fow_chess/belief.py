@@ -316,7 +316,8 @@ class BeliefState:
              opp piece counts.
           2. constraint_pass only: relax visibility, keep piece-count truth.
              Better than allowing phantom captured pieces back into belief.
-          3. all expansions (existing rollback): emergency, lose both signals.
+          3. repair count-valid expansions into hard-observation compliance.
+          4. generic CSP reseed from the current observation.
 
         The count constraint (v0.6.0): a particle whose opp piece count for
         any type exceeds `opp_remaining_counts` is hallucinating pieces we
@@ -420,8 +421,20 @@ class BeliefState:
             self.last_csp_reseed_count = len(self.particles)
             return
         else:
-            self.particles = []
-            self.weights = []
+            # No particle had any expandable opponent move. Keeping empty
+            # belief makes the next decision contradict every visible hard
+            # fact, so recover from the observation directly.
+            self.particles, self.weights = _csp_reseed(
+                obs,
+                self.opp_remaining_counts,
+                self.opp_bishop_colors_remaining,
+                self.perspective,
+                side_to_move=self.perspective,
+                n=min(self.target_n, 64),
+                rng=self.rng,
+            )
+            self.last_csp_reseed_fired += 1
+            self.last_csp_reseed_count = len(self.particles)
             return
 
         self.particles, self.weights = _resample(

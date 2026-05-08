@@ -691,6 +691,129 @@ def test_safe_visible_capture_vetoes_belief_defended_bad_trade() -> None:
     assert chosen != capture
 
 
+def test_queen_fog_risk_vetoes_hidden_recapture_square() -> None:
+    """Regression for annotation replay g2 ply 6: black should not move the
+    queen to e4 when belief carries a hidden white knight on c3 attacking e4."""
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.C3, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.set_piece_at(chess.D5, chess.Piece(chess.QUEEN, chess.BLACK))
+    board.set_piece_at(chess.C7, chess.Piece(chess.PAWN, chess.BLACK))
+    board.turn = chess.BLACK
+
+    unsafe = chess.Move.from_uci("d5e4")
+    safe_queen_move = chess.Move.from_uci("d5e6")
+    non_queen_move = chess.Move.from_uci("c7c6")
+    assert unsafe in board.pseudo_legal_moves
+    assert safe_queen_move in board.pseudo_legal_moves
+    assert non_queen_move in board.pseudo_legal_moves
+
+    visible_pieces = {
+        sq: piece for sq, piece in board.piece_map().items() if piece.color == chess.BLACK
+    }
+    view = _build_view(board, chess.BLACK, visible_pieces=visible_pieces)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    filtered = strategy._belief_veto_queen_fog_risk(
+        [unsafe, safe_queen_move, non_queen_move],
+        view,
+    )
+
+    assert unsafe not in filtered
+    assert safe_queen_move in filtered
+    assert non_queen_move in filtered
+
+
+def test_queen_fog_risk_vetoes_visible_enemy_attack_square() -> None:
+    """Do not send the queen to a square attacked by visible enemy material."""
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.A5, chess.Piece(chess.QUEEN, chess.BLACK))
+    board.set_piece_at(chess.D1, chess.Piece(chess.QUEEN, chess.WHITE))
+    board.turn = chess.WHITE
+
+    unsafe = chess.Move.from_uci("d1a4")
+    assert unsafe in board.pseudo_legal_moves
+    visible_pieces = dict(board.piece_map())
+    view = _build_view(board, chess.WHITE, visible_pieces=visible_pieces)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [board.copy(), board.copy()]
+    strategy._belief.weights = [1.0, 1.0]
+
+    assert strategy._belief_veto_queen_fog_risk([unsafe], view) == []
+
+
+def test_queen_king_pressure_prefers_safe_belief_attack() -> None:
+    """After unsafe Qe4 is filtered, Qe6 should be recognized as safe pressure
+    on the believed white king instead of falling through to quiet development."""
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.C3, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.set_piece_at(chess.D5, chess.Piece(chess.QUEEN, chess.BLACK))
+    board.set_piece_at(chess.C7, chess.Piece(chess.PAWN, chess.BLACK))
+    board.turn = chess.BLACK
+
+    unsafe = chess.Move.from_uci("d5e4")
+    pressure = chess.Move.from_uci("d5e6")
+    quiet = chess.Move.from_uci("c7c6")
+    visible_pieces = {
+        sq: piece for sq, piece in board.piece_map().items() if piece.color == chess.BLACK
+    }
+    view = _build_view(board, chess.BLACK, visible_pieces=visible_pieces)
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    particles = []
+    for sq in (chess.A2, chess.B2, chess.C2, chess.D2):
+        particle = board.copy()
+        particle.set_piece_at(sq, chess.Piece(chess.PAWN, chess.WHITE))
+        particles.append(particle)
+    strategy._belief.particles = particles
+    strategy._belief.weights = [1.0] * len(particles)
+
+    safe_moves = strategy._belief_veto_queen_fog_risk([unsafe, pressure, quiet], view)
+    assert unsafe not in safe_moves
+    assert strategy._belief_queen_king_pressure_moves(safe_moves, view) == [pressure]
+
+
+def test_queen_king_pressure_skips_after_generic_csp() -> None:
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.D5, chess.Piece(chess.QUEEN, chess.BLACK))
+    board.turn = chess.BLACK
+    pressure = chess.Move.from_uci("d5e6")
+    view = _build_view(
+        board,
+        chess.BLACK,
+        visible_pieces={
+            sq: piece for sq, piece in board.piece_map().items() if piece.color == chess.BLACK
+        },
+    )
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.BLACK)
+    particles = []
+    for sq in (chess.A2, chess.B2, chess.C2, chess.D2):
+        particle = board.copy()
+        particle.set_piece_at(sq, chess.Piece(chess.PAWN, chess.WHITE))
+        particles.append(particle)
+    strategy._belief.particles = particles
+    strategy._belief.weights = [1.0] * len(particles)
+    strategy._pending_belief_steps["csp_reseed_stage_b"] = 1
+
+    assert strategy._belief_queen_king_pressure_moves([pressure], view) == []
+
+
 def test_safe_visible_capture_prefers_higher_material() -> None:
     """Knight can capture either a bishop on f1 or a rook on h6, both safe.
     Rook (5) > bishop (3) — short-circuit should restrict to rook capture."""
