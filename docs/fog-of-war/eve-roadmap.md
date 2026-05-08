@@ -12,12 +12,16 @@ Use one canonical game store:
 - `games.status` separates `running`, `completed`, and `aborted` games.
 - `games.review_status` lets Engine Lab build an annotation queue without inventing a separate game table.
 
-Only add side tables when the shape is genuinely different. EvE has different lifecycle data, so it gets side tables:
+Only add side tables when the shape is genuinely different. EvE has different lifecycle and scheduling data, so it gets side tables:
 
 - `engine_versions` stores pinned engine identities, config hashes, and play signatures.
 - `eve_jobs` stores mining/calibration batches and their progress.
-- `eve_games` links a canonical game row to an EvE job, engines, seed, time control, and worker metadata.
+- `engine_game_tasks` stores provider-neutral queued/running/completed game work.
+- `engine_worker_runs` stores local, Railway, Modal, or future worker heartbeats.
+- `eve_games` links a canonical game row to an EvE job, task, engines, seed, time control, and worker metadata.
 - `game_debug_artifacts` stores optional per-game/per-ply debug blobs or object-store URIs.
+
+The broader experiment design lives in `docs/fog-of-war/engine-experiments.md`.
 
 ## Restart Semantics
 
@@ -38,7 +42,7 @@ For each move:
 
 ## Save Flow
 
-Create the `games` row at game start with `mode = 'eve'` and `status = 'running'`. Append game events normally. On terminal game state, update the row to `status = 'completed'`, set `result`, `termination`, `ended_at`, and final `ply_count`.
+Create an `engine_game_tasks` row first. It can remain `queued` without creating a canonical game row. When a worker claims the task, create the `games` row with `mode = 'eve'` and `status = 'running'`. Append game events normally. On terminal game state, update the row to `status = 'completed'`, set `result`, `termination`, `ended_at`, and final `ply_count`.
 
 If the worker aborts for infrastructure reasons, update the row to `status = 'aborted'`, keep `result = NULL`, set a non-scoring `termination`, and leave the events available for debugging.
 
@@ -67,9 +71,10 @@ Pre-deciding this prevents a class of bugs where verbose-belief variants of the 
 ## Build Order
 
 1. Land the schema foundation.
-2. Add read-only Engine Lab queue APIs over `games` filtered by `mode` and `review_status`.
-3. Add a single-game EvE worker that records one game end to end.
-4. Add startup cleanup that aborts stale running EvE games owned by the worker.
-5. Add batch `eve_jobs` scheduling and progress accounting.
-6. Add the `annotations` table + JSONL backfill at cutover.
-7. Add `verbose_belief` job-config flag + `game_debug_artifacts` writes.
+2. Land the provider-neutral experiment task schema.
+3. Add read-only Engine Lab queue APIs over `games` filtered by `mode` and `review_status`.
+4. Add a single-game EvE worker that claims one task and records one game end to end.
+5. Add startup cleanup that aborts stale running EvE games owned by the worker.
+6. Add batch `eve_jobs` scheduling and progress accounting.
+7. Add the `annotations` table + JSONL backfill at cutover.
+8. Add `verbose_belief` job-config flag + `game_debug_artifacts` writes.

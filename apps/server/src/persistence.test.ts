@@ -43,6 +43,8 @@ if (!TEST_DATABASE_URL) {
         `TRUNCATE
            game_debug_artifacts,
            eve_games,
+           engine_game_tasks,
+           engine_worker_runs,
            eve_jobs,
            engine_versions,
            events,
