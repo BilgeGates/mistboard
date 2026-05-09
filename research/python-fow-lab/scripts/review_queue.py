@@ -30,6 +30,7 @@ CRITICAL_DECISION_PATHS: dict[str, int] = {
     "queen-capture": 22,
     "queen-save": 22,
     "visible-minor-rook-capture": 16,
+    "latent-king-slider-block": 14,
     "fallback": 24,
 }
 

@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.8.1"
+TIER1_VERSION = "0.8.2"
 
 
 def tier1_commit() -> str:
@@ -275,6 +275,85 @@ def _latent_ray_danger_probes(
 
     probes.sort(key=sort_key)
     return probes[:limit]
+
+
+def _latent_king_slider_block_moves(
+    view: PerspectiveView,
+    belief: BeliefState,
+    *,
+    min_missing_mass: float = 0.05,
+) -> list[chess.Move]:
+    """Prophylactic blockers for missing-belief queen rays to our king.
+
+    This is deliberately narrower than `_latent_ray_danger_probes`: it only
+    consumes queen-ray-to-king probes, and it only returns moves that interpose
+    on the ray. It is the first bridge from "diagnose absent dangerous worlds"
+    to "make a quiet move that prices them."
+    """
+    probes = _latent_ray_danger_probes(
+        view,
+        belief,
+        min_missing_mass=min_missing_mass,
+    )
+    legal_by_uci = {move.uci(): move for move in view.own_legal_moves}
+    visible_attacked = _squares_attacked_by_visible_enemy_full(view)
+    candidates: list[tuple[chess.Move, tuple[int, int, int, int, str]]] = []
+    for probe in probes:
+        if str(probe.get("target_piece") or "").upper() != "K":
+            continue
+        if str(probe.get("danger_piece") or "").lower() != "q":
+            continue
+        if float(probe.get("belief_mass") or 0.0) >= min_missing_mass:
+            continue
+        blocking_squares = [
+            chess.parse_square(name)
+            for name in probe.get("blocking_squares", [])
+            if isinstance(name, str)
+        ]
+        block_distance = {
+            sq: idx for idx, sq in enumerate(blocking_squares)
+        }
+        for uci in probe.get("blocking_moves", []):
+            move = legal_by_uci.get(str(uci))
+            if move is None:
+                continue
+            mover = view.visible_piece_map.get(move.from_square)
+            if mover is None or mover.color != view.perspective:
+                continue
+            if mover.piece_type in (chess.KING, chess.QUEEN):
+                continue
+            piece_pref = {
+                chess.BISHOP: 0,
+                chess.KNIGHT: 1,
+                chess.PAWN: 2,
+                chess.ROOK: 3,
+            }.get(mover.piece_type, 9)
+            attacked_pref = 1 if move.to_square in visible_attacked else 0
+            distance_pref = block_distance.get(move.to_square, 99)
+            home_rank = 0 if view.perspective == chess.WHITE else 7
+            development_pref = (
+                0
+                if mover.piece_type in (chess.KNIGHT, chess.BISHOP)
+                and chess.square_rank(move.from_square) == home_rank
+                else 1
+            )
+            candidates.append(
+                (
+                    move,
+                    (
+                        piece_pref,
+                        attacked_pref,
+                        development_pref,
+                        distance_pref,
+                        move.uci(),
+                    ),
+                )
+            )
+
+    if not candidates:
+        return []
+    best_pref = min(pref for _, pref in candidates)
+    return sorted({move for move, pref in candidates if pref == best_pref}, key=lambda m: m.uci())
 
 
 def _categorize_king_defense_moves(
@@ -2748,6 +2827,27 @@ class Tier1Strategy:
                 chosen = self._rng.choice(candidates)
                 self._stage_pending_capture(chosen, view)
                 self._emit_trace("king-shelter", particle_count_pre, chosen)
+                return chosen
+
+        visible_capture_available = any(
+            (target := view.visible_piece_map.get(move.to_square)) is not None
+            and target.color != view.perspective
+            and target.piece_type != chess.KING
+            for move in view.own_legal_moves
+        )
+        latent_block = (
+            []
+            if visible_capture_available
+            else _latent_king_slider_block_moves(view, self._belief)
+        )
+        if latent_block:
+            belief_ok = [m for m in latent_block if self._belief_supports_move(m)]
+            candidates = belief_ok or latent_block
+            candidates = self._belief_veto_king_attack(candidates, view)
+            if candidates:
+                chosen = self._rng.choice(candidates)
+                self._stage_pending_capture(chosen, view)
+                self._emit_trace("latent-king-slider-block", particle_count_pre, chosen)
                 return chosen
 
         if self._observed_ply + 1 <= 12:

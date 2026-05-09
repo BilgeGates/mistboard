@@ -16,6 +16,7 @@ from fow_chess.strategies import (
     _king_defense_moves,
     _king_shelter_moves,
     _latent_ray_danger_probes,
+    _latent_king_slider_block_moves,
     _prefer_higher_value_capture,
     _prefer_lower_value_attacker,
     _prefer_lower_value_same_target_capture,
@@ -95,6 +96,38 @@ def test_latent_ray_danger_probe_flags_fogged_queen_diagonal_to_king() -> None:
     assert queen_probe["belief_mass"] == 0.0
     assert "b1c3" in queen_probe["blocking_moves"]
     assert "c1d2" in queen_probe["blocking_moves"]
+
+
+def test_latent_king_slider_block_short_circuit_blocks_missing_queen_ray() -> None:
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.D1, chess.Piece(chess.QUEEN, chess.WHITE))
+    board.set_piece_at(chess.C1, chess.Piece(chess.BISHOP, chess.WHITE))
+    board.set_piece_at(chess.B1, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.set_piece_at(chess.D3, chess.Piece(chess.PAWN, chess.WHITE))
+    board.set_piece_at(chess.E3, chess.Piece(chess.PAWN, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.turn = chess.WHITE
+
+    view = _build_view(board, chess.WHITE)
+    belief = BeliefState.initial(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=4,
+        start_board=board,
+    )
+    blockers = _latent_king_slider_block_moves(view, belief)
+
+    assert {move.uci() for move in blockers} <= {"b1c3", "b1d2", "c1d2"}
+    assert blockers
+
+    s = _strategy()
+    s.reset(perspective=chess.WHITE)
+    s._belief = belief
+    chosen = s.pick_move(view)
+
+    assert chosen.uci() in {move.uci() for move in blockers}
+    assert s.trace_log[-1]["decision_path"] == "latent-king-slider-block"
 
 
 def test_queen_capture_fires_when_visible() -> None:

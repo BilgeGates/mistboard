@@ -354,6 +354,13 @@ danger-square marginal against current belief mass, and report low-belief
 threats plus available blocking moves such as `Nc3` or `Bd2`. The review queue
 prioritizes king-target queen rays with missing belief mass.
 
+`python-tier1-v0.8.2` adds the first decision consumer:
+`latent-king-slider-block`. In quiet positions with no visible capture pending,
+if a low-belief hidden queen ray points at the king and a minor/pawn/rook can
+interpose, Tier-1 chooses the best blocker before generic main-eval. This is
+still a narrow rule, not full synthesis; it exists to prove that absent-world
+diagnostics can create useful prophylactic moves.
+
 The structural fix is to turn these probes into danger-probe particles: when a
 low-probability hidden slider would dominate downside risk, generate or
 upweight a small family of legal/plausible worlds that contain that threat, run
