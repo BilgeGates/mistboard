@@ -150,6 +150,8 @@ export async function mountReplay(
   const gameIdFooter = metadataByRoomId ? createGameIdFooter() : null;
   if (gameIdFooter) root.append(gameIdFooter);
   const clockPanel = createClockPanel();
+  whitePane.clockSlot.append(clockPanel.whiteRow);
+  blackPane.clockSlot.append(clockPanel.blackRow);
   root.append(clockPanel.el);
 
   const firstBtn = controlButton('|◀', 'Jump to start');
@@ -758,7 +760,7 @@ function createClockPanel(): ClockPanelHandle {
 
   const whiteRow = createClockRow('White');
   const blackRow = createClockRow('Black');
-  el.append(label, whiteRow.row, blackRow.row);
+  el.append(label);
 
   return {
     blackRow: blackRow.row,
@@ -773,6 +775,7 @@ function createClockPanel(): ClockPanelHandle {
 function createClockRow(colorLabel: string): { row: HTMLDivElement; time: HTMLSpanElement } {
   const row = document.createElement('div');
   row.className = 'replay-clock-row';
+  row.hidden = true;
   const label = document.createElement('span');
   label.className = 'replay-clock-side';
   label.textContent = colorLabel;
@@ -791,10 +794,14 @@ function renderClockPanel(
   const timeControl = clock ? timeControlLabelFromClock(clock) : timeControlLabelFromMeta(meta?.timeControl);
   if (!clock && !timeControl) {
     panel.el.hidden = true;
+    panel.whiteRow.hidden = true;
+    panel.blackRow.hidden = true;
     return;
   }
 
   panel.el.hidden = false;
+  panel.whiteRow.hidden = false;
+  panel.blackRow.hidden = false;
   panel.label.textContent = timeControl ? `Time ${timeControl}` : 'Clock';
 
   if (!clock) {
@@ -806,8 +813,8 @@ function renderClockPanel(
   }
 
   const displayAt = clock.runningSince ?? eventTimeAtState(state) ?? 0;
-  panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt));
-  panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt));
+  panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt), true);
+  panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt), true);
   panel.whiteRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'white');
   panel.blackRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'black');
 }
@@ -851,21 +858,25 @@ function numericValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function formatClock(ms: number): string {
+function formatClock(ms: number, showTenths = false): string {
   const bounded = Math.max(0, ms);
-  const totalSeconds = Math.ceil(bounded / 1000);
+  const totalTenths = showTenths ? Math.ceil(bounded / 100) : Math.ceil(bounded / 1000) * 10;
+  const totalSeconds = Math.floor(totalTenths / 10);
+  const tenths = totalTenths % 10;
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  const suffix = showTenths ? `.${tenths}` : '';
   if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}${suffix}`;
   }
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}${suffix}`;
 }
 
 function createPane(label: string): {
   el: HTMLDivElement;
   boardEl: HTMLDivElement;
+  clockSlot: HTMLDivElement;
   labelEl: HTMLDivElement;
   nameEl: HTMLDivElement;
   statusEl: HTMLDivElement;
@@ -879,10 +890,12 @@ function createPane(label: string): {
   nameEl.className = 'replay-pane-name';
   const boardEl = document.createElement('div');
   boardEl.className = 'board replay-board';
+  const clockSlot = document.createElement('div');
+  clockSlot.className = 'replay-pane-clock-slot';
   const statusEl = document.createElement('div');
   statusEl.className = 'replay-pane-status';
-  el.append(labelEl, nameEl, boardEl, statusEl);
-  return { el, boardEl, labelEl, nameEl, statusEl };
+  el.append(labelEl, nameEl, boardEl, clockSlot, statusEl);
+  return { el, boardEl, clockSlot, labelEl, nameEl, statusEl };
 }
 
 function controlButton(text: string, title: string): HTMLButtonElement {
