@@ -24,7 +24,7 @@ apps/web/public/bakeoff
 # If a run produces annotations, screenshots, hard-fact findings, or build-log
 # evidence, archive/inventory it under docs-private/engine-track before deleting
 # a worktree or reusing the save dir. See docs/fog-of-war/engine-lab-loop.md.
-apps/web/public/bakeoff-*/
+apps/web/public/bakeoff-*
 
 # Tournament run output dirs (timestamped per-run game logs + manifests,
 # multi-MB each). Local-only artifact; archive/inventory meaningful runs before
