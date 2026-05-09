@@ -63,16 +63,25 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
 }
 
 export function eventsForClient(room: SnapshotRoom, client: SnapshotClient): GameEvent[] {
-  const events = eventsVisibleByMode(room);
+  const events = eventsVisibleByMode(room, client);
   if (!shouldRedactHiddenDraft(room.projection, client)) return events;
   return events.flatMap((event) => redactHiddenDraftEvent(event, room.projection, client));
 }
 
-function eventsVisibleByMode(room: SnapshotRoom): GameEvent[] {
+function eventsVisibleByMode(room: SnapshotRoom, client: SnapshotClient): GameEvent[] {
   if (room.projection.variant === 'bid-for-white' && room.projection.state.status.type === 'pregame') {
     return room.events.filter((event) => event.type !== 'bid-submitted' && event.type !== 'bid-resolved');
   }
-  return visibleEventsForLiveSnapshot(room.events, room.projection, room.mode ?? modeForProjection(room.projection));
+  const mode = room.mode ?? modeForProjection(room.projection);
+  if (
+    room.projection.variant === 'fog-of-war'
+    && room.projection.state.status.type !== 'finished'
+    && mode === 'pvp'
+    && client.seat !== 'spectator'
+  ) {
+    return room.events.filter((event) => event.type !== 'move-played' || event.color === client.seat);
+  }
+  return visibleEventsForLiveSnapshot(room.events, room.projection, mode);
 }
 
 function bidsForClient(room: SnapshotRoom, client: SnapshotClient): Partial<Record<Color, number>> {

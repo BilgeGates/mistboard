@@ -912,15 +912,43 @@ button:focus-visible {
   padding-right: 7px;
 }
 
-.move-list button {
+.move-list button,
+.move-visible,
+.move-placeholder,
+.move-empty {
   min-width: 0;
   height: 30px;
   padding: 5px 7px;
-  border-color: transparent;
-  background: transparent;
   text-align: left;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+.move-list button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.move-visible,
+.move-placeholder,
+.move-empty {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+.move-visible {
+  color: #1d2522;
+  font-weight: 700;
+}
+
+.move-placeholder,
+.move-empty {
+  color: #7a837e;
+}
+
+.move-placeholder {
+  letter-spacing: 0.08em;
 }
 
 .move-list button:hover,

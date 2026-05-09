@@ -28,6 +28,12 @@ type PlayAgainStatus = 'creating' | 'failed' | 'idle';
 type DraftOffers = Partial<Record<Color, Chess960Start[]>>;
 type DraftResolvedStartIds = Partial<Record<Color, number>>;
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
+type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
+type MoveListEntry = {
+  event: MovePlayedEvent;
+  eventIndex: number;
+  ply: number;
+};
 type PendingPromotion = {
   color: Color;
   from: Square;
@@ -1172,38 +1178,103 @@ function renderReplay(): void {
   }
 
   refs.moveList.replaceChildren();
+  const masked = shouldMaskLiveMoveList();
+  const entries = masked ? liveMoveListEntries() : revealedMoveListEntries();
+  const entriesByPly = new Map(entries.map((entry) => [entry.ply, entry]));
+  const plyCount = masked ? liveMoveListPlyCount(state) : entries.length;
   const rows: HTMLLIElement[] = [];
-  let ply = 0;
-  for (const [index, event] of events.entries()) {
-    if (event.type !== 'move-played') continue;
-    ply += 1;
-    const moveNumber = Math.ceil(ply / 2);
-    let item = rows[moveNumber - 1];
-    if (!item) {
-      item = document.createElement('li');
-      item.className = 'move-row';
-      const number = document.createElement('span');
-      number.className = 'move-number';
-      number.textContent = `${moveNumber}.`;
-      item.append(number);
-      rows.push(item);
-    }
 
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = moveLabel(event.move);
-    button.className = [
-      event.color === 'white' ? 'white-ply' : 'black-ply',
-      replayIndex === index + 1 ? 'active' : '',
-    ].filter(Boolean).join(' ');
-    button.addEventListener('click', () => {
-      replayIndex = index + 1;
-      reconcileInteractionState();
-      render();
-    });
-    item.append(button);
+  for (let row = 0; row < Math.ceil(plyCount / 2); row += 1) {
+    const item = document.createElement('li');
+    item.className = 'move-row';
+
+    const number = document.createElement('span');
+    number.className = 'move-number';
+    number.textContent = `${row + 1}.`;
+    item.append(number);
+
+    const whitePly = row * 2 + 1;
+    const blackPly = row * 2 + 2;
+    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, plyCount));
+    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, plyCount));
+    rows.push(item);
   }
   refs.moveList.append(...rows);
+}
+
+function shouldMaskLiveMoveList(): boolean {
+  return state?.variant === 'fog-of-war' && state.status.type !== 'finished' && roomMode !== 'eve';
+}
+
+function revealedMoveListEntries(): MoveListEntry[] {
+  const entries: MoveListEntry[] = [];
+  for (const [index, event] of events.entries()) {
+    if (event.type !== 'move-played') continue;
+    entries.push({ event, eventIndex: index + 1, ply: entries.length + 1 });
+  }
+  return entries;
+}
+
+function liveMoveListEntries(): MoveListEntry[] {
+  const entries: MoveListEntry[] = [];
+  const counts: Record<Color, number> = { black: 0, white: 0 };
+  for (const [index, event] of events.entries()) {
+    if (event.type !== 'move-played') continue;
+    counts[event.color] += 1;
+    const ply = event.color === 'white' ? counts.white * 2 - 1 : counts.black * 2;
+    entries.push({ event, eventIndex: index + 1, ply });
+  }
+  return entries;
+}
+
+function liveMoveListPlyCount(view: PlayerView | null): number {
+  if (!view) return 0;
+  if (view.status.type !== 'playing') return 0;
+  const completedFullMoves = Math.max(0, view.moveNumber - 1);
+  return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
+}
+
+function moveListCell(
+  ply: number,
+  color: Color,
+  entry: MoveListEntry | undefined,
+  masked: boolean,
+  plyCount: number,
+): HTMLElement {
+  if (ply > plyCount) {
+    const empty = document.createElement('span');
+    empty.className = `${color}-ply move-empty`;
+    return empty;
+  }
+
+  const hidden = masked && color !== seat;
+  if (!entry || hidden) {
+    const placeholder = document.createElement('span');
+    placeholder.className = `${color}-ply move-placeholder`;
+    placeholder.textContent = '..';
+    return placeholder;
+  }
+
+  if (masked) {
+    const label = document.createElement('span');
+    label.className = `${color}-ply move-visible`;
+    label.textContent = moveLabel(entry.event.move);
+    return label;
+  }
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = moveLabel(entry.event.move);
+  button.className = [
+    color === 'white' ? 'white-ply' : 'black-ply',
+    replayIndex === entry.eventIndex ? 'active' : '',
+  ].filter(Boolean).join(' ');
+  button.addEventListener('click', () => {
+    replayIndex = entry.eventIndex;
+    reconcileInteractionState();
+    render();
+  });
+  return button;
 }
 
 function canTogglePostgameFog(): boolean {

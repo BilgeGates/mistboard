@@ -90,7 +90,7 @@ test('live Fog of War spectator payload has no board or move events', () => {
   assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
 });
 
-test('live Fog of War seated payload can expose own last move without move events', () => {
+test('live Fog of War seated payload exposes own last move and own move event', () => {
   const room = lastMoveRoomFixture();
   const payload = snapshotPayload(room, {
     devViews: false,
@@ -100,7 +100,16 @@ test('live Fog of War seated payload can expose own last move without move event
   });
 
   assert.deepEqual(payload.state.lastMove, { from: 'e2', to: 'e4' });
-  assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+  assert.deepEqual(
+    payload.events.filter((event) => event.type === 'move-played'),
+    [{
+      type: 'move-played',
+      at: 2,
+      roomId: 'fog-last-move-payload',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    }],
+  );
 });
 
 test('live Fog of War seated payload does not expose opponent last-move coordinates', () => {
