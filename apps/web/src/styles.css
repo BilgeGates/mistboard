@@ -2533,10 +2533,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .account-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 460px) minmax(0, 580px);
-  justify-content: center;
-  column-gap: 0;
+  width: min(460px, calc(100% - 24px));
 }
 
 .account-panel,
@@ -2581,7 +2578,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .account-actions,
-.account-form {
+.account-form,
+.account-settings-form {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -2591,7 +2589,9 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .account-actions .landing-setup-start,
 .account-actions .landing-setup-back,
-.account-form .landing-setup-start {
+.account-form .landing-setup-start,
+.account-settings-form .landing-setup-start,
+.account-settings-form .landing-setup-back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2608,20 +2608,24 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .account-actions .landing-setup-start,
-.account-form .landing-setup-start {
+.account-form .landing-setup-start,
+.account-settings-form .landing-setup-start {
   border-color: #80a94b;
   background: #f8fbf4;
   color: #4f7a1b;
 }
 
-.account-actions .landing-setup-back {
+.account-actions .landing-setup-back,
+.account-settings-form .landing-setup-back {
   border-color: #cfcfcf;
 }
 
 .account-actions .landing-setup-start:hover,
 .account-actions .landing-setup-start:focus-visible,
 .account-form .landing-setup-start:hover,
-.account-form .landing-setup-start:focus-visible {
+.account-form .landing-setup-start:focus-visible,
+.account-settings-form .landing-setup-start:hover,
+.account-settings-form .landing-setup-start:focus-visible {
   border-color: #629924;
   background: #eef6e7;
   color: #3f6414;
@@ -2629,7 +2633,9 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .account-actions .landing-setup-back:hover,
-.account-actions .landing-setup-back:focus-visible {
+.account-actions .landing-setup-back:focus-visible,
+.account-settings-form .landing-setup-back:hover,
+.account-settings-form .landing-setup-back:focus-visible {
   border-color: #aaaaaa;
   background: #eeeeee;
   color: #262421;
@@ -2640,7 +2646,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   min-width: 0;
 }
 
-.account-form input {
+.account-form input,
+.account-field input {
   min-width: 100%;
   min-height: 40px;
   border: 1px solid #b8b8b8;
@@ -2651,9 +2658,36 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   padding: 8px 10px;
 }
 
-.account-form input:focus {
+.account-form input:focus,
+.account-field input:focus {
   border-color: #629924;
   outline: 2px solid rgba(98, 153, 36, 0.18);
+}
+
+.account-settings-form {
+  display: grid;
+}
+
+.account-field {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  color: #555555;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-field input:disabled {
+  background: #f5f5f5;
+  color: #777777;
+  cursor: not-allowed;
+}
+
+.account-field-help {
+  color: #777777;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
 }
 
 .account-status {
@@ -2717,11 +2751,6 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 @media (max-width: 720px) {
-  .account-shell {
-    display: block;
-    width: min(460px, calc(100% - 24px));
-  }
-
   .account-form .landing-setup-start {
     min-width: 100%;
   }

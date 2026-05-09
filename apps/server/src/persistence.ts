@@ -98,12 +98,18 @@ export type UserAccount = {
   email: string;
   emailVerifiedAt: Date | null;
   handle: string;
+  handleChangedAt: Date | null;
   displayName: string;
+  displayNameChangedAt: Date | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: AccountRole;
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type UpdateUserProfileResult =
+  | { ok: true; user: UserAccount }
+  | { ok: false; error: 'handle_taken' | 'handle_change_cooldown'; availableAt?: Date };
 
 export type EmailLoginChallenge = {
   id: string;
@@ -336,6 +342,10 @@ export async function createEmailLoginChallenge(challenge: EmailLoginChallenge):
   );
 }
 
+export async function deleteEmailLoginChallenge(id: string): Promise<void> {
+  await getPool().query('DELETE FROM email_login_challenges WHERE id = $1', [id]);
+}
+
 export async function consumeEmailLoginChallenge(
   id: string,
   codeHash: string,
@@ -356,7 +366,9 @@ export async function consumeEmailLoginChallenge(
 
 export async function findUserByEmail(email: string): Promise<UserAccount | null> {
   const { rows } = await getPool().query<UserRow>(
-    `SELECT id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at
+    `SELECT id, email, email_verified_at, handle, handle_changed_at,
+            display_name, display_name_changed_at, profile_visibility,
+            account_role, created_at, updated_at
      FROM users
      WHERE lower(email) = lower($1)
      LIMIT 1`,
@@ -379,7 +391,9 @@ export async function createUser(user: {
     `INSERT INTO users
        (id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
-     RETURNING id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at`,
+     RETURNING id, email, email_verified_at, handle, handle_changed_at,
+               display_name, display_name_changed_at, profile_visibility,
+               account_role, created_at, updated_at`,
     [
       user.id,
       user.email,
@@ -400,10 +414,98 @@ export async function markUserEmailVerified(userId: string, at: Date): Promise<U
      SET email_verified_at = COALESCE(email_verified_at, $2),
          updated_at = $2
      WHERE id = $1
-     RETURNING id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at`,
+     RETURNING id, email, email_verified_at, handle, handle_changed_at,
+               display_name, display_name_changed_at, profile_visibility,
+               account_role, created_at, updated_at`,
     [userId, at],
   );
   return userFromRow(rows[0]!);
+}
+
+export async function updateUserProfile(
+  userId: string,
+  updates: { handle: string; displayName: string },
+  at: Date,
+): Promise<UpdateUserProfileResult> {
+  const client = await getPool().connect();
+  const handleCooldownMs = 30 * 24 * 60 * 60 * 1000;
+  const handleReservationMs = 90 * 24 * 60 * 60 * 1000;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query<UserRow>(
+      `SELECT id, email, email_verified_at, handle, handle_changed_at,
+              display_name, display_name_changed_at, profile_visibility,
+              account_role, created_at, updated_at
+       FROM users
+       WHERE id = $1
+       FOR UPDATE`,
+      [userId],
+    );
+    const current = rows[0] ? userFromRow(rows[0]) : null;
+    if (!current) throw new Error(`missing user ${userId}`);
+
+    const nextHandle = updates.handle;
+    const nextDisplayName = updates.displayName;
+    const handleChanged = nextHandle !== current.handle;
+    const displayNameChanged = nextDisplayName !== current.displayName;
+
+    if (handleChanged) {
+      if (current.handleChangedAt && at.getTime() - current.handleChangedAt.getTime() < handleCooldownMs) {
+        await client.query('ROLLBACK');
+        return {
+          ok: false,
+          error: 'handle_change_cooldown',
+          availableAt: new Date(current.handleChangedAt.getTime() + handleCooldownMs),
+        };
+      }
+      const { rows: conflicts } = await client.query<{ exists: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1 FROM users WHERE lower(handle) = lower($1) AND id <> $2
+           UNION ALL
+           SELECT 1 FROM user_handle_reservations
+           WHERE lower(handle) = lower($1)
+             AND user_id <> $2
+             AND expires_at > $3
+         ) AS exists`,
+        [nextHandle, userId, at],
+      );
+      if (conflicts[0]?.exists) {
+        await client.query('ROLLBACK');
+        return { ok: false, error: 'handle_taken' };
+      }
+      await client.query(
+        `INSERT INTO user_handle_reservations (handle, user_id, reserved_at, expires_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (handle) DO UPDATE
+         SET user_id = EXCLUDED.user_id,
+             reserved_at = EXCLUDED.reserved_at,
+             expires_at = EXCLUDED.expires_at`,
+        [current.handle, userId, at, new Date(at.getTime() + handleReservationMs)],
+      );
+    }
+
+    const { rows: updatedRows } = await client.query<UserRow>(
+      `UPDATE users
+       SET handle = $2,
+           handle_changed_at = CASE WHEN $4 THEN $6 ELSE handle_changed_at END,
+           display_name = $3,
+           display_name_changed_at = CASE WHEN $5 THEN $6 ELSE display_name_changed_at END,
+           updated_at = $6
+       WHERE id = $1
+       RETURNING id, email, email_verified_at, handle, handle_changed_at,
+                 display_name, display_name_changed_at, profile_visibility,
+                 account_role, created_at, updated_at`,
+      [userId, nextHandle, nextDisplayName, handleChanged, displayNameChanged, at],
+    );
+    await client.query('COMMIT');
+    return { ok: true, user: userFromRow(updatedRows[0]!) };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    if (isUniqueViolation(err)) return { ok: false, error: 'handle_taken' };
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export async function createAccountSession(session: AccountSession): Promise<void> {
@@ -428,8 +530,9 @@ export async function getUserByAccountSession(
        AND account_sessions.user_id = users.id
        AND account_sessions.revoked_at IS NULL
        AND account_sessions.expires_at > $3
-     RETURNING users.id, users.email, users.email_verified_at, users.handle, users.display_name,
-               users.profile_visibility, users.account_role, users.created_at, users.updated_at`,
+     RETURNING users.id, users.email, users.email_verified_at, users.handle, users.handle_changed_at,
+               users.display_name, users.display_name_changed_at, users.profile_visibility,
+               users.account_role, users.created_at, users.updated_at`,
     [sessionId, tokenHash, at],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
@@ -452,7 +555,9 @@ export async function getUserProfileByHandle(
   limit = 50,
 ): Promise<UserProfile | null> {
   const { rows: userRows } = await getPool().query<UserRow>(
-    `SELECT id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at
+    `SELECT id, email, email_verified_at, handle, handle_changed_at,
+            display_name, display_name_changed_at, profile_visibility,
+            account_role, created_at, updated_at
      FROM users
      WHERE lower(handle) = lower($1)
      LIMIT 1`,
@@ -1054,7 +1159,9 @@ type UserRow = {
   email: string;
   email_verified_at: Date | null;
   handle: string;
+  handle_changed_at: Date | null;
   display_name: string;
+  display_name_changed_at: Date | null;
   profile_visibility: UserAccount['profileVisibility'];
   account_role: AccountRole;
   created_at: Date;
@@ -1067,12 +1174,18 @@ function userFromRow(row: UserRow): UserAccount {
     email: row.email,
     emailVerifiedAt: row.email_verified_at,
     handle: row.handle,
+    handleChangedAt: row.handle_changed_at,
     displayName: row.display_name,
+    displayNameChangedAt: row.display_name_changed_at,
     profileVisibility: row.profile_visibility,
     accountRole: row.account_role,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === '23505';
 }
 
 function getPool(): pg.Pool {

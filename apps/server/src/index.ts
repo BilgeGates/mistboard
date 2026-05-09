@@ -31,6 +31,13 @@ import { engineVersionDisplayName, loadEngine, playableLiveEngines } from './eng
 import { chooseLiveEngineMove } from './live-engine.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 import {
+  displayNameForEmail,
+  handleBaseForEmail,
+  normalizeDisplayName,
+  normalizeEmail,
+  normalizeProfileHandle,
+} from './account-identity.js';
+import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
   eventReplayResponse,
@@ -224,6 +231,7 @@ function isClientRoute(pathname: string): boolean {
     || normalized === '/learn'
     || normalized === '/watch'
     || normalized === '/account'
+    || normalized === '/account/settings'
     || normalized === '/engine-lab'
     || normalized === '/arena'
     || normalized.startsWith('/game/')
@@ -293,6 +301,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     if (authEmailDeliveryEnabled) {
       const delivery = await sendEmailLoginCode(email, code);
       if (!delivery.ok) {
+        await persistence.deleteEmailLoginChallenge(loginId);
         writeJson(response, 502, { error: 'email_delivery_failed' });
         return;
       }
@@ -358,6 +367,43 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     writeJson(response, 200, { ok: true }, {
       'set-cookie': expiredAccountSessionCookie(),
     });
+    return;
+  }
+
+  if (parsedUrl.pathname === '/api/account/profile') {
+    if (method !== 'PATCH') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    if (!persistence.isInitialized()) {
+      writeJson(response, 503, { error: 'persistence_disabled' });
+      return;
+    }
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return;
+    }
+    const body = await readJsonBody(request);
+    const handle = normalizeProfileHandle(typeof body.handle === 'string' ? body.handle : null);
+    const displayName = normalizeDisplayName(typeof body.displayName === 'string' ? body.displayName : null);
+    if (!handle) {
+      writeJson(response, 400, { error: 'invalid_handle' });
+      return;
+    }
+    if (!displayName) {
+      writeJson(response, 400, { error: 'invalid_display_name' });
+      return;
+    }
+    const result = await persistence.updateUserProfile(user.id, { handle, displayName }, new Date());
+    if (!result.ok) {
+      writeJson(response, result.error === 'handle_taken' ? 409 : 429, {
+        error: result.error,
+        ...(result.availableAt ? { availableAt: result.availableAt.toISOString() } : {}),
+      });
+      return;
+    }
+    writeJson(response, 200, { user: publicUser(result.user) });
     return;
   }
 
@@ -643,30 +689,12 @@ function publicUser(user: persistence.UserAccount): Record<string, unknown> {
     email: user.email,
     emailVerified: !!user.emailVerifiedAt,
     handle: user.handle,
+    handleChangedAt: user.handleChangedAt?.toISOString() ?? null,
     displayName: user.displayName,
+    displayNameChangedAt: user.displayNameChangedAt?.toISOString() ?? null,
     profileVisibility: user.profileVisibility,
     accountRole: user.accountRole,
   };
-}
-
-function normalizeEmail(value: string | null): string | null {
-  if (!value) return null;
-  const email = value.trim().toLowerCase();
-  if (email.length > 254) return null;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
-  return email;
-}
-
-function handleBaseForEmail(email: string): string {
-  const local = email.split('@', 1)[0] ?? 'player';
-  const normalized = local.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return (normalized || 'player').slice(0, 24);
-}
-
-function displayNameForEmail(email: string): string {
-  const local = email.split('@', 1)[0] ?? 'Player';
-  const words = local.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
-  return (words || 'Player').slice(0, 48);
 }
 
 function randomEmailLoginCode(): string {

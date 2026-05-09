@@ -42,7 +42,9 @@ type AuthUser = {
   email: string;
   emailVerified: boolean;
   handle: string;
+  handleChangedAt: string | null;
   displayName: string;
+  displayNameChangedAt: string | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'test' | 'admin';
 };
@@ -215,6 +217,21 @@ export async function mountAccount(root: HTMLElement): Promise<void> {
     return null;
   });
   renderAccountShell(shell, current);
+}
+
+export async function mountAccountSettings(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'account-route');
+
+  const shell = document.createElement('main');
+  shell.className = 'account-shell account-settings-shell';
+  root.replaceChildren(buildNav(), shell, buildFooter());
+
+  const current = await fetchCurrentUser().catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  renderAccountSettingsShell(shell, current);
 }
 
 export async function mountProfile(root: HTMLElement, handle: string): Promise<void> {
@@ -521,7 +538,7 @@ function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
 
   const meta = document.createElement('p');
   meta.className = 'account-copy';
-  meta.textContent = `@${user.handle} · ${user.email}`;
+  meta.textContent = `@${user.handle}`;
 
   const actions = document.createElement('div');
   actions.className = 'account-actions';
@@ -530,6 +547,11 @@ function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
   profile.className = 'landing-setup-start';
   profile.href = `/@/${encodeURIComponent(user.handle)}`;
   profile.textContent = 'View profile';
+
+  const settings = document.createElement('a');
+  settings.className = 'landing-setup-back';
+  settings.href = '/account/settings';
+  settings.textContent = 'Settings';
 
   const logout = document.createElement('button');
   logout.type = 'button';
@@ -542,12 +564,156 @@ function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
     renderAccountShell(shell, next);
   });
 
-  actions.append(profile, logout);
+  actions.append(profile, settings, logout);
   panel.append(eyebrow, title, meta, actions);
   return panel;
 }
 
-function buildLoginForm(shell: HTMLElement): HTMLElement {
+function renderAccountSettingsShell(shell: HTMLElement, user: AuthUser | null): void {
+  shell.replaceChildren(user ? buildAccountSettings(user, shell) : buildLoginForm(shell, renderAccountSettingsShell));
+}
+
+function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'account-panel account-settings-panel';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = 'Settings';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading';
+  title.textContent = 'Public profile';
+
+  const copy = document.createElement('p');
+  copy.className = 'account-copy';
+  copy.textContent = 'Email signs you in. Your handle and display name are public.';
+
+  const form = document.createElement('form');
+  form.className = 'account-settings-form';
+
+  const displayName = labeledInput('Display name', 'displayName', user.displayName, 'Brian Hliou');
+  displayName.input.maxLength = 40;
+  displayName.input.required = true;
+  displayName.help.textContent = 'Shown on your public profile and game history.';
+
+  const handle = labeledInput('Handle', 'handle', user.handle, 'brianhliou');
+  handle.input.maxLength = 24;
+  handle.input.pattern = '[a-zA-Z0-9][a-zA-Z0-9_-]{1,22}[a-zA-Z0-9]';
+  handle.input.required = true;
+  handle.help.textContent = handleHelpText(user);
+
+  const email = labeledInput('Email', 'email', user.email, '');
+  email.input.disabled = true;
+  email.help.textContent = 'Private login address. Not shown on your public profile.';
+
+  const status = document.createElement('p');
+  status.className = 'account-status';
+  status.setAttribute('aria-live', 'polite');
+
+  const actions = document.createElement('div');
+  actions.className = 'account-actions';
+
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.className = 'landing-setup-start';
+  save.textContent = 'Save';
+
+  const account = document.createElement('a');
+  account.className = 'landing-setup-back';
+  account.href = '/account';
+  account.textContent = 'Account';
+
+  const profile = document.createElement('a');
+  profile.className = 'landing-setup-back';
+  profile.href = `/@/${encodeURIComponent(user.handle)}`;
+  profile.textContent = 'View profile';
+
+  actions.append(save, profile, account);
+  form.append(displayName.wrap, handle.wrap, email.wrap, actions, status);
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    save.disabled = true;
+    try {
+      const resp = await fetch('/api/account/profile', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          displayName: displayName.input.value,
+          handle: handle.input.value,
+        }),
+      });
+      const data = await resp.json() as { user?: AuthUser; error?: string; availableAt?: string };
+      if (!resp.ok || !data.user) {
+        throw new Error(accountSettingsErrorMessage(data.error, data.availableAt));
+      }
+      displayName.input.value = data.user.displayName;
+      handle.input.value = data.user.handle;
+      handle.help.textContent = handleHelpText(data.user);
+      email.input.value = data.user.email;
+      profile.href = `/@/${encodeURIComponent(data.user.handle)}`;
+      status.textContent = 'Profile saved.';
+    } catch (err) {
+      status.textContent = err instanceof Error ? err.message : 'Could not save profile.';
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  panel.append(eyebrow, title, copy, form);
+  return panel;
+}
+
+function labeledInput(
+  labelText: string,
+  name: string,
+  value: string,
+  placeholder: string,
+): { help: HTMLSpanElement; input: HTMLInputElement; wrap: HTMLLabelElement } {
+  const wrap = document.createElement('label');
+  wrap.className = 'account-field';
+  const label = document.createElement('span');
+  label.textContent = labelText;
+  const input = document.createElement('input');
+  input.name = name;
+  input.value = value;
+  input.placeholder = placeholder;
+  const help = document.createElement('span');
+  help.className = 'account-field-help';
+  wrap.append(label, input, help);
+  return { help, input, wrap };
+}
+
+function accountSettingsErrorMessage(error: string | undefined, availableAt: string | undefined): string {
+  if (error === 'invalid_handle') return 'Use 3-24 letters, numbers, underscores, or dashes.';
+  if (error === 'invalid_display_name') return 'Display name must be 1-40 characters.';
+  if (error === 'handle_taken') return 'That handle is not available.';
+  if (error === 'handle_change_cooldown') {
+    const date = availableAt ? new Date(availableAt) : null;
+    return date && Number.isFinite(date.getTime())
+      ? `Handle can be changed again on ${date.toLocaleDateString()}.`
+      : 'Handle cannot be changed again yet.';
+  }
+  if (error === 'not_signed_in') return 'Sign in before editing your profile.';
+  return 'Could not save profile.';
+}
+
+function handleHelpText(user: AuthUser): string {
+  if (!user.handleChangedAt) {
+    return 'Used in your profile URL. Your first handle change is available now.';
+  }
+  const nextChangeAt = new Date(new Date(user.handleChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+  if (!Number.isFinite(nextChangeAt.getTime())) {
+    return 'Used in your profile URL. Later handle changes are limited.';
+  }
+  return `Used in your profile URL. Next handle change: ${nextChangeAt.toLocaleDateString()}.`;
+}
+
+function buildLoginForm(
+  shell: HTMLElement,
+  onAuth: (shell: HTMLElement, user: AuthUser) => void = renderAccountShell,
+): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel';
 
@@ -570,7 +736,7 @@ function buildLoginForm(shell: HTMLElement): HTMLElement {
   email.type = 'email';
   email.name = 'email';
   email.autocomplete = 'email';
-  email.placeholder = 'you@example.com';
+  email.placeholder = 'Email address';
   email.required = true;
 
   const code = document.createElement('input');
@@ -618,7 +784,7 @@ function buildLoginForm(shell: HTMLElement): HTMLElement {
         });
         const data = await resp.json() as { user?: AuthUser; error?: string };
         if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
-        renderAccountShell(shell, data.user);
+        onAuth(shell, data.user);
       }
     } catch (err) {
       status.textContent = err instanceof Error ? authErrorMessage(err.message) : 'Sign in failed.';
@@ -827,7 +993,8 @@ function navLink(label: string, href: string): HTMLAnchorElement {
   link.href = href;
   link.textContent = label;
   link.className = 'site-nav-link';
-  if (currentPath() === href) {
+  const path = currentPath();
+  if (path === href || (href === '/account' && path.startsWith('/account/'))) {
     link.classList.add('active');
     link.setAttribute('aria-current', 'page');
   }

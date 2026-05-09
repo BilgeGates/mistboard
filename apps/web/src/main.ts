@@ -43,6 +43,7 @@ const gameRoomId = gameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsAccount = path === '/account' || page === 'account';
+const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
 const wantsWatch = path === '/watch' || page === 'watch';
 const profileHandle = profileHandleFromPath(path);
@@ -69,6 +70,8 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)));
 } else if (profileHandle) {
   void mountOrReport(() => import('./landing.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
+} else if (wantsAccountSettings) {
+  void mountOrReport(() => import('./landing.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)));
 } else if (wantsAccount) {
   void mountOrReport(() => import('./landing.js').then(({ mountAccount }) => mountAccount(appRoot)));
 } else if (wantsWatch) {
