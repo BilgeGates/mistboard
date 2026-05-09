@@ -96,6 +96,8 @@ def test_latent_ray_danger_probe_flags_fogged_queen_diagonal_to_king() -> None:
     assert queen_probe["belief_mass"] == 0.0
     assert "b1c3" in queen_probe["blocking_moves"]
     assert "c1d2" in queen_probe["blocking_moves"]
+    assert "b1c3" in queen_probe["actionable_blocking_moves"]
+    assert "c1d2" in queen_probe["actionable_blocking_moves"]
 
 
 def test_latent_king_slider_block_short_circuit_blocks_missing_queen_ray() -> None:

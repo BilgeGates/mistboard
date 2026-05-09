@@ -63,6 +63,7 @@ type LatentDangerProbe = {
   ray: string[];
   blocking_squares: string[];
   blocking_moves: string[];
+  actionable_blocking_moves?: string[];
 };
 
 export type BeliefRow = {
@@ -719,8 +720,11 @@ function latentDangerLinesFor(row: BeliefRow, trace: TraceRow | null): HealthDat
   return probes.slice(0, 3).map((probe) => {
     const target = `${probe.target_piece}${probe.target_square}`;
     const danger = `${probe.danger_piece}${probe.danger_square}`;
-    const blockers = probe.blocking_moves?.length
-      ? `blocks ${probe.blocking_moves.slice(0, 3).join(',')}`
+    const actionable = probe.actionable_blocking_moves ?? [];
+    const blockers = actionable.length
+      ? `blocks ${actionable.slice(0, 3).join(',')}`
+      : probe.blocking_moves?.length
+        ? `only ${probe.blocking_moves.slice(0, 3).join(',')}`
       : probe.blocking_squares?.length
         ? `squares ${probe.blocking_squares.slice(0, 3).join(',')}`
         : 'no blocker';
@@ -729,7 +733,7 @@ function latentDangerLinesFor(row: BeliefRow, trace: TraceRow | null): HealthDat
     return {
       label: `${danger} -> ${target}`,
       value: `${pct(probe.belief_mass)} belief · ${blockers}`,
-      severity: kingTarget && queenDanger && probe.belief_mass < 0.05 ? 'bad' : 'warn',
+      severity: kingTarget && queenDanger && actionable.length && probe.belief_mass < 0.05 ? 'bad' : 'warn',
     };
   });
 }

@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.8.6"
+TIER1_VERSION = "0.8.7"
 
 
 def tier1_commit() -> str:
@@ -209,6 +209,7 @@ def _latent_ray_danger_probes(
     ]
     probes: list[dict] = []
     seen: set[tuple[chess.Square, chess.Square, chess.PieceType]] = set()
+    visible_attacked = _squares_attacked_by_visible_enemy_full(view)
 
     for target_sq, target_piece in targets:
         target_file = chess.square_file(target_sq)
@@ -240,6 +241,21 @@ def _latent_ray_danger_probes(
                                 if move.to_square in blockers
                             }
                         )
+                        actionable_blocking_moves = sorted(
+                            {
+                                move.uci()
+                                for move in view.own_legal_moves
+                                if move.to_square in blockers
+                                and move.to_square not in visible_attacked
+                                and (
+                                    mover := view.visible_piece_map.get(move.from_square)
+                                )
+                                is not None
+                                and mover.color == own
+                                and mover.piece_type
+                                not in (chess.KING, chess.QUEEN)
+                            }
+                        )
                         probes.append(
                             {
                                 "target_square": chess.square_name(target_sq),
@@ -255,6 +271,9 @@ def _latent_ray_danger_probes(
                                     chess.square_name(path_sq) for path_sq in blockers
                                 ],
                                 "blocking_moves": blocking_moves[:8],
+                                "actionable_blocking_moves": (
+                                    actionable_blocking_moves[:8]
+                                ),
                             }
                         )
 
@@ -313,7 +332,10 @@ def _latent_king_slider_block_moves(
         block_distance = {
             sq: idx for idx, sq in enumerate(blocking_squares)
         }
-        for uci in probe.get("blocking_moves", []):
+        for uci in (
+            probe.get("actionable_blocking_moves")
+            or probe.get("blocking_moves", [])
+        ):
             move = legal_by_uci.get(str(uci))
             if move is None:
                 continue

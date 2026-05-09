@@ -527,7 +527,9 @@ def score_latent_danger(reasons: list[str], row: dict[str, Any]) -> int:
         target_piece = str(probe.get("target_piece") or "")
         danger_piece = str(probe.get("danger_piece") or "")
         belief_mass = float(probe.get("belief_mass") or 0.0)
-        blocking_moves = probe.get("blocking_moves")
+        blocking_moves = probe.get("actionable_blocking_moves")
+        if blocking_moves is None:
+            blocking_moves = probe.get("blocking_moves")
         if target_piece.upper() == "K" and danger_piece.lower() == "q":
             has_king_queen_ray = True
         if isinstance(blocking_moves, list) and blocking_moves:
