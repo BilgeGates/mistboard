@@ -98,6 +98,23 @@ the Python lab runtime, `python-chess`, and Stockfish available. The packaged
 engine pin is suitable for archive/replay/tournament loading; the current
 worker path still runs the checked-in Python source.
 
+Pinned engine snapshots:
+
+```text
+research/python-fow-lab/engine_versions/v0.7.22-king-risk@5d3ddffa74f6/
+research/python-fow-lab/engine_versions/v2-baseline@4c93543bb9f7/
+```
+
+Zip archives:
+
+```text
+research/python-fow-lab/engine_versions/archives/v0.7.22-king-risk@5d3ddffa74f6.zip
+sha256 369e7e5a669b95cd8fe6d2fa6ec6e1741ea97567a8703d3bc494d8ed9b0395f4
+
+research/python-fow-lab/engine_versions/archives/v2-baseline@4c93543bb9f7.zip
+sha256 516034d4405562b14149e13bea283f3fa7cda34e7043f2b81e0b5c939fb75f46
+```
+
 ## Next Session
 
 Recommended next loop:

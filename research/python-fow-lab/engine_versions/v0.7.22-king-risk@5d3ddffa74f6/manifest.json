@@ -1,0 +1,29 @@
+{
+  "name": "v0.7.22-king-risk",
+  "play_signature": "5d3ddffa74f6",
+  "captured_at": "2026-05-09T02:44:50.856656+00:00",
+  "git_head": "5a1db710c947743569e626a376da7bb19885dde5",
+  "git_dirty_in_src": false,
+  "stockfish_version_line": "Stockfish 18 by the Stockfish developers (see AUTHORS file)",
+  "files_in_play_signature": [
+    "strategies.py",
+    "engine.py",
+    "belief.py",
+    "evaluator.py",
+    "move_priors.py",
+    "selfplay.py",
+    "observation.py",
+    "visibility.py"
+  ],
+  "per_file_signatures": {
+    "belief.py": "be93e26e9517",
+    "engine.py": "03a691dafbe3",
+    "evaluator.py": "62ad96a674a2",
+    "move_priors.py": "ce7a117f09c4",
+    "observation.py": "82b33a9a1a07",
+    "selfplay.py": "60d8af69515e",
+    "strategies.py": "1bf567d1295e",
+    "visibility.py": "569ec00866b2"
+  },
+  "notes": "Tier-1 v0.7.22 checkpoint: v0.7.17-v0.7.22 belief hard facts, diversity-preserving resample, Stage A/B near-collapse repair, profiling instrumentation, production python-tier1-v0.7.22 registry entry, and terminal king-risk veto. Same-seed g20 flipped from v0.7.21 loss in 150 plies to v0.7.22 win in 117 plies with 0 hard-fact violations."
+}
