@@ -19,6 +19,7 @@ const server = spawn(
       FORCE_COLOR: '0',
       NO_COLOR: '1',
     },
+    detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
   },
 );
@@ -35,7 +36,7 @@ try {
   await waitForServer(`${baseUrl}/learn`);
   await smokeLearnInterface();
 } finally {
-  server.kill('SIGTERM');
+  await stopServer();
 }
 
 async function smokeLearnInterface() {
@@ -147,4 +148,38 @@ async function waitForServer(url) {
     await new Promise((resolve) => setTimeout(resolve, 150));
   }
   throw new Error(`timed out waiting for ${url}\n${serverOutput}`);
+}
+
+async function stopServer() {
+  if (server.exitCode !== null) return;
+  signalServer('SIGTERM');
+  await waitForServerExit(2_000);
+  if (server.exitCode !== null) return;
+  signalServer('SIGKILL');
+  await waitForServerExit(1_000);
+}
+
+function signalServer(signal) {
+  if (!server.pid) return;
+  try {
+    if (process.platform === 'win32') {
+      server.kill(signal);
+      return;
+    }
+    process.kill(-server.pid, signal);
+  } catch {
+    try {
+      server.kill(signal);
+    } catch {
+      // Already stopped.
+    }
+  }
+}
+
+async function waitForServerExit(timeoutMs) {
+  if (server.exitCode !== null) return;
+  await Promise.race([
+    new Promise((resolve) => server.once('exit', resolve)),
+    new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
 }
