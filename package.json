@@ -32,7 +32,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "hooks:install": "git config core.hooksPath .githooks",
     "visual:check": "node scripts/visual-check.mjs",
-    "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs"
+    "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs",
+    "prod:smoke:engines": "node scripts/prod-engine-smoke.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -1204,7 +1204,8 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
     seed: liveEngineMoveSeed(room),
     ply: room.events.filter((event) => event.type === 'move-played').length,
   } as const;
-  const { decision } = await chooseLiveEngineMove({
+  const startedAt = Date.now();
+  const result = await chooseLiveEngineMove({
     context,
     engine,
     timeoutMs: liveEngineTimeoutMs,
@@ -1222,7 +1223,19 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
       }));
     },
   });
-  const move = decision.move;
+  console.log(JSON.stringify({
+    level: 'info',
+    kind: 'live_engine_move',
+    roomId: room.id,
+    requestedEngineId: engine.id,
+    engineId: result.engineId,
+    fallback: result.fallback,
+    ply: context.ply,
+    durationMs: Date.now() - startedAt,
+    move: result.decision.move,
+    at: Date.now(),
+  }));
+  const move = result.decision.move;
   if (!move) return;
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
   if (nextState === room.projection.state) return;
