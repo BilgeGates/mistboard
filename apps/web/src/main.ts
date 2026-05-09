@@ -65,7 +65,7 @@ if (replaySample) {
 } else if (wantsWatch) {
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
 } else if (wantsLearn) {
-  void mountOrReport(() => import('./landing.js').then(({ mountLearn }) => mountLearn(appRoot)));
+  void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
   void mountOrReport(() => import('./landing.js').then(({ mountAbout }) => mountAbout(appRoot)));
 } else {
