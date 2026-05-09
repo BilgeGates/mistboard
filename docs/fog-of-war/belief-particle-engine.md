@@ -361,6 +361,14 @@ interpose, Tier-1 chooses the best blocker before generic main-eval. This is
 still a narrow rule, not full synthesis; it exists to prove that absent-world
 diagnostics can create useful prophylactic moves.
 
+`python-tier1-v0.8.4` tightens repair telemetry and selection by treating every
+non-one-move paired repair as strict-unreachable. Earlier diagnostics only made
+king, pawn, and rook teleports strict, so queen/bishop/knight jumps could pass
+as clean continuity repairs. Stage A repair, Stage B all-expanded repair, and
+Stage A/B supplements now accept only strict-reachable repairs. Otherwise they
+explicitly fall back to checkpoint/CSP, making the remaining pathological rows
+easier to classify instead of quietly injecting teleport-like particles.
+
 The structural fix is to turn these probes into danger-probe particles: when a
 low-probability hidden slider would dominate downside risk, generate or
 upweight a small family of legal/plausible worlds that contain that threat, run

@@ -64,6 +64,30 @@ def test_repair_diagnostics_flags_king_teleport() -> None:
     assert _repair_passes_strict_reachability(diag) is False
 
 
+def test_repair_diagnostics_treats_queen_teleport_as_strict_unreachable() -> None:
+    before = chess.Board.empty()
+    before.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    before.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    before.set_piece_at(chess.H4, chess.Piece(chess.QUEEN, chess.BLACK))
+    before.set_piece_at(chess.D6, chess.Piece(chess.BISHOP, chess.BLACK))
+
+    after = chess.Board.empty()
+    after.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    after.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    after.set_piece_at(chess.B8, chess.Piece(chess.QUEEN, chess.BLACK))
+    after.set_piece_at(chess.D6, chess.Piece(chess.BISHOP, chess.BLACK))
+
+    diag = _repair_diagnostics(before, after, visibility_set=set())
+
+    assert diag.teleport_like_count == 1
+    assert diag.worst_piece == "q"
+    assert diag.worst_from == "h4"
+    assert diag.worst_to == "b8"
+    assert diag.worst_one_move_legal is False
+    assert diag.strict_unreachable_count == 1
+    assert _repair_passes_strict_reachability(diag) is False
+
+
 def test_repair_supplement_limit_tracks_diversity_deficit() -> None:
     board = chess.Board.empty()
     board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
@@ -974,7 +998,9 @@ def test_stage_a_repair_preserves_prior_hidden_capture_landing() -> None:
 
     belief.update_after_own_move(move, obs)
 
-    assert belief.last_repair_fired == 1
+    assert belief.last_repair_strict_rejected_count > 0
+    assert belief.last_repair_fired == 0
+    assert belief.last_csp_reseed_fired == 1
     assert chess.H4 in belief.hard_opp_occupancy_squares
     assert all(
         (piece := particle.piece_at(chess.H4)) is not None
@@ -1184,7 +1210,9 @@ def test_prior_visible_piece_fact_survives_opp_repair_for_different_move() -> No
 
     belief.update_after_opp_move(obs)
 
-    assert belief.last_repair_fired == 1
+    assert belief.last_repair_strict_rejected_count > 0
+    assert belief.last_repair_fired == 0
+    assert belief.last_csp_reseed_fired == 1
     assert belief.hard_opp_piece_facts[chess.H1] == chess.Piece(
         chess.ROOK, chess.WHITE
     )

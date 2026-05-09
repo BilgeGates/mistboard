@@ -610,13 +610,17 @@ class BeliefState:
             )
             if repaired_board is None:
                 continue
+            diag = _repair_diagnostics(board, repaired_board, facts.visibility_set)
+            if not _repair_passes_strict_reachability(diag):
+                self.last_repair_strict_rejected_count += 1
+                continue
             fen = repaired_board.fen()
             if fen in seen:
                 continue
             seen.add(fen)
             repaired.append(repaired_board)
             repaired_weights.append(
-                self._repair_candidate_weight(board, repaired_board, facts, weight)
+                self._repair_candidate_weight_from_diag(diag, weight)
             )
 
         if repaired:
@@ -732,12 +736,16 @@ class BeliefState:
                     fen = repaired_board.fen()
                     if fen in seen:
                         continue
+                    diag = _repair_diagnostics(
+                        board, repaired_board, facts.visibility_set
+                    )
+                    if not _repair_passes_strict_reachability(diag):
+                        self.last_repair_strict_rejected_count += 1
+                        continue
                     seen.add(fen)
                     supplemented.append(repaired_board)
                     supplemented_weights.append(
-                        self._repair_candidate_weight(
-                            board, repaired_board, facts, weight
-                        )
+                        self._repair_candidate_weight_from_diag(diag, weight)
                     )
                     added += 1
                 self.last_stage_a_repair_ms += (
@@ -779,11 +787,15 @@ class BeliefState:
                     rng=self.rng,
                 )
                 if repaired_board is not None:
+                    diag = _repair_diagnostics(
+                        board, repaired_board, facts.visibility_set
+                    )
+                    if not _repair_passes_strict_reachability(diag):
+                        self.last_repair_strict_rejected_count += 1
+                        continue
                     repaired.append(repaired_board)
                     repaired_weights.append(
-                        self._repair_candidate_weight(
-                            board, repaired_board, facts, weight
-                        )
+                        self._repair_candidate_weight_from_diag(diag, weight)
                     )
             self.last_stage_a_repair_ms += (
                 time.perf_counter() - repair_start
@@ -1054,10 +1066,8 @@ class BeliefState:
                 time.perf_counter() - repair_start
             ) * 1000.0
 
-            if repaired:
-                chosen_repairs = strict_repaired or repaired
-                if not strict_repaired and self.last_repair_strict_rejected_count:
-                    self.last_repair_strict_fallback_count += len(repaired)
+            if strict_repaired:
+                chosen_repairs = strict_repaired
                 repaired_particles = [board for board, _, _ in chosen_repairs]
                 repaired_weights = [
                     self._repair_candidate_weight_from_diag(diag, weight)
@@ -1078,6 +1088,8 @@ class BeliefState:
                 ) * 1000.0
                 self._maybe_store_good_checkpoint()
                 return
+            if repaired:
+                self.last_repair_strict_fallback_count += len(repaired)
 
             # Generic CSP remains the final emergency path. It preserves hard
             # facts but discards identity continuity, so repeated rows should
@@ -1162,7 +1174,7 @@ class BeliefState:
             supplemented = list(chosen_particles)
             supplemented_weights = list(chosen_weights)
             repair_candidates: list[
-                tuple[tuple[int, int, int, int, float], chess.Board, float, RepairDiagnostics]
+                tuple[tuple[int, int, int, float], chess.Board, float, RepairDiagnostics]
             ] = []
             repair_start = time.perf_counter()
             for prev_board, board, weight, _, _, count_ok, _ in expanded:
@@ -1180,15 +1192,14 @@ class BeliefState:
                 fen = repaired_board.fen()
                 if fen in seen:
                     continue
-                seen.add(fen)
                 diag = _repair_diagnostics(board, repaired_board, facts.visibility_set)
-                strict_penalty = (
-                    0 if _repair_passes_strict_reachability(diag) else 1
-                )
+                if not _repair_passes_strict_reachability(diag):
+                    self.last_repair_strict_rejected_count += 1
+                    continue
+                seen.add(fen)
                 repair_candidates.append(
                     (
                         (
-                            strict_penalty,
                             diag.cost,
                             diag.teleport_like_count,
                             diag.long_move_count,
@@ -1741,8 +1752,7 @@ def _repair_diagnostics(
                 long_move_count += 1
             if not one_move_legal:
                 teleport_like_count += 1
-                if piece.piece_type in {chess.KING, chess.PAWN, chess.ROOK}:
-                    strict_unreachable_count += 1
+                strict_unreachable_count += 1
 
     unpaired_added_count = sum(len(squares) for squares in added_by_key.values())
     unpaired_removed_count = sum(len(squares) for squares in removed_by_key.values())
