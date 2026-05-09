@@ -92,6 +92,8 @@ export type TraceRow = {
   stage_b_constraint_count?: number;
   stage_b_constraint_unique?: number;
   stage_b_repair_supplement_count?: number;
+  stage_b_repair_supplement_considered_count?: number;
+  stage_b_repair_supplement_dropped_count?: number;
   stage_b_elapsed_ms?: number;
   stage_b_expand_ms?: number;
   stage_b_repair_ms?: number;
@@ -111,6 +113,20 @@ export type TraceRow = {
   repair_count?: number;
   repair_stage_a?: number;
   repair_stage_b?: number;
+  repair_cost_max?: number;
+  repair_cost_total?: number;
+  repair_teleport_like_count?: number;
+  repair_long_move_count?: number;
+  repair_worst_piece?: string | null;
+  repair_worst_from?: string | null;
+  repair_worst_to?: string | null;
+  repair_worst_distance?: number;
+  repair_worst_one_move_legal?: boolean | null;
+  repair_strict_rejected_count?: number;
+  repair_strict_fallback_count?: number;
+  checkpoint_repair_fired?: boolean;
+  checkpoint_repair_count?: number;
+  checkpoint_repair_age?: number;
 };
 
 export type BeliefConfig = {
@@ -408,136 +424,245 @@ function renderBeliefHealth(row: BeliefRow, trace: TraceRow | null): HTMLElement
   title.textContent = `Health · trace ply ${trace.ply}`;
   wrap.append(title);
 
+  const overview: HealthDatum[] = [];
   const support = trace.chosen_move_belief_support;
   if (support !== undefined) {
-    wrap.append(healthLine(
-      'Move support',
-      `${pct(support)} · ${trace.chosen_move_belief_support_unique ?? trace.chosen_move_belief_support_count ?? '?'} worlds`,
-      support < 0.25 ? 'bad' : support < 0.6 ? 'warn' : 'ok',
-    ));
+    overview.push({
+      label: 'Move support',
+      value: `${pct(support)} · ${trace.chosen_move_belief_support_unique ?? trace.chosen_move_belief_support_count ?? '?'} worlds`,
+      severity: support < 0.25 ? 'bad' : support < 0.6 ? 'warn' : 'ok',
+    });
   }
 
   if ((trace.visible_capture_value_missed ?? 0) > 0) {
-    wrap.append(healthLine(
-      'Missed capture',
-      `${trace.best_visible_capture_uci ?? '?'} · +${trace.visible_capture_value_missed}`,
-      (trace.visible_capture_value_missed ?? 0) >= 3 ? 'bad' : 'warn',
-    ));
+    overview.push({
+      label: 'Missed capture',
+      value: `${trace.best_visible_capture_uci ?? '?'} · +${trace.visible_capture_value_missed}`,
+      severity: (trace.visible_capture_value_missed ?? 0) >= 3 ? 'bad' : 'warn',
+    });
   }
 
   if (trace.chosen_move_king_capture_risk !== undefined) {
     const risk = trace.chosen_move_king_capture_risk;
-    wrap.append(healthLine(
-      'King risk',
-      `${pct(risk)} · ${trace.chosen_move_risk_support_unique ?? trace.chosen_move_risk_support_count ?? '?'} worlds`,
-      risk >= 0.05 ? 'bad' : risk > 0 ? 'warn' : 'ok',
-    ));
+    overview.push({
+      label: 'King risk',
+      value: `${pct(risk)} · ${trace.chosen_move_risk_support_unique ?? trace.chosen_move_risk_support_count ?? '?'} worlds`,
+      severity: risk >= 0.05 ? 'bad' : risk > 0 ? 'warn' : 'ok',
+    });
   }
 
   if (trace.chosen_move_piece_capture_risk !== undefined && trace.chosen_piece_value && trace.chosen_piece_value > 1) {
     const risk = trace.chosen_move_piece_capture_risk;
-    wrap.append(healthLine(
-      'Piece risk',
-      `${trace.chosen_piece ?? '?'} · ${pct(risk)}`,
-      risk >= 0.25 ? 'bad' : risk >= 0.1 ? 'warn' : 'ok',
-    ));
+    overview.push({
+      label: 'Piece risk',
+      value: `${trace.chosen_piece ?? '?'} · ${pct(risk)}`,
+      severity: risk >= 0.25 ? 'bad' : risk >= 0.1 ? 'warn' : 'ok',
+    });
   }
 
   const uniqueRatio = row.particle_count > 0 ? row.particle_count_unique / row.particle_count : 0;
-  wrap.append(healthLine(
-    'Diversity',
-    `${row.particle_count_unique}/${row.particle_count}`,
-    uniqueRatio < 0.1 ? 'bad' : uniqueRatio < 0.5 ? 'warn' : 'ok',
-  ));
+  overview.push({
+    label: 'Diversity',
+    value: `${row.particle_count_unique}/${row.particle_count}`,
+    severity: uniqueRatio < 0.1 ? 'bad' : uniqueRatio < 0.5 ? 'warn' : 'ok',
+  });
+  wrap.append(healthCard('Decision', overview));
 
-  const stageA = stageSummary('A', trace);
-  if (stageA) wrap.append(stageA);
-  const stageB = stageSummary('B', trace);
-  if (stageB) wrap.append(stageB);
-  const timingA = timingSummary('A', trace);
-  if (timingA) wrap.append(timingA);
-  const timingB = timingSummary('B', trace);
-  if (timingB) wrap.append(timingB);
-  const rejectA = rejectSummary('A', trace);
-  if (rejectA) wrap.append(rejectA);
-  const rejectB = rejectSummary('B', trace);
-  if (rejectB) wrap.append(rejectB);
+  const stageALines = stageCardLines('A', trace);
+  if (stageALines.length) wrap.append(healthCard('Stage A · Own Move', stageALines));
 
-  const repairs: string[] = [];
-  if (trace.stage_a_repair_supplement_count) repairs.push(`A+${trace.stage_a_repair_supplement_count}`);
-  if (trace.stage_b_repair_supplement_count) repairs.push(`B+${trace.stage_b_repair_supplement_count}`);
-  if (trace.repair_stage_a) repairs.push(`A repair ${trace.repair_count ?? ''}`.trim());
-  if (trace.repair_stage_b) repairs.push(`B repair ${trace.repair_count ?? ''}`.trim());
-  if (repairs.length > 0) wrap.append(healthLine('Repair', repairs.join(' · '), 'warn'));
+  const stageBLines = stageCardLines('B', trace);
+  if (stageBLines.length) wrap.append(healthCard('Stage B · Opp Move', stageBLines));
 
-  const csp: string[] = [];
-  if (trace.csp_reseed_stage_a) csp.push('A');
-  if (trace.csp_reseed_stage_b) csp.push('B');
-  if (csp.length > 0 || trace.csp_reseed_fired) {
-    wrap.append(healthLine('CSP reseed', csp.join('+') || String(trace.csp_reseed_count ?? 0), 'bad'));
-  }
+  const recoveryLines = recoveryCardLines(trace);
+  if (recoveryLines.length) wrap.append(healthCard('Recovery', recoveryLines));
 
   return wrap;
 }
 
-function stageSummary(stage: 'A' | 'B', trace: TraceRow): HTMLElement | null {
+type HealthSeverity = 'ok' | 'warn' | 'bad';
+
+type HealthDatum = {
+  label: string;
+  value: string;
+  severity: HealthSeverity;
+};
+
+function stageCardLines(stage: 'A' | 'B', trace: TraceRow): HealthDatum[] {
   if (stage === 'A') {
+    const lines: HealthDatum[] = [];
     const pre = trace.belief_pre_stage_a_unique;
     const pushed = trace.stage_a_pushed_unique;
     const consistent = trace.stage_a_consistent_unique;
     const post = trace.belief_post_stage_a_unique;
-    if (pre === undefined && post === undefined) return null;
-    const value = `${fmtNum(pre)} → ${fmtNum(pushed)} → ${fmtNum(consistent)} → ${fmtNum(post)}`;
-    return healthLine('Stage A', value, healthSeverity(pre, post));
+    if (pre !== undefined || post !== undefined) {
+      lines.push({
+        label: 'Particle flow',
+        value: `${fmtNum(pre)} before · ${fmtNum(pushed)} pushed · ${fmtNum(consistent)} matched · ${fmtNum(post)} after`,
+        severity: healthSeverity(pre, post),
+      });
+    }
+    const illegal = trace.stage_a_reject_illegal ?? 0;
+    const obs = trace.stage_a_reject_observation ?? 0;
+    const hard = trace.stage_a_reject_hard ?? 0;
+    if (illegal + obs + hard > 0) {
+      lines.push({
+        label: 'Rejected',
+        value: `${obs} obs · ${hard} hard · ${illegal} illegal`,
+        severity: hard > 0 ? 'bad' : 'warn',
+      });
+    }
+    if (trace.stage_a_elapsed_ms !== undefined) {
+      lines.push({
+        label: 'Time',
+        value: [
+          fmtMs(trace.stage_a_elapsed_ms),
+          trace.stage_a_repair_ms ? `repair ${fmtMs(trace.stage_a_repair_ms)}` : '',
+          trace.stage_a_csp_ms ? `csp ${fmtMs(trace.stage_a_csp_ms)}` : '',
+          trace.stage_a_resample_ms ? `sample ${fmtMs(trace.stage_a_resample_ms)}` : '',
+        ].filter(Boolean).join(' · '),
+        severity: trace.stage_a_elapsed_ms > 100 ? 'bad' : trace.stage_a_elapsed_ms > 25 ? 'warn' : 'ok',
+      });
+    }
+    return lines;
   }
+
+  const lines: HealthDatum[] = [];
   const pre = trace.belief_pre_stage_b_unique;
   const primary = trace.stage_b_primary_unique;
   const constraint = trace.stage_b_constraint_unique;
   const post = trace.belief_post_stage_b_unique;
-  if (pre === undefined && post === undefined) return null;
-  const value = `${fmtNum(pre)} → ${fmtNum(primary)} → ${fmtNum(constraint)} → ${fmtNum(post)}`;
-  return healthLine('Stage B', value, healthSeverity(pre, post));
-}
-
-function timingSummary(stage: 'A' | 'B', trace: TraceRow): HTMLElement | null {
-  if (stage === 'A') {
-    if (trace.stage_a_elapsed_ms === undefined) return null;
-    const value = [
-      `all ${fmtMs(trace.stage_a_elapsed_ms)}`,
-      `filter ${fmtMs(trace.stage_a_filter_ms)}`,
-      trace.stage_a_repair_ms ? `repair ${fmtMs(trace.stage_a_repair_ms)}` : '',
-      trace.stage_a_csp_ms ? `csp ${fmtMs(trace.stage_a_csp_ms)}` : '',
-      trace.stage_a_resample_ms ? `sample ${fmtMs(trace.stage_a_resample_ms)}` : '',
-    ].filter(Boolean).join(' · ');
-    return healthLine('Stage A ms', value, trace.stage_a_elapsed_ms > 25 ? 'warn' : 'ok');
+  if (pre !== undefined || post !== undefined) {
+    lines.push({
+      label: 'Particle flow',
+      value: `${fmtNum(pre)} before · ${fmtNum(primary)} exact · ${fmtNum(constraint)} relaxed · ${fmtNum(post)} after`,
+      severity: healthSeverity(pre, post),
+    });
   }
-  if (trace.stage_b_elapsed_ms === undefined) return null;
-  const value = [
-    `all ${fmtMs(trace.stage_b_elapsed_ms)}`,
-    `expand ${fmtMs(trace.stage_b_expand_ms)}`,
-    trace.stage_b_repair_ms ? `repair ${fmtMs(trace.stage_b_repair_ms)}` : '',
-    trace.stage_b_csp_ms ? `csp ${fmtMs(trace.stage_b_csp_ms)}` : '',
-    trace.stage_b_resample_ms ? `sample ${fmtMs(trace.stage_b_resample_ms)}` : '',
-  ].filter(Boolean).join(' · ');
-  return healthLine('Stage B ms', value, trace.stage_b_elapsed_ms > 50 ? 'warn' : 'ok');
-}
-
-function rejectSummary(stage: 'A' | 'B', trace: TraceRow): HTMLElement | null {
-  if (stage === 'A') {
-    const illegal = trace.stage_a_reject_illegal ?? 0;
-    const obs = trace.stage_a_reject_observation ?? 0;
-    const hard = trace.stage_a_reject_hard ?? 0;
-    if (illegal + obs + hard <= 0) return null;
-    return healthLine('Stage A reject', `illegal ${illegal} · obs ${obs} · hard ${hard}`, hard > 0 ? 'bad' : 'warn');
+  if (trace.stage_b_expanded_count !== undefined) {
+    lines.push({
+      label: 'Expansion',
+      value: `${fmtNum(trace.stage_b_expanded_count)} moves · ${fmtNum(trace.stage_b_obs_checked_count)} checked`,
+      severity: (trace.stage_b_expanded_count ?? 0) >= 8000 ? 'warn' : 'ok',
+    });
   }
   const obs = trace.stage_b_reject_observation ?? 0;
   const hard = trace.stage_b_reject_hard ?? 0;
   const count = trace.stage_b_reject_count ?? 0;
-  if (obs + hard + count <= 0) return null;
-  const expanded = trace.stage_b_expanded_count ?? 0;
-  const checked = trace.stage_b_obs_checked_count ?? 0;
-  const value = `expanded ${expanded} · obs ${obs}/${checked} · hard ${hard} · count ${count}`;
-  return healthLine('Stage B reject', value, hard > 0 || count > 0 ? 'bad' : 'warn');
+  if (obs + hard + count > 0) {
+    lines.push({
+      label: 'Rejected',
+      value: `${obs} obs · ${hard} hard · ${count} count`,
+      severity: hard > 0 || count > 0 ? 'bad' : 'warn',
+    });
+  }
+  if (trace.stage_b_elapsed_ms !== undefined) {
+    lines.push({
+      label: 'Time',
+      value: [
+        fmtMs(trace.stage_b_elapsed_ms),
+        trace.stage_b_expand_ms ? `expand ${fmtMs(trace.stage_b_expand_ms)}` : '',
+        trace.stage_b_repair_ms ? `repair ${fmtMs(trace.stage_b_repair_ms)}` : '',
+        trace.stage_b_csp_ms ? `csp ${fmtMs(trace.stage_b_csp_ms)}` : '',
+        trace.stage_b_resample_ms ? `sample ${fmtMs(trace.stage_b_resample_ms)}` : '',
+      ].filter(Boolean).join(' · '),
+      severity: trace.stage_b_elapsed_ms > 750 ? 'bad' : trace.stage_b_elapsed_ms > 50 ? 'warn' : 'ok',
+    });
+  }
+  return lines;
+}
+
+function recoveryCardLines(trace: TraceRow): HealthDatum[] {
+  const lines: HealthDatum[] = [];
+  const cspStages = [
+    trace.csp_reseed_stage_a ? 'A' : '',
+    trace.csp_reseed_stage_b ? 'B' : '',
+  ].filter(Boolean);
+  if (cspStages.length > 0 || trace.csp_reseed_fired) {
+    lines.push({
+      label: 'Generic CSP',
+      value: `${cspStages.join('+') || 'yes'} · ${trace.csp_reseed_count ?? 0} particles`,
+      severity: 'bad',
+    });
+  }
+  if (trace.repair_fired || trace.repair_stage_a || trace.repair_stage_b) {
+    const stages = [
+      trace.repair_stage_a ? 'A' : '',
+      trace.repair_stage_b ? 'B' : '',
+    ].filter(Boolean);
+    lines.push({
+      label: 'Repair',
+      value: `${stages.join('+') || 'yes'} · ${trace.repair_count ?? 0} particles`,
+      severity: (trace.repair_teleport_like_count ?? 0) > 0 ? 'bad' : 'warn',
+    });
+  }
+  if (trace.stage_a_repair_supplement_count || trace.stage_b_repair_supplement_count) {
+    const parts = [];
+    if (trace.stage_a_repair_supplement_count) {
+      parts.push(`A selected ${trace.stage_a_repair_supplement_count}`);
+    }
+    if (trace.stage_b_repair_supplement_count) {
+      parts.push(`B selected ${trace.stage_b_repair_supplement_count}`);
+    }
+    if (trace.stage_b_repair_supplement_considered_count) {
+      parts.push(`considered ${trace.stage_b_repair_supplement_considered_count}`);
+    }
+    if (trace.stage_b_repair_supplement_dropped_count) {
+      parts.push(`dropped ${trace.stage_b_repair_supplement_dropped_count}`);
+    }
+    lines.push({
+      label: 'Supplements',
+      value: parts.join(' · '),
+      severity: (trace.stage_b_repair_supplement_dropped_count ?? 0) >= 100 ? 'bad' : 'warn',
+    });
+  }
+  if (trace.repair_teleport_like_count || trace.repair_long_move_count || trace.repair_cost_max) {
+    lines.push({
+      label: 'Repair cost',
+      value: `max ${trace.repair_cost_max ?? 0} · teleports ${trace.repair_teleport_like_count ?? 0} · long ${trace.repair_long_move_count ?? 0}`,
+      severity: (trace.repair_teleport_like_count ?? 0) > 0 || (trace.repair_cost_max ?? 0) >= 80 ? 'bad' : 'warn',
+    });
+  }
+  if (trace.repair_worst_piece && trace.repair_worst_from && trace.repair_worst_to) {
+    lines.push({
+      label: 'Worst repair',
+      value: `${trace.repair_worst_piece} ${trace.repair_worst_from}->${trace.repair_worst_to} d${trace.repair_worst_distance ?? '?'} ${trace.repair_worst_one_move_legal === false ? 'nonlegal' : 'legal'}`,
+      severity: trace.repair_worst_one_move_legal === false ? 'bad' : 'warn',
+    });
+  }
+  if (trace.repair_strict_rejected_count || trace.repair_strict_fallback_count) {
+    lines.push({
+      label: 'Strict filter',
+      value: `rejected ${trace.repair_strict_rejected_count ?? 0} · fallback ${trace.repair_strict_fallback_count ?? 0}`,
+      severity: trace.repair_strict_fallback_count ? 'bad' : 'warn',
+    });
+  }
+  if (trace.checkpoint_repair_fired) {
+    lines.push({
+      label: 'Checkpoint',
+      value: `${trace.checkpoint_repair_count ?? 0} particles · age ${trace.checkpoint_repair_age ?? '?'}`,
+      severity: 'warn',
+    });
+  }
+  return lines;
+}
+
+function healthCard(title: string, lines: HealthDatum[]): HTMLElement {
+  const card = document.createElement('section');
+  card.className = `belief-health-card ${cardSeverity(lines)}`;
+  const header = document.createElement('h3');
+  header.textContent = title;
+  card.append(header);
+  for (const line of lines) {
+    card.append(healthLine(line.label, line.value, line.severity));
+  }
+  return card;
+}
+
+function cardSeverity(lines: HealthDatum[]): HealthSeverity {
+  if (lines.some((line) => line.severity === 'bad')) return 'bad';
+  if (lines.some((line) => line.severity === 'warn')) return 'warn';
+  return 'ok';
 }
 
 function healthLine(label: string, value: string, severity: 'ok' | 'warn' | 'bad'): HTMLElement {

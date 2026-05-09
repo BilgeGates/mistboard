@@ -189,6 +189,7 @@ export async function mountBakeoff(
     `;
     void mountReplay(replayArea, game.path, {
       urlForId,
+      orientation: game.tier1_color,
       annotation: {
         manifestUrl,
         gameIndexForSampleId,

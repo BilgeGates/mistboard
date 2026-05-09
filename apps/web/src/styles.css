@@ -1912,8 +1912,10 @@ button:focus-visible {
 
 /* Bake-off browser: sidebar with game list + replay area on the right */
 .bakeoff-page {
+  height: 100vh;
   min-height: 100vh;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .bakeoff-topbar {
@@ -1956,6 +1958,7 @@ button:focus-visible {
   display: grid;
   grid-template-columns: 230px 1fr;
   gap: 10px;
+  height: calc(100vh - 51px);
   min-height: calc(100vh - 51px);
 }
 
@@ -2070,9 +2073,11 @@ button:focus-visible {
 }
 
 .bakeoff-replay-area {
+  box-sizing: border-box;
+  height: calc(100vh - 51px);
+  max-height: calc(100vh - 51px);
   padding: 10px;
   overflow: hidden;
-  max-height: calc(100vh - 51px);
 }
 
 .app-error-panel pre {
@@ -2092,27 +2097,32 @@ button:focus-visible {
 }
 
 .bakeoff-capture-mode .bakeoff-replay-area {
-  max-height: none;
-  overflow: visible;
+  height: calc(100vh - 51px);
+  max-height: calc(100vh - 51px);
+  overflow: hidden;
   padding: 12px;
   background: #f4f1ea;
 }
 
 /* Compact replay layout when nested in the bakeoff browser */
-.bakeoff-replay-area .replay-page {
+.bakeoff-replay-area.replay-page {
   padding: 0;
+  height: calc(100vh - 51px);
   min-height: 0;
-  gap: 8px;
+  gap: 7px;
   align-items: stretch;
+  overflow: hidden;
 }
 
 .bakeoff-replay-area .replay-layout {
-  gap: 12px;
+  flex: 0 0 auto;
+  gap: 18px;
   max-width: none;
 }
 
 .bakeoff-replay-area .replay-pane {
   gap: 2px;
+  min-width: 0;
 }
 
 .bakeoff-replay-area .replay-pane-name {
@@ -2131,17 +2141,21 @@ button:focus-visible {
 }
 
 .bakeoff-replay-area .replay-board.cg-wrap {
-  max-width: min(26vw, 260px);
+  max-width: min(29vw, 390px);
 }
 
 .bakeoff-replay-area .replay-controls {
+  flex: 0 0 auto;
   gap: 5px;
 }
 
 .bakeoff-replay-area .replay-tools-row {
-  grid-template-columns: minmax(650px, 1.7fr) minmax(330px, 0.8fr);
-  gap: 8px;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(900px, 1.65fr) minmax(430px, 0.75fr);
+  gap: 10px;
   max-width: none;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .bakeoff-replay-area .replay-button {
@@ -2200,6 +2214,12 @@ button:focus-visible {
   }
 }
 
+@media (max-width: 1500px) {
+  .bakeoff-replay-area .replay-tools-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Belief inspector */
 .belief-panel {
   margin-top: 0;
@@ -2207,7 +2227,11 @@ button:focus-visible {
   border-radius: 6px;
   background: #14191d;
   color: #d6dde0;
-  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .belief-panel[hidden] {
@@ -2254,13 +2278,17 @@ button:focus-visible {
 }
 
 .belief-panel-body {
+  flex: 1 1 auto;
   display: grid;
-  grid-template-columns: minmax(168px, 210px) minmax(0, 1fr);
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
   gap: 8px;
+  min-height: 0;
+  overflow: hidden;
   padding: 8px;
 }
 
 .belief-board {
+  align-self: start;
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   grid-template-rows: repeat(8, minmax(0, 1fr));
@@ -2268,6 +2296,7 @@ button:focus-visible {
   border: 1px solid #29343c;
   background: #0f1418;
   inline-size: 100%;
+  max-height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -2384,10 +2413,13 @@ button:focus-visible {
 
 .belief-sidebar {
   display: grid;
-  grid-template-columns: 190px minmax(180px, 1fr) minmax(150px, 0.85fr);
+  grid-template-columns: minmax(320px, 0.95fr) minmax(270px, 1fr) minmax(220px, 0.85fr);
   align-content: start;
   gap: 8px;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .belief-meta,
@@ -2396,8 +2428,10 @@ button:focus-visible {
   border: 1px solid #242d34;
   border-radius: 4px;
   background: #10161a;
-  padding: 6px 7px;
+  min-height: 0;
   min-width: 0;
+  overflow: auto;
+  padding: 5px 6px;
 }
 
 .belief-metric {
@@ -2449,7 +2483,9 @@ button:focus-visible {
 }
 
 .belief-health {
-  margin-top: 7px;
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
   border-top: 1px solid #202a31;
   padding-top: 6px;
 }
@@ -2457,8 +2493,34 @@ button:focus-visible {
 .belief-health-title {
   color: #8f9aa3;
   font-size: 9px;
-  margin-bottom: 4px;
   text-transform: uppercase;
+}
+
+.belief-health-card {
+  border: 1px solid #243039;
+  border-left-width: 3px;
+  border-radius: 4px;
+  background: #0d1317;
+  padding: 4px 6px;
+}
+
+.belief-health-card.ok {
+  border-left-color: #6fac78;
+}
+
+.belief-health-card.warn {
+  border-left-color: #d7a947;
+}
+
+.belief-health-card.bad {
+  border-left-color: #d4645d;
+}
+
+.belief-health-card h3 {
+  margin: 0 0 3px;
+  color: #dfe7ea;
+  font-size: 10px;
+  line-height: 1.2;
 }
 
 .belief-health-line,
@@ -2467,8 +2529,8 @@ button:focus-visible {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  border-top: 1px solid #202a31;
-  padding: 2px 0;
+  border-top: 1px solid rgba(58, 72, 82, 0.6);
+  padding: 2px 0 1px;
 }
 
 .belief-health-line:first-of-type,
@@ -2484,7 +2546,7 @@ button:focus-visible {
 .belief-health-line strong,
 .belief-top-move-line strong {
   color: #eef3f5;
-  font: 600 10px/1.25 'JetBrains Mono', ui-monospace, monospace;
+  font: 600 9px/1.2 'JetBrains Mono', ui-monospace, monospace;
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -2678,6 +2740,7 @@ button:focus-visible {
 }
 
 .bakeoff-replay-area .annot-panel {
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   font-size: 11px;
