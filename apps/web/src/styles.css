@@ -1834,7 +1834,22 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-engine-select {
   width: 100%;
-  box-shadow: 0 8px 26px rgba(10, 15, 13, 0.18);
+  min-height: 42px;
+  border: 1px solid var(--site-border);
+  border-radius: 6px;
+  background: #f9faf7;
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 760;
+  padding: 9px 34px 9px 10px;
+}
+
+.landing-engine-select:focus-visible {
+  border-color: var(--site-accent);
+  outline: 3px solid var(--site-focus);
+  outline-offset: 2px;
 }
 
 .landing-cta-primary,

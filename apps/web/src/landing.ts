@@ -60,6 +60,7 @@ type UserProfile = {
 type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
 type LandingPlayChoice = {
   engineId?: string;
+  engines?: PlayableEngine[];
   mode: 'pvp' | 'pve';
   title: string;
 };
@@ -909,6 +910,7 @@ function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
   engineButton.addEventListener('click', () => {
     openLandingSetupDialog({
       engineId: defaultEngineId,
+      engines: availableEngines,
       mode: 'pve',
       title: 'Play against computer',
     });
@@ -938,6 +940,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   let startFormat: LandingStartFormat = 'standard';
   let selectedPreset: LandingTimePresetId = '3m2';
+  let selectedEngineId = choice.engineId;
   const defaultPreset = LANDING_TIME_PRESETS.find((preset) => preset.id === selectedPreset)!;
 
   const overlay = document.createElement('div');
@@ -973,6 +976,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantControl.className = 'landing-variant-control';
   variantControl.textContent = 'Fog of War';
   variantSection.append(variantControl);
+
+  const engineSection = choice.mode === 'pve' ? buildEngineSetupSection(choice.engines ?? fallbackPlayableEngines(), selectedEngineId, (engineId) => {
+    selectedEngineId = engineId;
+  }) : null;
 
   const startSection = document.createElement('div');
   startSection.className = 'landing-setup-section';
@@ -1060,7 +1067,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startButton.textContent = 'Start';
   startButton.addEventListener('click', () => {
     const setup = selectedRoomSetup(startFormat, selectedPreset, minutesInput.input, incrementInput.input);
-    void createRoomFromPlay(startButton, choice.mode, choice.engineId, setup);
+    void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup);
   });
 
   const backButton = document.createElement('button');
@@ -1083,10 +1090,44 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   document.addEventListener('keydown', onKeyDown);
 
   actions.append(startButton, backButton);
-  dialog.append(header, variantSection, startSection, timeSection, actions);
+  dialog.append(header, variantSection);
+  if (engineSection) dialog.append(engineSection);
+  dialog.append(startSection, timeSection, actions);
   overlay.append(dialog);
   document.body.append(overlay);
   standardButton.focus();
+}
+
+function buildEngineSetupSection(
+  engines: PlayableEngine[],
+  selectedEngineId: string | undefined,
+  onSelect: (engineId: string) => void,
+): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'landing-setup-section';
+  section.append(setupSectionLabel('Engine'));
+
+  const select = document.createElement('select');
+  select.className = 'landing-engine-select';
+  select.setAttribute('aria-label', 'Engine');
+
+  const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
+  for (const engine of availableEngines) {
+    const option = document.createElement('option');
+    option.value = engine.id;
+    option.textContent = engine.name;
+    select.append(option);
+  }
+
+  const fallbackEngineId = availableEngines[0]?.id;
+  select.value = selectedEngineId && availableEngines.some((engine) => engine.id === selectedEngineId)
+    ? selectedEngineId
+    : fallbackEngineId ?? '';
+  if (select.value) onSelect(select.value);
+  select.addEventListener('change', () => onSelect(select.value));
+
+  section.append(select);
+  return section;
 }
 
 function setupSectionLabel(text: string): HTMLSpanElement {
