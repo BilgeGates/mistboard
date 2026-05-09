@@ -5,6 +5,9 @@ import type { Board, GameState, Move, PieceRole, Square } from './types.js';
 
 type TutorialPosition = {
   board: Board;
+  castlingRights?: Square[];
+  enPassantSquare?: Square;
+  halfmoveClock?: number;
   expectedFinalSquare: Square;
   id: string;
   moves: Move[];
@@ -462,9 +465,611 @@ const positions: TutorialPosition[] = [
     visibleAfter: ['b8'],
     hiddenAfter: ['a8', 'c8'],
   },
+  {
+    id: 'capture-rook-contact',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      e2: { color: 'white', role: 'rook' },
+      e6: { color: 'black', role: 'pawn' },
+    },
+    moves: [{ from: 'e2', to: 'e6' }],
+    expectedFinalSquare: 'e6',
+    visibleAfter: ['e3', 'e4', 'e5', 'e7', 'e8'],
+  },
+  {
+    id: 'capture-bishop-contact',
+    pieceRole: 'bishop',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      c1: { color: 'white', role: 'bishop' },
+      f4: { color: 'black', role: 'knight' },
+    },
+    moves: [{ from: 'c1', to: 'f4' }],
+    expectedFinalSquare: 'f4',
+    visibleAfter: ['d2', 'e3', 'g5', 'h6'],
+  },
+  {
+    id: 'capture-knight-pocket',
+    pieceRole: 'knight',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      c3: { color: 'white', role: 'knight' },
+      d5: { color: 'black', role: 'bishop' },
+    },
+    moves: [{ from: 'c3', to: 'd5' }],
+    expectedFinalSquare: 'd5',
+    visibleAfter: ['b4', 'b6', 'f4', 'f6'],
+  },
+  {
+    id: 'capture-pawn-diagonal',
+    pieceRole: 'pawn',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      d4: { color: 'white', role: 'pawn' },
+      e5: { color: 'black', role: 'knight' },
+    },
+    moves: [{ from: 'd4', to: 'e5' }],
+    expectedFinalSquare: 'e5',
+    visibleAfter: ['e6'],
+  },
+  {
+    id: 'capture-queen-choice',
+    pieceRole: 'queen',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      d3: { color: 'white', role: 'queen' },
+      d7: { color: 'black', role: 'rook' },
+      h3: { color: 'black', role: 'bishop' },
+    },
+    moves: [{ from: 'd3', to: 'd7' }],
+    expectedFinalSquare: 'd7',
+    visibleAfter: ['d4', 'd5', 'd6', 'd8'],
+  },
+  {
+    id: 'capture-king-direct',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      e2: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'e2', to: 'e8' }],
+    expectedFinalSquare: 'e8',
+    visibleAfter: ['e3', 'e4', 'e5', 'e6', 'e7'],
+  },
+  {
+    id: 'protection-rook-file',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      e1: { color: 'white', role: 'rook' },
+      e5: { color: 'white', role: 'pawn' },
+    },
+    moves: [{ from: 'e1', to: 'e3' }],
+    expectedFinalSquare: 'e3',
+    visibleAfter: ['e4', 'e5'],
+  },
+  {
+    id: 'protection-bishop-diagonal',
+    pieceRole: 'bishop',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      c1: { color: 'white', role: 'bishop' },
+      f4: { color: 'white', role: 'pawn' },
+    },
+    moves: [{ from: 'c1', to: 'e3' }],
+    expectedFinalSquare: 'e3',
+    visibleAfter: ['d2', 'f4'],
+  },
+  {
+    id: 'protection-knight-pocket',
+    pieceRole: 'knight',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      b1: { color: 'white', role: 'knight' },
+      e4: { color: 'white', role: 'pawn' },
+    },
+    moves: [{ from: 'b1', to: 'c3' }],
+    expectedFinalSquare: 'c3',
+    visibleAfter: ['e4'],
+  },
+  {
+    id: 'protection-king-close',
+    pieceRole: 'king',
+    board: {
+      e2: { color: 'white', role: 'king' },
+      f4: { color: 'white', role: 'pawn' },
+    },
+    moves: [{ from: 'e2', to: 'e3' }],
+    expectedFinalSquare: 'e3',
+    visibleAfter: ['f4'],
+  },
+  {
+    id: 'protection-before-material',
+    pieceRole: 'queen',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      d1: { color: 'white', role: 'queen' },
+      d5: { color: 'white', role: 'pawn' },
+      h5: { color: 'black', role: 'bishop' },
+    },
+    moves: [{ from: 'd1', to: 'd3' }],
+    expectedFinalSquare: 'd3',
+    visibleAfter: ['d4', 'd5'],
+  },
+  {
+    id: 'protection-guard-chain',
+    pieceRole: 'bishop',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      a1: { color: 'white', role: 'rook' },
+      a5: { color: 'white', role: 'pawn' },
+      c1: { color: 'white', role: 'bishop' },
+      g5: { color: 'white', role: 'pawn' },
+    },
+    moves: [
+      { from: 'a1', to: 'a3' },
+      { from: 'c1', to: 'e3' },
+    ],
+    expectedFinalSquare: 'e3',
+    visibleAfter: ['a4', 'a5', 'f4', 'g5'],
+  },
+  {
+    id: 'combat-capture-with-backup',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      e2: { color: 'white', role: 'rook' },
+      b3: { color: 'white', role: 'bishop' },
+      e6: { color: 'black', role: 'pawn' },
+    },
+    moves: [{ from: 'e2', to: 'e6' }],
+    expectedFinalSquare: 'e6',
+    visibleAfter: ['c4', 'd5', 'e7', 'e8'],
+  },
+  {
+    id: 'combat-knight-backed-capture',
+    pieceRole: 'knight',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      d1: { color: 'white', role: 'queen' },
+      c3: { color: 'white', role: 'knight' },
+      d5: { color: 'black', role: 'bishop' },
+    },
+    moves: [{ from: 'c3', to: 'd5' }],
+    expectedFinalSquare: 'd5',
+    visibleAfter: ['d2', 'd3', 'd4'],
+  },
+  {
+    id: 'combat-remove-attacker',
+    pieceRole: 'queen',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      d1: { color: 'white', role: 'queen' },
+      d5: { color: 'white', role: 'pawn' },
+      h5: { color: 'black', role: 'bishop' },
+    },
+    moves: [{ from: 'd1', to: 'h5' }],
+    expectedFinalSquare: 'h5',
+    visibleAfter: ['e2', 'f3', 'g4'],
+  },
+  {
+    id: 'combat-protect-then-capture',
+    pieceRole: 'pawn',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      c1: { color: 'white', role: 'bishop' },
+      g5: { color: 'white', role: 'pawn' },
+      h6: { color: 'black', role: 'rook' },
+    },
+    moves: [
+      { from: 'c1', to: 'e3' },
+      { from: 'g5', to: 'h6' },
+    ],
+    expectedFinalSquare: 'h6',
+    visibleAfter: ['e3', 'f4', 'g5'],
+  },
+  {
+    id: 'combat-choose-safe-capture',
+    pieceRole: 'queen',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      d1: { color: 'white', role: 'rook' },
+      d3: { color: 'white', role: 'queen' },
+      d7: { color: 'black', role: 'rook' },
+      h3: { color: 'black', role: 'bishop' },
+    },
+    moves: [{ from: 'd3', to: 'd7' }],
+    expectedFinalSquare: 'd7',
+    visibleAfter: ['d1', 'd2', 'd4', 'd5', 'd6', 'd8'],
+  },
+  {
+    id: 'combat-backed-king-capture',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      e1: { color: 'white', role: 'queen' },
+      e2: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'e2', to: 'e8' }],
+    expectedFinalSquare: 'e8',
+    visibleAfter: ['e1', 'e3', 'e4', 'e5', 'e6', 'e7'],
+  },
+  {
+    id: 'find-king-rook-line',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      e2: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'e2', to: 'e8' }],
+    expectedFinalSquare: 'e8',
+  },
+  {
+    id: 'find-king-bishop-line',
+    pieceRole: 'bishop',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      c1: { color: 'white', role: 'bishop' },
+      h6: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'c1', to: 'h6' }],
+    expectedFinalSquare: 'h6',
+  },
+  {
+    id: 'find-king-knight-pocket',
+    pieceRole: 'knight',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      c3: { color: 'white', role: 'knight' },
+      d5: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'c3', to: 'd5' }],
+    expectedFinalSquare: 'd5',
+  },
+  {
+    id: 'save-king-step-away',
+    pieceRole: 'king',
+    board: {
+      e2: { color: 'white', role: 'king' },
+      e5: { color: 'black', role: 'rook' },
+    },
+    moves: [{ from: 'e2', to: 'f2' }],
+    expectedFinalSquare: 'f2',
+  },
+  {
+    id: 'save-king-block-line',
+    pieceRole: 'rook',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      a3: { color: 'white', role: 'rook' },
+      e7: { color: 'black', role: 'rook' },
+    },
+    moves: [{ from: 'a3', to: 'e3' }],
+    expectedFinalSquare: 'e3',
+  },
+  {
+    id: 'save-king-capture-attacker',
+    pieceRole: 'king',
+    board: {
+      e2: { color: 'white', role: 'king' },
+      f3: { color: 'black', role: 'rook' },
+    },
+    moves: [{ from: 'e2', to: 'f3' }],
+    expectedFinalSquare: 'f3',
+  },
+  {
+    id: 'final-capture-rook',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      h2: { color: 'white', role: 'rook' },
+      h8: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'h2', to: 'h8' }],
+    expectedFinalSquare: 'h8',
+  },
+  {
+    id: 'final-capture-pawn',
+    pieceRole: 'pawn',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      d6: { color: 'white', role: 'pawn' },
+      e7: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'd6', to: 'e7' }],
+    expectedFinalSquare: 'e7',
+  },
+  {
+    id: 'final-capture-king',
+    pieceRole: 'king',
+    board: {
+      e4: { color: 'white', role: 'king' },
+      f5: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'e4', to: 'f5' }],
+    expectedFinalSquare: 'f5',
+  },
+  {
+    id: 'setup-open-pawn',
+    pieceRole: 'pawn',
+    board: {
+      a1: { color: 'white', role: 'rook' },
+      b1: { color: 'white', role: 'knight' },
+      c1: { color: 'white', role: 'bishop' },
+      d1: { color: 'white', role: 'queen' },
+      e1: { color: 'white', role: 'king' },
+      f1: { color: 'white', role: 'bishop' },
+      g1: { color: 'white', role: 'knight' },
+      h1: { color: 'white', role: 'rook' },
+      a2: { color: 'white', role: 'pawn' },
+      b2: { color: 'white', role: 'pawn' },
+      c2: { color: 'white', role: 'pawn' },
+      d2: { color: 'white', role: 'pawn' },
+      e2: { color: 'white', role: 'pawn' },
+      f2: { color: 'white', role: 'pawn' },
+      g2: { color: 'white', role: 'pawn' },
+      h2: { color: 'white', role: 'pawn' },
+      e8: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'e2', to: 'e4' }],
+    expectedFinalSquare: 'e4',
+  },
+  {
+    id: 'setup-knight-develop',
+    pieceRole: 'knight',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      g1: { color: 'white', role: 'knight' },
+      e8: { color: 'black', role: 'king' },
+    },
+    moves: [{ from: 'g1', to: 'f3' }],
+    expectedFinalSquare: 'f3',
+  },
+  {
+    id: 'setup-bishop-develop',
+    pieceRole: 'bishop',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      e2: { color: 'white', role: 'pawn' },
+      f1: { color: 'white', role: 'bishop' },
+      e8: { color: 'black', role: 'king' },
+    },
+    moves: [
+      { from: 'e2', to: 'e4' },
+      { from: 'f1', to: 'c4' },
+    ],
+    expectedFinalSquare: 'c4',
+  },
+  {
+    id: 'castling-kingside',
+    pieceRole: 'king',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      h1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    castlingRights: ['h1'],
+    moves: [{ from: 'e1', to: 'h1' }],
+    expectedFinalSquare: 'g1',
+  },
+  {
+    id: 'castling-queenside',
+    pieceRole: 'king',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      a1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    castlingRights: ['a1'],
+    moves: [{ from: 'e1', to: 'a1' }],
+    expectedFinalSquare: 'c1',
+  },
+  {
+    id: 'castling-draft960-shape',
+    pieceRole: 'king',
+    board: {
+      d1: { color: 'white', role: 'king' },
+      g1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    castlingRights: ['g1'],
+    moves: [{ from: 'd1', to: 'g1' }],
+    expectedFinalSquare: 'g1',
+  },
+  {
+    id: 'en-passant-left',
+    pieceRole: 'pawn',
+    board: {
+      a1: { color: 'white', role: 'king' },
+      e5: { color: 'white', role: 'pawn' },
+      d5: { color: 'black', role: 'pawn' },
+      h8: { color: 'black', role: 'king' },
+    },
+    enPassantSquare: 'd6',
+    moves: [{ from: 'e5', to: 'd6' }],
+    expectedFinalSquare: 'd6',
+  },
+  {
+    id: 'en-passant-right',
+    pieceRole: 'pawn',
+    board: {
+      a1: { color: 'white', role: 'king' },
+      f5: { color: 'white', role: 'pawn' },
+      g5: { color: 'black', role: 'pawn' },
+      h8: { color: 'black', role: 'king' },
+    },
+    enPassantSquare: 'g6',
+    moves: [{ from: 'f5', to: 'g6' }],
+    expectedFinalSquare: 'g6',
+  },
+  {
+    id: 'en-passant-expires',
+    pieceRole: 'pawn',
+    board: {
+      a1: { color: 'white', role: 'king' },
+      c5: { color: 'white', role: 'pawn' },
+      b5: { color: 'black', role: 'pawn' },
+      h8: { color: 'black', role: 'king' },
+    },
+    enPassantSquare: 'b6',
+    moves: [{ from: 'c5', to: 'b6' }],
+    expectedFinalSquare: 'b6',
+  },
+  {
+    id: 'draw-clock',
+    pieceRole: 'rook',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      a1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    halfmoveClock: 99,
+    moves: [{ from: 'a1', to: 'a2' }],
+    expectedFinalSquare: 'a2',
+  },
+  {
+    id: 'draw-reset-clock',
+    pieceRole: 'pawn',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      a2: { color: 'white', role: 'pawn' },
+      e8: { color: 'black', role: 'king' },
+    },
+    halfmoveClock: 98,
+    moves: [{ from: 'a2', to: 'a4' }],
+    expectedFinalSquare: 'a4',
+  },
+  {
+    id: 'draw-repeat-shape',
+    pieceRole: 'rook',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      a1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    moves: [
+      { from: 'a1', to: 'a3' },
+      { from: 'a3', to: 'a1' },
+    ],
+    expectedFinalSquare: 'a1',
+  },
+  {
+    id: 'value-queen-over-pawn',
+    pieceRole: 'queen',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      d3: { color: 'white', role: 'queen' },
+      d7: { color: 'black', role: 'rook' },
+      h3: { color: 'black', role: 'pawn' },
+    },
+    moves: [{ from: 'd3', to: 'd7' }],
+    expectedFinalSquare: 'd7',
+  },
+  {
+    id: 'value-king-over-material',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      e2: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+      h2: { color: 'black', role: 'queen' },
+    },
+    moves: [{ from: 'e2', to: 'e8' }],
+    expectedFinalSquare: 'e8',
+  },
+  {
+    id: 'value-scout-before-value',
+    pieceRole: 'rook',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      a1: { color: 'white', role: 'rook' },
+      a7: { color: 'black', role: 'rook' },
+    },
+    moves: [{ from: 'a1', to: 'a4' }],
+    expectedFinalSquare: 'a4',
+  },
+  {
+    id: 'capture-two-rook-route',
+    pieceRole: 'rook',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      a2: { color: 'white', role: 'rook' },
+      f6: { color: 'black', role: 'king' },
+    },
+    moves: [
+      { from: 'a2', to: 'a6' },
+      { from: 'a6', to: 'f6' },
+    ],
+    expectedFinalSquare: 'f6',
+  },
+  {
+    id: 'capture-two-bishop-route',
+    pieceRole: 'bishop',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      b2: { color: 'white', role: 'bishop' },
+      b8: { color: 'black', role: 'king' },
+    },
+    moves: [
+      { from: 'b2', to: 'e5' },
+      { from: 'e5', to: 'b8' },
+    ],
+    expectedFinalSquare: 'b8',
+  },
+  {
+    id: 'capture-two-knight-route',
+    pieceRole: 'knight',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      b1: { color: 'white', role: 'knight' },
+      e4: { color: 'black', role: 'king' },
+    },
+    moves: [
+      { from: 'b1', to: 'c3' },
+      { from: 'c3', to: 'e4' },
+    ],
+    expectedFinalSquare: 'e4',
+  },
+  {
+    id: 'scouting-reveal-file',
+    pieceRole: 'rook',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      a1: { color: 'white', role: 'rook' },
+      a7: { color: 'black', role: 'bishop' },
+    },
+    moves: [{ from: 'a1', to: 'a4' }],
+    expectedFinalSquare: 'a4',
+  },
+  {
+    id: 'scouting-knight-pocket',
+    pieceRole: 'knight',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      b1: { color: 'white', role: 'knight' },
+      e4: { color: 'black', role: 'rook' },
+    },
+    moves: [{ from: 'b1', to: 'c3' }],
+    expectedFinalSquare: 'c3',
+  },
+  {
+    id: 'scouting-relevant-not-most',
+    pieceRole: 'queen',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      d2: { color: 'white', role: 'queen' },
+      d7: { color: 'black', role: 'rook' },
+    },
+    moves: [{ from: 'd2', to: 'd4' }],
+    expectedFinalSquare: 'd4',
+  },
 ];
 
-test('authored piece tutorial sequences use legal moves through fog', () => {
+test('authored tutorial sequences use legal moves through fog', () => {
   for (const position of positions) {
     let state = tutorialState(position.id, position.board);
 
@@ -504,12 +1109,14 @@ function moveLabel(move: Move): string {
 }
 
 function tutorialState(id: string, board: Board): GameState {
+  const position = positions.find((candidate) => candidate.id === id);
   return {
     ...fogOfWarVariant.createInitialState(`tutorial-${id}`),
     board,
     status: { type: 'playing', turn: 'white' },
-    castlingRights: [],
-    halfmoveClock: 0,
+    castlingRights: position?.castlingRights ?? [],
+    enPassantSquare: position?.enPassantSquare,
+    halfmoveClock: position?.halfmoveClock ?? 0,
     moveNumber: 1,
   };
 }

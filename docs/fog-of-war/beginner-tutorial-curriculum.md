@@ -1323,6 +1323,125 @@ Design rhythm:
 The player should feel increasing fluency, not increasing punishment. Danger,
 capture, protection, and hidden enemy reveals start in Fundamentals.
 
+### Fundamentals MVP - Capture
+
+The first implemented Fundamentals lesson should make the smallest possible
+move beyond Fog Pieces: enemy pieces are now visible when a friendly piece can
+reach them, and capture uses the same geometry as movement.
+
+Playable first pass:
+
+1. **First Contact.** Rook captures a visible pawn on a clear file.
+2. **Diagonal Contact.** Bishop captures a visible knight on a diagonal.
+3. **Pocket Capture.** Knight captures a visible bishop by landing on its
+   pocket.
+4. **Pawn Takes Diagonal.** Pawn captures diagonally after the movement-only
+   pawn lesson avoided captures.
+5. **Choose The Capture.** Queen sees two enemies; capture the marked one
+   rather than the unmarked material.
+6. **Take The King.** Rook captures a visible king directly, establishing the
+   Fog win condition before any checkmate language appears.
+
+Teaching rhythm:
+
+- first reuse piece movement shapes so captures feel like a natural extension
+- keep all enemies visible through current friendly vision
+- introduce one marked-target choice before king capture
+- end with direct king capture, not check or mate
+
+### Fundamentals MVP - Protection
+
+The second implemented Fundamentals lesson should teach that protection is also
+geometry. A protected piece is one your own piece can see, move toward, or
+capture if it were enemy-colored. The lesson should avoid full danger
+calculation and focus on building guard lines in Fog.
+
+Playable first pass:
+
+1. **Guard The File.** Rook moves onto a file where it guards a friendly pawn.
+2. **Guard The Diagonal.** Bishop moves onto a diagonal where it guards a
+   friendly pawn.
+3. **Guard A Pocket.** Knight jumps to a square that guards a friendly pawn.
+4. **King Guard.** King steps close enough to protect a nearby pawn.
+5. **Protect Before Material.** Queen ignores a visible capture and makes the
+   marked protecting move.
+6. **Guard Chain.** Two-step sequence that builds a rook guard line and a bishop
+   guard line.
+
+Teaching rhythm:
+
+- use the same movement vocabulary from Fog Pieces
+- mark the defender destination first, then explain the guarded piece after the
+  move
+- include one temptation chapter so protection is not merely "move to target"
+- defer opponent replies, pins, and overloaded defenders to Combat
+
+### Fundamentals MVP - Combat
+
+The third implemented Fundamentals lesson combines capture and protection. It
+should still avoid engine-like calculation, but it can start asking whether a
+capture lands with backup or removes a visible attacker.
+
+Playable first pass:
+
+1. **Capture With Backup.** Rook captures a pawn on a square guarded by a
+   bishop.
+2. **Backed Pocket.** Knight captures on a queen-guarded landing square.
+3. **Remove The Attacker.** Queen captures a visible attacker instead of only
+   defending.
+4. **Protect Then Capture.** Two-step sequence: build a bishop guard line, then
+   capture diagonally with a pawn.
+5. **Choose The Safe Capture.** Queen chooses the marked capture that has rook
+   backup.
+6. **Backed King Capture.** Direct king capture remains the ending, now with a
+   guard line behind it.
+
+Teaching rhythm:
+
+- show captures and guards as one shared geometry system
+- add one prepared sequence before asking for a capture
+- teach backed captures before any hidden opponent reply
+- keep pins, discovered attacks, and overloaded defenders for later advanced
+  practice
+
+### Remaining Track MVP
+
+The first playable pass now extends beyond the initial Fog Pieces and core
+Fundamentals lessons. These modules are deliberately shorter vertical slices:
+three chapters each instead of the six-chapter depth used for pieces, capture,
+protection, and combat.
+
+Additional Fundamentals:
+
+- **Find The King.** Open-file, diagonal, and knight-pocket direct king
+  captures. This replaces classical "check in one" language with Fog's actual
+  win signal.
+- **Save The King.** Step away, block a line, or capture an adjacent attacker.
+  This replaces "out of check" with active king-safety decisions under Fog.
+- **Final Capture.** Rook, pawn, and king final captures. This is the Fog
+  equivalent of mate-in-one.
+
+Intermediate:
+
+- **Board Setup.** First pawn, first knight, and opening a bishop line.
+- **Castling.** King-side, queen-side, and Draft960-shaped castling, authored
+  with explicit castling rights.
+- **En Passant.** Left capture, right capture, and "only now" timing, authored
+  with explicit en passant squares.
+- **Draws.** Fifty-move clock, pawn reset, and repeated-shape introduction.
+
+Advanced:
+
+- **Piece Value.** Higher-value visible capture, king over material, and
+  information value.
+- **Capture In Two.** Rook route, bishop route, and knight route.
+- **Scouting.** File scout, pocket scout, and relevant-squares scouting.
+
+These chapters are not yet the final content depth. They prove the platform can
+represent the whole lesson catalogue, including special state for castling and
+en passant. The next content pass should expand the short three-chapter lessons
+toward the richer six-chapter standard once the broad arc feels right.
+
 ## Lesson Catalogue
 
 ### 1. Your Pieces Create Vision Category Overview

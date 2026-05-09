@@ -55,7 +55,7 @@ async function smokeLearnInterface() {
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up The File');
     assert.equal(await page.locator('.learn-actions').getByText('Watch games').count(), 0);
     assert.equal(await page.locator('.learn-menu-category h2').first().textContent(), 'Chess pieces');
-    assert.equal(await page.locator('.learn-menu-lesson').count(), 6);
+    assert.equal(await page.locator('.learn-menu-lesson').count(), 19);
     assert.equal(await page.locator('.learn-menu-lesson.is-locked').count(), 0);
     assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
 
@@ -72,35 +72,84 @@ async function smokeLearnInterface() {
     assert.equal(await page.locator('.learn-board square.learn-highlight').count(), 1);
     assert.ok(await page.locator('.learn-board square.learn-explained').count() > 1);
 
-    await page.locator('.learn-menu-lesson-row', { hasText: 'The Bishop' }).click();
+    await clickLesson(page, 'The Bishop');
     await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Bishop 1 of 6');
     assert.equal(await page.locator('.learn-heading').textContent(), 'The Bishop');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up Right');
     assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
 
-    await page.locator('.learn-menu-lesson-row', { hasText: 'The Queen' }).click();
+    await clickLesson(page, 'The Queen');
     await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Queen 1 of 6');
     assert.equal(await page.locator('.learn-heading').textContent(), 'The Queen');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up The File');
     assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
 
-    await page.locator('.learn-menu-lesson-row', { hasText: 'The King' }).click();
+    await clickLesson(page, 'The King');
     await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The King 1 of 6');
     assert.equal(await page.locator('.learn-heading').textContent(), 'The King');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'One Step Up');
     assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
 
-    await page.locator('.learn-menu-lesson-row', { hasText: 'The Knight' }).click();
+    await clickLesson(page, 'The Knight');
     await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Knight 1 of 6');
     assert.equal(await page.locator('.learn-heading').textContent(), 'The Knight');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'First L');
     assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
 
-    await page.locator('.learn-menu-lesson-row', { hasText: 'The Pawn' }).click();
+    await clickLesson(page, 'The Pawn');
     await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Pawn 1 of 6');
     assert.equal(await page.locator('.learn-heading').textContent(), 'The Pawn');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'One Step');
     assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+
+    await clickLesson(page, 'Capture');
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Capture 1 of 6');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Capture');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'First Contact');
+    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Fundamentals');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+
+    await clickLesson(page, 'Protection');
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Protection 1 of 6');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Protection');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Guard The File');
+    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Fundamentals');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+
+    await clickLesson(page, 'Combat');
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Combat 1 of 6');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Combat');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Capture With Backup');
+    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Fundamentals');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+
+    await clickLesson(page, 'Find The King');
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Find The King 1 of 3');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Find The King');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Open File');
+    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Fundamentals');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
+
+    await clickLesson(page, 'Board Setup');
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Board Setup 1 of 3');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Board Setup');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'First Pawn');
+    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Intermediate');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
+
+    await clickLesson(page, 'Castling');
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Castling 1 of 3');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Castling');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'King Side Castle');
+    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Intermediate');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
+
+    await clickLesson(page, 'Piece Value');
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Piece Value 1 of 3');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Piece Value');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Big Prize');
+    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Advanced');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
   } finally {
     await browser.close();
   }
@@ -110,6 +159,12 @@ async function assertVisible(page, selector) {
   const locator = page.locator(selector);
   assert.equal(await locator.count(), 1, `${selector} should appear once`);
   assert.equal(await locator.first().isVisible(), true, `${selector} should be visible`);
+}
+
+async function clickLesson(page, title) {
+  const label = page.locator('.learn-menu .learn-menu-lesson-label').getByText(title, { exact: true });
+  assert.equal(await label.count(), 1, `${title} lesson should appear once`);
+  await label.click();
 }
 
 async function dragSquare(page, from, to) {
