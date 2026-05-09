@@ -96,6 +96,36 @@ def _violates_count_constraint(
     counts: dict[chess.PieceType, int],
     bound: dict[chess.PieceType, int],
 ) -> bool:
+    # Captures reduce `bound`; promotions change piece type but not total
+    # material. A particle with fewer opponent pieces than the remaining
+    # material ledger is under-modeling the board, even if no per-type upper
+    # bound is exceeded.
+    if sum(counts.values()) < sum(bound.values()):
+        return True
+
+    promotion_credit = max(
+        0, bound.get(chess.PAWN, 0) - counts.get(chess.PAWN, 0)
+    )
+    promoted_excess = 0
+    for piece_type, n in counts.items():
+        if piece_type == chess.PAWN:
+            if n > bound.get(piece_type, 0):
+                return True
+            continue
+        if piece_type == chess.KING:
+            if n > bound.get(piece_type, 0):
+                return True
+            continue
+        if n > bound.get(piece_type, 0):
+            promoted_excess += n - bound.get(piece_type, 0)
+    return promoted_excess > promotion_credit
+
+
+def _violates_upper_count_constraint(
+    counts: dict[chess.PieceType, int],
+    bound: dict[chess.PieceType, int],
+) -> bool:
+    """True when a particle has more material than capture/promotion can allow."""
     promotion_credit = max(
         0, bound.get(chess.PAWN, 0) - counts.get(chess.PAWN, 0)
     )
@@ -989,16 +1019,19 @@ class BeliefState:
         elif expanded:
             # v0.7.2 Trigger B: all expanded opponent moves missed hard
             # observation. Before generic CSP, try the same continuity repair
-            # Stage A uses: force current hard facts into count-valid expanded
-            # worlds, preserve hidden history that still fits, then recompute
-            # fog exactly. This is allowed to break exact opponent-move
-            # reachability, but it keeps stable pawn/piece tracks instead of
-            # random-filling from scratch.
+            # Stage A uses: force current hard facts into expanded worlds,
+            # preserve hidden history that still fits, fill missing remaining
+            # material, then recompute fog exactly. This is allowed to break
+            # exact opponent-move reachability, but it keeps stable pawn/piece
+            # tracks instead of random-filling from scratch.
             repaired: list[tuple[chess.Board, float, RepairDiagnostics]] = []
             strict_repaired: list[tuple[chess.Board, float, RepairDiagnostics]] = []
             repair_start = time.perf_counter()
-            for prev_board, board, weight, _, _, count_ok, _ in expanded:
-                if not count_ok:
+            for prev_board, board, weight, _, _, _, transition_facts in expanded:
+                if _violates_upper_count_constraint(
+                    _opp_piece_counts(board, self.perspective),
+                    transition_facts.opp_remaining_counts,
+                ):
                     continue
                 repaired_board = _repair_particle_to_observation(
                     board,
@@ -1787,6 +1820,16 @@ def _repair_particle_to_observation(
     ):
         return None
 
+    if not _fill_opp_missing_hidden_pieces(
+        repaired,
+        facts.opp_remaining_counts,
+        facts.opp_bishop_colors_remaining,
+        facts.perspective,
+        visibility_set,
+        rng,
+    ):
+        return None
+
     repaired.turn = side_to_move
     if not facts.counts_valid(repaired):
         return None
@@ -1894,6 +1937,92 @@ def _trim_opp_excess_hidden_pieces(
             board.remove_piece_at(sq)
 
     return True
+
+
+def _fill_opp_missing_hidden_pieces(
+    board: chess.Board,
+    opp_remaining_counts: dict[chess.PieceType, int],
+    opp_bishop_colors_remaining: dict[bool, int],
+    perspective: chess.Color,
+    visibility_set: set[chess.Square],
+    rng: random.Random,
+) -> bool:
+    """Place missing known-remaining opponent material on hidden squares."""
+
+    opp = not perspective
+    missing = _missing_opp_piece_types_for_material_ledger(
+        _opp_piece_counts(board, perspective),
+        opp_remaining_counts,
+    )
+    if not missing:
+        return True
+
+    current_bishop_colors = _opp_bishop_color_counts(board, perspective)
+    hidden_empty = [
+        sq
+        for sq in chess.SQUARES
+        if sq not in visibility_set and board.piece_at(sq) is None
+    ]
+    rng.shuffle(hidden_empty)
+
+    # Tightest first: kings/bishops/pawns have more placement restrictions
+    # than sliding/minor promoted material.
+    priority = {
+        chess.KING: 0,
+        chess.BISHOP: 1,
+        chess.PAWN: 2,
+        chess.ROOK: 3,
+        chess.KNIGHT: 3,
+        chess.QUEEN: 3,
+    }
+    missing.sort(key=lambda pt: priority.get(pt, 9))
+
+    for pt in missing:
+        placed = False
+        for sq in list(hidden_empty):
+            piece = chess.Piece(pt, opp)
+            if not _piece_can_occupy_hidden_square(piece, sq):
+                continue
+            if pt == chess.BISHOP:
+                color_light = _is_light_square(sq)
+                if (
+                    current_bishop_colors.get(color_light, 0)
+                    >= opp_bishop_colors_remaining.get(color_light, 0)
+                ):
+                    continue
+            board.set_piece_at(sq, piece)
+            hidden_empty.remove(sq)
+            if pt == chess.BISHOP:
+                current_bishop_colors[_is_light_square(sq)] += 1
+            placed = True
+            break
+        if not placed:
+            return False
+    return True
+
+
+def _missing_opp_piece_types_for_material_ledger(
+    counts: dict[chess.PieceType, int],
+    bound: dict[chess.PieceType, int],
+) -> list[chess.PieceType]:
+    """Return piece instances needed to satisfy remaining-material lower bounds."""
+
+    missing: list[chess.PieceType] = []
+    for pt, expected in bound.items():
+        if pt == chess.PAWN:
+            continue
+        deficit = max(0, expected - counts.get(pt, 0))
+        missing.extend([pt] * deficit)
+
+    pawn_deficit = max(0, bound.get(chess.PAWN, 0) - counts.get(chess.PAWN, 0))
+    promoted_excess = 0
+    for pt, n in counts.items():
+        if pt in {chess.PAWN, chess.KING}:
+            continue
+        promoted_excess += max(0, n - bound.get(pt, 0))
+    pawn_deficit = max(0, pawn_deficit - promoted_excess)
+    missing.extend([chess.PAWN] * pawn_deficit)
+    return missing
 
 
 def _violates_bishop_color_constraint(

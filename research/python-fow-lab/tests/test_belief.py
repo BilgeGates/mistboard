@@ -462,6 +462,56 @@ def test_stage_b_count_constraint_allows_promotion_excess() -> None:
     )
 
 
+def test_count_constraint_rejects_missing_remaining_material() -> None:
+    """Remaining material is an exact ledger, not only an upper bound.
+
+    Promotions may move mass from pawn counts to non-pawn pieces, but a particle
+    cannot simply omit known-remaining opponent material.
+    """
+    import random
+
+    stale = chess.Board.empty()
+    stale.turn = chess.BLACK
+    stale.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    stale.set_piece_at(chess.F2, chess.Piece(chess.KING, chess.WHITE))
+
+    truth = stale.copy()
+    truth.set_piece_at(chess.C3, chess.Piece(chess.PAWN, chess.WHITE))
+    truth.set_piece_at(chess.C4, chess.Piece(chess.PAWN, chess.WHITE))
+    obs = Observation(
+        visibility_mask=visible_squares(truth, chess.BLACK),
+        visible_pieces=visible_piece_map(truth, chess.BLACK),
+    )
+
+    belief = BeliefState(
+        perspective=chess.BLACK,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {chess.KING: 1, chess.PAWN: 2}
+    belief.opp_bishop_colors_remaining = {True: 0, False: 0}
+
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_csp_reseed_fired == 0
+    assert belief.last_repair_fired == 1
+    assert belief.particles
+    for particle in belief.particles:
+        white_counts = {
+            pt: sum(
+                1
+                for piece in particle.piece_map().values()
+                if piece.color == chess.WHITE and piece.piece_type == pt
+            )
+            for pt in (chess.KING, chess.PAWN)
+        }
+        assert white_counts[chess.KING] == 1
+        assert white_counts[chess.PAWN] == 2
+
+
 def test_stage_a_reseed_when_step1_wipes_all_particles() -> None:
     """v0.7.0: when no particle has my_move pseudo-legal, reseed from the
     post-move observation rather than collapsing to zero particles.
