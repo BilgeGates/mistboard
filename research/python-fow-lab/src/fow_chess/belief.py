@@ -1180,10 +1180,19 @@ class BeliefState:
             repair_candidates: list[
                 tuple[tuple[int, int, int, float], chess.Board, float, RepairDiagnostics]
             ] = []
+            supplement_limit = _repair_supplement_limit(
+                chosen_particles, self.target_n
+            )
+            source_limit = _repair_supplement_source_limit(
+                chosen_particles, self.target_n
+            )
+            repair_sources = _select_repair_supplement_sources(
+                expanded,
+                seen,
+                source_limit,
+            )
             repair_start = time.perf_counter()
-            for prev_board, board, weight, _, _, count_ok, _ in expanded:
-                if not count_ok:
-                    continue
+            for prev_board, board, weight, _, _, _, _ in repair_sources:
                 repaired_board = _repair_particle_to_observation(
                     board,
                     facts,
@@ -1219,9 +1228,6 @@ class BeliefState:
             ) * 1000.0
             self.last_stage_b_repair_supplement_considered_count = len(
                 repair_candidates
-            )
-            supplement_limit = _repair_supplement_limit(
-                chosen_particles, self.target_n
             )
             repair_candidates.sort(key=lambda candidate: candidate[0])
             selected_repairs = repair_candidates[:supplement_limit]
@@ -2687,6 +2693,68 @@ def _repair_supplement_limit(
         return 0
     cap = max(8, target_n // 4)
     return min(cap, max(8, deficit * 2))
+
+
+def _repair_supplement_source_limit(
+    particles: list[chess.Board], target_n: int
+) -> int:
+    """Bound expensive repair attempts before producing the supplement cloud."""
+
+    supplement_limit = _repair_supplement_limit(particles, target_n)
+    if supplement_limit == 0:
+        return 0
+    return min(max(32, target_n), max(32, supplement_limit * 4))
+
+
+def _select_repair_supplement_sources(
+    expanded: list[
+        tuple[chess.Board, chess.Board, float, bool, bool, bool, BeliefHardFacts]
+    ],
+    existing_fens: set[str],
+    limit: int,
+) -> list[
+    tuple[chess.Board, chess.Board, float, bool, bool, bool, BeliefHardFacts]
+]:
+    """Choose a small, likely-useful source pool before expensive repair.
+
+    Stage-B supplement only needs a diversity top-up. Repairing every expanded
+    world and sorting afterward wastes work, especially when thousands of
+    near-duplicate count-valid branches collapse to a few selected repairs.
+    Prefer branches already close to hard observation, then higher prior weight,
+    and dedupe exact expanded worlds before invoking repair.
+    """
+
+    if limit <= 0:
+        return []
+
+    best_by_fen: dict[
+        str,
+        tuple[chess.Board, chess.Board, float, bool, bool, bool, BeliefHardFacts],
+    ] = {}
+    for candidate in expanded:
+        _, board, weight, obs_ok, hard_ok, count_ok, _ = candidate
+        if not count_ok:
+            continue
+        fen = board.fen()
+        if fen in existing_fens:
+            continue
+        current = best_by_fen.get(fen)
+        if current is None or _repair_source_sort_key(candidate) < (
+            _repair_source_sort_key(current)
+        ):
+            best_by_fen[fen] = candidate
+
+    selected = sorted(best_by_fen.values(), key=_repair_source_sort_key)
+    return selected[:limit]
+
+
+def _repair_source_sort_key(
+    candidate: tuple[
+        chess.Board, chess.Board, float, bool, bool, bool, BeliefHardFacts
+    ],
+) -> tuple[bool, bool, float]:
+    _, _, weight, obs_ok, hard_ok, _, _ = candidate
+    return (not hard_ok, not obs_ok, -weight)
 
 
 def _select_repair_candidates(

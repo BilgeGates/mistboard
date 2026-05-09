@@ -6,8 +6,10 @@ from fow_chess.belief import (
     _csp_reseed,
     _repair_diagnostics,
     _repair_passes_strict_reachability,
+    _repair_supplement_source_limit,
     _select_repair_candidates,
     _repair_supplement_limit,
+    _select_repair_supplement_sources,
 )
 from fow_chess.move_priors import uniform_prior
 from fow_chess.observation import Observation, observation_from_transition
@@ -104,6 +106,41 @@ def test_repair_supplement_limit_tracks_diversity_deficit() -> None:
         particles.append(particle)
 
     assert _repair_supplement_limit(particles, target_n=256) == 0
+
+
+def test_repair_supplement_source_limit_bounds_expensive_repair_pool() -> None:
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+
+    assert _repair_supplement_source_limit([board], target_n=256) == 248
+
+
+def test_select_repair_supplement_sources_prefers_hard_near_high_weight() -> None:
+    facts = BeliefState.initial(chess.WHITE, uniform_prior)._hard_facts(
+        Observation(visibility_mask=set(), visible_pieces={})
+    )
+    prev = chess.Board.empty()
+
+    hard_near = prev.copy()
+    hard_near.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    hard_near.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    soft_only = hard_near.copy()
+    soft_only.set_piece_at(chess.A2, chess.Piece(chess.PAWN, chess.BLACK))
+    duplicate_lower_weight = hard_near.copy()
+
+    expanded = [
+        (prev, soft_only, 0.9, False, False, True, facts),
+        (prev, hard_near, 0.2, False, True, True, facts),
+        (prev, duplicate_lower_weight, 0.1, False, True, True, facts),
+    ]
+
+    selected = _select_repair_supplement_sources(expanded, set(), limit=2)
+
+    assert [board.fen() for _, board, *_ in selected] == [
+        hard_near.fen(),
+        soft_only.fen(),
+    ]
 
 
 def test_select_repair_candidates_dedupes_and_prefers_lower_cost() -> None:
