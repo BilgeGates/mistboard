@@ -30,6 +30,13 @@ type GameParticipant = {
   visibility: 'private' | 'link' | 'unlisted' | 'public';
 };
 
+type PlayableEngine = {
+  id: string;
+  name: string;
+  familyName: string;
+  kind: string;
+};
+
 type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
@@ -40,8 +47,14 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.classList.add('landing-page');
   root.append(buildNav(), buildLoadingState('Loading games'), buildFooter());
 
-  const { games, source } = await fetchLandingGames();
-  const stage = buildLandingStage(source);
+  const [{ games, source }, engines] = await Promise.all([
+    fetchLandingGames(),
+    fetchPlayableEngines().catch((err) => {
+      console.warn(err);
+      return fallbackPlayableEngines();
+    }),
+  ]);
+  const stage = buildLandingStage(source, engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
@@ -215,6 +228,22 @@ async function fetchRecentEveGames(): Promise<FeaturedGame[]> {
   if (!resp.ok) throw new Error(`failed to load recent EvE games: ${resp.status}`);
   const data = (await resp.json()) as { games: FeaturedGame[] };
   return data.games;
+}
+
+async function fetchPlayableEngines(): Promise<PlayableEngine[]> {
+  const resp = await fetch('/api/engines/playable');
+  if (!resp.ok) throw new Error(`failed to load playable engines: ${resp.status}`);
+  const data = (await resp.json()) as { engines: PlayableEngine[] };
+  return data.engines.length > 0 ? data.engines : fallbackPlayableEngines();
+}
+
+function fallbackPlayableEngines(): PlayableEngine[] {
+  return [{
+    id: 'builtin-random-legal',
+    name: 'Random Legal v1',
+    familyName: 'Random Legal',
+    kind: 'builtin',
+  }];
 }
 
 async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
@@ -458,12 +487,6 @@ export function mountLearn(root: HTMLElement): void {
   mountLearnBoard(learn.boardEl);
 }
 
-export function mountPlay(root: HTMLElement): void {
-  root.replaceChildren();
-  root.classList.add('landing-page', 'play-route');
-  root.append(buildNav(), buildPlay(), buildFooter());
-}
-
 function buildNav(): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
@@ -488,7 +511,6 @@ function buildNav(): HTMLElement {
 
   const aboutLink = navLink('About', '/about');
   const watchLink = navLink('Watch', '/watch');
-  const playLink = navLink('Play', '/play');
   const learnLink = navLink('Learn', '/learn');
 
   const ghLink = document.createElement('a');
@@ -502,7 +524,7 @@ function buildNav(): HTMLElement {
     const labLink = navLink('Engine Lab', '/engine-lab');
     links.append(labLink);
   }
-  links.append(watchLink, playLink, learnLink, aboutLink, ghLink);
+  links.append(watchLink, learnLink, aboutLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
@@ -539,7 +561,7 @@ function buildLoadingState(label: string): HTMLElement {
   return section;
 }
 
-function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
+function buildLandingStage(source: LandingGameSource, engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
@@ -563,15 +585,11 @@ function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replay
       ? "Now showing recent engine games with each side's private view."
     : 'Watch what each side saw, then reveal what was really there.';
 
+  const playPanel = buildLandingPlayPanel(engines);
+
   const ctas = document.createElement('div');
   ctas.className = 'landing-ctas';
 
-  const playBtn = document.createElement('a');
-  playBtn.href = '/play';
-  playBtn.className = 'landing-cta-primary';
-  playBtn.textContent = 'Play Fog';
-
-  ctas.append(playBtn);
   const watchLink = document.createElement('a');
   watchLink.href = '/watch';
   watchLink.className = 'landing-cta-secondary';
@@ -589,7 +607,7 @@ function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replay
     labLink.textContent = 'Open Engine Lab';
     ctas.append(labLink);
   }
-  hero.append(title, subtitle, tag, ctas);
+  hero.append(title, subtitle, tag, playPanel, ctas);
 
   const section = document.createElement('section');
   section.className = 'landing-demo';
@@ -603,6 +621,40 @@ function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replay
 
   stage.append(hero, section);
   return { el: stage, replayRoot, listRoot };
+}
+
+function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'landing-play-panel';
+
+  const engineSelect = document.createElement('select');
+  engineSelect.className = 'play-engine-select landing-engine-select';
+  engineSelect.setAttribute('aria-label', 'Engine');
+  for (const engine of engines.length > 0 ? engines : fallbackPlayableEngines()) {
+    const option = document.createElement('option');
+    option.value = engine.id;
+    option.textContent = engine.name;
+    engineSelect.append(option);
+  }
+
+  const engineButton = document.createElement('button');
+  engineButton.type = 'button';
+  engineButton.className = 'landing-cta-primary landing-play-action';
+  engineButton.textContent = 'Play engine';
+  engineButton.addEventListener('click', () => {
+    void createRoomFromPlay(engineButton, 'pve', engineSelect.value);
+  });
+
+  const challengeButton = document.createElement('button');
+  challengeButton.type = 'button';
+  challengeButton.className = 'landing-cta-secondary landing-play-action';
+  challengeButton.textContent = 'Challenge friend';
+  challengeButton.addEventListener('click', () => {
+    void createRoomFromPlay(challengeButton, 'pvp');
+  });
+
+  panel.append(engineSelect, engineButton, challengeButton);
+  return panel;
 }
 
 function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
@@ -733,116 +785,7 @@ function buildAbout(): HTMLElement {
   return section;
 }
 
-function buildPlay(): HTMLElement {
-  const shell = document.createElement('main');
-  shell.className = 'play-shell';
-
-  const header = document.createElement('section');
-  header.className = 'play-header';
-  const heading = document.createElement('h1');
-  heading.className = 'play-heading';
-  heading.textContent = 'Play';
-  const copy = document.createElement('p');
-  copy.className = 'play-copy';
-  copy.textContent =
-    'Choose the Fog of War surface. Watch engine games, play the baseline engine, or create a friend challenge.';
-  header.append(heading, copy);
-
-  const modes = document.createElement('section');
-  modes.className = 'play-modes';
-  modes.append(
-    buildPlayMode({
-      label: 'EvE',
-      title: 'Watch engine games',
-      body: 'Recent engine games with perspective replay, fog views, and postgame reveal.',
-      href: '/watch',
-      cta: 'Watch',
-      status: 'Ready',
-    }),
-    buildPlayMode({
-      label: 'PvE',
-      title: 'Play vs engine',
-      body: 'A single-player room against the built-in baseline Fog engine.',
-      mode: 'pve',
-      cta: 'Play engine',
-      status: 'Ready',
-    }),
-    buildPlayMode({
-      label: 'PvP',
-      title: 'Challenge a friend',
-      body: 'A share-link room for two humans with server-enforced hidden information.',
-      mode: 'pvp',
-      cta: 'Create challenge',
-      status: 'Ready',
-    }),
-  );
-
-  shell.append(header, modes);
-  return shell;
-}
-
-function buildPlayMode(options: {
-  body: string;
-  cta: string;
-  href?: string;
-  label: string;
-  mode?: 'pvp' | 'pve';
-  status: string;
-  title: string;
-}): HTMLElement {
-  const row = document.createElement('article');
-  row.className = 'play-mode';
-
-  const badge = document.createElement('div');
-  badge.className = 'play-mode-label';
-  badge.textContent = options.label;
-
-  const body = document.createElement('div');
-  body.className = 'play-mode-body';
-  const title = document.createElement('h2');
-  title.className = 'play-mode-title';
-  title.textContent = options.title;
-  const copy = document.createElement('p');
-  copy.className = 'play-mode-copy';
-  copy.textContent = options.body;
-  body.append(title, copy);
-
-  const meta = document.createElement('div');
-  meta.className = 'play-mode-meta';
-  const status = document.createElement('span');
-  status.className = 'play-mode-status';
-  status.textContent = options.status;
-  meta.append(status);
-
-  if (options.href) {
-    const action = document.createElement('a');
-    action.className = 'landing-cta-secondary play-mode-action';
-    action.href = options.href;
-    action.textContent = options.cta;
-    meta.append(action);
-  } else if (options.mode) {
-    const action = document.createElement('button');
-    action.className = 'landing-cta-secondary play-mode-action';
-    action.type = 'button';
-    action.textContent = options.cta;
-    action.addEventListener('click', () => {
-      void createRoomFromPlay(action, options.mode!);
-    });
-    meta.append(action);
-  } else {
-    const action = document.createElement('button');
-    action.className = 'landing-cta-secondary play-mode-action';
-    action.type = 'button';
-    action.disabled = true;
-    action.textContent = options.cta;
-    meta.append(action);
-  }
-
-  row.append(badge, body, meta);
-  return row;
-}
-
-async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve'): Promise<void> {
+async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve', engineId?: string): Promise<void> {
   const originalText = button.textContent ?? '';
   button.disabled = true;
   button.textContent = 'Creating';
@@ -850,7 +793,11 @@ async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve'
     const response = await fetch('/api/rooms', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ mode, variant: 'fog-of-war' }),
+      body: JSON.stringify({
+        mode,
+        variant: 'fog-of-war',
+        ...(mode === 'pve' && engineId ? { engineId } : {}),
+      }),
     });
     if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
     const data = await response.json() as { url?: string };

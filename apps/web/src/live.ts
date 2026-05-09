@@ -415,7 +415,7 @@ function createLayout(target: HTMLDivElement) {
     throw new Error('missing app region');
   }
 
-  newRoom.href = '/play';
+  newRoom.href = '/';
 
   return {
     board,
@@ -568,7 +568,7 @@ function renderGameInfo(view: PlayerView | null): void {
 }
 
 function renderRoomActions(): void {
-  const actions: HTMLElement[] = [roomAction('Back to Play', '/play')];
+  const actions: HTMLElement[] = [roomAction('Back to Home', '/')];
   if (currentView()?.status.type === 'finished') {
     if (roomMode === 'pvp' || roomMode === 'pve') actions.unshift(playAgainButton());
     actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(room)}`, 'primary'));

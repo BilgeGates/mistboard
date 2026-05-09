@@ -40,7 +40,6 @@ const gameRoomId = gameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsLearn = path === '/learn' || page === 'learn';
-const wantsPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 
 if (replaySample) {
@@ -67,8 +66,6 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
 } else if (wantsLearn) {
   void mountOrReport(() => import('./landing.js').then(({ mountLearn }) => mountLearn(appRoot)));
-} else if (wantsPlay) {
-  void mountOrReport(() => import('./landing.js').then(({ mountPlay }) => mountPlay(appRoot)));
 } else if (wantsAbout) {
   void mountOrReport(() => import('./landing.js').then(({ mountAbout }) => mountAbout(appRoot)));
 } else {

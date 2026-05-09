@@ -25,7 +25,7 @@ import {
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { GameSummary } from './persistence.js';
-import { engineVersionDisplayName } from './engine-registry.js';
+import { engineVersionDisplayName, loadEngine, playableBuiltinEngines } from './engine-registry.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 import {
   adminDebugTokenFromProtocolHeader,
@@ -80,6 +80,7 @@ type Room = {
   engineTimer: ReturnType<typeof setTimeout> | null;
   mode: persistence.GameMode;
   randomEngine: boolean;
+  pveEngineId: string | null;
   pendingWrites: Promise<void>;
   gameEndRecorded: boolean;
 };
@@ -208,7 +209,6 @@ function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return normalized === '/about'
     || normalized === '/learn'
-    || normalized === '/play'
     || normalized === '/watch'
     || normalized === '/engine-lab'
     || normalized === '/arena'
@@ -228,6 +228,22 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     }
     const user = await currentAccountUser(request);
     writeJson(response, 200, { user: user ? publicUser(user) : null });
+    return;
+  }
+
+  if (url === '/api/engines/playable') {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    writeJson(response, 200, {
+      engines: playableBuiltinEngines().map((engine) => ({
+        id: engine.id,
+        name: engine.name,
+        familyName: engine.engineName,
+        kind: engine.kind,
+      })),
+    });
     return;
   }
 
@@ -332,9 +348,15 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     const body = await readJsonBody(request);
     const mode = parseRoomMode(body);
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
+    const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_mode' }));
+      return;
+    }
+    if (mode === 'pve' && body.engineId !== undefined && !engineId) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'invalid_engine' }));
       return;
     }
     if (databaseRequired && !persistence.isInitialized()) {
@@ -342,7 +364,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
       return;
     }
-    const room = await createRoom(mode, variant);
+    const room = await createRoom(mode, variant, engineId ?? pveBuiltinEngineClientId);
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
     return;
@@ -497,6 +519,11 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
   return null;
+}
+
+function parsePlayablePveEngineId(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  return playableBuiltinEngines().some((engine) => engine.id === value) ? value : null;
 }
 
 async function currentAccountUser(request: IncomingMessage): Promise<persistence.UserAccount | null> {
@@ -824,6 +851,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
     engineTimer: null,
     mode,
     randomEngine: isPveBuiltinEngineClient(projection.seats.black),
+    pveEngineId: isPveBuiltinEngineClient(projection.seats.black) ? canonicalEngineVersionId(projection.seats.black!) : null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
   };
@@ -833,7 +861,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
   return room;
 }
 
-async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room> {
+async function createRoom(mode: 'pvp' | 'pve', variant: VariantId, engineId: string): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
     const existing = rooms.get(roomId) ?? (persistence.isInitialized() ? await persistence.loadRoom(roomId) : null);
@@ -852,7 +880,7 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
         type: 'seat-assigned',
         at,
         roomId,
-        clientId: pveBuiltinEngineClientId,
+        clientId: engineId,
         seat: 'black',
       });
     }
@@ -882,6 +910,7 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
       engineTimer: null,
       mode,
       randomEngine: mode === 'pve',
+      pveEngineId: mode === 'pve' ? engineId : null,
       pendingWrites: Promise.resolve(),
       gameEndRecorded: false,
     };
@@ -1048,6 +1077,7 @@ function canClientAct(room: Room, client: Client): boolean {
 
 async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
+  room.pveEngineId = pveBuiltinEngineClientId;
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.seats.black) return;
   await appendEvent(room, {
@@ -1135,6 +1165,8 @@ async function playMove(room: Room, client: Client, move: ClientMoveMessage): Pr
 
 async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
   if (!room.randomEngine) return;
+  const engine = loadEngine(room.pveEngineId ?? pveBuiltinEngineClientId);
+  if (!engine.chooseMove) throw new Error(`engine ${engine.id} does not support live move selection`);
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.state.status.turn !== 'black') return;
@@ -1147,7 +1179,14 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
 
   const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, 'black');
   if (moves.length === 0) return;
-  const move = moves[randomInt(moves.length)];
+  const decision = engine.chooseMove({
+    state: room.projection.state,
+    color: 'black',
+    legalMoves: moves,
+    seed: liveEngineMoveSeed(room),
+    ply: room.events.filter((event) => event.type === 'move-played').length,
+  });
+  const move = decision.move;
   if (!move) return;
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
   if (nextState === room.projection.state) return;
@@ -1637,6 +1676,11 @@ function roomIdToSeed(roomId: string): number {
   let hash = 0;
   for (const char of roomId) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
   return hash;
+}
+
+function liveEngineMoveSeed(room: Room): bigint {
+  const ply = room.events.filter((event) => event.type === 'move-played').length;
+  return (BigInt(roomIdToSeed(room.id) >>> 0) << 16n) + BigInt(ply);
 }
 
 function handleAdminDebugAuth(room: Room, client: Client, token: string | undefined): void {

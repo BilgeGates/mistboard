@@ -14,6 +14,12 @@ export function builtinEngineIds(): string[] {
   return Object.keys(BUILTIN_ENGINES);
 }
 
+export function playableBuiltinEngines(): EngineDefinition[] {
+  return builtinEngineIds()
+    .map((engineId) => loadEngine(engineId))
+    .filter((engine) => engine.kind === 'builtin' && engine.chooseMove);
+}
+
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.7.22': {
     id: 'python-tier1-v0.7.22',
