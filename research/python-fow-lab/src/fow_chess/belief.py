@@ -360,6 +360,18 @@ class BeliefState:
     hard_opp_piece_facts: dict[chess.Square, chess.Piece] = field(
         default_factory=dict
     )
+    # v0.7.31: recent high-health belief checkpoint. When current repair fails,
+    # this gives the particle engine a continuity-preserving recovery source
+    # before generic CSP random-fills from facts. It is intentionally bounded
+    # and local; full legal-path reconstruction is a later subtrack.
+    checkpoint_particles: list[chess.Board] = field(default_factory=list)
+    checkpoint_weights: list[float] = field(default_factory=list)
+    checkpoint_update_index: int = 0
+    update_index: int = 0
+    last_checkpoint_repair_fired: int = 0
+    last_checkpoint_repair_count: int = 0
+    last_checkpoint_repair_age: int = 0
+    last_checkpoint_repair_unique: int = 0
 
     @classmethod
     def initial(
@@ -444,6 +456,10 @@ class BeliefState:
     def _reset_repair_diagnostics(self) -> None:
         self.last_repair_fired = 0
         self.last_repair_count = 0
+        self.last_checkpoint_repair_fired = 0
+        self.last_checkpoint_repair_count = 0
+        self.last_checkpoint_repair_age = 0
+        self.last_checkpoint_repair_unique = 0
         self.last_repair_cost_max = 0
         self.last_repair_cost_total = 0
         self.last_repair_moved_piece_count_max = 0
@@ -485,6 +501,68 @@ class BeliefState:
         # single future hook, but v0.7.30 is telemetry-only.
         return base_weight
 
+    def _store_checkpoint(self) -> None:
+        self.checkpoint_particles = [particle.copy() for particle in self.particles]
+        self.checkpoint_weights = list(self.weights)
+        self.checkpoint_update_index = self.update_index
+
+    def _maybe_store_good_checkpoint(self) -> None:
+        if not self.particles:
+            return
+        unique = len({particle.fen() for particle in self.particles})
+        min_unique = min(16, max(2, self.target_n // 16))
+        min_count = min(32, max(2, self.target_n // 8))
+        if len(self.particles) < min_count or unique < min_unique:
+            return
+        if self.last_csp_reseed_fired:
+            return
+        if self.last_repair_teleport_like_count:
+            return
+        self._store_checkpoint()
+
+    def _repair_from_checkpoint(
+        self,
+        facts: BeliefHardFacts,
+        *,
+        side_to_move: chess.Color,
+        max_age: int = 8,
+    ) -> tuple[list[chess.Board], list[float]]:
+        if not self.checkpoint_particles:
+            return [], []
+        age = self.update_index - self.checkpoint_update_index
+        if age < 0 or age > max_age:
+            return [], []
+
+        repaired: list[chess.Board] = []
+        repaired_weights: list[float] = []
+        seen: set[str] = set()
+        for board, weight in zip(self.checkpoint_particles, self.checkpoint_weights):
+            repaired_board = _repair_particle_to_observation(
+                board,
+                facts,
+                side_to_move=side_to_move,
+                rng=self.rng,
+            )
+            if repaired_board is None:
+                continue
+            fen = repaired_board.fen()
+            if fen in seen:
+                continue
+            seen.add(fen)
+            repaired.append(repaired_board)
+            repaired_weights.append(
+                self._repair_candidate_weight(board, repaired_board, facts, weight)
+            )
+
+        if repaired:
+            self.last_checkpoint_repair_fired += 1
+            self.last_checkpoint_repair_count += len(repaired)
+            self.last_checkpoint_repair_age = age
+            self.last_checkpoint_repair_unique = len(
+                {particle.fen() for particle in repaired}
+            )
+        return repaired, repaired_weights
+
     def update_after_own_move(
         self,
         my_move: chess.Move,
@@ -506,6 +584,7 @@ class BeliefState:
         move-affordance facts are current truth, not optional hints.
         """
         update_start = time.perf_counter()
+        self.update_index += 1
         # Reset per-update CSP diagnostics; they're set if reseed fires below.
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
@@ -656,6 +735,62 @@ class BeliefState:
                 self.last_repair_fired += 1
                 self.last_repair_count = len(repaired)
             else:
+                checkpoint_repaired, checkpoint_weights = self._repair_from_checkpoint(
+                    facts,
+                    side_to_move=not self.perspective,
+                )
+                if checkpoint_repaired:
+                    resample_start = time.perf_counter()
+                    self.particles, self.weights = _resample(
+                        checkpoint_repaired,
+                        checkpoint_weights,
+                        self.target_n,
+                        self.rng,
+                    )
+                    self.last_stage_a_resample_ms += (
+                        time.perf_counter() - resample_start
+                    ) * 1000.0
+                    self.last_repair_fired += 1
+                    self.last_repair_count = len(checkpoint_repaired)
+                else:
+                    csp_start = time.perf_counter()
+                    self.particles, self.weights = _csp_reseed_from_facts(
+                        facts,
+                        side_to_move=not self.perspective,
+                        n=min(self.target_n, 64),
+                        rng=self.rng,
+                    )
+                    self.last_stage_a_csp_ms += (
+                        time.perf_counter() - csp_start
+                    ) * 1000.0
+                    self.last_csp_reseed_fired += 1
+                    self.last_csp_reseed_count = len(self.particles)
+        elif pushed:
+            self.particles = pushed
+            self.weights = pushed_weights
+        elif observation is not None:
+            # v0.7.0: step 1 wiped everything — `my_move` was not pseudo-legal
+            # in any particle. Reseed via CSP using observation + opp piece-
+            # count + bishop-color constraints. Replaces v0.6.3's degenerate
+            # single-particle visibility-only seed with N rich particles that
+            # have plausible hidden-square hypotheses, so Stage B can expand
+            # opp moves immediately and per-particle eval sees realistic
+            # boards.
+            checkpoint_repaired, checkpoint_weights = self._repair_from_checkpoint(
+                facts,
+                side_to_move=not self.perspective,
+            )
+            if checkpoint_repaired:
+                resample_start = time.perf_counter()
+                self.particles, self.weights = _resample(
+                    checkpoint_repaired, checkpoint_weights, self.target_n, self.rng
+                )
+                self.last_stage_a_resample_ms += (
+                    time.perf_counter() - resample_start
+                ) * 1000.0
+                self.last_repair_fired += 1
+                self.last_repair_count = len(checkpoint_repaired)
+            else:
                 csp_start = time.perf_counter()
                 self.particles, self.weights = _csp_reseed_from_facts(
                     facts,
@@ -668,29 +803,6 @@ class BeliefState:
                 ) * 1000.0
                 self.last_csp_reseed_fired += 1
                 self.last_csp_reseed_count = len(self.particles)
-        elif pushed:
-            self.particles = pushed
-            self.weights = pushed_weights
-        elif observation is not None:
-            # v0.7.0: step 1 wiped everything — `my_move` was not pseudo-legal
-            # in any particle. Reseed via CSP using observation + opp piece-
-            # count + bishop-color constraints. Replaces v0.6.3's degenerate
-            # single-particle visibility-only seed with N rich particles that
-            # have plausible hidden-square hypotheses, so Stage B can expand
-            # opp moves immediately and per-particle eval sees realistic
-            # boards.
-            csp_start = time.perf_counter()
-            self.particles, self.weights = _csp_reseed_from_facts(
-                facts,
-                side_to_move=not self.perspective,
-                n=min(self.target_n, 64),
-                rng=self.rng,
-            )
-            self.last_stage_a_csp_ms += (
-                time.perf_counter() - csp_start
-            ) * 1000.0
-            self.last_csp_reseed_fired += 1
-            self.last_csp_reseed_count = len(self.particles)
         else:
             self.particles = []
             self.weights = []
@@ -698,6 +810,7 @@ class BeliefState:
         self.last_stage_a_elapsed_ms = (
             time.perf_counter() - update_start
         ) * 1000.0
+        self._maybe_store_good_checkpoint()
 
     def update_after_opp_move(self, obs: Observation) -> None:
         """Expand each particle by opp's pseudo-legal moves, filter by `obs` + count constraint, then resample.
@@ -715,6 +828,7 @@ class BeliefState:
         know we've captured. Drop it.
         """
         update_start = time.perf_counter()
+        self.update_index += 1
         # Reset per-update CSP diagnostics; they're set if Trigger-B fires below.
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
@@ -881,48 +995,81 @@ class BeliefState:
                 self.last_stage_b_elapsed_ms = (
                     time.perf_counter() - update_start
                 ) * 1000.0
+                self._maybe_store_good_checkpoint()
                 return
 
             # Generic CSP remains the final emergency path. It preserves hard
             # facts but discards identity continuity, so repeated rows should
             # still enter the annotation queue.
-            csp_start = time.perf_counter()
-            self.particles, self.weights = _csp_reseed_from_facts(
+            checkpoint_repaired, checkpoint_weights = self._repair_from_checkpoint(
                 facts,
                 side_to_move=self.perspective,
-                n=min(self.target_n, 64),
-                rng=self.rng,
             )
-            self.last_stage_b_csp_ms += (
-                time.perf_counter() - csp_start
-            ) * 1000.0
-            self.last_csp_reseed_fired += 1
-            self.last_csp_reseed_count = len(self.particles)
+            if checkpoint_repaired:
+                resample_start = time.perf_counter()
+                self.particles, self.weights = _resample(
+                    checkpoint_repaired, checkpoint_weights, self.target_n, self.rng
+                )
+                self.last_stage_b_resample_ms += (
+                    time.perf_counter() - resample_start
+                ) * 1000.0
+                self.last_repair_fired += 1
+                self.last_repair_count = len(checkpoint_repaired)
+            else:
+                csp_start = time.perf_counter()
+                self.particles, self.weights = _csp_reseed_from_facts(
+                    facts,
+                    side_to_move=self.perspective,
+                    n=min(self.target_n, 64),
+                    rng=self.rng,
+                )
+                self.last_stage_b_csp_ms += (
+                    time.perf_counter() - csp_start
+                ) * 1000.0
+                self.last_csp_reseed_fired += 1
+                self.last_csp_reseed_count = len(self.particles)
             self._prune_hard_opp_facts_to_particles()
             self.last_stage_b_elapsed_ms = (
                 time.perf_counter() - update_start
             ) * 1000.0
+            self._maybe_store_good_checkpoint()
             return
         else:
             # No particle had any expandable opponent move. Keeping empty
             # belief makes the next decision contradict every visible hard
             # fact, so recover from the observation directly.
-            csp_start = time.perf_counter()
-            self.particles, self.weights = _csp_reseed_from_facts(
+            checkpoint_repaired, checkpoint_weights = self._repair_from_checkpoint(
                 facts,
                 side_to_move=self.perspective,
-                n=min(self.target_n, 64),
-                rng=self.rng,
             )
-            self.last_stage_b_csp_ms += (
-                time.perf_counter() - csp_start
-            ) * 1000.0
-            self.last_csp_reseed_fired += 1
-            self.last_csp_reseed_count = len(self.particles)
+            if checkpoint_repaired:
+                resample_start = time.perf_counter()
+                self.particles, self.weights = _resample(
+                    checkpoint_repaired, checkpoint_weights, self.target_n, self.rng
+                )
+                self.last_stage_b_resample_ms += (
+                    time.perf_counter() - resample_start
+                ) * 1000.0
+                self.last_repair_fired += 1
+                self.last_repair_count = len(checkpoint_repaired)
+            else:
+                csp_start = time.perf_counter()
+                self.particles, self.weights = _csp_reseed_from_facts(
+                    facts,
+                    side_to_move=self.perspective,
+                    n=min(self.target_n, 64),
+                    rng=self.rng,
+                )
+                self.last_stage_b_csp_ms += (
+                    time.perf_counter() - csp_start
+                ) * 1000.0
+                self.last_csp_reseed_fired += 1
+                self.last_csp_reseed_count = len(self.particles)
             self._prune_hard_opp_facts_to_particles()
             self.last_stage_b_elapsed_ms = (
                 time.perf_counter() - update_start
             ) * 1000.0
+            self._maybe_store_good_checkpoint()
             return
 
         if (
@@ -977,6 +1124,7 @@ class BeliefState:
         self.last_stage_b_elapsed_ms = (
             time.perf_counter() - update_start
         ) * 1000.0
+        self._maybe_store_good_checkpoint()
 
     def marginal_piece_at(
         self, square: chess.Square

@@ -51,6 +51,53 @@ def test_repair_diagnostics_flags_king_teleport() -> None:
     assert diag.cost >= 40
 
 
+def test_stage_b_uses_checkpoint_repair_before_generic_csp() -> None:
+    import random
+
+    checkpoint = chess.Board.empty()
+    checkpoint.turn = chess.BLACK
+    checkpoint.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    checkpoint.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    checkpoint.set_piece_at(chess.B6, chess.Piece(chess.PAWN, chess.BLACK))
+
+    stale = chess.Board.empty()
+    stale.turn = chess.BLACK
+    stale.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+
+    truth = checkpoint.copy()
+    truth.turn = chess.WHITE
+    obs = Observation(
+        visibility_mask=visible_squares(truth, chess.WHITE),
+        visible_pieces=visible_piece_map(truth, chess.WHITE),
+    )
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=8,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {chess.KING: 1, chess.PAWN: 1}
+    belief.opp_bishop_colors_remaining = {True: 0, False: 0}
+    belief.checkpoint_particles = [checkpoint]
+    belief.checkpoint_weights = [1.0]
+    belief.checkpoint_update_index = 0
+
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_checkpoint_repair_fired == 1
+    assert belief.last_checkpoint_repair_count == 1
+    assert belief.last_csp_reseed_fired == 0
+    assert belief.particles
+    assert all(
+        particle.piece_at(chess.H8) == chess.Piece(chess.KING, chess.BLACK)
+        and particle.piece_at(chess.B6) == chess.Piece(chess.PAWN, chess.BLACK)
+        for particle in belief.particles
+    )
+
+
 def test_canonical_truth_survives_opp_move_update() -> None:
     seed = chess.Board()
     seed.push_uci("e2e4")

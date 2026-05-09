@@ -175,6 +175,9 @@ def score_trace_row(
         elif repair_cost_max >= 40:
             add(reasons, "repair-cost>=40", 6)
             score += 6
+    if row.get("checkpoint_repair_fired") is True:
+        add(reasons, "checkpoint-repair", 16)
+        score += 16
 
     score += score_particle_drop(reasons, row, "stage_a")
     score += score_particle_drop(reasons, row, "stage_b")
@@ -462,6 +465,9 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "repair_teleport_like_count",
         "repair_long_move_count",
         "repair_forced_visible_square_count",
+        "checkpoint_repair_fired",
+        "checkpoint_repair_count",
+        "checkpoint_repair_age",
         "repair_stage_a",
         "repair_stage_b",
         "repair_cost_max_stage_a",
@@ -470,6 +476,12 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "repair_teleport_like_count_stage_b",
         "repair_long_move_count_stage_a",
         "repair_long_move_count_stage_b",
+        "checkpoint_repair_stage_a",
+        "checkpoint_repair_stage_b",
+        "checkpoint_repair_count_stage_a",
+        "checkpoint_repair_count_stage_b",
+        "checkpoint_repair_age_stage_a",
+        "checkpoint_repair_age_stage_b",
     ]
     return {key: row[key] for key in keys if key in row}
 

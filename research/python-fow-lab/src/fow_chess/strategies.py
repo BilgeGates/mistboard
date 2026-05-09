@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.30"
+TIER1_VERSION = "0.7.31"
 
 
 def tier1_commit() -> str:
@@ -981,6 +981,18 @@ class Tier1Strategy:
             pending_steps.get("repair_forced_visible_square_count_stage_a", 0)
             + pending_steps.get("repair_forced_visible_square_count_stage_b", 0)
         )
+        checkpoint_repair_fired = bool(
+            pending_steps.get("checkpoint_repair_stage_a", 0)
+            or pending_steps.get("checkpoint_repair_stage_b", 0)
+        )
+        checkpoint_repair_count = max(
+            pending_steps.get("checkpoint_repair_count_stage_a", 0),
+            pending_steps.get("checkpoint_repair_count_stage_b", 0),
+        )
+        checkpoint_repair_age = max(
+            pending_steps.get("checkpoint_repair_age_stage_a", 0),
+            pending_steps.get("checkpoint_repair_age_stage_b", 0),
+        )
         record = {
             "tier1_move_count": self._tier1_move_count,
             "ply": ply,
@@ -1005,6 +1017,9 @@ class Tier1Strategy:
             "repair_teleport_like_count": repair_teleport_like_count,
             "repair_long_move_count": repair_long_move_count,
             "repair_forced_visible_square_count": repair_forced_visible_square_count,
+            "checkpoint_repair_fired": checkpoint_repair_fired,
+            "checkpoint_repair_count": checkpoint_repair_count,
+            "checkpoint_repair_age": checkpoint_repair_age,
         }
         if self._last_decision_view is not None:
             record.update(self._decision_audit(chosen, self._last_decision_view))
@@ -1218,6 +1233,16 @@ class Tier1Strategy:
                 "repair_unpaired_removed_count": (
                     self._belief.last_repair_unpaired_removed_count
                 ),
+                "checkpoint_repair_fired": bool(
+                    self._belief.last_checkpoint_repair_fired
+                ),
+                "checkpoint_repair_count": (
+                    self._belief.last_checkpoint_repair_count
+                ),
+                "checkpoint_repair_age": self._belief.last_checkpoint_repair_age,
+                "checkpoint_repair_unique": (
+                    self._belief.last_checkpoint_repair_unique
+                ),
                 "hard_facts": self._belief.hard_fact_summary(),
                 "marginal_field": _marginal_field_for_json(
                     self._belief.marginal_piece_field()
@@ -1325,6 +1350,18 @@ class Tier1Strategy:
         )
         self._pending_belief_steps["repair_unpaired_removed_count_stage_a"] = (
             self._belief.last_repair_unpaired_removed_count
+        )
+        self._pending_belief_steps["checkpoint_repair_stage_a"] = (
+            self._belief.last_checkpoint_repair_fired
+        )
+        self._pending_belief_steps["checkpoint_repair_count_stage_a"] = (
+            self._belief.last_checkpoint_repair_count
+        )
+        self._pending_belief_steps["checkpoint_repair_age_stage_a"] = (
+            self._belief.last_checkpoint_repair_age
+        )
+        self._pending_belief_steps["checkpoint_repair_unique_stage_a"] = (
+            self._belief.last_checkpoint_repair_unique
         )
         self._observed_ply += 1
         self._append_belief_snapshot(
@@ -2038,6 +2075,18 @@ class Tier1Strategy:
         )
         self._pending_belief_steps["repair_unpaired_removed_count_stage_b"] = (
             self._belief.last_repair_unpaired_removed_count
+        )
+        self._pending_belief_steps["checkpoint_repair_stage_b"] = (
+            self._belief.last_checkpoint_repair_fired
+        )
+        self._pending_belief_steps["checkpoint_repair_count_stage_b"] = (
+            self._belief.last_checkpoint_repair_count
+        )
+        self._pending_belief_steps["checkpoint_repair_age_stage_b"] = (
+            self._belief.last_checkpoint_repair_age
+        )
+        self._pending_belief_steps["checkpoint_repair_unique_stage_b"] = (
+            self._belief.last_checkpoint_repair_unique
         )
         self._observed_ply += 1
         self._append_belief_snapshot(
