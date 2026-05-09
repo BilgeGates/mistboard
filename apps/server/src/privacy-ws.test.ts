@@ -122,6 +122,62 @@ test('copied client id without a seat token cannot reclaim a private PvP seat', 
   assert.deepEqual(rejected.messages, []);
 });
 
+test('wrong seat token cannot reclaim a private PvP seat', async (t) => {
+  const { port } = await startServer(t);
+  const clients: TestClient[] = [];
+  t.after(async () => closeClients(clients));
+
+  const room = `ws-wrong-token-${Date.now()}`;
+  clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
+  clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
+
+  const rejected = await connectForClose(
+    port,
+    `room=${room}&client=white-replacement-0001`,
+    { seatToken: 'not-the-issued-seat-token' },
+  );
+
+  assert.equal(rejected.code, 1008);
+  assert.equal(rejected.reason, 'private room');
+  assert.deepEqual(rejected.messages, []);
+});
+
+test('unknown client cannot take an abandoned active private PvP seat', async (t) => {
+  const { port } = await startServer(t);
+  const clients: TestClient[] = [];
+  t.after(async () => closeClients(clients));
+
+  const room = `ws-active-abandoned-${Date.now()}`;
+  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
+  const black = await connectForHello(port, `room=${room}&client=black-client-0001`);
+  clients.push(white, black);
+
+  const whiteReady = await waitForMessage(
+    white.messages,
+    (message) => message.state.status.type === 'playing'
+      && message.state.status.turn === 'white'
+      && message.state.legalMoves.length > 0,
+    'initial white turn',
+  );
+  white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteReady) }));
+  await waitForMessage(
+    black.messages,
+    (message) => message.state.status.type === 'playing'
+      && message.state.status.turn === 'black',
+    'black turn after first move',
+  );
+
+  const blackClosed = waitForSocketClose(black.socket);
+  black.socket.close();
+  await blackClosed;
+
+  const rejected = await connectForClose(port, `room=${room}&client=unknown-client-001`);
+
+  assert.equal(rejected.code, 1008);
+  assert.equal(rejected.reason, 'private room');
+  assert.deepEqual(rejected.messages, []);
+});
+
 test('live PvE observer receives the human perspective and not engine moves', async (t) => {
   const { port } = await startServer(t);
   const clients: TestClient[] = [];
@@ -308,8 +364,9 @@ function connectForHello(port: number, query: string, options: { seatToken?: str
   });
 }
 
-function connectForClose(port: number, query: string): Promise<{ code: number; messages: SnapshotMessage[]; reason: string }> {
-  const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`);
+function connectForClose(port: number, query: string, options: { seatToken?: string } = {}): Promise<{ code: number; messages: SnapshotMessage[]; reason: string }> {
+  const protocols = options.seatToken ? [`bichess-seat.${options.seatToken}`] : undefined;
+  const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`, protocols);
   const messages: SnapshotMessage[] = [];
   socket.on('message', (raw) => {
     const message = JSON.parse(String(raw)) as SnapshotMessage;

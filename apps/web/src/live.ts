@@ -22,7 +22,7 @@ import './styles.css';
 
 type Seat = Color | 'spectator';
 type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
-type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'displaced';
+type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'displaced' | 'rejected';
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
 type PendingPromotion = {
   color: Color;
@@ -137,6 +137,7 @@ let offer: Chess960Start[] = [];
 let clientId = '';
 let clientCount = 0;
 let connectionState: ConnectionState = 'connecting';
+let closeReason = '';
 let latencyMs: number | null = null;
 let lastServerAt: number | null = null;
 let lastSnapshotAt: number | null = null;
@@ -185,8 +186,15 @@ function connectSocket(): void {
   });
   nextSocket.addEventListener('close', (event) => {
     if (socket !== nextSocket) return;
+    closeReason = event.reason;
     if (event.code === 4000 && event.reason === 'duplicate session') {
       connectionState = 'displaced';
+      socket = null;
+      render();
+      return;
+    }
+    if (event.code === 1008) {
+      connectionState = 'rejected';
       socket = null;
       render();
       return;
@@ -254,7 +262,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
 }
 
 function scheduleReconnect(): void {
-  if (connectionState === 'displaced') return;
+  if (connectionState === 'displaced' || connectionState === 'rejected') return;
   if (reconnectTimer) return;
   reconnectAttempt += 1;
   const delay = Math.min(10_000, 750 * 2 ** Math.min(reconnectAttempt - 1, 4));
@@ -264,13 +272,13 @@ function scheduleReconnect(): void {
 }
 
 function reconnectNow(): void {
-  if (connectionState === 'displaced') return;
+  if (connectionState === 'displaced' || connectionState === 'rejected') return;
   reconnectAttempt = 0;
   connectSocket();
 }
 
 function sendSocket(payload: unknown): boolean {
-  if (connectionState === 'displaced') return false;
+  if (connectionState === 'displaced' || connectionState === 'rejected') return false;
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     connectionState = 'reconnecting';
     scheduleReconnect();
@@ -1105,6 +1113,7 @@ function replayMetaLabel(): string {
 }
 
 function actionTone(view: PlayerView | null): InfoTone {
+  if (connectionState === 'rejected') return 'danger';
   if (connectionState === 'displaced') return 'danger';
   if (connectionState === 'disconnected') return 'danger';
   if (!view || connectionState === 'connecting' || connectionState === 'reconnecting') return 'pending';
@@ -1116,6 +1125,7 @@ function actionTone(view: PlayerView | null): InfoTone {
 }
 
 function actionTitle(view: PlayerView | null): string {
+  if (connectionState === 'rejected') return 'Access rejected';
   if (connectionState === 'displaced') return 'Session moved';
   if (connectionState === 'disconnected' || connectionState === 'reconnecting') return 'Reconnecting';
   if (!view || connectionState === 'connecting') return 'Connecting';
@@ -1128,6 +1138,7 @@ function actionTitle(view: PlayerView | null): string {
 }
 
 function actionBody(view: PlayerView | null): string {
+  if (connectionState === 'rejected') return rejectedBody();
   if (connectionState === 'displaced') return 'A newer tab is now controlling this seat.';
   if (connectionState === 'disconnected') return 'The socket closed. Bichess will retry automatically.';
   if (connectionState === 'reconnecting') return 'Trying to restore your room state and seat.';
@@ -1185,6 +1196,7 @@ function timeControlLabel(view: PlayerView | null): string {
 }
 
 function connectionLabel(): string {
+  if (connectionState === 'rejected') return 'Access rejected';
   if (connectionState === 'displaced') return 'Session moved';
   if (connectionState === 'connected' && latencyMs !== null) return `Connected · ${latencyMs}ms`;
   if (connectionState === 'reconnecting') return `Reconnecting · attempt ${reconnectAttempt}`;
@@ -1371,9 +1383,17 @@ async function copyShareLink(input: HTMLInputElement): Promise<void> {
 }
 
 function boardStatusLabel(): string {
+  if (connectionState === 'rejected') return 'Access rejected';
   if (connectionState === 'displaced') return 'Session moved';
   if (connectionState === 'disconnected' || connectionState === 'reconnecting') return 'Reconnecting';
   return clientId ? 'Waiting for board' : 'Connecting';
+}
+
+function rejectedBody(): string {
+  if (closeReason === 'private room') return 'This live room is private to the seated players.';
+  if (closeReason === 'origin not allowed') return 'This browser origin is not allowed to open the room.';
+  if (closeReason === 'rate limit') return 'The room connection was closed after too many messages.';
+  return 'The server rejected this room connection.';
 }
 
 function escapeHtml(value: string): string {
