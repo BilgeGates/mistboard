@@ -968,6 +968,7 @@ class Tier1Strategy:
         particle_count_pre: int,
         chosen: chess.Move,
         top_k_scores: list[tuple[str, float, float]] | None = None,
+        decision_weight_modes: dict | None = None,
     ) -> None:
         self._tier1_move_count += 1
         # Decision snapshot is for the move about to be played. Observed-ply
@@ -1082,6 +1083,7 @@ class Tier1Strategy:
             "decision_path": decision_path,
             "particle_count_pre_sample": particle_count_pre,
             "belief_unique_count": belief_unique,
+            "particle_weight_profile": self._belief.particle_weight_profile(k=5),
             "move_chosen_uci": chosen.uci(),
             "chosen_move_belief_support": support_weight,
             "chosen_move_belief_support_count": support_count,
@@ -1090,6 +1092,7 @@ class Tier1Strategy:
                 {"uci": uci, "score": score, "support": support}
                 for uci, score, support in (top_k_scores or [])
             ],
+            "decision_weight_modes": decision_weight_modes,
             "opp_remaining_counts": opp_counts,
             "csp_reseed_fired": csp_reseed_fired,
             "csp_reseed_count": csp_reseed_count,
@@ -1130,6 +1133,7 @@ class Tier1Strategy:
                 csp_reseed_count=csp_reseed_count,
                 repair_fired=repair_fired,
                 repair_count=repair_count,
+                decision_weight_modes=decision_weight_modes,
             )
 
     def _belief_move_support_stats(self, move: chess.Move) -> tuple[float, int, int]:
@@ -1190,6 +1194,145 @@ class Tier1Strategy:
             "chosen_move_piece_capture_risk": piece_risk,
             "chosen_move_risk_support_count": risk_support,
             "chosen_move_risk_support_unique": risk_unique,
+        }
+
+    def _decision_weight_mode_scores(
+        self,
+        evaluator,
+        moves: list[chess.Move],
+        *,
+        max_clusters: int = 32,
+        top_n: int = 5,
+    ) -> dict:
+        """Compare candidate move scores under multiple particle weight modes.
+
+        Diagnostic-only bridge toward the forest evaluator. Current move choice
+        still comes from `best_action`; this answers whether the same candidate
+        list would pick a different move if distinct-world appearance or
+        uniform-cluster voting replaced posterior mass.
+        """
+        assert self._belief is not None
+        if not moves or not self._belief.particles:
+            return {
+                "sample": {
+                    "selected_clusters": 0,
+                    "total_unique_clusters": 0,
+                    "max_clusters": max_clusters,
+                },
+                "mode_winners": {},
+                "winner_disagreement": False,
+                "modes": {},
+            }
+
+        total_weight = sum(self._belief.weights)
+        if total_weight <= 0:
+            return {
+                "sample": {
+                    "selected_clusters": 0,
+                    "total_unique_clusters": 0,
+                    "max_clusters": max_clusters,
+                },
+                "mode_winners": {},
+                "winner_disagreement": False,
+                "modes": {},
+            }
+
+        board_by_fen: dict[str, chess.Board] = {}
+        weights_by_fen: dict[str, float] = {}
+        counts_by_fen: dict[str, int] = {}
+        for board, weight in zip(self._belief.particles, self._belief.weights):
+            fen = board.fen()
+            board_by_fen.setdefault(fen, board)
+            weights_by_fen[fen] = weights_by_fen.get(fen, 0.0) + weight
+            counts_by_fen[fen] = counts_by_fen.get(fen, 0) + 1
+
+        total_unique = len(board_by_fen)
+        posterior_order = sorted(
+            board_by_fen,
+            key=lambda fen: (-(weights_by_fen[fen] / total_weight), fen),
+        )
+        appearance_order = sorted(
+            board_by_fen,
+            key=lambda fen: (-(counts_by_fen[fen] / len(self._belief.particles)), fen),
+        )
+        selected: list[str] = []
+        seen: set[str] = set()
+        for order in (posterior_order, appearance_order):
+            for fen in order:
+                if fen in seen:
+                    continue
+                seen.add(fen)
+                selected.append(fen)
+                if len(selected) >= max_clusters:
+                    break
+            if len(selected) >= max_clusters:
+                break
+
+        if not selected:
+            return {
+                "sample": {
+                    "selected_clusters": 0,
+                    "total_unique_clusters": total_unique,
+                    "max_clusters": max_clusters,
+                },
+                "mode_winners": {},
+                "winner_disagreement": False,
+                "modes": {},
+            }
+
+        posterior_total = sum(weights_by_fen[fen] for fen in selected)
+        appearance_total = sum(counts_by_fen[fen] for fen in selected)
+        modes = {
+            "posterior": {
+                fen: weights_by_fen[fen] / posterior_total for fen in selected
+            },
+            "appearance": {
+                fen: counts_by_fen[fen] / appearance_total for fen in selected
+            },
+            "uniform_distinct": {fen: 1.0 / len(selected) for fen in selected},
+        }
+
+        mode_rows: dict[str, list[dict]] = {}
+        winners: dict[str, str | None] = {}
+        for mode_name, masses in modes.items():
+            scored: list[dict] = []
+            for move in moves:
+                support_mass = 0.0
+                support_clusters = 0
+                weighted_score = 0.0
+                for fen, mass in masses.items():
+                    board = board_by_fen[fen]
+                    if not board.is_pseudo_legal(move):
+                        continue
+                    support_mass += mass
+                    support_clusters += 1
+                    weighted_score += mass * evaluator(
+                        board, move, self._belief.perspective
+                    )
+                if support_mass <= 0:
+                    continue
+                scored.append(
+                    {
+                        "uci": move.uci(),
+                        "score": weighted_score / support_mass,
+                        "support_mass": support_mass,
+                        "support_clusters": support_clusters,
+                    }
+                )
+            scored.sort(key=lambda row: (-row["score"], row["uci"]))
+            mode_rows[mode_name] = scored[:top_n]
+            winners[mode_name] = scored[0]["uci"] if scored else None
+
+        non_null_winners = {winner for winner in winners.values() if winner is not None}
+        return {
+            "sample": {
+                "selected_clusters": len(selected),
+                "total_unique_clusters": total_unique,
+                "max_clusters": max_clusters,
+            },
+            "mode_winners": winners,
+            "winner_disagreement": len(non_null_winners) > 1,
+            "modes": mode_rows,
         }
 
     def _belief_immediate_king_risk(
@@ -1265,6 +1408,7 @@ class Tier1Strategy:
         csp_reseed_count: int | None = None,
         repair_fired: bool | None = None,
         repair_count: int | None = None,
+        decision_weight_modes: dict | None = None,
     ) -> None:
         assert self._belief is not None
         if not self.verbose_belief_capture:
@@ -1363,6 +1507,8 @@ class Tier1Strategy:
                     {"fen": fen, "weight": weight, "particle_count": count}
                     for fen, weight, count in self._belief.top_k_clusters()
                 ],
+                "particle_weight_profile": self._belief.particle_weight_profile(k=8),
+                "decision_weight_modes": decision_weight_modes,
             }
         )
 
@@ -2578,6 +2724,11 @@ class Tier1Strategy:
             deadline_monotonic=deadline_monotonic,
             out_scored_moves=scored,
         )
+        decision_weight_modes = self._decision_weight_mode_scores(
+            evaluator,
+            legal_moves,
+            max_clusters=max(16, self.max_eval_particles),
+        )
         # Top 5 moves by aggregated score; only surface what the trace actually needs.
         scored.sort(key=lambda r: -r[1])
         top_k = [(m.uci(), s, support) for m, s, support in scored[:5]]
@@ -2587,7 +2738,13 @@ class Tier1Strategy:
             chosen = lva_chosen
             decision_path = "main-eval-lva-capture"
         self._stage_pending_capture(chosen, view)
-        self._emit_trace(decision_path, particle_count_pre, chosen, top_k_scores=top_k)
+        self._emit_trace(
+            decision_path,
+            particle_count_pre,
+            chosen,
+            top_k_scores=top_k,
+            decision_weight_modes=decision_weight_modes,
+        )
         return chosen
 
     def _fallback_pick_move(self, view: PerspectiveView) -> chess.Move:

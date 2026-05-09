@@ -257,6 +257,38 @@ def test_top_k_clusters_are_weighted_and_deterministically_ordered() -> None:
     assert clusters[0][2] == 1
 
 
+def test_particle_weight_profile_separates_posterior_from_appearance() -> None:
+    e4 = chess.Board()
+    e4.push_uci("e2e4")
+    d4 = chess.Board()
+    d4.push_uci("d2d4")
+    d4_duplicate = d4.copy()
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        particles=[e4, d4, d4_duplicate],
+        weights=[8.0, 1.0, 1.0],
+    )
+
+    profile = belief.particle_weight_profile(k=2)
+
+    assert profile["summary"]["particle_count"] == 3
+    assert profile["summary"]["unique_count"] == 2
+    assert profile["summary"]["posterior_top1_mass"] == 0.8
+    assert profile["summary"]["appearance_top1_mass"] == 2 / 3
+    clusters = profile["clusters"]
+    assert clusters[0]["fen"] == e4.fen()
+    assert clusters[0]["posterior_mass"] == 0.8
+    assert clusters[0]["appearance_mass"] == 1 / 3
+    assert clusters[0]["posterior_rank"] == 1
+    assert clusters[0]["appearance_rank"] == 2
+    assert clusters[1]["fen"] == d4.fen()
+    assert clusters[1]["posterior_mass"] == 0.2
+    assert clusters[1]["appearance_mass"] == 2 / 3
+    assert clusters[1]["posterior_rank"] == 2
+    assert clusters[1]["appearance_rank"] == 1
+
+
 def test_stage_a_repairs_when_post_own_observation_kills_all_particles() -> None:
     """Post-own-move visible pieces are hard facts.
 

@@ -176,6 +176,56 @@ def test_main_eval_capture_spends_lower_value_attacker_on_same_target() -> None:
     assert strategy.trace_log[-1]["decision_path"] == "main-eval-lva-capture"
 
 
+def test_main_eval_trace_reports_weight_mode_disagreement() -> None:
+    # Posterior mass strongly trusts particle A, while uniform distinct worlds
+    # give particle B equal voice. The trace should surface that disagreement
+    # without changing the posterior-selected move.
+    particle_a = chess.Board.empty()
+    particle_a.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    particle_a.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    particle_a.set_piece_at(chess.A1, chess.Piece(chess.ROOK, chess.WHITE))
+    particle_a.set_piece_at(chess.H7, chess.Piece(chess.PAWN, chess.BLACK))
+    particle_a.turn = chess.WHITE
+
+    particle_b = particle_a.copy()
+    particle_b.remove_piece_at(chess.H7)
+    particle_b.set_piece_at(chess.G7, chess.Piece(chess.PAWN, chess.BLACK))
+
+    def world_sensitive_evaluator(
+        board: chess.Board, move: chess.Move, _perspective: chess.Color
+    ) -> float:
+        if board.piece_at(chess.H7) is not None:
+            return 100.0 if move.uci() == "a1a2" else 0.0
+        return 200.0 if move.uci() == "a1b1" else 0.0
+
+    strategy = Tier1Strategy(
+        evaluator_builder=static_builder(world_sensitive_evaluator),
+        move_prior=uniform_prior,
+        target_n=2,
+        max_eval_particles=2,
+        seed=0,
+    )
+    strategy.reset(perspective=chess.WHITE)
+    strategy._observed_ply = 20
+    strategy._belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=2,
+        particles=[particle_a, particle_b],
+        weights=[9.0, 1.0],
+    )
+
+    view = _build_view(particle_a, chess.WHITE)
+    chosen = strategy.pick_move(view)
+    modes = strategy.trace_log[-1]["decision_weight_modes"]
+
+    assert chosen.uci() == "a1a2"
+    assert modes["winner_disagreement"] is True
+    assert modes["mode_winners"]["posterior"] == "a1a2"
+    assert modes["mode_winners"]["appearance"] == "a1b1"
+    assert modes["mode_winners"]["uniform_distinct"] == "a1b1"
+
+
 def test_king_capture_beats_queen_capture() -> None:
     # Black has both a king-capture (rook on g8 → enemy king on g1) AND a
     # queen-capture (knight on f3 → enemy queen on h2). King-capture must win.

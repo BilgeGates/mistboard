@@ -1313,6 +1313,117 @@ class BeliefState:
         clusters.sort(key=lambda item: (-item[1], item[0]))
         return clusters[:k]
 
+    def particle_weight_profile(self, k: int = 8) -> dict:
+        """Diagnostic profile of distinct-world particle weighting.
+
+        The current scalar `weights` are a posterior-like mixture of move
+        priors, observation filtering, resampling, repair, and CSP proposal
+        artifacts. The forest lane needs to inspect that mass separately from
+        raw appearance frequency, so this returns both channels per distinct
+        FEN:
+
+        - `posterior_mass`: normalized sum of particle weights for the FEN.
+        - `appearance_mass`: count of appearances divided by total particles.
+
+        This is diagnostic-only for now; decision code still consumes
+        `self.weights` exactly as before.
+        """
+        particle_count = len(self.particles)
+        if k <= 0 or particle_count <= 0:
+            return {
+                "summary": {
+                    "particle_count": particle_count,
+                    "unique_count": 0,
+                    "effective_cluster_count": 0.0,
+                    "posterior_top1_mass": 0.0,
+                    "appearance_top1_mass": 0.0,
+                    "posterior_entropy": 0.0,
+                    "posterior_entropy_norm": 0.0,
+                },
+                "clusters": [],
+            }
+
+        total = sum(self.weights)
+        if total <= 0:
+            return {
+                "summary": {
+                    "particle_count": particle_count,
+                    "unique_count": 0,
+                    "effective_cluster_count": 0.0,
+                    "posterior_top1_mass": 0.0,
+                    "appearance_top1_mass": 0.0,
+                    "posterior_entropy": 0.0,
+                    "posterior_entropy_norm": 0.0,
+                },
+                "clusters": [],
+            }
+
+        weights_by_fen: dict[str, float] = defaultdict(float)
+        counts_by_fen: dict[str, int] = defaultdict(int)
+        for board, weight in zip(self.particles, self.weights):
+            fen = board.fen()
+            weights_by_fen[fen] += weight
+            counts_by_fen[fen] += 1
+
+        unique_count = len(weights_by_fen)
+        posterior_by_fen = {
+            fen: weight / total for fen, weight in weights_by_fen.items()
+        }
+        appearance_by_fen = {
+            fen: counts_by_fen[fen] / particle_count for fen in weights_by_fen
+        }
+        posterior_order = sorted(
+            weights_by_fen,
+            key=lambda fen: (-posterior_by_fen[fen], fen),
+        )
+        appearance_order = sorted(
+            weights_by_fen,
+            key=lambda fen: (-appearance_by_fen[fen], fen),
+        )
+        posterior_rank = {fen: idx + 1 for idx, fen in enumerate(posterior_order)}
+        appearance_rank = {fen: idx + 1 for idx, fen in enumerate(appearance_order)}
+
+        posterior_entropy = -sum(
+            mass * math.log(mass) for mass in posterior_by_fen.values() if mass > 0
+        )
+        posterior_entropy_norm = (
+            posterior_entropy / math.log(unique_count) if unique_count > 1 else 0.0
+        )
+        effective_cluster_count = 1.0 / sum(
+            mass * mass for mass in posterior_by_fen.values()
+        )
+
+        clusters = [
+            {
+                "fen": fen,
+                "particle_count": counts_by_fen[fen],
+                "posterior_mass": posterior_by_fen[fen],
+                "appearance_mass": appearance_by_fen[fen],
+                "posterior_rank": posterior_rank[fen],
+                "appearance_rank": appearance_rank[fen],
+                "posterior_minus_appearance": (
+                    posterior_by_fen[fen] - appearance_by_fen[fen]
+                ),
+            }
+            for fen in posterior_order[:k]
+        ]
+        return {
+            "summary": {
+                "particle_count": particle_count,
+                "unique_count": unique_count,
+                "effective_cluster_count": effective_cluster_count,
+                "posterior_top1_mass": (
+                    posterior_by_fen[posterior_order[0]] if posterior_order else 0.0
+                ),
+                "appearance_top1_mass": (
+                    appearance_by_fen[appearance_order[0]] if appearance_order else 0.0
+                ),
+                "posterior_entropy": posterior_entropy,
+                "posterior_entropy_norm": posterior_entropy_norm,
+            },
+            "clusters": clusters,
+        }
+
     def collapsed(self) -> bool:
         """True if no particle survived the most recent update; signals a tracker bug or rule mismatch."""
         return not self.particles
