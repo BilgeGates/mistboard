@@ -142,7 +142,7 @@ async function runPythonLiveMoveProcess(
   const python = process.env.PYTHON_ENGINE_PYTHON ?? defaultPythonEngineBinary();
   const script = process.env.PYTHON_ENGINE_LIVE_RUNNER
     ?? resolve(REPO_ROOT, 'research', 'python-fow-lab', 'scripts', 'live_move_runner.py');
-  const stockfishPath = process.env.PYTHON_ENGINE_STOCKFISH_PATH ?? process.env.STOCKFISH_PATH;
+  const stockfishPath = process.env.PYTHON_ENGINE_STOCKFISH_PATH ?? process.env.STOCKFISH_PATH ?? defaultStockfishPath();
   const payload = stockfishPath ? { ...request, stockfishPath } : request;
 
   return new Promise((resolvePromise, reject) => {
@@ -191,6 +191,13 @@ async function runPythonLiveMoveProcess(
 function defaultPythonEngineBinary(): string {
   const venvPython = resolve(REPO_ROOT, 'research', 'python-fow-lab', '.venv', 'bin', 'python');
   return existsSync(venvPython) ? venvPython : 'python3';
+}
+
+function defaultStockfishPath(): string | undefined {
+  for (const candidate of ['/usr/games/stockfish', '/usr/bin/stockfish', '/opt/homebrew/bin/stockfish']) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return undefined;
 }
 
 function parsePythonLiveMoveResult(value: unknown): PythonLiveMoveResult {
