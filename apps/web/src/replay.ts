@@ -1,7 +1,9 @@
 import {
+  clockRemainingMs,
   fogOfWarVariant,
   replayGameEvents,
   type Board,
+  type ClockState,
   type Color,
   type GameEvent,
   type GameState,
@@ -44,6 +46,7 @@ export type GameMeta = {
   whiteName: string | null;
   blackName: string | null;
   result: string;
+  timeControl?: Record<string, unknown> | null;
   termination: string;
   plyCount: number;
 };
@@ -58,7 +61,9 @@ export type ReplayOptions = {
   revealOnFinish?: boolean;
   /** When false, the prev/next/play control bar is hidden (autoplay-only mode). */
   showControls?: boolean;
-  /** Board orientation for the black-view pane. Defaults to Black's perspective. */
+  /** Initial board orientation for all replay panes. Defaults to White's perspective. */
+  orientation?: Color;
+  /** @deprecated Use orientation. Kept for older callers. */
   blackOrientation?: Color;
   /** When set, after each game finishes the next sample loads automatically. */
   loopSamples?: string[];
@@ -107,7 +112,7 @@ export async function mountReplay(
 ): Promise<void> {
   const reveal = options.revealOnFinish !== false;
   const showControls = options.showControls !== false;
-  const blackOrientation = options.blackOrientation ?? 'black';
+  let boardOrientation = options.orientation ?? options.blackOrientation ?? 'white';
   const loopSamples = options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const autoplay = options.autoplay === true || loopSamples !== undefined;
@@ -141,25 +146,28 @@ export async function mountReplay(
 
   const gameIdFooter = metadataByRoomId ? createGameIdFooter() : null;
   if (gameIdFooter) root.append(gameIdFooter);
+  const clockPanel = createClockPanel();
+  root.append(clockPanel.el);
 
   const firstBtn = controlButton('|◀', 'Jump to start');
   const prevBtn = controlButton('◀', 'Previous ply');
   const playBtn = controlButton('▶ Play', 'Play');
   const nextBtn = controlButton('▶', 'Next ply');
   const lastBtn = controlButton('▶|', 'Jump to end');
+  const flipBtn = controlButton('Flip', 'Flip all boards');
   const plyLabel = document.createElement('span');
   plyLabel.className = 'replay-ply-label';
 
   if (showControls) {
     const controls = document.createElement('div');
     controls.className = 'replay-controls';
-    controls.append(firstBtn, prevBtn, playBtn, nextBtn, lastBtn, plyLabel);
+    controls.append(firstBtn, prevBtn, playBtn, nextBtn, lastBtn, flipBtn, plyLabel);
     root.append(controls);
   }
 
-  const whiteCg = createBoard(whitePane.boardEl, 'white');
-  const truthCg = createBoard(truthPane.boardEl, 'white');
-  const blackCg = createBoard(blackPane.boardEl, blackOrientation);
+  const whiteCg = createBoard(whitePane.boardEl, boardOrientation);
+  const truthCg = createBoard(truthPane.boardEl, boardOrientation);
+  const blackCg = createBoard(blackPane.boardEl, boardOrientation);
 
   const annotation = options.annotation;
   const belief = options.belief;
@@ -210,6 +218,7 @@ export async function mountReplay(
     const projection = replayGameEvents(sliced);
     const state = projection.state;
     const finished = state.status.type === 'finished';
+    renderClockPanel(clockPanel, state.clock, state, currentMeta());
 
     setBoardFromState(truthCg, state);
 
@@ -518,12 +527,9 @@ export async function mountReplay(
     if (autoplay) startPlay();
   }
 
-  let truthOrientation: Color = 'white';
-
   function applyPerspective(): void {
     const tier1Color = annotation?.tier1ColorForSampleId(activeSample) ?? null;
-    truthOrientation = tier1Color ?? 'white';
-    truthCg.set({ orientation: truthOrientation });
+    applyBoardOrientation();
     if (tier1Color === 'black') {
       layout.replaceChildren(blackPane.el, truthPane.el, whitePane.el);
     } else {
@@ -539,14 +545,14 @@ export async function mountReplay(
   if (annotation && annotForm) {
     truthPane.boardEl.style.cursor = 'crosshair';
     truthPane.boardEl.addEventListener('click', (e) => {
-      const sq = squareFromCgBoardClick(truthPane.boardEl, e, truthOrientation);
+      const sq = squareFromCgBoardClick(truthPane.boardEl, e, boardOrientation);
       if (sq) annotForm?.appendPickedSquare(sq);
     });
   }
 
 
   function applyMetadata(): void {
-    const meta = metadataByRoomId?.[activeSample];
+    const meta = currentMeta();
     whitePane.nameEl.textContent = meta?.whiteName ?? '';
     blackPane.nameEl.textContent = meta?.blackName ?? '';
     if (gameIdFooter) {
@@ -559,6 +565,10 @@ export async function mountReplay(
     whitePane.statusEl.textContent = '';
     blackPane.statusEl.textContent = '';
     truthPane.statusEl.textContent = '';
+  }
+
+  function currentMeta(): GameMeta | undefined {
+    return metadataByRoomId?.[activeSample];
   }
 
   function applyEndGameState(state: GameState): void {
@@ -636,6 +646,10 @@ export async function mountReplay(
         startPlay();
       }
     });
+    flipBtn.addEventListener('click', () => {
+      boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
+      applyBoardOrientation();
+    });
   }
 
   document.addEventListener(
@@ -672,6 +686,12 @@ export async function mountReplay(
   );
 
   await loadGame(initialSampleId);
+
+  function applyBoardOrientation(): void {
+    whiteCg.set({ orientation: boardOrientation });
+    truthCg.set({ orientation: boardOrientation });
+    blackCg.set({ orientation: boardOrientation });
+  }
 }
 
 function pickNextSample(pool: string[], current: string): string {
@@ -684,6 +704,130 @@ function createGameIdFooter(): HTMLDivElement {
   const footer = document.createElement('div');
   footer.className = 'replay-game-id';
   return footer;
+}
+
+type ClockPanelHandle = {
+  blackRow: HTMLDivElement;
+  blackTime: HTMLSpanElement;
+  el: HTMLDivElement;
+  label: HTMLSpanElement;
+  whiteRow: HTMLDivElement;
+  whiteTime: HTMLSpanElement;
+};
+
+function createClockPanel(): ClockPanelHandle {
+  const el = document.createElement('div');
+  el.className = 'replay-clock-panel';
+  el.hidden = true;
+
+  const label = document.createElement('span');
+  label.className = 'replay-clock-control';
+
+  const whiteRow = createClockRow('White');
+  const blackRow = createClockRow('Black');
+  el.append(label, whiteRow.row, blackRow.row);
+
+  return {
+    blackRow: blackRow.row,
+    blackTime: blackRow.time,
+    el,
+    label,
+    whiteRow: whiteRow.row,
+    whiteTime: whiteRow.time,
+  };
+}
+
+function createClockRow(colorLabel: string): { row: HTMLDivElement; time: HTMLSpanElement } {
+  const row = document.createElement('div');
+  row.className = 'replay-clock-row';
+  const label = document.createElement('span');
+  label.className = 'replay-clock-side';
+  label.textContent = colorLabel;
+  const time = document.createElement('span');
+  time.className = 'replay-clock-time';
+  row.append(label, time);
+  return { row, time };
+}
+
+function renderClockPanel(
+  panel: ClockPanelHandle,
+  clock: ClockState | undefined,
+  state: GameState,
+  meta: GameMeta | undefined,
+): void {
+  const timeControl = clock ? timeControlLabelFromClock(clock) : timeControlLabelFromMeta(meta?.timeControl);
+  if (!clock && !timeControl) {
+    panel.el.hidden = true;
+    return;
+  }
+
+  panel.el.hidden = false;
+  panel.label.textContent = timeControl ? `Time ${timeControl}` : 'Clock';
+
+  if (!clock) {
+    panel.whiteTime.textContent = '—';
+    panel.blackTime.textContent = '—';
+    panel.whiteRow.classList.remove('active');
+    panel.blackRow.classList.remove('active');
+    return;
+  }
+
+  const displayAt = clock.runningSince ?? eventTimeAtState(state) ?? 0;
+  panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt));
+  panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt));
+  panel.whiteRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'white');
+  panel.blackRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'black');
+}
+
+function eventTimeAtState(state: GameState): number | null {
+  return state.clock?.runningSince ?? null;
+}
+
+function timeControlLabelFromClock(clock: ClockState): string {
+  const base = formatClock(clock.initialMs);
+  const incrementSeconds = Math.round(clock.incrementMs / 1000);
+  return incrementSeconds > 0 ? `${base}+${incrementSeconds}` : base;
+}
+
+function timeControlLabelFromMeta(raw: Record<string, unknown> | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.kind === 'none') return null;
+
+  const initialSeconds = numericValue(raw.initial_seconds);
+  const incrementSeconds = numericValue(raw.increment_seconds);
+  if (initialSeconds !== null) {
+    const base = formatClock(initialSeconds * 1000);
+    return incrementSeconds && incrementSeconds > 0 ? `${base}+${Math.round(incrementSeconds)}` : base;
+  }
+
+  const initialMs = numericValue(raw.initialMs) ?? numericValue(raw.initial_ms);
+  const incrementMs = numericValue(raw.incrementMs) ?? numericValue(raw.increment_ms);
+  if (initialMs !== null) {
+    const base = formatClock(initialMs);
+    const increment = incrementMs ? Math.round(incrementMs / 1000) : 0;
+    return increment > 0 ? `${base}+${increment}` : base;
+  }
+
+  const perMoveMs = numericValue(raw.milliseconds) ?? numericValue(raw.per_move_ms);
+  if (raw.kind === 'per-move' && perMoveMs !== null) return `${formatClock(perMoveMs)} / move`;
+
+  return typeof raw.kind === 'string' ? raw.kind : null;
+}
+
+function numericValue(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function formatClock(ms: number): string {
+  const bounded = Math.max(0, ms);
+  const totalSeconds = Math.ceil(bounded / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function createPane(label: string): {

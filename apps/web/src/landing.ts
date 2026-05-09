@@ -38,13 +38,14 @@ const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
+  root.append(buildNav(), buildLoadingState('Loading games'), buildFooter());
 
   const { games, source } = await fetchLandingGames();
   const stage = buildLandingStage(source);
-  root.append(buildNav(), stage.el, buildFooter());
+  root.replaceChildren(buildNav(), stage.el, buildFooter());
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
-    renderRecentGames(stage.listRoot, games, source, undefined, '/game/', 'Now showing');
+    renderRecentGames(stage.listRoot, games, source, undefined, '/game/', 'Now showing', false, 4);
     return;
   }
 
@@ -62,7 +63,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   await mountReplay(stage.replayRoot, currentSample, {
     autoplay: true,
     showControls: false,
-    revealOnFinish: false,
+    revealOnFinish: true,
     blackOrientation: 'white',
     loopSamples: sampleIds,
     loaderForId: landingEventLoader,
@@ -75,16 +76,19 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     currentSample,
     source === 'sample' ? '/?demo=' : '/game/',
     'Now showing',
+    false,
+    4,
   );
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'watch-route');
+  root.append(buildNav(), buildLoadingState('Loading replays'), buildFooter());
 
   const { games, source } = await fetchLandingGames();
   const watch = buildWatchSection();
-  root.append(buildNav(), watch.el, buildFooter());
+  root.replaceChildren(buildNav(), watch.el, buildFooter());
 
   if (games.length === 0) {
     watch.replayRoot.textContent = 'No games available yet.';
@@ -342,6 +346,7 @@ function gameMetaForGame(game: FeaturedGame): GameMeta {
     whiteName: participantForColor(game, 'white')?.displayName ?? game.whiteEngineId ?? game.whiteName,
     blackName: participantForColor(game, 'black')?.displayName ?? game.blackEngineId ?? game.blackName,
     result: game.result,
+    timeControl: game.timeControl,
     termination: game.termination,
     plyCount: game.plyCount,
   };
@@ -460,6 +465,7 @@ export function mountPlay(root: HTMLElement): void {
 function buildNav(): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
+  nav.setAttribute('aria-label', 'Primary');
 
   const brand = document.createElement('a');
   brand.className = 'site-nav-brand';
@@ -478,25 +484,10 @@ function buildNav(): HTMLElement {
   const links = document.createElement('div');
   links.className = 'site-nav-links';
 
-  const aboutLink = document.createElement('a');
-  aboutLink.href = '/about';
-  aboutLink.textContent = 'About';
-  aboutLink.className = 'site-nav-link';
-
-  const watchLink = document.createElement('a');
-  watchLink.href = '/watch';
-  watchLink.textContent = 'Watch';
-  watchLink.className = 'site-nav-link';
-
-  const playLink = document.createElement('a');
-  playLink.href = '/play';
-  playLink.textContent = 'Play';
-  playLink.className = 'site-nav-link';
-
-  const learnLink = document.createElement('a');
-  learnLink.href = '/learn';
-  learnLink.textContent = 'Learn';
-  learnLink.className = 'site-nav-link';
+  const aboutLink = navLink('About', '/about');
+  const watchLink = navLink('Watch', '/watch');
+  const playLink = navLink('Play', '/play');
+  const learnLink = navLink('Learn', '/learn');
 
   const ghLink = document.createElement('a');
   ghLink.href = GITHUB_URL;
@@ -506,15 +497,44 @@ function buildNav(): HTMLElement {
   ghLink.className = 'site-nav-link';
 
   if (SHOW_ENGINE_LAB_LINKS) {
-    const labLink = document.createElement('a');
-    labLink.href = '/engine-lab';
-    labLink.textContent = 'Engine Lab';
-    labLink.className = 'site-nav-link';
+    const labLink = navLink('Engine Lab', '/engine-lab');
     links.append(labLink);
   }
   links.append(watchLink, playLink, learnLink, aboutLink, ghLink);
   nav.append(brand, links);
   return nav;
+}
+
+function navLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = href;
+  link.textContent = label;
+  link.className = 'site-nav-link';
+  if (currentPath() === href) {
+    link.classList.add('active');
+    link.setAttribute('aria-current', 'page');
+  }
+  return link;
+}
+
+function currentPath(): string {
+  return window.location.pathname.replace(/\/+$/, '') || '/';
+}
+
+function buildLoadingState(label: string): HTMLElement {
+  const section = document.createElement('main');
+  section.className = 'site-loading';
+  section.setAttribute('aria-live', 'polite');
+
+  const mark = document.createElement('div');
+  mark.className = 'site-loading-mark';
+  mark.setAttribute('aria-hidden', 'true');
+
+  const text = document.createElement('p');
+  text.textContent = label;
+
+  section.append(mark, text);
+  return section;
 }
 
 function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
@@ -616,6 +636,8 @@ function renderRecentGames(
   activeRoomId?: string,
   hrefPrefix = '/?demo=',
   headingText?: string,
+  clickable = true,
+  limit = 10,
 ): void {
   root.replaceChildren();
 
@@ -637,11 +659,14 @@ function renderRecentGames(
   const list = document.createElement('ol');
   list.className = 'landing-games-list';
 
-  for (const game of games.slice(0, 10)) {
+  for (const game of games.slice(0, limit)) {
     const item = document.createElement('li');
-    const link = document.createElement('a');
-    link.href = `${hrefPrefix}${encodeURIComponent(game.roomId)}`;
-    link.className = game.roomId === activeRoomId ? 'active' : '';
+    const row = clickable ? document.createElement('a') : document.createElement('div');
+    row.className = 'landing-game-row';
+    if (clickable) {
+      (row as HTMLAnchorElement).href = `${hrefPrefix}${encodeURIComponent(game.roomId)}`;
+    }
+    if (game.roomId === activeRoomId) row.classList.add('active');
 
     const matchup = document.createElement('span');
     matchup.className = 'landing-game-matchup';
@@ -651,8 +676,8 @@ function renderRecentGames(
     meta.className = 'landing-game-meta';
     meta.textContent = `${sourceLabel(game.mode)} · ${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
 
-    link.append(matchup, meta);
-    item.append(link);
+    row.append(matchup, meta);
+    item.append(row);
     list.append(item);
   }
 
