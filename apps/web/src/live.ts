@@ -980,7 +980,26 @@ function legalDests(view: PlayerView): cg.Dests {
     const to = move.to as cg.Key;
     dests.set(from, [...(dests.get(from) ?? []), to]);
   }
+  addCastlingDestinationAliases(view, dests);
   return dests;
+}
+
+function addCastlingDestinationAliases(view: PlayerView, dests: cg.Dests): void {
+  for (const move of view.legalMoves) {
+    const alias = castlingKingDestinationFromView(view, move);
+    if (!alias) continue;
+    const from = move.from as cg.Key;
+    const current = dests.get(from) ?? [];
+    if (!current.includes(alias as cg.Key)) dests.set(from, [...current, alias as cg.Key]);
+  }
+}
+
+function castlingKingDestinationFromView(view: PlayerView, move: Move): Square | null {
+  const piece = view.board[move.from];
+  const rook = view.board[move.to];
+  if (!piece || piece.role !== 'king' || !rook || rook.role !== 'rook' || rook.color !== piece.color) return null;
+  if (rankOf(move.from) !== rankOf(move.to)) return null;
+  return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
 }
 
 function hiddenSquareClasses(view: PlayerView | null): cg.SquareClasses {
@@ -1033,7 +1052,13 @@ function promotionMovesFor(from: Square, to: Square): Move[] {
 }
 
 function movesFor(from: Square, to: Square): Move[] {
-  return currentView()?.legalMoves.filter((move) => move.from === from && move.to === to) ?? [];
+  const view = currentView();
+  if (!view) return [];
+  const castlingAlias = view.legalMoves.filter((move) => (
+    move.from === from && castlingKingDestinationFromView(view, move) === to
+  ));
+  if (castlingAlias.length > 0) return castlingAlias;
+  return view.legalMoves.filter((move) => move.from === from && move.to === to);
 }
 
 function renderPromotion(): void {

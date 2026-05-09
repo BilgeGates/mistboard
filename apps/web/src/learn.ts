@@ -14,6 +14,7 @@ import { boardFen, hiddenSquareClasses } from './board-ui.js';
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const SHOW_ENGINE_LAB_LINKS =
   (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_SHOW_ENGINE_LAB_NAV === 'true';
+const boardFiles = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 
 type Uci = `${Square}${Square}`;
 
@@ -1847,7 +1848,7 @@ const chapters: TutorialChapter[] = [
     id: 'castling-kingside',
     lesson: 'Castling',
     title: 'King Side Castle',
-    goal: 'Castle by moving the king to its rook.',
+    goal: 'Castle by moving the king to its rook or castle square.',
     board: {
       e1: { color: 'white', role: 'king' },
       h1: { color: 'white', role: 'rook' },
@@ -1856,11 +1857,11 @@ const chapters: TutorialChapter[] = [
     castlingRights: ['h1'],
     steps: [
       {
-        teach: 'In this interface, Fog castling is made by moving the king onto the castling rook.',
+        teach: 'Fog castling accepts moving the king to the rook or to the king\'s final square.',
         challenge: 'Castle with the h1 rook.',
-        targets: ['h1'],
+        targets: ['h1', 'g1'],
         afterTargets: ['f1', 'g1', 'h1'],
-        accepted: ['e1h1'],
+        accepted: ['e1h1', 'e1g1'],
         softFailures: {},
         success: 'The king castled to g1 and the rook moved to f1.',
       },
@@ -1879,11 +1880,11 @@ const chapters: TutorialChapter[] = [
     castlingRights: ['a1'],
     steps: [
       {
-        teach: 'Queen-side castling works the same way: move the king to the rook.',
+        teach: 'Queen-side castling works the same way: move the king to the rook or to c1.',
         challenge: 'Castle with the a1 rook.',
-        targets: ['a1'],
+        targets: ['a1', 'c1'],
         afterTargets: ['a1', 'c1', 'd1'],
-        accepted: ['e1a1'],
+        accepted: ['e1a1', 'e1c1'],
         softFailures: {},
         success: 'The king castled to c1 and the rook moved to d1.',
       },
@@ -2585,23 +2586,24 @@ function handleMove(state: TutorialState, uci: Uci): void {
   const step = currentStep(state, chapter);
   if (state.status !== 'ready') return;
 
+  const view = fogOfWarVariant.getPlayerView(state.activeState, 'white');
   const move = moveFromUci(uci);
-  const legal = fogOfWarVariant.getLegalMoves(state.activeState, 'white')
-    .some((candidate) => movesMatch(candidate, move));
-  if (!legal) {
+  const resolvedMove = resolveUiMove(view, move);
+  if (!resolvedMove) {
     state.message = 'That move is not legal from this position.';
     render(state);
     return;
   }
 
-  const nextState = fogOfWarVariant.applyMove(state.activeState, move);
+  const nextState = fogOfWarVariant.applyMove(state.activeState, resolvedMove);
   state.activeState = {
     ...nextState,
     status: { type: 'playing', turn: 'white' },
-    lastMove: move,
+    lastMove: resolvedMove,
   };
 
-  if (step.accepted.includes(uci)) {
+  const resolvedUci = moveToUci(resolvedMove);
+  if (step.accepted.includes(uci) || step.accepted.includes(resolvedUci)) {
     const isFinalStep = state.stepIndex === chapter.steps.length - 1;
     if (isFinalStep) {
       state.status = 'success';
@@ -2699,7 +2701,42 @@ function legalDests(view: PlayerView): cg.Dests {
     list.push(move.to as cg.Key);
     dests.set(move.from as cg.Key, list);
   }
+  addCastlingDestinationAliases(view, dests);
   return dests;
+}
+
+function resolveUiMove(view: PlayerView, move: Move): Move | null {
+  const castlingAlias = view.legalMoves.find((candidate) => (
+    candidate.from === move.from && castlingKingDestinationFromView(view, candidate) === move.to
+  ));
+  if (castlingAlias) return castlingAlias;
+  return view.legalMoves.find((candidate) => movesMatch(candidate, move)) ?? null;
+}
+
+function addCastlingDestinationAliases(view: PlayerView, dests: cg.Dests): void {
+  for (const move of view.legalMoves) {
+    const alias = castlingKingDestinationFromView(view, move);
+    if (!alias) continue;
+    const from = move.from as cg.Key;
+    const current = dests.get(from) ?? [];
+    if (!current.includes(alias as cg.Key)) dests.set(from, [...current, alias as cg.Key]);
+  }
+}
+
+function castlingKingDestinationFromView(view: PlayerView, move: Move): Square | null {
+  const piece = view.board[move.from];
+  const rook = view.board[move.to];
+  if (!piece || piece.role !== 'king' || !rook || rook.role !== 'rook' || rook.color !== piece.color) return null;
+  if (rankOf(move.from) !== rankOf(move.to)) return null;
+  return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
+}
+
+function squareFileIndex(square: Square): number {
+  return boardFiles.indexOf(square[0] as typeof boardFiles[number]);
+}
+
+function rankOf(square: Square): string {
+  return square[1] ?? '';
 }
 
 function gameStateFromBoard(id: string, board: Board): GameState {
@@ -2720,6 +2757,10 @@ function moveFromUci(uci: Uci): Move {
     from: uci.slice(0, 2) as Square,
     to: uci.slice(2, 4) as Square,
   };
+}
+
+function moveToUci(move: Move): Uci {
+  return `${move.from}${move.to}` as Uci;
 }
 
 function movesMatch(left: Move, right: Move): boolean {
