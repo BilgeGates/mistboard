@@ -1983,7 +1983,35 @@ button:focus-visible {
 }
 
 .learn-board cg-board square.learn-highlight {
-  box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--board-highlight) 78%, transparent);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 248, 190, 0.9) 0 18%, rgba(248, 200, 97, 0.52) 19% 42%, transparent 43%),
+    color-mix(in srgb, var(--board-highlight) 28%, transparent);
+  box-shadow:
+    inset 0 0 0 4px color-mix(in srgb, var(--board-highlight) 96%, transparent),
+    inset 0 0 22px color-mix(in srgb, var(--board-highlight) 72%, transparent),
+    0 0 18px color-mix(in srgb, var(--board-highlight) 68%, transparent);
+}
+
+.learn-board cg-board square.learn-highlight::after {
+  content: "✦";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff6b8;
+  font-size: clamp(24px, 5.2vmin, 42px);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow:
+    0 2px 3px rgba(49, 37, 6, 0.54),
+    0 0 12px rgba(255, 242, 153, 0.9);
+  pointer-events: none;
+}
+
+.learn-board cg-board square.learn-explained {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 246, 184, 0.42),
+    inset 0 0 14px rgba(248, 200, 97, 0.24);
 }
 
 .learn-board cg-board square.learn-reveal {

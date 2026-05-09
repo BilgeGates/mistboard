@@ -157,26 +157,22 @@ Fog twist:
 
 ### Piece Lesson 2 - The Bishop
 
-Lesson promise: bishops reveal diagonals and can inspect hidden corners through
-long lanes.
+Lesson promise: bishops move diagonally through fog.
 
-Narrative: the bishop teaches angled vision. It feels weaker than the rook until
-the player sees how it cuts through fog from unexpected squares.
+Narrative: the bishop teaches angled movement. After the rook's files and ranks,
+the player learns that a piece can cross the board only on matching diagonals.
 
 Chapters:
 
-- **Diagonal First Step.** Move the bishop to a highlighted diagonal target.
-- **Which Diagonal?** Two diagonal choices reveal different fog pockets.
-  Challenge: choose the diagonal that reaches the marked pocket.
-- **Long Beam.** Move a bishop to reveal a long diagonal. Show newly visible
-  squares pulsing in sequence.
-- **Blocked Diagonal.** Add a friendly blocker and show the beam stopping.
-- **Change The Angle.** Move the bishop to a new diagonal so it sees around the
-  old blocker.
-- **Color Complex.** Teach that a bishop stays on one square color. The mastery
-  check asks which marked fog pocket this bishop can ever reach.
-- **Corner Reveal.** Reveal a harmless hidden enemy at the edge of a diagonal
-  and identify the seeing bishop.
+- **Up Right.** Move the bishop up and right to a highlighted square.
+- **Up Left.** Move the bishop up and left to a highlighted square.
+- **Back Down.** Move the bishop back down the same diagonal.
+- **Stop Before The Blocker.** A friendly piece blocks the diagonal; move to the
+  last legal square before it.
+- **Change Diagonals.** Two-step sequence: move along one diagonal, then use the
+  new diagonal.
+- **Bishop Trail.** Follow several highlighted squares with diagonal bishop
+  moves.
 
 Teaching/challenge balance:
 
@@ -185,137 +181,124 @@ Teaching/challenge balance:
 
 Fog twist:
 
-- Bishops are not only attackers; they are long-range diagonal sensors that can
-  verify hidden corners while staying far away.
+- The bishop moves through fog by following clear diagonals. Diagonal scouting
+  and hidden corner reveals are taught later, after movement feels natural.
 
 ### Piece Lesson 3 - The Queen
 
-Lesson promise: the queen can reveal a lot, but useful vision matters more than
-maximum vision.
+Lesson promise: the queen moves like a rook and a bishop.
 
-Narrative: the queen feels powerful, but the Fog lesson is restraint. The best
-queen move is the one that sees the right area without overcommitting.
+Narrative: the queen is the first piece that combines earlier lessons. The
+player already knows straight rook lines and diagonal bishop lines; now one
+piece can use both.
 
 Chapters:
 
-- **Rook Plus Bishop.** Show a queen's straight and diagonal vision on selection.
-- **Floodlight Move.** Move the queen to reveal many target squares at once.
-- **Wrong Floodlight.** Offer one move that reveals many irrelevant squares and
-  one that reveals fewer but relevant squares. Challenge: choose relevance.
-- **Central Lens.** Move the queen to a central square and compare before/after
-  visible area.
-- **Edge Lens.** Move the queen to an edge square and show how vision narrows.
-- **Queen As Scout, Not Bait.** Reveal one harmless hidden enemy but do not
-  capture anything yet. The goal is information, not material.
-- **Best Relevant Reveal.** Final chapter gives three queen moves and asks which
-  one reveals the marked zone.
+- **Up The File.** Move the queen straight up like a rook.
+- **Across The Rank.** Move the queen sideways like a rook.
+- **Diagonal Line.** Move the queen diagonally like a bishop.
+- **Choose The Line.** Choose the queen move that reaches the marked diagonal
+  target.
+- **Stop Before The Blocker.** A friendly piece blocks the path; move to the
+  last legal square before it.
+- **Queen Lantern Trail.** Follow several markers that appear one step at a
+  time, mixing file, rank, and diagonal moves.
 
 Teaching/challenge balance:
 
-- The queen lesson should introduce qualitative feedback: "more squares" versus
-  "right squares."
+- The queen lesson should feel like synthesis, not tactics.
 - It should avoid danger until later lessons, because the first category is
-  still about friendly tools.
+  still about movement.
 
 Fog twist:
 
-- Queen vision is powerful but expensive if it pulls the queen away from safety.
-  Beginner version only hints at this; later lessons can punish overextension.
+- The queen can reveal many legal destinations, but this lesson uses targets to
+  keep attention on legal movement. The lantern trail lets markers appear one
+  step at a time so the path feels discovered through fog without introducing
+  enemy pieces.
 
 ### Piece Lesson 4 - The King
 
-Lesson promise: the king sees very little and should not be your main scout.
+Lesson promise: the king moves one square at a time.
 
-Narrative: the king is important but not brave. In Fog, its small vision bubble
-teaches why other pieces must scout for it.
+Narrative: after long-range pieces, the king slows the lesson down. The player
+learns that the king can step in every direction, but only one square.
 
 Chapters:
 
-- **One-Square Bubble.** Select the king and highlight adjacent visible squares.
-- **Move The Bubble.** Move the king one square and watch the vision bubble
-  shift.
-- **Too Little Light.** Compare a king move with a rook or bishop move. The
-  mastery check asks which move reveals more.
-- **Use A Helper.** Move a helper piece to inspect squares ahead of the king.
-- **Stay Behind The Scout.** Simple two-step sequence: scout first, king second.
-- **Do Not Teach Check Yet.** A no-enemy chapter that only shows limited king
-  vision and the need for support.
-- **King Needs A Map.** Final challenge: choose the helper move that reveals the
-  path the king wants to take.
+- **One Step Up.** Move the king one square forward.
+- **Side Step.** Move the king one square sideways.
+- **Diagonal Step.** Move the king one square diagonally.
+- **From The Corner.** Move the king out of a corner, where it has fewer legal
+  moves.
+- **Occupied Square.** A friendly piece occupies one adjacent square; move
+  around it.
+- **King Walk.** Follow several one-square markers through fog.
 
 Teaching/challenge balance:
 
-- Do not introduce king capture here.
-- Make the challenge about limited information, not fear.
+- Do not introduce king capture, check, or danger here.
+- Make the challenge about movement limits, not fear.
 
 Fog twist:
 
-- The king is the worst primary scout because it sees only nearby squares and is
-  the piece you cannot afford to expose.
+- The king's legal world is small. Fog makes that small movement bubble visible
+  without turning the first king lesson into a danger lesson.
 
 ### Piece Lesson 5 - The Knight
 
-Lesson promise: knights reveal jumps and can see over blockers.
+Lesson promise: knights move in L-shaped jumps.
 
-Narrative: the knight is the first piece that makes Fog feel different from
-simple line-of-sight. It sees pockets that line pieces cannot reach.
+Narrative: the knight is the first piece that makes movement feel non-linear.
+It does not slide through fog; it jumps from pocket to pocket.
 
 Chapters:
 
-- **L Shape.** Standard movement chapter: move the knight to a target.
-- **Jump Vision.** Show that blockers do not stop the knight's L-shaped vision.
-- **Over The Wall.** Place friendly blockers around the knight. Challenge:
-  choose the jump that sees into the marked pocket.
-- **Which Pocket?** Two legal knight moves reveal different hidden pockets.
-- **Fork The Fog.** A beginner-friendly information fork: one knight move
-  reveals two marked areas.
-- **Return Scout.** Move the knight out and back to compare visible map changes.
-- **Hidden Piece Reveal.** Reveal one harmless enemy using a knight jump and ask
-  which jump made it visible.
+- **First L.** Move the knight to a basic L-shaped target.
+- **Other L.** Move the knight to a different L-shaped target from the center.
+- **Jump The Wall.** Friendly pieces sit nearby, but the knight jumps over them.
+- **From The Edge.** Move a knight from the edge, where it has fewer jumps.
+- **Choose The Pocket.** Pick the marked knight landing square among several
+  legal pockets.
+- **Pocket Trail.** Follow several L-shaped markers through fog.
 
 Teaching/challenge balance:
 
-- This lesson should include more prediction than the rook/bishop lessons.
-- Wrong moves are useful because they reveal different pockets; show the
-  consequence and reset gently.
+- This lesson should include more prediction than sliding-piece lessons.
+- Wrong legal moves are useful because they still demonstrate valid pockets.
 
 Fog twist:
 
-- Knights are high-value scouts because they inspect around blockers and into
-  pockets that long-range pieces cannot see.
+- The knight's path is never a corridor. Fog makes each landing square feel like
+  a pocket discovered by jumping, not by sliding.
 
 ### Piece Lesson 6 - The Pawn
 
-Lesson promise: pawns move forward, and reveal diagonal enemies only when a
-capture is legal.
+Lesson promise: pawns move forward and never backward.
 
-Narrative: pawns are small, weird sensors. This lesson prevents a lot of later
-rules confusion.
+Narrative: pawns are the weirdest beginner piece, so the first lesson keeps them
+calm: forward movement, first double step, blockers, and no backward movement.
+Diagonal captures wait for Fundamentals, where enemy pieces enter.
 
 Chapters:
 
-- **Walk Forward.** Move a pawn one square forward.
-- **Empty Diagonals Stay Fogged.** Select the pawn and show that empty diagonal
-  attack squares remain hidden under the current rules.
-- **Move Here, Capture There.** Show forward move targets and a diagonal enemy
-  capture target with different visual treatments.
-- **After The Step.** Move the pawn and ask which forward squares it sees now.
-- **Pawn Wall.** Use two pawns to create a small forward-visibility barrier.
-- **Double Step, New Vision.** Move from the starting rank two squares and show
-  the changed forward visibility.
-- **First Pawn Reveal.** Put one harmless hidden enemy on a diagonal capture
-  square and reveal it after a pawn move or selection.
+- **One Step.** Move a pawn one square forward.
+- **First Double.** Move a pawn two squares from its starting rank.
+- **After The First Move.** A pawn that already moved advances one square.
+- **Blocked Pawn.** A friendly piece blocks one pawn; move the unblocked pawn.
+- **No Backward.** Continue forward from an advanced square.
+- **Forward Trail.** Follow several forward pawn markers.
 
 Teaching/challenge balance:
 
-- The challenge should repeatedly separate empty forward visibility from
-  diagonal capture visibility.
-- Save en passant and promotion for a later expanded pawn lesson.
+- Keep the first pawn lesson movement-only.
+- Save diagonal capture, en passant, and promotion for Fundamentals and
+  Intermediate.
 
 Fog twist:
 
-- Pawns reveal empty forward moves. Empty diagonal attack squares stay fogged;
-  diagonal enemy pieces appear when they are capturable.
+- Pawns expose forward movement in Fog. Empty diagonals and diagonal captures
+  are important, but they are introduced only once enemy pieces enter.
 
 ### Piece Category Capstone - First Reveal
 
@@ -528,71 +511,209 @@ Why it works:
 - It gives the player a small movement course.
 - It is the mastery check for the first piece lesson.
 
-#### Bishop Arrangement A - Which Diagonal
+#### Bishop Arrangement A - Up Right
 
-Teaching goal: bishops choose diagonals; the right angle matters.
+Teaching goal: the bishop moves up and right on a diagonal.
 
 Truth:
 
 ```ts
 {
-  b1: { color: 'white', role: 'king' },
-  d3: { color: 'white', role: 'bishop' }
+  e1: { color: 'white', role: 'king' },
+  c1: { color: 'white', role: 'bishop' }
 }
 ```
 
-Targets:
-
-- relevant: `b7`
-- decoy: `g8`
-
 Sequence:
 
-1. Teach: select `d3`; highlight current diagonals.
-2. Challenge: preview two legal moves, `d3e4` and `d3c4`.
-3. Move: accepted `d3e4`; soft-failure `d3c4`.
-4. Feedback: `d3c4` lights toward `g8`; `d3e4` lights toward `b7`.
-5. Check: after success, pulse `d5`, `c6`, `b7`.
+1. Teach: bishops move diagonally.
+2. Guide: show target `g5`.
+3. Move: accepted `c1g5`.
+4. Check: pulse `d2`, `e3`, `f4`, `g5`, `h6`.
 
 Why it works:
 
-- It is visually clean: one bishop, two diagonals, one relevant target.
-- The player has to choose, not merely follow an arrow.
+- It mirrors the first rook chapter but changes the geometry.
+- It gives a clean first diagonal with no decision pressure.
 
-#### Bishop Arrangement B - Move Around The Blocker
+#### Bishop Arrangement B - Up Left
 
-Teaching goal: a bishop can change angle to inspect around a blocked lane.
+Teaching goal: the bishop can move along the other rising diagonal.
 
 Truth:
 
 ```ts
 {
-  b1: { color: 'white', role: 'king' },
-  b2: { color: 'white', role: 'bishop' },
+  e1: { color: 'white', role: 'king' },
+  f1: { color: 'white', role: 'bishop' }
+}
+```
+
+Sequence:
+
+1. Teach: the bishop can climb diagonally in either direction when clear.
+2. Guide: show target `b5`.
+3. Move: accepted `f1b5`.
+4. Check: pulse `e2`, `d3`, `c4`, `b5`, `a6`.
+
+Why it works:
+
+- It prevents the bishop from feeling like it has only one diagonal direction.
+- It stays movement-first.
+
+#### Bishop Arrangement C - Back Down
+
+Teaching goal: the bishop can move backward on the same diagonal.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  g5: { color: 'white', role: 'bishop' }
+}
+```
+
+Sequence:
+
+1. Teach: bishops can move back down diagonals too.
+2. Guide: show target `c1`.
+3. Move: accepted `g5c1`.
+4. Check: pulse the same diagonal in reverse.
+
+Why it works:
+
+- It completes directional comfort before adding blockers.
+
+#### Bishop Arrangement D - Stop Before The Blocker
+
+Teaching goal: bishops cannot jump over friendly pieces.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  c1: { color: 'white', role: 'bishop' },
+  f4: { color: 'white', role: 'knight' }
+}
+```
+
+Sequence:
+
+1. Teach: the knight on `f4` blocks the diagonal.
+2. Challenge: move the bishop to the last clear square before the blocker.
+3. Move: accepted `c1e3`; soft-failure `c1d2`.
+4. Check: `g5` remains unavailable because the knight blocks the path.
+
+Why it works:
+
+- It reuses the rook blocker idea with diagonal geometry.
+- It teaches legality before scouting or tactics.
+
+#### Bishop Arrangement E - Change Diagonals
+
+Teaching goal: use two bishop moves to reach a new diagonal.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  b2: { color: 'white', role: 'bishop' }
+}
+```
+
+Sequence:
+
+1. Teach: a bishop cannot bend during one move.
+2. Move: accepted `b2e5`.
+3. Continue: show target `b8`.
+4. Move: accepted `e5b8`.
+5. Check: the bishop used one diagonal first, then another.
+
+Why it works:
+
+- It adds a simple multi-step route without adding enemies.
+- It teaches how bishops navigate by changing diagonal from a new square.
+
+#### Bishop Arrangement F - Bishop Trail
+
+Teaching goal: combine diagonal bishop moves through a short path.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  d2: { color: 'white', role: 'bishop' }
+}
+```
+
+Sequence:
+
+1. Move: accepted `d2h6`.
+2. Move: accepted `h6e3`.
+3. Move: accepted `e3b6`.
+4. Move: accepted `b6d8`.
+5. Check: every move is diagonal.
+
+Why it works:
+
+- It gives the player a small diagonal movement course.
+- It is the mastery check for the bishop lesson.
+
+#### Knight Arrangement A - First L
+
+Teaching goal: the knight moves in an L shape.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  b1: { color: 'white', role: 'knight' }
+}
+```
+
+Sequence:
+
+1. Teach: knights move two squares one way and one square sideways.
+2. Guide: show target `c3`.
+3. Move: accepted `b1c3`; soft-failure `b1a3` or `b1d2`.
+4. Check: pulse the knight's new landing pockets.
+
+Why it works:
+
+- It starts with one clear L-shaped jump.
+
+#### Knight Arrangement B - Other L
+
+Teaching goal: the knight has several L-shaped jumps from the center.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
   d4: { color: 'white', role: 'knight' }
 }
 ```
 
-Targets:
-
-- hidden lane behind blocker: `e5`, `f6`, `g7`
-
 Sequence:
 
-1. Teach: select `b2`; show diagonal stops at friendly knight `d4`.
-2. Guide: preview moving the blocker `d4f5`.
-3. Move: accepted `d4f5`.
-4. Reveal: bishop line opens through `c3`, `d4`, `e5`, `f6`, `g7`, `h8`.
-5. Check: ask "Which piece now sees `g7`?" Expected answer: bishop on `b2`.
+1. Teach: from the center, a knight has many possible pockets.
+2. Challenge: show target `f5`.
+3. Move: accepted `d4f5`; soft-failure `d4f3` or `d4b5`.
+4. Check: pulse the new pockets from `f5`.
 
 Why it works:
 
-- It reuses the rook blocker idea but with diagonal geometry.
-- It teaches multi-piece coordination without adding enemies.
+- It asks for a tiny choice without tactics.
 
-#### Knight Arrangement A - Jump Over The Wall
+#### Knight Arrangement C - Jump The Wall
 
-Teaching goal: knights reveal pockets that blockers cannot seal.
+Teaching goal: nearby friendly pieces do not block a knight.
 
 Truth:
 
@@ -605,27 +726,44 @@ Truth:
 }
 ```
 
-Targets:
-
-- relevant pocket: `e4`
-- decoy pocket: `c4`
-
 Sequence:
 
-1. Teach: select `b1`; show legal knight jumps despite nearby pawns.
-2. Challenge: preview `b1c3`, `b1d2`, and `b1a3`.
-3. Move: accepted `b1c3` or `b1d2`; soft-failure `b1a3`.
-4. Feedback: `b1a3` sees toward `c4`; `b1c3` and `b1d2` see toward `e4`.
-5. Check: after success, pulse the L-shaped vision from `c3`, especially `e4`.
+1. Teach: knights jump over nearby pieces.
+2. Challenge: show target `c3`.
+3. Move: accepted `b1c3`; soft-failure `b1a3` or `b1d2`.
+4. Check: the knight jumped despite the pawns.
 
 Why it works:
 
 - It makes the knight feel meaningfully different from line pieces.
-- The blockers are friendly and non-threatening, so the lesson stays calm.
 
-#### Knight Arrangement B - Information Fork
+#### Knight Arrangement D - From The Edge
 
-Teaching goal: a knight can reveal two relevant pockets at once.
+Teaching goal: a knight on the edge has fewer legal jumps.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  a1: { color: 'white', role: 'knight' }
+}
+```
+
+Sequence:
+
+1. Teach: edge squares reduce the knight's options.
+2. Challenge: show target `b3`.
+3. Move: accepted `a1b3`; soft-failure `a1c2`.
+4. Check: pulse the new pockets from `b3`.
+
+Why it works:
+
+- It teaches board-edge limits without danger.
+
+#### Knight Arrangement E - Choose The Pocket
+
+Teaching goal: choose the marked knight landing pocket.
 
 Truth:
 
@@ -636,93 +774,195 @@ Truth:
 }
 ```
 
-Targets:
-
-- relevant pockets: `b7`, `f7`
-- decoy pocket: `h7`
-
 Sequence:
 
-1. Teach: preview the knight's possible jumps from `e4`.
-2. Challenge: ask for the jump that sees both marked pockets.
-3. Move: accepted `e4d6`; soft-failure `e4f6`.
-4. Feedback: `e4f6` reveals toward `h7`; `e4d6` reveals both `b7` and `f7`.
-5. Check: label it an "information fork": one move, two useful reveals.
+1. Teach: knights land in pockets rather than corridors.
+2. Challenge: show target `d6`.
+3. Move: accepted `e4d6`; soft-failure `e4f6` or `e4c5`.
+4. Check: pulse the pockets from `d6`.
 
 Why it works:
 
-- It introduces a Fog-native tactic without material or king danger.
-- It gives chess players a familiar word with a new meaning.
+- It builds prediction while staying movement-only.
 
-#### Queen Arrangement A - Relevant Floodlight
+#### Knight Arrangement F - Pocket Trail
 
-Teaching goal: the queen can reveal a lot, but the best reveal is the relevant
-one.
+Teaching goal: follow a short trail of knight jumps.
 
 Truth:
 
 ```ts
 {
   e1: { color: 'white', role: 'king' },
-  d3: { color: 'white', role: 'queen' }
+  b1: { color: 'white', role: 'knight' }
 }
 ```
 
-Targets:
-
-- relevant file: `h7`, `h8`
-- decoy region: `a6`, `b7`
-
 Sequence:
 
-1. Teach: select `d3`; show queen vision as rook lines plus bishop diagonals.
-2. Challenge: preview `d3h3` and `d3a6`.
-3. Move: accepted `d3h3`; soft-failure `d3a6`.
-4. Feedback: `d3a6` reveals a valid diagonal region, but not the marked file.
-5. Check: after `d3h3`, pulse `h4`, `h5`, `h6`, `h7`, `h8`.
+1. Move: accepted `b1c3`.
+2. Move: accepted `c3e4`.
+3. Move: accepted `e4f6`.
+4. Move: accepted `f6h5`.
+5. Check: each marker appears as a new pocket.
 
 Why it works:
 
-- It lets the queen feel powerful without teaching "always maximize squares."
-- It introduces a distinction the later scouting lesson will reuse: relevant
-  information beats raw area.
+- It gives the knight a Fog-native movement course.
+- The trail feels like jumping between small islands of visibility.
 
-#### Queen Arrangement B - Central Lens
+#### Queen Arrangement A - Up The File
 
-Teaching goal: queen placement changes how much of the map becomes legible.
+Teaching goal: the queen moves straight like a rook.
+
+Truth:
+
+```ts
+{
+  b1: { color: 'white', role: 'king' },
+  d2: { color: 'white', role: 'queen' }
+}
+```
+
+Sequence:
+
+1. Teach: the queen can move straight up the file.
+2. Guide: show target `d7`.
+3. Move: accepted `d2d7`.
+4. Check: pulse `d3`, `d4`, `d5`, `d6`, `d7`, `d8`.
+
+Why it works:
+
+- It connects queen movement to the rook lesson.
+- It keeps the first queen move obvious.
+
+#### Queen Arrangement B - Across The Rank
+
+Teaching goal: the queen moves sideways like a rook.
+
+Truth:
+
+```ts
+{
+  b1: { color: 'white', role: 'king' },
+  c4: { color: 'white', role: 'queen' }
+}
+```
+
+Sequence:
+
+1. Teach: the queen can also move across ranks.
+2. Guide: show target `h4`.
+3. Move: accepted `c4h4`.
+4. Check: pulse the fourth rank.
+
+Why it works:
+
+- It reinforces rook-like movement before adding diagonals.
+
+#### Queen Arrangement C - Diagonal Line
+
+Teaching goal: the queen moves diagonally like a bishop.
 
 Truth:
 
 ```ts
 {
   e1: { color: 'white', role: 'king' },
-  a1: { color: 'white', role: 'queen' }
+  d1: { color: 'white', role: 'queen' }
 }
 ```
 
-Targets:
-
-- central lens targets: `d8`, `h8`, `a7`
-- edge decoy target: `a8`
-
 Sequence:
 
-1. Teach: compare the queen's current corner vision with a ghosted central
-   destination.
-2. Challenge: choose between `a1d4` and `a1a4`.
-3. Move: accepted `a1d4`; soft-failure `a1a4`.
-4. Feedback: `a1a4` reveals the edge file; `a1d4` reveals multiple important
-   lanes.
-5. Check: pulse `d8`, `h8`, and `a7` from the queen on `d4`.
+1. Teach: the queen can move on diagonals too.
+2. Guide: show target `h5`.
+3. Move: accepted `d1h5`.
+4. Check: pulse `e2`, `f3`, `g4`, `h5`.
 
 Why it works:
 
-- It creates an elegant visual before/after: corner lens versus central lens.
-- It stays non-tactical while hinting that queen scouting has positional cost.
+- It completes the queen's movement identity: rook plus bishop.
 
-#### King Arrangement A - One-Square Bubble
+#### Queen Arrangement D - Choose The Line
 
-Teaching goal: the king's visible world is small.
+Teaching goal: choose the queen line that reaches the marked target.
+
+Truth:
+
+```ts
+{
+  b1: { color: 'white', role: 'king' },
+  d4: { color: 'white', role: 'queen' }
+}
+```
+
+Sequence:
+
+1. Teach: the queen has straight and diagonal options.
+2. Challenge: show target `h8`.
+3. Move: accepted `d4h8`; soft-failure `d4h4` or `d4d8`.
+4. Check: pulse the diagonal path.
+
+Why it works:
+
+- It introduces a tiny choice without switching into tactics.
+
+#### Queen Arrangement E - Stop Before The Blocker
+
+Teaching goal: even the queen cannot jump over pieces.
+
+Truth:
+
+```ts
+{
+  b1: { color: 'white', role: 'king' },
+  d2: { color: 'white', role: 'queen' },
+  d6: { color: 'white', role: 'bishop' }
+}
+```
+
+Sequence:
+
+1. Teach: the bishop on `d6` blocks the file.
+2. Challenge: move the queen to the last clear square before the blocker.
+3. Move: accepted `d2d5`; soft-failure `d2d4`.
+4. Check: `d7` remains unavailable because the bishop blocks the path.
+
+Why it works:
+
+- It reuses the blocker idea for the most powerful sliding piece.
+
+#### Queen Arrangement F - Queen Lantern Trail
+
+Teaching goal: combine file, rank, and diagonal queen moves through fog.
+
+Truth:
+
+```ts
+{
+  b1: { color: 'white', role: 'king' },
+  d1: { color: 'white', role: 'queen' }
+}
+```
+
+Sequence:
+
+1. Move: accepted `d1d5`.
+2. Move: accepted `d5h5`.
+3. Move: accepted `h5e8`.
+4. Move: accepted `e8b5`.
+5. Check: each marker appears one step at a time.
+
+Why it works:
+
+- It gives the queen a Fog-native movement course.
+- The hidden thing is a training marker, not an enemy, so the lesson stays
+  beginner-safe.
+
+#### King Arrangement A - One Step Up
+
+Teaching goal: the king moves one square forward.
 
 Truth:
 
@@ -732,120 +972,282 @@ Truth:
 }
 ```
 
-Targets:
-
-- adjacent bubble: `d3`, `e3`, `f3`
-
 Sequence:
 
-1. Teach: select `e2`; highlight the one-square bubble.
-2. Guide: preview `e2e3`.
+1. Teach: the king moves one square at a time.
+2. Guide: show target `e3`.
 3. Move: accepted `e2e3`.
-4. Feedback: show the bubble shifting one rank up.
-5. Check: ask the player to select one square the king now sees.
+4. Check: pulse the king's adjacent movement bubble.
 
 Why it works:
 
-- It teaches the king without fear.
-- It sets up the later lesson that the king should use scouts rather than enter
-  fog alone.
+- It teaches the king without fear, check, or enemies.
 
-#### King Arrangement B - Send A Helper
+#### King Arrangement B - Side Step
 
-Teaching goal: the king needs other pieces to inspect ahead.
+Teaching goal: the king moves one square sideways.
+
+Truth:
+
+```ts
+{
+  d4: { color: 'white', role: 'king' }
+}
+```
+
+Sequence:
+
+1. Teach: the king can step sideways.
+2. Guide: show target `e4`.
+3. Move: accepted `d4e4`.
+4. Check: pulse the new adjacent bubble.
+
+Why it works:
+
+- It separates sideways movement from diagonal movement.
+
+#### King Arrangement C - Diagonal Step
+
+Teaching goal: the king moves one square diagonally.
+
+Truth:
+
+```ts
+{
+  d3: { color: 'white', role: 'king' }
+}
+```
+
+Sequence:
+
+1. Teach: the king can step diagonally too.
+2. Guide: show target `e4`.
+3. Move: accepted `d3e4`.
+4. Check: pulse the new adjacent bubble.
+
+Why it works:
+
+- It completes the king's basic movement shape.
+
+#### King Arrangement D - From The Corner
+
+Teaching goal: the king has fewer legal moves on the edge of the board.
+
+Truth:
+
+```ts
+{
+  a1: { color: 'white', role: 'king' }
+}
+```
+
+Sequence:
+
+1. Teach: a corner king has only a few legal squares.
+2. Challenge: show target `b2`.
+3. Move: accepted `a1b2`; soft-failure `a1a2` or `a1b1`.
+4. Check: pulse the expanded movement bubble from `b2`.
+
+Why it works:
+
+- It teaches board edges without introducing danger.
+
+#### King Arrangement E - Occupied Square
+
+Teaching goal: the king cannot move onto a friendly piece.
+
+Truth:
+
+```ts
+{
+  e2: { color: 'white', role: 'king' },
+  e3: { color: 'white', role: 'rook' }
+}
+```
+
+Sequence:
+
+1. Teach: the rook on `e3` occupies a square the king cannot enter.
+2. Challenge: show target `d3`.
+3. Move: accepted `e2d3`; soft-failure `e2d2` or `e2f3`.
+4. Check: the king moved around the occupied square.
+
+Why it works:
+
+- It introduces friendly occupancy before any capture rules.
+
+#### King Arrangement F - King Walk
+
+Teaching goal: follow a short path of one-square king moves.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' }
+}
+```
+
+Sequence:
+
+1. Move: accepted `e1e2`.
+2. Move: accepted `e2f3`.
+3. Move: accepted `f3f4`.
+4. Move: accepted `f4e5`.
+5. Check: every move is one square.
+
+Why it works:
+
+- It gives the king a small movement course.
+- It keeps the king lesson calm before later king-capture fundamentals.
+
+#### Pawn Arrangement A - One Step
+
+Teaching goal: a pawn moves one square forward.
 
 Truth:
 
 ```ts
 {
   e1: { color: 'white', role: 'king' },
-  a2: { color: 'white', role: 'rook' }
+  e3: { color: 'white', role: 'pawn' }
 }
 ```
 
-Targets:
-
-- path ahead: `d6`, `d7`, `d8`
-
 Sequence:
 
-1. Teach: select the king; show that it cannot see the far path.
-2. Challenge: choose between `e1e2` and `a2d2`.
-3. Move: accepted `a2d2`; soft-failure `e1e2`.
-4. Feedback: the king move shifts the bubble; the rook move maps the path.
-5. Check: ask "Which piece should scout for the king?" Expected interaction:
-   select rook on `d2`.
+1. Teach: White pawns move toward higher ranks.
+2. Guide: show target `e4`.
+3. Move: accepted `e3e4`.
+4. Check: pulse `e5` as the next forward square.
 
 Why it works:
 
-- It teaches king importance through restraint.
-- It avoids check, attack, and capture semantics until the player has agency.
+- It teaches forward movement without captures or special rules.
 
-#### Pawn Arrangement A - Forward Light
+#### Pawn Arrangement B - First Double
 
-Teaching goal: pawns reveal empty forward moves.
+Teaching goal: a pawn may move two squares from its starting rank.
 
 Truth:
 
 ```ts
 {
   e1: { color: 'white', role: 'king' },
-  e2: { color: 'white', role: 'pawn' }
+  d2: { color: 'white', role: 'pawn' }
 }
 ```
 
-Targets:
-
-- forward squares: `e3`, `e4`
-- empty diagonals that should stay fogged: `d3`, `f3`
-
 Sequence:
 
-1. Teach: select `e2`; show `e3` and `e4` as visible forward moves.
-2. Check: ask whether empty `d3` or `f3` is visible. Expected result: no.
-3. Move: accepted `e2e4`.
-4. Feedback: after the move, pulse `e5` as the new forward visible square.
-5. Mastery: show "pawns reveal where they can move."
+1. Teach: from the starting rank, a pawn can move one or two squares if clear.
+2. Challenge: show target `d4`.
+3. Move: accepted `d2d4`; soft-failure `d2d3`.
+4. Check: after the move, the pawn continues one square at a time.
 
 Why it works:
 
-- It makes the current Bichess pawn rule explicit before diagonals create
-  confusion.
-- It prevents players from assuming attack maps equal visibility maps.
+- It introduces the double step before en passant exists.
 
-#### Pawn Arrangement B - Diagonal Capture Reveal
+#### Pawn Arrangement C - After The First Move
 
-Teaching goal: a diagonal enemy appears when the pawn can capture it.
+Teaching goal: a pawn away from its starting rank moves one square.
 
 Truth:
 
 ```ts
 {
   e1: { color: 'white', role: 'king' },
-  e4: { color: 'white', role: 'pawn' },
-  d5: { color: 'black', role: 'knight' }
+  d4: { color: 'white', role: 'pawn' }
 }
 ```
 
-Targets:
-
-- visible capture: `d5`
-- empty diagonal that stays fogged: `f5`
-- forward move: `e5`
-
 Sequence:
 
-1. Teach: select `e4`; show `e5` as forward visibility and `d5` as a visible
-   capture.
-2. Challenge: ask which diagonal square is visible and why.
-3. Move: accepted `e4d5`; soft-failure `e4e5` if offered.
-4. Feedback: capture is legal because the enemy was visible on the diagonal.
-5. Check: briefly contrast `d5` with still-fogged empty `f5`.
+1. Teach: after the first move, the double step is gone.
+2. Guide: show target `d5`.
+3. Move: accepted `d4d5`.
+4. Check: pulse `d6` as the next forward square.
 
 Why it works:
 
-- It teaches the pawn exception with a real piece, not a rule paragraph.
-- It gives a concrete bridge to later en passant and promotion lessons.
+- It prevents players from overgeneralizing the double step.
+
+#### Pawn Arrangement D - Blocked Pawn
+
+Teaching goal: a pawn cannot move forward into an occupied square.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  d3: { color: 'white', role: 'pawn' },
+  d4: { color: 'white', role: 'bishop' },
+  f3: { color: 'white', role: 'pawn' }
+}
+```
+
+Sequence:
+
+1. Teach: the d-pawn is blocked by the bishop on `d4`.
+2. Challenge: move the unblocked f-pawn.
+3. Move: accepted `f3f4`.
+4. Check: the blocked d-pawn cannot move forward.
+
+Why it works:
+
+- It teaches occupancy before captures.
+
+#### Pawn Arrangement E - No Backward
+
+Teaching goal: pawns continue forward and do not move backward.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  e5: { color: 'white', role: 'pawn' }
+}
+```
+
+Sequence:
+
+1. Teach: pawns do not retreat.
+2. Guide: show target `e6`.
+3. Move: accepted `e5e6`.
+4. Check: pulse `e7` as the next forward square.
+
+Why it works:
+
+- It makes pawn direction explicit.
+
+#### Pawn Arrangement F - Forward Trail
+
+Teaching goal: follow a short trail of forward pawn moves.
+
+Truth:
+
+```ts
+{
+  e1: { color: 'white', role: 'king' },
+  b2: { color: 'white', role: 'pawn' }
+}
+```
+
+Sequence:
+
+1. Move: accepted `b2b4`.
+2. Move: accepted `b4b5`.
+3. Move: accepted `b5b6`.
+4. Move: accepted `b6b7`.
+5. Check: the first move can be double; the rest are one square.
+
+Why it works:
+
+- It gives the pawn a movement course without adding captures.
+- Diagonal capture and en passant remain for later categories.
 
 #### Capstone Arrangement - First Harmless Reveal
 

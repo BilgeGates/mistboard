@@ -53,6 +53,10 @@ async function smokeLearnInterface() {
     assert.equal(await page.locator('.learn-heading').textContent(), 'The Rook');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up The File');
     assert.equal(await page.locator('.learn-actions').getByText('Watch games').count(), 0);
+    assert.equal(await page.locator('.learn-menu-category h2').first().textContent(), 'Chess pieces');
+    assert.equal(await page.locator('.learn-menu-lesson').count(), 6);
+    assert.equal(await page.locator('.learn-menu-lesson.is-locked').count(), 0);
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
 
     assert.equal(await page.locator('.learn-board square.learn-highlight').count(), 1);
     assert.equal(await page.locator('.learn-board square.last-move').count(), 0);
@@ -64,7 +68,38 @@ async function smokeLearnInterface() {
     assert.match(successText ?? '', /straight up the file/);
     assert.equal(await page.locator('.learn-actions').getByRole('button', { name: 'Next' }).count(), 1);
     assert.equal(await page.locator('.learn-board square.last-move').count(), 0);
-    assert.ok(await page.locator('.learn-board square.learn-highlight').count() > 1);
+    assert.equal(await page.locator('.learn-board square.learn-highlight').count(), 1);
+    assert.ok(await page.locator('.learn-board square.learn-explained').count() > 1);
+
+    await page.locator('.learn-menu-lesson-row', { hasText: 'The Bishop' }).click();
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Bishop 1 of 6');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'The Bishop');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up Right');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+
+    await page.locator('.learn-menu-lesson-row', { hasText: 'The Queen' }).click();
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Queen 1 of 6');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'The Queen');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up The File');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+
+    await page.locator('.learn-menu-lesson-row', { hasText: 'The King' }).click();
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The King 1 of 6');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'The King');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'One Step Up');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+
+    await page.locator('.learn-menu-lesson-row', { hasText: 'The Knight' }).click();
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Knight 1 of 6');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'The Knight');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'First L');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+
+    await page.locator('.learn-menu-lesson-row', { hasText: 'The Pawn' }).click();
+    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Pawn 1 of 6');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'The Pawn');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'One Step');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
   } finally {
     await browser.close();
   }
