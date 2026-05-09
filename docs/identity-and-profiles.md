@@ -419,6 +419,495 @@ May show:
 6. Research/contributor sections.
    Show corpora, annotations, articles, experiments, and reports.
 
+## Profile Milestone Track
+
+### IP0: Authority Before Identity
+
+Goal: live-game authority is correct before any profile or account surface can
+exist.
+
+Requirements:
+
+- `clientId` remains a non-secret browser/session label.
+- `seatToken` remains the authority for a room seat.
+- account or profile identity does not grant live room access by itself.
+- duplicate-tab and reconnect behavior stay deterministic.
+- live PvP private state is not exposed to non-seated users.
+
+Exit gate:
+
+- reconnect and privacy regression tests pass for valid token reclaim,
+  missing/wrong token rejection, copied `clientId`, duplicate tabs, and live
+  spectator rejection.
+
+### IP1: Ownership Metadata
+
+Goal: finished games and artifacts can record who or what owns them before any
+public profile page exists.
+
+Requirements:
+
+- finished games can preserve participant display labels.
+- EvE games can preserve engine family/version metadata.
+- annotations can preserve author/visibility metadata when they become
+  persistent.
+- guest ownership stays scoped until claimed or published.
+- ownership metadata does not expose private live-room authority.
+
+Exit gate:
+
+- a finished public game can explain its participants and source without relying
+  on profile pages.
+
+### IP2: Public Attribution On Game Pages
+
+Goal: public replay/game pages become the first visible identity surface.
+
+Requirements:
+
+- finished game pages show stable White/Black labels.
+- engine games show engine family/version labels when available.
+- public replay pages distinguish human, guest, engine, imported, and manual
+  game sources.
+- game pages link to profile-like surfaces only when those surfaces exist.
+
+Exit gate:
+
+- a shared replay has enough attribution to be understandable without creating a
+  social profile.
+
+### IP3: Engine Identity Pages
+
+Goal: engine/version identity is inspectable before public benchmark claims
+depend on it.
+
+Requirements:
+
+- engine family page route is defined.
+- engine version page route is defined.
+- version pages show config hash, play signature, allowed observation policy,
+  benchmark games, known limitations, and owner/author attribution.
+- engine author ownership is tied to normal signed-in user accounts with extra
+  permissions, not a separate human-account system.
+
+Exit gate:
+
+- a benchmark game can link to the exact engine versions that played it.
+
+### IP4: Player Profiles
+
+Goal: human profiles exist only after signed-in persistence improves real user
+workflows.
+
+Requirements:
+
+- signed-in players can manage public/private game history.
+- users can publish or hide replays and annotations.
+- profile pages show public games, public replays, authored articles, and
+  contribution links.
+- ratings, matchmaking history, teams/forums/chat, and social graph remain
+  deferred.
+
+Exit gate:
+
+- a user can share a profile without exposing private games, seat authority, or
+  unpublished annotations.
+
+### IP5: Claim And Publish Flow
+
+Goal: anonymous play can connect to signed-in identity without retroactive
+exposure.
+
+Requirements:
+
+- a valid room/seat authority can support a later claim flow where appropriate.
+- claimed games default to private or link-scoped unless explicitly published.
+- annotations have private, shared-by-link, and public visibility states.
+- publishing decisions are explicit and reversible where practical.
+
+Exit gate:
+
+- a guest game can be claimed and published without exposing unrelated private
+  session state.
+
+### IP6: Contributor And Research Profiles
+
+Goal: research artifacts and review work have public attribution when useful.
+
+Requirements:
+
+- public corpora, annotations, experiments, and reports can link to authors.
+- contributor profile sections are artifact-oriented, not social-network
+  surfaces.
+- benchmark and annotation pages show enough metadata to audit claims.
+
+Exit gate:
+
+- an external reader can trace a public benchmark or corpus to its relevant
+  engine versions, authors, configs, and review artifacts.
+
+## Technical Implementation Scope
+
+The first implementation pass should make game and engine attribution
+profile-ready without introducing broad accounts, ratings, or social graph
+features. The technical goal is to separate four concerns in storage and APIs:
+
+- authority: who may act in a live room
+- participant attribution: who or what played a finished game
+- artifact ownership: who can manage a game, engine, annotation, or report
+- publication state: what is private, link-scoped, or public
+
+### Existing Foundation
+
+Already present:
+
+- `room_seat_tokens`: durable room-scoped seat authority.
+- `games.white_client` / `games.black_client`: historical session labels.
+- `games.white_name` / `games.black_name`: display labels for public game rows.
+- `games.mode`: `pvp`, `pve`, `eve`, `imported`, or `manual`.
+- `games.corpus_id`: imported/featured corpus grouping.
+- `engines`: engine family/library records.
+- `engine_versions`: exact playable engine identities.
+- `eve_games`: per-game engine/version/config/seed/time-control metadata.
+
+This means the first identity work should not invent a large profile system.
+It should normalize attribution and publication around the game and engine data
+that already exists.
+
+### Proposed New Tables
+
+#### `users`
+
+Minimal signed-in identity. Do not add ratings, social graph, messages, teams,
+or matchmaking columns here.
+
+```sql
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  email_verified_at TIMESTAMPTZ,
+  handle TEXT UNIQUE NOT NULL,
+  display_name TEXT NOT NULL,
+  profile_visibility TEXT NOT NULL DEFAULT 'private'
+    CHECK (profile_visibility IN ('private', 'unlisted', 'public')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX users_email_lower_idx ON users (lower(email));
+```
+
+Notes:
+
+- `id` should be opaque and stable. A future auth provider can map into it.
+- `email` is for durable account login and should not be treated as public
+  profile identity.
+- `handle` is for profile routing and public display, not authorization.
+- Profile visibility does not change live-room access.
+
+#### `account_sessions`
+
+Cookie-backed account sessions for future email login. These authorize
+account-owned actions, not live room moves.
+
+```sql
+CREATE TABLE account_sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ
+);
+```
+
+#### `game_participants`
+
+Normalized participant attribution for finished and public game pages.
+
+```sql
+CREATE TABLE game_participants (
+  game_id TEXT NOT NULL REFERENCES games(room_id) ON DELETE CASCADE,
+  color TEXT NOT NULL CHECK (color IN ('white', 'black')),
+  subject_type TEXT NOT NULL
+    CHECK (subject_type IN ('guest', 'user', 'engine-version', 'manual', 'imported')),
+  subject_id TEXT,
+  display_name TEXT NOT NULL,
+  visibility TEXT NOT NULL DEFAULT 'public'
+    CHECK (visibility IN ('private', 'link', 'public')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (game_id, color)
+);
+
+CREATE INDEX game_participants_subject_idx
+  ON game_participants (subject_type, subject_id);
+```
+
+Rules:
+
+- `guest`: anonymous player/session; `subject_id` is null or a non-public
+  internal reference.
+- `user`: signed-in human account; `subject_id = users.id`.
+- `engine-version`: exact bot identity; `subject_id = engine_versions.id`.
+- `manual` / `imported`: curated or imported artifacts without a normal owner.
+- `display_name` is denormalized for durable replay labels.
+- `subject_id` should not expose raw session identifiers.
+
+#### `artifact_owners`
+
+Authorization and management ownership for artifacts. This is separate from
+public display attribution.
+
+```sql
+CREATE TABLE artifact_owners (
+  artifact_type TEXT NOT NULL
+    CHECK (artifact_type IN ('game', 'engine', 'engine-version', 'annotation', 'corpus', 'report')),
+  artifact_id TEXT NOT NULL,
+  owner_type TEXT NOT NULL
+    CHECK (owner_type IN ('user', 'system')),
+  owner_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'owner'
+    CHECK (role IN ('owner', 'maintainer', 'author', 'reviewer')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (artifact_type, artifact_id, owner_type, owner_id, role)
+);
+
+CREATE INDEX artifact_owners_owner_idx
+  ON artifact_owners (owner_type, owner_id);
+```
+
+Rules:
+
+- ownership is for management and publication, not live play authority.
+- engine authors are normal `users` with ownership rows and optional
+  permissions, not a separate human-account table.
+- system-owned artifacts use an explicit `owner_id`, such as `system`.
+- system-owned artifacts cover built-in engines, imported corpora, and curated
+  samples.
+
+#### Publication Columns
+
+Add explicit publication state to artifacts before profile pages depend on
+them.
+
+Candidate additions:
+
+```sql
+ALTER TABLE games
+  ADD COLUMN visibility TEXT NOT NULL DEFAULT 'link'
+    CHECK (visibility IN ('private', 'link', 'unlisted', 'public')),
+  ADD COLUMN published_at TIMESTAMPTZ;
+
+ALTER TABLE engines
+  ADD COLUMN owner_user_id TEXT REFERENCES users(id);
+```
+
+Future annotation persistence should include:
+
+```text
+visibility: private | link | unlisted | public
+author_user_id
+published_at
+```
+
+Default posture:
+
+- completed PvP/PvE games: `link` unless explicitly public
+- EvE benchmark games: usually `public` or `unlisted` depending on job purpose
+- imported/manual samples: `public`
+- annotations: `private` until explicitly published
+
+### API Scope
+
+#### Game Attribution
+
+Extend public game summary responses to return a participant block instead of
+only flat names.
+
+```ts
+type PublicParticipant = {
+  color: 'white' | 'black';
+  displayName: string;
+  subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
+  subjectId: string | null;
+  profileUrl: string | null;
+};
+```
+
+Affected endpoints:
+
+- `GET /api/games/:roomId`
+- `GET /api/featured-games`
+- `GET /api/eve-games/recent`
+
+Compatibility:
+
+- keep `whiteName`, `blackName`, `whiteEngineId`, and `blackEngineId` during a
+  transition so the current web UI does not need a large rewrite.
+
+#### Engine Identity
+
+Add read-only public endpoints before building full profile pages:
+
+- `GET /api/engines/:engineId`
+- `GET /api/engine-versions/:versionId`
+
+Responses should include only public-safe fields:
+
+- engine family id/name/visibility/status
+- version id/name/status/kind
+- config hash
+- play signature
+- allowed observation policy, if recorded
+- known limitations / notes when public
+- recent public games
+
+Do not expose:
+
+- unpublished configs
+- private notes
+- operational worker metadata
+- admin review state
+
+#### Future User Profiles
+
+Profile routes should be read-only at first:
+
+- `/@/:handle`
+- `GET /api/users/:handle/profile`
+
+Initial sections:
+
+- public games
+- public replays
+- public annotations/articles
+- engine author section when the user owns engines
+- contributor/research section when the user owns corpora/reports
+
+Do not include:
+
+- ratings
+- friends/followers
+- teams/forums/chat
+- private game history
+
+### Buildable Slices
+
+#### Slice 1: Attribution Projection
+
+No auth UI.
+
+Work:
+
+- add migration for `game_participants`, `artifact_owners`, and game
+  `visibility`
+- backfill `game_participants` from existing `games` and `eve_games`
+- update persistence reads to return participant metadata
+- keep old flat fields in API responses
+
+Tests:
+
+- imported/manual games produce stable display participants
+- EvE games produce `engine-version` participants linked to `engine_versions`
+- PvP/PvE anonymous games produce guest/manual labels without raw client ids
+- public summary responses do not include seat tokens or raw session authority
+
+#### Slice 2: Engine Identity Read APIs
+
+No engine submission UI.
+
+Work:
+
+- add persistence helpers for engine family/version lookup
+- add public-safe `GET /api/engines/:id`
+- add public-safe `GET /api/engine-versions/:id`
+- link EvE game summaries to those URLs
+
+Tests:
+
+- engine version API returns config hash and play signature
+- engine version API omits private/admin fields
+- missing/non-public engine versions return 404 or a redacted response according
+  to visibility
+
+#### Slice 3: Game Page Attribution UI
+
+No profile pages yet.
+
+Work:
+
+- update game header and homepage/watch list to consume participant metadata
+- show engine-version links for EvE games
+- keep anonymous human games labeled plainly
+- avoid linking guest labels to fake profiles
+
+Tests:
+
+- public game page renders participant labels from participant metadata
+- guest participants are not linked
+- engine-version participants link to engine-version pages when available
+
+#### Slice 4: Minimal User/Profile Schema
+
+Schema and read-only profile pages only.
+
+Work:
+
+- add `users`
+- add owner rows for system/built-in engines
+- add read-only `/@/:handle` route and profile API
+- return empty profile states cleanly
+
+Tests:
+
+- public profile shows only public/link-published artifacts
+- private games and private annotations are omitted
+- profile identity does not authorize private room APIs or live room access
+
+#### Slice 5: Claim And Publish
+
+Requires account/session work.
+
+Work:
+
+- define account session mechanism
+- allow valid seat authority to claim a completed game
+- add publish/unpublish controls for owned games and annotations
+- record `published_at`
+
+Tests:
+
+- valid claim requires both account session and appropriate room/seat authority
+- invalid/missing seat authority cannot claim a game
+- publishing a game never exposes seat tokens or pre-terminal private payloads
+- unpublishing removes it from profile/public listings while preserving link
+  access if policy allows
+
+### Non-Goals For This Track
+
+- ratings
+- matchmaking
+- tournaments
+- followers/friends
+- chat/messages
+- teams/forums
+- OAuth provider selection
+- public engine upload/execution
+- moderation tooling beyond minimum visibility/reporting notes
+
+### First Recommended Implementation Task
+
+Start with Slice 1.
+
+Reason:
+
+- it uses the persistence system already in place
+- it improves game pages and homepage/watch attribution immediately
+- it creates profile-ready data without exposing public profiles
+- it does not require auth, account sessions, or social decisions
+- it supports the engine/research track by making EvE participants explicit
+
 ## Authority Rules
 
 Identity should not imply authority unless an explicit credential or account

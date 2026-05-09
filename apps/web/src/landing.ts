@@ -1,4 +1,4 @@
-import type { Board, GameEvent, PlayerView, Square } from '@bichess/game';
+import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Square } from '@bichess/game';
 import type * as cg from 'chessground/types';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from './board-ui.js';
 import { mountReplay, type GameMeta } from './replay.js';
@@ -19,9 +19,18 @@ type FeaturedGame = {
   whiteEngineId?: string | null;
   blackEngineId?: string | null;
   timeControl?: Record<string, unknown> | null;
+  participants?: GameParticipant[];
 };
 
-type LandingGameSource = 'eve' | 'featured' | 'sample';
+type GameParticipant = {
+  color: 'white' | 'black';
+  displayName: string;
+  subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
+  subjectId: string | null;
+  visibility: 'private' | 'link' | 'unlisted' | 'public';
+};
+
+type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
@@ -118,15 +127,13 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   shell.append(headerRoot, replayRoot);
   root.append(buildNav(), shell, buildFooter());
 
-  const game = await fetchGameSummary(roomId).catch((err) => {
-    console.warn(err);
-    return null;
-  });
-  if (!game) {
+  const loaded = await loadGameForReview(roomId);
+  if (!loaded) {
     replayRoot.append(buildNotice('Game not found', 'This game is not available as a public replay.'));
     return;
   }
 
+  const { game, events } = loaded;
   headerRoot.append(buildGameHeader(game));
   await mountReplay(replayRoot, game.roomId, {
     autoplay: false,
@@ -134,14 +141,36 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
     onPlyChange: syncGamePlyUrl,
     showControls: true,
     revealOnFinish: true,
-    loaderForId: apiEventLoader,
+    loaderForId: events ? async () => events : apiEventLoader,
     metadataByRoomId: {
       [game.roomId]: gameMetaForGame(game),
     },
   });
 }
 
+async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; events?: GameEvent[] } | null> {
+  const game = await fetchGameSummary(roomId).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  if (game) return { game };
+
+  const events = await apiEventLoader(roomId).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  if (!events || events.length === 0) return null;
+
+  const fallback = gameSummaryFromEvents(roomId, events);
+  return fallback ? { game: fallback, events } : null;
+}
+
 async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
+  const recentGames = await fetchRecentGames().catch((err) => {
+    console.warn(err);
+    return [];
+  });
+  if (recentGames.length > 0) return { games: recentGames, source: 'recent' };
   const eveGames = await fetchRecentEveGames().catch((err) => {
     console.warn(err);
     return [];
@@ -170,6 +199,13 @@ async function fetchFeaturedGames(): Promise<FeaturedGame[]> {
   return data.games;
 }
 
+async function fetchRecentGames(): Promise<FeaturedGame[]> {
+  const resp = await fetch('/api/games/recent');
+  if (!resp.ok) throw new Error(`failed to load recent games: ${resp.status}`);
+  const data = (await resp.json()) as { games: FeaturedGame[] };
+  return data.games;
+}
+
 async function fetchRecentEveGames(): Promise<FeaturedGame[]> {
   const resp = await fetch('/api/eve-games/recent');
   if (!resp.ok) throw new Error(`failed to load recent EvE games: ${resp.status}`);
@@ -182,6 +218,76 @@ async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
   if (!resp.ok) throw new Error(`failed to load events for ${roomId}: ${resp.status}`);
   const data = (await resp.json()) as { events: GameEvent[] };
   return data.events;
+}
+
+function gameSummaryFromEvents(roomId: string, events: GameEvent[]): FeaturedGame | null {
+  const projection = replayGameEvents(events);
+  const status = projection.state.status;
+  if (status.type !== 'finished') return null;
+
+  return {
+    roomId,
+    variant: projection.variant,
+    mode: modeFromSeats(projection.seats.white, projection.seats.black),
+    result: status.winner === 'white' ? 'white-wins' : status.winner === 'black' ? 'black-wins' : 'draw',
+    termination: status.reason,
+    plyCount: events.filter((event) => event.type === 'move-played').length,
+    whiteName: null,
+    blackName: null,
+    corpusId: null,
+    participants: [
+      participantFromSeat('white', projection.seats.white, null),
+      participantFromSeat('black', projection.seats.black, null),
+    ],
+  };
+}
+
+function modeFromSeats(whiteClient: string | undefined, blackClient: string | undefined): FeaturedGame['mode'] {
+  const whiteEngine = isEngineClient(whiteClient);
+  const blackEngine = isEngineClient(blackClient);
+  if (whiteEngine && blackEngine) return 'eve';
+  if (whiteEngine || blackEngine) return 'pve';
+  return 'pvp';
+}
+
+function isEngineClient(clientId: string | undefined): boolean {
+  return !!clientId && (
+    clientId === 'random-engine'
+    || clientId === 'engine:white'
+    || clientId === 'engine:black'
+    || clientId.startsWith('engine:')
+    || clientId.startsWith('builtin-')
+    || clientId.startsWith('python-')
+  );
+}
+
+function participantFromSeat(
+  color: 'white' | 'black',
+  clientId: string | undefined,
+  fallbackName: string | null,
+): GameParticipant {
+  if (isEngineClient(clientId)) {
+    const subjectId = canonicalEngineId(clientId!);
+    return {
+      color,
+      displayName: fallbackName ?? subjectId,
+      subjectType: 'engine-version',
+      subjectId,
+      visibility: 'link',
+    };
+  }
+  return {
+    color,
+    displayName: fallbackName ?? 'Guest',
+    subjectType: 'guest',
+    subjectId: null,
+    visibility: 'link',
+  };
+}
+
+function canonicalEngineId(clientId: string): string {
+  if (clientId === 'random-engine') return 'builtin-random-legal';
+  return clientId;
 }
 
 async function landingEventLoader(roomId: string): Promise<GameEvent[]> {
@@ -212,13 +318,29 @@ function staticSampleGames(): FeaturedGame[] {
     whiteName: 'White',
     blackName: 'Black',
     corpusId: 'replay-samples',
+    participants: [
+      {
+        color: 'white',
+        displayName: 'White',
+        subjectType: 'manual',
+        subjectId: null,
+        visibility: 'public',
+      },
+      {
+        color: 'black',
+        displayName: 'Black',
+        subjectType: 'manual',
+        subjectId: null,
+        visibility: 'public',
+      },
+    ],
   }));
 }
 
 function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
-    whiteName: game.whiteEngineId ?? game.whiteName,
-    blackName: game.blackEngineId ?? game.blackName,
+    whiteName: participantForColor(game, 'white')?.displayName ?? game.whiteEngineId ?? game.whiteName,
+    blackName: participantForColor(game, 'black')?.displayName ?? game.blackEngineId ?? game.blackName,
     result: game.result,
     termination: game.termination,
     plyCount: game.plyCount,
@@ -238,7 +360,7 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
 
   const title = document.createElement('h1');
   title.className = 'game-title';
-  title.textContent = `${displayParticipant(game.whiteEngineId ?? game.whiteName, 'White')} vs ${displayParticipant(game.blackEngineId ?? game.blackName, 'Black')}`;
+  title.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
 
   const meta = document.createElement('p');
   meta.className = 'game-summary-line';
@@ -256,6 +378,20 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
 
   header.append(text, actions);
   return header;
+}
+
+function displayParticipantName(game: FeaturedGame, color: 'white' | 'black'): string {
+  const participant = participantForColor(game, color);
+  if (participant) return displayParticipant(participant.displayName, color === 'white' ? 'White' : 'Black');
+  const fallback = color === 'white' ? 'White' : 'Black';
+  const legacyName = color === 'white'
+    ? game.whiteEngineId ?? game.whiteName
+    : game.blackEngineId ?? game.blackName;
+  return displayParticipant(legacyName, fallback);
+}
+
+function participantForColor(game: FeaturedGame, color: 'white' | 'black'): GameParticipant | null {
+  return game.participants?.find((participant) => participant.color === color) ?? null;
 }
 
 function displayParticipant(name: string | null | undefined, fallback: string): string {
@@ -399,8 +535,10 @@ function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replay
 
   const tag = document.createElement('p');
   tag.className = 'landing-tag';
-  tag.textContent = source === 'eve'
-    ? "Now showing recent engine games with each side's private view."
+  tag.textContent = source === 'recent'
+    ? "Now showing recent public Fog games with each side's private view."
+    : source === 'eve'
+      ? "Now showing recent engine games with each side's private view."
     : 'Watch what each side saw, then reveal what was really there.';
 
   const ctas = document.createElement('div');
@@ -484,7 +622,7 @@ function renderRecentGames(
   const heading = document.createElement('div');
   heading.className = 'landing-games-heading';
   heading.textContent = headingText ?? (
-    source === 'eve' ? 'Recent EvE' : source === 'sample' ? 'Replay samples' : 'Featured games'
+    source === 'recent' ? 'Recent games' : source === 'eve' ? 'Recent EvE' : source === 'sample' ? 'Replay samples' : 'Featured games'
   );
   root.append(heading);
 
@@ -499,7 +637,7 @@ function renderRecentGames(
   const list = document.createElement('ol');
   list.className = 'landing-games-list';
 
-  for (const game of games.slice(0, 8)) {
+  for (const game of games.slice(0, 10)) {
     const item = document.createElement('li');
     const link = document.createElement('a');
     link.href = `${hrefPrefix}${encodeURIComponent(game.roomId)}`;
@@ -507,7 +645,7 @@ function renderRecentGames(
 
     const matchup = document.createElement('span');
     matchup.className = 'landing-game-matchup';
-    matchup.textContent = `${shortEngineName(game.whiteEngineId ?? game.whiteName)} vs ${shortEngineName(game.blackEngineId ?? game.blackName)}`;
+    matchup.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
 
     const meta = document.createElement('span');
     meta.className = 'landing-game-meta';

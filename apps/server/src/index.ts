@@ -91,6 +91,7 @@ const wsMessageWindowMs = parsePositiveInteger(process.env.BICHESS_WS_MESSAGE_WI
 const shutdownGraceMs = parsePositiveInteger(process.env.BICHESS_SHUTDOWN_GRACE_MS) ?? 10_000;
 const liveClockInitialMs = 30_000;
 const liveClockIncrementMs = 2_000;
+const pveBuiltinEngineClientId = 'builtin-random-legal';
 
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
@@ -210,6 +211,7 @@ function isClientRoute(pathname: string): boolean {
 
 async function handleApiRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = request.url ?? '/';
+  const parsedUrl = new URL(url, 'http://localhost');
   const method = request.method ?? 'GET';
 
   if (url === '/api/rooms') {
@@ -237,9 +239,91 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     return;
   }
 
+  if (url === '/api/games/recent') {
+    if (!persistence.isInitialized()) {
+      response.writeHead(503, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'persistence_disabled' }));
+      return;
+    }
+    const games = await persistence.listRecentPublicGames(10);
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ games }));
+    return;
+  }
+
+  const summaryMatch = url.match(/^\/api\/games\/([^/]+)$/);
+  if (summaryMatch) {
+    const roomId = decodeURIComponent(summaryMatch[1]!);
+    const game = await gameSummaryForApi(roomId);
+    if (!game) {
+      response.writeHead(404, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'not_found' }));
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ game }));
+    return;
+  }
+
+  const eventsMatch = url.match(/^\/api\/games\/([^/]+)\/events$/);
+  if (eventsMatch) {
+    const roomId = decodeURIComponent(eventsMatch[1]!);
+    const events = await gameEventsForApi(roomId);
+    const replayResponse = eventReplayResponse(events);
+    response.writeHead(replayResponse.status, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(replayResponse.body));
+    return;
+  }
+
   if (!persistence.isInitialized()) {
     response.writeHead(503, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ error: 'persistence_disabled' }));
+    return;
+  }
+
+  if (parsedUrl.pathname === '/api/games') {
+    if (method !== 'GET') {
+      response.writeHead(405, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'method_not_allowed' }));
+      return;
+    }
+    if (!isHttpAdminAuthorized(request)) {
+      response.writeHead(403, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'admin_required' }));
+      return;
+    }
+
+    const date = parseUtcDateParam(parsedUrl.searchParams.get('date'));
+    const mode = parseGameModeParam(parsedUrl.searchParams.get('mode'));
+    const limit = parsePositiveInteger(parsedUrl.searchParams.get('limit') ?? undefined);
+    if (!date) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'invalid_date' }));
+      return;
+    }
+    if (parsedUrl.searchParams.has('mode') && !mode) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'invalid_mode' }));
+      return;
+    }
+
+    const endedFrom = date;
+    const endedTo = new Date(endedFrom.getTime() + 24 * 60 * 60 * 1000);
+    const games = await persistence.listCompletedGames({
+      endedFrom,
+      endedTo,
+      ...(limit ? { limit } : {}),
+      ...(mode ? { mode } : {}),
+    });
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({
+      games,
+      range: {
+        date: parsedUrl.searchParams.get('date'),
+        endedFrom: endedFrom.toISOString(),
+        endedTo: endedTo.toISOString(),
+      },
+    }));
     return;
   }
 
@@ -258,32 +342,22 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     return;
   }
 
-  const summaryMatch = url.match(/^\/api\/games\/([^/]+)$/);
-  if (summaryMatch) {
-    const roomId = decodeURIComponent(summaryMatch[1]!);
-    const game = await persistence.getGameSummary(roomId);
-    if (!game) {
-      response.writeHead(404, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'not_found' }));
-      return;
-    }
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ game }));
-    return;
-  }
-
-  const eventsMatch = url.match(/^\/api\/games\/([^/]+)\/events$/);
-  if (eventsMatch) {
-    const roomId = decodeURIComponent(eventsMatch[1]!);
-    const events = await persistence.loadRoom(roomId);
-    const replayResponse = eventReplayResponse(events);
-    response.writeHead(replayResponse.status, { 'content-type': 'application/json' });
-    response.end(JSON.stringify(replayResponse.body));
-    return;
-  }
-
   response.writeHead(404, { 'content-type': 'application/json' });
   response.end(JSON.stringify({ error: 'not_found' }));
+}
+
+async function gameSummaryForApi(roomId: string): Promise<persistence.RecentEveGameRecord | null> {
+  const persisted = persistence.isInitialized()
+    ? await persistence.getGameSummary(roomId)
+    : null;
+  return persisted ?? inMemoryGameSummary(roomId);
+}
+
+async function gameEventsForApi(roomId: string): Promise<GameEvent[] | null> {
+  const persisted = persistence.isInitialized()
+    ? await persistence.loadRoom(roomId)
+    : null;
+  return persisted ?? rooms.get(roomId)?.events ?? null;
 }
 
 async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
@@ -304,6 +378,26 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
   return null;
+}
+
+function parseGameModeParam(value: string | null): persistence.GameMode | null {
+  if (
+    value === 'pvp'
+    || value === 'pve'
+    || value === 'eve'
+    || value === 'imported'
+    || value === 'manual'
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function parseUtcDateParam(value: string | null): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime())) return null;
+  return date.toISOString().startsWith(value) ? date : null;
 }
 
 function resolveStaticDir(): string {
@@ -483,7 +577,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
     seatTokens,
     clockTimer: null,
     mode: modeForProjection(projection),
-    randomEngine: projection.seats.black === 'random-engine',
+    randomEngine: isPveBuiltinEngineClient(projection.seats.black),
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
   };
@@ -511,7 +605,7 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
         type: 'seat-assigned',
         at,
         roomId,
-        clientId: 'random-engine',
+        clientId: pveBuiltinEngineClientId,
         seat: 'black',
       });
     }
@@ -678,7 +772,7 @@ async function enableRandomEngine(room: Room): Promise<void> {
     type: 'seat-assigned',
     at: Date.now(),
     roomId: room.id,
-    clientId: 'random-engine',
+    clientId: pveBuiltinEngineClientId,
     seat: 'black',
   });
 }
@@ -1033,6 +1127,71 @@ function buildGameSummary(room: Room): GameSummary {
   };
 }
 
+function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null {
+  const room = rooms.get(roomId);
+  if (!room || room.projection.state.status.type !== 'finished') return null;
+
+  const summary = buildGameSummary(room);
+  return {
+    roomId: room.id,
+    variant: summary.variant,
+    mode: summary.mode ?? (summary.corpusId ? 'imported' : 'pvp'),
+    result: summary.result,
+    termination: summary.termination,
+    plyCount: summary.plyCount,
+    startedAt: summary.startedAt,
+    endedAt: summary.endedAt,
+    whiteName: summary.whiteName,
+    blackName: summary.blackName,
+    corpusId: summary.corpusId,
+    jobId: null,
+    gameIndex: null,
+    whiteEngineId: null,
+    blackEngineId: null,
+    timeControl: null,
+    visibility: summary.visibility ?? 'link',
+    participants: [
+      inMemoryParticipant('white', summary.whiteClient, summary.whiteName, summary.mode ?? 'pvp', summary.visibility ?? 'link'),
+      inMemoryParticipant('black', summary.blackClient, summary.blackName, summary.mode ?? 'pvp', summary.visibility ?? 'link'),
+    ],
+  };
+}
+
+function inMemoryParticipant(
+  color: Color,
+  clientId: string | null,
+  displayName: string | null,
+  mode: persistence.GameMode,
+  visibility: persistence.GameVisibility,
+): persistence.GameParticipant {
+  if (clientId && isServerEngineClient(clientId)) {
+    const engineVersionId = canonicalEngineVersionId(clientId);
+    return {
+      color,
+      displayName: displayName ?? engineVersionId,
+      subjectType: 'engine-version',
+      subjectId: engineVersionId,
+      visibility,
+    };
+  }
+  if (mode === 'imported' || mode === 'manual') {
+    return {
+      color,
+      displayName: displayName ?? (color === 'white' ? 'White' : 'Black'),
+      subjectType: mode,
+      subjectId: null,
+      visibility,
+    };
+  }
+  return {
+    color,
+    displayName: displayName ?? 'Guest',
+    subjectType: 'guest',
+    subjectId: null,
+    visibility,
+  };
+}
+
 function recordPersistenceError(roomId: string, seq: number, event: GameEvent, err: Error): void {
   const entry = { at: Date.now(), roomId, eventType: event.type };
   persistenceErrors.push(entry);
@@ -1179,6 +1338,24 @@ function handleAdminDebugAuth(room: Room, client: Client, token: string | undefi
 function isDebugViewAuthorized(request: IncomingMessage): boolean {
   if (!isProductionLikeRuntime()) return true;
   return isAdminDebugToken(adminDebugTokenFromProtocolHeader(request.headers['sec-websocket-protocol']));
+}
+
+function isHttpAdminAuthorized(request: IncomingMessage): boolean {
+  if (!isProductionLikeRuntime()) return true;
+  const authorization = Array.isArray(request.headers.authorization)
+    ? request.headers.authorization[0]
+    : request.headers.authorization;
+  const token = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
+  return isAdminDebugToken(token);
+}
+
+function isPveBuiltinEngineClient(clientId: string | undefined): boolean {
+  return clientId === pveBuiltinEngineClientId || clientId === 'random-engine';
+}
+
+function canonicalEngineVersionId(clientId: string): string {
+  if (clientId === 'random-engine') return pveBuiltinEngineClientId;
+  return clientId;
 }
 
 function isAllowedWebSocketRequest(request: IncomingMessage): boolean {

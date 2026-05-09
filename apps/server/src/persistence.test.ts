@@ -11,9 +11,11 @@ import {
   init,
   isInitialized,
   listActiveRoomIds,
+  listCompletedGames,
   loadRoom,
   loadRoomSeatTokens,
   listRecentEveGames,
+  listRecentPublicGames,
   recordGameEnd,
   replaceRoomSeatTokens,
   touchRoomSeatToken,
@@ -47,6 +49,9 @@ if (!TEST_DATABASE_URL) {
     try {
       await client.query(
         `TRUNCATE
+           account_sessions,
+           artifact_owners,
+           game_participants,
            room_seat_tokens,
            game_debug_artifacts,
            eve_games,
@@ -55,6 +60,7 @@ if (!TEST_DATABASE_URL) {
            eve_jobs,
            engine_versions,
            engines,
+           users,
            events,
            games
          RESTART IDENTITY CASCADE`,
@@ -350,6 +356,96 @@ if (!TEST_DATABASE_URL) {
     }
   });
 
+  test('recordGameEnd writes durable participant attribution', async () => {
+    const now = new Date();
+    await recordGameEnd('pve-attribution', {
+      variant: 'fog-of-war',
+      mode: 'pve',
+      result: 'white-wins',
+      termination: 'king-captured',
+      plyCount: 18,
+      startedAt: now,
+      endedAt: now,
+      whiteClient: 'human-browser-client',
+      blackClient: 'random-engine',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    });
+
+    const summary = await getGameSummary('pve-attribution');
+    assert.deepEqual(summary?.participants, [
+      {
+        color: 'white',
+        displayName: 'Guest',
+        subjectType: 'guest',
+        subjectId: null,
+        visibility: 'link',
+      },
+      {
+        color: 'black',
+        displayName: 'builtin-random-legal',
+        subjectType: 'engine-version',
+        subjectId: 'builtin-random-legal',
+        visibility: 'link',
+      },
+    ]);
+  });
+
+  test('recordGameEnd accepts explicit signed-in user participant attribution', async () => {
+    const now = new Date();
+    await recordGameEnd('signed-in-pve-attribution', {
+      variant: 'fog-of-war',
+      mode: 'pve',
+      result: 'black-wins',
+      termination: 'timeout',
+      plyCount: 22,
+      startedAt: now,
+      endedAt: now,
+      whiteClient: 'signed-in-browser-client',
+      blackClient: 'builtin-random-legal',
+      whiteName: 'alice',
+      blackName: 'Random Legal',
+      corpusId: null,
+      participants: [
+        {
+          color: 'white',
+          displayName: 'alice',
+          subjectType: 'user',
+          subjectId: 'user_alice',
+          visibility: 'private',
+        },
+        {
+          color: 'black',
+          displayName: 'Random Legal',
+          subjectType: 'engine-version',
+          subjectId: 'builtin-random-legal',
+          visibility: 'public',
+        },
+      ],
+      visibility: 'private',
+    });
+
+    const summary = await getGameSummary('signed-in-pve-attribution');
+    assert.equal(summary?.visibility, 'private');
+    assert.deepEqual(summary?.participants, [
+      {
+        color: 'white',
+        displayName: 'alice',
+        subjectType: 'user',
+        subjectId: 'user_alice',
+        visibility: 'private',
+      },
+      {
+        color: 'black',
+        displayName: 'Random Legal',
+        subjectType: 'engine-version',
+        subjectId: 'builtin-random-legal',
+        visibility: 'public',
+      },
+    ]);
+  });
+
   test('listRecentEveGames returns completed EvE games newest first', async () => {
     const now = new Date();
     const older = new Date(now.getTime() - 60_000);
@@ -411,6 +507,106 @@ if (!TEST_DATABASE_URL) {
     assert.deepEqual(games[0]?.timeControl, { kind: 'per-move', milliseconds: 100 });
   });
 
+  test('listRecentPublicGames returns public games and EvE games only', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const older = new Date(now.getTime() - 60_000);
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_client, black_client, white_name, black_name, mode, status, visibility)
+         VALUES
+           ('public-pvp', 'fog-of-war', 'white-wins', 'king-captured', 18, $1, $1,
+            'public-white', 'public-black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('link-pve', 'fog-of-war', 'black-wins', 'timeout', 22, $1, $1,
+            'human-client', 'random-engine', NULL, NULL, 'pve', 'completed', 'link'),
+           ('link-eve', 'fog-of-war', 'draw', 'truncated', 28, $2, $2,
+            'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed', 'link'),
+           ('private-pvp', 'fog-of-war', 'draw', 'truncated', 6, $2, $2,
+            'private-white', 'private-black', NULL, NULL, 'pvp', 'completed', 'private')`,
+        [now, older],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const games = await listRecentPublicGames(10);
+    assert.deepEqual(games.map((game) => game.roomId), ['public-pvp', 'link-eve']);
+  });
+
+  test('listCompletedGames returns completed games in date range with participants', async () => {
+    const day = new Date('2026-05-08T12:00:00.000Z');
+    const older = new Date('2026-05-07T23:59:59.000Z');
+    const newer = new Date('2026-05-09T00:00:00.000Z');
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_client, black_client, white_name, black_name, mode, status)
+         VALUES
+           ('range-older', 'fog-of-war', 'draw', 'truncated', 4, $1, $1,
+            'old-white', 'old-black', NULL, NULL, 'pvp', 'completed'),
+           ('range-eve', 'fog-of-war', 'black-wins', 'timeout', 12, $2, $2,
+            'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed'),
+           ('range-newer', 'fog-of-war', 'draw', 'truncated', 5, $3, $3,
+            'new-white', 'new-black', NULL, NULL, 'pvp', 'completed'),
+           ('range-running', 'fog-of-war', NULL, NULL, 0, $2, NULL,
+            NULL, NULL, NULL, NULL, 'pvp', 'running')`,
+        [older, day, newer],
+      );
+    } finally {
+      await client.end();
+    }
+    await recordGameEnd('range-pve', {
+      variant: 'fog-of-war',
+      mode: 'pve',
+      result: 'white-wins',
+      termination: 'king-captured',
+      plyCount: 9,
+      startedAt: day,
+      endedAt: day,
+      whiteClient: 'human-client',
+      blackClient: 'random-engine',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    });
+
+    const games = await listCompletedGames({
+      endedFrom: new Date('2026-05-08T00:00:00.000Z'),
+      endedTo: new Date('2026-05-09T00:00:00.000Z'),
+    });
+    assert.deepEqual(games.map((game) => game.roomId), ['range-pve', 'range-eve']);
+    assert.equal(games[0]?.mode, 'pve');
+    assert.deepEqual(games[0]?.participants, [
+      {
+        color: 'white',
+        displayName: 'Guest',
+        subjectType: 'guest',
+        subjectId: null,
+        visibility: 'link',
+      },
+      {
+        color: 'black',
+        displayName: 'builtin-random-legal',
+        subjectType: 'engine-version',
+        subjectId: 'builtin-random-legal',
+        visibility: 'link',
+      },
+    ]);
+
+    const eveGames = await listCompletedGames({
+      endedFrom: new Date('2026-05-08T00:00:00.000Z'),
+      endedTo: new Date('2026-05-09T00:00:00.000Z'),
+      mode: 'eve',
+    });
+    assert.deepEqual(eveGames.map((game) => game.roomId), ['range-eve']);
+  });
+
   test('getGameSummary returns completed game metadata without events', async () => {
     const now = new Date();
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
@@ -437,6 +633,22 @@ if (!TEST_DATABASE_URL) {
     assert.equal(summary?.whiteName, 'human');
     assert.equal(summary?.blackName, 'engine');
     assert.equal(summary?.plyCount, 17);
+    assert.deepEqual(summary?.participants, [
+      {
+        color: 'white',
+        displayName: 'human',
+        subjectType: 'guest',
+        subjectId: null,
+        visibility: 'link',
+      },
+      {
+        color: 'black',
+        displayName: 'engine',
+        subjectType: 'guest',
+        subjectId: null,
+        visibility: 'link',
+      },
+    ]);
     assert.equal(await getGameSummary('summary-running'), null);
     assert.equal(await getGameSummary('missing-summary'), null);
   });
