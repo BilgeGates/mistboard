@@ -19,6 +19,7 @@ export type GameTermination =
 export type GameReviewStatus = 'unreviewed' | 'flagged' | 'reviewed' | 'training' | 'rejected';
 export type GameVisibility = 'private' | 'link' | 'unlisted' | 'public';
 export type GameParticipantSubjectType = 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
+export type AccountRole = 'player' | 'test' | 'admin';
 
 export type GameParticipant = {
   color: Color;
@@ -97,6 +98,7 @@ export type UserAccount = {
   handle: string;
   displayName: string;
   profileVisibility: 'private' | 'unlisted' | 'public';
+  accountRole: AccountRole;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -119,9 +121,23 @@ export type RoomSeatTokenRecord = {
   seat: Color;
   clientId: string;
   tokenHash: string;
+  userId: string | null;
+  userHandle: string | null;
+  userDisplayName: string | null;
   issuedAt: Date;
   lastSeenAt: Date;
   revokedAt: Date | null;
+};
+
+export type PublicProfileUser = {
+  handle: string;
+  displayName: string;
+  profileVisibility: UserAccount['profileVisibility'];
+};
+
+export type UserProfile = {
+  user: PublicProfileUser;
+  games: GameRecord[];
 };
 
 export function init(connectionString: string): void {
@@ -160,14 +176,20 @@ export async function loadRoomSeatTokens(roomId: string): Promise<Partial<Record
     seat: Color;
     client_id: string;
     token_hash: string;
+    user_id: string | null;
+    user_handle: string | null;
+    user_display_name: string | null;
     issued_at: Date;
     last_seen_at: Date;
     revoked_at: Date | null;
   }>(
-    `SELECT seat, client_id, token_hash, issued_at, last_seen_at, revoked_at
+    `SELECT room_seat_tokens.seat, room_seat_tokens.client_id, room_seat_tokens.token_hash,
+            room_seat_tokens.user_id, users.handle AS user_handle, users.display_name AS user_display_name,
+            room_seat_tokens.issued_at, room_seat_tokens.last_seen_at, room_seat_tokens.revoked_at
      FROM room_seat_tokens
+     LEFT JOIN users ON users.id = room_seat_tokens.user_id
      WHERE room_id = $1
-       AND revoked_at IS NULL`,
+       AND room_seat_tokens.revoked_at IS NULL`,
     [roomId],
   );
   const tokens: Partial<Record<Color, RoomSeatTokenRecord>> = {};
@@ -176,6 +198,9 @@ export async function loadRoomSeatTokens(roomId: string): Promise<Partial<Record
       seat: row.seat,
       clientId: row.client_id,
       tokenHash: row.token_hash,
+      userId: row.user_id,
+      userHandle: row.user_handle,
+      userDisplayName: row.user_display_name,
       issuedAt: row.issued_at,
       lastSeenAt: row.last_seen_at,
       revokedAt: row.revoked_at,
@@ -194,11 +219,12 @@ export async function upsertRoomSeatToken(
 ): Promise<void> {
   await getPool().query(
     `INSERT INTO room_seat_tokens
-       (room_id, seat, client_id, token_hash, issued_at, last_seen_at, revoked_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (room_id, seat, client_id, token_hash, user_id, issued_at, last_seen_at, revoked_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (room_id, seat) DO UPDATE SET
        client_id = EXCLUDED.client_id,
        token_hash = EXCLUDED.token_hash,
+       user_id = EXCLUDED.user_id,
        issued_at = EXCLUDED.issued_at,
        last_seen_at = EXCLUDED.last_seen_at,
        revoked_at = EXCLUDED.revoked_at`,
@@ -207,6 +233,7 @@ export async function upsertRoomSeatToken(
       token.seat,
       token.clientId,
       token.tokenHash,
+      token.userId,
       token.issuedAt,
       token.lastSeenAt,
       token.revokedAt ?? null,
@@ -238,13 +265,14 @@ export async function replaceRoomSeatTokens(
       if (!token || token.revokedAt) continue;
       await client.query(
         `INSERT INTO room_seat_tokens
-           (room_id, seat, client_id, token_hash, issued_at, last_seen_at, revoked_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+           (room_id, seat, client_id, token_hash, user_id, issued_at, last_seen_at, revoked_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           roomId,
           token.seat,
           token.clientId,
           token.tokenHash,
+          token.userId,
           token.issuedAt,
           token.lastSeenAt,
           token.revokedAt,
@@ -293,7 +321,7 @@ export async function recordGameStart(roomId: string, summary: RunningGameSummar
       summary.corpusId,
       summary.mode,
       summary.reviewStatus ?? 'unreviewed',
-      summary.visibility ?? 'link',
+      summary.visibility ?? 'public',
     ],
   );
 }
@@ -326,7 +354,7 @@ export async function consumeEmailLoginChallenge(
 
 export async function findUserByEmail(email: string): Promise<UserAccount | null> {
   const { rows } = await getPool().query<UserRow>(
-    `SELECT id, email, email_verified_at, handle, display_name, profile_visibility, created_at, updated_at
+    `SELECT id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at
      FROM users
      WHERE lower(email) = lower($1)
      LIMIT 1`,
@@ -342,20 +370,22 @@ export async function createUser(user: {
   handle: string;
   displayName: string;
   profileVisibility?: UserAccount['profileVisibility'];
+  accountRole?: AccountRole;
   now: Date;
 }): Promise<UserAccount> {
   const { rows } = await getPool().query<UserRow>(
     `INSERT INTO users
-       (id, email, email_verified_at, handle, display_name, profile_visibility, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
-     RETURNING id, email, email_verified_at, handle, display_name, profile_visibility, created_at, updated_at`,
+       (id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+     RETURNING id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at`,
     [
       user.id,
       user.email,
       user.emailVerifiedAt,
       user.handle,
       user.displayName,
-      user.profileVisibility ?? 'private',
+      user.profileVisibility ?? 'public',
+      user.accountRole ?? 'player',
       user.now,
     ],
   );
@@ -368,7 +398,7 @@ export async function markUserEmailVerified(userId: string, at: Date): Promise<U
      SET email_verified_at = COALESCE(email_verified_at, $2),
          updated_at = $2
      WHERE id = $1
-     RETURNING id, email, email_verified_at, handle, display_name, profile_visibility, created_at, updated_at`,
+     RETURNING id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at`,
     [userId, at],
   );
   return userFromRow(rows[0]!);
@@ -397,7 +427,7 @@ export async function getUserByAccountSession(
        AND account_sessions.revoked_at IS NULL
        AND account_sessions.expires_at > $3
      RETURNING users.id, users.email, users.email_verified_at, users.handle, users.display_name,
-               users.profile_visibility, users.created_at, users.updated_at`,
+               users.profile_visibility, users.account_role, users.created_at, users.updated_at`,
     [sessionId, tokenHash, at],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
@@ -412,6 +442,82 @@ export async function revokeAccountSession(sessionId: string, tokenHash: string,
        AND revoked_at IS NULL`,
     [sessionId, tokenHash, at],
   );
+}
+
+export async function getUserProfileByHandle(
+  handle: string,
+  viewerUserId: string | null,
+  limit = 50,
+): Promise<UserProfile | null> {
+  const { rows: userRows } = await getPool().query<UserRow>(
+    `SELECT id, email, email_verified_at, handle, display_name, profile_visibility, account_role, created_at, updated_at
+     FROM users
+     WHERE lower(handle) = lower($1)
+     LIMIT 1`,
+    [handle],
+  );
+  const user = userRows[0] ? userFromRow(userRows[0]) : null;
+  if (!user) return null;
+
+  const isViewer = viewerUserId === user.id;
+  if (user.profileVisibility === 'private' && !isViewer) return null;
+
+  const boundedLimit = Math.max(1, Math.min(limit, 100));
+  const visibilityClause = isViewer
+    ? ''
+    : `AND games.visibility <> 'private'
+       AND game_participants.visibility <> 'private'`;
+  const { rows: gameRows } = await getPool().query<{
+    room_id: string;
+    variant: string;
+    mode: GameMode;
+    result: string;
+    termination: string;
+    ply_count: number;
+    started_at: Date;
+    ended_at: Date;
+    white_name: string | null;
+    black_name: string | null;
+    corpus_id: string | null;
+    visibility: GameVisibility;
+  }>(
+    `SELECT games.room_id, games.variant, games.mode, games.result, games.termination,
+            games.ply_count, games.started_at, games.ended_at,
+            games.white_name, games.black_name, games.corpus_id, games.visibility
+     FROM game_participants
+     JOIN games ON games.room_id = game_participants.game_id
+     WHERE game_participants.subject_type = 'user'
+       AND game_participants.subject_id = $1
+       AND games.status = 'completed'
+       ${visibilityClause}
+     ORDER BY games.ended_at DESC, games.room_id DESC
+     LIMIT $2`,
+    [user.id, boundedLimit],
+  );
+  const games = gameRows.map((row): GameRecord => ({
+    roomId: row.room_id,
+    variant: row.variant,
+    mode: row.mode,
+    result: row.result as GameResult,
+    termination: row.termination as GameTermination,
+    plyCount: row.ply_count,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    whiteName: row.white_name,
+    blackName: row.black_name,
+    corpusId: row.corpus_id,
+    visibility: row.visibility,
+    participants: [],
+  }));
+
+  return {
+    user: {
+      handle: user.handle,
+      displayName: user.displayName,
+      profileVisibility: user.profileVisibility,
+    },
+    games: await withParticipants(games),
+  };
 }
 
 export async function listCorpusGames(corpusId: string, limit = 100): Promise<GameRecord[]> {
@@ -545,6 +651,12 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
+       AND EXISTS (
+         SELECT 1
+         FROM events
+         WHERE events.room_id = games.room_id
+         LIMIT 1
+       )
        AND (
          games.visibility = 'public'
          OR games.mode = 'eve'
@@ -708,7 +820,7 @@ export async function getGameSummary(roomId: string): Promise<RecentEveGameRecor
 export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void> {
   const client = await getPool().connect();
   const mode = summary.mode ?? (summary.corpusId ? 'imported' : 'pvp');
-  const visibility = summary.visibility ?? 'link';
+  const visibility = summary.visibility ?? 'public';
   try {
     await client.query('BEGIN');
     await client.query(
@@ -939,6 +1051,7 @@ type UserRow = {
   handle: string;
   display_name: string;
   profile_visibility: UserAccount['profileVisibility'];
+  account_role: AccountRole;
   created_at: Date;
   updated_at: Date;
 };
@@ -951,6 +1064,7 @@ function userFromRow(row: UserRow): UserAccount {
     handle: row.handle,
     displayName: row.display_name,
     profileVisibility: row.profile_visibility,
+    accountRole: row.account_role,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

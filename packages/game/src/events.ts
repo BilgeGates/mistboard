@@ -9,6 +9,11 @@ import { advanceClock, createClock, expireClock } from './clocks.js';
 import type { ClockState, Color, GameState, Move, VariantId } from './types.js';
 import { variantForId } from './variants.js';
 
+export type RoomTimeControl = {
+  initialMs: number;
+  incrementMs: number;
+};
+
 export type BidResolution = {
   bids: Record<Color, number>;
   blackSeat: Color;
@@ -25,6 +30,7 @@ export type GameEvent =
     variant: VariantId;
     offer: Chess960Start[];
     offers?: Partial<Record<Color, Chess960Start[]>>;
+    timeControl?: RoomTimeControl;
   }
   | {
     type: 'seat-assigned';
@@ -107,6 +113,7 @@ export type GameProjection = {
   bidResolution: BidResolution | null;
   resolvedStartId: number | null;
   resolvedStartIds: Partial<Record<Color, number>>;
+  timeControl?: RoomTimeControl;
 };
 
 export function initialGameProjection(roomId: string, variant: VariantId = 'draft960'): GameProjection {
@@ -143,6 +150,7 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       variant: event.variant,
       offer: event.offer,
       offers: event.offers ?? { white: event.offer, black: event.offer },
+      timeControl: event.timeControl,
       state: event.variant === 'fog-of-war' && hasDraftOffer(event)
         ? { ...state, status: { type: 'pregame' } }
         : state,

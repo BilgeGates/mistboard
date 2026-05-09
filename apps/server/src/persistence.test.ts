@@ -14,6 +14,7 @@ import {
   findUserByEmail,
   type GameSummary,
   getGameSummary,
+  getUserProfileByHandle,
   getUserByAccountSession,
   init,
   isInitialized,
@@ -246,6 +247,9 @@ if (!TEST_DATABASE_URL) {
       seat: 'white',
       clientId: 'white-client',
       tokenHash: 'hash-white',
+      userId: null,
+      userHandle: null,
+      userDisplayName: null,
       issuedAt,
       lastSeenAt,
       revokedAt: null,
@@ -256,8 +260,48 @@ if (!TEST_DATABASE_URL) {
         seat: 'white',
         clientId: 'white-client',
         tokenHash: 'hash-white',
+        userId: null,
+        userHandle: null,
+        userDisplayName: null,
         issuedAt,
         lastSeenAt,
+        revokedAt: null,
+      },
+    });
+  });
+
+  test('room seat tokens can carry signed-in attribution without raw account secrets', async () => {
+    const now = new Date('2026-05-08T10:00:00.000Z');
+    await createUser({
+      id: 'user_token',
+      email: 'token@example.com',
+      emailVerifiedAt: now,
+      handle: 'token-player',
+      displayName: 'Token Player',
+      now,
+    });
+    await upsertRoomSeatToken('signed-token-room', {
+      seat: 'white',
+      clientId: 'white-client',
+      tokenHash: 'hash-white',
+      userId: 'user_token',
+      userHandle: null,
+      userDisplayName: null,
+      issuedAt: now,
+      lastSeenAt: now,
+      revokedAt: null,
+    });
+
+    assert.deepEqual(await loadRoomSeatTokens('signed-token-room'), {
+      white: {
+        seat: 'white',
+        clientId: 'white-client',
+        tokenHash: 'hash-white',
+        userId: 'user_token',
+        userHandle: 'token-player',
+        userDisplayName: 'Token Player',
+        issuedAt: now,
+        lastSeenAt: now,
         revokedAt: null,
       },
     });
@@ -269,6 +313,9 @@ if (!TEST_DATABASE_URL) {
       seat: 'white',
       clientId: 'white-client',
       tokenHash: 'hash-white',
+      userId: null,
+      userHandle: null,
+      userDisplayName: null,
       issuedAt,
       lastSeenAt: issuedAt,
       revokedAt: null,
@@ -283,6 +330,9 @@ if (!TEST_DATABASE_URL) {
         seat: 'black',
         clientId: 'white-client',
         tokenHash: 'hash-white',
+        userId: null,
+        userHandle: null,
+        userDisplayName: null,
         issuedAt,
         lastSeenAt: touchedAt,
         revokedAt: null,
@@ -294,6 +344,9 @@ if (!TEST_DATABASE_URL) {
         seat: 'black',
         clientId: 'white-client',
         tokenHash: 'hash-white',
+        userId: null,
+        userHandle: null,
+        userDisplayName: null,
         issuedAt,
         lastSeenAt: touchedAt,
         revokedAt: null,
@@ -399,7 +452,7 @@ if (!TEST_DATABASE_URL) {
           result: null,
           termination: null,
           ended_at: null,
-          visibility: 'link',
+          visibility: 'public',
         },
       ]);
     } finally {
@@ -505,14 +558,14 @@ if (!TEST_DATABASE_URL) {
         displayName: 'Guest',
         subjectType: 'guest',
         subjectId: null,
-        visibility: 'link',
+        visibility: 'public',
       },
       {
         color: 'black',
         displayName: 'Random Legal v1',
         subjectType: 'engine-version',
         subjectId: 'builtin-random-legal',
-        visibility: 'link',
+        visibility: 'public',
       },
     ]);
   });
@@ -569,6 +622,55 @@ if (!TEST_DATABASE_URL) {
         visibility: 'public',
       },
     ]);
+  });
+
+  test('getUserProfileByHandle lists completed account-attributed games', async () => {
+    const now = new Date('2026-05-08T10:00:00.000Z');
+    await createUser({
+      id: 'user_profile',
+      email: 'profile@example.com',
+      emailVerifiedAt: now,
+      handle: 'profile-player',
+      displayName: 'Profile Player',
+      profileVisibility: 'public',
+      now,
+    });
+    await recordGameEnd('profile-game', {
+      variant: 'fog-of-war',
+      mode: 'pvp',
+      result: 'white-wins',
+      termination: 'king-captured',
+      plyCount: 9,
+      startedAt: now,
+      endedAt: new Date(now.getTime() + 60_000),
+      whiteClient: 'profile-browser',
+      blackClient: 'guest-browser',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+      participants: [
+        {
+          color: 'white',
+          displayName: 'Profile Player',
+          subjectType: 'user',
+          subjectId: 'user_profile',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: 'Guest',
+          subjectType: 'guest',
+          subjectId: null,
+          visibility: 'public',
+        },
+      ],
+    });
+
+    const profile = await getUserProfileByHandle('profile-player', null);
+    assert.equal(profile?.user.handle, 'profile-player');
+    assert.equal(profile?.games.length, 1);
+    assert.equal(profile?.games[0]?.roomId, 'profile-game');
+    assert.equal(profile?.games[0]?.participants[0]?.subjectType, 'user');
   });
 
   test('listRecentEveGames returns completed EvE games newest first', async () => {
@@ -657,6 +759,22 @@ if (!TEST_DATABASE_URL) {
             'private-white', 'private-black', NULL, NULL, 'pvp', 'completed', 'private')`,
         [now, older],
       );
+      for (const roomId of ['public-pvp', 'public-pve', 'link-pve', 'link-eve', 'private-pve', 'private-pvp']) {
+        await client.query(
+          `INSERT INTO events (room_id, seq, type, payload)
+           VALUES ($1, 0, 'room-created', $2)`,
+          [
+            roomId,
+            {
+              type: 'room-created',
+              at: now.getTime(),
+              roomId,
+              variant: 'fog-of-war',
+              offer: [],
+            },
+          ],
+        );
+      }
     } finally {
       await client.end();
     }
@@ -717,14 +835,14 @@ if (!TEST_DATABASE_URL) {
         displayName: 'Guest',
         subjectType: 'guest',
         subjectId: null,
-        visibility: 'link',
+        visibility: 'public',
       },
       {
         color: 'black',
         displayName: 'Random Legal v1',
         subjectType: 'engine-version',
         subjectId: 'builtin-random-legal',
-        visibility: 'link',
+        visibility: 'public',
       },
     ]);
 
@@ -768,14 +886,14 @@ if (!TEST_DATABASE_URL) {
         displayName: 'human',
         subjectType: 'guest',
         subjectId: null,
-        visibility: 'link',
+        visibility: 'public',
       },
       {
         color: 'black',
         displayName: 'engine',
         subjectType: 'guest',
         subjectId: null,
-        visibility: 'link',
+        visibility: 'public',
       },
     ]);
     assert.equal(await getGameSummary('summary-running'), null);

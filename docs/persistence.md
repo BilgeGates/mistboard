@@ -112,6 +112,8 @@ Env:
 - `BICHESS_ALLOW_IN_MEMORY_PERSISTENCE=true` — explicit escape hatch for intentionally ephemeral production-like environments. Do not set this on the live service.
 - `BICHESS_ADMIN_DEBUG_TOKEN` — optional bearer token for administrative truth/debug views in production-like runtimes. Prefer sending it in a WebSocket message or subprotocol, not in URLs.
 - `BICHESS_ALLOWED_ORIGINS` — optional comma-separated WebSocket origin allowlist. If unset in production-like runtimes, the server allows only `https://$HOST`.
+- `RESEND_API_KEY` — optional Resend API key for passwordless login email delivery. Required for real email login in production-like runtimes.
+- `BICHESS_AUTH_EMAIL_FROM` — sender address for account login emails, for example `Bichess <login@bichess.org>`. `RESEND_FROM_EMAIL` is also accepted as a fallback.
 - `BICHESS_DEV_AUTH_CODES=true` — explicit escape hatch that lets production-like runtimes return local passwordless email login codes in API responses. Do not set this on the live service.
 - `BICHESS_WS_MAX_PAYLOAD_BYTES`, `BICHESS_WS_MESSAGE_LIMIT`, `BICHESS_WS_MESSAGE_WINDOW_MS` — optional WebSocket abuse-control knobs.
 - `BICHESS_SHUTDOWN_GRACE_MS` — optional graceful shutdown budget for closing sockets, pending writes, and the Postgres pool.
@@ -136,11 +138,13 @@ Minimal account auth is passwordless email:
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
 
-In local/dev, `start` returns `devCode` in the JSON response because no email
-provider is wired yet. Confirming creates or reuses a durable `users` row and
-sets an HttpOnly `bichess_session` cookie backed by `account_sessions`. This
-account session authorizes account-owned actions only; live room moves still
-require room-scoped seat authority.
+If `RESEND_API_KEY` and `BICHESS_AUTH_EMAIL_FROM` are configured, `start` sends
+the code through Resend. In local/dev, `start` also returns `devCode` in the
+JSON response so the flow can be tested without email delivery. Confirming
+creates or reuses a durable `users` row and sets an HttpOnly `bichess_session`
+cookie backed by `account_sessions`. This account session authorizes
+account-owned actions only; live room moves still require room-scoped seat
+authority.
 
 ## Apps/server In Production-Like Runtimes
 

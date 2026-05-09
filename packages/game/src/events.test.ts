@@ -317,6 +317,29 @@ test('starts a live Fog of War clock after seats are ready', () => {
   assert.equal(projection.state.clock?.runningSince, 4);
 });
 
+test('replays room-created time control metadata', () => {
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'custom-clock-room',
+      variant: 'fog-of-war',
+      offer: [],
+      timeControl: {
+        initialMs: 180_000,
+        incrementMs: 2_000,
+      },
+    },
+  ];
+
+  const projection = replayGameEvents(events);
+
+  assert.deepEqual(projection.timeControl, {
+    initialMs: 180_000,
+    incrementMs: 2_000,
+  });
+});
+
 test('replays clock snapshots on start and move events', () => {
   const offer = pickDraft960Offer(8);
   const start = offer[0];

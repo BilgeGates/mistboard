@@ -20,6 +20,7 @@ import {
   type GameProjection,
   type Move,
   type PieceRole,
+  type RoomTimeControl,
   type Square,
   type VariantId,
 } from '@bichess/game';
@@ -61,6 +62,9 @@ type SeatTokenState = {
   clientId: string;
   seat: Color;
   tokenHash: string;
+  userId: string | null;
+  userHandle: string | null;
+  userDisplayName: string | null;
   issuedAt: Date;
   lastSeenAt: Date;
   revokedAt: Date | null;
@@ -96,6 +100,9 @@ const wsMessageWindowMs = parsePositiveInteger(process.env.BICHESS_WS_MESSAGE_WI
 const shutdownGraceMs = parsePositiveInteger(process.env.BICHESS_SHUTDOWN_GRACE_MS) ?? 10_000;
 const liveClockInitialMs = 30_000;
 const liveClockIncrementMs = 2_000;
+const minRoomClockInitialMs = 10_000;
+const maxRoomClockInitialMs = 180 * 60 * 1000;
+const maxRoomClockIncrementMs = 60_000;
 const pveEngineMoveDelayMs = parsePositiveInteger(process.env.BICHESS_PVE_ENGINE_DELAY_MS) ?? 650;
 const liveEngineTimeoutMs = parsePositiveInteger(process.env.BICHESS_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
@@ -103,6 +110,9 @@ const accountSessionCookieName = 'bichess_session';
 const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
 const emailLoginCodeTtlMs = 10 * 60 * 1000;
 const devAuthCodesEnabled = !isProductionLikeRuntime() || process.env.BICHESS_DEV_AUTH_CODES === 'true';
+const resendApiKey = process.env.RESEND_API_KEY;
+const authEmailFrom = process.env.BICHESS_AUTH_EMAIL_FROM ?? process.env.RESEND_FROM_EMAIL;
+const authEmailDeliveryEnabled = !!resendApiKey && !!authEmailFrom;
 
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
@@ -213,9 +223,11 @@ function isClientRoute(pathname: string): boolean {
   return normalized === '/about'
     || normalized === '/learn'
     || normalized === '/watch'
+    || normalized === '/account'
     || normalized === '/engine-lab'
     || normalized === '/arena'
     || normalized.startsWith('/game/')
+    || normalized.startsWith('/@/')
     || normalized.startsWith('/room/');
 }
 
@@ -259,7 +271,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       writeJson(response, 503, { error: 'persistence_disabled' });
       return;
     }
-    if (!devAuthCodesEnabled) {
+    if (!authEmailDeliveryEnabled && !devAuthCodesEnabled) {
       writeJson(response, 503, { error: 'email_delivery_not_configured' });
       return;
     }
@@ -278,12 +290,19 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       codeHash: hashSecret(code),
       expiresAt,
     });
+    if (authEmailDeliveryEnabled) {
+      const delivery = await sendEmailLoginCode(email, code);
+      if (!delivery.ok) {
+        writeJson(response, 502, { error: 'email_delivery_failed' });
+        return;
+      }
+    }
     writeJson(response, 202, {
       loginId,
       email,
       expiresAt: expiresAt.toISOString(),
-      delivery: 'dev-response',
-      devCode: code,
+      delivery: authEmailDeliveryEnabled ? 'email' : 'dev-response',
+      ...(devAuthCodesEnabled ? { devCode: code } : {}),
     });
     return;
   }
@@ -353,9 +372,15 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
+    const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_mode' }));
+      return;
+    }
+    if (body.timeControl !== undefined && !timeControl) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'invalid_time_control' }));
       return;
     }
     if (mode === 'pve' && body.engineId !== undefined && !engineId) {
@@ -368,7 +393,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
       return;
     }
-    const room = await createRoom(mode, variant, engineId ?? pveBuiltinEngineClientId, hiddenDraft960);
+    const room = await createRoom(mode, variant, engineId ?? pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined);
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
     return;
@@ -407,6 +432,36 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     const replayResponse = eventReplayResponse(events);
     response.writeHead(replayResponse.status, { 'content-type': 'application/json' });
     response.end(JSON.stringify(replayResponse.body));
+    return;
+  }
+
+  const profileMatch = parsedUrl.pathname.match(/^\/api\/users\/([^/]+)\/profile$/);
+  if (profileMatch) {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    if (!persistence.isInitialized()) {
+      writeJson(response, 503, { error: 'persistence_disabled' });
+      return;
+    }
+    const handle = decodeURIComponent(profileMatch[1] ?? '').trim();
+    if (!/^[a-zA-Z0-9_-]{1,40}$/.test(handle)) {
+      writeJson(response, 400, { error: 'invalid_handle' });
+      return;
+    }
+    const viewer = await currentAccountUser(request);
+    const profile = await persistence.getUserProfileByHandle(handle, viewer?.id ?? null);
+    if (!profile) {
+      writeJson(response, 404, { error: 'not_found' });
+      return;
+    }
+    writeJson(response, 200, {
+      profile: {
+        ...profile,
+        isViewer: viewer?.handle.toLowerCase() === profile.user.handle.toLowerCase(),
+      },
+    });
     return;
   }
 
@@ -534,6 +589,22 @@ function parsePlayablePveEngineId(value: unknown): string | null {
   return playableLiveEngines().some((engine) => engine.id === value) ? value : null;
 }
 
+function parseRoomTimeControl(value: unknown): RoomTimeControl | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const initialMs = parseIntegerValue(raw.initialMs ?? raw.initial_ms);
+  const incrementMs = parseIntegerValue(raw.incrementMs ?? raw.increment_ms);
+  if (initialMs === null || incrementMs === null) return null;
+  if (initialMs < minRoomClockInitialMs || initialMs > maxRoomClockInitialMs) return null;
+  if (incrementMs < 0 || incrementMs > maxRoomClockIncrementMs) return null;
+  return { initialMs, incrementMs };
+}
+
+function parseIntegerValue(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return null;
+  return value;
+}
+
 async function currentAccountUser(request: IncomingMessage): Promise<persistence.UserAccount | null> {
   if (!persistence.isInitialized()) return null;
   const session = accountSessionFromRequest(request);
@@ -574,6 +645,7 @@ function publicUser(user: persistence.UserAccount): Record<string, unknown> {
     handle: user.handle,
     displayName: user.displayName,
     profileVisibility: user.profileVisibility,
+    accountRole: user.accountRole,
   };
 }
 
@@ -599,6 +671,67 @@ function displayNameForEmail(email: string): string {
 
 function randomEmailLoginCode(): string {
   return String(randomInt(0, 100_000_000)).padStart(8, '0');
+}
+
+async function sendEmailLoginCode(email: string, code: string): Promise<{ ok: true } | { ok: false }> {
+  if (!resendApiKey || !authEmailFrom) return { ok: false };
+  const subject = 'Your Bichess login code';
+  const text = [
+    `Your Bichess login code is ${code}.`,
+    '',
+    'This code expires in 10 minutes.',
+    'If you did not request this code, you can ignore this email.',
+  ].join('\n');
+  const html = [
+    '<p>Your Bichess login code is:</p>',
+    `<p style="font-size:24px;font-weight:700;letter-spacing:0.12em">${escapeHtml(code)}</p>`,
+    '<p>This code expires in 10 minutes.</p>',
+    '<p>If you did not request this code, you can ignore this email.</p>',
+  ].join('');
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${resendApiKey}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: authEmailFrom,
+        to: [email],
+        subject,
+        text,
+        html,
+      }),
+    });
+    if (response.ok) return { ok: true };
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'email_delivery_failure',
+      provider: 'resend',
+      status: response.status,
+      at: Date.now(),
+    }));
+    return { ok: false };
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'email_delivery_failure',
+      provider: 'resend',
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
+    return { ok: false };
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function hashSecret(secret: string): string {
@@ -690,6 +823,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
   const debugRequested = randomEngine || url.searchParams.get('views') === 'all';
   const devViews = debugRequested && isDebugViewAuthorized(request);
+  const accountUser = await currentAccountUser(request);
   const room = await getOrCreateRoom(
     roomId,
     parseVariantId(url.searchParams.get('variant')),
@@ -698,7 +832,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   if (randomEngine) await enableRandomEngine(room);
   const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
   const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
-  const assignment = solo ? { seat: 'spectator' } satisfies SeatAssignment : await assignSeat(room, clientId, seatToken);
+  const assignment = solo ? { seat: 'spectator' } satisfies SeatAssignment : await assignSeat(room, clientId, seatToken, accountUser);
   const seat = assignment.seat;
   if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection, room.mode)) {
     socket.close(1008, 'private room');
@@ -873,7 +1007,13 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
   return room;
 }
 
-async function createRoom(mode: 'pvp' | 'pve', variant: VariantId, engineId: string, hiddenDraft960 = false): Promise<Room> {
+async function createRoom(
+  mode: 'pvp' | 'pve',
+  variant: VariantId,
+  engineId: string,
+  hiddenDraft960 = false,
+  timeControl?: RoomTimeControl,
+): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
     const existing = rooms.get(roomId) ?? (persistence.isInitialized() ? await persistence.loadRoom(roomId) : null);
@@ -886,6 +1026,7 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId, engineId: str
       roomId,
       variant,
       ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
+      ...(timeControl ? { timeControl } : {}),
     };
     const events: GameEvent[] = [roomCreated];
     if (mode === 'pve') {
@@ -967,7 +1108,12 @@ async function persistGameStart(
   }
 }
 
-async function assignSeat(room: Room, clientId: string, suppliedSeatToken: string | undefined): Promise<SeatAssignment> {
+async function assignSeat(
+  room: Room,
+  clientId: string,
+  suppliedSeatToken: string | undefined,
+  accountUser: persistence.UserAccount | null,
+): Promise<SeatAssignment> {
   const tokenSeat = verifySeatToken(room, suppliedSeatToken);
   if (tokenSeat) {
     tokenSeat.lastSeenAt = new Date();
@@ -980,11 +1126,11 @@ async function assignSeat(room: Room, clientId: string, suppliedSeatToken: strin
   }
   if (room.projection.seats.white === clientId) {
     await startLiveClockIfReady(room);
-    return await existingSeatAssignment(room, 'white', clientId);
+    return await existingSeatAssignment(room, 'white', clientId, accountUser);
   }
   if (room.projection.seats.black === clientId) {
     await startLiveClockIfReady(room);
-    return await existingSeatAssignment(room, 'black', clientId);
+    return await existingSeatAssignment(room, 'black', clientId, accountUser);
   }
   if (!room.projection.seats.white) {
     await appendEvent(room, {
@@ -995,7 +1141,7 @@ async function assignSeat(room: Room, clientId: string, suppliedSeatToken: strin
       seat: 'white',
     });
     await startLiveClockIfReady(room);
-    return await newSeatAssignment(room, 'white', clientId);
+    return await newSeatAssignment(room, 'white', clientId, accountUser);
   }
   if (!room.projection.seats.black) {
     await appendEvent(room, {
@@ -1006,20 +1152,30 @@ async function assignSeat(room: Room, clientId: string, suppliedSeatToken: strin
       seat: 'black',
     });
     await startLiveClockIfReady(room);
-    return await newSeatAssignment(room, 'black', clientId);
+    return await newSeatAssignment(room, 'black', clientId, accountUser);
   }
   return { seat: 'spectator' };
 }
 
-async function existingSeatAssignment(room: Room, seat: Color, clientId: string): Promise<SeatAssignment> {
+async function existingSeatAssignment(
+  room: Room,
+  seat: Color,
+  clientId: string,
+  accountUser: persistence.UserAccount | null,
+): Promise<SeatAssignment> {
   const existing = room.seatTokens[seat];
   if (existing) {
     return { seat: 'spectator' };
   }
-  return newSeatAssignment(room, seat, clientId);
+  return newSeatAssignment(room, seat, clientId, accountUser);
 }
 
-async function newSeatAssignment(room: Room, seat: Color, clientId: string): Promise<SeatAssignment> {
+async function newSeatAssignment(
+  room: Room,
+  seat: Color,
+  clientId: string,
+  accountUser: persistence.UserAccount | null,
+): Promise<SeatAssignment> {
   if (isServerEngineClient(clientId)) return { seat };
   const rawToken = randomBytes(32).toString('base64url');
   const tokenHash = hashSeatToken(rawToken);
@@ -1028,6 +1184,9 @@ async function newSeatAssignment(room: Room, seat: Color, clientId: string): Pro
     clientId,
     seat,
     tokenHash,
+    userId: accountUser?.id ?? null,
+    userHandle: accountUser?.handle ?? null,
+    userDisplayName: accountUser?.displayName ?? null,
     issuedAt: now,
     lastSeenAt: now,
     revokedAt: null,
@@ -1282,11 +1441,14 @@ async function startLiveClockIfReady(room: Room): Promise<void> {
   if (!room.projection.seats.white || !room.projection.seats.black) return;
 
   const now = Date.now();
+  const timeControl = room.projection.timeControl;
   await appendEvent(room, {
     type: 'clock-started',
     at: now,
     roomId: room.id,
-    clock: createClock(now, liveClockInitialMs, liveClockIncrementMs),
+    clock: timeControl
+      ? createClock(now, timeControl.initialMs, timeControl.incrementMs)
+      : createClock(now, liveClockInitialMs, liveClockIncrementMs),
   });
 }
 
@@ -1306,7 +1468,11 @@ async function resolveStartIfReady(room: Room): Promise<void> {
     type: 'draft-start-resolved',
     at: now,
     roomId: room.id,
-    clock: createClock(now),
+    clock: createClock(
+      now,
+      room.projection.timeControl?.initialMs,
+      room.projection.timeControl?.incrementMs,
+    ),
     startIds: {
       white: whiteStart.id,
       black: blackStart.id,
@@ -1406,6 +1572,9 @@ function seatTokenStatesFromPersistence(
       clientId: token.clientId,
       seat: token.seat,
       tokenHash: token.tokenHash,
+      userId: token.userId,
+      userHandle: token.userHandle,
+      userDisplayName: token.userDisplayName,
       issuedAt: token.issuedAt,
       lastSeenAt: token.lastSeenAt,
       revokedAt: token.revokedAt,
@@ -1419,6 +1588,9 @@ function persistenceRecordForSeatToken(token: SeatTokenState): persistence.RoomS
     seat: token.seat,
     clientId: token.clientId,
     tokenHash: token.tokenHash,
+    userId: token.userId,
+    userHandle: token.userHandle,
+    userDisplayName: token.userDisplayName,
     issuedAt: token.issuedAt,
     lastSeenAt: token.lastSeenAt,
     revokedAt: token.revokedAt,
@@ -1541,7 +1713,29 @@ function buildGameSummary(room: Room): GameSummary {
     whiteName: null,
     blackName: null,
     corpusId: null,
+    participants: [
+      participantForSeatToken('white', room.projection.seats.white ?? null, room.seatTokens.white, room.mode),
+      participantForSeatToken('black', room.projection.seats.black ?? null, room.seatTokens.black, room.mode),
+    ],
   };
+}
+
+function participantForSeatToken(
+  color: Color,
+  clientId: string | null,
+  token: SeatTokenState | undefined,
+  mode: persistence.GameMode,
+): persistence.GameParticipant {
+  if (token?.userId) {
+    return {
+      color,
+      displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
+      subjectType: 'user',
+      subjectId: token.userId,
+      visibility: 'public',
+    };
+  }
+  return inMemoryParticipant(color, clientId, null, mode, 'public');
 }
 
 function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null {
@@ -1566,10 +1760,10 @@ function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | 
     whiteEngineId: null,
     blackEngineId: null,
     timeControl: null,
-    visibility: summary.visibility ?? 'link',
+    visibility: summary.visibility ?? 'public',
     participants: [
-      inMemoryParticipant('white', summary.whiteClient, summary.whiteName, summary.mode ?? 'pvp', summary.visibility ?? 'link'),
-      inMemoryParticipant('black', summary.blackClient, summary.blackName, summary.mode ?? 'pvp', summary.visibility ?? 'link'),
+      inMemoryParticipant('white', summary.whiteClient, summary.whiteName, summary.mode ?? 'pvp', summary.visibility ?? 'public'),
+      inMemoryParticipant('black', summary.blackClient, summary.blackName, summary.mode ?? 'pvp', summary.visibility ?? 'public'),
     ],
   };
 }

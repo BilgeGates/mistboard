@@ -37,15 +37,57 @@ type PlayableEngine = {
   kind: string;
 };
 
+type AuthUser = {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  handle: string;
+  displayName: string;
+  profileVisibility: 'private' | 'unlisted' | 'public';
+  accountRole: 'player' | 'test' | 'admin';
+};
+
+type UserProfile = {
+  isViewer?: boolean;
+  user: {
+    handle: string;
+    displayName: string;
+    profileVisibility: 'private' | 'unlisted' | 'public';
+  };
+  games: FeaturedGame[];
+};
+
 type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
 type LandingPlayChoice = {
   engineId?: string;
   mode: 'pvp' | 'pve';
   title: string;
 };
+type LandingStartFormat = 'standard' | 'draft960';
+type LandingTimePresetId = '30s2' | '3m2' | '5m0' | '10m5' | 'custom';
+type LandingTimePreset = {
+  id: LandingTimePresetId;
+  label: string;
+  initialMs: number;
+  incrementMs: number;
+};
+type LandingRoomSetup = {
+  startFormat: LandingStartFormat;
+  timeControl: {
+    initialMs: number;
+    incrementMs: number;
+  };
+};
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
+const LANDING_TIME_PRESETS: LandingTimePreset[] = [
+  { id: '30s2', label: '30s + 2', initialMs: 30_000, incrementMs: 2_000 },
+  { id: '3m2', label: '3 + 2', initialMs: 3 * 60_000, incrementMs: 2_000 },
+  { id: '5m0', label: '5 + 0', initialMs: 5 * 60_000, incrementMs: 0 },
+  { id: '10m5', label: '10 + 5', initialMs: 10 * 60_000, incrementMs: 5_000 },
+  { id: 'custom', label: 'Custom', initialMs: 5 * 60_000, incrementMs: 0 },
+];
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -170,6 +212,43 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   });
 }
 
+export async function mountAccount(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'account-route');
+  root.append(buildNav(), buildLoadingState('Loading account'), buildFooter());
+
+  const shell = document.createElement('main');
+  shell.className = 'account-shell';
+  root.replaceChildren(buildNav(), shell, buildFooter());
+
+  const current = await fetchCurrentUser().catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  renderAccountShell(shell, current);
+}
+
+export async function mountProfile(root: HTMLElement, handle: string): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'profile-route');
+  root.append(buildNav(), buildLoadingState('Loading profile'), buildFooter());
+
+  const shell = document.createElement('main');
+  shell.className = 'profile-shell';
+  root.replaceChildren(buildNav(), shell, buildFooter());
+
+  const profile = await fetchUserProfile(handle).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  if (!profile) {
+    shell.append(buildNotice('Profile not found', 'This profile is private or does not exist.'));
+    return;
+  }
+
+  shell.append(buildProfileHeader(profile), buildProfileGames(profile.games));
+}
+
 async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; events?: GameEvent[] } | null> {
   const game = await fetchGameSummary(roomId).catch((err) => {
     console.warn(err);
@@ -242,6 +321,21 @@ async function fetchPlayableEngines(): Promise<PlayableEngine[]> {
   return data.engines.length > 0 ? data.engines : fallbackPlayableEngines();
 }
 
+async function fetchCurrentUser(): Promise<AuthUser | null> {
+  const resp = await fetch('/api/auth/me');
+  if (!resp.ok) throw new Error(`failed to load account: ${resp.status}`);
+  const data = (await resp.json()) as { user: AuthUser | null };
+  return data.user;
+}
+
+async function fetchUserProfile(handle: string): Promise<UserProfile | null> {
+  const resp = await fetch(`/api/users/${encodeURIComponent(handle)}/profile`);
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`failed to load profile: ${resp.status}`);
+  const data = (await resp.json()) as { profile: UserProfile };
+  return data.profile;
+}
+
 function fallbackPlayableEngines(): PlayableEngine[] {
   return [{
     id: 'builtin-random-legal',
@@ -311,7 +405,7 @@ function participantFromSeat(
       displayName: fallbackName ?? subjectId,
       subjectType: 'engine-version',
       subjectId,
-      visibility: 'link',
+      visibility: 'public',
     };
   }
   return {
@@ -319,7 +413,7 @@ function participantFromSeat(
     displayName: fallbackName ?? 'Guest',
     subjectType: 'guest',
     subjectId: null,
-    visibility: 'link',
+    visibility: 'public',
   };
 }
 
@@ -417,6 +511,209 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
 
   header.append(text, actions);
   return header;
+}
+
+function renderAccountShell(shell: HTMLElement, user: AuthUser | null): void {
+  shell.replaceChildren(user ? buildSignedInAccount(user, shell) : buildLoginForm(shell));
+}
+
+function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'account-panel';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = 'Signed in';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading';
+  title.textContent = user.displayName;
+
+  const meta = document.createElement('p');
+  meta.className = 'account-copy';
+  meta.textContent = `@${user.handle} · ${user.email}`;
+
+  const actions = document.createElement('div');
+  actions.className = 'account-actions';
+
+  const profile = document.createElement('a');
+  profile.className = 'landing-setup-start';
+  profile.href = `/@/${encodeURIComponent(user.handle)}`;
+  profile.textContent = 'View profile';
+
+  const logout = document.createElement('button');
+  logout.type = 'button';
+  logout.className = 'landing-setup-back';
+  logout.textContent = 'Log out';
+  logout.addEventListener('click', async () => {
+    logout.disabled = true;
+    await fetch('/api/auth/logout', { method: 'POST' });
+    const next = await fetchCurrentUser().catch(() => null);
+    renderAccountShell(shell, next);
+  });
+
+  actions.append(profile, logout);
+  panel.append(eyebrow, title, meta, actions);
+  return panel;
+}
+
+function buildLoginForm(shell: HTMLElement): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'account-panel';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = 'Account';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading';
+  title.textContent = 'Sign in';
+
+  const copy = document.createElement('p');
+  copy.className = 'account-copy';
+  copy.textContent = 'One email code. No password.';
+
+  const form = document.createElement('form');
+  form.className = 'account-form';
+
+  const email = document.createElement('input');
+  email.type = 'email';
+  email.name = 'email';
+  email.autocomplete = 'email';
+  email.placeholder = 'you@example.com';
+  email.required = true;
+
+  const code = document.createElement('input');
+  code.type = 'text';
+  code.name = 'code';
+  code.inputMode = 'numeric';
+  code.autocomplete = 'one-time-code';
+  code.placeholder = 'Login code';
+  code.hidden = true;
+
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'landing-setup-start';
+  submit.textContent = 'Send code';
+
+  const status = document.createElement('p');
+  status.className = 'account-status';
+  status.setAttribute('aria-live', 'polite');
+
+  let loginId: string | null = null;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    try {
+      if (!loginId) {
+        const resp = await fetch('/api/auth/email/start', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: email.value }),
+        });
+        const data = await resp.json() as { loginId?: string; devCode?: string; error?: string };
+        if (!resp.ok || !data.loginId) throw new Error(data.error ?? `start failed: ${resp.status}`);
+        loginId = data.loginId;
+        code.hidden = false;
+        code.required = true;
+        if (data.devCode) code.value = data.devCode;
+        submit.textContent = 'Confirm';
+        status.textContent = data.devCode ? 'Development code filled in.' : 'Check your email for the login code.';
+        code.focus();
+      } else {
+        const resp = await fetch('/api/auth/email/confirm', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ loginId, code: code.value }),
+        });
+        const data = await resp.json() as { user?: AuthUser; error?: string };
+        if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
+        renderAccountShell(shell, data.user);
+      }
+    } catch (err) {
+      status.textContent = err instanceof Error ? authErrorMessage(err.message) : 'Sign in failed.';
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  form.append(email, code, submit, status);
+  panel.append(eyebrow, title, copy, form);
+  return panel;
+}
+
+function authErrorMessage(value: string): string {
+  if (value === 'email_delivery_not_configured') return 'Email login is not configured in this runtime.';
+  if (value === 'email_delivery_failed') return 'Email delivery failed. Try again in a moment.';
+  if (value === 'persistence_disabled') return 'Accounts require the persistent server.';
+  if (value === 'invalid_login_code') return 'The login code was invalid or expired.';
+  if (value === 'invalid_email') return 'Enter a valid email address.';
+  return 'Sign in failed.';
+}
+
+function buildProfileHeader(profile: UserProfile): HTMLElement {
+  const header = document.createElement('section');
+  header.className = 'profile-header';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = profile.isViewer ? 'Your profile' : 'Player profile';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading';
+  title.textContent = profile.user.displayName;
+
+  const meta = document.createElement('p');
+  meta.className = 'account-copy';
+  meta.textContent = `@${profile.user.handle} · ${profile.games.length} ${profile.games.length === 1 ? 'game' : 'games'}`;
+
+  header.append(eyebrow, title, meta);
+  return header;
+}
+
+function buildProfileGames(games: FeaturedGame[]): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'profile-games';
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Games';
+  section.append(heading);
+
+  if (games.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'landing-games-empty';
+    empty.textContent = 'No account games yet.';
+    section.append(empty);
+    return section;
+  }
+
+  const list = document.createElement('ol');
+  list.className = 'profile-game-list';
+  for (const game of games) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = `/game/${encodeURIComponent(game.roomId)}`;
+    link.className = 'profile-game-row';
+
+    const matchup = document.createElement('strong');
+    matchup.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
+
+    const meta = document.createElement('span');
+    meta.textContent = `${resultLabel(game.result)} · ${game.plyCount} plies · ${formatGameDate(game.endedAt)}`;
+
+    link.append(matchup, meta);
+    item.append(link);
+    list.append(item);
+  }
+  section.append(list);
+  return section;
+}
+
+function formatGameDate(value: string | undefined): string {
+  if (!value) return 'Finished game';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'Finished game';
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function displayParticipantName(game: FeaturedGame, color: 'white' | 'black'): string {
@@ -517,6 +814,7 @@ function buildNav(): HTMLElement {
   const aboutLink = navLink('About', '/about');
   const watchLink = navLink('Watch', '/watch');
   const learnLink = navLink('Learn', '/learn');
+  const accountLink = navLink('Account', '/account');
 
   const ghLink = document.createElement('a');
   ghLink.href = GITHUB_URL;
@@ -529,7 +827,7 @@ function buildNav(): HTMLElement {
     const labLink = navLink('Engine Lab', '/engine-lab');
     links.append(labLink);
   }
-  links.append(watchLink, learnLink, aboutLink, ghLink);
+  links.append(watchLink, learnLink, aboutLink, accountLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
@@ -596,29 +894,28 @@ function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
   const lobbyButton = landingPlayAction('Create lobby game', 'lobby');
   const challengeButton = landingPlayAction('Challenge a friend', 'friend');
   const engineButton = landingPlayAction('Play against computer', 'computer');
-  const setupPanel = landingSetupPanel();
 
   lobbyButton.addEventListener('click', () => {
-    openLandingSetup(setupPanel, {
+    openLandingSetupDialog({
       mode: 'pvp',
       title: 'Create lobby game',
     });
   });
   challengeButton.addEventListener('click', () => {
-    openLandingSetup(setupPanel, {
+    openLandingSetupDialog({
       mode: 'pvp',
       title: 'Challenge a friend',
     });
   });
   engineButton.addEventListener('click', () => {
-    openLandingSetup(setupPanel, {
+    openLandingSetupDialog({
       engineId: defaultEngineId,
       mode: 'pve',
       title: 'Play against computer',
     });
   });
 
-  panel.append(lobbyButton, challengeButton, engineButton, setupPanel);
+  panel.append(lobbyButton, challengeButton, engineButton);
   return panel;
 }
 
@@ -636,44 +933,124 @@ function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby')
   return button;
 }
 
-function landingSetupPanel(): HTMLDivElement {
-  const panel = document.createElement('div');
-  panel.className = 'landing-setup-panel';
-  panel.hidden = true;
-  return panel;
-}
+function openLandingSetupDialog(choice: LandingPlayChoice): void {
+  const existing = document.querySelector('.landing-setup-overlay');
+  existing?.remove();
 
-function openLandingSetup(panel: HTMLDivElement, choice: LandingPlayChoice): void {
-  let selected: 'standard' | 'draft960' = 'draft960';
-  panel.hidden = false;
-  panel.replaceChildren();
+  let startFormat: LandingStartFormat = 'draft960';
+  let selectedPreset: LandingTimePresetId = '5m0';
+  const defaultPreset = LANDING_TIME_PRESETS.find((preset) => preset.id === selectedPreset)!;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'landing-setup-overlay';
+  overlay.setAttribute('role', 'presentation');
+
+  const dialog = document.createElement('section');
+  dialog.className = 'landing-setup-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'landing-setup-title');
 
   const heading = document.createElement('strong');
   heading.className = 'landing-setup-title';
+  heading.id = 'landing-setup-title';
   heading.textContent = choice.title;
 
-  const optionGroup = document.createElement('div');
-  optionGroup.className = 'landing-start-options';
-  optionGroup.setAttribute('role', 'radiogroup');
-  optionGroup.setAttribute('aria-label', 'Start format');
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'landing-setup-close';
+  closeButton.setAttribute('aria-label', 'Close setup');
+  closeButton.textContent = 'x';
+
+  const header = document.createElement('div');
+  header.className = 'landing-setup-header';
+  header.append(heading, closeButton);
+
+  const variantSection = document.createElement('div');
+  variantSection.className = 'landing-setup-section';
+  variantSection.append(setupSectionLabel('Variant'));
+
+  const variantControl = document.createElement('div');
+  variantControl.className = 'landing-variant-control';
+  variantControl.textContent = 'Fog of War';
+  variantSection.append(variantControl);
+
+  const startSection = document.createElement('div');
+  startSection.className = 'landing-setup-section';
+  startSection.append(setupSectionLabel('Fog start'));
+
+  const startGroup = document.createElement('div');
+  startGroup.className = 'landing-start-options';
+  startGroup.setAttribute('role', 'radiogroup');
+  startGroup.setAttribute('aria-label', 'Fog start format');
 
   const standardButton = startOptionButton('Standard', false);
   const draftButton = startOptionButton('Draft960', true);
   const syncOptions = () => {
-    standardButton.classList.toggle('selected', selected === 'standard');
-    standardButton.setAttribute('aria-checked', selected === 'standard' ? 'true' : 'false');
-    draftButton.classList.toggle('selected', selected === 'draft960');
-    draftButton.setAttribute('aria-checked', selected === 'draft960' ? 'true' : 'false');
+    standardButton.classList.toggle('selected', startFormat === 'standard');
+    standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
+    draftButton.classList.toggle('selected', startFormat === 'draft960');
+    draftButton.setAttribute('aria-checked', startFormat === 'draft960' ? 'true' : 'false');
   };
   standardButton.addEventListener('click', () => {
-    selected = 'standard';
+    startFormat = 'standard';
     syncOptions();
   });
   draftButton.addEventListener('click', () => {
-    selected = 'draft960';
+    startFormat = 'draft960';
     syncOptions();
   });
-  optionGroup.append(standardButton, draftButton);
+  startGroup.append(standardButton, draftButton);
+  startSection.append(startGroup);
+
+  const timeSection = document.createElement('div');
+  timeSection.className = 'landing-setup-section';
+  timeSection.append(setupSectionLabel('Time control'));
+
+  const presetGroup = document.createElement('div');
+  presetGroup.className = 'landing-time-presets';
+  presetGroup.setAttribute('role', 'radiogroup');
+  presetGroup.setAttribute('aria-label', 'Time control');
+
+  const customFields = document.createElement('div');
+  customFields.className = 'landing-custom-time';
+
+  const minutesInput = customTimeInput('Minutes', defaultPreset.initialMs / 60_000);
+  const incrementInput = customTimeInput('Increment', defaultPreset.incrementMs / 1000);
+  customFields.append(minutesInput.label, minutesInput.input, incrementInput.label, incrementInput.input);
+
+  const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
+    const button = startOptionButton(preset.label, preset.id === selectedPreset);
+    button.addEventListener('click', () => {
+      selectedPreset = preset.id;
+      if (preset.id !== 'custom') {
+        minutesInput.input.value = String(preset.initialMs / 60_000);
+        incrementInput.input.value = String(preset.incrementMs / 1000);
+      }
+      syncTimeControls();
+    });
+    presetGroup.append(button);
+    return { button, preset };
+  });
+
+  const syncTimeControls = () => {
+    for (const { button, preset } of presetButtons) {
+      const selected = selectedPreset === preset.id;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-checked', selected ? 'true' : 'false');
+    }
+    customFields.hidden = selectedPreset !== 'custom';
+  };
+  minutesInput.input.addEventListener('input', () => {
+    selectedPreset = 'custom';
+    syncTimeControls();
+  });
+  incrementInput.input.addEventListener('input', () => {
+    selectedPreset = 'custom';
+    syncTimeControls();
+  });
+  syncTimeControls();
+  timeSection.append(presetGroup, customFields);
 
   const actions = document.createElement('div');
   actions.className = 'landing-setup-actions';
@@ -683,20 +1060,92 @@ function openLandingSetup(panel: HTMLDivElement, choice: LandingPlayChoice): voi
   startButton.className = 'landing-setup-start';
   startButton.textContent = 'Start';
   startButton.addEventListener('click', () => {
-    void createRoomFromPlay(startButton, choice.mode, choice.engineId, selected === 'draft960');
+    const setup = selectedRoomSetup(startFormat, selectedPreset, minutesInput.input, incrementInput.input);
+    void createRoomFromPlay(startButton, choice.mode, choice.engineId, setup);
   });
 
   const backButton = document.createElement('button');
   backButton.type = 'button';
   backButton.className = 'landing-setup-back';
-  backButton.textContent = 'Back';
-  backButton.addEventListener('click', () => {
-    panel.hidden = true;
-    panel.replaceChildren();
+  backButton.textContent = 'Cancel';
+
+  const close = () => {
+    document.removeEventListener('keydown', onKeyDown);
+    overlay.remove();
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') close();
+  };
+  closeButton.addEventListener('click', close);
+  backButton.addEventListener('click', close);
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) close();
   });
+  document.addEventListener('keydown', onKeyDown);
 
   actions.append(startButton, backButton);
-  panel.append(heading, optionGroup, actions);
+  dialog.append(header, variantSection, startSection, timeSection, actions);
+  overlay.append(dialog);
+  document.body.append(overlay);
+  standardButton.focus();
+}
+
+function setupSectionLabel(text: string): HTMLSpanElement {
+  const label = document.createElement('span');
+  label.className = 'landing-setup-label';
+  label.textContent = text;
+  return label;
+}
+
+function customTimeInput(labelText: string, value: number): { label: HTMLLabelElement; input: HTMLInputElement } {
+  const id = `landing-time-${labelText.toLowerCase()}`;
+  const label = document.createElement('label');
+  label.className = 'landing-custom-time-label';
+  label.htmlFor = id;
+  label.textContent = labelText;
+
+  const input = document.createElement('input');
+  input.id = id;
+  input.type = 'number';
+  input.min = labelText === 'Minutes' ? '0.17' : '0';
+  input.max = labelText === 'Minutes' ? '180' : '60';
+  input.step = labelText === 'Minutes' ? '0.5' : '1';
+  input.value = String(value);
+
+  return { label, input };
+}
+
+function selectedRoomSetup(
+  startFormat: LandingStartFormat,
+  presetId: LandingTimePresetId,
+  minutesInput: HTMLInputElement,
+  incrementInput: HTMLInputElement,
+): LandingRoomSetup {
+  const preset = LANDING_TIME_PRESETS.find((candidate) => candidate.id === presetId);
+  if (preset && preset.id !== 'custom') {
+    return {
+      startFormat,
+      timeControl: {
+        initialMs: preset.initialMs,
+        incrementMs: preset.incrementMs,
+      },
+    };
+  }
+
+  const minutes = boundedNumber(minutesInput.valueAsNumber, 10 / 60, 180);
+  const incrementSeconds = boundedNumber(incrementInput.valueAsNumber, 0, 60);
+  return {
+    startFormat,
+    timeControl: {
+      initialMs: Math.round(minutes * 60_000),
+      incrementMs: Math.round(incrementSeconds * 1000),
+    },
+  };
+}
+
+function boundedNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
 }
 
 function startOptionButton(label: string, selected: boolean): HTMLButtonElement {
@@ -846,7 +1295,10 @@ async function createRoomFromPlay(
   button: HTMLButtonElement,
   mode: 'pvp' | 'pve',
   engineId?: string,
-  hiddenDraft960 = false,
+  setup: LandingRoomSetup = {
+    startFormat: 'standard',
+    timeControl: { initialMs: 30_000, incrementMs: 2_000 },
+  },
 ): Promise<void> {
   const label = button.querySelector<HTMLElement>('.landing-play-action-label');
   const originalText = label?.textContent ?? button.textContent ?? '';
@@ -860,7 +1312,8 @@ async function createRoomFromPlay(
       body: JSON.stringify({
         mode,
         variant: 'fog-of-war',
-        hiddenDraft960,
+        hiddenDraft960: setup.startFormat === 'draft960',
+        timeControl: setup.timeControl,
         ...(mode === 'pve' && engineId ? { engineId } : {}),
       }),
     });

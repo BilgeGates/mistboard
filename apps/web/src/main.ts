@@ -42,8 +42,10 @@ const wantsEngineLab =
 const gameRoomId = gameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
+const wantsAccount = path === '/account' || page === 'account';
 const wantsLearn = path === '/learn' || page === 'learn';
 const wantsWatch = path === '/watch' || page === 'watch';
+const profileHandle = profileHandleFromPath(path);
 
 if (replaySample) {
   void mountOrReport(() => import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)));
@@ -65,6 +67,10 @@ if (replaySample) {
   void mountOrReport(() => import('./live.js').then(() => undefined));
 } else if (gameRoomId) {
   void mountOrReport(() => import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)));
+} else if (profileHandle) {
+  void mountOrReport(() => import('./landing.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
+} else if (wantsAccount) {
+  void mountOrReport(() => import('./landing.js').then(({ mountAccount }) => mountAccount(appRoot)));
 } else if (wantsWatch) {
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
 } else if (wantsLearn) {
@@ -100,6 +106,12 @@ function gameRoomIdFromPath(value: string): string | null {
 }
 
 function liveRoomIdFromPath(value: string): string | null {
+  if (value === '/room') return 'dev-room';
   const match = value.match(/^\/room\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function profileHandleFromPath(value: string): string | null {
+  const match = value.match(/^\/@\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }

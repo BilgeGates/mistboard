@@ -111,6 +111,13 @@ body {
   margin: 0 16px 16px auto;
 }
 
+#app.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route) ~ .theme-control {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  margin: 0;
+}
+
 button,
 a {
   font: inherit;
@@ -1300,9 +1307,19 @@ button:focus-visible {
   box-sizing: border-box;
 }
 
-.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route) {
-  height: 100vh;
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route) {
+  height: 100dvh;
+  min-height: 0;
   overflow: hidden;
+}
+
+body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route)) {
+  overflow: hidden;
+}
+
+.landing-page.account-route,
+.landing-page.profile-route {
+  background: #f0f0f0;
 }
 
 .site-nav {
@@ -1314,17 +1331,17 @@ button:focus-visible {
   justify-content: space-between;
   gap: 16px;
   padding: 12px clamp(16px, 3vw, 34px);
-  background: color-mix(in srgb, var(--site-bg) 88%, transparent);
-  backdrop-filter: saturate(150%) blur(10px);
-  border-bottom: 1px solid color-mix(in srgb, var(--site-border-soft) 78%, transparent);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: saturate(130%) blur(8px);
+  border-bottom: 1px solid #d8d8d8;
 }
 
 .site-nav-brand {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   font-size: 14px;
   color: var(--site-text);
   text-decoration: none;
@@ -1349,9 +1366,9 @@ button:focus-visible {
 .site-nav-link {
   border-radius: 6px;
   font-size: 14px;
-  color: color-mix(in srgb, var(--site-text) 72%, white);
+  color: #666666;
   text-decoration: none;
-  font-weight: 650;
+  font-weight: 600;
   padding: 7px 10px;
   transition:
     background 140ms ease,
@@ -1361,12 +1378,12 @@ button:focus-visible {
 .site-nav-link:hover,
 .site-nav-link:focus-visible,
 .site-nav-link.active {
-  color: var(--site-text);
-  background: color-mix(in srgb, var(--site-accent-soft) 72%, transparent);
+  color: #262421;
+  background: #eeeeee;
 }
 
 .site-nav-link.active {
-  box-shadow: inset 0 -2px 0 var(--site-accent);
+  box-shadow: inset 0 -2px 0 #629924;
 }
 
 .site-loading {
@@ -1424,6 +1441,12 @@ button:focus-visible {
   min-height: calc(100vh - 54px);
   padding: 18px clamp(14px, 2.8vw, 34px);
   background: var(--site-bg);
+}
+
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route) .landing-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .landing-demo {
@@ -1535,24 +1558,24 @@ button:focus-visible {
 
 .landing-play-action {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 9px;
   width: 100%;
-  min-height: 68px;
-  border: 1px solid rgba(255, 253, 246, 0.11);
+  min-height: 48px;
+  border: 1px solid var(--site-border-soft);
   border-radius: 8px;
-  background: linear-gradient(180deg, #3b3935, #302e2b);
-  color: #d5d5d2;
+  background: #ffffff;
+  color: var(--site-text);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 12px 26px rgba(8, 8, 7, 0.28);
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 8px 18px rgba(27, 31, 27, 0.08);
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 760;
   line-height: 1.1;
-  padding: 9px 10px;
+  padding: 8px 10px;
   text-align: left;
   transition:
     background 120ms ease,
@@ -1563,11 +1586,11 @@ button:focus-visible {
 
 .landing-play-action:hover:not(:disabled),
 .landing-play-action:focus-visible {
-  border-color: rgba(255, 253, 246, 0.22);
-  background: linear-gradient(180deg, #45423d, #36332f);
+  border-color: var(--site-accent);
+  background: var(--site-accent-soft);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 16px 30px rgba(8, 8, 7, 0.34);
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 22px rgba(27, 31, 27, 0.11);
   transform: translateY(-1px);
 }
 
@@ -1588,30 +1611,119 @@ button:focus-visible {
   min-width: 0;
 }
 
-.landing-setup-panel {
+.landing-setup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--site-accent) 24%, transparent);
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 10px 24px rgba(10, 15, 13, 0.12);
+  place-items: center;
+  padding: 18px;
+  background: rgba(20, 25, 22, 0.56);
 }
 
-.landing-setup-panel[hidden] {
-  display: none;
+.landing-setup-dialog {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 520px);
+  max-height: min(720px, calc(100vh - 36px));
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--site-accent) 22%, transparent);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 26px 70px rgba(10, 15, 13, 0.34);
+}
+
+.landing-setup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
 }
 
 .landing-setup-title {
   color: var(--site-text);
-  font-size: 13px;
-  line-height: 1.2;
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.landing-setup-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--site-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.landing-setup-section {
+  display: grid;
+  gap: 8px;
+}
+
+.landing-setup-label {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-variant-control {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--site-border);
+  border-radius: 6px;
+  background: #f9faf7;
+  color: var(--site-text);
+  font-size: 14px;
+  font-weight: 760;
+  padding: 9px 10px;
 }
 
 .landing-start-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.landing-time-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.landing-custom-time {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.landing-custom-time[hidden] {
+  display: none;
+}
+
+.landing-custom-time-label {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.landing-custom-time input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--site-border);
+  border-radius: 6px;
+  color: var(--site-text);
+  font: inherit;
+  padding: 7px 8px;
 }
 
 .landing-start-option,
@@ -1645,8 +1757,8 @@ button:focus-visible {
 }
 
 .landing-setup-start {
-  border-color: var(--site-accent);
-  background: var(--site-accent);
+  border-color: #629924;
+  background: #629924;
   color: #ffffff;
 }
 
@@ -1655,9 +1767,16 @@ button:focus-visible {
 .landing-setup-start:hover:not(:disabled),
 .landing-setup-start:focus-visible,
 .landing-setup-back:hover:not(:disabled),
-.landing-setup-back:focus-visible {
-  border-color: var(--site-accent);
-  outline: 3px solid var(--site-focus);
+.landing-setup-back:focus-visible,
+.landing-setup-close:hover,
+.landing-setup-close:focus-visible {
+  border-color: #629924;
+  outline: 2px solid rgba(98, 153, 36, 0.22);
+}
+
+.landing-setup-start:hover:not(:disabled),
+.landing-setup-start:focus-visible {
+  background: #70a82a;
 }
 
 .landing-setup-start:disabled {
@@ -1668,9 +1787,9 @@ button:focus-visible {
 .landing-play-icon {
   position: relative;
   display: block;
-  width: 32px;
-  height: 32px;
-  color: #868684;
+  width: 24px;
+  height: 24px;
+  color: var(--site-accent);
 }
 
 .landing-play-action-lobby .landing-play-icon {
@@ -2352,6 +2471,208 @@ button:focus-visible {
   outline: 3px solid rgba(31, 111, 91, 0.18);
 }
 
+.account-shell,
+.profile-shell {
+  width: min(1040px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 28px 0 40px;
+}
+
+.account-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 460px) minmax(0, 580px);
+  justify-content: center;
+  column-gap: 0;
+}
+
+.account-panel,
+.profile-header,
+.profile-games {
+  border: 1px solid #d8d8d8;
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.06);
+}
+
+.account-panel,
+.profile-header {
+  padding: 22px;
+}
+
+.account-eyebrow {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #777777;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.account-panel .site-section-heading,
+.profile-header .site-section-heading {
+  margin: 0;
+  color: #262421;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.account-copy {
+  margin: 8px 0 0;
+  max-width: 640px;
+  color: #666666;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.account-actions,
+.account-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.account-actions .landing-setup-start,
+.account-actions .landing-setup-back,
+.account-form .landing-setup-start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border-radius: 3px;
+  background: #f7f7f7;
+  color: #4d4d4d;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 6px 11px;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.account-actions .landing-setup-start,
+.account-form .landing-setup-start {
+  border-color: #80a94b;
+  background: #f8fbf4;
+  color: #4f7a1b;
+}
+
+.account-actions .landing-setup-back {
+  border-color: #cfcfcf;
+}
+
+.account-actions .landing-setup-start:hover,
+.account-actions .landing-setup-start:focus-visible,
+.account-form .landing-setup-start:hover,
+.account-form .landing-setup-start:focus-visible {
+  border-color: #629924;
+  background: #eef6e7;
+  color: #3f6414;
+  outline: 2px solid rgba(98, 153, 36, 0.16);
+}
+
+.account-actions .landing-setup-back:hover,
+.account-actions .landing-setup-back:focus-visible {
+  border-color: #aaaaaa;
+  background: #eeeeee;
+  color: #262421;
+  outline: 2px solid rgba(0, 0, 0, 0.08);
+}
+
+.account-form .landing-setup-start {
+  min-width: 0;
+}
+
+.account-form input {
+  min-width: 100%;
+  min-height: 40px;
+  border: 1px solid #b8b8b8;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #262421;
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.account-form input:focus {
+  border-color: #629924;
+  outline: 2px solid rgba(98, 153, 36, 0.18);
+}
+
+.account-status {
+  flex-basis: 100%;
+  margin: 0;
+  color: #666666;
+  font-size: 13px;
+}
+
+.profile-games {
+  margin-top: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.profile-games h2 {
+  margin: 0;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e2e2e2;
+  color: #262421;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.profile-games .landing-games-empty {
+  margin: 0;
+  padding: 18px 16px;
+}
+
+.profile-game-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-game-row {
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eeeeee;
+  color: #262421;
+  text-decoration: none;
+  background: #ffffff;
+}
+
+.profile-game-list li:last-child .profile-game-row {
+  border-bottom: 0;
+}
+
+.profile-game-row:hover,
+.profile-game-row:focus-visible {
+  background: #f7f7f7;
+  box-shadow: inset 3px 0 0 #629924;
+}
+
+.profile-game-row span {
+  color: #777777;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .account-shell {
+    display: block;
+    width: min(460px, calc(100% - 24px));
+  }
+
+  .account-form .landing-setup-start {
+    min-width: 100%;
+  }
+}
+
 .game-replay {
   min-width: 0;
 }
@@ -2456,14 +2777,26 @@ button:focus-visible {
   }
 
   .landing-play-action {
-    grid-template-columns: 46px minmax(0, 1fr);
-    min-height: 64px;
-    padding: 11px 14px;
+    grid-template-columns: 30px minmax(0, 1fr);
+    min-height: 50px;
+    padding: 9px 12px;
   }
 
   .landing-play-icon {
-    width: 38px;
-    height: 38px;
+    width: 26px;
+    height: 26px;
+  }
+
+  .landing-setup-dialog {
+    padding: 16px;
+  }
+
+  .landing-time-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landing-custom-time {
+    grid-template-columns: 1fr;
   }
 
   .landing-cta-primary,
