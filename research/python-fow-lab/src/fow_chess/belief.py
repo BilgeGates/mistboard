@@ -1645,17 +1645,18 @@ def _csp_reseed_from_facts(
 
     if not particles:
         # Couldn't generate any constraint-satisfying particle. Fall back to
-        # a single visibility-only board so belief at least stays alive.
-        # Happens when opp_remaining_counts has more pieces than fit on
-        # hidden_squares, which should not occur in normal play.
-        fallback = chess.Board.empty()
-        for sq, piece in visible_pieces.items():
-            fallback.set_piece_at(sq, piece)
-        for sq, piece in facts.hard_opp_piece_facts.items():
-            if sq not in visibility_set:
-                fallback.set_piece_at(sq, piece)
-        fallback.turn = side_to_move
-        particles = [fallback]
+        # relaxed, diverse worlds instead of a single visibility-only board.
+        # Exact fog-mask reconstruction is strict; in tight capture chains it
+        # can reject every sampled full board. The old singleton fallback kept
+        # belief alive but immediately collapsed decision input. Relax only the
+        # full-mask check here: visible squares, hard facts, count bounds,
+        # bishop colors, and pawn-rank constraints still hold.
+        particles = _relaxed_csp_reseed_from_facts(
+            facts,
+            side_to_move=side_to_move,
+            n=n,
+            rng=rng,
+        )
     elif len(particles) < n:
         # Full visibility validation is intentionally stricter than the early
         # v0.7.0 CSP fill. In tight positions it may find only a few valid
@@ -1666,6 +1667,179 @@ def _csp_reseed_from_facts(
 
     weights = [1.0 / len(particles)] * len(particles)
     return particles, weights
+
+
+def _relaxed_csp_reseed_from_facts(
+    facts: BeliefHardFacts,
+    side_to_move: chess.Color,
+    n: int,
+    rng: random.Random,
+) -> list[chess.Board]:
+    """Generate diverse emergency particles when exact CSP finds zero worlds."""
+    visibility_set = facts.visibility_set
+    visible_pieces = facts.visible_pieces
+    hidden_squares = [sq for sq in chess.SQUARES if sq not in visibility_set]
+    required_blockers = facts.required_hidden_opp_squares()
+    opp = facts.opp
+
+    visible_opp_by_type: dict[chess.PieceType, int] = defaultdict(int)
+    visible_bishop_colors: dict[bool, int] = {True: 0, False: 0}
+    for sq, piece in visible_pieces.items():
+        if piece.color == opp:
+            visible_opp_by_type[piece.piece_type] += 1
+            if piece.piece_type == chess.BISHOP:
+                visible_bishop_colors[_is_light_square(sq)] += 1
+
+    hidden_counts_template = {
+        pt: max(0, total - visible_opp_by_type[pt])
+        for pt, total in facts.opp_remaining_counts.items()
+    }
+    hidden_bishop_template = {
+        True: max(
+            0,
+            facts.opp_bishop_colors_remaining.get(True, 0)
+            - visible_bishop_colors[True],
+        ),
+        False: max(
+            0,
+            facts.opp_bishop_colors_remaining.get(False, 0)
+            - visible_bishop_colors[False],
+        ),
+    }
+
+    particles: list[chess.Board] = []
+    attempts = 0
+    max_attempts = max(n * 20, 1)
+    while len(particles) < n and attempts < max_attempts:
+        attempts += 1
+        board = chess.Board.empty()
+        for sq, piece in visible_pieces.items():
+            board.set_piece_at(sq, piece)
+
+        hidden_counts = dict(hidden_counts_template)
+        hidden_bishops = dict(hidden_bishop_template)
+        hidden_available = list(hidden_squares)
+        rng.shuffle(hidden_available)
+        used: set[chess.Square] = set()
+        valid = True
+
+        for sq, piece in facts.hard_opp_piece_facts.items():
+            if sq in visibility_set:
+                continue
+            if sq not in hidden_squares or sq in used or piece.color != opp:
+                valid = False
+                break
+            if piece.piece_type == chess.PAWN and chess.square_rank(sq) in {0, 7}:
+                valid = False
+                break
+            if hidden_counts.get(piece.piece_type, 0) <= 0:
+                valid = False
+                break
+            if piece.piece_type == chess.BISHOP:
+                color_light = _is_light_square(sq)
+                if hidden_bishops.get(color_light, 0) <= 0:
+                    valid = False
+                    break
+                hidden_bishops[color_light] -= 1
+            hidden_counts[piece.piece_type] -= 1
+            board.set_piece_at(sq, piece)
+            used.add(sq)
+        if not valid:
+            continue
+
+        blocker_squares = list(required_blockers)
+        rng.shuffle(blocker_squares)
+        for sq in blocker_squares:
+            if sq in visibility_set or sq in used:
+                continue
+            pt = _choose_required_blocker_piece_type(
+                sq, hidden_counts, hidden_bishops, rng
+            )
+            if pt is None:
+                valid = False
+                break
+            board.set_piece_at(sq, chess.Piece(pt, opp))
+            used.add(sq)
+            hidden_counts[pt] -= 1
+            if pt == chess.BISHOP:
+                hidden_bishops[_is_light_square(sq)] -= 1
+        if not valid:
+            continue
+
+        for color_light, count in list(hidden_bishops.items()):
+            for _ in range(count):
+                placed_sq = _pop_random_square(
+                    hidden_available,
+                    used,
+                    lambda sq, want=color_light: _is_light_square(sq) == want,
+                )
+                if placed_sq is None:
+                    valid = False
+                    break
+                board.set_piece_at(placed_sq, chess.Piece(chess.BISHOP, opp))
+                used.add(placed_sq)
+                hidden_counts[chess.BISHOP] -= 1
+            if not valid:
+                break
+        if not valid:
+            continue
+
+        pieces_to_place = [
+            pt
+            for pt, count in hidden_counts.items()
+            if pt != chess.BISHOP
+            for _ in range(count)
+        ]
+        rng.shuffle(pieces_to_place)
+        for pt in pieces_to_place:
+            placed_sq = _pop_random_square(
+                hidden_available,
+                used,
+                lambda sq, piece_type=pt: piece_type != chess.PAWN
+                or chess.square_rank(sq) not in {0, 7},
+            )
+            if placed_sq is None:
+                valid = False
+                break
+            board.set_piece_at(placed_sq, chess.Piece(pt, opp))
+            used.add(placed_sq)
+        if not valid:
+            continue
+
+        board.turn = side_to_move
+        if not facts.matches_visible_squares_exactly(board):
+            continue
+        if not facts.hidden_facts_valid(board):
+            continue
+        if not facts.counts_valid(board):
+            continue
+        if not facts.bishop_colors_valid(board):
+            continue
+        particles.append(board)
+
+    if particles:
+        return particles
+
+    fallback = chess.Board.empty()
+    for sq, piece in visible_pieces.items():
+        fallback.set_piece_at(sq, piece)
+    for sq, piece in facts.hard_opp_piece_facts.items():
+        if sq not in visibility_set:
+            fallback.set_piece_at(sq, piece)
+    fallback.turn = side_to_move
+    return [fallback]
+
+
+def _pop_random_square(
+    squares: list[chess.Square],
+    used: set[chess.Square],
+    predicate,
+) -> chess.Square | None:
+    for sq in squares:
+        if sq in used or not predicate(sq):
+            continue
+        return sq
+    return None
 
 
 def _resample(

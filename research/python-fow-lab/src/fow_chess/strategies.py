@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.22"
+TIER1_VERSION = "0.7.29"
 
 
 def tier1_commit() -> str:
@@ -357,6 +357,40 @@ def _queen_save_moves(view: PerspectiveView) -> list[chess.Move]:
         if all(q not in post_attacked for q in queens_after):
             resolving.append(own_move)
     return resolving
+
+
+def _queen_save_tiers(view: PerspectiveView) -> list[list[chess.Move]]:
+    """Rank queen-save moves as attacker-captures before blocks/flights."""
+    saves = _queen_save_moves(view)
+    if not saves:
+        return []
+
+    own = view.perspective
+    queen_squares = {
+        sq
+        for sq, piece in view.visible_piece_map.items()
+        if piece.color == own and piece.piece_type == chess.QUEEN
+    }
+    attacker_squares = _visible_attackers_of_squares(view, queen_squares)
+    attacker_captures = [
+        move
+        for move in saves
+        if move.to_square in attacker_squares
+        and (target := view.visible_piece_map.get(move.to_square)) is not None
+        and target.color != own
+    ]
+    tiers: list[list[chess.Move]] = []
+    if attacker_captures:
+        tiers.append(
+            _prefer_lower_value_attacker(
+                _prefer_higher_value_capture(attacker_captures, view),
+                view,
+            )
+        )
+    remaining = [move for move in saves if move not in set(attacker_captures)]
+    if remaining:
+        tiers.append(remaining)
+    return tiers
 
 
 def _high_value_piece_save_moves(view: PerspectiveView) -> list[chess.Move]:
@@ -1306,6 +1340,62 @@ class Tier1Strategy:
                 survivors.append(move)
         return survivors
 
+    def _belief_lowest_king_attack_risk(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+        *,
+        king_move_tiebreak_band: float = 0.03,
+    ) -> list[chess.Move]:
+        """Return the candidate subset with the lowest terminal king risk.
+
+        The ordinary king-risk veto returns an empty list when every candidate
+        is above budget. Older code then fell back to the full candidate set,
+        which discarded the only useful signal belief had. In that forced-risk
+        case, keep the least-bad moves instead. If a voluntary king move is
+        only marginally lower-risk than a non-king move, prefer the non-king
+        move: fog risk estimates at this granularity are noisy, and walking the
+        king through hidden space creates sequential terminal exposure.
+        """
+        if self._belief is None or not self._belief.particles or not candidates:
+            return candidates
+
+        own = view.perspective
+        scored: list[tuple[chess.Move, float, int, bool]] = []
+        unsupported: list[chess.Move] = []
+        for move in candidates:
+            risk, support_count, _ = self._belief_immediate_king_risk(move, own)
+            if support_count <= 0:
+                unsupported.append(move)
+                continue
+            mover = view.visible_piece_map.get(move.from_square)
+            is_king_move = (
+                mover is not None
+                and mover.color == own
+                and mover.piece_type == chess.KING
+            )
+            scored.append((move, risk, support_count, is_king_move))
+
+        if not scored:
+            return unsupported or candidates
+
+        best_risk = min(risk for _, risk, _, _ in scored)
+        eps = 1e-9
+        near_best = [
+            row
+            for row in scored
+            if row[1] <= best_risk + king_move_tiebreak_band + eps
+        ]
+        non_king_near_best = [row for row in near_best if not row[3]]
+        if non_king_near_best:
+            best_non_king_risk = min(risk for _, risk, _, _ in non_king_near_best)
+            return [
+                move
+                for move, risk, _, _ in non_king_near_best
+                if risk <= best_non_king_risk + eps
+            ]
+        return [move for move, risk, _, _ in scored if risk <= best_risk + eps]
+
     def _belief_veto_bad_capture_trade(
         self,
         candidates: list[chess.Move],
@@ -1905,7 +1995,32 @@ class Tier1Strategy:
                 if (piece := view.visible_piece_map.get(move.from_square)) is not None
                 and piece.piece_type == chess.KING
             ]
-            if non_king_captures:
+            high_value_king_captures = [
+                move
+                for move in king_captures
+                if (
+                    target := view.visible_piece_map.get(move.to_square)
+                ) is not None
+                and _MATERIAL_VALUE.get(target.piece_type, 0)
+                >= _MATERIAL_VALUE[chess.ROOK]
+            ]
+            if high_value_king_captures:
+                king_capture_tier = _prefer_higher_value_capture(
+                    high_value_king_captures, view
+                )
+                belief_ok = [
+                    m for m in king_capture_tier if self._belief_supports_move(m)
+                ]
+                safe_king_captures = self._belief_veto_king_attack(
+                    belief_ok or king_capture_tier, view
+                )
+            else:
+                safe_king_captures = []
+
+            if safe_king_captures:
+                tier = safe_king_captures
+                tier_label = "king-defense-king-capture"
+            elif non_king_captures:
                 tier = _prefer_higher_value_capture(non_king_captures, view)
                 tier_label = "king-defense-capture"
             elif kd_blocks:
@@ -1924,7 +2039,10 @@ class Tier1Strategy:
             belief_ok = [m for m in tier if self._belief_supports_move(m)]
             tier_filtered = belief_ok or tier
             survivors = self._belief_veto_king_attack(tier_filtered, view)
-            chosen = self._rng.choice(survivors or tier_filtered)
+            candidates = survivors or self._belief_lowest_king_attack_risk(
+                tier_filtered, view
+            )
+            chosen = self._rng.choice(candidates)
             self._stage_pending_capture(chosen, view)
             self._emit_trace(tier_label, particle_count_pre, chosen)
             return chosen
@@ -1954,9 +2072,10 @@ class Tier1Strategy:
         # not attacked by any visible enemy piece, take one of those moves.
         # "Safe" is measured against a visibility-only synthesized board —
         # hidden attackers don't fire this.
-        queen_save = _queen_save_moves(view)
-        if queen_save:
+        queen_save_tiers = _queen_save_tiers(view)
+        for queen_save in queen_save_tiers:
             candidates = self._belief_veto_king_attack(queen_save, view)
+            candidates = self._belief_veto_queen_fog_risk(candidates, view)
             if candidates:
                 chosen = self._rng.choice(candidates)
                 self._stage_pending_capture(chosen, view)
@@ -2018,6 +2137,7 @@ class Tier1Strategy:
             candidates = belief_ok or safe_minor_rook
             candidates = self._belief_veto_king_attack(candidates, view)
             candidates = self._belief_veto_bad_capture_trade(candidates, view)
+            candidates = self._belief_veto_queen_fog_risk(candidates, view)
             if candidates:
                 chosen = self._rng.choice(_prefer_queen_promotion(candidates))
                 self._stage_pending_capture(chosen, view)
@@ -2098,7 +2218,9 @@ class Tier1Strategy:
         evaluator = self.evaluator_builder(view)
         scored: list[tuple[chess.Move, float, float]] = []
         safe_legal_moves = self._belief_veto_king_attack(view.own_legal_moves, view)
-        legal_moves = safe_legal_moves or view.own_legal_moves
+        legal_moves = safe_legal_moves or self._belief_lowest_king_attack_risk(
+            view.own_legal_moves, view
+        )
         non_king_capture_moves = [
             move
             for move in legal_moves

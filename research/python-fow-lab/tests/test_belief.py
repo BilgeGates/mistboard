@@ -101,6 +101,8 @@ def test_opp_move_update_reseeds_when_no_particle_can_expand() -> None:
 
     assert not belief.collapsed()
     assert belief.last_csp_reseed_fired == 1
+    assert belief.last_csp_reseed_count == belief.target_n
+    assert len({particle.fen() for particle in belief.particles}) > 1
     assert belief.marginal_piece_at(chess.E1) == {own_king: 1.0}
 
 

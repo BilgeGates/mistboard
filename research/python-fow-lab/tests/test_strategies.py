@@ -18,6 +18,7 @@ from fow_chess.strategies import (
     _prefer_lower_value_attacker,
     _prefer_queen_promotion,
     _queen_save_moves,
+    _queen_save_tiers,
     _safe_visible_minor_or_rook_captures,
     _squares_attacked_by_visible_enemy,
 )
@@ -360,6 +361,43 @@ def test_queen_save_includes_attacker_capture_by_other_piece() -> None:
     assert 'd6e5' in save_set, f"expected d6e5 (pawn captures attacker) in {save_set}"
 
 
+def test_queen_save_prefers_attacker_capture_over_block() -> None:
+    """When queen-save has capture and block options, capture the attacker.
+
+    Regression for v0.7.27 g0 ply 113: white queen on b3 was attacked by a
+    visible rook on b8. The engine played Ra5-b5 to block instead of Qxb8.
+    """
+    pieces = {
+        chess.F2: chess.Piece(chess.KING, chess.WHITE),
+        chess.B3: chess.Piece(chess.QUEEN, chess.WHITE),
+        chess.A5: chess.Piece(chess.ROOK, chess.WHITE),
+        chess.B8: chess.Piece(chess.ROOK, chess.BLACK),
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+    }
+    board = chess.Board.empty()
+    for sq, p in pieces.items():
+        board.set_piece_at(sq, p)
+    board.turn = chess.WHITE
+
+    view = _build_view(board, chess.WHITE, visible_pieces=pieces)
+    save_set = {move.uci() for move in _queen_save_moves(view)}
+    assert "b3b8" in save_set
+    assert "a5b5" in save_set
+    assert [[move.uci() for move in tier] for tier in _queen_save_tiers(view)][0] == [
+        "b3b8"
+    ]
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [board.copy() for _ in range(4)]
+    strategy._belief.weights = [1.0] * 4
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen.uci() == "b3b8"
+    assert strategy.trace_log[-1]["decision_path"] == "queen-save"
+
+
 def test_squares_attacked_by_visible_enemy_basic() -> None:
     # Hand-build a PerspectiveView with an explicit visible_piece_map so we can
     # exercise the helper without relying on Bichess visibility rules — black
@@ -473,6 +511,69 @@ def test_king_defense_prefers_flight_over_king_capture_of_material() -> None:
 
     assert chosen != risky
     assert strategy.trace_log[-1]["decision_path"] == "king-defense-flight"
+
+
+def test_king_defense_forced_risk_fallback_keeps_lowest_risk_flights() -> None:
+    """If every king-defense flight is risky, keep the least-risk flights.
+
+    Regression for v0.7.24 g0 ply 185: king-defense applied the king-risk
+    veto, got no survivors, then fell back to the whole risky flight tier and
+    discarded the relative risk signal.
+    """
+    visible = {
+        chess.E1: chess.Piece(chess.KING, chess.WHITE),
+        chess.E8: chess.Piece(chess.ROOK, chess.BLACK),
+        chess.H8: chess.Piece(chess.KING, chess.BLACK),
+    }
+    base = chess.Board.empty()
+    for sq, p in visible.items():
+        base.set_piece_at(sq, p)
+    base.turn = chess.WHITE
+
+    lower_risk = base.copy()
+    lower_risk.set_piece_at(chess.D8, chess.Piece(chess.ROOK, chess.BLACK))
+    higher_risk = base.copy()
+    higher_risk.set_piece_at(chess.F8, chess.Piece(chess.ROOK, chess.BLACK))
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [lower_risk] + [higher_risk] * 3
+    strategy._belief.weights = [1.0] * 4
+    view = _build_view(base, chess.WHITE, visible_pieces=visible)
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen.uci() in {"e1d1", "e1d2"}
+    assert strategy.trace_log[-1]["decision_path"] == "king-defense-flight"
+
+
+def test_king_defense_safe_king_capture_of_rook_beats_flight() -> None:
+    """A safe king capture of a visible rook attacker should beat flight.
+
+    Regression for v0.7.25 g0 ply 195: white saw the black rook on g1
+    attacking its king on f1, but king-defense treated all king captures as
+    lower priority than flight and walked away from the rook.
+    """
+    visible = {
+        chess.F1: chess.Piece(chess.KING, chess.WHITE),
+        chess.G1: chess.Piece(chess.ROOK, chess.BLACK),
+        chess.H8: chess.Piece(chess.KING, chess.BLACK),
+    }
+    board = chess.Board.empty()
+    for sq, p in visible.items():
+        board.set_piece_at(sq, p)
+    board.turn = chess.WHITE
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [board.copy() for _ in range(4)]
+    strategy._belief.weights = [1.0] * 4
+    view = _build_view(board, chess.WHITE, visible_pieces=visible)
+
+    chosen = strategy.pick_move(view)
+
+    assert chosen.uci() == "f1g1"
+    assert strategy.trace_log[-1]["decision_path"] == "king-defense-king-capture"
 
 
 def test_king_defense_prefers_higher_material_attacker_capture() -> None:
@@ -636,6 +737,83 @@ def test_belief_veto_uses_lower_risk_tolerance_for_king_moves() -> None:
     assert survivors == [], "king move into a plausible hidden-rook capture must be vetoed"
 
 
+def test_forced_king_risk_fallback_keeps_lowest_risk_moves() -> None:
+    """When all moves exceed terminal-risk budget, keep the least-bad subset.
+
+    Regression for the v0.7.22 rung: the king-risk veto correctly detected
+    danger, but an empty survivor set made main eval fall back to every legal
+    move and throw away the relative risk signal.
+    """
+    visible = {
+        chess.E1: chess.Piece(chess.KING, chess.WHITE),
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+    }
+    base = chess.Board.empty()
+    for sq, p in visible.items():
+        base.set_piece_at(sq, p)
+    base.turn = chess.WHITE
+
+    lower_risk = base.copy()
+    lower_risk.set_piece_at(chess.F8, chess.Piece(chess.ROOK, chess.BLACK))
+    higher_risk = lower_risk.copy()
+    higher_risk.set_piece_at(chess.D8, chess.Piece(chess.ROOK, chess.BLACK))
+
+    s = _strategy()
+    s.reset(perspective=chess.WHITE)
+    s._belief.particles = [higher_risk, lower_risk]
+    s._belief.weights = [1.0, 1.0]
+
+    move_d1 = chess.Move.from_uci("e1d1")
+    move_f1 = chess.Move.from_uci("e1f1")
+    view = _build_view(base, chess.WHITE, visible_pieces=visible)
+
+    assert s._belief_veto_king_attack([move_d1, move_f1], view) == []
+    assert s._belief_lowest_king_attack_risk([move_d1, move_f1], view) == [
+        move_d1
+    ]
+
+
+def test_forced_king_risk_fallback_prefers_near_best_non_king_move() -> None:
+    """Do not voluntarily move the king for a tiny risk-model edge.
+
+    Regression for the v0.7.23 target rerun: late king moves were selected
+    because they were a few percentage points lower immediate-risk than
+    non-king alternatives, but each king step created fresh hidden exposure.
+    """
+    visible = {
+        chess.E1: chess.Piece(chess.KING, chess.WHITE),
+        chess.A2: chess.Piece(chess.ROOK, chess.WHITE),
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+    }
+    base = chess.Board.empty()
+    for sq, p in visible.items():
+        base.set_piece_at(sq, p)
+    base.turn = chess.WHITE
+
+    # Both candidate moves are risky. e1-f1 is slightly lower immediate risk,
+    # but a2-a3 keeps the king still and is within the tiebreak band.
+    king_risky = base.copy()
+    king_risky.set_piece_at(chess.F8, chess.Piece(chess.ROOK, chess.BLACK))
+    still_risky = base.copy()
+    still_risky.set_piece_at(chess.E8, chess.Piece(chess.ROOK, chess.BLACK))
+
+    s = _strategy()
+    s.reset(perspective=chess.WHITE)
+    s._belief.particles = [king_risky] + [still_risky] * 2
+    s._belief.weights = [1.0, 1.0, 1.0]
+
+    king_move = chess.Move.from_uci("e1f1")
+    non_king_move = chess.Move.from_uci("a2a3")
+    view = _build_view(base, chess.WHITE, visible_pieces=visible)
+
+    assert s._belief_veto_king_attack([king_move, non_king_move], view) == []
+    assert s._belief_lowest_king_attack_risk(
+        [king_move, non_king_move],
+        view,
+        king_move_tiebreak_band=0.34,
+    ) == [non_king_move]
+
+
 # ============================================================================
 # v0.6.1 Pattern B: safe-visible-minor-or-rook capture short-circuit.
 # ============================================================================
@@ -737,6 +915,42 @@ def test_safe_visible_capture_vetoes_belief_defended_bad_trade() -> None:
     strategy._belief.weights = [1.0, 1.0]
 
     assert strategy._belief_veto_bad_capture_trade([capture], view) == []
+    chosen = strategy.pick_move(view)
+
+    assert strategy.trace_log[-1]["decision_path"] != "visible-minor-rook-capture"
+    assert chosen != capture
+
+
+def test_safe_visible_capture_shortcut_respects_queen_fog_risk() -> None:
+    """Do not auto-spend the queen on a minor if belief says recapture is live.
+
+    Regression for v0.7.26 g0 ply 55: Qd1xa4 won a visible knight, but the
+    queen was immediately recapturable by a hidden rook in enough particles
+    that the move should fall through to the normal decision path.
+    """
+    visible = {
+        chess.E1: chess.Piece(chess.KING, chess.WHITE),
+        chess.D1: chess.Piece(chess.QUEEN, chess.WHITE),
+        chess.A4: chess.Piece(chess.KNIGHT, chess.BLACK),
+        chess.H8: chess.Piece(chess.KING, chess.BLACK),
+    }
+    board = chess.Board.empty()
+    for sq, p in visible.items():
+        board.set_piece_at(sq, p)
+    board.turn = chess.WHITE
+    capture = chess.Move.from_uci("d1a4")
+    assert capture in board.pseudo_legal_moves
+
+    risky = board.copy()
+    risky.set_piece_at(chess.A8, chess.Piece(chess.ROOK, chess.BLACK))
+
+    strategy = _strategy()
+    strategy.reset(perspective=chess.WHITE)
+    strategy._belief.particles = [risky] + [board.copy() for _ in range(3)]
+    strategy._belief.weights = [1.0] * 4
+    view = _build_view(board, chess.WHITE, visible_pieces=visible)
+    assert capture in _safe_visible_minor_or_rook_captures(view)
+
     chosen = strategy.pick_move(view)
 
     assert strategy.trace_log[-1]["decision_path"] != "visible-minor-rook-capture"
