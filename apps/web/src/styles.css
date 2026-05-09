@@ -431,33 +431,52 @@ button:focus-visible {
   outline: 3px solid rgba(31, 111, 91, 0.18);
 }
 
-.room-actions a {
+.room-actions a,
+.room-actions button {
   display: block;
+  width: 100%;
   min-height: 38px;
   border: 1px solid #bdc8bf;
   border-radius: 6px;
   background: #ffffff;
   color: #1d2522;
   padding: 9px 10px;
+  cursor: pointer;
+  font: inherit;
   text-align: center;
   text-decoration: none;
 }
 
 .room-actions a:hover,
-.room-actions a:focus-visible {
+.room-actions a:focus-visible,
+.room-actions button:hover:not(:disabled),
+.room-actions button:focus-visible {
   border-color: #1f6f5b;
   outline: 3px solid rgba(31, 111, 91, 0.18);
 }
 
-.room-actions a.primary {
+.room-actions a.primary,
+.room-actions button.primary {
   border-color: #1f6f5b;
   background: #1f6f5b;
   color: #ffffff;
 }
 
 .room-actions a.primary:hover,
-.room-actions a.primary:focus-visible {
+.room-actions a.primary:focus-visible,
+.room-actions button.primary:hover:not(:disabled),
+.room-actions button.primary:focus-visible {
   background: #185947;
+}
+
+.room-actions button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.room-actions button.danger {
+  border-color: #c79898;
+  color: #7a2f2f;
 }
 
 .debug-shell {

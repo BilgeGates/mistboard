@@ -24,6 +24,7 @@ import './styles.css';
 type Seat = Color | 'spectator';
 type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'displaced' | 'rejected';
+type PlayAgainStatus = 'creating' | 'failed' | 'idle';
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
 type PendingPromotion = {
   color: Color;
@@ -68,6 +69,7 @@ type ServerMessage =
     clientId: string;
     clients: number;
     mode?: RoomMode;
+    pveEngineId?: string | null;
     roomId: string;
     serverAt?: number;
     seat: Seat;
@@ -85,6 +87,7 @@ type ServerMessage =
     roomId: string;
     clients: number;
     mode?: RoomMode;
+    pveEngineId?: string | null;
     serverAt?: number;
     seat: Seat;
     solo: boolean;
@@ -144,6 +147,7 @@ let latencyMs: number | null = null;
 let lastServerAt: number | null = null;
 let lastSnapshotAt: number | null = null;
 let roomMode: RoomMode = engineRequested ? 'pve' : 'pvp';
+let pveEngineId: string | null = null;
 let seat: Seat = 'spectator';
 let solo = soloRequested;
 let selections: Partial<Record<Color, number>> = {};
@@ -157,6 +161,7 @@ let replayIndex: number | null = null;
 let orientation: Color = 'white';
 let ground: Api | null = null;
 let pendingPromotion: PendingPromotion | null = null;
+let playAgainStatus: PlayAgainStatus = 'idle';
 let shareCopyStatus: 'idle' | 'copied' | 'failed' = 'idle';
 let postgameFogEnabled = false;
 let lastSoundEventCount: number | null = null;
@@ -173,6 +178,7 @@ function resolveWebSocketBaseUrl(): string {
 }
 
 connectSocket();
+window.addEventListener('keydown', handleReplayKeyboard);
 
 function connectSocket(): void {
   if (reconnectTimer) {
@@ -239,6 +245,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     clientCount = message.clients;
     connectionState = 'connected';
     roomMode = message.mode ?? roomMode;
+    pveEngineId = message.pveEngineId ?? null;
     lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
@@ -253,6 +260,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     clientCount = message.clients;
     connectionState = 'connected';
     roomMode = message.mode ?? roomMode;
+    pveEngineId = message.pveEngineId ?? null;
     lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
@@ -560,8 +568,9 @@ function renderGameInfo(view: PlayerView | null): void {
 }
 
 function renderRoomActions(): void {
-  const actions = [roomAction('Back to Play', '/play')];
+  const actions: HTMLElement[] = [roomAction('Back to Play', '/play')];
   if (currentView()?.status.type === 'finished') {
+    if (roomMode === 'pvp' || roomMode === 'pve') actions.unshift(playAgainButton());
     actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(room)}`, 'primary'));
   }
   if (engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
@@ -595,6 +604,47 @@ function roomAction(label: string, href: string, toneOrDev?: 'primary' | 'engine
   if (toneOrDev === 'primary') link.className = 'primary';
   link.textContent = label;
   return link;
+}
+
+function playAgainButton(): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = playAgainStatus === 'failed' ? 'danger' : '';
+  button.disabled = playAgainStatus === 'creating';
+  button.textContent = playAgainStatus === 'creating'
+    ? 'Creating'
+    : playAgainStatus === 'failed'
+      ? 'Try play again'
+      : 'Play again';
+  button.addEventListener('click', () => {
+    void createPlayAgainRoom();
+  });
+  return button;
+}
+
+async function createPlayAgainRoom(): Promise<void> {
+  if (roomMode !== 'pvp' && roomMode !== 'pve') return;
+  playAgainStatus = 'creating';
+  renderRoomActions();
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: roomMode,
+        variant: currentView()?.variant ?? state?.variant ?? variantRequested ?? 'fog-of-war',
+        ...(roomMode === 'pve' && pveEngineId ? { engineId: pveEngineId } : {}),
+      }),
+    });
+    if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
+    const data = await response.json() as { url?: string };
+    if (!data.url) throw new Error('room creation response missing url');
+    window.location.assign(data.url);
+  } catch (err) {
+    console.warn(err);
+    playAgainStatus = 'failed';
+    renderRoomActions();
+  }
 }
 
 function renderDevViews(): void {
@@ -1053,12 +1103,41 @@ function applyReplayControl(action: string): void {
   }
 
   const currentIndex = currentReplayIndex();
-  if (action === 'first') replayIndex = Math.min(events.length, 1);
+  if (action === 'first') replayIndex = events.length > 0 ? 1 : null;
   if (action === 'prev') replayIndex = Math.max(1, currentIndex - 1);
   if (action === 'next') {
     const next = Math.min(events.length, currentIndex + 1);
     replayIndex = next === events.length ? null : next;
   }
+}
+
+function handleReplayKeyboard(event: KeyboardEvent): void {
+  if (event.defaultPrevented || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) return;
+  if (isEditableKeyboardTarget(event.target)) return;
+
+  const action = replayActionForKey(event.key);
+  if (!action || replayControlDisabled(action)) return;
+
+  event.preventDefault();
+  applyReplayControl(action);
+  reconcileInteractionState();
+  render();
+}
+
+function replayActionForKey(key: string): string | null {
+  if (key === 'ArrowLeft') return 'prev';
+  if (key === 'ArrowRight') return 'next';
+  if (key === 'ArrowUp') return 'first';
+  if (key === 'ArrowDown') return 'latest';
+  return null;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement;
 }
 
 function replayControlDisabled(action: string): boolean {
