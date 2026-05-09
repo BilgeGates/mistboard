@@ -324,3 +324,72 @@ def test_generate_queue_labels_repair_supplement_pressure(tmp_path: Path) -> Non
 
     assert len(items) == 1
     assert "stage-b-repair-supplement-dropped:128+10" in items[0].reasons
+
+
+def test_generate_queue_prioritizes_weight_mode_disagreement(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "games": [
+                    {
+                        "index": 3,
+                        "outcome": "W",
+                        "plies": 30,
+                        "path": "games/game-0003-W-tier1-white.jsonl",
+                    }
+                ]
+            }
+        )
+    )
+    write_jsonl(
+        tmp_path / "trace.jsonl",
+        [
+            {
+                "game_index": 3,
+                "tier1_seat": "tier1_a",
+                "tier1_side": "white",
+                "ply": 12,
+                "decision_path": "main-eval",
+                "move_chosen_uci": "a2a3",
+                "belief_unique_count": 200,
+                "chosen_move_king_capture_risk": 0.01,
+                "decision_weight_modes": {
+                    "sample": {
+                        "selected_clusters": 16,
+                        "total_unique_clusters": 200,
+                        "max_clusters": 16,
+                    },
+                    "mode_winners": {
+                        "posterior": "a2a3",
+                        "appearance": "b1c3",
+                        "uniform_distinct": "b1c3",
+                    },
+                    "winner_disagreement": True,
+                    "modes": {
+                        "posterior": [
+                            {
+                                "uci": "a2a3",
+                                "score": 10,
+                                "support_mass": 0.2,
+                                "support_clusters": 2,
+                            }
+                        ]
+                    },
+                },
+            }
+        ],
+    )
+
+    items = review_queue.generate_queue(tmp_path)
+
+    assert len(items) == 1
+    assert "weight-mode-winner-disagreement+24" in items[0].reasons
+    assert "posterior-vs-uniform-winner+14" in items[0].reasons
+    assert "posterior-vs-appearance-winner+10" in items[0].reasons
+    assert "weight-mode-sampled:16/200+10" in items[0].reasons
+    assert "posterior-winner-support<25pct+8" in items[0].reasons
+    assert "posterior-winner-clusters:2+8" in items[0].reasons
+    assert "weight-disagreement-with-risk+8" in items[0].reasons
+    assert items[0].to_json()["trace_summary"]["decision_weight_modes"][
+        "winner_disagreement"
+    ] is True

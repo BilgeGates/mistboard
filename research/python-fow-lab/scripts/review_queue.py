@@ -203,6 +203,7 @@ def score_trace_row(
     score += score_particle_drop(reasons, row, "stage_b")
     score += score_particle_profile(reasons, row)
     score += score_decision_audit(reasons, row)
+    score += score_weight_mode_disagreement(reasons, row)
 
     unique = int(row.get("belief_unique_count") or 0)
     if unique <= 1:
@@ -447,6 +448,64 @@ def score_decision_audit(reasons: list[str], row: dict[str, Any]) -> int:
     return score
 
 
+def score_weight_mode_disagreement(reasons: list[str], row: dict[str, Any]) -> int:
+    modes = row.get("decision_weight_modes")
+    if not isinstance(modes, dict):
+        return 0
+
+    score = 0
+    winners = modes.get("mode_winners")
+    if not isinstance(winners, dict):
+        winners = {}
+    posterior = winners.get("posterior")
+    appearance = winners.get("appearance")
+    uniform = winners.get("uniform_distinct")
+
+    if modes.get("winner_disagreement") is True:
+        add(reasons, "weight-mode-winner-disagreement", 24)
+        score += 24
+        if posterior and uniform and posterior != uniform:
+            add(reasons, "posterior-vs-uniform-winner", 14)
+            score += 14
+        if posterior and appearance and posterior != appearance:
+            add(reasons, "posterior-vs-appearance-winner", 10)
+            score += 10
+
+    sample = modes.get("sample")
+    if isinstance(sample, dict):
+        selected = int(sample.get("selected_clusters") or 0)
+        total = int(sample.get("total_unique_clusters") or 0)
+        if selected > 0 and total >= selected * 8:
+            add(reasons, f"weight-mode-sampled:{selected}/{total}", 10)
+            score += 10
+        elif selected > 0 and total >= selected * 4:
+            add(reasons, f"weight-mode-sampled:{selected}/{total}", 6)
+            score += 6
+
+    mode_rows = modes.get("modes")
+    if isinstance(mode_rows, dict):
+        posterior_rows = mode_rows.get("posterior")
+        if isinstance(posterior_rows, list) and posterior_rows:
+            top = posterior_rows[0]
+            if isinstance(top, dict):
+                support_clusters = int(top.get("support_clusters") or 0)
+                support_mass = float(top.get("support_mass") or 0.0)
+                if support_mass and support_mass < 0.25:
+                    add(reasons, "posterior-winner-support<25pct", 8)
+                    score += 8
+                if support_clusters and support_clusters <= 2:
+                    add(reasons, f"posterior-winner-clusters:{support_clusters}", 8)
+                    score += 8
+
+    king_risk = float(row.get("chosen_move_king_capture_risk") or 0.0)
+    piece_risk = float(row.get("chosen_move_piece_capture_risk") or 0.0)
+    if modes.get("winner_disagreement") is True and (king_risk > 0 or piece_risk >= 0.25):
+        add(reasons, "weight-disagreement-with-risk", 8)
+        score += 8
+
+    return score
+
+
 def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
     keys = [
         "particle_count_pre_sample",
@@ -540,6 +599,8 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "checkpoint_repair_count_stage_b",
         "checkpoint_repair_age_stage_a",
         "checkpoint_repair_age_stage_b",
+        "particle_weight_profile",
+        "decision_weight_modes",
     ]
     return {key: row[key] for key in keys if key in row}
 

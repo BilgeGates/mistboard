@@ -13,6 +13,47 @@ export type BeliefCluster = {
   particle_count: number;
 };
 
+type ParticleWeightProfile = {
+  summary: {
+    particle_count: number;
+    unique_count: number;
+    effective_cluster_count: number;
+    posterior_top1_mass: number;
+    appearance_top1_mass: number;
+    posterior_entropy: number;
+    posterior_entropy_norm: number;
+  };
+  clusters: Array<{
+    fen: string;
+    particle_count: number;
+    posterior_mass: number;
+    appearance_mass: number;
+    posterior_rank: number;
+    appearance_rank: number;
+    posterior_minus_appearance: number;
+  }>;
+};
+
+type DecisionWeightModes = {
+  sample: {
+    selected_clusters: number;
+    total_unique_clusters: number;
+    max_clusters: number;
+  };
+  mode_winners: {
+    posterior?: string | null;
+    appearance?: string | null;
+    uniform_distinct?: string | null;
+  };
+  winner_disagreement: boolean;
+  modes: Record<string, Array<{
+    uci: string;
+    score: number;
+    support_mass: number;
+    support_clusters: number;
+  }>>;
+};
+
 export type BeliefRow = {
   game_index: number;
   tier1_seat: string;
@@ -35,6 +76,8 @@ export type BeliefRow = {
   };
   marginal_field: Record<string, BeliefPieceEntry[]>;
   top_k_clusters: BeliefCluster[];
+  particle_weight_profile?: ParticleWeightProfile;
+  decision_weight_modes?: DecisionWeightModes | null;
 };
 
 export type TraceScore = {
@@ -127,6 +170,8 @@ export type TraceRow = {
   checkpoint_repair_fired?: boolean;
   checkpoint_repair_count?: number;
   checkpoint_repair_age?: number;
+  particle_weight_profile?: ParticleWeightProfile;
+  decision_weight_modes?: DecisionWeightModes | null;
 };
 
 export type BeliefConfig = {
@@ -468,6 +513,9 @@ function renderBeliefHealth(row: BeliefRow, trace: TraceRow | null): HTMLElement
   });
   wrap.append(healthCard('Decision', overview));
 
+  const weightModeLines = decisionWeightModeLines(trace, row);
+  if (weightModeLines.length) wrap.append(healthCard('Decision Weight Modes', weightModeLines));
+
   const stageALines = stageCardLines('A', trace);
   if (stageALines.length) wrap.append(healthCard('Stage A · Own Move', stageALines));
 
@@ -647,6 +695,66 @@ function recoveryCardLines(trace: TraceRow): HealthDatum[] {
   return lines;
 }
 
+function decisionWeightModeLines(trace: TraceRow, row: BeliefRow): HealthDatum[] {
+  const modes = trace.decision_weight_modes ?? row.decision_weight_modes ?? null;
+  const profile = trace.particle_weight_profile ?? row.particle_weight_profile ?? null;
+  if (!modes && !profile) return [];
+
+  const lines: HealthDatum[] = [];
+  if (modes) {
+    const winners = modes.mode_winners ?? {};
+    lines.push({
+      label: 'Winners',
+      value: [
+        `P ${winners.posterior ?? '-'}`,
+        `A ${winners.appearance ?? '-'}`,
+        `U ${winners.uniform_distinct ?? '-'}`,
+      ].join(' · '),
+      severity: modes.winner_disagreement ? 'bad' : 'ok',
+    });
+
+    const sample = modes.sample;
+    if (sample) {
+      const selected = sample.selected_clusters ?? 0;
+      const total = sample.total_unique_clusters ?? 0;
+      lines.push({
+        label: 'Sample',
+        value: `${selected}/${total} worlds`,
+        severity: selected > 0 && total >= selected * 8 ? 'bad' : selected > 0 && total >= selected * 4 ? 'warn' : 'ok',
+      });
+    }
+
+    const posteriorTop = modes.modes?.posterior?.[0];
+    if (posteriorTop) {
+      lines.push({
+        label: 'Posterior top',
+        value: `${posteriorTop.uci} · ${fmtScore(posteriorTop.score)} · ${pct(posteriorTop.support_mass)} · ${posteriorTop.support_clusters} worlds`,
+        severity: posteriorTop.support_mass < 0.25 || posteriorTop.support_clusters <= 2 ? 'warn' : 'ok',
+      });
+    }
+
+    const uniformTop = modes.modes?.uniform_distinct?.[0];
+    if (uniformTop && uniformTop.uci !== posteriorTop?.uci) {
+      lines.push({
+        label: 'Uniform top',
+        value: `${uniformTop.uci} · ${fmtScore(uniformTop.score)} · ${pct(uniformTop.support_mass)} · ${uniformTop.support_clusters} worlds`,
+        severity: 'warn',
+      });
+    }
+  }
+
+  if (profile) {
+    const summary = profile.summary;
+    lines.push({
+      label: 'Cluster mass',
+      value: `top ${pct(summary.posterior_top1_mass)} P · ${pct(summary.appearance_top1_mass)} A · eff ${summary.effective_cluster_count.toFixed(1)}`,
+      severity: summary.posterior_top1_mass >= 0.5 ? 'warn' : 'ok',
+    });
+  }
+
+  return lines;
+}
+
 function healthCard(title: string, lines: HealthDatum[]): HTMLElement {
   const card = document.createElement('section');
   card.className = `belief-health-card ${cardSeverity(lines)}`;
@@ -723,6 +831,13 @@ function fmtMs(value: number | undefined): string {
   if (value < 1) return `${value.toFixed(2)}ms`;
   if (value < 10) return `${value.toFixed(1)}ms`;
   return `${Math.round(value)}ms`;
+}
+
+function fmtScore(value: number | undefined): string {
+  if (value === undefined) return '-';
+  if (Math.abs(value) >= 100) return String(Math.round(value));
+  if (Math.abs(value) >= 10) return value.toFixed(1);
+  return value.toFixed(2);
 }
 
 function hardOppOccupancySquares(row: BeliefRow): Set<string> {
