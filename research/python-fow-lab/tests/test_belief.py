@@ -2,9 +2,11 @@ import chess
 
 from fow_chess.belief import (
     BeliefState,
+    RepairDiagnostics,
     _csp_reseed,
     _repair_diagnostics,
     _repair_passes_strict_reachability,
+    _select_repair_candidates,
     _repair_supplement_limit,
 )
 from fow_chess.move_priors import uniform_prior
@@ -102,6 +104,57 @@ def test_repair_supplement_limit_tracks_diversity_deficit() -> None:
         particles.append(particle)
 
     assert _repair_supplement_limit(particles, target_n=256) == 0
+
+
+def test_select_repair_candidates_dedupes_and_prefers_lower_cost() -> None:
+    board_a = chess.Board.empty()
+    board_a.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board_a.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board_b = board_a.copy()
+    board_b.set_piece_at(chess.A1, chess.Piece(chess.ROOK, chess.WHITE))
+
+    bad_duplicate = RepairDiagnostics(
+        cost=50,
+        moved_piece_count=1,
+        max_piece_distance=1,
+        long_move_count=0,
+        teleport_like_count=0,
+        forced_visible_square_count=5,
+        unpaired_added_count=1,
+        unpaired_removed_count=1,
+    )
+    good_duplicate = RepairDiagnostics(
+        cost=10,
+        moved_piece_count=0,
+        max_piece_distance=0,
+        long_move_count=0,
+        teleport_like_count=0,
+        forced_visible_square_count=1,
+        unpaired_added_count=0,
+        unpaired_removed_count=0,
+    )
+    other = RepairDiagnostics(
+        cost=20,
+        moved_piece_count=0,
+        max_piece_distance=0,
+        long_move_count=0,
+        teleport_like_count=0,
+        forced_visible_square_count=2,
+        unpaired_added_count=0,
+        unpaired_removed_count=0,
+    )
+
+    selected = _select_repair_candidates(
+        [
+            (board_a, 1.0, bad_duplicate),
+            (board_a, 0.1, good_duplicate),
+            (board_b, 1.0, other),
+        ],
+        target_n=1,
+    )
+
+    assert len(selected) == 1
+    assert selected[0][2].cost == 10
 
 
 def test_stage_b_uses_checkpoint_repair_before_generic_csp() -> None:

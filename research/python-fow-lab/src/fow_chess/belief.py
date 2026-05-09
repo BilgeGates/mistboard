@@ -776,8 +776,7 @@ class BeliefState:
             # force current hard observation facts into each pushed particle,
             # keep hidden history that remains legal, and validate by
             # recomputing fog. Fall back to generic CSP only if repair fails.
-            repaired: list[chess.Board] = []
-            repaired_weights: list[float] = []
+            repaired: list[tuple[chess.Board, float, RepairDiagnostics]] = []
             repair_start = time.perf_counter()
             for board, weight in zip(pushed, pushed_weights):
                 repaired_board = _repair_particle_to_observation(
@@ -793,24 +792,27 @@ class BeliefState:
                     if not _repair_passes_strict_reachability(diag):
                         self.last_repair_strict_rejected_count += 1
                         continue
-                    repaired.append(repaired_board)
-                    repaired_weights.append(
-                        self._repair_candidate_weight_from_diag(diag, weight)
-                    )
+                    repaired.append((repaired_board, weight, diag))
             self.last_stage_a_repair_ms += (
                 time.perf_counter() - repair_start
             ) * 1000.0
 
             if repaired:
+                chosen_repairs = _select_repair_candidates(repaired, self.target_n)
+                repaired_particles = [board for board, _, _ in chosen_repairs]
+                repaired_weights = [
+                    self._repair_candidate_weight_from_diag(diag, weight)
+                    for _, weight, diag in chosen_repairs
+                ]
                 resample_start = time.perf_counter()
                 self.particles, self.weights = _resample(
-                    repaired, repaired_weights, self.target_n, self.rng
+                    repaired_particles, repaired_weights, self.target_n, self.rng
                 )
                 self.last_stage_a_resample_ms += (
                     time.perf_counter() - resample_start
                 ) * 1000.0
                 self.last_repair_fired += 1
-                self.last_repair_count = len(repaired)
+                self.last_repair_count = len(repaired_particles)
             else:
                 checkpoint_repaired, checkpoint_weights = self._repair_from_checkpoint(
                     facts,
@@ -1067,7 +1069,9 @@ class BeliefState:
             ) * 1000.0
 
             if strict_repaired:
-                chosen_repairs = strict_repaired
+                chosen_repairs = _select_repair_candidates(
+                    strict_repaired, self.target_n
+                )
                 repaired_particles = [board for board, _, _ in chosen_repairs]
                 repaired_weights = [
                     self._repair_candidate_weight_from_diag(diag, weight)
@@ -2683,6 +2687,45 @@ def _repair_supplement_limit(
         return 0
     cap = max(8, target_n // 4)
     return min(cap, max(8, deficit * 2))
+
+
+def _select_repair_candidates(
+    candidates: list[tuple[chess.Board, float, RepairDiagnostics]],
+    target_n: int,
+) -> list[tuple[chess.Board, float, RepairDiagnostics]]:
+    """Pick the best bounded repair set before resampling.
+
+    Repair can produce thousands of strict candidates from expanded opponent
+    moves. Resampling will ultimately keep at most `target_n`; sorting first
+    prevents high-cost correction clouds from dominating runtime and diagnostics.
+    """
+
+    best_by_fen: dict[str, tuple[chess.Board, float, RepairDiagnostics]] = {}
+    for candidate in candidates:
+        board, _, _ = candidate
+        fen = board.fen()
+        current = best_by_fen.get(fen)
+        if current is None or _repair_candidate_sort_key(candidate) < (
+            _repair_candidate_sort_key(current)
+        ):
+            best_by_fen[fen] = candidate
+
+    selected = sorted(best_by_fen.values(), key=_repair_candidate_sort_key)
+    return selected[: max(1, target_n)]
+
+
+def _repair_candidate_sort_key(
+    candidate: tuple[chess.Board, float, RepairDiagnostics],
+) -> tuple[int, int, int, int, int, float]:
+    _, weight, diag = candidate
+    return (
+        diag.teleport_like_count,
+        diag.long_move_count,
+        diag.cost,
+        diag.unpaired_added_count + diag.unpaired_removed_count,
+        diag.forced_visible_square_count,
+        -weight,
+    )
 
 
 def _random_log(rng: random.Random) -> float:

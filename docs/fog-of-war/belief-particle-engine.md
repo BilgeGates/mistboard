@@ -376,6 +376,13 @@ changes as strict teleports. That preserves the no-hidden-teleport rule without
 forcing CSP whenever a hard observation correction and an unknown material fill
 happen in the same update.
 
+`python-tier1-v0.8.6` caps strict repair candidate clouds before resampling.
+Stage A all-pushed repair and Stage B all-expanded repair can generate hundreds
+or thousands of strict candidates even though the belief target is 128
+particles. The selector now dedupes by FEN, sorts by repair diagnostics, and
+keeps the best `target_n` candidates before resampling, reducing repair cost
+and making diagnostics reflect the worlds the engine actually carries.
+
 The structural fix is to turn these probes into danger-probe particles: when a
 low-probability hidden slider would dominate downside risk, generate or
 upweight a small family of legal/plausible worlds that contain that threat, run
