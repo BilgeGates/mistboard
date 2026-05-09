@@ -54,6 +54,17 @@ type DecisionWeightModes = {
   }>>;
 };
 
+type LatentDangerProbe = {
+  target_square: string;
+  target_piece: string;
+  danger_square: string;
+  danger_piece: string;
+  belief_mass: number;
+  ray: string[];
+  blocking_squares: string[];
+  blocking_moves: string[];
+};
+
 export type BeliefRow = {
   game_index: number;
   tier1_seat: string;
@@ -78,6 +89,8 @@ export type BeliefRow = {
   top_k_clusters: BeliefCluster[];
   particle_weight_profile?: ParticleWeightProfile;
   decision_weight_modes?: DecisionWeightModes | null;
+  latent_danger_probe_count?: number;
+  latent_danger_probes?: LatentDangerProbe[];
 };
 
 export type TraceScore = {
@@ -172,6 +185,8 @@ export type TraceRow = {
   checkpoint_repair_age?: number;
   particle_weight_profile?: ParticleWeightProfile;
   decision_weight_modes?: DecisionWeightModes | null;
+  latent_danger_probe_count?: number;
+  latent_danger_probes?: LatentDangerProbe[];
 };
 
 export type BeliefConfig = {
@@ -516,6 +531,9 @@ function renderBeliefHealth(row: BeliefRow, trace: TraceRow | null): HTMLElement
   const weightModeLines = decisionWeightModeLines(trace, row);
   if (weightModeLines.length) wrap.append(healthCard('Decision Weight Modes', weightModeLines));
 
+  const latentDangerLines = latentDangerLinesFor(row, trace);
+  if (latentDangerLines.length) wrap.append(healthCard('Latent Danger', latentDangerLines));
+
   const stageALines = stageCardLines('A', trace);
   if (stageALines.length) wrap.append(healthCard('Stage A · Own Move', stageALines));
 
@@ -693,6 +711,27 @@ function recoveryCardLines(trace: TraceRow): HealthDatum[] {
     });
   }
   return lines;
+}
+
+function latentDangerLinesFor(row: BeliefRow, trace: TraceRow | null): HealthDatum[] {
+  const probes = trace?.latent_danger_probes ?? row.latent_danger_probes ?? [];
+  if (!probes.length) return [];
+  return probes.slice(0, 3).map((probe) => {
+    const target = `${probe.target_piece}${probe.target_square}`;
+    const danger = `${probe.danger_piece}${probe.danger_square}`;
+    const blockers = probe.blocking_moves?.length
+      ? `blocks ${probe.blocking_moves.slice(0, 3).join(',')}`
+      : probe.blocking_squares?.length
+        ? `squares ${probe.blocking_squares.slice(0, 3).join(',')}`
+        : 'no blocker';
+    const kingTarget = probe.target_piece.toUpperCase() === 'K';
+    const queenDanger = probe.danger_piece.toLowerCase() === 'q';
+    return {
+      label: `${danger} -> ${target}`,
+      value: `${pct(probe.belief_mass)} belief · ${blockers}`,
+      severity: kingTarget && queenDanger && probe.belief_mass < 0.05 ? 'bad' : 'warn',
+    };
+  });
 }
 
 function decisionWeightModeLines(trace: TraceRow, row: BeliefRow): HealthDatum[] {

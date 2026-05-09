@@ -15,6 +15,7 @@ from fow_chess.strategies import (
     _castle_moves,
     _king_defense_moves,
     _king_shelter_moves,
+    _latent_ray_danger_probes,
     _prefer_higher_value_capture,
     _prefer_lower_value_attacker,
     _prefer_lower_value_same_target_capture,
@@ -58,6 +59,42 @@ def _strategy(seed: int = 0) -> Tier1Strategy:
         seed=seed,
     )
     return s
+
+
+def test_latent_ray_danger_probe_flags_fogged_queen_diagonal_to_king() -> None:
+    # Regression for v0.8.0 g16 ply 7: the visible board is quiet, but the
+    # fogged a5-e1 diagonal is tactically important. The diagnostic should
+    # flag a low-belief hidden queen/bishop line and name available blockers.
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.D1, chess.Piece(chess.QUEEN, chess.WHITE))
+    board.set_piece_at(chess.C1, chess.Piece(chess.BISHOP, chess.WHITE))
+    board.set_piece_at(chess.B1, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.set_piece_at(chess.D3, chess.Piece(chess.PAWN, chess.WHITE))
+    board.set_piece_at(chess.E3, chess.Piece(chess.PAWN, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.turn = chess.WHITE
+
+    view = _build_view(board, chess.WHITE)
+    belief = BeliefState.initial(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=4,
+        start_board=board,
+    )
+
+    probes = _latent_ray_danger_probes(view, belief, limit=16)
+
+    queen_probe = next(
+        probe
+        for probe in probes
+        if probe["target_square"] == "e1"
+        and probe["danger_square"] == "a5"
+        and probe["danger_piece"] == "q"
+    )
+    assert queen_probe["belief_mass"] == 0.0
+    assert "b1c3" in queen_probe["blocking_moves"]
+    assert "c1d2" in queen_probe["blocking_moves"]
 
 
 def test_queen_capture_fires_when_visible() -> None:

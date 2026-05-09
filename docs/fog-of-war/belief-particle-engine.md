@@ -284,6 +284,12 @@ belief state.
     forced source-to-landing capture identity, castling rights, and en-passant
     state; then use those facts in validation and UI before attempting heavier
     legal-reachability search.
+14. Add latent-danger probes for fogged slider lines to own king/queen. These
+    are not particle facts; they are "missing dangerous world" diagnostics that
+    compare tactically important hidden queen/rook/bishop possibilities against
+    current belief mass, then name available blocking moves. Once stable, use
+    them to seed danger-probe particles and allocate search compute toward
+    low-probability high-impact worlds.
 
 ## Current Bug Class
 
@@ -331,6 +337,28 @@ push absence, place those blockers before random hidden-piece fill, and reject
 reseed particles whose recomputed visibility does not match the observation.
 The broader structural fix is to make legal-move affordances first-class in
 the Belief Particle Engine alongside visible pieces and own-capture facts.
+
+## Rung-3 Learning: Latent Slider Danger
+
+`bakeoff-v0.8.0-rung2-stockfish-weight-modes`, game `g16`, ply 7 exposed a
+coverage blindspot rather than an ordinary collapse. White's actual move was
+`e3e4`, but the tactically important question was the fogged diagonal
+`a5-b4-c3-d2-e1`: if a black queen or bishop sits on `a5`, white's king on
+`e1` is exposed. The current belief set had effectively no black queen mass on
+`a5`, so particle-weight diagnostics could compare existing worlds but could
+not explain the absent dangerous world.
+
+The first fix is diagnostic-only: `latent_danger_probes` scan fogged queen,
+rook, and bishop rays toward the side's own king and queen, compare the
+danger-square marginal against current belief mass, and report low-belief
+threats plus available blocking moves such as `Nc3` or `Bd2`. The review queue
+prioritizes king-target queen rays with missing belief mass.
+
+The structural fix is to turn these probes into danger-probe particles: when a
+low-probability hidden slider would dominate downside risk, generate or
+upweight a small family of legal/plausible worlds that contain that threat, run
+the decision model against them, and let synthesis decide whether a prophylactic
+move is worth the opportunity cost.
 
 ## Rung-2 Learning: Belief Was Right, Move Selection Was Wrong
 

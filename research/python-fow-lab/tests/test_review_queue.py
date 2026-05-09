@@ -393,3 +393,67 @@ def test_generate_queue_prioritizes_weight_mode_disagreement(tmp_path: Path) -> 
     assert items[0].to_json()["trace_summary"]["decision_weight_modes"][
         "winner_disagreement"
     ] is True
+
+
+def test_generate_queue_prioritizes_latent_danger_probe(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "games": [
+                    {
+                        "index": 16,
+                        "outcome": "*",
+                        "plies": 12,
+                        "path": "games/game-0016.jsonl",
+                    }
+                ]
+            }
+        )
+    )
+    write_jsonl(
+        tmp_path / "trace.jsonl",
+        [
+            {
+                "game_index": 16,
+                "tier1_seat": "tier1_a",
+                "tier1_side": "white",
+                "ply": 7,
+                "decision_path": "main-eval",
+                "move_chosen_uci": "e3e4",
+                "belief_unique_count": 64,
+                "latent_danger_probe_count": 1,
+                "latent_danger_probes": [
+                    {
+                        "target_square": "e1",
+                        "target_piece": "K",
+                        "danger_square": "a5",
+                        "danger_piece": "q",
+                        "belief_mass": 0.0,
+                        "ray": ["d2", "c3", "b4", "a5"],
+                        "blocking_squares": ["d2", "c3", "b4"],
+                        "blocking_moves": ["b1c3", "c1d2"],
+                    }
+                ],
+            }
+        ],
+    )
+    write_jsonl(
+        tmp_path / "belief.jsonl",
+        [
+            {
+                "game_index": 16,
+                "tier1_seat": "tier1_a",
+                "ply": 7,
+                "snapshot_kind": "decision",
+            }
+        ],
+    )
+
+    items = review_queue.generate_queue(tmp_path)
+
+    assert len(items) == 1
+    assert "latent-danger-probe:1+12" in items[0].reasons
+    assert "latent-king-queen-ray+18" in items[0].reasons
+    assert "latent-danger-has-blocker+8" in items[0].reasons
+    assert "latent-danger-missing-belief+8" in items[0].reasons
+    assert items[0].to_json()["trace_summary"]["latent_danger_probe_count"] == 1

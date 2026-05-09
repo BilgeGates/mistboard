@@ -204,6 +204,7 @@ def score_trace_row(
     score += score_particle_profile(reasons, row)
     score += score_decision_audit(reasons, row)
     score += score_weight_mode_disagreement(reasons, row)
+    score += score_latent_danger(reasons, row)
 
     unique = int(row.get("belief_unique_count") or 0)
     if unique <= 1:
@@ -506,6 +507,46 @@ def score_weight_mode_disagreement(reasons: list[str], row: dict[str, Any]) -> i
     return score
 
 
+def score_latent_danger(reasons: list[str], row: dict[str, Any]) -> int:
+    probes = row.get("latent_danger_probes")
+    if not isinstance(probes, list) or not probes:
+        return 0
+
+    score = 0
+    count = int(row.get("latent_danger_probe_count") or len(probes))
+    add(reasons, f"latent-danger-probe:{count}", 12)
+    score += 12
+
+    has_king_queen_ray = False
+    has_blocker = False
+    has_missing_belief = False
+    for probe in probes:
+        if not isinstance(probe, dict):
+            continue
+        target_piece = str(probe.get("target_piece") or "")
+        danger_piece = str(probe.get("danger_piece") or "")
+        belief_mass = float(probe.get("belief_mass") or 0.0)
+        blocking_moves = probe.get("blocking_moves")
+        if target_piece.upper() == "K" and danger_piece.lower() == "q":
+            has_king_queen_ray = True
+        if isinstance(blocking_moves, list) and blocking_moves:
+            has_blocker = True
+        if belief_mass <= 0.01:
+            has_missing_belief = True
+
+    if has_king_queen_ray:
+        add(reasons, "latent-king-queen-ray", 18)
+        score += 18
+    if has_blocker:
+        add(reasons, "latent-danger-has-blocker", 8)
+        score += 8
+    if has_missing_belief:
+        add(reasons, "latent-danger-missing-belief", 8)
+        score += 8
+
+    return score
+
+
 def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
     keys = [
         "particle_count_pre_sample",
@@ -601,6 +642,8 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "checkpoint_repair_age_stage_b",
         "particle_weight_profile",
         "decision_weight_modes",
+        "latent_danger_probe_count",
+        "latent_danger_probes",
     ]
     return {key: row[key] for key in keys if key in row}
 

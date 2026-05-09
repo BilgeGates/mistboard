@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.8.0"
+TIER1_VERSION = "0.8.1"
 
 
 def tier1_commit() -> str:
@@ -164,6 +164,117 @@ _MATERIAL_VALUE: dict[chess.PieceType, int] = {
     chess.QUEEN: 9,
     chess.KING: 1000,  # short-circuited elsewhere; included for completeness
 }
+
+_RAY_DIRECTIONS: tuple[tuple[int, int], ...] = (
+    (1, 0),
+    (-1, 0),
+    (0, 1),
+    (0, -1),
+    (1, 1),
+    (1, -1),
+    (-1, 1),
+    (-1, -1),
+)
+
+
+def _slider_types_for_direction(df: int, dr: int) -> tuple[chess.PieceType, ...]:
+    if df == 0 or dr == 0:
+        return (chess.QUEEN, chess.ROOK)
+    return (chess.QUEEN, chess.BISHOP)
+
+
+def _latent_ray_danger_probes(
+    view: PerspectiveView,
+    belief: BeliefState,
+    *,
+    min_missing_mass: float = 0.05,
+    limit: int = 8,
+) -> list[dict]:
+    """Find underrepresented hidden slider attacks on own king/queen.
+
+    Diagnostic-only. This deliberately asks a different question from belief
+    probability: "what low-mass hidden line threat would materially change
+    move choice if true?" The first use case is a fogged queen/bishop/rook
+    line toward our king or queen where current particles put little or no
+    mass on the dangerous square.
+    """
+    own = view.perspective
+    enemy = not own
+    visible = set(view.visible_squares)
+    visibility_board = _visibility_board(view)
+    targets = [
+        (sq, piece)
+        for sq, piece in view.visible_piece_map.items()
+        if piece.color == own and piece.piece_type in {chess.KING, chess.QUEEN}
+    ]
+    probes: list[dict] = []
+    seen: set[tuple[chess.Square, chess.Square, chess.PieceType]] = set()
+
+    for target_sq, target_piece in targets:
+        target_file = chess.square_file(target_sq)
+        target_rank = chess.square_rank(target_sq)
+        for df, dr in _RAY_DIRECTIONS:
+            blockers: list[chess.Square] = []
+            file_cursor = target_file + df
+            rank_cursor = target_rank + dr
+            while 0 <= file_cursor <= 7 and 0 <= rank_cursor <= 7:
+                sq = chess.square(file_cursor, rank_cursor)
+                visible_piece = visibility_board.piece_at(sq)
+                if visible_piece is not None:
+                    break
+
+                if sq not in visible:
+                    for piece_type in _slider_types_for_direction(df, dr):
+                        key = (target_sq, sq, piece_type)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        enemy_piece = chess.Piece(piece_type, enemy)
+                        belief_mass = belief.marginal_piece_at(sq).get(enemy_piece, 0.0)
+                        if belief_mass >= min_missing_mass:
+                            continue
+                        blocking_moves = sorted(
+                            {
+                                move.uci()
+                                for move in view.own_legal_moves
+                                if move.to_square in blockers
+                            }
+                        )
+                        probes.append(
+                            {
+                                "target_square": chess.square_name(target_sq),
+                                "target_piece": target_piece.symbol(),
+                                "danger_square": chess.square_name(sq),
+                                "danger_piece": chess.piece_symbol(piece_type),
+                                "belief_mass": belief_mass,
+                                "ray": [
+                                    chess.square_name(path_sq)
+                                    for path_sq in blockers + [sq]
+                                ],
+                                "blocking_squares": [
+                                    chess.square_name(path_sq) for path_sq in blockers
+                                ],
+                                "blocking_moves": blocking_moves[:8],
+                            }
+                        )
+
+                blockers.append(sq)
+                file_cursor += df
+                rank_cursor += dr
+
+    def sort_key(probe: dict) -> tuple[int, float, int, str, str]:
+        target_priority = 0 if probe["target_piece"].upper() == "K" else 1
+        piece_priority = {"q": 0, "r": 1, "b": 1}.get(probe["danger_piece"], 9)
+        return (
+            target_priority,
+            float(probe["belief_mass"]),
+            piece_priority,
+            str(probe["target_square"]),
+            str(probe["danger_square"]),
+        )
+
+    probes.sort(key=sort_key)
+    return probes[:limit]
 
 
 def _categorize_king_defense_moves(
@@ -1077,6 +1188,12 @@ class Tier1Strategy:
             pending_steps.get("checkpoint_repair_age_stage_a", 0),
             pending_steps.get("checkpoint_repair_age_stage_b", 0),
         )
+        latent_danger_probes: list[dict] = []
+        if self._last_decision_view is not None:
+            latent_danger_probes = _latent_ray_danger_probes(
+                self._last_decision_view,
+                self._belief,
+            )
         record = {
             "tier1_move_count": self._tier1_move_count,
             "ply": ply,
@@ -1093,6 +1210,8 @@ class Tier1Strategy:
                 for uci, score, support in (top_k_scores or [])
             ],
             "decision_weight_modes": decision_weight_modes,
+            "latent_danger_probe_count": len(latent_danger_probes),
+            "latent_danger_probes": latent_danger_probes,
             "opp_remaining_counts": opp_counts,
             "csp_reseed_fired": csp_reseed_fired,
             "csp_reseed_count": csp_reseed_count,
@@ -1134,6 +1253,7 @@ class Tier1Strategy:
                 repair_fired=repair_fired,
                 repair_count=repair_count,
                 decision_weight_modes=decision_weight_modes,
+                latent_danger_probes=latent_danger_probes,
             )
 
     def _belief_move_support_stats(self, move: chess.Move) -> tuple[float, int, int]:
@@ -1409,6 +1529,7 @@ class Tier1Strategy:
         repair_fired: bool | None = None,
         repair_count: int | None = None,
         decision_weight_modes: dict | None = None,
+        latent_danger_probes: list[dict] | None = None,
     ) -> None:
         assert self._belief is not None
         if not self.verbose_belief_capture:
@@ -1509,6 +1630,8 @@ class Tier1Strategy:
                 ],
                 "particle_weight_profile": self._belief.particle_weight_profile(k=8),
                 "decision_weight_modes": decision_weight_modes,
+                "latent_danger_probe_count": len(latent_danger_probes or []),
+                "latent_danger_probes": latent_danger_probes or [],
             }
         )
 
