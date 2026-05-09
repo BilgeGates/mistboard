@@ -34,13 +34,16 @@ const allSquares: Square[] = ranks.flatMap((r) => files.map((f) => `${f}${r}` as
 
 const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;
+const RECORDED_TIME_SCALE = 0.12;
+const MIN_RECORDED_DELTA_MS = 150;
 const MIN_PLAY_MS = 700;
 const MAX_PLAY_MS = 2500;
 const DEFAULT_BETWEEN_GAME_DELAY_MS = 8000;
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
-type MovePlayedExt = { type: 'move-played'; compute_ms?: number };
+type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
+type MovePlayedExt = MovePlayedEvent & { compute_ms?: number };
 
 export type GameMeta = {
   whiteName: string | null;
@@ -483,18 +486,48 @@ export async function mountReplay(
   }
 
   function delayForPly(ply: number): number {
-    let movesSeen = 0;
-    for (const event of events) {
-      if (event.type !== 'move-played') continue;
-      movesSeen += 1;
-      if (movesSeen !== ply) continue;
-      const ext = event as unknown as MovePlayedExt;
-      if (typeof ext.compute_ms === 'number' && ext.compute_ms >= 0) {
-        return clampPlay(ext.compute_ms * COMPUTE_SCALE);
-      }
-      return FALLBACK_PLAY_MS;
+    return recordedDelayForPly(ply)
+      ?? computeDelayForPly(ply)
+      ?? FALLBACK_PLAY_MS;
+  }
+
+  function recordedDelayForPly(ply: number): number | null {
+    const event = moveEventAtPly(ply);
+    if (!event || event.type !== 'move-played') return null;
+    const previousAt = ply > 1
+      ? moveEventAtPly(ply - 1)?.at
+      : replayStartAt();
+    if (typeof previousAt !== 'number') return null;
+
+    const elapsed = event.at - previousAt;
+    if (!Number.isFinite(elapsed) || elapsed < MIN_RECORDED_DELTA_MS) return null;
+    return clampPlay(elapsed * RECORDED_TIME_SCALE);
+  }
+
+  function computeDelayForPly(ply: number): number | null {
+    const event = moveEventAtPly(ply);
+    if (!event || event.type !== 'move-played') return null;
+    const ext = event as MovePlayedExt;
+    if (typeof ext.compute_ms === 'number' && ext.compute_ms >= 0) {
+      return clampPlay(ext.compute_ms * COMPUTE_SCALE);
     }
-    return FALLBACK_PLAY_MS;
+    return null;
+  }
+
+  function replayStartAt(): number | null {
+    let startedAt: number | null = null;
+    for (const event of events) {
+      if (event.type === 'move-played') break;
+      if (
+        event.type === 'clock-started'
+        || event.type === 'draft-start-resolved'
+        || event.type === 'bid-resolved'
+        || event.type === 'room-created'
+      ) {
+        startedAt = event.at;
+      }
+    }
+    return startedAt;
   }
 
   function clampPlay(ms: number): number {
