@@ -21,6 +21,8 @@ import 'chessground/assets/chessground.cburnett.css';
 import './styles.css';
 
 type Seat = Color | 'spectator';
+type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
+type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'displaced' | 'rejected';
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
 type PendingPromotion = {
   color: Color;
@@ -28,7 +30,7 @@ type PendingPromotion = {
   moves: Move[];
   to: Square;
 };
-type InfoTone = 'default' | 'pending' | 'success';
+type InfoTone = 'danger' | 'default' | 'pending' | 'success';
 type DevViews = {
   opponent: Color;
   opponentView: PlayerView;
@@ -38,6 +40,7 @@ type DevViews = {
 type DebugSnapshot = {
   clientCount: number;
   currentView: PlayerView | null;
+  connectionState: ConnectionState;
   devViews: DevViews | null;
   bids: Partial<Record<Color, number>>;
   bidResolution: BidResolution | null;
@@ -45,6 +48,10 @@ type DebugSnapshot = {
   seat: Seat;
   solo: boolean;
   state: PlayerView | null;
+};
+type StoredSeatToken = {
+  seat: Color;
+  token: string;
 };
 
 declare global {
@@ -58,8 +65,11 @@ type ServerMessage =
     type: 'hello';
     clientId: string;
     clients: number;
+    mode?: RoomMode;
     roomId: string;
+    serverAt?: number;
     seat: Seat;
+    seatToken?: string;
     solo: boolean;
     offer: Chess960Start[];
     bids: Partial<Record<Color, number>>;
@@ -72,6 +82,8 @@ type ServerMessage =
     type: 'snapshot';
     roomId: string;
     clients: number;
+    mode?: RoomMode;
+    serverAt?: number;
     seat: Seat;
     solo: boolean;
     seats: Partial<Record<Color, string>>;
@@ -95,8 +107,10 @@ if (!app) throw new Error('missing #app');
 const root = app;
 
 const pageParams = new URLSearchParams(window.location.search);
-const room = pageParams.get('room') ?? 'dev-room';
+const pathRoom = roomIdFromPath(window.location.pathname);
+const room = pathRoom ?? pageParams.get('room') ?? 'dev-room';
 const socketParams = new URLSearchParams({ room });
+socketParams.set('client', clientIdForRoom(room));
 const soloRequested = pageParams.get('dev') === 'solo';
 const engineRequested = pageParams.get('dev') === 'engine' || pageParams.get('engine') === 'random';
 const allViewsRequested = pageParams.get('views') === 'all';
@@ -104,6 +118,7 @@ const debugRequested = engineRequested || allViewsRequested;
 const variantRequested = pageParams.get('variant');
 if (pageParams.get('reset') === '1') {
   socketParams.set('reset', '1');
+  clearSeatTokenForRoom(room);
   pageParams.delete('reset');
   const nextSearch = pageParams.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
@@ -112,12 +127,21 @@ if (soloRequested) socketParams.set('dev', 'solo');
 if (engineRequested) socketParams.set('dev', 'engine');
 if (allViewsRequested) socketParams.set('views', 'all');
 if (variantRequested) socketParams.set('variant', variantRequested);
-const socket = new WebSocket(`${resolveWebSocketBaseUrl()}?${socketParams}`);
+const socketUrl = `${resolveWebSocketBaseUrl()}?${socketParams}`;
 const refs = createLayout(root);
 
+let socket: WebSocket | null = null;
+let reconnectTimer: number | null = null;
+let reconnectAttempt = 0;
 let offer: Chess960Start[] = [];
 let clientId = '';
 let clientCount = 0;
+let connectionState: ConnectionState = 'connecting';
+let closeReason = '';
+let latencyMs: number | null = null;
+let lastServerAt: number | null = null;
+let lastSnapshotAt: number | null = null;
+let roomMode: RoomMode = engineRequested ? 'pve' : 'pvp';
 let seat: Seat = 'spectator';
 let solo = soloRequested;
 let selections: Partial<Record<Color, number>> = {};
@@ -141,11 +165,74 @@ function resolveWebSocketBaseUrl(): string {
   return `${protocol}//${window.location.host}`;
 }
 
-socket.addEventListener('message', (event) => {
+connectSocket();
+
+function connectSocket(): void {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  connectionState = clientId ? 'reconnecting' : 'connecting';
+  render();
+
+  const nextSocket = connectWebSocket();
+  socket = nextSocket;
+  nextSocket.addEventListener('message', handleSocketMessage);
+  nextSocket.addEventListener('open', () => {
+    if (socket !== nextSocket) return;
+    reconnectAttempt = 0;
+    connectionState = 'connected';
+    render();
+  });
+  nextSocket.addEventListener('close', (event) => {
+    if (socket !== nextSocket) return;
+    closeReason = event.reason;
+    if (event.code === 4000 && event.reason === 'duplicate session') {
+      connectionState = 'displaced';
+      socket = null;
+      render();
+      return;
+    }
+    if (event.code === 1008) {
+      connectionState = 'rejected';
+      socket = null;
+      render();
+      return;
+    }
+    connectionState = 'disconnected';
+    render();
+    scheduleReconnect();
+  });
+  nextSocket.addEventListener('error', () => {
+    if (socket !== nextSocket) return;
+    connectionState = 'disconnected';
+    render();
+  });
+}
+
+function connectWebSocket(): WebSocket {
+  const token = seatTokenForRoom(room);
+  if (!token) return new WebSocket(socketUrl);
+  return new WebSocket(socketUrl, [`bichess-seat.${token}`]);
+}
+
+function handleSocketMessage(event: MessageEvent<string>): void {
   const message = JSON.parse(event.data) as ServerMessage;
+  if (message.type === 'pong') {
+    latencyMs = Math.max(0, Date.now() - message.at);
+    render();
+    return;
+  }
+  lastSnapshotAt = Date.now();
   if (message.type === 'hello') {
     clientId = message.clientId;
+    if (message.seatToken && isColor(message.seat)) {
+      writeSeatTokenForRoom(room, { seat: message.seat, token: message.seatToken });
+    }
     clientCount = message.clients;
+    connectionState = 'connected';
+    roomMode = message.mode ?? roomMode;
+    lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
     offer = message.offer;
@@ -157,6 +244,9 @@ socket.addEventListener('message', (event) => {
   }
   if (message.type === 'snapshot') {
     clientCount = message.clients;
+    connectionState = 'connected';
+    roomMode = message.mode ?? roomMode;
+    lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
     selections = message.selections;
@@ -169,7 +259,38 @@ socket.addEventListener('message', (event) => {
   }
   reconcileInteractionState();
   render();
-});
+}
+
+function scheduleReconnect(): void {
+  if (connectionState === 'displaced' || connectionState === 'rejected') return;
+  if (reconnectTimer) return;
+  reconnectAttempt += 1;
+  const delay = Math.min(10_000, 750 * 2 ** Math.min(reconnectAttempt - 1, 4));
+  connectionState = 'reconnecting';
+  render();
+  reconnectTimer = window.setTimeout(() => connectSocket(), delay);
+}
+
+function reconnectNow(): void {
+  if (connectionState === 'displaced' || connectionState === 'rejected') return;
+  reconnectAttempt = 0;
+  connectSocket();
+}
+
+function sendSocket(payload: unknown): boolean {
+  if (connectionState === 'displaced' || connectionState === 'rejected') return false;
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    connectionState = 'reconnecting';
+    scheduleReconnect();
+    return false;
+  }
+  socket.send(JSON.stringify(payload));
+  return true;
+}
+
+window.setInterval(() => {
+  void sendSocket({ type: 'ping' });
+}, 5_000);
 
 window.setInterval(() => {
   const view = currentView();
@@ -192,20 +313,22 @@ function createLayout(target: HTMLDivElement) {
           <div class="board-shell">
             <div data-board-status class="board-status">Connecting</div>
             <div data-board class="board" aria-label="chess board"></div>
+            <div data-board-result class="board-result" hidden></div>
             <div data-promotion class="promotion-picker" hidden></div>
           </div>
           <aside class="side-panel" aria-label="Game controls">
             <section class="panel-section">
               <h2>Game</h2>
+              <div data-action-status class="action-status"></div>
               <div data-clocks class="clocks"></div>
               <div data-game-info class="game-info"></div>
             </section>
             <section class="panel-section">
-              <h2>Room Link</h2>
+              <h2>Invite</h2>
               <div data-share-room class="share-room"></div>
             </section>
             <section class="panel-section">
-              <h2>Create Room</h2>
+              <h2>Next</h2>
               <div data-room-actions class="room-actions"></div>
             </section>
             <section data-bid-section class="panel-section">
@@ -247,7 +370,9 @@ function createLayout(target: HTMLDivElement) {
   const newRoom = target.querySelector<HTMLAnchorElement>('[data-new-room]');
   const roomMeta = target.querySelector<HTMLParagraphElement>('[data-room-meta]');
   const board = target.querySelector<HTMLDivElement>('[data-board]');
+  const boardResult = target.querySelector<HTMLDivElement>('[data-board-result]');
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
+  const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
   const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
   const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');
   const shareRoom = target.querySelector<HTMLDivElement>('[data-share-room]');
@@ -266,15 +391,17 @@ function createLayout(target: HTMLDivElement) {
   const replayControls = target.querySelectorAll<HTMLButtonElement>('[data-replay]');
   const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
 
-  if (!newRoom || !roomMeta || !board || !boardStatus || !clocks || !gameInfo || !shareRoom || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
+  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !shareRoom || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
     throw new Error('missing app region');
   }
 
-  newRoom.href = roomUrl('fog-of-war');
+  newRoom.href = '/play';
 
   return {
     board,
+    boardResult,
     boardStatus,
+    actionStatus,
     bidControls,
     bidSection,
     bidStatus,
@@ -309,6 +436,7 @@ function render(): void {
   refs.selectionSection.hidden = view?.variant !== 'draft960';
   refs.bidSection.hidden = view?.variant !== 'bid-for-white';
 
+  renderActionStatus(view);
   renderGameInfo(view);
   renderClocks(view);
   renderShareRoom();
@@ -319,6 +447,7 @@ function render(): void {
   renderSelections(projection);
   renderReplay();
   renderBoard(view);
+  renderBoardResult(view);
   renderPromotion();
 }
 
@@ -338,7 +467,7 @@ function renderOffer(projection: GameProjection | null): void {
     button.disabled = !isLive() || view?.status.type !== 'pregame' || seat === 'spectator';
     button.dataset.start = String(start.id);
     button.addEventListener('click', () => {
-      socket.send(JSON.stringify({ type: 'select-start', startId: start.id }));
+      sendSocket({ type: 'select-start', startId: start.id });
     });
 
     const id = document.createElement('strong');
@@ -369,7 +498,7 @@ function soloPickButton(label: string, color: Color, startId: number, projection
   button.className = projection?.selections[color] === startId ? 'selected' : '';
   button.disabled = !isLive() || currentView()?.status.type !== 'pregame';
   button.addEventListener('click', () => {
-    socket.send(JSON.stringify({ type: 'select-start', color, startId }));
+    sendSocket({ type: 'select-start', color, startId });
   });
   return button;
 }
@@ -382,17 +511,51 @@ function renderSelections(projection: GameProjection | null): void {
   );
 }
 
+function renderActionStatus(view: PlayerView | null): void {
+  refs.actionStatus.replaceChildren();
+  const notice = document.createElement('div');
+  const tone = actionTone(view);
+  notice.className = `action-notice ${tone}`;
+
+  const title = document.createElement('strong');
+  title.textContent = actionTitle(view);
+  const body = document.createElement('span');
+  body.textContent = actionBody(view);
+  notice.append(title, body);
+
+  if (view?.status.type === 'finished') {
+    const review = document.createElement('a');
+    review.href = `/game/${encodeURIComponent(room)}`;
+    review.textContent = 'Review game';
+    notice.append(review);
+  } else if (connectionState === 'disconnected' || connectionState === 'reconnecting') {
+    const reconnect = document.createElement('button');
+    reconnect.type = 'button';
+    reconnect.textContent = 'Reconnect now';
+    reconnect.addEventListener('click', reconnectNow);
+    notice.append(reconnect);
+  }
+
+  refs.actionStatus.append(notice);
+}
+
 function renderGameInfo(view: PlayerView | null): void {
   refs.gameInfo.replaceChildren(
+    infoItem('Mode', modeLabel()),
     infoItem('Seat', seatLabel(seat)),
-    infoItem('Turn', view?.status.type === 'playing' ? view.status.turn : view?.status.type ?? 'connecting'),
-    infoItem('Mode', solo ? 'solo dev' : 'room'),
+    infoItem('Turn', turnLabel(view)),
+    infoItem('Time', timeControlLabel(view)),
+    infoItem('Connection', connectionLabel()),
+    infoItem('Server', serverTimeLabel()),
     infoItem('Clients', String(clientCount)),
   );
 }
 
 function renderRoomActions(): void {
-  const actions = [roomAction('Fog of War', 'fog-of-war')];
+  const actions = [roomAction('Back to Play', '/play')];
+  if (currentView()?.status.type === 'finished') {
+    actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(room)}`, 'primary'));
+  }
   if (engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
   refs.roomActions.replaceChildren(...actions);
 }
@@ -418,9 +581,10 @@ function renderShareRoom(): void {
   refs.shareRoom.append(input, button);
 }
 
-function roomAction(label: string, variant: PlayerView['variant'], dev?: 'engine'): HTMLAnchorElement {
+function roomAction(label: string, href: string, toneOrDev?: 'primary' | 'engine'): HTMLAnchorElement {
   const link = document.createElement('a');
-  link.href = roomUrl(variant, dev);
+  link.href = toneOrDev === 'engine' ? roomUrl('fog-of-war', 'engine') : href;
+  if (toneOrDev === 'primary') link.className = 'primary';
   link.textContent = label;
   return link;
 }
@@ -508,10 +672,10 @@ function renderBid(view: PlayerView | null): void {
   button.addEventListener('click', () => {
     const seconds = Number(input.value);
     if (!Number.isFinite(seconds)) return;
-    socket.send(JSON.stringify({
+    sendSocket({
       type: 'submit-bid',
       bidMs: Math.max(0, Math.round(seconds * 1000)),
-    }));
+    });
   });
 
   refs.bidControls.append(input, button);
@@ -548,7 +712,10 @@ function infoItem(label: string, value: string): HTMLDivElement {
 
 function renderClocks(view: PlayerView | null): void {
   refs.clocks.replaceChildren();
-  if (!view?.clock) return;
+  if (!view?.clock) {
+    refs.clocks.append(infoNotice('default', 'The 0:30+2 server clock starts when both seats are ready.'));
+    return;
+  }
 
   const displayAt = isLive() ? Date.now() : view.clock.runningSince ?? Date.now();
   const colors: Color[] = view.perspective === 'white' ? ['black', 'white'] : ['white', 'black'];
@@ -556,7 +723,7 @@ function renderClocks(view: PlayerView | null): void {
     const row = document.createElement('div');
     const label = document.createElement('span');
     const time = document.createElement('strong');
-    label.textContent = color;
+    label.textContent = `${capitalize(color)}${view.clock.activeColor === color && view.status.type === 'playing' ? ' clock' : ''}`;
     time.textContent = formatClock(clockRemainingMs(view.clock, color, displayAt));
     row.className = view.clock.activeColor === color && view.status.type === 'playing' ? 'active' : '';
     row.append(label, time);
@@ -577,6 +744,7 @@ function selectionItem(label: string, value: number | string | null | undefined)
 function renderBoard(view: PlayerView | null): void {
   const moveColor = activeMoveColor();
   const boardIsLive = isLive() && view?.status.type === 'playing' && moveColor !== null && pendingPromotion === null;
+  refs.board.classList.toggle('finished-board', view?.status.type === 'finished');
   const config = {
     animation: { enabled: true, duration: 140 },
     autoCastle: true,
@@ -611,6 +779,27 @@ function renderBoard(view: PlayerView | null): void {
   }
 
   ground = Chessground(refs.board, config);
+}
+
+function renderBoardResult(view: PlayerView | null): void {
+  refs.boardResult.replaceChildren();
+  if (view?.status.type !== 'finished' || !isLive()) {
+    refs.boardResult.hidden = true;
+    return;
+  }
+
+  refs.boardResult.hidden = false;
+  const title = document.createElement('strong');
+  title.textContent = resultTitle(view.status.winner);
+
+  const body = document.createElement('span');
+  body.textContent = `${resultReasonLabel(view.status.reason)}. Board fully revealed.`;
+
+  const review = document.createElement('a');
+  review.href = `/game/${encodeURIComponent(room)}`;
+  review.textContent = 'Review game';
+
+  refs.boardResult.append(title, body, review);
 }
 
 function reconcileInteractionState(): void {
@@ -669,7 +858,7 @@ function sendBoardMove(from: cg.Key, to: cg.Key): void {
     renderBoard(currentView());
     return;
   }
-  socket.send(JSON.stringify({ type: 'move', ...move }));
+  sendSocket({ type: 'move', ...move });
 }
 
 function bestMove(from: Square, to: Square) {
@@ -687,50 +876,53 @@ function movesFor(from: Square, to: Square): Move[] {
 function renderPromotion(): void {
   refs.promotion.replaceChildren();
   refs.promotion.hidden = pendingPromotion === null;
+  refs.promotion.onclick = null;
   if (!pendingPromotion) return;
 
-  refs.promotion.className = `promotion-picker ${pendingPromotion.color}`;
-  for (const role of promotionRoles) {
+  refs.promotion.className = `promotion-picker cg-wrap ${pendingPromotion.color}`;
+  refs.promotion.setAttribute('aria-label', 'Choose promotion piece');
+  refs.promotion.onclick = (event) => {
+    if (event.target !== refs.promotion) return;
+    pendingPromotion = null;
+    refs.promotion.hidden = true;
+    renderBoard(currentView());
+  };
+
+  const fileIndex = squareFileIndex(pendingPromotion.to);
+  const visualFile = orientation === 'white' ? fileIndex : 7 - fileIndex;
+  const startsAtTop = pendingPromotion.color === orientation;
+
+  for (const [index, role] of promotionRoles.entries()) {
     const move = pendingPromotion.moves.find((candidate) => candidate.promotion === role);
     if (!move) continue;
 
     const button = document.createElement('button');
     button.type = 'button';
+    button.className = 'promotion-choice';
     button.title = role;
     button.setAttribute('aria-label', `Promote to ${role}`);
+    button.style.left = `${visualFile * 12.5}%`;
+    button.style.top = `${(startsAtTop ? index : 7 - index) * 12.5}%`;
     button.append(promotionLabel(role, pendingPromotion.color));
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
       pendingPromotion = null;
       refs.promotion.hidden = true;
-      socket.send(JSON.stringify({ type: 'move', ...move }));
+      sendSocket({ type: 'move', ...move });
     });
     refs.promotion.append(button);
   }
 }
 
-function promotionLabel(role: PromotionRole, color: Color): HTMLSpanElement {
-  const label = document.createElement('span');
-  label.className = `promotion-piece ${color}`;
-  label.textContent = pieceGlyph(role, color);
+function promotionLabel(role: PromotionRole, color: Color): HTMLElement {
+  const label = document.createElement('piece');
+  label.className = `promotion-piece ${role} ${color}`;
+  label.setAttribute('aria-hidden', 'true');
   return label;
 }
 
-function pieceGlyph(role: PromotionRole, color: Color): string {
-  const labels = {
-    white: {
-      bishop: '♗',
-      knight: '♘',
-      queen: '♕',
-      rook: '♖',
-    },
-    black: {
-      bishop: '♝',
-      knight: '♞',
-      queen: '♛',
-      rook: '♜',
-    },
-  } satisfies Record<Color, Record<PromotionRole, string>>;
-  return labels[color][role];
+function squareFileIndex(square: Square): number {
+  return files.indexOf(square[0] as typeof files[number]);
 }
 
 function boardFen(view: PlayerView): string {
@@ -908,6 +1100,7 @@ window.__BICHESS_DEBUG__ = () => ({
   bids,
   bidResolution,
   clientCount,
+  connectionState,
   currentView: currentView(),
   devViews: currentDevViews(),
   events,
@@ -922,6 +1115,104 @@ function replayMetaLabel(): string {
   return `Replay · event ${currentReplayIndex()} of ${events.length}`;
 }
 
+function actionTone(view: PlayerView | null): InfoTone {
+  if (connectionState === 'rejected') return 'danger';
+  if (connectionState === 'displaced') return 'danger';
+  if (connectionState === 'disconnected') return 'danger';
+  if (!view || connectionState === 'connecting' || connectionState === 'reconnecting') return 'pending';
+  if (view.status.type === 'finished') return 'success';
+  if (seat === 'spectator') return 'default';
+  if (view.status.type === 'playing' && roomMode === 'pve' && view.status.turn === 'black') return 'pending';
+  if (view.status.type === 'playing' && view.status.turn === seat) return 'success';
+  return 'default';
+}
+
+function actionTitle(view: PlayerView | null): string {
+  if (connectionState === 'rejected') return 'Access rejected';
+  if (connectionState === 'displaced') return 'Session moved';
+  if (connectionState === 'disconnected' || connectionState === 'reconnecting') return 'Reconnecting';
+  if (!view || connectionState === 'connecting') return 'Connecting';
+  if (view.status.type === 'finished') return resultTitle(view.status.winner);
+  if (seat === 'spectator') return 'Watching';
+  if (view.status.type === 'pregame') return roomMode === 'pvp' ? 'Waiting for opponent' : 'Preparing game';
+  if (view.status.type === 'playing' && roomMode === 'pve' && view.status.turn === 'black') return 'Engine thinking';
+  if (view.status.type === 'playing' && view.status.turn === seat) return 'Your move';
+  return 'Opponent move';
+}
+
+function actionBody(view: PlayerView | null): string {
+  if (connectionState === 'rejected') return rejectedBody();
+  if (connectionState === 'displaced') return 'A newer tab is now controlling this seat.';
+  if (connectionState === 'disconnected') return 'The socket closed. Bichess will retry automatically.';
+  if (connectionState === 'reconnecting') return 'Trying to restore your room state and seat.';
+  if (!view || connectionState === 'connecting') return 'Opening the room and loading the current server state.';
+  if (view.status.type === 'finished') {
+    return `Board is fully revealed. ${resultReasonLabel(view.status.reason)}.`;
+  }
+  if (seat === 'spectator') return spectatorBody(view);
+  if (view.status.type === 'pregame') return 'Share the room link when you are ready.';
+  if (view.status.type === 'playing' && roomMode === 'pve' && view.status.turn === 'black') {
+    return 'The engine is on its own clock. Your clock resumes after its move.';
+  }
+  if (view.status.type === 'playing' && view.status.turn === seat) {
+    return 'Move one of your visible pieces on the board.';
+  }
+  return `${capitalize(view.status.turn)} is on move.`;
+}
+
+function spectatorBody(view: PlayerView): string {
+  if (view.status.type === 'finished') return 'Review the fully revealed final position.';
+  if (clientCount < 3 && roomMode === 'pvp') return 'Waiting for both player seats to be filled.';
+  return 'Spectators receive a public Fog view while the game is live.';
+}
+
+function resultTitle(winner: Color | null): string {
+  if (winner === 'white') return 'White wins';
+  if (winner === 'black') return 'Black wins';
+  return 'Draw';
+}
+
+function resultReasonLabel(reason: string): string {
+  return reason.replace(/-/g, ' ');
+}
+
+function modeLabel(): string {
+  if (solo) return 'Solo dev';
+  if (roomMode === 'pve') return 'Play engine';
+  if (roomMode === 'pvp') return 'Friend challenge';
+  if (roomMode === 'eve') return 'Engine game';
+  return capitalize(roomMode);
+}
+
+function turnLabel(view: PlayerView | null): string {
+  if (!view) return 'Connecting';
+  if (view.status.type === 'playing') return `${capitalize(view.status.turn)} to move`;
+  if (view.status.type === 'finished') return resultTitle(view.status.winner);
+  return 'Pregame';
+}
+
+function timeControlLabel(view: PlayerView | null): string {
+  if (!view?.clock) return '0:30+2';
+  const base = formatClock(view.clock.initialMs);
+  const increment = Math.round(view.clock.incrementMs / 1000);
+  return increment > 0 ? `${base}+${increment}` : base;
+}
+
+function connectionLabel(): string {
+  if (connectionState === 'rejected') return 'Access rejected';
+  if (connectionState === 'displaced') return 'Session moved';
+  if (connectionState === 'connected' && latencyMs !== null) return `Connected · ${latencyMs}ms`;
+  if (connectionState === 'reconnecting') return `Reconnecting · attempt ${reconnectAttempt}`;
+  return capitalize(connectionState);
+}
+
+function serverTimeLabel(): string {
+  if (!lastServerAt || !lastSnapshotAt) return 'Waiting';
+  const ageSeconds = Math.max(0, Math.round((Date.now() - lastSnapshotAt) / 1000));
+  const label = ageSeconds <= 1 ? 'just now' : `${ageSeconds}s ago`;
+  return `Snapshot ${label}`;
+}
+
 function formatClock(ms: number): string {
   const bounded = Math.max(0, ms);
   const totalSeconds = Math.ceil(bounded / 1000);
@@ -931,9 +1222,9 @@ function formatClock(ms: number): string {
 }
 
 function seatLabel(value: Seat): string {
-  if (solo) return 'solo dev';
-  if (value === 'spectator') return 'spectating';
-  return `playing ${value}`;
+  if (solo) return 'Solo dev';
+  if (value === 'spectator') return 'Spectator';
+  return capitalize(value);
 }
 
 function ownBidLabel(): string {
@@ -975,6 +1266,10 @@ function oppositeColor(color: Color): Color {
   return color === 'white' ? 'black' : 'white';
 }
 
+function isColor(value: unknown): value is Color {
+  return value === 'white' || value === 'black';
+}
+
 function selectionLabel(startId: number | null | undefined): string {
   return startId === null || startId === undefined ? 'none' : `#${startId}`;
 }
@@ -982,10 +1277,10 @@ function selectionLabel(startId: number | null | undefined): string {
 function roomMetaHtml(): string {
   const view = currentView();
   const status = view?.status.type === 'playing'
-    ? `${view.status.turn} to move`
+    ? `${capitalize(view.status.turn)} to move`
     : view?.status.type ?? 'connecting';
   const replayLabel = isLive() ? '' : ' · replay';
-  return `Room <code>${escapeHtml(room)}</code> · ${clientCount} connected · ${seatLabel(seat)} · ${escapeHtml(status)}${replayLabel}`;
+  return `${escapeHtml(modeLabel())} · <code>${escapeHtml(room)}</code> · ${clientCount} connected · ${seatLabel(seat)} · ${escapeHtml(status)}${replayLabel}`;
 }
 
 function pickColorForSeat(): Color {
@@ -1003,12 +1298,74 @@ function roomUrl(variant: PlayerView['variant'], dev?: 'engine'): string {
 }
 
 function shareRoomUrl(): string {
+  if (pathRoom) return `${window.location.origin}/room/${encodeURIComponent(room)}`;
+
   const params = new URLSearchParams({ room });
   const variant = currentView()?.variant ?? state?.variant ?? variantRequested ?? 'fog-of-war';
   params.set('variant', variant);
   if (engineRequested) params.set('dev', 'engine');
   if (allViewsRequested) params.set('views', 'all');
   return `${window.location.origin}${window.location.pathname}?${params}`;
+}
+
+function roomIdFromPath(pathname: string): string | null {
+  const match = pathname.replace(/\/+$/, '').match(/^\/room\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function clientIdForRoom(roomId: string): string {
+  const key = `bichess.client.${roomId}`;
+  const existing = readLocalStorage(key);
+  if (existing && /^[a-zA-Z0-9:_-]{8,80}$/.test(existing)) return existing;
+  const next = window.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+  writeLocalStorage(key, next);
+  return next;
+}
+
+function seatTokenForRoom(roomId: string): string | null {
+  const stored = readSeatTokenForRoom(roomId);
+  return stored?.token ?? null;
+}
+
+function readSeatTokenForRoom(roomId: string): StoredSeatToken | null {
+  const raw = readLocalStorage(`bichess.seatToken.${roomId}`);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredSeatToken>;
+    if (!isColor(parsed.seat)) return null;
+    if (typeof parsed.token !== 'string' || !/^[a-zA-Z0-9_-]{32,128}$/.test(parsed.token)) return null;
+    return { seat: parsed.seat, token: parsed.token };
+  } catch {
+    return null;
+  }
+}
+
+function writeSeatTokenForRoom(roomId: string, token: StoredSeatToken): void {
+  writeLocalStorage(`bichess.seatToken.${roomId}`, JSON.stringify(token));
+}
+
+function clearSeatTokenForRoom(roomId: string): void {
+  try {
+    window.localStorage.removeItem(`bichess.seatToken.${roomId}`);
+  } catch {
+    // Storage may be unavailable; reset still proceeds server-side.
+  }
+}
+
+function readLocalStorage(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStorage(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // The room still works without seat recovery if storage is unavailable.
+  }
 }
 
 async function copyShareLink(input: HTMLInputElement): Promise<void> {
@@ -1029,7 +1386,17 @@ async function copyShareLink(input: HTMLInputElement): Promise<void> {
 }
 
 function boardStatusLabel(): string {
+  if (connectionState === 'rejected') return 'Access rejected';
+  if (connectionState === 'displaced') return 'Session moved';
+  if (connectionState === 'disconnected' || connectionState === 'reconnecting') return 'Reconnecting';
   return clientId ? 'Waiting for board' : 'Connecting';
+}
+
+function rejectedBody(): string {
+  if (closeReason === 'private room') return 'This live room is private to the seated players.';
+  if (closeReason === 'origin not allowed') return 'This browser origin is not allowed to open the room.';
+  if (closeReason === 'rate limit') return 'The room connection was closed after too many messages.';
+  return 'The server rejected this room connection.';
 }
 
 function escapeHtml(value: string): string {

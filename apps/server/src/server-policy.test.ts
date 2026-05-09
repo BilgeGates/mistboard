@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createClock, expireClock, type GameEvent } from '@bichess/game';
+import { createClock, expireClock, replayGameEvents, type GameEvent } from '@bichess/game';
 import {
   adminDebugTokenFromProtocolHeader,
   canExposeFullEventReplay,
+  canObserveLiveRoom,
   eventReplayResponse,
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
   isDatabaseRequired,
   recordMessageTimestamp,
+  seatTokenFromProtocolHeader,
   type RuntimeEnv,
 } from './server-policy.js';
 
@@ -20,6 +22,67 @@ test('live persisted events are not public replay data', () => {
 
   assert.equal(canExposeFullEventReplay(events), false);
   assert.deepEqual(eventReplayResponse(events), { status: 403, body: { error: 'game_not_public' } });
+});
+
+test('live PvE replay API exposes human moves but redacts engine moves', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'pve-live', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 1, roomId: 'pve-live', clientId: 'human-white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'pve-live', clientId: 'random-engine', seat: 'black' },
+    { type: 'move-played', at: 2, roomId: 'pve-live', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 3, roomId: 'pve-live', color: 'black', move: { from: 'e7', to: 'e5' } },
+  ];
+
+  assert.equal(canExposeFullEventReplay(events), false);
+  assert.deepEqual(eventReplayResponse(events), {
+    status: 200,
+    body: { events: events.filter((event) => event.type !== 'move-played' || event.color !== 'black') },
+  });
+});
+
+test('live PvE replay API redaction follows the human color', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'pve-live-engine-white', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 1, roomId: 'pve-live-engine-white', clientId: 'engine:white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'pve-live-engine-white', clientId: 'human-black', seat: 'black' },
+    { type: 'move-played', at: 2, roomId: 'pve-live-engine-white', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 3, roomId: 'pve-live-engine-white', color: 'black', move: { from: 'e7', to: 'e5' } },
+  ];
+
+  assert.equal(canExposeFullEventReplay(events), false);
+  assert.deepEqual(eventReplayResponse(events), {
+    status: 200,
+    body: { events: events.filter((event) => event.type !== 'move-played' || event.color !== 'white') },
+  });
+});
+
+test('live EvE replay API exposes full truth stream', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'eve-live', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 1, roomId: 'eve-live', clientId: 'engine:white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'eve-live', clientId: 'engine:black', seat: 'black' },
+    { type: 'move-played', at: 2, roomId: 'eve-live', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 3, roomId: 'eve-live', color: 'black', move: { from: 'e7', to: 'e5' } },
+  ];
+
+  assert.equal(canExposeFullEventReplay(events), false);
+  assert.deepEqual(eventReplayResponse(events), { status: 200, body: { events } });
+});
+
+test('live room observation policy allows EvE and PvE but not PvP', () => {
+  const roomCreated: GameEvent = { type: 'room-created', at: 1, roomId: 'policy-room', variant: 'fog-of-war', offer: [] };
+
+  assert.equal(canObserveLiveRoom(replayGameEvents([roomCreated])), false);
+  assert.equal(canObserveLiveRoom(replayGameEvents([
+    roomCreated,
+    { type: 'seat-assigned', at: 1, roomId: 'policy-room', clientId: 'human-white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'policy-room', clientId: 'random-engine', seat: 'black' },
+  ])), true);
+  assert.equal(canObserveLiveRoom(replayGameEvents([
+    roomCreated,
+    { type: 'seat-assigned', at: 1, roomId: 'policy-room', clientId: 'engine:white', seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId: 'policy-room', clientId: 'engine:black', seat: 'black' },
+  ])), true);
 });
 
 test('finished persisted events are public replay data', () => {
@@ -65,6 +128,18 @@ test('admin debug token can be read from a websocket subprotocol header', () => 
     'secret-admin-token',
   );
   assert.equal(adminDebugTokenFromProtocolHeader('foo, bar'), undefined);
+});
+
+test('seat token can be read from a websocket subprotocol header', () => {
+  assert.equal(
+    seatTokenFromProtocolHeader('foo, bichess-seat.seat-token-123, bar'),
+    'seat-token-123',
+  );
+  assert.equal(
+    seatTokenFromProtocolHeader(['foo', 'bichess-seat.seat-token-456']),
+    'seat-token-456',
+  );
+  assert.equal(seatTokenFromProtocolHeader('foo, bar'), undefined);
 });
 
 test('production websocket origin defaults to https host and supports explicit allowlist', () => {

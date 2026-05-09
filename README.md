@@ -1,6 +1,6 @@
 # Bichess
 
-> **Live at [bichess.org](https://bichess.org)** — a looping demo of two Fog of War engines playing each other, dual-perspective + truth.
+> **Live at [bichess.org](https://bichess.org)** — Fog of War chess rooms, replays, and engine-game review surfaces.
 
 Bichess is an open-source site for **Fog of War chess**: a hidden-information chess variant where each player sees only what their pieces can legally see, enforced by the server.
 
@@ -10,7 +10,7 @@ Bichess is an independent open-source project. It is not affiliated with lichess
 
 ## Status
 
-The site at [bichess.org](https://bichess.org) currently shows a curated corpus of Tier-1 self-play games as a looping demo. Playable rooms are working in dev and are gated off in prod while the human-vs-bot path is built out. See [`docs/milestones.md`](docs/milestones.md) for the roadmap.
+The site at [bichess.org](https://bichess.org) is moving from public replay/engine review toward private-alpha live play. Playable rooms, server-enforced Fog of War views, persistence, and postgame reveal foundations are implemented; the current work is reliability, polish, and review quality. See [`docs/milestones.md`](docs/milestones.md) for the roadmap.
 
 ## Vision
 
@@ -54,14 +54,14 @@ After the game ends, the canonical truth is revealed. Replay can be viewed from 
 
 ## Why Fog of War
 
-Fog of War is where Bichess builds durable advantage. The medium-term roadmap centers on partial-information understanding:
+Fog of War is Bichess's main product focus. The medium-term roadmap centers on partial-information understanding:
 
 - visibility history (when did each side see what)
 - postgame reveal that highlights hidden-information turning points
 - analysis tooling that marks king exposure, missed king-capture chances, and high-information moves
 - engine and bot work that reasons about uncertainty instead of pretending the full board is known
 
-This is structurally different from analyzing classical chess. Mainstream platforms do not address it well, and the better the tooling here, the harder Bichess is to replace.
+This is structurally different from analyzing classical chess. Bichess treats hidden information as a first-class rules, replay, and analysis problem.
 
 ## Experimental Lab
 
@@ -117,9 +117,11 @@ research/python-fow-lab/  Python sidecar for visibility/bot/inference experiment
 Events and games are persisted to Postgres. The `events` table is an append-only log of every `GameEvent` (JSONB payload, keyed by `(room_id, seq)`). The `games` table is a one-row-per-finished-game aggregate, written when a terminal projection state is observed. See [`docs/persistence.md`](docs/persistence.md).
 
 In dev, persistence is optional — `apps/server` falls back to in-memory rooms if `DATABASE_URL` is unset.
+Use the persistent dev script when testing postgame review, reconnect recovery, or anything that should survive a server restart.
 
 ```bash
 docker compose up -d postgres   # local Postgres on host port 5435
+npm run dev:persistent           # server uses the local Docker Postgres
 TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
 ```
 
@@ -127,7 +129,8 @@ TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
 
 ```bash
 npm install
-npm run dev
+npm run dev              # in-memory server, fastest for UI work
+npm run dev:persistent   # Postgres-backed server, use for game/replay recovery
 npm test
 ```
 
@@ -161,11 +164,11 @@ http://localhost:3000/?room=bid-dev&reset=1&variant=bid-for-white
 
 ## Deployment
 
-bichess.org runs on a single Railway service: `apps/server` serves both the static `apps/web/dist` bundle and the WebSocket upgrade on the same `$PORT`. Postgres is provided by Railway's Postgres plugin and connected via the project's private network. Cloudflare handles DNS only (gray cloud); SSL is auto-provisioned by Railway.
-
-Push to `main` triggers an auto-deploy. Migrations apply on container boot.
+Production builds run `apps/server`, which serves both the static `apps/web/dist` bundle and WebSocket upgrades on the same port. Postgres-backed persistence is required for production-like runtimes, and migrations apply on container boot.
 
 Production-like runtimes require `DATABASE_URL` by default. If it is missing, the server should fail startup or report unhealthy instead of silently falling back to in-memory rooms. Live game snapshots and event history are private until the game is over; public replay APIs only expose full events after terminal state.
+
+Provider-specific deployment details, account configuration, and operational runbooks live outside the public repository.
 
 ## License
 

@@ -29,7 +29,7 @@ clean package root exported from `HEAD`.
 Clean bundle:
 
 ```text
-/private/tmp/tier1-v0.7.0-engine-source.tgz
+local exported Tier-1 v0.7.0 source bundle
 ```
 
 SHA-256:
@@ -65,7 +65,7 @@ Then ran a 5-game local mirror profile:
 - Seed base: `2026050811`
 - Max plies: 160
 - Stockfish: `/opt/homebrew/bin/stockfish`
-- Clean package root: `/private/tmp/tier1-v070-smoke`
+- Clean package root: local temporary smoke-test directory
 
 | Game | Result | Termination | Plies | Wall Time | Sec/Ply |
 |---:|---|---|---:|---:|---:|
@@ -106,6 +106,6 @@ Aggregate:
   - checked-in source plus venv/image setup;
   - artifact bundle;
   - dedicated container;
-  - Modal or other compute provider.
+  - external compute provider.
 - Add a production smoke once the worker image has Python, `python-chess`, and
   Stockfish.

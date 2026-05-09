@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace @bichess/server & npm run dev --workspace @bichess/web",
+    "dev:persistent": "npm run dev:persistent --workspace @bichess/server & npm run dev --workspace @bichess/web",
     "build": "node scripts/build.mjs",
     "build:all": "npm run build --workspaces",
     "start": "node scripts/start.mjs",
@@ -22,6 +23,7 @@
     "worker:dev": "npm run worker:dev --workspace=@bichess/server",
     "worker:dev:execute": "npm run worker:dev:execute --workspace=@bichess/server",
     "worker:dev:service": "npm run worker:dev:service --workspace=@bichess/server",
+    "engine:artifact-audit": "node scripts/engine-artifact-audit.mjs",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "hooks:install": "git config core.hooksPath .githooks",

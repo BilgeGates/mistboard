@@ -37,7 +37,9 @@ Keep these out of the public repo:
 - private relationship, event, or partnership planning
 - internal critiques or sensitive market analysis
 - private handoff notes
-- credentials, production details, or operational secrets
+- credentials, account details, private provider configuration, deploy runbooks, or operational secrets
+
+Public docs may describe architecture and environment variables when contributors need that information to run or review the code. They may name providers as examples when explaining portable architecture, but should avoid account-specific production topology, private provider setup, deploy triggers, private networking, incident processes, hidden admin capabilities, and exact operational checklists.
 
 Local private notes may live in `docs-private/`, which is ignored by git.
 
@@ -52,6 +54,7 @@ Before committing documentation changes:
 3. Put private planning under `docs-private/`.
 4. Run a quick sensitive-language search before committing.
 5. If a public doc needs to mention funding, sponsorship, or governance, keep it to policy boundaries and avoid tactical details.
+6. If a public doc mentions deployment or operations, keep it to reproducible architecture and contributor needs.
 
 Keep exact private review checklists in ignored private notes, not public docs.
 

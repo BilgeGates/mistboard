@@ -179,6 +179,62 @@ test('Fog of War pawn visibility reveals diagonal captures but not direct blocke
   assert.equal(view.visibleSquares.includes('f5'), false);
 });
 
+test('Fog of War player view exposes own last move after the piece leaves its origin', () => {
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-own-last-move'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      e4: { color: 'white', role: 'pawn' },
+      e8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'black' } as const,
+    castlingRights: [],
+    lastMove: { from: 'e2', to: 'e4' },
+  };
+
+  const view = fogOfWarVariant.getPlayerView(state, 'white');
+
+  assert.deepEqual(view.lastMove, { from: 'e2', to: 'e4' });
+});
+
+test('Fog of War player view exposes own castling last move', () => {
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-own-castle-last-move'),
+    board: {
+      f1: { color: 'white', role: 'rook' },
+      g1: { color: 'white', role: 'king' },
+      e8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'black' } as const,
+    castlingRights: [],
+    lastMove: { from: 'e1', to: 'h1' },
+  };
+
+  const view = fogOfWarVariant.getPlayerView(state, 'white');
+
+  assert.deepEqual(view.lastMove, { from: 'e1', to: 'h1' });
+});
+
+test('Fog of War player view does not expose opponent last-move coordinates', () => {
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-hidden-opponent-last-move'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      e4: { color: 'white', role: 'pawn' },
+      e8: { color: 'black', role: 'rook' },
+      h8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'black' } as const,
+    castlingRights: [],
+    lastMove: { from: 'e2', to: 'e4' },
+  };
+
+  const view = fogOfWarVariant.getPlayerView(state, 'black');
+
+  assert.deepEqual(view.board.e4, { color: 'white', role: 'pawn' });
+  assert.equal(view.lastMove, undefined);
+});
+
 test('Fog of War en passant does not leak visibility to the pushing side', () => {
   // Right after white plays b2-b4, enPassantSquare=b3. The pushing side
   // (white) cannot legally capture EP (b3 is on rank 3, white's EP target

@@ -12,7 +12,7 @@ next-engine hypotheses before the workflow is promoted into EvE.
 - Bake-offs: compare a candidate engine version against a pinned baseline.
 - Calibration: estimate strength across engine versions, time controls, openings, and seeds.
 - Regression checks: run a small fixed suite before promoting an engine pin.
-- Cloud burst runs: use Railway, Modal, or another provider for temporary throughput.
+- Burst runs: use a temporary worker provider for higher-throughput experiments.
 - Debug reproduction: rerun a suspicious game from engine ids, seed, opening policy, time control, and artifacts.
 
 ## Service Boundary
@@ -22,9 +22,9 @@ The web server does not run engines. It creates jobs, exposes admin controls, an
 Workers are separate stateless processes:
 
 - local worker for development
-- Railway worker for always-on modest throughput
-- Modal worker for burst compute
-- future providers with the same DB protocol
+- always-on worker for modest continuous throughput
+- burst worker for temporary high-throughput experiments
+- future worker providers with the same DB protocol
 
 Postgres is the queue and source of truth. No external queue is required until we have evidence that Postgres row claiming is the bottleneck.
 
@@ -60,7 +60,7 @@ for EvE jobs and production-adjacent smoke tests.
 
 `eve_games` remains the EvE-specific output metadata table. It links a produced game to the EvE job, seed, engine identities, and task id.
 
-`engine_worker_runs` records provider runs and heartbeats. This makes local, Railway, and Modal workers observable without changing task semantics.
+`engine_worker_runs` records worker-provider runs and heartbeats. This makes local, always-on, and burst workers observable without changing task semantics.
 
 ## Job Config Shape
 
@@ -87,7 +87,7 @@ Use `eve_jobs.config` for experiment-level policy:
     "max_failures": 10
   },
   "resource_policy": {
-    "providers": ["railway", "modal"],
+    "providers": ["always-on", "burst"],
     "concurrency": 4,
     "cpu": "shared-1",
     "memory_mb": 1024
@@ -139,7 +139,7 @@ Engine failure is a game result when the worker stayed healthy and the engine vi
 
 ## Provider Scaling
 
-Railway and Modal should run the same worker code. Provider differences live in metadata and resource policy:
+All worker providers should run the same worker code. Provider differences live in metadata and resource policy:
 
 - `engine_worker_runs.provider`
 - `engine_worker_runs.provider_run_id`
@@ -147,7 +147,9 @@ Railway and Modal should run the same worker code. Provider differences live in 
 - `engine_game_tasks.provider_run_id`
 - `resource_policy`
 
-This lets the scheduler ask for throughput without hardcoding a provider into the game model. A Modal launcher can insert or claim the same tasks as a Railway worker; the worker binary should not need provider-specific game logic.
+This lets the scheduler ask for throughput without hardcoding a provider into the game model. A burst launcher can insert or claim the same tasks as an always-on worker; the worker binary should not need provider-specific game logic.
+
+Specific services such as Railway, Modal, or similar platforms are deployment examples. Account setup, live topology, deploy triggers, private networking, and incident operations belong outside this public design note.
 
 ## Near-Term Build Order
 
@@ -156,5 +158,5 @@ This lets the scheduler ask for throughput without hardcoding a provider into th
 3. Add a local worker command that claims one task and exits.
 4. Add stale-running-task cleanup and retry handling.
 5. Wire Engine Lab to query completed EvE games by `review_status`.
-6. Add Railway worker deployment.
-7. Add Modal launcher once local/Railway semantics are stable.
+6. Add always-on worker deployment.
+7. Add burst-worker launcher once local and always-on semantics are stable.

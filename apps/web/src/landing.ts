@@ -1,4 +1,4 @@
-import type { Board, GameEvent, PlayerView, Square } from '@bichess/game';
+import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Square } from '@bichess/game';
 import type * as cg from 'chessground/types';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from './board-ui.js';
 import { mountReplay, type GameMeta } from './replay.js';
@@ -19,24 +19,32 @@ type FeaturedGame = {
   whiteEngineId?: string | null;
   blackEngineId?: string | null;
   timeControl?: Record<string, unknown> | null;
+  participants?: GameParticipant[];
 };
 
-type LandingGameSource = 'eve' | 'featured';
+type GameParticipant = {
+  color: 'white' | 'black';
+  displayName: string;
+  subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
+  subjectId: string | null;
+  visibility: 'private' | 'link' | 'unlisted' | 'public';
+};
+
+type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
-const ENGINE_LAB_ENABLED =
-  import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
+const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
 
   const { games, source } = await fetchLandingGames();
-  const demo = buildDemoSection();
-  root.append(buildNav(), buildHero(source), demo.el, buildFooter());
+  const stage = buildLandingStage(source);
+  root.append(buildNav(), stage.el, buildFooter());
   if (games.length === 0) {
-    demo.replayRoot.textContent = 'No games available yet.';
-    renderRecentGames(demo.listRoot, games, source);
+    stage.replayRoot.textContent = 'No games available yet.';
+    renderRecentGames(stage.listRoot, games, source, undefined, '/game/', 'Now showing');
     return;
   }
 
@@ -51,15 +59,23 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const currentSample =
     requested && sampleIds.includes(requested) ? requested : pickSample(sampleIds);
 
-  await mountReplay(demo.replayRoot, currentSample, {
+  await mountReplay(stage.replayRoot, currentSample, {
     autoplay: true,
     showControls: false,
     revealOnFinish: false,
+    blackOrientation: 'white',
     loopSamples: sampleIds,
-    loaderForId: apiEventLoader,
+    loaderForId: landingEventLoader,
     metadataByRoomId,
   });
-  renderRecentGames(demo.listRoot, games, source, currentSample);
+  renderRecentGames(
+    stage.listRoot,
+    games,
+    source,
+    currentSample,
+    source === 'sample' ? '/?demo=' : '/game/',
+    'Now showing',
+  );
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -111,34 +127,61 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   shell.append(headerRoot, replayRoot);
   root.append(buildNav(), shell, buildFooter());
 
-  const game = await fetchGameSummary(roomId).catch((err) => {
-    console.warn(err);
-    return null;
-  });
-  if (!game) {
+  const loaded = await loadGameForReview(roomId);
+  if (!loaded) {
     replayRoot.append(buildNotice('Game not found', 'This game is not available as a public replay.'));
     return;
   }
 
+  const { game, events } = loaded;
   headerRoot.append(buildGameHeader(game));
   await mountReplay(replayRoot, game.roomId, {
     autoplay: false,
+    initialPly: initialGamePly(),
+    onPlyChange: syncGamePlyUrl,
     showControls: true,
     revealOnFinish: true,
-    loaderForId: apiEventLoader,
+    loaderForId: events ? async () => events : apiEventLoader,
     metadataByRoomId: {
       [game.roomId]: gameMetaForGame(game),
     },
   });
 }
 
+async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; events?: GameEvent[] } | null> {
+  const game = await fetchGameSummary(roomId).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  if (game) return { game };
+
+  const events = await apiEventLoader(roomId).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  if (!events || events.length === 0) return null;
+
+  const fallback = gameSummaryFromEvents(roomId, events);
+  return fallback ? { game: fallback, events } : null;
+}
+
 async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
+  const recentGames = await fetchRecentGames().catch((err) => {
+    console.warn(err);
+    return [];
+  });
+  if (recentGames.length > 0) return { games: recentGames, source: 'recent' };
   const eveGames = await fetchRecentEveGames().catch((err) => {
     console.warn(err);
     return [];
   });
   if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
-  return { games: await fetchFeaturedGames(), source: 'featured' };
+  const featuredGames = await fetchFeaturedGames().catch((err) => {
+    console.warn(err);
+    return [];
+  });
+  if (featuredGames.length > 0) return { games: featuredGames, source: 'featured' };
+  return { games: staticSampleGames(), source: 'sample' };
 }
 
 async function fetchGameSummary(roomId: string): Promise<FeaturedGame | null> {
@@ -152,6 +195,13 @@ async function fetchGameSummary(roomId: string): Promise<FeaturedGame | null> {
 async function fetchFeaturedGames(): Promise<FeaturedGame[]> {
   const resp = await fetch('/api/featured-games');
   if (!resp.ok) throw new Error(`failed to load featured games: ${resp.status}`);
+  const data = (await resp.json()) as { games: FeaturedGame[] };
+  return data.games;
+}
+
+async function fetchRecentGames(): Promise<FeaturedGame[]> {
+  const resp = await fetch('/api/games/recent');
+  if (!resp.ok) throw new Error(`failed to load recent games: ${resp.status}`);
   const data = (await resp.json()) as { games: FeaturedGame[] };
   return data.games;
 }
@@ -170,10 +220,127 @@ async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
   return data.events;
 }
 
+function gameSummaryFromEvents(roomId: string, events: GameEvent[]): FeaturedGame | null {
+  const projection = replayGameEvents(events);
+  const status = projection.state.status;
+  if (status.type !== 'finished') return null;
+
+  return {
+    roomId,
+    variant: projection.variant,
+    mode: modeFromSeats(projection.seats.white, projection.seats.black),
+    result: status.winner === 'white' ? 'white-wins' : status.winner === 'black' ? 'black-wins' : 'draw',
+    termination: status.reason,
+    plyCount: events.filter((event) => event.type === 'move-played').length,
+    whiteName: null,
+    blackName: null,
+    corpusId: null,
+    participants: [
+      participantFromSeat('white', projection.seats.white, null),
+      participantFromSeat('black', projection.seats.black, null),
+    ],
+  };
+}
+
+function modeFromSeats(whiteClient: string | undefined, blackClient: string | undefined): FeaturedGame['mode'] {
+  const whiteEngine = isEngineClient(whiteClient);
+  const blackEngine = isEngineClient(blackClient);
+  if (whiteEngine && blackEngine) return 'eve';
+  if (whiteEngine || blackEngine) return 'pve';
+  return 'pvp';
+}
+
+function isEngineClient(clientId: string | undefined): boolean {
+  return !!clientId && (
+    clientId === 'random-engine'
+    || clientId === 'engine:white'
+    || clientId === 'engine:black'
+    || clientId.startsWith('engine:')
+    || clientId.startsWith('builtin-')
+    || clientId.startsWith('python-')
+  );
+}
+
+function participantFromSeat(
+  color: 'white' | 'black',
+  clientId: string | undefined,
+  fallbackName: string | null,
+): GameParticipant {
+  if (isEngineClient(clientId)) {
+    const subjectId = canonicalEngineId(clientId!);
+    return {
+      color,
+      displayName: fallbackName ?? subjectId,
+      subjectType: 'engine-version',
+      subjectId,
+      visibility: 'link',
+    };
+  }
+  return {
+    color,
+    displayName: fallbackName ?? 'Guest',
+    subjectType: 'guest',
+    subjectId: null,
+    visibility: 'link',
+  };
+}
+
+function canonicalEngineId(clientId: string): string {
+  if (clientId === 'random-engine') return 'builtin-random-legal';
+  return clientId;
+}
+
+async function landingEventLoader(roomId: string): Promise<GameEvent[]> {
+  const apiEvents = await apiEventLoader(roomId).catch(() => null);
+  if (apiEvents) return apiEvents;
+  return fetchStaticSample(roomId);
+}
+
+async function fetchStaticSample(sampleId: string): Promise<GameEvent[]> {
+  const safeId = sampleId.replace(/[^a-zA-Z0-9_-]/g, '');
+  const resp = await fetch(`/replay-samples/${safeId}.jsonl`);
+  if (!resp.ok) throw new Error(`failed to load replay sample ${safeId}: ${resp.status}`);
+  const text = await resp.text();
+  return text
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as GameEvent);
+}
+
+function staticSampleGames(): FeaturedGame[] {
+  return Array.from({ length: 7 }, (_, index) => ({
+    roomId: `sample-${index + 1}`,
+    variant: 'fog-of-war',
+    mode: 'manual',
+    result: index % 3 === 0 ? 'white-wins' : index % 3 === 1 ? 'black-wins' : 'draw',
+    termination: index % 3 === 2 ? 'draw' : 'king-captured',
+    plyCount: 24 + index * 3,
+    whiteName: 'White',
+    blackName: 'Black',
+    corpusId: 'replay-samples',
+    participants: [
+      {
+        color: 'white',
+        displayName: 'White',
+        subjectType: 'manual',
+        subjectId: null,
+        visibility: 'public',
+      },
+      {
+        color: 'black',
+        displayName: 'Black',
+        subjectType: 'manual',
+        subjectId: null,
+        visibility: 'public',
+      },
+    ],
+  }));
+}
+
 function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
-    whiteName: game.whiteEngineId ?? game.whiteName,
-    blackName: game.blackEngineId ?? game.blackName,
+    whiteName: participantForColor(game, 'white')?.displayName ?? game.whiteEngineId ?? game.whiteName,
+    blackName: participantForColor(game, 'black')?.displayName ?? game.blackEngineId ?? game.blackName,
     result: game.result,
     termination: game.termination,
     plyCount: game.plyCount,
@@ -193,7 +360,7 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
 
   const title = document.createElement('h1');
   title.className = 'game-title';
-  title.textContent = `${displayParticipant(game.whiteEngineId ?? game.whiteName, 'White')} vs ${displayParticipant(game.blackEngineId ?? game.blackName, 'Black')}`;
+  title.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
 
   const meta = document.createElement('p');
   meta.className = 'game-summary-line';
@@ -211,6 +378,20 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
 
   header.append(text, actions);
   return header;
+}
+
+function displayParticipantName(game: FeaturedGame, color: 'white' | 'black'): string {
+  const participant = participantForColor(game, color);
+  if (participant) return displayParticipant(participant.displayName, color === 'white' ? 'White' : 'Black');
+  const fallback = color === 'white' ? 'White' : 'Black';
+  const legacyName = color === 'white'
+    ? game.whiteEngineId ?? game.whiteName
+    : game.blackEngineId ?? game.blackName;
+  return displayParticipant(legacyName, fallback);
+}
+
+function participantForColor(game: FeaturedGame, color: 'white' | 'black'): GameParticipant | null {
+  return game.participants?.find((participant) => participant.color === color) ?? null;
 }
 
 function displayParticipant(name: string | null | undefined, fallback: string): string {
@@ -239,6 +420,23 @@ async function copyGameLink(button: HTMLButtonElement): Promise<void> {
   }, 1600);
 }
 
+function initialGamePly(): number {
+  const value = new URLSearchParams(window.location.search).get('ply');
+  if (!value) return 0;
+  const ply = Number.parseInt(value, 10);
+  return Number.isFinite(ply) ? ply : 0;
+}
+
+function syncGamePlyUrl(ply: number): void {
+  const url = new URL(window.location.href);
+  if (ply <= 0) {
+    url.searchParams.delete('ply');
+  } else {
+    url.searchParams.set('ply', String(ply));
+  }
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
 export function mountAbout(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'about-route');
@@ -251,6 +449,12 @@ export function mountLearn(root: HTMLElement): void {
   const learn = buildLearn();
   root.append(buildNav(), learn.el, buildFooter());
   mountLearnBoard(learn.boardEl);
+}
+
+export function mountPlay(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'play-route');
+  root.append(buildNav(), buildPlay(), buildFooter());
 }
 
 function buildNav(): HTMLElement {
@@ -284,6 +488,11 @@ function buildNav(): HTMLElement {
   watchLink.textContent = 'Watch';
   watchLink.className = 'site-nav-link';
 
+  const playLink = document.createElement('a');
+  playLink.href = '/play';
+  playLink.textContent = 'Play';
+  playLink.className = 'site-nav-link';
+
   const learnLink = document.createElement('a');
   learnLink.href = '/learn';
   learnLink.textContent = 'Learn';
@@ -296,19 +505,22 @@ function buildNav(): HTMLElement {
   ghLink.textContent = 'GitHub';
   ghLink.className = 'site-nav-link';
 
-  if (ENGINE_LAB_ENABLED) {
+  if (SHOW_ENGINE_LAB_LINKS) {
     const labLink = document.createElement('a');
     labLink.href = '/engine-lab';
     labLink.textContent = 'Engine Lab';
     labLink.className = 'site-nav-link';
     links.append(labLink);
   }
-  links.append(watchLink, learnLink, aboutLink, ghLink);
+  links.append(watchLink, playLink, learnLink, aboutLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
 
-function buildHero(source: LandingGameSource): HTMLElement {
+function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
+  const stage = document.createElement('main');
+  stage.className = 'landing-stage';
+
   const hero = document.createElement('section');
   hero.className = 'landing-hero';
 
@@ -319,35 +531,36 @@ function buildHero(source: LandingGameSource): HTMLElement {
   const subtitle = document.createElement('p');
   subtitle.className = 'landing-subtitle';
   subtitle.textContent =
-    'Hidden-information chess. You only see what your pieces can see.';
+    'Server-enforced Fog of War chess. You only see what your pieces can see.';
 
   const tag = document.createElement('p');
   tag.className = 'landing-tag';
-  tag.textContent = source === 'eve'
-    ? 'Engines are playing now. Watch the latest finished games.'
-    : 'Watch what each side saw — and what was really there.';
+  tag.textContent = source === 'recent'
+    ? "Now showing recent public Fog games with each side's private view."
+    : source === 'eve'
+      ? "Now showing recent engine games with each side's private view."
+    : 'Watch what each side saw, then reveal what was really there.';
 
   const ctas = document.createElement('div');
   ctas.className = 'landing-ctas';
 
-  const playBtn = document.createElement('button');
-  playBtn.type = 'button';
+  const playBtn = document.createElement('a');
+  playBtn.href = '/play';
   playBtn.className = 'landing-cta-primary';
-  playBtn.disabled = true;
-  playBtn.textContent = 'Play vs the engine — coming soon';
+  playBtn.textContent = 'Play Fog';
 
   ctas.append(playBtn);
   const watchLink = document.createElement('a');
   watchLink.href = '/watch';
   watchLink.className = 'landing-cta-secondary';
-  watchLink.textContent = 'Watch games';
+  watchLink.textContent = 'Watch Replays';
   ctas.append(watchLink);
   const learnLink = document.createElement('a');
   learnLink.href = '/learn';
   learnLink.className = 'landing-cta-secondary';
-  learnLink.textContent = 'Learn Fog of War';
+  learnLink.textContent = 'How It Works';
   ctas.append(learnLink);
-  if (ENGINE_LAB_ENABLED) {
+  if (SHOW_ENGINE_LAB_LINKS) {
     const labLink = document.createElement('a');
     labLink.href = '/engine-lab';
     labLink.className = 'landing-cta-secondary';
@@ -355,10 +568,7 @@ function buildHero(source: LandingGameSource): HTMLElement {
     ctas.append(labLink);
   }
   hero.append(title, subtitle, tag, ctas);
-  return hero;
-}
 
-function buildDemoSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
@@ -369,7 +579,8 @@ function buildDemoSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoo
   replayRoot.id = 'landing-replay';
   section.append(replayRoot, listRoot);
 
-  return { el: section, replayRoot, listRoot };
+  stage.append(hero, section);
+  return { el: stage, replayRoot, listRoot };
 }
 
 function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
@@ -404,12 +615,15 @@ function renderRecentGames(
   source: LandingGameSource,
   activeRoomId?: string,
   hrefPrefix = '/?demo=',
+  headingText?: string,
 ): void {
   root.replaceChildren();
 
   const heading = document.createElement('div');
   heading.className = 'landing-games-heading';
-  heading.textContent = source === 'eve' ? 'Recent EvE' : 'Featured games';
+  heading.textContent = headingText ?? (
+    source === 'recent' ? 'Recent games' : source === 'eve' ? 'Recent EvE' : source === 'sample' ? 'Replay samples' : 'Featured games'
+  );
   root.append(heading);
 
   if (games.length === 0) {
@@ -423,7 +637,7 @@ function renderRecentGames(
   const list = document.createElement('ol');
   list.className = 'landing-games-list';
 
-  for (const game of games.slice(0, 8)) {
+  for (const game of games.slice(0, 10)) {
     const item = document.createElement('li');
     const link = document.createElement('a');
     link.href = `${hrefPrefix}${encodeURIComponent(game.roomId)}`;
@@ -431,11 +645,11 @@ function renderRecentGames(
 
     const matchup = document.createElement('span');
     matchup.className = 'landing-game-matchup';
-    matchup.textContent = `${shortEngineName(game.whiteEngineId ?? game.whiteName)} vs ${shortEngineName(game.blackEngineId ?? game.blackName)}`;
+    matchup.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
 
     const meta = document.createElement('span');
     meta.className = 'landing-game-meta';
-    meta.textContent = `${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+    meta.textContent = `${sourceLabel(game.mode)} · ${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
 
     link.append(matchup, meta);
     item.append(link);
@@ -485,6 +699,140 @@ function buildAbout(): HTMLElement {
 
   section.append(heading, p1, p2, p3);
   return section;
+}
+
+function buildPlay(): HTMLElement {
+  const shell = document.createElement('main');
+  shell.className = 'play-shell';
+
+  const header = document.createElement('section');
+  header.className = 'play-header';
+  const heading = document.createElement('h1');
+  heading.className = 'play-heading';
+  heading.textContent = 'Play';
+  const copy = document.createElement('p');
+  copy.className = 'play-copy';
+  copy.textContent =
+    'Choose the Fog of War surface. Watch engine games, play the baseline engine, or create a friend challenge.';
+  header.append(heading, copy);
+
+  const modes = document.createElement('section');
+  modes.className = 'play-modes';
+  modes.append(
+    buildPlayMode({
+      label: 'EvE',
+      title: 'Watch engine games',
+      body: 'Recent engine games with perspective replay, fog views, and postgame reveal.',
+      href: '/watch',
+      cta: 'Watch',
+      status: 'Ready',
+    }),
+    buildPlayMode({
+      label: 'PvE',
+      title: 'Play vs engine',
+      body: 'A single-player room against the built-in baseline Fog engine.',
+      mode: 'pve',
+      cta: 'Play engine',
+      status: 'Ready',
+    }),
+    buildPlayMode({
+      label: 'PvP',
+      title: 'Challenge a friend',
+      body: 'A share-link room for two humans with server-enforced hidden information.',
+      mode: 'pvp',
+      cta: 'Create challenge',
+      status: 'Ready',
+    }),
+  );
+
+  shell.append(header, modes);
+  return shell;
+}
+
+function buildPlayMode(options: {
+  body: string;
+  cta: string;
+  href?: string;
+  label: string;
+  mode?: 'pvp' | 'pve';
+  status: string;
+  title: string;
+}): HTMLElement {
+  const row = document.createElement('article');
+  row.className = 'play-mode';
+
+  const badge = document.createElement('div');
+  badge.className = 'play-mode-label';
+  badge.textContent = options.label;
+
+  const body = document.createElement('div');
+  body.className = 'play-mode-body';
+  const title = document.createElement('h2');
+  title.className = 'play-mode-title';
+  title.textContent = options.title;
+  const copy = document.createElement('p');
+  copy.className = 'play-mode-copy';
+  copy.textContent = options.body;
+  body.append(title, copy);
+
+  const meta = document.createElement('div');
+  meta.className = 'play-mode-meta';
+  const status = document.createElement('span');
+  status.className = 'play-mode-status';
+  status.textContent = options.status;
+  meta.append(status);
+
+  if (options.href) {
+    const action = document.createElement('a');
+    action.className = 'landing-cta-secondary play-mode-action';
+    action.href = options.href;
+    action.textContent = options.cta;
+    meta.append(action);
+  } else if (options.mode) {
+    const action = document.createElement('button');
+    action.className = 'landing-cta-secondary play-mode-action';
+    action.type = 'button';
+    action.textContent = options.cta;
+    action.addEventListener('click', () => {
+      void createRoomFromPlay(action, options.mode!);
+    });
+    meta.append(action);
+  } else {
+    const action = document.createElement('button');
+    action.className = 'landing-cta-secondary play-mode-action';
+    action.type = 'button';
+    action.disabled = true;
+    action.textContent = options.cta;
+    meta.append(action);
+  }
+
+  row.append(badge, body, meta);
+  return row;
+}
+
+async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve'): Promise<void> {
+  const originalText = button.textContent ?? '';
+  button.disabled = true;
+  button.textContent = 'Creating';
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode, variant: 'fog-of-war' }),
+    });
+    if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
+    const data = await response.json() as { url?: string };
+    if (!data.url) throw new Error('room creation did not return a URL');
+    window.location.href = data.url;
+  } catch (err) {
+    console.warn(err);
+    button.textContent = 'Try again';
+    button.disabled = false;
+    window.setTimeout(() => {
+      if (button.disabled) return;
+      button.textContent = originalText;
+    }, 1800);
+  }
 }
 
 function buildLearn(): { el: HTMLElement; boardEl: HTMLElement } {

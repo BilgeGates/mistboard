@@ -38,6 +38,12 @@ export type GameEvent =
     seat: Color;
   }
   | {
+    type: 'clock-started';
+    at: number;
+    roomId: string;
+    clock: ClockState;
+  }
+  | {
     type: 'draft-start-selected';
     at: number;
     roomId: string;
@@ -142,7 +148,11 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   }
 
   if (event.type === 'seat-vacated') {
-    if (projection.state.status.type !== 'pregame' || projection.seats[event.seat] !== event.clientId) {
+    const beforeFirstMove = projection.state.moveNumber === 1 && projection.state.lastMove === undefined;
+    if (
+      (projection.state.status.type !== 'pregame' && !beforeFirstMove)
+      || projection.seats[event.seat] !== event.clientId
+    ) {
       return projection;
     }
 
@@ -158,6 +168,17 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       bids,
       seats,
       selections,
+    };
+  }
+
+  if (event.type === 'clock-started') {
+    if (projection.state.status.type !== 'playing' || projection.state.clock) return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        clock: event.clock,
+      },
     };
   }
 

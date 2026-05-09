@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bidForWhiteVariant, fogOfWarVariant, type GameEvent, type GameProjection } from '@bichess/game';
+import { bidForWhiteVariant, fogOfWarVariant, replayGameEvents, type GameEvent, type GameProjection } from '@bichess/game';
 import { snapshotPayload, type SnapshotClient, type SnapshotRoom } from './payloads.js';
+import { eventReplayResponse } from './server-policy.js';
 
 test('Fog of War snapshot payload does not include hidden opponent pieces or move events', () => {
   const state = {
@@ -78,6 +79,135 @@ test('live Fog of War spectator payload has no board or move events', () => {
   assert.deepEqual(payload.state.visibleSquares, []);
   assert.deepEqual(payload.state.legalMoves, []);
   assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+});
+
+test('live Fog of War seated payload can expose own last move without move events', () => {
+  const room = lastMoveRoomFixture();
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'white-client',
+    seat: 'white',
+    solo: false,
+  });
+
+  assert.deepEqual(payload.state.lastMove, { from: 'e2', to: 'e4' });
+  assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+});
+
+test('live Fog of War seated payload does not expose opponent last-move coordinates', () => {
+  const room = lastMoveRoomFixture();
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'black-client',
+    seat: 'black',
+    solo: false,
+  });
+
+  assert.deepEqual(payload.state.board.e4, { color: 'white', role: 'pawn' });
+  assert.equal(payload.state.lastMove, undefined);
+  assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+});
+
+test('live PvE spectator sees human perspective and not engine move events', () => {
+  const room = replayRoomFixture({
+    roomId: 'pve-payload',
+    seats: { white: 'human-white', black: 'random-engine' },
+    mode: 'pve',
+  });
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'spectator-client',
+    seat: 'spectator',
+    solo: false,
+  });
+
+  assert.equal(payload.state.perspective, 'white');
+  assert.notDeepEqual(payload.state.board, {});
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played' && event.color === 'white'),
+    true,
+  );
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played' && event.color === 'black'),
+    false,
+  );
+});
+
+test('live PvE spectator follows the human perspective when the engine is white', () => {
+  const room = replayRoomFixture({
+    roomId: 'pve-engine-white-payload',
+    seats: { white: 'engine:white', black: 'human-black' },
+    mode: 'pve',
+  });
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'spectator-client',
+    seat: 'spectator',
+    solo: false,
+  });
+
+  assert.equal(payload.state.perspective, 'black');
+  assert.notDeepEqual(payload.state.board, {});
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played' && event.color === 'black'),
+    true,
+  );
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played' && event.color === 'white'),
+    false,
+  );
+});
+
+test('live EvE spectator sees full truth and full event stream', () => {
+  const room = replayRoomFixture({
+    roomId: 'eve-payload',
+    seats: { white: 'engine:white', black: 'engine:black' },
+    mode: 'eve',
+  });
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'spectator-client',
+    seat: 'spectator',
+    solo: false,
+  });
+
+  assert.equal(payload.state.visibleSquares.length, 64);
+  assert.deepEqual(payload.state.board.h8, { color: 'black', role: 'rook' });
+  assert.equal(
+    payload.events.filter((event) => event.type === 'move-played').length,
+    2,
+  );
+});
+
+test('live replay API and WebSocket snapshot event policies stay aligned', () => {
+  const pveRoom = replayRoomFixture({
+    roomId: 'pve-policy-alignment',
+    seats: { white: 'human-white', black: 'random-engine' },
+    mode: 'pve',
+  });
+  const pvePayload = snapshotPayload(pveRoom, spectatorClient());
+  const pveReplay = eventReplayResponse(pveRoom.events);
+  assert.equal(pveReplay.status, 200);
+  assert.deepEqual(pvePayload.events, pveReplay.body.events);
+
+  const eveRoom = replayRoomFixture({
+    roomId: 'eve-policy-alignment',
+    seats: { white: 'engine:white', black: 'engine:black' },
+    mode: 'eve',
+  });
+  const evePayload = snapshotPayload(eveRoom, spectatorClient());
+  const eveReplay = eventReplayResponse(eveRoom.events);
+  assert.equal(eveReplay.status, 200);
+  assert.deepEqual(evePayload.events, eveReplay.body.events);
+
+  const pvpRoom = replayRoomFixture({
+    roomId: 'pvp-policy-alignment',
+    seats: { white: 'human-white', black: 'human-black' },
+    mode: 'pvp',
+  });
+  const pvpPayload = snapshotPayload(pvpRoom, spectatorClient());
+  assert.deepEqual(eventReplayResponse(pvpRoom.events), { status: 403, body: { error: 'game_not_public' } });
+  assert.equal(pvpPayload.events.some((event) => event.type === 'move-played'), false);
 });
 
 test('finished Fog of War payload exposes full-truth replay', () => {
@@ -204,6 +334,87 @@ function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.
     clients: { size: 2 },
     events,
     projection,
+  };
+}
+
+function lastMoveRoomFixture(): SnapshotRoom {
+  const state = {
+    ...fogOfWarVariant.createInitialState('fog-last-move-payload'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      e4: { color: 'white', role: 'pawn' },
+      e8: { color: 'black', role: 'rook' },
+      h8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'black' } as const,
+    castlingRights: [],
+    lastMove: { from: 'e2', to: 'e4' },
+  } satisfies ReturnType<typeof fogOfWarVariant.createInitialState>;
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'fog-last-move-payload',
+      variant: 'fog-of-war',
+      offer: [],
+    },
+    {
+      type: 'move-played',
+      at: 2,
+      roomId: 'fog-last-move-payload',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+  ];
+  return {
+    id: 'fog-last-move-payload',
+    clients: { size: 2 },
+    events,
+    projection: {
+      roomId: 'fog-last-move-payload',
+      variant: 'fog-of-war',
+      offer: [],
+      state,
+      seats: { white: 'white-client', black: 'black-client' },
+      selections: {},
+      bids: {},
+      bidResolution: null,
+      resolvedStartId: null,
+    },
+  };
+}
+
+function replayRoomFixture({
+  mode,
+  roomId,
+  seats,
+}: {
+  mode: SnapshotRoom['mode'];
+  roomId: string;
+  seats: { white: string; black: string };
+}): SnapshotRoom {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId, variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 1, roomId, clientId: seats.white, seat: 'white' },
+    { type: 'seat-assigned', at: 1, roomId, clientId: seats.black, seat: 'black' },
+    { type: 'move-played', at: 2, roomId, color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 3, roomId, color: 'black', move: { from: 'e7', to: 'e5' } },
+  ];
+  return {
+    id: roomId,
+    clients: { size: 3 },
+    events,
+    mode,
+    projection: replayGameEvents(events),
+  };
+}
+
+function spectatorClient(): SnapshotClient {
+  return {
+    devViews: false,
+    id: 'spectator-client',
+    seat: 'spectator',
+    solo: false,
   };
 }
 

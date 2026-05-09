@@ -50,10 +50,16 @@ export type GameMeta = {
 
 export type ReplayOptions = {
   autoplay?: boolean;
+  /** Initial move count to show. Clamped to the loaded game's ply count. */
+  initialPly?: number;
+  /** Called whenever the displayed ply changes after a game loads. */
+  onPlyChange?: (ply: number, maxPly: number) => void;
   /** When false, white/black panes stay on their last fogged view at game-end. Truth always reveals. */
   revealOnFinish?: boolean;
   /** When false, the prev/next/play control bar is hidden (autoplay-only mode). */
   showControls?: boolean;
+  /** Board orientation for the black-view pane. Defaults to Black's perspective. */
+  blackOrientation?: Color;
   /** When set, after each game finishes the next sample loads automatically. */
   loopSamples?: string[];
   /** Pause length on the reveal frame before cycling to the next loop sample. */
@@ -82,8 +88,6 @@ export type ReplayOptions = {
    */
   annotation?: AnnotationConfig;
   belief?: BeliefConfig;
-  /** Initial ply to show after loading the sample. Used by artifact capture links. */
-  initialPly?: number;
 };
 
 export type AnnotationConfig = {
@@ -103,12 +107,14 @@ export async function mountReplay(
 ): Promise<void> {
   const reveal = options.revealOnFinish !== false;
   const showControls = options.showControls !== false;
+  const blackOrientation = options.blackOrientation ?? 'black';
   const loopSamples = options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const autoplay = options.autoplay === true || loopSamples !== undefined;
   const urlForId = options.urlForId ?? defaultUrlForId;
   const loaderForId = options.loaderForId;
   const metadataByRoomId = options.metadataByRoomId;
+  const onPlyChange = options.onPlyChange;
 
   // If mountReplay is called again on the same root (e.g. switching games
   // in the bakeoff browser), abort any keyboard listeners from the prior
@@ -153,7 +159,7 @@ export async function mountReplay(
 
   const whiteCg = createBoard(whitePane.boardEl, 'white');
   const truthCg = createBoard(truthPane.boardEl, 'white');
-  const blackCg = createBoard(blackPane.boardEl, 'black');
+  const blackCg = createBoard(blackPane.boardEl, blackOrientation);
 
   const annotation = options.annotation;
   const belief = options.belief;
@@ -195,6 +201,7 @@ export async function mountReplay(
   let loopTimer: number | null = null;
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
+  let lastNotifiedPly: number | null = null;
 
   function render(): void {
     root.dataset.sampleId = activeSample;
@@ -255,6 +262,13 @@ export async function mountReplay(
 
     renderAnnotPanel();
     beliefPanel?.render(currentPly);
+    notifyPlyChange();
+  }
+
+  function notifyPlyChange(): void {
+    if (!onPlyChange || lastNotifiedPly === currentPly) return;
+    lastNotifiedPly = currentPly;
+    onPlyChange(currentPly, moveCount);
   }
 
   function annotationsAtPly(ply: number): Annotation[] {
@@ -326,7 +340,7 @@ export async function mountReplay(
         stopPlay();
         clearLoopTimer();
         finishedAck = false;
-        currentPly = Math.min(Math.max(a.ply, 0), moveCount);
+        setCurrentPly(a.ply);
         render();
       });
 
@@ -340,7 +354,7 @@ export async function mountReplay(
         stopPlay();
         clearLoopTimer();
         finishedAck = false;
-        currentPly = Math.min(Math.max(a.ply, 0), moveCount);
+        setCurrentPly(a.ply);
         render();
         annotForm?.loadForEdit(a);
       });
@@ -449,10 +463,14 @@ export async function mountReplay(
     }
     const delay = delayForPly(nextPly);
     playTimer = window.setTimeout(() => {
-      currentPly = nextPly;
+      setCurrentPly(nextPly);
       render();
       scheduleNextPly();
     }, delay);
+  }
+
+  function setCurrentPly(ply: number): void {
+    currentPly = Math.min(Math.max(ply, 0), moveCount);
   }
 
   function delayForPly(ply: number): number {
@@ -491,6 +509,7 @@ export async function mountReplay(
     } else {
       currentPly = 0;
     }
+    lastNotifiedPly = null;
     finishedAck = false;
     applyMetadata();
     applyPerspective();
@@ -579,7 +598,7 @@ export async function mountReplay(
       stopPlay();
       clearLoopTimer();
       finishedAck = false;
-      currentPly = 0;
+      setCurrentPly(0);
       render();
     });
     prevBtn.addEventListener('click', () => {
@@ -587,7 +606,7 @@ export async function mountReplay(
       clearLoopTimer();
       finishedAck = false;
       if (currentPly > 0) {
-        currentPly -= 1;
+        setCurrentPly(currentPly - 1);
         render();
       }
     });
@@ -595,14 +614,14 @@ export async function mountReplay(
       stopPlay();
       clearLoopTimer();
       if (currentPly < moveCount) {
-        currentPly += 1;
+        setCurrentPly(currentPly + 1);
         render();
       }
     });
     lastBtn.addEventListener('click', () => {
       stopPlay();
       clearLoopTimer();
-      currentPly = moveCount;
+      setCurrentPly(moveCount);
       render();
     });
     playBtn.addEventListener('click', () => {
@@ -610,7 +629,7 @@ export async function mountReplay(
         stopPlay();
       } else if (currentPly >= moveCount) {
         finishedAck = false;
-        currentPly = 0;
+        setCurrentPly(0);
         render();
         startPlay();
       } else {
@@ -631,7 +650,7 @@ export async function mountReplay(
         clearLoopTimer();
         finishedAck = false;
         if (currentPly > 0) {
-          currentPly -= 1;
+          setCurrentPly(currentPly - 1);
           render();
         }
       } else if (e.key === 'ArrowRight') {
@@ -639,7 +658,7 @@ export async function mountReplay(
         stopPlay();
         clearLoopTimer();
         if (currentPly < moveCount) {
-          currentPly += 1;
+          setCurrentPly(currentPly + 1);
           render();
         }
       } else if (e.key === 'a' && annotation && annotForm) {
