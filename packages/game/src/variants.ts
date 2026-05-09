@@ -245,7 +245,7 @@ function applyFogMove(state: GameState, move: Move): GameState {
     castlingRights: updatedCastlingRights,
     enPassantSquare: updatedEnPassantSquare,
     halfmoveClock: nextHalfmoveClock,
-    lastMove: move,
+    lastMove: legalMove,
   };
   const positionCounts = nextPositionCounts(state, nextPositionState);
   const nextStatus = capturedPiece?.role === 'king'
@@ -262,7 +262,7 @@ function applyFogMove(state: GameState, move: Move): GameState {
     castlingRights: updatedCastlingRights,
     enPassantSquare: updatedEnPassantSquare,
     halfmoveClock: nextHalfmoveClock,
-    lastMove: move,
+    lastMove: legalMove,
     positionCounts,
   };
 }
@@ -373,10 +373,8 @@ function fogCastlingMoves(state: GameState, from: Square): Move[] {
     const rook = state.board[rookSquare];
     if (!rook || rook.color !== piece.color || rook.role !== 'rook') continue;
     if (rankOf(rookSquare) !== rankOf(from)) continue;
-    if (!clearBetween(state.board, from, rookSquare)) continue;
+    if (!clearForFogCastling(state.board, from, rookSquare)) continue;
     moves.push({ from, to: rookSquare });
-    const kingDestination = castlingKingDestination(from, rookSquare);
-    if (kingDestination !== rookSquare) moves.push({ from, to: kingDestination });
   }
   return moves;
 }
@@ -560,6 +558,10 @@ function castlingKingDestination(from: Square, rookSquare: Square): Square {
   return `${fileIndex(rookSquare) > fileIndex(from) ? 'g' : 'c'}${rankOf(from)}` as Square;
 }
 
+function castlingRookDestination(from: Square, rookSquare: Square): Square {
+  return `${fileIndex(rookSquare) > fileIndex(from) ? 'f' : 'd'}${rankOf(from)}` as Square;
+}
+
 function nextCastlingRights(state: GameState, move: Move, role: PieceRole): Square[] {
   return state.castlingRights.filter((square) => {
     if (square === move.from || square === move.to) return false;
@@ -604,21 +606,36 @@ function applyFogCastling(board: Board, move: Move, king: NonNullable<Board[Squa
   const rook = board[move.to];
   if (!rook) return;
 
-  const rank = rankOf(move.from);
-  const kingSide = fileIndex(move.to) > fileIndex(move.from);
-  const kingTo = `${kingSide ? 'g' : 'c'}${rank}` as Square;
-  const rookTo = `${kingSide ? 'f' : 'd'}${rank}` as Square;
+  const kingTo = castlingKingDestination(move.from, move.to);
+  const rookTo = castlingRookDestination(move.from, move.to);
   delete board[move.to];
+  delete board[move.from];
   board[kingTo] = king;
   board[rookTo] = rook;
 }
 
-function clearBetween(board: Board, from: Square, to: Square): boolean {
-  const step = Math.sign(fileIndex(to) - fileIndex(from));
-  for (let file = fileIndex(from) + step; file !== fileIndex(to); file += step) {
-    if (board[`${boardFiles[file]}${rankOf(from)}` as Square]) return false;
+function clearForFogCastling(board: Board, kingFrom: Square, rookFrom: Square): boolean {
+  const kingTo = castlingKingDestination(kingFrom, rookFrom);
+  const rookTo = castlingRookDestination(kingFrom, rookFrom);
+  const allowedOccupied = new Set<Square>([kingFrom, rookFrom]);
+  for (const square of [
+    ...rankPath(kingFrom, kingTo),
+    ...rankPath(rookFrom, rookTo),
+  ]) {
+    const piece = board[square];
+    if (piece && !allowedOccupied.has(square)) return false;
   }
   return true;
+}
+
+function rankPath(from: Square, to: Square): Square[] {
+  const step = Math.sign(fileIndex(to) - fileIndex(from));
+  if (step === 0) return [from];
+  const squares: Square[] = [];
+  for (let file = fileIndex(from); file !== fileIndex(to) + step; file += step) {
+    squares.push(`${boardFiles[file]}${rankOf(from)}` as Square);
+  }
+  return squares;
 }
 
 function offsetSquare(square: Square, fileOffset: number, rankOffset: number): Square | undefined {

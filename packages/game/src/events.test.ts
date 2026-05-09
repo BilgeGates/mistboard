@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { pickDraft960Offer } from './chess960.js';
+import { generateChess960Starts, pickDraft960Offer } from './chess960.js';
 import { advanceClock, createClock, expireClock } from './clocks.js';
 import { replayGameEvents, type GameEvent } from './events.js';
 
@@ -67,6 +67,99 @@ test('replays Draft960 pregame events into a resolved starting position', () => 
     ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => projection.state.board[`${file}1` as keyof typeof projection.state.board]?.role),
     resolvedStart.backRank,
   );
+});
+
+test('replays independent per-side Draft960 offers into independent starting positions', () => {
+  const starts = generateChess960Starts();
+  const whiteOffer = [
+    starts.find((start) => start.fenPlacement === 'bbqnnrkr')!,
+    starts.find((start) => start.fenPlacement === 'bqnbnrkr')!,
+    starts.find((start) => start.fenPlacement === 'bqnnrbkr')!,
+  ];
+  const blackOffer = [
+    starts.find((start) => start.fenPlacement === 'qbbnnrkr')!,
+    starts.find((start) => start.fenPlacement === 'qbnnbkrr')!,
+    starts.find((start) => start.fenPlacement === 'qnbbnrkr')!,
+  ];
+  const whiteStart = whiteOffer[0];
+  const blackStart = blackOffer[0];
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'independent-draft-room',
+      variant: 'fog-of-war',
+      offer: [],
+      offers: {
+        white: whiteOffer,
+        black: blackOffer,
+      },
+    },
+    {
+      type: 'draft-start-selected',
+      at: 2,
+      roomId: 'independent-draft-room',
+      color: 'white',
+      startId: whiteStart.id,
+    },
+    {
+      type: 'draft-start-selected',
+      at: 3,
+      roomId: 'independent-draft-room',
+      color: 'black',
+      startId: blackStart.id,
+    },
+    {
+      type: 'draft-start-resolved',
+      at: 4,
+      roomId: 'independent-draft-room',
+      startIds: {
+        white: whiteStart.id,
+        black: blackStart.id,
+      },
+    },
+  ];
+
+  const projection = replayGameEvents(events);
+
+  assert.equal(projection.resolvedStartId, null);
+  assert.deepEqual(projection.resolvedStartIds, {
+    white: whiteStart.id,
+    black: blackStart.id,
+  });
+  assert.deepEqual(projection.selections, {
+    white: whiteStart.id,
+    black: blackStart.id,
+  });
+  assert.deepEqual(
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => projection.state.board[`${file}1` as keyof typeof projection.state.board]?.role),
+    whiteStart.backRank,
+  );
+  assert.deepEqual(
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => projection.state.board[`${file}8` as keyof typeof projection.state.board]?.role),
+    blackStart.backRank,
+  );
+  assert.deepEqual(projection.state.castlingRights, ['f1', 'h1', 'f8', 'h8']);
+  assert.deepEqual(projection.state.status, { type: 'playing', turn: 'white' });
+});
+
+test('replays a redacted Fog Draft960 offer as pregame', () => {
+  const offer = pickDraft960Offer(11);
+  const projection = replayGameEvents([
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'redacted-fog-draft-room',
+      variant: 'fog-of-war',
+      offer,
+      offers: {
+        white: offer,
+      },
+    },
+  ]);
+
+  assert.deepEqual(projection.state.status, { type: 'pregame' });
+  assert.deepEqual(projection.offers.white, offer);
 });
 
 test('replays move events through the Draft960 rules adapter', () => {

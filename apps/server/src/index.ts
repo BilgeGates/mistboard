@@ -7,6 +7,7 @@ import serveHandler from 'serve-handler';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   advanceClock,
+  type Chess960Start,
   clockRemainingMs,
   createClock,
   defaultClockInitialMs,
@@ -350,6 +351,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     const body = await readJsonBody(request);
     const mode = parseRoomMode(body);
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
+    const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
@@ -366,7 +368,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
       return;
     }
-    const room = await createRoom(mode, variant, engineId ?? pveBuiltinEngineClientId);
+    const room = await createRoom(mode, variant, engineId ?? pveBuiltinEngineClientId, hiddenDraft960);
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
     return;
@@ -521,6 +523,10 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
   return null;
+}
+
+function parseHiddenDraft960(value: unknown): boolean {
+  return value === true || value === '1' || value === 'true' || value === 'yes';
 }
 
 function parsePlayablePveEngineId(value: unknown): string | null {
@@ -684,7 +690,11 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
   const debugRequested = randomEngine || url.searchParams.get('views') === 'all';
   const devViews = debugRequested && isDebugViewAuthorized(request);
-  const room = await getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
+  const room = await getOrCreateRoom(
+    roomId,
+    parseVariantId(url.searchParams.get('variant')),
+    parseHiddenDraft960(url.searchParams.get('hiddenDraft960') ?? url.searchParams.get('draft960')),
+  );
   if (randomEngine) await enableRandomEngine(room);
   const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
   const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
@@ -714,7 +724,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     ...snapshot,
     type: 'hello',
     clientId: client.id,
-    offer: room.projection.offer,
+    offer: snapshot.offer,
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
   broadcastSnapshot(room);
@@ -794,7 +804,7 @@ async function handleClose(room: Room, client: Client): Promise<void> {
   broadcastSnapshot(room);
 }
 
-async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room> {
+async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft960 = false): Promise<Room> {
   const existing = rooms.get(roomId);
   if (existing) return existing;
 
@@ -821,7 +831,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
       at: Date.now(),
       roomId,
       variant,
-      offer: variant === 'draft960' ? pickDraft960Offer(roomIdToSeed(roomId)) : [],
+      ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
     };
     if (persistence.isInitialized()) {
       try {
@@ -863,20 +873,21 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
   return room;
 }
 
-async function createRoom(mode: 'pvp' | 'pve', variant: VariantId, engineId: string): Promise<Room> {
+async function createRoom(mode: 'pvp' | 'pve', variant: VariantId, engineId: string, hiddenDraft960 = false): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
     const existing = rooms.get(roomId) ?? (persistence.isInitialized() ? await persistence.loadRoom(roomId) : null);
     if (existing) continue;
 
     const at = Date.now();
-    const events: GameEvent[] = [{
+    const roomCreated: Extract<GameEvent, { type: 'room-created' }> = {
       type: 'room-created',
       at,
       roomId,
       variant,
-      offer: variant === 'draft960' ? pickDraft960Offer(roomIdToSeed(roomId)) : [],
-    }];
+      ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
+    };
+    const events: GameEvent[] = [roomCreated];
     if (mode === 'pve') {
       events.push({
         type: 'seat-assigned',
@@ -885,6 +896,8 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId, engineId: str
         clientId: engineId,
         seat: 'black',
       });
+      const engineSelection = engineDraftSelectionEvent(roomCreated, roomId, at);
+      if (engineSelection) events.push(engineSelection);
     }
 
     if (persistence.isInitialized()) {
@@ -1081,14 +1094,16 @@ async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
   room.pveEngineId = pveBuiltinEngineClientId;
   if (room.projection.variant !== 'fog-of-war') return;
-  if (room.projection.seats.black) return;
-  await appendEvent(room, {
-    type: 'seat-assigned',
-    at: Date.now(),
-    roomId: room.id,
-    clientId: pveBuiltinEngineClientId,
-    seat: 'black',
-  });
+  if (!room.projection.seats.black) {
+    await appendEvent(room, {
+      type: 'seat-assigned',
+      at: Date.now(),
+      roomId: room.id,
+      clientId: pveBuiltinEngineClientId,
+      seat: 'black',
+    });
+  }
+  await selectEngineDraftStart(room);
 }
 
 async function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): Promise<void> {
@@ -1096,7 +1111,7 @@ async function selectStart(room: Room, client: Client, startId: number | undefin
   const selectionColor = client.solo && isColor(color) ? color : client.seat;
   if (selectionColor === 'spectator') return;
   if (room.projection.state.status.type !== 'pregame') return;
-  if (!room.projection.offer.some((start) => start.id === startId)) return;
+  if (!offerForColor(room.projection, selectionColor).some((start) => start.id === startId)) return;
   if (startId === undefined) return;
 
   await appendEvent(room, {
@@ -1159,7 +1174,7 @@ async function playMove(room: Room, client: Client, move: ClientMoveMessage): Pr
     roomId: room.id,
     clock: nextClock,
     color: moveColor,
-    move: requestedMove,
+    move: nextState.lastMove ?? requestedMove,
   });
   broadcastSnapshot(room);
   scheduleRandomEngineMove(room);
@@ -1261,17 +1276,15 @@ async function startLiveClockIfReady(room: Room): Promise<void> {
 }
 
 async function resolveStartIfReady(room: Room): Promise<void> {
-  if (room.projection.resolvedStartId !== null) return;
+  if (room.projection.resolvedStartId !== null || (room.projection.resolvedStartIds.white !== undefined && room.projection.resolvedStartIds.black !== undefined)) return;
 
   const whiteSelection = room.projection.selections.white;
   const blackSelection = room.projection.selections.black;
   if (whiteSelection === undefined || blackSelection === undefined) return;
 
-  const resolvedStartId = whiteSelection === blackSelection
-    ? whiteSelection
-    : [whiteSelection, blackSelection][randomInt(2)];
-  const resolvedStart = room.projection.offer.find((start) => start.id === resolvedStartId);
-  if (!resolvedStart) return;
+  const whiteStart = offerForColor(room.projection, 'white').find((start) => start.id === whiteSelection);
+  const blackStart = offerForColor(room.projection, 'black').find((start) => start.id === blackSelection);
+  if (!whiteStart || !blackStart) return;
   const now = Date.now();
 
   await appendEvent(room, {
@@ -1279,8 +1292,29 @@ async function resolveStartIfReady(room: Room): Promise<void> {
     at: now,
     roomId: room.id,
     clock: createClock(now),
-    startId: resolvedStart.id,
+    startIds: {
+      white: whiteStart.id,
+      black: blackStart.id,
+    },
   });
+}
+
+async function selectEngineDraftStart(room: Room): Promise<void> {
+  if (room.projection.state.status.type !== 'pregame') return;
+  if (!isServerEngineClient(room.projection.seats.black)) return;
+  if (room.projection.selections.black !== undefined) return;
+  const offer = offerForColor(room.projection, 'black');
+  if (offer.length === 0) return;
+  const start = offer[Math.abs(roomIdToSeed(`${room.id}:black-draft`)) % offer.length];
+  if (!start) return;
+  await appendEvent(room, {
+    type: 'draft-start-selected',
+    at: Date.now(),
+    roomId: room.id,
+    color: 'black',
+    startId: start.id,
+  });
+  await resolveStartIfReady(room);
 }
 
 async function resolveBidIfReady(room: Room): Promise<void> {
@@ -1689,6 +1723,46 @@ function parseVariantId(value: string | null): VariantId {
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
+}
+
+function roomCreatedDraftOfferFields(
+  roomId: string,
+  variant: VariantId,
+  hiddenDraft960 = false,
+): Pick<Extract<GameEvent, { type: 'room-created' }>, 'offer' | 'offers'> {
+  if (variant !== 'draft960' && !(variant === 'fog-of-war' && hiddenDraft960)) return { offer: [] };
+
+  const seed = roomIdToSeed(roomId);
+  const offers: Record<Color, Chess960Start[]> = {
+    white: pickDraft960Offer(seed),
+    black: pickDraft960Offer(seed ^ 0x5f3759df),
+  };
+  return {
+    offer: offers.white,
+    offers,
+  };
+}
+
+function engineDraftSelectionEvent(
+  roomCreated: Extract<GameEvent, { type: 'room-created' }>,
+  roomId: string,
+  at: number,
+): Extract<GameEvent, { type: 'draft-start-selected' }> | null {
+  const offer = roomCreated.offers?.black ?? roomCreated.offer;
+  if (offer.length === 0) return null;
+  const start = offer[Math.abs(roomIdToSeed(`${roomId}:black-draft`)) % offer.length];
+  if (!start) return null;
+  return {
+    type: 'draft-start-selected',
+    at,
+    roomId,
+    color: 'black',
+    startId: start.id,
+  };
+}
+
+function offerForColor(projection: GameProjection, color: Color): Chess960Start[] {
+  return projection.offers[color] ?? projection.offer;
 }
 
 function roomIdToSeed(roomId: string): number {

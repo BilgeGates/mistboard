@@ -428,14 +428,70 @@ test('Fog of War castling ignores attacked transit and destination squares', () 
 
   const moves = fogOfWarVariant.getLegalMoves(state, 'white');
   assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'h1'));
-  assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'g1'));
+  assert.equal(moves.some((move) => move.from === 'e1' && move.to === 'g1'), false);
 
   const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'g1' });
   assert.equal(next.board.e1, undefined);
   assert.equal(next.board.h1, undefined);
   assert.deepEqual(next.board.g1, { color: 'white', role: 'king' });
   assert.deepEqual(next.board.f1, { color: 'white', role: 'rook' });
-  assert.deepEqual(next.lastMove, { from: 'e1', to: 'g1' });
+  assert.deepEqual(next.lastMove, { from: 'e1', to: 'h1' });
+});
+
+test('Fog of War castling supports Chess960-shaped king and rook starts', () => {
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-chess960-castle'),
+    board: {
+      b1: { color: 'white', role: 'king' },
+      c1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+    },
+    status: { type: 'playing', turn: 'white' } as const,
+    castlingRights: ['c1'],
+  };
+
+  const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+  assert.ok(moves.some((move) => move.from === 'b1' && move.to === 'c1'));
+  assert.equal(moves.some((move) => move.from === 'b1' && move.to === 'g1'), false);
+
+  const next = fogOfWarVariant.applyMove(state, { from: 'b1', to: 'g1' });
+  assert.equal(next.board.b1, undefined);
+  assert.equal(next.board.c1, undefined);
+  assert.deepEqual(next.board.g1, { color: 'white', role: 'king' });
+  assert.deepEqual(next.board.f1, { color: 'white', role: 'rook' });
+  assert.deepEqual(next.lastMove, { from: 'b1', to: 'c1' });
+});
+
+test('Fog of War castling rejects occupied Chess960 final squares', () => {
+  const kingDestinationBlocked: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-chess960-castle-king-blocked'),
+    board: {
+      b1: { color: 'white', role: 'king' },
+      c1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+      g1: { color: 'white', role: 'knight' },
+    },
+    status: { type: 'playing', turn: 'white' } as const,
+    castlingRights: ['c1'],
+  };
+  const rookDestinationBlocked: GameState = {
+    ...kingDestinationBlocked,
+    id: 'fog-chess960-castle-rook-blocked',
+    board: {
+      b1: { color: 'white', role: 'king' },
+      c1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+      f1: { color: 'white', role: 'knight' },
+    },
+  };
+
+  for (const state of [kingDestinationBlocked, rookDestinationBlocked]) {
+    const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+    assert.equal(moves.some((move) => move.from === 'b1' && move.to === 'c1'), false);
+    assert.equal(moves.some((move) => move.from === 'b1' && move.to === 'g1'), false);
+    assert.equal(fogOfWarVariant.applyMove(state, { from: 'b1', to: 'g1' }), state);
+  }
+  assert.equal(fogOfWarVariant.getPlayerView(rookDestinationBlocked, 'white').visibleSquares.includes('g1'), false);
 });
 
 test('Fog of War applies en passant captures', () => {

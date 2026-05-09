@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  chess960RookSquares,
   createChess960CastlingRights,
+  createChess960CastlingRightsForSides,
   createChess960InitialBoard,
+  createChess960InitialBoardForSides,
   generateChess960Starts,
   pickDraft960Offer,
 } from './chess960.js';
@@ -57,4 +60,36 @@ test('creates castling rights from Chess960 rook files', () => {
   const start = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'bbqnnrkr');
   assert.ok(start);
   assert.deepEqual(createChess960CastlingRights(start), ['f1', 'f8', 'h1', 'h8']);
+});
+
+test('creates an initial board from independent per-side Chess960 starts', () => {
+  const whiteStart = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'bbqnnrkr');
+  const blackStart = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'qbbnnrkr');
+  assert.ok(whiteStart);
+  assert.ok(blackStart);
+
+  const board = createChess960InitialBoardForSides(whiteStart, blackStart);
+
+  assert.equal(Object.keys(board).length, 32);
+  assert.deepEqual(
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => board[`${file}1` as keyof typeof board]?.role),
+    whiteStart.backRank,
+  );
+  assert.deepEqual(
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => board[`${file}8` as keyof typeof board]?.role),
+    blackStart.backRank,
+  );
+  assert.equal(board.a2?.role, 'pawn');
+  assert.equal(board.h7?.role, 'pawn');
+});
+
+test('creates castling rights from independent per-side Chess960 starts', () => {
+  const whiteStart = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'bbqnnrkr');
+  const blackStart = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'qbbnnrkr');
+  assert.ok(whiteStart);
+  assert.ok(blackStart);
+
+  assert.deepEqual(chess960RookSquares(whiteStart, 'white'), ['f1', 'h1']);
+  assert.deepEqual(chess960RookSquares(blackStart, 'black'), ['f8', 'h8']);
+  assert.deepEqual(createChess960CastlingRightsForSides(whiteStart, blackStart), ['f1', 'h1', 'f8', 'h8']);
 });

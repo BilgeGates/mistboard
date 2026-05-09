@@ -25,6 +25,8 @@ type Seat = Color | 'spectator';
 type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'displaced' | 'rejected';
 type PlayAgainStatus = 'creating' | 'failed' | 'idle';
+type DraftOffers = Partial<Record<Color, Chess960Start[]>>;
+type DraftResolvedStartIds = Partial<Record<Color, number>>;
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
 type PendingPromotion = {
   color: Color;
@@ -76,9 +78,13 @@ type ServerMessage =
     seatToken?: string;
     solo: boolean;
     offer: Chess960Start[];
+    offers?: DraftOffers;
+    selections: Partial<Record<Color, number>>;
     bids: Partial<Record<Color, number>>;
     bidResolution: BidResolution | null;
     devViews: DevViews | null;
+    resolvedStartId: number | null;
+    resolvedStartIds?: DraftResolvedStartIds;
     events: GameEvent[];
     state: PlayerView;
   }
@@ -92,11 +98,14 @@ type ServerMessage =
     seat: Seat;
     solo: boolean;
     seats: Partial<Record<Color, string>>;
+    offer: Chess960Start[];
+    offers?: DraftOffers;
     selections: Partial<Record<Color, number>>;
     bids: Partial<Record<Color, number>>;
     bidResolution: BidResolution | null;
     devViews: DevViews | null;
     resolvedStartId: number | null;
+    resolvedStartIds?: DraftResolvedStartIds;
     events: GameEvent[];
     state: PlayerView;
   }
@@ -139,6 +148,7 @@ let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 let reconnectAttempt = 0;
 let offer: Chess960Start[] = [];
+let offers: DraftOffers = {};
 let clientId = '';
 let clientCount = 0;
 let connectionState: ConnectionState = 'connecting';
@@ -155,6 +165,7 @@ let bids: Partial<Record<Color, number>> = {};
 let bidResolution: BidResolution | null = null;
 let devViews: DevViews | null = null;
 let resolvedStartId: number | null = null;
+let resolvedStartIds: DraftResolvedStartIds = {};
 let state: PlayerView | null = null;
 let events: GameEvent[] = [];
 let replayIndex: number | null = null;
@@ -250,9 +261,13 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     seat = message.seat;
     solo = message.solo;
     offer = message.offer;
+    offers = normalizedOffers(message.offer, message.offers);
+    selections = message.selections;
     bids = message.bids;
     bidResolution = message.bidResolution;
     devViews = message.devViews;
+    resolvedStartId = message.resolvedStartId;
+    resolvedStartIds = message.resolvedStartIds ?? {};
     events = message.events;
     state = message.state;
   }
@@ -264,11 +279,14 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
+    offer = message.offer;
+    offers = normalizedOffers(message.offer, message.offers);
     selections = message.selections;
     bids = message.bids;
     bidResolution = message.bidResolution;
     devViews = message.devViews;
     resolvedStartId = message.resolvedStartId;
+    resolvedStartIds = message.resolvedStartIds ?? {};
     events = message.events;
     state = message.state;
   }
@@ -449,12 +467,13 @@ function render(): void {
   const projection = currentProjection();
   const nextOrientation = view?.perspective ?? (seat === 'black' ? 'black' : 'white');
   orientation = nextOrientation;
+  const showDraft = shouldShowDraftControls(view, projection);
 
   refs.roomMeta.innerHTML = roomMetaHtml();
   refs.boardStatus.textContent = boardStatusLabel();
   refs.boardStatus.hidden = view !== null;
-  refs.offerSection.hidden = view?.variant !== 'draft960';
-  refs.selectionSection.hidden = view?.variant !== 'draft960';
+  refs.offerSection.hidden = !showDraft;
+  refs.selectionSection.hidden = !showDraft;
   refs.bidSection.hidden = view?.variant !== 'bid-for-white';
 
   renderActionStatus(view);
@@ -476,16 +495,37 @@ function renderOffer(projection: GameProjection | null): void {
   refs.starts.replaceChildren();
   const view = currentView();
 
-  for (const start of offer) {
+  if (solo) {
+    refs.starts.append(
+      draftOfferGroup('White offer', 'white', draftOfferForColor('white', projection), projection),
+      draftOfferGroup('Black offer', 'black', draftOfferForColor('black', projection), projection),
+    );
+    return;
+  }
+
+  if (seat === 'spectator') {
+    refs.starts.append(infoNotice('pending', 'Draft choices are private while the game is live.'));
+    return;
+  }
+
+  const color = pickColorForSeat();
+  const visibleOffer = draftOfferForColor(color, projection);
+  if (visibleOffer.length === 0) {
+    refs.starts.append(infoNotice('pending', 'Waiting for the draft offer.'));
+    return;
+  }
+
+  for (const start of visibleOffer) {
     const row = document.createElement('div');
     row.className = 'start-row';
 
     const button = document.createElement('button');
-    const selected = projection?.selections[pickColorForSeat()] === start.id;
-    const resolved = projection?.resolvedStartId === start.id;
+    const selected = selectedStartId(color, projection) === start.id;
+    const resolved = resolvedStartIdForColor(color, projection) === start.id
+      || sharedResolvedStartId(projection) === start.id;
     button.type = 'button';
     button.className = ['start-card', selected ? 'selected' : '', resolved ? 'resolved' : ''].filter(Boolean).join(' ');
-    button.disabled = !isLive() || view?.status.type !== 'pregame' || seat === 'spectator';
+    button.disabled = !isLive() || view?.status.type !== 'pregame';
     button.dataset.start = String(start.id);
     button.addEventListener('click', () => {
       sendSocket({ type: 'select-start', startId: start.id });
@@ -498,37 +538,78 @@ function renderOffer(projection: GameProjection | null): void {
     button.append(id, placement);
     row.append(button);
 
-    if (solo) {
-      const soloActions = document.createElement('div');
-      soloActions.className = 'solo-picks';
-      soloActions.append(
-        soloPickButton('White', 'white', start.id, projection),
-        soloPickButton('Black', 'black', start.id, projection),
-      );
-      row.append(soloActions);
-    }
-
     refs.starts.append(row);
   }
 }
 
-function soloPickButton(label: string, color: Color, startId: number, projection: GameProjection | null): HTMLButtonElement {
+function draftOfferGroup(
+  label: string,
+  color: Color,
+  starts: Chess960Start[],
+  projection: GameProjection | null,
+): HTMLDivElement {
+  const group = document.createElement('div');
+  group.className = 'start-group';
+
+  const heading = document.createElement('h3');
+  heading.textContent = label;
+  group.append(heading);
+
+  if (starts.length === 0) {
+    group.append(infoNotice('pending', 'No offer visible.'));
+    return group;
+  }
+
+  for (const start of starts) {
+    const button = draftPickButton(color, start, projection);
+    group.append(button);
+  }
+
+  return group;
+}
+
+function draftPickButton(color: Color, start: Chess960Start, projection: GameProjection | null): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.textContent = label;
-  button.className = projection?.selections[color] === startId ? 'selected' : '';
+  button.className = [
+    'start-card',
+    selectedStartId(color, projection) === start.id ? 'selected' : '',
+    resolvedStartIdForColor(color, projection) === start.id || sharedResolvedStartId(projection) === start.id ? 'resolved' : '',
+  ].filter(Boolean).join(' ');
   button.disabled = !isLive() || currentView()?.status.type !== 'pregame';
+  const id = document.createElement('strong');
+  id.textContent = `#${start.id}`;
+  const placement = document.createElement('span');
+  placement.textContent = start.fenPlacement.toUpperCase();
+  button.append(id, placement);
   button.addEventListener('click', () => {
-    sendSocket({ type: 'select-start', color, startId });
+    sendSocket({ type: 'select-start', color, startId: start.id });
   });
   return button;
 }
 
 function renderSelections(projection: GameProjection | null): void {
+  const view = currentView();
+  if (!solo && seat !== 'spectator' && view?.variant === 'fog-of-war' && hasVisibleDraftData(projection)) {
+    const color = pickColorForSeat();
+    refs.selectionList.replaceChildren(
+      selectionItem('Your pick', selectedStartId(color, projection)),
+      selectionItem('Your start', resolvedStartIdForColor(color, projection)),
+    );
+    return;
+  }
+
+  const resolvedWhite = resolvedStartIdForColor('white', projection);
+  const resolvedBlack = resolvedStartIdForColor('black', projection);
   refs.selectionList.replaceChildren(
-    selectionItem('White', projection?.selections.white),
-    selectionItem('Black', projection?.selections.black),
-    selectionItem('Resolved', projection?.resolvedStartId),
+    selectionItem('White', selectedStartId('white', projection)),
+    selectionItem('Black', selectedStartId('black', projection)),
+    resolvedWhite !== undefined || resolvedBlack !== undefined
+      ? selectionItem('Resolved White', resolvedWhite)
+      : selectionItem('Resolved', sharedResolvedStartId(projection)),
+    resolvedWhite !== undefined || resolvedBlack !== undefined
+      ? selectionItem('Resolved Black', resolvedBlack)
+      : document.createDocumentFragment(),
   );
 }
 
@@ -633,6 +714,7 @@ async function createPlayAgainRoom(): Promise<void> {
       body: JSON.stringify({
         mode: roomMode,
         variant: currentView()?.variant ?? state?.variant ?? variantRequested ?? 'fog-of-war',
+        hiddenDraft960: shouldRequestHiddenDraft960ForPlayAgain(),
         ...(roomMode === 'pve' && pveEngineId ? { engineId: pveEngineId } : {}),
       }),
     });
@@ -1423,6 +1505,56 @@ function isColor(value: unknown): value is Color {
 
 function selectionLabel(startId: number | null | undefined): string {
   return startId === null || startId === undefined ? 'none' : `#${startId}`;
+}
+
+function shouldRequestHiddenDraft960ForPlayAgain(): boolean {
+  const variant = currentView()?.variant ?? state?.variant ?? variantRequested;
+  return variant === 'fog-of-war' && hasVisibleDraftData(currentProjection());
+}
+
+function normalizedOffers(primaryOffer: Chess960Start[], nextOffers: DraftOffers | undefined): DraftOffers {
+  if (nextOffers?.white || nextOffers?.black) return nextOffers;
+  if (primaryOffer.length === 0) return {};
+  return { white: primaryOffer, black: primaryOffer };
+}
+
+function draftOfferForColor(color: Color, projection: GameProjection | null): Chess960Start[] {
+  return projection?.offers[color]
+    ?? offers[color]
+    ?? (projection?.offer.length ? projection.offer : offer);
+}
+
+function selectedStartId(color: Color, projection: GameProjection | null): number | undefined {
+  return projection?.selections[color] ?? selections[color];
+}
+
+function sharedResolvedStartId(projection: GameProjection | null): number | null {
+  return projection?.resolvedStartId ?? resolvedStartId;
+}
+
+function resolvedStartIdForColor(color: Color, projection: GameProjection | null): number | undefined {
+  return projection?.resolvedStartIds[color] ?? resolvedStartIds[color];
+}
+
+function shouldShowDraftControls(view: PlayerView | null, projection: GameProjection | null): boolean {
+  if (view?.variant === 'draft960') return true;
+  return hasVisibleDraftData(projection);
+}
+
+function hasVisibleDraftData(projection: GameProjection | null): boolean {
+  if (solo) {
+    return draftOfferForColor('white', projection).length > 0
+      || draftOfferForColor('black', projection).length > 0
+      || selectedStartId('white', projection) !== undefined
+      || selectedStartId('black', projection) !== undefined
+      || resolvedStartIdForColor('white', projection) !== undefined
+      || resolvedStartIdForColor('black', projection) !== undefined
+      || sharedResolvedStartId(projection) !== null;
+  }
+  if (seat === 'spectator') return offer.length > 0 || Object.keys(offers).length > 0;
+  return draftOfferForColor(pickColorForSeat(), projection).length > 0
+    || selectedStartId(pickColorForSeat(), projection) !== undefined
+    || resolvedStartIdForColor(pickColorForSeat(), projection) !== undefined;
 }
 
 function roomMetaHtml(): string {

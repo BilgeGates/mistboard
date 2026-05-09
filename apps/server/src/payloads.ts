@@ -49,17 +49,26 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     seat: client.seat,
     solo: client.solo,
     seats: room.projection.seats,
-    selections: room.projection.selections,
+    offer: offerForClient(room.projection, client),
+    offers: offersForClient(room.projection, client),
+    selections: selectionsForClient(room.projection, client),
     bids: bidsForClient(room, client),
     bidResolution: bidResolutionForClient(room),
     devViews: devViewsForClient(room, client),
-    resolvedStartId: room.projection.resolvedStartId,
-    events: eventsForClient(normalizedRoom),
+    resolvedStartId: resolvedStartIdForClient(room.projection, client),
+    resolvedStartIds: resolvedStartIdsForClient(room.projection, client),
+    events: eventsForClient(normalizedRoom, client),
     state: getClientView(normalizedRoom, client),
   };
 }
 
-export function eventsForClient(room: SnapshotRoom): GameEvent[] {
+export function eventsForClient(room: SnapshotRoom, client: SnapshotClient): GameEvent[] {
+  const events = eventsVisibleByMode(room);
+  if (!shouldRedactHiddenDraft(room.projection, client)) return events;
+  return events.flatMap((event) => redactHiddenDraftEvent(event, room.projection, client));
+}
+
+function eventsVisibleByMode(room: SnapshotRoom): GameEvent[] {
   if (room.projection.variant === 'bid-for-white' && room.projection.state.status.type === 'pregame') {
     return room.events.filter((event) => event.type !== 'bid-submitted' && event.type !== 'bid-resolved');
   }
@@ -79,6 +88,70 @@ function bidResolutionForClient(room: SnapshotRoom): BidResolution | null {
   if (room.projection.variant !== 'bid-for-white') return null;
   if (room.projection.state.status.type === 'pregame') return null;
   return room.projection.bidResolution;
+}
+
+function offerForClient(projection: GameProjection, client: SnapshotClient) {
+  if (!shouldRedactHiddenDraft(projection, client)) return projection.offer;
+  if (client.seat === 'spectator') return [];
+  return offerForColor(projection, client.seat);
+}
+
+function offersForClient(projection: GameProjection, client: SnapshotClient): Partial<Record<Color, GameProjection['offer']>> {
+  if (!shouldRedactHiddenDraft(projection, client)) return projection.offers;
+  if (client.seat === 'spectator') return {};
+  return { [client.seat]: offerForColor(projection, client.seat) };
+}
+
+function selectionsForClient(projection: GameProjection, client: SnapshotClient): Partial<Record<Color, number>> {
+  if (!shouldRedactHiddenDraft(projection, client)) return projection.selections;
+  if (client.seat === 'spectator') return {};
+  const selected = projection.selections[client.seat];
+  return selected === undefined ? {} : { [client.seat]: selected };
+}
+
+function resolvedStartIdForClient(projection: GameProjection, client: SnapshotClient): number | null {
+  if (!shouldRedactHiddenDraft(projection, client)) return projection.resolvedStartId;
+  return null;
+}
+
+function resolvedStartIdsForClient(projection: GameProjection, client: SnapshotClient): Partial<Record<Color, number>> {
+  if (!shouldRedactHiddenDraft(projection, client)) return projection.resolvedStartIds;
+  if (client.seat === 'spectator') return {};
+  const resolved = projection.resolvedStartIds[client.seat];
+  return resolved === undefined ? {} : { [client.seat]: resolved };
+}
+
+function redactHiddenDraftEvent(
+  event: GameEvent,
+  projection: GameProjection,
+  client: SnapshotClient,
+): GameEvent[] {
+  if (event.type === 'room-created') {
+    const ownOffer = offerForClient(projection, client);
+    return [{
+      ...event,
+      offer: ownOffer,
+      offers: client.seat === 'spectator' ? {} : { [client.seat]: ownOffer },
+    }];
+  }
+  if (event.type === 'draft-start-selected') {
+    return event.color === client.seat ? [event] : [];
+  }
+  if (event.type === 'draft-start-resolved') return [];
+  return [event];
+}
+
+function shouldRedactHiddenDraft(projection: GameProjection, client: SnapshotClient): boolean {
+  if (client.solo) return false;
+  if (projection.variant !== 'fog-of-war') return false;
+  if (projection.state.status.type === 'finished') return false;
+  return projection.offer.length > 0
+    || !!projection.offers.white?.length
+    || !!projection.offers.black?.length;
+}
+
+function offerForColor(projection: GameProjection, color: Color): GameProjection['offer'] {
+  return projection.offers[color] ?? projection.offer;
 }
 
 function devViewsForClient(room: SnapshotRoom, client: SnapshotClient) {

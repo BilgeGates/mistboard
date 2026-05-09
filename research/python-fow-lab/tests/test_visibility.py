@@ -67,3 +67,17 @@ def test_visibility_independent_of_whose_turn_it_is() -> None:
     assert chess.E4 in white_after_e4
     assert chess.E4 in white_after_black_move
 
+
+def test_chess960_castling_visibility_rejects_occupied_final_rook_square() -> None:
+    board = chess.Board.empty(chess960=True)
+    board.set_piece_at(chess.B1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.C1, chess.Piece(chess.ROOK, chess.WHITE))
+    board.set_piece_at(chess.F1, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.turn = chess.WHITE
+    board.castling_rights = chess.BB_C1
+
+    visible = visible_squares(board, chess.WHITE)
+
+    assert chess.G1 not in visible
+    assert not any(board.is_castling(move) for move in board.pseudo_legal_moves)

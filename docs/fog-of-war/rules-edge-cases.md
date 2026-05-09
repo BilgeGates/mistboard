@@ -107,7 +107,8 @@ Current contract:
 - Castling is legal through, into, or out of attacked squares.
 - Castling still requires normal occupancy and castling-rights conditions.
 - The king-to-rook-square representation is canonical for fog castling
-  detection, with aliases accepted for UI compatibility.
+  legal moves, event logs, and detection, with king-to-destination aliases
+  accepted as input for UI compatibility.
 
 Implementation risk: castling can diverge across TypeScript game rules, Python
 engine lab code, replay logs, and UI move input. Visibility may include the rook
@@ -196,4 +197,3 @@ When changing rules, payloads, replay, engine harnesses, or board UI, ask:
 3. Does this keep TypeScript product rules and Python research rules aligned, or
    intentionally document the difference?
 4. Does this edge case have a regression test or a QA checklist item?
-

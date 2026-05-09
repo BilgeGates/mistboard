@@ -38,6 +38,11 @@ type PlayableEngine = {
 };
 
 type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
+type LandingPlayChoice = {
+  engineId?: string;
+  mode: 'pvp' | 'pve';
+  title: string;
+};
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
@@ -54,8 +59,8 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       return fallbackPlayableEngines();
     }),
   ]);
-  const stage = buildLandingStage(source, engines);
-  root.replaceChildren(buildNav(), stage.el, buildFooter());
+  const stage = buildLandingStage(engines);
+  root.replaceChildren(buildNav(), stage.el);
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
     renderRecentGames(stage.listRoot, games, source, undefined, '/game/', 'Now showing', false, 4);
@@ -561,53 +566,11 @@ function buildLoadingState(label: string): HTMLElement {
   return section;
 }
 
-function buildLandingStage(source: LandingGameSource, engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
+function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
-  const hero = document.createElement('section');
-  hero.className = 'landing-hero';
-
-  const title = document.createElement('h1');
-  title.className = 'landing-title';
-  title.textContent = 'Bichess';
-
-  const subtitle = document.createElement('p');
-  subtitle.className = 'landing-subtitle';
-  subtitle.textContent =
-    'Server-enforced Fog of War chess. You only see what your pieces can see.';
-
-  const tag = document.createElement('p');
-  tag.className = 'landing-tag';
-  tag.textContent = source === 'recent'
-    ? "Now showing recent public Fog games with each side's private view."
-    : source === 'eve'
-      ? "Now showing recent engine games with each side's private view."
-    : 'Watch what each side saw, then reveal what was really there.';
-
   const playPanel = buildLandingPlayPanel(engines);
-
-  const ctas = document.createElement('div');
-  ctas.className = 'landing-ctas';
-
-  const watchLink = document.createElement('a');
-  watchLink.href = '/watch';
-  watchLink.className = 'landing-cta-secondary';
-  watchLink.textContent = 'Watch Replays';
-  ctas.append(watchLink);
-  const learnLink = document.createElement('a');
-  learnLink.href = '/learn';
-  learnLink.className = 'landing-cta-secondary';
-  learnLink.textContent = 'How It Works';
-  ctas.append(learnLink);
-  if (SHOW_ENGINE_LAB_LINKS) {
-    const labLink = document.createElement('a');
-    labLink.href = '/engine-lab';
-    labLink.className = 'landing-cta-secondary';
-    labLink.textContent = 'Open Engine Lab';
-    ctas.append(labLink);
-  }
-  hero.append(title, subtitle, tag, playPanel, ctas);
 
   const section = document.createElement('section');
   section.className = 'landing-demo';
@@ -617,44 +580,133 @@ function buildLandingStage(source: LandingGameSource, engines: PlayableEngine[])
 
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
-  section.append(replayRoot, listRoot);
+  section.append(playPanel, replayRoot, listRoot);
 
-  stage.append(hero, section);
+  stage.append(section);
   return { el: stage, replayRoot, listRoot };
 }
 
 function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
-  const panel = document.createElement('div');
+  const panel = document.createElement('aside');
   panel.className = 'landing-play-panel';
+  panel.setAttribute('aria-label', 'Start playing');
 
-  const engineSelect = document.createElement('select');
-  engineSelect.className = 'play-engine-select landing-engine-select';
-  engineSelect.setAttribute('aria-label', 'Engine');
-  for (const engine of engines.length > 0 ? engines : fallbackPlayableEngines()) {
-    const option = document.createElement('option');
-    option.value = engine.id;
-    option.textContent = engine.name;
-    engineSelect.append(option);
-  }
+  const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
+  const defaultEngineId = availableEngines[0]?.id;
+  const lobbyButton = landingPlayAction('Create lobby game', 'lobby');
+  const challengeButton = landingPlayAction('Challenge a friend', 'friend');
+  const engineButton = landingPlayAction('Play against computer', 'computer');
+  const setupPanel = landingSetupPanel();
 
-  const engineButton = document.createElement('button');
-  engineButton.type = 'button';
-  engineButton.className = 'landing-cta-primary landing-play-action';
-  engineButton.textContent = 'Play engine';
-  engineButton.addEventListener('click', () => {
-    void createRoomFromPlay(engineButton, 'pve', engineSelect.value);
+  lobbyButton.addEventListener('click', () => {
+    openLandingSetup(setupPanel, {
+      mode: 'pvp',
+      title: 'Create lobby game',
+    });
   });
-
-  const challengeButton = document.createElement('button');
-  challengeButton.type = 'button';
-  challengeButton.className = 'landing-cta-secondary landing-play-action';
-  challengeButton.textContent = 'Challenge friend';
   challengeButton.addEventListener('click', () => {
-    void createRoomFromPlay(challengeButton, 'pvp');
+    openLandingSetup(setupPanel, {
+      mode: 'pvp',
+      title: 'Challenge a friend',
+    });
+  });
+  engineButton.addEventListener('click', () => {
+    openLandingSetup(setupPanel, {
+      engineId: defaultEngineId,
+      mode: 'pve',
+      title: 'Play against computer',
+    });
   });
 
-  panel.append(engineSelect, engineButton, challengeButton);
+  panel.append(lobbyButton, challengeButton, engineButton, setupPanel);
   return panel;
+}
+
+function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby'): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `landing-play-action landing-play-action-${icon}`;
+  const iconEl = document.createElement('span');
+  iconEl.className = 'landing-play-icon';
+  iconEl.setAttribute('aria-hidden', 'true');
+  const labelEl = document.createElement('span');
+  labelEl.className = 'landing-play-action-label';
+  labelEl.textContent = label;
+  button.append(iconEl, labelEl);
+  return button;
+}
+
+function landingSetupPanel(): HTMLDivElement {
+  const panel = document.createElement('div');
+  panel.className = 'landing-setup-panel';
+  panel.hidden = true;
+  return panel;
+}
+
+function openLandingSetup(panel: HTMLDivElement, choice: LandingPlayChoice): void {
+  let selected: 'standard' | 'draft960' = 'draft960';
+  panel.hidden = false;
+  panel.replaceChildren();
+
+  const heading = document.createElement('strong');
+  heading.className = 'landing-setup-title';
+  heading.textContent = choice.title;
+
+  const optionGroup = document.createElement('div');
+  optionGroup.className = 'landing-start-options';
+  optionGroup.setAttribute('role', 'radiogroup');
+  optionGroup.setAttribute('aria-label', 'Start format');
+
+  const standardButton = startOptionButton('Standard', false);
+  const draftButton = startOptionButton('Draft960', true);
+  const syncOptions = () => {
+    standardButton.classList.toggle('selected', selected === 'standard');
+    standardButton.setAttribute('aria-checked', selected === 'standard' ? 'true' : 'false');
+    draftButton.classList.toggle('selected', selected === 'draft960');
+    draftButton.setAttribute('aria-checked', selected === 'draft960' ? 'true' : 'false');
+  };
+  standardButton.addEventListener('click', () => {
+    selected = 'standard';
+    syncOptions();
+  });
+  draftButton.addEventListener('click', () => {
+    selected = 'draft960';
+    syncOptions();
+  });
+  optionGroup.append(standardButton, draftButton);
+
+  const actions = document.createElement('div');
+  actions.className = 'landing-setup-actions';
+
+  const startButton = document.createElement('button');
+  startButton.type = 'button';
+  startButton.className = 'landing-setup-start';
+  startButton.textContent = 'Start';
+  startButton.addEventListener('click', () => {
+    void createRoomFromPlay(startButton, choice.mode, choice.engineId, selected === 'draft960');
+  });
+
+  const backButton = document.createElement('button');
+  backButton.type = 'button';
+  backButton.className = 'landing-setup-back';
+  backButton.textContent = 'Back';
+  backButton.addEventListener('click', () => {
+    panel.hidden = true;
+    panel.replaceChildren();
+  });
+
+  actions.append(startButton, backButton);
+  panel.append(heading, optionGroup, actions);
+}
+
+function startOptionButton(label: string, selected: boolean): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `landing-start-option${selected ? ' selected' : ''}`;
+  button.setAttribute('role', 'radio');
+  button.setAttribute('aria-checked', selected ? 'true' : 'false');
+  button.textContent = label;
+  return button;
 }
 
 function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
@@ -728,7 +780,12 @@ function renderRecentGames(
 
     const meta = document.createElement('span');
     meta.className = 'landing-game-meta';
-    meta.textContent = `${sourceLabel(game.mode)} · ${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+    const result = document.createElement('span');
+    result.className = 'landing-game-result';
+    result.textContent = resultLabel(game.result);
+    const detail = document.createElement('span');
+    detail.textContent = `${sourceLabel(game.mode)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+    meta.append(result, detail);
 
     row.append(matchup, meta);
     item.append(row);
@@ -785,10 +842,17 @@ function buildAbout(): HTMLElement {
   return section;
 }
 
-async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve', engineId?: string): Promise<void> {
-  const originalText = button.textContent ?? '';
+async function createRoomFromPlay(
+  button: HTMLButtonElement,
+  mode: 'pvp' | 'pve',
+  engineId?: string,
+  hiddenDraft960 = false,
+): Promise<void> {
+  const label = button.querySelector<HTMLElement>('.landing-play-action-label');
+  const originalText = label?.textContent ?? button.textContent ?? '';
   button.disabled = true;
-  button.textContent = 'Creating';
+  button.setAttribute('aria-busy', 'true');
+  setButtonLabel(button, 'Creating');
   try {
     const response = await fetch('/api/rooms', {
       method: 'POST',
@@ -796,6 +860,7 @@ async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve'
       body: JSON.stringify({
         mode,
         variant: 'fog-of-war',
+        hiddenDraft960,
         ...(mode === 'pve' && engineId ? { engineId } : {}),
       }),
     });
@@ -805,12 +870,22 @@ async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve'
     window.location.href = data.url;
   } catch (err) {
     console.warn(err);
-    button.textContent = 'Try again';
+    setButtonLabel(button, 'Try again');
     button.disabled = false;
+    button.removeAttribute('aria-busy');
     window.setTimeout(() => {
       if (button.disabled) return;
-      button.textContent = originalText;
+      setButtonLabel(button, originalText);
     }, 1800);
+  }
+}
+
+function setButtonLabel(button: HTMLButtonElement, text: string): void {
+  const label = button.querySelector<HTMLElement>('.landing-play-action-label');
+  if (label) {
+    label.textContent = text;
+  } else {
+    button.textContent = text;
   }
 }
 
