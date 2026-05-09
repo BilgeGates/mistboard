@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.36"
+TIER1_VERSION = "0.8.0"
 
 
 def tier1_commit() -> str:
@@ -308,6 +308,55 @@ def _prefer_lower_value_attacker(
         return moves
     min_value = min(v for _, v in valued)
     return [m for m, v in valued if v == min_value]
+
+
+def _prefer_lower_value_same_target_capture(
+    chosen: chess.Move,
+    moves: list[chess.Move],
+    view: PerspectiveView,
+) -> chess.Move:
+    """Replace a chosen visible capture with a cheaper attacker to the same square.
+
+    This is deliberately narrower than a capture short-circuit: it does not
+    force the engine to capture. It only says that once search/eval picked a
+    capture on a visible target, and another non-king own piece can take that
+    same target, spend the least valuable attacker first.
+    """
+    own = view.perspective
+    target = view.visible_piece_map.get(chosen.to_square)
+    chosen_attacker = view.visible_piece_map.get(chosen.from_square)
+    if (
+        target is None
+        or target.color == own
+        or chosen_attacker is None
+        or chosen_attacker.color != own
+        or chosen_attacker.piece_type == chess.KING
+    ):
+        return chosen
+
+    candidates: list[tuple[chess.Move, int]] = []
+    for move in moves:
+        if move.to_square != chosen.to_square:
+            continue
+        attacker = view.visible_piece_map.get(move.from_square)
+        if (
+            attacker is None
+            or attacker.color != own
+            or attacker.piece_type == chess.KING
+        ):
+            continue
+        candidates.append((move, _MATERIAL_VALUE.get(attacker.piece_type, 0)))
+    if not candidates:
+        return chosen
+
+    min_value = min(value for _, value in candidates)
+    chosen_value = _MATERIAL_VALUE.get(chosen_attacker.piece_type, 0)
+    if min_value >= chosen_value:
+        return chosen
+    cheapest = [move for move, value in candidates if value == min_value]
+    # Stable choice keeps replay deterministic and avoids consuming RNG outside
+    # the main engine selector.
+    return sorted(cheapest, key=lambda move: move.uci())[0]
 
 
 def _queen_save_moves(view: PerspectiveView) -> list[chess.Move]:
@@ -2532,8 +2581,13 @@ class Tier1Strategy:
         # Top 5 moves by aggregated score; only surface what the trace actually needs.
         scored.sort(key=lambda r: -r[1])
         top_k = [(m.uci(), s, support) for m, s, support in scored[:5]]
+        lva_chosen = _prefer_lower_value_same_target_capture(chosen, legal_moves, view)
+        decision_path = "main-eval"
+        if lva_chosen != chosen and self._belief_supports_move(lva_chosen):
+            chosen = lva_chosen
+            decision_path = "main-eval-lva-capture"
         self._stage_pending_capture(chosen, view)
-        self._emit_trace("main-eval", particle_count_pre, chosen, top_k_scores=top_k)
+        self._emit_trace(decision_path, particle_count_pre, chosen, top_k_scores=top_k)
         return chosen
 
     def _fallback_pick_move(self, view: PerspectiveView) -> chess.Move:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import chess
 
+from fow_chess.belief import BeliefState
 from fow_chess.engine import static_builder
 from fow_chess.evaluator import material_evaluator
 from fow_chess.move_priors import uniform_prior
@@ -16,6 +17,7 @@ from fow_chess.strategies import (
     _king_shelter_moves,
     _prefer_higher_value_capture,
     _prefer_lower_value_attacker,
+    _prefer_lower_value_same_target_capture,
     _prefer_queen_promotion,
     _queen_save_moves,
     _queen_save_tiers,
@@ -101,6 +103,77 @@ def test_queen_capture_prefers_least_valuable_attacker() -> None:
     chosen = s.pick_move(view)
 
     assert chosen.uci() == "f3d4"
+
+
+def test_same_target_capture_helper_prefers_cheapest_attacker() -> None:
+    # White can capture a visible black pawn on d4 with either Qxd4 or Nxd4.
+    # If a selector already chose Qxd4, the helper should spend the knight
+    # first because d4 may be defended by fog-hidden material.
+    pieces = {
+        chess.E1: chess.Piece(chess.KING, chess.WHITE),
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+        chess.D1: chess.Piece(chess.QUEEN, chess.WHITE),
+        chess.F3: chess.Piece(chess.KNIGHT, chess.WHITE),
+        chess.D4: chess.Piece(chess.PAWN, chess.BLACK),
+    }
+    board = chess.Board.empty()
+    for sq, piece in pieces.items():
+        board.set_piece_at(sq, piece)
+    board.turn = chess.WHITE
+    view = _build_view(board, chess.WHITE, visible_pieces=pieces)
+
+    chosen = _prefer_lower_value_same_target_capture(
+        chess.Move.from_uci("d1d4"),
+        view.own_legal_moves,
+        view,
+    )
+
+    assert chosen.uci() == "f3d4"
+
+
+def test_main_eval_capture_spends_lower_value_attacker_on_same_target() -> None:
+    # Integration shape for the same blindspot: even when main-eval ranks Qxd4
+    # above Nxd4, Tier-1 rewrites the chosen visible capture to the cheaper
+    # same-target attacker.
+    pieces = {
+        chess.E1: chess.Piece(chess.KING, chess.WHITE),
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+        chess.D1: chess.Piece(chess.QUEEN, chess.WHITE),
+        chess.F3: chess.Piece(chess.KNIGHT, chess.WHITE),
+        chess.D4: chess.Piece(chess.PAWN, chess.BLACK),
+    }
+    board = chess.Board.empty()
+    for sq, piece in pieces.items():
+        board.set_piece_at(sq, piece)
+    board.turn = chess.WHITE
+
+    def queen_biased_evaluator(
+        _board: chess.Board, move: chess.Move, _perspective: chess.Color
+    ) -> float:
+        return 100.0 if move.uci() == "d1d4" else 0.0
+
+    strategy = Tier1Strategy(
+        evaluator_builder=static_builder(queen_biased_evaluator),
+        move_prior=uniform_prior,
+        target_n=1,
+        max_eval_particles=1,
+        seed=0,
+    )
+    strategy.reset(perspective=chess.WHITE)
+    strategy._observed_ply = 20
+    strategy._belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=1,
+        particles=[board.copy()],
+        weights=[1.0],
+    )
+
+    view = _build_view(board, chess.WHITE, visible_pieces=pieces)
+    chosen = strategy.pick_move(view)
+
+    assert chosen.uci() == "f3d4"
+    assert strategy.trace_log[-1]["decision_path"] == "main-eval-lva-capture"
 
 
 def test_king_capture_beats_queen_capture() -> None:
