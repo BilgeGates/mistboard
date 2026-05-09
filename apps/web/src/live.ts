@@ -115,6 +115,8 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const allSquares = ranks.flatMap((rank) => files.map((file) => `${file}${rank}` as Square));
 const promotionRoles: PromotionRole[] = ['queen', 'rook', 'bishop', 'knight'];
+const GITHUB_URL = 'https://github.com/brianhliou/bichess';
+const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('missing #app');
@@ -333,10 +335,11 @@ window.setInterval(() => {
 
 function createLayout(target: HTMLDivElement) {
   target.innerHTML = `
+    ${buildNavHtml()}
     <main class="shell${debugRequested ? ' debug-shell' : ''}">
       <section class="topbar">
         <div>
-          <h1>${debugRequested ? 'Fog Debug' : 'Bichess'}</h1>
+          ${debugRequested ? '<h1>Fog Debug</h1>' : ''}
           <p data-room-meta>Connecting</p>
         </div>
         <a data-new-room href="/">New room</a>
@@ -460,6 +463,25 @@ function createLayout(target: HTMLDivElement) {
     selectionList,
     starts,
   };
+}
+
+function buildNavHtml(): string {
+  return `
+    <nav class="site-nav" aria-label="Primary">
+      <a class="site-nav-brand" href="/">
+        <img class="site-nav-logo" src="/logo.svg" alt="" width="28" height="28">
+        <span>BICHESS</span>
+      </a>
+      <div class="site-nav-links">
+        ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/engine-lab">Engine Lab</a>' : ''}
+        <a class="site-nav-link" href="/watch">Watch</a>
+        <a class="site-nav-link" href="/learn">Learn</a>
+        <a class="site-nav-link" href="/about">About</a>
+        <a class="site-nav-link" href="/account">Account</a>
+        <a class="site-nav-link" href="${GITHUB_URL}" target="_blank" rel="noreferrer noopener">GitHub</a>
+      </div>
+    </nav>
+  `;
 }
 
 function render(): void {
@@ -1592,7 +1614,9 @@ function shareRoomUrl(): string {
 }
 
 function roomIdFromPath(pathname: string): string | null {
-  const match = pathname.replace(/\/+$/, '').match(/^\/room\/([^/]+)$/);
+  const normalized = pathname.replace(/\/+$/, '');
+  if (normalized === '/room') return 'dev-room';
+  const match = normalized.match(/^\/room\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
