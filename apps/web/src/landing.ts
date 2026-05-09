@@ -343,8 +343,8 @@ function staticSampleGames(): FeaturedGame[] {
 
 function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
-    whiteName: participantForColor(game, 'white')?.displayName ?? game.whiteEngineId ?? game.whiteName,
-    blackName: participantForColor(game, 'black')?.displayName ?? game.blackEngineId ?? game.blackName,
+    whiteName: displayParticipantName(game, 'white'),
+    blackName: displayParticipantName(game, 'black'),
     result: game.result,
     timeControl: game.timeControl,
     termination: game.termination,
@@ -387,7 +387,7 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
 
 function displayParticipantName(game: FeaturedGame, color: 'white' | 'black'): string {
   const participant = participantForColor(game, color);
-  if (participant) return displayParticipant(participant.displayName, color === 'white' ? 'White' : 'Black');
+  if (participant) return displayParticipant(participant.displayName, color === 'white' ? 'White' : 'Black', participant.subjectId);
   const fallback = color === 'white' ? 'White' : 'Black';
   const legacyName = color === 'white'
     ? game.whiteEngineId ?? game.whiteName
@@ -399,9 +399,11 @@ function participantForColor(game: FeaturedGame, color: 'white' | 'black'): Game
   return game.participants?.find((participant) => participant.color === color) ?? null;
 }
 
-function displayParticipant(name: string | null | undefined, fallback: string): string {
+function displayParticipant(name: string | null | undefined, fallback: string, subjectId?: string | null): string {
+  const detailed = engineDisplayName(subjectId ?? name);
+  if (detailed) return detailed;
   if (!name) return fallback;
-  return shortEngineName(name);
+  return name;
 }
 
 function sourceLabel(mode: FeaturedGame['mode']): string {
@@ -684,11 +686,16 @@ function renderRecentGames(
   root.append(list);
 }
 
-function shortEngineName(name: string | null | undefined): string {
-  if (!name) return 'engine';
-  return name
-    .replace(/^builtin-/, '')
-    .replace(/-/g, ' ');
+function engineDisplayName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const known: Record<string, string> = {
+    'builtin-capture-seeker': 'Capture Seeker v1',
+    'builtin-random-legal': 'Random Legal v1',
+    'python-random-legal': 'Random Legal Python v1',
+    'python-tier1-v0.7.0': 'Tier-1 v0.7.0',
+    'python-tier1-v0.7.22': 'Tier-1 v0.7.22',
+  };
+  return known[name] ?? null;
 }
 
 function resultLabel(result: string): string {

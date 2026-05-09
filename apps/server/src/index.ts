@@ -25,6 +25,7 @@ import {
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { GameSummary } from './persistence.js';
+import { engineVersionDisplayName } from './engine-registry.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 import {
   adminDebugTokenFromProtocolHeader,
@@ -76,6 +77,7 @@ type Room = {
   projection: GameProjection;
   seatTokens: Partial<Record<Color, SeatTokenState>>;
   clockTimer: ReturnType<typeof setTimeout> | null;
+  engineTimer: ReturnType<typeof setTimeout> | null;
   mode: persistence.GameMode;
   randomEngine: boolean;
   pendingWrites: Promise<void>;
@@ -91,6 +93,7 @@ const wsMessageWindowMs = parsePositiveInteger(process.env.BICHESS_WS_MESSAGE_WI
 const shutdownGraceMs = parsePositiveInteger(process.env.BICHESS_SHUTDOWN_GRACE_MS) ?? 10_000;
 const liveClockInitialMs = 30_000;
 const liveClockIncrementMs = 2_000;
+const pveEngineMoveDelayMs = parsePositiveInteger(process.env.BICHESS_PVE_ENGINE_DELAY_MS) ?? 650;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
 const accountSessionCookieName = 'bichess_session';
 const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
@@ -812,6 +815,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
     projection,
     seatTokens,
     clockTimer: null,
+    engineTimer: null,
     mode: modeForProjection(projection),
     randomEngine: isPveBuiltinEngineClient(projection.seats.black),
     pendingWrites: Promise.resolve(),
@@ -819,6 +823,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
   };
   rooms.set(roomId, room);
   scheduleClockTimeout(room);
+  scheduleRandomEngineMove(room);
   return room;
 }
 
@@ -865,6 +870,7 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
       projection,
       seatTokens: {},
       clockTimer: null,
+      engineTimer: null,
       mode,
       randomEngine: mode === 'pve',
       pendingWrites: Promise.resolve(),
@@ -872,6 +878,7 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
     };
     rooms.set(roomId, room);
     scheduleClockTimeout(room);
+    scheduleRandomEngineMove(room);
     return room;
   }
   throw new Error('room_id_collision');
@@ -1083,8 +1090,8 @@ async function playMove(room: Room, client: Client, move: ClientMoveMessage): Pr
     color: moveColor,
     move: requestedMove,
   });
-  await playRandomEngineMoveIfReady(room);
   broadcastSnapshot(room);
+  scheduleRandomEngineMove(room);
 }
 
 async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
@@ -1114,6 +1121,31 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
     color: 'black',
     move,
   });
+}
+
+function scheduleRandomEngineMove(room: Room): void {
+  if (room.engineTimer) return;
+  if (!room.randomEngine) return;
+  if (room.projection.variant !== 'fog-of-war') return;
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.state.status.turn !== 'black') return;
+
+  room.engineTimer = setTimeout(() => {
+    room.engineTimer = null;
+    void playRandomEngineMoveIfReady(room)
+      .then(() => broadcastSnapshot(room))
+      .catch((err) => {
+        if (!(err instanceof PersistenceFailure)) {
+          console.error(JSON.stringify({
+            level: 'error',
+            kind: 'engine_move_failure',
+            roomId: room.id,
+            error: (err as Error).message,
+            at: Date.now(),
+          }));
+        }
+      });
+  }, pveEngineMoveDelayMs);
 }
 
 async function startLiveClockIfReady(room: Room): Promise<void> {
@@ -1304,6 +1336,9 @@ async function appendEvent(room: Room, event: GameEvent): Promise<void> {
     room.projection = replayGameEvents(room.events);
     room.mode = modeForProjection(room.projection);
     scheduleClockTimeout(room);
+    if (room.projection.state.status.type !== 'playing' || room.projection.state.status.turn !== 'black') {
+      clearRandomEngineTimer(room);
+    }
 
     if (
       persistence.isInitialized()
@@ -1404,7 +1439,7 @@ function inMemoryParticipant(
     const engineVersionId = canonicalEngineVersionId(clientId);
     return {
       color,
-      displayName: displayName ?? engineVersionId,
+      displayName: displayName ?? engineVersionDisplayName(engineVersionId),
       subjectType: 'engine-version',
       subjectId: engineVersionId,
       visibility,
@@ -1467,7 +1502,14 @@ class PersistenceFailure extends Error {
 function resetRoom(roomId: string): void {
   const room = rooms.get(roomId);
   if (room?.clockTimer) clearTimeout(room.clockTimer);
+  if (room?.engineTimer) clearTimeout(room.engineTimer);
   rooms.delete(roomId);
+}
+
+function clearRandomEngineTimer(room: Room): void {
+  if (!room.engineTimer) return;
+  clearTimeout(room.engineTimer);
+  room.engineTimer = null;
 }
 
 function scheduleClockTimeout(room: Room): void {
@@ -1615,6 +1657,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
 
   for (const room of rooms.values()) {
     if (room.clockTimer) clearTimeout(room.clockTimer);
+    if (room.engineTimer) clearTimeout(room.engineTimer);
   }
   for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
     try { client.socket.close(1001, 'server shutting down'); } catch { /* socket already closed */ }

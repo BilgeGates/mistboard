@@ -1,6 +1,7 @@
 export {
   builtinEngineIds,
   defaultEngineId,
+  engineVersionDisplayName,
   latestBuiltinEngineIds,
   loadEngine,
   upsertBuiltinEngineVersions,

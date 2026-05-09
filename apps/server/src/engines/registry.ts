@@ -82,6 +82,10 @@ export function loadEngine(engineId: string | null | undefined): EngineDefinitio
   return engine;
 }
 
+export function engineVersionDisplayName(engineId: string): string {
+  return KNOWN_ENGINES[engineId]?.name ?? engineId;
+}
+
 export async function upsertBuiltinEngineVersions(db: Queryable, engineIds: string[]): Promise<void> {
   for (const engineId of new Set(engineIds)) {
     const engine = loadEngine(engineId);

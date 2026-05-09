@@ -86,6 +86,29 @@ test('Draft960 applies castling moves represented as king to rook square', () =>
   assert.deepEqual(next.board.f1, { color: 'white', role: 'rook' });
 });
 
+test('Draft960 applies castling moves represented as king two squares', () => {
+  const state: GameState = {
+    ...draft960Variant.createInitialState('castle-two-squares'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      h1: { color: 'white', role: 'rook' },
+      e8: { color: 'black', role: 'king' },
+      h8: { color: 'black', role: 'rook' },
+    },
+    status: { type: 'playing', turn: 'white' } as const,
+    castlingRights: ['h1', 'h8'],
+  };
+
+  const moves = draft960Variant.getLegalMoves(state, 'white');
+  assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'g1'));
+
+  const next = draft960Variant.applyMove(state, { from: 'e1', to: 'g1' });
+  assert.equal(next.board.e1, undefined);
+  assert.equal(next.board.h1, undefined);
+  assert.deepEqual(next.board.g1, { color: 'white', role: 'king' });
+  assert.deepEqual(next.board.f1, { color: 'white', role: 'rook' });
+});
+
 test('Fog of War view includes own pieces and legal destination squares', () => {
   const state: GameState = {
     ...fogOfWarVariant.createInitialState('fog-visibility'),
@@ -405,12 +428,14 @@ test('Fog of War castling ignores attacked transit and destination squares', () 
 
   const moves = fogOfWarVariant.getLegalMoves(state, 'white');
   assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'h1'));
+  assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'g1'));
 
-  const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'h1' });
+  const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'g1' });
   assert.equal(next.board.e1, undefined);
   assert.equal(next.board.h1, undefined);
   assert.deepEqual(next.board.g1, { color: 'white', role: 'king' });
   assert.deepEqual(next.board.f1, { color: 'white', role: 'rook' });
+  assert.deepEqual(next.lastMove, { from: 'e1', to: 'g1' });
 });
 
 test('Fog of War applies en passant captures', () => {

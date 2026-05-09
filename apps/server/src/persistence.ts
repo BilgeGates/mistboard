@@ -1,5 +1,6 @@
 import pg from 'pg';
 import type { Color, GameEvent } from '@bichess/game';
+import { engineVersionDisplayName } from './engine-registry.js';
 
 let pool: pg.Pool | null = null;
 
@@ -825,7 +826,7 @@ function defaultParticipantForColor(
     const engineVersionId = canonicalEngineVersionId(clientId);
     return {
       color,
-      displayName: displayName ?? engineVersionId,
+      displayName: displayName ?? engineVersionDisplayName(engineVersionId),
       subjectType: 'engine-version',
       subjectId: engineVersionId,
       visibility,
@@ -850,7 +851,7 @@ function fallbackParticipantForColor(
   if (engineVersionId) {
     return {
       color,
-      displayName: displayName ?? engineVersionId,
+      displayName: displayName ?? engineVersionDisplayName(engineVersionId),
       subjectType: 'engine-version',
       subjectId: engineVersionId,
       visibility,
