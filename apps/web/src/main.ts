@@ -42,6 +42,7 @@ const wantsEngineLab =
 const gameRoomId = gameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
+const wantsSource = path === '/source' || page === 'source';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
@@ -80,6 +81,8 @@ if (replaySample) {
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
   void mountOrReport(() => import('./landing.js').then(({ mountAbout }) => mountAbout(appRoot)));
+} else if (wantsSource) {
+  void mountOrReport(() => import('./landing.js').then(({ mountSource }) => mountSource(appRoot)));
 } else {
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
 }

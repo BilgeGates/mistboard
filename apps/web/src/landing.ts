@@ -962,6 +962,12 @@ export function mountAbout(root: HTMLElement): void {
   root.append(buildNav(), buildAbout(), buildFooter());
 }
 
+export function mountSource(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'source-route');
+  root.append(buildNav(), buildSource(), buildFooter());
+}
+
 export function mountLearn(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'learn-route');
@@ -996,6 +1002,7 @@ function buildNav(): HTMLElement {
   const watchLink = navLink('Watch', '/watch');
   const learnLink = navLink('Learn', '/learn');
   const accountLink = navLink('Account', '/account');
+  const sourceLink = navLink('Source', '/source');
 
   const ghLink = document.createElement('a');
   ghLink.href = GITHUB_URL;
@@ -1008,7 +1015,7 @@ function buildNav(): HTMLElement {
     const labLink = navLink('Engine Lab', '/engine-lab');
     links.append(labLink);
   }
-  links.append(watchLink, learnLink, aboutLink, accountLink, ghLink);
+  links.append(watchLink, learnLink, aboutLink, accountLink, sourceLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
@@ -1504,10 +1511,74 @@ function buildAbout(): HTMLElement {
 
   const p3 = document.createElement('p');
   p3.textContent =
-    'We’re building bichess as the place to play, study, and understand Fog of War — with perspective replay, postgame reveal, and engines that reason about uncertainty. Open source under GPL-3.0.';
+    'This project focuses on Fog of War play, replay, reveal, and engines that reason about uncertainty. Open source under GPL-3.0-or-later.';
 
   section.append(heading, p1, p2, p3);
   return section;
+}
+
+function buildSource(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'site-section source-section';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Source And Licenses';
+
+  const intro = document.createElement('p');
+  intro.textContent =
+    'Bichess is an independent open-source Fog of War chess project. The source code is published under GPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.';
+
+  const source = sourceBlock('Project source', [
+    linkLine('GitHub repository', GITHUB_URL),
+    textLine('License: GPL-3.0-or-later'),
+    textLine('No warranty is provided. See the repository license for the full terms.'),
+  ]);
+
+  const thirdParty = sourceBlock('Third-party components', [
+    textLine('chessground: board interaction and piece rendering, GPL-3.0-or-later.'),
+    textLine('chessops: chess rules primitives, GPL-3.0-or-later.'),
+    textLine('Stockfish: optional engine/runtime dependency for research and engine-worker flows, GPL family.'),
+  ]);
+
+  const identity = sourceBlock('Project identity', [
+    textLine('The Bichess name, logo, bichess.org domain, hosted service identity, and official events are controlled project assets.'),
+    textLine('Forks are allowed under the GPL, but should use a distinct name and avoid implying they are the official Bichess service.'),
+    textLine('The repository may keep its current working name during development. A broader public or commercial launch should use a distinct public brand.'),
+  ]);
+
+  section.append(heading, intro, source, thirdParty, identity);
+  return section;
+}
+
+function sourceBlock(titleText: string, lines: HTMLElement[]): HTMLElement {
+  const block = document.createElement('section');
+  block.className = 'source-block';
+  const title = document.createElement('h2');
+  title.textContent = titleText;
+  const list = document.createElement('ul');
+  for (const line of lines) {
+    const item = document.createElement('li');
+    item.append(line);
+    list.append(item);
+  }
+  block.append(title, list);
+  return block;
+}
+
+function textLine(value: string): HTMLSpanElement {
+  const span = document.createElement('span');
+  span.textContent = value;
+  return span;
+}
+
+function linkLine(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = href;
+  link.target = '_blank';
+  link.rel = 'noreferrer noopener';
+  link.textContent = label;
+  return link;
 }
 
 async function createRoomFromPlay(
@@ -1667,7 +1738,15 @@ function buildFooter(): HTMLElement {
   gh.rel = 'noreferrer noopener';
   gh.textContent = 'GitHub';
 
-  right.append(license, sep, gh);
+  const source = document.createElement('a');
+  source.href = '/source';
+  source.textContent = 'Source';
+
+  const sep2 = document.createElement('span');
+  sep2.className = 'site-footer-sep';
+  sep2.textContent = '·';
+
+  right.append(license, sep, source, sep2, gh);
   footer.append(left, right);
   return footer;
 }

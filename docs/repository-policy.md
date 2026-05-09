@@ -8,6 +8,8 @@ The project is licensed as GPL-3.0-or-later. Keep dependency choices compatible 
 
 The workspace packages are still marked `"private": true` in `package.json` files. That setting prevents accidental npm publishing; it is not a GitHub repository visibility policy.
 
+For product direction, licensing, branding, reference, roadmap, and monetization boundaries, see `docs/project-direction.md`.
+
 ## Governance Boundary
 
 Bichess is founder-led. Open source gives users the right to inspect, run, modify, and fork the code under GPL-3.0-or-later. It does not transfer control of:
@@ -29,6 +31,7 @@ Root policy files define the operating model:
 - `TRADEMARK.md`
 - `SPONSORSHIP.md`
 - `CODE_OF_CONDUCT.md`
+- `docs/project-direction.md`
 - `docs/documentation-policy.md`
 
 Public docs should be contributor-safe. Internal strategy, sponsor planning, legal/entity planning, operational handoffs, and credentials belong outside the public repository.

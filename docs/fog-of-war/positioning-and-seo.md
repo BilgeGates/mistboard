@@ -14,6 +14,10 @@ Bichess is:
 - independent from lichess, chess.com, and other platforms
 - focused on play, replay, reveal, and Fog-specific correctness
 
+Before any broader public launch, commercial launch, paid event, or major
+user-acquisition effort, the hosted service should use a distinct public brand
+that avoids confusing similarity with other chess services.
+
 ## Useful Public Topics
 
 Good public docs include:

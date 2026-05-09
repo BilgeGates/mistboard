@@ -26,7 +26,7 @@ Do not build in v1:
 - moderation tooling
 - OAuth
 - billing
-- broad lichess-style platform features
+- broad general chess-platform features
 - standalone non-Fog variants as primary product surfaces
 
 ## Useful Public Docs
@@ -40,7 +40,7 @@ Do not build in v1:
 - `docs/rules.md` — current rule behavior.
 - `docs/milestones.md` — public implementation milestones.
 - `docs/product-stage-definition.md` — product stages and decision-leverage order.
-- `docs/product-reference-lichess.md` — mature chess-platform reference and Bichess/Fog translation.
+- `docs/chess-platform-reference.md` — mature chess-platform reference and Bichess/Fog translation.
 - `docs/research-engine-product-model.md` — engine, benchmark, corpus, and research product surfaces.
 - `docs/replay-review-product-model.md` — Fog replay/review semantics and product boundaries.
 - `docs/tournament-track.md` — staged path from engine events to later PvP tournaments.

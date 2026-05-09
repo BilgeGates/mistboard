@@ -1,8 +1,8 @@
 # Product Stage Definition
 
 This document defines Bichess product stages by user-visible capability and
-decision leverage. It exists to prevent every Lichess parity gap from becoming
-equally urgent.
+decision leverage. It exists to prevent every general chess-platform gap from
+becoming equally urgent.
 
 Decision rule:
 
@@ -187,7 +187,7 @@ When planning beyond current builder work, answer these in order:
 
 ## Stage Guardrails
 
-- Do not let Lichess parity imply broad platform parity.
+- Do not let general chess-platform parity imply broad platform parity.
 - Do not add public social/rating/matchmaking obligations before live Fog play is stable.
 - Do not treat engine research as private-only infrastructure; it is a core Bichess differentiator.
 - Do not publish benchmark claims without enough metadata to evaluate them.

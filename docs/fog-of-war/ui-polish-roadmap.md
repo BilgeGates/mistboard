@@ -1,6 +1,6 @@
 # UI Polish Roadmap
 
-The goal of this track is that a curious chess player — including a top GM — opens a bichess game, understands what they are looking at within ten seconds, and *wants to make a move*. First impressions matter unusually much because FOW is a new genre; there is no muscle memory to fall back on.
+The goal of this track is that a curious chess player — including a top GM — opens a Fog of War game, understands what they are looking at within ten seconds, and *wants to make a move*. First impressions matter unusually much because FOW is a new genre; there is no muscle memory to fall back on.
 
 This roadmap is parallel to engine and platform work but pulls forward when those tracks add features that need a visual surface. It is a quality bar, not a sequence of unrelated polish chores.
 
@@ -91,7 +91,7 @@ Build:
 - **Position editor** — set up an arbitrary FOW position from FEN-like notation; choose perspective; explore.
 - **Move tree exploration** — try alternative moves from any ply; see how the engine evaluates each branch.
 - **Belief overlays in exploration mode** — visualize the candidate distribution over hidden squares; toggle layers (last-seen / move-legality-implied / engine-belief).
-- **Engine analysis on demand** — drop the bichess engine onto any position in the viewer; see its eval, recommended move, and belief reasoning.
+- **Engine analysis on demand** — drop a Fog engine onto any position in the viewer; see its eval, recommended move, and belief reasoning.
 
 Observe:
 
@@ -105,7 +105,7 @@ Strategic note: the viewer is where external content lands its click-throughs. I
 
 ## Anti-Patterns
 
-- **Polishing the default chess board.** This is a FOW-first product. Effort spent making the perfect-info board prettier than lichess is wasted.
+- **Polishing the default chess board.** This is a FOW-first product. Effort spent making the perfect-info board prettier than mature general chess boards is wasted.
 - **Belief overlays that confuse more than they clarify.** Default to *no* overlays. Add them as opt-in. If a default overlay fails the ten-second test, kill it.
 - **Animation budget bloat.** Reveals should be visceral but fast. A reveal that takes 800ms is a reveal that gets in the way during a 3+0 game.
 - **Skinning over substance.** Color tweaks and font choices are not what makes the UI feel right. Fog feel, reveals, and belief clarity are.

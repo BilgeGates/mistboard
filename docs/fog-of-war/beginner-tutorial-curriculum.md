@@ -1,8 +1,9 @@
 # Beginner Tutorial Curriculum
 
 This document sketches the first Fog of War learning path for Bichess. It uses
-Lichess's beginner tutorial as a product reference: short stages, concrete board
-goals, immediate feedback, visible progress, and learning by moving pieces.
+proven chess-tutorial mechanics as reference material: short stages, concrete
+board goals, immediate feedback, visible progress, and learning by moving
+pieces.
 
 The content should not be a generic chess course. Bichess should teach the Fog
 mental model:
@@ -20,7 +21,7 @@ mental model:
 Beginner tutorials should be authored, deterministic, and playable without an
 account. Progress can start in local storage and later become account-backed.
 
-Lichess reference structure:
+Reference tutorial structure:
 
 - **Map.** The `/learn` page is a category grid.
 - **Lesson / stage.** A tile such as "The rook" opens one focused lesson.
@@ -48,13 +49,13 @@ Each chapter should contain:
 - a short "show why" reveal after completion or failure
 - optional truth replay for the final step of each lesson
 
-The initial release should feel closer to Lichess's `ui/learn` than to puzzle
-rush: one concept at a time, low pressure, quick recovery from mistakes, and
-clear progression. Advanced training can later mine lessons from real games.
+The initial release should feel like a calm authored tutorial, not puzzle rush:
+one Fog concept at a time, low pressure, quick recovery from mistakes, and clear
+progression. Advanced training can later mine lessons from real games.
 
 ## Recommended First Path
 
-The first public path should start with a Lichess-like **Fog Pieces** category,
+The first public path should start with a **Fog Pieces** category,
 where each piece gets its own lesson tile and multiple composed-board chapters.
 The old shorthand "Your Pieces Create Vision" is the category promise, not
 necessarily one giant lesson.
@@ -83,7 +84,7 @@ danger lesson lands as a Fog twist rather than as unexplained punishment.
 That set is enough to teach a player the core mental shift before their first
 real game. The longer catalogue below can become the expanded beginner course.
 
-Lichess-inspired category outline:
+Fog-first category outline:
 
 - **Fog Pieces.** Rook, bishop, queen, king, knight, pawn. About six movement
   chapters each.
@@ -101,7 +102,7 @@ Lichess-inspired category outline:
 Purpose: teach each friendly piece as a movement tool on a fogged board before
 introducing captures, protection, scouting choices, or serious danger.
 
-This category should mirror the Lichess beginner shape:
+This category should use a compact beginner-tutorial shape:
 
 - map section: **Fog Pieces**
 - lesson tiles: rook, bishop, queen, king, knight, pawn
@@ -109,7 +110,7 @@ This category should mirror the Lichess beginner shape:
 - each chapter: one composed board with a teaching sequence, challenge, and
   mastery check
 
-The piece lessons should start like Lichess's piece lessons: simple movement,
+The piece lessons should start with simple movement,
 short target paths, and friendly blockers. The Fog twist should be present in
 the board rendering, not in the cognitive load. Players should feel that pieces
 move through darkness before we ask them to reason about hidden enemies.
@@ -319,8 +320,8 @@ Chapters:
   can be dangerous, not merely discoverable.
 
 This capstone can either be a seventh tile in the Fog Pieces category or the
-final chapter of the last piece lesson. A separate tile is cleaner if we follow
-Lichess's map style closely.
+final chapter of the last piece lesson. A separate tile is cleaner if the map is
+organized around one concept per lesson.
 
 First implementation order:
 
@@ -331,7 +332,7 @@ First implementation order:
 5. Knight movement lesson, six chapters
 6. Pawn movement lesson, six chapters
 
-That subset proves the Lichess-like lesson engine: target squares, one-move
+That subset proves the lesson engine: target squares, one-move
 chapters, multi-step sequences, friendly blockers, fog recomputation, retry
 feedback, and progress through a focused piece lesson. Enemy pieces and
 information-scouting choices move into Fundamentals.
@@ -380,7 +381,7 @@ Sequence:
 
 Why it works:
 
-- This is the closest Fog equivalent to Lichess's first rook chapter.
+- This is the simplest Fog equivalent of a first rook movement chapter.
 - It teaches one clean rook movement before adding choice.
 
 #### Rook Arrangement B - Back Down
@@ -483,7 +484,7 @@ Sequence:
 Why it works:
 
 - It gives the lesson its first real sequence without adding enemies.
-- It mirrors Lichess's "collect targets" style while preserving Fog rendering.
+- It uses a collect-targets mechanic while preserving Fog rendering.
 
 #### Rook Arrangement F - Rook Trail
 
@@ -533,7 +534,7 @@ Sequence:
 
 Why it works:
 
-- It mirrors the first rook chapter but changes the geometry.
+- It reuses the first rook chapter's simple target grammar but changes the geometry.
 - It gives a clean first diagonal with no decision pressure.
 
 #### Bishop Arrangement B - Up Left
@@ -1314,7 +1315,7 @@ Full Fog Pieces sequence:
 
 Design rhythm:
 
-- Begin each lesson with one Lichess-like "move to target" chapter.
+- Begin each lesson with one "move to target" chapter.
 - Add reverse-direction movement before asking for choice.
 - Add a friendly blocker chapter for pieces that can be blocked.
 - Include one multi-step route chapter.
@@ -1457,7 +1458,7 @@ Chapters:
 - **The board starts with your army.** Show only friendly pieces and fog. Ask the
   player to click each piece type and watch its visible squares.
 - **Rook lantern.** Move a rook along a rank or file to collect vision targets,
-  Lichess-style, without enemy pieces yet.
+  tutorial-style, without enemy pieces yet.
 - **Bishop beam.** Move a bishop diagonally and show how diagonal vision changes
   the fog boundary.
 - **Knight jump.** Move a knight to show that jumping also creates non-linear
@@ -1473,7 +1474,7 @@ Chapters:
 
 Interaction notes:
 
-- This lesson can use Lichess-style arrows and star targets, but the targets
+- This lesson can use arrows and target markers, but the targets
   should represent vision objectives.
 - Start with friendly pieces only; do not punish the player for hidden enemies
   before they understand their own tools.
@@ -1499,7 +1500,7 @@ Primary mechanic:
 - The player moves or selects friendly pieces.
 - The board highlights the squares those pieces currently make visible.
 - Fog updates immediately after a move.
-- Vision targets replace Lichess-style apples/stars.
+- Vision targets replace generic collectible markers.
 
 Out of scope for Lesson 1:
 
@@ -1642,7 +1643,7 @@ Feedback:
 
 Implementation notes:
 
-- This chapter can closely mirror Lichess's rook apple pattern, but the target
+- This chapter can use a simple rook target pattern, but the target
   copy should say "vision" or "light" rather than "collect."
 
 ##### Chapter 1.3 - Bishop Beam
@@ -1966,7 +1967,7 @@ Implementation notes:
 ##### Piece Category Data Shape
 
 The first implementation probably needs a small authored lesson schema. It
-should represent the Lichess-like hierarchy explicitly:
+should represent the beginner hierarchy explicitly:
 
 - lesson id and title
 - chapter ids and titles

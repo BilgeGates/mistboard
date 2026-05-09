@@ -111,7 +111,7 @@ body {
   margin: 0 16px 16px auto;
 }
 
-#app.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route) ~ .theme-control {
+#app.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) ~ .theme-control {
   position: fixed;
   right: 14px;
   bottom: 14px;
@@ -1377,13 +1377,13 @@ button:focus-visible {
   box-sizing: border-box;
 }
 
-.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route) {
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) {
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
 }
 
-body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route)) {
+body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route)) {
   overflow: hidden;
 }
 
@@ -1514,7 +1514,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   background: var(--site-bg);
 }
 
-.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route) .landing-stage {
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-stage {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -1555,15 +1555,44 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   letter-spacing: 0;
 }
 
-.about-section p {
+.about-section p,
+.source-section p {
   margin: 0 0 14px;
   color: #3f4742;
   line-height: 1.65;
   font-size: 16px;
 }
 
-.about-section p:last-child {
+.about-section p:last-child,
+.source-section p:last-child {
   margin-bottom: 0;
+}
+
+.source-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.source-block h2 {
+  margin: 0;
+  color: #1f2521;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.source-block ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  color: #3f4742;
+  line-height: 1.55;
+}
+
+.source-block a {
+  color: var(--site-accent);
+  font-weight: 700;
 }
 
 .site-footer {

@@ -14,7 +14,7 @@ The site at [bichess.org](https://bichess.org) is moving from public replay/engi
 
 ## Vision
 
-Bichess aims to be the best place to play, study, and understand Fog of War chess.
+Bichess aims to make Fog of War chess playable, reviewable, and understandable from a link.
 
 That means:
 
@@ -195,5 +195,6 @@ See:
 - [`TRADEMARK.md`](TRADEMARK.md)
 - [`SPONSORSHIP.md`](SPONSORSHIP.md)
 - [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+- [`docs/project-direction.md`](docs/project-direction.md)
 - [`docs/documentation-policy.md`](docs/documentation-policy.md)
 - [`docs/legal-and-fiscal.md`](docs/legal-and-fiscal.md)

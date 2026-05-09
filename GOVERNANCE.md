@@ -12,6 +12,8 @@ The source code is available under GPL-3.0-or-later. Users may inspect, run, mod
 
 The project intends to keep the Fog of War rules, protocol work, engine research, and benchmark artifacts public where doing so does not compromise security, privacy, or competitive integrity.
 
+For product direction, licensing, branding, reference, roadmap, and monetization boundaries, see `docs/project-direction.md`.
+
 ## What Remains Controlled
 
 Open source gives users exit power. It does not transfer control of the official Bichess institution.

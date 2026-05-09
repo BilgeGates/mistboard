@@ -484,6 +484,7 @@ function buildNavHtml(): string {
         <a class="site-nav-link" href="/learn">Learn</a>
         <a class="site-nav-link" href="/about">About</a>
         <a class="site-nav-link" href="/account">Account</a>
+        <a class="site-nav-link" href="/source">Source</a>
         <a class="site-nav-link" href="${GITHUB_URL}" target="_blank" rel="noreferrer noopener">GitHub</a>
       </div>
     </nav>

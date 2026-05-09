@@ -2793,7 +2793,7 @@ function buildNav(): HTMLElement {
   if (SHOW_ENGINE_LAB_LINKS) {
     links.append(navLink('Engine Lab', '/engine-lab'));
   }
-  links.append(navLink('Watch', '/watch'), navLink('Learn', '/learn'), navLink('About', '/about'));
+  links.append(navLink('Watch', '/watch'), navLink('Learn', '/learn'), navLink('About', '/about'), navLink('Source', '/source'));
 
   const gh = document.createElement('a');
   gh.href = GITHUB_URL;
@@ -2847,7 +2847,15 @@ function buildFooter(): HTMLElement {
   gh.rel = 'noreferrer noopener';
   gh.textContent = 'GitHub';
 
-  right.append(license, sep, gh);
+  const source = document.createElement('a');
+  source.href = '/source';
+  source.textContent = 'Source';
+
+  const sep2 = document.createElement('span');
+  sep2.className = 'site-footer-sep';
+  sep2.textContent = '·';
+
+  right.append(license, sep, source, sep2, gh);
   footer.append(left, right);
   return footer;
 }

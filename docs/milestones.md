@@ -196,7 +196,7 @@ Checkpoint: the board feels stable and immediate while room status, offers, and 
 
 ### UI Polish Track
 
-Goal: make the game surface feel closer to lichess-grade interaction and visual quality.
+Goal: make the game surface feel closer to mature chess-interface interaction and visual quality.
 
 - [x] Replace the custom grid board with `chessground`.
 - [x] Use real piece assets instead of temporary text/glyph pieces.

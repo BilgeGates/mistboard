@@ -230,6 +230,7 @@ function isClientRoute(pathname: string): boolean {
   return normalized === '/about'
     || normalized === '/learn'
     || normalized === '/watch'
+    || normalized === '/source'
     || normalized === '/account'
     || normalized === '/account/settings'
     || normalized === '/engine-lab'

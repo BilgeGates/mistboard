@@ -8,6 +8,9 @@ Bichess is a focused Fog of War chess project. Before opening a pull request, ch
 
 If the answer is no, open an issue or discussion first.
 
+For project direction, licensing, branding, reference, roadmap, and monetization
+boundaries, see [`docs/project-direction.md`](docs/project-direction.md).
+
 ## Scope
 
 Good contributions:
@@ -29,7 +32,7 @@ Usually out of scope for v1:
 - OAuth
 - billing
 - non-Fog variants as primary product surfaces
-- broad lichess-style platform features
+- broad general chess-platform features
 
 ## Development
 

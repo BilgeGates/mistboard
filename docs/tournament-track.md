@@ -27,17 +27,17 @@ The track should answer:
 
 ## Reference Posture
 
-Lichess/lila is a useful reference, not a parity target.
+Mature chess-platform tournament systems are useful references, not parity
+targets.
 
-Useful lila areas:
+Useful reference areas:
 
-- `modules/tournament`: Arena-style events, waiting users, live pairings,
-  leaderboards, featured games, schedules, and tournament context.
-- `modules/swiss`: fixed-round events, rounds, pairings, byes, standings,
-  tiebreaks, CSV/TRF export, and manual pairing support.
-- `ui/tournament` and `ui/swiss`: event page shape, standings, pairings,
-  podium/header, and finished-event views.
-- `ui/round`: how tournament context appears inside a live game.
+- Arena-style events, waiting users, live pairings, leaderboards, featured
+  games, schedules, and tournament context.
+- Fixed-round events, rounds, pairings, byes, standings, tiebreaks, export, and
+  manual pairing support.
+- Event page shape, standings, pairings, podium/header, and finished-event views.
+- Tournament context inside a live game.
 
 Bichess should borrow concepts selectively:
 
@@ -199,9 +199,9 @@ Scope:
 - reproducibility metadata
 - optional CSV or machine-readable export
 
-Useful lila reference:
+Useful reference concepts:
 
-- Swiss pairings and scoring concepts from `modules/swiss`;
+- Swiss pairings and scoring concepts;
 - standings recomputation from pairing sheets;
 - byes and tiebreak handling.
 
@@ -280,7 +280,7 @@ Requirements before pickup:
 
 ## Phase 5: Arena-Style Events
 
-Purpose: support Lichess-style repeated live pairings only after the platform
+Purpose: support repeated live pairings only after the platform
 can handle broader public activity.
 
 Arena adds:
@@ -294,9 +294,8 @@ Arena adds:
 - streak/scoring policy, if desired
 - stronger abuse and operations expectations
 
-Useful lila reference:
+Useful reference concepts:
 
-- `modules/tournament/arena`
 - waiting users
 - live pairing generation
 - color history

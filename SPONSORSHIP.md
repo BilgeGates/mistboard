@@ -4,6 +4,8 @@ Bichess may accept sponsorships for tournaments, engine events, research artifac
 
 Unless explicitly stated otherwise, sponsorships are commercial support, not tax-deductible charitable donations.
 
+For broader monetization and project-direction boundaries, see `docs/project-direction.md`.
+
 ## Principles
 
 - Sponsors do not buy roadmap control.

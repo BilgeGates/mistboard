@@ -4,6 +4,8 @@ This is a practical project policy, not a full legal trademark license.
 
 The code is open source. The Bichess name, logos, domains, hosted service identity, and official event names are controlled project assets.
 
+For broader project direction and public-brand transition boundaries, see `docs/project-direction.md`.
+
 ## Allowed Uses
 
 You may use the Bichess name to:
