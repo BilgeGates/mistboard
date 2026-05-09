@@ -48,6 +48,7 @@ type MovePlayedExt = MovePlayedEvent & { compute_ms?: number };
 export type GameMeta = {
   whiteName: string | null;
   blackName: string | null;
+  modeLabel?: string;
   result: string;
   timeControl?: Record<string, unknown> | null;
   termination: string;
@@ -147,8 +148,8 @@ export async function mountReplay(
   layout.append(whitePane.el, truthPane.el, blackPane.el);
   root.append(layout);
 
-  const gameIdFooter = metadataByRoomId ? createGameIdFooter() : null;
-  if (gameIdFooter) root.append(gameIdFooter);
+  const gameMetaPanel = metadataByRoomId ? createGameMetaPanel() : null;
+  if (gameMetaPanel) root.append(gameMetaPanel.el);
   const clockPanel = createClockPanel();
   whitePane.clockSlot.append(clockPanel.whiteRow);
   blackPane.clockSlot.append(clockPanel.blackRow);
@@ -590,9 +591,7 @@ export async function mountReplay(
     const meta = currentMeta();
     whitePane.nameEl.textContent = meta?.whiteName ?? '';
     blackPane.nameEl.textContent = meta?.blackName ?? '';
-    if (gameIdFooter) {
-      gameIdFooter.textContent = meta ? `game ${activeSample}` : '';
-    }
+    renderGameMetaPanel(gameMetaPanel, meta, activeSample);
     // Reset any prior end-game state (returning to ply 0).
     whitePane.el.classList.remove('winner', 'loser');
     blackPane.el.classList.remove('winner', 'loser');
@@ -735,10 +734,54 @@ function pickNextSample(pool: string[], current: string): string {
   return others[Math.floor(Math.random() * others.length)] ?? pool[0];
 }
 
-function createGameIdFooter(): HTMLDivElement {
-  const footer = document.createElement('div');
-  footer.className = 'replay-game-id';
-  return footer;
+type GameMetaPanelHandle = {
+  details: HTMLDivElement;
+  el: HTMLDivElement;
+  title: HTMLDivElement;
+};
+
+function createGameMetaPanel(): GameMetaPanelHandle {
+  const el = document.createElement('div');
+  el.className = 'replay-game-meta-card';
+  const title = document.createElement('div');
+  title.className = 'replay-game-meta-title';
+  const details = document.createElement('div');
+  details.className = 'replay-game-meta-details';
+  el.append(title, details);
+  return { details, el, title };
+}
+
+function renderGameMetaPanel(
+  panel: GameMetaPanelHandle | null,
+  meta: GameMeta | undefined,
+  activeSample: string,
+): void {
+  if (!panel) return;
+  if (!meta) {
+    panel.el.hidden = true;
+    panel.title.textContent = '';
+    panel.details.replaceChildren();
+    return;
+  }
+
+  panel.el.hidden = false;
+  panel.title.textContent = `${meta.whiteName ?? 'White'} vs ${meta.blackName ?? 'Black'}`;
+  const timeControl = timeControlLabelFromMeta(meta.timeControl);
+  const items = [
+    meta.modeLabel,
+    resultLabel(meta.result),
+    `${meta.plyCount} plies`,
+    terminationLabel(meta.termination),
+    timeControl ? `Time ${timeControl}` : null,
+    `game ${activeSample}`,
+  ].filter((item): item is string => typeof item === 'string' && item.length > 0);
+
+  panel.details.replaceChildren();
+  for (const item of items) {
+    const chip = document.createElement('span');
+    chip.textContent = item;
+    panel.details.append(chip);
+  }
 }
 
 type ClockPanelHandle = {
@@ -852,6 +895,18 @@ function timeControlLabelFromMeta(raw: Record<string, unknown> | null | undefine
   if (raw.kind === 'per-move' && perMoveMs !== null) return `${formatClock(perMoveMs)} / move`;
 
   return typeof raw.kind === 'string' ? raw.kind : null;
+}
+
+function resultLabel(result: string): string {
+  if (result === 'white-wins') return 'White wins';
+  if (result === 'black-wins') return 'Black wins';
+  return 'Draw';
+}
+
+function terminationLabel(termination: string): string {
+  return termination
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function numericValue(value: unknown): number | null {

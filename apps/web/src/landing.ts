@@ -94,7 +94,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.classList.add('landing-page');
   root.append(buildNav(), buildLoadingState('Loading games'), buildFooter());
 
-  const [{ games, source }, engines] = await Promise.all([
+  const [{ games }, engines] = await Promise.all([
     fetchLandingGames(),
     fetchPlayableEngines().catch((err) => {
       console.warn(err);
@@ -105,7 +105,6 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren(buildNav(), stage.el);
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
-    renderRecentGames(stage.listRoot, games, source, undefined, '/game/', 'Now showing', false, 4);
     return;
   }
 
@@ -129,16 +128,6 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     loaderForId: landingEventLoader,
     metadataByRoomId,
   });
-  renderRecentGames(
-    stage.listRoot,
-    games,
-    source,
-    currentSample,
-    source === 'sample' ? '/?demo=' : '/game/',
-    'Now showing',
-    false,
-    4,
-  );
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -473,6 +462,7 @@ function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
     whiteName: displayParticipantName(game, 'white'),
     blackName: displayParticipantName(game, 'black'),
+    modeLabel: sourceLabel(game.mode),
     result: game.result,
     timeControl: game.timeControl,
     termination: game.termination,
@@ -864,7 +854,7 @@ function buildLoadingState(label: string): HTMLElement {
   return section;
 }
 
-function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
+function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
@@ -873,15 +863,12 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  const listRoot = document.createElement('aside');
-  listRoot.className = 'landing-games';
-
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
-  section.append(playPanel, replayRoot, listRoot);
+  section.append(playPanel, replayRoot);
 
   stage.append(section);
-  return { el: stage, replayRoot, listRoot };
+  return { el: stage, replayRoot };
 }
 
 function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
