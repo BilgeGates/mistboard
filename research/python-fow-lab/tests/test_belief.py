@@ -6,8 +6,10 @@ from fow_chess.belief import (
     _csp_reseed,
     _repair_diagnostics,
     _repair_passes_strict_reachability,
+    _repair_recovery_source_limit,
     _repair_supplement_source_limit,
     _select_repair_candidates,
+    _select_repair_recovery_sources,
     _repair_supplement_limit,
     _select_repair_supplement_sources,
 )
@@ -141,6 +143,25 @@ def test_select_repair_supplement_sources_prefers_hard_near_high_weight() -> Non
         hard_near.fen(),
         soft_only.fen(),
     ]
+
+
+def test_repair_recovery_sources_bound_full_stage_b_repair() -> None:
+    facts = BeliefState.initial(chess.WHITE, uniform_prior)._hard_facts(
+        Observation(visibility_mask=set(), visible_pieces={})
+    )
+    prev = chess.Board.empty()
+    expanded = []
+    for idx in range(10):
+        board = prev.copy()
+        board.set_piece_at(
+            chess.square(idx % 8, idx // 8), chess.Piece(chess.PAWN, chess.BLACK)
+        )
+        expanded.append((prev, board, float(idx), False, False, True, facts))
+
+    selected = _select_repair_recovery_sources(expanded, limit=3)
+
+    assert _repair_recovery_source_limit(16) == 128
+    assert [weight for _, _, weight, *_ in selected] == [9.0, 8.0, 7.0]
 
 
 def test_select_repair_candidates_dedupes_and_prefers_lower_cost() -> None:

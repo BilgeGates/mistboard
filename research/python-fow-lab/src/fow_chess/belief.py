@@ -1041,12 +1041,19 @@ class BeliefState:
             repaired: list[tuple[chess.Board, float, RepairDiagnostics]] = []
             strict_repaired: list[tuple[chess.Board, float, RepairDiagnostics]] = []
             repair_start = time.perf_counter()
-            for prev_board, board, weight, _, _, _, transition_facts in expanded:
-                if _violates_upper_count_constraint(
-                    _opp_piece_counts(board, self.perspective),
-                    transition_facts.opp_remaining_counts,
-                ):
-                    continue
+            recovery_sources = _select_repair_recovery_sources(
+                expanded,
+                _repair_recovery_source_limit(self.target_n),
+            )
+            for (
+                prev_board,
+                board,
+                weight,
+                _,
+                _,
+                _,
+                transition_facts,
+            ) in recovery_sources:
                 repaired_board = _repair_particle_to_observation(
                     board,
                     facts,
@@ -2712,6 +2719,8 @@ def _select_repair_supplement_sources(
     ],
     existing_fens: set[str],
     limit: int,
+    *,
+    require_count_valid: bool = True,
 ) -> list[
     tuple[chess.Board, chess.Board, float, bool, bool, bool, BeliefHardFacts]
 ]:
@@ -2733,7 +2742,7 @@ def _select_repair_supplement_sources(
     ] = {}
     for candidate in expanded:
         _, board, weight, obs_ok, hard_ok, count_ok, _ = candidate
-        if not count_ok:
+        if require_count_valid and not count_ok:
             continue
         fen = board.fen()
         if fen in existing_fens:
@@ -2746,6 +2755,38 @@ def _select_repair_supplement_sources(
 
     selected = sorted(best_by_fen.values(), key=_repair_source_sort_key)
     return selected[:limit]
+
+
+def _repair_recovery_source_limit(target_n: int) -> int:
+    """Bound full Stage-B recovery repair while keeping room for failures."""
+
+    return max(128, target_n * 4)
+
+
+def _select_repair_recovery_sources(
+    expanded: list[
+        tuple[chess.Board, chess.Board, float, bool, bool, bool, BeliefHardFacts]
+    ],
+    limit: int,
+) -> list[
+    tuple[chess.Board, chess.Board, float, bool, bool, bool, BeliefHardFacts]
+]:
+    """Choose bounded full-recovery repair sources from count-valid expansions."""
+
+    count_valid = [
+        candidate
+        for candidate in expanded
+        if not _violates_upper_count_constraint(
+            _opp_piece_counts(candidate[1], candidate[6].perspective),
+            candidate[6].opp_remaining_counts,
+        )
+    ]
+    return _select_repair_supplement_sources(
+        count_valid,
+        set(),
+        limit,
+        require_count_valid=False,
+    )
 
 
 def _repair_source_sort_key(
