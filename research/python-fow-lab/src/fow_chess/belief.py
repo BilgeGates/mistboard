@@ -1721,38 +1721,83 @@ def _repair_diagnostics(
     worst_one_move_legal: bool | None = None
     strict_unreachable_count = 0
 
+    def record_moved_piece(
+        piece: chess.Piece,
+        source: chess.Square,
+        target: chess.Square,
+        one_move_legal: bool,
+    ) -> None:
+        nonlocal moved_piece_count
+        nonlocal max_piece_distance
+        nonlocal total_piece_distance
+        nonlocal long_move_count
+        nonlocal teleport_like_count
+        nonlocal worst_piece
+        nonlocal worst_source
+        nonlocal worst_target
+        nonlocal worst_distance
+        nonlocal worst_one_move_legal
+        nonlocal strict_unreachable_count
+
+        distance = _square_chebyshev_distance(source, target)
+        moved_piece_count += 1
+        max_piece_distance = max(max_piece_distance, distance)
+        total_piece_distance += distance
+        if distance > worst_distance:
+            worst_piece = piece
+            worst_source = source
+            worst_target = target
+            worst_distance = distance
+            worst_one_move_legal = one_move_legal
+        if distance >= 4:
+            long_move_count += 1
+        if not one_move_legal:
+            teleport_like_count += 1
+            strict_unreachable_count += 1
+
     for key, added_squares in added_by_key.items():
         removed_squares = removed_by_key.get(key, [])
+        piece = chess.Piece(key[1], key[0])
+
+        # First preserve genuine one-move continuity. These are the only paired
+        # moves that repair should treat as legal piece identity movement.
         while added_squares and removed_squares:
+            legal_pairs = [
+                (source, target)
+                for source in removed_squares
+                for target in added_squares
+                if _piece_can_reach_in_one_move(before, source, target, piece)
+            ]
+            if not legal_pairs:
+                break
             source, target = min(
-                (
-                    (source, target)
-                    for source in removed_squares
-                    for target in added_squares
-                ),
+                legal_pairs,
                 key=lambda pair: _square_chebyshev_distance(pair[0], pair[1]),
             )
             removed_squares.remove(source)
             added_squares.remove(target)
-            piece = chess.Piece(key[1], key[0])
-            distance = _square_chebyshev_distance(source, target)
-            one_move_legal = _piece_can_reach_in_one_move(
-                before, source, target, piece
+            record_moved_piece(piece, source, target, True)
+
+        # Remaining hidden-to-hidden same-piece changes are genuine teleport-like
+        # continuity claims. Remaining changes that touch a visible square are
+        # better interpreted as hard observation correction plus unknown material
+        # add/remove, so leave them unpaired for the unpaired counters below.
+        while added_squares and removed_squares:
+            hidden_pairs = [
+                (source, target)
+                for source in removed_squares
+                for target in added_squares
+                if source not in visibility_set and target not in visibility_set
+            ]
+            if not hidden_pairs:
+                break
+            source, target = min(
+                hidden_pairs,
+                key=lambda pair: _square_chebyshev_distance(pair[0], pair[1]),
             )
-            moved_piece_count += 1
-            max_piece_distance = max(max_piece_distance, distance)
-            total_piece_distance += distance
-            if distance > worst_distance:
-                worst_piece = piece
-                worst_source = source
-                worst_target = target
-                worst_distance = distance
-                worst_one_move_legal = one_move_legal
-            if distance >= 4:
-                long_move_count += 1
-            if not one_move_legal:
-                teleport_like_count += 1
-                strict_unreachable_count += 1
+            removed_squares.remove(source)
+            added_squares.remove(target)
+            record_moved_piece(piece, source, target, False)
 
     unpaired_added_count = sum(len(squares) for squares in added_by_key.values())
     unpaired_removed_count = sum(len(squares) for squares in removed_by_key.values())

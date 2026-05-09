@@ -998,9 +998,8 @@ def test_stage_a_repair_preserves_prior_hidden_capture_landing() -> None:
 
     belief.update_after_own_move(move, obs)
 
-    assert belief.last_repair_strict_rejected_count > 0
-    assert belief.last_repair_fired == 0
-    assert belief.last_csp_reseed_fired == 1
+    assert belief.last_repair_fired == 1
+    assert belief.last_csp_reseed_fired == 0
     assert chess.H4 in belief.hard_opp_occupancy_squares
     assert all(
         (piece := particle.piece_at(chess.H4)) is not None

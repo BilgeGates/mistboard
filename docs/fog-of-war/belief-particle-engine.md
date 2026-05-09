@@ -369,6 +369,13 @@ Stage A/B supplements now accept only strict-reachable repairs. Otherwise they
 explicitly fall back to checkpoint/CSP, making the remaining pathological rows
 easier to classify instead of quietly injecting teleport-like particles.
 
+`python-tier1-v0.8.5` refines that strictness: repair diagnostics now pair
+legal one-move continuities first, leave visible-square corrections as
+unpaired add/remove, and only classify remaining hidden-to-hidden same-piece
+changes as strict teleports. That preserves the no-hidden-teleport rule without
+forcing CSP whenever a hard observation correction and an unknown material fill
+happen in the same update.
+
 The structural fix is to turn these probes into danger-probe particles: when a
 low-probability hidden slider would dominate downside risk, generate or
 upweight a small family of legal/plausible worlds that contain that threat, run
