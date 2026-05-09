@@ -64,7 +64,7 @@ type LandingPlayChoice = {
   title: string;
 };
 type LandingStartFormat = 'standard' | 'draft960';
-type LandingTimePresetId = '30s2' | '3m2' | '5m0' | '10m5' | 'custom';
+type LandingTimePresetId = '1m1' | '3m2' | '5m3' | 'custom';
 type LandingTimePreset = {
   id: LandingTimePresetId;
   label: string;
@@ -82,11 +82,10 @@ type LandingRoomSetup = {
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 const LANDING_TIME_PRESETS: LandingTimePreset[] = [
-  { id: '30s2', label: '30s + 2', initialMs: 30_000, incrementMs: 2_000 },
+  { id: '1m1', label: '1 + 1', initialMs: 60_000, incrementMs: 1_000 },
   { id: '3m2', label: '3 + 2', initialMs: 3 * 60_000, incrementMs: 2_000 },
-  { id: '5m0', label: '5 + 0', initialMs: 5 * 60_000, incrementMs: 0 },
-  { id: '10m5', label: '10 + 5', initialMs: 10 * 60_000, incrementMs: 5_000 },
-  { id: 'custom', label: 'Custom', initialMs: 5 * 60_000, incrementMs: 0 },
+  { id: '5m3', label: '5 + 3', initialMs: 5 * 60_000, incrementMs: 3_000 },
+  { id: 'custom', label: 'Custom', initialMs: 3 * 60_000, incrementMs: 2_000 },
 ];
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
@@ -937,8 +936,8 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const existing = document.querySelector('.landing-setup-overlay');
   existing?.remove();
 
-  let startFormat: LandingStartFormat = 'draft960';
-  let selectedPreset: LandingTimePresetId = '5m0';
+  let startFormat: LandingStartFormat = 'standard';
+  let selectedPreset: LandingTimePresetId = '3m2';
   const defaultPreset = LANDING_TIME_PRESETS.find((preset) => preset.id === selectedPreset)!;
 
   const overlay = document.createElement('div');
@@ -984,8 +983,8 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startGroup.setAttribute('role', 'radiogroup');
   startGroup.setAttribute('aria-label', 'Fog start format');
 
-  const standardButton = startOptionButton('Standard', false);
-  const draftButton = startOptionButton('Draft960', true);
+  const standardButton = startOptionButton('Standard', true);
+  const draftButton = startOptionButton('Draft960', false);
   const syncOptions = () => {
     standardButton.classList.toggle('selected', startFormat === 'standard');
     standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
