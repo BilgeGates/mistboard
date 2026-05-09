@@ -6,11 +6,13 @@
 # by the Railway Postgres plugin); without it, apps/server falls back
 # to in-memory rooms.
 
+providers = ["...", "python"]
+
 [phases.setup]
-nixPkgs = ["nodejs_22"]
+nixPkgs = ["...", "nodejs_22", "stockfish"]
 
 [phases.install]
-cmds = ["npm ci"]
+cmds = ["npm ci", "python -m pip install ./research/python-fow-lab"]
 
 [phases.build]
 cmds = ["npm run build"]

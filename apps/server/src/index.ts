@@ -26,7 +26,7 @@ import {
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { GameSummary } from './persistence.js';
-import { engineVersionDisplayName, loadEngine, playableBuiltinEngines } from './engine-registry.js';
+import { engineVersionDisplayName, loadEngine, playableLiveEngines } from './engine-registry.js';
 import { chooseLiveEngineMove } from './live-engine.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 import {
@@ -240,7 +240,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       return;
     }
     writeJson(response, 200, {
-      engines: playableBuiltinEngines().map((engine) => ({
+      engines: playableLiveEngines().map((engine) => ({
         id: engine.id,
         name: engine.name,
         familyName: engine.engineName,
@@ -531,7 +531,7 @@ function parseHiddenDraft960(value: unknown): boolean {
 
 function parsePlayablePveEngineId(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0) return null;
-  return playableBuiltinEngines().some((engine) => engine.id === value) ? value : null;
+  return playableLiveEngines().some((engine) => engine.id === value) ? value : null;
 }
 
 async function currentAccountUser(request: IncomingMessage): Promise<persistence.UserAccount | null> {
@@ -1196,9 +1196,11 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
   const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, 'black');
   if (moves.length === 0) return;
   const context = {
+    events: room.events,
     state: room.projection.state,
     color: 'black',
     legalMoves: moves,
+    roomId: room.id,
     seed: liveEngineMoveSeed(room),
     ply: room.events.filter((event) => event.type === 'move-played').length,
   } as const;

@@ -1,11 +1,13 @@
-import type { Color, GameState, Move } from '@bichess/game';
+import type { Color, GameEvent, GameState, Move } from '@bichess/game';
 
 export type EngineKind = 'builtin' | 'typescript-bundle' | 'wasm' | 'container';
 
 export type EngineMoveContext = {
+  events?: GameEvent[];
   state: GameState;
   color: Color;
   legalMoves: Move[];
+  roomId?: string;
   seed: bigint;
   ply: number;
 };

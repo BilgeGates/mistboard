@@ -69,6 +69,26 @@ test('live engine move respects disabled fallback policy', async () => {
   );
 });
 
+test('python live engine falls back when room event context is missing', async () => {
+  const events: LiveEngineFallbackEvent[] = [];
+  const result = await chooseLiveEngineMove({
+    context: context([legalMove]),
+    engine: {
+      ...testEngine('python-selected', illegalMove),
+      kind: 'container',
+      config: { kind: 'python-subprocess' },
+      chooseMove: undefined,
+    },
+    onFallback: (event) => events.push(event),
+  });
+
+  assert.equal(result.engineId, 'builtin-random-legal');
+  assert.equal(result.fallback, true);
+  assert.deepEqual(result.decision.move, legalMove);
+  assert.equal(events[0]?.engineId, 'python-selected');
+  assert.equal(events[0]?.reason, 'unsupported_engine');
+});
+
 function testEngine(id: string, move: Move): EngineDefinition {
   return {
     id,

@@ -5,6 +5,7 @@ export {
   latestBuiltinEngineIds,
   loadEngine,
   playableBuiltinEngines,
+  playableLiveEngines,
   upsertBuiltinEngineVersions,
   type EngineDefinition,
   type EngineMoveContext,

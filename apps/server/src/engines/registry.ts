@@ -20,6 +20,13 @@ export function playableBuiltinEngines(): EngineDefinition[] {
     .filter((engine) => engine.kind === 'builtin' && engine.chooseMove);
 }
 
+export function playableLiveEngines(): EngineDefinition[] {
+  return Object.values(KNOWN_ENGINES).filter((engine) => (
+    (engine.kind === 'builtin' && Boolean(engine.chooseMove))
+      || engine.config.kind === 'python-subprocess'
+  ) && engine.id !== 'python-tier1-v0.7.0');
+}
+
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.7.22': {
     id: 'python-tier1-v0.7.22',
