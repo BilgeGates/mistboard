@@ -467,7 +467,7 @@ if (!TEST_DATABASE_URL) {
       },
       {
         color: 'black',
-        displayName: 'builtin-random-legal',
+        displayName: 'Random Legal v1',
         subjectType: 'engine-version',
         subjectId: 'builtin-random-legal',
         visibility: 'link',
@@ -675,7 +675,7 @@ if (!TEST_DATABASE_URL) {
       },
       {
         color: 'black',
-        displayName: 'builtin-random-legal',
+        displayName: 'Random Legal v1',
         subjectType: 'engine-version',
         subjectId: 'builtin-random-legal',
         visibility: 'link',
