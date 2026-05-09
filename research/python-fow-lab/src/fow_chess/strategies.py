@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.33"
+TIER1_VERSION = "0.7.35"
 
 
 def tier1_commit() -> str:
@@ -1300,6 +1300,12 @@ class Tier1Strategy:
                 "checkpoint_repair_unique": (
                     self._belief.last_checkpoint_repair_unique
                 ),
+                "stage_b_repair_supplement_considered_count": (
+                    self._belief.last_stage_b_repair_supplement_considered_count
+                ),
+                "stage_b_repair_supplement_dropped_count": (
+                    self._belief.last_stage_b_repair_supplement_dropped_count
+                ),
                 "hard_facts": self._belief.hard_fact_summary(),
                 "marginal_field": _marginal_field_for_json(
                     self._belief.marginal_piece_field()
@@ -2085,6 +2091,12 @@ class Tier1Strategy:
         )
         self._pending_belief_steps["stage_b_repair_supplement_count"] = (
             self._belief.last_stage_b_repair_supplement_count
+        )
+        self._pending_belief_steps["stage_b_repair_supplement_considered_count"] = (
+            self._belief.last_stage_b_repair_supplement_considered_count
+        )
+        self._pending_belief_steps["stage_b_repair_supplement_dropped_count"] = (
+            self._belief.last_stage_b_repair_supplement_dropped_count
         )
         self._pending_belief_steps["stage_b_elapsed_ms"] = (
             self._belief.last_stage_b_elapsed_ms

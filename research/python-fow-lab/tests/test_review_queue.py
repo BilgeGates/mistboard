@@ -287,3 +287,40 @@ def test_generate_queue_labels_checkpoint_repair(tmp_path: Path) -> None:
     assert len(items) == 1
     assert "checkpoint-repair+16" in items[0].reasons
     assert "belief-repair+10" in items[0].reasons
+
+
+def test_generate_queue_labels_repair_supplement_pressure(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "games": [
+                    {
+                        "index": 2,
+                        "outcome": "W",
+                        "plies": 30,
+                        "path": "games/game-0002-W-tier1-white.jsonl",
+                    }
+                ]
+            }
+        )
+    )
+    write_jsonl(
+        tmp_path / "trace.jsonl",
+        [
+            {
+                "game_index": 2,
+                "tier1_seat": "tier1_a",
+                "tier1_side": "white",
+                "ply": 12,
+                "decision_path": "main-eval",
+                "move_chosen_uci": "a2a3",
+                "belief_unique_count": 16,
+                "stage_b_repair_supplement_dropped_count": 128,
+            }
+        ],
+    )
+
+    items = review_queue.generate_queue(tmp_path)
+
+    assert len(items) == 1
+    assert "stage-b-repair-supplement-dropped:128+10" in items[0].reasons

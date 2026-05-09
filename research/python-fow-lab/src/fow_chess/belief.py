@@ -348,6 +348,8 @@ class BeliefState:
     last_stage_b_constraint_count: int = 0
     last_stage_b_constraint_unique: int = 0
     last_stage_b_repair_supplement_count: int = 0
+    last_stage_b_repair_supplement_considered_count: int = 0
+    last_stage_b_repair_supplement_dropped_count: int = 0
     last_stage_b_elapsed_ms: float = 0.0
     last_stage_b_expand_ms: float = 0.0
     last_stage_b_repair_ms: float = 0.0
@@ -871,6 +873,8 @@ class BeliefState:
         self.last_stage_b_constraint_count = 0
         self.last_stage_b_constraint_unique = 0
         self.last_stage_b_repair_supplement_count = 0
+        self.last_stage_b_repair_supplement_considered_count = 0
+        self.last_stage_b_repair_supplement_dropped_count = 0
         self.last_stage_b_elapsed_ms = 0.0
         self.last_stage_b_expand_ms = 0.0
         self.last_stage_b_repair_ms = 0.0
@@ -1124,7 +1128,9 @@ class BeliefState:
             seen = {board.fen() for board in chosen_particles}
             supplemented = list(chosen_particles)
             supplemented_weights = list(chosen_weights)
-            added = 0
+            repair_candidates: list[
+                tuple[tuple[int, int, int, int, float], chess.Board, float, RepairDiagnostics]
+            ] = []
             repair_start = time.perf_counter()
             for prev_board, board, weight, _, _, count_ok, _ in expanded:
                 if not count_ok:
@@ -1142,14 +1148,44 @@ class BeliefState:
                 if fen in seen:
                     continue
                 seen.add(fen)
-                supplemented.append(repaired_board)
-                supplemented_weights.append(
-                    self._repair_candidate_weight(board, repaired_board, facts, weight)
+                diag = _repair_diagnostics(board, repaired_board, facts.visibility_set)
+                strict_penalty = (
+                    0 if _repair_passes_strict_reachability(diag) else 1
                 )
-                added += 1
+                repair_candidates.append(
+                    (
+                        (
+                            strict_penalty,
+                            diag.cost,
+                            diag.teleport_like_count,
+                            diag.long_move_count,
+                            -weight,
+                        ),
+                        repaired_board,
+                        weight,
+                        diag,
+                    )
+                )
             self.last_stage_b_repair_ms += (
                 time.perf_counter() - repair_start
             ) * 1000.0
+            self.last_stage_b_repair_supplement_considered_count = len(
+                repair_candidates
+            )
+            supplement_limit = _repair_supplement_limit(
+                chosen_particles, self.target_n
+            )
+            repair_candidates.sort(key=lambda candidate: candidate[0])
+            selected_repairs = repair_candidates[:supplement_limit]
+            self.last_stage_b_repair_supplement_dropped_count = max(
+                0, len(repair_candidates) - len(selected_repairs)
+            )
+            for _, repaired_board, weight, diag in selected_repairs:
+                supplemented.append(repaired_board)
+                supplemented_weights.append(
+                    self._repair_candidate_weight_from_diag(diag, weight)
+                )
+            added = len(selected_repairs)
             if added:
                 chosen_particles = supplemented
                 chosen_weights = supplemented_weights
@@ -2334,6 +2370,24 @@ def _needs_repair_supplement(
     unique = len({particle.fen() for particle in particles})
     min_unique = min(target_n, max(8, target_n // 8))
     return unique < min_unique
+
+
+def _repair_supplement_limit(
+    particles: list[chess.Board], target_n: int
+) -> int:
+    """Bound repair supplement mass to the diversity deficit.
+
+    Repair supplements are meant to rescue a narrow but valid posterior, not
+    let thousands of repaired alternatives overwhelm the sampled particles.
+    """
+
+    unique = len({particle.fen() for particle in particles})
+    min_unique = min(target_n, max(8, target_n // 8))
+    deficit = max(0, min_unique - unique)
+    if deficit == 0:
+        return 0
+    cap = max(8, target_n // 4)
+    return min(cap, max(8, deficit * 2))
 
 
 def _random_log(rng: random.Random) -> float:

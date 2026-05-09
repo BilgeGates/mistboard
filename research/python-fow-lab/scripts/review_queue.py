@@ -380,6 +380,9 @@ def score_particle_profile(reasons: list[str], row: dict[str, Any]) -> int:
     stage_b_ms = float(row.get("stage_b_elapsed_ms") or 0.0)
     stage_b_repair_ms = float(row.get("stage_b_repair_ms") or 0.0)
     stage_b_expanded = int(row.get("stage_b_expanded_count") or 0)
+    supplement_dropped = int(
+        row.get("stage_b_repair_supplement_dropped_count") or 0
+    )
 
     if stage_a_ms >= 100:
         add(reasons, "stage-a-slow>=100ms", 8)
@@ -405,6 +408,13 @@ def score_particle_profile(reasons: list[str], row: dict[str, Any]) -> int:
     if stage_b_expanded >= 8000:
         add(reasons, "stage-b-expanded>=8000", 8)
         score += 8
+
+    if supplement_dropped >= 100:
+        add(reasons, f"stage-b-repair-supplement-dropped:{supplement_dropped}", 10)
+        score += 10
+    elif supplement_dropped:
+        add(reasons, f"stage-b-repair-supplement-dropped:{supplement_dropped}", 4)
+        score += 4
 
     return score
 
@@ -470,6 +480,9 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "stage_b_resample_ms",
         "stage_b_expanded_count",
         "stage_b_obs_checked_count",
+        "stage_b_repair_supplement_count",
+        "stage_b_repair_supplement_considered_count",
+        "stage_b_repair_supplement_dropped_count",
         "stage_b_reject_observation",
         "stage_b_reject_hard",
         "stage_b_reject_count",

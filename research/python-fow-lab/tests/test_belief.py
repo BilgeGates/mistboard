@@ -5,6 +5,7 @@ from fow_chess.belief import (
     _csp_reseed,
     _repair_diagnostics,
     _repair_passes_strict_reachability,
+    _repair_supplement_limit,
 )
 from fow_chess.move_priors import uniform_prior
 from fow_chess.observation import Observation, observation_from_transition
@@ -61,6 +62,22 @@ def test_repair_diagnostics_flags_king_teleport() -> None:
     assert diag.worst_one_move_legal is False
     assert diag.strict_unreachable_count == 1
     assert _repair_passes_strict_reachability(diag) is False
+
+
+def test_repair_supplement_limit_tracks_diversity_deficit() -> None:
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+
+    assert _repair_supplement_limit([board], target_n=256) == 62
+
+    particles = []
+    for idx in range(32):
+        particle = board.copy()
+        particle.set_piece_at(idx, chess.Piece(chess.PAWN, chess.WHITE))
+        particles.append(particle)
+
+    assert _repair_supplement_limit(particles, target_n=256) == 0
 
 
 def test_stage_b_uses_checkpoint_repair_before_generic_csp() -> None:
