@@ -20,6 +20,7 @@ import {
   isInitialized,
   listActiveRoomIds,
   listCompletedGames,
+  listCorpusGames,
   loadRoom,
   loadRoomSeatTokens,
   listRecentEveGames,
@@ -676,6 +677,7 @@ if (!TEST_DATABASE_URL) {
   test('listRecentEveGames returns completed EvE games newest first', async () => {
     const now = new Date();
     const older = new Date(now.getTime() - 60_000);
+    const shortTimeout = new Date(now.getTime() + 60_000);
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
@@ -693,7 +695,7 @@ if (!TEST_DATABASE_URL) {
       );
       await client.query(
         `INSERT INTO eve_jobs (id, purpose, target_games, status, completed_games, finished_at)
-         VALUES ('job-recent', 'smoke', 2, 'completed', 2, $1)`,
+         VALUES ('job-recent', 'smoke', 3, 'completed', 3, $1)`,
         [now],
       );
       await client.query(
@@ -705,9 +707,11 @@ if (!TEST_DATABASE_URL) {
             'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
            ('eve-newer', 'fog-of-war', 'white-wins', 'king-captured', 15, $2, $2,
             'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
+           ('eve-short-timeout', 'fog-of-war', 'black-wins', 'timeout', 4, $3, $3,
+            'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
            ('pvp-newer', 'fog-of-war', 'black-wins', 'king-captured', 10, $2, $2,
             'white', 'black', 'pvp', 'completed')`,
-        [older, now],
+        [older, now, shortTimeout],
       );
       await client.query(
         `INSERT INTO eve_games
@@ -720,7 +724,10 @@ if (!TEST_DATABASE_URL) {
             '{"kind":"none"}', '{}', 1),
            ('eve-newer', 'job-recent', 1, 'engine-white-v1', 'engine-black-v1',
             'white-hash', 'black-hash', 'white-signature', 'black-signature',
-            '{"kind":"per-move","milliseconds":100}', '{}', 2)`,
+            '{"kind":"per-move","milliseconds":100}', '{}', 2),
+           ('eve-short-timeout', 'job-recent', 2, 'engine-white-v1', 'engine-black-v1',
+            'white-hash', 'black-hash', 'white-signature', 'black-signature',
+            '{"kind":"per-move","milliseconds":100}', '{}', 3)`,
       );
     } finally {
       await client.end();
@@ -736,7 +743,9 @@ if (!TEST_DATABASE_URL) {
 
   test('listRecentPublicGames returns public games, public-facing PvE games, and EvE games only', async () => {
     const now = new Date('2026-05-09T12:00:00.000Z');
+    const shortDecisive = new Date(now.getTime() - 30_000);
     const older = new Date(now.getTime() - 60_000);
+    const shortTimeout = new Date(now.getTime() + 60_000);
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
@@ -751,15 +760,28 @@ if (!TEST_DATABASE_URL) {
             'human-client-public', 'random-engine', NULL, NULL, 'pve', 'completed', 'public'),
            ('link-pve', 'fog-of-war', 'black-wins', 'timeout', 22, $1, $1,
             'human-client', 'random-engine', NULL, NULL, 'pve', 'completed', 'link'),
-           ('link-eve', 'fog-of-war', 'draw', 'truncated', 28, $2, $2,
+           ('short-capture', 'fog-of-war', 'white-wins', 'king-captured', 6, $2, $2,
+            'short-white', 'short-black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('link-eve', 'fog-of-war', 'draw', 'truncated', 28, $4, $4,
             'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed', 'link'),
-           ('private-pve', 'fog-of-war', 'black-wins', 'timeout', 24, $2, $2,
+           ('short-timeout', 'fog-of-war', 'black-wins', 'timeout', 4, $3, $3,
+            'timeout-white', 'timeout-black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('private-pve', 'fog-of-war', 'black-wins', 'timeout', 24, $4, $4,
             'human-client-private', 'random-engine', NULL, NULL, 'pve', 'completed', 'private'),
-           ('private-pvp', 'fog-of-war', 'draw', 'truncated', 6, $2, $2,
+           ('private-pvp', 'fog-of-war', 'draw', 'truncated', 6, $4, $4,
             'private-white', 'private-black', NULL, NULL, 'pvp', 'completed', 'private')`,
-        [now, older],
+        [now, shortDecisive, shortTimeout, older],
       );
-      for (const roomId of ['public-pvp', 'public-pve', 'link-pve', 'link-eve', 'private-pve', 'private-pvp']) {
+      for (const roomId of [
+        'public-pvp',
+        'public-pve',
+        'link-pve',
+        'short-capture',
+        'link-eve',
+        'short-timeout',
+        'private-pve',
+        'private-pvp',
+      ]) {
         await client.query(
           `INSERT INTO events (room_id, seq, type, payload)
            VALUES ($1, 0, 'room-created', $2)`,
@@ -780,7 +802,39 @@ if (!TEST_DATABASE_URL) {
     }
 
     const games = await listRecentPublicGames(10);
-    assert.deepEqual(games.map((game) => game.roomId), ['public-pvp', 'public-pve', 'link-pve', 'link-eve']);
+    assert.deepEqual(games.map((game) => game.roomId), [
+      'public-pvp',
+      'public-pve',
+      'link-pve',
+      'short-capture',
+      'link-eve',
+    ]);
+  });
+
+  test('listCorpusGames filters timeout games shorter than ten ply', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_name, black_name, corpus_id, mode, status)
+         VALUES
+           ('corpus-decisive-short', 'fog-of-war', 'white-wins', 'king-captured', 6, $1, $1,
+            'white', 'black', 'featured-corpus', 'imported', 'completed'),
+           ('corpus-timeout-short', 'fog-of-war', 'black-wins', 'timeout', 4, $1, $1,
+            'white', 'black', 'featured-corpus', 'imported', 'completed'),
+           ('corpus-timeout-ten', 'fog-of-war', 'black-wins', 'timeout', 10, $1, $1,
+            'white', 'black', 'featured-corpus', 'imported', 'completed')`,
+        [now],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const games = await listCorpusGames('featured-corpus');
+    assert.deepEqual(games.map((game) => game.roomId), ['corpus-decisive-short', 'corpus-timeout-ten']);
   });
 
   test('listCompletedGames returns completed games in date range with participants', async () => {

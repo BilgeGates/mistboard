@@ -4,6 +4,8 @@ import { engineVersionDisplayName } from './engine-registry.js';
 
 let pool: pg.Pool | null = null;
 
+const MIN_TIMEOUT_SOURCE_PLY_COUNT = 10;
+
 export type GameMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 export type GameResult = 'white-wins' | 'black-wins' | 'draw';
 export type GameTermination =
@@ -540,9 +542,10 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
      FROM games
      WHERE corpus_id = $1
        AND status = 'completed'
+       AND NOT (termination = 'timeout' AND ply_count < $2)
      ORDER BY room_id
-     LIMIT $2`,
-    [corpusId, limit],
+     LIMIT $3`,
+    [corpusId, MIN_TIMEOUT_SOURCE_PLY_COUNT, limit],
   );
   const records = rows.map((row): GameRecord => ({
     roomId: row.room_id,
@@ -593,9 +596,10 @@ export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecor
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.mode = 'eve'
        AND games.status = 'completed'
+       AND NOT (games.termination = 'timeout' AND games.ply_count < $1)
      ORDER BY games.ended_at DESC, games.room_id DESC
-    LIMIT $1`,
-    [limit],
+    LIMIT $2`,
+    [MIN_TIMEOUT_SOURCE_PLY_COUNT, limit],
   );
   const records = rows.map((row): RecentEveGameRecord => ({
     roomId: row.room_id,
@@ -651,6 +655,7 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
+       AND NOT (games.termination = 'timeout' AND games.ply_count < $1)
        AND EXISTS (
          SELECT 1
          FROM events
@@ -663,8 +668,8 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
          OR (games.mode = 'pve' AND games.visibility <> 'private')
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
-     LIMIT $1`,
-    [boundedLimit],
+     LIMIT $2`,
+    [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit],
   );
 
   const records = rows.map((row): RecentEveGameRecord => ({
