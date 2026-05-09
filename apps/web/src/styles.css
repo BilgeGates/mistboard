@@ -1057,13 +1057,22 @@ a {
   color: #1f2521;
 }
 
+.landing-stage {
+  display: grid;
+  gap: 16px;
+  padding: 30px 16px 28px;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(91, 129, 103, 0.34), transparent 34%),
+    linear-gradient(180deg, #17211d 0%, #25342e 56%, #f1f2ec 56%, #f1f2ec 100%);
+}
+
 .landing-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   text-align: center;
-  padding: 22px 16px 14px;
+  padding: 6px 16px 2px;
 }
 
 .landing-hero .landing-title,
@@ -1076,13 +1085,23 @@ a {
 }
 
 .landing-demo {
-  padding: 0 16px 32px;
+  padding: 0;
   display: grid;
-  grid-template-columns: minmax(0, 860px) minmax(220px, 292px);
+  grid-template-columns: minmax(0, 260px) minmax(0, 820px) minmax(230px, 260px);
   gap: 16px;
   align-items: start;
   justify-content: center;
   width: 100%;
+  max-width: 1372px;
+  margin: 0 auto;
+}
+
+.landing-demo #landing-replay {
+  grid-column: 2;
+}
+
+.landing-demo .landing-games {
+  grid-column: 3;
 }
 
 .site-section {
@@ -1152,26 +1171,51 @@ a {
     gap: 6px;
     align-items: flex-start;
   }
+
+  .landing-stage {
+    padding: 22px 12px 24px;
+    gap: 14px;
+  }
+
+  .landing-title {
+    font-size: 38px;
+  }
+
+  .landing-subtitle {
+    font-size: 17px;
+  }
+
+  .landing-ctas {
+    width: 100%;
+  }
+
+  .landing-cta-primary,
+  .landing-cta-secondary {
+    flex: 1 1 148px;
+  }
 }
 
 .landing-title {
-  font-size: clamp(34px, 4.5vw, 52px);
+  font-size: 52px;
   margin: 0;
   letter-spacing: 0;
-  color: #1f2521;
+  color: #fffdf6;
+  line-height: 1;
 }
 
 .landing-subtitle {
-  font-size: clamp(16px, 1.8vw, 19px);
+  font-size: 19px;
   margin: 0;
-  color: #3f4742;
-  max-width: 560px;
+  color: #eef5ed;
+  max-width: 640px;
+  line-height: 1.35;
 }
 
 .landing-tag {
   margin: 0;
   font-size: 14px;
-  color: #5a6960;
+  color: #bfd0c7;
+  line-height: 1.45;
 }
 
 .landing-ctas {
@@ -1215,6 +1259,21 @@ a {
 
 .landing-cta-secondary:hover {
   background: #ece8de;
+}
+
+.landing-hero .landing-cta-primary {
+  background: #f8c861;
+  color: #17211d;
+}
+
+.landing-hero .landing-cta-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fffdf6;
+  border-color: rgba(255, 253, 246, 0.32);
+}
+
+.landing-hero .landing-cta-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .landing-cta-secondary:disabled {
@@ -1403,6 +1462,12 @@ a {
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 253, 246, 0.16);
+  border-radius: 8px;
+  background: rgba(14, 19, 17, 0.58);
+  box-shadow: 0 18px 54px rgba(10, 15, 13, 0.32);
 }
 
 .landing-page .replay-page {
@@ -1410,12 +1475,17 @@ a {
   min-height: 0;
 }
 
+.landing-page #landing-replay .replay-game-id {
+  color: rgba(255, 253, 246, 0.38);
+}
+
 .landing-games {
   width: 100%;
-  border: 1px solid #d6cfbf;
-  background: #fcfbf7;
+  border: 1px solid rgba(255, 253, 246, 0.18);
+  background: rgba(252, 251, 247, 0.96);
   border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 18px 48px rgba(10, 15, 13, 0.18);
 }
 
 .landing-games-heading {
@@ -1580,10 +1650,27 @@ a {
   line-height: 1.6;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .landing-demo,
   .watch-shell {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-demo {
+    max-width: 900px;
+  }
+
+  .landing-demo #landing-replay,
+  .landing-demo .landing-games {
+    grid-column: auto;
+  }
+
+  .landing-games {
+    order: 2;
+  }
+
+  #landing-replay {
+    order: 1;
   }
 
   .watch-games {

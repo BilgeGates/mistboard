@@ -21,22 +21,21 @@ type FeaturedGame = {
   timeControl?: Record<string, unknown> | null;
 };
 
-type LandingGameSource = 'eve' | 'featured';
+type LandingGameSource = 'eve' | 'featured' | 'sample';
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
-const ENGINE_LAB_ENABLED =
-  import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
+const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
 
   const { games, source } = await fetchLandingGames();
-  const demo = buildDemoSection();
-  root.append(buildNav(), buildHero(source), demo.el, buildFooter());
+  const stage = buildLandingStage(source);
+  root.append(buildNav(), stage.el, buildFooter());
   if (games.length === 0) {
-    demo.replayRoot.textContent = 'No games available yet.';
-    renderRecentGames(demo.listRoot, games, source, undefined, '/game/', 'Now showing');
+    stage.replayRoot.textContent = 'No games available yet.';
+    renderRecentGames(stage.listRoot, games, source, undefined, '/game/', 'Now showing');
     return;
   }
 
@@ -51,15 +50,23 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const currentSample =
     requested && sampleIds.includes(requested) ? requested : pickSample(sampleIds);
 
-  await mountReplay(demo.replayRoot, currentSample, {
+  await mountReplay(stage.replayRoot, currentSample, {
     autoplay: true,
     showControls: false,
     revealOnFinish: false,
+    blackOrientation: 'white',
     loopSamples: sampleIds,
-    loaderForId: apiEventLoader,
+    loaderForId: landingEventLoader,
     metadataByRoomId,
   });
-  renderRecentGames(demo.listRoot, games, source, currentSample, '/game/', 'Now showing');
+  renderRecentGames(
+    stage.listRoot,
+    games,
+    source,
+    currentSample,
+    source === 'sample' ? '/?demo=' : '/game/',
+    'Now showing',
+  );
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -144,7 +151,8 @@ async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: Lan
     console.warn(err);
     return [];
   });
-  return { games: featuredGames, source: 'featured' };
+  if (featuredGames.length > 0) return { games: featuredGames, source: 'featured' };
+  return { games: staticSampleGames(), source: 'sample' };
 }
 
 async function fetchGameSummary(roomId: string): Promise<FeaturedGame | null> {
@@ -174,6 +182,37 @@ async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
   if (!resp.ok) throw new Error(`failed to load events for ${roomId}: ${resp.status}`);
   const data = (await resp.json()) as { events: GameEvent[] };
   return data.events;
+}
+
+async function landingEventLoader(roomId: string): Promise<GameEvent[]> {
+  const apiEvents = await apiEventLoader(roomId).catch(() => null);
+  if (apiEvents) return apiEvents;
+  return fetchStaticSample(roomId);
+}
+
+async function fetchStaticSample(sampleId: string): Promise<GameEvent[]> {
+  const safeId = sampleId.replace(/[^a-zA-Z0-9_-]/g, '');
+  const resp = await fetch(`/replay-samples/${safeId}.jsonl`);
+  if (!resp.ok) throw new Error(`failed to load replay sample ${safeId}: ${resp.status}`);
+  const text = await resp.text();
+  return text
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as GameEvent);
+}
+
+function staticSampleGames(): FeaturedGame[] {
+  return Array.from({ length: 7 }, (_, index) => ({
+    roomId: `sample-${index + 1}`,
+    variant: 'fog-of-war',
+    mode: 'manual',
+    result: index % 3 === 0 ? 'white-wins' : index % 3 === 1 ? 'black-wins' : 'draw',
+    termination: index % 3 === 2 ? 'draw' : 'king-captured',
+    plyCount: 24 + index * 3,
+    whiteName: 'White',
+    blackName: 'Black',
+    corpusId: 'replay-samples',
+  }));
 }
 
 function gameMetaForGame(game: FeaturedGame): GameMeta {
@@ -330,7 +369,7 @@ function buildNav(): HTMLElement {
   ghLink.textContent = 'GitHub';
   ghLink.className = 'site-nav-link';
 
-  if (ENGINE_LAB_ENABLED) {
+  if (SHOW_ENGINE_LAB_LINKS) {
     const labLink = document.createElement('a');
     labLink.href = '/engine-lab';
     labLink.textContent = 'Engine Lab';
@@ -342,7 +381,10 @@ function buildNav(): HTMLElement {
   return nav;
 }
 
-function buildHero(source: LandingGameSource): HTMLElement {
+function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
+  const stage = document.createElement('main');
+  stage.className = 'landing-stage';
+
   const hero = document.createElement('section');
   hero.className = 'landing-hero';
 
@@ -353,13 +395,13 @@ function buildHero(source: LandingGameSource): HTMLElement {
   const subtitle = document.createElement('p');
   subtitle.className = 'landing-subtitle';
   subtitle.textContent =
-    'Hidden-information chess. You only see what your pieces can see.';
+    'Server-enforced Fog of War chess. You only see what your pieces can see.';
 
   const tag = document.createElement('p');
   tag.className = 'landing-tag';
   tag.textContent = source === 'eve'
-    ? 'Now showing recent engine games.'
-    : 'Watch what each side saw — and what was really there.';
+    ? "Now showing recent engine games with each side's private view."
+    : 'Watch what each side saw, then reveal what was really there.';
 
   const ctas = document.createElement('div');
   ctas.className = 'landing-ctas';
@@ -367,20 +409,20 @@ function buildHero(source: LandingGameSource): HTMLElement {
   const playBtn = document.createElement('a');
   playBtn.href = '/play';
   playBtn.className = 'landing-cta-primary';
-  playBtn.textContent = 'Play';
+  playBtn.textContent = 'Play Fog';
 
   ctas.append(playBtn);
   const watchLink = document.createElement('a');
   watchLink.href = '/watch';
   watchLink.className = 'landing-cta-secondary';
-  watchLink.textContent = 'Watch games';
+  watchLink.textContent = 'Watch Replays';
   ctas.append(watchLink);
   const learnLink = document.createElement('a');
   learnLink.href = '/learn';
   learnLink.className = 'landing-cta-secondary';
-  learnLink.textContent = 'Learn Fog of War';
+  learnLink.textContent = 'How It Works';
   ctas.append(learnLink);
-  if (ENGINE_LAB_ENABLED) {
+  if (SHOW_ENGINE_LAB_LINKS) {
     const labLink = document.createElement('a');
     labLink.href = '/engine-lab';
     labLink.className = 'landing-cta-secondary';
@@ -388,10 +430,7 @@ function buildHero(source: LandingGameSource): HTMLElement {
     ctas.append(labLink);
   }
   hero.append(title, subtitle, tag, ctas);
-  return hero;
-}
 
-function buildDemoSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
@@ -402,7 +441,8 @@ function buildDemoSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoo
   replayRoot.id = 'landing-replay';
   section.append(replayRoot, listRoot);
 
-  return { el: section, replayRoot, listRoot };
+  stage.append(hero, section);
+  return { el: stage, replayRoot, listRoot };
 }
 
 function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
@@ -443,7 +483,9 @@ function renderRecentGames(
 
   const heading = document.createElement('div');
   heading.className = 'landing-games-heading';
-  heading.textContent = headingText ?? (source === 'eve' ? 'Recent EvE' : 'Featured games');
+  heading.textContent = headingText ?? (
+    source === 'eve' ? 'Recent EvE' : source === 'sample' ? 'Replay samples' : 'Featured games'
+  );
   root.append(heading);
 
   if (games.length === 0) {

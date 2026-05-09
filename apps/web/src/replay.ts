@@ -58,6 +58,8 @@ export type ReplayOptions = {
   revealOnFinish?: boolean;
   /** When false, the prev/next/play control bar is hidden (autoplay-only mode). */
   showControls?: boolean;
+  /** Board orientation for the black-view pane. Defaults to Black's perspective. */
+  blackOrientation?: Color;
   /** When set, after each game finishes the next sample loads automatically. */
   loopSamples?: string[];
   /** Pause length on the reveal frame before cycling to the next loop sample. */
@@ -105,6 +107,7 @@ export async function mountReplay(
 ): Promise<void> {
   const reveal = options.revealOnFinish !== false;
   const showControls = options.showControls !== false;
+  const blackOrientation = options.blackOrientation ?? 'black';
   const loopSamples = options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const autoplay = options.autoplay === true || loopSamples !== undefined;
@@ -157,7 +160,7 @@ export async function mountReplay(
 
   const whiteCg = createBoard(whitePane.boardEl, 'white');
   const truthCg = createBoard(truthPane.boardEl, 'white');
-  const blackCg = createBoard(blackPane.boardEl, 'black');
+  const blackCg = createBoard(blackPane.boardEl, blackOrientation);
 
   const annotation = options.annotation;
   const belief = options.belief;
