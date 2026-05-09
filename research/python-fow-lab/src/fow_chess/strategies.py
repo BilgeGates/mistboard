@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.29"
+TIER1_VERSION = "0.7.30"
 
 
 def tier1_commit() -> str:
@@ -961,6 +961,26 @@ class Tier1Strategy:
             pending_steps.get("repair_count_stage_a", 0),
             pending_steps.get("repair_count_stage_b", 0),
         )
+        repair_cost_max = max(
+            pending_steps.get("repair_cost_max_stage_a", 0),
+            pending_steps.get("repair_cost_max_stage_b", 0),
+        )
+        repair_cost_total = (
+            pending_steps.get("repair_cost_total_stage_a", 0)
+            + pending_steps.get("repair_cost_total_stage_b", 0)
+        )
+        repair_teleport_like_count = (
+            pending_steps.get("repair_teleport_like_count_stage_a", 0)
+            + pending_steps.get("repair_teleport_like_count_stage_b", 0)
+        )
+        repair_long_move_count = (
+            pending_steps.get("repair_long_move_count_stage_a", 0)
+            + pending_steps.get("repair_long_move_count_stage_b", 0)
+        )
+        repair_forced_visible_square_count = (
+            pending_steps.get("repair_forced_visible_square_count_stage_a", 0)
+            + pending_steps.get("repair_forced_visible_square_count_stage_b", 0)
+        )
         record = {
             "tier1_move_count": self._tier1_move_count,
             "ply": ply,
@@ -980,6 +1000,11 @@ class Tier1Strategy:
             "csp_reseed_count": csp_reseed_count,
             "repair_fired": repair_fired,
             "repair_count": repair_count,
+            "repair_cost_max": repair_cost_max,
+            "repair_cost_total": repair_cost_total,
+            "repair_teleport_like_count": repair_teleport_like_count,
+            "repair_long_move_count": repair_long_move_count,
+            "repair_forced_visible_square_count": repair_forced_visible_square_count,
         }
         if self._last_decision_view is not None:
             record.update(self._decision_audit(chosen, self._last_decision_view))
@@ -1172,6 +1197,27 @@ class Tier1Strategy:
                 "csp_reseed_count": csp_count,
                 "repair_fired": repair_did_fire,
                 "repair_count": repair_n,
+                "repair_cost_max": self._belief.last_repair_cost_max,
+                "repair_cost_total": self._belief.last_repair_cost_total,
+                "repair_moved_piece_count_max": (
+                    self._belief.last_repair_moved_piece_count_max
+                ),
+                "repair_max_piece_distance": (
+                    self._belief.last_repair_max_piece_distance
+                ),
+                "repair_long_move_count": self._belief.last_repair_long_move_count,
+                "repair_teleport_like_count": (
+                    self._belief.last_repair_teleport_like_count
+                ),
+                "repair_forced_visible_square_count": (
+                    self._belief.last_repair_forced_visible_square_count
+                ),
+                "repair_unpaired_added_count": (
+                    self._belief.last_repair_unpaired_added_count
+                ),
+                "repair_unpaired_removed_count": (
+                    self._belief.last_repair_unpaired_removed_count
+                ),
                 "hard_facts": self._belief.hard_fact_summary(),
                 "marginal_field": _marginal_field_for_json(
                     self._belief.marginal_piece_field()
@@ -1252,6 +1298,33 @@ class Tier1Strategy:
         self._pending_belief_steps["repair_stage_a"] = self._belief.last_repair_fired
         self._pending_belief_steps["repair_count_stage_a"] = (
             self._belief.last_repair_count
+        )
+        self._pending_belief_steps["repair_cost_max_stage_a"] = (
+            self._belief.last_repair_cost_max
+        )
+        self._pending_belief_steps["repair_cost_total_stage_a"] = (
+            self._belief.last_repair_cost_total
+        )
+        self._pending_belief_steps["repair_moved_piece_count_max_stage_a"] = (
+            self._belief.last_repair_moved_piece_count_max
+        )
+        self._pending_belief_steps["repair_max_piece_distance_stage_a"] = (
+            self._belief.last_repair_max_piece_distance
+        )
+        self._pending_belief_steps["repair_long_move_count_stage_a"] = (
+            self._belief.last_repair_long_move_count
+        )
+        self._pending_belief_steps["repair_teleport_like_count_stage_a"] = (
+            self._belief.last_repair_teleport_like_count
+        )
+        self._pending_belief_steps["repair_forced_visible_square_count_stage_a"] = (
+            self._belief.last_repair_forced_visible_square_count
+        )
+        self._pending_belief_steps["repair_unpaired_added_count_stage_a"] = (
+            self._belief.last_repair_unpaired_added_count
+        )
+        self._pending_belief_steps["repair_unpaired_removed_count_stage_a"] = (
+            self._belief.last_repair_unpaired_removed_count
         )
         self._observed_ply += 1
         self._append_belief_snapshot(
@@ -1938,6 +2011,33 @@ class Tier1Strategy:
         self._pending_belief_steps["repair_stage_b"] = self._belief.last_repair_fired
         self._pending_belief_steps["repair_count_stage_b"] = (
             self._belief.last_repair_count
+        )
+        self._pending_belief_steps["repair_cost_max_stage_b"] = (
+            self._belief.last_repair_cost_max
+        )
+        self._pending_belief_steps["repair_cost_total_stage_b"] = (
+            self._belief.last_repair_cost_total
+        )
+        self._pending_belief_steps["repair_moved_piece_count_max_stage_b"] = (
+            self._belief.last_repair_moved_piece_count_max
+        )
+        self._pending_belief_steps["repair_max_piece_distance_stage_b"] = (
+            self._belief.last_repair_max_piece_distance
+        )
+        self._pending_belief_steps["repair_long_move_count_stage_b"] = (
+            self._belief.last_repair_long_move_count
+        )
+        self._pending_belief_steps["repair_teleport_like_count_stage_b"] = (
+            self._belief.last_repair_teleport_like_count
+        )
+        self._pending_belief_steps["repair_forced_visible_square_count_stage_b"] = (
+            self._belief.last_repair_forced_visible_square_count
+        )
+        self._pending_belief_steps["repair_unpaired_added_count_stage_b"] = (
+            self._belief.last_repair_unpaired_added_count
+        )
+        self._pending_belief_steps["repair_unpaired_removed_count_stage_b"] = (
+            self._belief.last_repair_unpaired_removed_count
         )
         self._observed_ply += 1
         self._append_belief_snapshot(

@@ -1,6 +1,6 @@
 import chess
 
-from fow_chess.belief import BeliefState, _csp_reseed
+from fow_chess.belief import BeliefState, _csp_reseed, _repair_diagnostics
 from fow_chess.move_priors import uniform_prior
 from fow_chess.observation import Observation, observation_from_transition
 from fow_chess.visibility import visible_piece_map, visible_squares
@@ -31,6 +31,24 @@ def test_own_move_advances_every_particle() -> None:
     expected.push(move)
     assert len(belief.particles) == 1
     assert belief.particles[0].fen() == expected.fen()
+
+
+def test_repair_diagnostics_flags_king_teleport() -> None:
+    before = chess.Board.empty()
+    before.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    before.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+
+    after = chess.Board.empty()
+    after.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    after.set_piece_at(chess.E4, chess.Piece(chess.KING, chess.BLACK))
+
+    diag = _repair_diagnostics(before, after, visibility_set=set())
+
+    assert diag.moved_piece_count == 1
+    assert diag.max_piece_distance == 4
+    assert diag.long_move_count == 1
+    assert diag.teleport_like_count == 1
+    assert diag.cost >= 40
 
 
 def test_canonical_truth_survives_opp_move_update() -> None:

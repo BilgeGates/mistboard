@@ -62,6 +62,25 @@ def _opp_bishop_color_counts(
     return counts
 
 
+@dataclass(frozen=True)
+class RepairDiagnostics:
+    """Observability for continuity repair quality.
+
+    Repair is allowed to break strict legal-path lineage, so the engine needs
+    to know when it did something expensive or implausible. These metrics do
+    not change behavior yet; they make the next tuning target visible.
+    """
+
+    cost: int
+    moved_piece_count: int
+    max_piece_distance: int
+    long_move_count: int
+    teleport_like_count: int
+    forced_visible_square_count: int
+    unpaired_added_count: int
+    unpaired_removed_count: int
+
+
 def _piece_fact_name(piece: chess.Piece) -> str:
     color = "white" if piece.color == chess.WHITE else "black"
     return f"{color}-{chess.piece_name(piece.piece_type)}"
@@ -285,6 +304,18 @@ class BeliefState:
     # hard facts but can scramble previously good hidden-piece tracks.
     last_repair_fired: int = 0
     last_repair_count: int = 0
+    # v0.7.30: repair-quality diagnostics. These are telemetry only; high
+    # values mean repair preserved belief liveness by making a large or
+    # non-one-move edit, which should enter the review queue.
+    last_repair_cost_max: int = 0
+    last_repair_cost_total: int = 0
+    last_repair_moved_piece_count_max: int = 0
+    last_repair_max_piece_distance: int = 0
+    last_repair_long_move_count: int = 0
+    last_repair_teleport_like_count: int = 0
+    last_repair_forced_visible_square_count: int = 0
+    last_repair_unpaired_added_count: int = 0
+    last_repair_unpaired_removed_count: int = 0
     last_stage_a_pushed_count: int = 0
     last_stage_a_pushed_unique: int = 0
     last_stage_a_consistent_count: int = 0
@@ -410,6 +441,50 @@ class BeliefState:
             self.hard_opp_occupancy_squares.discard(square)
             self.hard_opp_piece_facts.pop(square, None)
 
+    def _reset_repair_diagnostics(self) -> None:
+        self.last_repair_fired = 0
+        self.last_repair_count = 0
+        self.last_repair_cost_max = 0
+        self.last_repair_cost_total = 0
+        self.last_repair_moved_piece_count_max = 0
+        self.last_repair_max_piece_distance = 0
+        self.last_repair_long_move_count = 0
+        self.last_repair_teleport_like_count = 0
+        self.last_repair_forced_visible_square_count = 0
+        self.last_repair_unpaired_added_count = 0
+        self.last_repair_unpaired_removed_count = 0
+
+    def _record_repair_diagnostics(self, diag: RepairDiagnostics) -> None:
+        self.last_repair_cost_max = max(self.last_repair_cost_max, diag.cost)
+        self.last_repair_cost_total += diag.cost
+        self.last_repair_moved_piece_count_max = max(
+            self.last_repair_moved_piece_count_max, diag.moved_piece_count
+        )
+        self.last_repair_max_piece_distance = max(
+            self.last_repair_max_piece_distance, diag.max_piece_distance
+        )
+        self.last_repair_long_move_count += diag.long_move_count
+        self.last_repair_teleport_like_count += diag.teleport_like_count
+        self.last_repair_forced_visible_square_count += (
+            diag.forced_visible_square_count
+        )
+        self.last_repair_unpaired_added_count += diag.unpaired_added_count
+        self.last_repair_unpaired_removed_count += diag.unpaired_removed_count
+
+    def _repair_candidate_weight(
+        self,
+        before: chess.Board,
+        after: chess.Board,
+        facts: BeliefHardFacts,
+        base_weight: float,
+    ) -> float:
+        diag = _repair_diagnostics(before, after, facts.visibility_set)
+        self._record_repair_diagnostics(diag)
+        # Weighting high-cost repairs down was tested as v0.7.31 and regressed
+        # the two-game rung by starving useful emergency mass. Keep this as a
+        # single future hook, but v0.7.30 is telemetry-only.
+        return base_weight
+
     def update_after_own_move(
         self,
         my_move: chess.Move,
@@ -434,8 +509,7 @@ class BeliefState:
         # Reset per-update CSP diagnostics; they're set if reseed fires below.
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
-        self.last_repair_fired = 0
-        self.last_repair_count = 0
+        self._reset_repair_diagnostics()
         self.last_stage_a_pushed_count = 0
         self.last_stage_a_pushed_unique = 0
         self.last_stage_a_consistent_count = 0
@@ -516,7 +590,11 @@ class BeliefState:
                         continue
                     seen.add(fen)
                     supplemented.append(repaired_board)
-                    supplemented_weights.append(weight)
+                    supplemented_weights.append(
+                        self._repair_candidate_weight(
+                            board, repaired_board, facts, weight
+                        )
+                    )
                     added += 1
                 self.last_stage_a_repair_ms += (
                     time.perf_counter() - repair_start
@@ -558,7 +636,11 @@ class BeliefState:
                 )
                 if repaired_board is not None:
                     repaired.append(repaired_board)
-                    repaired_weights.append(weight)
+                    repaired_weights.append(
+                        self._repair_candidate_weight(
+                            board, repaired_board, facts, weight
+                        )
+                    )
             self.last_stage_a_repair_ms += (
                 time.perf_counter() - repair_start
             ) * 1000.0
@@ -636,8 +718,7 @@ class BeliefState:
         # Reset per-update CSP diagnostics; they're set if Trigger-B fires below.
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
-        self.last_repair_fired = 0
-        self.last_repair_count = 0
+        self._reset_repair_diagnostics()
         self.last_stage_b_primary_count = 0
         self.last_stage_b_primary_unique = 0
         self.last_stage_b_constraint_count = 0
@@ -777,7 +858,11 @@ class BeliefState:
                 )
                 if repaired_board is not None:
                     repaired.append(repaired_board)
-                    repaired_weights.append(weight)
+                    repaired_weights.append(
+                        self._repair_candidate_weight(
+                            board, repaired_board, facts, weight
+                        )
+                    )
             self.last_stage_b_repair_ms += (
                 time.perf_counter() - repair_start
             ) * 1000.0
@@ -867,7 +952,9 @@ class BeliefState:
                     continue
                 seen.add(fen)
                 supplemented.append(repaired_board)
-                supplemented_weights.append(weight)
+                supplemented_weights.append(
+                    self._repair_candidate_weight(board, repaired_board, facts, weight)
+                )
                 added += 1
             self.last_stage_b_repair_ms += (
                 time.perf_counter() - repair_start
@@ -1213,6 +1300,150 @@ def _choose_required_blocker_piece_type(
     if not candidates:
         return None
     return rng.choice(candidates)
+
+
+def _repair_diagnostics(
+    before: chess.Board,
+    after: chess.Board,
+    visibility_set: set[chess.Square],
+) -> RepairDiagnostics:
+    forced_visible_square_count = sum(
+        1 for sq in visibility_set if before.piece_at(sq) != after.piece_at(sq)
+    )
+    removed_by_key: dict[tuple[chess.Color, chess.PieceType], list[chess.Square]] = (
+        defaultdict(list)
+    )
+    added_by_key: dict[tuple[chess.Color, chess.PieceType], list[chess.Square]] = (
+        defaultdict(list)
+    )
+    for sq in chess.SQUARES:
+        before_piece = before.piece_at(sq)
+        after_piece = after.piece_at(sq)
+        if before_piece == after_piece:
+            continue
+        if before_piece is not None:
+            removed_by_key[(before_piece.color, before_piece.piece_type)].append(sq)
+        if after_piece is not None:
+            added_by_key[(after_piece.color, after_piece.piece_type)].append(sq)
+
+    moved_piece_count = 0
+    max_piece_distance = 0
+    total_piece_distance = 0
+    long_move_count = 0
+    teleport_like_count = 0
+
+    for key, added_squares in added_by_key.items():
+        removed_squares = removed_by_key.get(key, [])
+        while added_squares and removed_squares:
+            source, target = min(
+                (
+                    (source, target)
+                    for source in removed_squares
+                    for target in added_squares
+                ),
+                key=lambda pair: _square_chebyshev_distance(pair[0], pair[1]),
+            )
+            removed_squares.remove(source)
+            added_squares.remove(target)
+            piece = chess.Piece(key[1], key[0])
+            distance = _square_chebyshev_distance(source, target)
+            moved_piece_count += 1
+            max_piece_distance = max(max_piece_distance, distance)
+            total_piece_distance += distance
+            if distance >= 4:
+                long_move_count += 1
+            if not _piece_can_reach_in_one_move(before, source, target, piece):
+                teleport_like_count += 1
+
+    unpaired_added_count = sum(len(squares) for squares in added_by_key.values())
+    unpaired_removed_count = sum(len(squares) for squares in removed_by_key.values())
+    cost = (
+        moved_piece_count * 4
+        + total_piece_distance * 2
+        + long_move_count * 8
+        + teleport_like_count * 25
+        + (unpaired_added_count + unpaired_removed_count) * 20
+        + forced_visible_square_count * 3
+    )
+    return RepairDiagnostics(
+        cost=cost,
+        moved_piece_count=moved_piece_count,
+        max_piece_distance=max_piece_distance,
+        long_move_count=long_move_count,
+        teleport_like_count=teleport_like_count,
+        forced_visible_square_count=forced_visible_square_count,
+        unpaired_added_count=unpaired_added_count,
+        unpaired_removed_count=unpaired_removed_count,
+    )
+
+
+def _square_chebyshev_distance(a: chess.Square, b: chess.Square) -> int:
+    return max(
+        abs(chess.square_file(a) - chess.square_file(b)),
+        abs(chess.square_rank(a) - chess.square_rank(b)),
+    )
+
+
+def _piece_can_reach_in_one_move(
+    board: chess.Board,
+    source: chess.Square,
+    target: chess.Square,
+    piece: chess.Piece,
+) -> bool:
+    if source == target:
+        return True
+    file_delta = chess.square_file(target) - chess.square_file(source)
+    rank_delta = chess.square_rank(target) - chess.square_rank(source)
+    abs_file = abs(file_delta)
+    abs_rank = abs(rank_delta)
+    if piece.piece_type == chess.KNIGHT:
+        return (abs_file, abs_rank) in {(1, 2), (2, 1)}
+    if piece.piece_type == chess.KING:
+        return max(abs_file, abs_rank) == 1
+    if piece.piece_type == chess.BISHOP:
+        return abs_file == abs_rank and _line_clear(board, source, target)
+    if piece.piece_type == chess.ROOK:
+        return (file_delta == 0 or rank_delta == 0) and _line_clear(
+            board, source, target
+        )
+    if piece.piece_type == chess.QUEEN:
+        return (
+            file_delta == 0 or rank_delta == 0 or abs_file == abs_rank
+        ) and _line_clear(board, source, target)
+    if piece.piece_type == chess.PAWN:
+        direction = 1 if piece.color == chess.WHITE else -1
+        start_rank = 1 if piece.color == chess.WHITE else 6
+        if rank_delta == direction and abs_file <= 1:
+            return True
+        if (
+            file_delta == 0
+            and rank_delta == 2 * direction
+            and chess.square_rank(source) == start_rank
+        ):
+            mid = chess.square(
+                chess.square_file(source),
+                chess.square_rank(source) + direction,
+            )
+            return board.piece_at(mid) is None
+    return False
+
+
+def _line_clear(board: chess.Board, source: chess.Square, target: chess.Square) -> bool:
+    file_delta = chess.square_file(target) - chess.square_file(source)
+    rank_delta = chess.square_rank(target) - chess.square_rank(source)
+    step_file = 0 if file_delta == 0 else file_delta // abs(file_delta)
+    step_rank = 0 if rank_delta == 0 else rank_delta // abs(rank_delta)
+    file_cursor = chess.square_file(source) + step_file
+    rank_cursor = chess.square_rank(source) + step_rank
+    while (file_cursor, rank_cursor) != (
+        chess.square_file(target),
+        chess.square_rank(target),
+    ):
+        if board.piece_at(chess.square(file_cursor, rank_cursor)) is not None:
+            return False
+        file_cursor += step_file
+        rank_cursor += step_rank
+    return True
 
 
 def _repair_particle_to_observation(

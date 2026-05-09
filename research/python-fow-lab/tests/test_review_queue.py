@@ -188,4 +188,59 @@ def test_generate_queue_labels_repair_as_lower_priority_than_generic_csp(
 
     assert [item.ply for item in items] == [14, 12]
     assert "generic-csp-reseed-stage-a+50" in items[0].reasons
+
+
+def test_generate_queue_prioritizes_teleport_like_repairs(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "games": [
+                    {
+                        "index": 2,
+                        "outcome": "W",
+                        "plies": 30,
+                        "path": "games/game-0002-W-tier1-white.jsonl",
+                    }
+                ]
+            }
+        )
+    )
+    write_jsonl(
+        tmp_path / "trace.jsonl",
+        [
+            {
+                "game_index": 2,
+                "tier1_seat": "tier1_a",
+                "tier1_side": "white",
+                "ply": 12,
+                "decision_path": "main-eval",
+                "move_chosen_uci": "a2a3",
+                "belief_unique_count": 16,
+                "repair_fired": True,
+                "repair_stage_b": 1,
+                "repair_count": 8,
+                "repair_teleport_like_count": 1,
+                "repair_long_move_count": 1,
+                "repair_cost_max": 54,
+            },
+            {
+                "game_index": 2,
+                "tier1_seat": "tier1_a",
+                "tier1_side": "white",
+                "ply": 14,
+                "decision_path": "main-eval",
+                "move_chosen_uci": "h2h3",
+                "belief_unique_count": 16,
+                "repair_fired": True,
+                "repair_stage_b": 1,
+                "repair_count": 8,
+            },
+        ],
+    )
+
+    items = review_queue.generate_queue(tmp_path)
+
+    assert [item.ply for item in items] == [12, 14]
+    assert "repair-teleport-like:1+24" in items[0].reasons
+    assert "repair-long-move:1+10" in items[0].reasons
     assert "belief-repair+10" in items[1].reasons

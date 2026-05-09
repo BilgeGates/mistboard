@@ -160,6 +160,21 @@ def score_trace_row(
     if row.get("repair_fired") is True:
         add(reasons, "belief-repair", 10)
         score += 10
+        teleport_count = int(row.get("repair_teleport_like_count") or 0)
+        long_move_count = int(row.get("repair_long_move_count") or 0)
+        repair_cost_max = int(row.get("repair_cost_max") or 0)
+        if teleport_count:
+            add(reasons, f"repair-teleport-like:{teleport_count}", 24)
+            score += 24
+        if long_move_count:
+            add(reasons, f"repair-long-move:{long_move_count}", 10)
+            score += 10
+        if repair_cost_max >= 80:
+            add(reasons, "repair-cost>=80", 12)
+            score += 12
+        elif repair_cost_max >= 40:
+            add(reasons, "repair-cost>=40", 6)
+            score += 6
 
     score += score_particle_drop(reasons, row, "stage_a")
     score += score_particle_drop(reasons, row, "stage_b")
@@ -442,8 +457,19 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "csp_reseed_stage_b",
         "repair_fired",
         "repair_count",
+        "repair_cost_max",
+        "repair_cost_total",
+        "repair_teleport_like_count",
+        "repair_long_move_count",
+        "repair_forced_visible_square_count",
         "repair_stage_a",
         "repair_stage_b",
+        "repair_cost_max_stage_a",
+        "repair_cost_max_stage_b",
+        "repair_teleport_like_count_stage_a",
+        "repair_teleport_like_count_stage_b",
+        "repair_long_move_count_stage_a",
+        "repair_long_move_count_stage_b",
     ]
     return {key: row[key] for key in keys if key in row}
 
