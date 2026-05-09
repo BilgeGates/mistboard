@@ -1,6 +1,11 @@
 import chess
 
-from fow_chess.belief import BeliefState, _csp_reseed, _repair_diagnostics
+from fow_chess.belief import (
+    BeliefState,
+    _csp_reseed,
+    _repair_diagnostics,
+    _repair_passes_strict_reachability,
+)
 from fow_chess.move_priors import uniform_prior
 from fow_chess.observation import Observation, observation_from_transition
 from fow_chess.visibility import visible_piece_map, visible_squares
@@ -54,6 +59,8 @@ def test_repair_diagnostics_flags_king_teleport() -> None:
     assert diag.worst_to == "e4"
     assert diag.worst_distance == 4
     assert diag.worst_one_move_legal is False
+    assert diag.strict_unreachable_count == 1
+    assert _repair_passes_strict_reachability(diag) is False
 
 
 def test_stage_b_uses_checkpoint_repair_before_generic_csp() -> None:

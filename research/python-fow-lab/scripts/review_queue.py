@@ -187,6 +187,14 @@ def score_trace_row(
                 4,
             )
             score += 4
+        strict_rejected = int(row.get("repair_strict_rejected_count") or 0)
+        strict_fallback = int(row.get("repair_strict_fallback_count") or 0)
+        if strict_rejected:
+            add(reasons, f"repair-strict-rejected:{strict_rejected}", 8)
+            score += 8
+        if strict_fallback:
+            add(reasons, f"repair-strict-fallback:{strict_fallback}", 12)
+            score += 12
     if row.get("checkpoint_repair_fired") is True:
         add(reasons, "checkpoint-repair", 16)
         score += 16
@@ -484,6 +492,8 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "repair_worst_to",
         "repair_worst_distance",
         "repair_worst_one_move_legal",
+        "repair_strict_rejected_count",
+        "repair_strict_fallback_count",
         "checkpoint_repair_fired",
         "checkpoint_repair_count",
         "checkpoint_repair_age",
@@ -507,6 +517,10 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "repair_worst_distance_stage_b",
         "repair_worst_one_move_legal_stage_a",
         "repair_worst_one_move_legal_stage_b",
+        "repair_strict_rejected_count_stage_a",
+        "repair_strict_rejected_count_stage_b",
+        "repair_strict_fallback_count_stage_a",
+        "repair_strict_fallback_count_stage_b",
         "checkpoint_repair_stage_a",
         "checkpoint_repair_stage_b",
         "checkpoint_repair_count_stage_a",

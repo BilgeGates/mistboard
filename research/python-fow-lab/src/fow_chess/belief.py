@@ -84,6 +84,7 @@ class RepairDiagnostics:
     worst_to: str | None = None
     worst_distance: int = 0
     worst_one_move_legal: bool | None = None
+    strict_unreachable_count: int = 0
 
 
 def _piece_fact_name(piece: chess.Piece) -> str:
@@ -327,6 +328,8 @@ class BeliefState:
     last_repair_worst_to: str | None = None
     last_repair_worst_distance: int = 0
     last_repair_worst_one_move_legal: bool | None = None
+    last_repair_strict_rejected_count: int = 0
+    last_repair_strict_fallback_count: int = 0
     last_stage_a_pushed_count: int = 0
     last_stage_a_pushed_unique: int = 0
     last_stage_a_consistent_count: int = 0
@@ -486,6 +489,8 @@ class BeliefState:
         self.last_repair_worst_to = None
         self.last_repair_worst_distance = 0
         self.last_repair_worst_one_move_legal = None
+        self.last_repair_strict_rejected_count = 0
+        self.last_repair_strict_fallback_count = 0
 
     def _record_repair_diagnostics(self, diag: RepairDiagnostics) -> None:
         self.last_repair_cost_max = max(self.last_repair_cost_max, diag.cost)
@@ -511,6 +516,14 @@ class BeliefState:
             self.last_repair_worst_distance = diag.worst_distance
             self.last_repair_worst_one_move_legal = diag.worst_one_move_legal
 
+    def _repair_candidate_weight_from_diag(
+        self,
+        diag: RepairDiagnostics,
+        base_weight: float,
+    ) -> float:
+        self._record_repair_diagnostics(diag)
+        return base_weight
+
     def _repair_candidate_weight(
         self,
         before: chess.Board,
@@ -519,11 +532,7 @@ class BeliefState:
         base_weight: float,
     ) -> float:
         diag = _repair_diagnostics(before, after, facts.visibility_set)
-        self._record_repair_diagnostics(diag)
-        # Weighting high-cost repairs down was tested as v0.7.31 and regressed
-        # the two-game rung by starving useful emergency mass. Keep this as a
-        # single future hook, but v0.7.30 is telemetry-only.
-        return base_weight
+        return self._repair_candidate_weight_from_diag(diag, base_weight)
 
     def _store_checkpoint(self) -> None:
         self.checkpoint_particles = [particle.copy() for particle in self.particles]
@@ -981,8 +990,8 @@ class BeliefState:
             # fog exactly. This is allowed to break exact opponent-move
             # reachability, but it keeps stable pawn/piece tracks instead of
             # random-filling from scratch.
-            repaired: list[chess.Board] = []
-            repaired_weights: list[float] = []
+            repaired: list[tuple[chess.Board, float, RepairDiagnostics]] = []
+            strict_repaired: list[tuple[chess.Board, float, RepairDiagnostics]] = []
             repair_start = time.perf_counter()
             for prev_board, board, weight, _, _, count_ok, _ in expanded:
                 if not count_ok:
@@ -995,26 +1004,37 @@ class BeliefState:
                     prev_board=prev_board,
                 )
                 if repaired_board is not None:
-                    repaired.append(repaired_board)
-                    repaired_weights.append(
-                        self._repair_candidate_weight(
-                            board, repaired_board, facts, weight
-                        )
+                    diag = _repair_diagnostics(
+                        board, repaired_board, facts.visibility_set
                     )
+                    candidate = (repaired_board, weight, diag)
+                    repaired.append(candidate)
+                    if _repair_passes_strict_reachability(diag):
+                        strict_repaired.append(candidate)
+                    else:
+                        self.last_repair_strict_rejected_count += 1
             self.last_stage_b_repair_ms += (
                 time.perf_counter() - repair_start
             ) * 1000.0
 
             if repaired:
+                chosen_repairs = strict_repaired or repaired
+                if not strict_repaired and self.last_repair_strict_rejected_count:
+                    self.last_repair_strict_fallback_count += len(repaired)
+                repaired_particles = [board for board, _, _ in chosen_repairs]
+                repaired_weights = [
+                    self._repair_candidate_weight_from_diag(diag, weight)
+                    for _, weight, diag in chosen_repairs
+                ]
                 resample_start = time.perf_counter()
                 self.particles, self.weights = _resample(
-                    repaired, repaired_weights, self.target_n, self.rng
+                    repaired_particles, repaired_weights, self.target_n, self.rng
                 )
                 self.last_stage_b_resample_ms += (
                     time.perf_counter() - resample_start
                 ) * 1000.0
                 self.last_repair_fired += 1
-                self.last_repair_count = len(repaired)
+                self.last_repair_count = len(repaired_particles)
                 self._prune_hard_opp_facts_to_particles()
                 self.last_stage_b_elapsed_ms = (
                     time.perf_counter() - update_start
@@ -1508,6 +1528,7 @@ def _repair_diagnostics(
     worst_target: chess.Square | None = None
     worst_distance = 0
     worst_one_move_legal: bool | None = None
+    strict_unreachable_count = 0
 
     for key, added_squares in added_by_key.items():
         removed_squares = removed_by_key.get(key, [])
@@ -1540,6 +1561,8 @@ def _repair_diagnostics(
                 long_move_count += 1
             if not one_move_legal:
                 teleport_like_count += 1
+                if piece.piece_type in {chess.KING, chess.PAWN, chess.ROOK}:
+                    strict_unreachable_count += 1
 
     unpaired_added_count = sum(len(squares) for squares in added_by_key.values())
     unpaired_removed_count = sum(len(squares) for squares in removed_by_key.values())
@@ -1567,7 +1590,12 @@ def _repair_diagnostics(
         worst_to=chess.square_name(worst_target) if worst_target is not None else None,
         worst_distance=worst_distance,
         worst_one_move_legal=worst_one_move_legal,
+        strict_unreachable_count=strict_unreachable_count,
     )
+
+
+def _repair_passes_strict_reachability(diag: RepairDiagnostics) -> bool:
+    return diag.strict_unreachable_count == 0
 
 
 def _square_chebyshev_distance(a: chess.Square, b: chess.Square) -> int:

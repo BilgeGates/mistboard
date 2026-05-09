@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.32"
+TIER1_VERSION = "0.7.33"
 
 
 def tier1_commit() -> str:
@@ -981,6 +981,14 @@ class Tier1Strategy:
             pending_steps.get("repair_forced_visible_square_count_stage_a", 0)
             + pending_steps.get("repair_forced_visible_square_count_stage_b", 0)
         )
+        repair_strict_rejected_count = (
+            pending_steps.get("repair_strict_rejected_count_stage_a", 0)
+            + pending_steps.get("repair_strict_rejected_count_stage_b", 0)
+        )
+        repair_strict_fallback_count = (
+            pending_steps.get("repair_strict_fallback_count_stage_a", 0)
+            + pending_steps.get("repair_strict_fallback_count_stage_b", 0)
+        )
         if pending_steps.get("repair_worst_cost_stage_b", 0) >= pending_steps.get(
             "repair_worst_cost_stage_a", 0
         ):
@@ -1043,6 +1051,8 @@ class Tier1Strategy:
             "repair_teleport_like_count": repair_teleport_like_count,
             "repair_long_move_count": repair_long_move_count,
             "repair_forced_visible_square_count": repair_forced_visible_square_count,
+            "repair_strict_rejected_count": repair_strict_rejected_count,
+            "repair_strict_fallback_count": repair_strict_fallback_count,
             "repair_worst_stage": repair_worst_stage if repair_worst_cost else None,
             "repair_worst_cost": repair_worst_cost,
             "repair_worst_piece": repair_worst_piece,
@@ -1274,6 +1284,12 @@ class Tier1Strategy:
                 "repair_worst_one_move_legal": (
                     self._belief.last_repair_worst_one_move_legal
                 ),
+                "repair_strict_rejected_count": (
+                    self._belief.last_repair_strict_rejected_count
+                ),
+                "repair_strict_fallback_count": (
+                    self._belief.last_repair_strict_fallback_count
+                ),
                 "checkpoint_repair_fired": bool(
                     self._belief.last_checkpoint_repair_fired
                 ),
@@ -1409,6 +1425,12 @@ class Tier1Strategy:
         )
         self._pending_belief_steps["repair_worst_one_move_legal_stage_a"] = (
             self._belief.last_repair_worst_one_move_legal
+        )
+        self._pending_belief_steps["repair_strict_rejected_count_stage_a"] = (
+            self._belief.last_repair_strict_rejected_count
+        )
+        self._pending_belief_steps["repair_strict_fallback_count_stage_a"] = (
+            self._belief.last_repair_strict_fallback_count
         )
         self._pending_belief_steps["checkpoint_repair_stage_a"] = (
             self._belief.last_checkpoint_repair_fired
@@ -2152,6 +2174,12 @@ class Tier1Strategy:
         )
         self._pending_belief_steps["repair_worst_one_move_legal_stage_b"] = (
             self._belief.last_repair_worst_one_move_legal
+        )
+        self._pending_belief_steps["repair_strict_rejected_count_stage_b"] = (
+            self._belief.last_repair_strict_rejected_count
+        )
+        self._pending_belief_steps["repair_strict_fallback_count_stage_b"] = (
+            self._belief.last_repair_strict_fallback_count
         )
         self._pending_belief_steps["checkpoint_repair_stage_b"] = (
             self._belief.last_checkpoint_repair_fired
