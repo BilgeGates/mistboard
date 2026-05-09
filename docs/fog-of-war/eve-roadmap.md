@@ -60,7 +60,10 @@ Do not re-derive annotations from the JSONL on each migration run. Backfill once
 
 ## Verbose Belief Capture
 
-The Engine Lab belief debug viz (see `docs/build-log/2026-05-07-fow-belief-debug-viz-design.md`) introduces `--verbose-belief` capture for per-ply marginal piece occupancy + top-K particle clusters. In production EvE this lives at the **job** level, not the engine level:
+The Engine Lab belief debug workflow (see `docs/fog-of-war/engine-lab-loop.md`)
+uses `--verbose-belief` capture for per-ply marginal piece occupancy + top-K
+particle clusters. In production EvE this lives at the **job** level, not the
+engine level:
 
 - `eve_jobs.config` JSON includes `verbose_belief: true` when the operator wants belief snapshots.
 - The worker reads the flag, configures Tier-1 with `verbose_belief_capture=True`, and on each ply persists one row to `game_debug_artifacts` with `kind = 'belief-snapshot'` and the marginal+top-K payload.

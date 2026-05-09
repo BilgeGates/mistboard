@@ -3,10 +3,9 @@
 A design entry. The next Tier-1 release replaces v0.6.3's degenerate
 visibility-only fallback (one particle, hidden squares empty) with a
 constraint-satisfaction reseed that generates N rich particles consistent
-with everything we know about opp piece configuration. This is the
-position-based belief approach the user proposed weeks ago — it's cheaper
-to ship after v0.6.x banked the constraints (`opp_remaining_counts`) that
-make the CSP tractable.
+with everything we know about opp piece configuration. This position-based
+belief approach is cheaper to ship after v0.6.x banked the constraints
+(`opp_remaining_counts`) that make the CSP tractable.
 
 ## Motivation
 

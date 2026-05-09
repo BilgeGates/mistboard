@@ -6,7 +6,7 @@ After the room replay and sound work landed, the GitHub Actions `node` job
 failed on `main`. The failing step was the Postgres-backed test run in CI:
 
 ```text
-TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5432/bichess npm test
+TEST_DATABASE_URL=postgres://USER:PASSWORD@localhost:5432/bichess npm test
 ```
 
 The failure was not caused by Node itself. It was a persistence test expectation
@@ -41,7 +41,7 @@ The failing CI symptom was reproduced locally by running the CI-equivalent
 Postgres test command against the local Docker Postgres:
 
 ```text
-TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
+TEST_DATABASE_URL=postgres://USER:PASSWORD@localhost:5435/bichess npm test
 ```
 
 That surfaced two failing tests in `apps/server/src/persistence.test.ts`:
@@ -61,7 +61,7 @@ Post-fix local CI-equivalent checks passed:
 ```text
 npm run build
 npm run typecheck
-TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
+TEST_DATABASE_URL=postgres://USER:PASSWORD@localhost:5435/bichess npm test
 npm audit --omit=dev
 ```
 
@@ -90,7 +90,7 @@ For future changes in these areas:
 run the Postgres-backed command before pushing:
 
 ```text
-TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
+TEST_DATABASE_URL=postgres://USER:PASSWORD@localhost:5435/bichess npm test
 ```
 
 If local Postgres is not running, start it with:
