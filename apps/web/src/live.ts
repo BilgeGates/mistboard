@@ -876,19 +876,36 @@ function movesFor(from: Square, to: Square): Move[] {
 function renderPromotion(): void {
   refs.promotion.replaceChildren();
   refs.promotion.hidden = pendingPromotion === null;
+  refs.promotion.onclick = null;
   if (!pendingPromotion) return;
 
-  refs.promotion.className = `promotion-picker ${pendingPromotion.color}`;
-  for (const role of promotionRoles) {
+  refs.promotion.className = `promotion-picker cg-wrap ${pendingPromotion.color}`;
+  refs.promotion.setAttribute('aria-label', 'Choose promotion piece');
+  refs.promotion.onclick = (event) => {
+    if (event.target !== refs.promotion) return;
+    pendingPromotion = null;
+    refs.promotion.hidden = true;
+    renderBoard(currentView());
+  };
+
+  const fileIndex = squareFileIndex(pendingPromotion.to);
+  const visualFile = orientation === 'white' ? fileIndex : 7 - fileIndex;
+  const startsAtTop = pendingPromotion.color === orientation;
+
+  for (const [index, role] of promotionRoles.entries()) {
     const move = pendingPromotion.moves.find((candidate) => candidate.promotion === role);
     if (!move) continue;
 
     const button = document.createElement('button');
     button.type = 'button';
+    button.className = 'promotion-choice';
     button.title = role;
     button.setAttribute('aria-label', `Promote to ${role}`);
+    button.style.left = `${visualFile * 12.5}%`;
+    button.style.top = `${(startsAtTop ? index : 7 - index) * 12.5}%`;
     button.append(promotionLabel(role, pendingPromotion.color));
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
       pendingPromotion = null;
       refs.promotion.hidden = true;
       sendSocket({ type: 'move', ...move });
@@ -897,29 +914,15 @@ function renderPromotion(): void {
   }
 }
 
-function promotionLabel(role: PromotionRole, color: Color): HTMLSpanElement {
-  const label = document.createElement('span');
-  label.className = `promotion-piece ${color}`;
-  label.textContent = pieceGlyph(role, color);
+function promotionLabel(role: PromotionRole, color: Color): HTMLElement {
+  const label = document.createElement('piece');
+  label.className = `promotion-piece ${role} ${color}`;
+  label.setAttribute('aria-hidden', 'true');
   return label;
 }
 
-function pieceGlyph(role: PromotionRole, color: Color): string {
-  const labels = {
-    white: {
-      bishop: '♗',
-      knight: '♘',
-      queen: '♕',
-      rook: '♖',
-    },
-    black: {
-      bishop: '♝',
-      knight: '♞',
-      queen: '♛',
-      rook: '♜',
-    },
-  } satisfies Record<Color, Record<PromotionRole, string>>;
-  return labels[color][role];
+function squareFileIndex(square: Square): number {
+  return files.indexOf(square[0] as typeof files[number]);
 }
 
 function boardFen(view: PlayerView): string {

@@ -117,9 +117,11 @@ research/python-fow-lab/  Python sidecar for visibility/bot/inference experiment
 Events and games are persisted to Postgres. The `events` table is an append-only log of every `GameEvent` (JSONB payload, keyed by `(room_id, seq)`). The `games` table is a one-row-per-finished-game aggregate, written when a terminal projection state is observed. See [`docs/persistence.md`](docs/persistence.md).
 
 In dev, persistence is optional — `apps/server` falls back to in-memory rooms if `DATABASE_URL` is unset.
+Use the persistent dev script when testing postgame review, reconnect recovery, or anything that should survive a server restart.
 
 ```bash
 docker compose up -d postgres   # local Postgres on host port 5435
+npm run dev:persistent           # server uses the local Docker Postgres
 TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
 ```
 
@@ -127,7 +129,8 @@ TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
 
 ```bash
 npm install
-npm run dev
+npm run dev              # in-memory server, fastest for UI work
+npm run dev:persistent   # Postgres-backed server, use for game/replay recovery
 npm test
 ```
 

@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace @bichess/server & npm run dev --workspace @bichess/web",
+    "dev:persistent": "npm run dev:persistent --workspace @bichess/server & npm run dev --workspace @bichess/web",
     "build": "node scripts/build.mjs",
     "build:all": "npm run build --workspaces",
     "start": "node scripts/start.mjs",
