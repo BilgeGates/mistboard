@@ -79,6 +79,11 @@ class RepairDiagnostics:
     forced_visible_square_count: int
     unpaired_added_count: int
     unpaired_removed_count: int
+    worst_piece: str | None = None
+    worst_from: str | None = None
+    worst_to: str | None = None
+    worst_distance: int = 0
+    worst_one_move_legal: bool | None = None
 
 
 def _piece_fact_name(piece: chess.Piece) -> str:
@@ -316,6 +321,12 @@ class BeliefState:
     last_repair_forced_visible_square_count: int = 0
     last_repair_unpaired_added_count: int = 0
     last_repair_unpaired_removed_count: int = 0
+    last_repair_worst_cost: int = 0
+    last_repair_worst_piece: str | None = None
+    last_repair_worst_from: str | None = None
+    last_repair_worst_to: str | None = None
+    last_repair_worst_distance: int = 0
+    last_repair_worst_one_move_legal: bool | None = None
     last_stage_a_pushed_count: int = 0
     last_stage_a_pushed_unique: int = 0
     last_stage_a_consistent_count: int = 0
@@ -469,6 +480,12 @@ class BeliefState:
         self.last_repair_forced_visible_square_count = 0
         self.last_repair_unpaired_added_count = 0
         self.last_repair_unpaired_removed_count = 0
+        self.last_repair_worst_cost = 0
+        self.last_repair_worst_piece = None
+        self.last_repair_worst_from = None
+        self.last_repair_worst_to = None
+        self.last_repair_worst_distance = 0
+        self.last_repair_worst_one_move_legal = None
 
     def _record_repair_diagnostics(self, diag: RepairDiagnostics) -> None:
         self.last_repair_cost_max = max(self.last_repair_cost_max, diag.cost)
@@ -486,6 +503,13 @@ class BeliefState:
         )
         self.last_repair_unpaired_added_count += diag.unpaired_added_count
         self.last_repair_unpaired_removed_count += diag.unpaired_removed_count
+        if diag.cost > self.last_repair_worst_cost:
+            self.last_repair_worst_cost = diag.cost
+            self.last_repair_worst_piece = diag.worst_piece
+            self.last_repair_worst_from = diag.worst_from
+            self.last_repair_worst_to = diag.worst_to
+            self.last_repair_worst_distance = diag.worst_distance
+            self.last_repair_worst_one_move_legal = diag.worst_one_move_legal
 
     def _repair_candidate_weight(
         self,
@@ -1479,6 +1503,11 @@ def _repair_diagnostics(
     total_piece_distance = 0
     long_move_count = 0
     teleport_like_count = 0
+    worst_piece: chess.Piece | None = None
+    worst_source: chess.Square | None = None
+    worst_target: chess.Square | None = None
+    worst_distance = 0
+    worst_one_move_legal: bool | None = None
 
     for key, added_squares in added_by_key.items():
         removed_squares = removed_by_key.get(key, [])
@@ -1495,12 +1524,21 @@ def _repair_diagnostics(
             added_squares.remove(target)
             piece = chess.Piece(key[1], key[0])
             distance = _square_chebyshev_distance(source, target)
+            one_move_legal = _piece_can_reach_in_one_move(
+                before, source, target, piece
+            )
             moved_piece_count += 1
             max_piece_distance = max(max_piece_distance, distance)
             total_piece_distance += distance
+            if distance > worst_distance:
+                worst_piece = piece
+                worst_source = source
+                worst_target = target
+                worst_distance = distance
+                worst_one_move_legal = one_move_legal
             if distance >= 4:
                 long_move_count += 1
-            if not _piece_can_reach_in_one_move(before, source, target, piece):
+            if not one_move_legal:
                 teleport_like_count += 1
 
     unpaired_added_count = sum(len(squares) for squares in added_by_key.values())
@@ -1522,6 +1560,13 @@ def _repair_diagnostics(
         forced_visible_square_count=forced_visible_square_count,
         unpaired_added_count=unpaired_added_count,
         unpaired_removed_count=unpaired_removed_count,
+        worst_piece=worst_piece.symbol() if worst_piece is not None else None,
+        worst_from=(
+            chess.square_name(worst_source) if worst_source is not None else None
+        ),
+        worst_to=chess.square_name(worst_target) if worst_target is not None else None,
+        worst_distance=worst_distance,
+        worst_one_move_legal=worst_one_move_legal,
     )
 
 

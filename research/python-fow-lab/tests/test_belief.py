@@ -49,6 +49,11 @@ def test_repair_diagnostics_flags_king_teleport() -> None:
     assert diag.long_move_count == 1
     assert diag.teleport_like_count == 1
     assert diag.cost >= 40
+    assert diag.worst_piece == "k"
+    assert diag.worst_from == "h8"
+    assert diag.worst_to == "e4"
+    assert diag.worst_distance == 4
+    assert diag.worst_one_move_legal is False
 
 
 def test_stage_b_uses_checkpoint_repair_before_generic_csp() -> None:

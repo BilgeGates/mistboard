@@ -175,6 +175,18 @@ def score_trace_row(
         elif repair_cost_max >= 40:
             add(reasons, "repair-cost>=40", 6)
             score += 6
+        worst_piece = row.get("repair_worst_piece")
+        worst_from = row.get("repair_worst_from")
+        worst_to = row.get("repair_worst_to")
+        worst_distance = int(row.get("repair_worst_distance") or 0)
+        worst_legal = row.get("repair_worst_one_move_legal")
+        if worst_piece and worst_from and worst_to and worst_legal is False:
+            add(
+                reasons,
+                f"repair-worst:{worst_piece}:{worst_from}->{worst_to}:d{worst_distance}:nonlegal",
+                4,
+            )
+            score += 4
     if row.get("checkpoint_repair_fired") is True:
         add(reasons, "checkpoint-repair", 16)
         score += 16
@@ -465,6 +477,13 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "repair_teleport_like_count",
         "repair_long_move_count",
         "repair_forced_visible_square_count",
+        "repair_worst_stage",
+        "repair_worst_cost",
+        "repair_worst_piece",
+        "repair_worst_from",
+        "repair_worst_to",
+        "repair_worst_distance",
+        "repair_worst_one_move_legal",
         "checkpoint_repair_fired",
         "checkpoint_repair_count",
         "checkpoint_repair_age",
@@ -476,6 +495,18 @@ def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
         "repair_teleport_like_count_stage_b",
         "repair_long_move_count_stage_a",
         "repair_long_move_count_stage_b",
+        "repair_worst_cost_stage_a",
+        "repair_worst_cost_stage_b",
+        "repair_worst_piece_stage_a",
+        "repair_worst_piece_stage_b",
+        "repair_worst_from_stage_a",
+        "repair_worst_from_stage_b",
+        "repair_worst_to_stage_a",
+        "repair_worst_to_stage_b",
+        "repair_worst_distance_stage_a",
+        "repair_worst_distance_stage_b",
+        "repair_worst_one_move_legal_stage_a",
+        "repair_worst_one_move_legal_stage_b",
         "checkpoint_repair_stage_a",
         "checkpoint_repair_stage_b",
         "checkpoint_repair_count_stage_a",

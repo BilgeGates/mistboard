@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.31"
+TIER1_VERSION = "0.7.32"
 
 
 def tier1_commit() -> str:
@@ -981,6 +981,32 @@ class Tier1Strategy:
             pending_steps.get("repair_forced_visible_square_count_stage_a", 0)
             + pending_steps.get("repair_forced_visible_square_count_stage_b", 0)
         )
+        if pending_steps.get("repair_worst_cost_stage_b", 0) >= pending_steps.get(
+            "repair_worst_cost_stage_a", 0
+        ):
+            repair_worst_stage = "stage_b"
+            repair_worst_cost = pending_steps.get("repair_worst_cost_stage_b", 0)
+            repair_worst_piece = pending_steps.get("repair_worst_piece_stage_b")
+            repair_worst_from = pending_steps.get("repair_worst_from_stage_b")
+            repair_worst_to = pending_steps.get("repair_worst_to_stage_b")
+            repair_worst_distance = pending_steps.get(
+                "repair_worst_distance_stage_b", 0
+            )
+            repair_worst_one_move_legal = pending_steps.get(
+                "repair_worst_one_move_legal_stage_b"
+            )
+        else:
+            repair_worst_stage = "stage_a"
+            repair_worst_cost = pending_steps.get("repair_worst_cost_stage_a", 0)
+            repair_worst_piece = pending_steps.get("repair_worst_piece_stage_a")
+            repair_worst_from = pending_steps.get("repair_worst_from_stage_a")
+            repair_worst_to = pending_steps.get("repair_worst_to_stage_a")
+            repair_worst_distance = pending_steps.get(
+                "repair_worst_distance_stage_a", 0
+            )
+            repair_worst_one_move_legal = pending_steps.get(
+                "repair_worst_one_move_legal_stage_a"
+            )
         checkpoint_repair_fired = bool(
             pending_steps.get("checkpoint_repair_stage_a", 0)
             or pending_steps.get("checkpoint_repair_stage_b", 0)
@@ -1017,6 +1043,13 @@ class Tier1Strategy:
             "repair_teleport_like_count": repair_teleport_like_count,
             "repair_long_move_count": repair_long_move_count,
             "repair_forced_visible_square_count": repair_forced_visible_square_count,
+            "repair_worst_stage": repair_worst_stage if repair_worst_cost else None,
+            "repair_worst_cost": repair_worst_cost,
+            "repair_worst_piece": repair_worst_piece,
+            "repair_worst_from": repair_worst_from,
+            "repair_worst_to": repair_worst_to,
+            "repair_worst_distance": repair_worst_distance,
+            "repair_worst_one_move_legal": repair_worst_one_move_legal,
             "checkpoint_repair_fired": checkpoint_repair_fired,
             "checkpoint_repair_count": checkpoint_repair_count,
             "checkpoint_repair_age": checkpoint_repair_age,
@@ -1233,6 +1266,14 @@ class Tier1Strategy:
                 "repair_unpaired_removed_count": (
                     self._belief.last_repair_unpaired_removed_count
                 ),
+                "repair_worst_cost": self._belief.last_repair_worst_cost,
+                "repair_worst_piece": self._belief.last_repair_worst_piece,
+                "repair_worst_from": self._belief.last_repair_worst_from,
+                "repair_worst_to": self._belief.last_repair_worst_to,
+                "repair_worst_distance": self._belief.last_repair_worst_distance,
+                "repair_worst_one_move_legal": (
+                    self._belief.last_repair_worst_one_move_legal
+                ),
                 "checkpoint_repair_fired": bool(
                     self._belief.last_checkpoint_repair_fired
                 ),
@@ -1350,6 +1391,24 @@ class Tier1Strategy:
         )
         self._pending_belief_steps["repair_unpaired_removed_count_stage_a"] = (
             self._belief.last_repair_unpaired_removed_count
+        )
+        self._pending_belief_steps["repair_worst_cost_stage_a"] = (
+            self._belief.last_repair_worst_cost
+        )
+        self._pending_belief_steps["repair_worst_piece_stage_a"] = (
+            self._belief.last_repair_worst_piece
+        )
+        self._pending_belief_steps["repair_worst_from_stage_a"] = (
+            self._belief.last_repair_worst_from
+        )
+        self._pending_belief_steps["repair_worst_to_stage_a"] = (
+            self._belief.last_repair_worst_to
+        )
+        self._pending_belief_steps["repair_worst_distance_stage_a"] = (
+            self._belief.last_repair_worst_distance
+        )
+        self._pending_belief_steps["repair_worst_one_move_legal_stage_a"] = (
+            self._belief.last_repair_worst_one_move_legal
         )
         self._pending_belief_steps["checkpoint_repair_stage_a"] = (
             self._belief.last_checkpoint_repair_fired
@@ -2075,6 +2134,24 @@ class Tier1Strategy:
         )
         self._pending_belief_steps["repair_unpaired_removed_count_stage_b"] = (
             self._belief.last_repair_unpaired_removed_count
+        )
+        self._pending_belief_steps["repair_worst_cost_stage_b"] = (
+            self._belief.last_repair_worst_cost
+        )
+        self._pending_belief_steps["repair_worst_piece_stage_b"] = (
+            self._belief.last_repair_worst_piece
+        )
+        self._pending_belief_steps["repair_worst_from_stage_b"] = (
+            self._belief.last_repair_worst_from
+        )
+        self._pending_belief_steps["repair_worst_to_stage_b"] = (
+            self._belief.last_repair_worst_to
+        )
+        self._pending_belief_steps["repair_worst_distance_stage_b"] = (
+            self._belief.last_repair_worst_distance
+        )
+        self._pending_belief_steps["repair_worst_one_move_legal_stage_b"] = (
+            self._belief.last_repair_worst_one_move_legal
         )
         self._pending_belief_steps["checkpoint_repair_stage_b"] = (
             self._belief.last_checkpoint_repair_fired
