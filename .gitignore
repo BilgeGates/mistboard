@@ -14,6 +14,7 @@ research/python-fow-lab/corpora/*/views/
 research/python-fow-lab/feedback/annotation_replay*.json
 research/python-fow-lab/feedback/annotation_replay*.md
 research/python-fow-lab/uv.lock
+research/python-fow-lab/vendor/
 
 # Local-only symlink for the ?bakeoff browser route. Points at a bake-off
 # output directory under /tmp; not part of the repo.

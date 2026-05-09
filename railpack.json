@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "packages": {
+    "node": "22",
+    "python": "3.11"
+  },
+  "steps": {
+    "build": {
+      "commands": [
+        "...",
+        "python -m pip install --target research/python-fow-lab/vendor ./research/python-fow-lab"
+      ]
+    }
+  },
+  "deploy": {
+    "aptPackages": ["stockfish"]
+  }
+}
