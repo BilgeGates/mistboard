@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GameState, Move } from '@bichess/game';
-import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
+import {
+  chooseLiveEngineMove,
+  pythonLiveWatchdogTimeoutMs,
+  type LiveEngineFallbackEvent,
+} from './live-engine.js';
 import type { EngineDefinition, EngineMoveContext } from './engine-registry.js';
 
 const legalMove: Move = { from: 'e2', to: 'e4' };
@@ -112,6 +116,27 @@ test('python live engine falls back when room event context is missing', async (
   assert.deepEqual(result.decision.move, legalMove);
   assert.equal(events[0]?.engineId, 'python-selected');
   assert.equal(events[0]?.reason, 'unsupported_engine');
+});
+
+test('python live watchdog allows Tier-1 clock budget plus subprocess overhead', () => {
+  const timeoutMs = pythonLiveWatchdogTimeoutMs({
+    ...context([legalMove]),
+    clockRemainingMs: 180_000,
+    incrementMs: 2_000,
+  }, 5_000);
+
+  assert.ok(timeoutMs >= 8_900);
+  assert.ok(timeoutMs <= 9_100);
+});
+
+test('python live watchdog stays bounded under clock pressure', () => {
+  const timeoutMs = pythonLiveWatchdogTimeoutMs({
+    ...context([legalMove]),
+    clockRemainingMs: 900,
+    incrementMs: 0,
+  }, 5_000);
+
+  assert.equal(timeoutMs, 1_900);
 });
 
 function testEngine(id: string, move: Move): EngineDefinition {

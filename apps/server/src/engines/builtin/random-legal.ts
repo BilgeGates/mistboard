@@ -1,4 +1,5 @@
 import type { EngineDefinition } from '../types.js';
+import { engineThinkTimeMs } from '../think-time.js';
 
 export const randomLegalEngine: EngineDefinition = {
   id: 'builtin-random-legal',
@@ -20,6 +21,7 @@ export const randomLegalEngine: EngineDefinition = {
         score: 0,
         reason: 'uniform',
       })),
+      thinkTimeMs: engineThinkTimeMs({ context, runtime: 'in-process' }),
     };
   },
 };

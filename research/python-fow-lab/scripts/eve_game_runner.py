@@ -19,8 +19,10 @@ from typing import Any
 
 ROOT = Path(os.environ.get("PYTHON_ENGINE_LAB_ROOT", Path(__file__).resolve().parents[1])).resolve()
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+VENDOR = ROOT / "vendor"
+for path in (VENDOR, SRC):
+    if path.exists() and str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 from fow_chess.selfplay import OpeningPolicy, TimeControlSpec, play_game
 from fow_chess.strategies import RandomStrategy, TIER1_VERSION

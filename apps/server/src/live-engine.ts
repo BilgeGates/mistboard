@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Move } from '@bichess/game';
+import { clockRemainingMs, type Move } from '@bichess/game';
 import {
   defaultEngineId,
   loadEngine,
@@ -44,6 +44,12 @@ type ChooseLiveEngineMoveOptions = {
 const DEFAULT_LIVE_ENGINE_TIMEOUT_MS = 3_000;
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const DIAGNOSTIC_TAIL_BYTES = 4_000;
+const PYTHON_LIVE_PROCESS_OVERHEAD_MS = 2_500;
+const PYTHON_LIVE_CLOCK_GRACE_MS = 1_000;
+const PYTHON_LIVE_MAX_TIMEOUT_MS = 15_000;
+const PYTHON_LIVE_BUDGET_SAFETY_MS = 200;
+const PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = 40;
+const PYTHON_LIVE_SOFT_BUDGET_CAP_MS = 10_000;
 
 export async function chooseLiveEngineMove({
   context,
@@ -112,13 +118,15 @@ async function choosePythonSubprocessMove(
   if (!context.events || !context.roomId) {
     throw new LiveEngineError('unsupported_engine', `engine ${engine.id} requires live room events`);
   }
+  const watchdogTimeoutMs = pythonLiveWatchdogTimeoutMs(context, timeoutMs);
   const result = await runPythonLiveMoveProcess({
+    ...liveClockFields(context),
     color: context.color,
     engine: { id: engine.id },
     events: context.events,
     roomId: context.roomId,
     seed: context.seed.toString(),
-  }, timeoutMs);
+  }, watchdogTimeoutMs);
   return {
     move: result.move,
     scores: [{
@@ -129,10 +137,44 @@ async function choosePythonSubprocessMove(
   };
 }
 
+export function pythonLiveWatchdogTimeoutMs(context: EngineMoveContext, configuredTimeoutMs: number): number {
+  const remainingMs = liveClockRemainingMs(context);
+  if (remainingMs === undefined) return configuredTimeoutMs;
+
+  const usableClockMs = Math.max(0, remainingMs - PYTHON_LIVE_BUDGET_SAFETY_MS);
+  const budgetMs = Math.min(
+    usableClockMs > 0 ? usableClockMs : 50,
+    computePythonPerMoveBudgetMs(usableClockMs, liveIncrementMs(context)),
+  );
+  const dynamicTimeoutMs = Math.ceil(budgetMs + PYTHON_LIVE_PROCESS_OVERHEAD_MS);
+  const clockBoundMs = Math.ceil(Math.max(0, remainingMs) + PYTHON_LIVE_CLOCK_GRACE_MS);
+  return Math.max(1, Math.min(PYTHON_LIVE_MAX_TIMEOUT_MS, dynamicTimeoutMs, clockBoundMs));
+}
+
+function computePythonPerMoveBudgetMs(clockRemainingMs: number, incrementMs: number): number {
+  const usable = Math.max(0, clockRemainingMs - PYTHON_LIVE_BUDGET_SAFETY_MS);
+  const bankShare = Math.floor(usable / PYTHON_LIVE_MOVES_REMAINING_ESTIMATE);
+  const budget = bankShare + Math.max(0, incrementMs);
+  return Math.max(50, Math.min(PYTHON_LIVE_SOFT_BUDGET_CAP_MS, budget));
+}
+
+function liveClockRemainingMs(context: EngineMoveContext): number | undefined {
+  if (context.clockRemainingMs !== undefined) return Math.max(0, context.clockRemainingMs);
+  const clock = context.state.clock;
+  if (!clock) return undefined;
+  return clockRemainingMs(clock, context.color, Date.now());
+}
+
+function liveIncrementMs(context: EngineMoveContext): number {
+  return Math.max(0, context.incrementMs ?? context.state.clock?.incrementMs ?? 0);
+}
+
 type PythonLiveMoveRequest = {
+  clockRemainingMs?: number;
   color: string;
   engine: { id: string };
   events: unknown[];
+  incrementMs?: number;
   roomId: string;
   seed: string;
 };
@@ -219,6 +261,21 @@ function defaultStockfishPath(): string | undefined {
     if (existsSync(candidate)) return candidate;
   }
   return undefined;
+}
+
+function liveClockFields(context: EngineMoveContext): Pick<PythonLiveMoveRequest, 'clockRemainingMs' | 'incrementMs'> {
+  const clock = context.state.clock;
+  if (context.clockRemainingMs !== undefined || context.incrementMs !== undefined) {
+    return {
+      ...(context.clockRemainingMs !== undefined ? { clockRemainingMs: context.clockRemainingMs } : {}),
+      ...(context.incrementMs !== undefined ? { incrementMs: context.incrementMs } : {}),
+    };
+  }
+  if (!clock) return {};
+  return {
+    clockRemainingMs: clockRemainingMs(clock, context.color, Date.now()),
+    incrementMs: clock.incrementMs,
+  };
 }
 
 function parsePythonLiveMoveResult(value: unknown): PythonLiveMoveResult {

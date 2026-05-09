@@ -3,9 +3,12 @@ import type { Color, GameEvent, GameState, Move } from '@bichess/game';
 export type EngineKind = 'builtin' | 'typescript-bundle' | 'wasm' | 'container';
 
 export type EngineMoveContext = {
+  baseThinkTimeMs?: number;
+  clockRemainingMs?: number;
   events?: GameEvent[];
   state: GameState;
   color: Color;
+  incrementMs?: number;
   legalMoves: Move[];
   roomId?: string;
   seed: bigint;
@@ -21,6 +24,7 @@ export type EngineMoveScore = {
 export type EngineMoveDecision = {
   move: Move;
   scores: EngineMoveScore[];
+  thinkTimeMs?: number;
 };
 
 export type EngineLivePolicy = {

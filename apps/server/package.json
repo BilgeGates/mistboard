@@ -8,7 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "dev:persistent": "env DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json && node --test --test-concurrency=1 dist/**/*.test.js",
+    "test": "tsc -p tsconfig.json && node --test --test-concurrency=1 dist/*.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "tsx src/migrate.ts",
     "import-corpus": "tsx src/import-corpus.ts",

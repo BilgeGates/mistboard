@@ -34,7 +34,7 @@ const allSquares: Square[] = ranks.flatMap((r) => files.map((f) => `${f}${r}` as
 
 const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;
-const RECORDED_TIME_SCALE = 0.12;
+const LEGACY_RECORDED_TIME_SCALE = 0.12;
 const MIN_RECORDED_DELTA_MS = 150;
 const MIN_PLAY_MS = 700;
 const MAX_PLAY_MS = 2500;
@@ -43,7 +43,7 @@ const DEFAULT_BETWEEN_GAME_DELAY_MS = 8000;
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
-type MovePlayedExt = MovePlayedEvent & { compute_ms?: number };
+type MovePlayedExt = MovePlayedEvent & { compute_ms?: number; thinkTimeMs?: number };
 
 export type GameMeta = {
   whiteName: string | null;
@@ -489,9 +489,18 @@ export async function mountReplay(
   }
 
   function delayForPly(ply: number): number {
-    return recordedDelayForPly(ply)
+    return thinkTimeDelayForPly(ply)
+      ?? recordedDelayForPly(ply)
       ?? computeDelayForPly(ply)
       ?? FALLBACK_PLAY_MS;
+  }
+
+  function thinkTimeDelayForPly(ply: number): number | null {
+    const event = moveEventAtPly(ply);
+    if (!event || event.type !== 'move-played') return null;
+    const ext = event as MovePlayedExt;
+    if (typeof ext.thinkTimeMs !== 'number' || ext.thinkTimeMs < 0) return null;
+    return Math.max(0, ext.thinkTimeMs);
   }
 
   function recordedDelayForPly(ply: number): number | null {
@@ -504,7 +513,7 @@ export async function mountReplay(
 
     const elapsed = event.at - previousAt;
     if (!Number.isFinite(elapsed) || elapsed < MIN_RECORDED_DELTA_MS) return null;
-    return clampPlay(elapsed * RECORDED_TIME_SCALE);
+    return clampPlay(elapsed * LEGACY_RECORDED_TIME_SCALE);
   }
 
   function computeDelayForPly(ply: number): number | null {

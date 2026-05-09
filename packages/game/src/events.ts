@@ -92,6 +92,7 @@ export type GameEvent =
     color: Color;
     move: Move;
     clock?: ClockState;
+    thinkTimeMs?: number;
   }
   | {
     type: 'clock-expired';

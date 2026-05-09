@@ -1382,8 +1382,12 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
 
   const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, 'black');
   if (moves.length === 0) return;
+  const clock = room.projection.state.clock;
   const context = {
+    baseThinkTimeMs: pveEngineMoveDelayMs,
+    clockRemainingMs: clock ? clockRemainingMs(clock, 'black', now) : undefined,
     events: room.events,
+    incrementMs: clock?.incrementMs,
     state: room.projection.state,
     color: 'black',
     legalMoves: moves,
@@ -1412,6 +1416,15 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
       }));
     },
   });
+  const engineThinkTimeMs = result.decision.thinkTimeMs ?? Date.now() - startedAt;
+  await sleepEngineThinkTime(startedAt, engineThinkTimeMs);
+  const decisionAt = Date.now();
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.state.status.turn !== 'black') return;
+  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, 'black', decisionAt) <= 0) {
+    await expireActiveClock(room, 'black', decisionAt);
+    return;
+  }
   console.log(JSON.stringify({
     level: 'info',
     kind: 'live_engine_move',
@@ -1428,14 +1441,15 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
   if (!move) return;
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
   if (nextState === room.projection.state) return;
-  const nextClock = advanceClock(room.projection.state.clock, now, 'black', nextState.status);
+  const nextClock = advanceClock(room.projection.state.clock, decisionAt, 'black', nextState.status);
   await appendEvent(room, {
     type: 'move-played',
-    at: now,
+    at: decisionAt,
     roomId: room.id,
     clock: nextClock,
     color: 'black',
     move,
+    thinkTimeMs: engineThinkTimeMs,
   });
 }
 
@@ -1461,7 +1475,14 @@ function scheduleRandomEngineMove(room: Room): void {
           }));
         }
       });
-  }, pveEngineMoveDelayMs);
+  }, 0);
+}
+
+async function sleepEngineThinkTime(startedAt: number, thinkTimeMs: number | undefined): Promise<void> {
+  if (thinkTimeMs === undefined) return;
+  const remainingMs = Math.max(0, Math.round(thinkTimeMs) - (Date.now() - startedAt));
+  if (remainingMs <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, remainingMs));
 }
 
 async function startLiveClockIfReady(room: Room): Promise<void> {

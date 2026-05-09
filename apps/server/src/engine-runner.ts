@@ -75,6 +75,7 @@ export async function runRandomLegalEngineGame(
     const engine = color === 'white' ? whiteEngine : blackEngine;
     if (!engine.chooseMove) throw new Error(`engine ${engine.id} does not support in-process move selection`);
     const decision = engine.chooseMove({
+      baseThinkTimeMs: 650,
       state: projection.state,
       color,
       legalMoves: moves,
@@ -83,12 +84,15 @@ export async function runRandomLegalEngineGame(
     });
     const move = decision.move;
     seed = nextSeed(seed);
+    const previousEventAt = events[events.length - 1]?.at ?? startedAt.getTime();
+    const eventAt = previousEventAt + Math.max(1, Math.round(decision.thinkTimeMs ?? 0));
     const event: GameEvent = {
       type: 'move-played',
-      at: Date.now(),
+      at: eventAt,
       roomId: gameId,
       color,
       move,
+      ...(decision.thinkTimeMs !== undefined ? { thinkTimeMs: decision.thinkTimeMs } : {}),
     };
     await appendEvent(pool, gameId, events.length, event);
     await recordMoveDecision(pool, task, gameId, events.length - 3, color, engine, decision);
@@ -158,7 +162,7 @@ async function runPythonSubprocessEngineGame(
     black: { id: blackEngine.id },
   });
 
-  const moveEvents = sanitizePythonMoveEvents(result.events, gameId);
+  const moveEvents = sanitizePythonMoveEvents(result.events, gameId, startedAt.getTime());
   for (let index = 0; index < moveEvents.length; index++) {
     await appendEvent(pool, gameId, baseEvents.length + index, moveEvents[index]!);
     if ((index + 1) % HEARTBEAT_EVERY_PLIES === 0) {
@@ -376,7 +380,7 @@ async function runPythonGameProcess(request: PythonGameRequest): Promise<PythonG
   const python = process.env.PYTHON_ENGINE_PYTHON ?? defaultPythonEngineBinary();
   const script = process.env.PYTHON_ENGINE_RUNNER
     ?? resolve(REPO_ROOT, 'research', 'python-fow-lab', 'scripts', 'eve_game_runner.py');
-  const stockfishPath = process.env.PYTHON_ENGINE_STOCKFISH_PATH ?? process.env.STOCKFISH_PATH;
+  const stockfishPath = process.env.PYTHON_ENGINE_STOCKFISH_PATH ?? process.env.STOCKFISH_PATH ?? defaultStockfishPath();
   const payload = stockfishPath ? { ...request, stockfishPath } : request;
 
   return new Promise((resolvePromise, reject) => {
@@ -411,6 +415,13 @@ function defaultPythonEngineBinary(): string {
   return existsSync(venvPython) ? venvPython : 'python3';
 }
 
+function defaultStockfishPath(): string | undefined {
+  for (const candidate of ['/usr/games/stockfish', '/usr/bin/stockfish', '/opt/homebrew/bin/stockfish']) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return undefined;
+}
+
 function parsePythonGameResult(value: unknown): PythonGameResult {
   if (!isObject(value)) throw new Error('top-level response is not an object');
   if (typeof value.roomId !== 'string') throw new Error('missing roomId');
@@ -421,8 +432,9 @@ function parsePythonGameResult(value: unknown): PythonGameResult {
   return value as PythonGameResult;
 }
 
-function sanitizePythonMoveEvents(events: unknown[], gameId: string): GameEvent[] {
+function sanitizePythonMoveEvents(events: unknown[], gameId: string, startedAt: number): GameEvent[] {
   const result: GameEvent[] = [];
+  let previousEventAt = startedAt;
   for (const event of events) {
     if (!isObject(event) || event.type !== 'move-played') continue;
     const move = event.move;
@@ -431,9 +443,15 @@ function sanitizePythonMoveEvents(events: unknown[], gameId: string): GameEvent[
     if (typeof move.from !== 'string' || typeof move.to !== 'string') {
       throw new Error('python move-played event has invalid move squares');
     }
+    const thinkTimeMs = typeof event.thinkTimeMs === 'number' && Number.isFinite(event.thinkTimeMs)
+      ? Math.max(0, Math.round(event.thinkTimeMs))
+      : typeof event.compute_ms === 'number' && Number.isFinite(event.compute_ms)
+        ? Math.max(0, Math.round(event.compute_ms))
+        : 1;
+    previousEventAt += Math.max(1, thinkTimeMs);
     result.push({
       type: 'move-played',
-      at: Date.now(),
+      at: previousEventAt,
       roomId: gameId,
       color: event.color,
       move: {
@@ -441,6 +459,7 @@ function sanitizePythonMoveEvents(events: unknown[], gameId: string): GameEvent[
         to: move.to,
         ...(typeof move.promotion === 'string' ? { promotion: move.promotion } : {}),
       },
+      thinkTimeMs,
     } as GameEvent);
   }
   return result;
@@ -496,6 +515,7 @@ async function recordMoveDecision(
         play_signature: engine.playSignature,
         selected_move: decision.move,
         scored_moves: decision.scores,
+        think_time_ms: decision.thinkTimeMs,
       },
     ],
   );
