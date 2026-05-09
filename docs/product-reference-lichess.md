@@ -3,9 +3,9 @@
 This document maps Lichess as the mature open-source chess-platform reference
 and clarifies what "parity for Fog of War" means for Bichess.
 
-It is a public product-reference note, not a private competitive plan. Private
-launch sequencing, partnership strategy, outreach, and sensitive gap analysis
-belong outside the public repository.
+It is a public product-reference note, not a private operating plan. Private
+timelines, relationship planning, and sensitive gap analysis belong outside the
+public repository.
 
 ## Reference Posture
 

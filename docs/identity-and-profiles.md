@@ -18,6 +18,114 @@ Bichess should keep these concepts separate:
 
 Do not use one identifier for all four jobs.
 
+## User Types And Interactions
+
+### Visitor
+
+No account required.
+
+Typical interactions:
+
+- land on the homepage
+- read articles and learn pages
+- watch public games
+- open public replay links
+- inspect public rules and project docs
+
+### Guest Player
+
+No account required, but the browser has local session state.
+
+Typical interactions:
+
+- create or join a room from a link
+- receive a browser/session label
+- receive room-scoped seat authority when seated
+- play PvP or PvE anonymously
+- finish and review games by link
+- later claim/link games if signed-in persistence supports that flow
+
+### Signed-In Player
+
+Persistent human account.
+
+Typical interactions:
+
+- save or claim games
+- persist preferences
+- manage public/private game history
+- publish or hide annotations
+- eventually have a public profile
+
+Deferred:
+
+- ratings
+- matchmaking pools
+- social graph
+- chat
+
+### Engine Author
+
+Normal signed-in player account with engine-related permissions.
+
+Typical interactions:
+
+- own engine families
+- publish or manage engine versions
+- review engine games
+- publish benchmark notes
+- link engine work from the normal user profile
+
+Engine upload, execution, or publication may require an account flag, review, or
+approval process.
+
+### Research Contributor
+
+Normal signed-in account contributing research artifacts.
+
+Typical interactions:
+
+- publish annotations
+- curate corpora
+- write research notes
+- review benchmark games
+- link artifacts from the normal user profile
+
+### Engine
+
+Not a human account.
+
+Typical interactions:
+
+- appears as a game participant
+- has engine family/version identity
+- appears in benchmark reports, corpora, and game metadata
+- may have engine-family and engine-version pages
+
+## Core User Loops
+
+### Player Loop
+
+1. Visit homepage.
+2. Click Play.
+3. Choose play vs engine, create friend challenge, or watch games.
+4. Join room.
+5. Play with server-enforced hidden information.
+6. Finish game.
+7. Review White, Black, and Truth perspectives.
+8. Share replay.
+9. Optionally sign in later to save or claim history.
+
+### Engine / Research Loop
+
+1. Read engine, research, or rules articles.
+2. Watch EvE games.
+3. Inspect engine/version metadata.
+4. Review annotated moments.
+5. Compare benchmark reports.
+6. Submit or manage engine versions if permitted.
+7. Publish notes, corpora, annotations, or benchmark reports.
+
 ## Current Identities
 
 ### Anonymous Browser Session
@@ -203,6 +311,11 @@ Future profile types:
 
 Useful when signed-in persistence exists.
 
+Possible route:
+
+- `/@/username`
+- `/profile/username`
+
 May show:
 
 - public games
@@ -210,6 +323,9 @@ May show:
 - annotations the player chose to publish
 - profile name
 - contribution links
+- authored articles
+- engine-author section when relevant
+- contributor/research artifacts when relevant
 
 Deferred:
 
@@ -220,7 +336,8 @@ Deferred:
 
 ### Engine Author Profile
 
-Useful for engine development and research credibility.
+Useful for engine development and research credibility. This should be a section
+on the normal signed-in user profile, not a separate account system.
 
 May show:
 
@@ -229,10 +346,21 @@ May show:
 - benchmark reports
 - reproducibility notes
 - public changelogs
+- known limitations
+
+Private or admin-scoped:
+
+- upload approval status
+- unpublished engine artifacts
+- moderation/review notes
 
 ### Engine Version Profile
 
 Useful for understanding benchmark and EvE games.
+
+Possible route:
+
+- `/engines/<engine-family>/<version>`
 
 May show:
 
@@ -245,9 +373,28 @@ May show:
 - benchmark record
 - known limitations
 
+### Engine Family Page
+
+Useful for explaining a bot line or engine project.
+
+Possible route:
+
+- `/engines/<engine-family>`
+
+May show:
+
+- owner user account
+- description
+- versions
+- public games
+- benchmark summaries
+- source/artifact links if public
+- known limitations
+
 ### Contributor / Research Profile
 
-Useful for attribution of research artifacts.
+Useful for attribution of research artifacts. This should usually be a section
+on the normal signed-in user profile.
 
 May show:
 
@@ -256,6 +403,21 @@ May show:
 - experiments
 - public reports
 - review contributions
+
+## Profile Rollout
+
+1. No public profiles yet.
+   Guest/private-alpha play can work without public profile pages.
+2. Minimal signed-in identity.
+   Save or claim games, preferences, and annotations.
+3. Public player profile.
+   Show public games and public replays only.
+4. Engine author sections.
+   Show owned engines, versions, benchmark reports, and public notes.
+5. Engine family/version pages.
+   Make reproducible engine identities inspectable before serious public benchmark claims.
+6. Research/contributor sections.
+   Show corpora, annotations, articles, experiments, and reports.
 
 ## Authority Rules
 
