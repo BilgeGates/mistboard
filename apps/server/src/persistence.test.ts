@@ -750,6 +750,7 @@ if (!TEST_DATABASE_URL) {
     assert.equal(profile?.user.handle, 'profile-player');
     assert.equal(profile?.games.length, 1);
     assert.equal(profile?.games[0]?.roomId, 'profile-game');
+    assert.equal(profile?.games[0]?.playerColor, 'white');
     assert.equal(profile?.games[0]?.participants[0]?.subjectType, 'user');
   });
 

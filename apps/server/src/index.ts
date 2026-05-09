@@ -1791,7 +1791,7 @@ function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | 
     blackEngineId: null,
     timeControl: null,
     visibility: summary.visibility ?? 'public',
-    participants: [
+    participants: summary.participants ?? [
       inMemoryParticipant('white', summary.whiteClient, summary.whiteName, summary.mode ?? 'pvp', summary.visibility ?? 'public'),
       inMemoryParticipant('black', summary.blackClient, summary.blackName, summary.mode ?? 'pvp', summary.visibility ?? 'public'),
     ],

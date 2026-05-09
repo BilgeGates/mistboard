@@ -20,6 +20,7 @@ type FeaturedGame = {
   blackEngineId?: string | null;
   timeControl?: Record<string, unknown> | null;
   participants?: GameParticipant[];
+  playerColor?: 'white' | 'black';
 };
 
 type GameParticipant = {
@@ -851,18 +852,42 @@ function buildProfileGames(games: FeaturedGame[]): HTMLElement {
     link.href = `/game/${encodeURIComponent(game.roomId)}`;
     link.className = 'profile-game-row';
 
-    const matchup = document.createElement('strong');
-    matchup.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
+    const main = document.createElement('span');
+    main.className = 'profile-game-main';
+
+    const outcome = document.createElement('strong');
+    outcome.textContent = profileResultLabel(game);
+
+    const opponent = document.createElement('span');
+    opponent.textContent = `vs ${profileOpponentName(game)}`;
+    main.append(outcome, opponent);
 
     const meta = document.createElement('span');
-    meta.textContent = `${resultLabel(game.result)} · ${game.plyCount} plies · ${formatGameDate(game.endedAt)}`;
+    meta.className = 'profile-game-meta';
+    meta.textContent = `${profileSideLabel(game)} · ${sourceLabel(game.mode)} · ${game.plyCount} plies · ${formatGameDate(game.endedAt)}`;
 
-    link.append(matchup, meta);
+    link.append(main, meta);
     item.append(link);
     list.append(item);
   }
   section.append(list);
   return section;
+}
+
+function profileOpponentName(game: FeaturedGame): string {
+  const color = game.playerColor ?? 'white';
+  return displayParticipantName(game, color === 'white' ? 'black' : 'white');
+}
+
+function profileSideLabel(game: FeaturedGame): string {
+  if (game.playerColor === 'black') return 'Black';
+  return 'White';
+}
+
+function profileResultLabel(game: FeaturedGame): string {
+  if (game.result === 'draw') return 'Draw';
+  if (game.playerColor === 'black') return game.result === 'black-wins' ? 'Win' : 'Loss';
+  return game.result === 'white-wins' ? 'Win' : 'Loss';
 }
 
 function formatGameDate(value: string | undefined): string {

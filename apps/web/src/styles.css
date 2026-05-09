@@ -2727,7 +2727,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .profile-game-row {
   display: grid;
-  gap: 4px;
+  gap: 5px;
   padding: 12px 16px;
   border-bottom: 1px solid #eeeeee;
   color: #262421;
@@ -2750,9 +2750,35 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   font-size: 13px;
 }
 
+.profile-game-main {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.profile-game-main strong {
+  color: #262421;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.profile-game-main span,
+.profile-game-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 720px) {
   .account-form .landing-setup-start {
     min-width: 100%;
+  }
+
+  .profile-game-main {
+    display: grid;
+    gap: 2px;
   }
 }
 

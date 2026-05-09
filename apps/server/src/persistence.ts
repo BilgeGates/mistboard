@@ -78,6 +78,10 @@ export type GameRecord = {
   participants: GameParticipant[];
 };
 
+export type ProfileGameRecord = GameRecord & {
+  playerColor: Color;
+};
+
 export type RecentEveGameRecord = GameRecord & {
   jobId: string | null;
   gameIndex: number | null;
@@ -145,7 +149,7 @@ export type PublicProfileUser = {
 
 export type UserProfile = {
   user: PublicProfileUser;
-  games: GameRecord[];
+  games: ProfileGameRecord[];
 };
 
 export function init(connectionString: string): void {
@@ -576,6 +580,7 @@ export async function getUserProfileByHandle(
        AND game_participants.visibility <> 'private'`;
   const { rows: gameRows } = await getPool().query<{
     room_id: string;
+    player_color: Color;
     variant: string;
     mode: GameMode;
     result: string;
@@ -588,7 +593,8 @@ export async function getUserProfileByHandle(
     corpus_id: string | null;
     visibility: GameVisibility;
   }>(
-    `SELECT games.room_id, games.variant, games.mode, games.result, games.termination,
+    `SELECT games.room_id, game_participants.color AS player_color,
+            games.variant, games.mode, games.result, games.termination,
             games.ply_count, games.started_at, games.ended_at,
             games.white_name, games.black_name, games.corpus_id, games.visibility
      FROM game_participants
@@ -601,8 +607,9 @@ export async function getUserProfileByHandle(
      LIMIT $2`,
     [user.id, boundedLimit],
   );
-  const games = gameRows.map((row): GameRecord => ({
+  const games = gameRows.map((row): ProfileGameRecord => ({
     roomId: row.room_id,
+    playerColor: row.player_color,
     variant: row.variant,
     mode: row.mode,
     result: row.result as GameResult,
