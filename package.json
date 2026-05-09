@@ -11,6 +11,9 @@
   "scripts": {
     "dev": "npm run dev --workspace @bichess/server & npm run dev --workspace @bichess/web",
     "dev:persistent": "npm run dev:persistent --workspace @bichess/server & npm run dev --workspace @bichess/web",
+    "db:up": "docker compose up -d postgres",
+    "db:migrate": "env DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm run migrate --workspace @bichess/server",
+    "test:persistent": "env TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm run test --workspace @bichess/server",
     "build": "node scripts/build.mjs",
     "build:all": "npm run build --workspaces",
     "start": "node scripts/start.mjs",

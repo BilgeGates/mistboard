@@ -92,6 +92,10 @@ const shutdownGraceMs = parsePositiveInteger(process.env.BICHESS_SHUTDOWN_GRACE_
 const liveClockInitialMs = 30_000;
 const liveClockIncrementMs = 2_000;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
+const accountSessionCookieName = 'bichess_session';
+const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
+const emailLoginCodeTtlMs = 10 * 60 * 1000;
+const devAuthCodesEnabled = !isProductionLikeRuntime() || process.env.BICHESS_DEV_AUTH_CODES === 'true';
 
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
@@ -213,6 +217,108 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
   const url = request.url ?? '/';
   const parsedUrl = new URL(url, 'http://localhost');
   const method = request.method ?? 'GET';
+
+  if (parsedUrl.pathname === '/api/auth/me') {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    const user = await currentAccountUser(request);
+    writeJson(response, 200, { user: user ? publicUser(user) : null });
+    return;
+  }
+
+  if (parsedUrl.pathname === '/api/auth/email/start') {
+    if (method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    if (!persistence.isInitialized()) {
+      writeJson(response, 503, { error: 'persistence_disabled' });
+      return;
+    }
+    if (!devAuthCodesEnabled) {
+      writeJson(response, 503, { error: 'email_delivery_not_configured' });
+      return;
+    }
+    const body = await readJsonBody(request);
+    const email = normalizeEmail(typeof body.email === 'string' ? body.email : null);
+    if (!email) {
+      writeJson(response, 400, { error: 'invalid_email' });
+      return;
+    }
+    const loginId = randomUUID();
+    const code = randomEmailLoginCode();
+    const expiresAt = new Date(Date.now() + emailLoginCodeTtlMs);
+    await persistence.createEmailLoginChallenge({
+      id: loginId,
+      email,
+      codeHash: hashSecret(code),
+      expiresAt,
+    });
+    writeJson(response, 202, {
+      loginId,
+      email,
+      expiresAt: expiresAt.toISOString(),
+      delivery: 'dev-response',
+      devCode: code,
+    });
+    return;
+  }
+
+  if (parsedUrl.pathname === '/api/auth/email/confirm') {
+    if (method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    if (!persistence.isInitialized()) {
+      writeJson(response, 503, { error: 'persistence_disabled' });
+      return;
+    }
+    const body = await readJsonBody(request);
+    const loginId = typeof body.loginId === 'string' ? body.loginId.trim() : '';
+    const code = typeof body.code === 'string' ? body.code.trim() : '';
+    if (!loginId || !code) {
+      writeJson(response, 400, { error: 'invalid_login_code' });
+      return;
+    }
+    const now = new Date();
+    const challenge = await persistence.consumeEmailLoginChallenge(loginId, hashSecret(code), now);
+    if (!challenge) {
+      writeJson(response, 400, { error: 'invalid_login_code' });
+      return;
+    }
+
+    const user = await ensureUserForEmail(challenge.email, now);
+    const sessionId = randomUUID();
+    const sessionToken = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(now.getTime() + accountSessionTtlMs);
+    await persistence.createAccountSession({
+      id: sessionId,
+      userId: user.id,
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+    writeJson(response, 200, { user: publicUser(user) }, {
+      'set-cookie': accountSessionCookie(sessionId, sessionToken, expiresAt),
+    });
+    return;
+  }
+
+  if (parsedUrl.pathname === '/api/auth/logout') {
+    if (method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    const session = accountSessionFromRequest(request);
+    if (session && persistence.isInitialized()) {
+      await persistence.revokeAccountSession(session.sessionId, hashSecret(session.token), new Date());
+    }
+    writeJson(response, 200, { ok: true }, {
+      'set-cookie': expiredAccountSessionCookie(),
+    });
+    return;
+  }
 
   if (url === '/api/rooms') {
     if (method !== 'POST') {
@@ -360,6 +466,16 @@ async function gameEventsForApi(roomId: string): Promise<GameEvent[] | null> {
   return persisted ?? rooms.get(roomId)?.events ?? null;
 }
 
+function writeJson(
+  response: ServerResponse,
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {},
+): void {
+  response.writeHead(status, { 'content-type': 'application/json', ...headers });
+  response.end(JSON.stringify(body));
+}
+
 async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let total = 0;
@@ -378,6 +494,126 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
   return null;
+}
+
+async function currentAccountUser(request: IncomingMessage): Promise<persistence.UserAccount | null> {
+  if (!persistence.isInitialized()) return null;
+  const session = accountSessionFromRequest(request);
+  if (!session) return null;
+  return persistence.getUserByAccountSession(session.sessionId, hashSecret(session.token), new Date());
+}
+
+async function ensureUserForEmail(email: string, now: Date): Promise<persistence.UserAccount> {
+  const existing = await persistence.findUserByEmail(email);
+  if (existing) return persistence.markUserEmailVerified(existing.id, now);
+
+  const baseHandle = handleBaseForEmail(email);
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const handle = attempt === 0 ? baseHandle : `${baseHandle}${randomInt(10_000, 99_999)}`;
+    try {
+      return await persistence.createUser({
+        id: `user_${randomUUID()}`,
+        email,
+        emailVerifiedAt: now,
+        handle,
+        displayName: displayNameForEmail(email),
+        now,
+      });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      const raced = await persistence.findUserByEmail(email);
+      if (raced) return persistence.markUserEmailVerified(raced.id, now);
+    }
+  }
+  throw new Error('failed to allocate user handle');
+}
+
+function publicUser(user: persistence.UserAccount): Record<string, unknown> {
+  return {
+    id: user.id,
+    email: user.email,
+    emailVerified: !!user.emailVerifiedAt,
+    handle: user.handle,
+    displayName: user.displayName,
+    profileVisibility: user.profileVisibility,
+  };
+}
+
+function normalizeEmail(value: string | null): string | null {
+  if (!value) return null;
+  const email = value.trim().toLowerCase();
+  if (email.length > 254) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  return email;
+}
+
+function handleBaseForEmail(email: string): string {
+  const local = email.split('@', 1)[0] ?? 'player';
+  const normalized = local.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return (normalized || 'player').slice(0, 24);
+}
+
+function displayNameForEmail(email: string): string {
+  const local = email.split('@', 1)[0] ?? 'Player';
+  const words = local.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
+  return (words || 'Player').slice(0, 48);
+}
+
+function randomEmailLoginCode(): string {
+  return String(randomInt(0, 100_000_000)).padStart(8, '0');
+}
+
+function hashSecret(secret: string): string {
+  return createHash('sha256').update(secret).digest('hex');
+}
+
+function accountSessionFromRequest(request: IncomingMessage): { sessionId: string; token: string } | null {
+  const value = cookieValue(request, accountSessionCookieName);
+  if (!value) return null;
+  const [sessionId, token] = value.split('.', 2);
+  if (!sessionId || !token) return null;
+  return { sessionId, token };
+}
+
+function cookieValue(request: IncomingMessage, name: string): string | null {
+  const header = request.headers.cookie;
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const [rawKey, ...rawValue] = part.trim().split('=');
+    if (rawKey !== name) continue;
+    try {
+      return decodeURIComponent(rawValue.join('='));
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function accountSessionCookie(sessionId: string, token: string, expiresAt: Date): string {
+  const maxAgeSeconds = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
+  const value = encodeURIComponent(`${sessionId}.${token}`);
+  return cookieWithAttributes(`${accountSessionCookieName}=${value}`, [
+    `Max-Age=${maxAgeSeconds}`,
+    `Expires=${expiresAt.toUTCString()}`,
+  ]);
+}
+
+function expiredAccountSessionCookie(): string {
+  return cookieWithAttributes(`${accountSessionCookieName}=`, [
+    'Max-Age=0',
+    'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+  ]);
+}
+
+function cookieWithAttributes(prefix: string, extra: string[]): string {
+  const attrs = [prefix, 'Path=/', 'HttpOnly', 'SameSite=Lax', ...extra];
+  if (isProductionLikeRuntime()) attrs.push('Secure');
+  return attrs.join('; ');
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === '23505';
 }
 
 function parseGameModeParam(value: string | null): persistence.GameMode | null {

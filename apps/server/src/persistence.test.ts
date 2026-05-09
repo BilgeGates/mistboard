@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test, { after, before, beforeEach } from 'node:test';
 import pg from 'pg';
 import type { GameEvent } from '@bichess/game';
@@ -6,8 +7,14 @@ import { runMigrations } from './migrate.js';
 import {
   appendEvent,
   close,
+  consumeEmailLoginChallenge,
+  createAccountSession,
+  createEmailLoginChallenge,
+  createUser,
+  findUserByEmail,
   type GameSummary,
   getGameSummary,
+  getUserByAccountSession,
   init,
   isInitialized,
   listActiveRoomIds,
@@ -16,13 +23,19 @@ import {
   loadRoomSeatTokens,
   listRecentEveGames,
   listRecentPublicGames,
+  markUserEmailVerified,
   recordGameEnd,
   replaceRoomSeatTokens,
+  revokeAccountSession,
   touchRoomSeatToken,
   upsertRoomSeatToken,
 } from './persistence.js';
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
 
 if (!TEST_DATABASE_URL) {
   test('persistence (skipped — set TEST_DATABASE_URL or DATABASE_URL to enable)', { skip: true }, () => {});
@@ -49,6 +62,7 @@ if (!TEST_DATABASE_URL) {
     try {
       await client.query(
         `TRUNCATE
+           email_login_challenges,
            account_sessions,
            artifact_owners,
            game_participants,
@@ -153,6 +167,75 @@ if (!TEST_DATABASE_URL) {
 
     assert.deepEqual(await loadRoom('room-a'), [eventA]);
     assert.deepEqual(await loadRoom('room-b'), [eventB]);
+  });
+
+  test('email login challenges are one-time and expire', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const codeHash = sha256('12345678');
+    await createEmailLoginChallenge({
+      id: 'login-valid',
+      email: 'alice@example.com',
+      codeHash,
+      expiresAt: new Date(now.getTime() + 60_000),
+    });
+
+    assert.deepEqual(
+      await consumeEmailLoginChallenge('login-valid', codeHash, now),
+      { email: 'alice@example.com' },
+    );
+    assert.equal(await consumeEmailLoginChallenge('login-valid', codeHash, now), null);
+
+    await createEmailLoginChallenge({
+      id: 'login-expired',
+      email: 'alice@example.com',
+      codeHash,
+      expiresAt: new Date(now.getTime() - 1_000),
+    });
+    assert.equal(await consumeEmailLoginChallenge('login-expired', codeHash, now), null);
+  });
+
+  test('users are findable by email case-insensitively', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const user = await createUser({
+      id: 'user_alice',
+      email: 'Alice@Example.com',
+      emailVerifiedAt: null,
+      handle: 'alice',
+      displayName: 'Alice',
+      now,
+    });
+    assert.equal(user.emailVerifiedAt, null);
+
+    const found = await findUserByEmail('alice@example.com');
+    assert.equal(found?.id, 'user_alice');
+
+    const verified = await markUserEmailVerified('user_alice', new Date(now.getTime() + 1_000));
+    assert.ok(verified.emailVerifiedAt);
+  });
+
+  test('account sessions resolve current users and can be revoked', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    await createUser({
+      id: 'user_session',
+      email: 'session@example.com',
+      emailVerifiedAt: now,
+      handle: 'session',
+      displayName: 'Session',
+      now,
+    });
+    const tokenHash = sha256('session-token');
+    await createAccountSession({
+      id: 'session-id',
+      userId: 'user_session',
+      tokenHash,
+      expiresAt: new Date(now.getTime() + 86_400_000),
+    });
+
+    const user = await getUserByAccountSession('session-id', tokenHash, now);
+    assert.equal(user?.id, 'user_session');
+
+    await revokeAccountSession('session-id', tokenHash, now);
+    assert.equal(await getUserByAccountSession('session-id', tokenHash, now), null);
   });
 
   test('room seat tokens persist only token hashes and seat metadata', async () => {

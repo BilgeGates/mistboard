@@ -120,10 +120,16 @@ In dev, persistence is optional — `apps/server` falls back to in-memory rooms 
 Use the persistent dev script when testing postgame review, reconnect recovery, or anything that should survive a server restart.
 
 ```bash
-docker compose up -d postgres   # local Postgres on host port 5435
-npm run dev:persistent           # server uses the local Docker Postgres
-TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
+npm run db:up            # local Postgres on host port 5435
+npm run db:migrate       # apply migrations without starting the dev server
+npm run dev:persistent   # server uses the local Docker Postgres
+npm run test:persistent  # server tests against local Postgres
 ```
+
+Account auth requires persistence. In local/dev, passwordless email login returns
+the one-time code in the `/api/auth/email/start` JSON response so the flow can be
+tested without an email provider. Production-like runtimes do not expose dev
+codes unless `BICHESS_DEV_AUTH_CODES=true` is set intentionally.
 
 ## Development
 

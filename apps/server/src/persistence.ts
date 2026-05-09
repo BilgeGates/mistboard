@@ -76,6 +76,31 @@ export type CompletedGameFilters = {
   mode?: GameMode;
 };
 
+export type UserAccount = {
+  id: string;
+  email: string;
+  emailVerifiedAt: Date | null;
+  handle: string;
+  displayName: string;
+  profileVisibility: 'private' | 'unlisted' | 'public';
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type EmailLoginChallenge = {
+  id: string;
+  email: string;
+  codeHash: string;
+  expiresAt: Date;
+};
+
+export type AccountSession = {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+};
+
 export type RoomSeatTokenRecord = {
   seat: Color;
   clientId: string;
@@ -232,6 +257,122 @@ export async function listActiveRoomIds(since: Date): Promise<string[]> {
     [since],
   );
   return rows.map((row) => row.room_id);
+}
+
+export async function createEmailLoginChallenge(challenge: EmailLoginChallenge): Promise<void> {
+  await getPool().query(
+    `INSERT INTO email_login_challenges (id, email, code_hash, expires_at)
+     VALUES ($1, $2, $3, $4)`,
+    [challenge.id, challenge.email, challenge.codeHash, challenge.expiresAt],
+  );
+}
+
+export async function consumeEmailLoginChallenge(
+  id: string,
+  codeHash: string,
+  at: Date,
+): Promise<{ email: string } | null> {
+  const { rows } = await getPool().query<{ email: string }>(
+    `UPDATE email_login_challenges
+     SET consumed_at = $3
+     WHERE id = $1
+       AND code_hash = $2
+       AND consumed_at IS NULL
+       AND expires_at > $3
+     RETURNING email`,
+    [id, codeHash, at],
+  );
+  return rows[0] ?? null;
+}
+
+export async function findUserByEmail(email: string): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `SELECT id, email, email_verified_at, handle, display_name, profile_visibility, created_at, updated_at
+     FROM users
+     WHERE lower(email) = lower($1)
+     LIMIT 1`,
+    [email],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+export async function createUser(user: {
+  id: string;
+  email: string;
+  emailVerifiedAt: Date | null;
+  handle: string;
+  displayName: string;
+  profileVisibility?: UserAccount['profileVisibility'];
+  now: Date;
+}): Promise<UserAccount> {
+  const { rows } = await getPool().query<UserRow>(
+    `INSERT INTO users
+       (id, email, email_verified_at, handle, display_name, profile_visibility, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+     RETURNING id, email, email_verified_at, handle, display_name, profile_visibility, created_at, updated_at`,
+    [
+      user.id,
+      user.email,
+      user.emailVerifiedAt,
+      user.handle,
+      user.displayName,
+      user.profileVisibility ?? 'private',
+      user.now,
+    ],
+  );
+  return userFromRow(rows[0]!);
+}
+
+export async function markUserEmailVerified(userId: string, at: Date): Promise<UserAccount> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE users
+     SET email_verified_at = COALESCE(email_verified_at, $2),
+         updated_at = $2
+     WHERE id = $1
+     RETURNING id, email, email_verified_at, handle, display_name, profile_visibility, created_at, updated_at`,
+    [userId, at],
+  );
+  return userFromRow(rows[0]!);
+}
+
+export async function createAccountSession(session: AccountSession): Promise<void> {
+  await getPool().query(
+    `INSERT INTO account_sessions (id, user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3, $4)`,
+    [session.id, session.userId, session.tokenHash, session.expiresAt],
+  );
+}
+
+export async function getUserByAccountSession(
+  sessionId: string,
+  tokenHash: string,
+  at: Date,
+): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE account_sessions
+     SET last_seen_at = $3
+     FROM users
+     WHERE account_sessions.id = $1
+       AND account_sessions.token_hash = $2
+       AND account_sessions.user_id = users.id
+       AND account_sessions.revoked_at IS NULL
+       AND account_sessions.expires_at > $3
+     RETURNING users.id, users.email, users.email_verified_at, users.handle, users.display_name,
+               users.profile_visibility, users.created_at, users.updated_at`,
+    [sessionId, tokenHash, at],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+export async function revokeAccountSession(sessionId: string, tokenHash: string, at: Date): Promise<void> {
+  await getPool().query(
+    `UPDATE account_sessions
+     SET revoked_at = $3
+     WHERE id = $1
+       AND token_hash = $2
+       AND revoked_at IS NULL`,
+    [sessionId, tokenHash, at],
+  );
 }
 
 export async function listCorpusGames(corpusId: string, limit = 100): Promise<GameRecord[]> {
@@ -749,6 +890,30 @@ function canonicalEngineVersionId(clientId: string): string {
 
 function capitalizeColor(color: Color): string {
   return color === 'white' ? 'White' : 'Black';
+}
+
+type UserRow = {
+  id: string;
+  email: string;
+  email_verified_at: Date | null;
+  handle: string;
+  display_name: string;
+  profile_visibility: UserAccount['profileVisibility'];
+  created_at: Date;
+  updated_at: Date;
+};
+
+function userFromRow(row: UserRow): UserAccount {
+  return {
+    id: row.id,
+    email: row.email,
+    emailVerifiedAt: row.email_verified_at,
+    handle: row.handle,
+    displayName: row.display_name,
+    profileVisibility: row.profile_visibility,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function getPool(): pg.Pool {
