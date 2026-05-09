@@ -3,6 +3,7 @@ import {
   replayGameEvents,
   variantForId,
   type BidResolution,
+  type Board,
   type Chess960Start,
   type Color,
   type GameEvent,
@@ -160,6 +161,7 @@ let shareCopyStatus: 'idle' | 'copied' | 'failed' = 'idle';
 let postgameFogEnabled = false;
 let lastSoundEventCount: number | null = null;
 let lastTerminalSound: string | null = null;
+let lastSoundView: PlayerView | null = null;
 const sound = createSoundController();
 
 function resolveWebSocketBaseUrl(): string {
@@ -262,7 +264,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     events = message.events;
     state = message.state;
   }
-  maybePlaySnapshotSound(events);
+  maybePlaySnapshotSound(events, state);
   reconcileInteractionState();
   render();
 }
@@ -839,27 +841,33 @@ function hiddenSquareClasses(view: PlayerView | null): cg.SquareClasses {
 }
 
 function sendBoardMove(from: cg.Key, to: cg.Key): void {
+  const view = currentView();
   const fromSquare = from as Square;
   const toSquare = to as Square;
   const promotions = promotionMovesFor(fromSquare, toSquare);
   if (promotions.length > 1) {
     pendingPromotion = {
-      color: currentView()?.board[fromSquare]?.color ?? activeMoveColor() ?? 'white',
+      color: view?.board[fromSquare]?.color ?? activeMoveColor() ?? 'white',
       from: fromSquare,
       moves: promotions,
       to: toSquare,
     };
-    renderBoard(currentView());
+    renderBoard(view);
     renderPromotion();
     return;
   }
 
   const move = promotions[0] ?? bestMove(fromSquare, toSquare);
   if (!move) {
-    renderBoard(currentView());
+    renderBoard(view);
     return;
   }
-  sendSocket({ type: 'move', ...move });
+  submitBoardMove(move, view);
+}
+
+function submitBoardMove(move: Move, view: PlayerView | null): void {
+  if (!sendSocket({ type: 'move', ...move })) return;
+  sound.play(soundForOwnMove(view, move));
 }
 
 function bestMove(from: Square, to: Square) {
@@ -909,7 +917,7 @@ function renderPromotion(): void {
       event.stopPropagation();
       pendingPromotion = null;
       refs.promotion.hidden = true;
-      sendSocket({ type: 'move', ...move });
+      submitBoardMove(move, currentView());
     });
     refs.promotion.append(button);
   }
@@ -1449,7 +1457,7 @@ async function copyShareLink(input: HTMLInputElement): Promise<void> {
   }, 1600);
 }
 
-type SoundKind = 'capture' | 'captured' | 'lose' | 'move' | 'win';
+type SoundKind = 'capture' | 'captured' | 'castle' | 'lose' | 'move' | 'win';
 
 type SoundController = {
   play(kind: SoundKind): void;
@@ -1509,6 +1517,12 @@ function tonesForSound(kind: SoundKind): Array<{
 }> {
   if (kind === 'capture') return [{ delay: 0, duration: 0.11, frequency: 180, gain: 0.075, type: 'triangle' }];
   if (kind === 'captured') return [{ delay: 0, duration: 0.16, frequency: 120, gain: 0.08, type: 'sawtooth' }];
+  if (kind === 'castle') {
+    return [
+      { delay: 0, duration: 0.1, frequency: 260, gain: 0.055, type: 'square' },
+      { delay: 0.08, duration: 0.12, frequency: 390, gain: 0.05, type: 'square' },
+    ];
+  }
   if (kind === 'win') {
     return [
       { delay: 0, duration: 0.12, frequency: 440, gain: 0.06, type: 'sine' },
@@ -1525,28 +1539,42 @@ function tonesForSound(kind: SoundKind): Array<{
   return [{ delay: 0, duration: 0.09, frequency: 320, gain: 0.055, type: 'sine' }];
 }
 
-function maybePlaySnapshotSound(nextEvents: GameEvent[]): void {
+function maybePlaySnapshotSound(nextEvents: GameEvent[], nextView: PlayerView | null): void {
   if (lastSoundEventCount === null) {
     lastSoundEventCount = nextEvents.length;
-    lastTerminalSound = terminalSoundKey(nextEvents);
+    lastTerminalSound = terminalSoundKey(nextEvents, nextView);
+    lastSoundView = nextView;
     return;
   }
 
-  const terminal = terminalSoundKey(nextEvents);
+  const terminal = terminalSoundKey(nextEvents, nextView);
   if (terminal && terminal !== lastTerminalSound) {
     lastTerminalSound = terminal;
     sound.play(terminal.startsWith('win') ? 'win' : 'lose');
     lastSoundEventCount = nextEvents.length;
+    lastSoundView = nextView;
     return;
   }
 
-  if (nextEvents.length <= lastSoundEventCount) {
-    lastSoundEventCount = nextEvents.length;
-    return;
+  if (shouldUseRevealedEventSounds(nextView)) {
+    playRevealedEventSound(nextEvents);
+  } else {
+    playSanitizedOpponentSound(lastSoundView, nextView);
   }
+
+  lastSoundEventCount = nextEvents.length;
+  lastSoundView = nextView;
+}
+
+function shouldUseRevealedEventSounds(nextView: PlayerView | null): boolean {
+  return roomMode === 'eve' || nextView?.status.type === 'finished';
+}
+
+function playRevealedEventSound(nextEvents: GameEvent[]): void {
+  if (nextEvents.length <= (lastSoundEventCount ?? 0)) return;
 
   let latestMoveIndex = -1;
-  for (let index = nextEvents.length - 1; index >= lastSoundEventCount; index -= 1) {
+  for (let index = nextEvents.length - 1; index >= (lastSoundEventCount ?? 0); index -= 1) {
     if (nextEvents[index]?.type === 'move-played') {
       latestMoveIndex = index;
       break;
@@ -1558,11 +1586,11 @@ function maybePlaySnapshotSound(nextEvents: GameEvent[]): void {
       sound.play(soundForMove(nextEvents.slice(0, latestMoveIndex), moveEvent));
     }
   }
-  lastSoundEventCount = nextEvents.length;
 }
 
 function soundForMove(beforeEvents: GameEvent[], event: Extract<GameEvent, { type: 'move-played' }>): SoundKind {
   const before = replayGameEvents(beforeEvents).state;
+  if (isCastleMoveOnBoard(before.board, event.move, event.color)) return 'castle';
   const captured = before.board[event.move.to];
   if (!captured) return 'move';
   if (captured.color === event.color) return 'move';
@@ -1570,9 +1598,51 @@ function soundForMove(beforeEvents: GameEvent[], event: Extract<GameEvent, { typ
   return 'capture';
 }
 
-function terminalSoundKey(nextEvents: GameEvent[]): string | null {
-  const projection = replayGameEvents(nextEvents);
-  const status = projection.state.status;
+function playSanitizedOpponentSound(previousView: PlayerView | null, nextView: PlayerView | null): void {
+  if (!isColor(seat) || !previousView || !nextView) return;
+  if (previousView.status.type !== 'playing') return;
+  if (previousView.status.turn === seat) return;
+  if (nextView.status.type === 'playing' && nextView.status.turn !== seat) return;
+
+  sound.play(ownPieceCount(nextView, seat) < ownPieceCount(previousView, seat) ? 'captured' : 'move');
+}
+
+function soundForOwnMove(view: PlayerView | null, move: Move): SoundKind {
+  if (!view) return 'move';
+  const piece = view.board[move.from];
+  if (!piece) return 'move';
+  if (isCastleMoveInView(view, move, piece.color)) return 'castle';
+
+  const target = view.board[move.to];
+  if (target && target.color !== piece.color) return 'capture';
+  if (piece.role === 'pawn' && squareFileIndex(move.from) !== squareFileIndex(move.to)) return 'capture';
+  return 'move';
+}
+
+function isCastleMoveInView(view: PlayerView, move: Move, color: Color): boolean {
+  return isCastleMoveOnBoard(view.board, move, color);
+}
+
+function isCastleMoveOnBoard(board: Board, move: Move, color: Color): boolean {
+  const piece = board[move.from];
+  if (!piece || piece.role !== 'king' || piece.color !== color) return false;
+  const target = board[move.to];
+  if (target?.role === 'rook' && target.color === color) return true;
+  return rankOf(move.from) === rankOf(move.to)
+    && Math.abs(squareFileIndex(move.to) - squareFileIndex(move.from)) > 1
+    && (move.to[0] === 'c' || move.to[0] === 'g');
+}
+
+function ownPieceCount(view: PlayerView, color: Color): number {
+  return Object.values(view.board).filter((piece) => piece?.color === color).length;
+}
+
+function rankOf(square: Square): string {
+  return square[1] ?? '';
+}
+
+function terminalSoundKey(nextEvents: GameEvent[], nextView: PlayerView | null): string | null {
+  const status = nextView?.status ?? replayGameEvents(nextEvents).state.status;
   if (status.type !== 'finished' || seat === 'spectator' || status.winner === null) return null;
   return status.winner === seat ? `win:${nextEvents.length}` : `lose:${nextEvents.length}`;
 }
