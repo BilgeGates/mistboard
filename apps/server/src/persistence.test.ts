@@ -24,6 +24,7 @@ import {
   listRecentEveGames,
   listRecentPublicGames,
   markUserEmailVerified,
+  recordGameStart,
   recordGameEnd,
   replaceRoomSeatTokens,
   revokeAccountSession,
@@ -365,6 +366,47 @@ if (!TEST_DATABASE_URL) {
     assert.deepEqual(active, ['running-room']);
   });
 
+  test('recordGameStart creates a durable running game row', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    await recordGameStart('started-pve', {
+      variant: 'fog-of-war',
+      mode: 'pve',
+      startedAt: now,
+      whiteClient: null,
+      blackClient: 'builtin-random-legal',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query<{
+        mode: string;
+        status: string;
+        result: string | null;
+        termination: string | null;
+        ended_at: Date | null;
+        visibility: string;
+      }>('SELECT mode, status, result, termination, ended_at, visibility FROM games WHERE room_id = $1', [
+        'started-pve',
+      ]);
+      assert.deepEqual(rows, [
+        {
+          mode: 'pve',
+          status: 'running',
+          result: null,
+          termination: null,
+          ended_at: null,
+          visibility: 'link',
+        },
+      ]);
+    } finally {
+      await client.end();
+    }
+  });
+
   test('recordGameEnd is idempotent', async () => {
     const now = new Date();
     const summary = {
@@ -590,7 +632,7 @@ if (!TEST_DATABASE_URL) {
     assert.deepEqual(games[0]?.timeControl, { kind: 'per-move', milliseconds: 100 });
   });
 
-  test('listRecentPublicGames returns public games and EvE games only', async () => {
+  test('listRecentPublicGames returns public games, public-facing PvE games, and EvE games only', async () => {
     const now = new Date('2026-05-09T12:00:00.000Z');
     const older = new Date(now.getTime() - 60_000);
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
@@ -603,10 +645,14 @@ if (!TEST_DATABASE_URL) {
          VALUES
            ('public-pvp', 'fog-of-war', 'white-wins', 'king-captured', 18, $1, $1,
             'public-white', 'public-black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('public-pve', 'fog-of-war', 'black-wins', 'timeout', 23, $1, $1,
+            'human-client-public', 'random-engine', NULL, NULL, 'pve', 'completed', 'public'),
            ('link-pve', 'fog-of-war', 'black-wins', 'timeout', 22, $1, $1,
             'human-client', 'random-engine', NULL, NULL, 'pve', 'completed', 'link'),
            ('link-eve', 'fog-of-war', 'draw', 'truncated', 28, $2, $2,
             'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed', 'link'),
+           ('private-pve', 'fog-of-war', 'black-wins', 'timeout', 24, $2, $2,
+            'human-client-private', 'random-engine', NULL, NULL, 'pve', 'completed', 'private'),
            ('private-pvp', 'fog-of-war', 'draw', 'truncated', 6, $2, $2,
             'private-white', 'private-black', NULL, NULL, 'pvp', 'completed', 'private')`,
         [now, older],
@@ -616,7 +662,7 @@ if (!TEST_DATABASE_URL) {
     }
 
     const games = await listRecentPublicGames(10);
-    assert.deepEqual(games.map((game) => game.roomId), ['public-pvp', 'link-eve']);
+    assert.deepEqual(games.map((game) => game.roomId), ['public-pvp', 'public-pve', 'link-pve', 'link-eve']);
   });
 
   test('listCompletedGames returns completed games in date range with participants', async () => {

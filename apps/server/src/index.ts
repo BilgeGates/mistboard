@@ -770,6 +770,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
   if (existing) return existing;
 
   let events: GameEvent[] | null = null;
+  let createdNewPersistentRoom = false;
   if (persistence.isInitialized()) {
     try {
       events = await persistence.loadRoom(roomId);
@@ -796,6 +797,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
     if (persistence.isInitialized()) {
       try {
         await persistence.appendEvent(roomId, 0, created);
+        createdNewPersistentRoom = true;
       } catch (err) {
         recordPersistenceError(roomId, 0, created, err as Error);
         throw new PersistenceFailure();
@@ -805,6 +807,10 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
   }
 
   const projection = replayGameEvents(events);
+  const mode = modeForProjection(projection);
+  if (createdNewPersistentRoom) {
+    await persistGameStart(roomId, projection, mode, new Date(events[0]?.at ?? Date.now()));
+  }
   const seatTokens = persistence.isInitialized()
     ? seatTokenStatesFromPersistence(await persistence.loadRoomSeatTokens(roomId))
     : {};
@@ -816,7 +822,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
     seatTokens,
     clockTimer: null,
     engineTimer: null,
-    mode: modeForProjection(projection),
+    mode,
     randomEngine: isPveBuiltinEngineClient(projection.seats.black),
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
@@ -863,6 +869,9 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
     }
 
     const projection = replayGameEvents(events);
+    if (persistence.isInitialized()) {
+      await persistGameStart(roomId, projection, mode, new Date(at));
+    }
     const room: Room = {
       id: roomId,
       clients: new Set(),
@@ -882,6 +891,36 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
     return room;
   }
   throw new Error('room_id_collision');
+}
+
+async function persistGameStart(
+  roomId: string,
+  projection: GameProjection,
+  mode: persistence.GameMode,
+  startedAt: Date,
+): Promise<void> {
+  if (!persistence.isInitialized()) return;
+  try {
+    await persistence.recordGameStart(roomId, {
+      variant: projection.variant,
+      mode,
+      startedAt,
+      whiteClient: projection.seats.white ?? null,
+      blackClient: projection.seats.black ?? null,
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    });
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'game_start_record_failure',
+      roomId,
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
+    throw new PersistenceFailure();
+  }
 }
 
 async function assignSeat(room: Room, clientId: string, suppliedSeatToken: string | undefined): Promise<SeatAssignment> {

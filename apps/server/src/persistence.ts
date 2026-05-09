@@ -46,6 +46,19 @@ export type GameSummary = {
   participants?: GameParticipant[];
 };
 
+export type RunningGameSummary = {
+  variant: string;
+  mode: GameMode;
+  startedAt: Date;
+  whiteClient: string | null;
+  blackClient: string | null;
+  whiteName: string | null;
+  blackName: string | null;
+  corpusId: string | null;
+  reviewStatus?: GameReviewStatus;
+  visibility?: GameVisibility;
+};
+
 export type GameRecord = {
   roomId: string;
   variant: string;
@@ -258,6 +271,31 @@ export async function listActiveRoomIds(since: Date): Promise<string[]> {
     [since],
   );
   return rows.map((row) => row.room_id);
+}
+
+export async function recordGameStart(roomId: string, summary: RunningGameSummary): Promise<void> {
+  await getPool().query(
+    `INSERT INTO games
+       (room_id, variant, result, termination, ply_count, started_at, ended_at,
+        white_client, black_client, white_name, black_name, corpus_id,
+        mode, status, review_status, visibility)
+     VALUES ($1, $2, NULL, NULL, 0, $3, NULL, $4, $5, $6, $7, $8,
+        $9, 'running', $10, $11)
+     ON CONFLICT (room_id) DO NOTHING`,
+    [
+      roomId,
+      summary.variant,
+      summary.startedAt,
+      summary.whiteClient,
+      summary.blackClient,
+      summary.whiteName,
+      summary.blackName,
+      summary.corpusId,
+      summary.mode,
+      summary.reviewStatus ?? 'unreviewed',
+      summary.visibility ?? 'link',
+    ],
+  );
 }
 
 export async function createEmailLoginChallenge(challenge: EmailLoginChallenge): Promise<void> {
@@ -510,6 +548,7 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
        AND (
          games.visibility = 'public'
          OR games.mode = 'eve'
+         OR (games.mode = 'pve' AND games.visibility <> 'private')
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $1`,
