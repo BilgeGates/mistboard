@@ -19,11 +19,13 @@ export type LiveEngineFallbackReason =
   | 'internal_error';
 
 export type LiveEngineFallbackEvent = {
+  diagnostics?: Record<string, unknown>;
   durationMs: number;
   engineId: string;
   fallbackEngineId: string;
   ply: number;
   reason: LiveEngineFallbackReason;
+  timeoutMs?: number;
 };
 
 export type LiveEngineMoveResult = {
@@ -41,6 +43,7 @@ type ChooseLiveEngineMoveOptions = {
 
 const DEFAULT_LIVE_ENGINE_TIMEOUT_MS = 3_000;
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const DIAGNOSTIC_TAIL_BYTES = 4_000;
 
 export async function chooseLiveEngineMove({
   context,
@@ -55,6 +58,7 @@ export async function chooseLiveEngineMove({
     return { decision, engineId: engine.id, fallback: false };
   } catch (err) {
     const reason = fallbackReason(err);
+    const diagnostics = fallbackDiagnostics(err);
     const fallbackEngineId = engine.livePolicy?.fallbackEngineId === undefined
       ? defaultEngineId()
       : engine.livePolicy.fallbackEngineId;
@@ -69,6 +73,8 @@ export async function chooseLiveEngineMove({
       fallbackEngineId,
       ply: context.ply,
       reason,
+      ...(diagnostics ? { diagnostics } : {}),
+      ...(err instanceof LiveEngineError && err.timeoutMs !== undefined ? { timeoutMs: err.timeoutMs } : {}),
     });
     return { decision, engineId: fallbackEngineId, fallback: true };
   }
@@ -89,7 +95,7 @@ async function chooseWithTimeout(
       Promise.resolve().then(() => engine.chooseMove!(context)),
       new Promise<never>((_, reject) => {
         timeout = setTimeout(() => {
-          reject(new LiveEngineError('timeout', `engine ${engine.id} timed out after ${timeoutMs}ms`));
+          reject(new LiveEngineError('timeout', `engine ${engine.id} timed out after ${timeoutMs}ms`, { timeoutMs }));
         }, timeoutMs);
       }),
     ]);
@@ -157,7 +163,14 @@ async function runPythonLiveMoveProcess(
       if (settled) return;
       settled = true;
       child.kill('SIGKILL');
-      reject(new LiveEngineError('timeout', `python engine ${request.engine.id} timed out after ${timeoutMs}ms`));
+      reject(new LiveEngineError(
+        'timeout',
+        `python engine ${request.engine.id} timed out after ${timeoutMs}ms`,
+        {
+          timeoutMs,
+          diagnostics: pythonProcessDiagnostics(stdout, stderr, codeLabel(child.pid)),
+        },
+      ));
     }, timeoutMs);
 
     child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
@@ -175,13 +188,21 @@ async function runPythonLiveMoveProcess(
       const stderrText = Buffer.concat(stderr).toString('utf8').trim();
       const stdoutText = Buffer.concat(stdout).toString('utf8').trim();
       if (code !== 0) {
-        reject(new Error(`python engine runner exited ${code}: ${stderrText || stdoutText}`));
+        reject(new LiveEngineError(
+          'internal_error',
+          `python engine runner exited ${code}: ${stderrText || stdoutText}`,
+          { diagnostics: pythonProcessDiagnostics(stdout, stderr, codeLabel(child.pid)) },
+        ));
         return;
       }
       try {
         resolvePromise(parsePythonLiveMoveResult(JSON.parse(stdoutText)));
       } catch (err) {
-        reject(new LiveEngineError('invalid_json', `invalid python engine runner output: ${(err as Error).message}`));
+        reject(new LiveEngineError(
+          'invalid_json',
+          `invalid python engine runner output: ${(err as Error).message}`,
+          { diagnostics: pythonProcessDiagnostics(stdout, stderr, codeLabel(child.pid)) },
+        ));
       }
     });
     child.stdin.end(JSON.stringify(payload));
@@ -234,8 +255,39 @@ function fallbackReason(err: unknown): LiveEngineFallbackReason {
   return err instanceof LiveEngineError ? err.reason : 'internal_error';
 }
 
+function fallbackDiagnostics(err: unknown): Record<string, unknown> | undefined {
+  return err instanceof LiveEngineError ? err.diagnostics : undefined;
+}
+
+function pythonProcessDiagnostics(stdout: Buffer[], stderr: Buffer[], processLabel: string): Record<string, unknown> {
+  return {
+    process: processLabel,
+    stderrTail: bufferTail(stderr, DIAGNOSTIC_TAIL_BYTES),
+    stdoutTail: bufferTail(stdout, DIAGNOSTIC_TAIL_BYTES),
+  };
+}
+
+function bufferTail(chunks: Buffer[], maxBytes: number): string {
+  const text = Buffer.concat(chunks).toString('utf8').trim();
+  if (text.length <= maxBytes) return text;
+  return text.slice(-maxBytes);
+}
+
+function codeLabel(pid: number | undefined): string {
+  return pid === undefined ? 'python-live-runner' : `python-live-runner:${pid}`;
+}
+
 class LiveEngineError extends Error {
-  constructor(readonly reason: LiveEngineFallbackReason, message: string) {
+  readonly diagnostics?: Record<string, unknown>;
+  readonly timeoutMs?: number;
+
+  constructor(
+    readonly reason: LiveEngineFallbackReason,
+    message: string,
+    options: { diagnostics?: Record<string, unknown>; timeoutMs?: number } = {},
+  ) {
     super(message);
+    this.diagnostics = options.diagnostics;
+    this.timeoutMs = options.timeoutMs;
   }
 }

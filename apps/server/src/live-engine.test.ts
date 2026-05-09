@@ -56,6 +56,31 @@ test('live engine move falls back when selected engine returns illegal move', as
   assert.equal(events[0]?.reason, 'illegal_move');
 });
 
+test('live engine fallback reports timeout budget', async () => {
+  const events: LiveEngineFallbackEvent[] = [];
+  const result = await chooseLiveEngineMove({
+    context: context([legalMove]),
+    engine: {
+      ...testEngine('slow-selected', legalMove),
+      livePolicy: { timeoutMs: 1 },
+      chooseMove: (() => {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({
+            move: legalMove,
+            scores: [{ move: legalMove, score: 1, reason: 'slow-test' }],
+          }), 20);
+        });
+      }) as unknown as EngineDefinition['chooseMove'],
+    },
+    onFallback: (event) => events.push(event),
+  });
+
+  assert.equal(result.engineId, 'builtin-random-legal');
+  assert.equal(result.fallback, true);
+  assert.equal(events[0]?.reason, 'timeout');
+  assert.equal(events[0]?.timeoutMs, 1);
+});
+
 test('live engine move respects disabled fallback policy', async () => {
   await assert.rejects(
     chooseLiveEngineMove({

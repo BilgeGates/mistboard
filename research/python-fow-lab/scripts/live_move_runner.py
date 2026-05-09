@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,7 @@ from fow_chess.visibility import visible_piece_map, visible_squares
 
 
 def main() -> int:
+    started = time.monotonic()
     request = json.load(sys.stdin)
     room_id = str(request["roomId"])
     engine_spec = request["engine"]
@@ -43,6 +45,17 @@ def main() -> int:
     seed = int(request.get("seed", 1))
     events = request["events"]
     stockfish_path = str(request.get("stockfishPath") or "stockfish")
+    _debug(
+        "request-loaded",
+        started,
+        roomId=room_id,
+        engineId=str(engine_spec.get("id") or ""),
+        color=request["color"],
+        eventCount=len(events),
+        seed=seed,
+        clockRemainingMs=request.get("clockRemainingMs"),
+        incrementMs=request.get("incrementMs"),
+    )
 
     boards = list(replay_canonical(events))
     if not boards:
@@ -50,10 +63,21 @@ def main() -> int:
     board = boards[-1]
     if board.turn != perspective:
         raise RuntimeError("requested engine color is not to move")
+    _debug(
+        "canonical-replayed",
+        started,
+        boardCount=len(boards),
+        boardPly=board.ply(),
+        legalCount=len(list(board.pseudo_legal_moves)),
+    )
 
     with strategy_runtime(engine_spec, seed, stockfish_path) as strategy:
+        _debug("runtime-ready", started)
         strategy.reset(perspective)
+        _debug("strategy-reset", started)
+        observed_steps = 0
         for step in iter_steps(events, perspective):
+            observed_steps += 1
             if step.own_move is not None:
                 strategy.observe_own_move(
                     step.own_move,
@@ -65,6 +89,7 @@ def main() -> int:
                 )
             elif step.opp_observation is not None:
                 strategy.observe_opp_move(step.opp_observation)
+        _debug("events-observed", started, observedStepCount=observed_steps)
 
         own_legals = list(board.pseudo_legal_moves)
         if not own_legals:
@@ -77,7 +102,15 @@ def main() -> int:
             clock_remaining_ms=_parse_optional_int(request.get("clockRemainingMs")),
             increment_ms=_parse_optional_int(request.get("incrementMs")) or 0,
         )
+        _debug(
+            "pick-started",
+            started,
+            ownLegalCount=len(own_legals),
+            visibleSquareCount=len(view.visible_squares),
+            visiblePieceCount=len(view.visible_piece_map),
+        )
         move = strategy.pick_move(view)
+        _debug("pick-finished", started, move=move.uci())
         if move not in own_legals:
             raise RuntimeError(f"engine returned illegal move: {move.uci()}")
 
@@ -87,6 +120,22 @@ def main() -> int:
         "move": _move_to_event(move, board),
     }, separators=(",", ":")))
     return 0
+
+
+def _debug(phase: str, started: float, **fields: Any) -> None:
+    print(
+        json.dumps(
+            {
+                "kind": "python_live_engine_debug",
+                "phase": phase,
+                "elapsedMs": round((time.monotonic() - started) * 1000),
+                **fields,
+            },
+            separators=(",", ":"),
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 class strategy_runtime:

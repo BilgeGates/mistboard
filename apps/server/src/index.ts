@@ -1377,7 +1377,9 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
         fallbackEngineId: event.fallbackEngineId,
         ply: event.ply,
         reason: event.reason,
+        timeoutMs: event.timeoutMs,
         durationMs: event.durationMs,
+        diagnostics: event.diagnostics,
         at: Date.now(),
       }));
     },
