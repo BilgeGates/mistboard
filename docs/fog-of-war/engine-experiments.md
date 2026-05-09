@@ -40,6 +40,16 @@ By default this is a dry-run claimer: it registers a worker run, claims the next
 
 The first execution runner is intentionally simple: `npm run worker:dev:execute` plays one claimed Fog of War game with a built-in deterministic random-legal move selector. This is a smoke path for the worker/DB lifecycle, not a production engine identity.
 
+Owner-only Python Tier-1 identities currently registered for worker execution:
+
+- `python-tier1-v0.7.0` - first Python subprocess proof of concept.
+- `python-tier1-v0.7.22` - profiled particle-update build with terminal
+  king-risk filtering.
+- `python-random-legal` - Python random legal baseline.
+
+These are not public upload slots. They are controlled engine identities used
+for EvE jobs and production-adjacent smoke tests.
+
 ## Data Model
 
 `eve_jobs` is the experiment/job row. It describes intent: mining, bake-off, calibration, smoke, or regression.

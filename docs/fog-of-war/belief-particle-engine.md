@@ -26,6 +26,7 @@ Outputs:
 - weighted board hypotheses;
 - marginal piece fields;
 - top-K worlds;
+- explicit hard-fact summaries for UI/debug surfaces;
 - hard-fact violation diagnostics;
 - collapse/reseed/pruning/diversity diagnostics;
 - optional tactical uncertainty summaries for move selection.
@@ -40,7 +41,6 @@ The first contract is strict:
 Hard facts include:
 
 - our own pieces and their current visible squares;
-- visible opponent pieces;
 - movement restrictions implied by own legal moves, such as a pawn being
   blockaded when its forward push is unavailable;
 - visible opponent pieces, including pieces visible for only one ply before
@@ -52,6 +52,119 @@ Hard facts include:
 - piece-count facts from captures we performed;
 - ruleset facts such as pawn ranks and bishop square color where currently
   modeled.
+- individual piece facts, such as "this bishop token is still dark-square
+  bound" or "the piece that landed here must be the same token that vacated
+  that source";
+- state/right facts, such as castling rights, en-passant availability,
+  promotion/accounting state, clocks/counters where relevant, and variant
+  rights such as Draft960 castling semantics.
+
+The model must not be square-only. Square occupancy is one useful fact family,
+but the durable belief system needs separate categories for:
+
+- **square facts**: occupancy, visible emptiness, blockers, capture landings;
+- **piece facts**: identity tokens, color-complex constraints, last-known piece
+  continuity, possible source/landing relationships;
+- **state facts**: castling rights, en-passant state, promotion accounting,
+  side-to-move, game-over, and variant rule state.
+
+Exact piece facts expire by transition, not by clock tick. When the opponent
+moves, a prior fact like `h1:white-rook` remains strict for every branch whose
+expanded move starts somewhere else. It may expire only on branches where the
+opponent move starts on `h1` with that rook, or where a later visible
+observation/capture explicitly invalidates it. Repair paths are stricter:
+because repair may synthesize the observed transition after an expansion miss,
+they must preserve unrelated exact piece facts rather than treating the
+pre-repair candidate move as proof that the piece moved.
+
+## Particle Budget And Diversity
+
+The particle lane has two separate budgets:
+
+- `target_n`: how many belief hypotheses the tracker tries to carry between
+  observations.
+- `max_particles`: how many carried hypotheses the move selector evaluates per
+  candidate move.
+
+Raising `target_n` increases observation-stream coverage but also increases
+Stage B expansion cost roughly as `particles * opponent_legal_moves`. Raising
+`max_particles` increases decision quality only after the belief set already
+contains useful diversity; it does not fix a collapsed belief.
+
+As of v0.7.18, resampling is diversity-preserving. If the update has fewer
+surviving candidates than `target_n`, keep them all with normalized weights
+instead of padding duplicates. If it has more than `target_n`, sample without
+replacement and preserve selected posterior weights. This matches the FOW use
+case better than classic replacement resampling: duplicate particles do not add
+new hypotheses, and the evaluator already consumes weights.
+
+As of v0.7.19, Stage A treats a tiny nonzero post-own-move survivor set as a
+near-collapse, not success. If our own move is legal in the belief but the
+newly revealed fog/visible-piece observation leaves only a handful of matching
+worlds, Stage A supplements those survivors with hard-observation repair. This
+is the path where increasing `target_n` should matter: higher budgets give
+repair more room to preserve plausible worlds instead of letting one exact
+survivor dominate the whole belief.
+
+As of v0.7.20, the same near-collapse supplement applies to Stage B. If an
+opponent move's observation leaves only a tiny exact survivor set, supplement
+with repaired count-valid expansions before resampling. This fixes the
+game-17/ply-39 pattern where Stage B dropped from dozens of hypotheses to two
+and the next move was played from an artificially narrow belief. The tradeoff is
+explicit: Stage B repair can generate thousands of candidates, so the next
+engineering work is profiling and caching rather than assuming larger
+`target_n` is free.
+
+The trace now profiles that tradeoff directly. Each Stage A/B update records
+elapsed milliseconds, filter/expand time, repair time, CSP time, resample time,
+expanded candidate count, and rejection counts by observation, hard-fact, and
+piece-count filters. The lab viewer shows these counters beside the belief
+board, and `review_queue.py` ranks slow particle rows (`stage-b-slow`,
+`stage-b-repair`, `stage-b-expanded`) so process review can target both
+quality misses and cost misses.
+
+Stage B also short-circuits expensive full-observation checks behind cheaper
+hard-fact and count filters. The trace records `stage_b_obs_checked_count`
+alongside `stage_b_expanded_count` so we can see how much work the gate saved.
+As of v0.7.21, full observation checks also reuse the already-computed
+visibility mask when building visible-piece maps, removing another duplicate
+pseudo-legal-move pass in the hot path.
+
+As of v0.7.22, the decision layer treats immediate king-capture risk as a
+terminal risk signal, not ordinary material uncertainty. If more than 5% of
+supporting particles say a candidate leaves the king capturable on the next
+opponent move, the move is filtered when safer alternatives exist.
+
+Next particle-budget milestones:
+
+- Track the support ratio for each chosen/force-fed own move. If a move is
+  legal in only a tiny fraction of particles, the next Stage A collapse is
+  expected. Trace rows, the lab viewer, and the review queue now surface chosen
+  move support.
+- Add targeted augmentation for low-support own moves: before dropping to a
+  handful of supporting particles, generate or repair additional worlds where
+  the chosen move is legal and current hard facts still hold.
+- Profile Stage B expansion and cache repeated visible maps / count checks so
+  higher `target_n` buys more diversity without linear wall-clock pain.
+- Separate particle-health failures from move-selection failures. v0.7.20 can
+  carry high diversity into late-game positions and still lose to a remote
+  king-capture tactic; those cases belong in the decision/risk model, not the
+  particle generator.
+
+Hidden occupancy facts are strict across our own moves, because our move cannot
+move the opponent's hidden piece. They are not automatically strict across the
+opponent's next move. If an opponent move could have vacated that square while
+remaining consistent with the new observation, the fact expires into a soft
+memory/continuity prior unless all surviving particles still support it.
+
+Visible opponent piece facts follow the same lifecycle, but are stronger while
+active: seeing a black rook on `e4` records exact square+piece identity, not
+just occupancy. That fact is strict through our own moves, even if `e4` falls
+back into fog. After the opponent gets a turn, it can expire if a legal
+opponent move can relocate the rook while matching the new observation; if all
+surviving particles still keep the rook on `e4`, the fact remains active.
+If we capture the piece, the fact expires immediately. En passant must clear
+the fact on the captured pawn's actual square, not the destination square.
 
 When hard facts conflict with all existing particles, the engine should recover
 by generating new hypotheses from the observation. It should not preserve stale
@@ -65,6 +178,13 @@ Hard facts cannot.
 
 The current local implementation is still a particle filter:
 
+- `BeliefHardFacts` is the first explicit strict-fact boundary. It packages the
+  current observation, visible-square exactness, hidden capture occupancies,
+  visible opponent piece identities, movement-affordance blockers,
+  piece-count caps, and bishop-color caps for repair/reseed/validation paths.
+  Its emitted debug schema separates `square_facts`, `piece_facts`, and
+  `state_facts`; hidden occupancy populates square facts, and direct
+  opponent-piece sightings populate piece facts.
 - `BeliefState.update_after_own_move` applies our own move, filters by the
   immediate post-own-move observation, repairs pushed particles when all of
   them contradict that observation, and CSP-reseeds only if repair fails or no
@@ -76,7 +196,8 @@ The current local implementation is still a particle filter:
   opponent piece counts, bishop color counts, pawn rank constraints, and side
   to move.
 - `belief.jsonl` records decision, after-own-move, and after-opp-move snapshots
-  for review.
+  for review, including `hard_facts` so the Engine Lab UI can distinguish
+  strict facts from probability mass.
 
 This is an early recovery system, not the final architecture.
 
@@ -112,6 +233,12 @@ Track this sub-engine independently from win rate:
 - Stage A and Stage B hard collapses;
 - generic CSP fallback frequency, separated by Stage A and Stage B;
 - post-reseed diversity;
+- Stage A/B elapsed time, filter/expand time, repair time, CSP time, and
+  resample time;
+- Stage A/B rejection counts by illegal own move, observation mismatch,
+  hard-fact mismatch, and count-constraint mismatch;
+- Stage B expanded candidate count;
+- Stage B full-observation checks after cheap hard/count gates;
 - low-unique-particle rows;
 - truth-particle survival on replayable corpora where truth is known;
 - annotated threat coverage;
@@ -137,7 +264,10 @@ belief state.
    seed. The review queue should flag it explicitly as `generic-csp-reseed`;
    the particle-generation roadmap goal is to explain and eliminate each
    repeated fallback class with repair, reachability, or better priors.
-8. Split strict constraints from soft priors in repair/reseed. Strict examples:
+8. Continue splitting strict constraints from soft priors in repair/reseed.
+   `BeliefHardFacts` now carries the first strict-fact bundle; the next step is
+   to move soft continuity priors into a parallel structure instead of mixing
+   them into repair code. Strict examples:
    bishop color, pawn direction, pawn rank legality, own-capture facts, and
    movement restrictions such as pawn blockades. Soft examples: last-seen
    location, high-confidence pawn tracks, top-world continuity, and likely
@@ -147,6 +277,13 @@ belief state.
 10. Replace random CSP fill with reachability-aware generation when annotations
    show plausible-looking but legally unlikely worlds.
 11. Add belief-only experiments that do not run full move selection.
+12. Expand the Engine Lab belief panel from heatmap-only to a belief-system
+    debugger: hard facts, soft priors, repair actions, invalid particles, and
+    surviving top-world families should be visible as separate concepts.
+13. Add piece-token and state/right fact models. Start with bishop color,
+    forced source-to-landing capture identity, castling rights, and en-passant
+    state; then use those facts in validation and UI before attempting heavier
+    legal-reachability search.
 
 ## Current Bug Class
 

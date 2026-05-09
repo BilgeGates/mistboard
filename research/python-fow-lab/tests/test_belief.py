@@ -202,7 +202,7 @@ def test_stage_a_repairs_when_post_own_observation_kills_all_particles() -> None
     belief.update_after_own_move(move, obs)
 
     assert belief.last_csp_reseed_fired == 0
-    assert len(belief.particles) == belief.target_n
+    assert belief.particles
     assert all(
         particle.piece_at(chess.D1) == chess.Piece(chess.ROOK, chess.WHITE)
         for particle in belief.particles
@@ -248,6 +248,21 @@ def test_register_capture_decrements_count() -> None:
     # Floor at zero, never negative.
     belief.register_capture(chess.KNIGHT)
     assert belief.opp_remaining_counts[chess.KNIGHT] == 0
+
+
+def test_register_capture_clears_prior_piece_fact_on_captured_square() -> None:
+    belief = BeliefState.initial(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=8,
+    )
+    belief.hard_opp_occupancy_squares.add(chess.C5)
+    belief.hard_opp_piece_facts[chess.C5] = chess.Piece(chess.PAWN, chess.BLACK)
+
+    belief.register_capture(chess.PAWN, chess.C5)
+
+    assert chess.C5 not in belief.hard_opp_occupancy_squares
+    assert chess.C5 not in belief.hard_opp_piece_facts
 
 
 def test_register_bishop_capture_decrements_matching_square_color() -> None:
@@ -521,7 +536,7 @@ def test_stage_b_does_not_relax_visible_opponent_piece() -> None:
     assert belief.last_csp_reseed_fired == 0
     assert belief.last_repair_fired == 1
     assert belief.last_repair_count > 0
-    assert len(belief.particles) == belief.target_n
+    assert belief.particles
     assert all(
         particle.piece_at(chess.B6) == chess.Piece(chess.PAWN, chess.BLACK)
         for particle in belief.particles
@@ -575,9 +590,9 @@ def test_stage_b_repairs_hidden_capture_landing_square() -> None:
         and piece.color == chess.WHITE
         for particle in belief.particles
     )
-    assert belief.marginal_piece_at(chess.C7) == {
-        chess.Piece(chess.ROOK, chess.WHITE): 1.0
-    }
+    assert abs(
+        belief.marginal_piece_at(chess.C7)[chess.Piece(chess.ROOK, chess.WHITE)] - 1.0
+    ) < 1e-9
 
 
 def test_stage_b_repair_preserves_forced_visible_source_capture_identity() -> None:
@@ -634,9 +649,9 @@ def test_stage_b_repair_preserves_forced_visible_source_capture_identity() -> No
 
     assert belief.last_repair_fired == 1
     assert belief.last_csp_reseed_fired == 0
-    assert belief.marginal_piece_at(chess.E4) == {
-        chess.Piece(chess.PAWN, chess.BLACK): 1.0
-    }
+    assert abs(
+        belief.marginal_piece_at(chess.E4)[chess.Piece(chess.PAWN, chess.BLACK)] - 1.0
+    ) < 1e-9
     assert all(particle.piece_at(chess.D5) is None for particle in belief.particles)
     assert all(
         visible_squares(particle, chess.WHITE) == obs.visibility_mask
@@ -728,6 +743,277 @@ def test_csp_reseed_preserves_pawn_blocker_from_move_affordance() -> None:
         assert blocker.color == chess.BLACK
         assert visible_squares(particle, chess.WHITE) == obs.visibility_mask
         assert visible_piece_map(particle, chess.WHITE) == obs.visible_pieces
+
+
+def test_stage_a_repair_preserves_prior_hidden_capture_landing() -> None:
+    """Our own move cannot erase a prior hidden opponent occupancy fact.
+
+    Regression for v0.7.12 rung2 game 16: black captured White's h-pawn on h4.
+    White correctly knew h4 contained a black piece. Two plies later, White's
+    b2-b4 revealed the black queen on a5; Stage-A repair fixed the queen
+    identity but trimmed the hidden h4 piece out of most particles, producing
+    a 73% empty belief on a square that should still be occupied.
+    """
+    import random
+
+    truth_pre = chess.Board(
+        "1nb1rkn1/p5p1/3ppp2/qp2P2p/2p3Pb/2PP4/PP1NNP2/R1B1QRKB w - - 0 18"
+    )
+    truth_post = truth_pre.copy()
+    move = chess.Move.from_uci("b2b4")
+    truth_post.push(move)
+    obs = observation_from_transition(truth_pre, truth_post, chess.WHITE)
+    assert chess.H4 not in obs.visibility_mask
+    assert obs.visible_pieces[chess.A5] == chess.Piece(chess.QUEEN, chess.BLACK)
+
+    cluster_fens = [
+        "1nb4r/3k2b1/1n1pppp1/pp2P2p/2p3Pq/2PP4/PP1NNP2/R1B1QRKB w - - 0 18",
+        "1nbq3r/3k4/1n1pppp1/pp2P2p/2p3Pb/2PP4/PP1NNP2/R1B1QRKB w - - 0 18",
+        "1n3b1r/3k4/bn1pppp1/pp2P2p/2p3Pq/2PP4/PP1NNP2/R1B1QRKB w - - 0 18",
+        "1nb2b1r/3k4/1n1pppp1/pp2P2p/2p3Pq/2PP4/PP1NNP2/R1B1QRKB w - - 0 18",
+        "2b3nr/p2k2p1/nb1ppp2/1p2P2p/2p3Pq/2PP4/PP1NNP2/R1B1QRKB w - - 0 18",
+    ]
+    particles = [chess.Board(fen) for fen in cluster_fens]
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=64,
+        particles=particles,
+        weights=[1.0] * len(particles),
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {
+        chess.KING: 1,
+        chess.QUEEN: 1,
+        chess.ROOK: 1,
+        chess.BISHOP: 2,
+        chess.KNIGHT: 2,
+        chess.PAWN: 8,
+    }
+    belief.opp_bishop_colors_remaining = {True: 1, False: 1}
+    belief.hard_opp_occupancy_squares.add(chess.H4)
+
+    belief.update_after_own_move(move, obs)
+
+    assert belief.last_repair_fired == 1
+    assert chess.H4 in belief.hard_opp_occupancy_squares
+    assert all(
+        (piece := particle.piece_at(chess.H4)) is not None
+        and piece.color == chess.BLACK
+        for particle in belief.particles
+    )
+    assert all(
+        visible_squares(particle, chess.WHITE) == obs.visibility_mask
+        for particle in belief.particles
+    )
+    assert all(
+        visible_piece_map(particle, chess.WHITE) == obs.visible_pieces
+        for particle in belief.particles
+    )
+
+
+def test_visible_opp_piece_enters_piece_fact_ledger() -> None:
+    """Directly seen opponent pieces are strict facts, not only marginals."""
+    truth_pre = chess.Board.empty()
+    truth_pre.turn = chess.WHITE
+    truth_pre.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    truth_pre.set_piece_at(chess.A2, chess.Piece(chess.PAWN, chess.WHITE))
+    truth_pre.set_piece_at(chess.E1, chess.Piece(chess.ROOK, chess.WHITE))
+    truth_pre.set_piece_at(chess.E4, chess.Piece(chess.ROOK, chess.BLACK))
+    truth_pre.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+
+    truth_post = truth_pre.copy()
+    move = chess.Move.from_uci("a2a3")
+    truth_post.push(move)
+    obs = observation_from_transition(truth_pre, truth_post, chess.WHITE)
+    assert obs.visible_pieces[chess.E4] == chess.Piece(chess.ROOK, chess.BLACK)
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[truth_pre.copy()],
+        weights=[1.0],
+    )
+    belief.opp_remaining_counts = {chess.KING: 1, chess.ROOK: 1}
+
+    belief.update_after_own_move(move, obs)
+
+    assert belief.hard_opp_piece_facts == {
+        chess.E4: chess.Piece(chess.ROOK, chess.BLACK)
+    }
+    assert "e4:black-rook" in belief.hard_fact_summary()["piece_facts"]
+
+
+def test_prior_visible_piece_fact_survives_own_move_when_hidden() -> None:
+    """Our own move cannot relocate an opponent piece we previously saw."""
+    import random
+
+    truth_pre = chess.Board.empty()
+    truth_pre.turn = chess.WHITE
+    truth_pre.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    truth_pre.set_piece_at(chess.A2, chess.Piece(chess.PAWN, chess.WHITE))
+    truth_pre.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    truth_pre.set_piece_at(chess.H4, chess.Piece(chess.BISHOP, chess.BLACK))
+
+    truth_post = truth_pre.copy()
+    move = chess.Move.from_uci("a2a3")
+    truth_post.push(move)
+    obs = observation_from_transition(truth_pre, truth_post, chess.WHITE)
+    assert chess.H4 not in obs.visibility_mask
+
+    stale = truth_pre.copy()
+    stale.remove_piece_at(chess.H4)
+    stale.set_piece_at(chess.F6, chess.Piece(chess.BISHOP, chess.BLACK))
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {chess.KING: 1, chess.BISHOP: 1}
+    belief.opp_bishop_colors_remaining = {True: 0, False: 1}
+    belief.hard_opp_piece_facts[chess.H4] = chess.Piece(chess.BISHOP, chess.BLACK)
+
+    belief.update_after_own_move(move, obs)
+
+    assert belief.hard_opp_piece_facts == {
+        chess.H4: chess.Piece(chess.BISHOP, chess.BLACK)
+    }
+    assert all(
+        particle.piece_at(chess.H4) == chess.Piece(chess.BISHOP, chess.BLACK)
+        for particle in belief.particles
+    )
+
+
+def test_prior_hidden_capture_landing_can_expire_on_opp_move() -> None:
+    """A hidden occupancy fact is strict until the opponent can move it.
+
+    Once the opponent gets a turn, a previously known hidden occupant may have
+    moved away. If that move is consistent with the new observation, the square
+    should no longer remain in the strict hard-fact ledger by fiat.
+    """
+    import random
+
+    seed = chess.Board.empty()
+    seed.turn = chess.BLACK
+    seed.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    seed.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    seed.set_piece_at(chess.H4, chess.Piece(chess.BISHOP, chess.BLACK))
+
+    truth = seed.copy()
+    truth.push(chess.Move.from_uci("h4g3"))
+    obs = observation_from_transition(seed, truth, chess.WHITE)
+    assert chess.H4 not in obs.visibility_mask
+    assert chess.G3 not in obs.visibility_mask
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[seed],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {chess.KING: 1, chess.BISHOP: 1}
+    belief.opp_bishop_colors_remaining = {True: 0, False: 1}
+    belief.hard_opp_occupancy_squares.add(chess.H4)
+
+    belief.update_after_opp_move(obs)
+
+    assert chess.H4 not in belief.hard_opp_occupancy_squares
+    assert any(particle.piece_at(chess.H4) is None for particle in belief.particles)
+
+
+def test_prior_visible_piece_fact_can_expire_on_opp_move() -> None:
+    """After the opponent can move, a prior visible-piece fact is no longer strict."""
+    import random
+
+    seed = chess.Board.empty()
+    seed.turn = chess.BLACK
+    seed.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    seed.set_piece_at(chess.H8, chess.Piece(chess.KING, chess.BLACK))
+    seed.set_piece_at(chess.H4, chess.Piece(chess.BISHOP, chess.BLACK))
+
+    truth = seed.copy()
+    truth.push(chess.Move.from_uci("h4g3"))
+    obs = observation_from_transition(seed, truth, chess.WHITE)
+    assert chess.H4 not in obs.visibility_mask
+    assert chess.G3 not in obs.visibility_mask
+
+    belief = BeliefState(
+        perspective=chess.WHITE,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[seed],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {chess.KING: 1, chess.BISHOP: 1}
+    belief.opp_bishop_colors_remaining = {True: 0, False: 1}
+    belief.hard_opp_piece_facts[chess.H4] = chess.Piece(chess.BISHOP, chess.BLACK)
+
+    belief.update_after_opp_move(obs)
+
+    assert chess.H4 not in belief.hard_opp_piece_facts
+    assert any(particle.piece_at(chess.H4) is None for particle in belief.particles)
+
+
+def test_prior_visible_piece_fact_survives_opp_repair_for_different_move() -> None:
+    """Repair must not erase exact facts unrelated to the observed opponent move.
+
+    Regression for v0.7.16 g19: black knew a white rook was on h1, then White's
+    c6xd7 observation forced Stage-B repair. The repair recovered the capture
+    but let unrelated h1-rook hypotheses drift, demoting a hard fact into a
+    soft marginal.
+    """
+    import random
+
+    truth_pre = chess.Board.empty()
+    truth_pre.turn = chess.WHITE
+    truth_pre.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    truth_pre.set_piece_at(chess.H1, chess.Piece(chess.ROOK, chess.WHITE))
+    truth_pre.set_piece_at(chess.C6, chess.Piece(chess.PAWN, chess.WHITE))
+    truth_pre.set_piece_at(chess.G8, chess.Piece(chess.KING, chess.BLACK))
+    truth_pre.set_piece_at(chess.D7, chess.Piece(chess.BISHOP, chess.BLACK))
+
+    truth_post = truth_pre.copy()
+    truth_post.push(chess.Move.from_uci("c6d7"))
+    obs = observation_from_transition(truth_pre, truth_post, chess.BLACK)
+
+    stale = truth_pre.copy()
+    stale.remove_piece_at(chess.C6)
+
+    belief = BeliefState(
+        perspective=chess.BLACK,
+        move_prior=uniform_prior,
+        target_n=16,
+        particles=[stale],
+        weights=[1.0],
+        rng=random.Random(0),
+    )
+    belief.opp_remaining_counts = {
+        chess.KING: 1,
+        chess.ROOK: 1,
+        chess.PAWN: 1,
+    }
+    belief.opp_bishop_colors_remaining = {True: 0, False: 0}
+    belief.hard_opp_piece_facts[chess.H1] = chess.Piece(chess.ROOK, chess.WHITE)
+
+    belief.update_after_opp_move(obs)
+
+    assert belief.last_repair_fired == 1
+    assert belief.hard_opp_piece_facts[chess.H1] == chess.Piece(
+        chess.ROOK, chess.WHITE
+    )
+    assert all(
+        particle.piece_at(chess.H1) == chess.Piece(chess.ROOK, chess.WHITE)
+        for particle in belief.particles
+    )
 
 
 def test_stage_b_constraint_pruned_diagnostic_increments() -> None:

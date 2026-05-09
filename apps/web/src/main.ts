@@ -18,6 +18,7 @@ if (phKey && phHost && import.meta.env.PROD) {
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('missing #app');
+const appRoot = app;
 
 const params = new URLSearchParams(window.location.search);
 const path = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -41,33 +42,52 @@ const wantsLearn = path === '/learn' || page === 'learn';
 const wantsWatch = path === '/watch' || page === 'watch';
 
 if (replaySample) {
-  void import('./replay.js').then(({ mountReplay }) => mountReplay(app, replaySample));
+  void mountOrReport(() => import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)));
 } else if (wantsEngineLab && engineLabEnabled) {
   // ?bakeoff loads the default manifest; ?bakeoff=<url> loads a specific one.
   const manifestUrl = bakeoffParam && bakeoffParam.length > 0 ? bakeoffParam : undefined;
-  void import('./bakeoff.js').then(({ mountBakeoff }) => mountBakeoff(app, manifestUrl));
+  void mountOrReport(() => import('./bakeoff.js').then(({ mountBakeoff }) => mountBakeoff(appRoot, manifestUrl)));
 } else if (wantsEngineLab) {
-  app.replaceChildren();
-  app.classList.add('landing-page');
+  appRoot.replaceChildren();
+  appRoot.classList.add('landing-page');
   const shell = document.createElement('main');
   shell.className = 'site-section';
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
   heading.textContent = 'Not found';
   shell.append(heading);
-  app.append(shell);
+  appRoot.append(shell);
 } else if (wantsLive) {
-  void import('./live.js');
+  void mountOrReport(() => import('./live.js').then(() => undefined));
 } else if (gameRoomId) {
-  void import('./landing.js').then(({ mountGame }) => mountGame(app, gameRoomId));
+  void mountOrReport(() => import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)));
 } else if (wantsWatch) {
-  void import('./landing.js').then(({ mountWatch }) => mountWatch(app));
+  void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
 } else if (wantsLearn) {
-  void import('./landing.js').then(({ mountLearn }) => mountLearn(app));
+  void mountOrReport(() => import('./landing.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
-  void import('./landing.js').then(({ mountAbout }) => mountAbout(app));
+  void mountOrReport(() => import('./landing.js').then(({ mountAbout }) => mountAbout(appRoot)));
 } else {
-  void import('./landing.js').then(({ mountLanding }) => mountLanding(app));
+  void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
+}
+
+async function mountOrReport(run: () => Promise<void>): Promise<void> {
+  try {
+    await run();
+  } catch (err) {
+    console.error(err);
+    appRoot.replaceChildren();
+    appRoot.classList.add('landing-page');
+    const shell = document.createElement('main');
+    shell.className = 'site-section app-error-panel';
+    const heading = document.createElement('h1');
+    heading.className = 'site-section-heading';
+    heading.textContent = 'Page failed to load';
+    const detail = document.createElement('pre');
+    detail.textContent = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    shell.append(heading, detail);
+    appRoot.append(shell);
+  }
 }
 
 function gameRoomIdFromPath(value: string): string | null {

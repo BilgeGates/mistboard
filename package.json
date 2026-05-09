@@ -25,7 +25,8 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "hooks:install": "git config core.hooksPath .githooks",
-    "visual:check": "node scripts/visual-check.mjs"
+    "visual:check": "node scripts/visual-check.mjs",
+    "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs"
   },
   "engines": {
     "node": ">=22"

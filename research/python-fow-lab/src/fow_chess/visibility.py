@@ -39,11 +39,21 @@ def visible_piece_map(
     board: chess.Board, color: chess.Color
 ) -> dict[chess.Square, chess.Piece]:
     """Return the pieces visible to `color`, keyed by square."""
-    visible = visible_squares(board, color)
+    return piece_map_for_squares(board, visible_squares(board, color))
+
+
+def piece_map_for_squares(
+    board: chess.Board, squares: chess.SquareSet | set[chess.Square]
+) -> dict[chess.Square, chess.Piece]:
+    """Return pieces on a precomputed square set.
+
+    Useful in hot paths that already computed FOW visibility and need the
+    matching visible piece map without regenerating pseudo-legal moves.
+    """
     return {
         square: piece
         for square, piece in board.piece_map().items()
-        if square in visible
+        if square in squares
     }
 
 

@@ -15,6 +15,24 @@ export function builtinEngineIds(): string[] {
 }
 
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
+  'python-tier1-v0.7.22': {
+    id: 'python-tier1-v0.7.22',
+    engineId: 'tier1',
+    engineName: 'Tier-1',
+    name: 'Tier-1 v0.7.22',
+    kind: 'container',
+    configHash: 'tier1-v0.7.22-b22f29dd73f5',
+    playSignature: '5d3ddffa74f6',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'tier1',
+      version: '0.7.22',
+      config: 'tier1-v1',
+      config_hash: 'b22f29dd73f5',
+      engine_pin: 'v0.7.22-king-risk@5d3ddffa74f6',
+    },
+    notes: 'Owner-only Python Tier-1 v0.7.22 engine with profiled particle updates and terminal king-risk veto.',
+  },
   'python-tier1-v0.7.0': {
     id: 'python-tier1-v0.7.0',
     engineId: 'tier1',

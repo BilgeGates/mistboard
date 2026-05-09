@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.7.12"
+TIER1_VERSION = "0.7.22"
 
 
 def tier1_commit() -> str:
@@ -860,6 +860,7 @@ class Tier1Strategy:
         # used during capture detection. Avoids needing to plumb the view
         # through observe_own_move.
         self._last_view_visible: dict[chess.Square, chess.Piece] = {}
+        self._last_decision_view: PerspectiveView | None = None
 
     def reset(self, perspective: chess.Color) -> None:
         self._belief = BeliefState.initial(
@@ -876,13 +877,14 @@ class Tier1Strategy:
         self._pending_capture_type = None
         self._pending_capture_square = None
         self._last_view_visible = {}
+        self._last_decision_view = None
 
     def _emit_trace(
         self,
         decision_path: str,
         particle_count_pre: int,
         chosen: chess.Move,
-        top_k_scores: list[tuple[str, float]] | None = None,
+        top_k_scores: list[tuple[str, float, float]] | None = None,
     ) -> None:
         self._tier1_move_count += 1
         # Decision snapshot is for the move about to be played. Observed-ply
@@ -905,6 +907,9 @@ class Tier1Strategy:
             piece_type_names[pt]: n
             for pt, n in self._belief.opp_remaining_counts.items()
         }
+        support_weight, support_count, support_unique = self._belief_move_support_stats(
+            chosen
+        )
         pending_steps = dict(self._pending_belief_steps)
         csp_reseed_fired = bool(
             pending_steps.get("csp_reseed_stage_a", 0)
@@ -929,8 +934,12 @@ class Tier1Strategy:
             "particle_count_pre_sample": particle_count_pre,
             "belief_unique_count": belief_unique,
             "move_chosen_uci": chosen.uci(),
+            "chosen_move_belief_support": support_weight,
+            "chosen_move_belief_support_count": support_count,
+            "chosen_move_belief_support_unique": support_unique,
             "top_k_scores": [
-                {"uci": uci, "score": score} for uci, score in (top_k_scores or [])
+                {"uci": uci, "score": score, "support": support}
+                for uci, score, support in (top_k_scores or [])
             ],
             "opp_remaining_counts": opp_counts,
             "csp_reseed_fired": csp_reseed_fired,
@@ -938,6 +947,8 @@ class Tier1Strategy:
             "repair_fired": repair_fired,
             "repair_count": repair_count,
         }
+        if self._last_decision_view is not None:
+            record.update(self._decision_audit(chosen, self._last_decision_view))
         # Carry over belief-step diagnostics from the most recent Stage A/B
         # observation updates, then clear so the next pick_move starts fresh.
         record.update(pending_steps)
@@ -954,6 +965,113 @@ class Tier1Strategy:
                 repair_fired=repair_fired,
                 repair_count=repair_count,
             )
+
+    def _belief_move_support_stats(self, move: chess.Move) -> tuple[float, int, int]:
+        assert self._belief is not None
+        total = sum(self._belief.weights)
+        if total <= 0:
+            return 0.0, 0, 0
+        support_weight = 0.0
+        support_count = 0
+        support_fens: set[str] = set()
+        for particle, weight in zip(self._belief.particles, self._belief.weights):
+            if not particle.is_pseudo_legal(move):
+                continue
+            support_weight += weight
+            support_count += 1
+            support_fens.add(particle.fen())
+        return support_weight / total, support_count, len(support_fens)
+
+    def _decision_audit(
+        self, chosen: chess.Move, view: PerspectiveView
+    ) -> dict[str, float | int | str | None]:
+        """Cheap per-move audit fields for belief consumption debugging."""
+        own = view.perspective
+        chosen_capture_value = 0
+        chosen_target = view.visible_piece_map.get(chosen.to_square)
+        if chosen_target is not None and chosen_target.color != own:
+            chosen_capture_value = _MATERIAL_VALUE.get(chosen_target.piece_type, 0)
+
+        best_capture: tuple[chess.Move, int] | None = None
+        for move in view.own_legal_moves:
+            target = view.visible_piece_map.get(move.to_square)
+            if target is None or target.color == own:
+                continue
+            value = _MATERIAL_VALUE.get(target.piece_type, 0)
+            if best_capture is None or value > best_capture[1]:
+                best_capture = (move, value)
+
+        mover = view.visible_piece_map.get(chosen.from_square)
+        king_risk, risk_support, risk_unique = self._belief_immediate_king_risk(
+            chosen, own
+        )
+        piece_risk = self._belief_immediate_piece_risk(chosen, own)
+        best_capture_value = best_capture[1] if best_capture is not None else 0
+        return {
+            "chosen_piece": mover.symbol() if mover is not None else None,
+            "chosen_piece_value": (
+                _MATERIAL_VALUE.get(mover.piece_type, 0) if mover is not None else 0
+            ),
+            "chosen_visible_capture_value": chosen_capture_value,
+            "best_visible_capture_uci": (
+                best_capture[0].uci() if best_capture is not None else None
+            ),
+            "best_visible_capture_value": best_capture_value,
+            "visible_capture_value_missed": max(
+                0, best_capture_value - chosen_capture_value
+            ),
+            "chosen_move_king_capture_risk": king_risk,
+            "chosen_move_piece_capture_risk": piece_risk,
+            "chosen_move_risk_support_count": risk_support,
+            "chosen_move_risk_support_unique": risk_unique,
+        }
+
+    def _belief_immediate_king_risk(
+        self, move: chess.Move, own: chess.Color
+    ) -> tuple[float, int, int]:
+        assert self._belief is not None
+        total_weight = 0.0
+        risk_weight = 0.0
+        support_count = 0
+        support_fens: set[str] = set()
+        for particle, weight in zip(self._belief.particles, self._belief.weights):
+            if not particle.is_pseudo_legal(move):
+                continue
+            support_count += 1
+            support_fens.add(particle.fen())
+            total_weight += weight
+            sim = particle.copy()
+            sim.push(move)
+            king_sq = sim.king(own)
+            if king_sq is None:
+                risk_weight += weight
+                continue
+            sim.turn = not own
+            if any(reply.to_square == king_sq for reply in sim.pseudo_legal_moves):
+                risk_weight += weight
+        if total_weight <= 0:
+            return 0.0, support_count, len(support_fens)
+        return risk_weight / total_weight, support_count, len(support_fens)
+
+    def _belief_immediate_piece_risk(self, move: chess.Move, own: chess.Color) -> float:
+        assert self._belief is not None
+        total_weight = 0.0
+        risk_weight = 0.0
+        for particle, weight in zip(self._belief.particles, self._belief.weights):
+            if not particle.is_pseudo_legal(move):
+                continue
+            sim = particle.copy()
+            sim.push(move)
+            moved = sim.piece_at(move.to_square)
+            if moved is None or moved.color != own or moved.piece_type == chess.KING:
+                continue
+            total_weight += weight
+            sim.turn = not own
+            if any(reply.to_square == move.to_square for reply in sim.pseudo_legal_moves):
+                risk_weight += weight
+        if total_weight <= 0:
+            return 0.0
+        return risk_weight / total_weight
 
     def _opp_counts_for_json(self) -> dict[str, int]:
         assert self._belief is not None
@@ -1020,6 +1138,7 @@ class Tier1Strategy:
                 "csp_reseed_count": csp_count,
                 "repair_fired": repair_did_fire,
                 "repair_count": repair_n,
+                "hard_facts": self._belief.hard_fact_summary(),
                 "marginal_field": _marginal_field_for_json(
                     self._belief.marginal_piece_field()
                 ),
@@ -1051,6 +1170,45 @@ class Tier1Strategy:
         self._pending_belief_steps["belief_pre_stage_a_unique"] = before_unique
         self._pending_belief_steps["belief_post_stage_a"] = after
         self._pending_belief_steps["belief_post_stage_a_unique"] = after_unique
+        self._pending_belief_steps["stage_a_pushed_count"] = (
+            self._belief.last_stage_a_pushed_count
+        )
+        self._pending_belief_steps["stage_a_pushed_unique"] = (
+            self._belief.last_stage_a_pushed_unique
+        )
+        self._pending_belief_steps["stage_a_consistent_count"] = (
+            self._belief.last_stage_a_consistent_count
+        )
+        self._pending_belief_steps["stage_a_consistent_unique"] = (
+            self._belief.last_stage_a_consistent_unique
+        )
+        self._pending_belief_steps["stage_a_repair_supplement_count"] = (
+            self._belief.last_stage_a_repair_supplement_count
+        )
+        self._pending_belief_steps["stage_a_elapsed_ms"] = (
+            self._belief.last_stage_a_elapsed_ms
+        )
+        self._pending_belief_steps["stage_a_filter_ms"] = (
+            self._belief.last_stage_a_filter_ms
+        )
+        self._pending_belief_steps["stage_a_repair_ms"] = (
+            self._belief.last_stage_a_repair_ms
+        )
+        self._pending_belief_steps["stage_a_csp_ms"] = (
+            self._belief.last_stage_a_csp_ms
+        )
+        self._pending_belief_steps["stage_a_resample_ms"] = (
+            self._belief.last_stage_a_resample_ms
+        )
+        self._pending_belief_steps["stage_a_reject_illegal"] = (
+            self._belief.last_stage_a_reject_illegal
+        )
+        self._pending_belief_steps["stage_a_reject_observation"] = (
+            self._belief.last_stage_a_reject_observation
+        )
+        self._pending_belief_steps["stage_a_reject_hard"] = (
+            self._belief.last_stage_a_reject_hard
+        )
         self._pending_belief_steps["csp_reseed_stage_a"] = (
             self._belief.last_csp_reseed_fired
         )
@@ -1095,15 +1253,23 @@ class Tier1Strategy:
         self,
         candidates: list[chess.Move],
         view: PerspectiveView,
-        threshold: float = 0.5,
+        threshold: float = 0.05,
+        king_move_threshold: float = 0.05,
     ) -> list[chess.Move]:
         """Drop king-defense candidates where >threshold fraction of particles
         place our king under attack after the move.
 
         Catches hidden discovered checks the visibility-only board can't see —
         e.g., capturing the visible attacker but unblocking a hidden bishop.
-        Threshold > 0.5 protects against single-particle hallucination: only
-        veto when a majority of particles agree.
+        For non-king moves, v0.7.22 uses a terminal-risk threshold. If more
+        than 5% of supporting particles say the move leaves our king
+        immediately capturable, prefer safer alternatives. A small hidden king
+        line is not ordinary material uncertainty.
+
+        For voluntary king moves, use a much lower threshold. g16/v0.7.13
+        showed why: a king step into a low-probability hidden rook line can be
+        immediately terminal, and should lose to safer alternatives instead of
+        being treated like ordinary material uncertainty.
 
         Returns the subset of `candidates` not vetoed. Caller falls back to
         the full set when this returns empty (better to make some defense
@@ -1114,6 +1280,13 @@ class Tier1Strategy:
         own = view.perspective
         survivors: list[chess.Move] = []
         for move in candidates:
+            mover = view.visible_piece_map.get(move.from_square)
+            is_own_king_move = (
+                mover is not None
+                and mover.color == own
+                and mover.piece_type == chess.KING
+            )
+            allowed_risk = king_move_threshold if is_own_king_move else threshold
             attacked = 0
             total = 0
             for particle in self._belief.particles:
@@ -1129,7 +1302,7 @@ class Tier1Strategy:
                 sim.turn = not own
                 if any(m.to_square == king_sq for m in sim.pseudo_legal_moves):
                     attacked += 1
-            if total == 0 or attacked / total <= threshold:
+            if total == 0 or attacked / total <= allowed_risk:
                 survivors.append(move)
         return survivors
 
@@ -1617,6 +1790,51 @@ class Tier1Strategy:
         self._pending_belief_steps["belief_pre_stage_b_unique"] = before_unique
         self._pending_belief_steps["belief_post_stage_b"] = after
         self._pending_belief_steps["belief_post_stage_b_unique"] = after_unique
+        self._pending_belief_steps["stage_b_primary_count"] = (
+            self._belief.last_stage_b_primary_count
+        )
+        self._pending_belief_steps["stage_b_primary_unique"] = (
+            self._belief.last_stage_b_primary_unique
+        )
+        self._pending_belief_steps["stage_b_constraint_count"] = (
+            self._belief.last_stage_b_constraint_count
+        )
+        self._pending_belief_steps["stage_b_constraint_unique"] = (
+            self._belief.last_stage_b_constraint_unique
+        )
+        self._pending_belief_steps["stage_b_repair_supplement_count"] = (
+            self._belief.last_stage_b_repair_supplement_count
+        )
+        self._pending_belief_steps["stage_b_elapsed_ms"] = (
+            self._belief.last_stage_b_elapsed_ms
+        )
+        self._pending_belief_steps["stage_b_expand_ms"] = (
+            self._belief.last_stage_b_expand_ms
+        )
+        self._pending_belief_steps["stage_b_repair_ms"] = (
+            self._belief.last_stage_b_repair_ms
+        )
+        self._pending_belief_steps["stage_b_csp_ms"] = (
+            self._belief.last_stage_b_csp_ms
+        )
+        self._pending_belief_steps["stage_b_resample_ms"] = (
+            self._belief.last_stage_b_resample_ms
+        )
+        self._pending_belief_steps["stage_b_expanded_count"] = (
+            self._belief.last_stage_b_expanded_count
+        )
+        self._pending_belief_steps["stage_b_obs_checked_count"] = (
+            self._belief.last_stage_b_obs_checked_count
+        )
+        self._pending_belief_steps["stage_b_reject_observation"] = (
+            self._belief.last_stage_b_reject_observation
+        )
+        self._pending_belief_steps["stage_b_reject_hard"] = (
+            self._belief.last_stage_b_reject_hard
+        )
+        self._pending_belief_steps["stage_b_reject_count"] = (
+            self._belief.last_stage_b_reject_count
+        )
         # v0.6.0: how many expanded particles the count-constraint filter killed.
         self._pending_belief_steps["constraint_pruned_stage_b"] = (
             self._belief.last_constraint_pruned
@@ -1643,6 +1861,7 @@ class Tier1Strategy:
         particle_count_pre = len(self._belief.particles)
         # Snapshot pre-move visibility for capture detection in observe_own_move.
         self._last_view_visible = dict(view.visible_piece_map)
+        self._last_decision_view = view
 
         king_captures = [
             move
@@ -1924,7 +2143,7 @@ class Tier1Strategy:
         )
         # Top 5 moves by aggregated score; only surface what the trace actually needs.
         scored.sort(key=lambda r: -r[1])
-        top_k = [(m.uci(), s) for m, s, _support in scored[:5]]
+        top_k = [(m.uci(), s, support) for m, s, support in scored[:5]]
         self._stage_pending_capture(chosen, view)
         self._emit_trace("main-eval", particle_count_pre, chosen, top_k_scores=top_k)
         return chosen

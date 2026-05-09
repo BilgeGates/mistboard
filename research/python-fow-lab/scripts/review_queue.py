@@ -39,6 +39,8 @@ class QueueItem:
     score: int
     game_index: int
     ply: int
+    review_ply: int
+    review_snapshot_kind: str | None
     tier1_seat: str
     tier1_side: str
     decision_path: str
@@ -51,14 +53,21 @@ class QueueItem:
     trace: dict[str, Any] = field(default_factory=dict)
 
     @property
-    def key(self) -> tuple[int, str, int]:
-        return self.game_index, self.tier1_seat, self.ply
+    def key(self) -> tuple[int, str, int, str | None]:
+        return (
+            self.game_index,
+            self.tier1_seat,
+            self.review_ply,
+            self.review_snapshot_kind,
+        )
 
     def to_json(self) -> dict[str, Any]:
         return {
             "score": self.score,
             "game_index": self.game_index,
             "ply": self.ply,
+            "review_ply": self.review_ply,
+            "review_snapshot_kind": self.review_snapshot_kind,
             "tier1_seat": self.tier1_seat,
             "tier1_side": self.tier1_side,
             "decision_path": self.decision_path,
@@ -66,6 +75,7 @@ class QueueItem:
             "reasons": self.reasons,
             "game_outcome": self.game_outcome,
             "game_path": self.game_path,
+            "review_url_params": review_url_params(self),
             "has_belief_snapshot": self.has_belief_snapshot,
             "belief_snapshot_kinds": self.belief_snapshot_kinds,
             "trace_summary": trace_summary(self.trace),
@@ -88,7 +98,12 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def generate_queue(run_dir: Path, limit: int = 30) -> list[QueueItem]:
+def generate_queue(
+    run_dir: Path,
+    limit: int = 30,
+    *,
+    include_mirror_seats: bool = False,
+) -> list[QueueItem]:
     manifest = load_json(run_dir / "manifest.json")
     trace_rows = load_jsonl(run_dir / "trace.jsonl")
     belief_kinds_by_key: dict[tuple[Any, Any, Any], set[str]] = {}
@@ -98,8 +113,15 @@ def generate_queue(run_dir: Path, limit: int = 30) -> list[QueueItem]:
         belief_kinds_by_key.setdefault(key, set()).add(kind)
     games_by_index = {game["index"]: game for game in manifest.get("games", [])}
 
-    items_by_key: dict[tuple[int, str, int], QueueItem] = {}
+    items_by_key: dict[tuple[int, str, int, str | None], QueueItem] = {}
     for row in trace_rows:
+        game = games_by_index.get(int(row["game_index"]), {})
+        if (
+            not include_mirror_seats
+            and game.get("tier1_color") is not None
+            and row.get("tier1_side") != game.get("tier1_color")
+        ):
+            continue
         item = score_trace_row(row, games_by_index, belief_kinds_by_key)
         if item is None:
             continue
@@ -109,7 +131,13 @@ def generate_queue(run_dir: Path, limit: int = 30) -> list[QueueItem]:
 
     items = sorted(
         items_by_key.values(),
-        key=lambda item: (-item.score, item.game_index, item.ply, item.tier1_seat),
+        key=lambda item: (
+            -item.score,
+            item.game_index,
+            item.review_ply,
+            item.review_snapshot_kind or "",
+            item.tier1_seat,
+        ),
     )
     return items[:limit]
 
@@ -135,6 +163,8 @@ def score_trace_row(
 
     score += score_particle_drop(reasons, row, "stage_a")
     score += score_particle_drop(reasons, row, "stage_b")
+    score += score_particle_profile(reasons, row)
+    score += score_decision_audit(reasons, row)
 
     unique = int(row.get("belief_unique_count") or 0)
     if unique <= 1:
@@ -170,6 +200,7 @@ def score_trace_row(
     if score == 0:
         return None
 
+    review_ply, review_snapshot_kind = review_target(row, belief_kinds_by_key)
     belief_key = (game_index, row.get("tier1_seat"), ply)
     belief_snapshot_kinds = sorted(
         belief_kinds_by_key.get(belief_key, set()),
@@ -180,6 +211,8 @@ def score_trace_row(
         score=score,
         game_index=game_index,
         ply=ply,
+        review_ply=review_ply,
+        review_snapshot_kind=review_snapshot_kind,
         tier1_seat=str(row.get("tier1_seat") or "tier1"),
         tier1_side=str(row.get("tier1_side") or "unknown"),
         decision_path=decision_path,
@@ -191,6 +224,65 @@ def score_trace_row(
         belief_snapshot_kinds=belief_snapshot_kinds,
         trace=row,
     )
+
+
+def review_target(
+    row: dict[str, Any],
+    belief_kinds_by_key: dict[tuple[Any, Any, Any], set[str]],
+) -> tuple[int, str | None]:
+    """Return the belief snapshot that best explains this trace row.
+
+    Trace rows are emitted at decision time, but Stage A/B diagnostics are
+    pending from earlier observation updates. Stage A belongs to the previous
+    move this side played (`ply - 2`, `after-own-move`); Stage B belongs to the
+    opponent's immediately preceding move (`ply - 1`, `after-opp-move`).
+    """
+    game_index = row.get("game_index")
+    seat = row.get("tier1_seat")
+    ply = int(row["ply"])
+    candidates: list[tuple[int, int, str]] = []
+
+    stage_a_score = stage_signal_score(row, "stage_a")
+    if stage_a_score:
+        candidates.append((stage_a_score, max(1, ply - 2), "after-own-move"))
+
+    stage_b_score = stage_signal_score(row, "stage_b")
+    if stage_b_score:
+        candidates.append((stage_b_score, max(1, ply - 1), "after-opp-move"))
+
+    candidates.sort(reverse=True)
+    for _, target_ply, kind in candidates:
+        if kind in belief_kinds_by_key.get((game_index, seat, target_ply), set()):
+            return target_ply, kind
+
+    if "decision" in belief_kinds_by_key.get((game_index, seat, ply), set()):
+        return ply, "decision"
+    return ply, None
+
+
+def stage_signal_score(row: dict[str, Any], stage: str) -> int:
+    score = 0
+    if row.get(f"csp_reseed_{stage}"):
+        score += 100
+    if row.get(f"repair_{stage}"):
+        score += 40
+    elapsed_ms = float(row.get(f"{stage}_elapsed_ms") or 0.0)
+    if stage == "stage_b" and elapsed_ms >= 750:
+        score += 20
+    elif stage == "stage_a" and elapsed_ms >= 50:
+        score += 10
+    pre = row.get(f"belief_pre_{stage}")
+    post = row.get(f"belief_post_{stage}")
+    if pre is not None and post is not None:
+        pre_i = int(pre)
+        post_i = int(post)
+        if pre_i > 0 and post_i == 0:
+            score += 80
+        elif pre_i > 0 and post_i <= max(1, pre_i // 10):
+            score += 30
+        elif pre_i > 0 and post_i <= max(1, pre_i // 4):
+            score += 15
+    return score
 
 
 def add(reasons: list[str], reason: str, score: int) -> None:
@@ -205,6 +297,18 @@ def snapshot_kind_sort_key(kind: str) -> tuple[int, str]:
         "snapshot": 3,
     }
     return order.get(kind, 9), kind
+
+
+def review_url_params(item: QueueItem) -> dict[str, str]:
+    params = {
+        "game": str(item.game_index),
+        "ply": str(item.review_ply),
+        "capture": "belief",
+        "beliefSeat": item.tier1_seat,
+    }
+    if item.review_snapshot_kind:
+        params["beliefKind"] = item.review_snapshot_kind
+    return params
 
 
 def score_particle_drop(
@@ -230,14 +334,107 @@ def score_particle_drop(
     return 0
 
 
+def score_particle_profile(reasons: list[str], row: dict[str, Any]) -> int:
+    """Rank rows where particle quality was expensive to maintain."""
+
+    score = 0
+    stage_a_ms = float(row.get("stage_a_elapsed_ms") or 0.0)
+    stage_b_ms = float(row.get("stage_b_elapsed_ms") or 0.0)
+    stage_b_repair_ms = float(row.get("stage_b_repair_ms") or 0.0)
+    stage_b_expanded = int(row.get("stage_b_expanded_count") or 0)
+
+    if stage_a_ms >= 100:
+        add(reasons, "stage-a-slow>=100ms", 8)
+        score += 8
+    elif stage_a_ms >= 50:
+        add(reasons, "stage-a-slow>=50ms", 4)
+        score += 4
+
+    if stage_b_ms >= 1500:
+        add(reasons, "stage-b-slow>=1500ms", 18)
+        score += 18
+    elif stage_b_ms >= 750:
+        add(reasons, "stage-b-slow>=750ms", 10)
+        score += 10
+
+    if stage_b_repair_ms >= 500:
+        add(reasons, "stage-b-repair>=500ms", 12)
+        score += 12
+    elif stage_b_repair_ms >= 200:
+        add(reasons, "stage-b-repair>=200ms", 6)
+        score += 6
+
+    if stage_b_expanded >= 8000:
+        add(reasons, "stage-b-expanded>=8000", 8)
+        score += 8
+
+    return score
+
+
+def score_decision_audit(reasons: list[str], row: dict[str, Any]) -> int:
+    score = 0
+    missed_capture = int(row.get("visible_capture_value_missed") or 0)
+    king_risk = float(row.get("chosen_move_king_capture_risk") or 0.0)
+    piece_risk = float(row.get("chosen_move_piece_capture_risk") or 0.0)
+    piece_value = int(row.get("chosen_piece_value") or 0)
+
+    if missed_capture >= 5:
+        add(reasons, "missed-visible-capture>=rook", 18)
+        score += 18
+    elif missed_capture >= 3:
+        add(reasons, "missed-visible-capture>=minor", 10)
+        score += 10
+
+    if king_risk >= 0.05:
+        add(reasons, "chosen-king-risk>=5pct", 22)
+        score += 22
+    elif king_risk > 0:
+        add(reasons, "chosen-king-risk>0", 10)
+        score += 10
+
+    if piece_value >= 3 and piece_risk >= 0.25:
+        add(reasons, "chosen-piece-risk>=25pct", 10)
+        score += 10
+
+    return score
+
+
 def trace_summary(row: dict[str, Any]) -> dict[str, Any]:
     keys = [
         "particle_count_pre_sample",
         "belief_unique_count",
+        "chosen_piece",
+        "chosen_piece_value",
+        "chosen_visible_capture_value",
+        "best_visible_capture_uci",
+        "best_visible_capture_value",
+        "visible_capture_value_missed",
+        "chosen_move_king_capture_risk",
+        "chosen_move_piece_capture_risk",
+        "chosen_move_risk_support_count",
+        "chosen_move_risk_support_unique",
         "belief_pre_stage_a",
         "belief_post_stage_a",
+        "stage_a_elapsed_ms",
+        "stage_a_filter_ms",
+        "stage_a_repair_ms",
+        "stage_a_csp_ms",
+        "stage_a_resample_ms",
+        "stage_a_reject_illegal",
+        "stage_a_reject_observation",
+        "stage_a_reject_hard",
         "belief_pre_stage_b",
         "belief_post_stage_b",
+        "stage_b_elapsed_ms",
+        "stage_b_expand_ms",
+        "stage_b_repair_ms",
+        "stage_b_csp_ms",
+        "stage_b_resample_ms",
+        "stage_b_expanded_count",
+        "stage_b_obs_checked_count",
+        "stage_b_reject_observation",
+        "stage_b_reject_hard",
+        "stage_b_reject_count",
         "constraint_pruned_stage_b",
         "csp_reseed_fired",
         "csp_reseed_count",
@@ -279,8 +476,8 @@ def write_markdown(path: Path, items: list[QueueItem], run_dir: Path) -> None:
         "",
         f"Run: `{run_dir}`",
         "",
-        "| Rank | Score | Game | Ply | Side | Move | Path | Reasons | Belief |",
-        "| ---: | ---: | --- | ---: | --- | --- | --- | --- | --- |",
+        "| Rank | Score | Game | Review | Trace | Side | Move | Path | Reasons | Belief |",
+        "| ---: | ---: | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for idx, item in enumerate(items, start=1):
         game = (
@@ -289,11 +486,22 @@ def write_markdown(path: Path, items: list[QueueItem], run_dir: Path) -> None:
             + (f"<br>`{item.game_path}`" if item.game_path else "")
         )
         belief = ", ".join(item.belief_snapshot_kinds) if item.has_belief_snapshot else "no"
+        review = (
+            f"{item.review_ply}"
+            + (
+                f"<br>`{item.review_snapshot_kind}`"
+                if item.review_snapshot_kind
+                else ""
+            )
+        )
+        params = "&".join(
+            f"{key}={value}" for key, value in review_url_params(item).items()
+        )
         lines.append(
             "| "
-            f"{idx} | {item.score} | {game} | {item.ply} | "
+            f"{idx} | {item.score} | {game} | {review} | {item.ply} | "
             f"{item.tier1_side}/{item.tier1_seat} | `{item.move_chosen_uci}` | "
-            f"`{item.decision_path}` | {', '.join(item.reasons)} | {belief} |"
+            f"`{item.decision_path}` | {', '.join(item.reasons)} | {belief}<br>`?{params}` |"
         )
     lines.append("")
     path.write_text("\n".join(lines))
@@ -303,12 +511,24 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_dir", type=Path)
     parser.add_argument("--limit", type=int, default=30)
+    parser.add_argument(
+        "--include-mirror-seats",
+        action="store_true",
+        help=(
+            "Include both Tier-1 seats in mirror runs. Default queues only the "
+            "manifest's reviewed tier1_color so human annotation matches the lab UI."
+        ),
+    )
     parser.add_argument("--json-out", type=Path, default=None)
     parser.add_argument("--md-out", type=Path, default=None)
     args = parser.parse_args()
 
     run_dir = args.run_dir
-    items = generate_queue(run_dir, limit=args.limit)
+    items = generate_queue(
+        run_dir,
+        limit=args.limit,
+        include_mirror_seats=args.include_mirror_seats,
+    )
     json_out = args.json_out or run_dir / "review_queue.json"
     md_out = args.md_out or run_dir / "review_queue.md"
     write_json(json_out, items)

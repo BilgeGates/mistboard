@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import chess
 
-from .visibility import visible_piece_map, visible_squares
+from .visibility import piece_map_for_squares, visible_squares
 
 
 @dataclass(frozen=True)
@@ -40,9 +40,10 @@ def consistent_with(
     perspective: chess.Color,
 ) -> bool:
     """True iff `next_board` could have produced `obs` for `perspective` from `prev_board`."""
-    if visible_squares(next_board, perspective) != obs.visibility_mask:
+    visible = visible_squares(next_board, perspective)
+    if visible != obs.visibility_mask:
         return False
-    if visible_piece_map(next_board, perspective) != obs.visible_pieces:
+    if piece_map_for_squares(next_board, visible) != obs.visible_pieces:
         return False
 
     own_before = {
@@ -94,9 +95,10 @@ def observation_from_transition(
     ):
         game_over = GameOver(winner=not perspective, reason="king-captured")
 
+    visible = visible_squares(next_board, perspective)
     return Observation(
-        visibility_mask=visible_squares(next_board, perspective),
-        visible_pieces=visible_piece_map(next_board, perspective),
+        visibility_mask=visible,
+        visible_pieces=piece_map_for_squares(next_board, visible),
         own_capture_square=captured,
         opp_capture_landing_square=opp_capture_landing_square,
         game_over=game_over,

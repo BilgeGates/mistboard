@@ -27,17 +27,101 @@ export type BeliefRow = {
   last_constraint_pruned: number;
   csp_reseed_fired?: boolean;
   csp_reseed_count?: number;
+  hard_facts?: {
+    hidden_opp_occupancy?: string[];
+    square_facts?: string[];
+    piece_facts?: string[];
+    state_facts?: string[];
+  };
   marginal_field: Record<string, BeliefPieceEntry[]>;
   top_k_clusters: BeliefCluster[];
 };
 
+export type TraceScore = {
+  uci: string;
+  score: number;
+  support?: number;
+};
+
+export type TraceRow = {
+  game_index: number;
+  tier1_seat?: string;
+  tier1_side: Color;
+  ply: number;
+  decision_path: string;
+  move_chosen_uci: string;
+  particle_count_pre_sample?: number;
+  belief_unique_count?: number;
+  chosen_move_belief_support?: number;
+  chosen_move_belief_support_count?: number;
+  chosen_move_belief_support_unique?: number;
+  chosen_piece?: string | null;
+  chosen_piece_value?: number;
+  chosen_visible_capture_value?: number;
+  best_visible_capture_uci?: string | null;
+  best_visible_capture_value?: number;
+  visible_capture_value_missed?: number;
+  chosen_move_king_capture_risk?: number;
+  chosen_move_piece_capture_risk?: number;
+  chosen_move_risk_support_count?: number;
+  chosen_move_risk_support_unique?: number;
+  top_k_scores?: TraceScore[];
+  belief_pre_stage_a?: number;
+  belief_pre_stage_a_unique?: number;
+  belief_post_stage_a?: number;
+  belief_post_stage_a_unique?: number;
+  stage_a_pushed_count?: number;
+  stage_a_pushed_unique?: number;
+  stage_a_consistent_count?: number;
+  stage_a_consistent_unique?: number;
+  stage_a_repair_supplement_count?: number;
+  stage_a_elapsed_ms?: number;
+  stage_a_filter_ms?: number;
+  stage_a_repair_ms?: number;
+  stage_a_csp_ms?: number;
+  stage_a_resample_ms?: number;
+  stage_a_reject_illegal?: number;
+  stage_a_reject_observation?: number;
+  stage_a_reject_hard?: number;
+  belief_pre_stage_b?: number;
+  belief_pre_stage_b_unique?: number;
+  belief_post_stage_b?: number;
+  belief_post_stage_b_unique?: number;
+  stage_b_primary_count?: number;
+  stage_b_primary_unique?: number;
+  stage_b_constraint_count?: number;
+  stage_b_constraint_unique?: number;
+  stage_b_repair_supplement_count?: number;
+  stage_b_elapsed_ms?: number;
+  stage_b_expand_ms?: number;
+  stage_b_repair_ms?: number;
+  stage_b_csp_ms?: number;
+  stage_b_resample_ms?: number;
+  stage_b_expanded_count?: number;
+  stage_b_obs_checked_count?: number;
+  stage_b_reject_observation?: number;
+  stage_b_reject_hard?: number;
+  stage_b_reject_count?: number;
+  constraint_pruned_stage_b?: number;
+  csp_reseed_fired?: boolean;
+  csp_reseed_count?: number;
+  csp_reseed_stage_a?: number;
+  csp_reseed_stage_b?: number;
+  repair_fired?: boolean;
+  repair_count?: number;
+  repair_stage_a?: number;
+  repair_stage_b?: number;
+};
+
 export type BeliefConfig = {
   rowsForSampleId: (sampleId: string) => BeliefRow[];
+  traceRowsForSampleId?: (sampleId: string) => TraceRow[];
 };
 
 export type BeliefPanelHandle = {
   el: HTMLElement;
   setRows: (rows: BeliefRow[]) => void;
+  setTraceRows: (rows: TraceRow[]) => void;
   render: (ply: number) => void;
 };
 
@@ -63,7 +147,21 @@ export async function loadBeliefRows(url: string): Promise<BeliefRow[]> {
     .map((line) => JSON.parse(line) as BeliefRow);
 }
 
+export async function loadTraceRows(url: string): Promise<TraceRow[]> {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`failed to load trace log at ${url}: ${resp.status}`);
+  const text = await resp.text();
+  return text
+    .split('\n')
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as TraceRow);
+}
+
 export function createBeliefPanel(): BeliefPanelHandle {
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialSelectedSquare = urlParams.get('square');
+  const initialSelectedSeat = urlParams.get('beliefSeat') ?? urlParams.get('seat');
+  const initialSelectedKind = parseSnapshotKind(urlParams.get('beliefKind') ?? urlParams.get('snapshot') ?? urlParams.get('kind'));
   const el = document.createElement('section');
   el.className = 'belief-panel';
 
@@ -76,13 +174,13 @@ export function createBeliefPanel(): BeliefPanelHandle {
   status.className = 'belief-panel-status';
   titleWrap.append(title, status);
 
-  const seatSelect = document.createElement('select');
-  seatSelect.className = 'belief-seat-select';
-  seatSelect.title = 'Choose Tier-1 seat';
   const kindSelect = document.createElement('select');
   kindSelect.className = 'belief-seat-select';
   kindSelect.title = 'Choose belief snapshot';
-  header.append(titleWrap, seatSelect, kindSelect);
+  const controls = document.createElement('div');
+  controls.className = 'belief-panel-controls';
+  controls.append(kindSelect);
+  header.append(titleWrap, controls);
 
   const body = document.createElement('div');
   body.className = 'belief-panel-body';
@@ -105,15 +203,12 @@ export function createBeliefPanel(): BeliefPanelHandle {
   el.append(header, body);
 
   let rows: BeliefRow[] = [];
+  let traceRows: TraceRow[] = [];
   let selectedSeat: string | null = null;
   let selectedKind: SnapshotKind | null = null;
-  let selectedSquare: string | null = null;
+  let selectedSquare: string | null = isSquareName(initialSelectedSquare) ? initialSelectedSquare : null;
   let lastPly = 0;
 
-  seatSelect.addEventListener('change', () => {
-    selectedSeat = seatSelect.value || null;
-    render(lastPly);
-  });
   kindSelect.addEventListener('change', () => {
     selectedKind = (kindSelect.value || null) as SnapshotKind | null;
     render(lastPly);
@@ -121,13 +216,17 @@ export function createBeliefPanel(): BeliefPanelHandle {
 
   function setRows(nextRows: BeliefRow[]): void {
     rows = nextRows;
-    selectedSquare = null;
-    const seats = uniqueSeats(rows);
-    if (!selectedSeat || !seats.includes(selectedSeat)) {
-      selectedSeat = seats[0] ?? null;
-    }
-    renderSeatOptions(seatSelect, seats, selectedSeat);
-    selectedKind = null;
+    selectedSquare = isSquareName(initialSelectedSquare) ? initialSelectedSquare : null;
+    selectedSeat = initialSelectedSeat && rows.some((row) => row.tier1_seat === initialSelectedSeat)
+      ? initialSelectedSeat
+      : rows[0]?.tier1_seat ?? null;
+    selectedKind = initialSelectedKind && rows.some((row) => row.snapshot_kind === initialSelectedKind)
+      ? initialSelectedKind
+      : null;
+  }
+
+  function setTraceRows(nextRows: TraceRow[]): void {
+    traceRows = nextRows;
   }
 
   function render(ply: number): void {
@@ -153,24 +252,27 @@ export function createBeliefPanel(): BeliefPanelHandle {
 
     selectedSeat = row.tier1_seat;
     selectedKind = row.snapshot_kind ?? null;
-    if (seatSelect.value !== selectedSeat) seatSelect.value = selectedSeat;
     if (selectedKind && kindSelect.value !== selectedKind) kindSelect.value = selectedKind;
     status.textContent = `${row.tier1_seat} · ${row.tier1_side} · ply ${row.ply} · ${kindLabel(row)}`;
     renderBoard(row);
-    renderMeta(row);
+    const trace = traceForBeliefRow(row, traceRows);
+    renderMeta(row, trace);
     renderSquareDetail(row);
-    renderClusters(row);
+    renderClusters(row, trace);
   }
 
   function renderBoard(row: BeliefRow): void {
     board.replaceChildren();
     const orderedSquares = orientedSquares(row.tier1_side);
+    const hardPieceFacts = pieceFactsBySquare(row);
     for (const sq of orderedSquares) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'belief-square';
       if (selectedSquare === sq) btn.classList.add('selected');
       const entries = row.marginal_field[sq] ?? [];
+      const isHardOppOccupancy = hardOppOccupancySquares(row).has(sq);
+      const squarePieceFacts = hardPieceFacts.get(sq) ?? [];
       const oppMass = massFor(entries, (entry) => entry.piece !== null && entry.color !== row.tier1_side);
       const ownMass = massFor(entries, (entry) => entry.piece !== null && entry.color === row.tier1_side);
       const emptyMass = massFor(entries, (entry) => entry.piece === null);
@@ -178,7 +280,13 @@ export function createBeliefPanel(): BeliefPanelHandle {
       btn.style.setProperty('--own-alpha', String(Math.min(0.62, ownMass)));
       btn.classList.toggle('has-opp', oppMass > 0.001);
       btn.classList.toggle('has-own', ownMass > 0.001);
-      btn.title = `${sq}: opp ${pct(oppMass)}, own ${pct(ownMass)}, empty ${pct(emptyMass)}`;
+      btn.classList.toggle('hard-opp-occupancy', isHardOppOccupancy);
+      btn.classList.toggle('hard-piece-fact', squarePieceFacts.length > 0);
+      btn.title = `${sq}: opp ${pct(oppMass)}, own ${pct(ownMass)}, empty ${pct(emptyMass)}${
+        isHardOppOccupancy ? ' · hard fact: hidden opponent occupancy' : ''
+      }${
+        squarePieceFacts.length > 0 ? ` · hard fact: ${squarePieceFacts.join(', ')}` : ''
+      }`;
 
       const coord = document.createElement('span');
       coord.className = 'belief-square-coord';
@@ -196,7 +304,7 @@ export function createBeliefPanel(): BeliefPanelHandle {
     }
   }
 
-  function renderMeta(row: BeliefRow): void {
+  function renderMeta(row: BeliefRow, trace: TraceRow | null): void {
     meta.replaceChildren();
     meta.append(
       metric('Path', row.decision_path),
@@ -205,6 +313,8 @@ export function createBeliefPanel(): BeliefPanelHandle {
       metric('Pruned', String(row.last_constraint_pruned)),
       metric('CSP', row.csp_reseed_fired ? String(row.csp_reseed_count ?? 0) : 'no'),
     );
+    const health = renderBeliefHealth(row, trace);
+    if (health) meta.append(health);
     const counts = document.createElement('div');
     counts.className = 'belief-counts';
     for (const name of pieceOrder) {
@@ -213,6 +323,11 @@ export function createBeliefPanel(): BeliefPanelHandle {
       counts.append(item);
     }
     meta.append(counts);
+    const hardFacts = renderHardFacts(row, (sq) => {
+      selectedSquare = sq;
+      render(lastPly);
+    });
+    if (hardFacts) meta.append(hardFacts);
   }
 
   function renderSquareDetail(row: BeliefRow): void {
@@ -225,6 +340,18 @@ export function createBeliefPanel(): BeliefPanelHandle {
     const title = document.createElement('h3');
     title.textContent = sq;
     squareDetail.append(title);
+    if (hardOppOccupancySquares(row).has(sq)) {
+      const fact = document.createElement('div');
+      fact.className = 'belief-hard-fact-chip';
+      fact.textContent = 'hard fact: hidden opponent occupancy';
+      squareDetail.append(fact);
+    }
+    for (const pieceFact of pieceFactsBySquare(row).get(sq) ?? []) {
+      const fact = document.createElement('div');
+      fact.className = 'belief-hard-fact-chip';
+      fact.textContent = `hard fact: ${pieceFact}`;
+      squareDetail.append(fact);
+    }
     const entries = row.marginal_field[sq] ?? [];
     if (entries.length === 0) {
       squareDetail.append(emptyLine('No non-empty marginal above capture threshold.'));
@@ -242,11 +369,14 @@ export function createBeliefPanel(): BeliefPanelHandle {
     }
   }
 
-  function renderClusters(row: BeliefRow): void {
+  function renderClusters(row: BeliefRow, trace: TraceRow | null): void {
     clusters.replaceChildren();
     const title = document.createElement('h3');
     title.textContent = 'Top Worlds';
     clusters.append(title);
+    if (trace?.top_k_scores && trace.top_k_scores.length > 0) {
+      clusters.append(renderTopMoveScores(trace.top_k_scores));
+    }
     if (row.top_k_clusters.length === 0) {
       clusters.append(emptyLine('No particle clusters.'));
       return;
@@ -266,11 +396,279 @@ export function createBeliefPanel(): BeliefPanelHandle {
     });
   }
 
-  return { el, setRows, render };
+  return { el, setRows, setTraceRows, render };
 }
 
-function uniqueSeats(rows: BeliefRow[]): string[] {
-  return [...new Set(rows.map((row) => row.tier1_seat))].sort();
+function renderBeliefHealth(row: BeliefRow, trace: TraceRow | null): HTMLElement | null {
+  if (!trace) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'belief-health';
+  const title = document.createElement('div');
+  title.className = 'belief-health-title';
+  title.textContent = `Health · trace ply ${trace.ply}`;
+  wrap.append(title);
+
+  const support = trace.chosen_move_belief_support;
+  if (support !== undefined) {
+    wrap.append(healthLine(
+      'Move support',
+      `${pct(support)} · ${trace.chosen_move_belief_support_unique ?? trace.chosen_move_belief_support_count ?? '?'} worlds`,
+      support < 0.25 ? 'bad' : support < 0.6 ? 'warn' : 'ok',
+    ));
+  }
+
+  if ((trace.visible_capture_value_missed ?? 0) > 0) {
+    wrap.append(healthLine(
+      'Missed capture',
+      `${trace.best_visible_capture_uci ?? '?'} · +${trace.visible_capture_value_missed}`,
+      (trace.visible_capture_value_missed ?? 0) >= 3 ? 'bad' : 'warn',
+    ));
+  }
+
+  if (trace.chosen_move_king_capture_risk !== undefined) {
+    const risk = trace.chosen_move_king_capture_risk;
+    wrap.append(healthLine(
+      'King risk',
+      `${pct(risk)} · ${trace.chosen_move_risk_support_unique ?? trace.chosen_move_risk_support_count ?? '?'} worlds`,
+      risk >= 0.05 ? 'bad' : risk > 0 ? 'warn' : 'ok',
+    ));
+  }
+
+  if (trace.chosen_move_piece_capture_risk !== undefined && trace.chosen_piece_value && trace.chosen_piece_value > 1) {
+    const risk = trace.chosen_move_piece_capture_risk;
+    wrap.append(healthLine(
+      'Piece risk',
+      `${trace.chosen_piece ?? '?'} · ${pct(risk)}`,
+      risk >= 0.25 ? 'bad' : risk >= 0.1 ? 'warn' : 'ok',
+    ));
+  }
+
+  const uniqueRatio = row.particle_count > 0 ? row.particle_count_unique / row.particle_count : 0;
+  wrap.append(healthLine(
+    'Diversity',
+    `${row.particle_count_unique}/${row.particle_count}`,
+    uniqueRatio < 0.1 ? 'bad' : uniqueRatio < 0.5 ? 'warn' : 'ok',
+  ));
+
+  const stageA = stageSummary('A', trace);
+  if (stageA) wrap.append(stageA);
+  const stageB = stageSummary('B', trace);
+  if (stageB) wrap.append(stageB);
+  const timingA = timingSummary('A', trace);
+  if (timingA) wrap.append(timingA);
+  const timingB = timingSummary('B', trace);
+  if (timingB) wrap.append(timingB);
+  const rejectA = rejectSummary('A', trace);
+  if (rejectA) wrap.append(rejectA);
+  const rejectB = rejectSummary('B', trace);
+  if (rejectB) wrap.append(rejectB);
+
+  const repairs: string[] = [];
+  if (trace.stage_a_repair_supplement_count) repairs.push(`A+${trace.stage_a_repair_supplement_count}`);
+  if (trace.stage_b_repair_supplement_count) repairs.push(`B+${trace.stage_b_repair_supplement_count}`);
+  if (trace.repair_stage_a) repairs.push(`A repair ${trace.repair_count ?? ''}`.trim());
+  if (trace.repair_stage_b) repairs.push(`B repair ${trace.repair_count ?? ''}`.trim());
+  if (repairs.length > 0) wrap.append(healthLine('Repair', repairs.join(' · '), 'warn'));
+
+  const csp: string[] = [];
+  if (trace.csp_reseed_stage_a) csp.push('A');
+  if (trace.csp_reseed_stage_b) csp.push('B');
+  if (csp.length > 0 || trace.csp_reseed_fired) {
+    wrap.append(healthLine('CSP reseed', csp.join('+') || String(trace.csp_reseed_count ?? 0), 'bad'));
+  }
+
+  return wrap;
+}
+
+function stageSummary(stage: 'A' | 'B', trace: TraceRow): HTMLElement | null {
+  if (stage === 'A') {
+    const pre = trace.belief_pre_stage_a_unique;
+    const pushed = trace.stage_a_pushed_unique;
+    const consistent = trace.stage_a_consistent_unique;
+    const post = trace.belief_post_stage_a_unique;
+    if (pre === undefined && post === undefined) return null;
+    const value = `${fmtNum(pre)} → ${fmtNum(pushed)} → ${fmtNum(consistent)} → ${fmtNum(post)}`;
+    return healthLine('Stage A', value, healthSeverity(pre, post));
+  }
+  const pre = trace.belief_pre_stage_b_unique;
+  const primary = trace.stage_b_primary_unique;
+  const constraint = trace.stage_b_constraint_unique;
+  const post = trace.belief_post_stage_b_unique;
+  if (pre === undefined && post === undefined) return null;
+  const value = `${fmtNum(pre)} → ${fmtNum(primary)} → ${fmtNum(constraint)} → ${fmtNum(post)}`;
+  return healthLine('Stage B', value, healthSeverity(pre, post));
+}
+
+function timingSummary(stage: 'A' | 'B', trace: TraceRow): HTMLElement | null {
+  if (stage === 'A') {
+    if (trace.stage_a_elapsed_ms === undefined) return null;
+    const value = [
+      `all ${fmtMs(trace.stage_a_elapsed_ms)}`,
+      `filter ${fmtMs(trace.stage_a_filter_ms)}`,
+      trace.stage_a_repair_ms ? `repair ${fmtMs(trace.stage_a_repair_ms)}` : '',
+      trace.stage_a_csp_ms ? `csp ${fmtMs(trace.stage_a_csp_ms)}` : '',
+      trace.stage_a_resample_ms ? `sample ${fmtMs(trace.stage_a_resample_ms)}` : '',
+    ].filter(Boolean).join(' · ');
+    return healthLine('Stage A ms', value, trace.stage_a_elapsed_ms > 25 ? 'warn' : 'ok');
+  }
+  if (trace.stage_b_elapsed_ms === undefined) return null;
+  const value = [
+    `all ${fmtMs(trace.stage_b_elapsed_ms)}`,
+    `expand ${fmtMs(trace.stage_b_expand_ms)}`,
+    trace.stage_b_repair_ms ? `repair ${fmtMs(trace.stage_b_repair_ms)}` : '',
+    trace.stage_b_csp_ms ? `csp ${fmtMs(trace.stage_b_csp_ms)}` : '',
+    trace.stage_b_resample_ms ? `sample ${fmtMs(trace.stage_b_resample_ms)}` : '',
+  ].filter(Boolean).join(' · ');
+  return healthLine('Stage B ms', value, trace.stage_b_elapsed_ms > 50 ? 'warn' : 'ok');
+}
+
+function rejectSummary(stage: 'A' | 'B', trace: TraceRow): HTMLElement | null {
+  if (stage === 'A') {
+    const illegal = trace.stage_a_reject_illegal ?? 0;
+    const obs = trace.stage_a_reject_observation ?? 0;
+    const hard = trace.stage_a_reject_hard ?? 0;
+    if (illegal + obs + hard <= 0) return null;
+    return healthLine('Stage A reject', `illegal ${illegal} · obs ${obs} · hard ${hard}`, hard > 0 ? 'bad' : 'warn');
+  }
+  const obs = trace.stage_b_reject_observation ?? 0;
+  const hard = trace.stage_b_reject_hard ?? 0;
+  const count = trace.stage_b_reject_count ?? 0;
+  if (obs + hard + count <= 0) return null;
+  const expanded = trace.stage_b_expanded_count ?? 0;
+  const checked = trace.stage_b_obs_checked_count ?? 0;
+  const value = `expanded ${expanded} · obs ${obs}/${checked} · hard ${hard} · count ${count}`;
+  return healthLine('Stage B reject', value, hard > 0 || count > 0 ? 'bad' : 'warn');
+}
+
+function healthLine(label: string, value: string, severity: 'ok' | 'warn' | 'bad'): HTMLElement {
+  const line = document.createElement('div');
+  line.className = `belief-health-line ${severity}`;
+  const name = document.createElement('span');
+  name.textContent = label;
+  const val = document.createElement('strong');
+  val.textContent = value;
+  line.append(name, val);
+  return line;
+}
+
+function renderTopMoveScores(scores: TraceScore[]): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'belief-top-moves';
+  const title = document.createElement('h3');
+  title.textContent = 'Top Moves';
+  wrap.append(title);
+  for (const score of scores.slice(0, 5)) {
+    const line = document.createElement('div');
+    line.className = 'belief-top-move-line';
+    const move = document.createElement('span');
+    move.textContent = score.uci;
+    const value = document.createElement('strong');
+    value.textContent = `${Math.round(score.score)}${score.support !== undefined ? ` · ${pct(score.support)}` : ''}`;
+    line.append(move, value);
+    wrap.append(line);
+  }
+  return wrap;
+}
+
+function traceForBeliefRow(row: BeliefRow, traces: TraceRow[]): TraceRow | null {
+  const tracePly =
+    row.snapshot_kind === 'after-own-move' ? row.ply + 2
+    : row.snapshot_kind === 'after-opp-move' ? row.ply + 1
+    : row.ply;
+  return traces.find((trace) =>
+    trace.game_index === row.game_index
+    && trace.ply === tracePly
+    && trace.tier1_side === row.tier1_side
+    && (!trace.tier1_seat || trace.tier1_seat === row.tier1_seat)
+  ) ?? null;
+}
+
+function healthSeverity(pre: number | undefined, post: number | undefined): 'ok' | 'warn' | 'bad' {
+  if (pre === undefined || post === undefined || pre <= 0) return 'ok';
+  const ratio = post / pre;
+  return ratio < 0.1 ? 'bad' : ratio < 0.5 ? 'warn' : 'ok';
+}
+
+function fmtNum(value: number | undefined): string {
+  return value === undefined ? '-' : String(value);
+}
+
+function fmtMs(value: number | undefined): string {
+  if (value === undefined) return '-';
+  if (value < 1) return `${value.toFixed(2)}ms`;
+  if (value < 10) return `${value.toFixed(1)}ms`;
+  return `${Math.round(value)}ms`;
+}
+
+function hardOppOccupancySquares(row: BeliefRow): Set<string> {
+  return new Set(row.hard_facts?.hidden_opp_occupancy ?? []);
+}
+
+function pieceFactsBySquare(row: BeliefRow): Map<string, string[]> {
+  const bySquare = new Map<string, string[]>();
+  for (const fact of row.hard_facts?.piece_facts ?? []) {
+    const [sq] = fact.split(':', 1);
+    if (!isSquareName(sq)) continue;
+    const existing = bySquare.get(sq) ?? [];
+    existing.push(fact);
+    bySquare.set(sq, existing);
+  }
+  return bySquare;
+}
+
+function renderHardFacts(
+  row: BeliefRow,
+  onSelectSquare: (square: string) => void,
+): HTMLElement | null {
+  const hiddenOpp = row.hard_facts?.hidden_opp_occupancy ?? [];
+  const pieceFacts = row.hard_facts?.piece_facts ?? [];
+  const stateFacts = row.hard_facts?.state_facts ?? [];
+  if (hiddenOpp.length === 0 && pieceFacts.length === 0 && stateFacts.length === 0) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'belief-hard-facts';
+  const label = document.createElement('div');
+  label.className = 'belief-hard-facts-title';
+  label.textContent = `${capitalize(row.tier1_side)} Belief Facts`;
+  const chips = document.createElement('div');
+  chips.className = 'belief-hard-facts-chips';
+  for (const sq of hiddenOpp) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.textContent = `${sq} opp`;
+    chip.title = `${sq}: hidden opponent occupancy`;
+    chip.addEventListener('click', () => onSelectSquare(sq));
+    chips.append(chip);
+  }
+  for (const fact of pieceFacts) {
+    const sq = fact.split(':', 1)[0];
+    const chip = isSquareName(sq) ? document.createElement('button') : document.createElement('span');
+    if (chip instanceof HTMLButtonElement) {
+      chip.type = 'button';
+      chip.addEventListener('click', () => onSelectSquare(sq));
+    }
+    chip.textContent = fact;
+    chip.title = 'piece identity fact';
+    chips.append(chip);
+  }
+  for (const fact of stateFacts) {
+    const chip = document.createElement('span');
+    chip.textContent = fact;
+    chip.title = 'state/rules fact';
+    chips.append(chip);
+  }
+  wrap.append(label, chips);
+  return wrap;
+}
+
+function isSquareName(value: string | null): value is string {
+  return value !== null && /^[a-h][1-8]$/.test(value);
+}
+
+function parseSnapshotKind(value: string | null): SnapshotKind | null {
+  if (value === 'decision' || value === 'after-own-move' || value === 'after-opp-move') {
+    return value;
+  }
+  return null;
 }
 
 function rowForPly(
@@ -327,21 +725,6 @@ function kindLabel(row: BeliefRow): string {
   return row.decision_path;
 }
 
-function renderSeatOptions(
-  select: HTMLSelectElement,
-  seats: string[],
-  selectedSeat: string | null,
-): void {
-  select.replaceChildren();
-  for (const seat of seats) {
-    const opt = document.createElement('option');
-    opt.value = seat;
-    opt.textContent = seat;
-    select.append(opt);
-  }
-  if (selectedSeat) select.value = selectedSeat;
-}
-
 function renderKindOptions(
   select: HTMLSelectElement,
   kinds: SnapshotKind[],
@@ -376,6 +759,10 @@ function topPiece(entries: BeliefPieceEntry[]): BeliefPieceEntry | null {
 
 function pct(n: number): string {
   return `${Math.round(n * 100)}%`;
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function metric(label: string, value: string): HTMLElement {

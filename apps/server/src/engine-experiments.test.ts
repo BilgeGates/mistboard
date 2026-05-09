@@ -526,8 +526,12 @@ if (!TEST_DATABASE_URL) {
   });
 
   test('registry stores owner-only Python engine versions', async () => {
-    await upsertBuiltinEngineVersions(getPool(), ['python-tier1-v0.7.0', 'python-random-legal']);
-    const tier1 = loadEngine('python-tier1-v0.7.0');
+    await upsertBuiltinEngineVersions(getPool(), [
+      'python-tier1-v0.7.0',
+      'python-tier1-v0.7.22',
+      'python-random-legal',
+    ]);
+    const tier1 = loadEngine('python-tier1-v0.7.22');
     assert.equal(tier1.kind, 'container');
     assert.equal(tier1.chooseMove, undefined);
 
@@ -541,7 +545,7 @@ if (!TEST_DATABASE_URL) {
     }>(
       `SELECT id, engine_id, kind, config_hash, play_signature, metadata
        FROM engine_versions
-       WHERE id IN ('python-tier1-v0.7.0', 'python-random-legal')
+       WHERE id IN ('python-tier1-v0.7.0', 'python-tier1-v0.7.22', 'python-random-legal')
        ORDER BY id`,
     );
     assert.deepEqual(rows, [
@@ -559,6 +563,14 @@ if (!TEST_DATABASE_URL) {
         kind: 'container',
         config_hash: 'tier1-v0.7.0-b22f29dd73f5',
         play_signature: 'tier1-v0.7.0-b22f29dd73f5',
+        metadata: { owner: 'admin', runtime: 'python-subprocess' },
+      },
+      {
+        id: 'python-tier1-v0.7.22',
+        engine_id: 'tier1',
+        kind: 'container',
+        config_hash: 'tier1-v0.7.22-b22f29dd73f5',
+        play_signature: '5d3ddffa74f6',
         metadata: { owner: 'admin', runtime: 'python-subprocess' },
       },
     ]);

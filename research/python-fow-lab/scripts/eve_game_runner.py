@@ -83,6 +83,16 @@ class strategy_runtime:
         if engine_id in {"python-random-legal", "builtin-random-legal"}:
             self._strategy = RandomStrategy(seed=self.seed)
             return self._strategy
+        if engine_id == "python-tier1-v0.7.22":
+            config = load_config(ROOT / "configs" / "tier1-v1.json")
+            if TIER1_VERSION != "0.7.22":
+                raise RuntimeError(f"python-tier1-v0.7.22 resolved Tier-1 {TIER1_VERSION}")
+            if canonical_hash(config) != "b22f29dd73f5":
+                raise RuntimeError("tier1-v1 config hash mismatch")
+            self._runtime = bot_runtime(config, stockfish_path=self.stockfish_path)
+            factory = self._runtime.__enter__()
+            self._strategy = factory(self.seed)
+            return self._strategy
         if engine_id == "python-tier1-v0.7.0":
             config = load_config(ROOT / "configs" / "tier1-v1.json")
             if TIER1_VERSION != "0.7.0":
@@ -127,6 +137,13 @@ def engine_metadata(spec: dict[str, Any]) -> dict[str, Any]:
             "id": engine_id,
             "tier1Version": TIER1_VERSION,
             "configHash": "b22f29dd73f5",
+        }
+    if engine_id == "python-tier1-v0.7.22":
+        return {
+            "id": engine_id,
+            "tier1Version": TIER1_VERSION,
+            "configHash": "b22f29dd73f5",
+            "playSignature": "5d3ddffa74f6",
         }
     return {"id": engine_id}
 

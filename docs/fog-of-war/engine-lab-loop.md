@@ -71,6 +71,8 @@ ready.
 - `move_quality.csv`: optional full-info Stockfish comparison.
 - `feedback/annotations.jsonl`: durable human labels; treat this as first-class
   training and regression data, not scratch output.
+- `docs-private/engine-track/captures/`: local-only screenshot captures of
+  annotated belief moments for later writeups, talks, and portfolio artifacts.
 
 ## Annotation Queue Signals
 
@@ -89,6 +91,12 @@ Flag plies when any of these fire:
 
 The queue should include game index, ply, side/seat, replay sample id, reason,
 trace summary, and whether a belief snapshot exists.
+
+In mirror runs, distinguish the **reviewed Tier-1 side** from the other Tier-1
+seat. Human annotation defaults to the manifest's `tier1_color`; mirror-seat
+debugging is opt-in. Queue links should carry `beliefSeat` and `beliefKind`
+explicitly so a handoff never says "inspect ply 39" while the UI opens the
+wrong side's belief.
 
 ## How The Process Has Improved
 
@@ -145,13 +153,70 @@ Local command:
 This writes `review_queue.json` and `review_queue.md` next to the bake-off
 artifacts. The current scorer is intentionally simple and transparent: it ranks
 generic CSP reseeds, particle drops, low belief diversity, critical tactical
-decision paths, constraint pruning, and late plies in losses/draws. Treat the
-score as a triage priority, not a verdict on the move.
+decision paths, constraint pruning, slow particle updates, expensive repair
+rows, high Stage-B expansion rows, missed visible captures, chosen-move king
+risk, chosen-move piece risk, and late plies in losses/draws. Treat the score
+as a triage priority, not a verdict on the move.
+
+By default the queue only includes the manifest's reviewed side (`tier1_color`)
+so it matches the annotator UI and the way human notes are collected. For
+engineering triage across both Tier-1 seats, opt in:
+
+```sh
+.venv/bin/python scripts/review_queue.py /path/to/bakeoff-run --include-mirror-seats
+```
+
+Generated queue rows separate `Review` from `Trace`. `Trace` is where the
+decision row was emitted; `Review` is the belief snapshot to inspect. Stage-A
+events usually review `ply - 2` / `after-own-move`; Stage-B events usually
+review `ply - 1` / `after-opp-move`.
 
 Hard-observation contradictions are higher priority than score implies. If a
 belief snapshot shows an impossible own piece, misses a visible opponent piece,
 or ignores an `own_capture_square` signal, stop and fix the Belief Particle
 Engine before using that artifact for move-quality conclusions.
+
+Profiling rows are process evidence, not necessarily bad chess. If a queue item
+is ranked because of `stage-b-slow`, `stage-b-repair`, or `stage-b-expanded`,
+inspect whether the expensive update bought useful diversity. If yes, backlog
+caching/pruning. If no, tighten the particle generator before raising
+`target_n` again.
+
+## Belief Artifact Capture
+
+The belief debugger is also an evidence surface. When an annotation identifies
+a useful belief moment, capture the board + belief panel as an image while the
+artifact is still local.
+
+Direct links can target a specific game and ply:
+
+```text
+/?bakeoff=/bakeoff-v0.7.12-target-g14-transition/manifest.json&game=14&ply=28&capture=belief
+```
+
+When linking from a queue row, include the belief seat and snapshot:
+
+```text
+/?bakeoff=/bakeoff-v0.7.16-target-g19-capture-fact-expiry/manifest.json&game=19&ply=60&capture=belief&beliefSeat=tier1_a&beliefKind=decision
+```
+
+The capture script backfills screenshots from annotations for one manifest:
+
+```sh
+npm run engine:capture-beliefs -- --manifest /bakeoff-v0.7.12-target-g14-transition/manifest.json --limit 12
+```
+
+By default it writes ignored local files under
+`docs-private/engine-track/captures/`:
+
+- one PNG per annotated moment;
+- `index.json` with annotation metadata and layout metrics;
+- `index.md` with a compact review table.
+
+The script validates that the belief board renders 64 stable, equal-size
+squares before writing a screenshot. Treat failures here as UI artifact
+regressions, because distorted belief boards make later screenshots unusable
+for communication.
 
 ## Current Local Question
 

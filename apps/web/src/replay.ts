@@ -82,6 +82,8 @@ export type ReplayOptions = {
    */
   annotation?: AnnotationConfig;
   belief?: BeliefConfig;
+  /** Initial ply to show after loading the sample. Used by artifact capture links. */
+  initialPly?: number;
 };
 
 export type AnnotationConfig = {
@@ -188,12 +190,15 @@ export async function mountReplay(
   let events: GameEvent[] = [];
   let moveCount = 0;
   let currentPly = 0;
+  let shouldApplyInitialPly = Number.isFinite(options.initialPly);
   let playTimer: number | null = null;
   let loopTimer: number | null = null;
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
 
   function render(): void {
+    root.dataset.sampleId = activeSample;
+    root.dataset.ply = String(currentPly);
     const sliced = sliceToPly(events, currentPly);
     const projection = replayGameEvents(sliced);
     const state = projection.state;
@@ -479,7 +484,13 @@ export async function mountReplay(
       : await loadEvents(sampleId, urlForId);
     moveCount = events.filter((e) => e.type === 'move-played').length;
     beliefPanel?.setRows(belief?.rowsForSampleId(sampleId) ?? []);
-    currentPly = 0;
+    beliefPanel?.setTraceRows(belief?.traceRowsForSampleId?.(sampleId) ?? []);
+    if (shouldApplyInitialPly && typeof options.initialPly === 'number') {
+      currentPly = Math.min(Math.max(Math.floor(options.initialPly), 0), moveCount);
+      shouldApplyInitialPly = false;
+    } else {
+      currentPly = 0;
+    }
     finishedAck = false;
     applyMetadata();
     applyPerspective();

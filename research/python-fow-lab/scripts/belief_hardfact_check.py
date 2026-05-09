@@ -290,7 +290,14 @@ def _forced_visible_source_capture_identity(
     next_board: chess.Board,
     perspective: chess.Color,
 ) -> tuple[chess.Square, chess.Square, chess.Piece] | None:
-    """Return exact capturer identity when a visible source square was vacated."""
+    """Return exact capturer identity when a previously visible source vacated.
+
+    The player can only promote a capture source into an exact hard fact when
+    the source square was visible before the opponent move and is visible-empty
+    after it. If the source was hidden before, the current empty square only
+    proves the source is empty now; it does not prove the player knew which
+    piece was there.
+    """
     landing = _normal_opp_capture_landing_square(prev_board, next_board, perspective)
     if landing is None:
         return None
@@ -310,9 +317,13 @@ def _forced_visible_source_capture_identity(
         return None
 
     source = changed_opp_sources[0]
-    vsquares = visible_squares(next_board, perspective)
-    vpieces = visible_piece_map(next_board, perspective)
-    if source not in vsquares or source in vpieces:
+    prev_vsquares = visible_squares(prev_board, perspective)
+    prev_vpieces = visible_piece_map(prev_board, perspective)
+    next_vsquares = visible_squares(next_board, perspective)
+    next_vpieces = visible_piece_map(next_board, perspective)
+    if source not in prev_vsquares or prev_vpieces.get(source) != landing_piece:
+        return None
+    if source not in next_vsquares or source in next_vpieces:
         return None
     return source, landing, landing_piece
 

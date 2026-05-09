@@ -1,6 +1,6 @@
 import { mountReplay } from './replay.js';
 import { loadAnnotations, type Annotation } from './annotations.js';
-import { loadBeliefRows, type BeliefRow } from './belief-panel.js';
+import { loadBeliefRows, loadTraceRows, type BeliefRow, type TraceRow } from './belief-panel.js';
 
 type ManifestGame = {
   index: number;
@@ -33,15 +33,28 @@ type Manifest = {
   games: ManifestGame[];
 };
 
-const DEFAULT_MANIFEST_URL = '/bakeoff-v0.6.0-mirror/manifest.json';
+const DEFAULT_MANIFEST_URL = '/bakeoff-v0.7.12-rung2-transition-fast/manifest.json';
 
 export async function mountBakeoff(
   root: HTMLElement,
   manifestUrl: string = DEFAULT_MANIFEST_URL,
 ): Promise<void> {
+  const params = new URLSearchParams(window.location.search);
+  const initialGameIndex = parseOptionalInt(params.get('game') ?? params.get('gameIndex'));
+  const initialPly = parseOptionalInt(params.get('ply'));
+  const captureMode = params.get('capture') === 'belief';
+  const requestedBeliefSeat = params.get('beliefSeat') ?? params.get('seat');
+
   const resp = await fetch(manifestUrl);
   if (!resp.ok) {
     root.textContent = `failed to load manifest at ${manifestUrl}: ${resp.status}`;
+    return;
+  }
+  const contentType = resp.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    root.textContent =
+      `failed to load manifest at ${manifestUrl}: expected JSON but got ${contentType || 'unknown content type'}. ` +
+      'This usually means the bakeoff manifest path does not exist under apps/web/public.';
     return;
   }
   const manifest = (await resp.json()) as Manifest;
@@ -51,6 +64,7 @@ export async function mountBakeoff(
   const lastSlash = manifestUrl.lastIndexOf('/');
   const baseDir = lastSlash >= 0 ? manifestUrl.slice(0, lastSlash) : '';
   const beliefRowsByGame = new Map<number, BeliefRow[]>();
+  const traceRowsByGame = new Map<number, TraceRow[]>();
   let beliefLoadError: string | null = null;
   if (manifest.verbose_belief === true) {
     try {
@@ -60,6 +74,12 @@ export async function mountBakeoff(
         group.push(row);
         beliefRowsByGame.set(row.game_index, group);
       }
+      const traceRows = await loadTraceRows(`${baseDir}/trace.jsonl`);
+      for (const row of traceRows) {
+        const group = traceRowsByGame.get(row.game_index) ?? [];
+        group.push(row);
+        traceRowsByGame.set(row.game_index, group);
+      }
     } catch (err) {
       beliefLoadError = (err as Error).message;
     }
@@ -67,6 +87,7 @@ export async function mountBakeoff(
 
   root.replaceChildren();
   root.classList.add('bakeoff-page');
+  root.classList.toggle('bakeoff-capture-mode', captureMode);
 
   const topbar = document.createElement('header');
   topbar.className = 'bakeoff-topbar';
@@ -163,6 +184,7 @@ export async function mountBakeoff(
       <div class="bakeoff-active-title">queue game ${game.index} · sidebar #${game.index + 1}</div>
       <div>${game.path}</div>
       <div>outcome=${game.outcome} tier1=${game.tier1_color} plies=${game.plies} end=${game.end_reason}</div>
+      <div>belief=${requestedBeliefSeat ? `seat ${requestedBeliefSeat}` : `reviewed side ${game.tier1_color}`}</div>
       <div>seed=${game.tier1_seed}${game.truncated ? ' truncated' : ''}</div>
     `;
     void mountReplay(replayArea, game.path, {
@@ -177,10 +199,23 @@ export async function mountBakeoff(
         ? {
             rowsForSampleId(sampleId) {
               const idx = gameIndexForSampleId(sampleId);
-              return idx === null ? [] : (beliefRowsByGame.get(idx) ?? []);
+              if (idx === null) return [];
+              return (beliefRowsByGame.get(idx) ?? [])
+                .filter((row) => requestedBeliefSeat
+                  ? row.tier1_seat === requestedBeliefSeat
+                  : row.tier1_side === game.tier1_color);
+            },
+            traceRowsForSampleId(sampleId) {
+              const idx = gameIndexForSampleId(sampleId);
+              if (idx === null) return [];
+              return (traceRowsByGame.get(idx) ?? [])
+                .filter((row) => requestedBeliefSeat
+                  ? row.tier1_seat === requestedBeliefSeat
+                  : row.tier1_side === game.tier1_color);
             },
           }
         : undefined,
+      initialPly,
     });
   }
 
@@ -188,6 +223,7 @@ export async function mountBakeoff(
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `bakeoff-game-item bakeoff-${game.outcome}`;
+    btn.dataset.gameIndex = String(game.index);
     const truncMark = game.truncated ? ' ⏱' : '';
     btn.innerHTML = `
       <span class="bakeoff-game-id">#${game.index + 1}</span>
@@ -207,7 +243,17 @@ export async function mountBakeoff(
   await refreshAnnotationCounts();
 
   if (manifest.games.length > 0) {
-    const firstBtn = list.firstElementChild as HTMLButtonElement | null;
-    if (firstBtn) loadGame(manifest.games[0], firstBtn);
+    const initialIdx = initialGameIndex ?? manifest.games[0]?.index;
+    const initialGame = manifest.games.find((game) => game.index === initialIdx) ?? manifest.games[0];
+    const initialBtn = initialGame
+      ? (list.querySelector<HTMLButtonElement>(`[data-game-index="${initialGame.index}"]`))
+      : null;
+    if (initialGame && initialBtn) loadGame(initialGame, initialBtn);
   }
+}
+
+function parseOptionalInt(value: string | null): number | undefined {
+  if (value === null || value.trim() === '') return undefined;
+  const n = Number(value);
+  return Number.isInteger(n) ? n : undefined;
 }

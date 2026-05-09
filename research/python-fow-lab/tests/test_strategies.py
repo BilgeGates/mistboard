@@ -578,8 +578,8 @@ def test_belief_veto_drops_candidate_when_majority_of_particles_attacked() -> No
     assert survivors == [], "all particles agree on hidden discovered check; veto must fire"
 
 
-def test_belief_veto_passes_candidate_when_minority_of_particles_attacked() -> None:
-    """One hallucinating particle isn't enough to veto."""
+def test_belief_veto_rejects_candidate_when_minority_terminal_risk() -> None:
+    """Terminal king risk is not ordinary minority material uncertainty."""
     pieces = {
         chess.E1: chess.Piece(chess.KING, chess.WHITE),
         chess.C3: chess.Piece(chess.KNIGHT, chess.WHITE),
@@ -600,7 +600,40 @@ def test_belief_veto_passes_candidate_when_minority_of_particles_attacked() -> N
     move = chess.Move.from_uci("c3d5")
     view = _build_view(base, chess.WHITE, visible_pieces=pieces)
     survivors = s._belief_veto_king_attack([move], view)
-    assert survivors == [move], "1/3 particles isn't a majority; veto should not fire"
+    assert survivors == [], "1/3 particles is still too much immediate king risk"
+
+
+def test_belief_veto_uses_lower_risk_tolerance_for_king_moves() -> None:
+    """A low-probability immediate king capture is still too risky.
+
+    Regression for v0.7.13 g16: White's belief assigned a small probability to
+    a hidden rook on f8, then moved Kg4-f3 into that rook's file. Ordinary
+    discovered-check filtering tolerates minority hallucinations; voluntary
+    king moves need a stricter bar because the downside is terminal.
+    """
+    visible = {
+        chess.G4: chess.Piece(chess.KING, chess.WHITE),
+        chess.A8: chess.Piece(chess.KING, chess.BLACK),
+    }
+    base = chess.Board.empty()
+    for sq, p in visible.items():
+        base.set_piece_at(sq, p)
+    base.turn = chess.WHITE
+
+    risky = base.copy()
+    risky.set_piece_at(chess.F8, chess.Piece(chess.ROOK, chess.BLACK))
+
+    s = _strategy()
+    s.reset(perspective=chess.WHITE)
+    # 1/16 particles attack f3 after Kg4-f3: below the old majority threshold
+    # but above the king-move risk budget.
+    s._belief.particles = [risky] + [base.copy() for _ in range(15)]
+    s._belief.weights = [1.0] * 16
+
+    move = chess.Move.from_uci("g4f3")
+    view = _build_view(base, chess.WHITE, visible_pieces=visible)
+    survivors = s._belief_veto_king_attack([move], view)
+    assert survivors == [], "king move into a plausible hidden-rook capture must be vetoed"
 
 
 # ============================================================================

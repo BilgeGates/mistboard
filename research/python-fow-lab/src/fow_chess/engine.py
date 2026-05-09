@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 import time
+import math
 from typing import TYPE_CHECKING, Callable, Protocol
 
 import chess
@@ -150,9 +151,20 @@ def _sample_particles(
     total = sum(belief.weights)
     if total <= 0:
         return [], []
+    if len(belief.particles) <= max_particles:
+        return list(belief.particles), list(belief.weights)
+
     probs = [w / total for w in belief.weights]
-    indices = rng.choices(range(len(belief.particles)), weights=probs, k=max_particles)
+    keyed = [
+        (-math.log(max(rng.random(), 1e-12)) / prob, idx)
+        for idx, prob in enumerate(probs)
+        if prob > 0.0
+    ]
+    keyed.sort()
+    indices = [idx for _, idx in keyed[:max_particles]]
     particles = [belief.particles[i] for i in indices]
-    # Each draw contributes 1/k of the sample mass.
-    weights = [1.0 / max_particles] * max_particles
+    selected_total = sum(belief.weights[i] for i in indices)
+    if selected_total <= 0:
+        return [], []
+    weights = [belief.weights[i] / selected_total for i in indices]
     return particles, weights
