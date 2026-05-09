@@ -147,6 +147,7 @@ private-alpha safety and usefulness are stable.
 - Visibility history / learning layer: visibility timeline, missed king-capture chances, scouting markers, and explanatory review affordances.
 - Draft960-as-Fog-pregame: start-position choice inside Fog of War, Chess960 visibility coverage, and replay labeling.
 - Fairness / transparency contract: public explanation of hidden-information safety, engine isolation, benchmark verifiability, game-design rationale, and public/private artifact boundaries.
+- Tournament track: engine events first, then private PvP events, then account-backed and Arena-style events only after live Fog safety and identity primitives are stable.
 - Operational safety / observability: health checks, structured logs, rate limits, payload limits, and failure visibility.
 - Public docs / positioning: contributor-safe docs, public/private documentation hygiene, and clear alpha-scope messaging.
 

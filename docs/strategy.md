@@ -43,6 +43,7 @@ Do not build in v1:
 - `docs/product-reference-lichess.md` — mature chess-platform reference and Bichess/Fog translation.
 - `docs/research-engine-product-model.md` — engine, benchmark, corpus, and research product surfaces.
 - `docs/replay-review-product-model.md` — Fog replay/review semantics and product boundaries.
+- `docs/tournament-track.md` — staged path from engine events to later PvP tournaments.
 - `docs/documentation-policy.md` — public/private documentation policy.
 
 ## Decision Rule
