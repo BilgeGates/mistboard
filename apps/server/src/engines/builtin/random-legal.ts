@@ -9,6 +9,7 @@ export const randomLegalEngine: EngineDefinition = {
   configHash: 'builtin-random-legal-v1',
   playSignature: 'builtin-random-legal-v1',
   config: { kind: 'builtin', strategy: 'random-legal', version: 1 },
+  livePolicy: { fallbackEngineId: null },
   notes: 'Deterministic random legal move baseline for EvE smoke and calibration.',
   chooseMove(context) {
     const move = context.legalMoves[Number(context.seed % BigInt(context.legalMoves.length))]!;

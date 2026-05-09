@@ -21,6 +21,11 @@ export type EngineMoveDecision = {
   scores: EngineMoveScore[];
 };
 
+export type EngineLivePolicy = {
+  timeoutMs?: number;
+  fallbackEngineId?: string | null;
+};
+
 export type EngineDefinition = {
   id: string;
   engineId: string;
@@ -30,6 +35,7 @@ export type EngineDefinition = {
   configHash: string;
   playSignature: string;
   config: Record<string, unknown>;
+  livePolicy?: EngineLivePolicy;
   notes?: string;
   chooseMove?: (context: EngineMoveContext) => EngineMoveDecision;
 };

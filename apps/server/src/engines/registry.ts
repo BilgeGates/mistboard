@@ -37,6 +37,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       config_hash: 'b22f29dd73f5',
       engine_pin: 'v0.7.22-king-risk@5d3ddffa74f6',
     },
+    livePolicy: { timeoutMs: 5_000 },
     notes: 'Owner-only Python Tier-1 v0.7.22 engine with profiled particle updates and terminal king-risk veto.',
   },
   'python-tier1-v0.7.0': {
@@ -54,6 +55,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       config: 'tier1-v1',
       config_hash: 'b22f29dd73f5',
     },
+    livePolicy: { timeoutMs: 5_000 },
     notes: 'Owner-only Python Tier-1 v0.7.0 engine executed through the worker subprocess adapter.',
   },
   'python-random-legal': {

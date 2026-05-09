@@ -26,6 +26,7 @@ import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { GameSummary } from './persistence.js';
 import { engineVersionDisplayName, loadEngine, playableBuiltinEngines } from './engine-registry.js';
+import { chooseLiveEngineMove } from './live-engine.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 import {
   adminDebugTokenFromProtocolHeader,
@@ -95,6 +96,7 @@ const shutdownGraceMs = parsePositiveInteger(process.env.BICHESS_SHUTDOWN_GRACE_
 const liveClockInitialMs = 30_000;
 const liveClockIncrementMs = 2_000;
 const pveEngineMoveDelayMs = parsePositiveInteger(process.env.BICHESS_PVE_ENGINE_DELAY_MS) ?? 650;
+const liveEngineTimeoutMs = parsePositiveInteger(process.env.BICHESS_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
 const accountSessionCookieName = 'bichess_session';
 const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
@@ -1166,7 +1168,6 @@ async function playMove(room: Room, client: Client, move: ClientMoveMessage): Pr
 async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
   if (!room.randomEngine) return;
   const engine = loadEngine(room.pveEngineId ?? pveBuiltinEngineClientId);
-  if (!engine.chooseMove) throw new Error(`engine ${engine.id} does not support live move selection`);
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.state.status.turn !== 'black') return;
@@ -1179,12 +1180,30 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
 
   const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, 'black');
   if (moves.length === 0) return;
-  const decision = engine.chooseMove({
+  const context = {
     state: room.projection.state,
     color: 'black',
     legalMoves: moves,
     seed: liveEngineMoveSeed(room),
     ply: room.events.filter((event) => event.type === 'move-played').length,
+  } as const;
+  const { decision } = await chooseLiveEngineMove({
+    context,
+    engine,
+    timeoutMs: liveEngineTimeoutMs,
+    onFallback(event) {
+      console.error(JSON.stringify({
+        level: 'error',
+        kind: 'live_engine_fallback',
+        roomId: room.id,
+        engineId: event.engineId,
+        fallbackEngineId: event.fallbackEngineId,
+        ply: event.ply,
+        reason: event.reason,
+        durationMs: event.durationMs,
+        at: Date.now(),
+      }));
+    },
   });
   const move = decision.move;
   if (!move) return;
