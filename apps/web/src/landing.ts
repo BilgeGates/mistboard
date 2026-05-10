@@ -230,11 +230,9 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
 
   const shell = document.createElement('main');
   shell.className = 'game-shell';
-  const headerRoot = document.createElement('div');
-  headerRoot.className = 'game-header-root';
   const replayRoot = document.createElement('div');
   replayRoot.className = 'game-replay';
-  shell.append(headerRoot, replayRoot);
+  shell.append(replayRoot);
   root.append(buildNav(), shell, buildFooter());
 
   const loaded = await loadGameForReview(roomId);
@@ -244,7 +242,6 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   }
 
   const { game, events } = loaded;
-  headerRoot.append(buildGameHeader(game));
   await mountReplay(replayRoot, game.roomId, {
     autoplay: false,
     initialPly: initialGamePly(),
@@ -710,30 +707,6 @@ function gameMetaForGame(game: FeaturedGame): GameMeta {
 function reviewUrlForGame(game: FeaturedGame): string | null {
   if (game.corpusId === 'replay-samples') return null;
   return `/game/${encodeURIComponent(game.roomId)}`;
-}
-
-function buildGameHeader(game: FeaturedGame): HTMLElement {
-  const header = document.createElement('section');
-  header.className = 'game-header';
-
-  const text = document.createElement('div');
-  text.className = 'game-header-text';
-
-  const source = document.createElement('div');
-  source.className = 'game-source';
-  source.textContent = sourceLabel(game.mode);
-
-  const title = document.createElement('h1');
-  title.className = 'game-title';
-  title.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
-
-  const meta = document.createElement('p');
-  meta.className = 'game-summary-line';
-  meta.textContent = `${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
-  text.append(source, title, meta);
-
-  header.append(text);
-  return header;
 }
 
 function renderAccountShell(shell: HTMLElement, user: AuthUser | null): void {

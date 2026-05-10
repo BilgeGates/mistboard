@@ -90,6 +90,24 @@ npm run engine:tournament-status -- --tournament-id <tournament_id> --format mar
 With no filter it reports the newest tournament-shaped EvE job. This is still
 an operational report, not a public leaderboard.
 
+For production DB-backed commands, run inside the deployed service container
+instead of relying on local `railway run` when `DATABASE_URL` points at a
+Railway-private Postgres host:
+
+```sh
+railway ssh --service engine-worker npm --workspace=@mistboard/server run engine:queue-status
+railway ssh --service engine-worker npm --workspace=@mistboard/server run engine:tournament-status -- --job <job_id>
+```
+
+The first production 3+2 top-engine sample used
+`python-tier1-v0.8.9` versus `python-tier1-v0.7.22` and completed as
+`job_a538c31b-66fd-47d7-9e15-c5a6d5023631` /
+`eve_task_f24a704c-d0be-41a4-819e-151bd57f15fc`: v0.8.9 won as White by
+king capture after 127 plies. Runtime was 288,741 ms through the
+`python-subprocess` runner. See
+`docs/build-log/2026-05-10-production-tier1-eve-sample.md` for the full
+operator-safe run note.
+
 ## Data Model
 
 `eve_jobs` is the experiment/job row. It describes intent: mining, bake-off, calibration, smoke, or regression.
@@ -101,6 +119,13 @@ an operational report, not a public leaderboard.
 `eve_games` remains the EvE-specific output metadata table. It links a produced game to the EvE job, seed, engine identities, and task id.
 
 `engine_worker_runs` records worker-provider runs and heartbeats. This makes local, always-on, and burst workers observable without changing task semantics.
+
+Current observability caveat: whole-game Python subprocess runs block the
+TypeScript worker until the subprocess returns. The task claim remains valid and
+the game can complete, but worker heartbeats may fall out of the
+`engine:queue-status` active-worker window during longer 3+2 games. Treat a
+running task with an older worker heartbeat as ambiguous until logs or a later
+status query show completion, failure, or stale-claim cleanup.
 
 ## Job Config Shape
 

@@ -277,10 +277,6 @@ export async function mountReplay(
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
   let lastNotifiedPly: number | null = null;
-  let liveClockState: GameState | null = null;
-  let liveClockBaseAt: number | null = null;
-  let liveClockBaseNow = 0;
-  let clockTickTimer: number | null = null;
 
   function render(): void {
     root.dataset.sampleId = activeSample;
@@ -289,7 +285,7 @@ export async function mountReplay(
     const projection = replayGameEvents(sliced);
     const state = projection.state;
     const finished = state.status.type === 'finished';
-    renderClockState(state);
+    renderClockState(state, sliced);
 
     setBoardFromState(truthCg, state);
 
@@ -552,39 +548,9 @@ export async function mountReplay(
     }
   }
 
-  function renderClockState(state: GameState): void {
-    liveClockState = state;
-    liveClockBaseAt = state.clock?.runningSince ?? eventTimeAtState(state) ?? null;
-    liveClockBaseNow = performance.now();
-    renderClockPanel(clockPanel, state.clock, state, currentMeta(), liveClockBaseAt ?? undefined);
-    syncClockTicker(state);
-  }
-
-  function syncClockTicker(state: GameState): void {
-    const shouldTick = state.status.type === 'playing'
-      && Boolean(state.clock)
-      && state.clock?.runningSince !== null
-      && state.clock?.activeColor !== null;
-    if (shouldTick) {
-      if (clockTickTimer === null) {
-        clockTickTimer = window.setInterval(renderLiveClockTick, 100);
-      }
-      return;
-    }
-    clearClockTicker();
-  }
-
-  function renderLiveClockTick(): void {
-    if (!liveClockState?.clock || liveClockBaseAt === null) return;
-    const displayAt = liveClockBaseAt + Math.max(0, performance.now() - liveClockBaseNow);
-    renderClockPanel(clockPanel, liveClockState.clock, liveClockState, currentMeta(), displayAt);
-  }
-
-  function clearClockTicker(): void {
-    if (clockTickTimer !== null) {
-      window.clearInterval(clockTickTimer);
-      clockTickTimer = null;
-    }
+  function renderClockState(state: GameState, slicedEvents: GameEvent[]): void {
+    const displayAt = replayClockDisplayAt(slicedEvents, state);
+    renderClockPanel(clockPanel, state.clock, state, currentMeta(), displayAt ?? undefined);
   }
 
   function stopPlay(): void {
@@ -869,7 +835,6 @@ export async function mountReplay(
   abortController.signal.addEventListener('abort', () => {
     stopPlay();
     clearLoopTimer();
-    clearClockTicker();
   }, { once: true });
 
   await loadGame(initialSampleId);
@@ -1387,7 +1352,7 @@ function renderClockPanel(
   panel.whiteRow.hidden = false;
   panel.blackRow.hidden = false;
   panel.label.textContent = timeControl ? `Time ${timeControl}` : 'Clock';
-  panel.label.hidden = false;
+  panel.label.hidden = true;
 
   if (!clock) {
     panel.whiteTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '—';
@@ -1397,14 +1362,18 @@ function renderClockPanel(
     return;
   }
 
-  const displayAt = displayAtOverride ?? clock.runningSince ?? eventTimeAtState(state) ?? 0;
+  const displayAt = displayAtOverride ?? clock.runningSince ?? 0;
   panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt), true);
   panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt), true);
   panel.whiteRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'white');
   panel.blackRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'black');
 }
 
-function eventTimeAtState(state: GameState): number | null {
+function replayClockDisplayAt(events: GameEvent[], state: GameState): number | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const at = events[index]?.at;
+    if (typeof at === 'number' && Number.isFinite(at)) return at;
+  }
   return state.clock?.runningSince ?? null;
 }
 
