@@ -2824,13 +2824,92 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   align-items: start;
 }
 
+.watch-games {
+  min-height: 0;
+  align-self: stretch;
+  overflow: auto;
+}
+
+.watch-games .landing-games-heading {
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.watch-games .landing-games-list .landing-game-row {
+  gap: 4px;
+  padding: 7px 10px;
+}
+
+.watch-games .landing-game-matchup {
+  font-size: 12px;
+  line-height: 1.16;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watch-games .landing-game-meta {
+  gap: 5px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.18;
+}
+
+.watch-games .landing-game-meta span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watch-games .landing-game-result {
+  padding: 1px 5px;
+  font-size: 9px;
+}
+
 .watch-replay {
   min-width: 0;
+  min-height: 0;
 }
 
 .watch-replay .replay-page {
   padding: 0;
   min-height: 0;
+  gap: 10px;
+}
+
+.watch-replay .replay-layout {
+  gap: 14px;
+}
+
+.watch-replay .replay-board.cg-wrap {
+  max-width: 360px;
+}
+
+@media (min-width: 1181px) {
+  body:has(.landing-page.watch-route) {
+    overflow: hidden;
+  }
+
+  .landing-page.watch-route {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .landing-page.watch-route .site-footer {
+    display: none;
+  }
+
+  .watch-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-block: 12px;
+    align-items: stretch;
+  }
+
+  .watch-replay {
+    overflow: hidden;
+  }
 }
 
 .game-shell {
