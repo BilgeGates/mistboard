@@ -213,6 +213,21 @@ button:focus-visible {
   border-radius: 0;
 }
 
+.board cg-board,
+.replay-board cg-board,
+.learn-board cg-board,
+.belief-mini-board cg-board {
+  background-color: var(--board-light);
+  background-image:
+    conic-gradient(
+      var(--board-light) 25%,
+      var(--board-dark) 0 50%,
+      var(--board-light) 0 75%,
+      var(--board-dark) 0
+    );
+  background-size: 25% 25%;
+}
+
 .board coords {
   font-weight: 700;
 }
