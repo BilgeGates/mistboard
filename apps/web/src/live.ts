@@ -186,7 +186,6 @@ let orientation: Color = 'white';
 let ground: Api | null = null;
 let pendingPromotion: PendingPromotion | null = null;
 let playAgainStatus: PlayAgainStatus = 'idle';
-let shareCopyStatus: 'idle' | 'copied' | 'failed' = 'idle';
 let postgameFogEnabled = false;
 let lastSoundEventCount: number | null = null;
 let lastTerminalSound: string | null = null;
@@ -368,10 +367,6 @@ function createLayout(target: HTMLDivElement) {
               <div data-game-info class="game-info"></div>
             </section>
             <section class="panel-section">
-              <h2>Invite</h2>
-              <div data-share-room class="share-room"></div>
-            </section>
-            <section class="panel-section">
               <h2>Next</h2>
               <div data-room-actions class="room-actions"></div>
             </section>
@@ -428,7 +423,6 @@ function createLayout(target: HTMLDivElement) {
   const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
   const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
   const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');
-  const shareRoom = target.querySelector<HTMLDivElement>('[data-share-room]');
   const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
   const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
   const devViewsPanel = target.querySelector<HTMLDivElement>('[data-dev-views]');
@@ -445,7 +439,7 @@ function createLayout(target: HTMLDivElement) {
   const fogToggle = target.querySelector<HTMLButtonElement>('[data-fog-toggle]');
   const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
 
-  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !shareRoom || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList) {
+  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList) {
     throw new Error('missing app region');
   }
 
@@ -471,7 +465,6 @@ function createLayout(target: HTMLDivElement) {
     replayMeta,
     roomActions,
     selectionSection,
-    shareRoom,
     roomMeta,
     selectionList,
     starts,
@@ -514,7 +507,6 @@ function render(): void {
   renderActionStatus(view);
   renderGameInfo(view);
   renderClocks(view);
-  renderShareRoom();
   renderRoomActions();
   renderDevViews();
   renderBid(view);
@@ -672,17 +664,14 @@ function renderActionStatus(view: PlayerView | null): void {
 }
 
 function renderGameInfo(view: PlayerView | null): void {
-  const engine = engineInfoLabel();
   const items = [
     infoItem('Mode', modeLabel()),
-    engine ? infoItem('Engine', engine) : null,
     infoItem('Seat', seatLabel(seat)),
     infoItem('Turn', turnLabel(view)),
-    infoItem('Time', timeControlLabel(view)),
     infoItem('Connection', connectionLabel()),
     infoItem('Server', serverTimeLabel()),
     infoItem('Clients', String(clientCount)),
-  ].filter((item): item is HTMLDivElement => item !== null);
+  ];
   refs.gameInfo.replaceChildren(...items);
 }
 
@@ -699,39 +688,6 @@ function renderRoomActions(): void {
   }
   if (engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
   refs.roomActions.replaceChildren(...actions);
-}
-
-function renderShareRoom(): void {
-  refs.shareRoom.replaceChildren();
-
-  const hint = document.createElement('p');
-  hint.className = 'share-room-hint';
-  hint.textContent = shareRoomHint();
-
-  const input = document.createElement('input');
-  input.type = 'url';
-  input.readOnly = true;
-  input.value = shareRoomUrl();
-  input.setAttribute('aria-label', 'Room link');
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = shareCopyStatus === 'copied'
-    ? 'Copied'
-    : shareCopyStatus === 'failed'
-      ? 'Copy Failed'
-      : 'Copy Link';
-  button.addEventListener('click', () => copyShareLink(input));
-
-  refs.shareRoom.append(hint, input, button);
-}
-
-function shareRoomHint(): string {
-  const view = currentView();
-  if (view?.status.type === 'finished') return 'Game over. Use Review game to share the finished replay.';
-  if (roomMode === 'pvp') return 'Copy this link and send it to the other player.';
-  if (roomMode === 'pve') return 'Copy this link to reopen this game while it is live.';
-  return 'Copy this link to return to this room.';
 }
 
 function roomAction(label: string, href: string, toneOrDev?: 'primary' | 'engine'): HTMLAnchorElement {
@@ -938,7 +894,13 @@ function selectionItem(label: string, value: number | string | null | undefined)
 
 function renderBoard(view: PlayerView | null): void {
   const moveColor = activeMoveColor();
-  const boardIsLive = isLive() && view?.status.type === 'playing' && moveColor !== null && pendingPromotion === null;
+  const ownSeat = isColor(seat) ? seat : null;
+  const canInteractWithOwnPieces = isLive()
+    && view?.status.type === 'playing'
+    && (solo || ownSeat !== null)
+    && pendingPromotion === null;
+  const boardIsLive = canInteractWithOwnPieces && moveColor !== null;
+  const movableColor = boardIsLive ? moveColor : ownSeat;
   refs.board.classList.toggle('finished-board', view?.status.type === 'finished');
   const config = {
     animation: { enabled: true, duration: 140 },
@@ -949,7 +911,7 @@ function renderBoard(view: PlayerView | null): void {
     highlight: { custom: hiddenSquareClasses(view), lastMove: true },
     lastMove: view?.lastMove ? ([view.lastMove.from, view.lastMove.to] as cg.Key[]) : undefined,
     movable: {
-      color: moveColor ?? undefined,
+      color: movableColor ?? undefined,
       dests: view ? legalDests(view) : new Map<cg.Key, cg.Key[]>(),
       free: false,
       rookCastle: true,
@@ -959,9 +921,13 @@ function renderBoard(view: PlayerView | null): void {
       },
     },
     orientation,
-    premovable: { enabled: false },
-    selectable: { enabled: boardIsLive },
-    draggable: { enabled: boardIsLive, showGhost: true },
+    premovable: {
+      castle: true,
+      enabled: canInteractWithOwnPieces && !boardIsLive && ownSeat !== null,
+      showDests: true,
+    },
+    selectable: { enabled: canInteractWithOwnPieces },
+    draggable: { enabled: canInteractWithOwnPieces, showGhost: true },
     turnColor: view?.status.type === 'playing' ? view.status.turn : undefined,
     // Keep chessground interactive at the wrapper level so later live snapshots
     // can enable movement without rebuilding the board and losing resize state.
@@ -970,10 +936,17 @@ function renderBoard(view: PlayerView | null): void {
 
   if (ground) {
     ground.set(config);
+    maybePlayPremove();
     return;
   }
 
   ground = Chessground(refs.board, config);
+  maybePlayPremove();
+}
+
+function maybePlayPremove(): void {
+  if (!ground || activeMoveColor() === null || pendingPromotion !== null) return;
+  ground.playPremove();
 }
 
 function renderBoardResult(view: PlayerView | null): void {
@@ -997,12 +970,14 @@ function reconcileInteractionState(): void {
   if (!isLive() || !view || view.status.type !== 'playing') {
     pendingPromotion = null;
     ground?.cancelMove();
+    ground?.cancelPremove();
     return;
   }
 
   if (pendingPromotion && !promotionMovesFor(pendingPromotion.from, pendingPromotion.to).length) {
     pendingPromotion = null;
     ground?.cancelMove();
+    ground?.cancelPremove();
   }
 }
 
@@ -1345,17 +1320,22 @@ function pieceLetter(role: PromotionRole): string {
 }
 
 function applyReplayControl(action: string): void {
+  const history = replayHistoryIndexes();
   if (action === 'latest') {
+    replayIndex = null;
+    return;
+  }
+  if (history.length === 0) {
     replayIndex = null;
     return;
   }
 
   const currentIndex = currentReplayIndex();
-  if (action === 'first') replayIndex = events.length > 0 ? 1 : null;
-  if (action === 'prev') replayIndex = Math.max(1, currentIndex - 1);
+  if (action === 'first') replayIndex = history[0] ?? null;
+  if (action === 'prev') replayIndex = previousReplayHistoryIndex(currentIndex, history);
   if (action === 'next') {
-    const next = Math.min(events.length, currentIndex + 1);
-    replayIndex = next === events.length ? null : next;
+    const next = nextReplayHistoryIndex(currentIndex, history);
+    replayIndex = next === null || next >= events.length ? null : next;
   }
 }
 
@@ -1389,12 +1369,54 @@ function isEditableKeyboardTarget(target: EventTarget | null): boolean {
 }
 
 function replayControlDisabled(action: string): boolean {
-  if (events.length <= 1) return action !== 'latest';
+  const history = replayHistoryIndexes();
+  if (history.length === 0) return action !== 'latest';
   const currentIndex = currentReplayIndex();
   if (action === 'latest') return isLive();
-  if (action === 'next') return isLive();
-  if (action === 'first' || action === 'prev') return currentIndex <= 1;
+  if (action === 'next') return isLive() || nextReplayHistoryIndex(currentIndex, history) === null;
+  if (action === 'first' || action === 'prev') return previousReplayHistoryIndex(currentIndex, history) === currentIndex;
   return false;
+}
+
+function replayHistoryIndexes(): number[] {
+  const indexes: number[] = [];
+  for (const [index, event] of events.entries()) {
+    if (isReplayHistoryEvent(event)) indexes.push(index + 1);
+  }
+  return indexes;
+}
+
+function isReplayHistoryEvent(event: GameEvent): boolean {
+  return event.type === 'room-created'
+    || event.type === 'draft-start-resolved'
+    || event.type === 'bid-resolved'
+    || event.type === 'move-played'
+    || event.type === 'clock-expired';
+}
+
+function previousReplayHistoryIndex(currentIndex: number, history: number[]): number {
+  const currentHistoryIndex = latestReplayHistoryIndexAtOrBefore(currentIndex, history);
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const historyIndex = history[index]!;
+    if (historyIndex < currentHistoryIndex) return historyIndex;
+  }
+  return currentHistoryIndex;
+}
+
+function nextReplayHistoryIndex(currentIndex: number, history: number[]): number | null {
+  for (const historyIndex of history) {
+    if (historyIndex > currentIndex) return historyIndex;
+  }
+  return currentIndex < events.length ? events.length : null;
+}
+
+function latestReplayHistoryIndexAtOrBefore(currentIndex: number, history: number[]): number {
+  let latest = history[0] ?? currentIndex;
+  for (const historyIndex of history) {
+    if (historyIndex > currentIndex) break;
+    latest = historyIndex;
+  }
+  return latest;
 }
 
 function currentProjection(): GameProjection | null {
@@ -1609,13 +1631,6 @@ function turnLabel(view: PlayerView | null): string {
   return 'Pregame';
 }
 
-function timeControlLabel(view: PlayerView | null): string {
-  if (!view?.clock) return '0:30+2';
-  const base = formatClock(view.clock.initialMs);
-  const increment = Math.round(view.clock.incrementMs / 1000);
-  return increment > 0 ? `${base}+${increment}` : base;
-}
-
 function connectionLabel(): string {
   if (connectionState === 'rejected') return 'Access rejected';
   if (connectionState === 'displaced') return 'Session moved';
@@ -1765,17 +1780,6 @@ function roomUrl(variant: PlayerView['variant'], dev?: 'engine'): string {
   return `/?${params}`;
 }
 
-function shareRoomUrl(): string {
-  if (pathRoom) return `${window.location.origin}/room/${encodeURIComponent(room)}`;
-
-  const params = new URLSearchParams({ room });
-  const variant = currentView()?.variant ?? state?.variant ?? variantRequested ?? 'fog-of-war';
-  params.set('variant', variant);
-  if (engineRequested) params.set('dev', 'engine');
-  if (allViewsRequested) params.set('views', 'all');
-  return `${window.location.origin}${window.location.pathname}?${params}`;
-}
-
 function roomIdFromPath(pathname: string): string | null {
   const normalized = pathname.replace(/\/+$/, '');
   if (normalized === '/room') return 'dev-room';
@@ -1836,23 +1840,6 @@ function writeLocalStorage(key: string, value: string): void {
   } catch {
     // The room still works without seat recovery if storage is unavailable.
   }
-}
-
-async function copyShareLink(input: HTMLInputElement): Promise<void> {
-  const url = input.value;
-  try {
-    await navigator.clipboard.writeText(url);
-    shareCopyStatus = 'copied';
-  } catch {
-    input.select();
-    shareCopyStatus = document.execCommand('copy') ? 'copied' : 'failed';
-  }
-  renderShareRoom();
-  window.setTimeout(() => {
-    if (shareCopyStatus === 'idle') return;
-    shareCopyStatus = 'idle';
-    renderShareRoom();
-  }, 1600);
 }
 
 type SoundKind = 'capture' | 'captured' | 'castle' | 'lose' | 'move' | 'win';

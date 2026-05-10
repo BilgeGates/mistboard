@@ -15,20 +15,12 @@ const failures = [];
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
 const playPage = await browser.newPage({ viewport: viewports[0] });
-await playPage.goto(`${baseUrl}/play`, { waitUntil: 'networkidle' });
-await playPage.waitForSelector('.play-shell');
+await playPage.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
+await playPage.waitForSelector('.landing-play-panel');
 const playMetrics = await playPage.evaluate(() => ({
-  activeNav: document.querySelector('.site-nav-link.active')?.textContent ?? '',
   actions: [...document.querySelectorAll('.landing-play-action')].map((button) => button.textContent?.trim() ?? ''),
   horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
-  title: document.querySelector('.play-intro h1')?.textContent ?? '',
 }));
-if (playMetrics.title !== 'Play hidden-information chess') {
-  failures.push(`play page: unexpected title ${playMetrics.title}`);
-}
-if (playMetrics.activeNav !== 'Play') {
-  failures.push(`play page: expected active Play nav, found ${playMetrics.activeNav}`);
-}
 if (playMetrics.actions.join('|') !== 'Find opponent|Challenge a friend|Play against computer') {
   failures.push(`play page: expected lobby, friend, and computer actions, found ${playMetrics.actions.join(', ')}`);
 }
@@ -67,7 +59,6 @@ for (const viewport of viewports) {
         href: link.getAttribute('href') ?? '',
         label: link.textContent ?? '',
       })),
-      shareLink: document.querySelector('[data-share-room] input')?.value ?? '',
     };
   });
 
@@ -92,7 +83,7 @@ for (const viewport of viewports) {
   if (metrics.roomLinks.some((link) => link.label === 'Draft960' || link.href.includes('variant=draft960'))) {
     failures.push(`${viewport.name}: Draft960 should be hidden from primary create-room links`);
   }
-  if (!metrics.roomLinks.some((link) => link.label.startsWith('Back to ') && (link.href === '/' || link.href === '/play'))) {
+  if (!metrics.roomLinks.some((link) => (link.label === 'Back home' || link.label.startsWith('Back to ')) && (link.href === '/' || link.href === '/play'))) {
     failures.push(`${viewport.name}: missing back room action`);
   }
   if (metrics.roomLinks.some((link) => link.href.includes('dev=engine'))) {
@@ -101,13 +92,6 @@ for (const viewport of viewports) {
   if (metrics.roomLinks.some((link) => link.label === 'Bid For White' || link.href.includes('variant=bid-for-white'))) {
     failures.push(`${viewport.name}: Bid For White should not be in primary create-room links`);
   }
-  if (!metrics.shareLink.includes(`/room/${encodeURIComponent(room)}`)) {
-    failures.push(`${viewport.name}: share link does not target current Fog room: ${metrics.shareLink}`);
-  }
-  if (metrics.shareLink.includes('reset=1')) {
-    failures.push(`${viewport.name}: share link must not include reset=1: ${metrics.shareLink}`);
-  }
-
   const screenshotPath = `${outputDir}/${viewport.name}.png`;
   await page.screenshot({ path: screenshotPath, fullPage: true });
   console.log(`${viewport.name}: ${JSON.stringify(metrics)} screenshot=${screenshotPath}`);
@@ -188,7 +172,6 @@ const engineMetrics = await enginePage.evaluate(() => {
     status: debug.currentView?.status,
     title: document.querySelector('h1')?.textContent,
     trueHiddenSquares: document.querySelectorAll('.dev-board[aria-label="True view"] .dev-square.hidden').length,
-    shareLink: document.querySelector('[data-share-room] input')?.value ?? '',
   };
 });
 if (engineMetrics.devBoards !== 3) {
@@ -212,13 +195,6 @@ if (engineMetrics.trueHiddenSquares !== 0) {
 if (engineMetrics.scrollOverflow > 1) {
   failures.push(`engine harness: expected no vertical scroll, found ${engineMetrics.scrollOverflow}px overflow`);
 }
-if (!engineMetrics.shareLink.includes(`/room/${encodeURIComponent(engineRoom)}`)) {
-  failures.push(`engine harness: share link should preserve debug room params, found ${engineMetrics.shareLink}`);
-}
-if (engineMetrics.shareLink.includes('reset=1')) {
-  failures.push(`engine harness: share link must not include reset=1: ${engineMetrics.shareLink}`);
-}
-
 const enginePath = `${outputDir}/engine-harness.png`;
 await enginePage.screenshot({ path: enginePath, fullPage: true });
 console.log(`engine harness: ${JSON.stringify(engineMetrics)} screenshot=${enginePath}`);
