@@ -3449,8 +3449,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   aspect-ratio: 1;
   border: 1px solid #29343c;
   background: #0f1418;
-  inline-size: 100%;
-  max-height: 100%;
+  inline-size: min(100%, 300px);
+  block-size: auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;

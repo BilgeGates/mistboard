@@ -282,7 +282,14 @@ function parseArgs(values) {
     const value = values[i];
     if (!value.startsWith('--')) continue;
     const [key, inline] = value.slice(2).split('=');
-    parsed[key] = inline ?? values[i + 1] ?? 'true';
+    const parsedValue = inline ?? values[i + 1] ?? 'true';
+    if (parsed[key] === undefined) {
+      parsed[key] = parsedValue;
+    } else if (Array.isArray(parsed[key])) {
+      parsed[key].push(parsedValue);
+    } else {
+      parsed[key] = [parsed[key], parsedValue];
+    }
     if (inline === undefined) i += 1;
   }
   return parsed;
