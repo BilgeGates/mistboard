@@ -199,6 +199,37 @@ Migration path:
 6. Make live server play "latest valid candidate at deadline" and reserve
    random fallback for "no legal candidate was ever produced."
 
+Current production baseline:
+
+- Live PVE games persist `live-engine-decision` artifacts for each engine move
+  and `live-engine-fallback` artifacts when the server changes engine identity.
+- The Python live runner receives the server watchdog budget and keeps an
+  internal guard band. If full Tier-1 work has not returned in time, it returns
+  a deterministic visibility-based move from inside the Python boundary instead
+  of allowing an outer watchdog to switch to random.
+- This is a workable stopgap, not the final timing architecture. A fresh
+  production PVE game after the guardrails showed no server fallback; late
+  moves used `python-subprocess:deadline-guard`, which preserves engine identity
+  and gives the lab a visible timing signal.
+
+Backlog: engine time-spend optimization track:
+
+1. Persist phase timing per live move: canonical replay, runtime startup,
+   strategy reset, event observation, pick start, pick finish, and guard return.
+2. Summarize these timings in review tooling so a completed game can answer
+   whether time was spent on replay, belief updates, tactical shortcuts, or
+   particle evaluation.
+3. Replace per-move process startup and full event-log replay with a warm
+   per-room Python engine session or equivalent cached state.
+4. Split Tier-1 move selection into explicit progressive phases: cheap legal
+   fallback, visible tactical move, belief-safe move, partial particle eval,
+   deeper eval.
+5. Maintain `best_so_far` through those phases and return it at the deadline,
+   making the deadline guard an ordinary anytime candidate instead of a separate
+   emergency selector.
+6. Promote timing behavior through pinned engine versions so engine-quality
+   changes remain attributable in tournaments and production games.
+
 Open design questions:
 
 - Whether the transport should be stdio JSONL, WebSocket, gRPC, or a small
