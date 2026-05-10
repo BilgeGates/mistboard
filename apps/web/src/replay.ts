@@ -885,7 +885,7 @@ function renderGameMetaPanel(
   for (const item of items) {
     panel.details.append(infoItem(item.label, item.value));
   }
-  if (meta.gameUrl) {
+  if (meta.gameUrl && panel.mode !== 'full') {
     const link = document.createElement('a');
     link.className = 'replay-game-link';
     link.href = meta.gameUrl;

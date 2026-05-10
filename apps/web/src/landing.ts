@@ -158,7 +158,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     }),
   ]);
   const stage = buildLandingStage(engines);
-  root.replaceChildren(buildNav(), stage.el);
+  root.replaceChildren(buildNav(), stage.el, buildFooter());
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
     return;
@@ -732,16 +732,7 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
   meta.textContent = `${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
   text.append(source, title, meta);
 
-  const actions = document.createElement('div');
-  actions.className = 'game-header-actions';
-  const copy = document.createElement('button');
-  copy.type = 'button';
-  copy.className = 'game-copy-link';
-  copy.textContent = 'Copy review link';
-  copy.addEventListener('click', () => copyGameLink(copy));
-  actions.append(copy);
-
-  header.append(text, actions);
+  header.append(text);
   return header;
 }
 
@@ -1149,18 +1140,6 @@ function sourceLabel(mode: FeaturedGame['mode']): string {
   if (mode === 'imported') return 'Imported game';
   if (mode === 'manual') return 'Manual game';
   return 'Fog of War game';
-}
-
-async function copyGameLink(button: HTMLButtonElement): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(window.location.href);
-    button.textContent = 'Copied';
-  } catch {
-    button.textContent = 'Copy failed';
-  }
-  window.setTimeout(() => {
-    button.textContent = 'Copy review link';
-  }, 1600);
 }
 
 function initialGamePly(): number {
@@ -1829,6 +1808,7 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'python-random-legal': 'Random Legal Python v1',
     'python-tier1-v0.7.0': 'Tier-1 v0.7.0',
     'python-tier1-v0.7.22': 'Tier-1 v0.7.22',
+    'python-tier1-v0.8.9': 'Tier-1 v0.8.9',
   };
   return known[name] ?? null;
 }

@@ -1734,6 +1734,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-stage {
   flex: 1 1 auto;
   min-height: 0;
+  gap: clamp(10px, 1.6vw, 16px);
+  padding: clamp(10px, 1.7vw, 20px) clamp(12px, 2vw, 24px);
 }
 
 .landing-demo {
@@ -1753,6 +1755,11 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 22px 62px rgba(29, 37, 34, 0.12);
+}
+
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-demo {
+  gap: clamp(10px, 1.5vw, 16px);
+  padding: clamp(10px, 1.45vw, 16px);
 }
 
 .landing-demo #landing-replay {
@@ -1827,6 +1834,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   font-size: 13px;
   color: #5a6960;
   margin-top: auto;
+}
+
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .site-footer {
+  padding: 10px 24px;
 }
 
 .site-footer a {
@@ -2725,6 +2736,11 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   max-width: none;
 }
 
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) #landing-replay {
+  gap: 10px;
+  padding: clamp(10px, 1.25vw, 14px);
+}
+
 .landing-page #landing-replay .replay-game-id {
   color: #7a837e;
 }
@@ -2804,6 +2820,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .landing-page #landing-replay .replay-board.cg-wrap {
+  max-width: 360px;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.14),
     0 14px 28px rgba(0, 0, 0, 0.22);
@@ -3070,27 +3087,6 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   color: #5a6960;
   font-size: 14px;
   text-transform: capitalize;
-}
-
-.game-header-actions {
-  display: flex;
-  flex: 0 0 auto;
-}
-
-.game-copy-link {
-  min-height: 38px;
-  border: 1px solid #bdc8bf;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #1d2522;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.game-copy-link:hover,
-.game-copy-link:focus-visible {
-  border-color: #1f6f5b;
-  outline: 3px solid rgba(31, 111, 91, 0.18);
 }
 
 .account-shell,
@@ -3398,7 +3394,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 @media (min-width: 1100px) {
   .game-replay.replay-page {
     display: grid;
-    grid-template-columns: minmax(160px, 200px) minmax(0, 1fr) minmax(190px, 220px);
+    grid-template-columns: minmax(190px, 220px) minmax(0, 1fr) minmax(190px, 220px);
     align-items: start;
     column-gap: 10px;
     row-gap: 12px;
@@ -3409,6 +3405,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
     grid-row: 1;
     grid-template-columns: repeat(3, minmax(0, 380px));
     justify-content: center;
+    justify-self: center;
+    align-self: center;
     gap: 8px;
     max-width: none;
   }
@@ -3604,7 +3602,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   }
 
   .landing-demo {
-    max-width: 900px;
+    max-width: 980px;
   }
 
   .landing-demo .landing-play-panel,
