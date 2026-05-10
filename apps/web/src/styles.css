@@ -1880,6 +1880,94 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   min-width: 0;
 }
 
+.landing-lobby-requests {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 2px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 8px;
+  background: #fbfcfa;
+  padding: 10px;
+}
+
+.landing-lobby-requests-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.landing-lobby-requests-header strong {
+  color: var(--site-text);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.landing-lobby-requests-header span,
+.landing-lobby-requests-empty,
+.landing-lobby-request-details small {
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.landing-lobby-requests-list {
+  display: grid;
+  gap: 6px;
+}
+
+.landing-lobby-requests-empty {
+  margin: 0;
+}
+
+.landing-lobby-request-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.landing-lobby-request-details {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.landing-lobby-request-details span {
+  min-width: 0;
+  color: var(--site-text);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.landing-lobby-request-row button {
+  min-height: 32px;
+  border: 1px solid #629924;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #416b18;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 9px;
+}
+
+.landing-lobby-request-row button:hover:not(:disabled),
+.landing-lobby-request-row button:focus-visible {
+  background: var(--site-accent-soft);
+  outline: 2px solid rgba(98, 153, 36, 0.2);
+}
+
+.landing-lobby-request-row button:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
 .play-shell {
   width: min(100%, 980px);
   margin: 0 auto;

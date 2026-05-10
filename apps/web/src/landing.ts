@@ -115,6 +115,14 @@ type LobbyTicketResponse = {
   ticketId?: string;
   url?: string;
 };
+type OpenLobbyRequest = {
+  hiddenDraft960: boolean;
+  timeControl: {
+    initialMs: number;
+    incrementMs: number;
+  };
+  waitingMs: number;
+};
 
 const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
@@ -1130,7 +1138,7 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
-  const playPanel = buildLandingPlayPanel(engines);
+  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
   const section = document.createElement('section');
   section.className = 'landing-demo';
@@ -1143,7 +1151,7 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   return { el: stage, replayRoot };
 }
 
-function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
+function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRequests?: boolean } = {}): HTMLElement {
   const panel = document.createElement('aside');
   panel.className = 'landing-play-panel';
   panel.setAttribute('aria-label', 'Start playing');
@@ -1176,6 +1184,9 @@ function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
   });
 
   panel.append(lobbyButton, challengeButton, engineButton);
+  if (options.showLobbyRequests) {
+    panel.append(buildLobbyRequestsWindow());
+  }
   return panel;
 }
 
@@ -1229,6 +1240,117 @@ function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby')
   labelEl.textContent = label;
   button.append(iconEl, labelEl);
   return button;
+}
+
+function buildLobbyRequestsWindow(): HTMLElement {
+  const shell = document.createElement('section');
+  shell.className = 'landing-lobby-requests';
+  shell.setAttribute('aria-label', 'Open pairing requests');
+
+  const header = document.createElement('div');
+  header.className = 'landing-lobby-requests-header';
+  const title = document.createElement('strong');
+  title.textContent = 'Open requests';
+  const count = document.createElement('span');
+  count.textContent = 'Checking';
+  header.append(title, count);
+
+  const list = document.createElement('div');
+  list.className = 'landing-lobby-requests-list';
+
+  shell.append(header, list);
+
+  const render = (requests: OpenLobbyRequest[]) => {
+    count.textContent = requests.length === 1 ? '1 waiting' : `${requests.length} waiting`;
+    list.replaceChildren();
+    if (requests.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'landing-lobby-requests-empty';
+      empty.textContent = 'No open requests right now.';
+      list.append(empty);
+      return;
+    }
+    for (const request of requests) {
+      list.append(lobbyRequestRow(request));
+    }
+  };
+
+  const refresh = async () => {
+    try {
+      const requests = await fetchOpenLobbyRequests();
+      render(requests);
+    } catch (err) {
+      console.warn(err);
+      count.textContent = 'Unavailable';
+      list.replaceChildren();
+      const empty = document.createElement('p');
+      empty.className = 'landing-lobby-requests-empty';
+      empty.textContent = 'Open requests could not load.';
+      list.append(empty);
+    }
+  };
+
+  void refresh();
+  const refreshTimer = window.setInterval(() => {
+    if (!document.body.contains(shell)) {
+      window.clearInterval(refreshTimer);
+      return;
+    }
+    void refresh();
+  }, 3_000);
+
+  return shell;
+}
+
+function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'landing-lobby-request-row';
+
+  const details = document.createElement('div');
+  details.className = 'landing-lobby-request-details';
+
+  const primary = document.createElement('span');
+  primary.textContent = `${formatTimeControl(request.timeControl)} ${request.hiddenDraft960 ? 'Draft960' : 'Standard'}`;
+  const secondary = document.createElement('small');
+  secondary.textContent = `${formatWaitAge(request.waitingMs)} waiting`;
+  details.append(primary, secondary);
+
+  const join = document.createElement('button');
+  join.type = 'button';
+  join.textContent = 'Join';
+  join.addEventListener('click', () => {
+    join.disabled = true;
+    join.textContent = 'Joining';
+    const status = document.createElement('span');
+    const setup: LandingRoomSetup = {
+      startFormat: request.hiddenDraft960 ? 'draft960' : 'standard',
+      timeControl: request.timeControl,
+    };
+    joinLobbyFromPlay(join, setup, status);
+  });
+
+  row.append(details, join);
+  return row;
+}
+
+async function fetchOpenLobbyRequests(): Promise<OpenLobbyRequest[]> {
+  const response = await fetch('/api/lobby');
+  if (!response.ok) throw new Error(`lobby requests failed: ${response.status}`);
+  const data = await response.json() as { requests?: OpenLobbyRequest[] };
+  return Array.isArray(data.requests) ? data.requests : [];
+}
+
+function formatTimeControl(timeControl: OpenLobbyRequest['timeControl']): string {
+  const minutes = timeControl.initialMs / 60_000;
+  const increment = timeControl.incrementMs / 1000;
+  const minuteLabel = Number.isInteger(minutes) ? String(minutes) : minutes.toFixed(1);
+  return `${minuteLabel} + ${increment}`;
+}
+
+function formatWaitAge(waitingMs: number): string {
+  const seconds = Math.max(0, Math.floor(waitingMs / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m`;
 }
 
 function openLandingSetupDialog(choice: LandingPlayChoice): void {

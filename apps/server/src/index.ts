@@ -467,6 +467,11 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
   }
 
   if (url === '/api/lobby') {
+    if (method === 'GET') {
+      pruneLobbyTickets();
+      writeJson(response, 200, { requests: lobbyOpenRequests() });
+      return;
+    }
     if (method !== 'POST') {
       response.writeHead(405, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'method_not_allowed' }));
@@ -885,6 +890,21 @@ function lobbyTicketResponse(ticket: LobbyTicket): Record<string, unknown> {
       url: `/room/${encodeURIComponent(ticket.roomId)}`,
     } : {}),
   };
+}
+
+function lobbyOpenRequests(): Array<Record<string, unknown>> {
+  const now = Date.now();
+  return lobbyQueue
+    .filter((ticket) => ticket.roomId === null)
+    .slice(0, 20)
+    .map((ticket) => ({
+      hiddenDraft960: ticket.hiddenDraft960,
+      timeControl: ticket.timeControl ?? {
+        initialMs: liveClockInitialMs,
+        incrementMs: liveClockIncrementMs,
+      },
+      waitingMs: Math.max(0, now - ticket.createdAt),
+    }));
 }
 
 function timeControlKey(timeControl: RoomTimeControl | undefined): string {
