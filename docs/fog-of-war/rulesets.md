@@ -30,6 +30,11 @@ Status: implemented.
 - Repetition identity is based on true board placement, side to move, castling rights, and en-passant square. Clocks, move number, halfmove clock, and visibility state are not part of repetition identity.
 - Draws are currently persisted as generic `draw` termination; we do not yet distinguish `fifty-move-rule` from `threefold-repetition` in the database.
 
+Known subtle rule-risk areas are tracked in
+[`rules-edge-cases.md`](./rules-edge-cases.md). Treat that document as part of
+the rules contract when changing move generation, visibility, replay, payloads,
+or engine harnesses.
+
 ## Open Ruleset Questions
 
 - Are check announcements hidden, transformed, or removed?

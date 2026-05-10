@@ -20,6 +20,7 @@ type FeaturedGame = {
   blackEngineId?: string | null;
   timeControl?: Record<string, unknown> | null;
   participants?: GameParticipant[];
+  playerColor?: 'white' | 'black';
 };
 
 type GameParticipant = {
@@ -30,22 +31,83 @@ type GameParticipant = {
   visibility: 'private' | 'link' | 'unlisted' | 'public';
 };
 
+type PlayableEngine = {
+  id: string;
+  name: string;
+  familyName: string;
+  kind: string;
+};
+
+type AuthUser = {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  handle: string;
+  handleChangedAt: string | null;
+  displayName: string;
+  displayNameChangedAt: string | null;
+  profileVisibility: 'private' | 'unlisted' | 'public';
+  accountRole: 'player' | 'test' | 'admin';
+};
+
+type UserProfile = {
+  isViewer?: boolean;
+  user: {
+    handle: string;
+    displayName: string;
+    profileVisibility: 'private' | 'unlisted' | 'public';
+  };
+  games: FeaturedGame[];
+};
+
 type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
+type LandingPlayChoice = {
+  engineId?: string;
+  engines?: PlayableEngine[];
+  mode: 'pvp' | 'pve';
+  title: string;
+};
+type LandingStartFormat = 'standard' | 'draft960';
+type LandingTimePresetId = '1m1' | '3m2' | '5m3' | 'custom';
+type LandingTimePreset = {
+  id: LandingTimePresetId;
+  label: string;
+  initialMs: number;
+  incrementMs: number;
+};
+type LandingRoomSetup = {
+  startFormat: LandingStartFormat;
+  timeControl: {
+    initialMs: number;
+    incrementMs: number;
+  };
+};
 
 const GITHUB_URL = 'https://github.com/brianhliou/bichess';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
+const LANDING_TIME_PRESETS: LandingTimePreset[] = [
+  { id: '1m1', label: '1 + 1', initialMs: 60_000, incrementMs: 1_000 },
+  { id: '3m2', label: '3 + 2', initialMs: 3 * 60_000, incrementMs: 2_000 },
+  { id: '5m3', label: '5 + 3', initialMs: 5 * 60_000, incrementMs: 3_000 },
+  { id: 'custom', label: 'Custom', initialMs: 3 * 60_000, incrementMs: 2_000 },
+];
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
   root.append(buildNav(), buildLoadingState('Loading games'), buildFooter());
 
-  const { games, source } = await fetchLandingGames();
-  const stage = buildLandingStage(source);
-  root.replaceChildren(buildNav(), stage.el, buildFooter());
+  const [{ games }, engines] = await Promise.all([
+    fetchLandingGames(),
+    fetchPlayableEngines().catch((err) => {
+      console.warn(err);
+      return fallbackPlayableEngines();
+    }),
+  ]);
+  const stage = buildLandingStage(engines);
+  root.replaceChildren(buildNav(), stage.el);
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
-    renderRecentGames(stage.listRoot, games, source, undefined, '/game/', 'Now showing', false, 4);
     return;
   }
 
@@ -69,16 +131,6 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     loaderForId: landingEventLoader,
     metadataByRoomId,
   });
-  renderRecentGames(
-    stage.listRoot,
-    games,
-    source,
-    currentSample,
-    source === 'sample' ? '/?demo=' : '/game/',
-    'Now showing',
-    false,
-    4,
-  );
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -152,6 +204,58 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   });
 }
 
+export async function mountAccount(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'account-route');
+  root.append(buildNav(), buildLoadingState('Loading account'), buildFooter());
+
+  const shell = document.createElement('main');
+  shell.className = 'account-shell';
+  root.replaceChildren(buildNav(), shell, buildFooter());
+
+  const current = await fetchCurrentUser().catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  renderAccountShell(shell, current);
+}
+
+export async function mountAccountSettings(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'account-route');
+
+  const shell = document.createElement('main');
+  shell.className = 'account-shell account-settings-shell';
+  root.replaceChildren(buildNav(), shell, buildFooter());
+
+  const current = await fetchCurrentUser().catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  renderAccountSettingsShell(shell, current);
+}
+
+export async function mountProfile(root: HTMLElement, handle: string): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'profile-route');
+  root.append(buildNav(), buildLoadingState('Loading profile'), buildFooter());
+
+  const shell = document.createElement('main');
+  shell.className = 'profile-shell';
+  root.replaceChildren(buildNav(), shell, buildFooter());
+
+  const profile = await fetchUserProfile(handle).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  if (!profile) {
+    shell.append(buildNotice('Profile not found', 'This profile is private or does not exist.'));
+    return;
+  }
+
+  shell.append(buildProfileHeader(profile), buildProfileGames(profile.games));
+}
+
 async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; events?: GameEvent[] } | null> {
   const game = await fetchGameSummary(roomId).catch((err) => {
     console.warn(err);
@@ -217,6 +321,37 @@ async function fetchRecentEveGames(): Promise<FeaturedGame[]> {
   return data.games;
 }
 
+async function fetchPlayableEngines(): Promise<PlayableEngine[]> {
+  const resp = await fetch('/api/engines/playable');
+  if (!resp.ok) throw new Error(`failed to load playable engines: ${resp.status}`);
+  const data = (await resp.json()) as { engines: PlayableEngine[] };
+  return data.engines.length > 0 ? data.engines : fallbackPlayableEngines();
+}
+
+async function fetchCurrentUser(): Promise<AuthUser | null> {
+  const resp = await fetch('/api/auth/me');
+  if (!resp.ok) throw new Error(`failed to load account: ${resp.status}`);
+  const data = (await resp.json()) as { user: AuthUser | null };
+  return data.user;
+}
+
+async function fetchUserProfile(handle: string): Promise<UserProfile | null> {
+  const resp = await fetch(`/api/users/${encodeURIComponent(handle)}/profile`);
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`failed to load profile: ${resp.status}`);
+  const data = (await resp.json()) as { profile: UserProfile };
+  return data.profile;
+}
+
+function fallbackPlayableEngines(): PlayableEngine[] {
+  return [{
+    id: 'builtin-random-legal',
+    name: 'Random Legal v1',
+    familyName: 'Random Legal',
+    kind: 'builtin',
+  }];
+}
+
 async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
   const resp = await fetch(`/api/games/${encodeURIComponent(roomId)}/events`);
   if (!resp.ok) throw new Error(`failed to load events for ${roomId}: ${resp.status}`);
@@ -277,7 +412,7 @@ function participantFromSeat(
       displayName: fallbackName ?? subjectId,
       subjectType: 'engine-version',
       subjectId,
-      visibility: 'link',
+      visibility: 'public',
     };
   }
   return {
@@ -285,7 +420,7 @@ function participantFromSeat(
     displayName: fallbackName ?? 'Guest',
     subjectType: 'guest',
     subjectId: null,
-    visibility: 'link',
+    visibility: 'public',
   };
 }
 
@@ -343,8 +478,9 @@ function staticSampleGames(): FeaturedGame[] {
 
 function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
-    whiteName: participantForColor(game, 'white')?.displayName ?? game.whiteEngineId ?? game.whiteName,
-    blackName: participantForColor(game, 'black')?.displayName ?? game.blackEngineId ?? game.blackName,
+    whiteName: displayParticipantName(game, 'white'),
+    blackName: displayParticipantName(game, 'black'),
+    modeLabel: sourceLabel(game.mode),
     result: game.result,
     timeControl: game.timeControl,
     termination: game.termination,
@@ -385,9 +521,385 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
   return header;
 }
 
+function renderAccountShell(shell: HTMLElement, user: AuthUser | null): void {
+  shell.replaceChildren(user ? buildSignedInAccount(user, shell) : buildLoginForm(shell));
+}
+
+function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'account-panel';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = 'Signed in';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading';
+  title.textContent = user.displayName;
+
+  const meta = document.createElement('p');
+  meta.className = 'account-copy';
+  meta.textContent = `@${user.handle}`;
+
+  const actions = document.createElement('div');
+  actions.className = 'account-actions';
+
+  const profile = document.createElement('a');
+  profile.className = 'landing-setup-start';
+  profile.href = `/@/${encodeURIComponent(user.handle)}`;
+  profile.textContent = 'View profile';
+
+  const settings = document.createElement('a');
+  settings.className = 'landing-setup-back';
+  settings.href = '/account/settings';
+  settings.textContent = 'Settings';
+
+  const logout = document.createElement('button');
+  logout.type = 'button';
+  logout.className = 'landing-setup-back';
+  logout.textContent = 'Log out';
+  logout.addEventListener('click', async () => {
+    logout.disabled = true;
+    await fetch('/api/auth/logout', { method: 'POST' });
+    const next = await fetchCurrentUser().catch(() => null);
+    renderAccountShell(shell, next);
+  });
+
+  actions.append(profile, settings, logout);
+  panel.append(eyebrow, title, meta, actions);
+  return panel;
+}
+
+function renderAccountSettingsShell(shell: HTMLElement, user: AuthUser | null): void {
+  shell.replaceChildren(user ? buildAccountSettings(user, shell) : buildLoginForm(shell, renderAccountSettingsShell));
+}
+
+function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'account-panel account-settings-panel';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = 'Settings';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading';
+  title.textContent = 'Public profile';
+
+  const copy = document.createElement('p');
+  copy.className = 'account-copy';
+  copy.textContent = 'Email signs you in. Your handle and display name are public.';
+
+  const form = document.createElement('form');
+  form.className = 'account-settings-form';
+
+  const displayName = labeledInput('Display name', 'displayName', user.displayName, 'Brian Hliou');
+  displayName.input.maxLength = 40;
+  displayName.input.required = true;
+  displayName.help.textContent = 'Shown on your public profile and game history.';
+
+  const handle = labeledInput('Handle', 'handle', user.handle, 'brianhliou');
+  handle.input.maxLength = 24;
+  handle.input.pattern = '[a-zA-Z0-9][a-zA-Z0-9_-]{1,22}[a-zA-Z0-9]';
+  handle.input.required = true;
+  handle.help.textContent = handleHelpText(user);
+
+  const email = labeledInput('Email', 'email', user.email, '');
+  email.input.disabled = true;
+  email.help.textContent = 'Private login address. Not shown on your public profile.';
+
+  const status = document.createElement('p');
+  status.className = 'account-status';
+  status.setAttribute('aria-live', 'polite');
+
+  const actions = document.createElement('div');
+  actions.className = 'account-actions';
+
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.className = 'landing-setup-start';
+  save.textContent = 'Save';
+
+  const account = document.createElement('a');
+  account.className = 'landing-setup-back';
+  account.href = '/account';
+  account.textContent = 'Account';
+
+  const profile = document.createElement('a');
+  profile.className = 'landing-setup-back';
+  profile.href = `/@/${encodeURIComponent(user.handle)}`;
+  profile.textContent = 'View profile';
+
+  actions.append(save, profile, account);
+  form.append(displayName.wrap, handle.wrap, email.wrap, actions, status);
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    save.disabled = true;
+    try {
+      const resp = await fetch('/api/account/profile', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          displayName: displayName.input.value,
+          handle: handle.input.value,
+        }),
+      });
+      const data = await resp.json() as { user?: AuthUser; error?: string; availableAt?: string };
+      if (!resp.ok || !data.user) {
+        throw new Error(accountSettingsErrorMessage(data.error, data.availableAt));
+      }
+      displayName.input.value = data.user.displayName;
+      handle.input.value = data.user.handle;
+      handle.help.textContent = handleHelpText(data.user);
+      email.input.value = data.user.email;
+      profile.href = `/@/${encodeURIComponent(data.user.handle)}`;
+      status.textContent = 'Profile saved.';
+    } catch (err) {
+      status.textContent = err instanceof Error ? err.message : 'Could not save profile.';
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  panel.append(eyebrow, title, copy, form);
+  return panel;
+}
+
+function labeledInput(
+  labelText: string,
+  name: string,
+  value: string,
+  placeholder: string,
+): { help: HTMLSpanElement; input: HTMLInputElement; wrap: HTMLLabelElement } {
+  const wrap = document.createElement('label');
+  wrap.className = 'account-field';
+  const label = document.createElement('span');
+  label.textContent = labelText;
+  const input = document.createElement('input');
+  input.name = name;
+  input.value = value;
+  input.placeholder = placeholder;
+  const help = document.createElement('span');
+  help.className = 'account-field-help';
+  wrap.append(label, input, help);
+  return { help, input, wrap };
+}
+
+function accountSettingsErrorMessage(error: string | undefined, availableAt: string | undefined): string {
+  if (error === 'invalid_handle') return 'Use 3-24 letters, numbers, underscores, or dashes.';
+  if (error === 'invalid_display_name') return 'Display name must be 1-40 characters.';
+  if (error === 'handle_taken') return 'That handle is not available.';
+  if (error === 'handle_change_cooldown') {
+    const date = availableAt ? new Date(availableAt) : null;
+    return date && Number.isFinite(date.getTime())
+      ? `Handle can be changed again on ${date.toLocaleDateString()}.`
+      : 'Handle cannot be changed again yet.';
+  }
+  if (error === 'not_signed_in') return 'Sign in before editing your profile.';
+  return 'Could not save profile.';
+}
+
+function handleHelpText(user: AuthUser): string {
+  if (!user.handleChangedAt) {
+    return 'Used in your profile URL. Your first handle change is available now.';
+  }
+  const nextChangeAt = new Date(new Date(user.handleChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+  if (!Number.isFinite(nextChangeAt.getTime())) {
+    return 'Used in your profile URL. Later handle changes are limited.';
+  }
+  return `Used in your profile URL. Next handle change: ${nextChangeAt.toLocaleDateString()}.`;
+}
+
+function buildLoginForm(
+  shell: HTMLElement,
+  onAuth: (shell: HTMLElement, user: AuthUser) => void = renderAccountShell,
+): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'account-panel';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = 'Account';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading';
+  title.textContent = 'Sign in';
+
+  const copy = document.createElement('p');
+  copy.className = 'account-copy';
+  copy.textContent = 'One email code. No password.';
+
+  const form = document.createElement('form');
+  form.className = 'account-form';
+
+  const email = document.createElement('input');
+  email.type = 'email';
+  email.name = 'email';
+  email.autocomplete = 'email';
+  email.placeholder = 'Email address';
+  email.required = true;
+
+  const code = document.createElement('input');
+  code.type = 'text';
+  code.name = 'code';
+  code.inputMode = 'numeric';
+  code.autocomplete = 'one-time-code';
+  code.placeholder = 'Login code';
+  code.hidden = true;
+
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'landing-setup-start';
+  submit.textContent = 'Send code';
+
+  const status = document.createElement('p');
+  status.className = 'account-status';
+  status.setAttribute('aria-live', 'polite');
+
+  let loginId: string | null = null;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submit.disabled = true;
+    try {
+      if (!loginId) {
+        const resp = await fetch('/api/auth/email/start', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: email.value }),
+        });
+        const data = await resp.json() as { loginId?: string; devCode?: string; error?: string };
+        if (!resp.ok || !data.loginId) throw new Error(data.error ?? `start failed: ${resp.status}`);
+        loginId = data.loginId;
+        code.hidden = false;
+        code.required = true;
+        if (data.devCode) code.value = data.devCode;
+        submit.textContent = 'Confirm';
+        status.textContent = data.devCode ? 'Development code filled in.' : 'Check your email for the login code.';
+        code.focus();
+      } else {
+        const resp = await fetch('/api/auth/email/confirm', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ loginId, code: code.value }),
+        });
+        const data = await resp.json() as { user?: AuthUser; error?: string };
+        if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
+        onAuth(shell, data.user);
+      }
+    } catch (err) {
+      status.textContent = err instanceof Error ? authErrorMessage(err.message) : 'Sign in failed.';
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  form.append(email, code, submit, status);
+  panel.append(eyebrow, title, copy, form);
+  return panel;
+}
+
+function authErrorMessage(value: string): string {
+  if (value === 'email_delivery_not_configured') return 'Email login is not configured in this runtime.';
+  if (value === 'email_delivery_failed') return 'Email delivery failed. Try again in a moment.';
+  if (value === 'persistence_disabled') return 'Accounts require the persistent server.';
+  if (value === 'invalid_login_code') return 'The login code was invalid or expired.';
+  if (value === 'invalid_email') return 'Enter a valid email address.';
+  return 'Sign in failed.';
+}
+
+function buildProfileHeader(profile: UserProfile): HTMLElement {
+  const header = document.createElement('section');
+  header.className = 'profile-header';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'account-eyebrow';
+  eyebrow.textContent = profile.isViewer ? 'Your profile' : 'Player profile';
+
+  const title = document.createElement('h1');
+  title.className = 'site-section-heading';
+  title.textContent = profile.user.displayName;
+
+  const meta = document.createElement('p');
+  meta.className = 'account-copy';
+  meta.textContent = `@${profile.user.handle} · ${profile.games.length} ${profile.games.length === 1 ? 'game' : 'games'}`;
+
+  header.append(eyebrow, title, meta);
+  return header;
+}
+
+function buildProfileGames(games: FeaturedGame[]): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'profile-games';
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Games';
+  section.append(heading);
+
+  if (games.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'landing-games-empty';
+    empty.textContent = 'No account games yet.';
+    section.append(empty);
+    return section;
+  }
+
+  const list = document.createElement('ol');
+  list.className = 'profile-game-list';
+  for (const game of games) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = `/game/${encodeURIComponent(game.roomId)}`;
+    link.className = 'profile-game-row';
+
+    const main = document.createElement('span');
+    main.className = 'profile-game-main';
+
+    const outcome = document.createElement('strong');
+    outcome.textContent = profileResultLabel(game);
+
+    const opponent = document.createElement('span');
+    opponent.textContent = `vs ${profileOpponentName(game)}`;
+    main.append(outcome, opponent);
+
+    const meta = document.createElement('span');
+    meta.className = 'profile-game-meta';
+    meta.textContent = `${profileSideLabel(game)} · ${sourceLabel(game.mode)} · ${game.plyCount} plies · ${formatGameDate(game.endedAt)}`;
+
+    link.append(main, meta);
+    item.append(link);
+    list.append(item);
+  }
+  section.append(list);
+  return section;
+}
+
+function profileOpponentName(game: FeaturedGame): string {
+  const color = game.playerColor ?? 'white';
+  return displayParticipantName(game, color === 'white' ? 'black' : 'white');
+}
+
+function profileSideLabel(game: FeaturedGame): string {
+  if (game.playerColor === 'black') return 'Black';
+  return 'White';
+}
+
+function profileResultLabel(game: FeaturedGame): string {
+  if (game.result === 'draw') return 'Draw';
+  if (game.playerColor === 'black') return game.result === 'black-wins' ? 'Win' : 'Loss';
+  return game.result === 'white-wins' ? 'Win' : 'Loss';
+}
+
+function formatGameDate(value: string | undefined): string {
+  if (!value) return 'Finished game';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'Finished game';
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
 function displayParticipantName(game: FeaturedGame, color: 'white' | 'black'): string {
   const participant = participantForColor(game, color);
-  if (participant) return displayParticipant(participant.displayName, color === 'white' ? 'White' : 'Black');
+  if (participant) return displayParticipant(participant.displayName, color === 'white' ? 'White' : 'Black', participant.subjectId);
   const fallback = color === 'white' ? 'White' : 'Black';
   const legacyName = color === 'white'
     ? game.whiteEngineId ?? game.whiteName
@@ -399,9 +911,11 @@ function participantForColor(game: FeaturedGame, color: 'white' | 'black'): Game
   return game.participants?.find((participant) => participant.color === color) ?? null;
 }
 
-function displayParticipant(name: string | null | undefined, fallback: string): string {
+function displayParticipant(name: string | null | undefined, fallback: string, subjectId?: string | null): string {
+  const detailed = engineDisplayName(subjectId ?? name);
+  if (detailed) return detailed;
   if (!name) return fallback;
-  return shortEngineName(name);
+  return name;
 }
 
 function sourceLabel(mode: FeaturedGame['mode']): string {
@@ -456,12 +970,6 @@ export function mountLearn(root: HTMLElement): void {
   mountLearnBoard(learn.boardEl);
 }
 
-export function mountPlay(root: HTMLElement): void {
-  root.replaceChildren();
-  root.classList.add('landing-page', 'play-route');
-  root.append(buildNav(), buildPlay(), buildFooter());
-}
-
 function buildNav(): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'site-nav';
@@ -486,8 +994,8 @@ function buildNav(): HTMLElement {
 
   const aboutLink = navLink('About', '/about');
   const watchLink = navLink('Watch', '/watch');
-  const playLink = navLink('Play', '/play');
   const learnLink = navLink('Learn', '/learn');
+  const accountLink = navLink('Account', '/account');
 
   const ghLink = document.createElement('a');
   ghLink.href = GITHUB_URL;
@@ -500,7 +1008,7 @@ function buildNav(): HTMLElement {
     const labLink = navLink('Engine Lab', '/engine-lab');
     links.append(labLink);
   }
-  links.append(watchLink, playLink, learnLink, aboutLink, ghLink);
+  links.append(watchLink, learnLink, aboutLink, accountLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
@@ -510,7 +1018,8 @@ function navLink(label: string, href: string): HTMLAnchorElement {
   link.href = href;
   link.textContent = label;
   link.className = 'site-nav-link';
-  if (currentPath() === href) {
+  const path = currentPath();
+  if (path === href || (href === '/account' && path.startsWith('/account/'))) {
     link.classList.add('active');
     link.setAttribute('aria-current', 'page');
   }
@@ -537,70 +1046,335 @@ function buildLoadingState(label: string): HTMLElement {
   return section;
 }
 
-function buildLandingStage(source: LandingGameSource): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
+function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
-  const hero = document.createElement('section');
-  hero.className = 'landing-hero';
-
-  const title = document.createElement('h1');
-  title.className = 'landing-title';
-  title.textContent = 'Bichess';
-
-  const subtitle = document.createElement('p');
-  subtitle.className = 'landing-subtitle';
-  subtitle.textContent =
-    'Server-enforced Fog of War chess. You only see what your pieces can see.';
-
-  const tag = document.createElement('p');
-  tag.className = 'landing-tag';
-  tag.textContent = source === 'recent'
-    ? "Now showing recent public Fog games with each side's private view."
-    : source === 'eve'
-      ? "Now showing recent engine games with each side's private view."
-    : 'Watch what each side saw, then reveal what was really there.';
-
-  const ctas = document.createElement('div');
-  ctas.className = 'landing-ctas';
-
-  const playBtn = document.createElement('a');
-  playBtn.href = '/play';
-  playBtn.className = 'landing-cta-primary';
-  playBtn.textContent = 'Play Fog';
-
-  ctas.append(playBtn);
-  const watchLink = document.createElement('a');
-  watchLink.href = '/watch';
-  watchLink.className = 'landing-cta-secondary';
-  watchLink.textContent = 'Watch Replays';
-  ctas.append(watchLink);
-  const learnLink = document.createElement('a');
-  learnLink.href = '/learn';
-  learnLink.className = 'landing-cta-secondary';
-  learnLink.textContent = 'How It Works';
-  ctas.append(learnLink);
-  if (SHOW_ENGINE_LAB_LINKS) {
-    const labLink = document.createElement('a');
-    labLink.href = '/engine-lab';
-    labLink.className = 'landing-cta-secondary';
-    labLink.textContent = 'Open Engine Lab';
-    ctas.append(labLink);
-  }
-  hero.append(title, subtitle, tag, ctas);
+  const playPanel = buildLandingPlayPanel(engines);
 
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  const listRoot = document.createElement('aside');
-  listRoot.className = 'landing-games';
-
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
-  section.append(replayRoot, listRoot);
+  section.append(playPanel, replayRoot);
 
-  stage.append(hero, section);
-  return { el: stage, replayRoot, listRoot };
+  stage.append(section);
+  return { el: stage, replayRoot };
+}
+
+function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
+  const panel = document.createElement('aside');
+  panel.className = 'landing-play-panel';
+  panel.setAttribute('aria-label', 'Start playing');
+
+  const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
+  const defaultEngineId = availableEngines[0]?.id;
+  const lobbyButton = landingPlayAction('Create lobby game', 'lobby');
+  const challengeButton = landingPlayAction('Challenge a friend', 'friend');
+  const engineButton = landingPlayAction('Play against computer', 'computer');
+
+  lobbyButton.addEventListener('click', () => {
+    openLandingSetupDialog({
+      mode: 'pvp',
+      title: 'Create lobby game',
+    });
+  });
+  challengeButton.addEventListener('click', () => {
+    openLandingSetupDialog({
+      mode: 'pvp',
+      title: 'Challenge a friend',
+    });
+  });
+  engineButton.addEventListener('click', () => {
+    openLandingSetupDialog({
+      engineId: defaultEngineId,
+      engines: availableEngines,
+      mode: 'pve',
+      title: 'Play against computer',
+    });
+  });
+
+  panel.append(lobbyButton, challengeButton, engineButton);
+  return panel;
+}
+
+function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby'): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `landing-play-action landing-play-action-${icon}`;
+  const iconEl = document.createElement('span');
+  iconEl.className = 'landing-play-icon';
+  iconEl.setAttribute('aria-hidden', 'true');
+  const labelEl = document.createElement('span');
+  labelEl.className = 'landing-play-action-label';
+  labelEl.textContent = label;
+  button.append(iconEl, labelEl);
+  return button;
+}
+
+function openLandingSetupDialog(choice: LandingPlayChoice): void {
+  const existing = document.querySelector('.landing-setup-overlay');
+  existing?.remove();
+
+  let startFormat: LandingStartFormat = 'standard';
+  let selectedPreset: LandingTimePresetId = '3m2';
+  let selectedEngineId = choice.engineId;
+  const defaultPreset = LANDING_TIME_PRESETS.find((preset) => preset.id === selectedPreset)!;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'landing-setup-overlay';
+  overlay.setAttribute('role', 'presentation');
+
+  const dialog = document.createElement('section');
+  dialog.className = 'landing-setup-dialog';
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  dialog.setAttribute('aria-labelledby', 'landing-setup-title');
+
+  const heading = document.createElement('strong');
+  heading.className = 'landing-setup-title';
+  heading.id = 'landing-setup-title';
+  heading.textContent = choice.title;
+
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'landing-setup-close';
+  closeButton.setAttribute('aria-label', 'Close setup');
+  closeButton.textContent = 'x';
+
+  const header = document.createElement('div');
+  header.className = 'landing-setup-header';
+  header.append(heading, closeButton);
+
+  const variantSection = document.createElement('div');
+  variantSection.className = 'landing-setup-section';
+  variantSection.append(setupSectionLabel('Variant'));
+
+  const variantControl = document.createElement('div');
+  variantControl.className = 'landing-variant-control';
+  variantControl.textContent = 'Fog of War';
+  variantSection.append(variantControl);
+
+  const engineSection = choice.mode === 'pve' ? buildEngineSetupSection(choice.engines ?? fallbackPlayableEngines(), selectedEngineId, (engineId) => {
+    selectedEngineId = engineId;
+  }) : null;
+
+  const startSection = document.createElement('div');
+  startSection.className = 'landing-setup-section';
+  startSection.append(setupSectionLabel('Fog start'));
+
+  const startGroup = document.createElement('div');
+  startGroup.className = 'landing-start-options';
+  startGroup.setAttribute('role', 'radiogroup');
+  startGroup.setAttribute('aria-label', 'Fog start format');
+
+  const standardButton = startOptionButton('Standard', true);
+  const draftButton = startOptionButton('Draft960', false);
+  const syncOptions = () => {
+    standardButton.classList.toggle('selected', startFormat === 'standard');
+    standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
+    draftButton.classList.toggle('selected', startFormat === 'draft960');
+    draftButton.setAttribute('aria-checked', startFormat === 'draft960' ? 'true' : 'false');
+  };
+  standardButton.addEventListener('click', () => {
+    startFormat = 'standard';
+    syncOptions();
+  });
+  draftButton.addEventListener('click', () => {
+    startFormat = 'draft960';
+    syncOptions();
+  });
+  startGroup.append(standardButton, draftButton);
+  startSection.append(startGroup);
+
+  const timeSection = document.createElement('div');
+  timeSection.className = 'landing-setup-section';
+  timeSection.append(setupSectionLabel('Time control'));
+
+  const presetGroup = document.createElement('div');
+  presetGroup.className = 'landing-time-presets';
+  presetGroup.setAttribute('role', 'radiogroup');
+  presetGroup.setAttribute('aria-label', 'Time control');
+
+  const customFields = document.createElement('div');
+  customFields.className = 'landing-custom-time';
+
+  const minutesInput = customTimeInput('Minutes', defaultPreset.initialMs / 60_000);
+  const incrementInput = customTimeInput('Increment', defaultPreset.incrementMs / 1000);
+  customFields.append(minutesInput.label, minutesInput.input, incrementInput.label, incrementInput.input);
+
+  const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
+    const button = startOptionButton(preset.label, preset.id === selectedPreset);
+    button.addEventListener('click', () => {
+      selectedPreset = preset.id;
+      if (preset.id !== 'custom') {
+        minutesInput.input.value = String(preset.initialMs / 60_000);
+        incrementInput.input.value = String(preset.incrementMs / 1000);
+      }
+      syncTimeControls();
+    });
+    presetGroup.append(button);
+    return { button, preset };
+  });
+
+  const syncTimeControls = () => {
+    for (const { button, preset } of presetButtons) {
+      const selected = selectedPreset === preset.id;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-checked', selected ? 'true' : 'false');
+    }
+    customFields.hidden = selectedPreset !== 'custom';
+  };
+  minutesInput.input.addEventListener('input', () => {
+    selectedPreset = 'custom';
+    syncTimeControls();
+  });
+  incrementInput.input.addEventListener('input', () => {
+    selectedPreset = 'custom';
+    syncTimeControls();
+  });
+  syncTimeControls();
+  timeSection.append(presetGroup, customFields);
+
+  const actions = document.createElement('div');
+  actions.className = 'landing-setup-actions';
+
+  const startButton = document.createElement('button');
+  startButton.type = 'button';
+  startButton.className = 'landing-setup-start';
+  startButton.textContent = 'Start';
+  startButton.addEventListener('click', () => {
+    const setup = selectedRoomSetup(startFormat, selectedPreset, minutesInput.input, incrementInput.input);
+    void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup);
+  });
+
+  const backButton = document.createElement('button');
+  backButton.type = 'button';
+  backButton.className = 'landing-setup-back';
+  backButton.textContent = 'Cancel';
+
+  const close = () => {
+    document.removeEventListener('keydown', onKeyDown);
+    overlay.remove();
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') close();
+  };
+  closeButton.addEventListener('click', close);
+  backButton.addEventListener('click', close);
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) close();
+  });
+  document.addEventListener('keydown', onKeyDown);
+
+  actions.append(startButton, backButton);
+  dialog.append(header, variantSection);
+  if (engineSection) dialog.append(engineSection);
+  dialog.append(startSection, timeSection, actions);
+  overlay.append(dialog);
+  document.body.append(overlay);
+  standardButton.focus();
+}
+
+function buildEngineSetupSection(
+  engines: PlayableEngine[],
+  selectedEngineId: string | undefined,
+  onSelect: (engineId: string) => void,
+): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'landing-setup-section';
+  section.append(setupSectionLabel('Engine'));
+
+  const select = document.createElement('select');
+  select.className = 'landing-engine-select';
+  select.setAttribute('aria-label', 'Engine');
+
+  const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
+  for (const engine of availableEngines) {
+    const option = document.createElement('option');
+    option.value = engine.id;
+    option.textContent = engine.name;
+    select.append(option);
+  }
+
+  const fallbackEngineId = availableEngines[0]?.id;
+  select.value = selectedEngineId && availableEngines.some((engine) => engine.id === selectedEngineId)
+    ? selectedEngineId
+    : fallbackEngineId ?? '';
+  if (select.value) onSelect(select.value);
+  select.addEventListener('change', () => onSelect(select.value));
+
+  section.append(select);
+  return section;
+}
+
+function setupSectionLabel(text: string): HTMLSpanElement {
+  const label = document.createElement('span');
+  label.className = 'landing-setup-label';
+  label.textContent = text;
+  return label;
+}
+
+function customTimeInput(labelText: string, value: number): { label: HTMLLabelElement; input: HTMLInputElement } {
+  const id = `landing-time-${labelText.toLowerCase()}`;
+  const label = document.createElement('label');
+  label.className = 'landing-custom-time-label';
+  label.htmlFor = id;
+  label.textContent = labelText;
+
+  const input = document.createElement('input');
+  input.id = id;
+  input.type = 'number';
+  input.min = labelText === 'Minutes' ? '0.17' : '0';
+  input.max = labelText === 'Minutes' ? '180' : '60';
+  input.step = labelText === 'Minutes' ? '0.5' : '1';
+  input.value = String(value);
+
+  return { label, input };
+}
+
+function selectedRoomSetup(
+  startFormat: LandingStartFormat,
+  presetId: LandingTimePresetId,
+  minutesInput: HTMLInputElement,
+  incrementInput: HTMLInputElement,
+): LandingRoomSetup {
+  const preset = LANDING_TIME_PRESETS.find((candidate) => candidate.id === presetId);
+  if (preset && preset.id !== 'custom') {
+    return {
+      startFormat,
+      timeControl: {
+        initialMs: preset.initialMs,
+        incrementMs: preset.incrementMs,
+      },
+    };
+  }
+
+  const minutes = boundedNumber(minutesInput.valueAsNumber, 10 / 60, 180);
+  const incrementSeconds = boundedNumber(incrementInput.valueAsNumber, 0, 60);
+  return {
+    startFormat,
+    timeControl: {
+      initialMs: Math.round(minutes * 60_000),
+      incrementMs: Math.round(incrementSeconds * 1000),
+    },
+  };
+}
+
+function boundedNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function startOptionButton(label: string, selected: boolean): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `landing-start-option${selected ? ' selected' : ''}`;
+  button.setAttribute('role', 'radio');
+  button.setAttribute('aria-checked', selected ? 'true' : 'false');
+  button.textContent = label;
+  return button;
 }
 
 function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
@@ -674,7 +1448,12 @@ function renderRecentGames(
 
     const meta = document.createElement('span');
     meta.className = 'landing-game-meta';
-    meta.textContent = `${sourceLabel(game.mode)} · ${resultLabel(game.result)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+    const result = document.createElement('span');
+    result.className = 'landing-game-result';
+    result.textContent = resultLabel(game.result);
+    const detail = document.createElement('span');
+    detail.textContent = `${sourceLabel(game.mode)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+    meta.append(result, detail);
 
     row.append(matchup, meta);
     item.append(row);
@@ -684,11 +1463,16 @@ function renderRecentGames(
   root.append(list);
 }
 
-function shortEngineName(name: string | null | undefined): string {
-  if (!name) return 'engine';
-  return name
-    .replace(/^builtin-/, '')
-    .replace(/-/g, ' ');
+function engineDisplayName(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const known: Record<string, string> = {
+    'builtin-capture-seeker': 'Capture Seeker v1',
+    'builtin-random-legal': 'Random Legal v1',
+    'python-random-legal': 'Random Legal Python v1',
+    'python-tier1-v0.7.0': 'Tier-1 v0.7.0',
+    'python-tier1-v0.7.22': 'Tier-1 v0.7.22',
+  };
+  return known[name] ?? null;
 }
 
 function resultLabel(result: string): string {
@@ -726,124 +1510,31 @@ function buildAbout(): HTMLElement {
   return section;
 }
 
-function buildPlay(): HTMLElement {
-  const shell = document.createElement('main');
-  shell.className = 'play-shell';
-
-  const header = document.createElement('section');
-  header.className = 'play-header';
-  const heading = document.createElement('h1');
-  heading.className = 'play-heading';
-  heading.textContent = 'Play';
-  const copy = document.createElement('p');
-  copy.className = 'play-copy';
-  copy.textContent =
-    'Choose the Fog of War surface. Watch engine games, play the baseline engine, or create a friend challenge.';
-  header.append(heading, copy);
-
-  const modes = document.createElement('section');
-  modes.className = 'play-modes';
-  modes.append(
-    buildPlayMode({
-      label: 'EvE',
-      title: 'Watch engine games',
-      body: 'Recent engine games with perspective replay, fog views, and postgame reveal.',
-      href: '/watch',
-      cta: 'Watch',
-      status: 'Ready',
-    }),
-    buildPlayMode({
-      label: 'PvE',
-      title: 'Play vs engine',
-      body: 'A single-player room against the built-in baseline Fog engine.',
-      mode: 'pve',
-      cta: 'Play engine',
-      status: 'Ready',
-    }),
-    buildPlayMode({
-      label: 'PvP',
-      title: 'Challenge a friend',
-      body: 'A share-link room for two humans with server-enforced hidden information.',
-      mode: 'pvp',
-      cta: 'Create challenge',
-      status: 'Ready',
-    }),
-  );
-
-  shell.append(header, modes);
-  return shell;
-}
-
-function buildPlayMode(options: {
-  body: string;
-  cta: string;
-  href?: string;
-  label: string;
-  mode?: 'pvp' | 'pve';
-  status: string;
-  title: string;
-}): HTMLElement {
-  const row = document.createElement('article');
-  row.className = 'play-mode';
-
-  const badge = document.createElement('div');
-  badge.className = 'play-mode-label';
-  badge.textContent = options.label;
-
-  const body = document.createElement('div');
-  body.className = 'play-mode-body';
-  const title = document.createElement('h2');
-  title.className = 'play-mode-title';
-  title.textContent = options.title;
-  const copy = document.createElement('p');
-  copy.className = 'play-mode-copy';
-  copy.textContent = options.body;
-  body.append(title, copy);
-
-  const meta = document.createElement('div');
-  meta.className = 'play-mode-meta';
-  const status = document.createElement('span');
-  status.className = 'play-mode-status';
-  status.textContent = options.status;
-  meta.append(status);
-
-  if (options.href) {
-    const action = document.createElement('a');
-    action.className = 'landing-cta-secondary play-mode-action';
-    action.href = options.href;
-    action.textContent = options.cta;
-    meta.append(action);
-  } else if (options.mode) {
-    const action = document.createElement('button');
-    action.className = 'landing-cta-secondary play-mode-action';
-    action.type = 'button';
-    action.textContent = options.cta;
-    action.addEventListener('click', () => {
-      void createRoomFromPlay(action, options.mode!);
-    });
-    meta.append(action);
-  } else {
-    const action = document.createElement('button');
-    action.className = 'landing-cta-secondary play-mode-action';
-    action.type = 'button';
-    action.disabled = true;
-    action.textContent = options.cta;
-    meta.append(action);
-  }
-
-  row.append(badge, body, meta);
-  return row;
-}
-
-async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve'): Promise<void> {
-  const originalText = button.textContent ?? '';
+async function createRoomFromPlay(
+  button: HTMLButtonElement,
+  mode: 'pvp' | 'pve',
+  engineId?: string,
+  setup: LandingRoomSetup = {
+    startFormat: 'standard',
+    timeControl: { initialMs: 30_000, incrementMs: 2_000 },
+  },
+): Promise<void> {
+  const label = button.querySelector<HTMLElement>('.landing-play-action-label');
+  const originalText = label?.textContent ?? button.textContent ?? '';
   button.disabled = true;
-  button.textContent = 'Creating';
+  button.setAttribute('aria-busy', 'true');
+  setButtonLabel(button, 'Creating');
   try {
     const response = await fetch('/api/rooms', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ mode, variant: 'fog-of-war' }),
+      body: JSON.stringify({
+        mode,
+        variant: 'fog-of-war',
+        hiddenDraft960: setup.startFormat === 'draft960',
+        timeControl: setup.timeControl,
+        ...(mode === 'pve' && engineId ? { engineId } : {}),
+      }),
     });
     if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
     const data = await response.json() as { url?: string };
@@ -851,12 +1542,22 @@ async function createRoomFromPlay(button: HTMLButtonElement, mode: 'pvp' | 'pve'
     window.location.href = data.url;
   } catch (err) {
     console.warn(err);
-    button.textContent = 'Try again';
+    setButtonLabel(button, 'Try again');
     button.disabled = false;
+    button.removeAttribute('aria-busy');
     window.setTimeout(() => {
       if (button.disabled) return;
-      button.textContent = originalText;
+      setButtonLabel(button, originalText);
     }, 1800);
+  }
+}
+
+function setButtonLabel(button: HTMLButtonElement, text: string): void {
+  const label = button.querySelector<HTMLElement>('.landing-play-action-label');
+  if (label) {
+    label.textContent = text;
+  } else {
+    button.textContent = text;
   }
 }
 

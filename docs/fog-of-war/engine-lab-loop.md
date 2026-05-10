@@ -74,6 +74,33 @@ ready.
 - `docs-private/engine-track/captures/`: local-only screenshot captures of
   annotated belief moments for later writeups, talks, and portfolio artifacts.
 
+## Artifact Retention Gate
+
+Engine Lab artifacts are evidence, not scratch output. `apps/web/public/bakeoff-*`
+directories are gitignored because they can be large, but that does not make
+them disposable. Before deleting a worktree, cleaning a bake-off directory, or
+rerunning into an existing `--save-dir`, complete this retention gate:
+
+1. Add the run to `docs-private/engine-track/artifact-source-inventory.md` with
+   its manifest URL, absolute source path, commit, command, seed, config,
+   status, and owner/session.
+2. Keep the raw artifact directory until every important annotation from that
+   run has screenshots and a case-file entry.
+3. For any run that produced a major annotation, preserve at least:
+   `manifest.json`, `games/*.jsonl`, `trace.jsonl`, `belief.jsonl`,
+   `review_queue.*`, `hardfact_report.*`, and captured PNG indexes.
+4. If the raw directory is too large to keep in-place, move or archive it to a
+   private artifact store and update the inventory before removing the working
+   copy.
+5. If a run is deliberately disposable, write that in the inventory before
+   deletion. A run with annotations, screenshots, hard-fact findings, or a
+   build-log reference is not disposable.
+
+Worktree cleanup is blocked until this gate is complete. The expected failure
+mode is losing ignored local bake-off directories when an engine worktree is
+removed. Avoid that by treating the inventory as the handoff record for every
+engine-tuning session.
+
 ## Annotation Queue Signals
 
 Flag plies when any of these fire:
@@ -217,6 +244,33 @@ The script validates that the belief board renders 64 stable, equal-size
 squares before writing a screenshot. Treat failures here as UI artifact
 regressions, because distorted belief boards make later screenshots unusable
 for communication.
+
+Before ending an engine-tuning session, run the artifact audit and update the
+private inventory:
+
+```sh
+npm run engine:artifact-audit -- \
+  --captures docs-private/engine-track/captures \
+  --out docs-private/engine-track/artifact-audit.md
+```
+
+If the audit reports unresolved manifest/game references for a run you just
+created, do not remove or abandon that worktree. Either restore the referenced
+artifact directory into the active public artifact root, or record where it was
+archived.
+
+Archive meaningful raw bake-off directories before cleanup:
+
+```sh
+npm run engine:artifact-archive -- \
+  --source apps/web/public/bakeoff-v0.7.22-rung2-3game-codex \
+  --note "v0.7.22 recovered rung2 review artifact"
+```
+
+The archive command copies the raw directory into
+`docs-private/engine-track/artifact-archives/` and writes
+`ARCHIVE-METADATA.json` with the source path, manifest URL, run config, and
+operator note.
 
 ## Current Local Question
 

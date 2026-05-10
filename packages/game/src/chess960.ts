@@ -94,22 +94,32 @@ export function describeBackRank(start: Chess960Start): string {
 }
 
 export function createChess960InitialBoard(start: Chess960Start): Board {
+  return createChess960InitialBoardForSides(start, start);
+}
+
+export function createChess960InitialBoardForSides(
+  whiteStart: Chess960Start,
+  blackStart: Chess960Start,
+): Board {
   const board: Board = {};
 
-  for (const color of ['white', 'black'] satisfies Color[]) {
-    const backRank = color === 'white' ? 1 : 8;
-    const pawnRank = color === 'white' ? 2 : 7;
-
-    for (const [index, file] of files.entries()) {
-      board[`${file}${backRank}` as Square] = {
-        color,
-        role: start.backRank[index] as PieceRole,
-      };
-      board[`${file}${pawnRank}` as Square] = {
-        color,
-        role: 'pawn',
-      };
-    }
+  for (const [index, file] of files.entries()) {
+    board[`${file}1` as Square] = {
+      color: 'white',
+      role: whiteStart.backRank[index] as PieceRole,
+    };
+    board[`${file}2` as Square] = {
+      color: 'white',
+      role: 'pawn',
+    };
+    board[`${file}8` as Square] = {
+      color: 'black',
+      role: blackStart.backRank[index] as PieceRole,
+    };
+    board[`${file}7` as Square] = {
+      color: 'black',
+      role: 'pawn',
+    };
   }
 
   return board;
@@ -120,5 +130,27 @@ export function createChess960CastlingRights(start: Chess960Start): Square[] {
     if (role !== 'rook') return [];
     const file = files[index];
     return [`${file}1`, `${file}8`] as Square[];
+  });
+}
+
+export function createChess960CastlingRightsForSides(
+  whiteStart: Chess960Start,
+  blackStart: Chess960Start,
+): Square[] {
+  const whiteRights = whiteStart.backRank.flatMap((role, index) => (
+    role === 'rook' ? [`${files[index]}1` as Square] : []
+  ));
+  const blackRights = blackStart.backRank.flatMap((role, index) => (
+    role === 'rook' ? [`${files[index]}8` as Square] : []
+  ));
+  return [...whiteRights, ...blackRights];
+}
+
+export function chess960RookSquares(start: Chess960Start, color: Color): Square[] {
+  const rank = color === 'white' ? 1 : 8;
+  return start.backRank.flatMap((role, index) => {
+    if (role !== 'rook') return [];
+    const file = files[index];
+    return [`${file}${rank}` as Square];
   });
 }

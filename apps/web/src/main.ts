@@ -1,4 +1,7 @@
 import './styles.css';
+import { initializeThemeSettings } from './theme.js';
+
+initializeThemeSettings();
 
 const phKey = import.meta.env.VITE_POSTHOG_KEY;
 const phHost = import.meta.env.VITE_POSTHOG_HOST;
@@ -39,9 +42,11 @@ const wantsEngineLab =
 const gameRoomId = gameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
+const wantsAccount = path === '/account' || page === 'account';
+const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
-const wantsPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
+const profileHandle = profileHandleFromPath(path);
 
 if (replaySample) {
   void mountOrReport(() => import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)));
@@ -63,12 +68,16 @@ if (replaySample) {
   void mountOrReport(() => import('./live.js').then(() => undefined));
 } else if (gameRoomId) {
   void mountOrReport(() => import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)));
+} else if (profileHandle) {
+  void mountOrReport(() => import('./landing.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
+} else if (wantsAccountSettings) {
+  void mountOrReport(() => import('./landing.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)));
+} else if (wantsAccount) {
+  void mountOrReport(() => import('./landing.js').then(({ mountAccount }) => mountAccount(appRoot)));
 } else if (wantsWatch) {
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
 } else if (wantsLearn) {
-  void mountOrReport(() => import('./landing.js').then(({ mountLearn }) => mountLearn(appRoot)));
-} else if (wantsPlay) {
-  void mountOrReport(() => import('./landing.js').then(({ mountPlay }) => mountPlay(appRoot)));
+  void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
   void mountOrReport(() => import('./landing.js').then(({ mountAbout }) => mountAbout(appRoot)));
 } else {
@@ -100,6 +109,12 @@ function gameRoomIdFromPath(value: string): string | null {
 }
 
 function liveRoomIdFromPath(value: string): string | null {
+  if (value === '/room') return 'dev-room';
   const match = value.match(/^\/room\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function profileHandleFromPath(value: string): string | null {
+  const match = value.match(/^\/@\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }

@@ -11,23 +11,28 @@ import {
   createAccountSession,
   createEmailLoginChallenge,
   createUser,
+  deleteEmailLoginChallenge,
   findUserByEmail,
   type GameSummary,
   getGameSummary,
+  getUserProfileByHandle,
   getUserByAccountSession,
   init,
   isInitialized,
   listActiveRoomIds,
   listCompletedGames,
+  listCorpusGames,
   loadRoom,
   loadRoomSeatTokens,
   listRecentEveGames,
   listRecentPublicGames,
   markUserEmailVerified,
+  recordGameStart,
   recordGameEnd,
   replaceRoomSeatTokens,
   revokeAccountSession,
   touchRoomSeatToken,
+  updateUserProfile,
   upsertRoomSeatToken,
 } from './persistence.js';
 
@@ -64,6 +69,7 @@ if (!TEST_DATABASE_URL) {
         `TRUNCATE
            email_login_challenges,
            account_sessions,
+           user_handle_reservations,
            artifact_owners,
            game_participants,
            room_seat_tokens,
@@ -194,6 +200,21 @@ if (!TEST_DATABASE_URL) {
     assert.equal(await consumeEmailLoginChallenge('login-expired', codeHash, now), null);
   });
 
+  test('email login challenges can be deleted after delivery failure', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const codeHash = sha256('12345678');
+    await createEmailLoginChallenge({
+      id: 'login-undelivered',
+      email: 'undelivered@example.com',
+      codeHash,
+      expiresAt: new Date(now.getTime() + 60_000),
+    });
+
+    await deleteEmailLoginChallenge('login-undelivered');
+
+    assert.equal(await consumeEmailLoginChallenge('login-undelivered', codeHash, now), null);
+  });
+
   test('users are findable by email case-insensitively', async () => {
     const now = new Date('2026-05-09T12:00:00.000Z');
     const user = await createUser({
@@ -211,6 +232,67 @@ if (!TEST_DATABASE_URL) {
 
     const verified = await markUserEmailVerified('user_alice', new Date(now.getTime() + 1_000));
     assert.ok(verified.emailVerifiedAt);
+  });
+
+  test('user profile updates handle once immediately then applies cooldown', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    await createUser({
+      id: 'user_profile_settings',
+      email: 'settings@example.com',
+      emailVerifiedAt: now,
+      handle: 'settings-player',
+      displayName: 'Settings Player',
+      now,
+    });
+
+    const first = await updateUserProfile('user_profile_settings', {
+      handle: 'settings-renamed',
+      displayName: 'Renamed Player',
+    }, new Date(now.getTime() + 1_000));
+
+    assert.equal(first.ok, true);
+    assert.equal(first.ok ? first.user.handle : null, 'settings-renamed');
+    assert.equal(first.ok ? first.user.displayName : null, 'Renamed Player');
+    assert.ok(first.ok ? first.user.handleChangedAt : null);
+
+    const blocked = await updateUserProfile('user_profile_settings', {
+      handle: 'settings-again',
+      displayName: 'Renamed Again',
+    }, new Date(now.getTime() + 2_000));
+
+    assert.deepEqual(blocked.ok ? null : blocked.error, 'handle_change_cooldown');
+  });
+
+  test('user profile updates reserve old handles temporarily', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    await createUser({
+      id: 'user_old_handle_owner',
+      email: 'owner@example.com',
+      emailVerifiedAt: now,
+      handle: 'old-owner',
+      displayName: 'Old Owner',
+      now,
+    });
+    await createUser({
+      id: 'user_handle_taker',
+      email: 'taker@example.com',
+      emailVerifiedAt: now,
+      handle: 'handle-taker',
+      displayName: 'Handle Taker',
+      now,
+    });
+
+    const first = await updateUserProfile('user_old_handle_owner', {
+      handle: 'new-owner',
+      displayName: 'Old Owner',
+    }, now);
+    assert.equal(first.ok, true);
+
+    const conflict = await updateUserProfile('user_handle_taker', {
+      handle: 'old-owner',
+      displayName: 'Handle Taker',
+    }, now);
+    assert.deepEqual(conflict.ok ? null : conflict.error, 'handle_taken');
   });
 
   test('account sessions resolve current users and can be revoked', async () => {
@@ -245,6 +327,9 @@ if (!TEST_DATABASE_URL) {
       seat: 'white',
       clientId: 'white-client',
       tokenHash: 'hash-white',
+      userId: null,
+      userHandle: null,
+      userDisplayName: null,
       issuedAt,
       lastSeenAt,
       revokedAt: null,
@@ -255,8 +340,48 @@ if (!TEST_DATABASE_URL) {
         seat: 'white',
         clientId: 'white-client',
         tokenHash: 'hash-white',
+        userId: null,
+        userHandle: null,
+        userDisplayName: null,
         issuedAt,
         lastSeenAt,
+        revokedAt: null,
+      },
+    });
+  });
+
+  test('room seat tokens can carry signed-in attribution without raw account secrets', async () => {
+    const now = new Date('2026-05-08T10:00:00.000Z');
+    await createUser({
+      id: 'user_token',
+      email: 'token@example.com',
+      emailVerifiedAt: now,
+      handle: 'token-player',
+      displayName: 'Token Player',
+      now,
+    });
+    await upsertRoomSeatToken('signed-token-room', {
+      seat: 'white',
+      clientId: 'white-client',
+      tokenHash: 'hash-white',
+      userId: 'user_token',
+      userHandle: null,
+      userDisplayName: null,
+      issuedAt: now,
+      lastSeenAt: now,
+      revokedAt: null,
+    });
+
+    assert.deepEqual(await loadRoomSeatTokens('signed-token-room'), {
+      white: {
+        seat: 'white',
+        clientId: 'white-client',
+        tokenHash: 'hash-white',
+        userId: 'user_token',
+        userHandle: 'token-player',
+        userDisplayName: 'Token Player',
+        issuedAt: now,
+        lastSeenAt: now,
         revokedAt: null,
       },
     });
@@ -268,6 +393,9 @@ if (!TEST_DATABASE_URL) {
       seat: 'white',
       clientId: 'white-client',
       tokenHash: 'hash-white',
+      userId: null,
+      userHandle: null,
+      userDisplayName: null,
       issuedAt,
       lastSeenAt: issuedAt,
       revokedAt: null,
@@ -282,6 +410,9 @@ if (!TEST_DATABASE_URL) {
         seat: 'black',
         clientId: 'white-client',
         tokenHash: 'hash-white',
+        userId: null,
+        userHandle: null,
+        userDisplayName: null,
         issuedAt,
         lastSeenAt: touchedAt,
         revokedAt: null,
@@ -293,6 +424,9 @@ if (!TEST_DATABASE_URL) {
         seat: 'black',
         clientId: 'white-client',
         tokenHash: 'hash-white',
+        userId: null,
+        userHandle: null,
+        userDisplayName: null,
         issuedAt,
         lastSeenAt: touchedAt,
         revokedAt: null,
@@ -363,6 +497,47 @@ if (!TEST_DATABASE_URL) {
 
     const active = await listActiveRoomIds(earlier);
     assert.deepEqual(active, ['running-room']);
+  });
+
+  test('recordGameStart creates a durable running game row', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    await recordGameStart('started-pve', {
+      variant: 'fog-of-war',
+      mode: 'pve',
+      startedAt: now,
+      whiteClient: null,
+      blackClient: 'builtin-random-legal',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query<{
+        mode: string;
+        status: string;
+        result: string | null;
+        termination: string | null;
+        ended_at: Date | null;
+        visibility: string;
+      }>('SELECT mode, status, result, termination, ended_at, visibility FROM games WHERE room_id = $1', [
+        'started-pve',
+      ]);
+      assert.deepEqual(rows, [
+        {
+          mode: 'pve',
+          status: 'running',
+          result: null,
+          termination: null,
+          ended_at: null,
+          visibility: 'public',
+        },
+      ]);
+    } finally {
+      await client.end();
+    }
   });
 
   test('recordGameEnd is idempotent', async () => {
@@ -463,14 +638,14 @@ if (!TEST_DATABASE_URL) {
         displayName: 'Guest',
         subjectType: 'guest',
         subjectId: null,
-        visibility: 'link',
+        visibility: 'public',
       },
       {
         color: 'black',
-        displayName: 'builtin-random-legal',
+        displayName: 'Random Legal v1',
         subjectType: 'engine-version',
         subjectId: 'builtin-random-legal',
-        visibility: 'link',
+        visibility: 'public',
       },
     ]);
   });
@@ -529,9 +704,60 @@ if (!TEST_DATABASE_URL) {
     ]);
   });
 
+  test('getUserProfileByHandle lists completed account-attributed games', async () => {
+    const now = new Date('2026-05-08T10:00:00.000Z');
+    await createUser({
+      id: 'user_profile',
+      email: 'profile@example.com',
+      emailVerifiedAt: now,
+      handle: 'profile-player',
+      displayName: 'Profile Player',
+      profileVisibility: 'public',
+      now,
+    });
+    await recordGameEnd('profile-game', {
+      variant: 'fog-of-war',
+      mode: 'pvp',
+      result: 'white-wins',
+      termination: 'king-captured',
+      plyCount: 9,
+      startedAt: now,
+      endedAt: new Date(now.getTime() + 60_000),
+      whiteClient: 'profile-browser',
+      blackClient: 'guest-browser',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+      participants: [
+        {
+          color: 'white',
+          displayName: 'Profile Player',
+          subjectType: 'user',
+          subjectId: 'user_profile',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: 'Guest',
+          subjectType: 'guest',
+          subjectId: null,
+          visibility: 'public',
+        },
+      ],
+    });
+
+    const profile = await getUserProfileByHandle('profile-player', null);
+    assert.equal(profile?.user.handle, 'profile-player');
+    assert.equal(profile?.games.length, 1);
+    assert.equal(profile?.games[0]?.roomId, 'profile-game');
+    assert.equal(profile?.games[0]?.playerColor, 'white');
+    assert.equal(profile?.games[0]?.participants[0]?.subjectType, 'user');
+  });
+
   test('listRecentEveGames returns completed EvE games newest first', async () => {
     const now = new Date();
     const older = new Date(now.getTime() - 60_000);
+    const shortTimeout = new Date(now.getTime() + 60_000);
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
@@ -549,7 +775,7 @@ if (!TEST_DATABASE_URL) {
       );
       await client.query(
         `INSERT INTO eve_jobs (id, purpose, target_games, status, completed_games, finished_at)
-         VALUES ('job-recent', 'smoke', 2, 'completed', 2, $1)`,
+         VALUES ('job-recent', 'smoke', 3, 'completed', 3, $1)`,
         [now],
       );
       await client.query(
@@ -561,9 +787,11 @@ if (!TEST_DATABASE_URL) {
             'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
            ('eve-newer', 'fog-of-war', 'white-wins', 'king-captured', 15, $2, $2,
             'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
+           ('eve-short-timeout', 'fog-of-war', 'black-wins', 'timeout', 4, $3, $3,
+            'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
            ('pvp-newer', 'fog-of-war', 'black-wins', 'king-captured', 10, $2, $2,
             'white', 'black', 'pvp', 'completed')`,
-        [older, now],
+        [older, now, shortTimeout],
       );
       await client.query(
         `INSERT INTO eve_games
@@ -576,7 +804,10 @@ if (!TEST_DATABASE_URL) {
             '{"kind":"none"}', '{}', 1),
            ('eve-newer', 'job-recent', 1, 'engine-white-v1', 'engine-black-v1',
             'white-hash', 'black-hash', 'white-signature', 'black-signature',
-            '{"kind":"per-move","milliseconds":100}', '{}', 2)`,
+            '{"kind":"per-move","milliseconds":100}', '{}', 2),
+           ('eve-short-timeout', 'job-recent', 2, 'engine-white-v1', 'engine-black-v1',
+            'white-hash', 'black-hash', 'white-signature', 'black-signature',
+            '{"kind":"per-move","milliseconds":100}', '{}', 3)`,
       );
     } finally {
       await client.end();
@@ -590,9 +821,11 @@ if (!TEST_DATABASE_URL) {
     assert.deepEqual(games[0]?.timeControl, { kind: 'per-move', milliseconds: 100 });
   });
 
-  test('listRecentPublicGames returns public games and EvE games only', async () => {
+  test('listRecentPublicGames returns public games, public-facing PvE games, and EvE games only', async () => {
     const now = new Date('2026-05-09T12:00:00.000Z');
+    const shortDecisive = new Date(now.getTime() - 30_000);
     const older = new Date(now.getTime() - 60_000);
+    const shortTimeout = new Date(now.getTime() + 60_000);
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
@@ -603,20 +836,85 @@ if (!TEST_DATABASE_URL) {
          VALUES
            ('public-pvp', 'fog-of-war', 'white-wins', 'king-captured', 18, $1, $1,
             'public-white', 'public-black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('public-pve', 'fog-of-war', 'black-wins', 'timeout', 23, $1, $1,
+            'human-client-public', 'random-engine', NULL, NULL, 'pve', 'completed', 'public'),
            ('link-pve', 'fog-of-war', 'black-wins', 'timeout', 22, $1, $1,
             'human-client', 'random-engine', NULL, NULL, 'pve', 'completed', 'link'),
-           ('link-eve', 'fog-of-war', 'draw', 'truncated', 28, $2, $2,
+           ('short-capture', 'fog-of-war', 'white-wins', 'king-captured', 6, $2, $2,
+            'short-white', 'short-black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('link-eve', 'fog-of-war', 'draw', 'truncated', 28, $4, $4,
             'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed', 'link'),
-           ('private-pvp', 'fog-of-war', 'draw', 'truncated', 6, $2, $2,
+           ('short-timeout', 'fog-of-war', 'black-wins', 'timeout', 4, $3, $3,
+            'timeout-white', 'timeout-black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('private-pve', 'fog-of-war', 'black-wins', 'timeout', 24, $4, $4,
+            'human-client-private', 'random-engine', NULL, NULL, 'pve', 'completed', 'private'),
+           ('private-pvp', 'fog-of-war', 'draw', 'truncated', 6, $4, $4,
             'private-white', 'private-black', NULL, NULL, 'pvp', 'completed', 'private')`,
-        [now, older],
+        [now, shortDecisive, shortTimeout, older],
       );
+      for (const roomId of [
+        'public-pvp',
+        'public-pve',
+        'link-pve',
+        'short-capture',
+        'link-eve',
+        'short-timeout',
+        'private-pve',
+        'private-pvp',
+      ]) {
+        await client.query(
+          `INSERT INTO events (room_id, seq, type, payload)
+           VALUES ($1, 0, 'room-created', $2)`,
+          [
+            roomId,
+            {
+              type: 'room-created',
+              at: now.getTime(),
+              roomId,
+              variant: 'fog-of-war',
+              offer: [],
+            },
+          ],
+        );
+      }
     } finally {
       await client.end();
     }
 
     const games = await listRecentPublicGames(10);
-    assert.deepEqual(games.map((game) => game.roomId), ['public-pvp', 'link-eve']);
+    assert.deepEqual(games.map((game) => game.roomId), [
+      'public-pvp',
+      'public-pve',
+      'link-pve',
+      'short-capture',
+      'link-eve',
+    ]);
+  });
+
+  test('listCorpusGames filters timeout games shorter than ten ply', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_name, black_name, corpus_id, mode, status)
+         VALUES
+           ('corpus-decisive-short', 'fog-of-war', 'white-wins', 'king-captured', 6, $1, $1,
+            'white', 'black', 'featured-corpus', 'imported', 'completed'),
+           ('corpus-timeout-short', 'fog-of-war', 'black-wins', 'timeout', 4, $1, $1,
+            'white', 'black', 'featured-corpus', 'imported', 'completed'),
+           ('corpus-timeout-ten', 'fog-of-war', 'black-wins', 'timeout', 10, $1, $1,
+            'white', 'black', 'featured-corpus', 'imported', 'completed')`,
+        [now],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const games = await listCorpusGames('featured-corpus');
+    assert.deepEqual(games.map((game) => game.roomId), ['corpus-decisive-short', 'corpus-timeout-ten']);
   });
 
   test('listCompletedGames returns completed games in date range with participants', async () => {
@@ -671,14 +969,14 @@ if (!TEST_DATABASE_URL) {
         displayName: 'Guest',
         subjectType: 'guest',
         subjectId: null,
-        visibility: 'link',
+        visibility: 'public',
       },
       {
         color: 'black',
-        displayName: 'builtin-random-legal',
+        displayName: 'Random Legal v1',
         subjectType: 'engine-version',
         subjectId: 'builtin-random-legal',
-        visibility: 'link',
+        visibility: 'public',
       },
     ]);
 
@@ -722,14 +1020,14 @@ if (!TEST_DATABASE_URL) {
         displayName: 'human',
         subjectType: 'guest',
         subjectId: null,
-        visibility: 'link',
+        visibility: 'public',
       },
       {
         color: 'black',
         displayName: 'engine',
         subjectType: 'guest',
         subjectId: null,
-        visibility: 'link',
+        visibility: 'public',
       },
     ]);
     assert.equal(await getGameSummary('summary-running'), null);

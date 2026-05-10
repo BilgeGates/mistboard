@@ -7,6 +7,7 @@ import serveHandler from 'serve-handler';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   advanceClock,
+  type Chess960Start,
   clockRemainingMs,
   createClock,
   defaultClockInitialMs,
@@ -19,13 +20,23 @@ import {
   type GameProjection,
   type Move,
   type PieceRole,
+  type RoomTimeControl,
   type Square,
   type VariantId,
 } from '@bichess/game';
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { GameSummary } from './persistence.js';
+import { engineVersionDisplayName, loadEngine, playableLiveEngines } from './engine-registry.js';
+import { chooseLiveEngineMove } from './live-engine.js';
 import { snapshotPayload, type Seat } from './payloads.js';
+import {
+  displayNameForEmail,
+  handleBaseForEmail,
+  normalizeDisplayName,
+  normalizeEmail,
+  normalizeProfileHandle,
+} from './account-identity.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
@@ -58,6 +69,9 @@ type SeatTokenState = {
   clientId: string;
   seat: Color;
   tokenHash: string;
+  userId: string | null;
+  userHandle: string | null;
+  userDisplayName: string | null;
   issuedAt: Date;
   lastSeenAt: Date;
   revokedAt: Date | null;
@@ -76,8 +90,10 @@ type Room = {
   projection: GameProjection;
   seatTokens: Partial<Record<Color, SeatTokenState>>;
   clockTimer: ReturnType<typeof setTimeout> | null;
+  engineTimer: ReturnType<typeof setTimeout> | null;
   mode: persistence.GameMode;
   randomEngine: boolean;
+  pveEngineId: string | null;
   pendingWrites: Promise<void>;
   gameEndRecorded: boolean;
 };
@@ -91,11 +107,19 @@ const wsMessageWindowMs = parsePositiveInteger(process.env.BICHESS_WS_MESSAGE_WI
 const shutdownGraceMs = parsePositiveInteger(process.env.BICHESS_SHUTDOWN_GRACE_MS) ?? 10_000;
 const liveClockInitialMs = 30_000;
 const liveClockIncrementMs = 2_000;
+const minRoomClockInitialMs = 10_000;
+const maxRoomClockInitialMs = 180 * 60 * 1000;
+const maxRoomClockIncrementMs = 60_000;
+const pveEngineMoveDelayMs = parsePositiveInteger(process.env.BICHESS_PVE_ENGINE_DELAY_MS) ?? 650;
+const liveEngineTimeoutMs = parsePositiveInteger(process.env.BICHESS_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
 const accountSessionCookieName = 'bichess_session';
 const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
 const emailLoginCodeTtlMs = 10 * 60 * 1000;
 const devAuthCodesEnabled = !isProductionLikeRuntime() || process.env.BICHESS_DEV_AUTH_CODES === 'true';
+const resendApiKey = process.env.RESEND_API_KEY;
+const authEmailFrom = process.env.BICHESS_AUTH_EMAIL_FROM ?? process.env.RESEND_FROM_EMAIL;
+const authEmailDeliveryEnabled = !!resendApiKey && !!authEmailFrom;
 
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
@@ -205,11 +229,13 @@ function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return normalized === '/about'
     || normalized === '/learn'
-    || normalized === '/play'
     || normalized === '/watch'
+    || normalized === '/account'
+    || normalized === '/account/settings'
     || normalized === '/engine-lab'
     || normalized === '/arena'
     || normalized.startsWith('/game/')
+    || normalized.startsWith('/@/')
     || normalized.startsWith('/room/');
 }
 
@@ -228,6 +254,22 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     return;
   }
 
+  if (url === '/api/engines/playable') {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    writeJson(response, 200, {
+      engines: playableLiveEngines().map((engine) => ({
+        id: engine.id,
+        name: engine.name,
+        familyName: engine.engineName,
+        kind: engine.kind,
+      })),
+    });
+    return;
+  }
+
   if (parsedUrl.pathname === '/api/auth/email/start') {
     if (method !== 'POST') {
       writeJson(response, 405, { error: 'method_not_allowed' });
@@ -237,7 +279,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       writeJson(response, 503, { error: 'persistence_disabled' });
       return;
     }
-    if (!devAuthCodesEnabled) {
+    if (!authEmailDeliveryEnabled && !devAuthCodesEnabled) {
       writeJson(response, 503, { error: 'email_delivery_not_configured' });
       return;
     }
@@ -256,12 +298,20 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       codeHash: hashSecret(code),
       expiresAt,
     });
+    if (authEmailDeliveryEnabled) {
+      const delivery = await sendEmailLoginCode(email, code);
+      if (!delivery.ok) {
+        await persistence.deleteEmailLoginChallenge(loginId);
+        writeJson(response, 502, { error: 'email_delivery_failed' });
+        return;
+      }
+    }
     writeJson(response, 202, {
       loginId,
       email,
       expiresAt: expiresAt.toISOString(),
-      delivery: 'dev-response',
-      devCode: code,
+      delivery: authEmailDeliveryEnabled ? 'email' : 'dev-response',
+      ...(devAuthCodesEnabled ? { devCode: code } : {}),
     });
     return;
   }
@@ -320,6 +370,43 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     return;
   }
 
+  if (parsedUrl.pathname === '/api/account/profile') {
+    if (method !== 'PATCH') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    if (!persistence.isInitialized()) {
+      writeJson(response, 503, { error: 'persistence_disabled' });
+      return;
+    }
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return;
+    }
+    const body = await readJsonBody(request);
+    const handle = normalizeProfileHandle(typeof body.handle === 'string' ? body.handle : null);
+    const displayName = normalizeDisplayName(typeof body.displayName === 'string' ? body.displayName : null);
+    if (!handle) {
+      writeJson(response, 400, { error: 'invalid_handle' });
+      return;
+    }
+    if (!displayName) {
+      writeJson(response, 400, { error: 'invalid_display_name' });
+      return;
+    }
+    const result = await persistence.updateUserProfile(user.id, { handle, displayName }, new Date());
+    if (!result.ok) {
+      writeJson(response, result.error === 'handle_taken' ? 409 : 429, {
+        error: result.error,
+        ...(result.availableAt ? { availableAt: result.availableAt.toISOString() } : {}),
+      });
+      return;
+    }
+    writeJson(response, 200, { user: publicUser(result.user) });
+    return;
+  }
+
   if (url === '/api/rooms') {
     if (method !== 'POST') {
       response.writeHead(405, { 'content-type': 'application/json' });
@@ -329,9 +416,22 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     const body = await readJsonBody(request);
     const mode = parseRoomMode(body);
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
+    const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
+    const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
+    const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_mode' }));
+      return;
+    }
+    if (body.timeControl !== undefined && !timeControl) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'invalid_time_control' }));
+      return;
+    }
+    if (mode === 'pve' && body.engineId !== undefined && !engineId) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'invalid_engine' }));
       return;
     }
     if (databaseRequired && !persistence.isInitialized()) {
@@ -339,7 +439,7 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
       return;
     }
-    const room = await createRoom(mode, variant);
+    const room = await createRoom(mode, variant, engineId ?? pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined);
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
     return;
@@ -378,6 +478,36 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     const replayResponse = eventReplayResponse(events);
     response.writeHead(replayResponse.status, { 'content-type': 'application/json' });
     response.end(JSON.stringify(replayResponse.body));
+    return;
+  }
+
+  const profileMatch = parsedUrl.pathname.match(/^\/api\/users\/([^/]+)\/profile$/);
+  if (profileMatch) {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    if (!persistence.isInitialized()) {
+      writeJson(response, 503, { error: 'persistence_disabled' });
+      return;
+    }
+    const handle = decodeURIComponent(profileMatch[1] ?? '').trim();
+    if (!/^[a-zA-Z0-9_-]{1,40}$/.test(handle)) {
+      writeJson(response, 400, { error: 'invalid_handle' });
+      return;
+    }
+    const viewer = await currentAccountUser(request);
+    const profile = await persistence.getUserProfileByHandle(handle, viewer?.id ?? null);
+    if (!profile) {
+      writeJson(response, 404, { error: 'not_found' });
+      return;
+    }
+    writeJson(response, 200, {
+      profile: {
+        ...profile,
+        isViewer: viewer?.handle.toLowerCase() === profile.user.handle.toLowerCase(),
+      },
+    });
     return;
   }
 
@@ -496,6 +626,31 @@ function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   return null;
 }
 
+function parseHiddenDraft960(value: unknown): boolean {
+  return value === true || value === '1' || value === 'true' || value === 'yes';
+}
+
+function parsePlayablePveEngineId(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  return playableLiveEngines().some((engine) => engine.id === value) ? value : null;
+}
+
+function parseRoomTimeControl(value: unknown): RoomTimeControl | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const raw = value as Record<string, unknown>;
+  const initialMs = parseIntegerValue(raw.initialMs ?? raw.initial_ms);
+  const incrementMs = parseIntegerValue(raw.incrementMs ?? raw.increment_ms);
+  if (initialMs === null || incrementMs === null) return null;
+  if (initialMs < minRoomClockInitialMs || initialMs > maxRoomClockInitialMs) return null;
+  if (incrementMs < 0 || incrementMs > maxRoomClockIncrementMs) return null;
+  return { initialMs, incrementMs };
+}
+
+function parseIntegerValue(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return null;
+  return value;
+}
+
 async function currentAccountUser(request: IncomingMessage): Promise<persistence.UserAccount | null> {
   if (!persistence.isInitialized()) return null;
   const session = accountSessionFromRequest(request);
@@ -534,33 +689,77 @@ function publicUser(user: persistence.UserAccount): Record<string, unknown> {
     email: user.email,
     emailVerified: !!user.emailVerifiedAt,
     handle: user.handle,
+    handleChangedAt: user.handleChangedAt?.toISOString() ?? null,
     displayName: user.displayName,
+    displayNameChangedAt: user.displayNameChangedAt?.toISOString() ?? null,
     profileVisibility: user.profileVisibility,
+    accountRole: user.accountRole,
   };
-}
-
-function normalizeEmail(value: string | null): string | null {
-  if (!value) return null;
-  const email = value.trim().toLowerCase();
-  if (email.length > 254) return null;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
-  return email;
-}
-
-function handleBaseForEmail(email: string): string {
-  const local = email.split('@', 1)[0] ?? 'player';
-  const normalized = local.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return (normalized || 'player').slice(0, 24);
-}
-
-function displayNameForEmail(email: string): string {
-  const local = email.split('@', 1)[0] ?? 'Player';
-  const words = local.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
-  return (words || 'Player').slice(0, 48);
 }
 
 function randomEmailLoginCode(): string {
   return String(randomInt(0, 100_000_000)).padStart(8, '0');
+}
+
+async function sendEmailLoginCode(email: string, code: string): Promise<{ ok: true } | { ok: false }> {
+  if (!resendApiKey || !authEmailFrom) return { ok: false };
+  const subject = 'Your Bichess login code';
+  const text = [
+    `Your Bichess login code is ${code}.`,
+    '',
+    'This code expires in 10 minutes.',
+    'If you did not request this code, you can ignore this email.',
+  ].join('\n');
+  const html = [
+    '<p>Your Bichess login code is:</p>',
+    `<p style="font-size:24px;font-weight:700;letter-spacing:0.12em">${escapeHtml(code)}</p>`,
+    '<p>This code expires in 10 minutes.</p>',
+    '<p>If you did not request this code, you can ignore this email.</p>',
+  ].join('');
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${resendApiKey}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: authEmailFrom,
+        to: [email],
+        subject,
+        text,
+        html,
+      }),
+    });
+    if (response.ok) return { ok: true };
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'email_delivery_failure',
+      provider: 'resend',
+      status: response.status,
+      at: Date.now(),
+    }));
+    return { ok: false };
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'email_delivery_failure',
+      provider: 'resend',
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
+    return { ok: false };
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function hashSecret(secret: string): string {
@@ -652,11 +851,16 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
   const debugRequested = randomEngine || url.searchParams.get('views') === 'all';
   const devViews = debugRequested && isDebugViewAuthorized(request);
-  const room = await getOrCreateRoom(roomId, parseVariantId(url.searchParams.get('variant')));
+  const accountUser = await currentAccountUser(request);
+  const room = await getOrCreateRoom(
+    roomId,
+    parseVariantId(url.searchParams.get('variant')),
+    parseHiddenDraft960(url.searchParams.get('hiddenDraft960') ?? url.searchParams.get('draft960')),
+  );
   if (randomEngine) await enableRandomEngine(room);
   const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
   const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
-  const assignment = solo ? { seat: 'spectator' } satisfies SeatAssignment : await assignSeat(room, clientId, seatToken);
+  const assignment = solo ? { seat: 'spectator' } satisfies SeatAssignment : await assignSeat(room, clientId, seatToken, accountUser);
   const seat = assignment.seat;
   if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection, room.mode)) {
     socket.close(1008, 'private room');
@@ -682,7 +886,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     ...snapshot,
     type: 'hello',
     clientId: client.id,
-    offer: room.projection.offer,
+    offer: snapshot.offer,
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
   broadcastSnapshot(room);
@@ -762,11 +966,12 @@ async function handleClose(room: Room, client: Client): Promise<void> {
   broadcastSnapshot(room);
 }
 
-async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room> {
+async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft960 = false): Promise<Room> {
   const existing = rooms.get(roomId);
   if (existing) return existing;
 
   let events: GameEvent[] | null = null;
+  let createdNewPersistentRoom = false;
   if (persistence.isInitialized()) {
     try {
       events = await persistence.loadRoom(roomId);
@@ -788,11 +993,12 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
       at: Date.now(),
       roomId,
       variant,
-      offer: variant === 'draft960' ? pickDraft960Offer(roomIdToSeed(roomId)) : [],
+      ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
     };
     if (persistence.isInitialized()) {
       try {
         await persistence.appendEvent(roomId, 0, created);
+        createdNewPersistentRoom = true;
       } catch (err) {
         recordPersistenceError(roomId, 0, created, err as Error);
         throw new PersistenceFailure();
@@ -802,6 +1008,10 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
   }
 
   const projection = replayGameEvents(events);
+  const mode = modeForProjection(projection);
+  if (createdNewPersistentRoom) {
+    await persistGameStart(roomId, projection, mode, new Date(events[0]?.at ?? Date.now()));
+  }
   const seatTokens = persistence.isInitialized()
     ? seatTokenStatesFromPersistence(await persistence.loadRoomSeatTokens(roomId))
     : {};
@@ -812,38 +1022,51 @@ async function getOrCreateRoom(roomId: string, variant: VariantId): Promise<Room
     projection,
     seatTokens,
     clockTimer: null,
-    mode: modeForProjection(projection),
+    engineTimer: null,
+    mode,
     randomEngine: isPveBuiltinEngineClient(projection.seats.black),
+    pveEngineId: isPveBuiltinEngineClient(projection.seats.black) ? canonicalEngineVersionId(projection.seats.black!) : null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
   };
   rooms.set(roomId, room);
   scheduleClockTimeout(room);
+  scheduleRandomEngineMove(room);
   return room;
 }
 
-async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room> {
+async function createRoom(
+  mode: 'pvp' | 'pve',
+  variant: VariantId,
+  engineId: string,
+  hiddenDraft960 = false,
+  timeControl?: RoomTimeControl,
+): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
     const existing = rooms.get(roomId) ?? (persistence.isInitialized() ? await persistence.loadRoom(roomId) : null);
     if (existing) continue;
 
     const at = Date.now();
-    const events: GameEvent[] = [{
+    const roomCreated: Extract<GameEvent, { type: 'room-created' }> = {
       type: 'room-created',
       at,
       roomId,
       variant,
-      offer: variant === 'draft960' ? pickDraft960Offer(roomIdToSeed(roomId)) : [],
-    }];
+      ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
+      ...(timeControl ? { timeControl } : {}),
+    };
+    const events: GameEvent[] = [roomCreated];
     if (mode === 'pve') {
       events.push({
         type: 'seat-assigned',
         at,
         roomId,
-        clientId: pveBuiltinEngineClientId,
+        clientId: engineId,
         seat: 'black',
       });
+      const engineSelection = engineDraftSelectionEvent(roomCreated, roomId, at);
+      if (engineSelection) events.push(engineSelection);
     }
 
     if (persistence.isInitialized()) {
@@ -858,6 +1081,9 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
     }
 
     const projection = replayGameEvents(events);
+    if (persistence.isInitialized()) {
+      await persistGameStart(roomId, projection, mode, new Date(at));
+    }
     const room: Room = {
       id: roomId,
       clients: new Set(),
@@ -865,19 +1091,57 @@ async function createRoom(mode: 'pvp' | 'pve', variant: VariantId): Promise<Room
       projection,
       seatTokens: {},
       clockTimer: null,
+      engineTimer: null,
       mode,
       randomEngine: mode === 'pve',
+      pveEngineId: mode === 'pve' ? engineId : null,
       pendingWrites: Promise.resolve(),
       gameEndRecorded: false,
     };
     rooms.set(roomId, room);
     scheduleClockTimeout(room);
+    scheduleRandomEngineMove(room);
     return room;
   }
   throw new Error('room_id_collision');
 }
 
-async function assignSeat(room: Room, clientId: string, suppliedSeatToken: string | undefined): Promise<SeatAssignment> {
+async function persistGameStart(
+  roomId: string,
+  projection: GameProjection,
+  mode: persistence.GameMode,
+  startedAt: Date,
+): Promise<void> {
+  if (!persistence.isInitialized()) return;
+  try {
+    await persistence.recordGameStart(roomId, {
+      variant: projection.variant,
+      mode,
+      startedAt,
+      whiteClient: projection.seats.white ?? null,
+      blackClient: projection.seats.black ?? null,
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    });
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'game_start_record_failure',
+      roomId,
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
+    throw new PersistenceFailure();
+  }
+}
+
+async function assignSeat(
+  room: Room,
+  clientId: string,
+  suppliedSeatToken: string | undefined,
+  accountUser: persistence.UserAccount | null,
+): Promise<SeatAssignment> {
   const tokenSeat = verifySeatToken(room, suppliedSeatToken);
   if (tokenSeat) {
     tokenSeat.lastSeenAt = new Date();
@@ -890,11 +1154,11 @@ async function assignSeat(room: Room, clientId: string, suppliedSeatToken: strin
   }
   if (room.projection.seats.white === clientId) {
     await startLiveClockIfReady(room);
-    return await existingSeatAssignment(room, 'white', clientId);
+    return await existingSeatAssignment(room, 'white', clientId, accountUser);
   }
   if (room.projection.seats.black === clientId) {
     await startLiveClockIfReady(room);
-    return await existingSeatAssignment(room, 'black', clientId);
+    return await existingSeatAssignment(room, 'black', clientId, accountUser);
   }
   if (!room.projection.seats.white) {
     await appendEvent(room, {
@@ -905,7 +1169,7 @@ async function assignSeat(room: Room, clientId: string, suppliedSeatToken: strin
       seat: 'white',
     });
     await startLiveClockIfReady(room);
-    return await newSeatAssignment(room, 'white', clientId);
+    return await newSeatAssignment(room, 'white', clientId, accountUser);
   }
   if (!room.projection.seats.black) {
     await appendEvent(room, {
@@ -916,20 +1180,30 @@ async function assignSeat(room: Room, clientId: string, suppliedSeatToken: strin
       seat: 'black',
     });
     await startLiveClockIfReady(room);
-    return await newSeatAssignment(room, 'black', clientId);
+    return await newSeatAssignment(room, 'black', clientId, accountUser);
   }
   return { seat: 'spectator' };
 }
 
-async function existingSeatAssignment(room: Room, seat: Color, clientId: string): Promise<SeatAssignment> {
+async function existingSeatAssignment(
+  room: Room,
+  seat: Color,
+  clientId: string,
+  accountUser: persistence.UserAccount | null,
+): Promise<SeatAssignment> {
   const existing = room.seatTokens[seat];
   if (existing) {
     return { seat: 'spectator' };
   }
-  return newSeatAssignment(room, seat, clientId);
+  return newSeatAssignment(room, seat, clientId, accountUser);
 }
 
-async function newSeatAssignment(room: Room, seat: Color, clientId: string): Promise<SeatAssignment> {
+async function newSeatAssignment(
+  room: Room,
+  seat: Color,
+  clientId: string,
+  accountUser: persistence.UserAccount | null,
+): Promise<SeatAssignment> {
   if (isServerEngineClient(clientId)) return { seat };
   const rawToken = randomBytes(32).toString('base64url');
   const tokenHash = hashSeatToken(rawToken);
@@ -938,6 +1212,9 @@ async function newSeatAssignment(room: Room, seat: Color, clientId: string): Pro
     clientId,
     seat,
     tokenHash,
+    userId: accountUser?.id ?? null,
+    userHandle: accountUser?.handle ?? null,
+    userDisplayName: accountUser?.displayName ?? null,
     issuedAt: now,
     lastSeenAt: now,
     revokedAt: null,
@@ -1002,15 +1279,18 @@ function canClientAct(room: Room, client: Client): boolean {
 
 async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
+  room.pveEngineId = pveBuiltinEngineClientId;
   if (room.projection.variant !== 'fog-of-war') return;
-  if (room.projection.seats.black) return;
-  await appendEvent(room, {
-    type: 'seat-assigned',
-    at: Date.now(),
-    roomId: room.id,
-    clientId: pveBuiltinEngineClientId,
-    seat: 'black',
-  });
+  if (!room.projection.seats.black) {
+    await appendEvent(room, {
+      type: 'seat-assigned',
+      at: Date.now(),
+      roomId: room.id,
+      clientId: pveBuiltinEngineClientId,
+      seat: 'black',
+    });
+  }
+  await selectEngineDraftStart(room);
 }
 
 async function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): Promise<void> {
@@ -1018,7 +1298,7 @@ async function selectStart(room: Room, client: Client, startId: number | undefin
   const selectionColor = client.solo && isColor(color) ? color : client.seat;
   if (selectionColor === 'spectator') return;
   if (room.projection.state.status.type !== 'pregame') return;
-  if (!room.projection.offer.some((start) => start.id === startId)) return;
+  if (!offerForColor(room.projection, selectionColor).some((start) => start.id === startId)) return;
   if (startId === undefined) return;
 
   await appendEvent(room, {
@@ -1081,14 +1361,15 @@ async function playMove(room: Room, client: Client, move: ClientMoveMessage): Pr
     roomId: room.id,
     clock: nextClock,
     color: moveColor,
-    move: requestedMove,
+    move: nextState.lastMove ?? requestedMove,
   });
-  await playRandomEngineMoveIfReady(room);
   broadcastSnapshot(room);
+  scheduleRandomEngineMove(room);
 }
 
 async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
   if (!room.randomEngine) return;
+  const engine = loadEngine(room.pveEngineId ?? pveBuiltinEngineClientId);
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.state.status.turn !== 'black') return;
@@ -1101,19 +1382,107 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
 
   const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, 'black');
   if (moves.length === 0) return;
-  const move = moves[randomInt(moves.length)];
+  const clock = room.projection.state.clock;
+  const context = {
+    baseThinkTimeMs: pveEngineMoveDelayMs,
+    clockRemainingMs: clock ? clockRemainingMs(clock, 'black', now) : undefined,
+    events: room.events,
+    incrementMs: clock?.incrementMs,
+    state: room.projection.state,
+    color: 'black',
+    legalMoves: moves,
+    roomId: room.id,
+    seed: liveEngineMoveSeed(room),
+    ply: room.events.filter((event) => event.type === 'move-played').length,
+  } as const;
+  const startedAt = Date.now();
+  const result = await chooseLiveEngineMove({
+    context,
+    engine,
+    timeoutMs: liveEngineTimeoutMs,
+    onFallback(event) {
+      console.error(JSON.stringify({
+        level: 'error',
+        kind: 'live_engine_fallback',
+        roomId: room.id,
+        engineId: event.engineId,
+        fallbackEngineId: event.fallbackEngineId,
+        ply: event.ply,
+        reason: event.reason,
+        timeoutMs: event.timeoutMs,
+        durationMs: event.durationMs,
+        diagnostics: event.diagnostics,
+        at: Date.now(),
+      }));
+    },
+  });
+  const engineThinkTimeMs = result.decision.thinkTimeMs ?? Date.now() - startedAt;
+  await sleepEngineThinkTime(startedAt, engineThinkTimeMs);
+  const decisionAt = Date.now();
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.state.status.turn !== 'black') return;
+  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, 'black', decisionAt) <= 0) {
+    await expireActiveClock(room, 'black', decisionAt);
+    return;
+  }
+  console.log(JSON.stringify({
+    level: 'info',
+    kind: 'live_engine_move',
+    roomId: room.id,
+    requestedEngineId: engine.id,
+    engineId: result.engineId,
+    fallback: result.fallback,
+    ply: context.ply,
+    durationMs: Date.now() - startedAt,
+    move: result.decision.move,
+    at: Date.now(),
+  }));
+  const move = result.decision.move;
   if (!move) return;
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
   if (nextState === room.projection.state) return;
-  const nextClock = advanceClock(room.projection.state.clock, now, 'black', nextState.status);
+  const nextClock = advanceClock(room.projection.state.clock, decisionAt, 'black', nextState.status);
   await appendEvent(room, {
     type: 'move-played',
-    at: now,
+    at: decisionAt,
     roomId: room.id,
     clock: nextClock,
     color: 'black',
     move,
+    thinkTimeMs: engineThinkTimeMs,
   });
+}
+
+function scheduleRandomEngineMove(room: Room): void {
+  if (room.engineTimer) return;
+  if (!room.randomEngine) return;
+  if (room.projection.variant !== 'fog-of-war') return;
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.state.status.turn !== 'black') return;
+
+  room.engineTimer = setTimeout(() => {
+    room.engineTimer = null;
+    void playRandomEngineMoveIfReady(room)
+      .then(() => broadcastSnapshot(room))
+      .catch((err) => {
+        if (!(err instanceof PersistenceFailure)) {
+          console.error(JSON.stringify({
+            level: 'error',
+            kind: 'engine_move_failure',
+            roomId: room.id,
+            error: (err as Error).message,
+            at: Date.now(),
+          }));
+        }
+      });
+  }, 0);
+}
+
+async function sleepEngineThinkTime(startedAt: number, thinkTimeMs: number | undefined): Promise<void> {
+  if (thinkTimeMs === undefined) return;
+  const remainingMs = Math.max(0, Math.round(thinkTimeMs) - (Date.now() - startedAt));
+  if (remainingMs <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, remainingMs));
 }
 
 async function startLiveClockIfReady(room: Room): Promise<void> {
@@ -1123,35 +1492,61 @@ async function startLiveClockIfReady(room: Room): Promise<void> {
   if (!room.projection.seats.white || !room.projection.seats.black) return;
 
   const now = Date.now();
+  const timeControl = room.projection.timeControl;
   await appendEvent(room, {
     type: 'clock-started',
     at: now,
     roomId: room.id,
-    clock: createClock(now, liveClockInitialMs, liveClockIncrementMs),
+    clock: timeControl
+      ? createClock(now, timeControl.initialMs, timeControl.incrementMs)
+      : createClock(now, liveClockInitialMs, liveClockIncrementMs),
   });
 }
 
 async function resolveStartIfReady(room: Room): Promise<void> {
-  if (room.projection.resolvedStartId !== null) return;
+  if (room.projection.resolvedStartId !== null || (room.projection.resolvedStartIds.white !== undefined && room.projection.resolvedStartIds.black !== undefined)) return;
 
   const whiteSelection = room.projection.selections.white;
   const blackSelection = room.projection.selections.black;
   if (whiteSelection === undefined || blackSelection === undefined) return;
 
-  const resolvedStartId = whiteSelection === blackSelection
-    ? whiteSelection
-    : [whiteSelection, blackSelection][randomInt(2)];
-  const resolvedStart = room.projection.offer.find((start) => start.id === resolvedStartId);
-  if (!resolvedStart) return;
+  const whiteStart = offerForColor(room.projection, 'white').find((start) => start.id === whiteSelection);
+  const blackStart = offerForColor(room.projection, 'black').find((start) => start.id === blackSelection);
+  if (!whiteStart || !blackStart) return;
   const now = Date.now();
 
   await appendEvent(room, {
     type: 'draft-start-resolved',
     at: now,
     roomId: room.id,
-    clock: createClock(now),
-    startId: resolvedStart.id,
+    clock: createClock(
+      now,
+      room.projection.timeControl?.initialMs,
+      room.projection.timeControl?.incrementMs,
+    ),
+    startIds: {
+      white: whiteStart.id,
+      black: blackStart.id,
+    },
   });
+}
+
+async function selectEngineDraftStart(room: Room): Promise<void> {
+  if (room.projection.state.status.type !== 'pregame') return;
+  if (!isServerEngineClient(room.projection.seats.black)) return;
+  if (room.projection.selections.black !== undefined) return;
+  const offer = offerForColor(room.projection, 'black');
+  if (offer.length === 0) return;
+  const start = offer[Math.abs(roomIdToSeed(`${room.id}:black-draft`)) % offer.length];
+  if (!start) return;
+  await appendEvent(room, {
+    type: 'draft-start-selected',
+    at: Date.now(),
+    roomId: room.id,
+    color: 'black',
+    startId: start.id,
+  });
+  await resolveStartIfReady(room);
 }
 
 async function resolveBidIfReady(room: Room): Promise<void> {
@@ -1228,6 +1623,9 @@ function seatTokenStatesFromPersistence(
       clientId: token.clientId,
       seat: token.seat,
       tokenHash: token.tokenHash,
+      userId: token.userId,
+      userHandle: token.userHandle,
+      userDisplayName: token.userDisplayName,
       issuedAt: token.issuedAt,
       lastSeenAt: token.lastSeenAt,
       revokedAt: token.revokedAt,
@@ -1241,6 +1639,9 @@ function persistenceRecordForSeatToken(token: SeatTokenState): persistence.RoomS
     seat: token.seat,
     clientId: token.clientId,
     tokenHash: token.tokenHash,
+    userId: token.userId,
+    userHandle: token.userHandle,
+    userDisplayName: token.userDisplayName,
     issuedAt: token.issuedAt,
     lastSeenAt: token.lastSeenAt,
     revokedAt: token.revokedAt,
@@ -1304,6 +1705,9 @@ async function appendEvent(room: Room, event: GameEvent): Promise<void> {
     room.projection = replayGameEvents(room.events);
     room.mode = modeForProjection(room.projection);
     scheduleClockTimeout(room);
+    if (room.projection.state.status.type !== 'playing' || room.projection.state.status.turn !== 'black') {
+      clearRandomEngineTimer(room);
+    }
 
     if (
       persistence.isInitialized()
@@ -1360,7 +1764,29 @@ function buildGameSummary(room: Room): GameSummary {
     whiteName: null,
     blackName: null,
     corpusId: null,
+    participants: [
+      participantForSeatToken('white', room.projection.seats.white ?? null, room.seatTokens.white, room.mode),
+      participantForSeatToken('black', room.projection.seats.black ?? null, room.seatTokens.black, room.mode),
+    ],
   };
+}
+
+function participantForSeatToken(
+  color: Color,
+  clientId: string | null,
+  token: SeatTokenState | undefined,
+  mode: persistence.GameMode,
+): persistence.GameParticipant {
+  if (token?.userId) {
+    return {
+      color,
+      displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
+      subjectType: 'user',
+      subjectId: token.userId,
+      visibility: 'public',
+    };
+  }
+  return inMemoryParticipant(color, clientId, null, mode, 'public');
 }
 
 function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null {
@@ -1385,10 +1811,10 @@ function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | 
     whiteEngineId: null,
     blackEngineId: null,
     timeControl: null,
-    visibility: summary.visibility ?? 'link',
-    participants: [
-      inMemoryParticipant('white', summary.whiteClient, summary.whiteName, summary.mode ?? 'pvp', summary.visibility ?? 'link'),
-      inMemoryParticipant('black', summary.blackClient, summary.blackName, summary.mode ?? 'pvp', summary.visibility ?? 'link'),
+    visibility: summary.visibility ?? 'public',
+    participants: summary.participants ?? [
+      inMemoryParticipant('white', summary.whiteClient, summary.whiteName, summary.mode ?? 'pvp', summary.visibility ?? 'public'),
+      inMemoryParticipant('black', summary.blackClient, summary.blackName, summary.mode ?? 'pvp', summary.visibility ?? 'public'),
     ],
   };
 }
@@ -1404,7 +1830,7 @@ function inMemoryParticipant(
     const engineVersionId = canonicalEngineVersionId(clientId);
     return {
       color,
-      displayName: displayName ?? engineVersionId,
+      displayName: displayName ?? engineVersionDisplayName(engineVersionId),
       subjectType: 'engine-version',
       subjectId: engineVersionId,
       visibility,
@@ -1467,7 +1893,14 @@ class PersistenceFailure extends Error {
 function resetRoom(roomId: string): void {
   const room = rooms.get(roomId);
   if (room?.clockTimer) clearTimeout(room.clockTimer);
+  if (room?.engineTimer) clearTimeout(room.engineTimer);
   rooms.delete(roomId);
+}
+
+function clearRandomEngineTimer(room: Room): void {
+  if (!room.engineTimer) return;
+  clearTimeout(room.engineTimer);
+  room.engineTimer = null;
 }
 
 function scheduleClockTimeout(room: Room): void {
@@ -1552,10 +1985,55 @@ function parseClientId(value: string | null): string | null {
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
 }
 
+function roomCreatedDraftOfferFields(
+  roomId: string,
+  variant: VariantId,
+  hiddenDraft960 = false,
+): Pick<Extract<GameEvent, { type: 'room-created' }>, 'offer' | 'offers'> {
+  if (variant !== 'draft960' && !(variant === 'fog-of-war' && hiddenDraft960)) return { offer: [] };
+
+  const seed = roomIdToSeed(roomId);
+  const offers: Record<Color, Chess960Start[]> = {
+    white: pickDraft960Offer(seed),
+    black: pickDraft960Offer(seed ^ 0x5f3759df),
+  };
+  return {
+    offer: offers.white,
+    offers,
+  };
+}
+
+function engineDraftSelectionEvent(
+  roomCreated: Extract<GameEvent, { type: 'room-created' }>,
+  roomId: string,
+  at: number,
+): Extract<GameEvent, { type: 'draft-start-selected' }> | null {
+  const offer = roomCreated.offers?.black ?? roomCreated.offer;
+  if (offer.length === 0) return null;
+  const start = offer[Math.abs(roomIdToSeed(`${roomId}:black-draft`)) % offer.length];
+  if (!start) return null;
+  return {
+    type: 'draft-start-selected',
+    at,
+    roomId,
+    color: 'black',
+    startId: start.id,
+  };
+}
+
+function offerForColor(projection: GameProjection, color: Color): Chess960Start[] {
+  return projection.offers[color] ?? projection.offer;
+}
+
 function roomIdToSeed(roomId: string): number {
   let hash = 0;
   for (const char of roomId) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
   return hash;
+}
+
+function liveEngineMoveSeed(room: Room): bigint {
+  const ply = room.events.filter((event) => event.type === 'move-played').length;
+  return (BigInt(roomIdToSeed(room.id) >>> 0) << 16n) + BigInt(ply);
 }
 
 function handleAdminDebugAuth(room: Room, client: Client, token: string | undefined): void {
@@ -1615,6 +2093,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
 
   for (const room of rooms.values()) {
     if (room.clockTimer) clearTimeout(room.clockTimer);
+    if (room.engineTimer) clearTimeout(room.engineTimer);
   }
   for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
     try { client.socket.close(1001, 'server shutting down'); } catch { /* socket already closed */ }

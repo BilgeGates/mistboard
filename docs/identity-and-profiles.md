@@ -43,7 +43,6 @@ Typical interactions:
 - receive room-scoped seat authority when seated
 - play PvP or PvE anonymously
 - finish and review games by link
-- later claim/link games if signed-in persistence supports that flow
 
 ### Signed-In Player
 
@@ -51,11 +50,10 @@ Persistent human account.
 
 Typical interactions:
 
-- save or claim games
+- play games that appear on their public profile
 - persist preferences
-- manage public/private game history
-- publish or hide annotations
-- eventually have a public profile
+- review their game history
+- eventually manage authored annotations or research artifacts
 
 Deferred:
 
@@ -114,7 +112,7 @@ Typical interactions:
 6. Finish game.
 7. Review White, Black, and Truth perspectives.
 8. Share replay.
-9. Optionally sign in later to save or claim history.
+9. Optionally sign in before future games to build account history.
 
 ### Engine / Research Loop
 
@@ -271,12 +269,14 @@ Owns or links to:
 
 ## Public Vs Private
 
-Public by default only when intentionally published:
+Public by default:
 
-- finished public games
-- public engine ids and versions
+- signed-in user profiles
+- completed games and replay pages
+- game participant labels
+- engine ids and versions
 - benchmark metadata
-- public annotations or reports
+- annotations or reports once those publishing surfaces exist
 - contributor names on public artifacts
 
 Private or scoped:
@@ -284,8 +284,8 @@ Private or scoped:
 - live PvP player views before terminal state
 - seat tokens
 - raw session identifiers
-- private room links before sharing
-- non-public annotations
+- account emails
+- unpublished annotations or operational drafts
 - operational metadata
 
 Never public:
@@ -406,12 +406,12 @@ May show:
 
 ## Profile Rollout
 
-1. No public profiles yet.
-   Guest/private-alpha play can work without public profile pages.
-2. Minimal signed-in identity.
-   Save or claim games, preferences, and annotations.
-3. Public player profile.
-   Show public games and public replays only.
+1. Minimal signed-in identity.
+   Email sign-in, account session, public handle, and public profile route.
+2. Public player profile.
+   Show account-attributed completed games with replay links.
+3. Account quality-of-life.
+   Add account page game history and preferences where they help real workflows.
 4. Engine author sections.
    Show owned engines, versions, benchmark reports, and public notes.
 5. Engine family/version pages.
@@ -443,7 +443,7 @@ Exit gate:
 ### IP1: Ownership Metadata
 
 Goal: finished games and artifacts can record who or what owns them before any
-public profile page exists.
+profile and game pages mature.
 
 Requirements:
 
@@ -451,7 +451,7 @@ Requirements:
 - EvE games can preserve engine family/version metadata.
 - annotations can preserve author/visibility metadata when they become
   persistent.
-- guest ownership stays scoped until claimed or published.
+- guest ownership remains anonymous and is not claimable later.
 - ownership metadata does not expose private live-room authority.
 
 Exit gate:
@@ -501,8 +501,8 @@ workflows.
 
 Requirements:
 
-- signed-in players can manage public/private game history.
-- users can publish or hide replays and annotations.
+- signed-in players have public profile pages.
+- signed-in games appear in public game history by default.
 - profile pages show public games, public replays, authored articles, and
   contribution links.
 - ratings, matchmaking history, teams/forums/chat, and social graph remain
@@ -510,25 +510,26 @@ Requirements:
 
 Exit gate:
 
-- a user can share a profile without exposing private games, seat authority, or
+- a user can share a profile without exposing seat authority, emails, or
   unpublished annotations.
 
-### IP5: Claim And Publish Flow
+### IP5: Account Game History And Publish Flow
 
-Goal: anonymous play can connect to signed-in identity without retroactive
-exposure.
+Goal: games played while signed in can appear on a basic profile without
+retroactively attaching anonymous guest history.
 
 Requirements:
 
-- a valid room/seat authority can support a later claim flow where appropriate.
-- claimed games default to private or link-scoped unless explicitly published.
+- signed-in seats can write `user` participant attribution at game end.
+- guest games remain guest games and are not retroactively claimed.
+- account-attributed games are public by default.
 - annotations have private, shared-by-link, and public visibility states.
-- publishing decisions are explicit and reversible where practical.
+- no hide/publish controls are needed for basic game history.
 
 Exit gate:
 
-- a guest game can be claimed and published without exposing unrelated private
-  session state.
+- a signed-in user's profile can show account-attributed games without exposing
+  seat tokens or unrelated private session state.
 
 ### IP6: Contributor And Research Profiles
 
@@ -588,8 +589,10 @@ CREATE TABLE users (
   email_verified_at TIMESTAMPTZ,
   handle TEXT UNIQUE NOT NULL,
   display_name TEXT NOT NULL,
-  profile_visibility TEXT NOT NULL DEFAULT 'private'
+  profile_visibility TEXT NOT NULL DEFAULT 'public'
     CHECK (profile_visibility IN ('private', 'unlisted', 'public')),
+  account_role TEXT NOT NULL DEFAULT 'player'
+    CHECK (account_role IN ('player', 'test', 'admin')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -604,6 +607,8 @@ Notes:
   profile identity.
 - `handle` is for profile routing and public display, not authorization.
 - Profile visibility does not change live-room access.
+- `account_role` distinguishes ordinary, test, and admin accounts as metadata;
+  it does not grant live-room authority or debug truth access by itself.
 
 #### `account_sessions`
 
@@ -695,7 +700,7 @@ Candidate additions:
 
 ```sql
 ALTER TABLE games
-  ADD COLUMN visibility TEXT NOT NULL DEFAULT 'link'
+  ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'
     CHECK (visibility IN ('private', 'link', 'unlisted', 'public')),
   ADD COLUMN published_at TIMESTAMPTZ;
 
@@ -713,7 +718,7 @@ published_at
 
 Default posture:
 
-- completed PvP/PvE games: `link` unless explicitly public
+- completed PvP/PvE games: `public`
 - EvE benchmark games: usually `public` or `unlisted` depending on job purpose
 - imported/manual samples: `public`
 - annotations: `private` until explicitly published
@@ -790,7 +795,7 @@ Do not include:
 - ratings
 - friends/followers
 - teams/forums/chat
-- private game history
+- per-game privacy controls in the basic profile pass
 
 ### Buildable Slices
 
@@ -865,24 +870,26 @@ Tests:
 - private games and private annotations are omitted
 - profile identity does not authorize private room APIs or live room access
 
-#### Slice 5: Claim And Publish
+#### Slice 5: Account Profiles And Future Game History
 
 Requires account/session work.
 
 Work:
 
 - define account session mechanism
-- allow valid seat authority to claim a completed game
-- add publish/unpublish controls for owned games and annotations
-- record `published_at`
+- add minimal account sign-in UI
+- write signed-in participant attribution for future completed games
+- add a basic profile page that lists account-attributed games
+- add test/admin account role metadata
+- keep game hide/publish controls out of the first pass
 
 Tests:
 
-- valid claim requires both account session and appropriate room/seat authority
-- invalid/missing seat authority cannot claim a game
-- publishing a game never exposes seat tokens or pre-terminal private payloads
-- unpublishing removes it from profile/public listings while preserving link
-  access if policy allows
+- signed-in seats produce `user` game participants at game end
+- guest games are not retroactively attached to accounts
+- profile pages list account-attributed games and link to game review pages
+- public game/profile pages never expose seat tokens or pre-terminal private
+  payloads
 
 ### Non-Goals For This Track
 
@@ -895,6 +902,8 @@ Tests:
 - OAuth provider selection
 - public engine upload/execution
 - moderation tooling beyond minimum visibility/reporting notes
+- guest-game claiming or historical import
+- per-game hide/unpublish controls in the basic profile pass
 
 ### First Recommended Implementation Task
 
@@ -927,7 +936,7 @@ Stage 1: Private Alpha
 
 - keep anonymous rooms
 - use seat tokens for live authority
-- avoid public profiles
+- keep profile scope simple and public by default
 - preserve finished game ownership metadata when available
 
 Stage 2: Public Alpha
@@ -954,9 +963,6 @@ Stage 4: Early Platform
 
 - What is the minimum signed-in account model needed for persistence without
   pulling in social features?
-- Should engine authors be normal user accounts with extra engine ownership, or
-  a separate identity type?
-- How should guest games be claimed by a later signed-in account?
 - Which annotations are private, shared-by-link, or public?
 - What profile fields are required for benchmark credibility without creating
   unnecessary social surface area?

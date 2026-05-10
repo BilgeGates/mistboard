@@ -97,8 +97,18 @@ Use these checks after the smoke path passes or when changing the related area.
 - Confirm diagonal pawn captures reveal the target piece.
 - Confirm a directly blocked pawn does not reveal the blocker unless another
   piece sees it.
+- Confirm the active player's legal moves do not reveal more hidden-board
+  information than the documented rules allow.
+- Confirm rejected or failed move attempts do not act as hidden-board probes.
 - Confirm en passant reveals the destination and threatened pawn for the
   capturing turn.
+- Confirm the pushing side does not see its own en-passant target merely because
+  it exists.
+- Confirm castling visibility and accepted castling input match the documented
+  representation.
+- Confirm kings can move through, into, and remain in attacked squares, and that
+  king capture ends the game.
+- Confirm king capture takes precedence over automatic draw conditions.
 - Confirm captures and king-capture termination match the documented rules.
 - Confirm no horizontal overflow on mobile during ordinary play.
 

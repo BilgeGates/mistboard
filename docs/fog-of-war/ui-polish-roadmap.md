@@ -69,6 +69,7 @@ Build:
 - A 60-second interactive tutorial that lands a brand-new player into a real game state where they have to make one fog-aware decision.
 - Inline explanation of FOW-specific rules (king capture vs check, vision rules, en passant).
 - "First game" state with light hand-holding and graceful drop-out.
+- Beginner lesson path based on `docs/fog-of-war/beginner-tutorial-curriculum.md`.
 
 Observe:
 

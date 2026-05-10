@@ -41,6 +41,11 @@ Working rule baseline:
 - Live move history is withheld because hidden opponent moves can reveal hidden information.
 - Finished games expose full-truth board state and event history for replay.
 
+Developer note: subtle rule-risk areas such as hidden occupancy inference,
+en-passant visibility, castling representation, no-check king semantics, and
+terminal reveal boundaries are tracked in
+[`docs/fog-of-war/rules-edge-cases.md`](./fog-of-war/rules-edge-cases.md).
+
 ## Bid For White
 
 Working rule baseline:

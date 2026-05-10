@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { bidForWhiteVariant, fogOfWarVariant, replayGameEvents, type GameEvent, type GameProjection } from '@bichess/game';
+import {
+  bidForWhiteVariant,
+  fogOfWarVariant,
+  generateChess960Starts,
+  replayGameEvents,
+  type GameEvent,
+  type GameProjection,
+} from '@bichess/game';
 import { snapshotPayload, type SnapshotClient, type SnapshotRoom } from './payloads.js';
 import { eventReplayResponse } from './server-policy.js';
 
@@ -37,12 +44,14 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
     roomId: 'fog-payload',
     variant: 'fog-of-war',
     offer: [],
+    offers: {},
     state,
     seats: { white: 'white-client', black: 'black-client' },
     selections: {},
     bids: {},
     bidResolution: null,
     resolvedStartId: null,
+    resolvedStartIds: {},
   };
   const room: SnapshotRoom = {
     id: 'fog-payload',
@@ -81,7 +90,7 @@ test('live Fog of War spectator payload has no board or move events', () => {
   assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
 });
 
-test('live Fog of War seated payload can expose own last move without move events', () => {
+test('live Fog of War seated payload exposes own last move and own move event', () => {
   const room = lastMoveRoomFixture();
   const payload = snapshotPayload(room, {
     devViews: false,
@@ -91,7 +100,16 @@ test('live Fog of War seated payload can expose own last move without move event
   });
 
   assert.deepEqual(payload.state.lastMove, { from: 'e2', to: 'e4' });
-  assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+  assert.deepEqual(
+    payload.events.filter((event) => event.type === 'move-played'),
+    [{
+      type: 'move-played',
+      at: 2,
+      roomId: 'fog-last-move-payload',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    }],
+  );
 });
 
 test('live Fog of War seated payload does not expose opponent last-move coordinates', () => {
@@ -106,6 +124,94 @@ test('live Fog of War seated payload does not expose opponent last-move coordina
   assert.deepEqual(payload.state.board.e4, { color: 'white', role: 'pawn' });
   assert.equal(payload.state.lastMove, undefined);
   assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+});
+
+test('live Fog Draft960 payload hides opponent offer and selection', () => {
+  const starts = generateChess960Starts();
+  const whiteOffer = starts.slice(0, 3);
+  const blackOffer = starts.slice(3, 6);
+  const events: GameEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'fog-draft-payload',
+      variant: 'fog-of-war',
+      offer: whiteOffer,
+      offers: {
+        white: whiteOffer,
+        black: blackOffer,
+      },
+    },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'fog-draft-payload',
+      clientId: 'white-client',
+      seat: 'white',
+    },
+    {
+      type: 'seat-assigned',
+      at: 3,
+      roomId: 'fog-draft-payload',
+      clientId: 'black-client',
+      seat: 'black',
+    },
+    {
+      type: 'draft-start-selected',
+      at: 4,
+      roomId: 'fog-draft-payload',
+      color: 'white',
+      startId: whiteOffer[1]!.id,
+    },
+    {
+      type: 'draft-start-selected',
+      at: 5,
+      roomId: 'fog-draft-payload',
+      color: 'black',
+      startId: blackOffer[1]!.id,
+    },
+    {
+      type: 'draft-start-resolved',
+      at: 6,
+      roomId: 'fog-draft-payload',
+      startIds: {
+        white: whiteOffer[1]!.id,
+        black: blackOffer[1]!.id,
+      },
+    },
+  ];
+  const room: SnapshotRoom = {
+    id: 'fog-draft-payload',
+    clients: { size: 2 },
+    events,
+    projection: replayGameEvents(events),
+  };
+
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'white-client',
+    seat: 'white',
+    solo: false,
+  });
+  const visibleEventTypes = payload.events.map((event) => event.type);
+  const roomCreated = payload.events.find((event) => event.type === 'room-created');
+
+  assert.deepEqual(payload.offer.map((start) => start.id), whiteOffer.map((start) => start.id));
+  assert.deepEqual(payload.offers, { white: whiteOffer });
+  assert.deepEqual(payload.selections, { white: whiteOffer[1]!.id });
+  assert.equal(payload.resolvedStartId, null);
+  assert.deepEqual(payload.resolvedStartIds, { white: whiteOffer[1]!.id });
+  assert.deepEqual(visibleEventTypes, ['room-created', 'seat-assigned', 'seat-assigned', 'draft-start-selected']);
+  assert.equal(roomCreated?.type, 'room-created');
+  if (roomCreated?.type === 'room-created') {
+    assert.deepEqual(roomCreated.offer.map((start) => start.id), whiteOffer.map((start) => start.id));
+    assert.deepEqual(roomCreated.offers, { white: whiteOffer });
+  }
+
+  const json = JSON.stringify(payload);
+  assert.doesNotMatch(json, new RegExp(`"id":${blackOffer[1]!.id}\\b`));
+  assert.doesNotMatch(json, new RegExp(`"fenPlacement":"${blackOffer[1]!.fenPlacement}"`));
+  assert.doesNotMatch(json, /draft-start-resolved/);
 });
 
 test('live PvE spectator sees human perspective and not engine move events', () => {
@@ -322,12 +428,14 @@ function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.
     roomId: 'fog-payload',
     variant: 'fog-of-war',
     offer: [],
+    offers: {},
     state,
     seats: { white: 'white-client', black: 'black-client' },
     selections: {},
     bids: {},
     bidResolution: null,
     resolvedStartId: null,
+    resolvedStartIds: {},
   };
   return {
     id: 'fog-payload',
@@ -374,12 +482,14 @@ function lastMoveRoomFixture(): SnapshotRoom {
       roomId: 'fog-last-move-payload',
       variant: 'fog-of-war',
       offer: [],
+      offers: {},
       state,
       seats: { white: 'white-client', black: 'black-client' },
       selections: {},
       bids: {},
       bidResolution: null,
       resolvedStartId: null,
+      resolvedStartIds: {},
     },
   };
 }
@@ -460,6 +570,7 @@ function bidRoomFixture({ status }: { status: ReturnType<typeof bidForWhiteVaria
     roomId: 'bid-payload',
     variant: 'bid-for-white',
     offer: [],
+    offers: {},
     state,
     seats: status.type === 'pregame'
       ? { white: 'white-client', black: 'black-client' }
@@ -476,6 +587,7 @@ function bidRoomFixture({ status }: { status: ReturnType<typeof bidForWhiteVaria
         winningBidMs: 30_000,
       },
     resolvedStartId: null,
+    resolvedStartIds: {},
   };
   return {
     id: 'bid-payload',

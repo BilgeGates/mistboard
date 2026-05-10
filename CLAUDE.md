@@ -51,5 +51,6 @@ Do not build in v1:
 ## References
 
 - Fog of War rule notes: `docs/fog-of-war/rulesets.md`
+- Fog of War edge-case risks: `docs/fog-of-war/rules-edge-cases.md`
 - Fog of War research questions: `docs/fog-of-war/research-questions.md`
 - Project policy: `docs/repository-policy.md`

@@ -4,10 +4,16 @@
     "watchPatterns": [
       "/apps/server/**",
       "/packages/game/**",
+      "/research/python-fow-lab/configs/**",
+      "/research/python-fow-lab/engine_versions/**",
+      "/research/python-fow-lab/scripts/**",
+      "/research/python-fow-lab/src/**",
+      "/research/python-fow-lab/pyproject.toml",
       "/scripts/**",
       "/package.json",
       "/package-lock.json",
       "/nixpacks.toml",
+      "/railpack.json",
       "/railway.engine-worker.json",
       "/tsconfig.base.json"
     ]

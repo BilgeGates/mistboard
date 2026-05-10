@@ -128,8 +128,9 @@ npm run test:persistent  # server tests against local Postgres
 
 Account auth requires persistence. In local/dev, passwordless email login returns
 the one-time code in the `/api/auth/email/start` JSON response so the flow can be
-tested without an email provider. Production-like runtimes do not expose dev
-codes unless `BICHESS_DEV_AUTH_CODES=true` is set intentionally.
+tested without an email provider. For real email delivery, configure
+`RESEND_API_KEY` and `BICHESS_AUTH_EMAIL_FROM`. Production-like runtimes do not
+expose dev codes unless `BICHESS_DEV_AUTH_CODES=true` is set intentionally.
 
 ## Development
 

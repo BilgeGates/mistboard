@@ -3,6 +3,7 @@ import {
   replayGameEvents,
   variantForId,
   type BidResolution,
+  type Board,
   type Chess960Start,
   type Color,
   type GameEvent,
@@ -23,7 +24,16 @@ import './styles.css';
 type Seat = Color | 'spectator';
 type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'displaced' | 'rejected';
+type PlayAgainStatus = 'creating' | 'failed' | 'idle';
+type DraftOffers = Partial<Record<Color, Chess960Start[]>>;
+type DraftResolvedStartIds = Partial<Record<Color, number>>;
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
+type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
+type MoveListEntry = {
+  event: MovePlayedEvent;
+  eventIndex: number;
+  ply: number;
+};
 type PendingPromotion = {
   color: Color;
   from: Square;
@@ -57,6 +67,7 @@ type StoredSeatToken = {
 declare global {
   interface Window {
     __BICHESS_DEBUG__?: () => DebugSnapshot;
+    webkitAudioContext?: typeof AudioContext;
   }
 }
 
@@ -66,15 +77,20 @@ type ServerMessage =
     clientId: string;
     clients: number;
     mode?: RoomMode;
+    pveEngineId?: string | null;
     roomId: string;
     serverAt?: number;
     seat: Seat;
     seatToken?: string;
     solo: boolean;
     offer: Chess960Start[];
+    offers?: DraftOffers;
+    selections: Partial<Record<Color, number>>;
     bids: Partial<Record<Color, number>>;
     bidResolution: BidResolution | null;
     devViews: DevViews | null;
+    resolvedStartId: number | null;
+    resolvedStartIds?: DraftResolvedStartIds;
     events: GameEvent[];
     state: PlayerView;
   }
@@ -83,15 +99,19 @@ type ServerMessage =
     roomId: string;
     clients: number;
     mode?: RoomMode;
+    pveEngineId?: string | null;
     serverAt?: number;
     seat: Seat;
     solo: boolean;
     seats: Partial<Record<Color, string>>;
+    offer: Chess960Start[];
+    offers?: DraftOffers;
     selections: Partial<Record<Color, number>>;
     bids: Partial<Record<Color, number>>;
     bidResolution: BidResolution | null;
     devViews: DevViews | null;
     resolvedStartId: number | null;
+    resolvedStartIds?: DraftResolvedStartIds;
     events: GameEvent[];
     state: PlayerView;
   }
@@ -101,6 +121,8 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const allSquares = ranks.flatMap((rank) => files.map((file) => `${file}${rank}` as Square));
 const promotionRoles: PromotionRole[] = ['queen', 'rook', 'bishop', 'knight'];
+const GITHUB_URL = 'https://github.com/brianhliou/bichess';
+const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('missing #app');
@@ -134,6 +156,7 @@ let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 let reconnectAttempt = 0;
 let offer: Chess960Start[] = [];
+let offers: DraftOffers = {};
 let clientId = '';
 let clientCount = 0;
 let connectionState: ConnectionState = 'connecting';
@@ -142,6 +165,7 @@ let latencyMs: number | null = null;
 let lastServerAt: number | null = null;
 let lastSnapshotAt: number | null = null;
 let roomMode: RoomMode = engineRequested ? 'pve' : 'pvp';
+let pveEngineId: string | null = null;
 let seat: Seat = 'spectator';
 let solo = soloRequested;
 let selections: Partial<Record<Color, number>> = {};
@@ -149,13 +173,20 @@ let bids: Partial<Record<Color, number>> = {};
 let bidResolution: BidResolution | null = null;
 let devViews: DevViews | null = null;
 let resolvedStartId: number | null = null;
+let resolvedStartIds: DraftResolvedStartIds = {};
 let state: PlayerView | null = null;
 let events: GameEvent[] = [];
 let replayIndex: number | null = null;
 let orientation: Color = 'white';
 let ground: Api | null = null;
 let pendingPromotion: PendingPromotion | null = null;
+let playAgainStatus: PlayAgainStatus = 'idle';
 let shareCopyStatus: 'idle' | 'copied' | 'failed' = 'idle';
+let postgameFogEnabled = false;
+let lastSoundEventCount: number | null = null;
+let lastTerminalSound: string | null = null;
+let lastSoundView: PlayerView | null = null;
+const sound = createSoundController();
 
 function resolveWebSocketBaseUrl(): string {
   const configured = import.meta.env.VITE_BICHESS_WS_URL;
@@ -166,6 +197,7 @@ function resolveWebSocketBaseUrl(): string {
 }
 
 connectSocket();
+window.addEventListener('keydown', handleReplayKeyboard);
 
 function connectSocket(): void {
   if (reconnectTimer) {
@@ -232,13 +264,18 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     clientCount = message.clients;
     connectionState = 'connected';
     roomMode = message.mode ?? roomMode;
+    pveEngineId = message.pveEngineId ?? null;
     lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
     offer = message.offer;
+    offers = normalizedOffers(message.offer, message.offers);
+    selections = message.selections;
     bids = message.bids;
     bidResolution = message.bidResolution;
     devViews = message.devViews;
+    resolvedStartId = message.resolvedStartId;
+    resolvedStartIds = message.resolvedStartIds ?? {};
     events = message.events;
     state = message.state;
   }
@@ -246,17 +283,22 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     clientCount = message.clients;
     connectionState = 'connected';
     roomMode = message.mode ?? roomMode;
+    pveEngineId = message.pveEngineId ?? null;
     lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
+    offer = message.offer;
+    offers = normalizedOffers(message.offer, message.offers);
     selections = message.selections;
     bids = message.bids;
     bidResolution = message.bidResolution;
     devViews = message.devViews;
     resolvedStartId = message.resolvedStartId;
+    resolvedStartIds = message.resolvedStartIds ?? {};
     events = message.events;
     state = message.state;
   }
+  maybePlaySnapshotSound(events, state);
   reconcileInteractionState();
   render();
 }
@@ -299,10 +341,11 @@ window.setInterval(() => {
 
 function createLayout(target: HTMLDivElement) {
   target.innerHTML = `
+    ${buildNavHtml()}
     <main class="shell${debugRequested ? ' debug-shell' : ''}">
       <section class="topbar">
         <div>
-          <h1>${debugRequested ? 'Fog Debug' : 'Bichess'}</h1>
+          ${debugRequested ? '<h1>Fog Debug</h1>' : ''}
           <p data-room-meta>Connecting</p>
         </div>
         <a data-new-room href="/">New room</a>
@@ -310,13 +353,7 @@ function createLayout(target: HTMLDivElement) {
 
       <section class="play-grid">
         <section class="board-panel">
-          <div class="board-shell">
-            <div data-board-status class="board-status">Connecting</div>
-            <div data-board class="board" aria-label="chess board"></div>
-            <div data-board-result class="board-result" hidden></div>
-            <div data-promotion class="promotion-picker" hidden></div>
-          </div>
-          <aside class="side-panel" aria-label="Game controls">
+          <aside class="side-panel meta-panel" aria-label="Game controls">
             <section class="panel-section">
               <h2>Game</h2>
               <div data-action-status class="action-status"></div>
@@ -344,6 +381,14 @@ function createLayout(target: HTMLDivElement) {
               <h2>Selections</h2>
               <div data-selections class="selection-list"></div>
             </section>
+          </aside>
+          <div class="board-shell">
+            <div data-board-status class="board-status">Connecting</div>
+            <div data-board class="board" aria-label="chess board"></div>
+            <div data-board-result class="board-result" hidden></div>
+            <div data-promotion class="promotion-picker" hidden></div>
+          </div>
+          <aside class="side-panel moves-panel" aria-label="Replay and move list">
             <section class="panel-section">
               <h2>Replay</h2>
               <div class="replay-controls">
@@ -352,6 +397,7 @@ function createLayout(target: HTMLDivElement) {
                 <button type="button" data-replay="next" title="Next event">&gt;</button>
                 <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
               </div>
+              <button type="button" data-fog-toggle class="fog-toggle" hidden>Fog on</button>
               <p data-replay-meta class="replay-meta">Live</p>
               <ol data-move-list class="move-list"></ol>
             </section>
@@ -389,13 +435,14 @@ function createLayout(target: HTMLDivElement) {
   const selectionList = target.querySelector<HTMLDivElement>('[data-selections]');
   const replayMeta = target.querySelector<HTMLParagraphElement>('[data-replay-meta]');
   const replayControls = target.querySelectorAll<HTMLButtonElement>('[data-replay]');
+  const fogToggle = target.querySelector<HTMLButtonElement>('[data-fog-toggle]');
   const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
 
-  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !shareRoom || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList) {
+  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !shareRoom || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList) {
     throw new Error('missing app region');
   }
 
-  newRoom.href = '/play';
+  newRoom.href = '/';
 
   return {
     board,
@@ -408,6 +455,7 @@ function createLayout(target: HTMLDivElement) {
     clocks,
     devViews: devViewsPanel,
     devViewsSection,
+    fogToggle,
     gameInfo,
     moveList,
     offerSection,
@@ -423,17 +471,37 @@ function createLayout(target: HTMLDivElement) {
   };
 }
 
+function buildNavHtml(): string {
+  return `
+    <nav class="site-nav" aria-label="Primary">
+      <a class="site-nav-brand" href="/">
+        <img class="site-nav-logo" src="/logo.svg" alt="" width="28" height="28">
+        <span>BICHESS</span>
+      </a>
+      <div class="site-nav-links">
+        ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/engine-lab">Engine Lab</a>' : ''}
+        <a class="site-nav-link" href="/watch">Watch</a>
+        <a class="site-nav-link" href="/learn">Learn</a>
+        <a class="site-nav-link" href="/about">About</a>
+        <a class="site-nav-link" href="/account">Account</a>
+        <a class="site-nav-link" href="${GITHUB_URL}" target="_blank" rel="noreferrer noopener">GitHub</a>
+      </div>
+    </nav>
+  `;
+}
+
 function render(): void {
   const view = currentView();
   const projection = currentProjection();
   const nextOrientation = view?.perspective ?? (seat === 'black' ? 'black' : 'white');
   orientation = nextOrientation;
+  const showDraft = shouldShowDraftControls(view, projection);
 
   refs.roomMeta.innerHTML = roomMetaHtml();
   refs.boardStatus.textContent = boardStatusLabel();
   refs.boardStatus.hidden = view !== null;
-  refs.offerSection.hidden = view?.variant !== 'draft960';
-  refs.selectionSection.hidden = view?.variant !== 'draft960';
+  refs.offerSection.hidden = !showDraft;
+  refs.selectionSection.hidden = !showDraft;
   refs.bidSection.hidden = view?.variant !== 'bid-for-white';
 
   renderActionStatus(view);
@@ -455,16 +523,37 @@ function renderOffer(projection: GameProjection | null): void {
   refs.starts.replaceChildren();
   const view = currentView();
 
-  for (const start of offer) {
+  if (solo) {
+    refs.starts.append(
+      draftOfferGroup('White offer', 'white', draftOfferForColor('white', projection), projection),
+      draftOfferGroup('Black offer', 'black', draftOfferForColor('black', projection), projection),
+    );
+    return;
+  }
+
+  if (seat === 'spectator') {
+    refs.starts.append(infoNotice('pending', 'Draft choices are private while the game is live.'));
+    return;
+  }
+
+  const color = pickColorForSeat();
+  const visibleOffer = draftOfferForColor(color, projection);
+  if (visibleOffer.length === 0) {
+    refs.starts.append(infoNotice('pending', 'Waiting for the draft offer.'));
+    return;
+  }
+
+  for (const start of visibleOffer) {
     const row = document.createElement('div');
     row.className = 'start-row';
 
     const button = document.createElement('button');
-    const selected = projection?.selections[pickColorForSeat()] === start.id;
-    const resolved = projection?.resolvedStartId === start.id;
+    const selected = selectedStartId(color, projection) === start.id;
+    const resolved = resolvedStartIdForColor(color, projection) === start.id
+      || sharedResolvedStartId(projection) === start.id;
     button.type = 'button';
     button.className = ['start-card', selected ? 'selected' : '', resolved ? 'resolved' : ''].filter(Boolean).join(' ');
-    button.disabled = !isLive() || view?.status.type !== 'pregame' || seat === 'spectator';
+    button.disabled = !isLive() || view?.status.type !== 'pregame';
     button.dataset.start = String(start.id);
     button.addEventListener('click', () => {
       sendSocket({ type: 'select-start', startId: start.id });
@@ -477,37 +566,78 @@ function renderOffer(projection: GameProjection | null): void {
     button.append(id, placement);
     row.append(button);
 
-    if (solo) {
-      const soloActions = document.createElement('div');
-      soloActions.className = 'solo-picks';
-      soloActions.append(
-        soloPickButton('White', 'white', start.id, projection),
-        soloPickButton('Black', 'black', start.id, projection),
-      );
-      row.append(soloActions);
-    }
-
     refs.starts.append(row);
   }
 }
 
-function soloPickButton(label: string, color: Color, startId: number, projection: GameProjection | null): HTMLButtonElement {
+function draftOfferGroup(
+  label: string,
+  color: Color,
+  starts: Chess960Start[],
+  projection: GameProjection | null,
+): HTMLDivElement {
+  const group = document.createElement('div');
+  group.className = 'start-group';
+
+  const heading = document.createElement('h3');
+  heading.textContent = label;
+  group.append(heading);
+
+  if (starts.length === 0) {
+    group.append(infoNotice('pending', 'No offer visible.'));
+    return group;
+  }
+
+  for (const start of starts) {
+    const button = draftPickButton(color, start, projection);
+    group.append(button);
+  }
+
+  return group;
+}
+
+function draftPickButton(color: Color, start: Chess960Start, projection: GameProjection | null): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.textContent = label;
-  button.className = projection?.selections[color] === startId ? 'selected' : '';
+  button.className = [
+    'start-card',
+    selectedStartId(color, projection) === start.id ? 'selected' : '',
+    resolvedStartIdForColor(color, projection) === start.id || sharedResolvedStartId(projection) === start.id ? 'resolved' : '',
+  ].filter(Boolean).join(' ');
   button.disabled = !isLive() || currentView()?.status.type !== 'pregame';
+  const id = document.createElement('strong');
+  id.textContent = `#${start.id}`;
+  const placement = document.createElement('span');
+  placement.textContent = start.fenPlacement.toUpperCase();
+  button.append(id, placement);
   button.addEventListener('click', () => {
-    sendSocket({ type: 'select-start', color, startId });
+    sendSocket({ type: 'select-start', color, startId: start.id });
   });
   return button;
 }
 
 function renderSelections(projection: GameProjection | null): void {
+  const view = currentView();
+  if (!solo && seat !== 'spectator' && view?.variant === 'fog-of-war' && hasVisibleDraftData(projection)) {
+    const color = pickColorForSeat();
+    refs.selectionList.replaceChildren(
+      selectionItem('Your pick', selectedStartId(color, projection)),
+      selectionItem('Your start', resolvedStartIdForColor(color, projection)),
+    );
+    return;
+  }
+
+  const resolvedWhite = resolvedStartIdForColor('white', projection);
+  const resolvedBlack = resolvedStartIdForColor('black', projection);
   refs.selectionList.replaceChildren(
-    selectionItem('White', projection?.selections.white),
-    selectionItem('Black', projection?.selections.black),
-    selectionItem('Resolved', projection?.resolvedStartId),
+    selectionItem('White', selectedStartId('white', projection)),
+    selectionItem('Black', selectedStartId('black', projection)),
+    resolvedWhite !== undefined || resolvedBlack !== undefined
+      ? selectionItem('Resolved White', resolvedWhite)
+      : selectionItem('Resolved', sharedResolvedStartId(projection)),
+    resolvedWhite !== undefined || resolvedBlack !== undefined
+      ? selectionItem('Resolved Black', resolvedBlack)
+      : document.createDocumentFragment(),
   );
 }
 
@@ -523,12 +653,7 @@ function renderActionStatus(view: PlayerView | null): void {
   body.textContent = actionBody(view);
   notice.append(title, body);
 
-  if (view?.status.type === 'finished') {
-    const review = document.createElement('a');
-    review.href = `/game/${encodeURIComponent(room)}`;
-    review.textContent = 'Review game';
-    notice.append(review);
-  } else if (connectionState === 'disconnected' || connectionState === 'reconnecting') {
+  if (connectionState === 'disconnected' || connectionState === 'reconnecting') {
     const reconnect = document.createElement('button');
     reconnect.type = 'button';
     reconnect.textContent = 'Reconnect now';
@@ -552,8 +677,9 @@ function renderGameInfo(view: PlayerView | null): void {
 }
 
 function renderRoomActions(): void {
-  const actions = [roomAction('Back to Play', '/play')];
+  const actions: HTMLElement[] = [roomAction('Back to Home', '/')];
   if (currentView()?.status.type === 'finished') {
+    if (roomMode === 'pvp' || roomMode === 'pve') actions.unshift(playAgainButton());
     actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(room)}`, 'primary'));
   }
   if (engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
@@ -587,6 +713,48 @@ function roomAction(label: string, href: string, toneOrDev?: 'primary' | 'engine
   if (toneOrDev === 'primary') link.className = 'primary';
   link.textContent = label;
   return link;
+}
+
+function playAgainButton(): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = playAgainStatus === 'failed' ? 'danger' : '';
+  button.disabled = playAgainStatus === 'creating';
+  button.textContent = playAgainStatus === 'creating'
+    ? 'Creating'
+    : playAgainStatus === 'failed'
+      ? 'Try play again'
+      : 'Play again';
+  button.addEventListener('click', () => {
+    void createPlayAgainRoom();
+  });
+  return button;
+}
+
+async function createPlayAgainRoom(): Promise<void> {
+  if (roomMode !== 'pvp' && roomMode !== 'pve') return;
+  playAgainStatus = 'creating';
+  renderRoomActions();
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: roomMode,
+        variant: currentView()?.variant ?? state?.variant ?? variantRequested ?? 'fog-of-war',
+        hiddenDraft960: shouldRequestHiddenDraft960ForPlayAgain(),
+        ...(roomMode === 'pve' && pveEngineId ? { engineId: pveEngineId } : {}),
+      }),
+    });
+    if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
+    const data = await response.json() as { url?: string };
+    if (!data.url) throw new Error('room creation response missing url');
+    window.location.assign(data.url);
+  } catch (err) {
+    console.warn(err);
+    playAgainStatus = 'failed';
+    renderRoomActions();
+  }
 }
 
 function renderDevViews(): void {
@@ -794,12 +962,7 @@ function renderBoardResult(view: PlayerView | null): void {
 
   const body = document.createElement('span');
   body.textContent = `${resultReasonLabel(view.status.reason)}. Board fully revealed.`;
-
-  const review = document.createElement('a');
-  review.href = `/game/${encodeURIComponent(room)}`;
-  review.textContent = 'Review game';
-
-  refs.boardResult.append(title, body, review);
+  refs.boardResult.append(title, body);
 }
 
 function reconcileInteractionState(): void {
@@ -823,12 +986,31 @@ function legalDests(view: PlayerView): cg.Dests {
     const to = move.to as cg.Key;
     dests.set(from, [...(dests.get(from) ?? []), to]);
   }
+  addCastlingDestinationAliases(view, dests);
   return dests;
+}
+
+function addCastlingDestinationAliases(view: PlayerView, dests: cg.Dests): void {
+  for (const move of view.legalMoves) {
+    const alias = castlingKingDestinationFromView(view, move);
+    if (!alias) continue;
+    const from = move.from as cg.Key;
+    const current = dests.get(from) ?? [];
+    if (!current.includes(alias as cg.Key)) dests.set(from, [...current, alias as cg.Key]);
+  }
+}
+
+function castlingKingDestinationFromView(view: PlayerView, move: Move): Square | null {
+  const piece = view.board[move.from];
+  const rook = view.board[move.to];
+  if (!piece || piece.role !== 'king' || !rook || rook.role !== 'rook' || rook.color !== piece.color) return null;
+  if (rankOf(move.from) !== rankOf(move.to)) return null;
+  return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
 }
 
 function hiddenSquareClasses(view: PlayerView | null): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
-  if (!view || view.variant !== 'fog-of-war' || view.status.type === 'finished') return classes;
+  if (!view || view.variant !== 'fog-of-war') return classes;
 
   const visible = new Set(view.visibleSquares);
   for (const square of allSquares) {
@@ -838,27 +1020,33 @@ function hiddenSquareClasses(view: PlayerView | null): cg.SquareClasses {
 }
 
 function sendBoardMove(from: cg.Key, to: cg.Key): void {
+  const view = currentView();
   const fromSquare = from as Square;
   const toSquare = to as Square;
   const promotions = promotionMovesFor(fromSquare, toSquare);
   if (promotions.length > 1) {
     pendingPromotion = {
-      color: currentView()?.board[fromSquare]?.color ?? activeMoveColor() ?? 'white',
+      color: view?.board[fromSquare]?.color ?? activeMoveColor() ?? 'white',
       from: fromSquare,
       moves: promotions,
       to: toSquare,
     };
-    renderBoard(currentView());
+    renderBoard(view);
     renderPromotion();
     return;
   }
 
   const move = promotions[0] ?? bestMove(fromSquare, toSquare);
   if (!move) {
-    renderBoard(currentView());
+    renderBoard(view);
     return;
   }
-  sendSocket({ type: 'move', ...move });
+  submitBoardMove(move, view);
+}
+
+function submitBoardMove(move: Move, view: PlayerView | null): void {
+  if (!sendSocket({ type: 'move', ...move })) return;
+  sound.play(soundForOwnMove(view, move));
 }
 
 function bestMove(from: Square, to: Square) {
@@ -870,7 +1058,13 @@ function promotionMovesFor(from: Square, to: Square): Move[] {
 }
 
 function movesFor(from: Square, to: Square): Move[] {
-  return currentView()?.legalMoves.filter((move) => move.from === from && move.to === to) ?? [];
+  const view = currentView();
+  if (!view) return [];
+  const castlingAlias = view.legalMoves.filter((move) => (
+    move.from === from && castlingKingDestinationFromView(view, move) === to
+  ));
+  if (castlingAlias.length > 0) return castlingAlias;
+  return view.legalMoves.filter((move) => move.from === from && move.to === to);
 }
 
 function renderPromotion(): void {
@@ -908,7 +1102,7 @@ function renderPromotion(): void {
       event.stopPropagation();
       pendingPromotion = null;
       refs.promotion.hidden = true;
-      sendSocket({ type: 'move', ...move });
+      submitBoardMove(move, currentView());
     });
     refs.promotion.append(button);
   }
@@ -966,6 +1160,14 @@ function pieceFen(role: PieceRole, color: Color): string {
 
 function renderReplay(): void {
   refs.replayMeta.textContent = replayMetaLabel();
+  refs.fogToggle.hidden = !canTogglePostgameFog();
+  refs.fogToggle.textContent = postgameFogEnabled ? 'Fog on' : 'Reveal on';
+  refs.fogToggle.setAttribute('aria-pressed', postgameFogEnabled ? 'true' : 'false');
+  refs.fogToggle.onclick = () => {
+    postgameFogEnabled = !postgameFogEnabled;
+    render();
+  };
+
   for (const control of refs.replayControls) {
     control.disabled = replayControlDisabled(control.dataset.replay ?? '');
     control.onclick = () => {
@@ -976,21 +1178,122 @@ function renderReplay(): void {
   }
 
   refs.moveList.replaceChildren();
-  events.forEach((event, index) => {
-    if (event.type !== 'move-played') return;
+  const masked = shouldMaskLiveMoveList();
+  const entries = masked ? liveMoveListEntries() : revealedMoveListEntries();
+  const entriesByPly = new Map(entries.map((entry) => [entry.ply, entry]));
+  const plyCount = masked ? liveMoveListPlyCount(state) : entries.length;
+  const rows: HTMLLIElement[] = [];
+
+  for (let row = 0; row < Math.ceil(plyCount / 2); row += 1) {
     const item = document.createElement('li');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = `${event.move.from}-${event.move.to}`;
-    button.className = replayIndex === index + 1 ? 'active' : '';
-    button.addEventListener('click', () => {
-      replayIndex = index + 1;
-      reconcileInteractionState();
-      render();
-    });
-    item.append(button);
-    refs.moveList.append(item);
+    item.className = 'move-row';
+
+    const number = document.createElement('span');
+    number.className = 'move-number';
+    number.textContent = `${row + 1}.`;
+    item.append(number);
+
+    const whitePly = row * 2 + 1;
+    const blackPly = row * 2 + 2;
+    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, plyCount));
+    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, plyCount));
+    rows.push(item);
+  }
+  refs.moveList.append(...rows);
+}
+
+function shouldMaskLiveMoveList(): boolean {
+  return state?.variant === 'fog-of-war' && state.status.type !== 'finished' && roomMode !== 'eve';
+}
+
+function revealedMoveListEntries(): MoveListEntry[] {
+  const entries: MoveListEntry[] = [];
+  for (const [index, event] of events.entries()) {
+    if (event.type !== 'move-played') continue;
+    entries.push({ event, eventIndex: index + 1, ply: entries.length + 1 });
+  }
+  return entries;
+}
+
+function liveMoveListEntries(): MoveListEntry[] {
+  const entries: MoveListEntry[] = [];
+  const counts: Record<Color, number> = { black: 0, white: 0 };
+  for (const [index, event] of events.entries()) {
+    if (event.type !== 'move-played') continue;
+    counts[event.color] += 1;
+    const ply = event.color === 'white' ? counts.white * 2 - 1 : counts.black * 2;
+    entries.push({ event, eventIndex: index + 1, ply });
+  }
+  return entries;
+}
+
+function liveMoveListPlyCount(view: PlayerView | null): number {
+  if (!view) return 0;
+  if (view.status.type !== 'playing') return 0;
+  const completedFullMoves = Math.max(0, view.moveNumber - 1);
+  return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
+}
+
+function moveListCell(
+  ply: number,
+  color: Color,
+  entry: MoveListEntry | undefined,
+  masked: boolean,
+  plyCount: number,
+): HTMLElement {
+  if (ply > plyCount) {
+    const empty = document.createElement('span');
+    empty.className = `${color}-ply move-empty`;
+    return empty;
+  }
+
+  const hidden = masked && color !== seat;
+  if (!entry || hidden) {
+    const placeholder = document.createElement('span');
+    placeholder.className = `${color}-ply move-placeholder`;
+    placeholder.textContent = '..';
+    return placeholder;
+  }
+
+  if (masked) {
+    const label = document.createElement('span');
+    label.className = `${color}-ply move-visible`;
+    label.textContent = moveLabel(entry.event.move);
+    return label;
+  }
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = moveLabel(entry.event.move);
+  button.className = [
+    color === 'white' ? 'white-ply' : 'black-ply',
+    replayIndex === entry.eventIndex ? 'active' : '',
+  ].filter(Boolean).join(' ');
+  button.addEventListener('click', () => {
+    replayIndex = entry.eventIndex;
+    reconcileInteractionState();
+    render();
   });
+  return button;
+}
+
+function canTogglePostgameFog(): boolean {
+  return state?.variant === 'fog-of-war' && state.status.type === 'finished' && events.some((event) => event.type === 'move-played');
+}
+
+function moveLabel(move: Move): string {
+  const promotion = move.promotion ? `=${pieceLetter(move.promotion)}` : '';
+  return `${move.from}${move.to}${promotion}`;
+}
+
+function pieceLetter(role: PromotionRole): string {
+  const letters: Record<PromotionRole, string> = {
+    bishop: 'B',
+    knight: 'N',
+    queen: 'Q',
+    rook: 'R',
+  };
+  return letters[role];
 }
 
 function applyReplayControl(action: string): void {
@@ -1000,12 +1303,41 @@ function applyReplayControl(action: string): void {
   }
 
   const currentIndex = currentReplayIndex();
-  if (action === 'first') replayIndex = Math.min(events.length, 1);
+  if (action === 'first') replayIndex = events.length > 0 ? 1 : null;
   if (action === 'prev') replayIndex = Math.max(1, currentIndex - 1);
   if (action === 'next') {
     const next = Math.min(events.length, currentIndex + 1);
     replayIndex = next === events.length ? null : next;
   }
+}
+
+function handleReplayKeyboard(event: KeyboardEvent): void {
+  if (event.defaultPrevented || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) return;
+  if (isEditableKeyboardTarget(event.target)) return;
+
+  const action = replayActionForKey(event.key);
+  if (!action || replayControlDisabled(action)) return;
+
+  event.preventDefault();
+  applyReplayControl(action);
+  reconcileInteractionState();
+  render();
+}
+
+function replayActionForKey(key: string): string | null {
+  if (key === 'ArrowLeft') return 'prev';
+  if (key === 'ArrowRight') return 'next';
+  if (key === 'ArrowUp') return 'first';
+  if (key === 'ArrowDown') return 'latest';
+  return null;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement;
 }
 
 function replayControlDisabled(action: string): boolean {
@@ -1023,12 +1355,15 @@ function currentProjection(): GameProjection | null {
 }
 
 function currentView(): PlayerView | null {
-  if (isLive()) return state;
   const projection = currentProjection();
-  if (!projection) return state;
   const perspective = seat === 'black' ? 'black' : 'white';
-  if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished') {
+  if (isLive() && (!postgameFogEnabled || !projection || projection.state.status.type !== 'finished')) return state;
+  if (!projection) return state;
+  if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished' && !postgameFogEnabled) {
     return fullTruthViewForProjection(projection, perspective);
+  }
+  if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished') {
+    return terminalFogViewForProjection(projection, perspective);
   }
   return viewForProjection(projection, perspective);
 }
@@ -1091,6 +1426,22 @@ function fullTruthViewForProjection(projection: GameProjection, perspective: Col
     status: projection.state.status,
     perspective,
     moveNumber: projection.state.moveNumber,
+    lastMove: projection.state.lastMove,
+    clock: projection.state.clock,
+  };
+}
+
+function terminalFogViewForProjection(projection: GameProjection, perspective: Color): PlayerView {
+  const variant = variantForId(projection.state.variant);
+  const reviewState = {
+    ...projection.state,
+    status: { type: 'playing', turn: perspective } as const,
+  };
+  const view = variant.getPlayerView(reviewState, perspective);
+  return {
+    ...view,
+    legalMoves: [],
+    status: projection.state.status,
     lastMove: projection.state.lastMove,
     clock: projection.state.clock,
   };
@@ -1274,6 +1625,56 @@ function selectionLabel(startId: number | null | undefined): string {
   return startId === null || startId === undefined ? 'none' : `#${startId}`;
 }
 
+function shouldRequestHiddenDraft960ForPlayAgain(): boolean {
+  const variant = currentView()?.variant ?? state?.variant ?? variantRequested;
+  return variant === 'fog-of-war' && hasVisibleDraftData(currentProjection());
+}
+
+function normalizedOffers(primaryOffer: Chess960Start[], nextOffers: DraftOffers | undefined): DraftOffers {
+  if (nextOffers?.white || nextOffers?.black) return nextOffers;
+  if (primaryOffer.length === 0) return {};
+  return { white: primaryOffer, black: primaryOffer };
+}
+
+function draftOfferForColor(color: Color, projection: GameProjection | null): Chess960Start[] {
+  return projection?.offers[color]
+    ?? offers[color]
+    ?? (projection?.offer.length ? projection.offer : offer);
+}
+
+function selectedStartId(color: Color, projection: GameProjection | null): number | undefined {
+  return projection?.selections[color] ?? selections[color];
+}
+
+function sharedResolvedStartId(projection: GameProjection | null): number | null {
+  return projection?.resolvedStartId ?? resolvedStartId;
+}
+
+function resolvedStartIdForColor(color: Color, projection: GameProjection | null): number | undefined {
+  return projection?.resolvedStartIds[color] ?? resolvedStartIds[color];
+}
+
+function shouldShowDraftControls(view: PlayerView | null, projection: GameProjection | null): boolean {
+  if (view?.variant === 'draft960') return true;
+  return hasVisibleDraftData(projection);
+}
+
+function hasVisibleDraftData(projection: GameProjection | null): boolean {
+  if (solo) {
+    return draftOfferForColor('white', projection).length > 0
+      || draftOfferForColor('black', projection).length > 0
+      || selectedStartId('white', projection) !== undefined
+      || selectedStartId('black', projection) !== undefined
+      || resolvedStartIdForColor('white', projection) !== undefined
+      || resolvedStartIdForColor('black', projection) !== undefined
+      || sharedResolvedStartId(projection) !== null;
+  }
+  if (seat === 'spectator') return offer.length > 0 || Object.keys(offers).length > 0;
+  return draftOfferForColor(pickColorForSeat(), projection).length > 0
+    || selectedStartId(pickColorForSeat(), projection) !== undefined
+    || resolvedStartIdForColor(pickColorForSeat(), projection) !== undefined;
+}
+
 function roomMetaHtml(): string {
   const view = currentView();
   const status = view?.status.type === 'playing'
@@ -1309,7 +1710,9 @@ function shareRoomUrl(): string {
 }
 
 function roomIdFromPath(pathname: string): string | null {
-  const match = pathname.replace(/\/+$/, '').match(/^\/room\/([^/]+)$/);
+  const normalized = pathname.replace(/\/+$/, '');
+  if (normalized === '/room') return 'dev-room';
+  const match = normalized.match(/^\/room\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
@@ -1383,6 +1786,196 @@ async function copyShareLink(input: HTMLInputElement): Promise<void> {
     shareCopyStatus = 'idle';
     renderShareRoom();
   }, 1600);
+}
+
+type SoundKind = 'capture' | 'captured' | 'castle' | 'lose' | 'move' | 'win';
+
+type SoundController = {
+  play(kind: SoundKind): void;
+};
+
+function createSoundController(): SoundController {
+  let ctx: AudioContext | null = null;
+  let unlocked = false;
+
+  const ensureContext = (): AudioContext | null => {
+    const AudioCtor = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioCtor) return null;
+    ctx ??= new AudioCtor();
+    return ctx;
+  };
+
+  const unlock = () => {
+    const audio = ensureContext();
+    if (!audio) return;
+    unlocked = true;
+    void audio.resume();
+    window.removeEventListener('pointerdown', unlock);
+    window.removeEventListener('keydown', unlock);
+  };
+
+  window.addEventListener('pointerdown', unlock, { once: true });
+  window.addEventListener('keydown', unlock, { once: true });
+
+  return {
+    play(kind) {
+      const audio = ensureContext();
+      if (!audio || !unlocked) return;
+      void audio.resume();
+      const now = audio.currentTime;
+      for (const tone of tonesForSound(kind)) {
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = tone.type;
+        osc.frequency.setValueAtTime(tone.frequency, now + tone.delay);
+        gain.gain.setValueAtTime(0.0001, now + tone.delay);
+        gain.gain.exponentialRampToValueAtTime(tone.gain, now + tone.delay + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.delay + tone.duration);
+        osc.connect(gain).connect(audio.destination);
+        osc.start(now + tone.delay);
+        osc.stop(now + tone.delay + tone.duration + 0.03);
+      }
+    },
+  };
+}
+
+function tonesForSound(kind: SoundKind): Array<{
+  delay: number;
+  duration: number;
+  frequency: number;
+  gain: number;
+  type: OscillatorType;
+}> {
+  if (kind === 'capture') return [{ delay: 0, duration: 0.11, frequency: 180, gain: 0.075, type: 'triangle' }];
+  if (kind === 'captured') return [{ delay: 0, duration: 0.16, frequency: 120, gain: 0.08, type: 'sawtooth' }];
+  if (kind === 'castle') {
+    return [
+      { delay: 0, duration: 0.1, frequency: 260, gain: 0.055, type: 'square' },
+      { delay: 0.08, duration: 0.12, frequency: 390, gain: 0.05, type: 'square' },
+    ];
+  }
+  if (kind === 'win') {
+    return [
+      { delay: 0, duration: 0.12, frequency: 440, gain: 0.06, type: 'sine' },
+      { delay: 0.1, duration: 0.16, frequency: 660, gain: 0.06, type: 'sine' },
+      { delay: 0.22, duration: 0.2, frequency: 880, gain: 0.055, type: 'sine' },
+    ];
+  }
+  if (kind === 'lose') {
+    return [
+      { delay: 0, duration: 0.16, frequency: 220, gain: 0.06, type: 'triangle' },
+      { delay: 0.14, duration: 0.24, frequency: 146.8, gain: 0.055, type: 'triangle' },
+    ];
+  }
+  return [{ delay: 0, duration: 0.09, frequency: 320, gain: 0.055, type: 'sine' }];
+}
+
+function maybePlaySnapshotSound(nextEvents: GameEvent[], nextView: PlayerView | null): void {
+  if (lastSoundEventCount === null) {
+    lastSoundEventCount = nextEvents.length;
+    lastTerminalSound = terminalSoundKey(nextEvents, nextView);
+    lastSoundView = nextView;
+    return;
+  }
+
+  const terminal = terminalSoundKey(nextEvents, nextView);
+  if (terminal && terminal !== lastTerminalSound) {
+    lastTerminalSound = terminal;
+    sound.play(terminal.startsWith('win') ? 'win' : 'lose');
+    lastSoundEventCount = nextEvents.length;
+    lastSoundView = nextView;
+    return;
+  }
+
+  if (shouldUseRevealedEventSounds(nextView)) {
+    playRevealedEventSound(nextEvents);
+  } else {
+    playSanitizedOpponentSound(lastSoundView, nextView);
+  }
+
+  lastSoundEventCount = nextEvents.length;
+  lastSoundView = nextView;
+}
+
+function shouldUseRevealedEventSounds(nextView: PlayerView | null): boolean {
+  return roomMode === 'eve' || nextView?.status.type === 'finished';
+}
+
+function playRevealedEventSound(nextEvents: GameEvent[]): void {
+  if (nextEvents.length <= (lastSoundEventCount ?? 0)) return;
+
+  let latestMoveIndex = -1;
+  for (let index = nextEvents.length - 1; index >= (lastSoundEventCount ?? 0); index -= 1) {
+    if (nextEvents[index]?.type === 'move-played') {
+      latestMoveIndex = index;
+      break;
+    }
+  }
+  if (latestMoveIndex >= 0) {
+    const moveEvent = nextEvents[latestMoveIndex]!;
+    if (moveEvent.type === 'move-played') {
+      sound.play(soundForMove(nextEvents.slice(0, latestMoveIndex), moveEvent));
+    }
+  }
+}
+
+function soundForMove(beforeEvents: GameEvent[], event: Extract<GameEvent, { type: 'move-played' }>): SoundKind {
+  const before = replayGameEvents(beforeEvents).state;
+  if (isCastleMoveOnBoard(before.board, event.move, event.color)) return 'castle';
+  const captured = before.board[event.move.to];
+  if (!captured) return 'move';
+  if (captured.color === event.color) return 'move';
+  if (seat !== 'spectator' && captured.color === seat) return 'captured';
+  return 'capture';
+}
+
+function playSanitizedOpponentSound(previousView: PlayerView | null, nextView: PlayerView | null): void {
+  if (!isColor(seat) || !previousView || !nextView) return;
+  if (previousView.status.type !== 'playing') return;
+  if (previousView.status.turn === seat) return;
+  if (nextView.status.type === 'playing' && nextView.status.turn !== seat) return;
+
+  sound.play(ownPieceCount(nextView, seat) < ownPieceCount(previousView, seat) ? 'captured' : 'move');
+}
+
+function soundForOwnMove(view: PlayerView | null, move: Move): SoundKind {
+  if (!view) return 'move';
+  const piece = view.board[move.from];
+  if (!piece) return 'move';
+  if (isCastleMoveInView(view, move, piece.color)) return 'castle';
+
+  const target = view.board[move.to];
+  if (target && target.color !== piece.color) return 'capture';
+  if (piece.role === 'pawn' && squareFileIndex(move.from) !== squareFileIndex(move.to)) return 'capture';
+  return 'move';
+}
+
+function isCastleMoveInView(view: PlayerView, move: Move, color: Color): boolean {
+  return isCastleMoveOnBoard(view.board, move, color);
+}
+
+function isCastleMoveOnBoard(board: Board, move: Move, color: Color): boolean {
+  const piece = board[move.from];
+  if (!piece || piece.role !== 'king' || piece.color !== color) return false;
+  const target = board[move.to];
+  if (target?.role === 'rook' && target.color === color) return true;
+  return rankOf(move.from) === rankOf(move.to)
+    && Math.abs(squareFileIndex(move.to) - squareFileIndex(move.from)) > 1
+    && (move.to[0] === 'c' || move.to[0] === 'g');
+}
+
+function ownPieceCount(view: PlayerView, color: Color): number {
+  return Object.values(view.board).filter((piece) => piece?.color === color).length;
+}
+
+function rankOf(square: Square): string {
+  return square[1] ?? '';
+}
+
+function terminalSoundKey(nextEvents: GameEvent[], nextView: PlayerView | null): string | null {
+  const status = nextView?.status ?? replayGameEvents(nextEvents).state.status;
+  if (status.type !== 'finished' || seat === 'spectator' || status.winner === null) return null;
+  return status.winner === seat ? `win:${nextEvents.length}` : `lose:${nextEvents.length}`;
 }
 
 function boardStatusLabel(): string {

@@ -5,6 +5,10 @@
 - What exact rules does Chess.com use for check, checkmate, king capture, castling, and en passant?
 - Which rules create the cleanest local engine contract?
 - Which rules are most intuitive for human players?
+- Which legal-move inferences are intentional under Bichess Fog, and which are
+  accidental information leaks?
+- Do TypeScript product rules, server payload policy, and Python engine-lab
+  visibility agree on the edge cases documented in `rules-edge-cases.md`?
 
 ## Priority 2: Information
 
@@ -25,4 +29,3 @@
 - Tactical bot: material and king-safety heuristics over visible state.
 - Information bot: maximize visibility and reduce opponent uncertainty.
 - Belief bot: maintain candidate hidden states and choose robust moves.
-

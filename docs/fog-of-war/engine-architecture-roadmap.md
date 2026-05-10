@@ -15,7 +15,10 @@ is an imperfect-information game. The durable architecture is a hybrid system:
    set from different angles.
 3. A synthesis layer chooses the move, explains why, and enforces terminal
    Fog-of-War safety rules.
-4. The lab loop converts human annotations and saved games into replayable
+4. An anytime engine protocol lets the server play the best legal candidate
+   available at the move deadline instead of treating a slow engine as no
+   engine.
+5. The lab loop converts human annotations and saved games into replayable
    regression gates.
 
 The engine consumes only legal `PlayerView`-equivalent information. It may use
@@ -111,7 +114,108 @@ Examples of terminal or near-terminal rules:
 
 This layer answers "given conflicting signals, what move do we actually play?"
 
-### Layer 4: Learning Loop
+### Layer 4: Anytime Engine Protocol
+
+The live protocol should evolve from one-shot request/one-shot response into an
+anytime decision stream.
+
+Current problem:
+
+- Tier-1 can compute a chess-clock budget from `clock_remaining_ms` and
+  `increment_ms`.
+- The server also has a subprocess watchdog.
+- If those policies disagree, the engine can be within its chess-clock budget
+  while the server kills the process and falls back to a weaker move.
+- The one-shot protocol has no useful intermediate answer when the deadline
+  arrives. A timeout discards all partial work.
+
+Target behavior:
+
+- The server sends the legal observation log, legal moves, seed, clock state,
+  and a hard deadline.
+- The engine begins streaming candidate decisions as soon as it has any legal
+  move.
+- Each candidate is self-contained enough for the server to validate and play:
+  selected move, score/confidence, reason, trace summary, and optional principal
+  variation or belief diagnostics.
+- The engine may continue improving the candidate until the deadline.
+- At the deadline, the server plays the latest valid candidate. It falls back
+  only if no valid candidate was ever received.
+- The move event records actual timing: decision start, first candidate time,
+  selected candidate time, deadline, and whether the played move was final,
+  deadline-forced, or fallback.
+
+Server responsibilities:
+
+- own the authoritative clock and deadline;
+- validate every streamed candidate against current legal moves;
+- ignore candidates after the room state changes or the deadline passes;
+- keep the latest valid candidate in memory;
+- kill or recycle engine workers after a grace period, but not before playing
+  the latest legal candidate;
+- persist timing and decision metadata without exposing hidden truth to live
+  clients.
+
+Engine responsibilities:
+
+- emit a legal candidate quickly, even if it is a simple baseline move;
+- treat the deadline as hard and improve monotonically when possible;
+- stream trace updates without relying on hidden truth;
+- make partial work inspectable: belief count, search depth, worker outputs,
+  vetoes, and synthesis state;
+- stop cleanly when cancelled so room state changes do not leave orphaned
+  workers.
+
+Protocol shape:
+
+```text
+engine.start(request)
+  request: room_id, engine_id, color, legal_observation_events,
+           legal_moves, seed, clock_remaining_ms, increment_ms,
+           deadline_unix_ms, trace_level
+
+engine.candidate(update)
+  update: sequence, elapsed_ms, selected_move, score, confidence,
+          reason, decision_path, diagnostics
+
+engine.final(update)
+  update: same shape as candidate, plus final=true
+
+engine.cancel(reason)
+  reason: room_state_changed | deadline_passed | server_shutdown
+```
+
+Migration path:
+
+1. Keep the existing one-shot subprocess path, but make watchdogs derived from
+   the same clock budget the engine sees.
+2. Add `thinkTimeMs` and event timestamp recording so replays can represent
+   real move cadence.
+3. Introduce a local streaming adapter around the Python engine that emits an
+   immediate baseline candidate before deeper Tier-1 work begins.
+4. Replace per-move process startup with a persistent per-game engine session
+   that can keep belief state warm across moves.
+5. Move worker outputs and synthesis traces onto the candidate stream.
+6. Make live server play "latest valid candidate at deadline" and reserve
+   random fallback for "no legal candidate was ever produced."
+
+Open design questions:
+
+- Whether the transport should be stdio JSONL, WebSocket, gRPC, or a small
+  local worker protocol.
+- Whether persistent engine sessions are per game, per room, or pooled by
+  engine version.
+- How much candidate trace data belongs in public replay artifacts versus
+  admin-only debug artifacts.
+- How to version the candidate schema so old saved games and old engine
+  binaries remain replayable.
+- How to represent cancellation and deadline-forced moves in game-debug
+  artifacts without changing core chess event semantics too much.
+
+This layer answers "what should the server do when the engine is still
+thinking?"
+
+### Layer 5: Learning Loop
 
 The lab loop turns artifacts into stronger gates:
 
@@ -259,7 +363,26 @@ Exit condition: for annotated plies, traces show tactical vetoes, known-king
 rules, least-valuable-attacker logic, belief confidence, and evaluator/risk
 components clearly enough to debug without reading engine internals.
 
-### M5: Shallow Particle Search
+### M5: Anytime Live Engine Protocol
+
+Replace one-shot live move selection with a streaming candidate protocol.
+
+Priorities:
+
+- add deadline-aware request fields to the engine protocol;
+- stream an immediate legal baseline candidate before expensive belief/search
+  work starts;
+- keep the latest valid candidate server-side;
+- persist first-candidate time, selected-candidate time, final time, deadline,
+  and fallback status;
+- make replay playback prefer recorded engine timing;
+- preserve the legal-observation boundary for every streamed update.
+
+Exit condition: a live Tier-1 move that exceeds its ideal search budget still
+plays the latest legal Tier-1 candidate at deadline instead of falling back to
+random solely because the process timed out.
+
+### M6: Shallow Particle Search
 
 Run shallow multi-ply search over top candidate moves and top particles.
 
@@ -273,7 +396,7 @@ Start with:
 Exit condition: search improves annotated tactical/evaluator misses without
 reintroducing belief contradictions or large latency spikes.
 
-### M6: Information-Gain And Opponent Models
+### M7: Information-Gain And Opponent Models
 
 Add workers that value reducing critical uncertainty and model likely opponent
 responses.
@@ -282,7 +405,7 @@ Exit condition: the engine can prefer a slightly lower material move when it
 materially improves king safety, reveals a hidden threat, or avoids a high-risk
 fog trap.
 
-### M7: Information-Set Search Experiment
+### M8: Information-Set Search Experiment
 
 Prototype an ISMCTS-style or public-belief search experiment over the belief
 state.
@@ -290,7 +413,7 @@ state.
 Exit condition: the experiment has a clean comparison against shallow particle
 search on the same annotation replay suite and short bake-off ladder.
 
-### M8: Neural Prior Experiment
+### M9: Neural Prior Experiment
 
 Train a small policy/value/risk prior only after replay data is reliable.
 
@@ -315,7 +438,7 @@ Candidate outputs:
 Exit condition: neural priors improve move ordering or risk detection in the
 classical engine before they are trusted as direct move selectors.
 
-### M9: Distributed Worker Architecture
+### M10: Distributed Worker Architecture
 
 Move expensive belief generation and analysis workers behind job contracts.
 
@@ -328,10 +451,11 @@ and artifact persistence as separate resumable tasks with saved diagnostics.
 2. Add hard-fact belief artifact validation.
 3. Reduce generic CSP with repair-first particle generation.
 4. Add move-decision explanation traces.
-5. Add shallow particle search workers.
-6. Add information-gain and opponent-model workers.
-7. Experiment with information-set search.
-8. Experiment with neural priors.
+5. Add anytime live engine protocol.
+6. Add shallow particle search workers.
+7. Add information-gain and opponent-model workers.
+8. Experiment with information-set search.
+9. Experiment with neural priors.
 
 Do not start with a large neural or distributed architecture. The immediate
 compounding asset is a local loop that converts four reviewed games into

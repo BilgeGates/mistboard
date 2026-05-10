@@ -1,11 +1,18 @@
 import {
   createChess960CastlingRights,
+  createChess960CastlingRightsForSides,
   createChess960InitialBoard,
+  createChess960InitialBoardForSides,
   type Chess960Start,
 } from './chess960.js';
 import { advanceClock, createClock, expireClock } from './clocks.js';
 import type { ClockState, Color, GameState, Move, VariantId } from './types.js';
 import { variantForId } from './variants.js';
+
+export type RoomTimeControl = {
+  initialMs: number;
+  incrementMs: number;
+};
 
 export type BidResolution = {
   bids: Record<Color, number>;
@@ -22,6 +29,8 @@ export type GameEvent =
     roomId: string;
     variant: VariantId;
     offer: Chess960Start[];
+    offers?: Partial<Record<Color, Chess960Start[]>>;
+    timeControl?: RoomTimeControl;
   }
   | {
     type: 'seat-assigned';
@@ -54,7 +63,8 @@ export type GameEvent =
     type: 'draft-start-resolved';
     at: number;
     roomId: string;
-    startId: number;
+    startId?: number;
+    startIds?: Record<Color, number>;
     clock?: ClockState;
   }
   | {
@@ -82,6 +92,7 @@ export type GameEvent =
     color: Color;
     move: Move;
     clock?: ClockState;
+    thinkTimeMs?: number;
   }
   | {
     type: 'clock-expired';
@@ -95,12 +106,15 @@ export type GameProjection = {
   roomId: string;
   variant: VariantId;
   offer: Chess960Start[];
+  offers: Partial<Record<Color, Chess960Start[]>>;
   state: GameState;
   seats: Partial<Record<Color, string>>;
   selections: Partial<Record<Color, number>>;
   bids: Partial<Record<Color, number>>;
   bidResolution: BidResolution | null;
   resolvedStartId: number | null;
+  resolvedStartIds: Partial<Record<Color, number>>;
+  timeControl?: RoomTimeControl;
 };
 
 export function initialGameProjection(roomId: string, variant: VariantId = 'draft960'): GameProjection {
@@ -108,12 +122,14 @@ export function initialGameProjection(roomId: string, variant: VariantId = 'draf
     roomId,
     variant,
     offer: [],
+    offers: {},
     state: variantForId(variant).createInitialState(roomId),
     seats: {},
     selections: {},
     bids: {},
     bidResolution: null,
     resolvedStartId: null,
+    resolvedStartIds: {},
   };
 }
 
@@ -129,11 +145,16 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   if (event.roomId !== projection.roomId) return projection;
 
   if (event.type === 'room-created') {
+    const state = variantForId(event.variant).createInitialState(event.roomId);
     return {
       ...projection,
       variant: event.variant,
       offer: event.offer,
-      state: variantForId(event.variant).createInitialState(event.roomId),
+      offers: event.offers ?? { white: event.offer, black: event.offer },
+      timeControl: event.timeControl,
+      state: event.variant === 'fog-of-war' && hasDraftOffer(event)
+        ? { ...state, status: { type: 'pregame' } }
+        : state,
     };
   }
 
@@ -184,7 +205,7 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
 
   if (event.type === 'draft-start-selected') {
     if (projection.state.status.type !== 'pregame') return projection;
-    if (!projection.offer.some((start) => start.id === event.startId)) return projection;
+    if (!offerForColor(projection, event.color).some((start) => start.id === event.startId)) return projection;
     return {
       ...projection,
       selections: {
@@ -197,17 +218,31 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   if (event.type === 'draft-start-resolved') {
     if (projection.state.status.type !== 'pregame') return projection;
 
-    const resolvedStart = projection.offer.find((start) => start.id === event.startId);
-    if (!resolvedStart) return projection;
+    const startIds = event.startIds ?? (
+      event.startId === undefined
+        ? undefined
+        : { white: event.startId, black: event.startId }
+    );
+    if (!startIds) return projection;
+
+    const whiteStart = offerForColor(projection, 'white').find((start) => start.id === startIds.white);
+    const blackStart = offerForColor(projection, 'black').find((start) => start.id === startIds.black);
+    if (!whiteStart || !blackStart) return projection;
+    const sharedStartId = startIds.white === startIds.black ? startIds.white : null;
 
     return {
       ...projection,
-      resolvedStartId: resolvedStart.id,
+      resolvedStartId: sharedStartId,
+      resolvedStartIds: startIds,
       state: {
         ...projection.state,
-        board: createChess960InitialBoard(resolvedStart),
+        board: event.startIds
+          ? createChess960InitialBoardForSides(whiteStart, blackStart)
+          : createChess960InitialBoard(whiteStart),
         status: { type: 'playing', turn: 'white' },
-        castlingRights: createChess960CastlingRights(resolvedStart),
+        castlingRights: event.startIds
+          ? createChess960CastlingRightsForSides(whiteStart, blackStart)
+          : createChess960CastlingRights(whiteStart),
         enPassantSquare: undefined,
         halfmoveClock: 0,
         lastMove: undefined,
@@ -296,6 +331,16 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   }
 
   return projection;
+}
+
+function offerForColor(projection: GameProjection, color: Color): Chess960Start[] {
+  return projection.offers[color] ?? projection.offer;
+}
+
+function hasDraftOffer(event: Extract<GameEvent, { type: 'room-created' }>): boolean {
+  return event.offer.length > 0
+    || !!event.offers?.white?.length
+    || !!event.offers?.black?.length;
 }
 
 function createBidClock(at: number, winningBidMs: number): ClockState {

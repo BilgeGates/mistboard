@@ -1,5 +1,6 @@
 import type { Move, PieceRole } from '@bichess/game';
 import type { EngineDefinition, EngineMoveContext, EngineMoveScore } from '../types.js';
+import { engineThinkTimeMs } from '../think-time.js';
 
 const PIECE_VALUES: Record<PieceRole, number> = {
   king: 1000,
@@ -25,7 +26,12 @@ export const captureSeekerEngine: EngineDefinition = {
     const best = scores.reduce((winner, candidate) => (
       candidate.score > winner.score ? candidate : winner
     ));
-    return { move: best.move, scores };
+    const captureMoveCount = scores.filter((score) => score.reason.startsWith('capture-')).length;
+    return {
+      move: best.move,
+      scores,
+      thinkTimeMs: engineThinkTimeMs({ captureMoveCount, context, runtime: 'in-process' }),
+    };
   },
 };
 

@@ -66,7 +66,8 @@ export const draft960Variant: Variant = {
     if (state.status.type !== 'playing') return state;
 
     const position = positionFromState(state);
-    const chessopsMove = toChessopsMove(move);
+    const legalMove = normalizeCastlingMove(state, move) ?? move;
+    const chessopsMove = toChessopsMove(legalMove);
     if (!chessopsMove || !position.isLegal(chessopsMove)) return state;
 
     position.play(chessopsMove);
@@ -202,20 +203,22 @@ function applyFogMove(state: GameState, move: Move): GameState {
   if (state.status.type !== 'playing') return state;
 
   const player = state.status.turn;
+  const requestedMove = normalizeCastlingMove(state, move) ?? move;
   const legalMove = getFogMovesForPlayer(state, player)
-    .find((candidate) => movesMatch(candidate, move));
+    .find((candidate) => movesMatch(candidate, requestedMove));
   if (!legalMove) return state;
 
   const piece = state.board[legalMove.from];
   if (!piece || piece.color !== player) return state;
 
   const board = { ...state.board };
-  const capturedPiece = board[legalMove.to];
+  const targetPiece = board[legalMove.to];
   const enPassantCapture = piece.role === 'pawn'
     && legalMove.to === state.enPassantSquare
-    && capturedPiece === undefined
+    && targetPiece === undefined
     && fileOf(legalMove.from) !== fileOf(legalMove.to);
   const castlingMove = isFogCastlingMove(state, legalMove);
+  const capturedPiece = castlingMove ? undefined : targetPiece;
 
   delete board[legalMove.from];
   if (enPassantCapture) delete board[enPassantCaptureSquare(legalMove.to, player)];
@@ -370,7 +373,7 @@ function fogCastlingMoves(state: GameState, from: Square): Move[] {
     const rook = state.board[rookSquare];
     if (!rook || rook.color !== piece.color || rook.role !== 'rook') continue;
     if (rankOf(rookSquare) !== rankOf(from)) continue;
-    if (!clearBetween(state.board, from, rookSquare)) continue;
+    if (!clearForFogCastling(state.board, from, rookSquare)) continue;
     moves.push({ from, to: rookSquare });
   }
   return moves;
@@ -405,7 +408,7 @@ function getMovesForPlayer(state: GameState, player: Color): Move[] {
     }
   }
 
-  return moves;
+  return withCastlingAliases(state, moves);
 }
 
 function positionFromState(state: GameState, turnOverride?: Color): Chess {
@@ -513,6 +516,52 @@ function movesMatch(candidate: Move, move: Move): boolean {
     && (candidate.promotion ?? undefined) === (move.promotion ?? undefined);
 }
 
+function withCastlingAliases(state: GameState, moves: Move[]): Move[] {
+  const aliases: Move[] = [];
+  for (const move of moves) {
+    const piece = state.board[move.from];
+    const target = state.board[move.to];
+    if (!piece || piece.role !== 'king' || !target || target.role !== 'rook' || target.color !== piece.color) continue;
+    if (!state.castlingRights.includes(move.to)) continue;
+    const kingDestination = castlingKingDestination(move.from, move.to);
+    if (!moves.some((candidate) => movesMatch(candidate, { ...move, to: kingDestination }))) {
+      aliases.push({ ...move, to: kingDestination });
+    }
+  }
+  return aliases.length > 0 ? [...moves, ...aliases] : moves;
+}
+
+function normalizeCastlingMove(state: GameState, move: Move): Move | null {
+  const piece = state.board[move.from];
+  if (!piece || piece.role !== 'king') return null;
+  if (rankOf(move.from) !== rankOf(move.to)) return null;
+  const target = state.board[move.to];
+  if (target?.color === piece.color && target.role === 'rook' && state.castlingRights.includes(move.to)) {
+    return move;
+  }
+
+  const kingSide = fileOf(move.to) === 'g';
+  const queenSide = fileOf(move.to) === 'c';
+  if (!kingSide && !queenSide) return null;
+
+  const fromFile = fileIndex(move.from);
+  const rookSquare = state.castlingRights.find((square) => {
+    const rook = state.board[square];
+    if (!rook || rook.color !== piece.color || rook.role !== 'rook') return false;
+    if (rankOf(square) !== rankOf(move.from)) return false;
+    return kingSide ? fileIndex(square) > fromFile : fileIndex(square) < fromFile;
+  });
+  return rookSquare ? { ...move, to: rookSquare } : null;
+}
+
+function castlingKingDestination(from: Square, rookSquare: Square): Square {
+  return `${fileIndex(rookSquare) > fileIndex(from) ? 'g' : 'c'}${rankOf(from)}` as Square;
+}
+
+function castlingRookDestination(from: Square, rookSquare: Square): Square {
+  return `${fileIndex(rookSquare) > fileIndex(from) ? 'f' : 'd'}${rankOf(from)}` as Square;
+}
+
 function nextCastlingRights(state: GameState, move: Move, role: PieceRole): Square[] {
   return state.castlingRights.filter((square) => {
     if (square === move.from || square === move.to) return false;
@@ -557,21 +606,36 @@ function applyFogCastling(board: Board, move: Move, king: NonNullable<Board[Squa
   const rook = board[move.to];
   if (!rook) return;
 
-  const rank = rankOf(move.from);
-  const kingSide = fileIndex(move.to) > fileIndex(move.from);
-  const kingTo = `${kingSide ? 'g' : 'c'}${rank}` as Square;
-  const rookTo = `${kingSide ? 'f' : 'd'}${rank}` as Square;
+  const kingTo = castlingKingDestination(move.from, move.to);
+  const rookTo = castlingRookDestination(move.from, move.to);
   delete board[move.to];
+  delete board[move.from];
   board[kingTo] = king;
   board[rookTo] = rook;
 }
 
-function clearBetween(board: Board, from: Square, to: Square): boolean {
-  const step = Math.sign(fileIndex(to) - fileIndex(from));
-  for (let file = fileIndex(from) + step; file !== fileIndex(to); file += step) {
-    if (board[`${boardFiles[file]}${rankOf(from)}` as Square]) return false;
+function clearForFogCastling(board: Board, kingFrom: Square, rookFrom: Square): boolean {
+  const kingTo = castlingKingDestination(kingFrom, rookFrom);
+  const rookTo = castlingRookDestination(kingFrom, rookFrom);
+  const allowedOccupied = new Set<Square>([kingFrom, rookFrom]);
+  for (const square of [
+    ...rankPath(kingFrom, kingTo),
+    ...rankPath(rookFrom, rookTo),
+  ]) {
+    const piece = board[square];
+    if (piece && !allowedOccupied.has(square)) return false;
   }
   return true;
+}
+
+function rankPath(from: Square, to: Square): Square[] {
+  const step = Math.sign(fileIndex(to) - fileIndex(from));
+  if (step === 0) return [from];
+  const squares: Square[] = [];
+  for (let file = fileIndex(from); file !== fileIndex(to) + step; file += step) {
+    squares.push(`${boardFiles[file]}${rankOf(from)}` as Square);
+  }
+  return squares;
 }
 
 function offsetSquare(square: Square, fileOffset: number, rankOffset: number): Square | undefined {

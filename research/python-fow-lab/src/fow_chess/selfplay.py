@@ -192,6 +192,7 @@ def play_game(
                     "color": "white" if color == chess.WHITE else "black",
                     "move": _move_to_event(move, prev),
                     "opening_random": True,
+                    "thinkTimeMs": 0,
                 }
             )
             active = white if color == chess.WHITE else black
@@ -261,6 +262,8 @@ def play_game(
                 "roomId": room_id,
                 "color": "white" if color == chess.WHITE else "black",
                 "move": _move_to_event(move, prev),
+                "compute_ms": elapsed_ms,
+                "thinkTimeMs": elapsed_ms,
             }
         )
 

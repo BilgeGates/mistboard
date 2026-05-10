@@ -34,17 +34,21 @@ const allSquares: Square[] = ranks.flatMap((r) => files.map((f) => `${f}${r}` as
 
 const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;
+const LEGACY_RECORDED_TIME_SCALE = 0.12;
+const MIN_RECORDED_DELTA_MS = 150;
 const MIN_PLAY_MS = 700;
 const MAX_PLAY_MS = 2500;
 const DEFAULT_BETWEEN_GAME_DELAY_MS = 8000;
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
-type MovePlayedExt = { type: 'move-played'; compute_ms?: number };
+type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
+type MovePlayedExt = MovePlayedEvent & { compute_ms?: number; thinkTimeMs?: number };
 
 export type GameMeta = {
   whiteName: string | null;
   blackName: string | null;
+  modeLabel?: string;
   result: string;
   timeControl?: Record<string, unknown> | null;
   termination: string;
@@ -144,9 +148,11 @@ export async function mountReplay(
   layout.append(whitePane.el, truthPane.el, blackPane.el);
   root.append(layout);
 
-  const gameIdFooter = metadataByRoomId ? createGameIdFooter() : null;
-  if (gameIdFooter) root.append(gameIdFooter);
+  const gameMetaPanel = metadataByRoomId ? createGameMetaPanel() : null;
+  if (gameMetaPanel) root.append(gameMetaPanel.el);
   const clockPanel = createClockPanel();
+  whitePane.clockSlot.append(clockPanel.whiteRow);
+  blackPane.clockSlot.append(clockPanel.blackRow);
   root.append(clockPanel.el);
 
   const firstBtn = controlButton('|◀', 'Jump to start');
@@ -483,18 +489,57 @@ export async function mountReplay(
   }
 
   function delayForPly(ply: number): number {
-    let movesSeen = 0;
-    for (const event of events) {
-      if (event.type !== 'move-played') continue;
-      movesSeen += 1;
-      if (movesSeen !== ply) continue;
-      const ext = event as unknown as MovePlayedExt;
-      if (typeof ext.compute_ms === 'number' && ext.compute_ms >= 0) {
-        return clampPlay(ext.compute_ms * COMPUTE_SCALE);
-      }
-      return FALLBACK_PLAY_MS;
+    return thinkTimeDelayForPly(ply)
+      ?? recordedDelayForPly(ply)
+      ?? computeDelayForPly(ply)
+      ?? FALLBACK_PLAY_MS;
+  }
+
+  function thinkTimeDelayForPly(ply: number): number | null {
+    const event = moveEventAtPly(ply);
+    if (!event || event.type !== 'move-played') return null;
+    const ext = event as MovePlayedExt;
+    if (typeof ext.thinkTimeMs !== 'number' || ext.thinkTimeMs < 0) return null;
+    return Math.max(0, ext.thinkTimeMs);
+  }
+
+  function recordedDelayForPly(ply: number): number | null {
+    const event = moveEventAtPly(ply);
+    if (!event || event.type !== 'move-played') return null;
+    const previousAt = ply > 1
+      ? moveEventAtPly(ply - 1)?.at
+      : replayStartAt();
+    if (typeof previousAt !== 'number') return null;
+
+    const elapsed = event.at - previousAt;
+    if (!Number.isFinite(elapsed) || elapsed < MIN_RECORDED_DELTA_MS) return null;
+    return clampPlay(elapsed * LEGACY_RECORDED_TIME_SCALE);
+  }
+
+  function computeDelayForPly(ply: number): number | null {
+    const event = moveEventAtPly(ply);
+    if (!event || event.type !== 'move-played') return null;
+    const ext = event as MovePlayedExt;
+    if (typeof ext.compute_ms === 'number' && ext.compute_ms >= 0) {
+      return clampPlay(ext.compute_ms * COMPUTE_SCALE);
     }
-    return FALLBACK_PLAY_MS;
+    return null;
+  }
+
+  function replayStartAt(): number | null {
+    let startedAt: number | null = null;
+    for (const event of events) {
+      if (event.type === 'move-played') break;
+      if (
+        event.type === 'clock-started'
+        || event.type === 'draft-start-resolved'
+        || event.type === 'bid-resolved'
+        || event.type === 'room-created'
+      ) {
+        startedAt = event.at;
+      }
+    }
+    return startedAt;
   }
 
   function clampPlay(ms: number): number {
@@ -555,9 +600,7 @@ export async function mountReplay(
     const meta = currentMeta();
     whitePane.nameEl.textContent = meta?.whiteName ?? '';
     blackPane.nameEl.textContent = meta?.blackName ?? '';
-    if (gameIdFooter) {
-      gameIdFooter.textContent = meta ? `game ${activeSample}` : '';
-    }
+    renderGameMetaPanel(gameMetaPanel, meta, activeSample);
     // Reset any prior end-game state (returning to ply 0).
     whitePane.el.classList.remove('winner', 'loser');
     blackPane.el.classList.remove('winner', 'loser');
@@ -700,10 +743,54 @@ function pickNextSample(pool: string[], current: string): string {
   return others[Math.floor(Math.random() * others.length)] ?? pool[0];
 }
 
-function createGameIdFooter(): HTMLDivElement {
-  const footer = document.createElement('div');
-  footer.className = 'replay-game-id';
-  return footer;
+type GameMetaPanelHandle = {
+  details: HTMLDivElement;
+  el: HTMLDivElement;
+  title: HTMLDivElement;
+};
+
+function createGameMetaPanel(): GameMetaPanelHandle {
+  const el = document.createElement('div');
+  el.className = 'replay-game-meta-card';
+  const title = document.createElement('div');
+  title.className = 'replay-game-meta-title';
+  const details = document.createElement('div');
+  details.className = 'replay-game-meta-details';
+  el.append(title, details);
+  return { details, el, title };
+}
+
+function renderGameMetaPanel(
+  panel: GameMetaPanelHandle | null,
+  meta: GameMeta | undefined,
+  activeSample: string,
+): void {
+  if (!panel) return;
+  if (!meta) {
+    panel.el.hidden = true;
+    panel.title.textContent = '';
+    panel.details.replaceChildren();
+    return;
+  }
+
+  panel.el.hidden = false;
+  panel.title.textContent = `${meta.whiteName ?? 'White'} vs ${meta.blackName ?? 'Black'}`;
+  const timeControl = timeControlLabelFromMeta(meta.timeControl);
+  const items = [
+    meta.modeLabel,
+    resultLabel(meta.result),
+    `${meta.plyCount} plies`,
+    terminationLabel(meta.termination),
+    timeControl ? `Time ${timeControl}` : null,
+    `game ${activeSample}`,
+  ].filter((item): item is string => typeof item === 'string' && item.length > 0);
+
+  panel.details.replaceChildren();
+  for (const item of items) {
+    const chip = document.createElement('span');
+    chip.textContent = item;
+    panel.details.append(chip);
+  }
 }
 
 type ClockPanelHandle = {
@@ -725,7 +812,7 @@ function createClockPanel(): ClockPanelHandle {
 
   const whiteRow = createClockRow('White');
   const blackRow = createClockRow('Black');
-  el.append(label, whiteRow.row, blackRow.row);
+  el.append(label);
 
   return {
     blackRow: blackRow.row,
@@ -740,6 +827,7 @@ function createClockPanel(): ClockPanelHandle {
 function createClockRow(colorLabel: string): { row: HTMLDivElement; time: HTMLSpanElement } {
   const row = document.createElement('div');
   row.className = 'replay-clock-row';
+  row.hidden = true;
   const label = document.createElement('span');
   label.className = 'replay-clock-side';
   label.textContent = colorLabel;
@@ -758,10 +846,14 @@ function renderClockPanel(
   const timeControl = clock ? timeControlLabelFromClock(clock) : timeControlLabelFromMeta(meta?.timeControl);
   if (!clock && !timeControl) {
     panel.el.hidden = true;
+    panel.whiteRow.hidden = true;
+    panel.blackRow.hidden = true;
     return;
   }
 
   panel.el.hidden = false;
+  panel.whiteRow.hidden = false;
+  panel.blackRow.hidden = false;
   panel.label.textContent = timeControl ? `Time ${timeControl}` : 'Clock';
 
   if (!clock) {
@@ -773,8 +865,8 @@ function renderClockPanel(
   }
 
   const displayAt = clock.runningSince ?? eventTimeAtState(state) ?? 0;
-  panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt));
-  panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt));
+  panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt), true);
+  panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt), true);
   panel.whiteRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'white');
   panel.blackRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'black');
 }
@@ -814,25 +906,41 @@ function timeControlLabelFromMeta(raw: Record<string, unknown> | null | undefine
   return typeof raw.kind === 'string' ? raw.kind : null;
 }
 
+function resultLabel(result: string): string {
+  if (result === 'white-wins') return 'White wins';
+  if (result === 'black-wins') return 'Black wins';
+  return 'Draw';
+}
+
+function terminationLabel(termination: string): string {
+  return termination
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function numericValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function formatClock(ms: number): string {
+function formatClock(ms: number, showTenths = false): string {
   const bounded = Math.max(0, ms);
-  const totalSeconds = Math.ceil(bounded / 1000);
+  const totalTenths = showTenths ? Math.ceil(bounded / 100) : Math.ceil(bounded / 1000) * 10;
+  const totalSeconds = Math.floor(totalTenths / 10);
+  const tenths = totalTenths % 10;
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  const suffix = showTenths ? `.${tenths}` : '';
   if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}${suffix}`;
   }
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}${suffix}`;
 }
 
 function createPane(label: string): {
   el: HTMLDivElement;
   boardEl: HTMLDivElement;
+  clockSlot: HTMLDivElement;
   labelEl: HTMLDivElement;
   nameEl: HTMLDivElement;
   statusEl: HTMLDivElement;
@@ -846,10 +954,12 @@ function createPane(label: string): {
   nameEl.className = 'replay-pane-name';
   const boardEl = document.createElement('div');
   boardEl.className = 'board replay-board';
+  const clockSlot = document.createElement('div');
+  clockSlot.className = 'replay-pane-clock-slot';
   const statusEl = document.createElement('div');
   statusEl.className = 'replay-pane-status';
-  el.append(labelEl, nameEl, boardEl, statusEl);
-  return { el, boardEl, labelEl, nameEl, statusEl };
+  el.append(labelEl, nameEl, boardEl, clockSlot, statusEl);
+  return { el, boardEl, clockSlot, labelEl, nameEl, statusEl };
 }
 
 function controlButton(text: string, title: string): HTMLButtonElement {

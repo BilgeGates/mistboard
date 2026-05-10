@@ -14,19 +14,22 @@ research/python-fow-lab/corpora/*/views/
 research/python-fow-lab/feedback/annotation_replay*.json
 research/python-fow-lab/feedback/annotation_replay*.md
 research/python-fow-lab/uv.lock
+research/python-fow-lab/vendor/
 
 # Local-only symlink for the ?bakeoff browser route. Points at a bake-off
 # output directory under /tmp; not part of the repo.
 apps/web/public/bakeoff
 
-# Versioned bake-off output dirs (per Tier-1 release). Local development
-# artifact only — multi-MB JSONL traces + per-game event logs the engine
-# lab viewer reads. Regenerate with research/python-fow-lab/scripts/bake_off.py.
-apps/web/public/bakeoff-*/
+# Versioned bake-off output dirs (per Tier-1 release). These are ignored
+# because they are large local artifacts, not because they are disposable.
+# If a run produces annotations, screenshots, hard-fact findings, or build-log
+# evidence, archive/inventory it under docs-private/engine-track before deleting
+# a worktree or reusing the save dir. See docs/fog-of-war/engine-lab-loop.md.
+apps/web/public/bakeoff-*
 
 # Tournament run output dirs (timestamped per-run game logs + manifests,
-# multi-MB each). Local-only artifact. Regenerate with
-# research/python-fow-lab/scripts/tournament.py.
+# multi-MB each). Local-only artifact; archive/inventory meaningful runs before
+# cleanup.
 research/python-fow-lab/tournaments/
 
 # Private founder/operator notes. Public docs should be contributor-safe.

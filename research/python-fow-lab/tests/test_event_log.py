@@ -177,3 +177,20 @@ def test_castling_move_translates_to_king_destination() -> None:
 
     assert move.from_square == chess.E1
     assert move.to_square == chess.G1
+
+
+def test_selfplay_emits_canonical_rook_square_castling_event() -> None:
+    from fow_chess.selfplay import _move_to_event
+
+    board = chess.Board()
+    board.clear()
+    board.set_piece_at(chess.E1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.H1, chess.Piece(chess.ROOK, chess.WHITE))
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.turn = chess.WHITE
+    board.castling_rights = chess.BB_H1
+
+    move = chess.Move(chess.E1, chess.G1)
+
+    assert board.is_castling(move)
+    assert _move_to_event(move, board) == {"from": "e1", "to": "h1"}
