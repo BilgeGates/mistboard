@@ -788,13 +788,17 @@ function decisionWeightModeLines(trace: TraceRow, row: BeliefRow): HealthDatum[]
 
   if (profile) {
     const summary = profile.summary;
-    lines.push({
-      label: 'Cluster mass',
-      value: `top ${pct(summary.posterior_top1_mass)} P · ${pct(summary.appearance_top1_mass)} A · eff ${summary.effective_cluster_count.toFixed(1)}`,
-      severity: summary.posterior_top1_mass >= 0.5 ? 'warn' : 'ok',
-    });
+    const posteriorTop1Mass = finiteNumber(summary?.posterior_top1_mass);
+    const appearanceTop1Mass = finiteNumber(summary?.appearance_top1_mass);
+    const effectiveClusterCount = finiteNumber(summary?.effective_cluster_count);
+    if (posteriorTop1Mass !== null && appearanceTop1Mass !== null && effectiveClusterCount !== null) {
+      lines.push({
+        label: 'Cluster mass',
+        value: `top ${pct(posteriorTop1Mass)} P · ${pct(appearanceTop1Mass)} A · eff ${effectiveClusterCount.toFixed(1)}`,
+        severity: posteriorTop1Mass >= 0.5 ? 'warn' : 'ok',
+      });
+    }
   }
-
   return lines;
 }
 
@@ -881,6 +885,10 @@ function fmtScore(value: number | undefined): string {
   if (Math.abs(value) >= 100) return String(Math.round(value));
   if (Math.abs(value) >= 10) return value.toFixed(1);
   return value.toFixed(2);
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function hardOppOccupancySquares(row: BeliefRow): Set<string> {
