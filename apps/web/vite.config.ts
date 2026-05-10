@@ -16,7 +16,7 @@ const FEEDBACK_FILE = resolve(
 
 function annotationsApiPlugin(): Plugin {
   return {
-    name: 'bichess-annotations-api',
+    name: 'mistboard-annotations-api',
     configureServer(server) {
       server.middlewares.use('/api/annotations', async (req, res) => {
         try {

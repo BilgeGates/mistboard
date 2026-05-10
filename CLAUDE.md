@@ -1,8 +1,8 @@
 # CLAUDE.md
 
-Public agent guidance for Bichess.
+Public agent guidance for Mistboard.
 
-Bichess is an open-source site for **Fog of War chess**. Keep public-facing work focused on implementation, correctness, and contributor experience.
+Mistboard is an open-source site for **Fog of War chess**. Keep public-facing work focused on implementation, correctness, and contributor experience.
 
 ## Product Rule
 

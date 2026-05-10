@@ -1,7 +1,9 @@
 import { spawn } from 'node:child_process';
 
-const processKind = process.env.BICHESS_PROCESS ?? 'web';
-const args = processKind === 'worker'
+const serviceName = process.env.RAILWAY_SERVICE_NAME ?? '';
+const processKind = process.env.MISTBOARD_PROCESS ?? 'web';
+const workerProcess = serviceName === 'engine-worker' || processKind === 'worker';
+const args = workerProcess
   ? ['apps/server/dist/worker.js', '--execute', '--loop']
   : ['apps/server/dist/index.js'];
 

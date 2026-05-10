@@ -1,8 +1,8 @@
 # Contributing
 
-Thanks for considering a contribution to Bichess.
+Thanks for considering a contribution to Mistboard.
 
-Bichess is a focused Fog of War chess project. Before opening a pull request, check whether the change helps the product rule:
+Mistboard is a focused Fog of War chess project. Before opening a pull request, check whether the change helps the product rule:
 
 > Does this help two people play, finish, review, or understand Fog of War from a link?
 
@@ -46,14 +46,14 @@ For local Postgres-backed persistence:
 
 ```bash
 docker compose up -d postgres
-TEST_DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess npm test
+TEST_DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm test
 ```
 
 ## Pull Requests
 
 Keep PRs focused. A small bug fix with a regression test is better than a broad refactor plus product change.
 
-For hidden-information code, include tests that prove forbidden payloads are absent. In Bichess, a green UI is not enough; the server must not send hidden truth to the wrong client.
+For hidden-information code, include tests that prove forbidden payloads are absent. In Mistboard, a green UI is not enough; the server must not send hidden truth to the wrong client.
 
 Before opening a PR:
 
@@ -65,7 +65,7 @@ Before opening a PR:
 
 ## Contribution Rights
 
-Bichess uses a Developer Certificate of Origin style contribution policy.
+Mistboard uses a Developer Certificate of Origin style contribution policy.
 
 By contributing, you certify that you have the right to submit the contribution and that it may be distributed under the project's license, GPL-3.0-or-later.
 
@@ -79,4 +79,4 @@ This project does not currently require a separate Contributor License Agreement
 
 ## Governance
 
-See `GOVERNANCE.md`. Contributions are welcome, but Bichess remains founder-led. Merging a contribution does not grant commit access, release authority, financial control, or ownership of the official project identity.
+See `GOVERNANCE.md`. Contributions are welcome, but Mistboard remains founder-led. Merging a contribution does not grant commit access, release authority, financial control, or ownership of the official project identity.

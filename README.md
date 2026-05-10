@@ -1,20 +1,20 @@
-# Bichess
+# Mistboard
 
-> **Live at [bichess.org](https://bichess.org)** — Fog of War chess rooms, replays, and engine-game review surfaces.
+> **Live at [mistboard.com](https://mistboard.com)** — Play Fog of War chess.
 
-Bichess is an open-source site for **Fog of War chess**: a hidden-information chess variant where each player sees only what their pieces can legally see, enforced by the server.
+Mistboard is an open-source site for **Fog of War chess**: a hidden-information chess variant where each player sees only what their pieces can legally see, enforced by the server.
 
 Players create a room, share a link, and play. The full board exists only on the server; clients receive only their own legal view.
 
-Bichess is an independent open-source project. It is not affiliated with lichess, chess.com, or any other chess platform.
+Mistboard is an independent open-source project. It is not affiliated with lichess, chess.com, or any other chess platform.
 
 ## Status
 
-The site at [bichess.org](https://bichess.org) is moving from public replay/engine review toward private-alpha live play. Playable rooms, server-enforced Fog of War views, persistence, and postgame reveal foundations are implemented; the current work is reliability, polish, and review quality. See [`docs/milestones.md`](docs/milestones.md) for the roadmap.
+The site at [mistboard.com](https://mistboard.com) is moving from public replay/engine review toward private-alpha live play. Playable rooms, server-enforced Fog of War views, persistence, and postgame reveal foundations are implemented; the current work is reliability, polish, and review quality. See [`docs/milestones.md`](docs/milestones.md) for the roadmap.
 
 ## Vision
 
-Bichess aims to make Fog of War chess playable, reviewable, and understandable from a link.
+Mistboard aims to make Fog of War chess playable, reviewable, and understandable from a link.
 
 That means:
 
@@ -39,14 +39,14 @@ Draft960 is a pregame **feature** of Fog of War, not a separate mode. It exists 
 
 ### In-Game: Fog of War
 
-During play, Bichess treats fog as a server-authoritative hidden-information game:
+During play, Mistboard treats fog as a server-authoritative hidden-information game:
 
 - the server stores the canonical full board
 - the browser never receives hidden pieces or hidden opponent moves
 - each player receives only a `PlayerView`
 - spectators and replay modes are explicitly separated from live player views
 
-A correct Fog of War implementation must never send hidden truth to the wrong client. Existing UI-layer fog implementations leak the real opponent move in network payloads and rely on client code to hide it visually — anyone inspecting payloads or parsing client events can recover hidden information. Bichess does not do that.
+A correct Fog of War implementation must never send hidden truth to the wrong client. Existing UI-layer fog implementations leak the real opponent move in network payloads and rely on client code to hide it visually — anyone inspecting payloads or parsing client events can recover hidden information. Mistboard does not do that.
 
 ### Postgame: Reveal And Replay
 
@@ -54,14 +54,14 @@ After the game ends, the canonical truth is revealed. Replay can be viewed from 
 
 ## Why Fog of War
 
-Fog of War is Bichess's main product focus. The medium-term roadmap centers on partial-information understanding:
+Fog of War is Mistboard's main product focus. The medium-term roadmap centers on partial-information understanding:
 
 - visibility history (when did each side see what)
 - postgame reveal that highlights hidden-information turning points
 - analysis tooling that marks king exposure, missed king-capture chances, and high-information moves
 - engine and bot work that reasons about uncertainty instead of pretending the full board is known
 
-This is structurally different from analyzing classical chess. Bichess treats hidden information as a first-class rules, replay, and analysis problem.
+This is structurally different from analyzing classical chess. Mistboard treats hidden information as a first-class rules, replay, and analysis problem.
 
 ## Experimental Lab
 
@@ -129,8 +129,8 @@ npm run test:persistent  # server tests against local Postgres
 Account auth requires persistence. In local/dev, passwordless email login returns
 the one-time code in the `/api/auth/email/start` JSON response so the flow can be
 tested without an email provider. For real email delivery, configure
-`RESEND_API_KEY` and `BICHESS_AUTH_EMAIL_FROM`. Production-like runtimes do not
-expose dev codes unless `BICHESS_DEV_AUTH_CODES=true` is set intentionally.
+`RESEND_API_KEY` and `MISTBOARD_AUTH_EMAIL_FROM`. Production-like runtimes do not
+expose dev codes unless `MISTBOARD_DEV_AUTH_CODES=true` is set intentionally.
 
 ## Development
 
@@ -179,13 +179,13 @@ Provider-specific deployment details, account configuration, and operational run
 
 ## License
 
-GPL-3.0-or-later. Bichess uses GPL-family chess libraries (`chessops`, `chessground`).
+GPL-3.0-or-later. Mistboard uses GPL-family chess libraries (`chessops`, `chessground`).
 
 The npm packages are marked `"private": true` to prevent accidental package publishing — this is intentional and does not affect the repository's public/open-source status.
 
 ## Governance And Funding
 
-Bichess is founder-led. The code is open source, but the official project identity, `bichess.org`, hosted service, package publishing, roadmap, tournaments, sponsorships, and production infrastructure remain controlled project assets.
+Mistboard is founder-led. The code is open source, but the official project identity, `mistboard.com`, hosted service, package publishing, roadmap, tournaments, sponsorships, and production infrastructure remain controlled project assets.
 
 See:
 

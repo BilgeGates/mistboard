@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a Tier-1 vs Tier-1 corpus for the bichess landing-page demo.
+"""Generate a Tier-1 vs Tier-1 corpus for the mistboard landing-page demo.
 
 Plays N games of Tier-1 vs Tier-1 with distinct seeds. Captures per-move
 engine compute time (`compute_ms`) and inlines it into each `move-played`
@@ -142,7 +142,7 @@ def main() -> int:
             move = evt.get("move", {})
             if "promotion" in move:
                 has_promotion = True
-            # Castling under bichess representation: king-takes-friendly-rook.
+            # Castling under mistboard representation: king-takes-friendly-rook.
             # Detect by file delta of 4 (a-rook from e-king) or 3 (h-rook from e-king)
             # — either way > 1 file shift on a king's initial rank. Cheap heuristic;
             # corpus generator just records the flag, doesn't act on it.

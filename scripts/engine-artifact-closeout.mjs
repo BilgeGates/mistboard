@@ -18,7 +18,7 @@ if (!manifestUrl.startsWith('/')) {
 }
 
 const runName = safeName(path.basename(path.dirname(manifestUrl)));
-const baseUrl = args.baseUrl ?? process.env.BICHESS_WEB_URL ?? 'http://127.0.0.1:3000';
+const baseUrl = args.baseUrl ?? process.env.MISTBOARD_WEB_URL ?? 'http://127.0.0.1:3000';
 const captureOut = args.out ?? path.join('docs-private', 'engine-track', 'captures', runName);
 const auditOut = args.auditOut ?? path.join('docs-private', 'engine-track', 'artifact-audit.md');
 const archiveRoot = args.archiveRoot ?? path.join('docs-private', 'engine-track', 'artifact-archives');

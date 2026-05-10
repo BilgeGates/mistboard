@@ -80,7 +80,7 @@ Gate to U5: brand-new player completes a full FOW game on first session at >50% 
 
 ### U5 — Viewer and Exploration
 
-The viewer is the primary content artifact and the primary returning-user surface. It is *not* just replay polish — Bichess builds its own analysis and exploration UI rather than leaning on external tools. When a public article, forum post, or video links to Bichess, it should land on a replay/viewer surface that makes the game legible without private context.
+The viewer is the primary content artifact and the primary returning-user surface. It is *not* just replay polish — Mistboard builds its own analysis and exploration UI rather than leaning on external tools. When a public article, forum post, or video links to Mistboard, it should land on a replay/viewer surface that makes the game legible without private context.
 
 Build:
 

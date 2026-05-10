@@ -1,12 +1,12 @@
 import { spawnSync } from 'node:child_process';
 
 const serviceName = process.env.RAILWAY_SERVICE_NAME ?? '';
-const processKind = process.env.BICHESS_PROCESS ?? '';
+const processKind = process.env.MISTBOARD_PROCESS ?? '';
 const workerOnly = serviceName === 'engine-worker' || processKind === 'worker';
 
 const workspaces = workerOnly
-  ? ['@bichess/game', '@bichess/server']
-  : ['@bichess/game', '@bichess/server', '@bichess/web'];
+  ? ['@mistboard/game', '@mistboard/server']
+  : ['@mistboard/game', '@mistboard/server', '@mistboard/web'];
 
 for (const workspace of workspaces) {
   const result = spawnSync('npm', ['run', 'build', `--workspace=${workspace}`], {

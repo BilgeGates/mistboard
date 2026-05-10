@@ -79,7 +79,7 @@ def load_jsonl(path: Path) -> list[dict]:
 
 
 def event_move_to_chess(event_move: dict, prev: chess.Board) -> chess.Move:
-    """Bichess JSONL encodes castling as king-takes-rook; convert back to python-chess king-2-square form."""
+    """Mistboard JSONL encodes castling as king-takes-rook; convert back to python-chess king-2-square form."""
     from_sq = chess.parse_square(event_move['from'])
     to_sq = chess.parse_square(event_move['to'])
     promotion_str = event_move.get('promotion')

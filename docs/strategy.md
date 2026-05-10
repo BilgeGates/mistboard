@@ -1,6 +1,6 @@
-# Bichess Project Scope
+# Mistboard Project Scope
 
-Bichess is an open-source site for Fog of War chess.
+Mistboard is an open-source site for Fog of War chess.
 
 The public project scope is narrow:
 
@@ -40,7 +40,7 @@ Do not build in v1:
 - `docs/rules.md` — current rule behavior.
 - `docs/milestones.md` — public implementation milestones.
 - `docs/product-stage-definition.md` — product stages and decision-leverage order.
-- `docs/chess-platform-reference.md` — mature chess-platform reference and Bichess/Fog translation.
+- `docs/chess-platform-reference.md` — mature chess-platform reference and Mistboard/Fog translation.
 - `docs/research-engine-product-model.md` — engine, benchmark, corpus, and research product surfaces.
 - `docs/replay-review-product-model.md` — Fog replay/review semantics and product boundaries.
 - `docs/tournament-track.md` — staged path from engine events to later PvP tournaments.

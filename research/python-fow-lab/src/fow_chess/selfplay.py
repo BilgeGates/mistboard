@@ -1,4 +1,4 @@
-"""Drive a fog-of-war game between two strategies, emitting bichess event logs."""
+"""Drive a fog-of-war game between two strategies, emitting mistboard event logs."""
 
 from __future__ import annotations
 
@@ -316,7 +316,7 @@ def _move_to_event(move: chess.Move, prev: chess.Board) -> dict[str, Any]:
         "to": chess.square_name(move.to_square),
     }
 
-    # Bichess castling representation is "king-takes-friendly-rook" — convert
+    # Mistboard castling representation is "king-takes-friendly-rook" — convert
     # python-chess's standard king-2-square form when emitting.
     if prev.is_castling(move):
         is_kingside = chess.square_file(move.to_square) > chess.square_file(

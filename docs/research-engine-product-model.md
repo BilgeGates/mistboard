@@ -1,6 +1,6 @@
 # Research And Engine Product Model
 
-Bichess should make Fog of War engine development and research a visible product
+Mistboard should make Fog of War engine development and research a visible product
 surface, not only internal infrastructure. This document defines the public
 product model for engines, EvE games, corpora, annotations, and benchmark
 artifacts.
@@ -23,7 +23,7 @@ The product should answer:
 
 ## Identity Model
 
-Engine authors are normal signed-in Bichess user accounts.
+Engine authors are normal signed-in Mistboard user accounts.
 
 There should not be a separate engine-author account system. Instead:
 
@@ -166,12 +166,13 @@ Public annotation metadata:
 
 ## Public Product Surfaces
 
-### Engine Lab
+### Lab
 
-Purpose: let users and contributors browse engine games, review candidates, and
-understand current engine work.
+Purpose: let authorized reviewers browse engine games, review candidates, and
+understand current engine work. The canonical route is `/lab`; the route is
+admin-gated while the tooling is still owner-operated.
 
-Minimum public surface:
+Minimum gated surface:
 
 - recent EvE games
 - game replay with White, Black, and truth perspectives
@@ -246,6 +247,27 @@ May show:
 - representative games
 - known biases
 - version history
+
+## Viewer Split
+
+`/game/:id` is the broadly accessible finished-game viewer. It should not require
+lab access for ordinary replay, perspective review, result, clocks, and move
+list.
+
+`/lab` is the gated index/work queue for engine and review work. It links into
+the same game viewer with optional panels enabled when the game has eligible
+artifacts and the user has the right capability.
+
+Engine-specific panels are artifact-level features, not generic PvP replay
+features:
+
+- belief inspector: only when engine belief artifacts exist;
+- trace/decision rows: only when engine trace artifacts exist;
+- engine metadata: only for engine-owned seats or imported engine artifacts.
+
+Annotations are generic game-review infrastructure. They may attach to any
+finished game, ply, position, or artifact, but engine-training feedback is only
+one consumer of that annotation layer.
 
 ## Allowed Observation Policy
 

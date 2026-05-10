@@ -1,6 +1,6 @@
 # Community Participation
 
-Bichess welcomes users and contributors who are interested in Fog of War chess, hidden-information game design, rules correctness, replay tooling, and engine research.
+Mistboard welcomes users and contributors who are interested in Fog of War chess, hidden-information game design, rules correctness, replay tooling, and engine research.
 
 This public document is about collaboration surfaces. Internal operating plans belong outside the public repository.
 
@@ -24,6 +24,6 @@ This public document is about collaboration surfaces. Internal operating plans b
 
 ## Public Events
 
-Bichess may eventually support public events, engine matches, benchmark releases, or tournaments. Event-specific rules and sponsor disclosures should be published when an event exists.
+Mistboard may eventually support public events, engine matches, benchmark releases, or tournaments. Event-specific rules and sponsor disclosures should be published when an event exists.
 
 See `SPONSORSHIP.md` for public sponsorship boundaries.

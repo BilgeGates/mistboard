@@ -1,6 +1,6 @@
 # Governance
 
-Bichess is a founder-led open-source project.
+Mistboard is a founder-led open-source project.
 
 The project welcomes issues, discussion, testing, documentation, and code contributions. Final decisions about roadmap, releases, security response, product direction, hosted infrastructure, official events, sponsorships, and finances are made by the maintainer or the maintainer-controlled legal entity if one is formed.
 
@@ -16,12 +16,12 @@ For product direction, licensing, branding, reference, roadmap, and monetization
 
 ## What Remains Controlled
 
-Open source gives users exit power. It does not transfer control of the official Bichess institution.
+Open source gives users exit power. It does not transfer control of the official Mistboard institution.
 
 The maintainer controls:
 
-- the `bichess` name and official project identity
-- `bichess.org` and related domains
+- the `mistboard` name and official project identity
+- `mistboard.com` and related domains
 - trademarks and logos
 - the official hosted service
 - package publishing credentials
@@ -32,7 +32,7 @@ The maintainer controls:
 - sponsorship accounts and fiscal-host relationships
 - roadmap and product direction
 
-Forks are allowed under the license. Forks must not present themselves as the official Bichess project.
+Forks are allowed under the license. Forks must not present themselves as the official Mistboard project.
 
 ## Commit And Release Rights
 
@@ -66,18 +66,18 @@ Sponsors and funders do not buy roadmap control.
 
 Large sponsors may fund specific tournaments, research work, or platform improvements. Sponsored work should be disclosed in the relevant issue, pull request, event page, or build log.
 
-Community or tournament funds may flow through a fiscal host such as Open Collective. A fiscal host is a financial administration layer, not ownership of Bichess IP, domains, trademarks, production infrastructure, or product direction.
+Community or tournament funds may flow through a fiscal host such as Open Collective. A fiscal host is a financial administration layer, not ownership of Mistboard IP, domains, trademarks, production infrastructure, or product direction.
 
 ## Future Foundation Path
 
-Bichess may eventually move some neutral assets into a foundation, fiscal host, advisory board, or similar structure if it becomes important public infrastructure.
+Mistboard may eventually move some neutral assets into a foundation, fiscal host, advisory board, or similar structure if it becomes important public infrastructure.
 
 That is not the current model.
 
-Until explicitly changed, Bichess remains founder-led.
+Until explicitly changed, Mistboard remains founder-led.
 
 ## Maintainer Absence
 
 If the maintainer becomes inactive for an extended period, the code remains forkable under GPL-3.0-or-later. Control of the official domains, trademarks, hosted service, and production data does not automatically transfer to contributors or users.
 
-If Bichess has active users, sponsors, or contributors at that point, a successor-maintainer plan should be documented before any transfer of official project assets.
+If Mistboard has active users, sponsors, or contributors at that point, a successor-maintainer plan should be documented before any transfer of official project assets.

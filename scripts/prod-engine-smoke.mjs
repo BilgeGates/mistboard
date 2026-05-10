@@ -1,10 +1,10 @@
 import WebSocket from 'ws';
 
-const DEFAULT_BASE_URL = 'https://bichess.org';
+const DEFAULT_BASE_URL = 'https://mistboard.com';
 const DEFAULT_TIMEOUT_MS = 20_000;
 
 const options = parseArgs(process.argv.slice(2));
-const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.BICHESS_BASE_URL ?? DEFAULT_BASE_URL);
+const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.MISTBOARD_BASE_URL ?? DEFAULT_BASE_URL);
 const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
 const playable = await fetchPlayableEngines(baseUrl);

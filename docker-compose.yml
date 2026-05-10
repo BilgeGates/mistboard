@@ -1,20 +1,20 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: bichess-postgres
+    container_name: mistboard-postgres
     environment:
-      POSTGRES_DB: bichess
-      POSTGRES_USER: bichess
-      POSTGRES_PASSWORD: bichess
+      POSTGRES_DB: mistboard
+      POSTGRES_USER: mistboard
+      POSTGRES_PASSWORD: mistboard
     ports:
       - "5435:5432"
     volumes:
-      - bichess-postgres:/var/lib/postgresql/data
+      - mistboard-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bichess -d bichess"]
+      test: ["CMD-SHELL", "pg_isready -U mistboard -d mistboard"]
       interval: 2s
       timeout: 5s
       retries: 10
 
 volumes:
-  bichess-postgres:
+  mistboard-postgres:

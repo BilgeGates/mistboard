@@ -1,6 +1,6 @@
 # Community And Publishing
 
-Bichess should build public knowledge and research surfaces before building a
+Mistboard should build public knowledge and research surfaces before building a
 native forum. Articles, rules explainers, and research notes help players,
 contributors, engine authors, and search discovery without immediately creating
 a full moderation platform.
@@ -27,7 +27,7 @@ Purpose:
 
 - explain Fog of War chess
 - help players find rules and examples
-- make Bichess discoverable for long-tail searches
+- make Mistboard discoverable for long-tail searches
 - link public replays and examples
 - support contributor onboarding
 
@@ -52,7 +52,7 @@ Good early article types:
 - Why server-enforced Fog matters
 - How perspective replay works
 - Common Fog of War tactics and mistakes
-- How to play a friend in Bichess
+- How to play a friend in Mistboard
 - How to read a Fog replay
 
 Publishing shape:
@@ -64,7 +64,7 @@ Publishing shape:
 - research content should start as an article category, not as the only publishing surface
 - a dedicated `/research` landing page can come later if there is enough serious
   research material to justify it
-- Engine Lab may link to relevant articles and reports, but should not be the
+- Lab may link to relevant articles and reports, but should not be the
   only home for research content
 - static pages are enough at first
 - articles should link to rules, replay examples, and relevant source docs
@@ -75,7 +75,7 @@ Publishing shape:
 
 Purpose:
 
-- make Bichess credible to engine authors and researchers
+- make Mistboard credible to engine authors and researchers
 - make benchmark claims auditable
 - create citeable project artifacts
 - explain engine progress without requiring private context
@@ -122,7 +122,7 @@ Near-term alternatives:
 - public articles with no comments
 - contact/report paths for security and rules issues
 
-Future forum categories, if Bichess later owns this surface:
+Future forum categories, if Mistboard later owns this surface:
 
 - rules questions
 - game help
@@ -160,7 +160,7 @@ Stage 3: Research / Engine Alpha
 - publish benchmark reports
 - publish corpora/manifests
 - publish engine and annotation methodology
-- make research notes citeable and linked from Engine Lab surfaces
+- make research notes citeable and linked from Lab surfaces
 
 Stage 4: Early Platform
 

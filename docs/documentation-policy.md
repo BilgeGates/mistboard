@@ -1,6 +1,6 @@
 # Documentation Policy
 
-Bichess keeps public documentation useful to users, contributors, researchers, and sponsors.
+Mistboard keeps public documentation useful to users, contributors, researchers, and sponsors.
 
 The public repo should be collaborator-facing.
 
@@ -8,7 +8,7 @@ The public repo should be collaborator-facing.
 
 Good public docs:
 
-- explain what Bichess is
+- explain what Mistboard is
 - define rules
 - document architecture
 - help contributors work safely

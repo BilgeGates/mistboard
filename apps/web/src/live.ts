@@ -12,7 +12,7 @@ import {
   type PieceRole,
   type PlayerView,
   type Square,
-} from '@bichess/game';
+} from '@mistboard/game';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
@@ -66,7 +66,7 @@ type StoredSeatToken = {
 
 declare global {
   interface Window {
-    __BICHESS_DEBUG__?: () => DebugSnapshot;
+    __MISTBOARD_DEBUG__?: () => DebugSnapshot;
     webkitAudioContext?: typeof AudioContext;
   }
 }
@@ -121,7 +121,7 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const allSquares = ranks.flatMap((rank) => files.map((file) => `${file}${rank}` as Square));
 const promotionRoles: PromotionRole[] = ['queen', 'rook', 'bishop', 'knight'];
-const GITHUB_URL = 'https://github.com/brianhliou/bichess';
+const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -189,7 +189,7 @@ let lastSoundView: PlayerView | null = null;
 const sound = createSoundController();
 
 function resolveWebSocketBaseUrl(): string {
-  const configured = import.meta.env.VITE_BICHESS_WS_URL;
+  const configured = import.meta.env.VITE_MISTBOARD_WS_URL;
   if (configured) return configured.replace(/\?$/, '');
   if (import.meta.env.DEV) return 'ws://localhost:3001';
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -245,7 +245,7 @@ function connectSocket(): void {
 function connectWebSocket(): WebSocket {
   const token = seatTokenForRoom(room);
   if (!token) return new WebSocket(socketUrl);
-  return new WebSocket(socketUrl, [`bichess-seat.${token}`]);
+  return new WebSocket(socketUrl, [`mistboard-seat.${token}`]);
 }
 
 function handleSocketMessage(event: MessageEvent<string>): void {
@@ -348,7 +348,7 @@ function createLayout(target: HTMLDivElement) {
           ${debugRequested ? '<h1>Fog Debug</h1>' : ''}
           <p data-room-meta>Connecting</p>
         </div>
-        <a data-new-room href="/">New room</a>
+        <a data-new-room href="/play">New room</a>
       </section>
 
       <section class="play-grid">
@@ -442,7 +442,7 @@ function createLayout(target: HTMLDivElement) {
     throw new Error('missing app region');
   }
 
-  newRoom.href = '/';
+  newRoom.href = '/play';
 
   return {
     board,
@@ -476,10 +476,10 @@ function buildNavHtml(): string {
     <nav class="site-nav" aria-label="Primary">
       <a class="site-nav-brand" href="/">
         <img class="site-nav-logo" src="/logo.svg" alt="" width="28" height="28">
-        <span>BICHESS</span>
+        <span>MISTBOARD</span>
       </a>
       <div class="site-nav-links">
-        ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/engine-lab">Engine Lab</a>' : ''}
+        ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/lab">Lab</a>' : ''}
         <a class="site-nav-link" href="/watch">Watch</a>
         <a class="site-nav-link" href="/learn">Learn</a>
         <a class="site-nav-link" href="/about">About</a>
@@ -678,10 +678,15 @@ function renderGameInfo(view: PlayerView | null): void {
 }
 
 function renderRoomActions(): void {
-  const actions: HTMLElement[] = [roomAction('Back to Home', '/')];
+  const actions: HTMLElement[] = [roomAction('Back to Play', '/play')];
   if (currentView()?.status.type === 'finished') {
     if (roomMode === 'pvp' || roomMode === 'pve') actions.unshift(playAgainButton());
     actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(room)}`, 'primary'));
+    const note = document.createElement('p');
+    note.className = 'room-actions-note';
+    note.textContent = 'Open the review to see the full reveal and share the finished game.';
+    refs.roomActions.replaceChildren(note, ...actions);
+    return;
   }
   if (engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
   refs.roomActions.replaceChildren(...actions);
@@ -689,6 +694,10 @@ function renderRoomActions(): void {
 
 function renderShareRoom(): void {
   refs.shareRoom.replaceChildren();
+
+  const hint = document.createElement('p');
+  hint.className = 'share-room-hint';
+  hint.textContent = shareRoomHint();
 
   const input = document.createElement('input');
   input.type = 'url';
@@ -705,7 +714,15 @@ function renderShareRoom(): void {
       : 'Copy Link';
   button.addEventListener('click', () => copyShareLink(input));
 
-  refs.shareRoom.append(input, button);
+  refs.shareRoom.append(hint, input, button);
+}
+
+function shareRoomHint(): string {
+  const view = currentView();
+  if (view?.status.type === 'finished') return 'Game over. Use Review game to share the finished replay.';
+  if (roomMode === 'pvp') return 'Copy this link and send it to the other player.';
+  if (roomMode === 'pve') return 'Copy this link to reopen this game while it is live.';
+  return 'Copy this link to return to this room.';
 }
 
 function roomAction(label: string, href: string, toneOrDev?: 'primary' | 'engine'): HTMLAnchorElement {
@@ -1448,7 +1465,7 @@ function terminalFogViewForProjection(projection: GameProjection, perspective: C
   };
 }
 
-window.__BICHESS_DEBUG__ = () => ({
+window.__MISTBOARD_DEBUG__ = () => ({
   bids,
   bidResolution,
   clientCount,
@@ -1495,7 +1512,7 @@ function actionTitle(view: PlayerView | null): string {
 function actionBody(view: PlayerView | null): string {
   if (connectionState === 'rejected') return rejectedBody();
   if (connectionState === 'displaced') return 'A newer tab is now controlling this seat.';
-  if (connectionState === 'disconnected') return 'The socket closed. Bichess will retry automatically.';
+  if (connectionState === 'disconnected') return 'The socket closed. Mistboard will retry automatically.';
   if (connectionState === 'reconnecting') return 'Trying to restore your room state and seat.';
   if (!view || connectionState === 'connecting') return 'Opening the room and loading the current server state.';
   if (view.status.type === 'finished') {
@@ -1718,7 +1735,7 @@ function roomIdFromPath(pathname: string): string | null {
 }
 
 function clientIdForRoom(roomId: string): string {
-  const key = `bichess.client.${roomId}`;
+  const key = `mistboard.client.${roomId}`;
   const existing = readLocalStorage(key);
   if (existing && /^[a-zA-Z0-9:_-]{8,80}$/.test(existing)) return existing;
   const next = window.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
@@ -1732,7 +1749,7 @@ function seatTokenForRoom(roomId: string): string | null {
 }
 
 function readSeatTokenForRoom(roomId: string): StoredSeatToken | null {
-  const raw = readLocalStorage(`bichess.seatToken.${roomId}`);
+  const raw = readLocalStorage(`mistboard.seatToken.${roomId}`);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<StoredSeatToken>;
@@ -1745,12 +1762,12 @@ function readSeatTokenForRoom(roomId: string): StoredSeatToken | null {
 }
 
 function writeSeatTokenForRoom(roomId: string, token: StoredSeatToken): void {
-  writeLocalStorage(`bichess.seatToken.${roomId}`, JSON.stringify(token));
+  writeLocalStorage(`mistboard.seatToken.${roomId}`, JSON.stringify(token));
 }
 
 function clearSeatTokenForRoom(roomId: string): void {
   try {
-    window.localStorage.removeItem(`bichess.seatToken.${roomId}`);
+    window.localStorage.removeItem(`mistboard.seatToken.${roomId}`);
   } catch {
     // Storage may be unavailable; reset still proceeds server-side.
   }

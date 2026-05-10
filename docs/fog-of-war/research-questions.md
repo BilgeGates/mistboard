@@ -5,7 +5,7 @@
 - What exact rules does Chess.com use for check, checkmate, king capture, castling, and en passant?
 - Which rules create the cleanest local engine contract?
 - Which rules are most intuitive for human players?
-- Which legal-move inferences are intentional under Bichess Fog, and which are
+- Which legal-move inferences are intentional under Mistboard Fog, and which are
   accidental information leaks?
 - Do TypeScript product rules, server payload policy, and Python engine-lab
   visibility agree on the edge cases documented in `rules-edge-cases.md`?

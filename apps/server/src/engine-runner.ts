@@ -9,7 +9,7 @@ import {
   type Color,
   type GameEvent,
   type VariantId,
-} from '@bichess/game';
+} from '@mistboard/game';
 import {
   finishEngineGameTask,
   heartbeatEngineGameTask,
@@ -270,6 +270,7 @@ async function createRunningGame(
       task.seed,
     ],
   );
+  await upsertEngineGameParticipants(pool, gameId, whiteEngine, blackEngine);
 
   await pool.query(
     `UPDATE eve_jobs
@@ -278,6 +279,27 @@ async function createRunningGame(
      WHERE id = $1
        AND status = 'queued'`,
     [task.jobId],
+  );
+}
+
+async function upsertEngineGameParticipants(
+  pool: pg.Pool,
+  gameId: string,
+  whiteEngine: EngineDefinition,
+  blackEngine: EngineDefinition,
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO game_participants
+       (game_id, color, subject_type, subject_id, display_name, visibility)
+     VALUES
+       ($1, 'white', 'engine-version', $2, $3, 'public'),
+       ($1, 'black', 'engine-version', $4, $5, 'public')
+     ON CONFLICT (game_id, color) DO UPDATE SET
+       subject_type = EXCLUDED.subject_type,
+       subject_id = EXCLUDED.subject_id,
+       display_name = EXCLUDED.display_name,
+       visibility = EXCLUDED.visibility`,
+    [gameId, whiteEngine.id, whiteEngine.name, blackEngine.id, blackEngine.name],
   );
 }
 

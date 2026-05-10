@@ -4,7 +4,7 @@ This document tracks rule edges where Fog of War correctness can diverge from
 ordinary chess expectations. Treat these as intentional design surfaces, not
 incidental implementation details.
 
-The canonical Bichess ruleset is:
+The canonical Mistboard ruleset is:
 
 - The server owns the full board.
 - Live players receive only their `PlayerView`.
@@ -32,7 +32,7 @@ Examples:
 - Missing capture moves can imply that a diagonal pawn target is empty or
   friendly-occupied under the true board.
 
-Current contract: Bichess exposes legal moves generated from the true board to
+Current contract: Mistboard exposes legal moves generated from the true board to
 the player whose turn it is. Any inference produced by the provided legal move
 set is part of the game unless the ruleset is changed.
 
@@ -99,7 +99,7 @@ Regression targets:
 
 ### Castling Representation
 
-Bichess accepts castling both as king-to-rook-square and king-to-king-destination
+Mistboard accepts castling both as king-to-rook-square and king-to-king-destination
 where supported by the rules adapter.
 
 Current contract:
@@ -136,7 +136,7 @@ Current contract:
 
 Implementation risk: libraries, UI logic, engine logic, and evaluator code often
 assume kings cannot be captured and that check filters legal moves. Those
-assumptions are wrong for Bichess fog.
+assumptions are wrong for Mistboard fog.
 
 Regression targets:
 

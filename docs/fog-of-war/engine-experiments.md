@@ -8,7 +8,7 @@ next-engine hypotheses before the workflow is promoted into EvE.
 
 ## Use Cases
 
-- Continuous mining: generate EvE games for Engine Lab review and training data.
+- Continuous mining: generate EvE games for Lab review and training data.
 - Bake-offs: compare a candidate engine version against a pinned baseline.
 - Calibration: estimate strength across engine versions, time controls, openings, and seeds.
 - Regression checks: run a small fixed suite before promoting an engine pin.
@@ -157,6 +157,6 @@ Specific services such as Railway, Modal, or similar platforms are deployment ex
 2. Add server-side helpers for creating jobs and materializing tasks.
 3. Add a local worker command that claims one task and exits.
 4. Add stale-running-task cleanup and retry handling.
-5. Wire Engine Lab to query completed EvE games by `review_status`.
+5. Wire the admin-gated Lab surface to query completed EvE games by `review_status`.
 6. Add always-on worker deployment.
 7. Add burst-worker launcher once local and always-on semantics are stable.

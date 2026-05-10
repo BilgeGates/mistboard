@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createClock, expireClock, replayGameEvents, type GameEvent } from '@bichess/game';
+import { createClock, expireClock, replayGameEvents, type GameEvent } from '@mistboard/game';
 import {
   adminDebugTokenFromProtocolHeader,
   canExposeFullEventReplay,
@@ -103,14 +103,14 @@ test('missing persisted events return not found for replay API', () => {
 
 test('production-like runtime requires database unless explicitly allowed', () => {
   assert.equal(isDatabaseRequired({ NODE_ENV: 'production' }), true);
-  assert.equal(isDatabaseRequired({ RAILWAY_SERVICE_NAME: 'bichess' }), true);
-  assert.equal(isDatabaseRequired({ NODE_ENV: 'production', BICHESS_ALLOW_IN_MEMORY_PERSISTENCE: 'true' }), false);
-  assert.equal(isDatabaseRequired({ BICHESS_REQUIRE_DATABASE: '1' }), true);
+  assert.equal(isDatabaseRequired({ RAILWAY_SERVICE_NAME: 'mistboard' }), true);
+  assert.equal(isDatabaseRequired({ NODE_ENV: 'production', MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE: 'true' }), false);
+  assert.equal(isDatabaseRequired({ MISTBOARD_REQUIRE_DATABASE: '1' }), true);
   assert.equal(isDatabaseRequired({}), false);
 });
 
 test('admin debug token is required and constant-length checked', () => {
-  const env: RuntimeEnv = { BICHESS_ADMIN_DEBUG_TOKEN: 'secret-admin-token' };
+  const env: RuntimeEnv = { MISTBOARD_ADMIN_DEBUG_TOKEN: 'secret-admin-token' };
 
   assert.equal(isAdminDebugToken(undefined, env), false);
   assert.equal(isAdminDebugToken('wrong', env), false);
@@ -120,11 +120,11 @@ test('admin debug token is required and constant-length checked', () => {
 
 test('admin debug token can be read from a websocket subprotocol header', () => {
   assert.equal(
-    adminDebugTokenFromProtocolHeader('foo, bichess-admin-debug.secret-admin-token, bar'),
+    adminDebugTokenFromProtocolHeader('foo, mistboard-admin-debug.secret-admin-token, bar'),
     'secret-admin-token',
   );
   assert.equal(
-    adminDebugTokenFromProtocolHeader(['foo', 'bichess-admin-debug.secret-admin-token']),
+    adminDebugTokenFromProtocolHeader(['foo', 'mistboard-admin-debug.secret-admin-token']),
     'secret-admin-token',
   );
   assert.equal(adminDebugTokenFromProtocolHeader('foo, bar'), undefined);
@@ -132,11 +132,11 @@ test('admin debug token can be read from a websocket subprotocol header', () => 
 
 test('seat token can be read from a websocket subprotocol header', () => {
   assert.equal(
-    seatTokenFromProtocolHeader('foo, bichess-seat.seat-token-123, bar'),
+    seatTokenFromProtocolHeader('foo, mistboard-seat.seat-token-123, bar'),
     'seat-token-123',
   );
   assert.equal(
-    seatTokenFromProtocolHeader(['foo', 'bichess-seat.seat-token-456']),
+    seatTokenFromProtocolHeader(['foo', 'mistboard-seat.seat-token-456']),
     'seat-token-456',
   );
   assert.equal(seatTokenFromProtocolHeader('foo, bar'), undefined);
@@ -145,12 +145,12 @@ test('seat token can be read from a websocket subprotocol header', () => {
 test('production websocket origin defaults to https host and supports explicit allowlist', () => {
   const prod: RuntimeEnv = { NODE_ENV: 'production' };
 
-  assert.equal(isAllowedWebSocketOrigin(undefined, 'bichess.org', prod), false);
-  assert.equal(isAllowedWebSocketOrigin('http://bichess.org', 'bichess.org', prod), false);
-  assert.equal(isAllowedWebSocketOrigin('https://bichess.org', 'bichess.org', prod), true);
-  assert.equal(isAllowedWebSocketOrigin('https://staging.bichess.org', 'bichess.org', {
+  assert.equal(isAllowedWebSocketOrigin(undefined, 'mistboard.com', prod), false);
+  assert.equal(isAllowedWebSocketOrigin('http://mistboard.com', 'mistboard.com', prod), false);
+  assert.equal(isAllowedWebSocketOrigin('https://mistboard.com', 'mistboard.com', prod), true);
+  assert.equal(isAllowedWebSocketOrigin('https://staging.mistboard.com', 'mistboard.com', {
     ...prod,
-    BICHESS_ALLOWED_ORIGINS: 'https://bichess.org, https://staging.bichess.org',
+    MISTBOARD_ALLOWED_ORIGINS: 'https://mistboard.com, https://staging.mistboard.com',
   }), true);
   assert.equal(isAllowedWebSocketOrigin(undefined, 'localhost:3001', {}), true);
 });

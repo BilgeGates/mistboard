@@ -1,6 +1,6 @@
 # Identity And Profiles
 
-This document defines Bichess identity concepts before they become platform
+This document defines Mistboard identity concepts before they become platform
 features. It is a product and technical scope note, not an implementation plan.
 
 Identity work should support Fog of War play, replay, engine development,
@@ -9,7 +9,7 @@ social-network features into v1.
 
 ## Core Distinction
 
-Bichess should keep these concepts separate:
+Mistboard should keep these concepts separate:
 
 - display identity: what a user or artifact is called
 - authority: what permits an action

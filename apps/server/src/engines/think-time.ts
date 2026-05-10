@@ -1,4 +1,4 @@
-import { clockRemainingMs } from '@bichess/game';
+import { clockRemainingMs } from '@mistboard/game';
 import type { EngineMoveContext } from './types.js';
 
 export type EngineRuntime = 'in-process' | 'subprocess';

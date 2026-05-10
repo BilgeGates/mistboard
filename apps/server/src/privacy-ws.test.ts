@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { createServer } from 'node:net';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import type { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
-import test, { type TestContext } from 'node:test';
+import test, { after, before } from 'node:test';
 import WebSocket from 'ws';
-import type { Color, GameEvent, Move, PlayerView } from '@bichess/game';
+import type { Color, GameEvent, Move, PlayerView } from '@mistboard/game';
 
 type SnapshotMessage = {
   type: 'hello' | 'snapshot';
@@ -24,12 +24,26 @@ type TestClient = {
 };
 type ServerProcess = ChildProcessByStdio<null, Readable, Readable>;
 
+let serverPort = 0;
+let serverProcess: ServerProcess | undefined;
+let roomCounter = 0;
+
+before(async () => {
+  const started = await startServer();
+  serverPort = started.port;
+  serverProcess = started.child;
+});
+
+after(async () => {
+  if (serverProcess) await stopServer(serverProcess);
+});
+
 test('live PvP third client is rejected before any snapshot', async (t) => {
-  const { port } = await startServer(t);
+  const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
 
-  const room = `ws-pvp-${Date.now()}`;
+  const room = uniqueRoomId('ws-pvp');
   clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
   clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
 
@@ -41,11 +55,11 @@ test('live PvP third client is rejected before any snapshot', async (t) => {
 });
 
 test('seated clients receive seat tokens only in hello payloads', async (t) => {
-  const { port } = await startServer(t);
+  const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
 
-  const room = `ws-token-${Date.now()}`;
+  const room = uniqueRoomId('ws-token');
   const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
   clients.push(white);
   const hello = white.messages[0];
@@ -61,11 +75,11 @@ test('seated clients receive seat tokens only in hello payloads', async (t) => {
 });
 
 test('valid seat token reclaims a seat and displaces the older socket', async (t) => {
-  const { port } = await startServer(t);
+  const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
 
-  const room = `ws-reclaim-${Date.now()}`;
+  const room = uniqueRoomId('ws-reclaim');
   const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
   const token = white.messages[0]?.seatToken;
   assert.ok(token);
@@ -107,11 +121,11 @@ test('valid seat token reclaims a seat and displaces the older socket', async (t
 });
 
 test('copied client id without a seat token cannot reclaim a private PvP seat', async (t) => {
-  const { port } = await startServer(t);
+  const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
 
-  const room = `ws-token-required-${Date.now()}`;
+  const room = uniqueRoomId('ws-token-required');
   clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
   clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
 
@@ -123,11 +137,11 @@ test('copied client id without a seat token cannot reclaim a private PvP seat', 
 });
 
 test('wrong seat token cannot reclaim a private PvP seat', async (t) => {
-  const { port } = await startServer(t);
+  const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
 
-  const room = `ws-wrong-token-${Date.now()}`;
+  const room = uniqueRoomId('ws-wrong-token');
   clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
   clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
 
@@ -143,11 +157,11 @@ test('wrong seat token cannot reclaim a private PvP seat', async (t) => {
 });
 
 test('unknown client cannot take an abandoned active private PvP seat', async (t) => {
-  const { port } = await startServer(t);
+  const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
 
-  const room = `ws-active-abandoned-${Date.now()}`;
+  const room = uniqueRoomId('ws-active-abandoned');
   const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
   const black = await connectForHello(port, `room=${room}&client=black-client-0001`);
   clients.push(white, black);
@@ -179,11 +193,11 @@ test('unknown client cannot take an abandoned active private PvP seat', async (t
 });
 
 test('live PvE observer receives the human perspective and not engine moves', async (t) => {
-  const { port } = await startServer(t);
+  const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
 
-  const room = `ws-pve-${Date.now()}`;
+  const room = uniqueRoomId('ws-pve');
   const human = await connectForHello(port, `room=${room}&client=pve-human-0001&engine=random&reset=1`);
   clients.push(human);
   assert.equal(human.messages[0]?.mode, 'pve');
@@ -216,11 +230,11 @@ test('live PvE observer receives the human perspective and not engine moves', as
 });
 
 test('live EvE observer receives full truth and full event stream by design', async (t) => {
-  const { port } = await startServer(t);
+  const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
 
-  const room = `ws-eve-${Date.now()}`;
+  const room = uniqueRoomId('ws-eve');
   const white = await connectForHello(port, `room=${room}&client=engine:white&reset=1`);
   const black = await connectForHello(port, `room=${room}&client=engine:black`);
   clients.push(white, black);
@@ -266,21 +280,28 @@ test('live EvE observer receives full truth and full event stream by design', as
   assert.deepEqual(moveEventColors(snapshot.events), ['white', 'black']);
 });
 
-async function startServer(t: TestContext): Promise<{ port: number }> {
+async function startServer(): Promise<{ port: number; child: ServerProcess }> {
   const port = await openPort();
-  const entry = join(dirname(fileURLToPath(import.meta.url)), 'index.js');
+  const testDir = dirname(fileURLToPath(import.meta.url));
+  const entry = basename(testDir) === 'src'
+    ? join(testDir, '..', 'dist', 'index.js')
+    : join(testDir, 'index.js');
   const child = spawn(process.execPath, [entry], {
     env: {
-      BICHESS_ALLOW_IN_MEMORY_PERSISTENCE: 'true',
+      MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE: 'true',
       NODE_ENV: 'test',
       PORT: String(port),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  t.after(async () => stopServer(child));
 
   await waitForServerReady(child);
-  return { port };
+  return { port, child };
+}
+
+function uniqueRoomId(prefix: string): string {
+  roomCounter += 1;
+  return `${prefix}-${Date.now()}-${roomCounter}`;
 }
 
 function openPort(): Promise<number> {
@@ -304,7 +325,7 @@ function waitForServerReady(child: ServerProcess): Promise<void> {
     const timeout = setTimeout(() => reject(new Error(`server startup timed out: ${output}`)), 5_000);
     child.stdout.on('data', (chunk: Buffer) => {
       output += chunk.toString('utf8');
-      if (output.includes('bichess server listening')) {
+      if (output.includes('mistboard server listening')) {
         clearTimeout(timeout);
         resolve();
       }
@@ -338,7 +359,7 @@ function stopServer(child: ServerProcess): Promise<void> {
 }
 
 function connectForHello(port: number, query: string, options: { seatToken?: string } = {}): Promise<TestClient> {
-  const protocols = options.seatToken ? [`bichess-seat.${options.seatToken}`] : undefined;
+  const protocols = options.seatToken ? [`mistboard-seat.${options.seatToken}`] : undefined;
   const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`, protocols);
   const messages: SnapshotMessage[] = [];
   socket.on('message', (raw) => {
@@ -365,7 +386,7 @@ function connectForHello(port: number, query: string, options: { seatToken?: str
 }
 
 function connectForClose(port: number, query: string, options: { seatToken?: string } = {}): Promise<{ code: number; messages: SnapshotMessage[]; reason: string }> {
-  const protocols = options.seatToken ? [`bichess-seat.${options.seatToken}`] : undefined;
+  const protocols = options.seatToken ? [`mistboard-seat.${options.seatToken}`] : undefined;
   const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`, protocols);
   const messages: SnapshotMessage[] = [];
   socket.on('message', (raw) => {

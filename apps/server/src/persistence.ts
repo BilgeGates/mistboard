@@ -1,5 +1,5 @@
 import pg from 'pg';
-import type { Color, GameEvent } from '@bichess/game';
+import type { Color, GameEvent } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
 
 let pool: pg.Pool | null = null;
@@ -16,6 +16,7 @@ export type GameTermination =
   | 'engine-failure'
   | 'worker-aborted'
   | 'server-restarted'
+  | 'abandoned'
   | 'no-legal-moves'
   | 'truncated';
 export type GameReviewStatus = 'unreviewed' | 'flagged' | 'reviewed' | 'training' | 'rejected';
@@ -88,6 +89,15 @@ export type RecentEveGameRecord = GameRecord & {
   whiteEngineId: string | null;
   blackEngineId: string | null;
   timeControl: Record<string, unknown> | null;
+};
+
+export type GameDebugArtifactSummary = {
+  artifactType: string;
+  count: number;
+  engineColors: Color[];
+  minPly: number | null;
+  maxPly: number | null;
+  snapshotKinds: string[];
 };
 
 export type CompletedGameFilters = {
@@ -311,6 +321,88 @@ export async function listActiveRoomIds(since: Date): Promise<string[]> {
     [since],
   );
   return rows.map((row) => row.room_id);
+}
+
+export async function getGameLifecycleStatus(roomId: string): Promise<{ mode: GameMode; status: 'running' | 'completed' | 'aborted' } | null> {
+  const { rows } = await getPool().query<{
+    mode: GameMode;
+    status: 'running' | 'completed' | 'aborted';
+  }>(
+    `SELECT mode, status
+     FROM games
+     WHERE room_id = $1
+     LIMIT 1`,
+    [roomId],
+  );
+  return rows[0] ?? null;
+}
+
+export async function abortRunningGame(
+  roomId: string,
+  options: {
+    abortedReason: string;
+    endedAt?: Date;
+    termination: Extract<GameTermination, 'abandoned' | 'engine-failure' | 'server-restarted' | 'worker-aborted'>;
+  },
+): Promise<boolean> {
+  const { rowCount } = await getPool().query(
+    `UPDATE games
+     SET status = 'aborted',
+         result = NULL,
+         termination = $2,
+         ended_at = $3,
+         aborted_reason = $4
+     WHERE room_id = $1
+       AND status = 'running'`,
+    [roomId, options.termination, options.endedAt ?? new Date(), options.abortedReason],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+export async function abortStaleGuestPrestartGames(
+  now = new Date(),
+  staleAfterMs = 15 * 60 * 1000,
+): Promise<{ aborted: number; roomIds: string[] }> {
+  const staleBefore = new Date(now.getTime() - staleAfterMs);
+  const { rows } = await getPool().query<{ room_id: string }>(
+    `WITH candidates AS (
+       SELECT games.room_id
+       FROM games
+       WHERE games.status = 'running'
+         AND games.mode IN ('pvp', 'pve')
+         AND games.started_at < $1
+         AND NOT EXISTS (
+           SELECT 1
+           FROM events
+           WHERE events.room_id = games.room_id
+             AND events.type IN ('clock-started', 'move-played')
+         )
+         AND NOT EXISTS (
+           SELECT 1
+           FROM room_seat_tokens
+           WHERE room_seat_tokens.room_id = games.room_id
+             AND room_seat_tokens.revoked_at IS NULL
+             AND room_seat_tokens.user_id IS NOT NULL
+         )
+       FOR UPDATE SKIP LOCKED
+     ),
+     repaired AS (
+       UPDATE games
+       SET status = 'aborted',
+           result = NULL,
+           termination = 'abandoned',
+           ended_at = $2,
+           aborted_reason = 'guest pre-start timeout'
+       FROM candidates
+       WHERE games.room_id = candidates.room_id
+       RETURNING games.room_id
+     )
+     SELECT room_id
+     FROM repaired
+     ORDER BY room_id`,
+    [staleBefore, now],
+  );
+  return { aborted: rows.length, roomIds: rows.map((row) => row.room_id) };
 }
 
 export async function recordGameStart(roomId: string, summary: RunningGameSummary): Promise<void> {
@@ -768,6 +860,7 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
        AND NOT (games.termination = 'timeout' AND games.ply_count < $1)
+       AND NOT (games.mode IN ('pvp', 'pve') AND games.ply_count < 2)
        AND EXISTS (
          SELECT 1
          FROM events
@@ -932,6 +1025,39 @@ export async function getGameSummary(roomId: string): Promise<RecentEveGameRecor
     participants: [],
   }]);
   return record ?? null;
+}
+
+export async function listGameDebugArtifactSummaries(gameId: string): Promise<GameDebugArtifactSummary[]> {
+  const { rows } = await getPool().query<{
+    artifact_type: string;
+    count: string;
+    engine_colors: Color[] | null;
+    min_ply: number | null;
+    max_ply: number | null;
+    snapshot_kinds: string[] | null;
+  }>(
+    `SELECT artifact_type,
+            COUNT(*)::text AS count,
+            ARRAY_REMOVE(ARRAY_AGG(DISTINCT engine_color ORDER BY engine_color), NULL) AS engine_colors,
+            MIN(ply) AS min_ply,
+            MAX(ply) AS max_ply,
+            ARRAY_REMOVE(ARRAY_AGG(DISTINCT payload->>'snapshot_kind' ORDER BY payload->>'snapshot_kind')
+              FILTER (WHERE storage = 'jsonb' AND payload ? 'snapshot_kind'), NULL) AS snapshot_kinds
+     FROM game_debug_artifacts
+     WHERE game_id = $1
+     GROUP BY artifact_type
+     ORDER BY artifact_type`,
+    [gameId],
+  );
+
+  return rows.map((row) => ({
+    artifactType: row.artifact_type,
+    count: Number.parseInt(row.count, 10),
+    engineColors: row.engine_colors ?? [],
+    minPly: row.min_ply,
+    maxPly: row.max_ply,
+    snapshotKinds: row.snapshot_kinds ?? [],
+  }));
 }
 
 export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void> {

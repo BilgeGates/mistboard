@@ -14,7 +14,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import pg from 'pg';
-import { replayGameEvents, type GameEvent } from '@bichess/game';
+import { replayGameEvents, type GameEvent } from '@mistboard/game';
 import { runMigrations } from './migrate.js';
 import {
   appendEvent,

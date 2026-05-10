@@ -5,13 +5,13 @@ import {
   type Move,
   type PlayerView,
   type Square,
-} from '@bichess/game';
+} from '@mistboard/game';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
 import { boardFen, hiddenSquareClasses } from './board-ui.js';
 
-const GITHUB_URL = 'https://github.com/brianhliou/bichess';
+const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 const SHOW_ENGINE_LAB_LINKS =
   (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 const boardFiles = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
@@ -2784,16 +2784,16 @@ function buildNav(): HTMLElement {
   brandLogo.height = 28;
 
   const brandText = document.createElement('span');
-  brandText.textContent = 'BICHESS';
+  brandText.textContent = 'MISTBOARD';
   brand.append(brandLogo, brandText);
 
   const links = document.createElement('div');
   links.className = 'site-nav-links';
 
   if (SHOW_ENGINE_LAB_LINKS) {
-    links.append(navLink('Engine Lab', '/engine-lab'));
+    links.append(navLink('Lab', '/lab'));
   }
-  links.append(navLink('Watch', '/watch'), navLink('Learn', '/learn'), navLink('About', '/about'), navLink('Source', '/source'));
+  links.append(navLink('Play', '/play'), navLink('Watch', '/watch'), navLink('Learn', '/learn'), navLink('About', '/about'), navLink('Source', '/source'));
 
   const gh = document.createElement('a');
   gh.href = GITHUB_URL;
@@ -2829,7 +2829,7 @@ function buildFooter(): HTMLElement {
 
   const left = document.createElement('div');
   left.className = 'site-footer-left';
-  left.textContent = '© 2026 Bichess';
+  left.textContent = '© 2026 Mistboard';
 
   const right = document.createElement('div');
   right.className = 'site-footer-right';

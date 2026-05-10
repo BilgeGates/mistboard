@@ -1,6 +1,6 @@
 {
-  "name": "Bichess",
-  "short_name": "Bichess",
+  "name": "Mistboard",
+  "short_name": "Mistboard",
   "description": "Fog of War chess with server-enforced hidden information.",
   "start_url": "/",
   "display": "standalone",

@@ -1,6 +1,6 @@
 # Repository Policy
 
-Bichess is a public open-source repository.
+Mistboard is a public open-source repository.
 
 This document describes the public repository posture for contributors.
 
@@ -12,10 +12,10 @@ For product direction, licensing, branding, reference, roadmap, and monetization
 
 ## Governance Boundary
 
-Bichess is founder-led. Open source gives users the right to inspect, run, modify, and fork the code under GPL-3.0-or-later. It does not transfer control of:
+Mistboard is founder-led. Open source gives users the right to inspect, run, modify, and fork the code under GPL-3.0-or-later. It does not transfer control of:
 
-- the `bichess` name
-- `bichess.org` and related domains
+- the `mistboard` name
+- `mistboard.com` and related domains
 - trademarks and logos
 - official package names and publishing credentials
 - the hosted service

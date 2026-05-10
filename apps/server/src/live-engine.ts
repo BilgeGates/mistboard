@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { clockRemainingMs, type Move } from '@bichess/game';
+import { clockRemainingMs, type Move } from '@mistboard/game';
 import {
   defaultEngineId,
   loadEngine,
