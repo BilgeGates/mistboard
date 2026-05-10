@@ -4,6 +4,7 @@ import {
   createExperimentJob,
 } from './engine-experiments.js';
 import { defaultEngineId, upsertBuiltinEngineVersions } from './engine-registry.js';
+import { parseEngineTimeControl } from './engine-time-policy.js';
 import { runMigrations } from './migrate.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -17,6 +18,7 @@ const maxPlies = Number.parseInt(process.env.ENGINE_SMOKE_MAX_PLIES ?? '160', 10
 const gameCount = Number.parseInt(process.env.ENGINE_SMOKE_GAMES ?? '1', 10);
 const whiteEngineId = process.env.ENGINE_SMOKE_WHITE_ENGINE ?? 'builtin-capture-seeker';
 const blackEngineId = process.env.ENGINE_SMOKE_BLACK_ENGINE ?? defaultEngineId();
+const timeControl = parseEngineTimeControl(process.env.ENGINE_TIME_CONTROL ?? process.env.ENGINE_SMOKE_TIME_CONTROL ?? 'none');
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 });
 
 try {
@@ -32,6 +34,7 @@ try {
         black_engine_id: blackEngineId,
       },
       sample: { target_games: gameCount },
+      time_control: timeControl,
       artifact_policy: { move_choices: 'all' },
       review_policy: { enqueue_engine_lab: true, initial_review_status: 'unreviewed' },
     },
@@ -46,9 +49,9 @@ try {
       whiteEngineId,
       blackEngineId,
       seed: nextSeed(seed, gameIndex),
-      timeControl: { kind: 'none' },
+      timeControl,
       openingPolicy: { kind: 'standard' },
-      artifactPolicy: { move_choices: 'all' },
+      artifactPolicy: { move_choices: 'all', runtime_summary: 'all' },
       resourcePolicy: { providers: ['local', 'railway'], concurrency: 1 },
       config: {
         variant: 'fog-of-war',
@@ -69,6 +72,7 @@ try {
     maxPlies,
     whiteEngineId,
     blackEngineId,
+    timeControl,
   }));
 } finally {
   await pool.end();

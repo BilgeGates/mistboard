@@ -2,7 +2,7 @@ import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Squ
 import type * as cg from 'chessground/types';
 import type { BeliefRow, TraceRow } from './belief-panel.js';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from './board-ui.js';
-import { mountReplay, type EngineReviewPanels, type GameMeta } from './replay.js';
+import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameMeta } from './replay.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -261,6 +261,7 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
     initialPly: initialGamePly(),
     onPlyChange: syncGamePlyUrl,
     showControls: true,
+    controlsMode: 'panel',
     revealOnFinish: true,
     loaderForId: events ? async () => events : apiEventLoader,
     metadataByRoomId: {
@@ -279,6 +280,7 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
           traceRowsForSampleId: () => loaded.traceRows,
         }
       : undefined,
+    annotation: annotationConfigForGame(game, loaded.beliefRows),
   });
 }
 
@@ -401,6 +403,14 @@ function enginePanelsForReview(review: GameReviewPayload, hasBeliefRows: boolean
   };
 }
 
+function annotationConfigForGame(game: FeaturedGame, beliefRows: BeliefRow[]): AnnotationConfig {
+  const tier1Side = beliefRows[0]?.tier1_side ?? null;
+  return {
+    manifestUrl: `game:${game.roomId}`,
+    gameIndexForSampleId: () => game.gameIndex ?? 0,
+    tier1ColorForSampleId: () => tier1Side,
+  };
+}
 async function fetchGameArtifacts(
   roomId: string,
   type: GameArtifactType,

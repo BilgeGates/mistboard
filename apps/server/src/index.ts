@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { promises as fs } from 'node:fs';
 import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -146,6 +147,7 @@ const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 
 const staticDir = resolveStaticDir();
+const annotationsFile = resolveRepoPath('research', 'python-fow-lab', 'feedback', 'annotations.jsonl');
 
 await initPersistence();
 let abortPolicyTimer: ReturnType<typeof setInterval> | null = null;
@@ -269,6 +271,11 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
   const url = request.url ?? '/';
   const parsedUrl = new URL(url, 'http://localhost');
   const method = request.method ?? 'GET';
+
+  if (parsedUrl.pathname === '/api/annotations') {
+    await handleAnnotationsApi(request, response);
+    return;
+  }
 
   if (parsedUrl.pathname === '/api/auth/me') {
     if (method !== 'GET') {
@@ -863,6 +870,57 @@ function writeJson(
   response.end(JSON.stringify(body));
 }
 
+async function handleAnnotationsApi(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  if (!isHttpAdminAuthorized(request)) {
+    writeJson(response, 403, { error: 'forbidden' });
+    return;
+  }
+
+  const method = request.method ?? 'GET';
+  if (method === 'GET') {
+    const text = await fs.readFile(annotationsFile, 'utf-8').catch(() => '');
+    const annotations = text
+      .split('\n')
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    writeJson(response, 200, { annotations, file: annotationsFile });
+    return;
+  }
+
+  if (method === 'POST') {
+    const body = await readJsonBody(request);
+    await fs.mkdir(dirname(annotationsFile), { recursive: true });
+    await fs.appendFile(annotationsFile, JSON.stringify(body) + '\n', 'utf-8');
+    writeJson(response, 200, { ok: true });
+    return;
+  }
+
+  if (method === 'PUT') {
+    const body = await readJsonBody(request);
+    if (typeof body.id !== 'string' || body.id.length === 0) {
+      writeJson(response, 400, { error: 'missing_id' });
+      return;
+    }
+    const existing = await fs.readFile(annotationsFile, 'utf-8').catch(() => '');
+    const lines = existing.split('\n').filter((line) => line.trim().length > 0);
+    let updated = false;
+    const nextLines = lines.map((line) => {
+      const row = JSON.parse(line) as Record<string, unknown>;
+      if (row.id === body.id) {
+        updated = true;
+        return JSON.stringify(body);
+      }
+      return line;
+    });
+    if (!updated) nextLines.push(JSON.stringify(body));
+    await fs.mkdir(dirname(annotationsFile), { recursive: true });
+    await fs.writeFile(annotationsFile, nextLines.join('\n') + '\n', 'utf-8');
+    writeJson(response, 200, { ok: true, updated, appended: !updated });
+    return;
+  }
+
+  writeJson(response, 405, { error: 'method_not_allowed' });
+}
 async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let total = 0;
@@ -1185,6 +1243,10 @@ function parseUtcDateParam(value: string | null): Date | null {
   return date.toISOString().startsWith(value) ? date : null;
 }
 
+function resolveRepoPath(...parts: string[]): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  return resolve(here, '..', '..', '..', ...parts);
+}
 function resolveStaticDir(): string {
   if (process.env.STATIC_DIR) return resolve(process.env.STATIC_DIR);
   const here = dirname(fileURLToPath(import.meta.url));

@@ -14,6 +14,8 @@ for the technical scope behind Priority 1 usefulness work.
 - Engine / EvE pipeline: queue, worker, engine versions, review surfaces.
 - Clocks: live clock correctness, persistence, timeout behavior, and UI.
 - Persistence for guest and signed-in players: room/event durability and identity-backed recovery.
+- Private-alpha replay/review and play UX polish: perspective consistency,
+  terminal handoff, mobile layout, and no-coaching tester flow.
 
 ### Priority 0: Private-Alpha Safety
 
@@ -26,6 +28,11 @@ live games unreliable.
 Outcome: every live-room and replay endpoint has an explicit policy for PvP,
 PvE, and EvE, and tests prove live Fog truth is not exposed to the wrong client.
 
+Status: implemented and covered by server policy, payload, and WebSocket tests.
+Local production-like health/PvP seat/PvE engine/browser flow smokes have
+passed; hands-on reconnect, duplicate-tab, clock, and postgame review smoke
+remain the release gate.
+
 Decisions to lock:
 
 - PvP live rooms are private to the seated players until terminal state.
@@ -35,10 +42,12 @@ Decisions to lock:
 
 Work:
 
-- Centralize PvP/PvE/EvE mode detection and observer policy.
-- Gate live spectators before they receive any room snapshot.
-- Redact live Fog event streams consistently for WebSocket snapshots and replay APIs.
-- Add regression tests for seated players, spectators, replay APIs, and finished-game reveal.
+- [x] Centralize PvP/PvE/EvE mode detection and observer policy.
+- [x] Gate live spectators before they receive any room snapshot.
+- [x] Redact live Fog event streams consistently for WebSocket snapshots and replay APIs.
+- [x] Add regression tests for seated players, spectators, replay APIs, and finished-game reveal.
+- [x] Run local production-like health, PvP seat, PvE engine, and browser flow smokes.
+- [ ] Run and record the hands-on private-alpha PvP/PvE/EvE smoke.
 
 Verification gate: targeted server policy and payload tests pass, and a manual
 three-room smoke confirms PvP spectator rejection, PvE human-perspective
@@ -49,19 +58,33 @@ observation, and EvE full-truth observation.
 Outcome: a player can lose the socket, refresh, or reconnect and recover the
 same live room state without silently changing seats or needing a new link.
 
+Status: seat-token authority is implemented for live rooms. `clientId` is now a
+browser/session label; room-scoped `seatToken` is the authority to reclaim or
+act as a seat. Automated tests cover valid reclaim, invalid/missing token
+rejection, duplicate displacement, and active abandoned-seat protection.
+
 Decisions to lock:
 
-- Reconnect identity is based on the stable client id already known to the room.
-- A reconnecting seated client should recover its original seat when possible.
-- Duplicate tabs with the same client id should have deterministic behavior and clear UI.
+- Reconnect authority is based on a room-scoped seat token, with `clientId` kept
+  as a non-secret browser/session label.
+- A reconnecting seated client with a valid seat token should recover its
+  original seat when possible.
+- Duplicate tabs with the same valid seat token use newest-valid-socket-wins
+  behavior with clear UI.
 - Socket retry should not create extra seats or leak a private room to spectators.
 
 Work:
 
-- Audit client id storage and reuse across refresh and reconnect.
-- Add or tighten server tests for seat recovery and spectator overflow.
-- Keep client reconnect messaging concise and actionable.
-- Manually smoke socket close, refresh, duplicate tab, and postgame reconnect.
+- [x] Add server-issued seat tokens and store only token hashes.
+- [x] Store and resend room-scoped seat tokens from the client without putting
+  them in URLs.
+- [x] Require valid seat tokens for occupied-seat reclaim and move authority.
+- [x] Add deterministic duplicate-tab displacement.
+- [x] Add server tests for seat recovery, invalid/missing tokens, spectator
+  overflow, duplicate displacement, and active abandoned seats.
+- [x] Run DB-backed persistence tests for persisted seat-token durability.
+- [ ] Manually smoke socket close, refresh, duplicate tab, cleared local storage,
+  and postgame reconnect.
 
 Verification gate: manual two-tab Fog game survives refresh and socket close for
 both colors, and no reconnect path creates a third live observer in PvP.
@@ -79,9 +102,9 @@ Decisions to lock:
 
 Work:
 
-- Turn the Fog section of `docs/qa-checklist.md` into a private-alpha smoke path.
-- Add explicit PvP, PvE, EvE, reconnect, and postgame review checks.
-- Keep browser/manual checks separate from low-level unit tests.
+- [x] Turn the Fog section of `docs/qa-checklist.md` into a private-alpha smoke path.
+- [x] Add explicit PvP, PvE, EvE, reconnect, duplicate-tab, clock, and postgame review checks.
+- [x] Keep browser/manual checks separate from low-level unit tests.
 - Record known limitations in public-safe language when they affect testers.
 
 Verification gate: one complete manual smoke is run against a production-like

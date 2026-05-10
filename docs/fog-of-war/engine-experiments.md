@@ -50,6 +50,44 @@ Owner-only Python Tier-1 identities currently registered for worker execution:
 These are not public upload slots. They are controlled engine identities used
 for EvE jobs and production-adjacent smoke tests.
 
+## Server-Side Tournament Seed
+
+Early server-side tournaments are queued as normal EvE jobs. The command creates
+a round-robin task set, alternates colors per pair, and stores the tournament
+shape in `eve_jobs.config`:
+
+```sh
+npm run engine:enqueue-tournament -- \
+  --engines builtin-capture-seeker,builtin-random-legal,python-tier1-v0.7.22 \
+  --games-per-pair 2 \
+  --time-control 10+2 \
+  --opening random-first-4 \
+  --providers local,railway
+```
+
+`--time-control` accepts `none` or `initial+increment` in seconds. Standard
+time controls are copied onto each task and replay clock events. In-process
+worker games enforce timeout from the engine's reported `thinkTimeMs`; Python
+whole-game workers receive the same policy and enforce it inside the Python
+harness.
+
+Workers write an `engine-runtime-summary` debug artifact per completed task with
+runner, engine pair, wall time, total reported think time, ply count, and
+plies/second. `npm run engine:queue-status` summarizes those artifacts by
+runner and engine pair so early cloud throughput experiments can compare worker
+providers without a separate metrics service.
+
+After workers have completed games, the tournament status command derives
+standings from canonical EvE game rows:
+
+```sh
+npm run engine:tournament-status -- --job <job_id>
+npm run engine:tournament-status -- --tournament-id <tournament_id> --format markdown
+```
+
+With no filter it reports the newest tournament-shaped EvE job. This is still
+an operational report, not a public leaderboard.
+
 ## Data Model
 
 `eve_jobs` is the experiment/job row. It describes intent: mining, bake-off, calibration, smoke, or regression.

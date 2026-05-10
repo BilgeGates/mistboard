@@ -1,0 +1,226 @@
+import {
+  parseEngineTimeControl,
+  timeControlLabel,
+  type EngineTaskTimeControl,
+} from './engine-time-policy.js';
+
+export type TournamentPairing = {
+  blackEngineId: string;
+  gameIndex: number;
+  pairId: string;
+  pairIndex: number;
+  repeatIndex: number;
+  whiteEngineId: string;
+};
+
+export type TournamentPlanInput = {
+  engines: string[];
+  gamesPerPair: number;
+};
+
+export type TournamentCliConfig = {
+  artifactPolicy: Record<string, unknown>;
+  createdBy: string;
+  engines: string[];
+  gamesPerPair: number;
+  maxPlies: number;
+  openingPolicy: Record<string, unknown>;
+  priority: number;
+  providers: string[];
+  seed: string;
+  timeControl: EngineTaskTimeControl;
+  tournamentId: string;
+};
+
+export function createRoundRobinPairings(input: TournamentPlanInput): TournamentPairing[] {
+  const engines = uniqueNonEmpty(input.engines);
+  if (engines.length < 2) throw new Error('at least two engines are required');
+  if (!Number.isInteger(input.gamesPerPair) || input.gamesPerPair <= 0) {
+    throw new Error('gamesPerPair must be a positive integer');
+  }
+
+  const pairings: TournamentPairing[] = [];
+  let gameIndex = 0;
+  let pairIndex = 0;
+  for (let left = 0; left < engines.length; left++) {
+    for (let right = left + 1; right < engines.length; right++) {
+      const a = engines[left]!;
+      const b = engines[right]!;
+      const pairId = `${slugEngineId(a)}-vs-${slugEngineId(b)}`;
+      for (let repeatIndex = 0; repeatIndex < input.gamesPerPair; repeatIndex++) {
+        const swap = repeatIndex % 2 === 1;
+        pairings.push({
+          blackEngineId: swap ? a : b,
+          gameIndex,
+          pairId,
+          pairIndex,
+          repeatIndex,
+          whiteEngineId: swap ? b : a,
+        });
+        gameIndex += 1;
+      }
+      pairIndex += 1;
+    }
+  }
+  return pairings;
+}
+
+export function parseTournamentArgs(values: string[], env: NodeJS.ProcessEnv = process.env): TournamentCliConfig {
+  const args = parseArgs(values);
+  const engines = csv(args.engines ?? env.ENGINE_TOURNAMENT_ENGINES ?? '')
+    .concat(args.engine ?? [])
+    .filter(Boolean);
+  if (engines.length < 2) throw new Error('provide at least two engines with --engines a,b or repeated --engine');
+
+  const gamesPerPair = positiveInteger(args.gamesPerPair ?? env.ENGINE_TOURNAMENT_GAMES_PER_PAIR, 2);
+  const maxPlies = positiveInteger(args.maxPlies ?? env.ENGINE_MAX_PLIES, 160);
+  const providers = csv(args.providers ?? env.ENGINE_PROVIDERS ?? 'local,railway');
+  const timeControl = parseEngineTimeControl(args.timeControl ?? env.ENGINE_TIME_CONTROL ?? 'none');
+  const tournamentId = args.tournamentId
+    ?? env.ENGINE_TOURNAMENT_ID
+    ?? `tournament-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+
+  return {
+    artifactPolicy: args.artifacts === 'none'
+      ? {}
+      : { move_choices: args.artifacts ?? env.ENGINE_ARTIFACTS ?? 'all', runtime_summary: 'all' },
+    createdBy: args.createdBy ?? env.ENGINE_CREATED_BY ?? 'engine-tournament-cli',
+    engines: uniqueNonEmpty(engines),
+    gamesPerPair,
+    maxPlies,
+    openingPolicy: openingPolicyFrom(args.opening ?? env.ENGINE_OPENING_POLICY),
+    priority: integer(args.priority ?? env.ENGINE_PRIORITY, 0),
+    providers,
+    seed: args.seed ?? env.ENGINE_SEED ?? Date.now().toString(),
+    timeControl,
+    tournamentId,
+  };
+}
+
+export function nextTournamentSeed(baseSeed: string, gameIndex: number): string {
+  try {
+    return (BigInt(baseSeed) + BigInt(gameIndex)).toString();
+  } catch {
+    return `${baseSeed}-${gameIndex}`;
+  }
+}
+
+export function tournamentJobConfig(config: TournamentCliConfig, targetGames: number): Record<string, unknown> {
+  return {
+    tournament: {
+      id: config.tournamentId,
+      format: 'round-robin',
+      engines: config.engines,
+      games_per_pair: config.gamesPerPair,
+      color_policy: 'alternate-by-repeat',
+    },
+    sample: { target_games: targetGames },
+    time_control: {
+      ...config.timeControl,
+      label: timeControlLabel(config.timeControl),
+    },
+    opening_policy: config.openingPolicy,
+    artifact_policy: config.artifactPolicy,
+    review_policy: { enqueue_engine_lab: true, initial_review_status: 'unreviewed' },
+  };
+}
+
+type RawArgs = {
+  artifacts?: string;
+  createdBy?: string;
+  engine?: string[];
+  engines?: string;
+  gamesPerPair?: string;
+  maxPlies?: string;
+  opening?: string;
+  priority?: string;
+  providers?: string;
+  seed?: string;
+  timeControl?: string;
+  tournamentId?: string;
+};
+
+function parseArgs(values: string[]): RawArgs {
+  const parsed: RawArgs = {};
+  for (let index = 0; index < values.length; index++) {
+    const arg = values[index]!;
+    if (!arg.startsWith('--')) continue;
+    const [rawKey, inlineValue] = arg.slice(2).split('=', 2);
+    const value = inlineValue ?? values[++index];
+    if (!value) throw new Error(`missing value for --${rawKey}`);
+    switch (rawKey) {
+      case 'artifact':
+      case 'artifacts':
+        parsed.artifacts = value;
+        break;
+      case 'created-by':
+        parsed.createdBy = value;
+        break;
+      case 'engine':
+        parsed.engine = [...(parsed.engine ?? []), value];
+        break;
+      case 'engines':
+        parsed.engines = value;
+        break;
+      case 'games-per-pair':
+        parsed.gamesPerPair = value;
+        break;
+      case 'max-plies':
+        parsed.maxPlies = value;
+        break;
+      case 'opening':
+        parsed.opening = value;
+        break;
+      case 'priority':
+        parsed.priority = value;
+        break;
+      case 'providers':
+        parsed.providers = value;
+        break;
+      case 'seed':
+        parsed.seed = value;
+        break;
+      case 'time-control':
+        parsed.timeControl = value;
+        break;
+      case 'tournament-id':
+        parsed.tournamentId = value;
+        break;
+      default:
+        throw new Error(`unknown argument --${rawKey}`);
+    }
+  }
+  return parsed;
+}
+
+function openingPolicyFrom(value: string | undefined): Record<string, unknown> {
+  if (!value || value === 'standard') return { kind: 'standard' };
+  const randomPrefix = 'random-first-';
+  if (value.startsWith(randomPrefix)) {
+    const n = positiveInteger(value.slice(randomPrefix.length), 0);
+    return { kind: 'random_first_n_plies', n };
+  }
+  throw new Error(`invalid opening policy ${value}; expected standard or random-first-N`);
+}
+
+function uniqueNonEmpty(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function csv(value: string): string[] {
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function integer(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function slugEngineId(engineId: string): string {
+  return engineId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'engine';
+}

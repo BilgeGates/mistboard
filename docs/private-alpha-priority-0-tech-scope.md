@@ -7,7 +7,11 @@ testers.
 
 ## Track 1: Live Privacy / Access Policy
 
-Status: mostly covered by the current policy direction.
+Status: implemented and covered by focused automated tests. A local
+production-like smoke with Postgres has passed for health, PvP seat assignment,
+PvE engine replies, and the browser visual/flow check. The remaining gate is a
+hands-on private-alpha smoke for reconnect, duplicate-tab, clock, and postgame
+review behavior before widening testers.
 
 Builder readiness: ready to pick up now.
 
@@ -17,6 +21,10 @@ Covered:
 - Live PvP non-seat spectators are rejected on WebSocket connect.
 - PvE and EvE observation policy is separated from PvP.
 - Live Fog snapshots and replay APIs redact move events according to mode.
+- WebSocket-level tests prove PvP third-client rejection happens before any
+  snapshot, PvE observers receive the human perspective, and EvE observers
+  receive full truth by design.
+- Replay API and WebSocket snapshot policy are covered by alignment tests.
 
 Technical scope:
 
@@ -32,29 +40,40 @@ Verification:
 - Manual PvE smoke: observer sees the human perspective, not engine-only truth.
 - Manual EvE smoke: observer sees full truth by design.
 
-Builder-sized next task:
+Verified:
 
-- Add WebSocket-level tests or smoke tooling that proves PvP third-client
-  rejection happens before any snapshot, PvE observers receive only the human
-  perspective, and EvE observers receive full truth by design.
-- Confirm replay API and WebSocket snapshot policy stay aligned.
+- DB-backed persistent server tests pass with Postgres.
+- Local production-like `prod:smoke` passes for health, room creation, and two
+  PvP seats.
+- Local production-like `prod:smoke:engines` passes for all playable PvE
+  engines.
+- Browser visual/flow smoke passes for desktop/mobile board layout, share
+  links, Fog visibility, engine harness, Fog move flow, and Bid For White flow.
+
+Remaining gate:
+
+- Run the hands-on PvP/PvE/EvE smoke path against a production-like build and
+  record any follow-up bugs as regressions or known limitations.
 
 ## Track 2: Reconnect / Session Continuity
 
-Status: partially covered. Basic same-browser refresh recovery works only
-because the browser reuses a `clientId` from local storage. That is convenient
-but not a sufficient authority model.
+Status: implemented in the main live-room path. Seat authority now uses
+room-scoped seat tokens; `clientId` remains a browser/session label. Automated
+coverage exists for token issuance, valid reclaim, invalid/missing token
+rejection, duplicate-session displacement, abandoned active-seat protection, and
+DB-backed seat-token durability. The remaining gate is hands-on browser
+reconnect smoke.
 
 Builder readiness: ready to pick up now. The duplicate-tab behavior decision is
 locked as newest valid socket wins.
 
-Current model:
+Previous model:
 
 ```text
 clientId in localStorage == seat identity
 ```
 
-Target model:
+Current model:
 
 ```text
 clientId == browser/session label
@@ -70,7 +89,7 @@ seatToken == authority to act as White or Black
 - A duplicate tab must have deterministic behavior that is visible to the user.
 - A rejected live PvP observer must not receive any snapshot before rejection.
 
-### Proposed Data Model
+### Data Model
 
 Keep `clientId` as a non-secret browser/session label:
 
@@ -134,28 +153,32 @@ Locked duplicate-tab decision:
 - If local storage is missing or cleared, treat the user as unauthenticated for that seat instead of guessing.
 - Avoid putting tokens in URLs.
 
-### Compatibility / Rollout
+### Completed Implementation Slices
 
-Implement in small slices:
+1. Server token issuance generates a seat token on assignment, stores only a
+   hash, and returns the raw token only in the seated `hello` payload.
+2. Client token storage keeps room-scoped seat tokens, resends them on
+   reconnect, and keeps tokens out of URLs and share links.
+3. Authority enforcement requires a valid seat token to reclaim an occupied
+   seat and to move as that seat; `clientId` is a label, not authority.
+4. Duplicate-tab semantics use the locked "newest valid socket wins" behavior
+   and expose a displaced-session UI state.
+5. Regression tests cover valid reclaim, missing/wrong token rejection, copied
+   `clientId` without token, active abandoned-seat protection, and duplicate
+   displacement.
 
-1. Add server-side token issuance and return it in the seated `hello` payload.
-2. Store and resend the token from the web client.
-3. Require valid seat tokens for reclaiming occupied seats and for move authority.
-4. Add duplicate-tab semantics.
-5. Remove or downgrade legacy `clientId`-only seat reclaim after a short compatibility window.
+### Verified
 
-Builder-sized implementation slices:
+- DB-backed persistence tests cover room seat-token hashing, signed-in
+  attribution, last-seen updates, and durable replacement.
+- WebSocket tests cover valid token reclaim, missing/wrong token rejection,
+  copied `clientId` rejection, active abandoned-seat protection, and duplicate
+  displacement.
 
-1. Server token issuance: generate a seat token on assignment, store only a
-   hash, and return the raw token only in the seated `hello` payload.
-2. Client token storage: store room-scoped seat tokens, resend them on
-   reconnect, and never put tokens in URLs.
-3. Authority enforcement: require a valid seat token to reclaim an occupied
-   seat and to move as that seat; keep `clientId` as a label only.
-4. Duplicate-tab semantics: implement the locked behavior and expose a clear UI
-   state for displaced or read-only tabs.
-5. Regression tests: cover valid reclaim, missing/wrong token rejection, copied
-   `clientId` without token, and cleared local storage midgame.
+### Remaining Verification
+
+- Run browser/manual smoke for refresh, socket retry, duplicate tab, cleared
+  local storage midgame, and postgame reconnect.
 
 ### Tests
 
@@ -179,7 +202,9 @@ Browser/manual smoke:
 
 ## Track 3: QA / Release Readiness
 
-Status: scoped, but the manual gate needs to be made explicit and repeatable.
+Status: checklist written and repeatable. Automated and local production-like
+smokes have passed for the lower-level safety checks. The remaining gate is the
+hands-on private-alpha smoke path before widening testers.
 
 Builder readiness: ready to pick up now.
 
@@ -197,9 +222,15 @@ Verification:
 - Known limitations are either fixed or documented in public-safe terms.
 - Unit tests and smoke checks are enough for a future session to repeat without rediscovering the plan.
 
-Builder-sized next task:
+Completed:
 
-- Rewrite `docs/qa-checklist.md` into a short private-alpha smoke path plus a
+- `docs/qa-checklist.md` now has a short private-alpha smoke path plus a
   broader exploratory checklist.
-- Include PvP, PvE, EvE, reconnect, duplicate-tab, and postgame review checks.
-- Keep provider-specific deploy and incident steps out of public docs.
+- The smoke path covers PvP, PvE, EvE, reconnect, duplicate-tab, clocks, and
+  postgame review.
+- Provider-specific deploy and incident steps are kept out of public docs.
+
+Remaining gate:
+
+- Complete one production-like smoke run and turn any privacy, reconnect,
+  rules, persistence, or review bugs into regression tests when feasible.

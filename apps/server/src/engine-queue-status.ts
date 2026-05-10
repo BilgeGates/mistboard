@@ -30,9 +30,10 @@ type QueueStatusOptions = {
 };
 
 async function loadQueueStatus(db: pg.Pool, options: QueueStatusOptions): Promise<Record<string, unknown>> {
-  const [taskTotals, artifactTotals, activeWorkers, recentJobs, recentTasks] = await Promise.all([
+  const [taskTotals, artifactTotals, runtimeSummaries, activeWorkers, recentJobs, recentTasks] = await Promise.all([
     loadTaskTotals(db, options.jobId),
     loadArtifactTotals(db, options.jobId),
+    loadRuntimeSummaries(db, options.jobId),
     loadActiveWorkers(db),
     loadRecentJobs(db, options),
     loadRecentTasks(db, options),
@@ -42,6 +43,7 @@ async function loadQueueStatus(db: pg.Pool, options: QueueStatusOptions): Promis
     jobId: options.jobId,
     taskTotals,
     artifactTotals,
+    runtimeSummaries,
     activeWorkers,
     recentJobs,
     recentTasks,
@@ -82,6 +84,44 @@ async function loadTaskTotals(db: pg.Pool, jobId: string | null): Promise<Array<
   return rows.map((row) => ({
     status: row.status,
     count: Number.parseInt(row.count, 10),
+  }));
+}
+
+async function loadRuntimeSummaries(db: pg.Pool, jobId: string | null): Promise<Array<Record<string, unknown>>> {
+  const { rows } = await db.query<{
+    avg_plies_per_second: string | null;
+    avg_wall_ms: string | null;
+    black_engine_id: string | null;
+    games: string;
+    max_wall_ms: string | null;
+    runner: string | null;
+    white_engine_id: string | null;
+  }>(
+    `SELECT
+       artifact.payload->>'runner' AS runner,
+       artifact.payload->>'white_engine_id' AS white_engine_id,
+       artifact.payload->>'black_engine_id' AS black_engine_id,
+       count(*) AS games,
+       avg((artifact.payload->>'wall_ms')::double precision) AS avg_wall_ms,
+       max((artifact.payload->>'wall_ms')::double precision) AS max_wall_ms,
+       avg((artifact.payload->>'plies_per_second')::double precision) AS avg_plies_per_second
+     FROM game_debug_artifacts artifact
+     JOIN eve_games eve_game ON eve_game.game_id = artifact.game_id
+     WHERE artifact.artifact_type = 'engine-runtime-summary'
+       AND ($1::text IS NULL OR eve_game.job_id = $1)
+     GROUP BY runner, white_engine_id, black_engine_id
+     ORDER BY games DESC, runner, white_engine_id, black_engine_id
+     LIMIT 20`,
+    [jobId],
+  );
+  return rows.map((row) => ({
+    runner: row.runner,
+    whiteEngineId: row.white_engine_id,
+    blackEngineId: row.black_engine_id,
+    games: Number.parseInt(row.games, 10),
+    avgWallMs: row.avg_wall_ms === null ? null : Math.round(Number(row.avg_wall_ms)),
+    maxWallMs: row.max_wall_ms === null ? null : Math.round(Number(row.max_wall_ms)),
+    avgPliesPerSecond: row.avg_plies_per_second === null ? null : Number(row.avg_plies_per_second),
   }));
 }
 

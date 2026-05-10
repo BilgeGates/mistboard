@@ -101,56 +101,75 @@ body {
 }
 
 .theme-control {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 20;
+  position: relative;
   display: inline-flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  max-width: calc(100vw - 28px);
-  min-height: 38px;
-  border: 1px solid var(--site-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--site-panel) 92%, transparent);
-  color: var(--site-text);
-  box-shadow: 0 10px 26px var(--site-shadow);
-  padding: 6px 8px 6px 10px;
-  backdrop-filter: blur(8px);
+}
+
+.theme-control-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.theme-control-field span {
+  color: var(--site-muted);
   font-size: 12px;
   font-weight: 700;
 }
 
-.theme-control-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.theme-control-trigger {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #666666;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 7px 10px;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
 }
 
-.theme-control select {
-  min-height: 28px;
+.theme-control-trigger:hover,
+.theme-control-trigger:focus-visible,
+.theme-control.open .theme-control-trigger {
+  background: #eeeeee;
+  color: #262421;
+}
+
+.theme-control-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: none;
+  width: min(260px, calc(100vw - 28px));
+  gap: 12px;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--site-panel) 96%, transparent);
+  box-shadow: 0 18px 44px var(--site-shadow);
+  padding: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.theme-control.open .theme-control-panel {
+  display: grid;
+}
+
+.theme-control-panel select {
+  min-height: 34px;
+  width: 100%;
   border: 1px solid var(--site-border);
   border-radius: 6px;
   background: var(--site-panel);
   color: var(--site-text);
   font: inherit;
   font-weight: 600;
-  padding: 0 24px 0 8px;
-}
-
-#app.landing-page ~ .theme-control {
-  position: static;
-  display: flex;
-  width: fit-content;
-  margin: 0 16px 16px auto;
-}
-
-#app.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) ~ .theme-control {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  margin: 0;
+  padding: 0 28px 0 10px;
 }
 
 button,
@@ -1431,7 +1450,7 @@ button:focus-visible {
   border-radius: 0 0 8px 8px;
 }
 
-.replay-controls {
+.replay-control-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -2877,7 +2896,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .game-shell {
   width: 100%;
-  max-width: 1180px;
+  max-width: 1420px;
   margin: 0 auto;
   padding: 18px 16px 28px;
 }
@@ -3207,10 +3226,231 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   min-width: 0;
 }
 
-.game-replay .replay-page {
+.game-replay.replay-page {
   padding: 0;
   min-height: 0;
 }
+
+.analysis-tool-togglebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.analysis-tool-togglebar button {
+  min-height: 30px;
+  border: 1px solid #bdc8bf;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2522;
+  cursor: pointer;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.analysis-tool-togglebar button.active,
+.analysis-tool-togglebar button[aria-pressed="true"] {
+  border-color: #1f6f5b;
+  background: #eef8f2;
+  color: #123f32;
+}
+
+.game-replay .replay-board.cg-wrap,
+.game-replay .replay-pane-clock-slot {
+  transition: max-width 220ms ease, width 220ms ease;
+}
+
+.game-replay .replay-tools-row {
+  transition: grid-template-columns 220ms ease, max-width 220ms ease;
+}
+
+@media (min-width: 1100px) {
+  .game-replay.replay-page {
+    display: grid;
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 14px;
+    row-gap: 12px;
+  }
+
+  .game-replay .replay-layout {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 16px;
+    max-width: none;
+  }
+
+  .game-replay .replay-board.cg-wrap,
+  .game-replay .replay-pane-clock-slot {
+    max-width: 380px;
+  }
+
+  .game-replay.analysis-tools-open .replay-board.cg-wrap,
+  .game-replay.analysis-tools-open .replay-pane-clock-slot {
+    max-width: 300px;
+  }
+
+  .game-replay .replay-game-meta-card {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    width: 100%;
+    max-width: 220px;
+  }
+
+  .game-replay .replay-game-meta-card .panel-section,
+  .game-replay .replay-moves-panel .panel-section {
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #d3d9d2;
+    border-radius: 8px;
+    background: #f7f5ef;
+  }
+
+  .game-replay .replay-game-meta-card .panel-section h2,
+  .game-replay .replay-moves-panel .panel-section h2 {
+    font-size: 13px;
+  }
+
+  .game-replay .replay-game-meta-details {
+    gap: 3px;
+  }
+
+  .game-replay .replay-game-meta-details > div {
+    grid-template-columns: minmax(48px, 0.7fr) minmax(0, 1fr);
+    min-height: 20px;
+    gap: 6px;
+  }
+
+  .game-replay .replay-game-meta-details span {
+    font-size: 11px;
+  }
+
+  .game-replay .replay-game-meta-details strong {
+    font-size: 12px;
+  }
+
+  .game-replay .replay-game-meta-details > a {
+    min-height: 28px;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .game-replay .replay-moves-panel {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+    align-self: start;
+    width: 100%;
+    max-width: 220px;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .game-replay .replay-moves-panel .replay-controls {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .game-replay .replay-moves-panel .replay-controls button {
+    height: 30px;
+  }
+
+  .game-replay .replay-moves-panel .replay-meta {
+    margin-top: 0;
+    font-size: 12px;
+  }
+
+  .game-replay .replay-moves-panel .move-list {
+    max-height: min(42vh, 360px);
+  }
+
+  .game-replay .replay-moves-panel .move-row {
+    grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 28px;
+  }
+
+  .game-replay .replay-moves-panel .move-list button,
+  .game-replay .replay-moves-panel .move-visible,
+  .game-replay .replay-moves-panel .move-placeholder,
+  .game-replay .replay-moves-panel .move-empty {
+    height: 26px;
+    padding: 4px 5px;
+    font-size: 12px;
+  }
+
+  .game-replay .replay-clock-panel,
+  .game-replay .replay-control-bar {
+    grid-column: 2;
+  }
+
+  .game-replay .replay-tools-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    max-width: none;
+  }
+
+  .game-replay .analysis-tool-togglebar {
+    grid-column: 1 / -1;
+  }
+
+  .game-replay .belief-panel,
+  .game-replay .annot-panel {
+    min-width: 0;
+  }
+
+  .game-replay .belief-panel {
+    grid-column: 1;
+  }
+
+  .game-replay .annot-panel {
+    grid-column: 1;
+  }
+
+  .game-replay .replay-tools-row.analysis-belief-open.analysis-annotation-open {
+    grid-template-columns: minmax(780px, 1fr) minmax(360px, 0.42fr);
+  }
+
+  .game-replay .replay-tools-row.analysis-belief-open.analysis-annotation-open .annot-panel {
+    grid-column: 2;
+  }
+
+  .game-replay .replay-tools-row.analysis-belief-open.analysis-annotation-open .belief-panel {
+    grid-column: 1;
+  }
+
+  .game-replay .replay-tools-row.analysis-annotation-open:not(.analysis-belief-open) {
+    max-width: 760px;
+  }
+
+  .game-replay .replay-tools-row.analysis-tools-collapsed {
+    max-width: 520px;
+  }
+
+  .game-replay .belief-panel-body {
+    grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+    overflow: auto;
+  }
+
+  .game-replay .belief-sidebar {
+    grid-template-columns: minmax(250px, 0.9fr) minmax(220px, 0.85fr) minmax(180px, 0.65fr);
+    overflow: visible;
+  }
+
+  .game-replay .replay-tools-row.analysis-belief-open.analysis-annotation-open .belief-panel-body {
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  }
+
+  .game-replay .replay-tools-row.analysis-belief-open.analysis-annotation-open .belief-sidebar {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+}
+
 
 .game-notice {
   max-width: 620px;
@@ -3306,6 +3546,15 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
   .site-nav-link {
     padding: 6px 0;
+  }
+
+  .theme-control-trigger {
+    padding: 6px 0;
+  }
+
+  .theme-control-panel {
+    left: 0;
+    right: auto;
   }
 
   .landing-play-panel {

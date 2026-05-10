@@ -6,7 +6,9 @@ safety work unless a small UX or review fix directly helps verify Priority 0.
 
 ## Track 1: Replay / Review Experience
 
-Status: ready for audit and small implementation slices.
+Status: actively being audited and polished. The live-to-review path, finished
+truth exposure, and review surfaces exist; the current work is perspective
+consistency, move-list clarity, and end-to-end review smoke.
 
 Builder readiness: ready to pick up now.
 
@@ -50,11 +52,12 @@ revealed and can review the game from White, Black, or full-truth perspectives.
 
 ## Track 2: Private-Alpha Play UX
 
-Status: ready for audit; implementation should stay narrow until Priority 0
-reconnect and access behavior is stable.
+Status: actively being polished and audited. Priority 0 reconnect/access
+behavior has landed, so UX work can focus on tester comprehension, mobile
+layout, share-link ergonomics, and the visible states for reconnect, rejection,
+duplicate sessions, and game over.
 
-Builder readiness: ready for audit now, ready for implementation after any
-reconnect/token UI states are known.
+Builder readiness: ready for narrow polish and audit tasks.
 
 Outcome: two invited testers can create or open a Fog room link, understand
 their seat and game status, play on desktop or mobile, and recover from basic
@@ -98,8 +101,9 @@ connection states.
 
 ## Track 3: Fog Rules Regression Coverage
 
-Status: ready to pick up now. This is not a rules rewrite; it is a regression
-net around implemented Fog behavior and high-cost edge cases.
+Status: substantially covered by focused regression tests. This is not a rules
+rewrite; the remaining work is to keep adding small position-specific tests when
+manual QA or polish work exposes a rules, payload, or review edge case.
 
 Builder readiness: ready to pick up now.
 

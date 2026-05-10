@@ -8,6 +8,7 @@ import {
   latestBuiltinEngineIds,
   upsertBuiltinEngineVersions,
 } from './engine-registry.js';
+import { parseEngineTimeControl } from './engine-time-policy.js';
 import { runMigrations } from './migrate.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -26,9 +27,10 @@ const whiteEngineId = args.white ?? process.env.ENGINE_WHITE_ENGINE ?? latest.wh
 const blackEngineId = args.black ?? process.env.ENGINE_BLACK_ENGINE ?? latest.black;
 const priority = integer(args.priority ?? process.env.ENGINE_PRIORITY, 0);
 const providers = csv(args.providers ?? process.env.ENGINE_PROVIDERS ?? 'local,railway');
+const timeControl = parseEngineTimeControl(args.timeControl ?? process.env.ENGINE_TIME_CONTROL ?? 'none');
 const artifactPolicy = args.artifacts === 'none'
   ? {}
-  : { move_choices: args.artifacts ?? process.env.ENGINE_ARTIFACTS ?? 'all' };
+  : { move_choices: args.artifacts ?? process.env.ENGINE_ARTIFACTS ?? 'all', runtime_summary: 'all' };
 
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 });
 
@@ -45,6 +47,7 @@ try {
         black_engine_id: blackEngineId,
       },
       sample: { target_games: gameCount },
+      time_control: timeControl,
       artifact_policy: artifactPolicy,
       review_policy: { enqueue_engine_lab: true, initial_review_status: 'unreviewed' },
     },
@@ -60,7 +63,7 @@ try {
       whiteEngineId,
       blackEngineId,
       seed: nextSeed(seed, gameIndex),
-      timeControl: { kind: 'none' },
+      timeControl,
       openingPolicy: { kind: 'standard' },
       artifactPolicy,
       resourcePolicy: { providers, concurrency: 1 },
@@ -85,6 +88,7 @@ try {
     whiteEngineId,
     blackEngineId,
     providers,
+    timeControl,
     artifactPolicy,
   }, null, 2));
 } finally {
@@ -114,6 +118,7 @@ type CliArgs = {
   providers?: string;
   purpose?: string;
   seed?: string;
+  timeControl?: string;
   white?: string;
 };
 
@@ -135,6 +140,7 @@ function parseArgs(values: string[]): CliArgs {
       case 'providers':
       case 'purpose':
       case 'seed':
+      case 'time-control':
       case 'white':
         parsed[toCamel(rawKey)] = value;
         break;
@@ -148,6 +154,7 @@ function parseArgs(values: string[]): CliArgs {
 function toCamel(key: string): keyof CliArgs {
   if (key === 'created-by') return 'createdBy';
   if (key === 'max-plies') return 'maxPlies';
+  if (key === 'time-control') return 'timeControl';
   return key as keyof CliArgs;
 }
 

@@ -1,12 +1,16 @@
 import {
+  applyGameEvent,
   clockRemainingMs,
   fogOfWarVariant,
+  initialGameProjection,
+  moveToAlgebraic,
   replayGameEvents,
   type Board,
   type ClockState,
   type Color,
   type GameEvent,
   type GameState,
+  type Move,
   type PieceRole,
   type PlayerView,
   type Square,
@@ -66,6 +70,8 @@ export type ReplayOptions = {
   revealOnFinish?: boolean;
   /** When false, the prev/next/play control bar is hidden (autoplay-only mode). */
   showControls?: boolean;
+  /** Render transport as the room-page side panel or the legacy inline bar. Defaults to inline. */
+  controlsMode?: 'bar' | 'panel';
   /** Initial board orientation for all replay panes. Defaults to White's perspective. */
   orientation?: Color;
   /** @deprecated Use orientation. Kept for older callers. */
@@ -132,6 +138,7 @@ export async function mountReplay(
 ): Promise<void> {
   const reveal = options.revealOnFinish !== false;
   const showControls = options.showControls !== false;
+  const controlsMode = options.controlsMode ?? 'bar';
   let boardOrientation = options.orientation ?? options.blackOrientation ?? 'white';
   const loopSamples = options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
@@ -164,25 +171,27 @@ export async function mountReplay(
   layout.append(whitePane.el, truthPane.el, blackPane.el);
   root.append(layout);
 
+  const firstBtn = controlButton('|<', 'First position');
+  const prevBtn = controlButton('<', 'Previous move');
+  const playBtn = controlButton('▶ Play', 'Play');
+  const nextBtn = controlButton('>', 'Next move');
+  const lastBtn = controlButton('>|', 'Latest position');
+  const flipBtn = controlButton('Flip', 'Flip all boards');
+  const plyLabel = document.createElement('span');
+  plyLabel.className = 'replay-ply-label';
+  const movesPanel = showControls && controlsMode === 'panel' ? createReplayMovesPanel() : null;
+
   const gameMetaPanel = metadataByRoomId ? createGameMetaPanel() : null;
   if (gameMetaPanel) root.append(gameMetaPanel.el);
+  if (movesPanel) root.append(movesPanel.el);
   const clockPanel = createClockPanel();
   whitePane.clockSlot.append(clockPanel.whiteRow);
   blackPane.clockSlot.append(clockPanel.blackRow);
   root.append(clockPanel.el);
 
-  const firstBtn = controlButton('|◀', 'Jump to start');
-  const prevBtn = controlButton('◀', 'Previous ply');
-  const playBtn = controlButton('▶ Play', 'Play');
-  const nextBtn = controlButton('▶', 'Next ply');
-  const lastBtn = controlButton('▶|', 'Jump to end');
-  const flipBtn = controlButton('Flip', 'Flip all boards');
-  const plyLabel = document.createElement('span');
-  plyLabel.className = 'replay-ply-label';
-
-  if (showControls) {
+  if (showControls && controlsMode === 'bar') {
     const controls = document.createElement('div');
-    controls.className = 'replay-controls';
+    controls.className = 'replay-control-bar';
     controls.append(firstBtn, prevBtn, playBtn, nextBtn, lastBtn, flipBtn, plyLabel);
     root.append(controls);
   }
@@ -195,12 +204,16 @@ export async function mountReplay(
   const belief = options.belief;
   const enginePanelDock = createEnginePanelDock(options.enginePanels);
   const toolsRow = belief || annotation || enginePanelDock ? document.createElement('div') : null;
+  const toolsToggleBar = toolsRow ? createAnalysisToolToggleBar() : null;
   if (toolsRow) {
     toolsRow.className = 'replay-tools-row';
     root.append(toolsRow);
+    if (toolsToggleBar) toolsRow.append(toolsToggleBar.el);
   }
-  if (enginePanelDock) toolsRow?.append(enginePanelDock.el);
   let beliefPanel: BeliefPanelHandle | null = null;
+  let beliefPanelVisible = Boolean(belief);
+  let annotationPanelVisible = Boolean(annotation);
+  if (enginePanelDock) toolsRow?.append(enginePanelDock.el);
   if (belief) {
     beliefPanel = createBeliefPanel();
     toolsRow?.append(beliefPanel.el);
@@ -223,6 +236,22 @@ export async function mountReplay(
     annotListEl.className = 'annot-panel-list-wrapper';
     annotPanel.append(annotListEl);
   }
+
+  if (toolsToggleBar) {
+    if (beliefPanel) {
+      toolsToggleBar.addToggle('belief', 'Belief', true, (visible) => {
+        beliefPanelVisible = visible;
+        syncAnalysisToolVisibility();
+      });
+    }
+    if (annotPanel) {
+      toolsToggleBar.addToggle('annotation', 'Annotate', true, (visible) => {
+        annotationPanelVisible = visible;
+        syncAnalysisToolVisibility();
+      });
+    }
+  }
+  syncAnalysisToolVisibility();
 
   let activeSample = initialSampleId;
   let events: GameEvent[] = [];
@@ -275,6 +304,19 @@ export async function mountReplay(
       prevBtn.disabled = currentPly === 0;
       nextBtn.disabled = currentPly >= moveCount;
       lastBtn.disabled = currentPly >= moveCount;
+      movesPanel && renderReplayMovesPanel(movesPanel, {
+        activePly: currentPly,
+        eventIndex: currentReplayEventIndex(),
+        events,
+        moveCount,
+        onJump: (ply) => {
+          stopPlay();
+          clearLoopTimer();
+          finishedAck = false;
+          setCurrentPly(ply);
+          render();
+        },
+      });
     }
 
     if (finished) {
@@ -295,6 +337,7 @@ export async function mountReplay(
 
     renderAnnotPanel();
     beliefPanel?.render(currentPly);
+    syncAnalysisToolVisibility();
     notifyPlyChange();
   }
 
@@ -302,6 +345,23 @@ export async function mountReplay(
     if (!onPlyChange || lastNotifiedPly === currentPly) return;
     lastNotifiedPly = currentPly;
     onPlyChange(currentPly, moveCount);
+  }
+
+  function syncAnalysisToolVisibility(): void {
+    if (beliefPanel) beliefPanel.el.hidden = !beliefPanelVisible;
+    if (annotPanel) annotPanel.hidden = !annotationPanelVisible;
+    toolsToggleBar?.setPressed('belief', beliefPanelVisible);
+    toolsToggleBar?.setPressed('annotation', annotationPanelVisible);
+    const hasVisibleAnalysis = Boolean((beliefPanel && beliefPanelVisible) || (annotPanel && annotationPanelVisible));
+    root.classList.toggle('analysis-tools-open', hasVisibleAnalysis);
+    root.classList.toggle('analysis-tools-collapsed', !hasVisibleAnalysis);
+    root.classList.toggle('analysis-belief-open', Boolean(beliefPanel && beliefPanelVisible));
+    root.classList.toggle('analysis-annotation-open', Boolean(annotPanel && annotationPanelVisible));
+    if (toolsRow) {
+      toolsRow.classList.toggle('analysis-tools-collapsed', !hasVisibleAnalysis);
+      toolsRow.classList.toggle('analysis-belief-open', Boolean(beliefPanel && beliefPanelVisible));
+      toolsRow.classList.toggle('analysis-annotation-open', Boolean(annotPanel && annotationPanelVisible));
+    }
   }
 
   function annotationsAtPly(ply: number): Annotation[] {
@@ -505,6 +565,11 @@ export async function mountReplay(
 
   function setCurrentPly(ply: number): void {
     currentPly = Math.min(Math.max(ply, 0), moveCount);
+  }
+
+  function currentReplayEventIndex(): number {
+    if (events.length === 0) return 0;
+    return sliceToPly(events, currentPly).length;
   }
 
   function delayForPly(ply: number): number {
@@ -827,6 +892,210 @@ function infoItem(labelText: string, valueText: string): HTMLDivElement {
   value.textContent = valueText;
   item.append(label, value);
   return item;
+}
+
+type AnalysisToolToggleBarHandle = {
+  addToggle: (id: string, label: string, initialPressed: boolean, onToggle: (visible: boolean) => void) => void;
+  el: HTMLElement;
+  setPressed: (id: string, pressed: boolean) => void;
+};
+
+function createAnalysisToolToggleBar(): AnalysisToolToggleBarHandle {
+  const el = document.createElement('div');
+  el.className = 'analysis-tool-togglebar';
+  const buttons = new Map<string, HTMLButtonElement>();
+
+  function setPressed(id: string, pressed: boolean): void {
+    const button = buttons.get(id);
+    if (!button) return;
+    button.setAttribute('aria-pressed', String(pressed));
+    button.classList.toggle('active', pressed);
+  }
+
+  return {
+    addToggle(id, label, initialPressed, onToggle) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        const pressed = button.getAttribute('aria-pressed') === 'true';
+        onToggle(!pressed);
+      });
+      buttons.set(id, button);
+      el.append(button);
+      setPressed(id, initialPressed);
+    },
+    el,
+    setPressed,
+  };
+}
+
+type ReplayMovesPanelHandle = {
+  controls: {
+    first: HTMLButtonElement;
+    last: HTMLButtonElement;
+    next: HTMLButtonElement;
+    prev: HTMLButtonElement;
+  };
+  el: HTMLElement;
+  meta: HTMLParagraphElement;
+  moveList: HTMLOListElement;
+};
+
+type ReplayMoveEntry = {
+  event: MovePlayedEvent;
+  eventIndex: number;
+  label: string;
+  ply: number;
+};
+
+function createReplayMovesPanel(): ReplayMovesPanelHandle {
+  const el = document.createElement('aside');
+  el.className = 'side-panel moves-panel replay-moves-panel';
+  el.setAttribute('aria-label', 'Replay and move list');
+
+  const section = document.createElement('section');
+  section.className = 'panel-section';
+  const title = document.createElement('h2');
+  title.textContent = 'Replay';
+
+  const controls = document.createElement('div');
+  controls.className = 'replay-controls';
+  const first = controlButton('|<', 'First position');
+  const prev = controlButton('<', 'Previous move');
+  const next = controlButton('>', 'Next move');
+  const last = controlButton('>|', 'Latest position');
+  controls.append(first, prev, next, last);
+
+  const meta = document.createElement('p');
+  meta.className = 'replay-meta';
+  meta.textContent = 'Replay';
+
+  const moveList = document.createElement('ol');
+  moveList.className = 'move-list';
+
+  section.append(title, controls, meta, moveList);
+  el.append(section);
+  return {
+    controls: { first, last, next, prev },
+    el,
+    meta,
+    moveList,
+  };
+}
+
+function renderReplayMovesPanel(
+  panel: ReplayMovesPanelHandle,
+  state: {
+    activePly: number;
+    eventIndex: number;
+    events: GameEvent[];
+    moveCount: number;
+    onJump: (ply: number) => void;
+  },
+): void {
+  panel.meta.textContent = state.events.length === 0
+    ? 'No events'
+    : `Replay · event ${state.eventIndex} of ${state.events.length}`;
+  panel.controls.first.disabled = state.activePly === 0;
+  panel.controls.prev.disabled = state.activePly === 0;
+  panel.controls.next.disabled = state.activePly >= state.moveCount;
+  panel.controls.last.disabled = state.activePly >= state.moveCount;
+  panel.controls.first.onclick = () => state.onJump(0);
+  panel.controls.prev.onclick = () => state.onJump(state.activePly - 1);
+  panel.controls.next.onclick = () => state.onJump(state.activePly + 1);
+  panel.controls.last.onclick = () => state.onJump(state.moveCount);
+  renderReplayMoveList(panel.moveList, state.events, state.activePly, state.onJump);
+}
+
+function renderReplayMoveList(
+  list: HTMLOListElement,
+  events: GameEvent[],
+  activePly: number,
+  onJump: (ply: number) => void,
+): void {
+  const entries = replayMoveEntries(events);
+  list.replaceChildren();
+  if (entries.length === 0) return;
+  const fullMoves = Math.ceil(entries.length / 2);
+  const rows: HTMLLIElement[] = [];
+  for (let moveNumber = 1; moveNumber <= fullMoves; moveNumber += 1) {
+    const whitePly = moveNumber * 2 - 1;
+    const blackPly = moveNumber * 2;
+    const row = document.createElement('li');
+    row.className = 'move-row';
+    const label = document.createElement('span');
+    label.className = 'move-number';
+    label.textContent = String(moveNumber);
+    row.append(label);
+    row.append(replayMoveCell(entries[whitePly - 1], 'white', activePly, onJump));
+    row.append(replayMoveCell(entries[blackPly - 1], 'black', activePly, onJump));
+    rows.push(row);
+  }
+  list.append(...rows);
+}
+
+function replayMoveCell(
+  entry: ReplayMoveEntry | undefined,
+  color: Color,
+  activePly: number,
+  onJump: (ply: number) => void,
+): HTMLElement {
+  if (!entry) {
+    const empty = document.createElement('span');
+    empty.className = `${color}-ply move-empty`;
+    return empty;
+  }
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = [
+    color === 'white' ? 'white-ply' : 'black-ply',
+    activePly === entry.ply ? 'active' : '',
+  ].filter(Boolean).join(' ');
+  button.textContent = entry.label;
+  button.title = `Event ${entry.eventIndex}`;
+  button.addEventListener('click', () => onJump(entry.ply));
+  return button;
+}
+
+function replayMoveEntries(events: GameEvent[]): ReplayMoveEntry[] {
+  const entries: ReplayMoveEntry[] = [];
+  let projection = initialGameProjection(events[0]?.roomId ?? 'replay');
+  for (const [index, event] of events.entries()) {
+    if (event.type === 'move-played') {
+      entries.push({
+        event,
+        eventIndex: index + 1,
+        label: replayMoveLabel(projection.state, event.move),
+        ply: entries.length + 1,
+      });
+    }
+    projection = applyGameEvent(projection, event);
+  }
+  return entries;
+}
+
+function replayMoveLabel(state: GameState, move: Move): string {
+  try {
+    return moveToAlgebraic(state, move);
+  } catch {
+    return coordinateMoveLabel(move);
+  }
+}
+
+function coordinateMoveLabel(move: Move): string {
+  const promotion = move.promotion ? `=${pieceLetter(move.promotion)}` : '';
+  return `${move.from}${move.to}${promotion}`;
+}
+
+function pieceLetter(role: Exclude<PieceRole, 'king' | 'pawn'>): string {
+  const letters: Record<Exclude<PieceRole, 'king' | 'pawn'>, string> = {
+    bishop: 'B',
+    knight: 'N',
+    queen: 'Q',
+    rook: 'R',
+  };
+  return letters[role];
 }
 
 type EnginePanelDockHandle = {

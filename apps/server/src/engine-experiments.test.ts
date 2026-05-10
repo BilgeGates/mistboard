@@ -596,20 +596,33 @@ if (!TEST_DATABASE_URL) {
     const { rows: artifacts } = await getPool().query<{
       artifact_type: string;
       engine_color: string | null;
-      payload: { engine_id?: string; selected_move?: unknown; scored_moves?: unknown[] };
+      payload: {
+        engine_id?: string;
+        plies_per_second?: number | null;
+        runner?: string;
+        selected_move?: unknown;
+        scored_moves?: unknown[];
+        status?: string;
+      };
     }>(
       `SELECT artifact_type, engine_color, payload
        FROM game_debug_artifacts
        WHERE game_id = $1
-       ORDER BY ply`,
+       ORDER BY artifact_type, ply`,
       [result.gameId],
     );
-    assert.equal(artifacts.length, 2);
-    assert.equal(artifacts[0]?.artifact_type, 'engine-move-choice');
-    assert.equal(artifacts[0]?.engine_color, 'white');
-    assert.equal(artifacts[0]?.payload.engine_id, 'builtin-capture-seeker');
-    assert.ok(artifacts[0]?.payload.selected_move);
-    assert.ok((artifacts[0]?.payload.scored_moves?.length ?? 0) > 0);
+    const moveChoiceArtifacts = artifacts.filter((artifact) => artifact.artifact_type === 'engine-move-choice');
+    const runtimeArtifacts = artifacts.filter((artifact) => artifact.artifact_type === 'engine-runtime-summary');
+    assert.equal(moveChoiceArtifacts.length, 2);
+    assert.equal(moveChoiceArtifacts[0]?.engine_color, 'white');
+    assert.equal(moveChoiceArtifacts[0]?.payload.engine_id, 'builtin-capture-seeker');
+    assert.ok(moveChoiceArtifacts[0]?.payload.selected_move);
+    assert.ok((moveChoiceArtifacts[0]?.payload.scored_moves?.length ?? 0) > 0);
+    assert.equal(runtimeArtifacts.length, 1);
+    assert.equal(runtimeArtifacts[0]?.engine_color, null);
+    assert.equal(runtimeArtifacts[0]?.payload.runner, 'typescript-in-process');
+    assert.equal(runtimeArtifacts[0]?.payload.status, 'completed');
+    assert.equal(typeof runtimeArtifacts[0]?.payload.plies_per_second, 'number');
   });
 
   test('registry stores owner-only Python engine versions', async () => {

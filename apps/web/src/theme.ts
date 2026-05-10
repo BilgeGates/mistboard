@@ -15,11 +15,13 @@ const fogThemes: Array<{ id: FogTheme; label: string }> = [
   { id: 'solid', label: 'Solid' },
   { id: 'soft', label: 'Soft' },
 ];
+let navObserver: MutationObserver | null = null;
 
 export function initializeThemeSettings(): void {
   applyBoardTheme(readStoredTheme());
   applyFogTheme(readStoredFogTheme());
-  mountThemeControl();
+  mountThemeControls();
+  watchForNavChanges();
 }
 
 function applyBoardTheme(theme: BoardTheme): void {
@@ -30,31 +32,66 @@ function applyFogTheme(theme: FogTheme): void {
   document.documentElement.dataset.fogTheme = theme;
 }
 
-function mountThemeControl(): void {
-  document.querySelector('[data-theme-control]')?.remove();
+function mountThemeControls(): void {
+  document.querySelectorAll<HTMLElement>('body > [data-theme-control]').forEach((control) => control.remove());
+  document.querySelectorAll<HTMLElement>('.site-nav').forEach((nav) => mountThemeControl(nav));
+}
+
+function watchForNavChanges(): void {
+  if (navObserver) return;
+  navObserver = new MutationObserver(() => mountThemeControls());
+  navObserver.observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('click', closeThemeMenusOnOutsideClick);
+  document.addEventListener('keydown', closeThemeMenusOnEscape);
+}
+
+function mountThemeControl(nav: HTMLElement): void {
+  const links = nav.querySelector<HTMLElement>('.site-nav-links');
+  if (!links) return;
+  if (links.querySelector('[data-theme-control]')) return;
 
   const control = document.createElement('div');
   control.className = 'theme-control';
   control.dataset.themeControl = '';
-  control.setAttribute('role', 'group');
-  control.setAttribute('aria-label', 'Board display settings');
+  control.setAttribute('aria-label', 'Display settings');
 
-  const boardField = createSelectField('Board colors', 'Board color scheme', themes, readStoredTheme(), (value) => {
+  const trigger = document.createElement('button');
+  trigger.className = 'theme-control-trigger';
+  trigger.type = 'button';
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.textContent = 'Display';
+
+  const panel = document.createElement('div');
+  panel.className = 'theme-control-panel';
+  panel.setAttribute('role', 'group');
+  panel.setAttribute('aria-label', 'Board display settings');
+
+  const boardField = createSelectField('board', 'Board colors', 'Board color scheme', themes, readStoredTheme(), (value) => {
     const nextTheme = normalizeTheme(value);
     applyBoardTheme(nextTheme);
     writeStoredTheme(nextTheme);
+    syncThemeControls();
   });
-  const fogField = createSelectField('Fog', 'Fog shading style', fogThemes, readStoredFogTheme(), (value) => {
+  const fogField = createSelectField('fog', 'Fog', 'Fog shading style', fogThemes, readStoredFogTheme(), (value) => {
     const nextTheme = normalizeFogTheme(value);
     applyFogTheme(nextTheme);
     writeStoredFogTheme(nextTheme);
+    syncThemeControls();
   });
 
-  control.append(boardField, fogField);
-  document.body.append(control);
+  trigger.addEventListener('click', () => {
+    const expanded = trigger.getAttribute('aria-expanded') === 'true';
+    closeThemeMenus();
+    if (!expanded) openThemeMenu(control);
+  });
+
+  panel.append(boardField, fogField);
+  control.append(trigger, panel);
+  links.append(control);
 }
 
 function createSelectField<T extends string>(
+  kind: 'board' | 'fog',
   label: string,
   ariaLabel: string,
   options: Array<{ id: T; label: string }>,
@@ -67,6 +104,7 @@ function createSelectField<T extends string>(
   text.textContent = label;
 
   const select = document.createElement('select');
+  select.dataset.themeSelect = kind;
   select.setAttribute('aria-label', ariaLabel);
   for (const theme of options) {
     const option = document.createElement('option');
@@ -79,6 +117,40 @@ function createSelectField<T extends string>(
 
   field.append(text, select);
   return field;
+}
+
+function openThemeMenu(control: HTMLElement): void {
+  control.classList.add('open');
+  control.querySelector<HTMLButtonElement>('.theme-control-trigger')?.setAttribute('aria-expanded', 'true');
+}
+
+function closeThemeMenus(): void {
+  document.querySelectorAll<HTMLElement>('[data-theme-control]').forEach((control) => {
+    control.classList.remove('open');
+    control.querySelector<HTMLButtonElement>('.theme-control-trigger')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function closeThemeMenusOnOutsideClick(event: MouseEvent): void {
+  const target = event.target;
+  if (target instanceof Element && target.closest('[data-theme-control]')) return;
+  closeThemeMenus();
+}
+
+function closeThemeMenusOnEscape(event: KeyboardEvent): void {
+  if (event.key !== 'Escape') return;
+  closeThemeMenus();
+}
+
+function syncThemeControls(): void {
+  const boardTheme = readStoredTheme();
+  const fogTheme = readStoredFogTheme();
+  document.querySelectorAll<HTMLSelectElement>('select[data-theme-select="board"]').forEach((select) => {
+    select.value = boardTheme;
+  });
+  document.querySelectorAll<HTMLSelectElement>('select[data-theme-select="fog"]').forEach((select) => {
+    select.value = fogTheme;
+  });
 }
 
 function readStoredTheme(): BoardTheme {
