@@ -27,7 +27,12 @@ import {
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { GameSummary } from './persistence.js';
-import { engineVersionDisplayName, loadEngine, playableLiveEngines } from './engine-registry.js';
+import {
+  engineVersionDisplayName,
+  isPlayableLiveEngineClientId,
+  loadEngine,
+  playableLiveEngines,
+} from './engine-registry.js';
 import { chooseLiveEngineMove } from './live-engine.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 import {
@@ -1288,8 +1293,10 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     clockTimer: null,
     engineTimer: null,
     mode,
-    randomEngine: isPveBuiltinEngineClient(projection.seats.black),
-    pveEngineId: isPveBuiltinEngineClient(projection.seats.black) ? canonicalEngineVersionId(projection.seats.black!) : null,
+    randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
+    pveEngineId: isPlayableLiveEngineClientId(projection.seats.black)
+      ? canonicalEngineVersionId(projection.seats.black!)
+      : null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
   };
@@ -2374,10 +2381,6 @@ function isHttpAdminAuthorized(request: IncomingMessage): boolean {
     : request.headers.authorization;
   const token = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
   return isAdminDebugToken(token);
-}
-
-function isPveBuiltinEngineClient(clientId: string | undefined): boolean {
-  return clientId === pveBuiltinEngineClientId || clientId === 'random-engine';
 }
 
 function canonicalEngineVersionId(clientId: string): string {

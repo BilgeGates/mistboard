@@ -27,6 +27,12 @@ export function playableLiveEngines(): EngineDefinition[] {
   ) && engine.id !== 'python-tier1-v0.7.0');
 }
 
+export function isPlayableLiveEngineClientId(clientId: string | undefined): boolean {
+  if (!clientId) return false;
+  const engineId = clientId === 'random-engine' ? defaultEngineId() : clientId;
+  return playableLiveEngines().some((engine) => engine.id === engineId);
+}
+
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.7.22': {
     id: 'python-tier1-v0.7.22',

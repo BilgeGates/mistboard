@@ -2,6 +2,7 @@ export {
   builtinEngineIds,
   defaultEngineId,
   engineVersionDisplayName,
+  isPlayableLiveEngineClientId,
   latestBuiltinEngineIds,
   loadEngine,
   playableBuiltinEngines,
