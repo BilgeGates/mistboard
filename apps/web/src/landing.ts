@@ -1,5 +1,6 @@
 import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Square } from '@mistboard/game';
 import type * as cg from 'chessground/types';
+import type { BeliefRow, TraceRow } from './belief-panel.js';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from './board-ui.js';
 import { mountReplay, type EngineReviewPanels, type GameMeta } from './replay.js';
 
@@ -76,6 +77,17 @@ type GameReviewPayload = {
     };
   };
 };
+
+type GameArtifactPayload = {
+  id: number;
+  gameId: string;
+  ply: number | null;
+  engineColor: 'white' | 'black' | null;
+  artifactType: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+};
+type GameArtifactType = 'belief-snapshot' | 'trace-row' | 'engine-move-choice';
 
 type UserProfile = {
   isViewer?: boolean;
@@ -254,7 +266,19 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
     metadataByRoomId: {
       [game.roomId]: gameMetaForGame(game),
     },
-    enginePanels: loaded.review ? enginePanelsForReview(loaded.review) : undefined,
+    enginePanels: loaded.review
+      ? enginePanelsForReview(
+          loaded.review,
+          loaded.beliefRows.length > 0,
+          loaded.beliefRows.length > 0 && loaded.traceRows.length > 0,
+        )
+      : undefined,
+    belief: loaded.beliefRows.length > 0
+      ? {
+          rowsForSampleId: () => loaded.beliefRows,
+          traceRowsForSampleId: () => loaded.traceRows,
+        }
+      : undefined,
   });
 }
 
@@ -310,18 +334,48 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   shell.append(buildProfileHeader(profile), buildProfileGames(profile.games));
 }
 
-async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; events?: GameEvent[]; review?: GameReviewPayload } | null> {
+async function loadGameForReview(roomId: string): Promise<{
+  beliefRows: BeliefRow[];
+  events?: GameEvent[];
+  game: FeaturedGame;
+  review?: GameReviewPayload;
+  traceRows: TraceRow[];
+} | null> {
   const review = await fetchGameReview(roomId).catch((err) => {
     console.warn(err);
     return null;
   });
-  if (review) return { game: review.game, events: review.events, review };
+  if (review) {
+    const [beliefArtifacts, traceArtifacts] = await Promise.all([
+      review.panels.belief.available
+        ? fetchGameArtifacts(roomId, 'belief-snapshot').catch((err) => {
+            console.warn(err);
+            return [];
+          })
+        : Promise.resolve([]),
+      review.panels.trace.available
+        ? fetchTraceArtifacts(roomId).catch((err) => {
+            console.warn(err);
+            return [];
+          })
+        : Promise.resolve([]),
+    ]);
+    const beliefRows = beliefArtifacts.map((artifact) => beliefRowFromArtifact(review.game, artifact));
+    const traceRows = traceArtifacts.map((artifact) => traceRowFromArtifact(review.game, artifact));
+    return {
+      beliefRows,
+      game: review.game,
+      events: review.events,
+      review,
+      traceRows,
+    };
+  }
 
   const game = await fetchGameSummary(roomId).catch((err) => {
     console.warn(err);
     return null;
   });
-  if (game) return { game };
+  if (game) return { game, beliefRows: [], traceRows: [] };
 
   const events = await apiEventLoader(roomId).catch((err) => {
     console.warn(err);
@@ -330,7 +384,7 @@ async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; 
   if (!events || events.length === 0) return null;
 
   const fallback = gameSummaryFromEvents(roomId, events);
-  return fallback ? { game: fallback, events } : null;
+  return fallback ? { game: fallback, events, beliefRows: [], traceRows: [] } : null;
 }
 
 async function fetchGameReview(roomId: string): Promise<GameReviewPayload | null> {
@@ -340,11 +394,102 @@ async function fetchGameReview(roomId: string): Promise<GameReviewPayload | null
   return await resp.json() as GameReviewPayload;
 }
 
-function enginePanelsForReview(review: GameReviewPayload): EngineReviewPanels {
+function enginePanelsForReview(review: GameReviewPayload, hasBeliefRows: boolean, hasTraceRows = false): EngineReviewPanels {
   return {
-    belief: review.panels.belief,
-    trace: review.panels.trace,
+    belief: hasBeliefRows ? undefined : review.panels.belief,
+    trace: hasTraceRows ? undefined : review.panels.trace,
   };
+}
+
+async function fetchGameArtifacts(
+  roomId: string,
+  type: GameArtifactType,
+): Promise<GameArtifactPayload[]> {
+  const url = new URL(`/api/games/${encodeURIComponent(roomId)}/artifacts`, window.location.origin);
+  url.searchParams.set('type', type);
+  const resp = await fetch(url.pathname + url.search);
+  if (resp.status === 404 || resp.status === 403) return [];
+  if (!resp.ok) throw new Error(`failed to load ${type} artifacts for ${roomId}: ${resp.status}`);
+  const data = await resp.json() as { artifacts: GameArtifactPayload[] };
+  return data.artifacts;
+}
+
+async function fetchTraceArtifacts(roomId: string): Promise<GameArtifactPayload[]> {
+  const groups = await Promise.all([
+    fetchGameArtifacts(roomId, 'trace-row'),
+    fetchGameArtifacts(roomId, 'engine-move-choice'),
+  ]);
+  return groups
+    .flat()
+    .sort((left, right) => (
+      (left.ply ?? Number.MAX_SAFE_INTEGER) - (right.ply ?? Number.MAX_SAFE_INTEGER)
+      || left.id - right.id
+    ));
+}
+
+function beliefRowFromArtifact(game: FeaturedGame, artifact: GameArtifactPayload): BeliefRow {
+  const payload = artifact.payload;
+  const side = colorValue(payload.tier1_side) ?? artifact.engineColor ?? 'white';
+  const snapshotKind = snapshotKindValue(payload.snapshot_kind);
+  return {
+    ...(payload as Partial<BeliefRow>),
+    game_index: numberValue(payload.game_index) ?? game.gameIndex ?? 0,
+    tier1_seat: stringValue(payload.tier1_seat) ?? artifact.engineColor ?? side,
+    tier1_side: side,
+    ply: numberValue(payload.ply) ?? artifact.ply ?? 0,
+    snapshot_kind: snapshotKind ?? undefined,
+    decision_path: stringValue(payload.decision_path) ?? artifact.artifactType,
+    particle_count: numberValue(payload.particle_count) ?? 0,
+    particle_count_unique: numberValue(payload.particle_count_unique) ?? numberValue(payload.particle_count) ?? 0,
+    opp_remaining_counts: recordValue(payload.opp_remaining_counts) as BeliefRow['opp_remaining_counts'],
+    last_constraint_pruned: numberValue(payload.last_constraint_pruned) ?? 0,
+    marginal_field: recordValue(payload.marginal_field) as BeliefRow['marginal_field'],
+    top_k_clusters: Array.isArray(payload.top_k_clusters) ? payload.top_k_clusters as BeliefRow['top_k_clusters'] : [],
+  };
+}
+
+function traceRowFromArtifact(game: FeaturedGame, artifact: GameArtifactPayload): TraceRow {
+  const payload = artifact.payload;
+  const side = colorValue(payload.tier1_side) ?? artifact.engineColor ?? 'white';
+  return {
+    ...(payload as Partial<TraceRow>),
+    game_index: numberValue(payload.game_index) ?? game.gameIndex ?? 0,
+    tier1_seat: stringValue(payload.tier1_seat) ?? artifact.engineColor ?? side,
+    tier1_side: side,
+    ply: numberValue(payload.ply) ?? artifact.ply ?? 0,
+    decision_path: stringValue(payload.decision_path) ?? artifact.artifactType,
+    move_chosen_uci: moveUciFromPayload(payload),
+  };
+}
+
+function colorValue(value: unknown): 'white' | 'black' | null {
+  return value === 'white' || value === 'black' ? value : null;
+}
+
+function snapshotKindValue(value: unknown): BeliefRow['snapshot_kind'] | null {
+  return value === 'decision' || value === 'after-own-move' || value === 'after-opp-move' ? value : null;
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function recordValue(value: unknown): Record<string, never> | Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function moveUciFromPayload(payload: Record<string, unknown>): string {
+  const explicit = stringValue(payload.move_chosen_uci);
+  if (explicit) return explicit;
+  const selectedMove = recordValue(payload.selected_move);
+  const from = stringValue(selectedMove.from);
+  const to = stringValue(selectedMove.to);
+  if (!from || !to) return '';
+  return `${from}${to}${stringValue(selectedMove.promotion) ?? ''}`;
 }
 
 async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
@@ -1788,7 +1933,7 @@ function buildSource(): HTMLElement {
   const identity = sourceBlock('Project identity', [
     textLine('The Mistboard name, logo, mistboard.com domain, hosted service identity, and official events are controlled project assets.'),
     textLine('Forks are allowed under the GPL, but should use a distinct name and avoid implying they are the official Mistboard service.'),
-    textLine('The repository may keep its current working name during development. A broader public or commercial launch should use a distinct public brand.'),
+    textLine('Forks and derivatives should present their own public brand, domain, and hosted service identity.'),
   ]);
 
   section.append(heading, intro, source, thirdParty, identity);

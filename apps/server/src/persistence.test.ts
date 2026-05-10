@@ -20,6 +20,7 @@ import {
   getUserByAccountSession,
   init,
   isInitialized,
+  listGameDebugArtifactPayloads,
   listGameDebugArtifactSummaries,
   listActiveRoomIds,
   listCompletedGames,
@@ -1170,6 +1171,30 @@ if (!TEST_DATABASE_URL) {
         minPly: 5,
         maxPly: 5,
         snapshotKinds: [],
+      },
+    ]);
+
+    const payloads = await listGameDebugArtifactPayloads('artifact-summary-game', {
+      artifactType: 'belief-snapshot',
+      engineColors: ['white'],
+    });
+    assert.deepEqual(payloads.map((artifact) => ({
+      artifactType: artifact.artifactType,
+      engineColor: artifact.engineColor,
+      ply: artifact.ply,
+      snapshotKind: artifact.payload.snapshot_kind,
+    })), [
+      {
+        artifactType: 'belief-snapshot',
+        engineColor: 'white',
+        ply: 3,
+        snapshotKind: 'decision',
+      },
+      {
+        artifactType: 'belief-snapshot',
+        engineColor: 'white',
+        ply: 4,
+        snapshotKind: 'after-own-move',
       },
     ]);
   });

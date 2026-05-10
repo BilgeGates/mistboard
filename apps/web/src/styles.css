@@ -1247,63 +1247,37 @@ button:focus-visible {
 }
 
 .replay-game-meta-card {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  max-width: 820px;
-  width: 100%;
+  width: min(100%, 640px);
+  max-width: 640px;
   color: #2e332f;
-  text-align: center;
 }
 
 .replay-game-meta-card[hidden] {
   display: none;
 }
 
-.replay-game-meta-title {
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.2;
+.replay-game-meta-card .panel-section {
+  width: 100%;
 }
 
 .replay-game-meta-details {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
   gap: 6px;
-  color: #5a6960;
-  font-size: 11px;
-  line-height: 1.2;
 }
 
-.replay-game-meta-details > span,
 .replay-game-meta-details > a {
-  border: 1px solid #d8d3c7;
-  border-radius: 7px;
-  background: #f8f6ef;
-  padding: 4px 7px;
-}
-
-.replay-game-meta-chip {
+  min-height: 38px;
+  border: 1px solid #bdc8bf;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2522;
   display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  max-width: 100%;
-}
-
-.replay-game-meta-chip-label {
-  color: #7a837e;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.replay-game-meta-chip-value {
-  min-width: 0;
-  color: #2e332f;
-  font-weight: 650;
-  overflow-wrap: anywhere;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .replay-game-link {

@@ -100,6 +100,16 @@ export type GameDebugArtifactSummary = {
   snapshotKinds: string[];
 };
 
+export type GameDebugArtifactPayload = {
+  id: number;
+  gameId: string;
+  ply: number | null;
+  engineColor: Color | null;
+  artifactType: string;
+  payload: Record<string, unknown>;
+  createdAt: Date;
+};
+
 export type CompletedGameFilters = {
   endedFrom: Date;
   endedTo: Date;
@@ -1057,6 +1067,48 @@ export async function listGameDebugArtifactSummaries(gameId: string): Promise<Ga
     minPly: row.min_ply,
     maxPly: row.max_ply,
     snapshotKinds: row.snapshot_kinds ?? [],
+  }));
+}
+
+export async function listGameDebugArtifactPayloads(
+  gameId: string,
+  filters: {
+    artifactType: string;
+    engineColors?: Color[];
+    limit?: number;
+  },
+): Promise<GameDebugArtifactPayload[]> {
+  const boundedLimit = Math.max(1, Math.min(filters.limit ?? 500, 2000));
+  const colors = filters.engineColors && filters.engineColors.length > 0
+    ? filters.engineColors
+    : null;
+  const { rows } = await getPool().query<{
+    id: string;
+    game_id: string;
+    ply: number | null;
+    engine_color: Color | null;
+    artifact_type: string;
+    payload: Record<string, unknown>;
+    created_at: Date;
+  }>(
+    `SELECT id::text, game_id, ply, engine_color, artifact_type, payload, created_at
+     FROM game_debug_artifacts
+     WHERE game_id = $1
+       AND artifact_type = $2
+       AND storage = 'jsonb'
+       AND ($3::text[] IS NULL OR engine_color = ANY($3::text[]))
+     ORDER BY ply NULLS LAST, engine_color NULLS LAST, id
+     LIMIT $4`,
+    [gameId, filters.artifactType, colors, boundedLimit],
+  );
+  return rows.map((row) => ({
+    id: Number.parseInt(row.id, 10),
+    gameId: row.game_id,
+    ply: row.ply,
+    engineColor: row.engine_color,
+    artifactType: row.artifact_type,
+    payload: row.payload,
+    createdAt: row.created_at,
   }));
 }
 

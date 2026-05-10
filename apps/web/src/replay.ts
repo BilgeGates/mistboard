@@ -765,19 +765,22 @@ function pickNextSample(pool: string[], current: string): string {
 
 type GameMetaPanelHandle = {
   details: HTMLDivElement;
-  el: HTMLDivElement;
-  title: HTMLDivElement;
+  el: HTMLElement;
 };
 
 function createGameMetaPanel(): GameMetaPanelHandle {
-  const el = document.createElement('div');
-  el.className = 'replay-game-meta-card';
-  const title = document.createElement('div');
-  title.className = 'replay-game-meta-title';
+  const el = document.createElement('aside');
+  el.className = 'replay-game-meta-card side-panel meta-panel';
+  el.setAttribute('aria-label', 'Game metadata');
+  const section = document.createElement('section');
+  section.className = 'panel-section';
+  const title = document.createElement('h2');
+  title.textContent = 'Game';
   const details = document.createElement('div');
-  details.className = 'replay-game-meta-details';
-  el.append(title, details);
-  return { details, el, title };
+  details.className = 'game-info replay-game-meta-details';
+  section.append(title, details);
+  el.append(section);
+  return { details, el };
 }
 
 function renderGameMetaPanel(
@@ -788,32 +791,24 @@ function renderGameMetaPanel(
   if (!panel) return;
   if (!meta) {
     panel.el.hidden = true;
-    panel.title.textContent = '';
     panel.details.replaceChildren();
     return;
   }
 
   panel.el.hidden = false;
-  panel.title.textContent = meta.modeLabel ?? 'Replay';
   const timeControl = timeControlLabelFromMeta(meta.timeControl);
   const items: Array<{ label: string; value: string }> = [
+    { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
+    { label: 'Result', value: resultLabel(meta.result) },
     { label: 'End', value: terminationLabel(meta.termination) },
     ...(timeControl ? [{ label: 'Time', value: timeControl }] : []),
+    { label: 'Plies', value: String(meta.plyCount) },
     { label: 'Game', value: activeSample },
   ];
 
   panel.details.replaceChildren();
   for (const item of items) {
-    const chip = document.createElement('span');
-    chip.className = 'replay-game-meta-chip';
-    const label = document.createElement('span');
-    label.className = 'replay-game-meta-chip-label';
-    label.textContent = item.label;
-    const value = document.createElement('span');
-    value.className = 'replay-game-meta-chip-value';
-    value.textContent = item.value;
-    chip.append(label, value);
-    panel.details.append(chip);
+    panel.details.append(infoItem(item.label, item.value));
   }
   if (meta.gameUrl) {
     const link = document.createElement('a');
@@ -822,6 +817,16 @@ function renderGameMetaPanel(
     link.textContent = 'View game';
     panel.details.append(link);
   }
+}
+
+function infoItem(labelText: string, valueText: string): HTMLDivElement {
+  const item = document.createElement('div');
+  const label = document.createElement('span');
+  label.textContent = labelText;
+  const value = document.createElement('strong');
+  value.textContent = valueText;
+  item.append(label, value);
+  return item;
 }
 
 type EnginePanelDockHandle = {

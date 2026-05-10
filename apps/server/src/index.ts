@@ -551,6 +551,36 @@ async function handleApiRequest(request: IncomingMessage, response: ServerRespon
     return;
   }
 
+  const artifactsMatch = parsedUrl.pathname.match(/^\/api\/games\/([^/]+)\/artifacts$/);
+  if (artifactsMatch) {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    const artifactType = parseReviewArtifactType(parsedUrl.searchParams.get('type'));
+    if (!artifactType) {
+      writeJson(response, 400, { error: 'invalid_artifact_type' });
+      return;
+    }
+    const color = parseOptionalColor(parsedUrl.searchParams.get('color'));
+    if (parsedUrl.searchParams.has('color') && !color) {
+      writeJson(response, 400, { error: 'invalid_color' });
+      return;
+    }
+    const roomId = decodeURIComponent(artifactsMatch[1]!);
+    const artifactResponse = await gameArtifactsForApi(roomId, artifactType, color, request);
+    if (!artifactResponse) {
+      writeJson(response, 404, { error: 'not_found' });
+      return;
+    }
+    if (artifactResponse.status === 403) {
+      writeJson(response, 403, { error: 'forbidden' });
+      return;
+    }
+    writeJson(response, 200, artifactResponse.body);
+    return;
+  }
+
   const summaryMatch = url.match(/^\/api\/games\/([^/]+)$/);
   if (summaryMatch) {
     const roomId = decodeURIComponent(summaryMatch[1]!);
@@ -739,6 +769,49 @@ async function gameReviewForApi(roomId: string, request: IncomingMessage): Promi
   };
 }
 
+async function gameArtifactsForApi(
+  roomId: string,
+  artifactType: ReviewArtifactType,
+  color: Color | null,
+  request: IncomingMessage,
+): Promise<{ status: 200; body: Record<string, unknown> } | { status: 403 } | null> {
+  if (!persistence.isInitialized()) return null;
+  const game = await gameSummaryForApi(roomId);
+  const events = await gameEventsForApi(roomId);
+  const replayResponse = eventReplayResponse(events);
+  if (!game || replayResponse.status !== 200) return null;
+  if (!(await canViewEngineArtifactsForRequest(request))) return { status: 403 };
+
+  const engineColors = engineParticipantColors(game);
+  if (engineColors.length === 0) {
+    return { status: 200, body: { artifacts: [] } };
+  }
+  const requestedColors = color ? [color] : engineColors;
+  const allowedColors = intersectionColors(engineColors, requestedColors);
+  if (allowedColors.length === 0) {
+    return { status: 200, body: { artifacts: [] } };
+  }
+
+  const artifacts = await persistence.listGameDebugArtifactPayloads(roomId, {
+    artifactType,
+    engineColors: allowedColors,
+  });
+  return {
+    status: 200,
+    body: {
+      artifacts: artifacts.map((artifact) => ({
+        id: artifact.id,
+        gameId: artifact.gameId,
+        ply: artifact.ply,
+        engineColor: artifact.engineColor,
+        artifactType: artifact.artifactType,
+        payload: artifact.payload,
+        createdAt: artifact.createdAt.toISOString(),
+      })),
+    },
+  };
+}
+
 async function canViewEngineArtifactsForRequest(request: IncomingMessage): Promise<boolean> {
   if (!isProductionLikeRuntime()) return true;
   const user = await currentAccountUser(request);
@@ -766,6 +839,18 @@ function uniqueColors(values: Color[]): Color[] {
 
 function uniqueStrings(values: string[]): string[] {
   return values.filter((value, index) => values.indexOf(value) === index);
+}
+
+type ReviewArtifactType = 'belief-snapshot' | 'trace-row' | 'engine-move-choice';
+
+function parseReviewArtifactType(value: string | null): ReviewArtifactType | null {
+  return value === 'belief-snapshot' || value === 'trace-row' || value === 'engine-move-choice'
+    ? value
+    : null;
+}
+
+function parseOptionalColor(value: string | null): Color | null {
+  return value === 'white' || value === 'black' ? value : null;
 }
 
 function writeJson(
