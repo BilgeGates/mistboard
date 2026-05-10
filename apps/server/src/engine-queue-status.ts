@@ -109,7 +109,10 @@ async function loadRuntimeSummaries(db: pg.Pool, jobId: string | null): Promise<
      JOIN eve_games eve_game ON eve_game.game_id = artifact.game_id
      WHERE artifact.artifact_type = 'engine-runtime-summary'
        AND ($1::text IS NULL OR eve_game.job_id = $1)
-     GROUP BY runner, white_engine_id, black_engine_id
+     GROUP BY
+       artifact.payload->>'runner',
+       artifact.payload->>'white_engine_id',
+       artifact.payload->>'black_engine_id'
      ORDER BY games DESC, runner, white_engine_id, black_engine_id
      LIMIT 20`,
     [jobId],
