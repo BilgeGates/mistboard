@@ -1,5 +1,8 @@
 import {
   clockRemainingMs,
+  applyGameEvent,
+  initialGameProjection,
+  moveToAlgebraic,
   replayGameEvents,
   variantForId,
   type BidResolution,
@@ -1199,6 +1202,7 @@ function renderReplay(): void {
   const masked = shouldMaskLiveMoveList();
   const entries = masked ? liveMoveListEntries() : revealedMoveListEntries();
   const entriesByPly = new Map(entries.map((entry) => [entry.ply, entry]));
+  const labelsByEventIndex = algebraicMoveLabels();
   const plyCount = masked ? liveMoveListPlyCount(state) : entries.length;
   const rows: HTMLLIElement[] = [];
 
@@ -1213,8 +1217,8 @@ function renderReplay(): void {
 
     const whitePly = row * 2 + 1;
     const blackPly = row * 2 + 2;
-    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, plyCount));
-    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, plyCount));
+    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, plyCount, labelsByEventIndex));
+    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, plyCount, labelsByEventIndex));
     rows.push(item);
   }
   refs.moveList.append(...rows);
@@ -1258,6 +1262,7 @@ function moveListCell(
   entry: MoveListEntry | undefined,
   masked: boolean,
   plyCount: number,
+  labelsByEventIndex: Map<number, string>,
 ): HTMLElement {
   if (ply > plyCount) {
     const empty = document.createElement('span');
@@ -1276,13 +1281,13 @@ function moveListCell(
   if (masked) {
     const label = document.createElement('span');
     label.className = `${color}-ply move-visible`;
-    label.textContent = moveLabel(entry.event.move);
+    label.textContent = moveLabel(entry, labelsByEventIndex);
     return label;
   }
 
   const button = document.createElement('button');
   button.type = 'button';
-  button.textContent = moveLabel(entry.event.move);
+  button.textContent = moveLabel(entry, labelsByEventIndex);
   button.className = [
     color === 'white' ? 'white-ply' : 'black-ply',
     replayIndex === entry.eventIndex ? 'active' : '',
@@ -1299,7 +1304,26 @@ function canTogglePostgameFog(): boolean {
   return state?.variant === 'fog-of-war' && state.status.type === 'finished' && events.some((event) => event.type === 'move-played');
 }
 
-function moveLabel(move: Move): string {
+function algebraicMoveLabels(): Map<number, string> {
+  const labels = new Map<number, string>();
+  let projection = initialGameProjection(events[0]?.roomId ?? room);
+
+  for (const [index, event] of events.entries()) {
+    const eventIndex = index + 1;
+    if (event.type === 'move-played') {
+      labels.set(eventIndex, moveToAlgebraic(projection.state, event.move));
+    }
+    projection = applyGameEvent(projection, event);
+  }
+
+  return labels;
+}
+
+function moveLabel(entry: MoveListEntry, labelsByEventIndex: Map<number, string>): string {
+  return labelsByEventIndex.get(entry.eventIndex) ?? coordinateMoveLabel(entry.event.move);
+}
+
+function coordinateMoveLabel(move: Move): string {
   const promotion = move.promotion ? `=${pieceLetter(move.promotion)}` : '';
   return `${move.from}${move.to}${promotion}`;
 }
