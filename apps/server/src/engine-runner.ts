@@ -172,10 +172,6 @@ async function runPythonSubprocessEngineGame(
 
   const projection = replayGameEvents([...baseEvents, ...moveEvents]);
   const plyCount = moveEvents.length;
-  if (result.endReason === 'no-legal-moves') {
-    await abortGame(pool, task, gameId, plyCount, 'no-legal-moves');
-    return { gameId, plyCount, status: 'aborted' };
-  }
 
   const status = projection.state.status;
   const resultLabel = status.type === 'finished'
@@ -189,6 +185,8 @@ async function runPythonSubprocessEngineGame(
     ? 'timeout'
     : result.endReason === 'truncated'
       ? 'truncated'
+      : result.endReason === 'no-legal-moves'
+        ? 'draw'
       : status.type === 'finished'
         ? status.reason
         : result.endReason;

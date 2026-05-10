@@ -480,12 +480,18 @@ function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
     whiteName: displayParticipantName(game, 'white'),
     blackName: displayParticipantName(game, 'black'),
+    gameUrl: reviewUrlForGame(game),
     modeLabel: sourceLabel(game.mode),
     result: game.result,
     timeControl: game.timeControl,
     termination: game.termination,
     plyCount: game.plyCount,
   };
+}
+
+function reviewUrlForGame(game: FeaturedGame): string | null {
+  if (game.corpusId === 'replay-samples') return null;
+  return `/game/${encodeURIComponent(game.roomId)}`;
 }
 
 function buildGameHeader(game: FeaturedGame): HTMLElement {

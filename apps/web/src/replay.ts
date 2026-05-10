@@ -48,6 +48,7 @@ type MovePlayedExt = MovePlayedEvent & { compute_ms?: number; thinkTimeMs?: numb
 export type GameMeta = {
   whiteName: string | null;
   blackName: string | null;
+  gameUrl?: string | null;
   modeLabel?: string;
   result: string;
   timeControl?: Record<string, unknown> | null;
@@ -474,6 +475,7 @@ export async function mountReplay(
     const nextPly = currentPly + 1;
     if (nextPly > moveCount) {
       stopPlay();
+      scheduleLoopIfNeeded();
       return;
     }
     const delay = delayForPly(nextPly);
@@ -598,8 +600,9 @@ export async function mountReplay(
 
   function applyMetadata(): void {
     const meta = currentMeta();
-    whitePane.nameEl.textContent = meta?.whiteName ?? '';
-    blackPane.nameEl.textContent = meta?.blackName ?? '';
+    whitePane.nameEl.textContent = '';
+    blackPane.nameEl.textContent = '';
+    setClockPanelNames(clockPanel, meta);
     renderGameMetaPanel(gameMetaPanel, meta, activeSample);
     // Reset any prior end-game state (returning to ply 0).
     whitePane.el.classList.remove('winner', 'loser');
@@ -774,30 +777,43 @@ function renderGameMetaPanel(
   }
 
   panel.el.hidden = false;
-  panel.title.textContent = `${meta.whiteName ?? 'White'} vs ${meta.blackName ?? 'Black'}`;
+  panel.title.textContent = meta.modeLabel ?? 'Replay';
   const timeControl = timeControlLabelFromMeta(meta.timeControl);
-  const items = [
-    meta.modeLabel,
-    resultLabel(meta.result),
-    `${meta.plyCount} plies`,
-    terminationLabel(meta.termination),
-    timeControl ? `Time ${timeControl}` : null,
-    `game ${activeSample}`,
-  ].filter((item): item is string => typeof item === 'string' && item.length > 0);
+  const items: Array<{ label: string; value: string }> = [
+    { label: 'End', value: terminationLabel(meta.termination) },
+    ...(timeControl ? [{ label: 'Time', value: timeControl }] : []),
+    { label: 'Game', value: activeSample },
+  ];
 
   panel.details.replaceChildren();
   for (const item of items) {
     const chip = document.createElement('span');
-    chip.textContent = item;
+    chip.className = 'replay-game-meta-chip';
+    const label = document.createElement('span');
+    label.className = 'replay-game-meta-chip-label';
+    label.textContent = item.label;
+    const value = document.createElement('span');
+    value.className = 'replay-game-meta-chip-value';
+    value.textContent = item.value;
+    chip.append(label, value);
     panel.details.append(chip);
+  }
+  if (meta.gameUrl) {
+    const link = document.createElement('a');
+    link.className = 'replay-game-link';
+    link.href = meta.gameUrl;
+    link.textContent = 'View game';
+    panel.details.append(link);
   }
 }
 
 type ClockPanelHandle = {
+  blackLabel: HTMLSpanElement;
   blackRow: HTMLDivElement;
   blackTime: HTMLSpanElement;
   el: HTMLDivElement;
   label: HTMLSpanElement;
+  whiteLabel: HTMLSpanElement;
   whiteRow: HTMLDivElement;
   whiteTime: HTMLSpanElement;
 };
@@ -815,16 +831,18 @@ function createClockPanel(): ClockPanelHandle {
   el.append(label);
 
   return {
+    blackLabel: blackRow.label,
     blackRow: blackRow.row,
     blackTime: blackRow.time,
     el,
     label,
+    whiteLabel: whiteRow.label,
     whiteRow: whiteRow.row,
     whiteTime: whiteRow.time,
   };
 }
 
-function createClockRow(colorLabel: string): { row: HTMLDivElement; time: HTMLSpanElement } {
+function createClockRow(colorLabel: string): { label: HTMLSpanElement; row: HTMLDivElement; time: HTMLSpanElement } {
   const row = document.createElement('div');
   row.className = 'replay-clock-row';
   row.hidden = true;
@@ -834,7 +852,12 @@ function createClockRow(colorLabel: string): { row: HTMLDivElement; time: HTMLSp
   const time = document.createElement('span');
   time.className = 'replay-clock-time';
   row.append(label, time);
-  return { row, time };
+  return { label, row, time };
+}
+
+function setClockPanelNames(panel: ClockPanelHandle, meta: GameMeta | undefined): void {
+  panel.whiteLabel.textContent = meta?.whiteName ?? 'White';
+  panel.blackLabel.textContent = meta?.blackName ?? 'Black';
 }
 
 function renderClockPanel(
@@ -844,17 +867,19 @@ function renderClockPanel(
   meta: GameMeta | undefined,
 ): void {
   const timeControl = clock ? timeControlLabelFromClock(clock) : timeControlLabelFromMeta(meta?.timeControl);
-  if (!clock && !timeControl) {
+  const hasPlayerLabels = Boolean(meta?.whiteName || meta?.blackName);
+  if (!clock && !timeControl && !hasPlayerLabels) {
     panel.el.hidden = true;
     panel.whiteRow.hidden = true;
     panel.blackRow.hidden = true;
     return;
   }
 
-  panel.el.hidden = false;
+  panel.el.hidden = !timeControl;
   panel.whiteRow.hidden = false;
   panel.blackRow.hidden = false;
   panel.label.textContent = timeControl ? `Time ${timeControl}` : 'Clock';
+  panel.label.hidden = false;
 
   if (!clock) {
     panel.whiteTime.textContent = '—';
