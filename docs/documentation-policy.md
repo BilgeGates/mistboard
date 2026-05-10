@@ -28,6 +28,16 @@ Examples:
 - `docs/fog-of-war/rulesets.md`
 - engine benchmark reports intended for publication
 
+## Project Identity
+
+Active public docs should use Mistboard as the project, repository, and hosted
+service name.
+
+Legacy names should appear only when they are necessary historical context, such
+as archived build logs, migration notes, artifact paths, or redirect
+documentation. Do not introduce legacy names in current roadmaps, policy docs,
+examples, app copy, contributor instructions, or public positioning.
+
 ## Private Documentation
 
 Keep these out of the public repo:

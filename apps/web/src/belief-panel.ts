@@ -464,10 +464,16 @@ export function createBeliefPanel(): BeliefPanelHandle {
       if (idx === 0) item.open = true;
       const summary = document.createElement('summary');
       summary.textContent = `#${idx + 1} ${pct(cluster.weight)} (${cluster.particle_count})`;
-      const mini = renderMiniFen(cluster.fen, row.tier1_side);
+      const fenText = typeof cluster.fen === 'string' && cluster.fen.length > 0 ? cluster.fen : null;
+      if (!fenText) {
+        item.append(summary, emptyLine('No cluster FEN recorded.'));
+        clusters.append(item);
+        return;
+      }
+      const mini = renderMiniFen(fenText, row.tier1_side);
       const fen = document.createElement('div');
       fen.className = 'belief-cluster-fen';
-      fen.textContent = cluster.fen;
+      fen.textContent = fenText;
       item.append(summary, mini, fen);
       clusters.append(item);
     });
