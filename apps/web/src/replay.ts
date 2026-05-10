@@ -882,8 +882,8 @@ function renderClockPanel(
   panel.label.hidden = false;
 
   if (!clock) {
-    panel.whiteTime.textContent = '—';
-    panel.blackTime.textContent = '—';
+    panel.whiteTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '—';
+    panel.blackTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '—';
     panel.whiteRow.classList.remove('active');
     panel.blackRow.classList.remove('active');
     return;
@@ -908,7 +908,7 @@ function timeControlLabelFromClock(clock: ClockState): string {
 
 function timeControlLabelFromMeta(raw: Record<string, unknown> | null | undefined): string | null {
   if (!raw) return null;
-  if (raw.kind === 'none') return null;
+  if (raw.kind === 'none') return 'Untimed';
 
   const initialSeconds = numericValue(raw.initial_seconds);
   const incrementSeconds = numericValue(raw.increment_seconds);

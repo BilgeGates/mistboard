@@ -47,6 +47,7 @@ import {
   isDatabaseRequired,
   isProductionLikeRuntime,
   modeForProjection,
+  parseNonNegativeInteger,
   parsePositiveInteger,
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
@@ -112,6 +113,8 @@ const maxRoomClockInitialMs = 180 * 60 * 1000;
 const maxRoomClockIncrementMs = 60_000;
 const pveEngineMoveDelayMs = parsePositiveInteger(process.env.BICHESS_PVE_ENGINE_DELAY_MS) ?? 650;
 const liveEngineTimeoutMs = parsePositiveInteger(process.env.BICHESS_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
+const guestPrestartAbortMs = parseNonNegativeInteger(process.env.BICHESS_GUEST_PRESTART_ABORT_MS) ?? 15 * 60 * 1000;
+const abortPolicySweepMs = parsePositiveInteger(process.env.BICHESS_ABORT_POLICY_SWEEP_MS) ?? 60_000;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
 const accountSessionCookieName = 'bichess_session';
 const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
@@ -127,6 +130,8 @@ const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 const staticDir = resolveStaticDir();
 
 await initPersistence();
+let abortPolicyTimer: ReturnType<typeof setInterval> | null = null;
+startAbortPolicySweep();
 
 const server = createServer(handleHttpRequest);
 const wss = new WebSocketServer({ server, maxPayload: wsMaxPayloadBytes });
@@ -847,6 +852,10 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
   if (url.searchParams.get('reset') === '1') resetRoom(roomId);
+  if (await isAbortedRoom(roomId)) {
+    socket.close(1008, 'room aborted');
+    return;
+  }
   const devMode = url.searchParams.get('dev');
   const solo = devMode === 'solo';
   const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
@@ -1134,6 +1143,55 @@ async function persistGameStart(
       at: Date.now(),
     }));
     throw new PersistenceFailure();
+  }
+}
+
+async function isAbortedRoom(roomId: string): Promise<boolean> {
+  if (!persistence.isInitialized()) return false;
+  const lifecycle = await persistence.getGameLifecycleStatus(roomId).catch((err) => {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'game_lifecycle_status_failure',
+      roomId,
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
+    return null;
+  });
+  return lifecycle?.status === 'aborted';
+}
+
+function startAbortPolicySweep(): void {
+  if (!persistence.isInitialized()) return;
+  if (guestPrestartAbortMs <= 0) return;
+  void runAbortPolicySweep();
+  abortPolicyTimer = setInterval(() => {
+    void runAbortPolicySweep();
+  }, abortPolicySweepMs);
+}
+
+async function runAbortPolicySweep(): Promise<void> {
+  try {
+    const result = await persistence.abortStaleGuestPrestartGames(new Date(), guestPrestartAbortMs);
+    if (result.aborted > 0) {
+      for (const roomId of result.roomIds) {
+        resetRoom(roomId);
+      }
+      console.log(JSON.stringify({
+        level: 'info',
+        kind: 'abort_policy_sweep',
+        policy: 'guest-prestart-timeout',
+        aborted: result.aborted,
+        at: Date.now(),
+      }));
+    }
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'abort_policy_sweep_failure',
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
   }
 }
 
@@ -2096,6 +2154,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
     if (room.clockTimer) clearTimeout(room.clockTimer);
     if (room.engineTimer) clearTimeout(room.engineTimer);
   }
+  if (abortPolicyTimer) clearInterval(abortPolicyTimer);
   for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
     try { client.socket.close(1001, 'server shutting down'); } catch { /* socket already closed */ }
   }

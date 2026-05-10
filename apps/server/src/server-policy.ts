@@ -7,6 +7,8 @@ type RuntimeEnvKey =
   | 'BICHESS_ADMIN_DEBUG_TOKEN'
   | 'BICHESS_ALLOW_IN_MEMORY_PERSISTENCE'
   | 'BICHESS_ALLOWED_ORIGINS'
+  | 'BICHESS_ABORT_POLICY_SWEEP_MS'
+  | 'BICHESS_GUEST_PRESTART_ABORT_MS'
   | 'BICHESS_REQUIRE_DATABASE'
   | 'NODE_ENV'
   | 'RAILWAY_ENVIRONMENT'
@@ -171,6 +173,12 @@ export function parsePositiveInteger(value: string | undefined): number | null {
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+export function parseNonNegativeInteger(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function parseBooleanEnv(value: string | undefined): boolean {

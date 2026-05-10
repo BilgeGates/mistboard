@@ -6,6 +6,7 @@ import type { GameEvent } from '@bichess/game';
 import { runMigrations } from './migrate.js';
 import {
   appendEvent,
+  abortStaleGuestPrestartGames,
   close,
   consumeEmailLoginChallenge,
   createAccountSession,
@@ -540,6 +541,97 @@ if (!TEST_DATABASE_URL) {
     }
   });
 
+  test('abortStaleGuestPrestartGames aborts only guest rooms that never started', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const stale = new Date(now.getTime() - 20 * 60_000);
+    const fresh = new Date(now.getTime() - 2 * 60_000);
+    const user = await createUser({
+      id: 'abort-policy-user',
+      email: 'abort-policy@example.com',
+      emailVerifiedAt: null,
+      handle: 'abortpolicy',
+      displayName: 'Abort Policy',
+      now,
+    });
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_client, black_client, white_name, black_name, mode, status)
+         VALUES
+           ('stale-guest-prestart', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            NULL, NULL, NULL, NULL, 'pvp', 'running'),
+           ('fresh-guest-prestart', 'fog-of-war', NULL, NULL, 0, $2, NULL,
+            NULL, NULL, NULL, NULL, 'pvp', 'running'),
+           ('stale-signed-in-prestart', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            'signed-client', NULL, NULL, NULL, 'pvp', 'running'),
+           ('stale-started-clock', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            'clock-white', 'clock-black', NULL, NULL, 'pvp', 'running'),
+           ('stale-started-move', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            'move-white', 'move-black', NULL, NULL, 'pvp', 'running')`,
+        [stale, fresh],
+      );
+      await client.query(
+        `INSERT INTO events (room_id, seq, type, payload)
+         VALUES
+           ('stale-guest-prestart', 0, 'room-created', $1),
+           ('fresh-guest-prestart', 0, 'room-created', $2),
+           ('stale-signed-in-prestart', 0, 'room-created', $3),
+           ('stale-started-clock', 0, 'room-created', $4),
+           ('stale-started-clock', 1, 'clock-started', $5),
+           ('stale-started-move', 0, 'room-created', $6),
+           ('stale-started-move', 1, 'move-played', $7)`,
+        [
+          { type: 'room-created', at: stale.getTime(), roomId: 'stale-guest-prestart', variant: 'fog-of-war', offer: [] },
+          { type: 'room-created', at: fresh.getTime(), roomId: 'fresh-guest-prestart', variant: 'fog-of-war', offer: [] },
+          { type: 'room-created', at: stale.getTime(), roomId: 'stale-signed-in-prestart', variant: 'fog-of-war', offer: [] },
+          { type: 'room-created', at: stale.getTime(), roomId: 'stale-started-clock', variant: 'fog-of-war', offer: [] },
+          { type: 'clock-started', at: stale.getTime() + 1000, roomId: 'stale-started-clock', clock: { initialMs: 30000, incrementMs: 2000, remainingMs: { white: 30000, black: 30000 }, activeColor: 'white', runningSince: stale.getTime() + 1000 } },
+          { type: 'room-created', at: stale.getTime(), roomId: 'stale-started-move', variant: 'fog-of-war', offer: [] },
+          { type: 'move-played', at: stale.getTime() + 1000, roomId: 'stale-started-move', color: 'white', move: { from: 'e2', to: 'e4' } },
+        ],
+      );
+      await client.query(
+        `INSERT INTO room_seat_tokens
+           (room_id, seat, client_id, token_hash, user_id, issued_at, last_seen_at, revoked_at)
+         VALUES
+           ('stale-signed-in-prestart', 'white', 'signed-client', $1, $2, $3, $3, NULL)`,
+        [sha256('signed-seat-token'), user.id, stale],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const result = await abortStaleGuestPrestartGames(now, 15 * 60_000);
+    assert.deepEqual(result, { aborted: 1, roomIds: ['stale-guest-prestart'] });
+
+    const verifyClient = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await verifyClient.connect();
+    try {
+      const { rows } = await verifyClient.query<{
+        room_id: string;
+        status: string;
+        termination: string | null;
+      }>(
+        `SELECT room_id, status, termination
+         FROM games
+         WHERE room_id LIKE '%prestart' OR room_id LIKE 'stale-started-%'
+         ORDER BY room_id`,
+      );
+      assert.deepEqual(rows, [
+        { room_id: 'fresh-guest-prestart', status: 'running', termination: null },
+        { room_id: 'stale-guest-prestart', status: 'aborted', termination: 'abandoned' },
+        { room_id: 'stale-signed-in-prestart', status: 'running', termination: null },
+        { room_id: 'stale-started-clock', status: 'running', termination: null },
+        { room_id: 'stale-started-move', status: 'running', termination: null },
+      ]);
+    } finally {
+      await verifyClient.end();
+    }
+  });
+
   test('recordGameEnd is idempotent', async () => {
     const now = new Date();
     const summary = {
@@ -826,6 +918,7 @@ if (!TEST_DATABASE_URL) {
     const shortDecisive = new Date(now.getTime() - 30_000);
     const older = new Date(now.getTime() - 60_000);
     const shortTimeout = new Date(now.getTime() + 60_000);
+    const oneMove = new Date(now.getTime() + 90_000);
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
@@ -842,6 +935,8 @@ if (!TEST_DATABASE_URL) {
             'human-client', 'random-engine', NULL, NULL, 'pve', 'completed', 'link'),
            ('short-capture', 'fog-of-war', 'white-wins', 'king-captured', 6, $2, $2,
             'short-white', 'short-black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('one-move-public', 'fog-of-war', 'white-wins', 'king-captured', 1, $5, $5,
+            'one-white', 'one-black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('link-eve', 'fog-of-war', 'draw', 'truncated', 28, $4, $4,
             'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed', 'link'),
            ('short-timeout', 'fog-of-war', 'black-wins', 'timeout', 4, $3, $3,
@@ -850,13 +945,14 @@ if (!TEST_DATABASE_URL) {
             'human-client-private', 'random-engine', NULL, NULL, 'pve', 'completed', 'private'),
            ('private-pvp', 'fog-of-war', 'draw', 'truncated', 6, $4, $4,
             'private-white', 'private-black', NULL, NULL, 'pvp', 'completed', 'private')`,
-        [now, shortDecisive, shortTimeout, older],
+        [now, shortDecisive, shortTimeout, older, oneMove],
       );
       for (const roomId of [
         'public-pvp',
         'public-pve',
         'link-pve',
         'short-capture',
+        'one-move-public',
         'link-eve',
         'short-timeout',
         'private-pve',

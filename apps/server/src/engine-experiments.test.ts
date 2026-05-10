@@ -7,6 +7,7 @@ import {
   cleanupStaleEngineGameTasks,
   createEngineGameTask,
   createExperimentJob,
+  finishEngineGameTask,
   heartbeatEngineGameTask,
   heartbeatWorkerRun,
   reconcileExperimentJob,
@@ -430,6 +431,64 @@ if (!TEST_DATABASE_URL) {
     assert.deepEqual(jobs, [{ status: 'completed', completed_games: 1, failed_games: 0 }]);
   });
 
+  test('failed claimed task aborts linked running game row', async () => {
+    const now = new Date();
+    const job = await createExperimentJob(getPool(), {
+      id: 'job-failed-linked-game-test',
+      purpose: 'smoke',
+      targetGames: 1,
+    });
+    await createEngineGameTask(getPool(), {
+      id: 'task-failed-linked-game',
+      jobId: job.id,
+      gameIndex: 0,
+      seed: 124,
+      timeControl: { kind: 'none' },
+      config: { variant: 'fog-of-war', max_plies: 2 },
+    });
+    const worker = await registerWorkerRun(getPool(), {
+      id: 'worker-failed-linked-game-test',
+      provider: 'local',
+    });
+    const task = await claimNextEngineGameTask(getPool(), {
+      workerRunId: worker.id,
+      workerId: 'test-worker',
+      provider: 'local',
+      claimToken: 'failed-linked-game-token',
+    });
+    assert.equal(task?.id, 'task-failed-linked-game');
+
+    await getPool().query(
+      `INSERT INTO games
+         (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
+       VALUES ('failed-linked-game', 'fog-of-war', NULL, NULL, 0, $1, NULL, 'eve', 'running')`,
+      [now],
+    );
+    await getPool().query('UPDATE engine_game_tasks SET game_id = $2 WHERE id = $1', [
+      'task-failed-linked-game',
+      'failed-linked-game',
+    ]);
+
+    await finishEngineGameTask(getPool(), task!.id, task!.claimToken!, 'failed', 'python dependency missing');
+
+    const { rows: games } = await getPool().query<{
+      status: string;
+      result: string | null;
+      termination: string | null;
+      aborted_reason: string | null;
+    }>('SELECT status, result, termination, aborted_reason FROM games WHERE room_id = $1', [
+      'failed-linked-game',
+    ]);
+    assert.deepEqual(games, [
+      {
+        status: 'aborted',
+        result: null,
+        termination: 'engine-failure',
+        aborted_reason: 'python dependency missing',
+      },
+    ]);
+  });
+
   test('runner loads pinned built-in engines and records move-choice artifacts', async () => {
     await upsertBuiltinEngineVersions(getPool(), ['builtin-capture-seeker', 'builtin-random-legal']);
     const job = await createExperimentJob(getPool(), {
@@ -477,6 +536,33 @@ if (!TEST_DATABASE_URL) {
         black_engine_id: 'builtin-random-legal',
         white_play_signature: 'builtin-capture-seeker-v1',
         black_play_signature: 'builtin-random-legal-v1',
+      },
+    ]);
+
+    const { rows: participants } = await getPool().query<{
+      color: string;
+      display_name: string;
+      subject_id: string;
+      subject_type: string;
+    }>(
+      `SELECT color, display_name, subject_id, subject_type
+       FROM game_participants
+       WHERE game_id = $1
+       ORDER BY color DESC`,
+      [result.gameId],
+    );
+    assert.deepEqual(participants, [
+      {
+        color: 'white',
+        display_name: 'Capture Seeker v1',
+        subject_id: 'builtin-capture-seeker',
+        subject_type: 'engine-version',
+      },
+      {
+        color: 'black',
+        display_name: 'Random Legal v1',
+        subject_id: 'builtin-random-legal',
+        subject_type: 'engine-version',
       },
     ]);
 

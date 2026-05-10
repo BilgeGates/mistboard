@@ -17,6 +17,7 @@ import {
   type EngineGameTask,
 } from './engine-experiments.js';
 import {
+  engineVersionDisplayName,
   loadEngine,
   type EngineDefinition,
   type EngineMoveDecision,
@@ -236,6 +237,8 @@ async function createRunningGame(
     ],
   );
 
+  await upsertEngineGameParticipants(pool, gameId, whiteEngine, blackEngine);
+
   await pool.query(
     `UPDATE engine_game_tasks
      SET game_id = $2
@@ -279,6 +282,30 @@ async function createRunningGame(
        AND status = 'queued'`,
     [task.jobId],
   );
+}
+
+async function upsertEngineGameParticipants(
+  pool: pg.Pool,
+  gameId: string,
+  whiteEngine: EngineDefinition,
+  blackEngine: EngineDefinition,
+): Promise<void> {
+  for (const [color, engine] of [
+    ['white', whiteEngine],
+    ['black', blackEngine],
+  ] as const) {
+    await pool.query(
+      `INSERT INTO game_participants
+         (game_id, color, subject_type, subject_id, display_name, visibility)
+       VALUES ($1, $2, 'engine-version', $3, $4, 'public')
+       ON CONFLICT (game_id, color) DO UPDATE SET
+         subject_type = EXCLUDED.subject_type,
+         subject_id = EXCLUDED.subject_id,
+         display_name = EXCLUDED.display_name,
+         visibility = EXCLUDED.visibility`,
+      [gameId, color, engine.id, engineVersionDisplayName(engine.id)],
+    );
+  }
 }
 
 async function appendEvent(pool: pg.Pool, gameId: string, seq: number, event: GameEvent): Promise<void> {

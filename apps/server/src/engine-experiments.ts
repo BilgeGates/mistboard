@@ -489,7 +489,21 @@ export async function finishEngineGameTask(
     [taskId, claimToken, status, failureReason],
   );
   if (rows.length === 0) throw new Error(`task ${taskId} is not claimed by this worker`);
-  return mapTask(rows[0]!);
+  const task = mapTask(rows[0]!);
+  if (status === 'failed' && task.gameId) {
+    await db.query(
+      `UPDATE games
+       SET status = 'aborted',
+           result = NULL,
+           termination = 'engine-failure',
+           ended_at = now(),
+           aborted_reason = $2
+       WHERE room_id = $1
+         AND status = 'running'`,
+      [task.gameId, failureReason ?? 'engine task failed'],
+    );
+  }
+  return task;
 }
 
 export async function reconcileExperimentJob(
