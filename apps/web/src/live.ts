@@ -1181,11 +1181,12 @@ function renderReplay(): void {
   }
 
   refs.moveList.replaceChildren();
-  const masked = shouldMaskLiveMoveList();
+  const masked = shouldMaskMoveList();
   const entries = masked ? liveMoveListEntries() : revealedMoveListEntries();
   const entriesByPly = new Map(entries.map((entry) => [entry.ply, entry]));
   const labelsByEventIndex = algebraicMoveLabels();
-  const plyCount = masked ? liveMoveListPlyCount(state) : entries.length;
+  const plyCount = moveListPlyCount(masked, entries);
+  const visibleColor = moveListVisibleColor(masked);
   const rows: HTMLLIElement[] = [];
 
   for (let row = 0; row < Math.ceil(plyCount / 2); row += 1) {
@@ -1199,15 +1200,17 @@ function renderReplay(): void {
 
     const whitePly = row * 2 + 1;
     const blackPly = row * 2 + 2;
-    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, plyCount, labelsByEventIndex));
-    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, plyCount, labelsByEventIndex));
+    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, visibleColor, plyCount, labelsByEventIndex));
+    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, visibleColor, plyCount, labelsByEventIndex));
     rows.push(item);
   }
   refs.moveList.append(...rows);
 }
 
-function shouldMaskLiveMoveList(): boolean {
-  return state?.variant === 'fog-of-war' && state.status.type !== 'finished' && roomMode !== 'eve';
+function shouldMaskMoveList(): boolean {
+  if (state?.variant !== 'fog-of-war' || roomMode === 'eve') return false;
+  if (state.status.type === 'finished') return postgameFogEnabled && canTogglePostgameFog();
+  return true;
 }
 
 function revealedMoveListEntries(): MoveListEntry[] {
@@ -1238,11 +1241,24 @@ function liveMoveListPlyCount(view: PlayerView | null): number {
   return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
 }
 
+function moveListPlyCount(masked: boolean, entries: MoveListEntry[]): number {
+  if (!masked) return entries.length;
+  if (state?.status.type === 'playing') return liveMoveListPlyCount(state);
+  return Math.max(0, ...entries.map((entry) => entry.ply));
+}
+
+function moveListVisibleColor(masked: boolean): Color | null {
+  if (!masked) return null;
+  if (isColor(seat)) return seat;
+  return currentView()?.status.type === 'finished' ? currentView()?.perspective ?? 'white' : null;
+}
+
 function moveListCell(
   ply: number,
   color: Color,
   entry: MoveListEntry | undefined,
   masked: boolean,
+  visibleColor: Color | null,
   plyCount: number,
   labelsByEventIndex: Map<number, string>,
 ): HTMLElement {
@@ -1252,7 +1268,7 @@ function moveListCell(
     return empty;
   }
 
-  const hidden = masked && color !== seat;
+  const hidden = masked && color !== visibleColor;
   if (!entry || hidden) {
     const placeholder = document.createElement('span');
     placeholder.className = `${color}-ply move-placeholder`;
@@ -1428,7 +1444,7 @@ function currentProjection(): GameProjection | null {
 function currentView(): PlayerView | null {
   const projection = currentProjection();
   const perspective = seat === 'black' ? 'black' : 'white';
-  if (isLive() && (!postgameFogEnabled || !projection || projection.state.status.type !== 'finished')) return state;
+  if (isLive() && (!projection || projection.state.variant !== 'fog-of-war' || projection.state.status.type !== 'finished')) return state;
   if (!projection) return state;
   if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished' && !postgameFogEnabled) {
     return fullTruthViewForProjection(projection, perspective);
