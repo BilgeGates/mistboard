@@ -10,14 +10,21 @@
   --site-accent-soft: #eef8f2;
   --site-focus: rgba(31, 111, 91, 0.22);
   --site-shadow: rgba(29, 37, 34, 0.18);
-  --board-frame: #2e332f;
-  --board-light: #f0dcc0;
-  --board-dark: #7f9a78;
-  --board-fog-light: #bfc8bf;
-  --board-fog-dark: #3d493f;
-  --board-fog-line: rgba(20, 29, 25, 0.2);
-  --board-fog-line-soft: rgba(255, 255, 255, 0.1);
-  --board-fog-shadow: rgba(244, 241, 234, 0.12);
+  --board-frame: #5f412c;
+  --board-light: #f0d9b5;
+  --board-dark: #b58863;
+  --board-fog-line: rgba(0, 0, 0, 0.36);
+  --board-fog-line-soft: rgba(255, 255, 255, 0.06);
+  --board-fog-shadow: rgba(255, 244, 224, 0.1);
+  --board-fog-size: 14px;
+  --board-fog-light-fill: rgba(17, 14, 11, 0.74);
+  --board-fog-dark-fill: rgba(12, 10, 8, 0.78);
+  --board-fog-light-background:
+    linear-gradient(135deg, var(--board-fog-line) 0 22%, transparent 22% 50%, var(--board-fog-line-soft) 50% 72%, transparent 72%),
+    var(--board-fog-light-fill);
+  --board-fog-dark-background:
+    linear-gradient(135deg, var(--board-fog-line-soft) 0 22%, transparent 22% 50%, var(--board-fog-line) 50% 72%, transparent 72%),
+    var(--board-fog-dark-fill);
   --board-last-move: rgba(216, 174, 76, 0.4);
   --board-highlight: #d6af4e;
   --board-reveal: #d6af4e;
@@ -33,11 +40,11 @@
   --board-frame: #171a1d;
   --board-light: #fff6d8;
   --board-dark: #45515f;
-  --board-fog-light: #d2d6dc;
-  --board-fog-dark: #20262e;
   --board-fog-line: rgba(0, 0, 0, 0.32);
   --board-fog-line-soft: rgba(255, 255, 255, 0.16);
   --board-fog-shadow: rgba(255, 255, 255, 0.22);
+  --board-fog-light-fill: rgba(18, 22, 28, 0.78);
+  --board-fog-dark-fill: rgba(9, 12, 16, 0.84);
   --board-last-move: rgba(240, 184, 79, 0.5);
   --board-highlight: #f0b84f;
   --board-reveal: #f0b84f;
@@ -53,16 +60,36 @@
   --board-frame: #1d2630;
   --board-light: #f4e6b1;
   --board-dark: #5c7fa0;
-  --board-fog-light: #d9cf8f;
-  --board-fog-dark: #2d455d;
   --board-fog-line: rgba(19, 37, 55, 0.26);
   --board-fog-line-soft: rgba(255, 255, 255, 0.14);
   --board-fog-shadow: rgba(255, 252, 232, 0.18);
+  --board-fog-light-fill: rgba(15, 26, 38, 0.76);
+  --board-fog-dark-fill: rgba(8, 17, 26, 0.82);
   --board-last-move: rgba(230, 166, 43, 0.48);
   --board-highlight: #e6a62b;
   --board-reveal: #66a6c9;
   --belief-opp-rgb: 230 166 43;
   --belief-own-rgb: 62 124 180;
+}
+
+:root[data-fog-theme="solid"] {
+  --board-fog-shadow: rgba(255, 244, 224, 0.08);
+  --board-fog-light-background: color-mix(in srgb, var(--board-frame) 84%, black);
+  --board-fog-dark-background: color-mix(in srgb, var(--board-frame) 72%, black);
+}
+
+:root[data-fog-theme="soft"] {
+  --board-fog-line: rgba(0, 0, 0, 0.22);
+  --board-fog-line-soft: rgba(255, 255, 255, 0.12);
+  --board-fog-shadow: rgba(255, 244, 224, 0.14);
+  --board-fog-light-fill: color-mix(in srgb, var(--board-frame) 62%, transparent);
+  --board-fog-dark-fill: color-mix(in srgb, var(--board-frame) 72%, transparent);
+  --board-fog-light-background:
+    linear-gradient(135deg, var(--board-fog-line) 0 22%, transparent 22% 50%, var(--board-fog-line-soft) 50% 72%, transparent 72%),
+    var(--board-fog-light-fill);
+  --board-fog-dark-background:
+    linear-gradient(135deg, var(--board-fog-line-soft) 0 22%, transparent 22% 50%, var(--board-fog-line) 50% 72%, transparent 72%),
+    var(--board-fog-dark-fill);
 }
 
 * {
@@ -79,8 +106,10 @@ body {
   bottom: 14px;
   z-index: 20;
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  max-width: calc(100vw - 28px);
   min-height: 38px;
   border: 1px solid var(--site-border);
   border-radius: 8px;
@@ -91,6 +120,12 @@ body {
   backdrop-filter: blur(8px);
   font-size: 12px;
   font-weight: 700;
+}
+
+.theme-control-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .theme-control select {
@@ -107,7 +142,7 @@ body {
 #app.landing-page ~ .theme-control {
   position: static;
   display: flex;
-  width: max-content;
+  width: fit-content;
   margin: 0 16px 16px auto;
 }
 
@@ -241,25 +276,19 @@ button:focus-visible {
 }
 
 .board cg-board square.fog-hidden {
-  background:
-    linear-gradient(135deg, rgba(20, 29, 25, 0.24) 0 22%, transparent 22% 50%, rgba(255, 255, 255, 0.08) 50% 72%, transparent 72%),
-    rgba(20, 29, 25, 0.52);
-  background-size: 14px 14px;
+  background: var(--board-fog-light-background);
+  background-size: var(--board-fog-size) var(--board-fog-size);
   box-shadow: inset 0 0 0 1px var(--board-fog-shadow);
 }
 
 .board cg-board square.fog-hidden.white {
-  background:
-    linear-gradient(135deg, rgba(20, 29, 25, 0.24) 0 22%, transparent 22% 50%, rgba(255, 255, 255, 0.08) 50% 72%, transparent 72%),
-    rgba(20, 29, 25, 0.52);
-  background-size: 14px 14px;
+  background: var(--board-fog-light-background);
+  background-size: var(--board-fog-size) var(--board-fog-size);
 }
 
 .board cg-board square.fog-hidden.black {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 22%, transparent 22% 50%, rgba(20, 29, 25, 0.24) 50% 72%, transparent 72%),
-    rgba(20, 29, 25, 0.52);
-  background-size: 14px 14px;
+  background: var(--board-fog-dark-background);
+  background-size: var(--board-fog-size) var(--board-fog-size);
 }
 
 .board cg-board square.fog-hidden.last-move {
@@ -719,10 +748,8 @@ button:focus-visible {
 }
 
 .dev-square.hidden {
-  background:
-    linear-gradient(135deg, var(--board-fog-line) 0 22%, transparent 22% 50%, var(--board-fog-line-soft) 50% 72%, transparent 72%),
-    var(--board-fog-dark);
-  background-size: 8px 8px;
+  background: var(--board-fog-dark-background);
+  background-size: var(--board-fog-size) var(--board-fog-size);
   color: #ffffff;
 }
 
