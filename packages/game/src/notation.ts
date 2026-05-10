@@ -48,7 +48,7 @@ export function algebraicMoveLabels(events: GameEvent[], roomId = events[0]?.roo
 
     const labelProjection = projectionForVisibleMove(projection, event);
     labels.set(index + 1, moveToAlgebraic(labelProjection.state, event.move));
-    projection = applyGameEvent(labelProjection, event);
+    projection = applyVisibleMoveEvent(labelProjection, event);
   }
 
   return labels;
@@ -69,6 +69,37 @@ function projectionForVisibleMove(
     state: {
       ...projection.state,
       status: { type: 'playing', turn: event.color },
+    },
+  };
+}
+
+function applyVisibleMoveEvent(
+  projection: GameProjection,
+  event: Extract<GameEvent, { type: 'move-played' }>,
+): GameProjection {
+  const applied = applyGameEvent(projection, event);
+  if (applied !== projection) return applied;
+  if (projection.state.status.type !== 'playing') return projection;
+
+  const piece = projection.state.board[event.move.from];
+  if (!piece || piece.color !== event.color) return projection;
+
+  const board = { ...projection.state.board };
+  delete board[event.move.from];
+  board[event.move.to] = {
+    color: piece.color,
+    role: event.move.promotion ?? piece.role,
+  };
+
+  return {
+    ...projection,
+    state: {
+      ...projection.state,
+      board,
+      clock: event.clock ?? projection.state.clock,
+      lastMove: event.move,
+      moveNumber: projection.state.moveNumber + (event.color === 'black' ? 1 : 0),
+      status: { type: 'playing', turn: event.color === 'white' ? 'black' : 'white' },
     },
   };
 }
@@ -162,9 +193,9 @@ function isCapture(state: GameState, move: Move): boolean {
   if (!piece) return false;
   const target = state.board[move.to];
   if (target && target.color !== piece.color) return true;
-  return piece.role === 'pawn'
-    && move.to === state.enPassantSquare
-    && fileOf(move.from) !== fileOf(move.to);
+  if (piece.role !== 'pawn' || fileOf(move.from) === fileOf(move.to)) return false;
+  if (target?.color === piece.color) return false;
+  return state.variant === 'fog-of-war' || move.to === state.enPassantSquare;
 }
 
 function fileOf(square: Square): string {

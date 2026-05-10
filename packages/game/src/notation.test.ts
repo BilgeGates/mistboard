@@ -117,6 +117,7 @@ test('labels consecutive visible moves after redacted opponent moves', () => {
 
   const labels = algebraicMoveLabels(events, roomId);
 
+  assert.equal(labels.get(8), 'dxe6');
   assert.equal(labels.get(9), 'O-O');
   assert.equal(labels.get(10), 'Re1');
 });
