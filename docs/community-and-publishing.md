@@ -55,6 +55,15 @@ Good early article types:
 - How to play a friend in Mistboard
 - How to read a Fog replay
 
+Initial evergreen pages:
+
+- `/fog-of-war-chess` - a canonical player-facing guide to rules, visibility,
+  history, strategy basics, and Mistboard's server-enforced hidden-information
+  model.
+- `/fog-of-war-engine-play` - a canonical technical guide to Fog engine input
+  boundaries, `PlayerView`, belief, evaluation under uncertainty, and fair
+  benchmark rules.
+
 Publishing shape:
 
 - `/articles` is the durable public index for posts, explainers, updates, engine
