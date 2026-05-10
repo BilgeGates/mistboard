@@ -13,6 +13,7 @@ import {
   visibleEventsForLiveSnapshot,
   type GameAccessMode,
 } from './server-policy.js';
+import { engineVersionDisplayName } from './engine-registry.js';
 
 export type Seat = Color | 'spectator';
 
@@ -44,6 +45,7 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     roomId: room.id,
     mode,
     pveEngineId: mode === 'pve' ? room.pveEngineId ?? null : null,
+    pveEngineName: pveEngineName(room, mode),
     serverAt: Date.now(),
     clients: room.clients.size,
     seat: client.seat,
@@ -60,6 +62,11 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     events: eventsForClient(normalizedRoom, client),
     state: getClientView(normalizedRoom, client),
   };
+}
+
+function pveEngineName(room: SnapshotRoom, mode: GameAccessMode): string | null {
+  if (mode !== 'pve' || !room.pveEngineId) return null;
+  return engineVersionDisplayName(room.pveEngineId);
 }
 
 export function eventsForClient(room: SnapshotRoom, client: SnapshotClient): GameEvent[] {

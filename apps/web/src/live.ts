@@ -81,6 +81,7 @@ type ServerMessage =
     clients: number;
     mode?: RoomMode;
     pveEngineId?: string | null;
+    pveEngineName?: string | null;
     roomId: string;
     serverAt?: number;
     seat: Seat;
@@ -103,6 +104,7 @@ type ServerMessage =
     clients: number;
     mode?: RoomMode;
     pveEngineId?: string | null;
+    pveEngineName?: string | null;
     serverAt?: number;
     seat: Seat;
     solo: boolean;
@@ -168,6 +170,7 @@ let lastServerAt: number | null = null;
 let lastSnapshotAt: number | null = null;
 let roomMode: RoomMode = engineRequested ? 'pve' : 'pvp';
 let pveEngineId: string | null = null;
+let pveEngineName: string | null = null;
 let seat: Seat = 'spectator';
 let solo = soloRequested;
 let selections: Partial<Record<Color, number>> = {};
@@ -267,6 +270,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     connectionState = 'connected';
     roomMode = message.mode ?? roomMode;
     pveEngineId = message.pveEngineId ?? null;
+    pveEngineName = message.pveEngineName ?? null;
     lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
@@ -286,6 +290,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     connectionState = 'connected';
     roomMode = message.mode ?? roomMode;
     pveEngineId = message.pveEngineId ?? null;
+    pveEngineName = message.pveEngineName ?? null;
     lastServerAt = message.serverAt ?? null;
     seat = message.seat;
     solo = message.solo;
@@ -667,15 +672,18 @@ function renderActionStatus(view: PlayerView | null): void {
 }
 
 function renderGameInfo(view: PlayerView | null): void {
-  refs.gameInfo.replaceChildren(
+  const engine = engineInfoLabel();
+  const items = [
     infoItem('Mode', modeLabel()),
+    engine ? infoItem('Engine', engine) : null,
     infoItem('Seat', seatLabel(seat)),
     infoItem('Turn', turnLabel(view)),
     infoItem('Time', timeControlLabel(view)),
     infoItem('Connection', connectionLabel()),
     infoItem('Server', serverTimeLabel()),
     infoItem('Clients', String(clientCount)),
-  );
+  ].filter((item): item is HTMLDivElement => item !== null);
+  refs.gameInfo.replaceChildren(...items);
 }
 
 function renderRoomActions(): void {
@@ -1573,6 +1581,25 @@ function modeLabel(): string {
   if (roomMode === 'pvp') return 'Friend challenge';
   if (roomMode === 'eve') return 'Engine game';
   return capitalize(roomMode);
+}
+
+function engineInfoLabel(): string | null {
+  if (roomMode !== 'pve') return null;
+  return pveEngineName ?? engineDisplayName(pveEngineId) ?? pveEngineId;
+}
+
+function engineDisplayName(engineId: string | null): string | null {
+  if (!engineId) return null;
+  const known: Record<string, string> = {
+    'builtin-capture-seeker': 'Capture Seeker v1',
+    'builtin-random-legal': 'Random Legal v1',
+    'python-random-legal': 'Random Legal Python v1',
+    'python-tier1-v0.7.0': 'Tier-1 v0.7.0',
+    'python-tier1-v0.7.22': 'Tier-1 v0.7.22',
+    'python-tier1-v0.8.9': 'Tier-1 v0.8.9',
+    'random-engine': 'Random Legal v1',
+  };
+  return known[engineId] ?? null;
 }
 
 function turnLabel(view: PlayerView | null): string {

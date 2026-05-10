@@ -219,6 +219,7 @@ test('live PvE spectator sees human perspective and not engine move events', () 
     roomId: 'pve-payload',
     seats: { white: 'human-white', black: 'random-engine' },
     mode: 'pve',
+    pveEngineId: 'builtin-random-legal',
   });
   const payload = snapshotPayload(room, {
     devViews: false,
@@ -227,6 +228,8 @@ test('live PvE spectator sees human perspective and not engine move events', () 
     solo: false,
   });
 
+  assert.equal(payload.pveEngineId, 'builtin-random-legal');
+  assert.equal(payload.pveEngineName, 'Random Legal v1');
   assert.equal(payload.state.perspective, 'white');
   assert.notDeepEqual(payload.state.board, {});
   assert.equal(
@@ -496,10 +499,12 @@ function lastMoveRoomFixture(): SnapshotRoom {
 
 function replayRoomFixture({
   mode,
+  pveEngineId,
   roomId,
   seats,
 }: {
   mode: SnapshotRoom['mode'];
+  pveEngineId?: string | null;
   roomId: string;
   seats: { white: string; black: string };
 }): SnapshotRoom {
@@ -516,6 +521,7 @@ function replayRoomFixture({
     events,
     mode,
     projection: replayGameEvents(events),
+    pveEngineId,
   };
 }
 
