@@ -97,6 +97,7 @@ export type ReplayOptions = {
    * by sampleId. When absent, no bar renders.
    */
   metadataByRoomId?: Record<string, GameMeta>;
+  metadataMode?: 'full' | 'compact';
   /**
    * When set, enables the annotation tooling. Press `a` at any ply to open
    * the modal pre-filled with the move just played. Annotations persist via
@@ -146,6 +147,7 @@ export async function mountReplay(
   const urlForId = options.urlForId ?? defaultUrlForId;
   const loaderForId = options.loaderForId;
   const metadataByRoomId = options.metadataByRoomId;
+  const metadataMode = options.metadataMode ?? 'full';
   const onPlyChange = options.onPlyChange;
 
   // If mountReplay is called again on the same root (e.g. switching games
@@ -181,7 +183,7 @@ export async function mountReplay(
   plyLabel.className = 'replay-ply-label';
   const movesPanel = showControls && controlsMode === 'panel' ? createReplayMovesPanel() : null;
 
-  const gameMetaPanel = metadataByRoomId ? createGameMetaPanel() : null;
+  const gameMetaPanel = metadataByRoomId ? createGameMetaPanel(metadataMode) : null;
   if (gameMetaPanel) root.append(gameMetaPanel.el);
   if (movesPanel) root.append(movesPanel.el);
   const clockPanel = createClockPanel();
@@ -832,21 +834,22 @@ function pickNextSample(pool: string[], current: string): string {
 type GameMetaPanelHandle = {
   details: HTMLDivElement;
   el: HTMLElement;
+  mode: 'full' | 'compact';
 };
 
-function createGameMetaPanel(): GameMetaPanelHandle {
+function createGameMetaPanel(mode: 'full' | 'compact' = 'full'): GameMetaPanelHandle {
   const el = document.createElement('aside');
-  el.className = 'replay-game-meta-card side-panel meta-panel';
+  el.className = `replay-game-meta-card replay-game-meta-card-${mode} side-panel meta-panel`;
   el.setAttribute('aria-label', 'Game metadata');
   const section = document.createElement('section');
   section.className = 'panel-section';
   const title = document.createElement('h2');
-  title.textContent = 'Game';
+  title.textContent = mode === 'compact' ? 'Featured game' : 'Game';
   const details = document.createElement('div');
   details.className = 'game-info replay-game-meta-details';
   section.append(title, details);
   el.append(section);
-  return { details, el };
+  return { details, el, mode };
 }
 
 function renderGameMetaPanel(
@@ -863,14 +866,20 @@ function renderGameMetaPanel(
 
   panel.el.hidden = false;
   const timeControl = timeControlLabelFromMeta(meta.timeControl);
-  const items: Array<{ label: string; value: string }> = [
-    { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
-    { label: 'Result', value: resultLabel(meta.result) },
-    { label: 'End', value: terminationLabel(meta.termination) },
-    ...(timeControl ? [{ label: 'Time', value: timeControl }] : []),
-    { label: 'Plies', value: String(meta.plyCount) },
-    { label: 'Game', value: activeSample },
-  ];
+  const items: Array<{ label: string; value: string }> = panel.mode === 'compact'
+    ? [
+        { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
+        { label: 'Result', value: resultLabel(meta.result) },
+        { label: 'Length', value: `${meta.plyCount} plies` },
+      ]
+    : [
+        { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
+        { label: 'Result', value: resultLabel(meta.result) },
+        { label: 'End', value: terminationLabel(meta.termination) },
+        ...(timeControl ? [{ label: 'Time', value: timeControl }] : []),
+        { label: 'Plies', value: String(meta.plyCount) },
+        { label: 'Game', value: activeSample },
+      ];
 
   panel.details.replaceChildren();
   for (const item of items) {

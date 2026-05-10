@@ -182,6 +182,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     blackOrientation: 'white',
     loopSamples: sampleIds,
     loaderForId: landingEventLoader,
+    metadataMode: 'compact',
     metadataByRoomId,
   });
 }
@@ -1284,8 +1285,15 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   replayRoot.id = 'landing-replay';
   section.append(playPanel, replayRoot);
 
-  stage.append(section);
+  stage.append(section, buildLandingArticlePlan());
   return { el: stage, replayRoot };
+}
+
+function buildLandingArticlePlan(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'landing-article-plan';
+  section.setAttribute('aria-label', 'Planned articles');
+  return section;
 }
 
 function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRequests?: boolean } = {}): HTMLElement {
