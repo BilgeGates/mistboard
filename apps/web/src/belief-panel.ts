@@ -274,9 +274,9 @@ export function createBeliefPanel(): BeliefPanelHandle {
   clusters.className = 'belief-clusters';
   const squareDetail = document.createElement('div');
   squareDetail.className = 'belief-square-detail';
-  side.append(meta, clusters, squareDetail);
+  side.append(meta, clusters);
 
-  body.append(board, side);
+  body.append(board, squareDetail, side);
   el.append(header, body);
 
   let rows: BeliefRow[] = [];

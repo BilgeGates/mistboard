@@ -658,6 +658,7 @@ export async function mountReplay(
 
   function applyPerspective(): void {
     const tier1Color = annotation?.tier1ColorForSampleId(activeSample) ?? null;
+    if (tier1Color) boardOrientation = tier1Color;
     applyBoardOrientation();
     if (tier1Color === 'black') {
       layout.replaceChildren(blackPane.el, truthPane.el, whitePane.el);
@@ -1033,6 +1034,18 @@ function renderReplayMoveList(
     rows.push(row);
   }
   list.append(...rows);
+  scrollActiveMoveIntoView(list);
+}
+
+function scrollActiveMoveIntoView(list: HTMLOListElement): void {
+  window.requestAnimationFrame(() => {
+    const active = list.querySelector<HTMLButtonElement>('button.active');
+    if (!active) return;
+    const listRect = list.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    const centeredDelta = activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
+    list.scrollTo({ top: Math.max(0, list.scrollTop + centeredDelta), behavior: 'auto' });
+  });
 }
 
 function replayMoveCell(

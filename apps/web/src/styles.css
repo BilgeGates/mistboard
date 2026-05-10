@@ -3294,6 +3294,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   .game-replay .replay-layout {
     grid-column: 2;
     grid-row: 1;
+    grid-template-columns: repeat(3, minmax(0, 380px));
+    justify-content: center;
     gap: 8px;
     max-width: none;
   }
@@ -3305,7 +3307,11 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
   .game-replay.analysis-tools-open .replay-board.cg-wrap,
   .game-replay.analysis-tools-open .replay-pane-clock-slot {
-    max-width: 300px;
+    max-width: 380px;
+  }
+
+  .game-replay.analysis-tools-open .replay-layout {
+    grid-template-columns: repeat(3, minmax(0, 380px));
   }
 
   .game-replay .replay-game-meta-card {
@@ -3452,7 +3458,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   }
 
   .game-replay .belief-sidebar {
-    grid-template-columns: minmax(250px, 0.9fr) minmax(220px, 0.85fr) minmax(180px, 0.65fr);
+    grid-template-columns: minmax(260px, 0.95fr) minmax(220px, 1fr);
     overflow: visible;
   }
 
@@ -3989,6 +3995,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   flex: 1 1 auto;
   display: grid;
   grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "board side"
+    "detail side";
   gap: 8px;
   min-height: 0;
   overflow: hidden;
@@ -3996,6 +4006,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .belief-board {
+  grid-area: board;
   align-self: start;
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
@@ -4120,8 +4131,9 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .belief-sidebar {
+  grid-area: side;
   display: grid;
-  grid-template-columns: minmax(320px, 0.95fr) minmax(270px, 1fr) minmax(220px, 0.85fr);
+  grid-template-columns: minmax(320px, 0.95fr) minmax(270px, 1fr);
   align-content: start;
   gap: 8px;
   height: 100%;
@@ -4140,6 +4152,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   min-width: 0;
   overflow: auto;
   padding: 5px 6px;
+}
+
+.belief-square-detail {
+  grid-area: detail;
 }
 
 .belief-metric {
@@ -4414,15 +4430,18 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   .belief-sidebar {
     grid-template-columns: minmax(160px, 0.8fr) minmax(220px, 1fr);
   }
-
-  .belief-square-detail {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (max-width: 900px) {
   .belief-panel-body {
     grid-template-columns: 1fr;
+  }
+
+  .belief-panel-body {
+    grid-template-areas:
+      "board"
+      "detail"
+      "side";
   }
 
   .belief-sidebar {
@@ -4436,6 +4455,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 /* Annotation panel (sits below the replay controls in the bakeoff browser) */
+.annot-panel[hidden] {
+  display: none;
+}
+
 .annot-panel {
   margin-top: 0;
   border: 1px solid #2a3329;
