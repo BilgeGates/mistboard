@@ -38,7 +38,10 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Test with Postgres
-        run: npm test
+        run: |
+          npm run test --workspace @mistboard/game
+          npm run test --workspace @mistboard/web
+          npm run test:persistent --workspace @mistboard/server
       - name: Audit production dependencies
         run: npm audit --omit=dev
 
