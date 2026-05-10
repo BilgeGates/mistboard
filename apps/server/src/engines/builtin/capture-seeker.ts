@@ -1,4 +1,4 @@
-import type { Move, PieceRole } from '@bichess/game';
+import type { Move, PieceRole } from '@mistboard/game';
 import type { EngineDefinition, EngineMoveContext, EngineMoveScore } from '../types.js';
 import { engineThinkTimeMs } from '../think-time.js';
 

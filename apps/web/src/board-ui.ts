@@ -1,4 +1,4 @@
-import type { Board, Color, PieceRole, PlayerView, Square } from '@bichess/game';
+import type { Board, Color, PieceRole, PlayerView, Square } from '@mistboard/game';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';

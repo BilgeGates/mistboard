@@ -1,4 +1,4 @@
-"""Run parity checks across a bichess corpus.
+"""Run parity checks across a mistboard corpus.
 
 Three modes:
 
@@ -11,7 +11,7 @@ Three modes:
 - visibility: for every canonical board state, assert the lab's
   `visible_squares(board, color)` equals the TS-dumped `PlayerView.visibleSquares`
   square-for-square, for both perspectives. Deterministic. This is the test
-  that catches drift between the bichess TS visibility model and the lab's
+  that catches drift between the mistboard TS visibility model and the lab's
   Python implementation. Together with consistency, this closes P1 correctness.
 
 - retention: replay through `BeliefState` with a uniform prior and assert the

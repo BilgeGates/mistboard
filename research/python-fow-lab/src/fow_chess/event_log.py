@@ -1,4 +1,4 @@
-"""Bridge from bichess TypeScript GameEvent logs to python-chess and Observations.
+"""Bridge from mistboard TypeScript GameEvent logs to python-chess and Observations.
 
 Currently supports standard-start Fog of War games. Chess960 starts (via
 `draft-start-resolved`) and Bid For White games are not yet supported and will

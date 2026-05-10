@@ -1,15 +1,15 @@
 import { timingSafeEqual } from 'node:crypto';
-import { replayGameEvents, type Color, type GameEvent, type GameProjection } from '@bichess/game';
+import { replayGameEvents, type Color, type GameEvent, type GameProjection } from '@mistboard/game';
 
 export type GameAccessMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 
 type RuntimeEnvKey =
-  | 'BICHESS_ADMIN_DEBUG_TOKEN'
-  | 'BICHESS_ALLOW_IN_MEMORY_PERSISTENCE'
-  | 'BICHESS_ALLOWED_ORIGINS'
-  | 'BICHESS_ABORT_POLICY_SWEEP_MS'
-  | 'BICHESS_GUEST_PRESTART_ABORT_MS'
-  | 'BICHESS_REQUIRE_DATABASE'
+  | 'MISTBOARD_ADMIN_DEBUG_TOKEN'
+  | 'MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE'
+  | 'MISTBOARD_ALLOWED_ORIGINS'
+  | 'MISTBOARD_ABORT_POLICY_SWEEP_MS'
+  | 'MISTBOARD_GUEST_PRESTART_ABORT_MS'
+  | 'MISTBOARD_REQUIRE_DATABASE'
   | 'NODE_ENV'
   | 'RAILWAY_ENVIRONMENT'
   | 'RAILWAY_ENVIRONMENT_NAME'
@@ -104,11 +104,11 @@ function redactLivePveEvents(events: GameEvent[], projection: GameProjection): G
 }
 
 export function adminDebugTokenFromProtocolHeader(value: string | string[] | undefined): string | undefined {
-  return tokenFromProtocolHeader(value, 'bichess-admin-debug.');
+  return tokenFromProtocolHeader(value, 'mistboard-admin-debug.');
 }
 
 export function seatTokenFromProtocolHeader(value: string | string[] | undefined): string | undefined {
-  return tokenFromProtocolHeader(value, 'bichess-seat.');
+  return tokenFromProtocolHeader(value, 'mistboard-seat.');
 }
 
 function tokenFromProtocolHeader(value: string | string[] | undefined, prefix: string): string | undefined {
@@ -121,7 +121,7 @@ function tokenFromProtocolHeader(value: string | string[] | undefined, prefix: s
 }
 
 export function isAdminDebugToken(candidate: string | undefined, env: RuntimeEnv = process.env): boolean {
-  const expected = env.BICHESS_ADMIN_DEBUG_TOKEN;
+  const expected = env.MISTBOARD_ADMIN_DEBUG_TOKEN;
   if (!expected || !candidate) return false;
   const left = Buffer.from(candidate);
   const right = Buffer.from(expected);
@@ -129,8 +129,8 @@ export function isAdminDebugToken(candidate: string | undefined, env: RuntimeEnv
 }
 
 export function isDatabaseRequired(env: RuntimeEnv = process.env): boolean {
-  if (parseBooleanEnv(env.BICHESS_ALLOW_IN_MEMORY_PERSISTENCE)) return false;
-  if (parseBooleanEnv(env.BICHESS_REQUIRE_DATABASE)) return true;
+  if (parseBooleanEnv(env.MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE)) return false;
+  if (parseBooleanEnv(env.MISTBOARD_REQUIRE_DATABASE)) return true;
   return isProductionLikeRuntime(env);
 }
 
@@ -152,7 +152,7 @@ export function isAllowedWebSocketOrigin(
 }
 
 export function allowedWebSocketOrigins(host: string | undefined, env: RuntimeEnv = process.env): Set<string> {
-  const configured = parseCsvEnv(env.BICHESS_ALLOWED_ORIGINS);
+  const configured = parseCsvEnv(env.MISTBOARD_ALLOWED_ORIGINS);
   if (configured.length > 0) return new Set(configured);
   return host ? new Set([`https://${host}`]) : new Set();
 }

@@ -1,6 +1,6 @@
 # Replay And Review Product Model
 
-Replay is a core Bichess product surface. In Fog of War, a normal move list is
+Replay is a core Mistboard product surface. In Fog of War, a normal move list is
 not enough: players need to understand what each side could see, what was hidden,
 and what became clear only after the game ended.
 
@@ -130,7 +130,7 @@ Not required for private alpha:
 
 ## Later Review And Analysis Layers
 
-After private-alpha play and review are stable, Bichess can add Fog-specific
+After private-alpha play and review are stable, Mistboard can add Fog-specific
 understanding tools.
 
 Candidate layers:

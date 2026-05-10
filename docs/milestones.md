@@ -245,7 +245,7 @@ Checkpoint: complete a Fog game without hidden-state leaks in network payloads.
 
 ## Note On Draft960 Framing (2026-05-05)
 
-Milestones 1, 1.5, and 2 below describe Draft960 work that originally shipped as a peer mode alongside Fog of War. As of 2026-05-05 Bichess is sharpened to **Fog of War only** as the product, with Draft960 reframed as a Fog of War **pregame feature** (optional start-position draft inside a FOW game). The historical Draft960 work below is preserved as completed scaffolding — it built the shared play surface and pregame state machine that Fog of War depends on. New Draft960 work happens as part of Fog of War milestones, not as standalone Draft960 polish.
+Milestones 1, 1.5, and 2 below describe Draft960 work that originally shipped as a peer mode alongside Fog of War. As of 2026-05-05 Mistboard is sharpened to **Fog of War only** as the product, with Draft960 reframed as a Fog of War **pregame feature** (optional start-position draft inside a FOW game). The historical Draft960 work below is preserved as completed scaffolding — it built the shared play surface and pregame state machine that Fog of War depends on. New Draft960 work happens as part of Fog of War milestones, not as standalone Draft960 polish.
 
 ## Milestone 5: Bid For White Experimental
 

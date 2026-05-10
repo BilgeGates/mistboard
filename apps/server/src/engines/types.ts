@@ -1,4 +1,4 @@
-import type { Color, GameEvent, GameState, Move } from '@bichess/game';
+import type { Color, GameEvent, GameState, Move } from '@mistboard/game';
 
 export type EngineKind = 'builtin' | 'typescript-bundle' | 'wasm' | 'container';
 

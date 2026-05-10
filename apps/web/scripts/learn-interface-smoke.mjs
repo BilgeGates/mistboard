@@ -5,7 +5,7 @@ import { chromium } from '@playwright/test';
 
 const scriptPath = fileURLToPath(import.meta.url);
 const webRoot = new URL('..', import.meta.url);
-const port = Number(process.env.BICHESS_LEARN_TEST_PORT ?? 3127);
+const port = Number(process.env.MISTBOARD_LEARN_TEST_PORT ?? 3127);
 const baseUrl = `http://127.0.0.1:${port}`;
 
 const server = spawn(
@@ -47,7 +47,7 @@ async function smokeLearnInterface() {
     await page.waitForSelector('.learn-tutorial-shell');
 
     await assertVisible(page, '.site-nav-brand img.site-nav-logo[src="/logo.svg"]');
-    assert.equal(await page.locator('.site-nav-brand span').textContent(), 'BICHESS');
+    assert.equal(await page.locator('.site-nav-brand span').textContent(), 'MISTBOARD');
     assert.equal(await page.locator('.site-nav-link.active[aria-current="page"]').textContent(), 'Learn');
 
     assert.equal(await page.locator('.learn-progress').textContent(), 'The Rook 1 of 6');

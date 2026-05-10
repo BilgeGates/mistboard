@@ -213,17 +213,18 @@ if (!TEST_DATABASE_URL) {
       claimTtlMs: 60_000,
     });
     assert.equal(task?.id, 'task-heartbeat');
-    const originalClaimExpiresAt = task.claimExpiresAt?.getTime() ?? 0;
 
-    await getPool().query(
+    const { rows } = await getPool().query<{ claim_expires_at: Date }>(
       `UPDATE engine_game_tasks
        SET heartbeat_at = now() - interval '30 seconds',
            claim_expires_at = now() + interval '30 seconds'
-       WHERE id = $1`,
+       WHERE id = $1
+       RETURNING claim_expires_at`,
       [task.id],
     );
+    const preHeartbeatClaimExpiresAt = rows[0]?.claim_expires_at.getTime() ?? 0;
     const heartbeat = await heartbeatEngineGameTask(getPool(), task.id, 'heartbeat-token');
-    assert.ok((heartbeat.claimExpiresAt?.getTime() ?? 0) > originalClaimExpiresAt);
+    assert.ok((heartbeat.claimExpiresAt?.getTime() ?? 0) > preHeartbeatClaimExpiresAt);
   });
 
   test('cleanup retries stale claimed tasks that have not started a game', async () => {

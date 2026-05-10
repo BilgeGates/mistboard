@@ -1,7 +1,7 @@
-import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Square } from '@bichess/game';
+import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Square } from '@mistboard/game';
 import type * as cg from 'chessground/types';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from './board-ui.js';
-import { mountReplay, type GameMeta } from './replay.js';
+import { mountReplay, type EngineReviewPanels, type GameMeta } from './replay.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -50,6 +50,33 @@ type AuthUser = {
   accountRole: 'player' | 'test' | 'admin';
 };
 
+type GameReviewPayload = {
+  game: FeaturedGame;
+  events: GameEvent[];
+  capabilities: {
+    canViewEngineArtifacts: boolean;
+    canAnnotate: boolean;
+    canManageEngineArtifacts: boolean;
+  };
+  panels: {
+    belief: {
+      available: boolean;
+      defaultOpen: boolean;
+      seats: Array<'white' | 'black'>;
+      snapshotKinds: string[];
+    };
+    trace: {
+      available: boolean;
+      defaultOpen: boolean;
+      seats: Array<'white' | 'black'>;
+    };
+    annotations: {
+      available: boolean;
+      writable: boolean;
+    };
+  };
+};
+
 type UserProfile = {
   isViewer?: boolean;
   user: {
@@ -64,7 +91,7 @@ type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
 type LandingPlayChoice = {
   engineId?: string;
   engines?: PlayableEngine[];
-  mode: 'pvp' | 'pve';
+  mode: 'lobby' | 'pvp' | 'pve';
   title: string;
 };
 type LandingStartFormat = 'standard' | 'draft960';
@@ -82,8 +109,14 @@ type LandingRoomSetup = {
     incrementMs: number;
   };
 };
+type LobbyTicketResponse = {
+  pollAfterMs?: number;
+  status?: 'waiting' | 'matched';
+  ticketId?: string;
+  url?: string;
+};
 
-const GITHUB_URL = 'https://github.com/brianhliou/bichess';
+const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 const LANDING_TIME_PRESETS: LandingTimePreset[] = [
   { id: '1m1', label: '1 + 1', initialMs: 60_000, incrementMs: 1_000 },
@@ -170,6 +203,18 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   renderRecentGames(watch.listRoot, games, source, currentSample, '/game/');
 }
 
+export async function mountPlay(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'play-route');
+  root.append(buildNav(), buildLoadingState('Loading play'), buildFooter());
+
+  const engines = await fetchPlayableEngines().catch((err) => {
+    console.warn(err);
+    return fallbackPlayableEngines();
+  });
+  root.replaceChildren(buildNav(), buildPlayPage(engines), buildFooter());
+}
+
 export async function mountGame(root: HTMLElement, roomId: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'game-route');
@@ -201,6 +246,7 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
     metadataByRoomId: {
       [game.roomId]: gameMetaForGame(game),
     },
+    enginePanels: loaded.review ? enginePanelsForReview(loaded.review) : undefined,
   });
 }
 
@@ -256,7 +302,13 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   shell.append(buildProfileHeader(profile), buildProfileGames(profile.games));
 }
 
-async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; events?: GameEvent[] } | null> {
+async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; events?: GameEvent[]; review?: GameReviewPayload } | null> {
+  const review = await fetchGameReview(roomId).catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  if (review) return { game: review.game, events: review.events, review };
+
   const game = await fetchGameSummary(roomId).catch((err) => {
     console.warn(err);
     return null;
@@ -271,6 +323,20 @@ async function loadGameForReview(roomId: string): Promise<{ game: FeaturedGame; 
 
   const fallback = gameSummaryFromEvents(roomId, events);
   return fallback ? { game: fallback, events } : null;
+}
+
+async function fetchGameReview(roomId: string): Promise<GameReviewPayload | null> {
+  const resp = await fetch(`/api/games/${encodeURIComponent(roomId)}/review`);
+  if (resp.status === 404) return null;
+  if (!resp.ok) throw new Error(`failed to load review for ${roomId}: ${resp.status}`);
+  return await resp.json() as GameReviewPayload;
+}
+
+function enginePanelsForReview(review: GameReviewPayload): EngineReviewPanels {
+  return {
+    belief: review.panels.belief,
+    trace: review.panels.trace,
+  };
 }
 
 async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
@@ -519,7 +585,7 @@ function buildGameHeader(game: FeaturedGame): HTMLElement {
   const copy = document.createElement('button');
   copy.type = 'button';
   copy.className = 'game-copy-link';
-  copy.textContent = 'Copy link';
+  copy.textContent = 'Copy review link';
   copy.addEventListener('click', () => copyGameLink(copy));
   actions.append(copy);
 
@@ -941,7 +1007,7 @@ async function copyGameLink(button: HTMLButtonElement): Promise<void> {
     button.textContent = 'Copy failed';
   }
   window.setTimeout(() => {
-    button.textContent = 'Copy link';
+    button.textContent = 'Copy review link';
   }, 1600);
 }
 
@@ -998,13 +1064,14 @@ function buildNav(): HTMLElement {
   brandLogo.height = 28;
 
   const brandText = document.createElement('span');
-  brandText.textContent = 'BICHESS';
+  brandText.textContent = 'MISTBOARD';
   brand.append(brandLogo, brandText);
 
   const links = document.createElement('div');
   links.className = 'site-nav-links';
 
   const aboutLink = navLink('About', '/about');
+  const playLink = navLink('Play', '/play');
   const watchLink = navLink('Watch', '/watch');
   const learnLink = navLink('Learn', '/learn');
   const accountLink = navLink('Account', '/account');
@@ -1018,10 +1085,10 @@ function buildNav(): HTMLElement {
   ghLink.className = 'site-nav-link';
 
   if (SHOW_ENGINE_LAB_LINKS) {
-    const labLink = navLink('Engine Lab', '/engine-lab');
+    const labLink = navLink('Lab', '/lab');
     links.append(labLink);
   }
-  links.append(watchLink, learnLink, aboutLink, accountLink, sourceLink, ghLink);
+  links.append(playLink, watchLink, learnLink, aboutLink, accountLink, sourceLink, ghLink);
   nav.append(brand, links);
   return nav;
 }
@@ -1083,14 +1150,14 @@ function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
 
   const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
   const defaultEngineId = availableEngines[0]?.id;
-  const lobbyButton = landingPlayAction('Create lobby game', 'lobby');
+  const lobbyButton = landingPlayAction('Find opponent', 'lobby');
   const challengeButton = landingPlayAction('Challenge a friend', 'friend');
   const engineButton = landingPlayAction('Play against computer', 'computer');
 
   lobbyButton.addEventListener('click', () => {
     openLandingSetupDialog({
-      mode: 'pvp',
-      title: 'Create lobby game',
+      mode: 'lobby',
+      title: 'Find opponent',
     });
   });
   challengeButton.addEventListener('click', () => {
@@ -1110,6 +1177,44 @@ function buildLandingPlayPanel(engines: PlayableEngine[]): HTMLElement {
 
   panel.append(lobbyButton, challengeButton, engineButton);
   return panel;
+}
+
+function buildPlayPage(engines: PlayableEngine[]): HTMLElement {
+  const shell = document.createElement('main');
+  shell.className = 'play-shell';
+
+  const intro = document.createElement('section');
+  intro.className = 'play-intro';
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'play-eyebrow';
+  eyebrow.textContent = 'Fog of War';
+  const title = document.createElement('h1');
+  title.textContent = 'Play hidden-information chess';
+  const body = document.createElement('p');
+  body.textContent = 'Start with a friend link or a computer game. Full truth is revealed after the game for review and sharing.';
+  intro.append(eyebrow, title, body);
+
+  const panel = buildLandingPlayPanel(engines);
+  panel.classList.add('play-primary-panel');
+
+  const secondary = document.createElement('section');
+  secondary.className = 'play-secondary';
+  secondary.append(
+    playSecondaryLink('Watch games', '/watch'),
+    playSecondaryLink('Learn basics', '/learn'),
+    playSecondaryLink('Read rules', '/about'),
+  );
+
+  shell.append(intro, panel, secondary);
+  return shell;
+}
+
+function playSecondaryLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.className = 'play-secondary-link';
+  link.href = href;
+  link.textContent = label;
+  return link;
 }
 
 function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby'): HTMLButtonElement {
@@ -1253,12 +1358,22 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const actions = document.createElement('div');
   actions.className = 'landing-setup-actions';
 
+  const status = document.createElement('p');
+  status.className = 'landing-setup-status';
+  status.setAttribute('aria-live', 'polite');
+
+  let cancelLobbyWait: (() => void) | null = null;
   const startButton = document.createElement('button');
   startButton.type = 'button';
   startButton.className = 'landing-setup-start';
-  startButton.textContent = 'Start';
+  startButton.textContent = choice.mode === 'lobby' ? 'Find opponent' : choice.mode === 'pvp' ? 'Create room' : 'Start game';
   startButton.addEventListener('click', () => {
     const setup = selectedRoomSetup(startFormat, selectedPreset, minutesInput.input, incrementInput.input);
+    if (choice.mode === 'lobby') {
+      cancelLobbyWait?.();
+      cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status);
+      return;
+    }
     void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup);
   });
 
@@ -1268,6 +1383,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   backButton.textContent = 'Cancel';
 
   const close = () => {
+    cancelLobbyWait?.();
     document.removeEventListener('keydown', onKeyDown);
     overlay.remove();
   };
@@ -1284,7 +1400,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   actions.append(startButton, backButton);
   dialog.append(header, variantSection);
   if (engineSection) dialog.append(engineSection);
-  dialog.append(startSection, timeSection, actions);
+  dialog.append(startSection, timeSection, status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
   standardButton.focus();
@@ -1513,7 +1629,7 @@ function buildAbout(): HTMLElement {
 
   const p2 = document.createElement('p');
   p2.textContent =
-    'Bichess enforces hidden information at the server. Your opponent’s pieces and moves never reach your browser until your pieces can see them. Most fog implementations send the full board and rely on the UI to hide it — anyone inspecting network traffic can recover hidden information. Bichess doesn’t.';
+    'Mistboard enforces hidden information at the server. Your opponent’s pieces and moves never reach your browser until your pieces can see them. Most fog implementations send the full board and rely on the UI to hide it — anyone inspecting network traffic can recover hidden information. Mistboard doesn’t.';
 
   const p3 = document.createElement('p');
   p3.textContent =
@@ -1533,7 +1649,7 @@ function buildSource(): HTMLElement {
 
   const intro = document.createElement('p');
   intro.textContent =
-    'Bichess is an independent open-source Fog of War chess project. The source code is published under GPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.';
+    'Mistboard is an independent open-source Fog of War chess project. The source code is published under GPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.';
 
   const source = sourceBlock('Project source', [
     linkLine('GitHub repository', GITHUB_URL),
@@ -1548,8 +1664,8 @@ function buildSource(): HTMLElement {
   ]);
 
   const identity = sourceBlock('Project identity', [
-    textLine('The Bichess name, logo, bichess.org domain, hosted service identity, and official events are controlled project assets.'),
-    textLine('Forks are allowed under the GPL, but should use a distinct name and avoid implying they are the official Bichess service.'),
+    textLine('The Mistboard name, logo, mistboard.com domain, hosted service identity, and official events are controlled project assets.'),
+    textLine('Forks are allowed under the GPL, but should use a distinct name and avoid implying they are the official Mistboard service.'),
     textLine('The repository may keep its current working name during development. A broader public or commercial launch should use a distinct public brand.'),
   ]);
 
@@ -1627,6 +1743,84 @@ async function createRoomFromPlay(
       setButtonLabel(button, originalText);
     }, 1800);
   }
+}
+
+function joinLobbyFromPlay(
+  button: HTMLButtonElement,
+  setup: LandingRoomSetup,
+  status: HTMLElement,
+): () => void {
+  const controller = new AbortController();
+  const originalText = button.textContent ?? '';
+  let active = true;
+  let ticketId: string | null = null;
+  let pollTimer: number | null = null;
+
+  const cancel = () => {
+    active = false;
+    controller.abort();
+    if (pollTimer !== null) window.clearTimeout(pollTimer);
+    if (ticketId) {
+      void fetch(`/api/lobby/${encodeURIComponent(ticketId)}`, { method: 'DELETE' }).catch(() => {});
+    }
+  };
+
+  const redirectIfMatched = (ticket: LobbyTicketResponse): boolean => {
+    if (ticket.status !== 'matched' || !ticket.url) return false;
+    window.location.href = ticket.url;
+    return true;
+  };
+
+  const handleLobbyError = (err: unknown) => {
+    if (!active) return;
+    console.warn(err);
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    setButtonLabel(button, 'Try again');
+    status.textContent = 'Could not join the lobby. Try again.';
+    window.setTimeout(() => {
+      if (button.disabled) return;
+      setButtonLabel(button, originalText);
+    }, 1800);
+  };
+
+  const poll = async () => {
+    if (!active || !ticketId) return;
+    const response = await fetch(`/api/lobby/${encodeURIComponent(ticketId)}`, { signal: controller.signal });
+    if (!response.ok) throw new Error(`lobby poll failed: ${response.status}`);
+    const ticket = await response.json() as LobbyTicketResponse;
+    if (!active || redirectIfMatched(ticket)) return;
+    pollTimer = window.setTimeout(() => {
+      void poll().catch(handleLobbyError);
+    }, ticket.pollAfterMs ?? 1_000);
+  };
+
+  const start = async () => {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    setButtonLabel(button, 'Waiting');
+    status.textContent = 'Waiting for a matching opponent. Keep this tab open.';
+    const response = await fetch('/api/lobby', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        hiddenDraft960: setup.startFormat === 'draft960',
+        timeControl: setup.timeControl,
+      }),
+    });
+    if (!response.ok) throw new Error(`lobby join failed: ${response.status}`);
+    const ticket = await response.json() as LobbyTicketResponse;
+    if (!active || redirectIfMatched(ticket)) return;
+    if (!ticket.ticketId) throw new Error('lobby did not return a ticket');
+    ticketId = ticket.ticketId;
+    pollTimer = window.setTimeout(() => {
+      void poll().catch(handleLobbyError);
+    }, ticket.pollAfterMs ?? 1_000);
+  };
+
+  void start().catch(handleLobbyError);
+  return cancel;
 }
 
 function setButtonLabel(button: HTMLButtonElement, text: string): void {
@@ -1726,7 +1920,7 @@ function buildFooter(): HTMLElement {
 
   const left = document.createElement('div');
   left.className = 'site-footer-left';
-  left.textContent = '© 2026 Bichess';
+  left.textContent = '© 2026 Mistboard';
 
   const right = document.createElement('div');
   right.className = 'site-footer-right';

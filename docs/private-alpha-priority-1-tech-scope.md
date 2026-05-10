@@ -135,6 +135,6 @@ rediscovering already-understood rules bugs.
 
 ### Verification
 
-- `npm test --workspace @bichess/game`
-- `npm run test --workspace @bichess/server` when payload behavior is touched
+- `npm test --workspace @mistboard/game`
+- `npm run test --workspace @mistboard/server` when payload behavior is touched
 - Manual QA finds no unresolved rules mismatch in the private-alpha smoke path

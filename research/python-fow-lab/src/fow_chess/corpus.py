@@ -1,4 +1,4 @@
-"""Load bichess corpus directories produced by `scripts/generate-fow-corpus.mjs`."""
+"""Load mistboard corpus directories produced by `scripts/generate-fow-corpus.mjs`."""
 
 from __future__ import annotations
 

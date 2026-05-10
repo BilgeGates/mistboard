@@ -94,7 +94,7 @@ export async function mountBakeoff(
 
   const titleWrap = document.createElement('div');
   const title = document.createElement('h1');
-  title.textContent = 'Engine Lab';
+  title.textContent = 'Lab';
   const subtitle = document.createElement('p');
   subtitle.textContent = 'Review engine games and annotate what to fix next.';
   titleWrap.append(title, subtitle);

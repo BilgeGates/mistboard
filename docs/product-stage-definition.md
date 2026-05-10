@@ -1,6 +1,6 @@
 # Product Stage Definition
 
-This document defines Bichess product stages by user-visible capability and
+This document defines Mistboard product stages by user-visible capability and
 decision leverage. It exists to prevent every general chess-platform gap from
 becoming equally urgent.
 
@@ -15,7 +15,7 @@ Current posture: public watch/replay surface with live-play foundations.
 
 User-visible promise:
 
-- visitors can understand that Bichess is Fog of War chess
+- visitors can understand that Mistboard is Fog of War chess
 - visitors can watch or open public finished games
 - visitors can see perspective replay and truth reveal
 - testers can find the Play surface, but live play is still hardening
@@ -39,7 +39,7 @@ Not required:
 
 Exit criteria:
 
-- public pages explain Fog of War and Bichess's server-enforced hidden-information posture
+- public pages explain Fog of War and Mistboard's server-enforced hidden-information posture
 - public replays work reliably for finished games
 - Play entry points are not misleading about alpha readiness
 
@@ -115,7 +115,7 @@ User-visible promise:
 
 - engine authors and researchers can understand, reproduce, and compare Fog
   engine work
-- Bichess publishes benchmark games and methods with enough metadata to audit
+- Mistboard publishes benchmark games and methods with enough metadata to audit
 - engine-vs-engine work is visible as a product surface, not only backend jobs
 
 Required surfaces:
@@ -146,7 +146,7 @@ Exit criteria:
 
 User-visible promise:
 
-- Bichess supports repeated use, identity, contribution, and public artifacts
+- Mistboard supports repeated use, identity, contribution, and public artifacts
   beyond one-off private-alpha links
 
 Candidate surfaces:
@@ -189,6 +189,6 @@ When planning beyond current builder work, answer these in order:
 
 - Do not let general chess-platform parity imply broad platform parity.
 - Do not add public social/rating/matchmaking obligations before live Fog play is stable.
-- Do not treat engine research as private-only infrastructure; it is a core Bichess differentiator.
+- Do not treat engine research as private-only infrastructure; it is a core Mistboard differentiator.
 - Do not publish benchmark claims without enough metadata to evaluate them.
 - Do not compromise hidden-information correctness for UX convenience.

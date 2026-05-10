@@ -4,7 +4,7 @@ This document defines a staged path from engine events to human PvP
 tournaments. It is a product and architecture planning note, not a commitment to
 build PvP tournaments during v1.
 
-Bichess should not copy mature chess-platform tournament scope all at once.
+Mistboard should not copy mature chess-platform tournament scope all at once.
 Tournaments touch identity, persistence, pairings, standings, spectator policy,
 forfeits, moderation, abuse controls, and public event expectations. The safe
 path is to prove the tournament substrate with engines first, then graduate it
@@ -39,7 +39,7 @@ Useful reference areas:
 - Event page shape, standings, pairings, podium/header, and finished-event views.
 - Tournament context inside a live game.
 
-Bichess should borrow concepts selectively:
+Mistboard should borrow concepts selectively:
 
 - event status: created, started, finished
 - participant rows
@@ -48,7 +48,7 @@ Bichess should borrow concepts selectively:
 - round metadata for Swiss/round-robin formats
 - color history and repeat-pairing avoidance where relevant
 
-Bichess should defer mature platform surfaces:
+Mistboard should defer mature platform surfaces:
 
 - public tournament lobby
 - open registration at scale

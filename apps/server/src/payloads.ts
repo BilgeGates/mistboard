@@ -6,7 +6,7 @@ import {
   type GameProjection,
   type PlayerView,
   type Square,
-} from '@bichess/game';
+} from '@mistboard/game';
 import {
   modeForProjection,
   publicLivePerspective,

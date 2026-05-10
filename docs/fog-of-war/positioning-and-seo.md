@@ -6,7 +6,7 @@ Internal publishing and distribution plans belong outside the public repository.
 
 ## Project Description
 
-Bichess is:
+Mistboard is:
 
 - a Fog of War chess site
 - server-authoritative about hidden information
@@ -14,9 +14,9 @@ Bichess is:
 - independent from lichess, chess.com, and other platforms
 - focused on play, replay, reveal, and Fog-specific correctness
 
-Before any broader public launch, commercial launch, paid event, or major
-user-acquisition effort, the hosted service should use a distinct public brand
-that avoids confusing similarity with other chess services.
+Mistboard is the durable public brand for the hosted service and repository.
+Public copy should emphasize Fog of War correctness, play, replay, reveal, and
+learning rather than similarity to other chess services.
 
 ## Useful Public Topics
 
@@ -31,7 +31,7 @@ Good public docs include:
 
 ## Quality Bar
 
-Public content should be useful even if the reader never becomes a Bichess user.
+Public content should be useful even if the reader never becomes a Mistboard user.
 
 Avoid:
 

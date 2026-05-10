@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { GameState } from '@bichess/game';
+import type { GameState } from '@mistboard/game';
 import { engineThinkTimeMs } from './engines/think-time.js';
 import type { EngineMoveContext } from './engines/types.js';
 

@@ -1,6 +1,6 @@
 type BoardTheme = 'standard' | 'contrast' | 'colorblind';
 
-const storageKey = 'bichess.boardTheme';
+const storageKey = 'mistboard.boardTheme';
 const defaultTheme: BoardTheme = 'standard';
 const themes: Array<{ id: BoardTheme; label: string }> = [
   { id: 'standard', label: 'Standard' },

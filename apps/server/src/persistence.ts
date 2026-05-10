@@ -1,5 +1,5 @@
 import pg from 'pg';
-import type { Color, GameEvent } from '@bichess/game';
+import type { Color, GameEvent } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
 
 let pool: pg.Pool | null = null;
@@ -89,6 +89,15 @@ export type RecentEveGameRecord = GameRecord & {
   whiteEngineId: string | null;
   blackEngineId: string | null;
   timeControl: Record<string, unknown> | null;
+};
+
+export type GameDebugArtifactSummary = {
+  artifactType: string;
+  count: number;
+  engineColors: Color[];
+  minPly: number | null;
+  maxPly: number | null;
+  snapshotKinds: string[];
 };
 
 export type CompletedGameFilters = {
@@ -1016,6 +1025,39 @@ export async function getGameSummary(roomId: string): Promise<RecentEveGameRecor
     participants: [],
   }]);
   return record ?? null;
+}
+
+export async function listGameDebugArtifactSummaries(gameId: string): Promise<GameDebugArtifactSummary[]> {
+  const { rows } = await getPool().query<{
+    artifact_type: string;
+    count: string;
+    engine_colors: Color[] | null;
+    min_ply: number | null;
+    max_ply: number | null;
+    snapshot_kinds: string[] | null;
+  }>(
+    `SELECT artifact_type,
+            COUNT(*)::text AS count,
+            ARRAY_REMOVE(ARRAY_AGG(DISTINCT engine_color ORDER BY engine_color), NULL) AS engine_colors,
+            MIN(ply) AS min_ply,
+            MAX(ply) AS max_ply,
+            ARRAY_REMOVE(ARRAY_AGG(DISTINCT payload->>'snapshot_kind' ORDER BY payload->>'snapshot_kind')
+              FILTER (WHERE storage = 'jsonb' AND payload ? 'snapshot_kind'), NULL) AS snapshot_kinds
+     FROM game_debug_artifacts
+     WHERE game_id = $1
+     GROUP BY artifact_type
+     ORDER BY artifact_type`,
+    [gameId],
+  );
+
+  return rows.map((row) => ({
+    artifactType: row.artifact_type,
+    count: Number.parseInt(row.count, 10),
+    engineColors: row.engine_colors ?? [],
+    minPly: row.min_ply,
+    maxPly: row.max_ply,
+    snapshotKinds: row.snapshot_kinds ?? [],
+  }));
 }
 
 export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void> {

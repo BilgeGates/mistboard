@@ -1,6 +1,6 @@
 # Sponsorship
 
-Bichess may accept sponsorships for tournaments, engine events, research artifacts, infrastructure, and community work.
+Mistboard may accept sponsorships for tournaments, engine events, research artifacts, infrastructure, and community work.
 
 Unless explicitly stated otherwise, sponsorships are commercial support, not tax-deductible charitable donations.
 
@@ -51,11 +51,11 @@ Sponsors do not receive:
 
 ## Fiscal Hosting
 
-If Bichess uses Open Collective or another fiscal host, that host is a payment and administration layer for defined funds. It does not own Bichess IP, domains, trademarks, production infrastructure, package names, or product direction.
+If Mistboard uses Open Collective or another fiscal host, that host is a payment and administration layer for defined funds. It does not own Mistboard IP, domains, trademarks, production infrastructure, package names, or product direction.
 
 ## Transparency
 
-For meaningful sponsorships, Bichess should publish:
+For meaningful sponsorships, Mistboard should publish:
 
 - sponsor name
 - sponsored event or work

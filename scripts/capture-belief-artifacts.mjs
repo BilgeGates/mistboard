@@ -13,7 +13,7 @@ if (!manifestUrl) {
   process.exit(2);
 }
 
-const baseUrl = args.baseUrl ?? process.env.BICHESS_WEB_URL ?? 'http://127.0.0.1:3000';
+const baseUrl = args.baseUrl ?? process.env.MISTBOARD_WEB_URL ?? 'http://127.0.0.1:3000';
 const limit = Number(args.limit ?? 12);
 const outputDir = path.resolve(repoRoot, args.out ?? 'docs-private/engine-track/captures');
 const viewport = {

@@ -1,6 +1,6 @@
 # Project Direction
 
-Bichess is an open-source Fog of War chess project.
+Mistboard is an open-source Fog of War chess project.
 
 The project goal is narrow:
 
@@ -11,7 +11,7 @@ boundaries for contributors.
 
 ## Product Focus
 
-Bichess is not a general chess platform.
+Mistboard is not a general chess platform.
 
 The primary work is:
 
@@ -42,16 +42,15 @@ sponsorships. Those remain controlled project assets.
 
 ## Brand And Identity
 
-The current repository name, official domains, logos, and hosted service
+The Mistboard repository name, official domains, logos, and hosted service
 identity are controlled project assets.
 
 Forks are allowed under the GPL, but forks must use distinct branding and must
 not imply that they are the official service.
 
-The repository may keep its current working name during development. For any
-broader public launch, commercial launch, paid event, or major user-acquisition
-effort, the hosted service will use a distinct public brand that avoids
-confusing similarity with other chess services.
+Mistboard is the durable public brand for the hosted service and repository.
+Public copy, package names, docs, and infrastructure should avoid legacy project
+names except where needed for historical records or short-lived redirects.
 
 ## Reference Policy
 

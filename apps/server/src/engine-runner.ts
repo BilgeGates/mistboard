@@ -9,7 +9,7 @@ import {
   type Color,
   type GameEvent,
   type VariantId,
-} from '@bichess/game';
+} from '@mistboard/game';
 import {
   finishEngineGameTask,
   heartbeatEngineGameTask,
@@ -273,6 +273,7 @@ async function createRunningGame(
       task.seed,
     ],
   );
+  await upsertEngineGameParticipants(pool, gameId, whiteEngine, blackEngine);
 
   await pool.query(
     `UPDATE eve_jobs

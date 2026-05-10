@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Random self-play Fog of War games. Emits bichess-shaped event logs as JSONL
+// Random self-play Fog of War games. Emits mistboard-shaped event logs as JSONL
 // plus a manifest with per-game rule-edge coverage flags. Used to feed the
 // python-fow-lab parity test (P1 gate). See docs/fog-of-war/engine-roadmap.md.
 
@@ -8,7 +8,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { fogOfWarVariant } from '@bichess/game';
+import { fogOfWarVariant } from '@mistboard/game';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 

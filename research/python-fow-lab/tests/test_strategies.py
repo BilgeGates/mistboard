@@ -595,7 +595,7 @@ def test_queen_save_prefers_attacker_capture_over_block() -> None:
 
 def test_squares_attacked_by_visible_enemy_basic() -> None:
     # Hand-build a PerspectiveView with an explicit visible_piece_map so we can
-    # exercise the helper without relying on Bichess visibility rules — black
+    # exercise the helper without relying on Mistboard visibility rules — black
     # rook on e4 + white king on e1, pretending both are mutually visible.
     pieces = {
         chess.E4: chess.Piece(chess.ROOK, chess.BLACK),

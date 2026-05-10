@@ -1,6 +1,6 @@
 """Inspect particle-filter belief evolution through a Fog of War game.
 
-Replays the events of one bichess FOW game, runs a parallel `BeliefState` from
+Replays the events of one mistboard FOW game, runs a parallel `BeliefState` from
 the chosen perspective, and emits per-ply diagnostics + a side-by-side HTML
 render of canonical truth vs the perspective's belief.
 

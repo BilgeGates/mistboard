@@ -12,7 +12,7 @@ after changing live-room, replay, reconnect, or visibility code.
 
 ### Setup
 
-- Start from a clean browser profile or clear Bichess local storage.
+- Start from a clean browser profile or clear Mistboard local storage.
 - Use one desktop-width browser window and one mobile-width viewport.
 - Create fresh rooms from the `/play` surface unless a step says otherwise.
 - Keep DevTools Network available for privacy checks, but do not record or share

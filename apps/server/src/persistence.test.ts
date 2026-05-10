@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test, { after, before, beforeEach } from 'node:test';
 import pg from 'pg';
-import type { GameEvent } from '@bichess/game';
+import type { GameEvent } from '@mistboard/game';
 import { runMigrations } from './migrate.js';
 import {
   appendEvent,
@@ -20,6 +20,7 @@ import {
   getUserByAccountSession,
   init,
   isInitialized,
+  listGameDebugArtifactSummaries,
   listActiveRoomIds,
   listCompletedGames,
   listCorpusGames,
@@ -918,7 +919,7 @@ if (!TEST_DATABASE_URL) {
     const shortDecisive = new Date(now.getTime() - 30_000);
     const older = new Date(now.getTime() - 60_000);
     const shortTimeout = new Date(now.getTime() + 60_000);
-    const oneMove = new Date(now.getTime() + 90_000);
+    const oneMove = new Date(now.getTime() + 120_000);
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
@@ -1128,5 +1129,48 @@ if (!TEST_DATABASE_URL) {
     ]);
     assert.equal(await getGameSummary('summary-running'), null);
     assert.equal(await getGameSummary('missing-summary'), null);
+  });
+
+  test('listGameDebugArtifactSummaries groups artifact availability for review panels', async () => {
+    const now = new Date();
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
+         VALUES ('artifact-summary-game', 'fog-of-war', 'white-wins', 'king-captured', 17, $1, $1, 'eve', 'completed')`,
+        [now],
+      );
+      await client.query(
+        `INSERT INTO game_debug_artifacts
+           (game_id, ply, engine_color, artifact_type, storage, payload)
+         VALUES
+           ('artifact-summary-game', 3, 'white', 'belief-snapshot', 'jsonb', '{"snapshot_kind":"decision"}'::jsonb),
+           ('artifact-summary-game', 4, 'white', 'belief-snapshot', 'jsonb', '{"snapshot_kind":"after-own-move"}'::jsonb),
+           ('artifact-summary-game', 5, 'black', 'engine-move-choice', 'jsonb', '{"selected_move":{"from":"e2","to":"e4"}}'::jsonb)`,
+      );
+    } finally {
+      await client.end();
+    }
+
+    assert.deepEqual(await listGameDebugArtifactSummaries('artifact-summary-game'), [
+      {
+        artifactType: 'belief-snapshot',
+        count: 2,
+        engineColors: ['white'],
+        minPly: 3,
+        maxPly: 4,
+        snapshotKinds: ['after-own-move', 'decision'],
+      },
+      {
+        artifactType: 'engine-move-choice',
+        count: 1,
+        engineColors: ['black'],
+        minPly: 5,
+        maxPly: 5,
+        snapshotKinds: [],
+      },
+    ]);
   });
 }

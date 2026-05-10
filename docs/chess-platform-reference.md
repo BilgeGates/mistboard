@@ -1,6 +1,6 @@
 # Chess Platform Reference
 
-This document translates mature online chess platform patterns into Bichess
+This document translates mature online chess platform patterns into Mistboard
 priorities.
 
 It is a public product-reference note, not a private operating plan. Private
@@ -12,8 +12,8 @@ belong outside the public repository.
 Mature chess platforms set useful expectations for speed, clarity, reliability,
 accessibility, replay, analysis, learning, and community safety.
 
-Bichess should learn from common chess product conventions where they help
-people play, finish, review, understand, or advance Fog of War. Bichess should
+Mistboard should learn from common chess product conventions where they help
+people play, finish, review, understand, or advance Fog of War. Mistboard should
 not pursue general chess-platform parity as a goal.
 
 Fog of War changes the product because hidden information must be enforced by
@@ -42,11 +42,11 @@ Large chess platforms often expose:
 - Platform: accounts, profile identity, mobile apps, accessibility, themes,
   translations, public databases, APIs, source code, and funding operations.
 
-These surfaces are not automatically Bichess requirements.
+These surfaces are not automatically Mistboard requirements.
 
 ## Fog Translation
 
-| Platform surface | User job | Bichess Fog equivalent | Priority posture |
+| Platform surface | User job | Mistboard Fog equivalent | Priority posture |
 |---|---|---|---|
 | Play a game | Start and finish a chess game quickly | Link-based Fog of War rooms with server-enforced player views | Private-alpha core |
 | Challenge a friend | Share a game with a known opponent | Friend challenge URL with seat authority and reconnect recovery | Private-alpha core |
@@ -64,16 +64,16 @@ These surfaces are not automatically Bichess requirements.
 | Chat, teams, forums | Community coordination | Not needed for private-alpha Fog validation | Defer |
 | API/database | Build ecosystem tools | Public corpora, engine metadata, benchmark results, reproducible experiments | Research/engine core |
 
-## Bichess Differences
+## Mistboard Differences
 
-Bichess has different technical and research responsibilities from a general
+Mistboard has different technical and research responsibilities from a general
 chess platform.
 
 ### Hidden-Information Correctness
 
 Classical chess can show the same board to everyone. Fog of War cannot.
 
-Bichess must treat hidden information as a server-enforced security and rules
+Mistboard must treat hidden information as a server-enforced security and rules
 boundary:
 
 - server owns canonical truth
@@ -85,7 +85,7 @@ boundary:
 
 ### Perspective Replay
 
-Fog games are hard to understand from a normal move list. Bichess needs review
+Fog games are hard to understand from a normal move list. Mistboard needs review
 surfaces that show:
 
 - what White saw
@@ -98,7 +98,7 @@ This makes replay and review more central than a generic move viewer.
 
 ### Engine Development
 
-Bichess should actively encourage Fog engine development, not treat engines as
+Mistboard should actively encourage Fog engine development, not treat engines as
 only a consumer feature.
 
 Product surfaces should support:
@@ -112,7 +112,7 @@ Product surfaces should support:
 
 ### Academic And Research Use
 
-Fog of War chess is a hidden-information game with research value. Bichess
+Fog of War chess is a hidden-information game with research value. Mistboard
 should make that legible and reproducible:
 
 - public corpora and manifests
@@ -124,7 +124,7 @@ should make that legible and reproducible:
 
 ### Transparency, Isolation, And Fairness
 
-Bichess needs public trust surfaces that explain how games and engine work are
+Mistboard needs public trust surfaces that explain how games and engine work are
 kept fair and verifiable.
 
 For human games:
@@ -199,7 +199,7 @@ private-alpha safety, play, review, and research loops are strong:
 Profiles are useful because they connect identity, history, public activity,
 strength signals, games, annotations, and community trust.
 
-Bichess currently does not need a broad profile surface for anonymous private
+Mistboard currently does not need a broad profile surface for anonymous private
 alpha. The gap matters once signed-in persistence, engine authorship, public
 games, annotations, and research artifacts become more important.
 

@@ -1,5 +1,5 @@
 {
-  "name": "@bichess/web",
+  "name": "@mistboard/web",
   "version": "0.0.0",
   "private": true,
   "license": "GPL-3.0-or-later",
@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@bichess/game": "0.0.0",
+    "@mistboard/game": "0.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "chessground": "^9.2.1",
     "posthog-js": "^1.372.9",

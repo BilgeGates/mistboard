@@ -15,7 +15,7 @@ Design:
 - Per-pair latency-drift watchdog: rolling baseline established after 5
   games, halt the pair if any later game exceeds `latency_drift_factor` ×
   baseline (default 5x). Catches pathological drift, not normal variance.
-- Each game's full bichess GameEvent log is persisted to games/{game_id}.ndjson
+- Each game's full mistboard GameEvent log is persisted to games/{game_id}.ndjson
   in the tournament dir. results.jsonl gets one line per completed game,
   shaped like the production `games` table + tournament metadata.
 

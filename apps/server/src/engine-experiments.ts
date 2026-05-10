@@ -147,7 +147,7 @@ export async function createEngineGameTask(
     `INSERT INTO engine_game_tasks
        (id, job_id, game_index, priority, max_attempts, white_engine_id, black_engine_id,
         seed, time_control, opening_policy, artifact_policy, resource_policy, config, scheduled_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, COALESCE($14, now()))
      RETURNING *`,
     [
       id,
@@ -163,7 +163,7 @@ export async function createEngineGameTask(
       input.artifactPolicy ?? {},
       input.resourcePolicy ?? {},
       input.config ?? {},
-      input.scheduledAt ?? new Date(),
+      input.scheduledAt ?? null,
     ],
   );
   return mapTask(rows[0]!);
@@ -227,7 +227,7 @@ export async function claimNextEngineGameTask(
   input: ClaimNextTaskInput,
 ): Promise<EngineGameTask | null> {
   const claimToken = input.claimToken ?? randomUUID();
-  const claimExpiresAt = new Date(Date.now() + (input.claimTtlMs ?? 5 * 60_000));
+  const claimTtlMs = input.claimTtlMs ?? 5 * 60_000;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -264,7 +264,7 @@ export async function claimNextEngineGameTask(
            provider = $3,
            provider_run_id = $4,
            claim_token = $5,
-           claim_expires_at = $6,
+           claim_expires_at = now() + ($6::double precision * interval '1 millisecond'),
            heartbeat_at = now(),
            attempt_count = task.attempt_count + 1,
            started_at = now(),
@@ -279,7 +279,7 @@ export async function claimNextEngineGameTask(
         input.provider,
         input.providerRunId ?? null,
         claimToken,
-        claimExpiresAt,
+        claimTtlMs,
         input.capabilities ?? {},
       ],
     );

@@ -7,7 +7,7 @@ import {
   replayGameEvents,
   type GameEvent,
   type GameProjection,
-} from '@bichess/game';
+} from '@mistboard/game';
 import { snapshotPayload, type SnapshotClient, type SnapshotRoom } from './payloads.js';
 import { eventReplayResponse } from './server-policy.js';
 

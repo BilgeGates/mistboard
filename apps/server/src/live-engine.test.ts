@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { GameState, Move } from '@bichess/game';
+import type { GameState, Move } from '@mistboard/game';
 import {
   chooseLiveEngineMove,
   pythonLiveWatchdogTimeoutMs,

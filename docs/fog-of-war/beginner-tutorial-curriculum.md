@@ -1,11 +1,11 @@
 # Beginner Tutorial Curriculum
 
-This document sketches the first Fog of War learning path for Bichess. It uses
+This document sketches the first Fog of War learning path for Mistboard. It uses
 proven chess-tutorial mechanics as reference material: short stages, concrete
 board goals, immediate feedback, visible progress, and learning by moving
 pieces.
 
-The content should not be a generic chess course. Bichess should teach the Fog
+The content should not be a generic chess course. Mistboard should teach the Fog
 mental model:
 
 - unknown squares are not empty squares
@@ -31,7 +31,7 @@ Reference tutorial structure:
 - **Sequence.** A chapter can be a single move target, a multi-move target
   chase, or a scripted line with player and opponent moves.
 
-Bichess should use the same product skeleton with Fog semantics:
+Mistboard should use the same product skeleton with Fog semantics:
 
 - **Map.** Beginner Fog path, later practice paths, and replay/review training.
 - **Lesson.** One concept, such as "Your Pieces Create Vision."
@@ -89,7 +89,7 @@ Fog-first category outline:
 - **Fog Pieces.** Rook, bishop, queen, king, knight, pawn. About six movement
   chapters each.
 - **Fog Fundamentals.** Capture, protection, combat, check in one, out of check,
-  mate in one. In Bichess, this is where hidden enemies and direct king capture
+  mate in one. In Mistboard, this is where hidden enemies and direct king capture
   become explicit.
 - **Fog Intermediate.** Board setup, castling, en passant rights, stalemate and
   draw mechanics.
@@ -2230,7 +2230,7 @@ Chapters:
 - **Forward move, diagonal sight.** Show that a pawn moves forward but sees
   capture diagonals.
 - **Empty diagonal stays hidden.** Show that empty diagonal attack squares remain
-  fogged under Bichess's current visibility rule.
+  fogged under Mistboard's current visibility rule.
 - **Double move changes vision.** Move a pawn two squares and observe new
   visible squares.
 - **En passant edge case.** Use the simplest legal en passant scenario and show
@@ -2337,7 +2337,7 @@ Interaction notes:
 
 Core idea: review is how Fog games become understandable.
 
-Why it deserves a full lesson: Bichess depends on perspective replay as a core
+Why it deserves a full lesson: Mistboard depends on perspective replay as a core
 product surface. Teaching it early reduces postgame confusion.
 
 Chapters:

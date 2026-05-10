@@ -1,6 +1,6 @@
 # EvE Roadmap
 
-EvE is the server-side engine-vs-engine lane for mining games, calibrating engine changes, and feeding the Engine Lab review workflow.
+EvE is the server-side engine-vs-engine lane for mining games, calibrating engine changes, and feeding the Lab review workflow.
 
 ## Storage Direction
 
@@ -10,7 +10,7 @@ Use one canonical game store:
 - `games` is the one-row aggregate for PvP, PvE, EvE, imported, and manual games.
 - `games.mode` tells us where a game came from: `pvp`, `pve`, `eve`, `imported`, or `manual`.
 - `games.status` separates `running`, `completed`, and `aborted` games.
-- `games.review_status` lets Engine Lab build an annotation queue without inventing a separate game table.
+- `games.review_status` lets the Lab surface build an annotation queue without inventing a separate game table.
 
 Only add side tables when the shape is genuinely different. EvE has different lifecycle and scheduling data, so it gets side tables:
 
@@ -48,7 +48,7 @@ If the worker aborts for infrastructure reasons, update the row to `status = 'ab
 
 ## Annotations
 
-Engine Lab annotations are first-class state, not a debug artifact. Local development has been accumulating them as `research/python-fow-lab/feedback/annotations.jsonl`; by the time EvE ships in production, that history should be preserved as reviewed training and evaluation data rather than treated as a disposable local file.
+Lab annotations are first-class state, not a debug artifact. Local development has been accumulating them as `research/python-fow-lab/feedback/annotations.jsonl`; by the time EvE ships in production, that history should be preserved as reviewed training and evaluation data rather than treated as a disposable local file.
 
 Migrate as a real table — at minimum:
 
@@ -75,7 +75,7 @@ Pre-deciding this prevents a class of bugs where verbose-belief variants of the 
 
 1. Land the schema foundation.
 2. Land the provider-neutral experiment task schema.
-3. Add read-only Engine Lab queue APIs over `games` filtered by `mode` and `review_status`.
+3. Add read-only Lab queue APIs over `games` filtered by `mode` and `review_status`.
 4. Add a single-game EvE worker that claims one task and records one game end to end.
 5. Add startup cleanup that aborts stale running EvE games owned by the worker.
 6. Add batch `eve_jobs` scheduling and progress accounting.

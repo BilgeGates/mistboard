@@ -1,6 +1,6 @@
 # Security
 
-Bichess handles a hidden-information chess variant. Security includes ordinary web application security and game-integrity security.
+Mistboard handles a hidden-information chess variant. Security includes ordinary web application security and game-integrity security.
 
 ## Report Privately
 
@@ -40,7 +40,7 @@ Truth/debug views are administrative capability, not a client preference. Produc
 
 ## Supported Versions
 
-Bichess is pre-1.0. Security fixes target the current `main` branch and the live `bichess.org` deployment.
+Mistboard is pre-1.0. Security fixes target the current `main` branch and the live `mistboard.com` deployment.
 
 ## Disclosure
 

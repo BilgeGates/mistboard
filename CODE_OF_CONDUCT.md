@@ -1,6 +1,6 @@
 # Code of Conduct
 
-Bichess is a focused technical and chess community. Keep discussion useful, specific, and respectful.
+Mistboard is a focused technical and chess community. Keep discussion useful, specific, and respectful.
 
 ## Expected Behavior
 
@@ -15,7 +15,7 @@ Bichess is a focused technical and chess community. Keep discussion useful, spec
 - harassment or threats
 - personal attacks
 - spam or repeated off-topic promotion
-- cheating assistance against live Bichess games
+- cheating assistance against live Mistboard games
 - publishing security vulnerabilities before a fix is available
 - doxxing or exposing private information
 - impersonating maintainers, sponsors, players, or the official project
@@ -24,4 +24,4 @@ Bichess is a focused technical and chess community. Keep discussion useful, spec
 
 The maintainer may remove comments, close issues, reject contributions, block users, or restrict participation to protect the project.
 
-This project is founder-led. Participation is welcome, but access to project spaces is conditional on behavior that keeps Bichess useful and trustworthy.
+This project is founder-led. Participation is welcome, but access to project spaces is conditional on behavior that keeps Mistboard useful and trustworthy.

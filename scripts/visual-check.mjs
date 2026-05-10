@@ -1,8 +1,8 @@
 import { mkdir } from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 
-const outputDir = '/private/tmp/bichess-visual-check';
-const baseUrl = process.env.BICHESS_WEB_URL ?? 'http://127.0.0.1:3000';
+const outputDir = '/private/tmp/mistboard-visual-check';
+const baseUrl = process.env.MISTBOARD_WEB_URL ?? 'http://127.0.0.1:3000';
 const viewports = [
   { name: 'desktop', width: 1280, height: 900 },
   { name: 'mobile', width: 390, height: 844 },
@@ -13,6 +13,32 @@ await mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const failures = [];
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+const playPage = await browser.newPage({ viewport: viewports[0] });
+await playPage.goto(`${baseUrl}/play`, { waitUntil: 'networkidle' });
+await playPage.waitForSelector('.play-shell');
+const playMetrics = await playPage.evaluate(() => ({
+  activeNav: document.querySelector('.site-nav-link.active')?.textContent ?? '',
+  actions: [...document.querySelectorAll('.landing-play-action')].map((button) => button.textContent?.trim() ?? ''),
+  horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
+  title: document.querySelector('.play-intro h1')?.textContent ?? '',
+}));
+if (playMetrics.title !== 'Play hidden-information chess') {
+  failures.push(`play page: unexpected title ${playMetrics.title}`);
+}
+if (playMetrics.activeNav !== 'Play') {
+  failures.push(`play page: expected active Play nav, found ${playMetrics.activeNav}`);
+}
+if (playMetrics.actions.join('|') !== 'Find opponent|Challenge a friend|Play against computer') {
+  failures.push(`play page: expected lobby, friend, and computer actions, found ${playMetrics.actions.join(', ')}`);
+}
+if (playMetrics.horizontalOverflow > 1) {
+  failures.push(`play page: horizontal overflow is ${playMetrics.horizontalOverflow}px`);
+}
+const playPath = `${outputDir}/play.png`;
+await playPage.screenshot({ path: playPath, fullPage: true });
+console.log(`play page: ${JSON.stringify(playMetrics)} screenshot=${playPath}`);
+await playPage.close();
 
 for (const viewport of viewports) {
   const page = await browser.newPage({ viewport });
@@ -137,12 +163,12 @@ for (const viewport of viewports) {
 const engineRoom = `visual-engine-${Date.now()}`;
 const enginePage = await browser.newPage({ viewport: viewports[0] });
 await enginePage.goto(`${baseUrl}/room/${encodeURIComponent(engineRoom)}?reset=1&variant=fog-of-war&dev=engine`, { waitUntil: 'networkidle' });
-await enginePage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
+await enginePage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'white');
 await enginePage.waitForSelector('[data-dev-views-section]:not([hidden])');
 await enginePage.waitForSelector('.dev-board');
 await movePiece(enginePage, 'e2', 'e4');
 await enginePage.waitForFunction(() => {
-  const debug = window.__BICHESS_DEBUG__?.();
+  const debug = window.__MISTBOARD_DEBUG__?.();
   return debug?.currentView?.status.type === 'playing'
     && debug.currentView.status.turn === 'white'
     && debug.devViews?.truth.board.e4?.color === 'white';
@@ -150,7 +176,7 @@ await enginePage.waitForFunction(() => {
 await enginePage.waitForTimeout(250);
 
 const engineMetrics = await enginePage.evaluate(() => {
-  const debug = window.__BICHESS_DEBUG__?.();
+  const debug = window.__MISTBOARD_DEBUG__?.();
   if (!debug?.devViews) throw new Error('missing engine dev views');
   return {
     devBoards: document.querySelectorAll('.dev-board').length,
@@ -203,36 +229,36 @@ const whiteVisionPage = await browser.newPage({ viewport: viewports[0] });
 const blackVisionPage = await browser.newPage({ viewport: viewports[0] });
 await whiteVisionPage.goto(`${baseUrl}/room/${encodeURIComponent(fogVisionRoom)}?reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
 await blackVisionPage.goto(`${baseUrl}/room/${encodeURIComponent(fogVisionRoom)}?variant=fog-of-war`, { waitUntil: 'networkidle' });
-await whiteVisionPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
-await blackVisionPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'black');
+await whiteVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'white');
+await blackVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'black');
 await whiteVisionPage.waitForSelector('.board.cg-wrap');
 await blackVisionPage.waitForSelector('.board.cg-wrap');
 
 await movePiece(whiteVisionPage, 'e2', 'e4');
-await whiteVisionPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__BICHESS_DEBUG__?.().currentView?.status.turn === 'black');
+await whiteVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
+  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
 await movePiece(blackVisionPage, 'a7', 'a6');
-await blackVisionPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__BICHESS_DEBUG__?.().currentView?.status.turn === 'white');
+await blackVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
+  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white');
 await movePiece(whiteVisionPage, 'e4', 'e5');
-await whiteVisionPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__BICHESS_DEBUG__?.().currentView?.status.turn === 'black');
+await whiteVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
+  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
 await movePiece(blackVisionPage, 'd7', 'd5');
 await whiteVisionPage.waitForFunction(() => {
-  const view = window.__BICHESS_DEBUG__?.().currentView;
+  const view = window.__MISTBOARD_DEBUG__?.().currentView;
   return view?.status.type === 'playing' && view.status.turn === 'white' && view.board.d5?.role === 'pawn';
 });
 
 const fogVisionMetrics = await whiteVisionPage.evaluate(() => {
-  const view = window.__BICHESS_DEBUG__?.().currentView;
+  const view = window.__MISTBOARD_DEBUG__?.().currentView;
   if (!view) throw new Error('missing Fog vision view');
   return {
     d5Piece: view.board.d5,
     d5Visible: view.visibleSquares.includes('d5'),
     d6Visible: view.visibleSquares.includes('d6'),
     fogHiddenCount: document.querySelectorAll('square.fog-hidden').length,
-    visibleMoveEvents: window.__BICHESS_DEBUG__?.().events.filter((event) => event.type === 'move-played').length ?? 0,
-    visibleOpponentMoveEvents: window.__BICHESS_DEBUG__?.().events.filter((event) => event.type === 'move-played' && event.color === 'black').length ?? 0,
+    visibleMoveEvents: window.__MISTBOARD_DEBUG__?.().events.filter((event) => event.type === 'move-played').length ?? 0,
+    visibleOpponentMoveEvents: window.__MISTBOARD_DEBUG__?.().events.filter((event) => event.type === 'move-played' && event.color === 'black').length ?? 0,
     pieceCount: document.querySelectorAll('piece:not(.fading)').length,
   };
 });
@@ -259,26 +285,26 @@ const whitePage = await browser.newPage({ viewport: viewports[0] });
 const blackPage = await browser.newPage({ viewport: viewports[0] });
 await whitePage.goto(`${baseUrl}/room/${encodeURIComponent(fogFlowRoom)}?reset=1&variant=fog-of-war&views=all`, { waitUntil: 'networkidle' });
 await blackPage.goto(`${baseUrl}/room/${encodeURIComponent(fogFlowRoom)}?variant=fog-of-war`, { waitUntil: 'networkidle' });
-await whitePage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
-await blackPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'black');
+await whitePage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'white');
+await blackPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'black');
 await whitePage.waitForSelector('.board.cg-wrap');
 await blackPage.waitForSelector('.board.cg-wrap');
 
 await movePiece(whitePage, 'e2', 'e4');
-await whitePage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__BICHESS_DEBUG__?.().currentView?.status.turn === 'black');
+await whitePage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
+  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
 await movePiece(blackPage, 'f7', 'f6');
-await blackPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__BICHESS_DEBUG__?.().currentView?.status.turn === 'white');
+await blackPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
+  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white');
 await movePiece(whitePage, 'd1', 'h5');
-await whitePage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__BICHESS_DEBUG__?.().currentView?.status.turn === 'black');
+await whitePage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
+  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
 await movePiece(blackPage, 'e8', 'f7');
-await blackPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__BICHESS_DEBUG__?.().currentView?.status.turn === 'white');
+await blackPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
+  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white');
 await movePiece(whitePage, 'h5', 'f7');
 await whitePage.waitForFunction(() => {
-  const debug = window.__BICHESS_DEBUG__?.();
+  const debug = window.__MISTBOARD_DEBUG__?.();
   return debug?.currentView?.status.type === 'finished'
     && debug.events.filter((event) => event.type === 'move-played').length === 5
     && debug.devViews?.player.visibleSquares.length === 64
@@ -287,7 +313,7 @@ await whitePage.waitForFunction(() => {
 });
 
 const fogTerminalMetrics = await whitePage.evaluate(() => {
-  const debug = window.__BICHESS_DEBUG__?.();
+  const debug = window.__MISTBOARD_DEBUG__?.();
   if (!debug?.devViews || !debug.currentView) throw new Error('missing terminal Fog debug views');
   return {
     mainVisibleSquares: debug.currentView.visibleSquares.length,
@@ -309,7 +335,7 @@ if (
 
 await whitePage.locator('[data-replay="first"]').click();
 await whitePage.waitForFunction(() => {
-  const debug = window.__BICHESS_DEBUG__?.();
+  const debug = window.__MISTBOARD_DEBUG__?.();
   const view = debug?.currentView;
   return view?.status.type === 'playing'
     && view.board.e2?.color === 'white'
@@ -327,7 +353,7 @@ await whitePage.waitForFunction(() => {
 await whitePage.waitForTimeout(250);
 
 const fogFlowMetrics = await whitePage.evaluate(() => {
-  const debug = window.__BICHESS_DEBUG__?.();
+  const debug = window.__MISTBOARD_DEBUG__?.();
   const view = debug?.currentView;
   if (!debug || !view) throw new Error('missing Fog flow view');
   return {
@@ -381,18 +407,18 @@ const firstBidPage = await browser.newPage({ viewport: viewports[0] });
 const secondBidPage = await browser.newPage({ viewport: viewports[0] });
 await firstBidPage.goto(`${baseUrl}/room/${encodeURIComponent(bidRoom)}?reset=1&variant=bid-for-white`, { waitUntil: 'networkidle' });
 await secondBidPage.goto(`${baseUrl}/room/${encodeURIComponent(bidRoom)}?variant=bid-for-white`, { waitUntil: 'networkidle' });
-await firstBidPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'white');
-await secondBidPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().seat === 'black');
+await firstBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'white');
+await secondBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'black');
 await firstBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('Enter seconds to give up'));
 await submitBid(firstBidPage, 10);
-await firstBidPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().bids.white === 10000);
+await firstBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().bids.white === 10000);
 await firstBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('Your bid is hidden')
   && document.querySelector('[data-bid-section]')?.textContent?.includes('4:50 as White'));
 await secondBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('White bid')
   && document.querySelector('[data-bid-section]')?.textContent?.includes('hidden') === false);
 await submitBid(secondBidPage, 30);
 await secondBidPage.waitForFunction(() => {
-  const debug = window.__BICHESS_DEBUG__?.();
+  const debug = window.__MISTBOARD_DEBUG__?.();
   return debug?.seat === 'white'
     && debug.currentView?.status.type === 'playing'
     && debug.currentView.clock?.remainingMs.white === 270000
@@ -401,13 +427,13 @@ await secondBidPage.waitForFunction(() => {
 await secondBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('Bids revealed')
   && document.querySelector('[data-bid-section]')?.textContent?.includes('black bid 30s'));
 await movePiece(secondBidPage, 'e2', 'e4');
-await secondBidPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__BICHESS_DEBUG__?.().currentView?.status.turn === 'black');
-await firstBidPage.waitForFunction(() => window.__BICHESS_DEBUG__?.().currentView?.board.e4?.color === 'white');
+await secondBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
+  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
+await firstBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.board.e4?.color === 'white');
 await secondBidPage.waitForTimeout(250);
 
 const bidMetrics = await secondBidPage.evaluate(() => {
-  const debug = window.__BICHESS_DEBUG__?.();
+  const debug = window.__MISTBOARD_DEBUG__?.();
   const view = debug?.currentView;
   if (!debug || !view) throw new Error('missing Bid For White debug view');
   return {
@@ -447,12 +473,12 @@ if (failures.length > 0) {
 async function movePiece(page, from, to) {
   try {
     await page.waitForFunction((square) => {
-      const view = window.__BICHESS_DEBUG__?.().currentView;
+      const view = window.__MISTBOARD_DEBUG__?.().currentView;
       return view?.legalMoves.some((move) => move.from === square);
     }, from);
   } catch (error) {
     const debug = await page.evaluate(() => {
-      const snapshot = window.__BICHESS_DEBUG__?.();
+      const snapshot = window.__MISTBOARD_DEBUG__?.();
       return {
         seat: snapshot?.seat,
         status: snapshot?.currentView?.status,
@@ -477,7 +503,7 @@ async function clickSquare(page, square) {
   const box = await page.locator('.board.cg-wrap').boundingBox();
   if (!box) throw new Error('missing board box');
 
-  const orientation = await page.evaluate(() => window.__BICHESS_DEBUG__?.().currentView?.perspective ?? 'white');
+  const orientation = await page.evaluate(() => window.__MISTBOARD_DEBUG__?.().currentView?.perspective ?? 'white');
   const fileIndex = files.indexOf(square[0]);
   const rank = Number(square[1]);
   const column = orientation === 'white' ? fileIndex : 7 - fileIndex;

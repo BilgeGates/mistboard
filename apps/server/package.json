@@ -1,14 +1,15 @@
 {
-  "name": "@bichess/server",
+  "name": "@mistboard/server",
   "version": "0.0.0",
   "private": true,
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "dev:persistent": "env DATABASE_URL=postgres://bichess:bichess@localhost:5435/bichess tsx watch src/index.ts",
+    "dev:persistent": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json && node --test --test-concurrency=1 dist/*.test.js",
+    "test": "tsc -p tsconfig.json && node --test --test-concurrency=8 dist/*.test.js",
+    "test:persistent": "tsc -p tsconfig.json && node --test --test-concurrency=1 dist/*.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "tsx src/migrate.ts",
     "import-corpus": "tsx src/import-corpus.ts",
@@ -23,7 +24,7 @@
     "worker:dev:service": "tsx src/worker.ts --execute --loop"
   },
   "dependencies": {
-    "@bichess/game": "0.0.0",
+    "@mistboard/game": "0.0.0",
     "pg": "^8.20.0",
     "serve-handler": "^6.1.7",
     "ws": "^8.18.0"

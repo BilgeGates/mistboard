@@ -17,7 +17,7 @@ A player cannot see:
 - Empty or occupied status of hidden squares.
 - Opponent king location unless it is visible.
 
-## Bichess Fog of War Ruleset
+## Mistboard Fog of War Ruleset
 
 Status: implemented.
 

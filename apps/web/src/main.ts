@@ -35,8 +35,10 @@ const engineLabEnabled =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
 const wantsEngineLab =
   bakeoffParam !== null ||
+  path === '/lab' ||
   path === '/engine-lab' ||
   path === '/arena' ||
+  page === 'lab' ||
   page === 'engine-lab' ||
   page === 'arena';
 const gameRoomId = gameRoomIdFromPath(path);
@@ -46,25 +48,23 @@ const wantsSource = path === '/source' || page === 'source';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
+const wantsPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 const profileHandle = profileHandleFromPath(path);
 
 if (replaySample) {
   void mountOrReport(() => import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)));
-} else if (wantsEngineLab && engineLabEnabled) {
-  // ?bakeoff loads the default manifest; ?bakeoff=<url> loads a specific one.
-  const manifestUrl = bakeoffParam && bakeoffParam.length > 0 ? bakeoffParam : undefined;
-  void mountOrReport(() => import('./bakeoff.js').then(({ mountBakeoff }) => mountBakeoff(appRoot, manifestUrl)));
 } else if (wantsEngineLab) {
-  appRoot.replaceChildren();
-  appRoot.classList.add('landing-page');
-  const shell = document.createElement('main');
-  shell.className = 'site-section';
-  const heading = document.createElement('h1');
-  heading.className = 'site-section-heading';
-  heading.textContent = 'Not found';
-  shell.append(heading);
-  appRoot.append(shell);
+  void mountOrReport(async () => {
+    if (!engineLabEnabled || !(await canOpenLab())) {
+      renderNotFound(appRoot);
+      return;
+    }
+    // ?bakeoff loads the default manifest; ?bakeoff=<url> loads a specific one.
+    const manifestUrl = bakeoffParam && bakeoffParam.length > 0 ? bakeoffParam : undefined;
+    const { mountBakeoff } = await import('./bakeoff.js');
+    await mountBakeoff(appRoot, manifestUrl);
+  });
 } else if (liveRoomId || wantsLive) {
   void mountOrReport(() => import('./live.js').then(() => undefined));
 } else if (gameRoomId) {
@@ -77,6 +77,8 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountAccount }) => mountAccount(appRoot)));
 } else if (wantsWatch) {
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
+} else if (wantsPlay) {
+  void mountOrReport(() => import('./landing.js').then(({ mountPlay }) => mountPlay(appRoot)));
 } else if (wantsLearn) {
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
@@ -104,6 +106,30 @@ async function mountOrReport(run: () => Promise<void>): Promise<void> {
     shell.append(heading, detail);
     appRoot.append(shell);
   }
+}
+
+async function canOpenLab(): Promise<boolean> {
+  if (import.meta.env.DEV) return true;
+  try {
+    const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    if (!response.ok) return false;
+    const data = await response.json() as { user?: { accountRole?: string } | null };
+    return data.user?.accountRole === 'admin';
+  } catch {
+    return false;
+  }
+}
+
+function renderNotFound(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page');
+  const shell = document.createElement('main');
+  shell.className = 'site-section';
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Not found';
+  shell.append(heading);
+  root.append(shell);
 }
 
 function gameRoomIdFromPath(value: string): string | null {

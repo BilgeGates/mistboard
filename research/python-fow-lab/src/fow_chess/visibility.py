@@ -1,9 +1,9 @@
 """Visibility helpers for fog of war chess.
 
-Visibility follows the bichess canonical rule: a player sees their own occupied
+Visibility follows the mistboard canonical rule: a player sees their own occupied
 squares plus the destination square of every pseudo-legal move they can make
 under the current board state, regardless of whose turn it is. Castling moves
-contribute the rook's original square (matching the bichess fog castling
+contribute the rook's original square (matching the mistboard fog castling
 representation). En passant moves additionally contribute the captured pawn's
 square.
 """
