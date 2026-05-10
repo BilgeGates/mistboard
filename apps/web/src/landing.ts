@@ -1233,26 +1233,21 @@ function buildNav(): HTMLElement {
   const links = document.createElement('div');
   links.className = 'site-nav-links';
 
-  const aboutLink = navLink('About', '/about');
   const playLink = navLink('Play', '/play');
   const watchLink = navLink('Watch', '/watch');
   const learnLink = navLink('Learn', '/learn');
-  const accountLink = navLink('Account', '/account');
-  const sourceLink = navLink('Source', '/source');
+  links.append(playLink, watchLink, learnLink);
 
-  const ghLink = document.createElement('a');
-  ghLink.href = GITHUB_URL;
-  ghLink.target = '_blank';
-  ghLink.rel = 'noreferrer noopener';
-  ghLink.textContent = 'GitHub';
-  ghLink.className = 'site-nav-link';
+  const utilities = document.createElement('div');
+  utilities.className = 'site-nav-utilities';
+  const accountLink = navLink('Account', '/account');
 
   if (SHOW_ENGINE_LAB_LINKS) {
     const labLink = navLink('Lab', '/lab');
-    links.append(labLink);
+    utilities.append(labLink);
   }
-  links.append(playLink, watchLink, learnLink, aboutLink, accountLink, sourceLink, ghLink);
-  nav.append(brand, links);
+  utilities.append(accountLink);
+  nav.append(brand, links, utilities);
   return nav;
 }
 
@@ -2209,6 +2204,14 @@ function buildFooter(): HTMLElement {
   sep.className = 'site-footer-sep';
   sep.textContent = '·';
 
+  const about = document.createElement('a');
+  about.href = '/about';
+  about.textContent = 'About';
+
+  const sep2 = document.createElement('span');
+  sep2.className = 'site-footer-sep';
+  sep2.textContent = '·';
+
   const gh = document.createElement('a');
   gh.href = GITHUB_URL;
   gh.target = '_blank';
@@ -2219,11 +2222,11 @@ function buildFooter(): HTMLElement {
   source.href = '/source';
   source.textContent = 'Source';
 
-  const sep2 = document.createElement('span');
-  sep2.className = 'site-footer-sep';
-  sep2.textContent = '·';
+  const sep3 = document.createElement('span');
+  sep3.className = 'site-footer-sep';
+  sep3.textContent = '·';
 
-  right.append(license, sep, source, sep2, gh);
+  right.append(license, sep, about, sep2, source, sep3, gh);
   footer.append(left, right);
   return footer;
 }

@@ -124,7 +124,6 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const allSquares = ranks.flatMap((rank) => files.map((file) => `${file}${rank}` as Square));
 const promotionRoles: PromotionRole[] = ['queen', 'rook', 'bishop', 'knight'];
-const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -482,13 +481,13 @@ function buildNavHtml(): string {
         <span>MISTBOARD</span>
       </a>
       <div class="site-nav-links">
-        ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/lab">Lab</a>' : ''}
+        <a class="site-nav-link" href="/play">Play</a>
         <a class="site-nav-link" href="/watch">Watch</a>
         <a class="site-nav-link" href="/learn">Learn</a>
-        <a class="site-nav-link" href="/about">About</a>
+      </div>
+      <div class="site-nav-utilities">
+        ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/lab">Lab</a>' : ''}
         <a class="site-nav-link" href="/account">Account</a>
-        <a class="site-nav-link" href="/source">Source</a>
-        <a class="site-nav-link" href="${GITHUB_URL}" target="_blank" rel="noreferrer noopener">GitHub</a>
       </div>
     </nav>
   `;

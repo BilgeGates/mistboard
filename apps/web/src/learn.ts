@@ -2789,21 +2789,16 @@ function buildNav(): HTMLElement {
 
   const links = document.createElement('div');
   links.className = 'site-nav-links';
+  links.append(navLink('Play', '/play'), navLink('Watch', '/watch'), navLink('Learn', '/learn'));
 
+  const utilities = document.createElement('div');
+  utilities.className = 'site-nav-utilities';
   if (SHOW_ENGINE_LAB_LINKS) {
-    links.append(navLink('Lab', '/lab'));
+    utilities.append(navLink('Lab', '/lab'));
   }
-  links.append(navLink('Play', '/play'), navLink('Watch', '/watch'), navLink('Learn', '/learn'), navLink('About', '/about'), navLink('Source', '/source'));
+  utilities.append(navLink('Account', '/account'));
 
-  const gh = document.createElement('a');
-  gh.href = GITHUB_URL;
-  gh.target = '_blank';
-  gh.rel = 'noreferrer noopener';
-  gh.className = 'site-nav-link';
-  gh.textContent = 'GitHub';
-  links.append(gh);
-
-  nav.append(brand, links);
+  nav.append(brand, links, utilities);
   return nav;
 }
 
@@ -2841,6 +2836,14 @@ function buildFooter(): HTMLElement {
   sep.className = 'site-footer-sep';
   sep.textContent = '·';
 
+  const about = document.createElement('a');
+  about.href = '/about';
+  about.textContent = 'About';
+
+  const sep2 = document.createElement('span');
+  sep2.className = 'site-footer-sep';
+  sep2.textContent = '·';
+
   const gh = document.createElement('a');
   gh.href = GITHUB_URL;
   gh.target = '_blank';
@@ -2851,11 +2854,11 @@ function buildFooter(): HTMLElement {
   source.href = '/source';
   source.textContent = 'Source';
 
-  const sep2 = document.createElement('span');
-  sep2.className = 'site-footer-sep';
-  sep2.textContent = '·';
+  const sep3 = document.createElement('span');
+  sep3.className = 'site-footer-sep';
+  sep3.textContent = '·';
 
-  right.append(license, sep, source, sep2, gh);
+  right.append(license, sep, about, sep2, source, sep3, gh);
   footer.append(left, right);
   return footer;
 }

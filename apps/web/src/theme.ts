@@ -46,9 +46,9 @@ function watchForNavChanges(): void {
 }
 
 function mountThemeControl(nav: HTMLElement): void {
-  const links = nav.querySelector<HTMLElement>('.site-nav-links');
-  if (!links) return;
-  if (links.querySelector('[data-theme-control]')) return;
+  const target = nav.querySelector<HTMLElement>('.site-nav-utilities') ?? nav.querySelector<HTMLElement>('.site-nav-links');
+  if (!target) return;
+  if (target.querySelector('[data-theme-control]')) return;
 
   const control = document.createElement('div');
   control.className = 'theme-control';
@@ -87,7 +87,7 @@ function mountThemeControl(nav: HTMLElement): void {
 
   panel.append(boardField, fogField);
   control.append(trigger, panel);
-  links.append(control);
+  target.prepend(control);
 }
 
 function createSelectField<T extends string>(
