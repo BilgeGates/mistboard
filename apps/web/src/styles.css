@@ -118,6 +118,40 @@ body {
   font-weight: 700;
 }
 
+.theme-control-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.theme-control-field-row output {
+  color: var(--site-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.theme-control-volume-field input[type="range"] {
+  width: 100%;
+  accent-color: var(--site-accent);
+}
+
+.theme-control-check-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--site-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.theme-control-check-field input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--site-accent);
+}
+
 .theme-control-trigger {
   border: 0;
   border-radius: 6px;
@@ -146,7 +180,7 @@ body {
   right: 0;
   z-index: 30;
   display: none;
-  width: min(260px, calc(100vw - 28px));
+  width: min(280px, calc(100vw - 28px));
   gap: 12px;
   border: 1px solid var(--site-border);
   border-radius: 8px;

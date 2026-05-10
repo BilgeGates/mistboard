@@ -3,8 +3,14 @@ type FogTheme = 'hatched' | 'solid' | 'soft';
 
 const boardStorageKey = 'mistboard.boardTheme';
 const fogStorageKey = 'mistboard.fogTheme';
+const soundVolumeStorageKey = 'mistboard.soundVolume';
+const soundMutedStorageKey = 'mistboard.soundMuted';
+export const soundSettingsChangedEvent = 'mistboard:sound-settings-changed';
 const defaultTheme: BoardTheme = 'standard';
 const defaultFogTheme: FogTheme = 'hatched';
+const defaultSoundVolume = 0.7;
+let cachedSoundVolume = defaultSoundVolume;
+let cachedSoundMuted = false;
 const themes: Array<{ id: BoardTheme; label: string }> = [
   { id: 'standard', label: 'Standard' },
   { id: 'contrast', label: 'High contrast' },
@@ -53,18 +59,18 @@ function mountThemeControl(nav: HTMLElement): void {
   const control = document.createElement('div');
   control.className = 'theme-control';
   control.dataset.themeControl = '';
-  control.setAttribute('aria-label', 'Display settings');
+  control.setAttribute('aria-label', 'Display and sound settings');
 
   const trigger = document.createElement('button');
   trigger.className = 'theme-control-trigger';
   trigger.type = 'button';
   trigger.setAttribute('aria-expanded', 'false');
-  trigger.textContent = 'Display';
+  trigger.textContent = 'Controls';
 
   const panel = document.createElement('div');
   panel.className = 'theme-control-panel';
   panel.setAttribute('role', 'group');
-  panel.setAttribute('aria-label', 'Board display settings');
+  panel.setAttribute('aria-label', 'Display and sound settings');
 
   const boardField = createSelectField('board', 'Board colors', 'Board color scheme', themes, readStoredTheme(), (value) => {
     const nextTheme = normalizeTheme(value);
@@ -78,6 +84,8 @@ function mountThemeControl(nav: HTMLElement): void {
     writeStoredFogTheme(nextTheme);
     syncThemeControls();
   });
+  const volumeField = createVolumeField();
+  const muteField = createMuteField();
 
   trigger.addEventListener('click', () => {
     const expanded = trigger.getAttribute('aria-expanded') === 'true';
@@ -85,7 +93,7 @@ function mountThemeControl(nav: HTMLElement): void {
     if (!expanded) openThemeMenu(control);
   });
 
-  panel.append(boardField, fogField);
+  panel.append(boardField, fogField, volumeField, muteField);
   control.append(trigger, panel);
   target.prepend(control);
 }
@@ -119,6 +127,61 @@ function createSelectField<T extends string>(
   return field;
 }
 
+function createVolumeField(): HTMLLabelElement {
+  const field = document.createElement('label');
+  field.className = 'theme-control-field theme-control-volume-field';
+  const row = document.createElement('span');
+  row.className = 'theme-control-field-row';
+  const label = document.createElement('span');
+  label.textContent = 'Volume';
+  const value = document.createElement('output');
+  value.dataset.soundVolumeValue = '';
+  value.textContent = formatVolume(readStoredSoundVolume());
+  row.append(label, value);
+
+  const input = document.createElement('input');
+  input.type = 'range';
+  input.min = '0';
+  input.max = '100';
+  input.step = '5';
+  input.value = String(Math.round(readStoredSoundVolume() * 100));
+  input.dataset.soundVolume = '';
+  input.setAttribute('aria-label', 'Sound volume');
+  input.addEventListener('input', () => {
+    const nextVolume = normalizeVolume(Number(input.value) / 100);
+    writeStoredSoundVolume(nextVolume);
+    if (nextVolume > 0 && readStoredSoundMuted()) {
+      writeStoredSoundMuted(false);
+    }
+    dispatchSoundSettingsChanged();
+    syncThemeControls();
+  });
+
+  field.append(row, input);
+  return field;
+}
+
+function createMuteField(): HTMLLabelElement {
+  const field = document.createElement('label');
+  field.className = 'theme-control-check-field';
+
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.dataset.soundMuted = '';
+  input.checked = readStoredSoundMuted();
+  input.addEventListener('change', () => {
+    writeStoredSoundMuted(input.checked);
+    dispatchSoundSettingsChanged();
+    syncThemeControls();
+  });
+
+  const text = document.createElement('span');
+  text.textContent = 'Mute sounds';
+
+  field.append(input, text);
+  return field;
+}
+
 function openThemeMenu(control: HTMLElement): void {
   control.classList.add('open');
   control.querySelector<HTMLButtonElement>('.theme-control-trigger')?.setAttribute('aria-expanded', 'true');
@@ -145,11 +208,22 @@ function closeThemeMenusOnEscape(event: KeyboardEvent): void {
 function syncThemeControls(): void {
   const boardTheme = readStoredTheme();
   const fogTheme = readStoredFogTheme();
+  const soundVolume = readStoredSoundVolume();
+  const soundMuted = readStoredSoundMuted();
   document.querySelectorAll<HTMLSelectElement>('select[data-theme-select="board"]').forEach((select) => {
     select.value = boardTheme;
   });
   document.querySelectorAll<HTMLSelectElement>('select[data-theme-select="fog"]').forEach((select) => {
     select.value = fogTheme;
+  });
+  document.querySelectorAll<HTMLInputElement>('input[data-sound-volume]').forEach((input) => {
+    input.value = String(Math.round(soundVolume * 100));
+  });
+  document.querySelectorAll<HTMLOutputElement>('output[data-sound-volume-value]').forEach((output) => {
+    output.textContent = formatVolume(soundVolume);
+  });
+  document.querySelectorAll<HTMLInputElement>('input[data-sound-muted]').forEach((input) => {
+    input.checked = soundMuted;
   });
 }
 
@@ -185,10 +259,65 @@ function writeStoredFogTheme(theme: FogTheme): void {
   }
 }
 
+export function readEffectiveSoundVolume(): number {
+  return readStoredSoundMuted() ? 0 : readStoredSoundVolume();
+}
+
+function readStoredSoundVolume(): number {
+  try {
+    cachedSoundVolume = normalizeVolume(window.localStorage.getItem(soundVolumeStorageKey));
+    return cachedSoundVolume;
+  } catch {
+    return cachedSoundVolume;
+  }
+}
+
+function writeStoredSoundVolume(volume: number): void {
+  cachedSoundVolume = normalizeVolume(volume);
+  try {
+    window.localStorage.setItem(soundVolumeStorageKey, String(cachedSoundVolume));
+  } catch {
+    // Sound settings still update for the current page.
+  }
+}
+
+function readStoredSoundMuted(): boolean {
+  try {
+    cachedSoundMuted = window.localStorage.getItem(soundMutedStorageKey) === 'true';
+    return cachedSoundMuted;
+  } catch {
+    return cachedSoundMuted;
+  }
+}
+
+function writeStoredSoundMuted(muted: boolean): void {
+  cachedSoundMuted = muted;
+  try {
+    window.localStorage.setItem(soundMutedStorageKey, muted ? 'true' : 'false');
+  } catch {
+    // Sound settings still update for the current page.
+  }
+}
+
+function dispatchSoundSettingsChanged(): void {
+  window.dispatchEvent(new Event(soundSettingsChangedEvent));
+}
+
 function normalizeTheme(value: string | null): BoardTheme {
   return themes.some((theme) => theme.id === value) ? (value as BoardTheme) : defaultTheme;
 }
 
 function normalizeFogTheme(value: string | null): FogTheme {
   return fogThemes.some((theme) => theme.id === value) ? (value as FogTheme) : defaultFogTheme;
+}
+
+function normalizeVolume(value: string | number | null): number {
+  if (value === null) return defaultSoundVolume;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return defaultSoundVolume;
+  return Math.min(1, Math.max(0, parsed));
+}
+
+function formatVolume(volume: number): string {
+  return `${Math.round(normalizeVolume(volume) * 100)}%`;
 }

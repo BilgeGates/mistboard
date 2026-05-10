@@ -23,6 +23,7 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import './styles.css';
+import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
 
 type Seat = Color | 'spectator';
 type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
@@ -1851,6 +1852,7 @@ type SoundController = {
 function createSoundController(): SoundController {
   let ctx: AudioContext | null = null;
   let unlocked = false;
+  let volume = readEffectiveSoundVolume();
 
   const ensureContext = (): AudioContext | null => {
     const AudioCtor = window.AudioContext ?? window.webkitAudioContext;
@@ -1870,11 +1872,20 @@ function createSoundController(): SoundController {
 
   window.addEventListener('pointerdown', unlock, { once: true });
   window.addEventListener('keydown', unlock, { once: true });
+  window.addEventListener(soundSettingsChangedEvent, () => {
+    volume = readEffectiveSoundVolume();
+  });
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || event.key.startsWith('mistboard.sound')) {
+      volume = readEffectiveSoundVolume();
+    }
+  });
 
   return {
     play(kind) {
       const audio = ensureContext();
       if (!audio || !unlocked) return;
+      if (volume <= 0) return;
       void audio.resume();
       const now = audio.currentTime;
       for (const tone of tonesForSound(kind)) {
@@ -1883,7 +1894,7 @@ function createSoundController(): SoundController {
         osc.type = tone.type;
         osc.frequency.setValueAtTime(tone.frequency, now + tone.delay);
         gain.gain.setValueAtTime(0.0001, now + tone.delay);
-        gain.gain.exponentialRampToValueAtTime(tone.gain, now + tone.delay + 0.012);
+        gain.gain.exponentialRampToValueAtTime(tone.gain * volume, now + tone.delay + 0.012);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.delay + tone.duration);
         osc.connect(gain).connect(audio.destination);
         osc.start(now + tone.delay);
