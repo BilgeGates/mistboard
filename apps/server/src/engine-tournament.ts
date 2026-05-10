@@ -75,7 +75,7 @@ export function parseTournamentArgs(values: string[], env: NodeJS.ProcessEnv = p
   const gamesPerPair = positiveInteger(args.gamesPerPair ?? env.ENGINE_TOURNAMENT_GAMES_PER_PAIR, 2);
   const maxPlies = positiveInteger(args.maxPlies ?? env.ENGINE_MAX_PLIES, 160);
   const providers = csv(args.providers ?? env.ENGINE_PROVIDERS ?? 'local,railway');
-  const timeControl = parseEngineTimeControl(args.timeControl ?? env.ENGINE_TIME_CONTROL ?? 'none');
+  const timeControl = parseEngineTimeControl(args.timeControl ?? env.ENGINE_TIME_CONTROL ?? 'standard');
   const tournamentId = args.tournamentId
     ?? env.ENGINE_TOURNAMENT_ID
     ?? `tournament-${new Date().toISOString().replace(/[:.]/g, '-')}`;

@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,20 @@ from fow_chess.selfplay import OpeningPolicy, TimeControlSpec, play_game
 from fow_chess.strategies import RandomStrategy, TIER1_VERSION
 from fow_chess.tournament.config import canonical_hash, load_config
 from fow_chess.tournament.runtime import bot_runtime
+
+TIER1_CONFIG_HASH = "b22f29dd73f5"
+TIER1_PINNED_ENGINES: dict[str, dict[str, str]] = {
+    "python-tier1-v0.7.22": {
+        "tier1Version": "0.7.22",
+        "playSignature": "5d3ddffa74f6",
+        "engineVersion": "v0.7.22-king-risk@5d3ddffa74f6",
+    },
+    "python-tier1-v0.8.9": {
+        "tier1Version": "0.8.9",
+        "playSignature": "2c010d792075",
+        "engineVersion": "v0.8.9-repair-caps@2c010d792075",
+    },
+}
 
 
 def main() -> int:
@@ -85,12 +100,12 @@ class strategy_runtime:
         if engine_id in {"python-random-legal", "builtin-random-legal"}:
             self._strategy = RandomStrategy(seed=self.seed)
             return self._strategy
-        if engine_id == "python-tier1-v0.7.22":
+        tier1 = TIER1_PINNED_ENGINES.get(engine_id)
+        if tier1 is not None:
             config = load_config(ROOT / "configs" / "tier1-v1.json")
-            if TIER1_VERSION != "0.7.22":
-                raise RuntimeError(f"python-tier1-v0.7.22 resolved Tier-1 {TIER1_VERSION}")
-            if canonical_hash(config) != "b22f29dd73f5":
+            if canonical_hash(config) != TIER1_CONFIG_HASH:
                 raise RuntimeError("tier1-v1 config hash mismatch")
+            config = replace(config, engine_version=tier1["engineVersion"])
             self._runtime = bot_runtime(config, stockfish_path=self.stockfish_path)
             factory = self._runtime.__enter__()
             self._strategy = factory(self.seed)
@@ -140,12 +155,14 @@ def engine_metadata(spec: dict[str, Any]) -> dict[str, Any]:
             "tier1Version": TIER1_VERSION,
             "configHash": "b22f29dd73f5",
         }
-    if engine_id == "python-tier1-v0.7.22":
+    tier1 = TIER1_PINNED_ENGINES.get(engine_id)
+    if tier1 is not None:
         return {
             "id": engine_id,
-            "tier1Version": TIER1_VERSION,
-            "configHash": "b22f29dd73f5",
-            "playSignature": "5d3ddffa74f6",
+            "tier1Version": tier1["tier1Version"],
+            "configHash": TIER1_CONFIG_HASH,
+            "playSignature": tier1["playSignature"],
+            "engineVersion": tier1["engineVersion"],
         }
     return {"id": engine_id}
 

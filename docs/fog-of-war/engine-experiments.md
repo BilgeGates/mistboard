@@ -45,6 +45,8 @@ Owner-only Python Tier-1 identities currently registered for worker execution:
 - `python-tier1-v0.7.0` - first Python subprocess proof of concept.
 - `python-tier1-v0.7.22` - profiled particle-update build with terminal
   king-risk filtering.
+- `python-tier1-v0.8.9` - repair-capped Tier-1 production candidate pinned
+  from the v0.8.7-v0.8.9 local engine loop.
 - `python-random-legal` - Python random legal baseline.
 
 These are not public upload slots. They are controlled engine identities used
@@ -60,16 +62,16 @@ shape in `eve_jobs.config`:
 npm run engine:enqueue-tournament -- \
   --engines builtin-capture-seeker,builtin-random-legal,python-tier1-v0.7.22 \
   --games-per-pair 2 \
-  --time-control 10+2 \
+  --time-control standard \
   --opening random-first-4 \
   --providers local,railway
 ```
 
-`--time-control` accepts `none` or `initial+increment` in seconds. Standard
-time controls are copied onto each task and replay clock events. In-process
-worker games enforce timeout from the engine's reported `thinkTimeMs`; Python
-whole-game workers receive the same policy and enforce it inside the Python
-harness.
+`--time-control` accepts `none`, `standard`, or `initial+increment` in seconds.
+`standard` is 3 minutes plus a 2 second increment. Standard time controls are
+copied onto each task and replay clock events. In-process worker games enforce
+timeout from the engine's reported `thinkTimeMs`; Python whole-game workers
+receive the same policy and enforce it inside the Python harness.
 
 Workers write an `engine-runtime-summary` debug artifact per completed task with
 runner, engine pair, wall time, total reported think time, ply count, and

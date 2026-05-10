@@ -46,10 +46,10 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '
 const DIAGNOSTIC_TAIL_BYTES = 4_000;
 const PYTHON_LIVE_PROCESS_OVERHEAD_MS = 2_500;
 const PYTHON_LIVE_CLOCK_GRACE_MS = 1_000;
-const PYTHON_LIVE_MAX_TIMEOUT_MS = 15_000;
 const PYTHON_LIVE_BUDGET_SAFETY_MS = 200;
-const PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = 40;
-const PYTHON_LIVE_SOFT_BUDGET_CAP_MS = 10_000;
+const DEFAULT_PYTHON_LIVE_MAX_TIMEOUT_MS = 15_000;
+const DEFAULT_PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = 12;
+const DEFAULT_PYTHON_LIVE_SOFT_BUDGET_CAP_MS = 12_000;
 
 export async function chooseLiveEngineMove({
   context,
@@ -126,13 +126,14 @@ async function choosePythonSubprocessMove(
     events: context.events,
     roomId: context.roomId,
     seed: context.seed.toString(),
+    watchdogTimeoutMs,
   }, watchdogTimeoutMs);
   return {
     move: result.move,
     scores: [{
       move: result.move,
       score: 0,
-      reason: 'python-subprocess',
+      reason: result.decisionSource ? `python-subprocess:${result.decisionSource}` : 'python-subprocess',
     }],
   };
 }
@@ -148,14 +149,33 @@ export function pythonLiveWatchdogTimeoutMs(context: EngineMoveContext, configur
   );
   const dynamicTimeoutMs = Math.ceil(budgetMs + PYTHON_LIVE_PROCESS_OVERHEAD_MS);
   const clockBoundMs = Math.ceil(Math.max(0, remainingMs) + PYTHON_LIVE_CLOCK_GRACE_MS);
-  return Math.max(1, Math.min(PYTHON_LIVE_MAX_TIMEOUT_MS, dynamicTimeoutMs, clockBoundMs));
+  return Math.max(1, Math.min(pythonLiveMaxTimeoutMs(), dynamicTimeoutMs, clockBoundMs));
 }
 
 function computePythonPerMoveBudgetMs(clockRemainingMs: number, incrementMs: number): number {
   const usable = Math.max(0, clockRemainingMs - PYTHON_LIVE_BUDGET_SAFETY_MS);
-  const bankShare = Math.floor(usable / PYTHON_LIVE_MOVES_REMAINING_ESTIMATE);
+  const bankShare = Math.floor(usable / pythonLiveMovesRemainingEstimate());
   const budget = bankShare + Math.max(0, incrementMs);
-  return Math.max(50, Math.min(PYTHON_LIVE_SOFT_BUDGET_CAP_MS, budget));
+  return Math.max(50, Math.min(pythonLiveSoftBudgetCapMs(), budget));
+}
+
+function pythonLiveMaxTimeoutMs(): number {
+  return positiveIntegerEnv('PYTHON_LIVE_MAX_TIMEOUT_MS', DEFAULT_PYTHON_LIVE_MAX_TIMEOUT_MS);
+}
+
+function pythonLiveMovesRemainingEstimate(): number {
+  return positiveIntegerEnv('PYTHON_LIVE_MOVES_REMAINING_ESTIMATE', DEFAULT_PYTHON_LIVE_MOVES_REMAINING_ESTIMATE);
+}
+
+function pythonLiveSoftBudgetCapMs(): number {
+  return positiveIntegerEnv('PYTHON_LIVE_SOFT_BUDGET_CAP_MS', DEFAULT_PYTHON_LIVE_SOFT_BUDGET_CAP_MS);
+}
+
+function positiveIntegerEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  const value = Number.parseInt(raw, 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function liveClockRemainingMs(context: EngineMoveContext): number | undefined {
@@ -177,9 +197,11 @@ type PythonLiveMoveRequest = {
   incrementMs?: number;
   roomId: string;
   seed: string;
+  watchdogTimeoutMs: number;
 };
 
 type PythonLiveMoveResult = {
+  decisionSource?: string;
   move: Move;
 };
 
@@ -284,6 +306,7 @@ function parsePythonLiveMoveResult(value: unknown): PythonLiveMoveResult {
   if (!isObject(move)) throw new Error('missing move');
   if (typeof move.from !== 'string' || typeof move.to !== 'string') throw new Error('invalid move squares');
   return {
+    ...(typeof value.decisionSource === 'string' ? { decisionSource: value.decisionSource } : {}),
     move: {
       from: move.from,
       to: move.to,

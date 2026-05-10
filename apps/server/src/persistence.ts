@@ -110,6 +110,14 @@ export type GameDebugArtifactPayload = {
   createdAt: Date;
 };
 
+export type GameDebugArtifactInput = {
+  artifactType: string;
+  engineColor?: Color | null;
+  gameId: string;
+  payload: Record<string, unknown>;
+  ply?: number | null;
+};
+
 export type CompletedGameFilters = {
   endedFrom: Date;
   endedTo: Date;
@@ -200,6 +208,21 @@ export async function appendEvent(roomId: string, seq: number, event: GameEvent)
   await getPool().query(
     'INSERT INTO events (room_id, seq, type, payload) VALUES ($1, $2, $3, $4)',
     [roomId, seq, event.type, event],
+  );
+}
+
+export async function recordGameDebugArtifact(artifact: GameDebugArtifactInput): Promise<void> {
+  await getPool().query(
+    `INSERT INTO game_debug_artifacts
+       (game_id, ply, engine_color, artifact_type, storage, payload)
+     VALUES ($1, $2, $3, $4, 'jsonb', $5)`,
+    [
+      artifact.gameId,
+      artifact.ply ?? null,
+      artifact.engineColor ?? null,
+      artifact.artifactType,
+      artifact.payload,
+    ],
   );
 }
 

@@ -5,6 +5,7 @@ import { isPlayableLiveEngineClientId } from './engine-registry.js';
 test('playable live engine client ids include all PVE engine seats', () => {
   assert.equal(isPlayableLiveEngineClientId('builtin-random-legal'), true);
   assert.equal(isPlayableLiveEngineClientId('builtin-capture-seeker'), true);
+  assert.equal(isPlayableLiveEngineClientId('python-tier1-v0.8.9'), true);
   assert.equal(isPlayableLiveEngineClientId('python-tier1-v0.7.22'), true);
   assert.equal(isPlayableLiveEngineClientId('random-engine'), true);
 });

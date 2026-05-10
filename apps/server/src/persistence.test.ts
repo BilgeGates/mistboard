@@ -32,6 +32,7 @@ import {
   markUserEmailVerified,
   recordGameStart,
   recordGameEnd,
+  recordGameDebugArtifact,
   replaceRoomSeatTokens,
   revokeAccountSession,
   touchRoomSeatToken,
@@ -1148,12 +1149,18 @@ if (!TEST_DATABASE_URL) {
            (game_id, ply, engine_color, artifact_type, storage, payload)
          VALUES
            ('artifact-summary-game', 3, 'white', 'belief-snapshot', 'jsonb', '{"snapshot_kind":"decision"}'::jsonb),
-           ('artifact-summary-game', 4, 'white', 'belief-snapshot', 'jsonb', '{"snapshot_kind":"after-own-move"}'::jsonb),
-           ('artifact-summary-game', 5, 'black', 'engine-move-choice', 'jsonb', '{"selected_move":{"from":"e2","to":"e4"}}'::jsonb)`,
+           ('artifact-summary-game', 4, 'white', 'belief-snapshot', 'jsonb', '{"snapshot_kind":"after-own-move"}'::jsonb)`,
       );
     } finally {
       await client.end();
     }
+    await recordGameDebugArtifact({
+      gameId: 'artifact-summary-game',
+      ply: 5,
+      engineColor: 'black',
+      artifactType: 'engine-move-choice',
+      payload: { selected_move: { from: 'e2', to: 'e4' } },
+    });
 
     assert.deepEqual(await listGameDebugArtifactSummaries('artifact-summary-game'), [
       {

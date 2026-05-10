@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -30,10 +31,33 @@ import chess
 from fow_chess.event_log import iter_steps, replay_canonical
 from fow_chess.observation import observation_from_transition
 from fow_chess.selfplay import PerspectiveView
-from fow_chess.strategies import RandomStrategy, TIER1_VERSION
+from fow_chess.strategies import RandomStrategy
 from fow_chess.tournament.config import canonical_hash, load_config
 from fow_chess.tournament.runtime import bot_runtime
 from fow_chess.visibility import visible_piece_map, visible_squares
+
+TIER1_CONFIG_HASH = "b22f29dd73f5"
+DEADLINE_GUARD_MS = int(os.environ.get("PYTHON_LIVE_DEADLINE_GUARD_MS", "1200"))
+MATERIAL_VALUE = {
+    chess.PAWN: 100,
+    chess.KNIGHT: 320,
+    chess.BISHOP: 330,
+    chess.ROOK: 500,
+    chess.QUEEN: 900,
+    chess.KING: 100_000,
+}
+TIER1_LIVE_ENGINES: dict[str, dict[str, str]] = {
+    "python-tier1-v0.7.22": {
+        "tier1Version": "0.7.22",
+        "playSignature": "5d3ddffa74f6",
+        "engineVersion": "v0.7.22-king-risk@5d3ddffa74f6",
+    },
+    "python-tier1-v0.8.9": {
+        "tier1Version": "0.8.9",
+        "playSignature": "2c010d792075",
+        "engineVersion": "v0.8.9-repair-caps@2c010d792075",
+    },
+}
 
 
 def main() -> int:
@@ -70,6 +94,23 @@ def main() -> int:
         boardPly=board.ply(),
         legalCount=len(list(board.pseudo_legal_moves)),
     )
+    own_legals = list(board.pseudo_legal_moves)
+    if not own_legals:
+        raise RuntimeError("no legal moves available")
+    view = PerspectiveView(
+        perspective=perspective,
+        own_legal_moves=own_legals,
+        visible_squares=visible_squares(board, perspective),
+        visible_piece_map=visible_piece_map(board, perspective),
+        clock_remaining_ms=_parse_optional_int(request.get("clockRemainingMs")),
+        increment_ms=_parse_optional_int(request.get("incrementMs")) or 0,
+    )
+    deadline = _deadline_monotonic(started, request)
+    if _deadline_expired(deadline):
+        move = _deadline_guard_move(board, view)
+        _debug("deadline-guard", started, phaseBefore="runtime-ready", move=move.uci())
+        _print_response(room_id, engine_spec, move, board, "deadline-guard")
+        return 0
 
     with strategy_runtime(engine_spec, seed, stockfish_path) as strategy:
         _debug("runtime-ready", started)
@@ -89,19 +130,29 @@ def main() -> int:
                 )
             elif step.opp_observation is not None:
                 strategy.observe_opp_move(step.opp_observation)
+            if _deadline_expired(deadline):
+                move = _deadline_guard_move(board, view)
+                _debug(
+                    "deadline-guard",
+                    started,
+                    phaseBefore="events-observed",
+                    observedStepCount=observed_steps,
+                    move=move.uci(),
+                )
+                _print_response(room_id, engine_spec, move, board, "deadline-guard")
+                return 0
         _debug("events-observed", started, observedStepCount=observed_steps)
-
-        own_legals = list(board.pseudo_legal_moves)
-        if not own_legals:
-            raise RuntimeError("no legal moves available")
-        view = PerspectiveView(
-            perspective=perspective,
-            own_legal_moves=own_legals,
-            visible_squares=visible_squares(board, perspective),
-            visible_piece_map=visible_piece_map(board, perspective),
-            clock_remaining_ms=_parse_optional_int(request.get("clockRemainingMs")),
-            increment_ms=_parse_optional_int(request.get("incrementMs")) or 0,
-        )
+        if _deadline_expired(deadline):
+            move = _deadline_guard_move(board, view)
+            _debug(
+                "deadline-guard",
+                started,
+                phaseBefore="pick-started",
+                observedStepCount=observed_steps,
+                move=move.uci(),
+            )
+            _print_response(room_id, engine_spec, move, board, "deadline-guard")
+            return 0
         _debug(
             "pick-started",
             started,
@@ -114,12 +165,23 @@ def main() -> int:
         if move not in own_legals:
             raise RuntimeError(f"engine returned illegal move: {move.uci()}")
 
+    _print_response(room_id, engine_spec, move, board, "tier1")
+    return 0
+
+
+def _print_response(
+    room_id: str,
+    engine_spec: dict[str, Any],
+    move: chess.Move,
+    board: chess.Board,
+    decision_source: str,
+) -> None:
     print(json.dumps({
         "roomId": room_id,
         "engine": engine_metadata(engine_spec),
+        "decisionSource": decision_source,
         "move": _move_to_event(move, board),
     }, separators=(",", ":")))
-    return 0
 
 
 def _debug(phase: str, started: float, **fields: Any) -> None:
@@ -138,6 +200,48 @@ def _debug(phase: str, started: float, **fields: Any) -> None:
     )
 
 
+def _deadline_monotonic(started: float, request: dict[str, Any]) -> float | None:
+    watchdog_timeout_ms = _parse_optional_int(request.get("watchdogTimeoutMs"))
+    if watchdog_timeout_ms is None:
+        return None
+    budget_ms = max(1, watchdog_timeout_ms - DEADLINE_GUARD_MS)
+    return started + budget_ms / 1000.0
+
+
+def _deadline_expired(deadline: float | None) -> bool:
+    return deadline is not None and time.monotonic() >= deadline
+
+
+def _deadline_guard_move(board: chess.Board, view: PerspectiveView) -> chess.Move:
+    return max(
+        sorted(view.own_legal_moves, key=lambda move: move.uci()),
+        key=lambda move: _deadline_guard_score(board, view, move),
+    )
+
+
+def _deadline_guard_score(
+    board: chess.Board,
+    view: PerspectiveView,
+    move: chess.Move,
+) -> tuple[int, int, int, int]:
+    mover = view.visible_piece_map.get(move.from_square)
+    target = view.visible_piece_map.get(move.to_square)
+    capture_score = 0
+    if target is not None and target.color != view.perspective:
+        capture_score = MATERIAL_VALUE.get(target.piece_type, 0)
+        if mover is not None:
+            capture_score -= MATERIAL_VALUE.get(mover.piece_type, 0) // 20
+
+    castle_score = 80 if board.is_castling(move) else 0
+    promotion_score = 70 if move.promotion is not None else 0
+    center_score = 10 if move.to_square in {chess.D4, chess.E4, chess.D5, chess.E5} else 0
+    return (capture_score, castle_score + promotion_score, center_score, -_move_sort_value(move))
+
+
+def _move_sort_value(move: chess.Move) -> int:
+    return move.from_square * 64 + move.to_square + (move.promotion or 0)
+
+
 class strategy_runtime:
     def __init__(self, spec: dict[str, Any], seed: int, stockfish_path: str) -> None:
         self.spec = spec
@@ -151,12 +255,12 @@ class strategy_runtime:
         if engine_id in {"python-random-legal", "builtin-random-legal"}:
             self._strategy = RandomStrategy(seed=self.seed)
             return self._strategy
-        if engine_id == "python-tier1-v0.7.22":
+        tier1 = TIER1_LIVE_ENGINES.get(engine_id)
+        if tier1 is not None:
             config = load_config(ROOT / "configs" / "tier1-v1.json")
-            if TIER1_VERSION != "0.7.22":
-                raise RuntimeError(f"python-tier1-v0.7.22 resolved Tier-1 {TIER1_VERSION}")
-            if canonical_hash(config) != "b22f29dd73f5":
+            if canonical_hash(config) != TIER1_CONFIG_HASH:
                 raise RuntimeError("tier1-v1 config hash mismatch")
+            config = replace(config, engine_version=tier1["engineVersion"])
             self._runtime = bot_runtime(config, stockfish_path=self.stockfish_path)
             factory = self._runtime.__enter__()
             self._strategy = factory(self.seed)
@@ -171,12 +275,14 @@ class strategy_runtime:
 
 def engine_metadata(spec: dict[str, Any]) -> dict[str, Any]:
     engine_id = str(spec.get("id") or "")
-    if engine_id == "python-tier1-v0.7.22":
+    tier1 = TIER1_LIVE_ENGINES.get(engine_id)
+    if tier1 is not None:
         return {
             "id": engine_id,
-            "tier1Version": TIER1_VERSION,
-            "configHash": "b22f29dd73f5",
-            "playSignature": "5d3ddffa74f6",
+            "tier1Version": tier1["tier1Version"],
+            "configHash": TIER1_CONFIG_HASH,
+            "playSignature": tier1["playSignature"],
+            "engineVersion": tier1["engineVersion"],
         }
     return {"id": engine_id}
 

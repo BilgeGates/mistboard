@@ -4,6 +4,12 @@ export type EngineTaskTimeControl =
   | { kind: 'none' }
   | { kind: 'standard'; initial_seconds: number; increment_seconds: number };
 
+export const standardEngineTimeControl: EngineTaskTimeControl = {
+  kind: 'standard',
+  initial_seconds: 180,
+  increment_seconds: 2,
+};
+
 export function normalizeEngineTimeControl(value: Record<string, unknown> | undefined | null): EngineTaskTimeControl {
   if (!value || value.kind === undefined || value.kind === 'none') return { kind: 'none' };
   if (value.kind === 'standard') {
@@ -22,8 +28,9 @@ export function normalizeEngineTimeControl(value: Record<string, unknown> | unde
 
 export function parseEngineTimeControl(value: string | undefined): EngineTaskTimeControl {
   if (!value || value === 'none') return { kind: 'none' };
+  if (value === 'standard') return standardEngineTimeControl;
   const match = value.match(/^(\d+(?:\.\d+)?)(?:\+(\d+(?:\.\d+)?))?$/);
-  if (!match) throw new Error(`invalid time control ${value}; expected "none" or seconds+increment, e.g. 10+2`);
+  if (!match) throw new Error(`invalid time control ${value}; expected "none", "standard", or seconds+increment, e.g. 180+2`);
   const initial = Number(match[1]);
   const increment = match[2] === undefined ? 0 : Number(match[2]);
   if (!Number.isFinite(initial) || initial <= 0 || !Number.isFinite(increment) || increment < 0) {

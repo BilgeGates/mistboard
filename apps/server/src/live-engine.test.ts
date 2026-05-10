@@ -125,8 +125,26 @@ test('python live watchdog allows Tier-1 clock budget plus subprocess overhead',
     incrementMs: 2_000,
   }, 5_000);
 
-  assert.ok(timeoutMs >= 8_900);
-  assert.ok(timeoutMs <= 9_100);
+  assert.ok(timeoutMs >= 14_400);
+  assert.ok(timeoutMs <= 14_600);
+});
+
+test('python live watchdog budget can be tuned by environment', () => {
+  const previous = process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE;
+  process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = '40';
+  try {
+    const timeoutMs = pythonLiveWatchdogTimeoutMs({
+      ...context([legalMove]),
+      clockRemainingMs: 180_000,
+      incrementMs: 2_000,
+    }, 5_000);
+
+    assert.ok(timeoutMs >= 8_900);
+    assert.ok(timeoutMs <= 9_100);
+  } finally {
+    if (previous === undefined) delete process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE;
+    else process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = previous;
+  }
 });
 
 test('python live watchdog stays bounded under clock pressure', () => {

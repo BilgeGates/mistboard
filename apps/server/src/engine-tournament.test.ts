@@ -51,6 +51,21 @@ test('parses tournament CLI config', () => {
   assert.deepEqual(config.openingPolicy, { kind: 'random_first_n_plies', n: 4 });
 });
 
+test('defaults tournament CLI time control to standard 3+2', () => {
+  const config = parseTournamentArgs([
+    '--engine',
+    'builtin-random-legal',
+    '--engine',
+    'builtin-capture-seeker',
+  ], {});
+
+  assert.deepEqual(config.timeControl, {
+    kind: 'standard',
+    initial_seconds: 180,
+    increment_seconds: 2,
+  });
+});
+
 test('builds reproducible tournament job metadata', () => {
   const config = parseTournamentArgs([
     '--engine',

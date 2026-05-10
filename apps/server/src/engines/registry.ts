@@ -34,6 +34,25 @@ export function isPlayableLiveEngineClientId(clientId: string | undefined): bool
 }
 
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
+  'python-tier1-v0.8.9': {
+    id: 'python-tier1-v0.8.9',
+    engineId: 'tier1',
+    engineName: 'Tier-1',
+    name: 'Tier-1 v0.8.9',
+    kind: 'container',
+    configHash: 'tier1-v0.8.9-b22f29dd73f5',
+    playSignature: '2c010d792075',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'tier1',
+      version: '0.8.9',
+      config: 'tier1-v1',
+      config_hash: 'b22f29dd73f5',
+      engine_pin: 'v0.8.9-repair-caps@2c010d792075',
+    },
+    livePolicy: { timeoutMs: 5_000 },
+    notes: 'Owner-only Python Tier-1 v0.8.9 engine with bounded Stage-B supplement and full-recovery repair source selection.',
+  },
   'python-tier1-v0.7.22': {
     id: 'python-tier1-v0.7.22',
     engineId: 'tier1',

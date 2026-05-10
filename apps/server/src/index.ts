@@ -34,7 +34,7 @@ import {
   loadEngine,
   playableLiveEngines,
 } from './engine-registry.js';
-import { chooseLiveEngineMove } from './live-engine.js';
+import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 import {
   displayNameForEmail,
@@ -123,7 +123,7 @@ const wsMaxPayloadBytes = parsePositiveInteger(process.env.MISTBOARD_WS_MAX_PAYL
 const wsMessageLimit = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_LIMIT) ?? 40;
 const wsMessageWindowMs = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_WINDOW_MS) ?? 10_000;
 const shutdownGraceMs = parsePositiveInteger(process.env.MISTBOARD_SHUTDOWN_GRACE_MS) ?? 10_000;
-const liveClockInitialMs = 30_000;
+const liveClockInitialMs = 180_000;
 const liveClockIncrementMs = 2_000;
 const minRoomClockInitialMs = 10_000;
 const maxRoomClockInitialMs = 180 * 60 * 1000;
@@ -1863,11 +1863,13 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
     ply: room.events.filter((event) => event.type === 'move-played').length,
   } as const;
   const startedAt = Date.now();
+  let fallbackEvent: LiveEngineFallbackEvent | null = null;
   const result = await chooseLiveEngineMove({
     context,
     engine,
     timeoutMs: liveEngineTimeoutMs,
     onFallback(event) {
+      fallbackEvent = event;
       console.error(JSON.stringify({
         level: 'error',
         kind: 'live_engine_fallback',
@@ -1918,6 +1920,78 @@ async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
     move,
     thinkTimeMs: engineThinkTimeMs,
   });
+  await recordLiveEngineDecisionArtifact(room, {
+    contextPly: context.ply,
+    durationMs: Date.now() - startedAt,
+    engineId: result.engineId,
+    fallback: result.fallback,
+    fallbackEvent,
+    move,
+    requestedEngineId: engine.id,
+    scores: result.decision.scores,
+    thinkTimeMs: engineThinkTimeMs,
+  });
+}
+
+type LiveEngineDecisionArtifactInput = {
+  contextPly: number;
+  durationMs: number;
+  engineId: string;
+  fallback: boolean;
+  fallbackEvent: LiveEngineFallbackEvent | null;
+  move: Move;
+  requestedEngineId: string;
+  scores: Array<{ move: Move; score: number; reason: string }>;
+  thinkTimeMs: number;
+};
+
+async function recordLiveEngineDecisionArtifact(
+  room: Room,
+  input: LiveEngineDecisionArtifactInput,
+): Promise<void> {
+  if (!persistence.isInitialized()) return;
+  try {
+    await persistence.recordGameDebugArtifact({
+      gameId: room.id,
+      ply: input.contextPly,
+      engineColor: 'black',
+      artifactType: 'live-engine-decision',
+      payload: {
+        requested_engine_id: input.requestedEngineId,
+        engine_id: input.engineId,
+        fallback: input.fallback,
+        move: input.move,
+        think_time_ms: input.thinkTimeMs,
+        duration_ms: input.durationMs,
+        scores: input.scores,
+      },
+    });
+    if (input.fallbackEvent) {
+      await persistence.recordGameDebugArtifact({
+        gameId: room.id,
+        ply: input.contextPly,
+        engineColor: 'black',
+        artifactType: 'live-engine-fallback',
+        payload: {
+          engine_id: input.fallbackEvent.engineId,
+          fallback_engine_id: input.fallbackEvent.fallbackEngineId,
+          reason: input.fallbackEvent.reason,
+          timeout_ms: input.fallbackEvent.timeoutMs ?? null,
+          duration_ms: input.fallbackEvent.durationMs,
+          diagnostics: input.fallbackEvent.diagnostics ?? null,
+        },
+      });
+    }
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'live_engine_artifact_persistence_failed',
+      roomId: room.id,
+      ply: input.contextPly,
+      error: (err as Error).message,
+      at: Date.now(),
+    }));
+  }
 }
 
 function scheduleRandomEngineMove(room: Room): void {

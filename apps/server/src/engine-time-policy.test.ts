@@ -15,6 +15,11 @@ test('parses engine tournament time controls', () => {
     initial_seconds: 10,
     increment_seconds: 2,
   });
+  assert.deepEqual(parseEngineTimeControl('standard'), {
+    kind: 'standard',
+    initial_seconds: 180,
+    increment_seconds: 2,
+  });
   assert.deepEqual(parseEngineTimeControl('5'), {
     kind: 'standard',
     initial_seconds: 5,
