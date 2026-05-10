@@ -2789,7 +2789,7 @@ function buildNav(): HTMLElement {
 
   const links = document.createElement('div');
   links.className = 'site-nav-links';
-  links.append(navLink('Play', '/play'), navLink('Watch', '/watch'), navLink('Learn', '/learn'));
+  links.append(navLink('Watch', '/watch'), navLink('Learn', '/learn'));
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';

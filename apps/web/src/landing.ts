@@ -223,18 +223,6 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   renderRecentGames(watch.listRoot, games, source, currentSample, '/game/');
 }
 
-export async function mountPlay(root: HTMLElement): Promise<void> {
-  root.replaceChildren();
-  root.classList.add('landing-page', 'play-route');
-  root.append(buildNav(), buildLoadingState('Loading play'), buildFooter());
-
-  const engines = await fetchPlayableEngines().catch((err) => {
-    console.warn(err);
-    return fallbackPlayableEngines();
-  });
-  root.replaceChildren(buildNav(), buildPlayPage(engines), buildFooter());
-}
-
 export async function mountGame(root: HTMLElement, roomId: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'game-route');
@@ -1233,10 +1221,9 @@ function buildNav(): HTMLElement {
   const links = document.createElement('div');
   links.className = 'site-nav-links';
 
-  const playLink = navLink('Play', '/play');
   const watchLink = navLink('Watch', '/watch');
   const learnLink = navLink('Learn', '/learn');
-  links.append(playLink, watchLink, learnLink);
+  links.append(watchLink, learnLink);
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
@@ -1338,44 +1325,6 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
     panel.append(buildLobbyRequestsWindow());
   }
   return panel;
-}
-
-function buildPlayPage(engines: PlayableEngine[]): HTMLElement {
-  const shell = document.createElement('main');
-  shell.className = 'play-shell';
-
-  const intro = document.createElement('section');
-  intro.className = 'play-intro';
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'play-eyebrow';
-  eyebrow.textContent = 'Fog of War';
-  const title = document.createElement('h1');
-  title.textContent = 'Play hidden-information chess';
-  const body = document.createElement('p');
-  body.textContent = 'Start with a friend link or a computer game. Full truth is revealed after the game for review and sharing.';
-  intro.append(eyebrow, title, body);
-
-  const panel = buildLandingPlayPanel(engines);
-  panel.classList.add('play-primary-panel');
-
-  const secondary = document.createElement('section');
-  secondary.className = 'play-secondary';
-  secondary.append(
-    playSecondaryLink('Watch games', '/watch'),
-    playSecondaryLink('Learn basics', '/learn'),
-    playSecondaryLink('Read rules', '/about'),
-  );
-
-  shell.append(intro, panel, secondary);
-  return shell;
-}
-
-function playSecondaryLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = 'play-secondary-link';
-  link.href = href;
-  link.textContent = label;
-  return link;
 }
 
 function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby'): HTMLButtonElement {

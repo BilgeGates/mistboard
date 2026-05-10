@@ -350,7 +350,7 @@ function createLayout(target: HTMLDivElement) {
           ${debugRequested ? '<h1>Fog Debug</h1>' : ''}
           <p data-room-meta>Connecting</p>
         </div>
-        <a data-new-room href="/play">New room</a>
+        <a data-new-room href="/">New room</a>
       </section>
 
       <section class="play-grid">
@@ -444,7 +444,7 @@ function createLayout(target: HTMLDivElement) {
     throw new Error('missing app region');
   }
 
-  newRoom.href = '/play';
+  newRoom.href = '/';
 
   return {
     board,
@@ -481,7 +481,6 @@ function buildNavHtml(): string {
         <span>MISTBOARD</span>
       </a>
       <div class="site-nav-links">
-        <a class="site-nav-link" href="/play">Play</a>
         <a class="site-nav-link" href="/watch">Watch</a>
         <a class="site-nav-link" href="/learn">Learn</a>
       </div>
@@ -680,7 +679,7 @@ function renderGameInfo(view: PlayerView | null): void {
 }
 
 function renderRoomActions(): void {
-  const actions: HTMLElement[] = [roomAction('Back to Play', '/play')];
+  const actions: HTMLElement[] = [roomAction('Back home', '/')];
   if (currentView()?.status.type === 'finished') {
     if (roomMode === 'pvp' || roomMode === 'pve') actions.unshift(playAgainButton());
     actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(room)}`, 'primary'));

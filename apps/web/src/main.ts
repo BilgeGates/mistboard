@@ -48,7 +48,7 @@ const wantsSource = path === '/source' || page === 'source';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
-const wantsPlay = path === '/play' || page === 'play';
+const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 const profileHandle = profileHandleFromPath(path);
 
@@ -77,8 +77,9 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountAccount }) => mountAccount(appRoot)));
 } else if (wantsWatch) {
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
-} else if (wantsPlay) {
-  void mountOrReport(() => import('./landing.js').then(({ mountPlay }) => mountPlay(appRoot)));
+} else if (wantsLegacyPlay) {
+  window.history.replaceState(null, '', '/');
+  void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
 } else if (wantsLearn) {
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
