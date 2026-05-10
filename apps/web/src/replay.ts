@@ -160,6 +160,7 @@ export async function mountReplay(
 
   root.replaceChildren();
   root.classList.add('replay-page');
+  root.classList.toggle('replay-compact', metadataMode === 'compact');
 
   const layout = document.createElement('div');
   layout.className = 'replay-layout';
@@ -187,9 +188,20 @@ export async function mountReplay(
   if (gameMetaPanel) root.append(gameMetaPanel.el);
   if (movesPanel) root.append(movesPanel.el);
   const clockPanel = createClockPanel();
-  whitePane.clockSlot.append(clockPanel.whiteRow);
-  blackPane.clockSlot.append(clockPanel.blackRow);
-  root.append(clockPanel.el);
+  if (metadataMode === 'compact') {
+    clockPanel.blackRow.classList.add('replay-clock-row-top');
+    clockPanel.whiteRow.classList.add('replay-clock-row-bottom');
+    whitePane.boardEl.before(createCompactClockSpacer());
+    blackPane.boardEl.before(createCompactClockSpacer());
+    whitePane.clockSlot.append(createCompactClockSpacer());
+    blackPane.clockSlot.append(createCompactClockSpacer());
+    truthPane.boardEl.before(clockPanel.blackRow);
+    truthPane.clockSlot.append(clockPanel.whiteRow);
+  } else {
+    whitePane.clockSlot.append(clockPanel.whiteRow);
+    blackPane.clockSlot.append(clockPanel.blackRow);
+    root.append(clockPanel.el);
+  }
 
   if (showControls && controlsMode === 'bar') {
     const controls = document.createElement('div');
@@ -265,6 +277,10 @@ export async function mountReplay(
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
   let lastNotifiedPly: number | null = null;
+  let liveClockState: GameState | null = null;
+  let liveClockBaseAt: number | null = null;
+  let liveClockBaseNow = 0;
+  let clockTickTimer: number | null = null;
 
   function render(): void {
     root.dataset.sampleId = activeSample;
@@ -273,7 +289,7 @@ export async function mountReplay(
     const projection = replayGameEvents(sliced);
     const state = projection.state;
     const finished = state.status.type === 'finished';
-    renderClockPanel(clockPanel, state.clock, state, currentMeta());
+    renderClockState(state);
 
     setBoardFromState(truthCg, state);
 
@@ -533,6 +549,41 @@ export async function mountReplay(
     if (loopTimer !== null) {
       window.clearTimeout(loopTimer);
       loopTimer = null;
+    }
+  }
+
+  function renderClockState(state: GameState): void {
+    liveClockState = state;
+    liveClockBaseAt = state.clock?.runningSince ?? eventTimeAtState(state) ?? null;
+    liveClockBaseNow = performance.now();
+    renderClockPanel(clockPanel, state.clock, state, currentMeta(), liveClockBaseAt ?? undefined);
+    syncClockTicker(state);
+  }
+
+  function syncClockTicker(state: GameState): void {
+    const shouldTick = state.status.type === 'playing'
+      && Boolean(state.clock)
+      && state.clock?.runningSince !== null
+      && state.clock?.activeColor !== null;
+    if (shouldTick) {
+      if (clockTickTimer === null) {
+        clockTickTimer = window.setInterval(renderLiveClockTick, 100);
+      }
+      return;
+    }
+    clearClockTicker();
+  }
+
+  function renderLiveClockTick(): void {
+    if (!liveClockState?.clock || liveClockBaseAt === null) return;
+    const displayAt = liveClockBaseAt + Math.max(0, performance.now() - liveClockBaseNow);
+    renderClockPanel(clockPanel, liveClockState.clock, liveClockState, currentMeta(), displayAt);
+  }
+
+  function clearClockTicker(): void {
+    if (clockTickTimer !== null) {
+      window.clearInterval(clockTickTimer);
+      clockTickTimer = null;
     }
   }
 
@@ -815,6 +866,11 @@ export async function mountReplay(
     },
     { signal: abortController.signal },
   );
+  abortController.signal.addEventListener('abort', () => {
+    stopPlay();
+    clearLoopTimer();
+    clearClockTicker();
+  }, { once: true });
 
   await loadGame(initialSampleId);
 
@@ -847,7 +903,11 @@ function createGameMetaPanel(mode: 'full' | 'compact' = 'full'): GameMetaPanelHa
   title.textContent = mode === 'compact' ? 'Featured game' : 'Game';
   const details = document.createElement('div');
   details.className = 'game-info replay-game-meta-details';
-  section.append(title, details);
+  if (mode === 'compact') {
+    section.append(details);
+  } else {
+    section.append(title, details);
+  }
   el.append(section);
   return { details, el, mode };
 }
@@ -867,11 +927,7 @@ function renderGameMetaPanel(
   panel.el.hidden = false;
   const timeControl = timeControlLabelFromMeta(meta.timeControl);
   const items: Array<{ label: string; value: string }> = panel.mode === 'compact'
-    ? [
-        { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
-        { label: 'Result', value: resultLabel(meta.result) },
-        { label: 'Length', value: `${meta.plyCount} plies` },
-      ]
+    ? []
     : [
         { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
         { label: 'Result', value: resultLabel(meta.result) },
@@ -885,7 +941,13 @@ function renderGameMetaPanel(
   for (const item of items) {
     panel.details.append(infoItem(item.label, item.value));
   }
-  if (meta.gameUrl && panel.mode !== 'full') {
+  if (panel.mode === 'compact') {
+    const gameId = document.createElement(meta.gameUrl ? 'a' : 'span');
+    gameId.className = 'replay-game-id';
+    gameId.textContent = activeSample;
+    if (gameId instanceof HTMLAnchorElement && meta.gameUrl) gameId.href = meta.gameUrl;
+    panel.details.append(gameId);
+  } else if (meta.gameUrl) {
     const link = document.createElement('a');
     link.className = 'replay-game-link';
     link.href = meta.gameUrl;
@@ -1293,6 +1355,13 @@ function createClockRow(colorLabel: string): { label: HTMLSpanElement; row: HTML
   return { label, row, time };
 }
 
+function createCompactClockSpacer(): HTMLDivElement {
+  const spacer = document.createElement('div');
+  spacer.className = 'replay-clock-spacer';
+  spacer.setAttribute('aria-hidden', 'true');
+  return spacer;
+}
+
 function setClockPanelNames(panel: ClockPanelHandle, meta: GameMeta | undefined): void {
   panel.whiteLabel.textContent = meta?.whiteName ?? 'White';
   panel.blackLabel.textContent = meta?.blackName ?? 'Black';
@@ -1303,6 +1372,7 @@ function renderClockPanel(
   clock: ClockState | undefined,
   state: GameState,
   meta: GameMeta | undefined,
+  displayAtOverride?: number,
 ): void {
   const timeControl = clock ? timeControlLabelFromClock(clock) : timeControlLabelFromMeta(meta?.timeControl);
   const hasPlayerLabels = Boolean(meta?.whiteName || meta?.blackName);
@@ -1327,7 +1397,7 @@ function renderClockPanel(
     return;
   }
 
-  const displayAt = clock.runningSince ?? eventTimeAtState(state) ?? 0;
+  const displayAt = displayAtOverride ?? clock.runningSince ?? eventTimeAtState(state) ?? 0;
   panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt), true);
   panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt), true);
   panel.whiteRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'white');
