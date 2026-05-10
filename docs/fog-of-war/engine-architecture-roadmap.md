@@ -212,13 +212,55 @@ Current production baseline:
   moves used `python-subprocess:deadline-guard`, which preserves engine identity
   and gives the lab a visible timing signal.
 
-Backlog: engine time-spend optimization track:
+Sprint: live engine timing control:
 
-1. Persist phase timing per live move: canonical replay, runtime startup,
-   strategy reset, event observation, pick start, pick finish, and guard return.
-2. Summarize these timings in review tooling so a completed game can answer
-   whether time was spent on replay, belief updates, tactical shortcuts, or
-   particle evaluation.
+Goal: make production live engine timing observable, attributable, and
+controllable enough that Tier-1 can become an anytime engine without hiding
+quality failures behind server fallback.
+
+Scope:
+
+1. Persist per-move phase timings for the live Python path: canonical replay,
+   runtime startup, strategy reset, event observation, candidate initialization,
+   pick start, pick finish, and guard return.
+2. Add a completed-game timing review summary that highlights move duration,
+   engine decision source, server fallback, deadline-guard use, and slowest
+   phases.
+3. Refactor the live runner so every move initializes a legal `best_so_far`
+   before expensive Tier-1 work begins.
+4. Add a clock-aware terminate policy with a hard deadline, soft per-move
+   budget, guard band, and phase-gate checks.
+5. Return the current `best_so_far` at the deadline instead of switching to an
+   emergency selector after the main search has already run too long.
+6. Promote the behavior through a pinned engine version so production games and
+   tournaments can distinguish timing-control changes from unrelated engine
+   quality changes.
+
+Exit condition:
+
+- A fresh production PVE game against the pinned timing-control engine finishes
+  with a `live-engine-decision` artifact for every engine move.
+- No server fallback occurs unless the engine fails to produce any legal
+  candidate at all.
+- Any deadline-limited move reports that it returned `best_so_far`, with enough
+  phase timing data to explain where the move budget went.
+- The completed-game review can answer whether the loss came from search
+  quality, clock pressure, deadline termination, or infrastructure fallback.
+
+Out of scope for this sprint:
+
+- Persistent warm per-room Python sessions.
+- Distributed search workers.
+- Neural priors or learned evaluators.
+- Large particle-search redesigns beyond exposing progressive search phases.
+
+Backlog: engine time-spend optimization track after the sprint:
+
+1. Standardize phase timing across live games, tournaments, and local analysis
+   so timing regressions are comparable across execution paths.
+2. Expand review tooling so completed games can compare time spent on replay,
+   belief updates, tactical shortcuts, particle evaluation, and deadline
+   termination.
 3. Replace per-move process startup and full event-log replay with a warm
    per-room Python engine session or equivalent cached state.
 4. Split Tier-1 move selection into explicit progressive phases: cheap legal
