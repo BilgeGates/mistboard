@@ -84,15 +84,26 @@ rerunning into an existing `--save-dir`, complete this retention gate:
 1. Add the run to `docs-private/engine-track/artifact-source-inventory.md` with
    its manifest URL, absolute source path, commit, command, seed, config,
    status, and owner/session.
-2. Keep the raw artifact directory until every important annotation from that
+2. Run the artifact closeout helper for any run with annotations or review
+   signal:
+
+   ```sh
+   npm run engine:artifact-closeout -- \
+     --manifest /bakeoff-v0.7.22-rung2-3game-codex/manifest.json \
+     --baseUrl http://127.0.0.1:3000
+   ```
+
+   This captures screenshots from annotations, archives the raw run when it can
+   find `apps/web/public/<run>`, and refreshes the private artifact audit.
+3. Keep the raw artifact directory until every important annotation from that
    run has screenshots and a case-file entry.
-3. For any run that produced a major annotation, preserve at least:
+4. For any run that produced a major annotation, preserve at least:
    `manifest.json`, `games/*.jsonl`, `trace.jsonl`, `belief.jsonl`,
    `review_queue.*`, `hardfact_report.*`, and captured PNG indexes.
-4. If the raw directory is too large to keep in-place, move or archive it to a
+5. If the raw directory is too large to keep in-place, move or archive it to a
    private artifact store and update the inventory before removing the working
    copy.
-5. If a run is deliberately disposable, write that in the inventory before
+6. If a run is deliberately disposable, write that in the inventory before
    deletion. A run with annotations, screenshots, hard-fact findings, or a
    build-log reference is not disposable.
 
@@ -232,6 +243,18 @@ The capture script backfills screenshots from annotations for one manifest:
 ```sh
 npm run engine:capture-beliefs -- --manifest /bakeoff-v0.7.12-target-g14-transition/manifest.json --limit 12
 ```
+
+For normal session closeout, prefer the combined command:
+
+```sh
+npm run engine:artifact-closeout -- \
+  --manifest /bakeoff-v0.7.12-target-g14-transition/manifest.json \
+  --baseUrl http://127.0.0.1:3000
+```
+
+Run it immediately after the operator finishes annotating a game batch, while
+the replay server and raw bake-off directory are still present. Do not postpone
+screenshots to a later cleanup pass; that is how local-only evidence gets lost.
 
 By default it writes ignored local files under
 `docs-private/engine-track/captures/`:
