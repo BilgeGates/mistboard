@@ -1,8 +1,6 @@
 import {
+  algebraicMoveLabels as buildAlgebraicMoveLabels,
   clockRemainingMs,
-  applyGameEvent,
-  initialGameProjection,
-  moveToAlgebraic,
   replayGameEvents,
   variantForId,
   type BidResolution,
@@ -1303,18 +1301,7 @@ function canTogglePostgameFog(): boolean {
 }
 
 function algebraicMoveLabels(): Map<number, string> {
-  const labels = new Map<number, string>();
-  let projection = initialGameProjection(events[0]?.roomId ?? room);
-
-  for (const [index, event] of events.entries()) {
-    const eventIndex = index + 1;
-    if (event.type === 'move-played') {
-      labels.set(eventIndex, moveToAlgebraic(projection.state, event.move));
-    }
-    projection = applyGameEvent(projection, event);
-  }
-
-  return labels;
+  return buildAlgebraicMoveLabels(events, events[0]?.roomId ?? room);
 }
 
 function moveLabel(entry: MoveListEntry, labelsByEventIndex: Map<number, string>): string {

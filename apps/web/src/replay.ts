@@ -1,9 +1,7 @@
 import {
-  applyGameEvent,
+  algebraicMoveLabels as buildAlgebraicMoveLabels,
   clockRemainingMs,
   fogOfWarVariant,
-  initialGameProjection,
-  moveToAlgebraic,
   replayGameEvents,
   type Board,
   type ClockState,
@@ -1109,27 +1107,18 @@ function replayMoveCell(
 
 function replayMoveEntries(events: GameEvent[]): ReplayMoveEntry[] {
   const entries: ReplayMoveEntry[] = [];
-  let projection = initialGameProjection(events[0]?.roomId ?? 'replay');
+  const labelsByEventIndex = buildAlgebraicMoveLabels(events, events[0]?.roomId ?? 'replay');
   for (const [index, event] of events.entries()) {
     if (event.type === 'move-played') {
       entries.push({
         event,
         eventIndex: index + 1,
-        label: replayMoveLabel(projection.state, event.move),
+        label: labelsByEventIndex.get(index + 1) ?? coordinateMoveLabel(event.move),
         ply: entries.length + 1,
       });
     }
-    projection = applyGameEvent(projection, event);
   }
   return entries;
-}
-
-function replayMoveLabel(state: GameState, move: Move): string {
-  try {
-    return moveToAlgebraic(state, move);
-  } catch {
-    return coordinateMoveLabel(move);
-  }
 }
 
 function coordinateMoveLabel(move: Move): string {

@@ -1,3 +1,4 @@
+import { applyGameEvent, initialGameProjection, type GameEvent, type GameProjection } from './events.js';
 import type { Board, GameState, Move, PieceRole, Square } from './types.js';
 
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
@@ -35,8 +36,41 @@ export function moveToAlgebraic(state: GameState, move: Move): string {
   ].join('');
 }
 
+export function algebraicMoveLabels(events: GameEvent[], roomId = events[0]?.roomId ?? 'replay'): Map<number, string> {
+  const labels = new Map<number, string>();
+  let projection = initialGameProjection(roomId);
+
+  for (const [index, event] of events.entries()) {
+    if (event.type !== 'move-played') {
+      projection = applyGameEvent(projection, event);
+      continue;
+    }
+
+    const labelProjection = projectionForVisibleMove(projection, event);
+    labels.set(index + 1, moveToAlgebraic(labelProjection.state, event.move));
+    projection = applyGameEvent(labelProjection, event);
+  }
+
+  return labels;
+}
+
 function moveToCoordinate(move: Move): string {
   return `${move.from}${move.to}${move.promotion ? `=${promotionLetter(move.promotion)}` : ''}`;
+}
+
+function projectionForVisibleMove(
+  projection: GameProjection,
+  event: Extract<GameEvent, { type: 'move-played' }>,
+): GameProjection {
+  if (projection.state.status.type !== 'playing') return projection;
+  if (projection.state.status.turn === event.color) return projection;
+  return {
+    ...projection,
+    state: {
+      ...projection.state,
+      status: { type: 'playing', turn: event.color },
+    },
+  };
 }
 
 function promotionLetter(role: PromotionRole): string {

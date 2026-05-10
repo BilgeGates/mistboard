@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { moveToAlgebraic } from './notation.js';
-import type { GameState } from './types.js';
+import { algebraicMoveLabels, moveToAlgebraic } from './notation.js';
+import type { GameEvent } from './events.js';
+import type { GameState, Move } from './types.js';
 import { fogOfWarVariant } from './variants.js';
 
 test('formats quiet pawn moves without coordinate notation', () => {
@@ -88,4 +89,34 @@ test('does not format ordinary king moves to c-file or g-file as castling', () =
   } satisfies GameState;
 
   assert.equal(moveToAlgebraic(state, { from: 'b1', to: 'c1' }), 'Kc1');
+});
+
+test('labels consecutive visible moves after redacted opponent moves', () => {
+  const roomId = 'redacted-pve-notation';
+  const moves: Move[] = [
+    { from: 'e2', to: 'e4' },
+    { from: 'g1', to: 'f3' },
+    { from: 'b1', to: 'c3' },
+    { from: 'f1', to: 'c4' },
+    { from: 'd2', to: 'd3' },
+    { from: 'e4', to: 'd5' },
+    { from: 'd5', to: 'e6' },
+    { from: 'e1', to: 'h1' },
+    { from: 'f1', to: 'e1' },
+  ];
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId, variant: 'fog-of-war', offer: [] },
+    ...moves.map((move, index) => ({
+      type: 'move-played' as const,
+      at: index + 2,
+      roomId,
+      color: 'white' as const,
+      move,
+    })),
+  ];
+
+  const labels = algebraicMoveLabels(events, roomId);
+
+  assert.equal(labels.get(9), 'O-O');
+  assert.equal(labels.get(10), 'Re1');
 });
