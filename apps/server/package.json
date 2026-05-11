@@ -16,6 +16,7 @@
     "engine:enqueue": "tsx src/enqueue-engine-games.ts",
     "engine:enqueue-smoke": "tsx src/enqueue-engine-smoke.ts",
     "engine:enqueue-tournament": "tsx src/enqueue-engine-tournament.ts",
+    "engine:elo-report": "tsx src/engine-elo-report.ts",
     "engine:queue-status": "tsx src/engine-queue-status.ts",
     "engine:tournament-status": "tsx src/engine-tournament-status.ts",
     "worker": "node dist/worker.js",

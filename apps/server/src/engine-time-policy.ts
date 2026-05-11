@@ -67,6 +67,11 @@ export function timeControlLabel(timeControl: EngineTaskTimeControl): string {
   return `${timeControl.initial_seconds}+${timeControl.increment_seconds}`;
 }
 
+export function timeControlBucket(timeControl: EngineTaskTimeControl): string {
+  if (timeControl.kind === 'none') return 'untimed';
+  return `tc-${formatBucketNumber(timeControl.initial_seconds)}+${formatBucketNumber(timeControl.increment_seconds)}`;
+}
+
 function numericValue(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim() !== '') {
@@ -74,4 +79,8 @@ function numericValue(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function formatBucketNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(value).replace(/\./g, 'p');
 }

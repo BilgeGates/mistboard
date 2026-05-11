@@ -37,6 +37,9 @@ test('parses tournament CLI config', () => {
     'random-first-4',
     '--providers',
     'local',
+    '--rated',
+    '--rating-anchor',
+    'python-random-legal',
     '--tournament-id',
     'dev-cup',
   ], {});
@@ -49,6 +52,9 @@ test('parses tournament CLI config', () => {
     increment_seconds: 2,
   });
   assert.deepEqual(config.openingPolicy, { kind: 'random_first_n_plies', n: 4 });
+  assert.equal(config.rated, true);
+  assert.equal(config.ratingAnchorEngineId, 'python-random-legal');
+  assert.equal(config.ratingMinAnchorGames, 8);
 });
 
 test('defaults tournament CLI time control to standard 3+2', () => {
@@ -86,5 +92,16 @@ test('builds reproducible tournament job metadata', () => {
     engines: ['a', 'b'],
     games_per_pair: 2,
     color_policy: 'alternate-by-repeat',
+  });
+  assert.deepEqual(jobConfig.rating_policy, {
+    rated: false,
+    method: 'anchor-relative-smoothed-logit-v1',
+    anchor_engine_id: 'python-random-legal',
+    min_anchor_games: 8,
+    excluded_terminations: ['truncated'],
+    pool: {
+      variant: 'fog-of-war',
+      time_control_bucket: 'tc-180+2',
+    },
   });
 });

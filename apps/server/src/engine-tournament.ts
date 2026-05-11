@@ -1,5 +1,6 @@
 import {
   parseEngineTimeControl,
+  timeControlBucket,
   timeControlLabel,
   type EngineTaskTimeControl,
 } from './engine-time-policy.js';
@@ -27,6 +28,9 @@ export type TournamentCliConfig = {
   openingPolicy: Record<string, unknown>;
   priority: number;
   providers: string[];
+  rated: boolean;
+  ratingAnchorEngineId: string;
+  ratingMinAnchorGames: number;
   seed: string;
   timeControl: EngineTaskTimeControl;
   tournamentId: string;
@@ -76,6 +80,11 @@ export function parseTournamentArgs(values: string[], env: NodeJS.ProcessEnv = p
   const maxPlies = positiveInteger(args.maxPlies ?? env.ENGINE_MAX_PLIES, 160);
   const providers = csv(args.providers ?? env.ENGINE_PROVIDERS ?? 'local,railway');
   const timeControl = parseEngineTimeControl(args.timeControl ?? env.ENGINE_TIME_CONTROL ?? 'standard');
+  const rated = booleanFlag(args.rated ?? env.ENGINE_RATED, false);
+  const ratingAnchorEngineId = args.ratingAnchor
+    ?? env.ENGINE_RATING_ANCHOR
+    ?? 'python-random-legal';
+  const ratingMinAnchorGames = positiveInteger(args.ratingMinAnchorGames ?? env.ENGINE_RATING_MIN_ANCHOR_GAMES, 8);
   const tournamentId = args.tournamentId
     ?? env.ENGINE_TOURNAMENT_ID
     ?? `tournament-${new Date().toISOString().replace(/[:.]/g, '-')}`;
@@ -91,6 +100,9 @@ export function parseTournamentArgs(values: string[], env: NodeJS.ProcessEnv = p
     openingPolicy: openingPolicyFrom(args.opening ?? env.ENGINE_OPENING_POLICY),
     priority: integer(args.priority ?? env.ENGINE_PRIORITY, 0),
     providers,
+    rated,
+    ratingAnchorEngineId,
+    ratingMinAnchorGames,
     seed: args.seed ?? env.ENGINE_SEED ?? Date.now().toString(),
     timeControl,
     tournamentId,
@@ -118,9 +130,21 @@ export function tournamentJobConfig(config: TournamentCliConfig, targetGames: nu
     time_control: {
       ...config.timeControl,
       label: timeControlLabel(config.timeControl),
+      bucket: timeControlBucket(config.timeControl),
     },
     opening_policy: config.openingPolicy,
     artifact_policy: config.artifactPolicy,
+    rating_policy: {
+      rated: config.rated,
+      method: 'anchor-relative-smoothed-logit-v1',
+      anchor_engine_id: config.ratingAnchorEngineId,
+      min_anchor_games: config.ratingMinAnchorGames,
+      excluded_terminations: ['truncated'],
+      pool: {
+        variant: 'fog-of-war',
+        time_control_bucket: timeControlBucket(config.timeControl),
+      },
+    },
     review_policy: { enqueue_engine_lab: true, initial_review_status: 'unreviewed' },
   };
 }
@@ -134,6 +158,9 @@ type RawArgs = {
   maxPlies?: string;
   opening?: string;
   priority?: string;
+  rated?: string;
+  ratingAnchor?: string;
+  ratingMinAnchorGames?: string;
   providers?: string;
   seed?: string;
   timeControl?: string;
@@ -146,6 +173,10 @@ function parseArgs(values: string[]): RawArgs {
     const arg = values[index]!;
     if (!arg.startsWith('--')) continue;
     const [rawKey, inlineValue] = arg.slice(2).split('=', 2);
+    if (rawKey === 'rated' && inlineValue === undefined && (values[index + 1] === undefined || values[index + 1]!.startsWith('--'))) {
+      parsed.rated = 'true';
+      continue;
+    }
     const value = inlineValue ?? values[++index];
     if (!value) throw new Error(`missing value for --${rawKey}`);
     switch (rawKey) {
@@ -173,6 +204,15 @@ function parseArgs(values: string[]): RawArgs {
         break;
       case 'priority':
         parsed.priority = value;
+        break;
+      case 'rated':
+        parsed.rated = value;
+        break;
+      case 'rating-anchor':
+        parsed.ratingAnchor = value;
+        break;
+      case 'rating-min-anchor-games':
+        parsed.ratingMinAnchorGames = value;
         break;
       case 'providers':
         parsed.providers = value;
@@ -219,6 +259,13 @@ function positiveInteger(value: string | undefined, fallback: number): number {
 function integer(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function booleanFlag(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined) return fallback;
+  if (['1', 'true', 'yes', 'on'].includes(value.toLowerCase())) return true;
+  if (['0', 'false', 'no', 'off'].includes(value.toLowerCase())) return false;
+  throw new Error(`invalid boolean value ${value}`);
 }
 
 function slugEngineId(engineId: string): string {

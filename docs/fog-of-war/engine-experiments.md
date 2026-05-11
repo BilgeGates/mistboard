@@ -90,6 +90,25 @@ npm run engine:tournament-status -- --tournament-id <tournament_id> --format mar
 With no filter it reports the newest tournament-shaped EvE job. This is still
 an operational report, not a public leaderboard.
 
+Engine Elo is opt-in. Tournament jobs are unrated unless created with
+`--rated`; unrated EvE games are ignored by the Elo report even if they are
+valid calibration games. The first report is anchor-relative and keeps pools
+separate by variant and time-control bucket:
+
+```sh
+npm run engine:enqueue-tournament -- \
+  --engines python-tier1-v0.8.9,python-tier1-v0.7.22,python-random-legal \
+  --games-per-pair 8 \
+  --time-control standard \
+  --rated \
+  --rating-anchor python-random-legal
+
+npm run engine:elo-report -- --job <job_id> --format markdown
+```
+
+The default Elo floor is eight games against the anchor. Games ending in
+`truncated` are excluded from Elo.
+
 For production DB-backed commands, run inside the deployed service container
 instead of relying on local `railway run` when `DATABASE_URL` points at a
 Railway-private Postgres host:

@@ -5,6 +5,7 @@ import {
   normalizeEngineTimeControl,
   parseEngineTimeControl,
   roomTimeControlFromEngine,
+  timeControlBucket,
   timeoutResult,
 } from './engine-time-policy.js';
 
@@ -49,4 +50,10 @@ test('converts engine time control into room clock events', () => {
 test('timeout result awards the opponent', () => {
   assert.equal(timeoutResult('white'), 'black-wins');
   assert.equal(timeoutResult('black'), 'white-wins');
+});
+
+test('builds stable time control buckets', () => {
+  assert.equal(timeControlBucket(parseEngineTimeControl('standard')), 'tc-180+2');
+  assert.equal(timeControlBucket(parseEngineTimeControl('10+0.5')), 'tc-10+0p5');
+  assert.equal(timeControlBucket(parseEngineTimeControl('none')), 'untimed');
 });
