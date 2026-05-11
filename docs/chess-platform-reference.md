@@ -44,6 +44,42 @@ Large chess platforms often expose:
 
 These surfaces are not automatically Mistboard requirements.
 
+## Learning Rail Translation
+
+Mature chess onboarding usually splits learning into a few repeatable rails:
+
+- rules onboarding: board setup, piece movement, legal moves, castling,
+  promotion, en passant, check, and checkmate
+- guided practice: short lessons around tactical and strategic motifs
+- puzzle loops: repeated tactical exercises with ratings, streaks, themes, or
+  speed modes
+- progress loops: completed lessons, saved progress, ratings, streaks, badges,
+  or other return hooks
+- play handoff: move from lesson to real games, then from games to review
+
+The product distinction is useful but not binding. Lightweight learn-by-doing
+flows reduce friction. Curriculum-heavy flows make progression and motivation
+clear. Mistboard should borrow both instincts without copying a generic chess
+course.
+
+For Fog of War, the handoff cannot be "learn the rules, then play normal
+chess." The first-run loop should be:
+
+1. first legal Fog move
+2. first visibility explanation
+3. first reveal
+4. first hidden danger
+5. first king capture
+6. first meaningful Fog decision
+7. first game or guided mini-game
+8. first review of an information mistake
+9. first reason to return for another lesson, puzzle, replay, or game
+
+The transferable rule is:
+
+> Normal chess onboarding teaches tactics on a public board. Fog onboarding
+> teaches players to create, deny, and exploit vision.
+
 ## Fog Translation
 
 | Platform surface | User job | Mistboard Fog equivalent | Priority posture |

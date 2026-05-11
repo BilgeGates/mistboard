@@ -53,6 +53,48 @@ The initial release should feel like a calm authored tutorial, not puzzle rush:
 one Fog concept at a time, low pressure, quick recovery from mistakes, and clear
 progression. Advanced training can later mine lessons from real games.
 
+## Onboarding Spine
+
+Standard chess onboarding usually moves from pieces to legal moves, check,
+checkmate, tactics, play, and review. Fog of War needs a different spine because
+the player is learning two games at once:
+
+1. chess movement
+2. information control
+
+The first-run path should therefore move through:
+
+1. visibility
+2. pieces as sensors
+3. direct king capture
+4. hidden danger
+5. scouting
+6. deduction
+7. ambushes and bait
+8. guided mini-games
+9. review of information mistakes
+
+The short product promise:
+
+> Normal chess teaches players to see tactics. Fog of War teaches players to
+> create, deny, and exploit vision.
+
+This changes the meaning of nearly every beginner topic:
+
+- **Piece movement** becomes piece vision. Every move is also a scan.
+- **Check** becomes king safety without warnings. The player must not wait for
+  the UI to announce danger.
+- **Checkmate** becomes find, reveal, and capture the king.
+- **Material tactics** become information tactics. A scouting move can be more
+  valuable than a capture.
+- **Blunder review** becomes information review: what the player saw, what the
+  opponent saw, what was true, and what inference was missed.
+
+The first lesson should break the public-board assumption immediately. A normal
+board can fade into fog, then ask which squares are visible and why. The first
+enemy reveal should make the asymmetry clear: seeing an enemy piece does not
+mean the opponent knows what the player knows.
+
 ## Recommended First Path
 
 The first public path should start with a **Fog Pieces** category,
@@ -96,6 +138,27 @@ Fog-first category outline:
 - **Fog Advanced.** Piece value under uncertainty, check/capture in two, memory
   and scouting drills.
 - **What Next?** Register, practice, puzzles, videos, play people, play machine.
+
+Expanded academy spine:
+
+| Chapter | Theme | Player learns |
+|---|---|---|
+| 0 | This Is Not Normal Chess | Fog, asymmetry, hidden pieces, and no checkmate |
+| 1 | Vision Basics | How each piece reveals squares |
+| 2 | Capture The King | No check warning, no mate ritual, sudden king capture |
+| 3 | Fog Mindset | Fog is unknown space, not empty space |
+| 4 | Scouting | Development as information gathering |
+| 5 | Ambushes And Traps | Invisible threats, bait captures, and false safety |
+| 6 | Deduction | Track disappeared pieces and reconstruct hidden moves |
+| 7 | Fog Tactics | Forks, pins, discoveries, and king hunts under fog |
+| 8 | Endgames | Search patterns, sweeps, and maintaining contact |
+| 9 | First Real Game | Guided play, assisted full game, and review handoff |
+
+The current first implementation maps cleanly onto the first half of that
+spine: Fog Pieces, capture/protection/combat, direct king capture, board setup,
+special rules, piece value, capture-in-two, and scouting. The expanded chapters
+above describe where the later deduction, ambush, endgame, and review-training
+work should land.
 
 ## Fog Pieces Category
 
@@ -2414,6 +2477,30 @@ The lesson engine should support:
 - per-chapter feedback copy
 - optional truth reveal after a choice
 - local progress
+
+High-value lesson mechanics:
+
+- **Why can I see this?** Let the player click a visible square or revealed
+  piece and highlight the friendly piece, line, jump, or pawn rule that creates
+  visibility.
+- **Perspective toggle.** In teaching and postgame contexts, switch among
+  player view, opponent view, and truth view. Keep this out of live play unless
+  the mode is explicitly a replay or lesson.
+- **Ghost markers.** When an enemy disappears into fog, let the player mark
+  possible squares. This creates a Fog-native deduction exercise instead of a
+  generic chess puzzle.
+- **Candidate king region.** In hunt lessons, show or ask the player to mark the
+  region where the enemy king could still be. Scouting should shrink that region.
+- **Information score.** For beginner comparison moves, explain value in terms
+  of new squares revealed, enemy pieces discovered, king safety improved, or
+  opponent information denied. Avoid pretending the score is engine truth.
+- **Death replay.** When a king is captured in a lesson or first-game review,
+  show what the player saw, what the opponent saw, where the threat came from,
+  and which move exposed the king.
+
+These mechanics should make the rules tactile. The board should teach the player
+what prose alone cannot: why a square is visible, why fog is not empty, why
+material can be bait, and why review is how Fog games become understandable.
 
 It should avoid:
 
