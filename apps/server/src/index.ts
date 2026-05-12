@@ -221,11 +221,66 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
+  const gameRouteMatch = pathname.match(/^\/game\/([^/]+)$/);
+  if (gameRouteMatch && persistence.isInitialized()) {
+    const roomId = decodeURIComponent(gameRouteMatch[1]!);
+    void serveGamePage(roomId, response).catch(() => {
+      request.url = '/';
+      void serveHandler(request, response, { public: staticDir });
+    });
+    return;
+  }
+
   if (isClientRoute(pathname)) {
     request.url = '/';
   }
 
   void serveHandler(request, response, { public: staticDir });
+}
+
+async function serveGamePage(roomId: string, response: ServerResponse): Promise<void> {
+  const game = await persistence.getGameSummary(roomId);
+  const indexPath = resolve(staticDir, 'index.html');
+  let html = await fs.readFile(indexPath, 'utf-8');
+
+  if (game) {
+    const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+    const white = game.whiteName ?? 'White';
+    const black = game.blackName ?? 'Black';
+    const resultLabel =
+      game.result === 'white-wins' ? `${white} wins` :
+      game.result === 'black-wins' ? `${black} wins` : 'Draw';
+    const title = `${resultLabel} · Fog of War | Mistboard`;
+    const plies = game.plyCount ?? 0;
+    const moves = Math.ceil(plies / 2);
+    const termination = game.termination
+      ? game.termination.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+      : 'Game over';
+    const description = `${white} vs ${black} · ${termination} after ${moves} move${moves !== 1 ? 's' : ''}. Watch the full Fog of War replay on Mistboard.`;
+    const url = `${host}/game/${encodeURIComponent(roomId)}`;
+
+    html = html
+      .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
+      .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(description)}$2`)
+      .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(title)}$2`)
+      .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(description)}$2`)
+      .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(url)}$2`)
+      .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(title)}$2`)
+      .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(description)}$2`);
+  }
+
+  response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  response.end(html);
+}
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function isClientRoute(pathname: string): boolean {

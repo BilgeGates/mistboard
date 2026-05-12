@@ -242,6 +242,7 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   }
 
   const { game, events } = loaded;
+  document.title = buildGamePageTitle(game);
   await mountReplay(replayRoot, game.roomId, {
     autoplay: false,
     initialPly: initialGamePly(),
@@ -1861,6 +1862,15 @@ function resultLabel(result: string): string {
   if (result === 'white-wins') return 'White wins';
   if (result === 'black-wins') return 'Black wins';
   return 'Draw';
+}
+
+function buildGamePageTitle(game: FeaturedGame): string {
+  const white = game.whiteName ?? 'White';
+  const black = game.blackName ?? 'Black';
+  const result =
+    game.result === 'white-wins' ? `${white} beats ${black}` :
+    game.result === 'black-wins' ? `${black} beats ${white}` : `${white} vs ${black} · Draw`;
+  return `${result} · Fog of War | Mistboard`;
 }
 
 function terminationLabel(termination: string): string {
