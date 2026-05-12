@@ -37,16 +37,8 @@ import {
 import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
 import { snapshotPayload, type Seat } from './payloads.js';
 import {
-  displayNameForEmail,
-  handleBaseForEmail,
-  normalizeDisplayName,
-  normalizeEmail,
-  normalizeProfileHandle,
-} from './account-identity.js';
-import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
-  eventReplayResponse,
   isAdminDebugToken,
   isServerEngineClient,
   isAllowedWebSocketOrigin,
@@ -58,61 +50,30 @@ import {
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
+import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
+import { currentAccountUser, hashSecret } from './account-session.js';
+import {
+  handleApiRequest,
+  parseHiddenDraft960,
+  parseRoomTimeControl,
+  parseVariantId,
+  type HttpApiContext,
+} from './http-api.js';
 
-type Client = {
-  debugRequested: boolean;
-  devViews: boolean;
-  id: string;
-  messageTimestamps: number[];
-  socket: WebSocket;
-  roomId: string;
-  seat: Seat;
-  seatTokenHash?: string;
-  displaced: boolean;
-  solo: boolean;
-};
+// Navigation index — grep for section name to jump to the right block
+// Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
+// HTTP API handlers      → ./http-api.ts          (handleApiRequest, lobby, game data, auth endpoints)
+// SECTION: Types and constants          (~line 93)    module-scope maps and config constants
+// SECTION: Server init and HTTP entry   (~line 150)   initPersistence, handleHttpRequest, static file serving
+// SECTION: WebSocket connection handling (~line 250)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
+// SECTION: Seat management              (~line 600)   assignSeat, existingSeatAssignment, newSeatAssignment, verifySeatToken, displaceOlderSeatClients, canClientAct
+// SECTION: Game flow                    (~line 740)   enableRandomEngine, selectStart, submitBid, playMove, playRandomEngineMoveIfReady, resolveStartIfReady, resolveBidIfReady
+// SECTION: Seat token persistence       (~line 1020)  reconcileClientSeats, reconciledSeatTokens, seatTokenStatesFromPersistence, persistSeatToken, replaceSeatTokens
+// SECTION: Room event infrastructure    (~line 1115)  broadcastSnapshot, appendEvent, buildGameSummary, scheduleClockTimeout, expireActiveClock, resetRoom
+// SECTION: Helpers and shutdown         (~line 1390)  send, parseMessage, isPromotionRole, isColor, roomCreatedDraftOfferFields, shutdown
 
-type SeatTokenState = {
-  clientId: string;
-  seat: Color;
-  tokenHash: string;
-  userId: string | null;
-  userHandle: string | null;
-  userDisplayName: string | null;
-  issuedAt: Date;
-  lastSeenAt: Date;
-  revokedAt: Date | null;
-};
-
-type SeatAssignment = {
-  seat: Seat;
-  seatToken?: string;
-  seatTokenHash?: string;
-};
-
-type Room = {
-  id: string;
-  clients: Set<Client>;
-  events: GameEvent[];
-  projection: GameProjection;
-  seatTokens: Partial<Record<Color, SeatTokenState>>;
-  clockTimer: ReturnType<typeof setTimeout> | null;
-  engineTimer: ReturnType<typeof setTimeout> | null;
-  mode: persistence.GameMode;
-  randomEngine: boolean;
-  pveEngineId: string | null;
-  pendingWrites: Promise<void>;
-  gameEndRecorded: boolean;
-};
-
-type LobbyTicket = {
-  id: string;
-  createdAt: number;
-  hiddenDraft960: boolean;
-  matchedAt: number | null;
-  roomId: string | null;
-  timeControl: RoomTimeControl | undefined;
-};
+// ── SECTION: Types and constants ───────────────────────────────────────────
+// Core server types live in ./server-types.ts — Client, Room, SeatTokenState, SeatAssignment, LobbyTicket
 
 const rooms = new Map<string, Room>();
 const lobbyTickets = new Map<string, LobbyTicket>();
@@ -125,24 +86,11 @@ const wsMessageWindowMs = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_
 const shutdownGraceMs = parsePositiveInteger(process.env.MISTBOARD_SHUTDOWN_GRACE_MS) ?? 10_000;
 const liveClockInitialMs = 180_000;
 const liveClockIncrementMs = 2_000;
-const minRoomClockInitialMs = 10_000;
-const maxRoomClockInitialMs = 180 * 60 * 1000;
-const maxRoomClockIncrementMs = 60_000;
 const pveEngineMoveDelayMs = parsePositiveInteger(process.env.MISTBOARD_PVE_ENGINE_DELAY_MS) ?? 650;
 const liveEngineTimeoutMs = parsePositiveInteger(process.env.MISTBOARD_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
 const guestPrestartAbortMs = parseNonNegativeInteger(process.env.MISTBOARD_GUEST_PRESTART_ABORT_MS) ?? 15 * 60 * 1000;
 const abortPolicySweepMs = parsePositiveInteger(process.env.MISTBOARD_ABORT_POLICY_SWEEP_MS) ?? 60_000;
-const lobbyTicketTtlMs = 5 * 60 * 1000;
-const lobbyPollAfterMs = 1_000;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
-const accountSessionCookieName = 'mistboard_session';
-const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
-const emailLoginCodeTtlMs = 10 * 60 * 1000;
-const devAuthCodesEnabled = !isProductionLikeRuntime() || process.env.MISTBOARD_DEV_AUTH_CODES === 'true';
-const resendApiKey = process.env.RESEND_API_KEY;
-const authEmailFrom = process.env.MISTBOARD_AUTH_EMAIL_FROM ?? process.env.RESEND_FROM_EMAIL;
-const authEmailDeliveryEnabled = !!resendApiKey && !!authEmailFrom;
-
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 
@@ -183,6 +131,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   });
 }
 
+// ── SECTION: Server init and HTTP entry ────────────────────────────────────
 async function initPersistence(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -227,7 +176,19 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   }
 
   if (url.startsWith('/api/')) {
-    void handleApiRequest(request, response).catch((err) => {
+    const apiCtx: HttpApiContext = {
+      rooms,
+      lobbyTickets,
+      lobbyQueue,
+      databaseRequired,
+      pveBuiltinEngineClientId,
+      annotationsFile,
+      liveClockInitialMs,
+      liveClockIncrementMs,
+      createRoom,
+      inMemoryGameSummary,
+    };
+    void handleApiRequest(apiCtx, request, response).catch((err) => {
       console.error(JSON.stringify({
         level: 'error',
         kind: 'api_handler_failure',
@@ -267,982 +228,6 @@ function isClientRoute(pathname: string): boolean {
     || normalized.startsWith('/room/');
 }
 
-async function handleApiRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
-  const url = request.url ?? '/';
-  const parsedUrl = new URL(url, 'http://localhost');
-  const method = request.method ?? 'GET';
-
-  if (parsedUrl.pathname === '/api/annotations') {
-    await handleAnnotationsApi(request, response);
-    return;
-  }
-
-  if (parsedUrl.pathname === '/api/auth/me') {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    const user = await currentAccountUser(request);
-    writeJson(response, 200, { user: user ? publicUser(user) : null });
-    return;
-  }
-
-  if (url === '/api/engines/playable') {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    writeJson(response, 200, {
-      engines: playableLiveEngines().map((engine) => ({
-        id: engine.id,
-        name: engine.name,
-        familyName: engine.engineName,
-        kind: engine.kind,
-      })),
-    });
-    return;
-  }
-
-  if (parsedUrl.pathname === '/api/auth/email/start') {
-    if (method !== 'POST') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    if (!persistence.isInitialized()) {
-      writeJson(response, 503, { error: 'persistence_disabled' });
-      return;
-    }
-    if (!authEmailDeliveryEnabled && !devAuthCodesEnabled) {
-      writeJson(response, 503, { error: 'email_delivery_not_configured' });
-      return;
-    }
-    const body = await readJsonBody(request);
-    const email = normalizeEmail(typeof body.email === 'string' ? body.email : null);
-    if (!email) {
-      writeJson(response, 400, { error: 'invalid_email' });
-      return;
-    }
-    const loginId = randomUUID();
-    const code = randomEmailLoginCode();
-    const expiresAt = new Date(Date.now() + emailLoginCodeTtlMs);
-    await persistence.createEmailLoginChallenge({
-      id: loginId,
-      email,
-      codeHash: hashSecret(code),
-      expiresAt,
-    });
-    if (authEmailDeliveryEnabled) {
-      const delivery = await sendEmailLoginCode(email, code);
-      if (!delivery.ok) {
-        await persistence.deleteEmailLoginChallenge(loginId);
-        writeJson(response, 502, { error: 'email_delivery_failed' });
-        return;
-      }
-    }
-    writeJson(response, 202, {
-      loginId,
-      email,
-      expiresAt: expiresAt.toISOString(),
-      delivery: authEmailDeliveryEnabled ? 'email' : 'dev-response',
-      ...(devAuthCodesEnabled ? { devCode: code } : {}),
-    });
-    return;
-  }
-
-  if (parsedUrl.pathname === '/api/auth/email/confirm') {
-    if (method !== 'POST') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    if (!persistence.isInitialized()) {
-      writeJson(response, 503, { error: 'persistence_disabled' });
-      return;
-    }
-    const body = await readJsonBody(request);
-    const loginId = typeof body.loginId === 'string' ? body.loginId.trim() : '';
-    const code = typeof body.code === 'string' ? body.code.trim() : '';
-    if (!loginId || !code) {
-      writeJson(response, 400, { error: 'invalid_login_code' });
-      return;
-    }
-    const now = new Date();
-    const challenge = await persistence.consumeEmailLoginChallenge(loginId, hashSecret(code), now);
-    if (!challenge) {
-      writeJson(response, 400, { error: 'invalid_login_code' });
-      return;
-    }
-
-    const user = await ensureUserForEmail(challenge.email, now);
-    const sessionId = randomUUID();
-    const sessionToken = randomBytes(32).toString('base64url');
-    const expiresAt = new Date(now.getTime() + accountSessionTtlMs);
-    await persistence.createAccountSession({
-      id: sessionId,
-      userId: user.id,
-      tokenHash: hashSecret(sessionToken),
-      expiresAt,
-    });
-    writeJson(response, 200, { user: publicUser(user) }, {
-      'set-cookie': accountSessionCookie(sessionId, sessionToken, expiresAt),
-    });
-    return;
-  }
-
-  if (parsedUrl.pathname === '/api/auth/logout') {
-    if (method !== 'POST') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    const session = accountSessionFromRequest(request);
-    if (session && persistence.isInitialized()) {
-      await persistence.revokeAccountSession(session.sessionId, hashSecret(session.token), new Date());
-    }
-    writeJson(response, 200, { ok: true }, {
-      'set-cookie': expiredAccountSessionCookie(),
-    });
-    return;
-  }
-
-  if (parsedUrl.pathname === '/api/account/profile') {
-    if (method !== 'PATCH') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    if (!persistence.isInitialized()) {
-      writeJson(response, 503, { error: 'persistence_disabled' });
-      return;
-    }
-    const user = await currentAccountUser(request);
-    if (!user) {
-      writeJson(response, 401, { error: 'not_signed_in' });
-      return;
-    }
-    const body = await readJsonBody(request);
-    const handle = normalizeProfileHandle(typeof body.handle === 'string' ? body.handle : null);
-    const displayName = normalizeDisplayName(typeof body.displayName === 'string' ? body.displayName : null);
-    if (!handle) {
-      writeJson(response, 400, { error: 'invalid_handle' });
-      return;
-    }
-    if (!displayName) {
-      writeJson(response, 400, { error: 'invalid_display_name' });
-      return;
-    }
-    const result = await persistence.updateUserProfile(user.id, { handle, displayName }, new Date());
-    if (!result.ok) {
-      writeJson(response, result.error === 'handle_taken' ? 409 : 429, {
-        error: result.error,
-        ...(result.availableAt ? { availableAt: result.availableAt.toISOString() } : {}),
-      });
-      return;
-    }
-    writeJson(response, 200, { user: publicUser(result.user) });
-    return;
-  }
-
-  if (url === '/api/rooms') {
-    if (method !== 'POST') {
-      response.writeHead(405, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'method_not_allowed' }));
-      return;
-    }
-    const body = await readJsonBody(request);
-    const mode = parseRoomMode(body);
-    const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
-    const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
-    const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
-    const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-    if (!mode) {
-      response.writeHead(400, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'invalid_mode' }));
-      return;
-    }
-    if (body.timeControl !== undefined && !timeControl) {
-      response.writeHead(400, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'invalid_time_control' }));
-      return;
-    }
-    if (mode === 'pve' && body.engineId !== undefined && !engineId) {
-      response.writeHead(400, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'invalid_engine' }));
-      return;
-    }
-    if (databaseRequired && !persistence.isInitialized()) {
-      response.writeHead(503, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'persistence_disabled' }));
-      return;
-    }
-    const room = await createRoom(mode, variant, engineId ?? pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined);
-    response.writeHead(201, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
-    return;
-  }
-
-  if (url === '/api/lobby') {
-    if (method === 'GET') {
-      pruneLobbyTickets();
-      writeJson(response, 200, { requests: lobbyOpenRequests() });
-      return;
-    }
-    if (method !== 'POST') {
-      response.writeHead(405, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'method_not_allowed' }));
-      return;
-    }
-    const body = await readJsonBody(request);
-    const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
-    const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-    if (body.timeControl !== undefined && !timeControl) {
-      response.writeHead(400, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'invalid_time_control' }));
-      return;
-    }
-    if (databaseRequired && !persistence.isInitialized()) {
-      response.writeHead(503, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'persistence_disabled' }));
-      return;
-    }
-    const ticket = await joinLobby(hiddenDraft960, timeControl ?? undefined);
-    writeJson(response, ticket.roomId ? 201 : 202, lobbyTicketResponse(ticket));
-    return;
-  }
-
-  const lobbyMatch = parsedUrl.pathname.match(/^\/api\/lobby\/([^/]+)$/);
-  if (lobbyMatch) {
-    pruneLobbyTickets();
-    const ticketId = decodeURIComponent(lobbyMatch[1]!);
-    const ticket = lobbyTickets.get(ticketId);
-    if (!ticket) {
-      writeJson(response, 404, { error: 'not_found' });
-      return;
-    }
-    if (method === 'GET') {
-      writeJson(response, 200, lobbyTicketResponse(ticket));
-      return;
-    }
-    if (method === 'DELETE') {
-      cancelLobbyTicket(ticketId);
-      writeJson(response, 200, { ok: true });
-      return;
-    }
-    response.writeHead(405, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ error: 'method_not_allowed' }));
-    return;
-  }
-
-  if (url === '/api/games/recent') {
-    if (!persistence.isInitialized()) {
-      response.writeHead(503, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'persistence_disabled' }));
-      return;
-    }
-    const games = await persistence.listRecentPublicGames(10);
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ games }));
-    return;
-  }
-
-  const reviewMatch = url.match(/^\/api\/games\/([^/]+)\/review$/);
-  if (reviewMatch) {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    const roomId = decodeURIComponent(reviewMatch[1]!);
-    const review = await gameReviewForApi(roomId, request);
-    if (!review) {
-      writeJson(response, 404, { error: 'not_found' });
-      return;
-    }
-    writeJson(response, 200, review);
-    return;
-  }
-
-  const artifactsMatch = parsedUrl.pathname.match(/^\/api\/games\/([^/]+)\/artifacts$/);
-  if (artifactsMatch) {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    const artifactType = parseReviewArtifactType(parsedUrl.searchParams.get('type'));
-    if (!artifactType) {
-      writeJson(response, 400, { error: 'invalid_artifact_type' });
-      return;
-    }
-    const color = parseOptionalColor(parsedUrl.searchParams.get('color'));
-    if (parsedUrl.searchParams.has('color') && !color) {
-      writeJson(response, 400, { error: 'invalid_color' });
-      return;
-    }
-    const roomId = decodeURIComponent(artifactsMatch[1]!);
-    const artifactResponse = await gameArtifactsForApi(roomId, artifactType, color, request);
-    if (!artifactResponse) {
-      writeJson(response, 404, { error: 'not_found' });
-      return;
-    }
-    if (artifactResponse.status === 403) {
-      writeJson(response, 403, { error: 'forbidden' });
-      return;
-    }
-    writeJson(response, 200, artifactResponse.body);
-    return;
-  }
-
-  const summaryMatch = url.match(/^\/api\/games\/([^/]+)$/);
-  if (summaryMatch) {
-    const roomId = decodeURIComponent(summaryMatch[1]!);
-    const game = await gameSummaryForApi(roomId);
-    if (!game) {
-      response.writeHead(404, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'not_found' }));
-      return;
-    }
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ game }));
-    return;
-  }
-
-  const eventsMatch = url.match(/^\/api\/games\/([^/]+)\/events$/);
-  if (eventsMatch) {
-    const roomId = decodeURIComponent(eventsMatch[1]!);
-    const events = await gameEventsForApi(roomId);
-    const replayResponse = eventReplayResponse(events);
-    response.writeHead(replayResponse.status, { 'content-type': 'application/json' });
-    response.end(JSON.stringify(replayResponse.body));
-    return;
-  }
-
-  const profileMatch = parsedUrl.pathname.match(/^\/api\/users\/([^/]+)\/profile$/);
-  if (profileMatch) {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    if (!persistence.isInitialized()) {
-      writeJson(response, 503, { error: 'persistence_disabled' });
-      return;
-    }
-    const handle = decodeURIComponent(profileMatch[1] ?? '').trim();
-    if (!/^[a-zA-Z0-9_-]{1,40}$/.test(handle)) {
-      writeJson(response, 400, { error: 'invalid_handle' });
-      return;
-    }
-    const viewer = await currentAccountUser(request);
-    const profile = await persistence.getUserProfileByHandle(handle, viewer?.id ?? null);
-    if (!profile) {
-      writeJson(response, 404, { error: 'not_found' });
-      return;
-    }
-    writeJson(response, 200, {
-      profile: {
-        ...profile,
-        isViewer: viewer?.handle.toLowerCase() === profile.user.handle.toLowerCase(),
-      },
-    });
-    return;
-  }
-
-  if (!persistence.isInitialized()) {
-    response.writeHead(503, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ error: 'persistence_disabled' }));
-    return;
-  }
-
-  if (parsedUrl.pathname === '/api/games') {
-    if (method !== 'GET') {
-      response.writeHead(405, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'method_not_allowed' }));
-      return;
-    }
-    if (!isHttpAdminAuthorized(request)) {
-      response.writeHead(403, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'admin_required' }));
-      return;
-    }
-
-    const date = parseUtcDateParam(parsedUrl.searchParams.get('date'));
-    const mode = parseGameModeParam(parsedUrl.searchParams.get('mode'));
-    const limit = parsePositiveInteger(parsedUrl.searchParams.get('limit') ?? undefined);
-    if (!date) {
-      response.writeHead(400, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'invalid_date' }));
-      return;
-    }
-    if (parsedUrl.searchParams.has('mode') && !mode) {
-      response.writeHead(400, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'invalid_mode' }));
-      return;
-    }
-
-    const endedFrom = date;
-    const endedTo = new Date(endedFrom.getTime() + 24 * 60 * 60 * 1000);
-    const games = await persistence.listCompletedGames({
-      endedFrom,
-      endedTo,
-      ...(limit ? { limit } : {}),
-      ...(mode ? { mode } : {}),
-    });
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({
-      games,
-      range: {
-        date: parsedUrl.searchParams.get('date'),
-        endedFrom: endedFrom.toISOString(),
-        endedTo: endedTo.toISOString(),
-      },
-    }));
-    return;
-  }
-
-  if (url === '/api/featured-games') {
-    const corpusId = process.env.FEATURED_CORPUS_ID ?? 'tier1-self-v1';
-    const games = await persistence.listCorpusGames(corpusId);
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ games }));
-    return;
-  }
-
-  if (url === '/api/eve-games/recent') {
-    const games = await persistence.listRecentEveGames();
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ games }));
-    return;
-  }
-
-  response.writeHead(404, { 'content-type': 'application/json' });
-  response.end(JSON.stringify({ error: 'not_found' }));
-}
-
-async function gameSummaryForApi(roomId: string): Promise<persistence.RecentEveGameRecord | null> {
-  const persisted = persistence.isInitialized()
-    ? await persistence.getGameSummary(roomId)
-    : null;
-  return persisted ?? inMemoryGameSummary(roomId);
-}
-
-async function gameEventsForApi(roomId: string): Promise<GameEvent[] | null> {
-  const persisted = persistence.isInitialized()
-    ? await persistence.loadRoom(roomId)
-    : null;
-  return persisted ?? rooms.get(roomId)?.events ?? null;
-}
-
-async function gameReviewForApi(roomId: string, request: IncomingMessage): Promise<Record<string, unknown> | null> {
-  const game = await gameSummaryForApi(roomId);
-  const events = await gameEventsForApi(roomId);
-  const replayResponse = eventReplayResponse(events);
-  if (!game || replayResponse.status !== 200) return null;
-
-  const canViewEngineArtifacts = await canViewEngineArtifactsForRequest(request);
-  const artifactSummaries = persistence.isInitialized()
-    ? await persistence.listGameDebugArtifactSummaries(roomId)
-    : [];
-  const engineColors = engineParticipantColors(game);
-  const hasEngineParticipant = engineColors.length > 0;
-  const beliefArtifacts = artifactSummaries.filter((artifact) => artifact.artifactType === 'belief-snapshot');
-  const traceArtifacts = artifactSummaries.filter((artifact) => (
-    artifact.artifactType === 'engine-move-choice'
-    || artifact.artifactType === 'trace-row'
-  ));
-  const beliefColors = intersectionColors(engineColors, artifactColors(beliefArtifacts));
-  const traceColors = intersectionColors(engineColors, artifactColors(traceArtifacts));
-
-  return {
-    game,
-    events: replayResponse.body.events,
-    capabilities: {
-      canViewEngineArtifacts,
-      canAnnotate: false,
-      canManageEngineArtifacts: canViewEngineArtifacts,
-    },
-    panels: {
-      belief: {
-        available: canViewEngineArtifacts && hasEngineParticipant && beliefArtifacts.length > 0 && beliefColors.length > 0,
-        defaultOpen: false,
-        seats: beliefColors,
-        snapshotKinds: uniqueStrings(beliefArtifacts.flatMap((artifact) => artifact.snapshotKinds)),
-      },
-      trace: {
-        available: canViewEngineArtifacts && hasEngineParticipant && traceArtifacts.length > 0 && traceColors.length > 0,
-        defaultOpen: false,
-        seats: traceColors,
-      },
-      annotations: {
-        available: false,
-        writable: false,
-      },
-    },
-    artifacts: canViewEngineArtifacts ? artifactSummaries : [],
-  };
-}
-
-async function gameArtifactsForApi(
-  roomId: string,
-  artifactType: ReviewArtifactType,
-  color: Color | null,
-  request: IncomingMessage,
-): Promise<{ status: 200; body: Record<string, unknown> } | { status: 403 } | null> {
-  if (!persistence.isInitialized()) return null;
-  const game = await gameSummaryForApi(roomId);
-  const events = await gameEventsForApi(roomId);
-  const replayResponse = eventReplayResponse(events);
-  if (!game || replayResponse.status !== 200) return null;
-  if (!(await canViewEngineArtifactsForRequest(request))) return { status: 403 };
-
-  const engineColors = engineParticipantColors(game);
-  if (engineColors.length === 0) {
-    return { status: 200, body: { artifacts: [] } };
-  }
-  const requestedColors = color ? [color] : engineColors;
-  const allowedColors = intersectionColors(engineColors, requestedColors);
-  if (allowedColors.length === 0) {
-    return { status: 200, body: { artifacts: [] } };
-  }
-
-  const artifacts = await persistence.listGameDebugArtifactPayloads(roomId, {
-    artifactType,
-    engineColors: allowedColors,
-  });
-  return {
-    status: 200,
-    body: {
-      artifacts: artifacts.map((artifact) => ({
-        id: artifact.id,
-        gameId: artifact.gameId,
-        ply: artifact.ply,
-        engineColor: artifact.engineColor,
-        artifactType: artifact.artifactType,
-        payload: artifact.payload,
-        createdAt: artifact.createdAt.toISOString(),
-      })),
-    },
-  };
-}
-
-async function canViewEngineArtifactsForRequest(request: IncomingMessage): Promise<boolean> {
-  if (!isProductionLikeRuntime()) return true;
-  const user = await currentAccountUser(request);
-  return user?.accountRole === 'admin';
-}
-
-function engineParticipantColors(game: persistence.RecentEveGameRecord): Color[] {
-  return game.participants
-    .filter((participant) => participant.subjectType === 'engine-version')
-    .map((participant) => participant.color);
-}
-
-function artifactColors(artifacts: persistence.GameDebugArtifactSummary[]): Color[] {
-  return uniqueColors(artifacts.flatMap((artifact) => artifact.engineColors));
-}
-
-function intersectionColors(left: Color[], right: Color[]): Color[] {
-  const rightSet = new Set(right);
-  return uniqueColors(left.filter((color) => rightSet.has(color)));
-}
-
-function uniqueColors(values: Color[]): Color[] {
-  return values.filter((value, index) => values.indexOf(value) === index);
-}
-
-function uniqueStrings(values: string[]): string[] {
-  return values.filter((value, index) => values.indexOf(value) === index);
-}
-
-type ReviewArtifactType = 'belief-snapshot' | 'trace-row' | 'engine-move-choice';
-
-function parseReviewArtifactType(value: string | null): ReviewArtifactType | null {
-  return value === 'belief-snapshot' || value === 'trace-row' || value === 'engine-move-choice'
-    ? value
-    : null;
-}
-
-function parseOptionalColor(value: string | null): Color | null {
-  return value === 'white' || value === 'black' ? value : null;
-}
-
-function writeJson(
-  response: ServerResponse,
-  status: number,
-  body: unknown,
-  headers: Record<string, string> = {},
-): void {
-  response.writeHead(status, { 'content-type': 'application/json', ...headers });
-  response.end(JSON.stringify(body));
-}
-
-async function handleAnnotationsApi(request: IncomingMessage, response: ServerResponse): Promise<void> {
-  if (!isHttpAdminAuthorized(request)) {
-    writeJson(response, 403, { error: 'forbidden' });
-    return;
-  }
-
-  const method = request.method ?? 'GET';
-  if (method === 'GET') {
-    const text = await fs.readFile(annotationsFile, 'utf-8').catch(() => '');
-    const annotations = text
-      .split('\n')
-      .filter((line) => line.trim().length > 0)
-      .map((line) => JSON.parse(line) as Record<string, unknown>);
-    writeJson(response, 200, { annotations, file: annotationsFile });
-    return;
-  }
-
-  if (method === 'POST') {
-    const body = await readJsonBody(request);
-    await fs.mkdir(dirname(annotationsFile), { recursive: true });
-    await fs.appendFile(annotationsFile, JSON.stringify(body) + '\n', 'utf-8');
-    writeJson(response, 200, { ok: true });
-    return;
-  }
-
-  if (method === 'PUT') {
-    const body = await readJsonBody(request);
-    if (typeof body.id !== 'string' || body.id.length === 0) {
-      writeJson(response, 400, { error: 'missing_id' });
-      return;
-    }
-    const existing = await fs.readFile(annotationsFile, 'utf-8').catch(() => '');
-    const lines = existing.split('\n').filter((line) => line.trim().length > 0);
-    let updated = false;
-    const nextLines = lines.map((line) => {
-      const row = JSON.parse(line) as Record<string, unknown>;
-      if (row.id === body.id) {
-        updated = true;
-        return JSON.stringify(body);
-      }
-      return line;
-    });
-    if (!updated) nextLines.push(JSON.stringify(body));
-    await fs.mkdir(dirname(annotationsFile), { recursive: true });
-    await fs.writeFile(annotationsFile, nextLines.join('\n') + '\n', 'utf-8');
-    writeJson(response, 200, { ok: true, updated, appended: !updated });
-    return;
-  }
-
-  writeJson(response, 405, { error: 'method_not_allowed' });
-}
-async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
-  const chunks: Buffer[] = [];
-  let total = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    total += buffer.byteLength;
-    if (total > 16_384) throw new Error('request_body_too_large');
-    chunks.push(buffer);
-  }
-  if (chunks.length === 0) return {};
-  const raw = Buffer.concat(chunks).toString('utf-8');
-  const parsed = JSON.parse(raw) as unknown;
-  return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, unknown> : {};
-}
-
-function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
-  if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
-  return null;
-}
-
-function parseHiddenDraft960(value: unknown): boolean {
-  return value === true || value === '1' || value === 'true' || value === 'yes';
-}
-
-function parsePlayablePveEngineId(value: unknown): string | null {
-  if (typeof value !== 'string' || value.length === 0) return null;
-  return playableLiveEngines().some((engine) => engine.id === value) ? value : null;
-}
-
-function parseRoomTimeControl(value: unknown): RoomTimeControl | null {
-  if (typeof value !== 'object' || value === null) return null;
-  const raw = value as Record<string, unknown>;
-  const initialMs = parseIntegerValue(raw.initialMs ?? raw.initial_ms);
-  const incrementMs = parseIntegerValue(raw.incrementMs ?? raw.increment_ms);
-  if (initialMs === null || incrementMs === null) return null;
-  if (initialMs < minRoomClockInitialMs || initialMs > maxRoomClockInitialMs) return null;
-  if (incrementMs < 0 || incrementMs > maxRoomClockIncrementMs) return null;
-  return { initialMs, incrementMs };
-}
-
-function parseIntegerValue(value: unknown): number | null {
-  if (typeof value !== 'number' || !Number.isInteger(value)) return null;
-  return value;
-}
-
-async function joinLobby(hiddenDraft960: boolean, timeControl: RoomTimeControl | undefined): Promise<LobbyTicket> {
-  pruneLobbyTickets();
-  const timeKey = timeControlKey(timeControl);
-  const matchedTicket = lobbyQueue.find((ticket) => (
-    ticket.roomId === null
-    && ticket.hiddenDraft960 === hiddenDraft960
-    && timeControlKey(ticket.timeControl) === timeKey
-  ));
-  const ticket: LobbyTicket = {
-    id: randomUUID(),
-    createdAt: Date.now(),
-    hiddenDraft960,
-    matchedAt: null,
-    roomId: null,
-    timeControl,
-  };
-  lobbyTickets.set(ticket.id, ticket);
-
-  if (!matchedTicket) {
-    lobbyQueue.push(ticket);
-    return ticket;
-  }
-
-  let room: Room;
-  try {
-    room = await createRoom('pvp', 'fog-of-war', pveBuiltinEngineClientId, hiddenDraft960, timeControl);
-  } catch (err) {
-    lobbyTickets.delete(ticket.id);
-    throw err;
-  }
-  const matchedAt = Date.now();
-  matchedTicket.matchedAt = matchedAt;
-  matchedTicket.roomId = room.id;
-  ticket.matchedAt = matchedAt;
-  ticket.roomId = room.id;
-  const matchedIndex = lobbyQueue.findIndex((candidate) => candidate.id === matchedTicket.id);
-  if (matchedIndex >= 0) lobbyQueue.splice(matchedIndex, 1);
-  return ticket;
-}
-
-function cancelLobbyTicket(ticketId: string): void {
-  const ticket = lobbyTickets.get(ticketId);
-  if (!ticket || ticket.roomId !== null) return;
-  lobbyTickets.delete(ticketId);
-  const queueIndex = lobbyQueue.findIndex((candidate) => candidate.id === ticketId);
-  if (queueIndex >= 0) lobbyQueue.splice(queueIndex, 1);
-}
-
-function pruneLobbyTickets(now = Date.now()): void {
-  for (const [ticketId, ticket] of lobbyTickets) {
-    if (now - ticket.createdAt >= lobbyTicketTtlMs) {
-      lobbyTickets.delete(ticketId);
-    }
-  }
-  for (let index = lobbyQueue.length - 1; index >= 0; index -= 1) {
-    const ticket = lobbyQueue[index];
-    if (!ticket || !lobbyTickets.has(ticket.id) || ticket.roomId !== null) {
-      lobbyQueue.splice(index, 1);
-    }
-  }
-}
-
-function lobbyTicketResponse(ticket: LobbyTicket): Record<string, unknown> {
-  return {
-    ticketId: ticket.id,
-    status: ticket.roomId ? 'matched' : 'waiting',
-    pollAfterMs: lobbyPollAfterMs,
-    ...(ticket.roomId ? {
-      roomId: ticket.roomId,
-      url: `/room/${encodeURIComponent(ticket.roomId)}`,
-    } : {}),
-  };
-}
-
-function lobbyOpenRequests(): Array<Record<string, unknown>> {
-  const now = Date.now();
-  return lobbyQueue
-    .filter((ticket) => ticket.roomId === null)
-    .slice(0, 20)
-    .map((ticket) => ({
-      hiddenDraft960: ticket.hiddenDraft960,
-      timeControl: ticket.timeControl ?? {
-        initialMs: liveClockInitialMs,
-        incrementMs: liveClockIncrementMs,
-      },
-      waitingMs: Math.max(0, now - ticket.createdAt),
-    }));
-}
-
-function timeControlKey(timeControl: RoomTimeControl | undefined): string {
-  return timeControl ? `${timeControl.initialMs}:${timeControl.incrementMs}` : 'default';
-}
-
-async function currentAccountUser(request: IncomingMessage): Promise<persistence.UserAccount | null> {
-  if (!persistence.isInitialized()) return null;
-  const session = accountSessionFromRequest(request);
-  if (!session) return null;
-  return persistence.getUserByAccountSession(session.sessionId, hashSecret(session.token), new Date());
-}
-
-async function ensureUserForEmail(email: string, now: Date): Promise<persistence.UserAccount> {
-  const existing = await persistence.findUserByEmail(email);
-  if (existing) return persistence.markUserEmailVerified(existing.id, now);
-
-  const baseHandle = handleBaseForEmail(email);
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const handle = attempt === 0 ? baseHandle : `${baseHandle}${randomInt(10_000, 99_999)}`;
-    try {
-      return await persistence.createUser({
-        id: `user_${randomUUID()}`,
-        email,
-        emailVerifiedAt: now,
-        handle,
-        displayName: displayNameForEmail(email),
-        now,
-      });
-    } catch (err) {
-      if (!isUniqueViolation(err)) throw err;
-      const raced = await persistence.findUserByEmail(email);
-      if (raced) return persistence.markUserEmailVerified(raced.id, now);
-    }
-  }
-  throw new Error('failed to allocate user handle');
-}
-
-function publicUser(user: persistence.UserAccount): Record<string, unknown> {
-  return {
-    id: user.id,
-    email: user.email,
-    emailVerified: !!user.emailVerifiedAt,
-    handle: user.handle,
-    handleChangedAt: user.handleChangedAt?.toISOString() ?? null,
-    displayName: user.displayName,
-    displayNameChangedAt: user.displayNameChangedAt?.toISOString() ?? null,
-    profileVisibility: user.profileVisibility,
-    accountRole: user.accountRole,
-  };
-}
-
-function randomEmailLoginCode(): string {
-  return String(randomInt(0, 100_000_000)).padStart(8, '0');
-}
-
-async function sendEmailLoginCode(email: string, code: string): Promise<{ ok: true } | { ok: false }> {
-  if (!resendApiKey || !authEmailFrom) return { ok: false };
-  const subject = 'Your Mistboard login code';
-  const text = [
-    `Your Mistboard login code is ${code}.`,
-    '',
-    'This code expires in 10 minutes.',
-    'If you did not request this code, you can ignore this email.',
-  ].join('\n');
-  const html = [
-    '<p>Your Mistboard login code is:</p>',
-    `<p style="font-size:24px;font-weight:700;letter-spacing:0.12em">${escapeHtml(code)}</p>`,
-    '<p>This code expires in 10 minutes.</p>',
-    '<p>If you did not request this code, you can ignore this email.</p>',
-  ].join('');
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${resendApiKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: authEmailFrom,
-        to: [email],
-        subject,
-        text,
-        html,
-      }),
-    });
-    if (response.ok) return { ok: true };
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'email_delivery_failure',
-      provider: 'resend',
-      status: response.status,
-      at: Date.now(),
-    }));
-    return { ok: false };
-  } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'email_delivery_failure',
-      provider: 'resend',
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
-    return { ok: false };
-  }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function hashSecret(secret: string): string {
-  return createHash('sha256').update(secret).digest('hex');
-}
-
-function accountSessionFromRequest(request: IncomingMessage): { sessionId: string; token: string } | null {
-  const value = cookieValue(request, accountSessionCookieName);
-  if (!value) return null;
-  const [sessionId, token] = value.split('.', 2);
-  if (!sessionId || !token) return null;
-  return { sessionId, token };
-}
-
-function cookieValue(request: IncomingMessage, name: string): string | null {
-  const header = request.headers.cookie;
-  if (!header) return null;
-  for (const part of header.split(';')) {
-    const [rawKey, ...rawValue] = part.trim().split('=');
-    if (rawKey !== name) continue;
-    try {
-      return decodeURIComponent(rawValue.join('='));
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function accountSessionCookie(sessionId: string, token: string, expiresAt: Date): string {
-  const maxAgeSeconds = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
-  const value = encodeURIComponent(`${sessionId}.${token}`);
-  return cookieWithAttributes(`${accountSessionCookieName}=${value}`, [
-    `Max-Age=${maxAgeSeconds}`,
-    `Expires=${expiresAt.toUTCString()}`,
-  ]);
-}
-
-function expiredAccountSessionCookie(): string {
-  return cookieWithAttributes(`${accountSessionCookieName}=`, [
-    'Max-Age=0',
-    'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
-  ]);
-}
-
-function cookieWithAttributes(prefix: string, extra: string[]): string {
-  const attrs = [prefix, 'Path=/', 'HttpOnly', 'SameSite=Lax', ...extra];
-  if (isProductionLikeRuntime()) attrs.push('Secure');
-  return attrs.join('; ');
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === '23505';
-}
-
-function parseGameModeParam(value: string | null): persistence.GameMode | null {
-  if (
-    value === 'pvp'
-    || value === 'pve'
-    || value === 'eve'
-    || value === 'imported'
-    || value === 'manual'
-  ) {
-    return value;
-  }
-  return null;
-}
-
-function parseUtcDateParam(value: string | null): Date | null {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  if (!Number.isFinite(date.getTime())) return null;
-  return date.toISOString().startsWith(value) ? date : null;
-}
-
 function resolveRepoPath(...parts: string[]): string {
   const here = dirname(fileURLToPath(import.meta.url));
   return resolve(here, '..', '..', '..', ...parts);
@@ -1254,6 +239,7 @@ function resolveStaticDir(): string {
   return resolve(here, '..', '..', 'web', 'dist');
 }
 
+// ── SECTION: WebSocket connection handling ─────────────────────────────────
 async function handleConnection(socket: WebSocket, request: IncomingMessage): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
@@ -1603,6 +589,7 @@ async function runAbortPolicySweep(): Promise<void> {
   }
 }
 
+// ── SECTION: Seat management ───────────────────────────────────────────────
 async function assignSeat(
   room: Room,
   clientId: string,
@@ -1744,6 +731,7 @@ function canClientAct(room: Room, client: Client): boolean {
   return token !== undefined && token.tokenHash === client.seatTokenHash;
 }
 
+// ── SECTION: Game flow ─────────────────────────────────────────────────────
 async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
   room.pveEngineId = pveBuiltinEngineClientId;
@@ -2127,6 +1115,7 @@ async function resolveBidIfReady(room: Room): Promise<void> {
   await reconcileClientSeats(room);
 }
 
+// ── SECTION: Seat token persistence ────────────────────────────────────────
 async function reconcileClientSeats(room: Room): Promise<void> {
   const nextTokens = reconciledSeatTokens(room);
   await replaceSeatTokens(room, nextTokens);
@@ -2223,6 +1212,7 @@ async function replaceSeatTokens(room: Room, seatTokens: Partial<Record<Color, S
   }
 }
 
+// ── SECTION: Room event infrastructure ─────────────────────────────────────
 function broadcastSnapshot(room: Room): void {
   for (const client of room.clients) {
     send(client, snapshotPayload(room, client));
@@ -2484,6 +1474,7 @@ async function expireActiveClock(room: Room, color: Color, at: number): Promise<
   });
 }
 
+// ── SECTION: Helpers and shutdown ──────────────────────────────────────────
 function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
 }
@@ -2513,12 +1504,6 @@ function isPromotionRole(value: string | undefined): value is Exclude<PieceRole,
 
 function isColor(value: string | undefined): value is Color {
   return value === 'white' || value === 'black';
-}
-
-function parseVariantId(value: string | null): VariantId {
-  if (value === 'draft960') return 'draft960';
-  if (value === 'bid-for-white') return 'bid-for-white';
-  return 'fog-of-war';
 }
 
 function parseClientId(value: string | null): string | null {

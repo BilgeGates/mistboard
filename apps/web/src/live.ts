@@ -22,6 +22,7 @@ import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import './styles.css';
 import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
+import { escapeHtml, isColor, formatClock, oppositeColor, files, ranks, allSquares } from './web-utils.js';
 
 type Seat = Color | 'spectator';
 type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
@@ -121,9 +122,6 @@ type ServerMessage =
   }
   | { type: 'pong'; at: number };
 
-const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
-const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
-const allSquares = ranks.flatMap((rank) => files.map((file) => `${file}${rank}` as Square));
 const promotionRoles: PromotionRole[] = ['queen', 'rook', 'bishop', 'knight'];
 const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
@@ -1650,14 +1648,6 @@ function serverTimeLabel(): string {
   return `Snapshot ${label}`;
 }
 
-function formatClock(ms: number): string {
-  const bounded = Math.max(0, ms);
-  const totalSeconds = Math.ceil(bounded / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
 function seatLabel(value: Seat): string {
   if (solo) return 'Solo dev';
   if (value === 'spectator') return 'Spectator';
@@ -1697,14 +1687,6 @@ function bidWinnerLabel(): string {
 
 function formatBid(ms: number): string {
   return `${Math.round(ms / 1000)}s`;
-}
-
-function oppositeColor(color: Color): Color {
-  return color === 'white' ? 'black' : 'white';
-}
-
-function isColor(value: unknown): value is Color {
-  return value === 'white' || value === 'black';
 }
 
 function selectionLabel(startId: number | null | undefined): string {
@@ -2058,14 +2040,6 @@ function rejectedBody(): string {
   if (closeReason === 'origin not allowed') return 'This browser origin is not allowed to open the room.';
   if (closeReason === 'rate limit') return 'The room connection was closed after too many messages.';
   return 'The server rejected this room connection.';
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
 }
 
 function pieceGlyphForRole(role: PieceRole, color: Color): string {

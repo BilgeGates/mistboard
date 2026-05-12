@@ -6,6 +6,18 @@ import { makeSquare, parseSquare, squareRank } from 'chessops/util';
 import type { Setup } from 'chessops/setup';
 import type { Board, Color, GameState, Move, PieceRole, PlayerView, Square, Variant } from './types.js';
 
+// Navigation index — grep for section name to jump to the right block
+// SECTION: Draft960 variant         (~line 49)   draft960Variant
+// SECTION: Fog of War variant        (~line 113)  fogOfWarVariant
+// SECTION: Bid for White variant     (~line 157)  bidForWhiteVariant
+// SECTION: Fog visibility kernel     (~line 168)  fogVisibleSquares, applyFogMove
+// SECTION: Fog move generation       (~line 303)  fogMovesFrom, getFogMovesForPlayer
+// SECTION: Fog pawn moves            (~line 318)  fogPawnMoves
+// SECTION: Fog sliding/stepping      (~line 346)  fogStepMoves, fogSlideMoves
+// SECTION: Fog castling              (~line 367)  fogCastlingMoves
+// SECTION: Standard chess helpers    (~line 414)  positionFromState, boardToChessops, boardFromChessops
+// SECTION: Variant registry          (~line 665)  variantForId
+
 const initialBoard: Board = {
   a1: { color: 'white', role: 'rook' },
   b1: { color: 'white', role: 'knight' },
@@ -46,6 +58,7 @@ const promotionRoles = ['queen', 'rook', 'bishop', 'knight'] satisfies PieceRole
 const boardFiles = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const boardRanks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 
+// ── SECTION: Draft960 variant ──────────────────────────────────────────────
 export const draft960Variant: Variant = {
   id: 'draft960',
   createInitialState(gameId: string): GameState {
@@ -110,6 +123,7 @@ export const draft960Variant: Variant = {
   },
 };
 
+// ── SECTION: Fog of War variant ────────────────────────────────────────────
 export const fogOfWarVariant: Variant = {
   ...draft960Variant,
   id: 'fog-of-war',
@@ -154,6 +168,7 @@ export const fogOfWarVariant: Variant = {
   },
 };
 
+// ── SECTION: Bid for White variant ─────────────────────────────────────────
 export const bidForWhiteVariant: Variant = {
   ...draft960Variant,
   id: 'bid-for-white',
@@ -165,6 +180,7 @@ export const bidForWhiteVariant: Variant = {
   },
 };
 
+// ── SECTION: Fog visibility kernel ─────────────────────────────────────────
 function fogVisibleSquares(state: GameState, player: Color): Square[] {
   const visible = new Set<Square>(ownPieceSquares(state.board, player));
   for (const move of getVisibilityMoves(state, player)) {
@@ -300,6 +316,7 @@ function getFogMovesForPlayer(state: GameState, player: Color): Move[] {
   return moves;
 }
 
+// ── SECTION: Fog move generation ───────────────────────────────────────────
 function fogMovesFrom(state: GameState, from: Square): Move[] {
   const piece = state.board[from];
   if (!piece) return [];
@@ -315,6 +332,7 @@ function fogMovesFrom(state: GameState, from: Square): Move[] {
   ];
 }
 
+// ── SECTION: Fog pawn moves ─────────────────────────────────────────────────
 function fogPawnMoves(state: GameState, from: Square, color: Color): Move[] {
   const moves: Move[] = [];
   const direction = color === 'white' ? 1 : -1;
@@ -343,6 +361,7 @@ function fogPawnMoves(state: GameState, from: Square, color: Color): Move[] {
   return moves;
 }
 
+// ── SECTION: Fog sliding and stepping moves ─────────────────────────────────
 function fogStepMoves(state: GameState, from: Square, steps: readonly Direction[]): Move[] {
   return steps.flatMap(([fileOffset, rankOffset]) => {
     const to = offsetSquare(from, fileOffset, rankOffset);
@@ -364,6 +383,7 @@ function fogSlideMoves(state: GameState, from: Square, directions: readonly Dire
   return moves;
 }
 
+// ── SECTION: Fog castling ───────────────────────────────────────────────────
 function fogCastlingMoves(state: GameState, from: Square): Move[] {
   const piece = state.board[from];
   if (!piece || piece.role !== 'king') return [];
@@ -379,6 +399,7 @@ function fogCastlingMoves(state: GameState, from: Square): Move[] {
   return moves;
 }
 
+// ── SECTION: Standard chess helpers ────────────────────────────────────────
 function getLegalMoves(state: GameState, player: Color): Move[] {
   if (state.status.type !== 'playing' || state.status.turn !== player) return [];
   return getMovesForPlayer(state, player);
@@ -662,6 +683,7 @@ function oppositeColor(color: Color): Color {
   return color === 'white' ? 'black' : 'white';
 }
 
+// ── SECTION: Variant registry ───────────────────────────────────────────────
 export function variantForId(id: GameState['variant']): Variant {
   if (id === 'bid-for-white') return bidForWhiteVariant;
   if (id === 'fog-of-war') return fogOfWarVariant;

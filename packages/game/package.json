@@ -15,12 +15,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "tsc -p tsconfig.json && node --test dist/**/*.test.js",
+    "test:unit": "tsx --test --test-concurrency=4 src/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "chessops": "^0.15.0"
   },
   "devDependencies": {
+    "tsx": "^4.19.0",
     "typescript": "^5.8.0"
   }
 }
