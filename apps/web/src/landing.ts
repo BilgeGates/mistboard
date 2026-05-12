@@ -159,6 +159,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   ]);
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());
+  void populateLandingLeaderboard(stage.leaderboardRoot);
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
     return;
@@ -1295,7 +1296,7 @@ function buildLoadingState(label: string): HTMLElement {
   return section;
 }
 
-function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement } {
+function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement; leaderboardRoot: HTMLElement } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
@@ -1306,10 +1307,86 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
 
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
-  section.append(playPanel, replayRoot);
+
+  const leaderboardRoot = buildLandingLeaderboardPanel();
+  section.append(playPanel, replayRoot, leaderboardRoot);
 
   stage.append(section);
-  return { el: stage, replayRoot };
+  return { el: stage, replayRoot, leaderboardRoot };
+}
+
+function buildLandingLeaderboardPanel(): HTMLElement {
+  const panel = document.createElement('aside');
+  panel.className = 'landing-leaderboard-panel';
+  panel.setAttribute('aria-label', 'Top rated players');
+
+  const header = document.createElement('div');
+  header.className = 'landing-leaderboard-header';
+  const title = document.createElement('strong');
+  title.textContent = 'Top rated';
+  const more = document.createElement('a');
+  more.href = '/leaderboard';
+  more.textContent = 'See all';
+  more.className = 'landing-leaderboard-more';
+  header.append(title, more);
+
+  const list = document.createElement('ol');
+  list.className = 'landing-leaderboard-list';
+  list.setAttribute('data-state', 'loading');
+
+  const placeholder = document.createElement('li');
+  placeholder.className = 'landing-leaderboard-empty';
+  placeholder.textContent = 'Loading…';
+  list.append(placeholder);
+
+  panel.append(header, list);
+  return panel;
+}
+
+async function populateLandingLeaderboard(panel: HTMLElement): Promise<void> {
+  const list = panel.querySelector<HTMLOListElement>('.landing-leaderboard-list');
+  if (!list) return;
+
+  type LeaderboardEntry = { rank: number; handle: string; displayName: string; eloRating: number };
+  const data = await fetch('/api/leaderboard?limit=10')
+    .then((r) => (r.ok ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>) : Promise.reject(r.status)))
+    .catch((err) => {
+      console.warn(err);
+      return null;
+    });
+
+  list.replaceChildren();
+
+  if (!data || data.leaderboard.length === 0) {
+    list.setAttribute('data-state', 'empty');
+    const empty = document.createElement('li');
+    empty.className = 'landing-leaderboard-empty';
+    empty.textContent = data ? 'No rated games yet.' : 'Unavailable.';
+    list.append(empty);
+    return;
+  }
+
+  list.setAttribute('data-state', 'ready');
+  for (const entry of data.leaderboard) {
+    const row = document.createElement('li');
+    row.className = 'landing-leaderboard-row';
+
+    const rank = document.createElement('span');
+    rank.className = 'landing-leaderboard-rank';
+    rank.textContent = String(entry.rank);
+
+    const name = document.createElement('a');
+    name.className = 'landing-leaderboard-name';
+    name.href = `/@/${encodeURIComponent(entry.handle)}`;
+    name.textContent = entry.displayName;
+
+    const rating = document.createElement('span');
+    rating.className = 'landing-leaderboard-rating';
+    rating.textContent = String(entry.eloRating);
+
+    row.append(rank, name, rating);
+    list.append(row);
+  }
 }
 
 function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRequests?: boolean } = {}): HTMLElement {

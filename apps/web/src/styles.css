@@ -1858,6 +1858,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   grid-column: 1;
 }
 
+.landing-demo .landing-leaderboard-panel {
+  grid-column: 3;
+}
+
 .site-section {
   padding: 64px 16px;
   max-width: 760px;
@@ -2035,6 +2039,104 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   align-content: start;
   gap: 10px;
   min-width: 0;
+}
+
+.landing-leaderboard-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: stretch;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 8px;
+  background: #fbfcfa;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 8px 18px rgba(27, 31, 27, 0.06);
+}
+
+.landing-leaderboard-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.landing-leaderboard-header strong {
+  color: var(--site-text);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.landing-leaderboard-more {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted);
+  text-decoration: none;
+}
+
+.landing-leaderboard-more:hover {
+  color: var(--site-text);
+  text-decoration: underline;
+}
+
+.landing-leaderboard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-leaderboard-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid #eeece7;
+  font-size: 13px;
+}
+
+.landing-leaderboard-row:last-child {
+  border-bottom: none;
+}
+
+.landing-leaderboard-rank {
+  color: var(--site-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  text-align: right;
+}
+
+.landing-leaderboard-name {
+  color: #1f6f5b;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.landing-leaderboard-name:hover {
+  text-decoration: underline;
+}
+
+.landing-leaderboard-rating {
+  color: var(--site-text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.landing-leaderboard-empty {
+  color: var(--site-muted);
+  font-size: 12px;
+  padding: 6px 4px;
 }
 
 .landing-lobby-requests {
@@ -3681,6 +3783,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
   .landing-demo .landing-play-panel,
   .landing-demo #landing-replay,
+  .landing-demo .landing-leaderboard-panel,
   .landing-demo .landing-games {
     grid-column: auto;
   }
@@ -3700,6 +3803,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
   #landing-replay {
     order: 1;
+  }
+
+  .landing-leaderboard-panel {
+    order: 2;
   }
 
   .watch-games {
