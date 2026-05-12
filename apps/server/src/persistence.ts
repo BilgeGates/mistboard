@@ -1289,13 +1289,13 @@ async function updateEloInTransaction(
   );
   await client.query(
     `UPDATE game_participants
-     SET elo_before = $3, elo_after = $4
+     SET elo_before = $2, elo_after = $3
      WHERE game_id = $1 AND color = 'white'`,
     [roomId, whiteRow.elo_rating, newWhite],
   );
   await client.query(
     `UPDATE game_participants
-     SET elo_before = $3, elo_after = $4
+     SET elo_before = $2, elo_after = $3
      WHERE game_id = $1 AND color = 'black'`,
     [roomId, blackRow.elo_rating, newBlack],
   );
