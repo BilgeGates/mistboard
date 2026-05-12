@@ -1,41 +1,28 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { promises as fs } from 'node:fs';
-import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import serveHandler from 'serve-handler';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
-  advanceClock,
   type Chess960Start,
-  clockRemainingMs,
-  createClock,
   defaultClockInitialMs,
-  expireClock,
-  replayGameEvents,
   pickDraft960Offer,
-  variantForId,
+  replayGameEvents,
   type Color,
   type GameEvent,
   type GameProjection,
-  type Move,
-  type PieceRole,
   type RoomTimeControl,
-  type Square,
   type VariantId,
 } from '@mistboard/game';
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
-import type { GameSummary } from './persistence.js';
 import {
-  engineVersionDisplayName,
   isPlayableLiveEngineClientId,
-  loadEngine,
-  playableLiveEngines,
 } from './engine-registry.js';
-import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
-import { snapshotPayload, type Seat } from './payloads.js';
+import { snapshotPayload } from './payloads.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
@@ -51,7 +38,7 @@ import {
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
 import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
-import { currentAccountUser, hashSecret } from './account-session.js';
+import { currentAccountUser } from './account-session.js';
 import {
   handleApiRequest,
   parseHiddenDraft960,
@@ -59,18 +46,38 @@ import {
   parseVariantId,
   type HttpApiContext,
 } from './http-api.js';
+import {
+  appendEvent,
+  broadcastSnapshot,
+  buildGameSummary,
+  canClientAct,
+  offerForColor,
+  PersistenceFailure,
+  persistSeatToken,
+  playMove,
+  resolveBidIfReady,
+  resolveStartIfReady,
+  roomIdToSeed,
+  seatTokenStatesFromPersistence,
+  scheduleClockTimeout,
+  scheduleRandomEngineMove,
+  selectEngineDraftStart,
+  startLiveClockIfReady,
+  touchSeatToken,
+  type RoomManagerContext,
+} from './room-manager.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
 // HTTP API handlers      → ./http-api.ts          (handleApiRequest, lobby, game data, auth endpoints)
-// SECTION: Types and constants          (~line 93)    module-scope maps and config constants
-// SECTION: Server init and HTTP entry   (~line 150)   initPersistence, handleHttpRequest, static file serving
-// SECTION: WebSocket connection handling (~line 250)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
-// SECTION: Seat management              (~line 600)   assignSeat, existingSeatAssignment, newSeatAssignment, verifySeatToken, displaceOlderSeatClients, canClientAct
-// SECTION: Game flow                    (~line 740)   enableRandomEngine, selectStart, submitBid, playMove, playRandomEngineMoveIfReady, resolveStartIfReady, resolveBidIfReady
-// SECTION: Seat token persistence       (~line 1020)  reconcileClientSeats, reconciledSeatTokens, seatTokenStatesFromPersistence, persistSeatToken, replaceSeatTokens
-// SECTION: Room event infrastructure    (~line 1115)  broadcastSnapshot, appendEvent, buildGameSummary, scheduleClockTimeout, expireActiveClock, resetRoom
-// SECTION: Helpers and shutdown         (~line 1390)  send, parseMessage, isPromotionRole, isColor, roomCreatedDraftOfferFields, shutdown
+// Room game flow         → ./room-manager.ts       (playMove, appendEvent, broadcastSnapshot, scheduleClockTimeout, etc.)
+// SECTION: Types and constants          (~line 90)    module-scope maps and config constants
+// SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
+// SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
+// SECTION: Seat management              (~line 560)   assignSeat, existingSeatAssignment, newSeatAssignment, verifySeatToken, displaceOlderSeatClients, canClientAct
+// SECTION: Game flow                    (~line 700)   enableRandomEngine, selectStart, submitBid
+// SECTION: Room event infrastructure    (~line 760)   inMemoryGameSummary, recordPersistenceError, resetRoom
+// SECTION: Helpers and shutdown         (~line 810)   send, parseMessage, isColor, roomCreatedDraftOfferFields, shutdown
 
 // ── SECTION: Types and constants ───────────────────────────────────────────
 // Core server types live in ./server-types.ts — Client, Room, SeatTokenState, SeatAssignment, LobbyTicket
@@ -96,6 +103,16 @@ const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 
 const staticDir = resolveStaticDir();
 const annotationsFile = resolveRepoPath('research', 'python-fow-lab', 'feedback', 'annotations.jsonl');
+
+const roomMgrCtx: RoomManagerContext = {
+  send,
+  recordPersistenceError,
+  pveBuiltinEngineClientId,
+  pveEngineMoveDelayMs,
+  liveEngineTimeoutMs,
+  liveClockInitialMs,
+  liveClockIncrementMs,
+};
 
 await initPersistence();
 let abortPolicyTimer: ReturnType<typeof setInterval> | null = null;
@@ -291,7 +308,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     offer: snapshot.offer,
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
-  broadcastSnapshot(room);
+  broadcastSnapshot(roomMgrCtx, room);
 
   socket.on('message', (raw) => {
     if (!recordClientMessage(client)) {
@@ -322,7 +339,7 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
       await submitBid(room, client, message.bidMs, message.color);
     }
     if (message.type === 'move' && typeof message.from === 'string' && typeof message.to === 'string') {
-      await playMove(room, client, {
+      await playMove(roomMgrCtx, room, client, {
         type: 'move',
         from: message.from,
         to: message.to,
@@ -341,7 +358,7 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
 async function handleClose(room: Room, client: Client): Promise<void> {
   room.clients.delete(client);
   if (client.displaced) {
-    broadcastSnapshot(room);
+    broadcastSnapshot(roomMgrCtx, room);
     return;
   }
   const beforeFirstMove = room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined;
@@ -353,7 +370,7 @@ async function handleClose(room: Room, client: Client): Promise<void> {
     && room.projection.seats[client.seat] === client.id
   ) {
     try {
-      await appendEvent(room, {
+      await appendEvent(roomMgrCtx, room, {
         type: 'seat-vacated',
         at: Date.now(),
         roomId: room.id,
@@ -365,7 +382,7 @@ async function handleClose(room: Room, client: Client): Promise<void> {
       if (!(err instanceof PersistenceFailure)) throw err;
     }
   }
-  broadcastSnapshot(room);
+  broadcastSnapshot(roomMgrCtx, room);
 }
 
 async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft960 = false): Promise<Room> {
@@ -434,8 +451,8 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     gameEndRecorded: projection.state.status.type === 'finished',
   };
   rooms.set(roomId, room);
-  scheduleClockTimeout(room);
-  scheduleRandomEngineMove(room);
+  scheduleClockTimeout(roomMgrCtx, room);
+  scheduleRandomEngineMove(roomMgrCtx, room);
   return room;
 }
 
@@ -503,8 +520,8 @@ async function createRoom(
       gameEndRecorded: false,
     };
     rooms.set(roomId, room);
-    scheduleClockTimeout(room);
-    scheduleRandomEngineMove(room);
+    scheduleClockTimeout(roomMgrCtx, room);
+    scheduleRandomEngineMove(roomMgrCtx, room);
     return room;
   }
   throw new Error('room_id_collision');
@@ -599,41 +616,41 @@ async function assignSeat(
   const tokenSeat = verifySeatToken(room, suppliedSeatToken);
   if (tokenSeat) {
     tokenSeat.lastSeenAt = new Date();
-    await touchSeatToken(room, tokenSeat);
-    await startLiveClockIfReady(room);
+    await touchSeatToken(roomMgrCtx, room, tokenSeat);
+    await startLiveClockIfReady(roomMgrCtx, room);
     return {
       seat: tokenSeat.seat,
       seatTokenHash: tokenSeat.tokenHash,
     };
   }
   if (room.projection.seats.white === clientId) {
-    await startLiveClockIfReady(room);
+    await startLiveClockIfReady(roomMgrCtx, room);
     return await existingSeatAssignment(room, 'white', clientId, accountUser);
   }
   if (room.projection.seats.black === clientId) {
-    await startLiveClockIfReady(room);
+    await startLiveClockIfReady(roomMgrCtx, room);
     return await existingSeatAssignment(room, 'black', clientId, accountUser);
   }
   if (!room.projection.seats.white) {
-    await appendEvent(room, {
+    await appendEvent(roomMgrCtx, room, {
       type: 'seat-assigned',
       at: Date.now(),
       roomId: room.id,
       clientId,
       seat: 'white',
     });
-    await startLiveClockIfReady(room);
+    await startLiveClockIfReady(roomMgrCtx, room);
     return await newSeatAssignment(room, 'white', clientId, accountUser);
   }
   if (!room.projection.seats.black) {
-    await appendEvent(room, {
+    await appendEvent(roomMgrCtx, room, {
       type: 'seat-assigned',
       at: Date.now(),
       roomId: room.id,
       clientId,
       seat: 'black',
     });
-    await startLiveClockIfReady(room);
+    await startLiveClockIfReady(roomMgrCtx, room);
     return await newSeatAssignment(room, 'black', clientId, accountUser);
   }
   return { seat: 'spectator' };
@@ -673,7 +690,7 @@ async function newSeatAssignment(
     lastSeenAt: now,
     revokedAt: null,
   };
-  await persistSeatToken(room, tokenState);
+  await persistSeatToken(roomMgrCtx, room, tokenState);
   room.seatTokens[seat] = tokenState;
   return {
     seat,
@@ -722,22 +739,13 @@ function sameSeatAuthority(left: Client, right: Client): boolean {
   return isServerEngineClient(left.id) && left.id === right.id;
 }
 
-function canClientAct(room: Room, client: Client): boolean {
-  if (client.solo) return true;
-  if (client.displaced) return false;
-  if (client.seat === 'spectator') return false;
-  if (isServerEngineClient(client.id)) return room.projection.seats[client.seat] === client.id;
-  const token = room.seatTokens[client.seat];
-  return token !== undefined && token.tokenHash === client.seatTokenHash;
-}
-
 // ── SECTION: Game flow ─────────────────────────────────────────────────────
 async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
   room.pveEngineId = pveBuiltinEngineClientId;
   if (room.projection.variant !== 'fog-of-war') return;
   if (!room.projection.seats.black) {
-    await appendEvent(room, {
+    await appendEvent(roomMgrCtx, room, {
       type: 'seat-assigned',
       at: Date.now(),
       roomId: room.id,
@@ -745,7 +753,7 @@ async function enableRandomEngine(room: Room): Promise<void> {
       seat: 'black',
     });
   }
-  await selectEngineDraftStart(room);
+  await selectEngineDraftStart(roomMgrCtx, room);
 }
 
 async function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): Promise<void> {
@@ -756,15 +764,15 @@ async function selectStart(room: Room, client: Client, startId: number | undefin
   if (!offerForColor(room.projection, selectionColor).some((start) => start.id === startId)) return;
   if (startId === undefined) return;
 
-  await appendEvent(room, {
+  await appendEvent(roomMgrCtx, room, {
     type: 'draft-start-selected',
     at: Date.now(),
     roomId: room.id,
     color: selectionColor,
     startId,
   });
-  await resolveStartIfReady(room);
-  broadcastSnapshot(room);
+  await resolveStartIfReady(roomMgrCtx, room);
+  broadcastSnapshot(roomMgrCtx, room);
 }
 
 async function submitBid(room: Room, client: Client, bidMs: number | undefined, color: string | undefined): Promise<void> {
@@ -778,553 +786,23 @@ async function submitBid(room: Room, client: Client, bidMs: number | undefined, 
 
   const requestedBidMs = bidMs;
   const boundedBidMs = Math.max(0, Math.min(requestedBidMs, defaultClockInitialMs - 1000));
-  await appendEvent(room, {
+  await appendEvent(roomMgrCtx, room, {
     type: 'bid-submitted',
     at: Date.now(),
     roomId: room.id,
     color: biddingSeat,
     bidMs: boundedBidMs,
   });
-  await resolveBidIfReady(room);
-  broadcastSnapshot(room);
-}
-
-async function playMove(room: Room, client: Client, move: ClientMoveMessage): Promise<void> {
-  if (room.projection.state.status.type !== 'playing') return;
-  const now = Date.now();
-  const moveColor = room.projection.state.status.turn;
-  if (!canClientAct(room, client)) return;
-  if (!client.solo && (client.seat === 'spectator' || moveColor !== client.seat)) return;
-  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, moveColor, now) <= 0) {
-    await expireActiveClock(room, moveColor, now);
-    broadcastSnapshot(room);
-    return;
-  }
-
-  const requestedMove: Move = {
-    from: move.from as Square,
-    to: move.to as Square,
-    promotion: isPromotionRole(move.promotion) ? move.promotion : undefined,
-  };
-  const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, requestedMove);
-  if (nextState === room.projection.state) return;
-  const nextClock = advanceClock(room.projection.state.clock, now, moveColor, nextState.status);
-
-  await appendEvent(room, {
-    type: 'move-played',
-    at: now,
-    roomId: room.id,
-    clock: nextClock,
-    color: moveColor,
-    move: nextState.lastMove ?? requestedMove,
-  });
-  broadcastSnapshot(room);
-  scheduleRandomEngineMove(room);
-}
-
-async function playRandomEngineMoveIfReady(room: Room): Promise<void> {
-  if (!room.randomEngine) return;
-  const engine = loadEngine(room.pveEngineId ?? pveBuiltinEngineClientId);
-  if (room.projection.variant !== 'fog-of-war') return;
-  if (room.projection.state.status.type !== 'playing') return;
-  if (room.projection.state.status.turn !== 'black') return;
-
-  const now = Date.now();
-  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, 'black', now) <= 0) {
-    await expireActiveClock(room, 'black', now);
-    return;
-  }
-
-  const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, 'black');
-  if (moves.length === 0) return;
-  const clock = room.projection.state.clock;
-  const context = {
-    baseThinkTimeMs: pveEngineMoveDelayMs,
-    clockRemainingMs: clock ? clockRemainingMs(clock, 'black', now) : undefined,
-    events: room.events,
-    incrementMs: clock?.incrementMs,
-    state: room.projection.state,
-    color: 'black',
-    legalMoves: moves,
-    roomId: room.id,
-    seed: liveEngineMoveSeed(room),
-    ply: room.events.filter((event) => event.type === 'move-played').length,
-  } as const;
-  const startedAt = Date.now();
-  let fallbackEvent: LiveEngineFallbackEvent | null = null;
-  const result = await chooseLiveEngineMove({
-    context,
-    engine,
-    timeoutMs: liveEngineTimeoutMs,
-    onFallback(event) {
-      fallbackEvent = event;
-      console.error(JSON.stringify({
-        level: 'error',
-        kind: 'live_engine_fallback',
-        roomId: room.id,
-        engineId: event.engineId,
-        fallbackEngineId: event.fallbackEngineId,
-        ply: event.ply,
-        reason: event.reason,
-        timeoutMs: event.timeoutMs,
-        durationMs: event.durationMs,
-        diagnostics: event.diagnostics,
-        at: Date.now(),
-      }));
-    },
-  });
-  const engineThinkTimeMs = result.decision.thinkTimeMs ?? Date.now() - startedAt;
-  await sleepEngineThinkTime(startedAt, engineThinkTimeMs);
-  const decisionAt = Date.now();
-  if (room.projection.state.status.type !== 'playing') return;
-  if (room.projection.state.status.turn !== 'black') return;
-  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, 'black', decisionAt) <= 0) {
-    await expireActiveClock(room, 'black', decisionAt);
-    return;
-  }
-  console.log(JSON.stringify({
-    level: 'info',
-    kind: 'live_engine_move',
-    roomId: room.id,
-    requestedEngineId: engine.id,
-    engineId: result.engineId,
-    fallback: result.fallback,
-    ply: context.ply,
-    durationMs: Date.now() - startedAt,
-    move: result.decision.move,
-    at: Date.now(),
-  }));
-  const move = result.decision.move;
-  if (!move) return;
-  const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
-  if (nextState === room.projection.state) return;
-  const nextClock = advanceClock(room.projection.state.clock, decisionAt, 'black', nextState.status);
-  await appendEvent(room, {
-    type: 'move-played',
-    at: decisionAt,
-    roomId: room.id,
-    clock: nextClock,
-    color: 'black',
-    move,
-    thinkTimeMs: engineThinkTimeMs,
-  });
-  await recordLiveEngineDecisionArtifact(room, {
-    contextPly: context.ply,
-    durationMs: Date.now() - startedAt,
-    engineId: result.engineId,
-    fallback: result.fallback,
-    fallbackEvent,
-    move,
-    requestedEngineId: engine.id,
-    scores: result.decision.scores,
-    thinkTimeMs: engineThinkTimeMs,
-  });
-}
-
-type LiveEngineDecisionArtifactInput = {
-  contextPly: number;
-  durationMs: number;
-  engineId: string;
-  fallback: boolean;
-  fallbackEvent: LiveEngineFallbackEvent | null;
-  move: Move;
-  requestedEngineId: string;
-  scores: Array<{ move: Move; score: number; reason: string }>;
-  thinkTimeMs: number;
-};
-
-async function recordLiveEngineDecisionArtifact(
-  room: Room,
-  input: LiveEngineDecisionArtifactInput,
-): Promise<void> {
-  if (!persistence.isInitialized()) return;
-  try {
-    await persistence.recordGameDebugArtifact({
-      gameId: room.id,
-      ply: input.contextPly,
-      engineColor: 'black',
-      artifactType: 'live-engine-decision',
-      payload: {
-        requested_engine_id: input.requestedEngineId,
-        engine_id: input.engineId,
-        fallback: input.fallback,
-        move: input.move,
-        think_time_ms: input.thinkTimeMs,
-        duration_ms: input.durationMs,
-        scores: input.scores,
-      },
-    });
-    if (input.fallbackEvent) {
-      await persistence.recordGameDebugArtifact({
-        gameId: room.id,
-        ply: input.contextPly,
-        engineColor: 'black',
-        artifactType: 'live-engine-fallback',
-        payload: {
-          engine_id: input.fallbackEvent.engineId,
-          fallback_engine_id: input.fallbackEvent.fallbackEngineId,
-          reason: input.fallbackEvent.reason,
-          timeout_ms: input.fallbackEvent.timeoutMs ?? null,
-          duration_ms: input.fallbackEvent.durationMs,
-          diagnostics: input.fallbackEvent.diagnostics ?? null,
-        },
-      });
-    }
-  } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'live_engine_artifact_persistence_failed',
-      roomId: room.id,
-      ply: input.contextPly,
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
-  }
-}
-
-function scheduleRandomEngineMove(room: Room): void {
-  if (room.engineTimer) return;
-  if (!room.randomEngine) return;
-  if (room.projection.variant !== 'fog-of-war') return;
-  if (room.projection.state.status.type !== 'playing') return;
-  if (room.projection.state.status.turn !== 'black') return;
-
-  room.engineTimer = setTimeout(() => {
-    room.engineTimer = null;
-    void playRandomEngineMoveIfReady(room)
-      .then(() => broadcastSnapshot(room))
-      .catch((err) => {
-        if (!(err instanceof PersistenceFailure)) {
-          console.error(JSON.stringify({
-            level: 'error',
-            kind: 'engine_move_failure',
-            roomId: room.id,
-            error: (err as Error).message,
-            at: Date.now(),
-          }));
-        }
-      });
-  }, 0);
-}
-
-async function sleepEngineThinkTime(startedAt: number, thinkTimeMs: number | undefined): Promise<void> {
-  if (thinkTimeMs === undefined) return;
-  const remainingMs = Math.max(0, Math.round(thinkTimeMs) - (Date.now() - startedAt));
-  if (remainingMs <= 0) return;
-  await new Promise((resolve) => setTimeout(resolve, remainingMs));
-}
-
-async function startLiveClockIfReady(room: Room): Promise<void> {
-  if (room.projection.variant !== 'fog-of-war') return;
-  if (room.projection.state.status.type !== 'playing') return;
-  if (room.projection.state.clock) return;
-  if (!room.projection.seats.white || !room.projection.seats.black) return;
-
-  const now = Date.now();
-  const timeControl = room.projection.timeControl;
-  await appendEvent(room, {
-    type: 'clock-started',
-    at: now,
-    roomId: room.id,
-    clock: timeControl
-      ? createClock(now, timeControl.initialMs, timeControl.incrementMs)
-      : createClock(now, liveClockInitialMs, liveClockIncrementMs),
-  });
-}
-
-async function resolveStartIfReady(room: Room): Promise<void> {
-  if (room.projection.resolvedStartId !== null || (room.projection.resolvedStartIds.white !== undefined && room.projection.resolvedStartIds.black !== undefined)) return;
-
-  const whiteSelection = room.projection.selections.white;
-  const blackSelection = room.projection.selections.black;
-  if (whiteSelection === undefined || blackSelection === undefined) return;
-
-  const whiteStart = offerForColor(room.projection, 'white').find((start) => start.id === whiteSelection);
-  const blackStart = offerForColor(room.projection, 'black').find((start) => start.id === blackSelection);
-  if (!whiteStart || !blackStart) return;
-  const now = Date.now();
-
-  await appendEvent(room, {
-    type: 'draft-start-resolved',
-    at: now,
-    roomId: room.id,
-    clock: createClock(
-      now,
-      room.projection.timeControl?.initialMs,
-      room.projection.timeControl?.incrementMs,
-    ),
-    startIds: {
-      white: whiteStart.id,
-      black: blackStart.id,
-    },
-  });
-}
-
-async function selectEngineDraftStart(room: Room): Promise<void> {
-  if (room.projection.state.status.type !== 'pregame') return;
-  if (!isServerEngineClient(room.projection.seats.black)) return;
-  if (room.projection.selections.black !== undefined) return;
-  const offer = offerForColor(room.projection, 'black');
-  if (offer.length === 0) return;
-  const start = offer[Math.abs(roomIdToSeed(`${room.id}:black-draft`)) % offer.length];
-  if (!start) return;
-  await appendEvent(room, {
-    type: 'draft-start-selected',
-    at: Date.now(),
-    roomId: room.id,
-    color: 'black',
-    startId: start.id,
-  });
-  await resolveStartIfReady(room);
-}
-
-async function resolveBidIfReady(room: Room): Promise<void> {
-  if (room.projection.variant !== 'bid-for-white') return;
-  if (room.projection.state.status.type !== 'pregame') return;
-
-  const whiteBid = room.projection.bids.white;
-  const blackBid = room.projection.bids.black;
-  if (whiteBid === undefined || blackBid === undefined) return;
-
-  const whiteSeat: Color = whiteBid === blackBid
-    ? (randomInt(2) === 0 ? 'white' : 'black')
-    : (whiteBid > blackBid ? 'white' : 'black');
-  const blackSeat: Color = whiteSeat === 'white' ? 'black' : 'white';
-  const winningBidMs = whiteSeat === 'white' ? whiteBid : blackBid;
-  const now = Date.now();
-  const clock = createClock(now);
-  const adjustedClock = {
-    ...clock,
-    remainingMs: {
-      ...clock.remainingMs,
-      white: Math.max(0, clock.remainingMs.white - winningBidMs),
-    },
-  };
-
-  await appendEvent(room, {
-    type: 'bid-resolved',
-    at: now,
-    roomId: room.id,
-    bids: { white: whiteBid, black: blackBid },
-    blackSeat,
-    clock: adjustedClock,
-    winner: whiteBid === blackBid ? null : whiteSeat,
-    whiteSeat,
-    winningBidMs,
-  });
-  await reconcileClientSeats(room);
-}
-
-// ── SECTION: Seat token persistence ────────────────────────────────────────
-async function reconcileClientSeats(room: Room): Promise<void> {
-  const nextTokens = reconciledSeatTokens(room);
-  await replaceSeatTokens(room, nextTokens);
-  room.seatTokens = nextTokens;
-  for (const client of room.clients) {
-    if (room.projection.seats.white === client.id) client.seat = 'white';
-    if (room.projection.seats.black === client.id) client.seat = 'black';
-  }
-}
-
-function reconciledSeatTokens(room: Room): Partial<Record<Color, SeatTokenState>> {
-  const tokenByClientId = new Map<string, SeatTokenState>();
-  for (const token of Object.values(room.seatTokens)) {
-    if (token) tokenByClientId.set(token.clientId, token);
-  }
-
-  const nextTokens: Partial<Record<Color, SeatTokenState>> = {};
-  for (const seat of ['white', 'black'] as const) {
-    const clientId = room.projection.seats[seat];
-    if (!clientId) continue;
-    const token = tokenByClientId.get(clientId);
-    if (!token) continue;
-    nextTokens[seat] = { ...token, seat };
-  }
-  return nextTokens;
-}
-
-function seatTokenStatesFromPersistence(
-  tokens: Partial<Record<Color, persistence.RoomSeatTokenRecord>>,
-): Partial<Record<Color, SeatTokenState>> {
-  const states: Partial<Record<Color, SeatTokenState>> = {};
-  for (const token of Object.values(tokens)) {
-    if (!token || token.revokedAt) continue;
-    states[token.seat] = {
-      clientId: token.clientId,
-      seat: token.seat,
-      tokenHash: token.tokenHash,
-      userId: token.userId,
-      userHandle: token.userHandle,
-      userDisplayName: token.userDisplayName,
-      issuedAt: token.issuedAt,
-      lastSeenAt: token.lastSeenAt,
-      revokedAt: token.revokedAt,
-    };
-  }
-  return states;
-}
-
-function persistenceRecordForSeatToken(token: SeatTokenState): persistence.RoomSeatTokenRecord {
-  return {
-    seat: token.seat,
-    clientId: token.clientId,
-    tokenHash: token.tokenHash,
-    userId: token.userId,
-    userHandle: token.userHandle,
-    userDisplayName: token.userDisplayName,
-    issuedAt: token.issuedAt,
-    lastSeenAt: token.lastSeenAt,
-    revokedAt: token.revokedAt,
-  };
-}
-
-async function persistSeatToken(room: Room, token: SeatTokenState): Promise<void> {
-  if (!persistence.isInitialized()) return;
-  try {
-    await persistence.upsertRoomSeatToken(room.id, persistenceRecordForSeatToken(token));
-  } catch (err) {
-    recordSeatTokenPersistenceError(room.id, token.seat, err as Error);
-    throw new PersistenceFailure();
-  }
-}
-
-async function touchSeatToken(room: Room, token: SeatTokenState): Promise<void> {
-  if (!persistence.isInitialized()) return;
-  try {
-    await persistence.touchRoomSeatToken(room.id, token.seat, token.tokenHash, token.lastSeenAt);
-  } catch (err) {
-    recordSeatTokenPersistenceError(room.id, token.seat, err as Error);
-    throw new PersistenceFailure();
-  }
-}
-
-async function replaceSeatTokens(room: Room, seatTokens: Partial<Record<Color, SeatTokenState>>): Promise<void> {
-  if (!persistence.isInitialized()) return;
-  try {
-    const tokens: Partial<Record<Color, persistence.RoomSeatTokenRecord>> = {};
-    for (const token of Object.values(seatTokens)) {
-      if (token) tokens[token.seat] = persistenceRecordForSeatToken(token);
-    }
-    await persistence.replaceRoomSeatTokens(room.id, tokens);
-  } catch (err) {
-    recordSeatTokenPersistenceError(room.id, null, err as Error);
-    throw new PersistenceFailure();
-  }
+  await resolveBidIfReady(roomMgrCtx, room);
+  broadcastSnapshot(roomMgrCtx, room);
 }
 
 // ── SECTION: Room event infrastructure ─────────────────────────────────────
-function broadcastSnapshot(room: Room): void {
-  for (const client of room.clients) {
-    send(client, snapshotPayload(room, client));
-  }
-}
-
-async function appendEvent(room: Room, event: GameEvent): Promise<void> {
-  // Serialize per-room writes. Chaining onto pendingWrites guarantees
-  // sequence assignment is atomic with the persistence write.
-  const myWrite = room.pendingWrites.then(async () => {
-    const seq = room.events.length;
-    if (persistence.isInitialized()) {
-      try {
-        await persistence.appendEvent(room.id, seq, event);
-      } catch (err) {
-        recordPersistenceError(room.id, seq, event, err as Error);
-        throw new PersistenceFailure();
-      }
-    }
-    room.events.push(event);
-    room.projection = replayGameEvents(room.events);
-    room.mode = modeForProjection(room.projection);
-    scheduleClockTimeout(room);
-    if (room.projection.state.status.type !== 'playing' || room.projection.state.status.turn !== 'black') {
-      clearRandomEngineTimer(room);
-    }
-
-    if (
-      persistence.isInitialized()
-      && room.projection.state.status.type === 'finished'
-      && !room.gameEndRecorded
-    ) {
-      room.gameEndRecorded = true;
-      try {
-        await persistence.recordGameEnd(room.id, buildGameSummary(room));
-      } catch (err) {
-        // Events are durable; the games-row aggregate can be backfilled.
-        // Log loudly so it's visible.
-        console.error(JSON.stringify({
-          level: 'error',
-          kind: 'game_end_record_failure',
-          roomId: room.id,
-          error: (err as Error).message,
-          at: Date.now(),
-        }));
-      }
-    }
-  });
-  // Don't break the chain if this write rejects — caller surfaces the error.
-  room.pendingWrites = myWrite.catch(() => {});
-  await myWrite;
-}
-
-function buildGameSummary(room: Room): GameSummary {
-  const status = room.projection.state.status;
-  if (status.type !== 'finished') {
-    throw new Error('buildGameSummary called on non-terminal state');
-  }
-  const result: GameSummary['result'] = status.winner === 'white' ? 'white-wins'
-    : status.winner === 'black' ? 'black-wins'
-    : 'draw';
-
-  // status.reason is loosely typed as string in @mistboard/game; narrow here.
-  const termination = status.reason as GameSummary['termination'];
-
-  const moveEvents = room.events.filter((e) => e.type === 'move-played');
-  const firstAt = room.events[0]?.at ?? Date.now();
-  const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
-
-  return {
-    variant: room.projection.variant,
-    mode: room.mode,
-    result,
-    termination,
-    plyCount: moveEvents.length,
-    startedAt: new Date(firstAt),
-    endedAt: new Date(lastAt),
-    whiteClient: room.projection.seats.white ?? null,
-    blackClient: room.projection.seats.black ?? null,
-    whiteName: null,
-    blackName: null,
-    corpusId: null,
-    participants: [
-      participantForSeatToken('white', room.projection.seats.white ?? null, room.seatTokens.white, room.mode),
-      participantForSeatToken('black', room.projection.seats.black ?? null, room.seatTokens.black, room.mode),
-    ],
-  };
-}
-
-function participantForSeatToken(
-  color: Color,
-  clientId: string | null,
-  token: SeatTokenState | undefined,
-  mode: persistence.GameMode,
-): persistence.GameParticipant {
-  if (token?.userId) {
-    return {
-      color,
-      displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
-      subjectType: 'user',
-      subjectId: token.userId,
-      visibility: 'public',
-    };
-  }
-  return inMemoryParticipant(color, clientId, null, mode, 'public');
-}
-
 function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null {
   const room = rooms.get(roomId);
   if (!room || room.projection.state.status.type !== 'finished') return null;
 
-  const summary = buildGameSummary(room);
+  const summary = buildGameSummary(roomMgrCtx, room);
   return {
     roomId: room.id,
     variant: summary.variant,
@@ -1343,45 +821,7 @@ function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | 
     blackEngineId: null,
     timeControl: null,
     visibility: summary.visibility ?? 'public',
-    participants: summary.participants ?? [
-      inMemoryParticipant('white', summary.whiteClient, summary.whiteName, summary.mode ?? 'pvp', summary.visibility ?? 'public'),
-      inMemoryParticipant('black', summary.blackClient, summary.blackName, summary.mode ?? 'pvp', summary.visibility ?? 'public'),
-    ],
-  };
-}
-
-function inMemoryParticipant(
-  color: Color,
-  clientId: string | null,
-  displayName: string | null,
-  mode: persistence.GameMode,
-  visibility: persistence.GameVisibility,
-): persistence.GameParticipant {
-  if (clientId && isServerEngineClient(clientId)) {
-    const engineVersionId = canonicalEngineVersionId(clientId);
-    return {
-      color,
-      displayName: displayName ?? engineVersionDisplayName(engineVersionId),
-      subjectType: 'engine-version',
-      subjectId: engineVersionId,
-      visibility,
-    };
-  }
-  if (mode === 'imported' || mode === 'manual') {
-    return {
-      color,
-      displayName: displayName ?? (color === 'white' ? 'White' : 'Black'),
-      subjectType: mode,
-      subjectId: null,
-      visibility,
-    };
-  }
-  return {
-    color,
-    displayName: displayName ?? 'Guest',
-    subjectType: 'guest',
-    subjectId: null,
-    visibility,
+    participants: summary.participants ?? [],
   };
 }
 
@@ -1403,24 +843,6 @@ function recordPersistenceError(roomId: string, seq: number, event: GameEvent, e
   }));
 }
 
-function recordSeatTokenPersistenceError(roomId: string, seat: Color | null, err: Error): void {
-  console.error(JSON.stringify({
-    level: 'error',
-    kind: 'seat_token_persistence_failure',
-    roomId,
-    seat,
-    error: err.message,
-    at: Date.now(),
-  }));
-}
-
-class PersistenceFailure extends Error {
-  constructor() {
-    super('persistence_failure');
-    this.name = 'PersistenceFailure';
-  }
-}
-
 function resetRoom(roomId: string): void {
   const room = rooms.get(roomId);
   if (room?.clockTimer) clearTimeout(room.clockTimer);
@@ -1428,63 +850,10 @@ function resetRoom(roomId: string): void {
   rooms.delete(roomId);
 }
 
-function clearRandomEngineTimer(room: Room): void {
-  if (!room.engineTimer) return;
-  clearTimeout(room.engineTimer);
-  room.engineTimer = null;
-}
-
-function scheduleClockTimeout(room: Room): void {
-  if (room.clockTimer) clearTimeout(room.clockTimer);
-  room.clockTimer = null;
-
-  const { clock, status } = room.projection.state;
-  if (!clock || status.type !== 'playing' || !clock.activeColor) return;
-
-  const activeColor = clock.activeColor;
-  const delay = clockRemainingMs(clock, activeColor, Date.now());
-  room.clockTimer = setTimeout(() => {
-    if (room.projection.state.status.type !== 'playing') return;
-    if (room.projection.state.status.turn !== activeColor) return;
-    void expireActiveClock(room, activeColor, Date.now())
-      .then(() => broadcastSnapshot(room))
-      .catch((err) => {
-        if (!(err instanceof PersistenceFailure)) {
-          console.error(JSON.stringify({
-            level: 'error',
-            kind: 'clock_expire_failure',
-            roomId: room.id,
-            error: (err as Error).message,
-            at: Date.now(),
-          }));
-        }
-      });
-  }, delay + 25);
-}
-
-async function expireActiveClock(room: Room, color: Color, at: number): Promise<void> {
-  const clock = expireClock(room.projection.state.clock, at, color);
-  if (!clock) return;
-  await appendEvent(room, {
-    type: 'clock-expired',
-    at,
-    roomId: room.id,
-    color,
-    clock,
-  });
-}
-
 // ── SECTION: Helpers and shutdown ──────────────────────────────────────────
 function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
 }
-
-type ClientMoveMessage = {
-  type: 'move';
-  from: string;
-  to: string;
-  promotion?: string;
-};
 
 function parseMessage(raw: string): { type: string; bidMs?: number; startId?: number; color?: string; from?: string; to?: string; promotion?: string; token?: string } | null {
   try {
@@ -1496,10 +865,6 @@ function parseMessage(raw: string): { type: string; bidMs?: number; startId?: nu
     return null;
   }
   return null;
-}
-
-function isPromotionRole(value: string | undefined): value is Exclude<PieceRole, 'king' | 'pawn'> {
-  return value === 'queen' || value === 'rook' || value === 'bishop' || value === 'knight';
 }
 
 function isColor(value: string | undefined): value is Color {
@@ -1547,19 +912,9 @@ function engineDraftSelectionEvent(
   };
 }
 
-function offerForColor(projection: GameProjection, color: Color): Chess960Start[] {
-  return projection.offers[color] ?? projection.offer;
-}
-
-function roomIdToSeed(roomId: string): number {
-  let hash = 0;
-  for (const char of roomId) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
-  return hash;
-}
-
-function liveEngineMoveSeed(room: Room): bigint {
-  const ply = room.events.filter((event) => event.type === 'move-played').length;
-  return (BigInt(roomIdToSeed(room.id) >>> 0) << 16n) + BigInt(ply);
+function canonicalEngineVersionId(clientId: string): string {
+  if (clientId === 'random-engine') return pveBuiltinEngineClientId;
+  return clientId;
 }
 
 function handleAdminDebugAuth(room: Room, client: Client, token: string | undefined): void {
@@ -1587,11 +942,6 @@ function isHttpAdminAuthorized(request: IncomingMessage): boolean {
     : request.headers.authorization;
   const token = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
   return isAdminDebugToken(token);
-}
-
-function canonicalEngineVersionId(clientId: string): string {
-  if (clientId === 'random-engine') return pveBuiltinEngineClientId;
-  return clientId;
 }
 
 function isAllowedWebSocketRequest(request: IncomingMessage): boolean {

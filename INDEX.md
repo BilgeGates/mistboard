@@ -24,7 +24,8 @@ Edit task → find file → open only that file.
 
 | File | Owns |
 |------|------|
-| `index.ts` (~1,660 lines) | WebSocket rooms, seat tokens, clocks, engine scheduling, server init. See section markers inside. |
+| `index.ts` (~870 lines) | WebSocket orchestration: server init, connection handling, seat management, HTTP entry. See section markers inside. |
+| `room-manager.ts` | Core game loop: `playMove`, `appendEvent`, `broadcastSnapshot`, `scheduleClockTimeout`, `expireActiveClock`, `scheduleRandomEngineMove`, `playRandomEngineMoveIfReady`, seat token persistence, bid/draft resolution. Context: `RoomManagerContext`. |
 | `http-api.ts` | HTTP routing: `handleApiRequest`, lobby, game data helpers, room creation. Exported: `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `HttpApiContext` |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
 | `server-types.ts` | Shared server types: `Client`, `Room`, `SeatTokenState`, `SeatAssignment`, `LobbyTicket` |
@@ -40,13 +41,13 @@ Edit task → find file → open only that file.
 | `migrate.ts` | Schema migrations — run once on startup |
 | `worker.ts` | Background worker entry point for async engine game execution |
 
-**Change move validation or game flow** → `index.ts` §Game flow (~line 740)
-**Change WebSocket message handling** → `index.ts` §WebSocket connection handling (~line 250)
+**Change move validation or game flow** → `room-manager.ts` (`playMove`, `appendEvent`, `resolveStartIfReady`)
+**Change WebSocket message handling** → `index.ts` §WebSocket connection handling (~line 230)
 **Change HTTP API routing** → `http-api.ts`
 **Change account/session/email auth** → `account-session.ts`
-**Change seat token auth** → `index.ts` §Seat management (~line 600)
+**Change seat token auth** → `index.ts` §Seat management (~line 560)
 **Change persistence queries** → `persistence.ts`
-**Change clock logic** → `clocks.ts` (game pkg) + `index.ts` §Room event infrastructure (~line 1115)
+**Change clock logic** → `clocks.ts` (game pkg) + `room-manager.ts` (`scheduleClockTimeout`, `expireActiveClock`)
 **Change snapshot/fog payload** → `payloads.ts`
 **Change access control** → `server-policy.ts`
 
