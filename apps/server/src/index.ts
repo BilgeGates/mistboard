@@ -237,6 +237,7 @@ function isClientRoute(pathname: string): boolean {
     || normalized === '/source'
     || normalized === '/account'
     || normalized === '/account/settings'
+    || normalized === '/leaderboard'
     || normalized === '/lab'
     || normalized === '/engine-lab'
     || normalized === '/arena'

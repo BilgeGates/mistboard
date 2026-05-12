@@ -322,6 +322,76 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   shell.append(buildProfileHeader(profile), buildProfileGames(profile.games));
 }
 
+export async function mountLeaderboard(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page');
+  root.append(buildNav(), buildLoadingState('Loading leaderboard'), buildFooter());
+
+  const shell = document.createElement('main');
+  shell.className = 'site-section leaderboard-shell';
+  root.replaceChildren(buildNav(), shell, buildFooter());
+
+  type LeaderboardEntry = { rank: number; handle: string; displayName: string; eloRating: number };
+  const data = await fetch('/api/leaderboard?limit=100')
+    .then((r) => (r.ok ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>) : Promise.reject(r.status)))
+    .catch((err) => {
+      console.warn(err);
+      return null;
+    });
+
+  if (!data) {
+    shell.append(buildNotice('Leaderboard unavailable', 'Could not load ratings. Try again later.'));
+    return;
+  }
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Leaderboard';
+
+  if (data.leaderboard.length === 0) {
+    shell.append(heading, buildNotice('No rated games yet', 'Play a PvP game to appear here.'));
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'leaderboard-table';
+
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  for (const label of ['#', 'Player', 'Rating']) {
+    const th = document.createElement('th');
+    th.textContent = label;
+    headerRow.append(th);
+  }
+  thead.append(headerRow);
+  table.append(thead);
+
+  const tbody = document.createElement('tbody');
+  for (const entry of data.leaderboard) {
+    const tr = document.createElement('tr');
+
+    const rankTd = document.createElement('td');
+    rankTd.className = 'leaderboard-rank';
+    rankTd.textContent = String(entry.rank);
+
+    const nameTd = document.createElement('td');
+    nameTd.className = 'leaderboard-player';
+    const link = document.createElement('a');
+    link.href = `/@/${encodeURIComponent(entry.handle)}`;
+    link.textContent = entry.displayName;
+    nameTd.append(link);
+
+    const ratingTd = document.createElement('td');
+    ratingTd.className = 'leaderboard-rating';
+    ratingTd.textContent = String(entry.eloRating);
+
+    tr.append(rankTd, nameTd, ratingTd);
+    tbody.append(tr);
+  }
+  table.append(tbody);
+  shell.append(heading, table);
+}
+
 async function loadGameForReview(roomId: string): Promise<{
   beliefRows: BeliefRow[];
   events?: GameEvent[];
@@ -1176,7 +1246,8 @@ function buildNav(): HTMLElement {
 
   const watchLink = navLink('Watch', '/watch');
   const learnLink = navLink('Learn', '/learn');
-  links.append(watchLink, learnLink);
+  const leaderboardLink = navLink('Ratings', '/leaderboard');
+  links.append(watchLink, learnLink, leaderboardLink);
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';

@@ -1,6 +1,7 @@
 import pg from 'pg';
 import type { Color, GameEvent } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
+import { computeElo, type EloResult } from './elo.js';
 
 let pool: pg.Pool | null = null;
 
@@ -135,8 +136,16 @@ export type UserAccount = {
   displayNameChangedAt: Date | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: AccountRole;
+  eloRating: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type LeaderboardEntry = {
+  rank: number;
+  handle: string;
+  displayName: string;
+  eloRating: number;
 };
 
 export type UpdateUserProfileResult =
@@ -497,7 +506,7 @@ export async function findUserByEmail(email: string): Promise<UserAccount | null
   const { rows } = await getPool().query<UserRow>(
     `SELECT id, email, email_verified_at, handle, handle_changed_at,
             display_name, display_name_changed_at, profile_visibility,
-            account_role, created_at, updated_at
+            account_role, elo_rating, created_at, updated_at
      FROM users
      WHERE lower(email) = lower($1)
      LIMIT 1`,
@@ -522,7 +531,7 @@ export async function createUser(user: {
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
      RETURNING id, email, email_verified_at, handle, handle_changed_at,
                display_name, display_name_changed_at, profile_visibility,
-               account_role, created_at, updated_at`,
+               account_role, elo_rating, created_at, updated_at`,
     [
       user.id,
       user.email,
@@ -545,7 +554,7 @@ export async function markUserEmailVerified(userId: string, at: Date): Promise<U
      WHERE id = $1
      RETURNING id, email, email_verified_at, handle, handle_changed_at,
                display_name, display_name_changed_at, profile_visibility,
-               account_role, created_at, updated_at`,
+               account_role, elo_rating, created_at, updated_at`,
     [userId, at],
   );
   return userFromRow(rows[0]!);
@@ -564,7 +573,7 @@ export async function updateUserProfile(
     const { rows } = await client.query<UserRow>(
       `SELECT id, email, email_verified_at, handle, handle_changed_at,
               display_name, display_name_changed_at, profile_visibility,
-              account_role, created_at, updated_at
+              account_role, elo_rating, created_at, updated_at
        FROM users
        WHERE id = $1
        FOR UPDATE`,
@@ -623,7 +632,7 @@ export async function updateUserProfile(
        WHERE id = $1
        RETURNING id, email, email_verified_at, handle, handle_changed_at,
                  display_name, display_name_changed_at, profile_visibility,
-                 account_role, created_at, updated_at`,
+                 account_role, elo_rating, created_at, updated_at`,
       [userId, nextHandle, nextDisplayName, handleChanged, displayNameChanged, at],
     );
     await client.query('COMMIT');
@@ -686,7 +695,7 @@ export async function getUserProfileByHandle(
   const { rows: userRows } = await getPool().query<UserRow>(
     `SELECT id, email, email_verified_at, handle, handle_changed_at,
             display_name, display_name_changed_at, profile_visibility,
-            account_role, created_at, updated_at
+            account_role, elo_rating, created_at, updated_at
      FROM users
      WHERE lower(handle) = lower($1)
      LIMIT 1`,
@@ -757,6 +766,30 @@ export async function getUserProfileByHandle(
     },
     games: await withParticipants(games),
   };
+}
+
+export async function getLeaderboard(limit = 100): Promise<LeaderboardEntry[]> {
+  const bounded = Math.max(1, Math.min(limit, 500));
+  const { rows } = await getPool().query<{
+    rank: string;
+    handle: string;
+    display_name: string;
+    elo_rating: number;
+  }>(
+    `SELECT RANK() OVER (ORDER BY elo_rating DESC) AS rank,
+            handle, display_name, elo_rating
+     FROM users
+     WHERE profile_visibility IN ('public', 'unlisted')
+     ORDER BY elo_rating DESC
+     LIMIT $1`,
+    [bounded],
+  );
+  return rows.map((row) => ({
+    rank: Number(row.rank),
+    handle: row.handle,
+    displayName: row.display_name,
+    eloRating: row.elo_rating,
+  }));
 }
 
 export async function listCorpusGames(corpusId: string, limit = 100): Promise<GameRecord[]> {
@@ -1204,6 +1237,22 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
         ],
       );
     }
+    if (mode === 'pvp') {
+      const whiteParticipant = participants.find((p) => p.color === 'white');
+      const blackParticipant = participants.find((p) => p.color === 'black');
+      if (
+        whiteParticipant?.subjectType === 'user' && whiteParticipant.subjectId &&
+        blackParticipant?.subjectType === 'user' && blackParticipant.subjectId
+      ) {
+        await updateEloInTransaction(
+          client,
+          roomId,
+          whiteParticipant.subjectId,
+          blackParticipant.subjectId,
+          summary.result as EloResult,
+        );
+      }
+    }
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -1211,6 +1260,45 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
   } finally {
     client.release();
   }
+}
+
+async function updateEloInTransaction(
+  client: pg.PoolClient,
+  roomId: string,
+  whiteUserId: string,
+  blackUserId: string,
+  result: EloResult,
+): Promise<void> {
+  const { rows } = await client.query<{ id: string; elo_rating: number }>(
+    `SELECT id, elo_rating FROM users WHERE id = ANY($1) FOR UPDATE`,
+    [[whiteUserId, blackUserId]],
+  );
+  const whiteRow = rows.find((r) => r.id === whiteUserId);
+  const blackRow = rows.find((r) => r.id === blackUserId);
+  if (!whiteRow || !blackRow) return;
+
+  const { newWhite, newBlack } = computeElo(whiteRow.elo_rating, blackRow.elo_rating, result);
+
+  await client.query(
+    `UPDATE users SET elo_rating = $2, updated_at = now() WHERE id = $1`,
+    [whiteUserId, newWhite],
+  );
+  await client.query(
+    `UPDATE users SET elo_rating = $2, updated_at = now() WHERE id = $1`,
+    [blackUserId, newBlack],
+  );
+  await client.query(
+    `UPDATE game_participants
+     SET elo_before = $3, elo_after = $4
+     WHERE game_id = $1 AND color = 'white'`,
+    [roomId, whiteRow.elo_rating, newWhite],
+  );
+  await client.query(
+    `UPDATE game_participants
+     SET elo_before = $3, elo_after = $4
+     WHERE game_id = $1 AND color = 'black'`,
+    [roomId, blackRow.elo_rating, newBlack],
+  );
 }
 
 async function withParticipants<T extends GameRecord>(records: T[]): Promise<T[]> {
@@ -1372,6 +1460,7 @@ type UserRow = {
   display_name_changed_at: Date | null;
   profile_visibility: UserAccount['profileVisibility'];
   account_role: AccountRole;
+  elo_rating: number;
   created_at: Date;
   updated_at: Date;
 };
@@ -1387,6 +1476,7 @@ function userFromRow(row: UserRow): UserAccount {
     displayNameChangedAt: row.display_name_changed_at,
     profileVisibility: row.profile_visibility,
     accountRole: row.account_role,
+    eloRating: row.elo_rating,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

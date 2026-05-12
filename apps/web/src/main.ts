@@ -50,6 +50,7 @@ const wantsAccountSettings = path === '/account/settings' || page === 'account-s
 const wantsLearn = path === '/learn' || page === 'learn';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
+const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 const profileHandle = profileHandleFromPath(path);
 
 if (replaySample) {
@@ -69,6 +70,8 @@ if (replaySample) {
   void mountOrReport(() => import('./live.js').then(() => undefined));
 } else if (gameRoomId) {
   void mountOrReport(() => import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)));
+} else if (wantsLeaderboard) {
+  void mountOrReport(() => import('./landing.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)));
 } else if (profileHandle) {
   void mountOrReport(() => import('./landing.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
 } else if (wantsAccountSettings) {

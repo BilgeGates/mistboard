@@ -463,6 +463,18 @@ export async function handleApiRequest(
     return;
   }
 
+  if (parsedUrl.pathname === '/api/leaderboard') {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    const limitParam = parseInt(parsedUrl.searchParams.get('limit') ?? '100', 10);
+    const limit = isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
+    const entries = await persistence.getLeaderboard(limit);
+    writeJson(response, 200, { leaderboard: entries });
+    return;
+  }
+
   if (parsedUrl.pathname === '/api/games') {
     if (method !== 'GET') {
       response.writeHead(405, { 'content-type': 'application/json' });
