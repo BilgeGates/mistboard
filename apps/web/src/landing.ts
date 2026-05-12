@@ -1246,9 +1246,8 @@ function buildNav(): HTMLElement {
   links.className = 'site-nav-links';
 
   const watchLink = navLink('Watch', '/watch');
-  const learnLink = navLink('Learn', '/learn');
   const leaderboardLink = navLink('Ratings', '/leaderboard');
-  links.append(watchLink, learnLink, leaderboardLink);
+  links.append(watchLink, leaderboardLink);
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
@@ -1309,15 +1308,8 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   replayRoot.id = 'landing-replay';
   section.append(playPanel, replayRoot);
 
-  stage.append(section, buildLandingArticlePlan());
+  stage.append(section);
   return { el: stage, replayRoot };
-}
-
-function buildLandingArticlePlan(): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'landing-article-plan';
-  section.setAttribute('aria-label', 'Planned articles');
-  return section;
 }
 
 function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRequests?: boolean } = {}): HTMLElement {

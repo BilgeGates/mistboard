@@ -1828,12 +1828,12 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-demo {
   display: grid;
-  grid-template-columns: minmax(190px, 220px) minmax(0, 1080px) minmax(190px, 220px);
+  grid-template-columns: minmax(190px, 220px) minmax(0, 1440px) minmax(190px, 220px);
   gap: clamp(18px, 2.4vw, 28px);
   align-items: stretch;
   justify-content: center;
   width: 100%;
-  max-width: 1580px;
+  max-width: 1940px;
   margin: 0 auto;
   padding: clamp(14px, 2vw, 22px);
   border: 1px solid rgba(29, 37, 34, 0.1);
@@ -2035,17 +2035,6 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   align-content: start;
   gap: 10px;
   min-width: 0;
-}
-
-.landing-article-plan {
-  display: block;
-  width: min(100%, 1580px);
-  min-height: clamp(72px, 10vh, 118px);
-  margin: 0 auto;
-  padding: clamp(16px, 2vw, 22px);
-  border: 1px solid rgba(29, 37, 34, 0.1);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.66);
 }
 
 .landing-lobby-requests {
@@ -2905,7 +2894,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .landing-page #landing-replay .replay-board.cg-wrap {
-  max-width: 360px;
+  max-width: min(480px, calc(100dvh - 240px));
   box-shadow:
     0 0 0 1px rgba(58, 65, 60, 0.18),
     0 12px 26px rgba(43, 49, 45, 0.14);
@@ -3713,10 +3702,6 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
     order: 1;
   }
 
-  .landing-article-plan {
-    max-width: 980px;
-  }
-
   .watch-games {
     order: 2;
   }
@@ -3794,10 +3779,6 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
   .landing-page #landing-replay .replay-game-meta-card-compact .replay-game-meta-details {
     justify-content: flex-start;
-  }
-
-  .landing-article-plan {
-    padding: 14px;
   }
 
   .landing-play-action {
