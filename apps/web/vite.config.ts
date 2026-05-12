@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Plugin } from 'vitest/config';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
@@ -85,6 +85,10 @@ function annotationsApiPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [annotationsApiPlugin()],
+  test: {
+    environment: 'happy-dom',
+    include: ['src/**/*.test.ts'],
+  },
   server: {
     proxy: {
       '/api': {

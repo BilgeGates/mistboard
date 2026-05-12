@@ -1,0 +1,87 @@
+import { describe, expect, it } from 'vitest';
+import { escapeHtml, formatClock, isColor, oppositeColor } from './web-utils.js';
+
+describe('formatClock', () => {
+  it('formats zero ms as 0:00', () => {
+    expect(formatClock(0)).toBe('0:00');
+  });
+
+  it('formats minutes and seconds', () => {
+    expect(formatClock(90_000)).toBe('1:30');
+    expect(formatClock(60_000)).toBe('1:00');
+    expect(formatClock(1_000)).toBe('0:01');
+  });
+
+  it('formats hours:minutes:seconds when duration exceeds one hour', () => {
+    expect(formatClock(3_661_000)).toBe('1:01:01');
+    expect(formatClock(3_600_000)).toBe('1:00:00');
+  });
+
+  it('rounds up to the next second when sub-second ms remain', () => {
+    expect(formatClock(500)).toBe('0:01');
+    expect(formatClock(59_999)).toBe('1:00');
+  });
+
+  it('clamps negative values to 0:00', () => {
+    expect(formatClock(-5_000)).toBe('0:00');
+  });
+
+  it('shows tenths when showTenths is true', () => {
+    expect(formatClock(0, true)).toBe('0:00.0');
+    expect(formatClock(100, true)).toBe('0:00.1');
+    expect(formatClock(1_500, true)).toBe('0:01.5');
+    expect(formatClock(3_661_000, true)).toBe('1:01:01.0');
+  });
+});
+
+describe('escapeHtml', () => {
+  it('escapes angle brackets', () => {
+    expect(escapeHtml('<script>')).toBe('&lt;script&gt;');
+  });
+
+  it('escapes ampersands', () => {
+    expect(escapeHtml('a & b')).toBe('a &amp; b');
+  });
+
+  it('escapes double quotes', () => {
+    expect(escapeHtml('"hello"')).toBe('&quot;hello&quot;');
+  });
+
+  it('escapes all special characters in a combined string', () => {
+    expect(escapeHtml('<script>alert("xss")</script>')).toBe(
+      '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;',
+    );
+  });
+
+  it('leaves plain text unchanged', () => {
+    expect(escapeHtml('hello world')).toBe('hello world');
+  });
+});
+
+describe('isColor', () => {
+  it('returns true for white and black', () => {
+    expect(isColor('white')).toBe(true);
+    expect(isColor('black')).toBe(true);
+  });
+
+  it('returns false for spectator', () => {
+    expect(isColor('spectator')).toBe(false);
+  });
+
+  it('returns false for undefined, null, and other values', () => {
+    expect(isColor(undefined)).toBe(false);
+    expect(isColor(null)).toBe(false);
+    expect(isColor('')).toBe(false);
+    expect(isColor(42)).toBe(false);
+  });
+});
+
+describe('oppositeColor', () => {
+  it('returns black for white', () => {
+    expect(oppositeColor('white')).toBe('black');
+  });
+
+  it('returns white for black', () => {
+    expect(oppositeColor('black')).toBe('white');
+  });
+});

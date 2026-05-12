@@ -701,7 +701,7 @@ export function reconcileInteractionState(): void {
 
 // ── Legal dests / board helpers ───────────────────────────────────────────────
 
-function legalDests(view: PlayerView): cg.Dests {
+export function legalDests(view: PlayerView): cg.Dests {
   const dests = new Map<cg.Key, cg.Key[]>();
   for (const move of view.legalMoves) {
     const from = move.from as cg.Key;
