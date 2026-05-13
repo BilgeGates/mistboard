@@ -189,7 +189,7 @@ export async function handleApiRequest(
       return;
     }
 
-    const user = await ensureUserForEmail(challenge.email, now);
+    const { user, isNew } = await ensureUserForEmail(challenge.email, now);
     const sessionId = randomUUID();
     const sessionToken = randomBytes(32).toString('base64url');
     const expiresAt = new Date(now.getTime() + accountSessionTtlMs);
@@ -199,7 +199,7 @@ export async function handleApiRequest(
       tokenHash: hashSecret(sessionToken),
       expiresAt,
     });
-    writeJson(response, 200, { user: publicUser(user) }, {
+    writeJson(response, 200, { user: publicUser(user), isNewUser: isNew }, {
       'set-cookie': accountSessionCookie(sessionId, sessionToken, expiresAt),
     });
     return;

@@ -19,15 +19,15 @@ export async function currentAccountUser(request: IncomingMessage): Promise<pers
   return persistence.getUserByAccountSession(session.sessionId, hashSecret(session.token), new Date());
 }
 
-export async function ensureUserForEmail(email: string, now: Date): Promise<persistence.UserAccount> {
+export async function ensureUserForEmail(email: string, now: Date): Promise<{ user: persistence.UserAccount; isNew: boolean }> {
   const existing = await persistence.findUserByEmail(email);
-  if (existing) return persistence.markUserEmailVerified(existing.id, now);
+  if (existing) return { user: await persistence.markUserEmailVerified(existing.id, now), isNew: false };
 
   const baseHandle = handleBaseForEmail(email);
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const handle = attempt === 0 ? baseHandle : `${baseHandle}${randomInt(10_000, 99_999)}`;
     try {
-      return await persistence.createUser({
+      const user = await persistence.createUser({
         id: `user_${randomUUID()}`,
         email,
         emailVerifiedAt: now,
@@ -35,10 +35,11 @@ export async function ensureUserForEmail(email: string, now: Date): Promise<pers
         displayName: displayNameForEmail(email),
         now,
       });
+      return { user, isNew: true };
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
       const raced = await persistence.findUserByEmail(email);
-      if (raced) return persistence.markUserEmailVerified(raced.id, now);
+      if (raced) return { user: await persistence.markUserEmailVerified(raced.id, now), isNew: false };
     }
   }
   throw new Error('failed to allocate user handle');

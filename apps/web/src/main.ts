@@ -1,6 +1,7 @@
 import './styles.css';
 import { initializeThemeSettings } from './theme.js';
 import { initializeAccountNav } from './account-nav.js';
+import { setPostHogInstance } from './analytics.js';
 
 initializeThemeSettings();
 initializeAccountNav();
@@ -18,6 +19,7 @@ if (phKey && phHost && import.meta.env.PROD) {
       respect_dnt: true,
     });
     posthog.capture('$pageview', { path: window.location.pathname });
+    setPostHogInstance(posthog);
   });
 }
 

@@ -2185,12 +2185,65 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .landing-play-panel {
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   align-self: stretch;
-  align-content: start;
   gap: 10px;
   min-width: 0;
+}
+
+.landing-play-status {
+  margin: -4px 0 0;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.landing-play-status:empty {
+  display: none;
+}
+
+.landing-play-engine-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--site-border, #2a2f37);
+  border-radius: 6px;
+  background: var(--site-surface-muted, rgba(255, 255, 255, 0.03));
+}
+
+.landing-play-engine-prompt[hidden] {
+  display: none;
+}
+
+.landing-play-engine-prompt-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--site-text);
+}
+
+.landing-play-engine-prompt-action {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px solid #629924;
+  border-radius: 4px;
+  background: #629924;
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.landing-play-engine-prompt-action:hover:not(:disabled) {
+  background: #6fab2a;
+  border-color: #6fab2a;
+}
+
+.landing-play-engine-prompt-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .landing-leaderboard-panel {

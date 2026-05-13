@@ -4,6 +4,7 @@ import type { BeliefRow, TraceRow } from './belief-panel.js';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from './board-ui.js';
 import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameMeta } from './replay.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
+import { track } from './analytics.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -146,6 +147,11 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = [
   { id: '5m3', label: '5 + 3', initialMs: 5 * 60_000, incrementMs: 3_000 },
   { id: 'custom', label: 'Custom', initialMs: 3 * 60_000, incrementMs: 2_000 },
 ];
+const PUBLIC_LOBBY_SETUP: LandingRoomSetup = {
+  startFormat: 'standard',
+  rated: false,
+  timeControl: { initialMs: 3 * 60_000, incrementMs: 2_000 },
+};
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -161,7 +167,6 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   ]);
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());
-  void populateLandingLeaderboard(stage.leaderboardRoot);
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
     return;
@@ -1077,8 +1082,9 @@ function buildLoginForm(
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ loginId, code: code.value }),
         });
-        const data = await resp.json() as { user?: AuthUser; error?: string };
+        const data = await resp.json() as { user?: AuthUser; isNewUser?: boolean; error?: string };
         if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
+        if (data.isNewUser) track('signup_completed');
         onAuth(shell, data.user);
       }
     } catch (err) {
@@ -1363,11 +1369,11 @@ function buildLoadingState(label: string): HTMLElement {
   return section;
 }
 
-function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement; leaderboardRoot: HTMLElement } {
+function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
-  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
+  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: false });
 
   const section = document.createElement('section');
   section.className = 'landing-demo';
@@ -1375,11 +1381,10 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
 
-  const leaderboardRoot = buildLandingLeaderboardPanel();
-  section.append(playPanel, replayRoot, leaderboardRoot);
+  section.append(playPanel, replayRoot);
 
   stage.append(section);
-  return { el: stage, replayRoot, leaderboardRoot };
+  return { el: stage, replayRoot };
 }
 
 function buildLandingLeaderboardPanel(): HTMLElement {
@@ -1467,11 +1472,83 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
   const challengeButton = landingPlayAction('Challenge a friend', 'friend');
   const engineButton = landingPlayAction('Play against computer', 'computer');
 
+  const lobbyStatus = document.createElement('p');
+  lobbyStatus.className = 'landing-play-status';
+  lobbyStatus.setAttribute('aria-live', 'polite');
+
+  const enginePrompt = document.createElement('div');
+  enginePrompt.className = 'landing-play-engine-prompt';
+  enginePrompt.hidden = true;
+  const enginePromptText = document.createElement('p');
+  enginePromptText.className = 'landing-play-engine-prompt-text';
+  enginePromptText.textContent = 'No opponents yet. Play against the engine while you wait?';
+  const enginePromptButton = document.createElement('button');
+  enginePromptButton.type = 'button';
+  enginePromptButton.className = 'landing-play-engine-prompt-action';
+  enginePromptButton.textContent = 'Play engine';
+  enginePrompt.append(enginePromptText, enginePromptButton);
+
+  let cancelLobbyWait: (() => void) | null = null;
+  let enginePromptTimer: number | null = null;
+  const resetLobbyButton = (): void => {
+    lobbyButton.disabled = false;
+    lobbyButton.removeAttribute('aria-busy');
+    setButtonLabel(lobbyButton, 'Find opponent');
+  };
+  const teardownLobbySearch = (): void => {
+    if (enginePromptTimer !== null) {
+      window.clearTimeout(enginePromptTimer);
+      enginePromptTimer = null;
+    }
+    enginePrompt.hidden = true;
+    enginePromptButton.disabled = false;
+    lobbyStatus.textContent = '';
+    cancelLobbyWait = null;
+    resetLobbyButton();
+  };
+  let searchStartedAt = 0;
+  const bucketProps = {
+    variant: PUBLIC_LOBBY_SETUP.startFormat,
+    initialMs: PUBLIC_LOBBY_SETUP.timeControl.initialMs,
+    incrementMs: PUBLIC_LOBBY_SETUP.timeControl.incrementMs,
+    rated: PUBLIC_LOBBY_SETUP.rated,
+  };
   lobbyButton.addEventListener('click', () => {
-    openLandingSetupDialog({
-      mode: 'lobby',
-      title: 'Find opponent',
-    });
+    if (cancelLobbyWait) {
+      cancelLobbyWait();
+      track('lobby_abandoned', { ...bucketProps, waitMs: Date.now() - searchStartedAt });
+      teardownLobbySearch();
+      return;
+    }
+    searchStartedAt = Date.now();
+    cancelLobbyWait = joinLobbyFromPlay(lobbyButton, PUBLIC_LOBBY_SETUP, lobbyStatus);
+    lobbyButton.disabled = false;
+    setButtonLabel(lobbyButton, 'Cancel search');
+    enginePromptTimer = window.setTimeout(() => {
+      enginePromptTimer = null;
+      if (!cancelLobbyWait) return;
+      enginePrompt.hidden = false;
+      track('engine_fallback_shown', { waitMs: Date.now() - searchStartedAt });
+    }, 30_000);
+  });
+  enginePromptButton.addEventListener('click', () => {
+    if (!cancelLobbyWait) return;
+    track('engine_fallback_accepted');
+    cancelLobbyWait();
+    cancelLobbyWait = null;
+    if (enginePromptTimer !== null) {
+      window.clearTimeout(enginePromptTimer);
+      enginePromptTimer = null;
+    }
+    resetLobbyButton();
+    lobbyStatus.textContent = 'Starting engine game…';
+    void createRoomFromPlay(enginePromptButton, 'pve', defaultEngineId, PUBLIC_LOBBY_SETUP)
+      .catch((err) => {
+        console.warn(err);
+        lobbyStatus.textContent = 'Could not start engine game. Try again.';
+        enginePromptButton.disabled = false;
+        enginePromptButton.textContent = 'Play engine';
+      });
   });
   challengeButton.addEventListener('click', () => {
     openLandingSetupDialog({
@@ -1488,7 +1565,7 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
     });
   });
 
-  panel.append(lobbyButton, challengeButton, engineButton);
+  panel.append(lobbyButton, lobbyStatus, enginePrompt, challengeButton, engineButton);
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow());
   }
@@ -2192,6 +2269,13 @@ function joinLobbyFromPlay(
 ): () => void {
   const controller = new AbortController();
   const originalText = button.textContent ?? '';
+  const queueJoinedAt = Date.now();
+  const bucketProps = {
+    variant: setup.startFormat,
+    initialMs: setup.timeControl.initialMs,
+    incrementMs: setup.timeControl.incrementMs,
+    rated: setup.rated,
+  };
   let active = true;
   let ticketId: string | null = null;
   let pollTimer: number | null = null;
@@ -2207,6 +2291,7 @@ function joinLobbyFromPlay(
 
   const redirectIfMatched = (ticket: LobbyTicketResponse): boolean => {
     if (ticket.status !== 'matched' || !ticket.url) return false;
+    track('lobby_match_found', { ...bucketProps, waitMs: Date.now() - queueJoinedAt });
     window.location.href = ticket.url;
     return true;
   };
@@ -2252,6 +2337,7 @@ function joinLobbyFromPlay(
     });
     if (!response.ok) throw new Error(`lobby join failed: ${response.status}`);
     const ticket = await response.json() as LobbyTicketResponse;
+    track('lobby_queue_joined', bucketProps);
     if (!active || redirectIfMatched(ticket)) return;
     if (!ticket.ticketId) throw new Error('lobby did not return a ticket');
     ticketId = ticket.ticketId;

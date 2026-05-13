@@ -34,6 +34,7 @@ import {
   type SoundKind,
 } from './live-state.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
+import { track } from './analytics.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,8 @@ let orientation: Color = 'white';
 let postgameFogEnabled = false;
 let playAgainStatus: PlayAgainStatus = 'idle';
 let replayIndex: number | null = null;
+let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | null = null;
+let playingSinceMs: number | null = null;
 let lastRenderedView: PlayerView | null = null;
 let lastRenderedReplayIndex: number | null = null;
 let lastSoundEventCount: number | null = null;
@@ -74,6 +77,8 @@ export function initRender(
   lastCapturedEventCount = 0;
   lastRenderedView = null;
   lastRenderedReplayIndex = null;
+  lastTrackedStatusType = null;
+  playingSinceMs = null;
   refs = createLayout(target);
   sound = createSoundController();
 }
@@ -237,6 +242,7 @@ export function render(): void {
   captureFogView();
   const view = currentView();
   const projection = currentProjection();
+  trackGameLifecycle(view);
   const nextOrientation = view?.perspective ?? (liveState.seat === 'black' ? 'black' : 'white');
   orientation = nextOrientation;
   const showDraft = shouldShowDraftControls(view, projection);
@@ -260,6 +266,34 @@ export function render(): void {
   renderBoard(view);
   renderBoardResult(view);
   renderPromotion();
+}
+
+function trackGameLifecycle(view: PlayerView | null): void {
+  if (!view || !isLive()) return;
+  const statusType = view.status.type;
+  if (statusType === lastTrackedStatusType) return;
+  const baseProps = {
+    gameId: view.id,
+    variant: view.variant,
+    rated: liveState.rated,
+    roomMode: liveState.roomMode,
+  };
+  if (statusType === 'playing' && lastTrackedStatusType !== 'playing') {
+    playingSinceMs = Date.now();
+    track('game_started', baseProps);
+  }
+  if (statusType === 'finished') {
+    const finished = view.status as { type: 'finished'; winner: 'white' | 'black' | null; reason: string };
+    track('game_finished', {
+      ...baseProps,
+      winner: finished.winner,
+      reason: finished.reason,
+      moveNumber: view.moveNumber,
+      durationMs: playingSinceMs !== null ? Date.now() - playingSinceMs : null,
+    });
+    playingSinceMs = null;
+  }
+  lastTrackedStatusType = statusType;
 }
 
 // ── Offer / draft ─────────────────────────────────────────────────────────────
