@@ -24,7 +24,9 @@ Edit task → find file → open only that file.
 
 | File | Owns |
 |------|------|
-| `index.ts` (~870 lines) | WebSocket orchestration: server init, connection handling, seat management, HTTP entry. See section markers inside. |
+| `main.ts` | Prod entry point. Calls `installShutdownHandlers()` then `startServer({port})`. Tiny — all logic lives in `index.ts`. |
+| `index.ts` (~1300 lines) | Server library: exports `startServer`, `installShutdownHandlers`, `stopServer`. Module-load side-effect-free so the integration harness can boot a test instance on a random port. See section markers inside. |
+| `rematch.ts` | Mutual-confirm rematch state machine + finalize orchestration. `offerRematch`, `cancelRematch`, `declineRematch`, `finalizeRematchIfReady`, `maybeReplayRematchRedirect`. |
 | `room-manager.ts` | Core game loop: `playMove`, `appendEvent`, `broadcastSnapshot`, `scheduleClockTimeout`, `expireActiveClock`, `scheduleRandomEngineMove`, `playRandomEngineMoveIfReady`, seat token persistence, bid/draft resolution. Context: `RoomManagerContext`. |
 | `http-api.ts` | HTTP routing: `handleApiRequest`, lobby, game data helpers, room creation. Exported: `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `HttpApiContext` |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
@@ -40,6 +42,15 @@ Edit task → find file → open only that file.
 | `engine-tournament.ts` | Tournament bracket logic |
 | `migrate.ts` | Schema migrations — run once on startup |
 | `worker.ts` | Background worker entry point for async engine game execution |
+
+## apps/server/integration/ — Two-client WebSocket integration tests
+
+| File | Owns |
+|------|------|
+| `harness.ts` | `startTestServer({seatVacateGraceMs})`, `connectClient({url, room, seatToken})`, `TestClient` with `waitFor` / `expectMessage`, `waitUntil`, `sleep`, `uniqueRoomId` |
+| `core-loop.test.ts` | 9 scenarios: resign+winner, rematch round-trip, redirect replay on reconnect, pregame grace (in/out), presence, seat-token reseat, one-sided offer, move broadcast |
+
+Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --workspace @mistboard/server`. Persistence is intentionally disabled — coverage targets the in-memory contract.
 
 **Change move validation or game flow** → `room-manager.ts` (`playMove`, `appendEvent`, `resolveStartIfReady`)
 **Change WebSocket message handling** → `index.ts` §WebSocket connection handling (~line 230)

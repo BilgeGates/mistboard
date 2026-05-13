@@ -70,5 +70,6 @@ jobs:
           npm run test --workspace @mistboard/game
           npm run test --workspace @mistboard/web
           npm run test:persistent --workspace @mistboard/server
+          MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --workspace @mistboard/server
       - name: Audit production dependencies
         run: npm audit --omit=dev

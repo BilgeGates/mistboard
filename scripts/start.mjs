@@ -5,7 +5,7 @@ const processKind = process.env.MISTBOARD_PROCESS ?? 'web';
 const workerProcess = serviceName === 'engine-worker' || processKind === 'worker';
 const args = workerProcess
   ? ['apps/server/dist/worker.js', '--execute', '--loop']
-  : ['apps/server/dist/index.js'];
+  : ['apps/server/dist/main.js'];
 
 const child = spawn(process.execPath, args, { stdio: 'inherit' });
 

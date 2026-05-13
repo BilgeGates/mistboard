@@ -95,7 +95,6 @@ import {
 const rooms = new Map<string, Room>();
 const lobbyTickets = new Map<string, LobbyTicket>();
 const lobbyQueue: LobbyTicket[] = [];
-const port = Number(process.env.PORT ?? 3001);
 const databaseRequired = isDatabaseRequired();
 const wsMaxPayloadBytes = parsePositiveInteger(process.env.MISTBOARD_WS_MAX_PAYLOAD_BYTES) ?? 8_192;
 const wsMessageLimit = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_LIMIT) ?? 40;
@@ -157,38 +156,119 @@ const rematchOrch: RematchOrchestrator = {
   },
 };
 
-await initPersistence();
+// ── SECTION: startServer (module side-effect-free until called) ────────────
+//
+// All side effects (DB init, listener, intervals, signal handlers) live inside
+// startServer() so that `apps/server/integration/harness.ts` can import this
+// module without booting a real server, then call startServer({port:0}) to spin
+// up a controlled instance per test process.
+let server: ReturnType<typeof createServer> | null = null;
+let wss: WebSocketServer | null = null;
 let abortPolicyTimer: ReturnType<typeof setInterval> | null = null;
-startAbortPolicySweep();
-
-const server = createServer(handleHttpRequest);
-const wss = new WebSocketServer({ server, maxPayload: wsMaxPayloadBytes });
 let shuttingDown = false;
+let seatVacateGraceMsOverride: number | null = null;
 
-wss.on('connection', (socket, request) => {
-  if (!isAllowedWebSocketRequest(request)) {
-    socket.close(1008, 'origin not allowed');
-    return;
+export type StartServerOptions = {
+  port?: number;
+  seatVacateGraceMs?: number;
+};
+
+export type StartedServer = {
+  port: number;
+  rooms: Map<string, Room>;
+  close: () => Promise<void>;
+};
+
+export async function startServer(options: StartServerOptions = {}): Promise<StartedServer> {
+  if (server) throw new Error('startServer: already running');
+  shuttingDown = false;
+  if (typeof options.seatVacateGraceMs === 'number') {
+    seatVacateGraceMsOverride = options.seatVacateGraceMs;
+  } else {
+    seatVacateGraceMsOverride = null;
   }
-  void handleConnection(socket, request).catch((err) => {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'connection_handler_failure',
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
-    try { socket.close(1011, 'internal error'); } catch { /* socket already closed */ }
-  });
-});
+  await initPersistence();
+  startAbortPolicySweep();
 
-server.listen(port, () => {
-  console.log(`mistboard server listening on http://localhost:${port}`);
-});
+  const httpServer = createServer(handleHttpRequest);
+  const wsServer = new WebSocketServer({ server: httpServer, maxPayload: wsMaxPayloadBytes });
+  server = httpServer;
+  wss = wsServer;
 
-for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  process.on(signal, () => {
-    void shutdown(signal);
+  wsServer.on('connection', (socket, request) => {
+    if (!isAllowedWebSocketRequest(request)) {
+      socket.close(1008, 'origin not allowed');
+      return;
+    }
+    void handleConnection(socket, request).catch((err) => {
+      console.error(JSON.stringify({
+        level: 'error',
+        kind: 'connection_handler_failure',
+        error: (err as Error).message,
+        at: Date.now(),
+      }));
+      try { socket.close(1011, 'internal error'); } catch { /* socket already closed */ }
+    });
   });
+
+  const port = options.port ?? Number(process.env.PORT ?? 3001);
+  await new Promise<void>((resolve) => {
+    httpServer.listen(port, () => resolve());
+  });
+  const address = httpServer.address();
+  const boundPort = typeof address === 'object' && address ? address.port : port;
+  if (!options.port && port !== 0) {
+    console.log(`mistboard server listening on http://localhost:${boundPort}`);
+  }
+
+  return {
+    port: boundPort,
+    rooms,
+    close: async () => {
+      await stopServer();
+    },
+  };
+}
+
+export function installShutdownHandlers(): void {
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    process.on(signal, () => {
+      void shutdown(signal);
+    });
+  }
+}
+
+// Tear down for tests / hot restart. Mirrors shutdown() but does NOT call
+// process.exit, so the runner stays alive across tests.
+export async function stopServer(): Promise<void> {
+  if (!server || !wss) return;
+  for (const room of rooms.values()) {
+    if (room.clockTimer) clearTimeout(room.clockTimer);
+    if (room.engineTimer) clearTimeout(room.engineTimer);
+    for (const timer of Object.values(room.pendingVacates)) {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  if (abortPolicyTimer) {
+    clearInterval(abortPolicyTimer);
+    abortPolicyTimer = null;
+  }
+  for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
+    try { client.socket.close(1001, 'server shutting down'); } catch { /* socket already closed */ }
+  }
+  await Promise.allSettled([...rooms.values()].map((room) => room.pendingWrites));
+  await new Promise<void>((resolve) => { wss!.close(() => resolve()); });
+  await new Promise<void>((resolve, reject) => {
+    server!.close((err) => { if (err) reject(err); else resolve(); });
+  });
+  await persistence.close();
+  rooms.clear();
+  lobbyTickets.clear();
+  lobbyQueue.length = 0;
+  persistenceErrors.length = 0;
+  server = null;
+  wss = null;
+  seatVacateGraceMsOverride = null;
 }
 
 // ── SECTION: Server init and HTTP entry ────────────────────────────────────
@@ -510,7 +590,11 @@ async function handleClose(room: Room, client: Client): Promise<void> {
   broadcastSnapshot(roomMgrCtx, room);
 }
 
-const SEAT_VACATE_GRACE_MS = parsePositiveInteger(process.env.MISTBOARD_SEAT_VACATE_GRACE_MS) ?? 20_000;
+const SEAT_VACATE_GRACE_MS_DEFAULT = parsePositiveInteger(process.env.MISTBOARD_SEAT_VACATE_GRACE_MS) ?? 20_000;
+
+function seatVacateGraceMs(): number {
+  return seatVacateGraceMsOverride ?? SEAT_VACATE_GRACE_MS_DEFAULT;
+}
 
 function scheduleSeatVacate(room: Room, client: Client): void {
   if (client.seat === 'spectator') return;
@@ -550,7 +634,7 @@ function scheduleSeatVacate(room: Room, client: Client): void {
         at: Date.now(),
       }));
     });
-  }, SEAT_VACATE_GRACE_MS);
+  }, seatVacateGraceMs());
 }
 
 function clearPendingVacate(room: Room, seat: Client['seat']): void {
@@ -1217,12 +1301,14 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
 
 function closeWebSocketServer(): Promise<void> {
   return new Promise((resolve) => {
+    if (!wss) { resolve(); return; }
     wss.close(() => resolve());
   });
 }
 
 function closeHttpServer(): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (!server) { resolve(); return; }
     server.close((err) => {
       if (err) reject(err);
       else resolve();
