@@ -52,6 +52,8 @@ const wantsSource = path === '/source' || page === 'source';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
+const articleSlug = articleSlugFromPath(path);
+const wantsArticlesIndex = path === '/articles' || page === 'articles';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
@@ -87,6 +89,10 @@ if (replaySample) {
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
+} else if (articleSlug) {
+  void mountOrReport(() => import('./landing.js').then(({ mountArticle }) => mountArticle(appRoot, articleSlug)));
+} else if (wantsArticlesIndex) {
+  void mountOrReport(() => import('./landing.js').then(({ mountArticlesIndex }) => mountArticlesIndex(appRoot)));
 } else if (wantsLearn) {
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
@@ -153,5 +159,10 @@ function liveRoomIdFromPath(value: string): string | null {
 
 function profileHandleFromPath(value: string): string | null {
   const match = value.match(/^\/@\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function articleSlugFromPath(value: string): string | null {
+  const match = value.match(/^\/articles\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }

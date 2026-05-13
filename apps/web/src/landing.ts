@@ -1264,6 +1264,20 @@ export function mountLearn(root: HTMLElement): void {
   mountLearnBoard(learn.boardEl);
 }
 
+export async function mountArticlesIndex(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'articles-route');
+  const { buildArticlesIndex } = await import('./articles.js');
+  root.append(buildNav(), buildArticlesIndex(), buildFooter());
+}
+
+export async function mountArticle(root: HTMLElement, slug: string): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'articles-route');
+  const { buildArticlePage } = await import('./articles.js');
+  root.append(buildNav(), buildArticlePage(slug), buildFooter());
+}
+
 function buildNav(): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'site-nav';

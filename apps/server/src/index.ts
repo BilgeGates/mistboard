@@ -315,6 +315,8 @@ function isClientRoute(pathname: string): boolean {
     || normalized === '/lab'
     || normalized === '/engine-lab'
     || normalized === '/arena'
+    || normalized === '/articles'
+    || normalized.startsWith('/articles/')
     || normalized.startsWith('/game/')
     || normalized.startsWith('/@/')
     || normalized.startsWith('/room/');
