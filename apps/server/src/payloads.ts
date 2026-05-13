@@ -26,13 +26,26 @@ export type SnapshotClient = {
 
 export type SnapshotRoom = {
   id: string;
-  clients: { size: number };
+  clients: { size: number } & Iterable<{ seat: Seat; displaced: boolean }>;
   events: GameEvent[];
   mode?: GameAccessMode;
   projection: GameProjection;
   pveEngineId?: string | null;
   rated?: boolean;
+  rematch?: { offers: Partial<Record<Color, unknown>>; finalizedRoomId?: string };
 };
+
+export function computeConnectedSeats(
+  clients: Iterable<{ seat: Seat; displaced: boolean }>,
+): { white: boolean; black: boolean } {
+  const connected = { white: false, black: false };
+  for (const c of clients) {
+    if (c.displaced) continue;
+    if (c.seat === 'white') connected.white = true;
+    else if (c.seat === 'black') connected.black = true;
+  }
+  return connected;
+}
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
@@ -63,6 +76,16 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     events: eventsForClient(normalizedRoom, client),
     state: getClientView(normalizedRoom, client),
     rated: room.rated ?? true,
+    connectedSeats: computeConnectedSeats(room.clients),
+    rematch: room.rematch
+      ? {
+        offers: {
+          white: room.rematch.offers.white !== undefined,
+          black: room.rematch.offers.black !== undefined,
+        },
+        finalizedRoomId: room.rematch.finalizedRoomId ?? null,
+      }
+      : { offers: { white: false, black: false }, finalizedRoomId: null },
   };
 }
 

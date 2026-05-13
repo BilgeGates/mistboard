@@ -704,16 +704,26 @@ export function renderClocks(view: PlayerView | null): void {
 
   const displayAt = isLive() ? Date.now() : view.clock.runningSince ?? Date.now();
   const colors: Color[] = view.perspective === 'white' ? ['black', 'white'] : ['white', 'black'];
+  const isPvp = liveState.roomMode === 'pvp';
   for (const color of colors) {
     const row = document.createElement('div');
     const label = document.createElement('span');
     const time = document.createElement('strong');
-    label.textContent = `${capitalize(color)}${view.clock.activeColor === color && view.status.type === 'playing' ? ' clock' : ''}`;
+    if (isPvp) label.append(presenceDot(liveState.connectedSeats[color]));
+    label.append(document.createTextNode(`${capitalize(color)}${view.clock.activeColor === color && view.status.type === 'playing' ? ' clock' : ''}`));
     time.textContent = formatClock(clockRemainingMs(view.clock, color, displayAt));
     row.className = view.clock.activeColor === color && view.status.type === 'playing' ? 'active' : '';
     row.append(label, time);
     refs.clocks.append(row);
   }
+}
+
+function presenceDot(connected: boolean): HTMLSpanElement {
+  const dot = document.createElement('span');
+  dot.className = `presence-dot ${connected ? 'is-online' : 'is-offline'}`;
+  dot.setAttribute('aria-label', connected ? 'Connected' : 'Disconnected');
+  dot.title = connected ? 'Connected' : 'Disconnected';
+  return dot;
 }
 
 // ── Board ─────────────────────────────────────────────────────────────────────

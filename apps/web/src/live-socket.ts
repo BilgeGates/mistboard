@@ -40,6 +40,8 @@ type ServerMessage =
     events: GameEvent[];
     state: PlayerView;
     rated?: boolean;
+    connectedSeats?: { white: boolean; black: boolean };
+    rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
   }
   | {
     type: 'snapshot';
@@ -63,6 +65,8 @@ type ServerMessage =
     events: GameEvent[];
     state: PlayerView;
     rated?: boolean;
+    connectedSeats?: { white: boolean; black: boolean };
+    rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
   }
   | {
     type: 'rematch:state';
@@ -197,6 +201,8 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.rated = message.rated ?? true;
     liveState.events = message.events;
     liveState.state = message.state;
+    if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
+    if (message.rematch) liveState.rematch = message.rematch;
   }
   if (message.type === 'snapshot') {
     liveState.clientCount = message.clients;
@@ -218,6 +224,8 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.rated = message.rated ?? true;
     liveState.events = message.events;
     liveState.state = message.state;
+    if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
+    if (message.rematch) liveState.rematch = message.rematch;
   }
   _maybePlaySnapshotSound(liveState.events, liveState.state);
   _reconcileInteractionState();

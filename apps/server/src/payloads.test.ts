@@ -55,7 +55,7 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
   };
   const room: SnapshotRoom = {
     id: 'fog-payload',
-    clients: { size: 2 },
+    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
     events,
     projection,
   };
@@ -182,7 +182,7 @@ test('live Fog Draft960 payload hides opponent offer and selection', () => {
   ];
   const room: SnapshotRoom = {
     id: 'fog-draft-payload',
-    clients: { size: 2 },
+    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
     events,
     projection: replayGameEvents(events),
   };
@@ -442,7 +442,7 @@ function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.
   };
   return {
     id: 'fog-payload',
-    clients: { size: 2 },
+    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
     events,
     projection,
   };
@@ -479,7 +479,7 @@ function lastMoveRoomFixture(): SnapshotRoom {
   ];
   return {
     id: 'fog-last-move-payload',
-    clients: { size: 2 },
+    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
     events,
     projection: {
       roomId: 'fog-last-move-payload',
@@ -517,7 +517,7 @@ function replayRoomFixture({
   ];
   return {
     id: roomId,
-    clients: { size: 3 },
+    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }, { seat: 'spectator', displaced: false }]),
     events,
     mode,
     projection: replayGameEvents(events),
@@ -597,7 +597,7 @@ function bidRoomFixture({ status }: { status: ReturnType<typeof bidForWhiteVaria
   };
   return {
     id: 'bid-payload',
-    clients: { size: 2 },
+    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
     events,
     projection,
   };
