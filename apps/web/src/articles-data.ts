@@ -21,79 +21,92 @@ export type Article = {
 export const articles: Article[] = [
   {
     slug: 'draft960',
-    title: 'Draft960: a Chess960 twist for Fog of War',
+    title: 'Draft960: the end of opening theory in Fog of War',
     summary:
-      'Draft960 replaces the standard chess starting position with a hidden pre-game draft of Chess960 setups — killing memorized openings and composing with Fog of War’s information asymmetry.',
+      'Fog of War already weakens memorized opening prep. Draft960 finishes the job — each player picks one of three offered Chess960 setups, hidden from the opponent. Choice within randomness, double-blind from move 1.',
     status: 'outline',
     audience:
-      'Chess players curious about the variant; Chess960 enthusiasts; clickthrough from the Standard-vs-Draft960 OG card.',
+      'Readers who have grokked Fog of War (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
     tldr: [
-      'Modern chess at high level is partly an opening-memorization arms race.',
-      'Chess960 randomizes the back rank — 960 valid positions, no memorized theory.',
-      'Draft960 takes it a step further: each player drafts their setup independently, picks are hidden until both decide. Result: asymmetric starting positions, double-blind to start.',
+      'Fog of War already devalues deep opening prep — you can\'t follow a memorized line when you can\'t see the opponent\'s pieces.',
+      'But shared standard starting positions still allow shape and structure memorization. Draft960 attacks that residual weakness.',
+      'Each player picks one of 3 random Chess960 setups, hidden from the opponent until both decide. Choice within randomness — the specific design innovation.',
     ],
     sections: [
       {
-        heading: 'The opening problem',
+        heading: 'The pick screen',
         paragraphs: [
-          '[VISUAL: chart of opening theory page-count or "moves of theory before novelty" across decades. Should feel visceral.]',
-          'Section TBD. Cover: modern chess as a prep arms race, memorization burden at 1800/2000/2200 levels, brief history (Walter Browne, Sicilian Najdorf, Stockfish-aided prep).',
+          '[VISUAL: hero — mockup of the Mistboard pick UI. Three Chess960 setup offers side-by-side, with the caption "Pick one. Don\'t show your opponent."]',
+          'Section TBD. Lead with the mechanic itself, not its history. Show what the player actually sees: three random valid Chess960 setups, choose one. Their pick stays hidden until the opponent has also chosen.',
         ],
       },
       {
-        heading: 'Chess960 in one glance',
+        heading: 'Fog of War already weakens openings',
         paragraphs: [
-          '[VISUAL: gallery of 12 distinctive Chess960 starting positions, annotated with their numbers.]',
-          'Section TBD. Cover: Fischer’s 1996 invention, the 960 number (how it’s computed, what makes a position valid), the mirror rule (Draft960 breaks this).',
-          'Sidebar candidate: Chess960 castling rules and why they trip people up.',
+          '[VISUAL: prep-value-vs-move-number curves for standard chess and Fog of War, showing how memorized opening lines decay faster in FoW after the early moves once opponent pieces become invisible.]',
+          'Section TBD. Cover: in standard chess, "Sicilian Najdorf line 12 moves deep" is a real prep advantage. In FoW, after move 3 you can\'t see opponent pieces — the deep-line edge collapses. The chess content economy is built on opening theory; that whole industry is partially defused by FoW.',
+          'Cross-reference the FoW rules article for readers who need a refresher on visibility mechanics.',
         ],
       },
       {
-        heading: 'Why Chess960 didn’t win',
+        heading: 'What\'s left to memorize',
         paragraphs: [
-          '[VISUAL: chart of top-played C960 positions showing how a few positions dominate and accumulate their own theory.]',
-          'Section TBD. Cover: Chess960 solved the problem only partially, Fischer Random tournament scene, shared random + repeated play = new theory grows.',
+          '[VISUAL: two boards, both standard starting position, showing what shape-memorization still buys you in FoW — typical pawn structures, piece deployments that work regardless of opponent\'s response.]',
+          'Section TBD. Cover: even in FoW, both players start from the standard chess position. Shape and structure prep still has value — typical e4 e5 development, common pawn formations, classical piece coordination. The residual prep advantage lives in the shared starting position, not in deep lines.',
         ],
       },
       {
-        heading: 'Mistboard’s Draft960',
+        heading: 'The design space',
         paragraphs: [
-          '[VISUAL: 4-panel diagram — offer → pick → reveal → play.]',
-          'Section TBD. Cover: each player drafts independently, picks hidden until both decide, asymmetric starting positions, this is unique to Mistboard.',
+          '[VISUAL: two-axis diagram — agency (choice over starting position) on one axis, prep-resistance (how hard it is to memorize) on the other. Plot standard chess, Chess960, and Draft960. Each variant attacks the prep problem differently.]',
+          'Section TBD. Cover: two natural moves to attack the remaining prep advantage. (1) Pure randomization — Chess960 hands each game a different starting position. Effective at killing memorization but removes agency entirely. (2) Choice within randomness — Draft960 offers a small random set and lets each player pick. Preserves agency while removing the shared starting position.',
+        ],
+      },
+      {
+        heading: 'Why three offers',
+        paragraphs: [
+          '[VISUAL: three columns — "1 offer (pure C960)", "3 offers (Draft960)", "960 offers (free pick)" — each with notes on what it costs.]',
+          'Section TBD. The central design decision and the section a curious reader will pause on.',
+          'One offer (pure Chess960): no agency. Some players have setups they understand better than others — denying that choice removes a layer of skill.',
+          'All 960 offers (free pick): full agency, but players gravitate to their one favorite setup, which then becomes memorizable. Theory grows back.',
+          'Three offers: enough constraint that you can\'t always pick your favorite, enough choice that picks reflect style. Three also makes the pick a real decision (not a glance) without making it a slog.',
+        ],
+      },
+      {
+        heading: 'Why hide the picks',
+        paragraphs: [
+          '[VISUAL: two-phase reveal — pick screen (hidden) → reveal-to-self → reveal-to-opponent-through-visibility-leakage as the game starts.]',
+          'Section TBD. Cover: hidden picks compose with FoW\'s hidden-information theme. Both players reason about a setup they can\'t see — "what did they probably pick, given their playing style?" The reveal happens not as an announcement but gradually, as the first moves leak back-rank silhouettes through visibility.',
+          'This means Draft960 doesn\'t just *add* hidden information to FoW — it extends the hidden window backwards into the pre-game.',
         ],
       },
       {
         heading: 'The taxonomy of picks',
         paragraphs: [
-          '[INTERACTIVE CENTERPIECE: pick taxonomy gallery — 8-12 Chess960 setups grouped by archetype, click/hover each for character description, strategic notes, example games.]',
-          'Section TBD. Archetypes to cover: standard-leaning, bishop-pair aggressive, knight-driven, heavy-piece flank, bizarre. This is the section players will reference repeatedly.',
+          '[INTERACTIVE CENTERPIECE: pick taxonomy gallery — 8-12 Chess960 setups grouped by archetype. Click or hover each for character description, strategic notes, sample games where it worked or failed.]',
+          'Section TBD. Archetypes: standard-leaning (close to KRQK), bishop-pair aggressive (bishops central, diagonals open), knight-driven (knights ready to jump early), heavy-piece flank (queen or rook on the edge), bizarre (king on a-file, etc.).',
+          'This is the section players will reference repeatedly. Aim for permanence: a complete strategic taxonomy of Draft960 picks.',
         ],
       },
       {
         heading: 'The composition with Fog of War',
         paragraphs: [
-          '[VISUAL: first 4 moves of a Draft960+FoW game with W and B views overlaid, showing what each side learns about the other’s pick through visibility leakage.]',
-          'Section TBD. Cover: each move slightly reveals back-rank silhouettes through visibility, you learn opponent’s setup gradually (like learning about hidden mid-game pieces), composition across two axes (position + visibility).',
-        ],
-      },
-      {
-        heading: 'The meta-game of picking',
-        paragraphs: [
-          '[VISUAL: decision tree or 2x2 of pick strategies vs opponent expectations.]',
-          'Section TBD. Cover: pick what suits your style vs pick to maximize opponent confusion, close-to-standard for safety vs weird to throw them off, psychological angle (pick defensively against expected prep).',
+          '[VISUAL: first 4 moves of a Draft960+FoW game. Two boards per ply (W view, B view), showing how each move leaks one or two pieces of back-rank information through visibility.]',
+          'Section TBD. Cover: how the asymmetric hidden starting positions interact with FoW visibility. Each early move reveals back-rank silhouettes one piece at a time. You learn the opponent\'s setup gradually, the way you learn about hidden mid-game pieces — but now it\'s structural information, not just tactical.',
+          'Draft960 + FoW composes hidden information across two axes simultaneously: position (what they picked) and visibility (where their pieces have moved). Neither variant alone produces this compound.',
         ],
       },
       {
         heading: 'Worked example',
         paragraphs: [
-          '[INTERACTIVE CENTERPIECE: worked Draft960+FoW game stepper — 5-6 snapshots from a real game with prev/next navigation and narrative per moment.]',
-          'Section TBD. Pull a dramatic Draft960+FoW game from Mistboard. Annotate each turning point.',
+          '[INTERACTIVE CENTERPIECE: worked Draft960+FoW game stepper — 5-6 snapshots from a real Mistboard game with prev/next navigation, W view / truth / B view triptychs, narrative per moment.]',
+          'Section TBD. Pull a dramatic Draft960+FoW game from Mistboard. Annotate the moments where each player learned something about the other\'s pick, and where that knowledge changed their plan.',
         ],
       },
       {
         heading: 'Try it',
         paragraphs: [
-          '[VISUAL: setup dialog screenshot showing the Draft960 picker.]',
+          '[VISUAL: setup-dialog screenshot showing the Draft960 picker.]',
           'CTA: during beta, Draft960 is available via friend-invite. Create a private room with the Draft960 variant, share the link, play.',
         ],
       },
