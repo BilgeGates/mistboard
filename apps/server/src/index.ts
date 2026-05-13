@@ -18,6 +18,7 @@ import {
   type VariantId,
 } from '@mistboard/game';
 import { runMigrations } from './migrate.js';
+import { serveGameOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
 import {
   isPlayableLiveEngineClientId,
@@ -221,6 +222,19 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
+  const ogImageMatch = pathname.match(/^\/og\/game\/([^/]+)\.png$/);
+  if (ogImageMatch && persistence.isInitialized()) {
+    const roomId = decodeURIComponent(ogImageMatch[1]!);
+    void serveGameOgImage(roomId, response).catch((err) => {
+      console.warn('og image render failed', (err as Error).message);
+      if (!response.headersSent) {
+        response.writeHead(302, { location: '/og-image.png' });
+        response.end();
+      }
+    });
+    return;
+  }
+
   const gameRouteMatch = pathname.match(/^\/game\/([^/]+)$/);
   if (gameRouteMatch && persistence.isInitialized()) {
     const roomId = decodeURIComponent(gameRouteMatch[1]!);
@@ -259,6 +273,7 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
     const description = `${white} vs ${black} · ${termination} after ${moves} move${moves !== 1 ? 's' : ''}. Watch the full Fog of War replay on Mistboard.`;
     const url = `${host}/game/${encodeURIComponent(roomId)}`;
 
+    const ogImageUrl = `${host}/og/game/${encodeURIComponent(roomId)}.png`;
     html = html
       .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
       .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/,
@@ -269,10 +284,14 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
         `$1${escapeHtml(description)}$2`)
       .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/,
         `$1${escapeHtml(url)}$2`)
+      .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(ogImageUrl)}$2`)
       .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/,
         `$1${escapeHtml(title)}$2`)
       .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(description)}$2`);
+        `$1${escapeHtml(description)}$2`)
+      .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(ogImageUrl)}$2`);
   }
 
   response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
