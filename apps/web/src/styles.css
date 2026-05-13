@@ -2097,13 +2097,54 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   display: inline-block;
   padding: 2px 8px;
   border-radius: 4px;
-  background: #f0e6cc;
-  color: #7a5e1a;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   vertical-align: middle;
+}
+
+.article-status-draft {
+  background: #f0e6cc;
+  color: #7a5e1a;
+}
+
+.article-status-outline {
+  background: #e3e8ef;
+  color: #4a5563;
+}
+
+.article-tldr {
+  margin: 0 0 32px;
+  padding: 16px 20px;
+  border-left: 3px solid #629924;
+  background: #f6faf0;
+  border-radius: 0 6px 6px 0;
+}
+
+.article-tldr-heading {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3f4742;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+
+.article-tldr-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #1f2521;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.article-tldr-list li {
+  margin-bottom: 4px;
+}
+
+.article-tldr-list li:last-child {
+  margin-bottom: 0;
 }
 
 .article-page {

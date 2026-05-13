@@ -51,15 +51,32 @@ export function buildArticlePage(slug: string): HTMLElement {
 
   const meta = document.createElement('p');
   meta.className = 'article-meta';
-  if (article.status === 'draft') {
+  if (article.status === 'outline' || article.status === 'draft') {
     const badge = document.createElement('span');
-    badge.className = 'article-status-badge';
-    badge.textContent = 'Draft';
+    badge.className = `article-status-badge article-status-${article.status}`;
+    badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
     meta.append(badge, ' · ');
   }
   meta.append(document.createTextNode(article.summary));
 
   main.append(breadcrumb, heading, meta);
+
+  if (article.tldr && article.tldr.length > 0) {
+    const tldr = document.createElement('aside');
+    tldr.className = 'article-tldr';
+    const tldrHeading = document.createElement('strong');
+    tldrHeading.className = 'article-tldr-heading';
+    tldrHeading.textContent = 'TL;DR';
+    const tldrList = document.createElement('ul');
+    tldrList.className = 'article-tldr-list';
+    for (const line of article.tldr) {
+      const li = document.createElement('li');
+      li.textContent = line;
+      tldrList.append(li);
+    }
+    tldr.append(tldrHeading, tldrList);
+    main.append(tldr);
+  }
 
   for (const section of article.sections) {
     const h2 = document.createElement('h2');
@@ -93,10 +110,10 @@ function articleCard(article: Article): HTMLLIElement {
   summary.className = 'articles-index-card-summary';
   summary.textContent = article.summary;
 
-  if (article.status === 'draft') {
+  if (article.status === 'outline' || article.status === 'draft') {
     const badge = document.createElement('span');
-    badge.className = 'article-status-badge';
-    badge.textContent = 'Draft';
+    badge.className = `article-status-badge article-status-${article.status}`;
+    badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
     title.append(' ', badge);
   }
 
