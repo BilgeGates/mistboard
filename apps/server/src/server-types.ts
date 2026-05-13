@@ -45,6 +45,7 @@ export type Room = {
   mode: GameMode;
   rated: boolean;
   randomEngine: boolean;
+  randomSeating: boolean;
   pveEngineId: string | null;
   pendingWrites: Promise<void>;
   gameEndRecorded: boolean;

@@ -1578,7 +1578,8 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
   details.className = 'landing-lobby-request-details';
 
   const primary = document.createElement('span');
-  primary.textContent = `${formatTimeControl(request.timeControl)} ${request.hiddenDraft960 ? 'Draft960' : 'Standard'}`;
+  const ratedLabel = request.rated === false ? 'Casual' : 'Rated';
+  primary.textContent = `${formatTimeControl(request.timeControl)} ${request.hiddenDraft960 ? 'Draft960' : 'Standard'} · ${ratedLabel}`;
   const secondary = document.createElement('small');
   secondary.textContent = `${formatWaitAge(request.waitingMs)} waiting`;
   details.append(primary, secondary);

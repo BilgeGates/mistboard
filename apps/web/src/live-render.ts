@@ -210,7 +210,7 @@ function buildNavHtml(): string {
       </a>
       <div class="site-nav-links">
         <a class="site-nav-link" href="/watch">Watch</a>
-        <a class="site-nav-link" href="/learn">Learn</a>
+        <a class="site-nav-link" href="/leaderboard">Ratings</a>
       </div>
       <div class="site-nav-utilities">
         ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/lab">Lab</a>' : ''}
@@ -386,6 +386,11 @@ function renderSelections(projection: GameProjection | null): void {
 
 function renderActionStatus(view: PlayerView | null): void {
   refs.actionStatus.replaceChildren();
+  if (view?.status.type === 'finished' && isLive()) {
+    refs.actionStatus.hidden = true;
+    return;
+  }
+  refs.actionStatus.hidden = false;
   const notice = document.createElement('div');
   const tone = actionTone(view);
   notice.className = `action-notice ${tone}`;
@@ -681,16 +686,37 @@ function renderBoardResult(view: PlayerView | null): void {
   refs.boardResult.replaceChildren();
   if (view?.status.type !== 'finished' || !isLive()) {
     refs.boardResult.hidden = true;
+    refs.boardResult.classList.remove('board-result--outcome');
     return;
   }
 
   refs.boardResult.hidden = false;
-  const title = document.createElement('strong');
-  title.textContent = resultTitle(view.status.winner);
+  refs.boardResult.classList.add('board-result--outcome');
 
+  const winner = view.status.winner;
+  const seat = liveState.seat;
+  let outcome: 'win' | 'loss' | 'draw';
+  let headline: string;
+  if (!winner) {
+    outcome = 'draw';
+    headline = 'Draw';
+  } else if (seat === 'white' || seat === 'black') {
+    outcome = winner === seat ? 'win' : 'loss';
+    headline = outcome === 'win' ? 'You won' : 'You lost';
+  } else {
+    outcome = 'win';
+    headline = resultTitle(winner);
+  }
+  refs.boardResult.dataset.outcome = outcome;
+
+  const badge = document.createElement('div');
+  badge.className = 'board-result__badge';
+  const title = document.createElement('strong');
+  title.textContent = headline;
   const body = document.createElement('span');
-  body.textContent = `${resultReasonLabel(view.status.reason)}. Board fully revealed.`;
-  refs.boardResult.append(title, body);
+  body.textContent = resultReasonLabel(view.status.reason);
+  badge.append(title, body);
+  refs.boardResult.append(badge);
 }
 
 // ── Interaction state ─────────────────────────────────────────────────────────
@@ -1195,11 +1221,16 @@ export function currentView(): PlayerView | null {
     return fogViewHistory.get(replayIndex) ?? liveState.state;
   }
   if (!projection) return liveState.state;
-  if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished' && !postgameFogEnabled) {
+  const gameFinished = liveState.state?.status.type === 'finished';
+  if (projection.state.variant === 'fog-of-war' && gameFinished && !postgameFogEnabled) {
     return fullTruthViewForProjection(projection, perspective);
   }
   if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished') {
     return terminalFogViewForProjection(projection, perspective);
+  }
+  if (projection.state.variant === 'fog-of-war' && gameFinished && replayIndex !== null) {
+    const captured = fogViewHistory.get(replayIndex);
+    if (captured) return captured;
   }
   return viewForProjection(projection, perspective);
 }

@@ -39,6 +39,7 @@ function makeRoom(
     mode: 'pvp',
     rated: true,
     randomEngine: false,
+    randomSeating: false,
     pveEngineId: null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: false,

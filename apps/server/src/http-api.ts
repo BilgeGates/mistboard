@@ -63,6 +63,7 @@ export interface HttpApiContext {
     hiddenDraft960?: boolean,
     timeControl?: RoomTimeControl,
     rated?: boolean,
+    options?: { randomSeating?: boolean },
   ): Promise<Room>;
   inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null;
 }
@@ -838,7 +839,7 @@ async function joinLobby(
 
   let room: Room;
   try {
-    room = await ctx.createRoom('pvp', 'fog-of-war', ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl, rated);
+    room = await ctx.createRoom('pvp', 'fog-of-war', ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl, rated, { randomSeating: true });
   } catch (err) {
     ctx.lobbyTickets.delete(ticket.id);
     throw err;

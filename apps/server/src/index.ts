@@ -501,6 +501,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     mode,
     rated: true,
     randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
+    randomSeating: false,
     pveEngineId: isPlayableLiveEngineClientId(projection.seats.black)
       ? canonicalEngineVersionId(projection.seats.black!)
       : null,
@@ -520,6 +521,7 @@ async function createRoom(
   hiddenDraft960 = false,
   timeControl?: RoomTimeControl,
   rated = true,
+  options: { randomSeating?: boolean } = {},
 ): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
@@ -574,6 +576,7 @@ async function createRoom(
       mode,
       rated,
       randomEngine: mode === 'pve',
+      randomSeating: options.randomSeating === true && mode === 'pvp',
       pveEngineId: mode === 'pve' ? engineId : null,
       pendingWrites: Promise.resolve(),
       gameEndRecorded: false,
@@ -689,6 +692,18 @@ async function assignSeat(
   if (room.projection.seats.black === clientId) {
     await startLiveClockIfReady(roomMgrCtx, room);
     return await existingSeatAssignment(room, 'black', clientId, accountUser);
+  }
+  if (room.randomSeating && !room.projection.seats.white && !room.projection.seats.black) {
+    const seat: Color = randomBytes(1)[0]! < 128 ? 'white' : 'black';
+    await appendEvent(roomMgrCtx, room, {
+      type: 'seat-assigned',
+      at: Date.now(),
+      roomId: room.id,
+      clientId,
+      seat,
+    });
+    await startLiveClockIfReady(roomMgrCtx, room);
+    return await newSeatAssignment(room, seat, clientId, accountUser);
   }
   if (!room.projection.seats.white) {
     await appendEvent(roomMgrCtx, room, {
