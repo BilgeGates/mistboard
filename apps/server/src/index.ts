@@ -72,6 +72,7 @@ import {
   cancelRematch,
   declineRematch,
   finalizeRematchIfReady,
+  maybeReplayRematchRedirect,
   offerRematch,
   type RematchOrchestrator,
 } from './rematch.js';
@@ -416,7 +417,10 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     solo,
   };
   room.clients.add(client);
-  if (!solo && seat !== 'spectator') displaceOlderSeatClients(room, client);
+  if (!solo && seat !== 'spectator') {
+    displaceOlderSeatClients(room, client);
+    clearPendingVacate(room, seat);
+  }
 
   const snapshot = snapshotPayload(room, client);
   send(client, {
@@ -427,6 +431,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
   broadcastSnapshot(roomMgrCtx, room);
+  maybeReplayRematchRedirect(rematchOrch, room, client);
 
   socket.on('message', (raw) => {
     if (!recordClientMessage(client)) {
@@ -497,20 +502,60 @@ async function handleClose(room: Room, client: Client): Promise<void> {
     && client.seat !== 'spectator'
     && room.projection.seats[client.seat] === client.id
   ) {
-    try {
-      await appendEvent(roomMgrCtx, room, {
-        type: 'seat-vacated',
-        at: Date.now(),
-        roomId: room.id,
-        clientId: client.id,
-        seat: client.seat,
-      });
-    } catch (err) {
-      // Already logged inside appendEvent. Don't crash the close handler.
-      if (!(err instanceof PersistenceFailure)) throw err;
-    }
+    scheduleSeatVacate(room, client);
   }
   broadcastSnapshot(roomMgrCtx, room);
+}
+
+const SEAT_VACATE_GRACE_MS = parsePositiveInteger(process.env.MISTBOARD_SEAT_VACATE_GRACE_MS) ?? 20_000;
+
+function scheduleSeatVacate(room: Room, client: Client): void {
+  if (client.seat === 'spectator') return;
+  const seat = client.seat;
+  const existing = room.pendingVacates[seat];
+  if (existing) clearTimeout(existing);
+  const clientId = client.id;
+  room.pendingVacates[seat] = setTimeout(() => {
+    delete room.pendingVacates[seat];
+    // Only vacate if (a) game hasn't started in the meantime and
+    // (b) no other client has taken this seat. If a different client has
+    // displaced this seat, projection.seats[seat] no longer equals clientId.
+    if (room.projection.state.status.type !== 'pregame'
+        && !(room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined)) {
+      return;
+    }
+    if (room.projection.state.clock !== undefined) return;
+    if (room.projection.seats[seat] !== clientId) return;
+    // If a connected client already holds this seat, skip — they reconnected.
+    for (const c of room.clients) {
+      if (c.seat === seat && !c.displaced) return;
+    }
+    void appendEvent(roomMgrCtx, room, {
+      type: 'seat-vacated',
+      at: Date.now(),
+      roomId: room.id,
+      clientId,
+      seat,
+    }).catch((err) => {
+      if (err instanceof PersistenceFailure) return;
+      console.error(JSON.stringify({
+        level: 'error',
+        kind: 'seat_vacate_append_failure',
+        roomId: room.id,
+        seat,
+        error: (err as Error).message,
+        at: Date.now(),
+      }));
+    });
+  }, SEAT_VACATE_GRACE_MS);
+}
+
+function clearPendingVacate(room: Room, seat: Client['seat']): void {
+  if (seat === 'spectator') return;
+  const timer = room.pendingVacates[seat];
+  if (!timer) return;
+  clearTimeout(timer);
+  delete room.pendingVacates[seat];
 }
 
 async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft960 = false): Promise<Room> {
@@ -588,6 +633,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     hiddenDraft960: detectedHiddenDraft960,
     timeControl: projection.timeControl,
     rematch: { offers: {} },
+    pendingVacates: {},
   };
   rooms.set(roomId, room);
   scheduleClockTimeout(roomMgrCtx, room);
@@ -665,6 +711,7 @@ async function createRoom(
       hiddenDraft960,
       timeControl,
       rematch: { offers: {} },
+    pendingVacates: {},
     };
     rooms.set(roomId, room);
     scheduleClockTimeout(roomMgrCtx, room);

@@ -9,9 +9,19 @@ export type RematchOffer = {
   at: number;
 };
 
+export type RematchPendingRedirect = {
+  roomId: string;
+  seat: Color;
+  rawToken: string;
+  url: string;
+};
+
 export type RematchState = {
   offers: Partial<Record<Color, RematchOffer>>;
   finalizedRoomId?: string;
+  // Keyed by the OLD-room seat. Re-emitted on reconnect to that seat so a
+  // player who was offline during finalize still lands in the new room.
+  pendingRedirects?: Partial<Record<Color, RematchPendingRedirect>>;
 };
 
 export type Client = {
@@ -64,6 +74,10 @@ export type Room = {
   hiddenDraft960: boolean;
   timeControl: RoomTimeControl | undefined;
   rematch: RematchState;
+  // Pending seat-vacated timers keyed by color. If a seated player disconnects
+  // before any move is played, we defer the seat-vacated event so a quick
+  // reconnect cancels the abort.
+  pendingVacates: Partial<Record<Color, ReturnType<typeof setTimeout>>>;
 };
 
 export type LobbyTicket = {

@@ -161,19 +161,25 @@ export async function finalizeRematchIfReady(
   room.rematch.finalizedRoomId = newRoom.id;
 
   const url = orch.buildRoomUrl(newRoom.id);
+  // Stash pending redirects keyed by OLD-room seat so reconnecting players
+  // who missed the live broadcast still land in the new room.
+  room.rematch.pendingRedirects = {
+    white: { roomId: newRoom.id, seat: 'black', rawToken: newBlackToken.rawToken, url },
+    black: { roomId: newRoom.id, seat: 'white', rawToken: newWhiteToken.rawToken, url },
+  };
+
   // Per-client redirect: each side gets their own seat token (flipped color).
   for (const client of room.clients) {
     const previousToken = activeSeatTokenForClient(room, client);
     if (!previousToken) continue;
-    // Previous white seat goes to black in new room.
-    const flippedSeat: Color = previousToken.seat === 'white' ? 'black' : 'white';
-    const seatToken = flippedSeat === 'white' ? newWhiteToken.rawToken : newBlackToken.rawToken;
+    const pending = room.rematch.pendingRedirects[previousToken.seat];
+    if (!pending) continue;
     orch.send(client, {
       type: 'rematch:redirect',
-      url,
-      roomId: newRoom.id,
-      seat: flippedSeat,
-      seatToken,
+      url: pending.url,
+      roomId: pending.roomId,
+      seat: pending.seat,
+      seatToken: pending.rawToken,
     });
   }
 
@@ -181,4 +187,20 @@ export async function finalizeRematchIfReady(
   // finalized state (no seatToken for them).
   broadcastRematchState(orch, room);
   return newRoom;
+}
+
+// Replays a previously-finalized redirect to a single client. Called on
+// reconnect after a rematch finalize so a player who was offline at finalize
+// time still gets routed to the new room.
+export function maybeReplayRematchRedirect(orch: RematchOrchestrator, room: Room, client: Client): void {
+  if (client.seat !== 'white' && client.seat !== 'black') return;
+  const pending = room.rematch.pendingRedirects?.[client.seat];
+  if (!pending) return;
+  orch.send(client, {
+    type: 'rematch:redirect',
+    url: pending.url,
+    roomId: pending.roomId,
+    seat: pending.seat,
+    seatToken: pending.rawToken,
+  });
 }

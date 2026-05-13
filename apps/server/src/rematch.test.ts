@@ -7,6 +7,7 @@ import {
   cancelRematch,
   declineRematch,
   finalizeRematchIfReady,
+  maybeReplayRematchRedirect,
   offerRematch,
   type RematchOrchestrator,
 } from './rematch.js';
@@ -42,6 +43,7 @@ function makeFinishedRoom(id: string): Room {
     hiddenDraft960: false,
     timeControl: undefined,
     rematch: { offers: {} },
+    pendingVacates: {},
   };
 }
 
@@ -218,6 +220,40 @@ test('finalize refuses when seat token rotated under us (identity drift)', async
   assert.equal(finalized, null);
   assert.equal(spy.createCalls, 0);
   assert.equal(room.rematch.offers.white, undefined, 'offers should be cleared on identity-drift');
+});
+
+test('reconnect after finalize: maybeReplayRematchRedirect re-sends per seat', async () => {
+  const room = makeFinishedRoom('r');
+  room.seatTokens.white = seatToken({ seat: 'white', hash: 'wh' });
+  room.seatTokens.black = seatToken({ seat: 'black', hash: 'bh' });
+  const whiteClient = client('white', 'wh');
+  const blackClient = client('black', 'bh');
+  room.clients.add(whiteClient);
+  room.clients.add(blackClient);
+
+  const { orch } = makeOrch();
+  offerRematch(orch, room, whiteClient);
+  offerRematch(orch, room, blackClient);
+  await finalizeRematchIfReady(orch, room);
+
+  // A fresh orchestrator on the "reconnect" — we only check that replay sends
+  // the right payload to the reconnecting client.
+  const { orch: replayOrch, spy } = makeOrch();
+  // Simulate: old client disconnected and reconnected — replay the redirect.
+  maybeReplayRematchRedirect(replayOrch, room, whiteClient);
+  assert.equal(spy.sent.length, 1);
+  const redirect = spy.sent[0]!.payload as { type: string; seat: string; seatToken: string };
+  assert.equal(redirect.type, 'rematch:redirect');
+  // Old white player should be redirected to the black seat in the new room.
+  assert.equal(redirect.seat, 'black');
+});
+
+test('reconnect with no pending redirect: no-op', () => {
+  const room = makeFinishedRoom('r');
+  const c = client('white', 'wh');
+  const { orch, spy } = makeOrch();
+  maybeReplayRematchRedirect(orch, room, c);
+  assert.equal(spy.sent.length, 0);
 });
 
 test('broadcastRematchState: sends state to every client', () => {

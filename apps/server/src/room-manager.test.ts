@@ -47,6 +47,7 @@ function makeRoom(
     hiddenDraft960: false,
     timeControl: undefined,
     rematch: { offers: {} },
+    pendingVacates: {},
   };
 }
 
