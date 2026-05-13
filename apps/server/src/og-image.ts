@@ -1,19 +1,13 @@
 import type { ServerResponse } from 'node:http';
 import { Resvg } from '@resvg/resvg-js';
+import type { PieceRole as GamePieceRole } from '@mistboard/game';
+import { type FogSquare, type PieceOnBoard, renderBoardSvg } from '@mistboard/board-render';
 import * as persistence from './persistence.js';
-import { PIECE_SVGS } from './og-piece-svgs.js';
 
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
 
-type PieceRole = 'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn';
-type PieceOnBoard = { file: number; rank: number; color: 'white' | 'black'; role: PieceRole };
-type FogSquare = { file: number; rank: number };
-
-const LIGHT_SQUARE = '#f0d9b5';
-const DARK_SQUARE = '#b58863';
-const FOG_FILL = '#1a1a1a';
-const FOG_OPACITY = 0.78;
+type PieceRole = GamePieceRole;
 
 const cache = new Map<string, Buffer>();
 
@@ -121,48 +115,6 @@ function startingPositionFromBackRank(backRank: PieceRole[]): PieceOnBoard[] {
     pieces.push({ file: f, rank: 7, color: 'black', role: backRank[f]! });
   }
   return pieces;
-}
-
-function renderBoardSvg(
-  pieces: PieceOnBoard[],
-  fogSquares: FogSquare[],
-  x: number,
-  y: number,
-  size: number,
-): string {
-  const sq = size / 8;
-  const out: string[] = [];
-  out.push(`<g>`);
-  // Squares
-  for (let f = 0; f < 8; f += 1) {
-    for (let r = 0; r < 8; r += 1) {
-      const isLight = (f + r) % 2 === 1;
-      const sx = x + f * sq;
-      const sy = y + (7 - r) * sq;
-      out.push(`<rect x="${sx}" y="${sy}" width="${sq}" height="${sq}" fill="${isLight ? LIGHT_SQUARE : DARK_SQUARE}"/>`);
-    }
-  }
-  // Pieces (only those not fogged)
-  const fogSet = new Set(fogSquares.map((s) => `${s.file},${s.rank}`));
-  for (const piece of pieces) {
-    if (fogSet.has(`${piece.file},${piece.rank}`)) continue;
-    const svg = PIECE_SVGS[`${piece.color}:${piece.role}`];
-    if (!svg) continue;
-    const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-    const px = x + piece.file * sq;
-    const py = y + (7 - piece.rank) * sq;
-    out.push(`<svg x="${px}" y="${py}" width="${sq}" height="${sq}" viewBox="0 0 45 45">${inner}</svg>`);
-  }
-  // Fog overlay
-  for (const fog of fogSquares) {
-    const fx = x + fog.file * sq;
-    const fy = y + (7 - fog.rank) * sq;
-    out.push(`<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="${FOG_FILL}" fill-opacity="${FOG_OPACITY}"/>`);
-  }
-  // Border
-  out.push(`<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="#2a2f37" stroke-width="2"/>`);
-  out.push(`</g>`);
-  return out.join('');
 }
 
 export function svgToPng(svg: string, background = '#0f1115'): Buffer {

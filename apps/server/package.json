@@ -31,6 +31,7 @@
     "worker:dev:service": "tsx src/worker.ts --execute --loop"
   },
   "dependencies": {
+    "@mistboard/board-render": "0.0.0",
     "@mistboard/game": "0.0.0",
     "@resvg/resvg-js": "^2.6.2",
     "pg": "^8.20.0",
