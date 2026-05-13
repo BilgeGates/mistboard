@@ -469,6 +469,9 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
         promotion: message.promotion,
       });
     }
+    if (message.type === 'resign') {
+      await handleResign(room, client);
+    }
     if (message.type === 'rematch:offer') {
       offerRematch(rematchOrch, room, client);
       await finalizeRematchIfReady(rematchOrch, room);
@@ -1000,6 +1003,19 @@ async function submitBid(room: Room, client: Client, bidMs: number | undefined, 
     bidMs: boundedBidMs,
   });
   await resolveBidIfReady(roomMgrCtx, room);
+  broadcastSnapshot(roomMgrCtx, room);
+}
+
+async function handleResign(room: Room, client: Client): Promise<void> {
+  if (!canClientAct(room, client)) return;
+  if (client.seat !== 'white' && client.seat !== 'black') return;
+  if (room.projection.state.status.type !== 'playing') return;
+  await appendEvent(roomMgrCtx, room, {
+    type: 'seat-resigned',
+    at: Date.now(),
+    roomId: room.id,
+    color: client.seat,
+  });
   broadcastSnapshot(roomMgrCtx, room);
 }
 

@@ -110,6 +110,9 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
               <h2>Next</h2>
               <div data-room-actions class="room-actions"></div>
             </section>
+            <section data-game-controls-section class="panel-section" hidden>
+              <div data-game-controls class="game-controls"></div>
+            </section>
             <section data-bid-section class="panel-section">
               <h2>Bid For White</h2>
               <div data-bid-controls class="bid-controls"></div>
@@ -178,8 +181,10 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const replayControls = target.querySelectorAll<HTMLButtonElement>('[data-replay]');
   const fogToggle = target.querySelector<HTMLButtonElement>('[data-fog-toggle]');
   const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
+  const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
+  const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList) {
+  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
     throw new Error('missing app region');
   }
 
@@ -208,6 +213,8 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
     roomMeta,
     selectionList,
     starts,
+    gameControls,
+    gameControlsSection,
   };
 }
 
@@ -258,6 +265,7 @@ export function render(): void {
   renderGameInfo(view);
   renderClocks(view);
   renderRoomActions();
+  renderGameControls(view);
   renderDevViews();
   renderBid(view);
   renderOffer(projection);
@@ -468,6 +476,63 @@ function renderGameInfo(view: PlayerView | null): void {
 }
 
 // ── Room actions ──────────────────────────────────────────────────────────────
+
+// ── Game controls (resign, etc.) ──────────────────────────────────────────────
+
+const RESIGN_CONFIRM_STORAGE_KEY = 'mistboard.resignConfirm';
+
+function resignConfirmEnabled(): boolean {
+  try {
+    const raw = window.localStorage.getItem(RESIGN_CONFIRM_STORAGE_KEY);
+    if (raw === null) return true; // default: confirm
+    return raw !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function setResignConfirmEnabled(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(RESIGN_CONFIRM_STORAGE_KEY, String(enabled));
+  } catch {
+    /* localStorage unavailable */
+  }
+}
+
+function renderGameControls(view: PlayerView | null): void {
+  const canResign = liveState.roomMode === 'pvp'
+    && isColor(liveState.seat)
+    && view?.status.type === 'playing'
+    && !liveState.solo;
+  refs.gameControlsSection.hidden = !canResign;
+  if (!canResign) {
+    refs.gameControls.replaceChildren();
+    return;
+  }
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'resign-button';
+  button.textContent = 'Resign';
+  button.addEventListener('click', () => { requestResign(); });
+
+  const toggleLabel = document.createElement('label');
+  toggleLabel.className = 'resign-toggle';
+  const toggle = document.createElement('input');
+  toggle.type = 'checkbox';
+  toggle.checked = resignConfirmEnabled();
+  toggle.addEventListener('change', () => { setResignConfirmEnabled(toggle.checked); });
+  toggleLabel.append(toggle, document.createTextNode(' Confirm before resigning'));
+
+  refs.gameControls.replaceChildren(button, toggleLabel);
+}
+
+function requestResign(): void {
+  if (resignConfirmEnabled()) {
+    const ok = window.confirm('Resign this game? Your opponent wins.');
+    if (!ok) return;
+  }
+  sendSocket({ type: 'resign' });
+}
 
 function renderRoomActions(): void {
   const actions: HTMLElement[] = [roomAction('Back home', '/')];

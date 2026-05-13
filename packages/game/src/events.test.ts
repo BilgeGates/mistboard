@@ -577,3 +577,25 @@ test('replays bounded event slices for timeline traversal', () => {
   assert.deepEqual(afterBlackMove.state.status, { type: 'playing', turn: 'white' });
   assert.deepEqual(afterBlackMove.state.lastMove, { from: 'e7', to: 'e5' });
 });
+
+test('seat-resigned ends the game with opposite color winning', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'resign-room', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: 'resign-room', clientId: 'wc', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: 'resign-room', clientId: 'bc', seat: 'black' },
+    { type: 'move-played', at: 4, roomId: 'resign-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'seat-resigned', at: 5, roomId: 'resign-room', color: 'white' },
+  ];
+  const projection = replayGameEvents(events);
+  assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'resignation' });
+});
+
+test('seat-resigned after game already finished is a no-op (only first resignation counts)', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'r', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-resigned', at: 2, roomId: 'r', color: 'white' },
+    { type: 'seat-resigned', at: 3, roomId: 'r', color: 'black' },
+  ];
+  const projection = replayGameEvents(events);
+  assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'resignation' });
+});

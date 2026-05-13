@@ -100,6 +100,12 @@ export type GameEvent =
     roomId: string;
     color: Color;
     clock: ClockState;
+  }
+  | {
+    type: 'seat-resigned';
+    at: number;
+    roomId: string;
+    color: Color;
   };
 
 export type GameProjection = {
@@ -325,6 +331,21 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
           type: 'finished',
           winner: event.color === 'white' ? 'black' : 'white',
           reason: 'timeout',
+        },
+      },
+    };
+  }
+
+  if (event.type === 'seat-resigned') {
+    if (projection.state.status.type !== 'playing') return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: {
+          type: 'finished',
+          winner: event.color === 'white' ? 'black' : 'white',
+          reason: 'resignation',
         },
       },
     };

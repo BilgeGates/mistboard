@@ -67,6 +67,8 @@ export type LiveRefs = {
   roomMeta: HTMLParagraphElement;
   selectionList: HTMLDivElement;
   starts: HTMLDivElement;
+  gameControls: HTMLDivElement;
+  gameControlsSection: HTMLElement;
 };
 
 export type SoundController = {
