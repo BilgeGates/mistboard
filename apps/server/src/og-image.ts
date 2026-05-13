@@ -1,7 +1,7 @@
 import type { ServerResponse } from 'node:http';
 import { Resvg } from '@resvg/resvg-js';
 import type { PieceRole as GamePieceRole } from '@mistboard/game';
-import { type FogSquare, type PieceOnBoard, renderBoardSvg } from '@mistboard/board-render';
+import { type FogSquare, type PieceOnBoard, renderBoardComposition } from '@mistboard/board-render';
 import * as persistence from './persistence.js';
 
 const OG_WIDTH = 1200;
@@ -86,20 +86,21 @@ export function renderDefaultOgSvg(): string {
   const fogTopHalf: FogSquare[] = [];
   for (let f = 0; f < 8; f += 1) for (let r = 4; r < 8; r += 1) fogTopHalf.push({ file: f, rank: r });
 
-  const boardSize = 384;
-  const leftBoardX = 144;
-  const rightBoardX = 1200 - 144 - boardSize;
-  const boardY = 140;
-
   const parts: string[] = [];
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`);
   parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
   parts.push(`<text x="80" y="80" fill="#e5e7eb" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="3">MISTBOARD</text>`);
   parts.push(`<text x="${OG_WIDTH - 80}" y="80" text-anchor="end" fill="#9ca3af" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="22">Fog of War chess</text>`);
-  parts.push(`<text x="${leftBoardX + boardSize / 2}" y="120" text-anchor="middle" fill="#9ca3af" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="22" letter-spacing="2">STANDARD</text>`);
-  parts.push(`<text x="${rightBoardX + boardSize / 2}" y="120" text-anchor="middle" fill="#9ca3af" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="22" letter-spacing="2">DRAFT960</text>`);
-  parts.push(renderBoardSvg(standardPieces, fogTopHalf, leftBoardX, boardY, boardSize));
-  parts.push(renderBoardSvg(draft960Pieces, fogTopHalf, rightBoardX, boardY, boardSize));
+  parts.push(renderBoardComposition({
+    layout: 'pair',
+    canvasWidth: OG_WIDTH,
+    boardY: 140,
+    boardSize: 384,
+    boards: [
+      { pieces: standardPieces, fogSquares: fogTopHalf, label: 'STANDARD' },
+      { pieces: draft960Pieces, fogSquares: fogTopHalf, label: 'DRAFT960' },
+    ],
+  }));
   parts.push(`<text x="${OG_WIDTH / 2}" y="568" text-anchor="middle" fill="#f3f4f6" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="28" font-weight="600">Standard openings are solved.</text>`);
   parts.push(`<text x="${OG_WIDTH / 2}" y="602" text-anchor="middle" fill="#f3f4f6" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="28" font-weight="600">Draft960 + Fog of War aren&apos;t.</text>`);
   parts.push(`</svg>`);
