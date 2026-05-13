@@ -30,6 +30,7 @@ import {
 } from './annotations.js';
 import { files, ranks, allSquares, formatClock } from './web-utils.js';
 import { createBeliefPanel, type BeliefConfig, type BeliefPanelHandle } from './belief-panel.js';
+import { intermediateBoard } from './board-anim.js';
 
 const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;
@@ -272,6 +273,9 @@ export async function mountReplay(
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
   let lastNotifiedPly: number | null = null;
+  let lastWhiteView: PlayerView | null = null;
+  let lastBlackView: PlayerView | null = null;
+  let lastRenderedPly: number | null = null;
 
   function render(): void {
     root.dataset.sampleId = activeSample;
@@ -284,17 +288,24 @@ export async function mountReplay(
 
     setBoardFromState(truthCg, state);
 
+    const isSingleStepForward = lastRenderedPly !== null && currentPly === lastRenderedPly + 1;
+
     if (finished && reveal) {
       // Postgame reveal: collapse all three panes to truth so the viewer
       // sees the full board they couldn't see during play.
       setBoardFromState(whiteCg, state);
       setBoardFromState(blackCg, state);
+      lastWhiteView = null;
+      lastBlackView = null;
     } else {
       const whiteView = fogOfWarVariant.getPlayerView(state, 'white');
       const blackView = fogOfWarVariant.getPlayerView(state, 'black');
-      setBoardFromView(whiteCg, whiteView);
-      setBoardFromView(blackCg, blackView);
+      setBoardFromView(whiteCg, whiteView, isSingleStepForward ? lastWhiteView : null);
+      setBoardFromView(blackCg, blackView, isSingleStepForward ? lastBlackView : null);
+      lastWhiteView = whiteView;
+      lastBlackView = blackView;
     }
+    lastRenderedPly = currentPly;
 
     const showRevealLabels = finished && reveal;
     whitePane.labelEl.textContent = showRevealLabels
@@ -1522,14 +1533,34 @@ function squareFromCgBoardClick(
   return `${fileChar}${rankNum}`;
 }
 
-function setBoardFromView(api: Api, view: PlayerView): void {
+function setBoardFromView(api: Api, view: PlayerView, prevView: PlayerView | null = null): void {
   const lastMove = view.lastMove
     ? ([view.lastMove.from, view.lastMove.to] as cg.Key[])
     : undefined;
+  const customClasses = hiddenSquareClasses(view);
+  const prevMove = prevView?.lastMove;
+  const movedSinceLastRender = view.lastMove !== undefined
+    && (!prevMove || prevMove.from !== view.lastMove.from || prevMove.to !== view.lastMove.to);
+  if (view.variant === 'fog-of-war' && prevView && view.lastMove && movedSinceLastRender) {
+    const intermediate = intermediateBoard(prevView, view, view.lastMove);
+    api.set({
+      animation: { enabled: false, duration: 0 },
+      fen: boardFen(intermediate),
+      lastMove: undefined,
+      highlight: { custom: customClasses, lastMove: false },
+    });
+    api.set({
+      animation: { enabled: true, duration: 140 },
+      fen: boardFen(view.board),
+      lastMove,
+      highlight: { custom: customClasses, lastMove: true },
+    });
+    return;
+  }
   api.set({
     fen: boardFen(view.board),
     lastMove,
-    highlight: { custom: hiddenSquareClasses(view), lastMove: true },
+    highlight: { custom: customClasses, lastMove: true },
   });
 }
 

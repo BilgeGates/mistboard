@@ -17,6 +17,7 @@ import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
 import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
 import { escapeHtml, isColor, formatClock, oppositeColor, files, ranks, allSquares } from './web-utils.js';
+import { intermediateBoard } from './board-anim.js';
 import {
   liveState,
   type DevViews,
@@ -50,6 +51,8 @@ let orientation: Color = 'white';
 let postgameFogEnabled = false;
 let playAgainStatus: PlayAgainStatus = 'idle';
 let replayIndex: number | null = null;
+let lastRenderedView: PlayerView | null = null;
+let lastRenderedReplayIndex: number | null = null;
 let lastSoundEventCount: number | null = null;
 let lastTerminalSound: string | null = null;
 let lastSoundView: PlayerView | null = null;
@@ -69,6 +72,8 @@ export function initRender(
   reconnectNow = callbacks.reconnectNow;
   fogViewHistory = new Map();
   lastCapturedEventCount = 0;
+  lastRenderedView = null;
+  lastRenderedReplayIndex = null;
   refs = createLayout(target);
   sound = createSoundController();
 }
@@ -670,14 +675,56 @@ function renderBoard(view: PlayerView | null): void {
   } satisfies Parameters<typeof Chessground>[1];
 
   if (ground) {
-    ground.set(config);
+    applyBoardConfig(ground, config, view);
     maybePlayPremove();
+    lastRenderedView = view;
+    lastRenderedReplayIndex = replayIndex;
     return;
   }
 
   ground = Chessground(refs.board, config);
   liveState.ground = ground;
   maybePlayPremove();
+  lastRenderedView = view;
+  lastRenderedReplayIndex = replayIndex;
+}
+
+// Apply the new board config to chessground, using a two-phase render in
+// fog-of-war when a new lastMove is visible. See `docs-private/DECISIONS.md`
+// → 2026-05-12 fog-aware animation.
+function applyBoardConfig(
+  api: Api,
+  config: NonNullable<Parameters<typeof Chessground>[1]>,
+  view: PlayerView | null,
+): void {
+  if (!shouldTwoPhaseAnimate(view)) {
+    api.set(config);
+    return;
+  }
+  const prev = lastRenderedView!;
+  const lastMove = view!.lastMove!;
+  const intermediate = intermediateBoard(prev, view!, lastMove);
+  api.set({
+    ...config,
+    animation: { enabled: false, duration: 0 },
+    fen: boardFen({ ...view!, board: intermediate }),
+    lastMove: undefined,
+    highlight: { custom: hiddenSquareClasses(view), lastMove: false },
+  });
+  api.set(config);
+}
+
+function shouldTwoPhaseAnimate(view: PlayerView | null): boolean {
+  if (!view || view.variant !== 'fog-of-war') return false;
+  if (!lastRenderedView || !view.lastMove) return false;
+  // Bail on mode transitions (live ↔ replay) and arbitrary replay jumps.
+  const wasLive = lastRenderedReplayIndex === null;
+  const isLiveNow = replayIndex === null;
+  if (wasLive !== isLiveNow) return false;
+  if (!isLiveNow && replayIndex !== (lastRenderedReplayIndex ?? -1) + 1) return false;
+  const prevMove = lastRenderedView.lastMove;
+  if (prevMove && prevMove.from === view.lastMove.from && prevMove.to === view.lastMove.to) return false;
+  return true;
 }
 
 function maybePlayPremove(): void {
