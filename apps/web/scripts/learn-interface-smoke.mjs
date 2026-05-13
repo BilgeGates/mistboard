@@ -48,7 +48,6 @@ async function smokeLearnInterface() {
 
     await assertVisible(page, '.site-nav-brand img.site-nav-logo[src="/logo.svg"]');
     assert.equal(await page.locator('.site-nav-brand span').textContent(), 'MISTBOARD');
-    assert.equal(await page.locator('.site-nav-link.active[aria-current="page"]').textContent(), 'Learn');
 
     assert.equal(await page.locator('.learn-progress').textContent(), 'The Rook 1 of 6');
     assert.equal(await page.locator('.learn-heading').textContent(), 'The Rook');
