@@ -287,7 +287,7 @@ export async function mountAccount(root: HTMLElement): Promise<void> {
     console.warn(err);
     return null;
   });
-  renderAccountShell(shell, current);
+  renderAccountShell(shell, current, currentAccountTab());
 }
 
 export async function mountAccountSettings(root: HTMLElement): Promise<void> {
@@ -783,8 +783,12 @@ function reviewUrlForGame(game: FeaturedGame): string | null {
   return `/game/${encodeURIComponent(game.roomId)}`;
 }
 
-function renderAccountShell(shell: HTMLElement, user: AuthUser | null): void {
-  shell.replaceChildren(user ? buildSignedInAccount(user, shell) : buildLoginForm(shell));
+function renderAccountShell(
+  shell: HTMLElement,
+  user: AuthUser | null,
+  tab: 'login' | 'register' = 'login',
+): void {
+  shell.replaceChildren(user ? buildSignedInAccount(user, shell) : buildLoginForm(shell, undefined, tab));
 }
 
 function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
@@ -973,12 +977,38 @@ function handleHelpText(user: AuthUser): string {
   return `Used in your profile URL. Next handle change: ${nextChangeAt.toLocaleDateString()}.`;
 }
 
+function buildAccountAuthTabs(active: 'login' | 'register'): HTMLElement {
+  const tabs = document.createElement('div');
+  tabs.className = 'account-auth-tabs';
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Account access');
+
+  const signIn = buildAccountAuthTab('Sign in', '/account?tab=login', active === 'login');
+  const register = buildAccountAuthTab('Register', '/account?tab=register', active === 'register');
+
+  tabs.append(signIn, register);
+  return tabs;
+}
+
+function buildAccountAuthTab(label: string, href: string, isActive: boolean): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = href;
+  link.textContent = label;
+  link.className = isActive ? 'account-auth-tab active' : 'account-auth-tab';
+  link.setAttribute('role', 'tab');
+  link.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  return link;
+}
+
 function buildLoginForm(
   shell: HTMLElement,
   onAuth: (shell: HTMLElement, user: AuthUser) => void = renderAccountShell,
+  tab: 'login' | 'register' = 'login',
 ): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel';
+
+  panel.append(buildAccountAuthTabs(tab));
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'account-eyebrow';
@@ -986,11 +1016,13 @@ function buildLoginForm(
 
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
-  title.textContent = 'Sign in';
+  title.textContent = tab === 'register' ? 'Create your account' : 'Sign in';
 
   const copy = document.createElement('p');
   copy.className = 'account-copy';
-  copy.textContent = 'One email code. No password.';
+  copy.textContent = tab === 'register'
+    ? 'Enter your email. We’ll send a code—no password needed.'
+    : 'One email code. No password.';
 
   const form = document.createElement('form');
   form.className = 'account-form';
@@ -1254,15 +1286,49 @@ function buildNav(): HTMLElement {
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
-  const accountLink = navLink('Account', '/account');
 
   if (SHOW_ENGINE_LAB_LINKS) {
     const labLink = navLink('Lab', '/lab');
     utilities.append(labLink);
   }
-  utilities.append(accountLink);
+  utilities.append(buildSignedOutAccountLinks());
   nav.append(brand, links, utilities);
   return nav;
+}
+
+function buildSignedOutAccountLinks(): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'site-nav-auth';
+  wrap.dataset.accountSlot = '';
+
+  const path = currentPath();
+  const tab = currentAccountTab();
+
+  const signIn = document.createElement('a');
+  signIn.href = '/account?tab=login';
+  signIn.className = 'site-nav-link site-nav-link-signin';
+  signIn.textContent = 'Sign in';
+  if (path === '/account' && tab === 'login') {
+    signIn.classList.add('active');
+    signIn.setAttribute('aria-current', 'page');
+  }
+
+  const register = document.createElement('a');
+  register.href = '/account?tab=register';
+  register.className = 'site-nav-link-primary';
+  register.textContent = 'Register';
+  if (path === '/account' && tab === 'register') {
+    register.classList.add('active');
+    register.setAttribute('aria-current', 'page');
+  }
+
+  wrap.append(signIn, register);
+  return wrap;
+}
+
+function currentAccountTab(): 'login' | 'register' {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('tab') === 'register' ? 'register' : 'login';
 }
 
 function navLink(label: string, href: string): HTMLAnchorElement {

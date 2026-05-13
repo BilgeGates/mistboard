@@ -214,7 +214,10 @@ function buildNavHtml(): string {
       </div>
       <div class="site-nav-utilities">
         ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/lab">Lab</a>' : ''}
-        <a class="site-nav-link" href="/account">Account</a>
+        <div class="site-nav-auth" data-account-slot>
+          <a class="site-nav-link site-nav-link-signin" href="/account?tab=login">Sign in</a>
+          <a class="site-nav-link-primary" href="/account?tab=register">Register</a>
+        </div>
       </div>
     </nav>
   `;

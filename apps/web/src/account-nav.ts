@@ -41,10 +41,11 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   const utilities = nav.querySelector<HTMLElement>('.site-nav-utilities');
   if (!utilities) return;
   if (utilities.querySelector('[data-account-nav]')) return;
-  const link = utilities.querySelector<HTMLAnchorElement>('a[href="/account"]');
-  if (!link) return;
+  const slot = utilities.querySelector<HTMLElement>('[data-account-slot]');
+  if (!slot) return;
 
-  const wasActive = link.classList.contains('active') || link.getAttribute('aria-current') === 'page';
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const wasActive = path === '/account' || path.startsWith('/account/');
 
   const control = document.createElement('div');
   control.className = 'account-nav';
@@ -98,7 +99,7 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
 
   panel.append(profile, settings, divider, logout);
   control.append(trigger, panel);
-  link.replaceWith(control);
+  slot.replaceWith(control);
 }
 
 async function handleLogout(button: HTMLButtonElement): Promise<void> {
