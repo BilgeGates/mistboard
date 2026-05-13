@@ -270,7 +270,7 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
           traceRowsForSampleId: () => loaded.traceRows,
         }
       : undefined,
-    annotation: annotationConfigForGame(game, loaded.beliefRows),
+    annotation: import.meta.env.DEV ? annotationConfigForGame(game, loaded.beliefRows) : undefined,
   });
 }
 
