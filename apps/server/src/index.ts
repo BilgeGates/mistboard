@@ -67,6 +67,14 @@ import {
   touchSeatToken,
   type RoomManagerContext,
 } from './room-manager.js';
+import {
+  broadcastRematchState,
+  cancelRematch,
+  declineRematch,
+  finalizeRematchIfReady,
+  offerRematch,
+  type RematchOrchestrator,
+} from './rematch.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -113,6 +121,39 @@ const roomMgrCtx: RoomManagerContext = {
   liveEngineTimeoutMs,
   liveClockInitialMs,
   liveClockIncrementMs,
+};
+
+const rematchOrch: RematchOrchestrator = {
+  ctx: roomMgrCtx,
+  send,
+  buildRoomUrl: (roomId) => `/?room=${encodeURIComponent(roomId)}`,
+  createRoom: (spec) => createRoom(
+    spec.mode,
+    spec.variant,
+    spec.pveEngineId ?? pveBuiltinEngineClientId,
+    spec.hiddenDraft960,
+    spec.timeControl,
+    spec.rated,
+  ),
+  issueSeatToken: async (room, seat, identity) => {
+    const rawToken = randomBytes(32).toString('base64url');
+    const tokenHash = hashSeatToken(rawToken);
+    const now = new Date();
+    const state: SeatTokenState = {
+      clientId: randomUUID(),
+      seat,
+      tokenHash,
+      userId: identity.userId,
+      userHandle: identity.userHandle,
+      userDisplayName: identity.userDisplayName,
+      issuedAt: now,
+      lastSeenAt: now,
+      revokedAt: null,
+    };
+    await persistSeatToken(roomMgrCtx, room, state);
+    room.seatTokens[seat] = state;
+    return { rawToken, state };
+  },
 };
 
 await initPersistence();
@@ -423,6 +464,16 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
         promotion: message.promotion,
       });
     }
+    if (message.type === 'rematch:offer') {
+      offerRematch(rematchOrch, room, client);
+      await finalizeRematchIfReady(rematchOrch, room);
+    }
+    if (message.type === 'rematch:cancel') {
+      cancelRematch(rematchOrch, room, client);
+    }
+    if (message.type === 'rematch:decline') {
+      declineRematch(rematchOrch, room, client);
+    }
   } catch (err) {
     if (err instanceof PersistenceFailure) {
       send(client, { type: 'error', reason: 'persistence_failure' });
@@ -511,6 +562,11 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
   const seatTokens = persistence.isInitialized()
     ? seatTokenStatesFromPersistence(await persistence.loadRoomSeatTokens(roomId))
     : {};
+  const roomCreatedEvent = events.find((e) => e.type === 'room-created') as
+    | Extract<GameEvent, { type: 'room-created' }>
+    | undefined;
+  const detectedHiddenDraft960 = projection.variant === 'fog-of-war'
+    && roomCreatedEvent?.offers !== undefined;
   const room: Room = {
     id: roomId,
     clients: new Set(),
@@ -528,6 +584,10 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
       : null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
+    variant: projection.variant,
+    hiddenDraft960: detectedHiddenDraft960,
+    timeControl: projection.timeControl,
+    rematch: { offers: {} },
   };
   rooms.set(roomId, room);
   scheduleClockTimeout(roomMgrCtx, room);
@@ -601,6 +661,10 @@ async function createRoom(
       pveEngineId: mode === 'pve' ? engineId : null,
       pendingWrites: Promise.resolve(),
       gameEndRecorded: false,
+      variant,
+      hiddenDraft960,
+      timeControl,
+      rematch: { offers: {} },
     };
     rooms.set(roomId, room);
     scheduleClockTimeout(roomMgrCtx, room);

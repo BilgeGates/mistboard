@@ -1,7 +1,18 @@
 import { WebSocket } from 'ws';
-import type { Color, GameEvent, GameProjection, RoomTimeControl } from '@mistboard/game';
+import type { Color, GameEvent, GameProjection, RoomTimeControl, VariantId } from '@mistboard/game';
 import type { GameMode } from './persistence.js';
 import type { Seat } from './payloads.js';
+
+export type RematchOffer = {
+  tokenHash: string;
+  userId: string | null;
+  at: number;
+};
+
+export type RematchState = {
+  offers: Partial<Record<Color, RematchOffer>>;
+  finalizedRoomId?: string;
+};
 
 export type Client = {
   debugRequested: boolean;
@@ -49,6 +60,10 @@ export type Room = {
   pveEngineId: string | null;
   pendingWrites: Promise<void>;
   gameEndRecorded: boolean;
+  variant: VariantId;
+  hiddenDraft960: boolean;
+  timeControl: RoomTimeControl | undefined;
+  rematch: RematchState;
 };
 
 export type LobbyTicket = {

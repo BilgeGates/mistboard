@@ -110,6 +110,7 @@ export const liveState = {
   state: null as PlayerView | null,
   events: [] as GameEvent[],
   reconnectAttempt: 0,
+  rematch: { offers: { white: false, black: false }, finalizedRoomId: null as string | null },
 
   // Chessground instance — owned by live-render, typed here for cross-module access
   ground: null as Api | null,

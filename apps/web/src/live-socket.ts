@@ -64,6 +64,18 @@ type ServerMessage =
     state: PlayerView;
     rated?: boolean;
   }
+  | {
+    type: 'rematch:state';
+    offers: { white: boolean; black: boolean };
+    finalizedRoomId: string | null;
+  }
+  | {
+    type: 'rematch:redirect';
+    url: string;
+    roomId: string;
+    seat: Color;
+    seatToken: string;
+  }
   | { type: 'pong'; at: number };
 
 // ── Module-scope socket state ─────────────────────────────────────────────────
@@ -145,6 +157,19 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   if (message.type === 'pong') {
     liveState.latencyMs = Math.max(0, Date.now() - message.at);
     _render();
+    return;
+  }
+  if (message.type === 'rematch:state') {
+    liveState.rematch = {
+      offers: message.offers,
+      finalizedRoomId: message.finalizedRoomId,
+    };
+    _render();
+    return;
+  }
+  if (message.type === 'rematch:redirect') {
+    writeSeatTokenForRoom(message.roomId, { seat: message.seat, token: message.seatToken });
+    window.location.assign(message.url);
     return;
   }
   liveState.lastSnapshotAt = Date.now();

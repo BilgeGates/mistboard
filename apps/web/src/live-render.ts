@@ -472,7 +472,11 @@ function renderGameInfo(view: PlayerView | null): void {
 function renderRoomActions(): void {
   const actions: HTMLElement[] = [roomAction('Back home', '/')];
   if (currentView()?.status.type === 'finished') {
-    if (liveState.roomMode === 'pvp' || liveState.roomMode === 'pve') actions.unshift(playAgainButton());
+    if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
+      for (const el of rematchButtons()) actions.unshift(el);
+    } else if (liveState.roomMode === 'pve') {
+      actions.unshift(playAgainButton());
+    }
     actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(liveState.room)}`, 'primary'));
     const note = document.createElement('p');
     note.className = 'room-actions-note';
@@ -482,6 +486,52 @@ function renderRoomActions(): void {
   }
   if (liveState.engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
   refs.roomActions.replaceChildren(...actions);
+}
+
+function rematchButtons(): HTMLElement[] {
+  const mySeat = liveState.seat;
+  if (mySeat !== 'white' && mySeat !== 'black') return [];
+  const theirSeat: 'white' | 'black' = mySeat === 'white' ? 'black' : 'white';
+  const offers = liveState.rematch.offers;
+  const iOffered = offers[mySeat];
+  const theyOffered = offers[theirSeat];
+
+  if (iOffered && theyOffered) {
+    // Both confirmed — redirect is imminent. Show a brief "Starting…" affordance.
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.disabled = true;
+    btn.textContent = 'Starting rematch…';
+    return [btn];
+  }
+  if (iOffered) {
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = '';
+    cancel.textContent = 'Cancel rematch';
+    cancel.addEventListener('click', () => { sendSocket({ type: 'rematch:cancel' }); });
+    const waiting = document.createElement('span');
+    waiting.className = 'room-actions-note';
+    waiting.textContent = 'Waiting for opponent…';
+    return [waiting, cancel];
+  }
+  if (theyOffered) {
+    const accept = document.createElement('button');
+    accept.type = 'button';
+    accept.className = 'primary';
+    accept.textContent = 'Accept rematch';
+    accept.addEventListener('click', () => { sendSocket({ type: 'rematch:offer' }); });
+    const decline = document.createElement('button');
+    decline.type = 'button';
+    decline.textContent = 'Decline';
+    decline.addEventListener('click', () => { sendSocket({ type: 'rematch:decline' }); });
+    return [decline, accept];
+  }
+  const offer = document.createElement('button');
+  offer.type = 'button';
+  offer.textContent = 'Rematch';
+  offer.addEventListener('click', () => { sendSocket({ type: 'rematch:offer' }); });
+  return [offer];
 }
 
 function roomAction(label: string, href: string, toneOrDev?: 'primary' | 'engine'): HTMLAnchorElement {

@@ -43,6 +43,10 @@ function makeRoom(
     pveEngineId: null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: false,
+    variant,
+    hiddenDraft960: false,
+    timeControl: undefined,
+    rematch: { offers: {} },
   };
 }
 
