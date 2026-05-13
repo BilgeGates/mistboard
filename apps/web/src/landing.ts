@@ -106,6 +106,7 @@ type LandingPlayChoice = {
   engineId?: string;
   engines?: PlayableEngine[];
   mode: 'lobby' | 'pvp' | 'pve';
+  ratedDisabled?: boolean;
   title: string;
 };
 type LandingStartFormat = 'standard' | 'draft960';
@@ -147,11 +148,6 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = [
   { id: '5m3', label: '5 + 3', initialMs: 5 * 60_000, incrementMs: 3_000 },
   { id: 'custom', label: 'Custom', initialMs: 3 * 60_000, incrementMs: 2_000 },
 ];
-const PUBLIC_LOBBY_SETUP: LandingRoomSetup = {
-  startFormat: 'standard',
-  rated: false,
-  timeControl: { initialMs: 3 * 60_000, incrementMs: 2_000 },
-};
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -1395,7 +1391,10 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
 
-  section.append(playPanel, replayRoot);
+  const leaderboardPanel = buildLandingLeaderboardPanel();
+  void populateLandingLeaderboard(leaderboardPanel);
+
+  section.append(playPanel, replayRoot, leaderboardPanel);
 
   stage.append(section);
   return { el: stage, replayRoot };
@@ -1486,83 +1485,12 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
   const challengeButton = landingPlayAction('Challenge a friend', 'friend');
   const engineButton = landingPlayAction('Play against computer', 'computer');
 
-  const lobbyStatus = document.createElement('p');
-  lobbyStatus.className = 'landing-play-status';
-  lobbyStatus.setAttribute('aria-live', 'polite');
-
-  const enginePrompt = document.createElement('div');
-  enginePrompt.className = 'landing-play-engine-prompt';
-  enginePrompt.hidden = true;
-  const enginePromptText = document.createElement('p');
-  enginePromptText.className = 'landing-play-engine-prompt-text';
-  enginePromptText.textContent = 'No opponents yet. Play against the engine while you wait?';
-  const enginePromptButton = document.createElement('button');
-  enginePromptButton.type = 'button';
-  enginePromptButton.className = 'landing-play-engine-prompt-action';
-  enginePromptButton.textContent = 'Play engine';
-  enginePrompt.append(enginePromptText, enginePromptButton);
-
-  let cancelLobbyWait: (() => void) | null = null;
-  let enginePromptTimer: number | null = null;
-  const resetLobbyButton = (): void => {
-    lobbyButton.disabled = false;
-    lobbyButton.removeAttribute('aria-busy');
-    setButtonLabel(lobbyButton, 'Find opponent');
-  };
-  const teardownLobbySearch = (): void => {
-    if (enginePromptTimer !== null) {
-      window.clearTimeout(enginePromptTimer);
-      enginePromptTimer = null;
-    }
-    enginePrompt.hidden = true;
-    enginePromptButton.disabled = false;
-    lobbyStatus.textContent = '';
-    cancelLobbyWait = null;
-    resetLobbyButton();
-  };
-  let searchStartedAt = 0;
-  const bucketProps = {
-    variant: PUBLIC_LOBBY_SETUP.startFormat,
-    initialMs: PUBLIC_LOBBY_SETUP.timeControl.initialMs,
-    incrementMs: PUBLIC_LOBBY_SETUP.timeControl.incrementMs,
-    rated: PUBLIC_LOBBY_SETUP.rated,
-  };
   lobbyButton.addEventListener('click', () => {
-    if (cancelLobbyWait) {
-      cancelLobbyWait();
-      track('lobby_abandoned', { ...bucketProps, waitMs: Date.now() - searchStartedAt });
-      teardownLobbySearch();
-      return;
-    }
-    searchStartedAt = Date.now();
-    cancelLobbyWait = joinLobbyFromPlay(lobbyButton, PUBLIC_LOBBY_SETUP, lobbyStatus);
-    lobbyButton.disabled = false;
-    setButtonLabel(lobbyButton, 'Cancel search');
-    enginePromptTimer = window.setTimeout(() => {
-      enginePromptTimer = null;
-      if (!cancelLobbyWait) return;
-      enginePrompt.hidden = false;
-      track('engine_fallback_shown', { waitMs: Date.now() - searchStartedAt });
-    }, 30_000);
-  });
-  enginePromptButton.addEventListener('click', () => {
-    if (!cancelLobbyWait) return;
-    track('engine_fallback_accepted');
-    cancelLobbyWait();
-    cancelLobbyWait = null;
-    if (enginePromptTimer !== null) {
-      window.clearTimeout(enginePromptTimer);
-      enginePromptTimer = null;
-    }
-    resetLobbyButton();
-    lobbyStatus.textContent = 'Starting engine game…';
-    void createRoomFromPlay(enginePromptButton, 'pve', defaultEngineId, PUBLIC_LOBBY_SETUP)
-      .catch((err) => {
-        console.warn(err);
-        lobbyStatus.textContent = 'Could not start engine game. Try again.';
-        enginePromptButton.disabled = false;
-        enginePromptButton.textContent = 'Play engine';
-      });
+    openLandingSetupDialog({
+      mode: 'lobby',
+      title: 'Find opponent',
+      ratedDisabled: true,
+    });
   });
   challengeButton.addEventListener('click', () => {
     openLandingSetupDialog({
@@ -1579,7 +1507,7 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
     });
   });
 
-  panel.append(lobbyButton, lobbyStatus, enginePrompt, challengeButton, engineButton);
+  panel.append(lobbyButton, challengeButton, engineButton);
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow());
   }
@@ -1718,7 +1646,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   existing?.remove();
 
   let startFormat: LandingStartFormat = 'standard';
-  let rated = true;
+  let rated = choice.ratedDisabled ? false : true;
   let selectedPreset: LandingTimePresetId = '3m2';
   let selectedEngineId = choice.engineId;
   const defaultPreset = LANDING_TIME_PRESETS.find((preset) => preset.id === selectedPreset)!;
@@ -1881,7 +1809,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   document.addEventListener('keydown', onKeyDown);
 
   const ratingSection = (choice.mode === 'pvp' || choice.mode === 'lobby')
-    ? buildRatedToggleSection(() => rated, (v) => { rated = v; })
+    ? buildRatedToggleSection(() => rated, (v) => { rated = v; }, choice.ratedDisabled)
     : null;
 
   actions.append(startButton, backButton);
@@ -1927,7 +1855,7 @@ function buildEngineSetupSection(
   return section;
 }
 
-function buildRatedToggleSection(get: () => boolean, set: (v: boolean) => void): HTMLElement {
+function buildRatedToggleSection(get: () => boolean, set: (v: boolean) => void, ratedDisabled = false): HTMLElement {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
   section.append(setupSectionLabel('Game type'));
@@ -1937,18 +1865,26 @@ function buildRatedToggleSection(get: () => boolean, set: (v: boolean) => void):
   group.setAttribute('role', 'radiogroup');
   group.setAttribute('aria-label', 'Game type');
 
-  const ratedButton = startOptionButton('Rated', true);
+  const ratedButton = startOptionButton(ratedDisabled ? 'Rated (coming soon)' : 'Rated', true);
   const casualButton = startOptionButton('Casual', false);
+
+  if (ratedDisabled) {
+    ratedButton.disabled = true;
+    ratedButton.classList.add('disabled');
+  }
 
   const sync = () => {
     const isRated = get();
-    ratedButton.classList.toggle('selected', isRated);
-    ratedButton.setAttribute('aria-checked', isRated ? 'true' : 'false');
-    casualButton.classList.toggle('selected', !isRated);
-    casualButton.setAttribute('aria-checked', !isRated ? 'true' : 'false');
+    ratedButton.classList.toggle('selected', isRated && !ratedDisabled);
+    ratedButton.setAttribute('aria-checked', isRated && !ratedDisabled ? 'true' : 'false');
+    casualButton.classList.toggle('selected', !isRated || ratedDisabled);
+    casualButton.setAttribute('aria-checked', !isRated || ratedDisabled ? 'true' : 'false');
   };
-  ratedButton.addEventListener('click', () => { set(true); sync(); });
+  if (!ratedDisabled) {
+    ratedButton.addEventListener('click', () => { set(true); sync(); });
+  }
   casualButton.addEventListener('click', () => { set(false); sync(); });
+  sync();
   group.append(ratedButton, casualButton);
   section.append(group);
   return section;

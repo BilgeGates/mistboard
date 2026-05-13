@@ -2747,8 +2747,13 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   color: #ffffff;
 }
 
-.landing-start-option:hover,
-.landing-start-option:focus-visible,
+.landing-start-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.landing-start-option:hover:not(:disabled),
+.landing-start-option:focus-visible:not(:disabled),
 .landing-setup-start:hover:not(:disabled),
 .landing-setup-start:focus-visible,
 .landing-setup-back:hover:not(:disabled),
