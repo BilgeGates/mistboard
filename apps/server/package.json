@@ -12,6 +12,7 @@
     "test:persistent": "tsc -p tsconfig.json && node --test --test-concurrency=1 dist/*.test.js",
     "test:unit": "tsx --test --test-concurrency=4 src/*.test.ts --test-name-pattern='^(?!persistence)'",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "og:default": "tsx src/scripts/generate-default-og.ts",
     "migrate": "tsx src/migrate.ts",
     "import-corpus": "tsx src/import-corpus.ts",
     "engine:enqueue": "tsx src/enqueue-engine-games.ts",
