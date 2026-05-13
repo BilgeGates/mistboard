@@ -1,7 +1,7 @@
 import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Square } from '@mistboard/game';
 import type * as cg from 'chessground/types';
 import type { BeliefRow, TraceRow } from './belief-panel.js';
-import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from './board-ui.js';
+import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from '@mistboard/board-render/interactive';
 import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameMeta } from './replay.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { track } from './analytics.js';

@@ -9,7 +9,7 @@ import {
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
-import { boardFen, hiddenSquareClasses } from './board-ui.js';
+import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 
 const GITHUB_URL = 'https://github.com/brianhliou/mistboard';

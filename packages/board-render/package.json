@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./interactive": {
+      "types": "./dist/interactive/index.d.ts",
+      "default": "./dist/interactive/index.js"
     }
   },
   "scripts": {
@@ -17,7 +21,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@mistboard/game": "0.0.0"
+    "@mistboard/game": "0.0.0",
+    "chessground": "^9.2.1"
   },
   "devDependencies": {
     "typescript": "^5.8.0"
