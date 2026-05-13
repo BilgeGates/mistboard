@@ -1,7 +1,11 @@
 import type { ServerResponse } from 'node:http';
 import { Resvg } from '@resvg/resvg-js';
 import type { PieceRole as GamePieceRole } from '@mistboard/game';
-import { type FogSquare, type PieceOnBoard, renderBoardComposition } from '@mistboard/board-render';
+import {
+  type FogSquare,
+  renderBoardComposition,
+  startingPositionFromBackRank,
+} from '@mistboard/board-render';
 import * as persistence from './persistence.js';
 
 const OG_WIDTH = 1200;
@@ -105,17 +109,6 @@ export function renderDefaultOgSvg(): string {
   parts.push(`<text x="${OG_WIDTH / 2}" y="602" text-anchor="middle" fill="#f3f4f6" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="28" font-weight="600">Draft960 + Fog of War aren&apos;t.</text>`);
   parts.push(`</svg>`);
   return parts.join('');
-}
-
-function startingPositionFromBackRank(backRank: PieceRole[]): PieceOnBoard[] {
-  const pieces: PieceOnBoard[] = [];
-  for (let f = 0; f < 8; f += 1) {
-    pieces.push({ file: f, rank: 0, color: 'white', role: backRank[f]! });
-    pieces.push({ file: f, rank: 1, color: 'white', role: 'pawn' });
-    pieces.push({ file: f, rank: 6, color: 'black', role: 'pawn' });
-    pieces.push({ file: f, rank: 7, color: 'black', role: backRank[f]! });
-  }
-  return pieces;
 }
 
 export function svgToPng(svg: string, background = '#0f1115'): Buffer {

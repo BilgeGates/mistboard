@@ -3,9 +3,49 @@
 // Visual specs live in [VISUAL: ...] notes that should be replaced with
 // rendered assets when sections are written.
 
+import { type BoardSpec, type CompositionLayout, startingPositionFromBackRank } from '@mistboard/board-render';
+import type { PieceRole } from '@mistboard/game';
+
+export type ParagraphBlock = { kind: 'paragraph'; text: string };
+
+// Inline SVG composition of 1, 2, or 3 boards. Renderer wraps the composer
+// output in an <svg> with the given canvas dimensions and background.
+export type StaticBoardsBlock = {
+  kind: 'static-boards';
+  layout: CompositionLayout;
+  boards: BoardSpec[];
+  canvasWidth: number;
+  canvasHeight: number;
+  boardSize: number;
+  boardY: number;
+  gap?: number;
+  labelY?: number;
+  labelFill?: string;
+  labelFontSize?: number;
+  labelLetterSpacing?: number;
+  background?: string;
+  caption?: string;
+};
+
+// Mount-point for a registered interactive widget. The renderer creates a
+// container, applies the widget's mount function, and tracks the teardown.
+// Widget kinds are added as their implementations land.
+export type InteractiveBlock = {
+  kind: 'interactive';
+  widget: 'stepper';
+  spec: unknown;
+  caption?: string;
+};
+
+export type ArticleBlock = ParagraphBlock | StaticBoardsBlock | InteractiveBlock;
+
+// `blocks` is the structured body. `paragraphs` is the legacy outline body
+// that still carries `[VISUAL: ...]` markers — sections are migrated to
+// `blocks` as they get their real visuals.
 export type ArticleSection = {
   heading: string;
-  paragraphs: string[];
+  paragraphs?: string[];
+  blocks?: ArticleBlock[];
 };
 
 export type Article = {
@@ -17,6 +57,13 @@ export type Article = {
   tldr?: string[];
   sections: ArticleSection[];
 };
+
+// Three distinct Chess960 starting back ranks for the Draft960 pick-screen
+// hero. Each is valid (bishops on opposite-colored squares, king between
+// rooks) and visually distinct from the others.
+const DRAFT960_OFFER_A: PieceRole[] = ['bishop', 'bishop', 'queen', 'knight', 'knight', 'rook', 'king', 'rook'];
+const DRAFT960_OFFER_B: PieceRole[] = ['rook', 'knight', 'bishop', 'bishop', 'king', 'queen', 'knight', 'rook'];
+const DRAFT960_OFFER_C: PieceRole[] = ['queen', 'rook', 'bishop', 'knight', 'knight', 'bishop', 'king', 'rook'];
 
 export const articles: Article[] = [
   {
@@ -35,9 +82,29 @@ export const articles: Article[] = [
     sections: [
       {
         heading: 'The pick screen',
-        paragraphs: [
-          '[VISUAL: hero — mockup of the Mistboard pick UI. Three Chess960 setup offers side-by-side, with the caption "Pick one. Don\'t show your opponent."]',
-          'Section TBD. Lead with the mechanic itself, not its history. Show what the player actually sees: three random valid Chess960 setups, choose one. Their pick stays hidden until the opponent has also chosen.',
+        blocks: [
+          {
+            kind: 'static-boards',
+            layout: 'triptych',
+            canvasWidth: 720,
+            canvasHeight: 244,
+            boardSize: 200,
+            boardY: 34,
+            gap: 30,
+            labelY: 22,
+            labelFill: '#4b5563',
+            boards: [
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_A), label: 'A' },
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_B), label: 'B' },
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_C), label: 'C' },
+            ],
+            caption: "Pick one. Don't show your opponent.",
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'Section TBD. Lead with the mechanic itself, not its history. Show what the player actually sees: three random valid Chess960 setups, choose one. Their pick stays hidden until the opponent has also chosen.',
+          },
         ],
       },
       {

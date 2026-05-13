@@ -1,4 +1,12 @@
-import { articles, findArticle, type Article } from './articles-data.js';
+import { renderBoardComposition } from '@mistboard/board-render';
+import {
+  articles,
+  findArticle,
+  type Article,
+  type ArticleBlock,
+  type ArticleSection,
+  type StaticBoardsBlock,
+} from './articles-data.js';
 
 // Nav + footer come from landing.ts. We avoid re-implementing them by accepting
 // pre-built nodes from the caller — keeps this module standalone and testable.
@@ -83,15 +91,67 @@ export function buildArticlePage(slug: string): HTMLElement {
     h2.className = 'article-section-heading';
     h2.textContent = section.heading;
     main.append(h2);
-    for (const para of section.paragraphs) {
-      const p = document.createElement('p');
-      p.className = 'article-paragraph';
-      p.textContent = para;
-      main.append(p);
-    }
+    for (const node of renderSectionBody(section)) main.append(node);
   }
 
   return main;
+}
+
+function renderSectionBody(section: ArticleSection): HTMLElement[] {
+  if (section.blocks && section.blocks.length > 0) {
+    return section.blocks.map(renderBlock);
+  }
+  if (section.paragraphs) {
+    return section.paragraphs.map(paragraphNode);
+  }
+  return [];
+}
+
+function renderBlock(block: ArticleBlock): HTMLElement {
+  if (block.kind === 'paragraph') return paragraphNode(block.text);
+  if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
+  // 'interactive' renders as a placeholder until widgets land in the next step.
+  const div = document.createElement('div');
+  div.className = 'article-interactive-placeholder';
+  div.textContent = `[interactive: ${block.widget}]`;
+  return div;
+}
+
+function paragraphNode(text: string): HTMLParagraphElement {
+  const p = document.createElement('p');
+  p.className = 'article-paragraph';
+  p.textContent = text;
+  return p;
+}
+
+function renderStaticBoardsBlock(block: StaticBoardsBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-static';
+
+  const inner = renderBoardComposition({
+    layout: block.layout,
+    boards: block.boards,
+    canvasWidth: block.canvasWidth,
+    boardY: block.boardY,
+    boardSize: block.boardSize,
+    gap: block.gap,
+    labelY: block.labelY,
+    labelFill: block.labelFill,
+    labelFontSize: block.labelFontSize,
+    labelLetterSpacing: block.labelLetterSpacing,
+  });
+
+  const bg = block.background ?? 'transparent';
+  const bgRect = bg === 'transparent' ? '' : `<rect width="${block.canvasWidth}" height="${block.canvasHeight}" fill="${bg}"/>`;
+  figure.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${block.canvasWidth} ${block.canvasHeight}" width="100%" preserveAspectRatio="xMidYMid meet" role="img">${bgRect}${inner}</svg>`;
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+  return figure;
 }
 
 function articleCard(article: Article): HTMLLIElement {

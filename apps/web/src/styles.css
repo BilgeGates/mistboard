@@ -2240,6 +2240,40 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   font-size: 16px;
 }
 
+.article-figure {
+  margin: 24px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.article-figure > svg {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  display: block;
+}
+
+.article-figure-caption {
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  max-width: 560px;
+}
+
+.article-interactive-placeholder {
+  margin: 24px 0;
+  padding: 32px 16px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+}
+
 .source-block {
   display: grid;
   gap: 8px;
