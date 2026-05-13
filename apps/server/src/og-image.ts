@@ -1,8 +1,7 @@
 import type { ServerResponse } from 'node:http';
 import { Resvg } from '@resvg/resvg-js';
-import type { PieceRole as GamePieceRole } from '@mistboard/game';
+import type { PieceRole as GamePieceRole, Square } from '@mistboard/game';
 import {
-  type FogSquare,
   renderBoardComposition,
   startingPositionFromBackRank,
 } from '@mistboard/board-render';
@@ -87,8 +86,9 @@ export function renderDefaultOgSvg(): string {
   const standardPieces = startingPositionFromBackRank(STANDARD_BACK_RANK);
   const draft960Pieces = startingPositionFromBackRank(DRAFT960_BACK_RANK);
   // White-to-move fog of ranks 5-8 (top half from white's perspective).
-  const fogTopHalf: FogSquare[] = [];
-  for (let f = 0; f < 8; f += 1) for (let r = 4; r < 8; r += 1) fogTopHalf.push({ file: f, rank: r });
+  const files = 'abcdefgh';
+  const fogTopHalf: Square[] = [];
+  for (let f = 0; f < 8; f += 1) for (let r = 5; r <= 8; r += 1) fogTopHalf.push(`${files[f]}${r}` as Square);
 
   const parts: string[] = [];
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`);

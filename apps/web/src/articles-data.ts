@@ -4,13 +4,15 @@
 // rendered assets when sections are written.
 
 import {
+  boardToPieces,
   type BoardSpec,
   type CompositionLayout,
+  fogSquaresFromVisible,
   piecesToBoard,
   startingPositionFromBackRank,
 } from '@mistboard/board-render';
 import type { SteppedBoardsOptions } from '@mistboard/board-render/interactive';
-import type { Board, PieceRole, Square } from '@mistboard/game';
+import { fogOfWarVariant, type Board, type PieceRole, type Square } from '@mistboard/game';
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
 
@@ -83,6 +85,16 @@ function withMove(board: Board, from: Square, to: Square): Board {
 const WORKED_EXAMPLE_START = piecesToBoard(startingPositionFromBackRank(STANDARD_BACK_RANK));
 const WORKED_EXAMPLE_AFTER_E4 = withMove(WORKED_EXAMPLE_START, 'e2', 'e4');
 const WORKED_EXAMPLE_AFTER_E4_E5 = withMove(WORKED_EXAMPLE_AFTER_E4, 'e7', 'e5');
+
+// Starting-position triptych for the Fog of War rules article. Visibility is
+// derived from the canonical fog-of-war variant kernel so the diagram exactly
+// matches what players see in a live game.
+const FOW_START_STATE = fogOfWarVariant.createInitialState('fow-rules-start');
+const FOW_START_PIECES = boardToPieces(FOW_START_STATE.board);
+const FOW_START_VIEW_W = fogOfWarVariant.getPlayerView(FOW_START_STATE, 'white');
+const FOW_START_VIEW_B = fogOfWarVariant.getPlayerView(FOW_START_STATE, 'black');
+const FOW_START_FOG_W = fogSquaresFromVisible(FOW_START_VIEW_W.visibleSquares);
+const FOW_START_FOG_B = fogSquaresFromVisible(FOW_START_VIEW_B.visibleSquares);
 
 export const articles: Article[] = [
   {
@@ -247,9 +259,43 @@ export const articles: Article[] = [
       },
       {
         heading: 'The starting position',
-        paragraphs: [
-          '[VISUAL: triptych — W view / truth / B view at move 0.]',
-          'Section TBD. Cover: the board already looks different to each side, the first move makes nothing visible to opponent unless their pieces could attack the from-square or to-square.',
+        blocks: [
+          {
+            kind: 'static-boards',
+            layout: 'triptych',
+            canvasWidth: 720,
+            canvasHeight: 244,
+            boardSize: 200,
+            boardY: 34,
+            gap: 30,
+            labelY: 22,
+            labelFill: '#4b5563',
+            boards: [
+              {
+                pieces: FOW_START_PIECES,
+                fogSquares: FOW_START_FOG_W,
+                orientation: 'white',
+                label: "WHITE'S VIEW",
+              },
+              {
+                pieces: FOW_START_PIECES,
+                orientation: 'white',
+                label: 'TRUTH',
+              },
+              {
+                pieces: FOW_START_PIECES,
+                fogSquares: FOW_START_FOG_B,
+                orientation: 'black',
+                label: "BLACK'S VIEW",
+              },
+            ],
+            caption: 'The board already looks different to each side, before either player has moved.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "Section TBD. Cover: the board already looks different to each side, the first move makes nothing visible to opponent unless their pieces could attack the from-square or to-square.",
+          },
         ],
       },
       {

@@ -1,9 +1,11 @@
-import { type FogSquare, type PieceOnBoard, renderBoardSvg } from './board-svg.js';
+import type { Color, Square } from '@mistboard/game';
+import { type PieceOnBoard, renderBoardSvg } from './board-svg.js';
 import { boardsInLayout, type CompositionLayout, layoutPlacements } from './layouts.js';
 
 export type BoardSpec = {
   pieces: PieceOnBoard[];
-  fogSquares?: FogSquare[];
+  fogSquares?: Square[];
+  orientation?: Color;
   label?: string;
 };
 
@@ -61,7 +63,7 @@ export function renderBoardComposition(opts: CompositionOptions): string {
   }
   for (let i = 0; i < boards.length; i += 1) {
     const b = boards[i]!;
-    parts.push(renderBoardSvg(b.pieces, b.fogSquares ?? [], xs[i]!, boardY, boardSize));
+    parts.push(renderBoardSvg(b.pieces, b.fogSquares ?? [], xs[i]!, boardY, boardSize, b.orientation ?? 'white'));
   }
   return parts.join('');
 }
