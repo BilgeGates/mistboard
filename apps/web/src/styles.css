@@ -1973,18 +1973,19 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-stage {
   flex: 1 1 auto;
   min-height: 0;
-  gap: clamp(10px, 1.6vw, 16px);
-  padding: clamp(10px, 1.7vw, 20px) clamp(12px, 2vw, 24px);
+  gap: clamp(8px, 1.2vw, 12px);
+  padding: clamp(6px, 1vw, 12px) clamp(10px, 1.6vw, 20px);
+  align-content: center;
 }
 
 .landing-demo {
   display: grid;
-  grid-template-columns: minmax(190px, 220px) minmax(0, 1440px) minmax(190px, 220px);
+  grid-template-columns: minmax(190px, 220px) minmax(0, 1860px) minmax(190px, 220px);
   gap: clamp(18px, 2.4vw, 28px);
   align-items: stretch;
   justify-content: center;
   width: 100%;
-  max-width: 1940px;
+  max-width: 2360px;
   margin: 0 auto;
   padding: clamp(14px, 2vw, 22px);
   border: 1px solid rgba(29, 37, 34, 0.1);
@@ -1997,8 +1998,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-demo {
-  gap: clamp(16px, 2vw, 24px);
-  padding: clamp(10px, 1.45vw, 16px);
+  gap: clamp(14px, 1.8vw, 22px);
+  padding: clamp(8px, 1.1vw, 14px);
 }
 
 .landing-demo #landing-replay {
@@ -3067,8 +3068,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) #landing-replay {
-  gap: 10px;
-  padding: clamp(10px, 1.25vw, 14px);
+  gap: 8px;
+  padding: clamp(6px, 0.9vw, 12px);
 }
 
 .landing-page #landing-replay .replay-game-id {
@@ -3147,7 +3148,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .landing-page #landing-replay .replay-board.cg-wrap {
-  max-width: min(480px, calc(100dvh - 240px));
+  max-width: min(600px, calc(100dvh - 180px));
   box-shadow:
     0 0 0 1px rgba(58, 65, 60, 0.18),
     0 12px 26px rgba(43, 49, 45, 0.14);
