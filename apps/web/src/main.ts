@@ -1,7 +1,9 @@
 import './styles.css';
 import { initializeThemeSettings } from './theme.js';
+import { initializeAccountNav } from './account-nav.js';
 
 initializeThemeSettings();
+initializeAccountNav();
 
 const phKey = import.meta.env.VITE_POSTHOG_KEY;
 const phHost = import.meta.env.VITE_POSTHOG_HOST;

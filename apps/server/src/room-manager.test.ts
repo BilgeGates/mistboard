@@ -37,6 +37,7 @@ function makeRoom(
     clockTimer: null,
     engineTimer: null,
     mode: 'pvp',
+    rated: true,
     randomEngine: false,
     pveEngineId: null,
     pendingWrites: Promise.resolve(),

@@ -53,6 +53,11 @@ let replayIndex: number | null = null;
 let lastSoundEventCount: number | null = null;
 let lastTerminalSound: string | null = null;
 let lastSoundView: PlayerView | null = null;
+// Fog-view history: stores server-provided PlayerView at each event count
+// during live Fog of War PvP. Replaying from fog-filtered events alone
+// would produce broken positions since opponent moves are stripped.
+let fogViewHistory: Map<number, PlayerView> = new Map();
+let lastCapturedEventCount = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -62,6 +67,8 @@ export function initRender(
 ): void {
   sendSocket = callbacks.sendSocket;
   reconnectNow = callbacks.reconnectNow;
+  fogViewHistory = new Map();
+  lastCapturedEventCount = 0;
   refs = createLayout(target);
   sound = createSoundController();
 }
@@ -216,6 +223,7 @@ function buildNavHtml(): string {
 // ── Main render ───────────────────────────────────────────────────────────────
 
 export function render(): void {
+  captureFogView();
   const view = currentView();
   const projection = currentProjection();
   const nextOrientation = view?.perspective ?? (liveState.seat === 'black' ? 'black' : 'white');
@@ -399,6 +407,7 @@ function renderActionStatus(view: PlayerView | null): void {
 function renderGameInfo(view: PlayerView | null): void {
   const items = [
     infoItem('Mode', modeLabel()),
+    ...(liveState.roomMode === 'pvp' ? [infoItem('Rating', liveState.rated ? 'Rated' : 'Casual')] : []),
     infoItem('Seat', seatLabel(liveState.seat)),
     infoItem('Turn', turnLabel(view)),
     infoItem('Connection', connectionLabel()),
@@ -1109,7 +1118,23 @@ function replayControlDisabled(action: string): boolean {
   return false;
 }
 
+function isFogLivePvp(): boolean {
+  return liveState.roomMode === 'pvp'
+    && liveState.state?.variant === 'fog-of-war'
+    && liveState.state?.status.type !== 'finished';
+}
+
+function captureFogView(): void {
+  if (!isFogLivePvp() || !liveState.state) return;
+  if (liveState.events.length <= lastCapturedEventCount) return;
+  fogViewHistory.set(liveState.events.length, liveState.state);
+  lastCapturedEventCount = liveState.events.length;
+}
+
 function replayHistoryIndexes(): number[] {
+  if (isFogLivePvp() && fogViewHistory.size > 0) {
+    return Array.from(fogViewHistory.keys()).sort((a, b) => a - b);
+  }
   const indexes: number[] = [];
   for (const [index, event] of liveState.events.entries()) {
     if (isReplayHistoryEvent(event)) indexes.push(index + 1);
@@ -1161,6 +1186,11 @@ export function currentView(): PlayerView | null {
   const projection = currentProjection();
   const perspective = liveState.seat === 'black' ? 'black' : 'white';
   if (isLive() && (!projection || projection.state.variant !== 'fog-of-war' || projection.state.status.type !== 'finished')) return liveState.state;
+  // Historical position during live fog pvp: events are fog-filtered so
+  // projection is incomplete — use stored server-provided view instead.
+  if (!isLive() && replayIndex !== null && isFogLivePvp()) {
+    return fogViewHistory.get(replayIndex) ?? liveState.state;
+  }
   if (!projection) return liveState.state;
   if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished' && !postgameFogEnabled) {
     return fullTruthViewForProjection(projection, perspective);

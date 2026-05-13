@@ -281,6 +281,7 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
     whiteName: null,
     blackName: null,
     corpusId: null,
+    rated: room.rated,
     participants: [
       participantForSeatToken('white', room.projection.seats.white ?? null, room.seatTokens.white, room.mode, ctx.pveBuiltinEngineClientId),
       participantForSeatToken('black', room.projection.seats.black ?? null, room.seatTokens.black, room.mode, ctx.pveBuiltinEngineClientId),

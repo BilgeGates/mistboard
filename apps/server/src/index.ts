@@ -499,6 +499,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     clockTimer: null,
     engineTimer: null,
     mode,
+    rated: true,
     randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
     pveEngineId: isPlayableLiveEngineClientId(projection.seats.black)
       ? canonicalEngineVersionId(projection.seats.black!)
@@ -518,6 +519,7 @@ async function createRoom(
   engineId: string,
   hiddenDraft960 = false,
   timeControl?: RoomTimeControl,
+  rated = true,
 ): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
@@ -570,6 +572,7 @@ async function createRoom(
       clockTimer: null,
       engineTimer: null,
       mode,
+      rated,
       randomEngine: mode === 'pve',
       pveEngineId: mode === 'pve' ? engineId : null,
       pendingWrites: Promise.resolve(),
@@ -871,6 +874,7 @@ function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | 
     whiteName: summary.whiteName,
     blackName: summary.blackName,
     corpusId: summary.corpusId,
+    rated: summary.rated ?? true,
     jobId: null,
     gameIndex: null,
     whiteEngineId: null,

@@ -62,6 +62,7 @@ export interface HttpApiContext {
     engineId: string,
     hiddenDraft960?: boolean,
     timeControl?: RoomTimeControl,
+    rated?: boolean,
   ): Promise<Room>;
   inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null;
 }
@@ -267,6 +268,7 @@ export async function handleApiRequest(
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
     const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
+    const rated = body.rated === false ? false : true;
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_mode' }));
@@ -287,7 +289,7 @@ export async function handleApiRequest(
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
       return;
     }
-    const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined);
+    const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined, rated);
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
     return;
@@ -307,6 +309,7 @@ export async function handleApiRequest(
     const body = await readJsonBody(request);
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
+    const lobbyRated = body.rated === false ? false : true;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
@@ -317,7 +320,7 @@ export async function handleApiRequest(
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
       return;
     }
-    const ticket = await joinLobby(ctx, hiddenDraft960, timeControl ?? undefined);
+    const ticket = await joinLobby(ctx, hiddenDraft960, timeControl ?? undefined, lobbyRated);
     writeJson(response, ticket.roomId ? 201 : 202, lobbyTicketResponse(ticket));
     return;
   }
@@ -807,18 +810,21 @@ async function joinLobby(
   ctx: HttpApiContext,
   hiddenDraft960: boolean,
   timeControl: RoomTimeControl | undefined,
+  rated = true,
 ): Promise<LobbyTicket> {
   pruneLobbyTickets(ctx);
   const timeKey = timeControlKey(timeControl);
   const matchedTicket = ctx.lobbyQueue.find((ticket) => (
     ticket.roomId === null
     && ticket.hiddenDraft960 === hiddenDraft960
+    && ticket.rated === rated
     && timeControlKey(ticket.timeControl) === timeKey
   ));
   const ticket: LobbyTicket = {
     id: randomUUID(),
     createdAt: Date.now(),
     hiddenDraft960,
+    rated,
     matchedAt: null,
     roomId: null,
     timeControl,
@@ -832,7 +838,7 @@ async function joinLobby(
 
   let room: Room;
   try {
-    room = await ctx.createRoom('pvp', 'fog-of-war', ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl);
+    room = await ctx.createRoom('pvp', 'fog-of-war', ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl, rated);
   } catch (err) {
     ctx.lobbyTickets.delete(ticket.id);
     throw err;
@@ -888,6 +894,7 @@ function lobbyOpenRequests(ctx: HttpApiContext): Array<Record<string, unknown>> 
     .slice(0, 20)
     .map((ticket) => ({
       hiddenDraft960: ticket.hiddenDraft960,
+      rated: ticket.rated,
       timeControl: ticket.timeControl ?? {
         initialMs: ctx.liveClockInitialMs,
         incrementMs: ctx.liveClockIncrementMs,

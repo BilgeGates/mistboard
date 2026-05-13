@@ -46,6 +46,7 @@ export type GameSummary = {
   whiteName: string | null;
   blackName: string | null;
   corpusId: string | null;
+  rated?: boolean;
   reviewStatus?: GameReviewStatus;
   visibility?: GameVisibility;
   participants?: GameParticipant[];
@@ -76,6 +77,7 @@ export type GameRecord = {
   whiteName: string | null;
   blackName: string | null;
   corpusId: string | null;
+  rated: boolean;
   visibility: GameVisibility;
   participants: GameParticipant[];
 };
@@ -725,12 +727,14 @@ export async function getUserProfileByHandle(
     white_name: string | null;
     black_name: string | null;
     corpus_id: string | null;
+    rated: boolean;
     visibility: GameVisibility;
   }>(
     `SELECT games.room_id, game_participants.color AS player_color,
             games.variant, games.mode, games.result, games.termination,
             games.ply_count, games.started_at, games.ended_at,
-            games.white_name, games.black_name, games.corpus_id, games.visibility
+            games.white_name, games.black_name, games.corpus_id,
+            COALESCE(games.rated, true) AS rated, games.visibility
      FROM game_participants
      JOIN games ON games.room_id = game_participants.game_id
      WHERE game_participants.subject_type = 'user'
@@ -754,6 +758,7 @@ export async function getUserProfileByHandle(
     whiteName: row.white_name,
     blackName: row.black_name,
     corpusId: row.corpus_id,
+    rated: row.rated,
     visibility: row.visibility,
     participants: [],
   }));
@@ -829,6 +834,7 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
     whiteName: row.white_name,
     blackName: row.black_name,
     corpusId: row.corpus_id,
+    rated: true,
     visibility: row.visibility,
     participants: [],
   }));
@@ -888,6 +894,7 @@ export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecor
     whiteEngineId: row.white_engine_id,
     blackEngineId: row.black_engine_id,
     timeControl: row.time_control,
+    rated: true,
     visibility: row.visibility,
     participants: [],
   }));
@@ -960,6 +967,7 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
     whiteEngineId: row.white_engine_id,
     blackEngineId: row.black_engine_id,
     timeControl: row.time_control,
+    rated: true,
     visibility: row.visibility,
     participants: [],
   }));
@@ -1028,6 +1036,7 @@ export async function listCompletedGames(filters: CompletedGameFilters): Promise
     whiteEngineId: row.white_engine_id,
     blackEngineId: row.black_engine_id,
     timeControl: row.time_control,
+    rated: true,
     visibility: row.visibility,
     participants: [],
   }));
@@ -1082,6 +1091,7 @@ export async function getGameSummary(roomId: string): Promise<RecentEveGameRecor
     whiteName: row.white_name,
     blackName: row.black_name,
     corpusId: row.corpus_id,
+    rated: true,
     jobId: row.job_id,
     gameIndex: row.game_index,
     whiteEngineId: row.white_engine_id,
@@ -1174,12 +1184,13 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
   const visibility = summary.visibility ?? 'public';
   try {
     await client.query('BEGIN');
+    const rated = summary.rated ?? true;
     await client.query(
       `INSERT INTO games
          (room_id, variant, result, termination, ply_count, started_at, ended_at,
           white_client, black_client, white_name, black_name, corpus_id,
-          mode, status, review_status, visibility)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed', $14, $15)
+          mode, status, review_status, visibility, rated)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed', $14, $15, $16)
        ON CONFLICT (room_id) DO UPDATE SET
          variant = EXCLUDED.variant,
          result = EXCLUDED.result,
@@ -1196,6 +1207,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
          status = 'completed',
          review_status = EXCLUDED.review_status,
          visibility = EXCLUDED.visibility,
+         rated = EXCLUDED.rated,
          aborted_reason = NULL
        WHERE games.status = 'running'`,
       [
@@ -1214,6 +1226,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
         mode,
         summary.reviewStatus ?? 'unreviewed',
         visibility,
+        rated,
       ],
     );
     const participants = summary.participants ?? defaultParticipantsForSummary(summary, mode, visibility);
@@ -1237,7 +1250,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
         ],
       );
     }
-    if (mode === 'pvp') {
+    if (mode === 'pvp' && rated) {
       const whiteParticipant = participants.find((p) => p.color === 'white');
       const blackParticipant = participants.find((p) => p.color === 'black');
       if (

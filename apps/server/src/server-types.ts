@@ -43,6 +43,7 @@ export type Room = {
   clockTimer: ReturnType<typeof setTimeout> | null;
   engineTimer: ReturnType<typeof setTimeout> | null;
   mode: GameMode;
+  rated: boolean;
   randomEngine: boolean;
   pveEngineId: string | null;
   pendingWrites: Promise<void>;
@@ -53,6 +54,7 @@ export type LobbyTicket = {
   id: string;
   createdAt: number;
   hiddenDraft960: boolean;
+  rated: boolean;
   matchedAt: number | null;
   roomId: string | null;
   timeControl: RoomTimeControl | undefined;

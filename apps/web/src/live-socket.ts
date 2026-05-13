@@ -39,6 +39,7 @@ type ServerMessage =
     resolvedStartIds?: DraftResolvedStartIds;
     events: GameEvent[];
     state: PlayerView;
+    rated?: boolean;
   }
   | {
     type: 'snapshot';
@@ -61,6 +62,7 @@ type ServerMessage =
     resolvedStartIds?: DraftResolvedStartIds;
     events: GameEvent[];
     state: PlayerView;
+    rated?: boolean;
   }
   | { type: 'pong'; at: number };
 
@@ -167,6 +169,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.devViews = message.devViews;
     liveState.resolvedStartId = message.resolvedStartId;
     liveState.resolvedStartIds = message.resolvedStartIds ?? {};
+    liveState.rated = message.rated ?? true;
     liveState.events = message.events;
     liveState.state = message.state;
   }
@@ -187,6 +190,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.devViews = message.devViews;
     liveState.resolvedStartId = message.resolvedStartId;
     liveState.resolvedStartIds = message.resolvedStartIds ?? {};
+    liveState.rated = message.rated ?? true;
     liveState.events = message.events;
     liveState.state = message.state;
   }

@@ -31,6 +31,7 @@ export type SnapshotRoom = {
   mode?: GameAccessMode;
   projection: GameProjection;
   pveEngineId?: string | null;
+  rated?: boolean;
 };
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
@@ -61,6 +62,7 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     resolvedStartIds: resolvedStartIdsForClient(room.projection, client),
     events: eventsForClient(normalizedRoom, client),
     state: getClientView(normalizedRoom, client),
+    rated: room.rated ?? true,
   };
 }
 

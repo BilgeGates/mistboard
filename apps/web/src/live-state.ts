@@ -94,6 +94,7 @@ export const liveState = {
   lastServerAt: null as number | null,
   lastSnapshotAt: null as number | null,
   roomMode: 'pvp' as RoomMode,
+  rated: true,
   pveEngineId: null as string | null,
   pveEngineName: null as string | null,
   seat: 'spectator' as Seat,

@@ -116,6 +116,7 @@ type LandingTimePreset = {
 };
 type LandingRoomSetup = {
   startFormat: LandingStartFormat;
+  rated: boolean;
   timeControl: {
     initialMs: number;
     incrementMs: number;
@@ -129,6 +130,7 @@ type LobbyTicketResponse = {
 };
 type OpenLobbyRequest = {
   hiddenDraft960: boolean;
+  rated?: boolean;
   timeControl: {
     initialMs: number;
     incrementMs: number;
@@ -1524,6 +1526,7 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
     const status = document.createElement('span');
     const setup: LandingRoomSetup = {
       startFormat: request.hiddenDraft960 ? 'draft960' : 'standard',
+      rated: request.rated ?? true,
       timeControl: request.timeControl,
     };
     joinLobbyFromPlay(join, setup, status);
@@ -1558,6 +1561,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   existing?.remove();
 
   let startFormat: LandingStartFormat = 'standard';
+  let rated = true;
   let selectedPreset: LandingTimePresetId = '3m2';
   let selectedEngineId = choice.engineId;
   const defaultPreset = LANDING_TIME_PRESETS.find((preset) => preset.id === selectedPreset)!;
@@ -1690,7 +1694,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startButton.className = 'landing-setup-start';
   startButton.textContent = choice.mode === 'lobby' ? 'Find opponent' : choice.mode === 'pvp' ? 'Create room' : 'Start game';
   startButton.addEventListener('click', () => {
-    const setup = selectedRoomSetup(startFormat, selectedPreset, minutesInput.input, incrementInput.input);
+    const setup = selectedRoomSetup(startFormat, rated, selectedPreset, minutesInput.input, incrementInput.input);
     if (choice.mode === 'lobby') {
       cancelLobbyWait?.();
       cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status);
@@ -1719,10 +1723,16 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   });
   document.addEventListener('keydown', onKeyDown);
 
+  const ratingSection = (choice.mode === 'pvp' || choice.mode === 'lobby')
+    ? buildRatedToggleSection(() => rated, (v) => { rated = v; })
+    : null;
+
   actions.append(startButton, backButton);
   dialog.append(header, variantSection);
   if (engineSection) dialog.append(engineSection);
-  dialog.append(startSection, timeSection, status, actions);
+  dialog.append(startSection, timeSection);
+  if (ratingSection) dialog.append(ratingSection);
+  dialog.append(status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
   standardButton.focus();
@@ -1760,6 +1770,33 @@ function buildEngineSetupSection(
   return section;
 }
 
+function buildRatedToggleSection(get: () => boolean, set: (v: boolean) => void): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'landing-setup-section';
+  section.append(setupSectionLabel('Game type'));
+
+  const group = document.createElement('div');
+  group.className = 'landing-start-options';
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Game type');
+
+  const ratedButton = startOptionButton('Rated', true);
+  const casualButton = startOptionButton('Casual', false);
+
+  const sync = () => {
+    const isRated = get();
+    ratedButton.classList.toggle('selected', isRated);
+    ratedButton.setAttribute('aria-checked', isRated ? 'true' : 'false');
+    casualButton.classList.toggle('selected', !isRated);
+    casualButton.setAttribute('aria-checked', !isRated ? 'true' : 'false');
+  };
+  ratedButton.addEventListener('click', () => { set(true); sync(); });
+  casualButton.addEventListener('click', () => { set(false); sync(); });
+  group.append(ratedButton, casualButton);
+  section.append(group);
+  return section;
+}
+
 function setupSectionLabel(text: string): HTMLSpanElement {
   const label = document.createElement('span');
   label.className = 'landing-setup-label';
@@ -1787,6 +1824,7 @@ function customTimeInput(labelText: string, value: number): { label: HTMLLabelEl
 
 function selectedRoomSetup(
   startFormat: LandingStartFormat,
+  rated: boolean,
   presetId: LandingTimePresetId,
   minutesInput: HTMLInputElement,
   incrementInput: HTMLInputElement,
@@ -1795,6 +1833,7 @@ function selectedRoomSetup(
   if (preset && preset.id !== 'custom') {
     return {
       startFormat,
+      rated,
       timeControl: {
         initialMs: preset.initialMs,
         incrementMs: preset.incrementMs,
@@ -1806,6 +1845,7 @@ function selectedRoomSetup(
   const incrementSeconds = boundedNumber(incrementInput.valueAsNumber, 0, 60);
   return {
     startFormat,
+    rated,
     timeControl: {
       initialMs: Math.round(minutes * 60_000),
       incrementMs: Math.round(incrementSeconds * 1000),
@@ -2041,6 +2081,7 @@ async function createRoomFromPlay(
   engineId?: string,
   setup: LandingRoomSetup = {
     startFormat: 'standard',
+    rated: true,
     timeControl: { initialMs: 30_000, incrementMs: 2_000 },
   },
 ): Promise<void> {
@@ -2058,6 +2099,7 @@ async function createRoomFromPlay(
         variant: 'fog-of-war',
         hiddenDraft960: setup.startFormat === 'draft960',
         timeControl: setup.timeControl,
+        rated: setup.rated,
         ...(mode === 'pve' && engineId ? { engineId } : {}),
       }),
     });
@@ -2139,6 +2181,7 @@ function joinLobbyFromPlay(
       body: JSON.stringify({
         hiddenDraft960: setup.startFormat === 'draft960',
         timeControl: setup.timeControl,
+        rated: setup.rated,
       }),
     });
     if (!response.ok) throw new Error(`lobby join failed: ${response.status}`);
