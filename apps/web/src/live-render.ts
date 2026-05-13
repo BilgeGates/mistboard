@@ -32,11 +32,11 @@ import {
   type SoundController,
   type SoundKind,
 } from './live-state.js';
+import { primaryNavItems, utilityNavItems } from './nav-items.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const promotionRoles: PromotionRole[] = ['queen', 'rook', 'bishop', 'knight'];
-const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
 // ── Module-scope render-only state ────────────────────────────────────────────
 
@@ -209,11 +209,14 @@ function buildNavHtml(): string {
         <span>MISTBOARD</span>
       </a>
       <div class="site-nav-links">
-        <a class="site-nav-link" href="/watch">Watch</a>
-        <a class="site-nav-link" href="/leaderboard">Ratings</a>
+        ${primaryNavItems()
+          .map((item) => `<a class="site-nav-link" href="${item.href}">${escapeHtml(item.label)}</a>`)
+          .join('')}
       </div>
       <div class="site-nav-utilities">
-        ${SHOW_ENGINE_LAB_LINKS ? '<a class="site-nav-link" href="/lab">Lab</a>' : ''}
+        ${utilityNavItems()
+          .map((item) => `<a class="site-nav-link" href="${item.href}">${escapeHtml(item.label)}</a>`)
+          .join('')}
         <div class="site-nav-auth" data-account-slot>
           <a class="site-nav-link site-nav-link-signin" href="/account?tab=login">Sign in</a>
           <a class="site-nav-link-primary" href="/account?tab=register">Register</a>

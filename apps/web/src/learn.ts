@@ -10,10 +10,9 @@ import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
 import { boardFen, hiddenSquareClasses } from './board-ui.js';
+import { primaryNavItems, utilityNavItems } from './nav-items.js';
 
 const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
-const SHOW_ENGINE_LAB_LINKS =
-  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 const boardFiles = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 
 type Uci = `${Square}${Square}`;
@@ -2789,12 +2788,14 @@ function buildNav(): HTMLElement {
 
   const links = document.createElement('div');
   links.className = 'site-nav-links';
-  links.append(navLink('Watch', '/watch'), navLink('Ratings', '/leaderboard'));
+  for (const item of primaryNavItems()) {
+    links.append(navLink(item.label, item.href));
+  }
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
-  if (SHOW_ENGINE_LAB_LINKS) {
-    utilities.append(navLink('Lab', '/lab'));
+  for (const item of utilityNavItems()) {
+    utilities.append(navLink(item.label, item.href));
   }
   utilities.append(navLink('Account', '/account'));
 

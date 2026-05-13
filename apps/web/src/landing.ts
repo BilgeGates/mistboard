@@ -3,6 +3,7 @@ import type * as cg from 'chessground/types';
 import type { BeliefRow, TraceRow } from './belief-panel.js';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from './board-ui.js';
 import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameMeta } from './replay.js';
+import { primaryNavItems, utilityNavItems } from './nav-items.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -139,7 +140,6 @@ type OpenLobbyRequest = {
 };
 
 const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
-const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 const LANDING_TIME_PRESETS: LandingTimePreset[] = [
   { id: '1m1', label: '1 + 1', initialMs: 60_000, incrementMs: 1_000 },
   { id: '3m2', label: '3 + 2', initialMs: 3 * 60_000, incrementMs: 2_000 },
@@ -1280,16 +1280,15 @@ function buildNav(): HTMLElement {
   const links = document.createElement('div');
   links.className = 'site-nav-links';
 
-  const watchLink = navLink('Watch', '/watch');
-  const leaderboardLink = navLink('Ratings', '/leaderboard');
-  links.append(watchLink, leaderboardLink);
+  for (const item of primaryNavItems()) {
+    links.append(navLink(item.label, item.href));
+  }
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
 
-  if (SHOW_ENGINE_LAB_LINKS) {
-    const labLink = navLink('Lab', '/lab');
-    utilities.append(labLink);
+  for (const item of utilityNavItems()) {
+    utilities.append(navLink(item.label, item.href));
   }
   utilities.append(buildSignedOutAccountLinks());
   nav.append(brand, links, utilities);
