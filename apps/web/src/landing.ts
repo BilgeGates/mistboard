@@ -1383,7 +1383,7 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
-  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: false });
+  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
   const section = document.createElement('section');
   section.className = 'landing-demo';
