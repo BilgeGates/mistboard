@@ -5,3 +5,10 @@ export {
   hiddenSquareClasses,
   setBoardPosition,
 } from './board.js';
+export { mountSteppedBoards } from './stepper.js';
+export type {
+  SteppedBoardsOptions,
+  StepperBoardSpec,
+  StepperController,
+  StepperPosition,
+} from './stepper.js';

@@ -3,8 +3,14 @@
 // Visual specs live in [VISUAL: ...] notes that should be replaced with
 // rendered assets when sections are written.
 
-import { type BoardSpec, type CompositionLayout, startingPositionFromBackRank } from '@mistboard/board-render';
-import type { PieceRole } from '@mistboard/game';
+import {
+  type BoardSpec,
+  type CompositionLayout,
+  piecesToBoard,
+  startingPositionFromBackRank,
+} from '@mistboard/board-render';
+import type { SteppedBoardsOptions } from '@mistboard/board-render/interactive';
+import type { Board, PieceRole, Square } from '@mistboard/game';
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
 
@@ -33,7 +39,7 @@ export type StaticBoardsBlock = {
 export type InteractiveBlock = {
   kind: 'interactive';
   widget: 'stepper';
-  spec: unknown;
+  spec: SteppedBoardsOptions;
   caption?: string;
 };
 
@@ -64,6 +70,19 @@ export type Article = {
 const DRAFT960_OFFER_A: PieceRole[] = ['bishop', 'bishop', 'queen', 'knight', 'knight', 'rook', 'king', 'rook'];
 const DRAFT960_OFFER_B: PieceRole[] = ['rook', 'knight', 'bishop', 'bishop', 'king', 'queen', 'knight', 'rook'];
 const DRAFT960_OFFER_C: PieceRole[] = ['queen', 'rook', 'bishop', 'knight', 'knight', 'bishop', 'king', 'rook'];
+
+const STANDARD_BACK_RANK: PieceRole[] = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
+
+function withMove(board: Board, from: Square, to: Square): Board {
+  const next: Board = { ...board };
+  next[to] = next[from];
+  delete next[from];
+  return next;
+}
+
+const WORKED_EXAMPLE_START = piecesToBoard(startingPositionFromBackRank(STANDARD_BACK_RANK));
+const WORKED_EXAMPLE_AFTER_E4 = withMove(WORKED_EXAMPLE_START, 'e2', 'e4');
+const WORKED_EXAMPLE_AFTER_E4_E5 = withMove(WORKED_EXAMPLE_AFTER_E4, 'e7', 'e5');
 
 export const articles: Article[] = [
   {
@@ -165,9 +184,35 @@ export const articles: Article[] = [
       },
       {
         heading: 'Worked example',
-        paragraphs: [
-          '[INTERACTIVE CENTERPIECE: worked Draft960+FoW game stepper — 5-6 snapshots from a real Mistboard game with prev/next navigation, W view / truth / B view triptychs, narrative per moment.]',
-          'Section TBD. Pull a dramatic Draft960+FoW game from Mistboard. Annotate the moments where each player learned something about the other\'s pick, and where that knowledge changed their plan.',
+        blocks: [
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'single',
+              positions: [
+                {
+                  boards: [{ board: WORKED_EXAMPLE_START }],
+                  narrative:
+                    'Stepper dogfood — single-board layout, three placeholder positions. Real Worked-example content needs a dramatic Draft960+FoW game with triptych W view / truth / B view.',
+                },
+                {
+                  boards: [{ board: WORKED_EXAMPLE_AFTER_E4 }],
+                  narrative: '1.e4 — White pushes the king pawn.',
+                },
+                {
+                  boards: [{ board: WORKED_EXAMPLE_AFTER_E4_E5 }],
+                  narrative: '1...e5 — Black mirrors. Symmetric king-pawn opening.',
+                },
+              ],
+            },
+            caption: 'Stepper dogfood — placeholder until a real game is selected.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'Section TBD. Pull a dramatic Draft960+FoW game from Mistboard. Annotate the moments where each player learned something about the other\'s pick, and where that knowledge changed their plan.',
+          },
         ],
       },
       {

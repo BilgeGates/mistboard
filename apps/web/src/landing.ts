@@ -1270,8 +1270,10 @@ export async function mountArticlesIndex(root: HTMLElement): Promise<void> {
 export async function mountArticle(root: HTMLElement, slug: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
-  const { buildArticlePage } = await import('./articles.js');
-  root.append(buildNav(), buildArticlePage(slug), buildFooter());
+  const { buildArticlePage, mountPendingWidgets } = await import('./articles.js');
+  const articlePage = buildArticlePage(slug);
+  root.append(buildNav(), articlePage, buildFooter());
+  mountPendingWidgets(articlePage);
 }
 
 function buildNav(): HTMLElement {

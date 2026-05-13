@@ -1,10 +1,12 @@
 import { renderBoardComposition } from '@mistboard/board-render';
+import { mountSteppedBoards, type StepperController } from '@mistboard/board-render/interactive';
 import {
   articles,
   findArticle,
   type Article,
   type ArticleBlock,
   type ArticleSection,
+  type InteractiveBlock,
   type StaticBoardsBlock,
 } from './articles-data.js';
 
@@ -107,14 +109,16 @@ function renderSectionBody(section: ArticleSection): HTMLElement[] {
   return [];
 }
 
+// Interactive blocks need their parent DOM tree to be sized before chessground
+// boots, so we defer the actual mount until the article element is attached.
+// renderBlock stamps the wrapper with a `data-pending-widget` marker that
+// mountPendingWidgets() picks up and dispatches by widget kind.
+const pendingMounts = new WeakMap<HTMLElement, InteractiveBlock>();
+
 function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'paragraph') return paragraphNode(block.text);
   if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
-  // 'interactive' renders as a placeholder until widgets land in the next step.
-  const div = document.createElement('div');
-  div.className = 'article-interactive-placeholder';
-  div.textContent = `[interactive: ${block.widget}]`;
-  return div;
+  return renderInteractiveBlock(block);
 }
 
 function paragraphNode(text: string): HTMLParagraphElement {
@@ -122,6 +126,43 @@ function paragraphNode(text: string): HTMLParagraphElement {
   p.className = 'article-paragraph';
   p.textContent = text;
   return p;
+}
+
+function renderInteractiveBlock(block: InteractiveBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive';
+  figure.dataset.pendingWidget = block.widget;
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  pendingMounts.set(figure, block);
+  return figure;
+}
+
+export function mountPendingWidgets(root: HTMLElement): StepperController[] {
+  const controllers: StepperController[] = [];
+  const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
+  pending.forEach((figure) => {
+    const block = pendingMounts.get(figure);
+    if (!block) return;
+    const target = figure.querySelector<HTMLElement>('.article-interactive-target');
+    if (!target) return;
+    if (block.widget === 'stepper') {
+      controllers.push(mountSteppedBoards(target, block.spec));
+    }
+    pendingMounts.delete(figure);
+    delete figure.dataset.pendingWidget;
+  });
+  return controllers;
 }
 
 function renderStaticBoardsBlock(block: StaticBoardsBlock): HTMLElement {
