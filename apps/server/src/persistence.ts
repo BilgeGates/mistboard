@@ -50,6 +50,9 @@ export type GameSummary = {
   reviewStatus?: GameReviewStatus;
   visibility?: GameVisibility;
   participants?: GameParticipant[];
+  initialMs?: number | null;
+  incrementMs?: number | null;
+  hiddenDraft960?: boolean | null;
 };
 
 export type RunningGameSummary = {
@@ -1189,8 +1192,9 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
       `INSERT INTO games
          (room_id, variant, result, termination, ply_count, started_at, ended_at,
           white_client, black_client, white_name, black_name, corpus_id,
-          mode, status, review_status, visibility, rated)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed', $14, $15, $16)
+          mode, status, review_status, visibility, rated,
+          initial_ms, increment_ms, hidden_draft960)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed', $14, $15, $16, $17, $18, $19)
        ON CONFLICT (room_id) DO UPDATE SET
          variant = EXCLUDED.variant,
          result = EXCLUDED.result,
@@ -1208,6 +1212,9 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
          review_status = EXCLUDED.review_status,
          visibility = EXCLUDED.visibility,
          rated = EXCLUDED.rated,
+         initial_ms = EXCLUDED.initial_ms,
+         increment_ms = EXCLUDED.increment_ms,
+         hidden_draft960 = EXCLUDED.hidden_draft960,
          aborted_reason = NULL
        WHERE games.status = 'running'`,
       [
@@ -1227,6 +1234,9 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
         summary.reviewStatus ?? 'unreviewed',
         visibility,
         rated,
+        summary.initialMs ?? null,
+        summary.incrementMs ?? null,
+        summary.hiddenDraft960 ?? null,
       ],
     );
     const participants = summary.participants ?? defaultParticipantsForSummary(summary, mode, visibility);
