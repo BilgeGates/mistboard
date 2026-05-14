@@ -1,5 +1,5 @@
 import type { Color, Square } from '@mistboard/game';
-import { type PieceOnBoard, renderBoardSvg } from './board-svg.js';
+import { fogPatternDefs, type PieceOnBoard, renderBoardSvg } from './board-svg.js';
 import { boardsInLayout, type CompositionLayout, layoutPlacements } from './layouts.js';
 
 export type BoardSpec = {
@@ -51,7 +51,7 @@ export function renderBoardComposition(opts: CompositionOptions): string {
   }
 
   const xs = layoutPlacements(layout, canvasWidth, boardSize, gap);
-  const parts: string[] = [];
+  const parts: string[] = [fogPatternDefs()];
 
   for (let i = 0; i < boards.length; i += 1) {
     const label = boards[i]!.label;

@@ -10,5 +10,6 @@ export type {
   SteppedBoardsOptions,
   StepperBoardSpec,
   StepperController,
+  StepperOutcome,
   StepperPosition,
 } from './stepper.js';

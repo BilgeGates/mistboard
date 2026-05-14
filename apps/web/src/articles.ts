@@ -6,8 +6,10 @@ import {
   type Article,
   type ArticleBlock,
   type ArticleSection,
+  type CtaBlock,
   type InteractiveBlock,
   type StaticBoardsBlock,
+  type SubHeadingBlock,
 } from './articles-data.js';
 
 // Nav + footer come from landing.ts. We avoid re-implementing them by accepting
@@ -88,15 +90,168 @@ export function buildArticlePage(slug: string): HTMLElement {
     main.append(tldr);
   }
 
+  const body = document.createElement('div');
+  body.className = 'article-body';
+
+  const usedIds = new Set<string>();
+  let headingIndex = 0;
   for (const section of article.sections) {
     const h2 = document.createElement('h2');
     h2.className = 'article-section-heading';
     h2.textContent = section.heading;
-    main.append(h2);
-    for (const node of renderSectionBody(section)) main.append(node);
+    h2.id = uniqueId(section.heading, usedIds, headingIndex++);
+    body.append(h2);
+    for (const node of renderSectionBody(section)) {
+      if (node instanceof HTMLHeadingElement && node.tagName === 'H3') {
+        node.id = uniqueId(node.textContent ?? '', usedIds, headingIndex++);
+      }
+      body.append(node);
+    }
   }
 
+  const sidebar = buildTocSidebar(body);
+  if (sidebar) main.append(sidebar);
+  main.append(body);
+
   return main;
+}
+
+function uniqueId(text: string, used: Set<string>, fallback: number): string {
+  let base = text.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  if (!base) base = `section-${fallback}`;
+  let id = base;
+  let n = 2;
+  while (used.has(id)) {
+    id = `${base}-${n}`;
+    n += 1;
+  }
+  used.add(id);
+  return id;
+}
+
+function buildTocSidebar(body: HTMLElement): HTMLElement | null {
+  const headings = body.querySelectorAll<HTMLHeadingElement>('h2, h3');
+  if (headings.length === 0) return null;
+
+  const aside = document.createElement('aside');
+  aside.className = 'article-toc-sidebar';
+  const sticky = document.createElement('div');
+  sticky.className = 'article-toc-sticky';
+  const title = document.createElement('h3');
+  title.className = 'article-toc-title';
+  title.textContent = 'On this page';
+  const nav = document.createElement('nav');
+  nav.className = 'article-toc-nav';
+  nav.setAttribute('aria-label', 'Table of contents');
+
+  const rootList = document.createElement('ul');
+  let currentH2Li: HTMLLIElement | null = null;
+  let currentH3Ul: HTMLUListElement | null = null;
+
+  headings.forEach((h) => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = `#${h.id}`;
+    a.textContent = h.textContent ?? '';
+    a.dataset.headingId = h.id;
+    li.append(a);
+    if (h.tagName === 'H2') {
+      rootList.append(li);
+      currentH2Li = li;
+      currentH3Ul = null;
+    } else if (currentH2Li) {
+      if (!currentH3Ul) {
+        currentH3Ul = document.createElement('ul');
+        currentH2Li.append(currentH3Ul);
+      }
+      currentH3Ul.append(li);
+    } else {
+      rootList.append(li);
+    }
+  });
+
+  nav.append(rootList);
+  sticky.append(title, nav);
+  aside.append(sticky);
+  return aside;
+}
+
+export function mountArticleEnhancements(root: HTMLElement): () => void {
+  const sidebar = root.querySelector<HTMLElement>('.article-toc-sidebar');
+  const body = root.querySelector<HTMLElement>('.article-body');
+  if (!sidebar || !body) return () => {};
+
+  const headings = Array.from(body.querySelectorAll<HTMLHeadingElement>('h2, h3'));
+  if (headings.length === 0) {
+    sidebar.style.display = 'none';
+    return () => {};
+  }
+
+  const links = Array.from(sidebar.querySelectorAll<HTMLAnchorElement>('a[data-heading-id]'));
+  const linkById = new Map(links.map((l) => [l.dataset.headingId!, l]));
+
+  const setActive = (id: string): void => {
+    for (const l of links) l.classList.remove('active');
+    const active = linkById.get(id);
+    if (!active) return;
+    active.classList.add('active');
+    // Auto-scroll the TOC pane to keep the active item visible.
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const linkRect = active.getBoundingClientRect();
+    if (linkRect.top < sidebarRect.top || linkRect.bottom > sidebarRect.bottom) {
+      active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      // The most-recently-intersected heading wins. With the rootMargin we
+      // use, only one heading is typically intersecting at a time.
+      const intersecting = entries.filter((e) => e.isIntersecting);
+      if (intersecting.length === 0) return;
+      const last = intersecting[intersecting.length - 1]!;
+      setActive(last.target.id);
+    },
+    { rootMargin: '-80px 0px -75% 0px' },
+  );
+  for (const h of headings) observer.observe(h);
+
+  const onLinkClick = (e: Event): void => {
+    const target = e.currentTarget as HTMLAnchorElement;
+    e.preventDefault();
+    const id = target.getAttribute('href')!.slice(1);
+    const el = document.getElementById(id);
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.pageYOffset - 64;
+    window.scrollTo({ top, behavior: 'smooth' });
+    history.replaceState(null, '', `#${id}`);
+  };
+  for (const l of links) l.addEventListener('click', onLinkClick);
+
+  let scrollFrame: number | null = null;
+  const onScroll = (): void => {
+    if (scrollFrame !== null) return;
+    scrollFrame = window.requestAnimationFrame(() => {
+      scrollFrame = null;
+      const atBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 10;
+      if (atBottom) {
+        const last = headings[headings.length - 1]!;
+        setActive(last.id);
+      }
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  return () => {
+    observer.disconnect();
+    for (const l of links) l.removeEventListener('click', onLinkClick);
+    window.removeEventListener('scroll', onScroll);
+    if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
+  };
 }
 
 function renderSectionBody(section: ArticleSection): HTMLElement[] {
@@ -117,15 +272,63 @@ const pendingMounts = new WeakMap<HTMLElement, InteractiveBlock>();
 
 function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'paragraph') return paragraphNode(block.text);
+  if (block.kind === 'sub-heading') return subHeadingNode(block);
   if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
+  if (block.kind === 'cta') return renderCtaBlock(block);
   return renderInteractiveBlock(block);
+}
+
+function renderCtaBlock(block: CtaBlock): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'article-cta-row';
+  for (const btn of block.buttons) {
+    const a = document.createElement('a');
+    a.className = `article-cta article-cta-${btn.emphasis ?? 'primary'}`;
+    a.href = btn.href;
+    a.textContent = btn.label;
+    if (btn.external) {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    }
+    row.append(a);
+  }
+  return row;
+}
+
+function subHeadingNode(block: SubHeadingBlock): HTMLHeadingElement {
+  const h3 = document.createElement('h3');
+  h3.className = 'article-sub-heading';
+  h3.textContent = block.text;
+  return h3;
 }
 
 function paragraphNode(text: string): HTMLParagraphElement {
   const p = document.createElement('p');
   p.className = 'article-paragraph';
-  p.textContent = text;
+  appendRichText(p, text);
   return p;
+}
+
+// Lightweight inline-link parser. Recognizes Markdown-style [text](href).
+// External hrefs (http/https) open in a new tab; internal hrefs (/foo, #foo)
+// do not. Anything that isn't a link is appended as a plain text node.
+const LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)/g;
+function appendRichText(el: HTMLElement, text: string): void {
+  let lastIndex = 0;
+  for (const match of text.matchAll(LINK_REGEX)) {
+    const start = match.index ?? 0;
+    if (start > lastIndex) el.append(text.slice(lastIndex, start));
+    const a = document.createElement('a');
+    a.href = match[2]!;
+    a.textContent = match[1]!;
+    if (/^https?:\/\//.test(match[2]!)) {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    }
+    el.append(a);
+    lastIndex = start + match[0].length;
+  }
+  if (lastIndex < text.length) el.append(text.slice(lastIndex));
 }
 
 function renderInteractiveBlock(block: InteractiveBlock): HTMLElement {

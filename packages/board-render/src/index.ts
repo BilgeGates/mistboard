@@ -6,7 +6,7 @@ export {
   FOG_OPACITY,
   LIGHT_SQUARE,
 } from './tokens.js';
-export { renderBoardSvg } from './board-svg.js';
+export { fogPatternDefs, renderBoardSvg } from './board-svg.js';
 export type { PieceOnBoard } from './board-svg.js';
 export { boardsInLayout, layoutPlacements } from './layouts.js';
 export type { CompositionLayout } from './layouts.js';
