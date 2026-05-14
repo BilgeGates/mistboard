@@ -8,6 +8,7 @@ import {
   type ArticleSection,
   type CtaBlock,
   type InteractiveBlock,
+  type RawSvgBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,
 } from './articles-data.js';
@@ -275,7 +276,21 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'sub-heading') return subHeadingNode(block);
   if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
   if (block.kind === 'cta') return renderCtaBlock(block);
+  if (block.kind === 'raw-svg') return renderRawSvgBlock(block);
   return renderInteractiveBlock(block);
+}
+
+function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-static';
+  figure.innerHTML = block.svg;
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+  return figure;
 }
 
 function renderCtaBlock(block: CtaBlock): HTMLElement {

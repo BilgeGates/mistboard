@@ -59,7 +59,23 @@ export type CtaBlock = {
   buttons: CtaButton[];
 };
 
-export type ArticleBlock = ParagraphBlock | SubHeadingBlock | StaticBoardsBlock | InteractiveBlock | CtaBlock;
+// Raw inline SVG — for hand-coded diagrams (timelines, axis plots, family
+// trees, etc.) that don't fit the board renderer. Author provides the
+// complete <svg>...</svg> string; the renderer wraps it in a <figure>
+// with an optional caption.
+export type RawSvgBlock = {
+  kind: 'raw-svg';
+  svg: string;
+  caption?: string;
+};
+
+export type ArticleBlock =
+  | ParagraphBlock
+  | SubHeadingBlock
+  | StaticBoardsBlock
+  | InteractiveBlock
+  | CtaBlock
+  | RawSvgBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body
 // that still carries `[VISUAL: ...]` markers — sections are migrated to
@@ -230,25 +246,61 @@ const MATE_AFTER_FOG_B = fogFor(MATE_AFTER, 'black');
 const MATE_FINAL_FOG_W = MATE_AFTER_FOG_W;
 const MATE_FINAL_FOG_B = MATE_AFTER_FOG_B;
 
-// ── Section 1 demo: knight visibility cone ────────────────────────────────
-// A near-empty position so the knight's cone reads cleanly. White king on
-// h1 contributes a small corner cone; black king on a8 is a sentinel,
-// outside any white-piece reach.
-const VISIBILITY_BOARD: Board = {
+// ── Section 1: per-piece visibility cones ─────────────────────────────────
+// Each demo is a near-empty board with one focal piece on e4 (e4 also for
+// the king, replacing the sentinel WK). White king on h1 acts as a sentinel
+// for the non-king demos so the variant has a legal game state; its small
+// corner cone (g1, g2, h2) is visible in the W view but doesn't compete with
+// the focal piece's central cone. Black king on a8 sits outside most
+// pieces' reach (the bishop and queen do see it via the long diagonal —
+// that's a feature, not a bug, of those demos).
+function coneState(id: string, board: Board): GameState {
+  return {
+    id,
+    variant: 'fog-of-war',
+    board,
+    status: { type: 'playing', turn: 'white' },
+    moveNumber: 30,
+    castlingRights: [],
+    halfmoveClock: 0,
+  };
+}
+const CONE_KNIGHT = coneState('cone-knight', {
   h1: { color: 'white', role: 'king' },
   e4: { color: 'white', role: 'knight' },
   a8: { color: 'black', role: 'king' },
-};
-const VISIBILITY_STATE: GameState = {
-  id: 'fow-rules-visibility',
-  variant: 'fog-of-war',
-  board: VISIBILITY_BOARD,
-  status: { type: 'playing', turn: 'white' },
-  moveNumber: 30,
-  castlingRights: [],
-  halfmoveClock: 0,
-};
-const VISIBILITY_FOG_W = fogFor(VISIBILITY_STATE, 'white');
+});
+const CONE_BISHOP = coneState('cone-bishop', {
+  h1: { color: 'white', role: 'king' },
+  e4: { color: 'white', role: 'bishop' },
+  a8: { color: 'black', role: 'king' },
+});
+const CONE_ROOK = coneState('cone-rook', {
+  h1: { color: 'white', role: 'king' },
+  e4: { color: 'white', role: 'rook' },
+  a8: { color: 'black', role: 'king' },
+});
+const CONE_QUEEN = coneState('cone-queen', {
+  h1: { color: 'white', role: 'king' },
+  e4: { color: 'white', role: 'queen' },
+  a8: { color: 'black', role: 'king' },
+});
+const CONE_PAWN = coneState('cone-pawn', {
+  h1: { color: 'white', role: 'king' },
+  e4: { color: 'white', role: 'pawn' },
+  a8: { color: 'black', role: 'king' },
+});
+// King demo: the WK is the focal piece; no sentinel WK.
+const CONE_KING = coneState('cone-king', {
+  e4: { color: 'white', role: 'king' },
+  a8: { color: 'black', role: 'king' },
+});
+const CONE_KNIGHT_FOG = fogFor(CONE_KNIGHT, 'white');
+const CONE_BISHOP_FOG = fogFor(CONE_BISHOP, 'white');
+const CONE_ROOK_FOG = fogFor(CONE_ROOK, 'white');
+const CONE_QUEEN_FOG = fogFor(CONE_QUEEN, 'white');
+const CONE_PAWN_FOG = fogFor(CONE_PAWN, 'white');
+const CONE_KING_FOG = fogFor(CONE_KING, 'white');
 
 // ── En passant demo ───────────────────────────────────────────────────────
 // White pawn on a5; black just plays b7-b5 (a two-square push next to the
@@ -307,6 +359,89 @@ const PROMOTION_KING_MOVED_FOG_W = fogFor(PROMOTION_KING_MOVED, 'white');
 const PROMOTION_KING_MOVED_FOG_B = fogFor(PROMOTION_KING_MOVED, 'black');
 const PROMOTION_FINAL_FOG_W = PROMOTION_KING_MOVED_FOG_W;
 const PROMOTION_FINAL_FOG_B = PROMOTION_KING_MOVED_FOG_B;
+
+// ── Pin demo (no check rule) ──────────────────────────────────────────────
+// White king on e1, white bishop on e2 (the "pinned" piece), black rook on
+// e8. Standard chess: bishop is pinned and can't move. Fog of War: no check
+// rule, so bishop moves freely. White, not seeing the rook, plays Bh5;
+// Black's rook captures the king down the now-open file.
+const PIN_BOARD: Board = {
+  e1: { color: 'white', role: 'king' },
+  e2: { color: 'white', role: 'bishop' },
+  a2: { color: 'white', role: 'pawn' },
+  h2: { color: 'white', role: 'pawn' },
+  e8: { color: 'black', role: 'rook' },
+  g8: { color: 'black', role: 'king' },
+  a7: { color: 'black', role: 'pawn' },
+  h7: { color: 'black', role: 'pawn' },
+};
+const PIN_BEFORE: GameState = {
+  id: 'fow-rules-pin',
+  variant: 'fog-of-war',
+  board: PIN_BOARD,
+  status: { type: 'playing', turn: 'white' },
+  moveNumber: 15,
+  castlingRights: [],
+  halfmoveClock: 0,
+};
+const PIN_AFTER_BMOVE = fogOfWarVariant.applyMove(PIN_BEFORE, { from: 'e2', to: 'h5' });
+const PIN_FINAL = fogOfWarVariant.applyMove(PIN_AFTER_BMOVE, { from: 'e8', to: 'e1' });
+const PIN_BEFORE_FOG_B = fogFor(PIN_BEFORE, 'black');
+const PIN_AFTER_FOG_B = fogFor(PIN_AFTER_BMOVE, 'black');
+const PIN_FINAL_FOG_B = PIN_AFTER_FOG_B;
+
+// ── Discovered visibility loss demo ───────────────────────────────────────
+// White knight on f3 covers d4. Black rook on d8 wants the d-file but can't
+// safely advance to d4. White moves the knight to h4 (attacking kingside),
+// giving up sight of d4. Black slides Rd8-d4 unseen; once on d4, Black's
+// rook gains visibility on rank 4, including the white knight's new square.
+const DISCOVERY_BOARD: Board = {
+  g1: { color: 'white', role: 'king' },
+  f3: { color: 'white', role: 'knight' },
+  g8: { color: 'black', role: 'king' },
+  d8: { color: 'black', role: 'rook' },
+};
+const DISCOVERY_BEFORE: GameState = {
+  id: 'fow-rules-discovery',
+  variant: 'fog-of-war',
+  board: DISCOVERY_BOARD,
+  status: { type: 'playing', turn: 'white' },
+  moveNumber: 15,
+  castlingRights: [],
+  halfmoveClock: 0,
+};
+const DISCOVERY_AFTER_NMOVE = fogOfWarVariant.applyMove(DISCOVERY_BEFORE, { from: 'f3', to: 'h4' });
+const DISCOVERY_FINAL = fogOfWarVariant.applyMove(DISCOVERY_AFTER_NMOVE, { from: 'd8', to: 'd4' });
+const DISCOVERY_BEFORE_FOG_B = fogFor(DISCOVERY_BEFORE, 'black');
+const DISCOVERY_AFTER_FOG_B = fogFor(DISCOVERY_AFTER_NMOVE, 'black');
+const DISCOVERY_FINAL_FOG_B = fogFor(DISCOVERY_FINAL, 'black');
+
+// ── Worked mini-game: scholar's-mate-style trap in Fog of War ────────────
+// 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6 4.Qxf7 Kxf7 5.Bxf7
+// The bishop is the real threat from move 2 onward, but no Black piece ever
+// reaches c4, so Black never sees it. The queen sortie looks like the
+// primary attack; Black plays 3...Nf6 to attack the queen. When 4.Qxf7
+// captures the f7 pawn, Black's king is forced to recapture (queen is
+// attacking the king next move). Kxf7 walks into the hidden bishop, which
+// captures the king. Information asymmetry directly causes the loss.
+const MINIGAME_START = fogOfWarVariant.createInitialState('fow-rules-minigame');
+const MINIGAME_E4 = fogOfWarVariant.applyMove(MINIGAME_START, { from: 'e2', to: 'e4' });
+const MINIGAME_E5 = fogOfWarVariant.applyMove(MINIGAME_E4, { from: 'e7', to: 'e5' });
+const MINIGAME_BC4 = fogOfWarVariant.applyMove(MINIGAME_E5, { from: 'f1', to: 'c4' });
+const MINIGAME_NC6 = fogOfWarVariant.applyMove(MINIGAME_BC4, { from: 'b8', to: 'c6' });
+const MINIGAME_QH5 = fogOfWarVariant.applyMove(MINIGAME_NC6, { from: 'd1', to: 'h5' });
+const MINIGAME_NF6 = fogOfWarVariant.applyMove(MINIGAME_QH5, { from: 'g8', to: 'f6' });
+const MINIGAME_QXF7 = fogOfWarVariant.applyMove(MINIGAME_NF6, { from: 'h5', to: 'f7' });
+const MINIGAME_KXF7 = fogOfWarVariant.applyMove(MINIGAME_QXF7, { from: 'e8', to: 'f7' });
+const MINIGAME_BXF7 = fogOfWarVariant.applyMove(MINIGAME_KXF7, { from: 'c4', to: 'f7' });
+const MINIGAME_E5_FOG_W = fogFor(MINIGAME_E5, 'white');
+const MINIGAME_NC6_FOG_W = fogFor(MINIGAME_NC6, 'white');
+const MINIGAME_NF6_FOG_W = fogFor(MINIGAME_NF6, 'white');
+const MINIGAME_KXF7_FOG_W = fogFor(MINIGAME_KXF7, 'white');
+// Fog stays on after capture: snapshot the pre-final fog so the win
+// position carries the same visibility filter the reader had at the moment
+// the king was captured.
+const MINIGAME_BXF7_FOG_W = MINIGAME_KXF7_FOG_W;
 
 export const articles: Article[] = [
   {
@@ -459,7 +594,7 @@ export const articles: Article[] = [
     tldr: [
       'You see your own pieces and every square those pieces could legally move to. That’s it.',
       'Kings are captured, not checkmated. You can walk into mate without knowing it.',
-      'Visibility shifts every move. Scouting and deception are first-class strategic ideas.',
+      'No check enforcement anywhere. Castling, en passant, and promotion have FoW-specific texture worth knowing.',
     ],
     sections: [
       {
@@ -484,29 +619,50 @@ export const articles: Article[] = [
             text: "That's the rule. Visibility is your pieces' squares plus their legal destinations.",
           },
           {
-            kind: 'static-boards',
-            layout: 'pair',
-            canvasWidth: 560,
-            canvasHeight: 270,
-            boardSize: 220,
-            boardY: 36,
-            gap: 60,
-            labelY: 24,
-            labelFill: '#4b5563',
-            boards: [
-              {
-                pieces: boardToPieces(VISIBILITY_STATE.board),
-                fogSquares: VISIBILITY_FOG_W,
-                orientation: 'white',
-                label: "WHITE'S VIEW",
-              },
-              {
-                pieces: boardToPieces(VISIBILITY_STATE.board),
-                orientation: 'white',
-                label: 'TRUTH',
-              },
-            ],
-            caption: "Knight on e4, king on h1. White sees every square it could legally move to, and nothing else. The black king in the corner stays hidden.",
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'single',
+              positions: [
+                {
+                  narrative: "Knight on e4. Knights jump — they see only the squares they could land on, not the squares between. The cone is the eight L-shaped destinations (c3, d2, f2, g3, c5, d6, f6, g5) plus the knight's own square. The king on h1 contributes its corner cone (g1, g2, h2).",
+                  boards: [
+                    { board: CONE_KNIGHT.board, fogSquares: CONE_KNIGHT_FOG, orientation: 'white' },
+                  ],
+                },
+                {
+                  narrative: "Bishop on e4. Sliders see along their lines — up to (and including) the first piece they could legally interact with. Both diagonals from e4 are clear, so the bishop sees them end to end — including the corner square a8, where Black's king happens to be sitting. The bishop's diagonal reveal lights up a sentinel you didn't know was there.",
+                  boards: [
+                    { board: CONE_BISHOP.board, fogSquares: CONE_BISHOP_FOG, orientation: 'white' },
+                  ],
+                },
+                {
+                  narrative: "Rook on e4. Same slider logic, but along file and rank. The rook sees the full e-file and the full 4th rank — every square it could legally move to.",
+                  boards: [
+                    { board: CONE_ROOK.board, fogSquares: CONE_ROOK_FOG, orientation: 'white' },
+                  ],
+                },
+                {
+                  narrative: "Queen on e4. The queen is rook plus bishop — the most visibility-dense piece on the board. From a central square, a queen sees roughly half the board.",
+                  boards: [
+                    { board: CONE_QUEEN.board, fogSquares: CONE_QUEEN_FOG, orientation: 'white' },
+                  ],
+                },
+                {
+                  narrative: "Pawn on e4. Pawns are weird. The pawn sees its push square (e5) and its two capture diagonals (d5, f5) — three squares total. It does not see e3 (can't move backward) or e6 (no two-square push outside the starting rank). From e2, a pawn would also see the two-square push e4.",
+                  boards: [
+                    { board: CONE_PAWN.board, fogSquares: CONE_PAWN_FOG, orientation: 'white' },
+                  ],
+                },
+                {
+                  narrative: "King on e4. The king sees its eight neighbors plus its own square — the only piece whose visibility matches the naive 'I see around me' intuition.",
+                  boards: [
+                    { board: CONE_KING.board, fogSquares: CONE_KING_FOG, orientation: 'white' },
+                  ],
+                },
+              ],
+            },
+            caption: "Each piece sees the squares it could legally move to — and that's it.",
           } as ArticleBlock,
         ],
       },
@@ -563,36 +719,33 @@ export const articles: Article[] = [
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'triptych',
+              layout: 'pair',
               positions: [
                 {
-                  narrative: "Sparse middlegame after a queen trade. Black's rook has slid down the open e-file to e8. White doesn't see it.",
+                  narrative: "Sparse middlegame after a queen trade. Your rook has slid down the open e-file to e8, controlling the entire file. White doesn't see it.",
                   boards: [
-                    { board: MATE_BEFORE.board, fogSquares: MATE_BEFORE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: MATE_BEFORE.board, orientation: 'white', label: 'TRUTH' },
-                    { board: MATE_BEFORE.board, fogSquares: MATE_BEFORE_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+                    { board: MATE_BEFORE.board, fogSquares: MATE_BEFORE_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: MATE_BEFORE.board, orientation: 'black', label: 'TRUTH' },
                   ],
                 },
                 {
-                  narrative: "1.Ke1. White centralizes the king. The move looks normal — but it lands the king on the e-file the rook is staring down.",
+                  narrative: "1.Ke1. White centralizes the king — straight onto the e-file your rook is staring down. White doesn't know the threat exists.",
                   boards: [
-                    { board: MATE_AFTER.board, fogSquares: MATE_AFTER_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: MATE_AFTER.board, orientation: 'white', label: 'TRUTH' },
-                    { board: MATE_AFTER.board, fogSquares: MATE_AFTER_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+                    { board: MATE_AFTER.board, fogSquares: MATE_AFTER_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: MATE_AFTER.board, orientation: 'black', label: 'TRUTH' },
                   ],
                 },
                 {
-                  narrative: "1...Rxe1. The rook captures the king. White never saw the threat, and there was no announced check to warn them.",
-                  outcome: { headline: 'Black wins', reason: 'king captured', tone: 'loss' },
+                  narrative: "1...Rxe1. Your rook captures the king. White never saw the threat, and there was no announced check to warn them.",
+                  outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' },
                   boards: [
-                    { board: MATE_FINAL.board, fogSquares: MATE_FINAL_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: MATE_FINAL.board, orientation: 'white', label: 'TRUTH' },
-                    { board: MATE_FINAL.board, fogSquares: MATE_FINAL_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+                    { board: MATE_FINAL.board, fogSquares: MATE_FINAL_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: MATE_FINAL.board, orientation: 'black', label: 'TRUTH' },
                   ],
                 },
               ],
             },
-            caption: 'Walked into mate without seeing the threat.',
+            caption: "You see the forced win that White can't. The 'mate' lives entirely in your head until the rook lands.",
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -602,32 +755,40 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'A worked game',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              "The best way to grok the rules is to watch a real game. The stepper below walks through six key moments from a Mistboard game, showing each side's view alongside the truth. Watch what each side knows, watch what they don't, and watch how the gap between the two views drives the game.",
-          },
-          {
-            kind: 'paragraph',
-            text:
-              "[INTERACTIVE CENTERPIECE: worked-game stepper — six key moments from a real Mistboard game, each shown as a triptych of White's view, the truth, and Black's view, with 1-2 sentences of narrative. Stepper widget exists; fog support and a real game are still pending.]",
-          },
-          {
-            kind: 'paragraph',
-            text:
-              "Until the real game is wired in, the Draft960 article hosts a single-board stepper dogfood so the widget itself is visible.",
-          },
-        ],
-      },
-      {
         heading: 'Where it sits in the hidden-info chess family',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "Fog of War isn't the first hidden-information chess variant. The family includes [Kriegspiel](https://en.wikipedia.org/wiki/Kriegspiel_(chess)) (umpire-mediated, 1700s), [Dark Chess / Banqi](https://en.wikipedia.org/wiki/Banqi) (face-down pieces, Asian origin), and [Reconnaissance Blind Chess](https://rbc.jhuapl.edu/) (Carnegie Mellon, 2017, with an explicit 3x3 scan action). Fog of War is the implicit version: no umpire, no scan action, visibility comes from where your pieces can move.",
+              "Fog of War isn't the first hidden-information chess variant. The family includes [Kriegspiel](https://en.wikipedia.org/wiki/Kriegspiel_(chess)) (umpire-mediated, 1700s), [Dark Chess / Banqi](https://en.wikipedia.org/wiki/Banqi) (face-down pieces, Asian origin), and [Reconnaissance Blind Chess](https://rbc.jhuapl.edu/) (Carnegie Mellon, 2017, with an explicit 3x3 scan action). Fog of War itself was invented by Jens Bæk Nielsen and Torben Osted in 1989; it's the implicit version of the idea — no umpire, no scan action, visibility comes from where your pieces can move. [Chess.com's variant](https://www.chess.com/variants/fog-of-war) popularized it online, and Mistboard's rules match theirs.",
+          },
+          {
+            kind: 'raw-svg',
+            svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 340" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Hidden-information chess variants positioned by information-gathering mechanism and hidden state">
+  <line x1="100" y1="280" x2="560" y2="280" stroke="#9ca3af" stroke-width="1.5"/>
+  <line x1="100" y1="40" x2="100" y2="280" stroke="#9ca3af" stroke-width="1.5"/>
+  <polygon points="560,280 552,276 552,284" fill="#9ca3af"/>
+  <polygon points="100,40 96,48 104,48" fill="#9ca3af"/>
+  <text x="320" y="320" text-anchor="middle" font-size="11" fill="#9ca3af" font-family="system-ui, sans-serif" letter-spacing="2">INFORMATION GATHERING</text>
+  <text x="50" y="160" text-anchor="middle" font-size="11" fill="#9ca3af" font-family="system-ui, sans-serif" letter-spacing="2" transform="rotate(-90 50 160)">HIDDEN STATE</text>
+  <text x="100" y="302" font-size="12" fill="#6b7280" font-family="system-ui, sans-serif">Implicit</text>
+  <text x="560" y="302" text-anchor="end" font-size="12" fill="#6b7280" font-family="system-ui, sans-serif">Explicit scan</text>
+  <text x="92" y="284" text-anchor="end" font-size="12" fill="#6b7280" font-family="system-ui, sans-serif">Identity</text>
+  <text x="92" y="44" text-anchor="end" font-size="12" fill="#6b7280" font-family="system-ui, sans-serif">Position</text>
+  <circle cx="160" cy="80" r="7" fill="#0e5f3d"/>
+  <text x="178" y="78" font-size="13" font-weight="600" fill="#1f2521" font-family="system-ui, sans-serif">Fog of War (1989)</text>
+  <text x="178" y="94" font-size="11" fill="#6b7280" font-family="system-ui, sans-serif">implicit; you see what your pieces could move to</text>
+  <circle cx="320" cy="130" r="6" fill="#6b7280"/>
+  <text x="338" y="128" font-size="13" font-weight="600" fill="#1f2521" font-family="system-ui, sans-serif">Kriegspiel (1700s)</text>
+  <text x="338" y="144" font-size="11" fill="#6b7280" font-family="system-ui, sans-serif">umpire answers move queries</text>
+  <circle cx="480" cy="80" r="6" fill="#6b7280"/>
+  <text x="498" y="78" font-size="13" font-weight="600" fill="#1f2521" font-family="system-ui, sans-serif">RBC (2017)</text>
+  <text x="498" y="94" font-size="11" fill="#6b7280" font-family="system-ui, sans-serif">explicit 3×3 scan each turn</text>
+  <circle cx="260" cy="230" r="6" fill="#6b7280"/>
+  <text x="278" y="228" font-size="13" font-weight="600" fill="#1f2521" font-family="system-ui, sans-serif">Dark Chess / Banqi</text>
+  <text x="278" y="244" font-size="11" fill="#6b7280" font-family="system-ui, sans-serif">pieces face-down; identity revealed by movement</text>
+</svg>`,
+            caption: 'The four hidden-info chess variants by how you gather information and what is hidden. Fog of War sits in the implicit / position-hidden corner.',
           },
         ],
       },
@@ -654,27 +815,25 @@ export const articles: Article[] = [
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'triptych',
+              layout: 'pair',
               positions: [
                 {
-                  narrative: "Black's rook on e8 attacks the white king on e1 along the open e-file. White doesn't see the rook.",
+                  narrative: "Black's rook on e8 attacks your king on e1 along the open e-file. You don't see the rook — but you'd like off the e-file regardless.",
                   boards: [
                     { board: CASTLING1_BEFORE.board, fogSquares: CASTLING1_BEFORE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: CASTLING1_BEFORE.board, orientation: 'white', label: 'TRUTH' },
-                    { board: CASTLING1_BEFORE.board, fogSquares: CASTLING1_BEFORE_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "1.O-O. The king is on g1, the rook on f1. Nothing attacks g1. The castle was legal and lucky.",
+                  narrative: "1.O-O. Your king is on g1, your rook on f1. Nothing attacks g1. The castle was legal — and it happened to walk you out of a check you couldn't see.",
                   boards: [
                     { board: CASTLING1_AFTER.board, fogSquares: CASTLING1_AFTER_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: CASTLING1_AFTER.board, orientation: 'white', label: 'TRUTH' },
-                    { board: CASTLING1_AFTER.board, fogSquares: CASTLING1_AFTER_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
               ],
             },
-            caption: 'Example 1: castling out of check, into safety.',
+            caption: "Example 1: castling out of check, into safety.",
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -685,36 +844,71 @@ export const articles: Article[] = [
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'triptych',
+              layout: 'pair',
               positions: [
                 {
-                  narrative: "Two hidden threats. The rook attacks the king on e1 (out of check) and the knight on h3 attacks g1 (into check). White sees neither.",
+                  narrative: "Your rook on e8 attacks the white king on e1. Your knight on h3 already controls g1. Both threats are hidden from White.",
                   boards: [
-                    { board: CASTLING2_BEFORE.board, fogSquares: CASTLING2_BEFORE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: CASTLING2_BEFORE.board, orientation: 'white', label: 'TRUTH' },
-                    { board: CASTLING2_BEFORE.board, fogSquares: CASTLING2_BEFORE_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+                    { board: CASTLING2_BEFORE.board, fogSquares: CASTLING2_BEFORE_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: CASTLING2_BEFORE.board, orientation: 'black', label: 'TRUTH' },
                   ],
                 },
                 {
-                  narrative: "1.O-O. Standard chess would have forbidden this move three times over: out of check, through attacked squares, into check. Fog of War allows it.",
+                  narrative: "1.O-O. White castles — a move standard chess would have forbidden three times over: out of check, through attacked squares, into check. Fog of War allows all of it. From your view, White's king lands on g1, straight in your knight's reach.",
                   boards: [
-                    { board: CASTLING2_AFTER.board, fogSquares: CASTLING2_AFTER_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: CASTLING2_AFTER.board, orientation: 'white', label: 'TRUTH' },
-                    { board: CASTLING2_AFTER.board, fogSquares: CASTLING2_AFTER_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+                    { board: CASTLING2_AFTER.board, fogSquares: CASTLING2_AFTER_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: CASTLING2_AFTER.board, orientation: 'black', label: 'TRUTH' },
                   ],
                 },
                 {
-                  narrative: "1...Nxg1. The knight captures the king. White still can't see what just happened — only the result.",
+                  narrative: "1...Nxg1. Your knight captures the king. White still can't see what just happened — only the result.",
                   outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' },
                   boards: [
-                    { board: CASTLING2_FINAL.board, fogSquares: CASTLING2_FINAL_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: CASTLING2_FINAL.board, orientation: 'white', label: 'TRUTH' },
-                    { board: CASTLING2_FINAL.board, fogSquares: CASTLING2_FINAL_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+                    { board: CASTLING2_FINAL.board, fogSquares: CASTLING2_FINAL_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: CASTLING2_FINAL.board, orientation: 'black', label: 'TRUTH' },
                   ],
                 },
               ],
             },
-            caption: 'Example 2: castling out of check, into check, into a loss.',
+            caption: "Example 2: White castles into check, into a loss. From your side, the trap was visible the whole time.",
+          } as ArticleBlock,
+          { kind: 'sub-heading', text: 'Pins (or rather, the absence of them)' },
+          {
+            kind: 'paragraph',
+            text:
+              "A pin in standard chess is a consequence of the no-self-check rule: you can't move a piece if doing so exposes your king to check. Fog of War has no check rule, so it has no pin enforcement either. A piece that would be pinned in standard chess can move freely — the punishment, if any, is whatever the opponent does next.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'pair',
+              positions: [
+                {
+                  narrative: "Your rook on e8 controls the e-file. A white bishop on e2 blocks your view of whatever is behind it. In standard chess, that bishop would be pinned to its king. In Fog of War, you can't see far enough to know.",
+                  boards: [
+                    { board: PIN_BEFORE.board, fogSquares: PIN_BEFORE_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: PIN_BEFORE.board, orientation: 'black', label: 'TRUTH' },
+                  ],
+                },
+                {
+                  narrative: "1.Bh5. White moves the bishop off the e-file. Your rook's sight extends down to e1 — where the white king is sitting, exposed. Standard chess would have forbidden this move (it leaves the white king in check); Fog of War has no check rule, so the bishop moves and the king is left to fend for itself.",
+                  boards: [
+                    { board: PIN_AFTER_BMOVE.board, fogSquares: PIN_AFTER_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: PIN_AFTER_BMOVE.board, orientation: 'black', label: 'TRUTH' },
+                  ],
+                },
+                {
+                  narrative: "1...Rxe1. Capture. The pin existed only in standard chess — a rule Fog of War doesn't enforce.",
+                  outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' },
+                  boards: [
+                    { board: PIN_FINAL.board, fogSquares: PIN_FINAL_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: PIN_FINAL.board, orientation: 'black', label: 'TRUTH' },
+                  ],
+                },
+              ],
+            },
+            caption: "Pins don't exist in Fog of War. Moving a 'pinned' piece is legal — the punishment is just whatever comes next.",
           } as ArticleBlock,
           { kind: 'sub-heading', text: 'En passant visibility' },
           {
@@ -726,30 +920,27 @@ export const articles: Article[] = [
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'triptych',
+              layout: 'pair',
               positions: [
                 {
-                  narrative: "White pawn on a5, black pawn on b7. Black to move. Neither side sees the other's pawn yet.",
+                  narrative: "Your pawn is on a5. Black has a pawn on b7 you don't see. Black to move.",
                   boards: [
                     { board: ENPASSANT_INITIAL.board, fogSquares: ENPASSANT_INITIAL_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: ENPASSANT_INITIAL.board, orientation: 'white', label: 'TRUTH' },
-                    { board: ENPASSANT_INITIAL.board, fogSquares: ENPASSANT_INITIAL_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "1...b5. Black plays a two-square pawn push next to white's pawn. White can now capture en passant — and gains visibility on b6 (the target) and b5 (the black pawn itself).",
+                  narrative: "1...b5. Black pushes two squares, next to your pawn. The en passant capture is now legal — and your visibility expands to include b6 (the target square) and b5 (the black pawn itself).",
                   boards: [
                     { board: ENPASSANT_AFTER_PUSH.board, fogSquares: ENPASSANT_PUSH_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: ENPASSANT_AFTER_PUSH.board, orientation: 'white', label: 'TRUTH' },
-                    { board: ENPASSANT_AFTER_PUSH.board, fogSquares: ENPASSANT_PUSH_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "2.axb6. White's pawn slides diagonally to b6 and the black pawn at b5 is removed. Standard en passant mechanics, with the Fog of War twist that the captured pawn was only visible because the capture was legal.",
+                  narrative: "2.axb6. Your pawn slides diagonally to b6; the black pawn at b5 comes off. Standard en passant mechanics, with the Fog of War twist that the captured pawn was only visible because the capture was legal.",
                   boards: [
                     { board: ENPASSANT_AFTER_CAPTURE.board, fogSquares: ENPASSANT_CAPTURE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: ENPASSANT_AFTER_CAPTURE.board, orientation: 'white', label: 'TRUTH' },
-                    { board: ENPASSANT_AFTER_CAPTURE.board, fogSquares: ENPASSANT_CAPTURE_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
               ],
@@ -766,44 +957,77 @@ export const articles: Article[] = [
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'triptych',
+              layout: 'pair',
               positions: [
                 {
-                  narrative: "White pawn on g7, one move from promotion. White sees only the pawn's push square and the king's corner. The black king on a8 is in fog.",
+                  narrative: "Your pawn on g7, one move from promotion. You see the pawn's push square and your king's corner — that's it. The black king on a8 is in fog.",
                   boards: [
                     { board: PROMOTION_BEFORE.board, fogSquares: PROMOTION_BEFORE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: PROMOTION_BEFORE.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PROMOTION_BEFORE.board, fogSquares: PROMOTION_BEFORE_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "1.g8=Q. The new queen sees the entire rank 8, including the black king on a8. Promotion didn't just gain a piece; it gained the line.",
+                  narrative: "1.g8=Q. Your new queen sees the entire rank 8 — and lights up the black king on a8. Promotion didn't just gain a piece; it gained the line.",
                   boards: [
                     { board: PROMOTION_AFTER.board, fogSquares: PROMOTION_AFTER_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: PROMOTION_AFTER.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PROMOTION_AFTER.board, fogSquares: PROMOTION_AFTER_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "1...Kb8. Black moves the king to b8 — still on rank 8, still in the queen's reach.",
+                  narrative: "1...Kb8. Black moves the king to b8 — still on rank 8, still in your queen's reach.",
                   boards: [
                     { board: PROMOTION_KING_MOVED.board, fogSquares: PROMOTION_KING_MOVED_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: PROMOTION_KING_MOVED.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PROMOTION_KING_MOVED.board, fogSquares: PROMOTION_KING_MOVED_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "2.Qxb8. The promoted queen captures the king.",
+                  narrative: "2.Qxb8. Your queen captures the king.",
                   outcome: { headline: 'White wins', reason: 'king captured', tone: 'win' },
                   boards: [
                     { board: PROMOTION_FINAL.board, fogSquares: PROMOTION_FINAL_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
                     { board: PROMOTION_FINAL.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PROMOTION_FINAL.board, fogSquares: PROMOTION_FINAL_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
               ],
             },
             caption: 'Promotion expands visibility: a queen on g8 sees what no pawn or king could.',
+          } as ArticleBlock,
+          { kind: 'sub-heading', text: 'Discovered visibility loss' },
+          {
+            kind: 'paragraph',
+            text:
+              "Visibility comes from pieces. When you move a piece, you also move its eyes. Squares that were covered may go dark; squares that weren't may light up. Most of the time this is automatic and inconsequential. Occasionally, a careless move surrenders the eyes guarding a critical line.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'pair',
+              positions: [
+                {
+                  narrative: "Your rook on d8 would love to slide down the d-file. You don't see the white knight on f3, but its cone covers d4 — if you moved there now, you'd light up in White's view. So you wait. (From your side, you can't even see this — the only Black piece reaching anywhere near f3 would be a knight on d4 or e5, and you have neither.)",
+                  boards: [
+                    { board: DISCOVERY_BEFORE.board, fogSquares: DISCOVERY_BEFORE_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: DISCOVERY_BEFORE.board, orientation: 'black', label: 'TRUTH' },
+                  ],
+                },
+                {
+                  narrative: "1.Nh4. White moves the knight to the kingside. Notice your view didn't change — you still don't see the knight in either position. But the knight that was covering d4 is gone. Truth shows it; your view doesn't tell you.",
+                  boards: [
+                    { board: DISCOVERY_AFTER_NMOVE.board, fogSquares: DISCOVERY_AFTER_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: DISCOVERY_AFTER_NMOVE.board, orientation: 'black', label: 'TRUTH' },
+                  ],
+                },
+                {
+                  narrative: "1...Rd4. You slide down. From d4 your rook now sees all of rank 4 — and the white knight materializes on h4. Position gained, and intel as a bonus.",
+                  boards: [
+                    { board: DISCOVERY_FINAL.board, fogSquares: DISCOVERY_FINAL_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: DISCOVERY_FINAL.board, orientation: 'black', label: 'TRUTH' },
+                  ],
+                },
+              ],
+            },
+            caption: "Moving a piece is also moving its eyes. The defender's lesson: visibility you cover today is visibility you give up tomorrow.",
           } as ArticleBlock,
           { kind: 'sub-heading', text: 'Draws' },
           {
@@ -816,6 +1040,62 @@ export const articles: Article[] = [
             text:
               "Stalemate and insufficient-material draws are not separately detected. Mistboard lets games play out; the two mechanisms above eventually resolve them, or a player resigns.",
           },
+        ],
+      },
+      {
+        heading: 'A worked mini-game',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Rules don't tell you how Fog of War feels. Here's a five-position trap that shows why information asymmetry is the variant's whole personality. You're White. Your bishop is the real threat from move two onward — but no Black piece will ever reach the squares from which c4 is visible, so Black never sees the bishop. The queen sortie is the bait; the bishop is the hammer.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'pair',
+              positions: [
+                {
+                  narrative: "1.e4 e5. Standard opening. Each side's pawn push expands its own visibility by a few squares; neither side has any tactical info yet.",
+                  boards: [
+                    { board: MINIGAME_E5.board, fogSquares: MINIGAME_E5_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: MINIGAME_E5.board, orientation: 'white', label: 'TRUTH' },
+                  ],
+                },
+                {
+                  narrative: "2.Bc4 Nc6. You develop the bishop to c4, where its diagonal cuts through to f7. You see the f7 pawn waiting. Black develops Nc6 — you don't see the knight, but you have your target.",
+                  boards: [
+                    { board: MINIGAME_NC6.board, fogSquares: MINIGAME_NC6_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: MINIGAME_NC6.board, orientation: 'white', label: 'TRUTH' },
+                  ],
+                },
+                {
+                  narrative: "3.Qh5 Nf6. You bring the queen out to h5, doubling the attack on f7 (queen and bishop both aimed at it; the king on e8 is the sole defender). Black plays Nf6 — almost certainly attacking your queen on h5, which they can see via their h7 pawn. They think they're gaining tempo.",
+                  boards: [
+                    { board: MINIGAME_NF6.board, fogSquares: MINIGAME_NF6_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: MINIGAME_NF6.board, orientation: 'white', label: 'TRUTH' },
+                  ],
+                },
+                {
+                  narrative: "4.Qxf7 Kxf7. You capture the f7 pawn with the queen — attacking the Black king directly. Black has to deal with the queen (it would capture the king on the next move), and from their view, the only attacker is the queen. Kxf7 looks like a free win of the queen. They take.",
+                  boards: [
+                    { board: MINIGAME_KXF7.board, fogSquares: MINIGAME_KXF7_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: MINIGAME_KXF7.board, orientation: 'white', label: 'TRUTH' },
+                  ],
+                },
+                {
+                  narrative: "5.Bxf7. The bishop captures the king. The bishop has been pointed at f7 since move 2; Black has never had a piece that reached c4, so Black has never seen the bishop. The queen sortie was the bait — the visible, obvious threat. The bishop was the real attack, and Black walked the king straight into its diagonal.",
+                  outcome: { headline: 'White wins', reason: 'king captured', tone: 'win' },
+                  boards: [
+                    { board: MINIGAME_BXF7.board, fogSquares: MINIGAME_BXF7_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: MINIGAME_BXF7.board, orientation: 'white', label: 'TRUTH' },
+                  ],
+                },
+              ],
+            },
+            caption: "Information asymmetry is Fog of War's whole personality. The visible threat is a distraction; the winning threat is the one your opponent can't see.",
+          } as ArticleBlock,
         ],
       },
       {
@@ -834,6 +1114,11 @@ export const articles: Article[] = [
               { label: 'View on GitHub', href: 'https://github.com/brianhliou/mistboard', emphasis: 'secondary', external: true },
             ],
           } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "Want to push the hidden-information idea further? [Draft960](/articles/draft960) is a pregame option that hides the starting position too — each side picks one of three Chess960 setups, kept secret from the opponent until pieces start moving.",
+          },
           {
             kind: 'paragraph',
             text:

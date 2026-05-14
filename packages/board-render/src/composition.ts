@@ -51,7 +51,7 @@ export function renderBoardComposition(opts: CompositionOptions): string {
   }
 
   const xs = layoutPlacements(layout, canvasWidth, boardSize, gap);
-  const parts: string[] = [fogPatternDefs()];
+  const parts: string[] = [fogPatternDefs(boardSize)];
 
   for (let i = 0; i < boards.length; i += 1) {
     const label = boards[i]!.label;

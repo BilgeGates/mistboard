@@ -7,6 +7,7 @@ import {
   FOG_LIGHT_FILL,
   FOG_LINE,
   FOG_LINE_SOFT,
+  FOG_SHADOW,
   FOG_TILE_SIZE,
   LIGHT_SQUARE,
 } from './tokens.js';
@@ -23,21 +24,30 @@ function squareToFileRank(square: Square): { file: number; rank: number } {
   return { file, rank };
 }
 
-// SVG <defs> with the two fog patterns. Callers (composers, OG renderers)
-// include this once per outer <svg>. Stripe widths and stops mirror the
-// CSS gradient: stripe at 0-22% of the 14 px tile (~3 px), transparent
-// 22-50%, light stripe 50-72%, transparent 72-100%. patternTransform
-// rotates 45° to produce the diagonal "\" lines the live game uses.
-export function fogPatternDefs(): string {
+// SVG <defs> with the two fog patterns. Callers pass the boardSize so the
+// pattern tile is sized in objectBoundingBox fractions: each fogged square
+// instances its own pattern, restarting the stripe phase at the square's
+// top-left corner. This matches chessground, which applies the linear
+// gradient per-square via background-image. With patternContentUnits set
+// to userSpaceOnUse, the stripes inside the pattern stay in pixel coords
+// (3 px wide, 14 px tile), so the stripe density matches the CSS pattern
+// regardless of board size.
+export function fogPatternDefs(boardSize: number): string {
   const t = FOG_TILE_SIZE;
+  const sq = boardSize / 8;
+  // Tile as a fraction of the filled square's bounding box. For a 25 px
+  // square (200 px board), this is 14/25 ≈ 0.56; for a 48 px square
+  // (384 px OG board), 14/48 ≈ 0.29. In either case the rendered tile
+  // is 14 px in user space.
+  const tileOBB = t / sq;
   return [
     `<defs>`,
-    `<pattern id="${FOG_LIGHT_PATTERN_ID}" width="${t}" height="${t}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`,
+    `<pattern id="${FOG_LIGHT_PATTERN_ID}" patternUnits="objectBoundingBox" patternContentUnits="userSpaceOnUse" width="${tileOBB}" height="${tileOBB}" patternTransform="rotate(45)">`,
     `<rect width="${t}" height="${t}" fill="${FOG_LIGHT_FILL}"/>`,
     `<rect width="3" height="${t}" fill="${FOG_LINE}"/>`,
     `<rect x="7" width="3" height="${t}" fill="${FOG_LINE_SOFT}"/>`,
     `</pattern>`,
-    `<pattern id="${FOG_DARK_PATTERN_ID}" width="${t}" height="${t}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`,
+    `<pattern id="${FOG_DARK_PATTERN_ID}" patternUnits="objectBoundingBox" patternContentUnits="userSpaceOnUse" width="${tileOBB}" height="${tileOBB}" patternTransform="rotate(45)">`,
     `<rect width="${t}" height="${t}" fill="${FOG_DARK_FILL}"/>`,
     `<rect width="3" height="${t}" fill="${FOG_LINE_SOFT}"/>`,
     `<rect x="7" width="3" height="${t}" fill="${FOG_LINE}"/>`,
@@ -89,6 +99,9 @@ export function renderBoardSvg(
     const isLight = (fog.file + fog.rank) % 2 === 1;
     const patternId = isLight ? FOG_LIGHT_PATTERN_ID : FOG_DARK_PATTERN_ID;
     out.push(`<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="url(#${patternId})"/>`);
+    // Inset 1 px cream shadow matching chessground's
+    // box-shadow: inset 0 0 0 1px var(--board-fog-shadow).
+    out.push(`<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${FOG_SHADOW}" stroke-width="1"/>`);
   }
   out.push(`<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${BOARD_BORDER}" stroke-width="2"/>`);
   out.push(`</g>`);

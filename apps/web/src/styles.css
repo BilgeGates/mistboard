@@ -415,7 +415,8 @@ button:focus-visible {
 .board cg-board,
 .replay-board cg-board,
 .learn-board cg-board,
-.belief-mini-board cg-board {
+.belief-mini-board cg-board,
+.stepper-board cg-board {
   background-color: var(--board-light);
   background-image:
     conic-gradient(
@@ -425,6 +426,14 @@ button:focus-visible {
       var(--board-dark) 0
     );
   background-size: 25% 25%;
+}
+
+.stepper-board cg-board square.white {
+  background-color: var(--board-light);
+}
+
+.stepper-board cg-board square.black {
+  background-color: var(--board-dark);
 }
 
 .board coords {
@@ -2381,6 +2390,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   gap: 12px;
   margin: 24px 0;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .article-cta {
@@ -2473,6 +2483,9 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   aspect-ratio: 1 / 1;
   position: relative;
   display: block;
+  border: 2px solid var(--board-frame);
+  background: var(--board-frame);
+  overflow: hidden;
 }
 
 .stepper-board cg-board square.fog-hidden {
