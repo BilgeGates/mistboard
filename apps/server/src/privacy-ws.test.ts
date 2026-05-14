@@ -284,8 +284,8 @@ async function startServer(): Promise<{ port: number; child: ServerProcess }> {
   const port = await openPort();
   const testDir = dirname(fileURLToPath(import.meta.url));
   const entry = basename(testDir) === 'src'
-    ? join(testDir, '..', 'dist', 'index.js')
-    : join(testDir, 'index.js');
+    ? join(testDir, '..', 'dist', 'main.js')
+    : join(testDir, 'main.js');
   const child = spawn(process.execPath, [entry], {
     env: {
       MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE: 'true',
