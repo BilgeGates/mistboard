@@ -3035,7 +3035,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-time-presets {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 

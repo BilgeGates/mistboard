@@ -1270,10 +1270,11 @@ export async function mountArticlesIndex(root: HTMLElement): Promise<void> {
 export async function mountArticle(root: HTMLElement, slug: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
-  const { buildArticlePage, mountPendingWidgets } = await import('./articles.js');
+  const { buildArticlePage, mountPendingWidgets, mountArticleEnhancements } = await import('./articles.js');
   const articlePage = buildArticlePage(slug);
   root.append(buildNav(), articlePage, buildFooter());
   mountPendingWidgets(articlePage);
+  mountArticleEnhancements(articlePage);
 }
 
 function buildNav(): HTMLElement {
@@ -1691,17 +1692,16 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     selectedEngineId = engineId;
   }) : null;
 
-  const startSection = document.createElement('div');
-  startSection.className = 'landing-setup-section';
-  startSection.append(setupSectionLabel('Fog start'));
-
   const startGroup = document.createElement('div');
   startGroup.className = 'landing-start-options';
   startGroup.setAttribute('role', 'radiogroup');
   startGroup.setAttribute('aria-label', 'Fog start format');
 
   const standardButton = startOptionButton('Standard', true);
-  const draftButton = startOptionButton('Draft960', false);
+  const draftButton = startOptionButton('Draft960 (coming soon)', false);
+  draftButton.disabled = true;
+  draftButton.classList.add('disabled');
+  draftButton.title = 'Coming soon';
   const syncOptions = () => {
     standardButton.classList.toggle('selected', startFormat === 'standard');
     standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
@@ -1712,12 +1712,8 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     startFormat = 'standard';
     syncOptions();
   });
-  draftButton.addEventListener('click', () => {
-    startFormat = 'draft960';
-    syncOptions();
-  });
   startGroup.append(standardButton, draftButton);
-  startSection.append(startGroup);
+  variantSection.append(startGroup);
 
   const timeSection = document.createElement('div');
   timeSection.className = 'landing-setup-section';
@@ -1736,15 +1732,20 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   customFields.append(minutesInput.label, minutesInput.input, incrementInput.label, incrementInput.input);
 
   const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
-    const button = startOptionButton(preset.label, preset.id === selectedPreset);
-    button.addEventListener('click', () => {
-      selectedPreset = preset.id;
-      if (preset.id !== 'custom') {
+    const enabled = preset.id === '3m2';
+    const button = startOptionButton(enabled ? preset.label : `${preset.label} (soon)`, preset.id === selectedPreset);
+    if (!enabled) {
+      button.disabled = true;
+      button.classList.add('disabled');
+      button.title = 'Coming soon';
+    } else {
+      button.addEventListener('click', () => {
+        selectedPreset = preset.id;
         minutesInput.input.value = String(preset.initialMs / 60_000);
         incrementInput.input.value = String(preset.incrementMs / 1000);
-      }
-      syncTimeControls();
-    });
+        syncTimeControls();
+      });
+    }
     presetGroup.append(button);
     return { button, preset };
   });
@@ -1757,14 +1758,6 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     }
     customFields.hidden = selectedPreset !== 'custom';
   };
-  minutesInput.input.addEventListener('input', () => {
-    selectedPreset = 'custom';
-    syncTimeControls();
-  });
-  incrementInput.input.addEventListener('input', () => {
-    selectedPreset = 'custom';
-    syncTimeControls();
-  });
   syncTimeControls();
   timeSection.append(presetGroup, customFields);
 
@@ -1817,7 +1810,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   actions.append(startButton, backButton);
   dialog.append(header, variantSection);
   if (engineSection) dialog.append(engineSection);
-  dialog.append(startSection, timeSection);
+  dialog.append(timeSection);
   if (ratingSection) dialog.append(ratingSection);
   dialog.append(status, actions);
   overlay.append(dialog);
