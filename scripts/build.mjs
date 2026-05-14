@@ -5,8 +5,8 @@ const processKind = process.env.MISTBOARD_PROCESS ?? '';
 const workerOnly = serviceName === 'engine-worker' || processKind === 'worker';
 
 const workspaces = workerOnly
-  ? ['@mistboard/game', '@mistboard/server']
-  : ['@mistboard/game', '@mistboard/server', '@mistboard/web'];
+  ? ['@mistboard/game', '@mistboard/board-render', '@mistboard/server']
+  : ['@mistboard/game', '@mistboard/board-render', '@mistboard/server', '@mistboard/web'];
 
 for (const workspace of workspaces) {
   const result = spawnSync('npm', ['run', 'build', `--workspace=${workspace}`], {

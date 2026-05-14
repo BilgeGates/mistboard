@@ -5,6 +5,7 @@
       "/apps/server/**",
       "/apps/web/**",
       "/packages/game/**",
+      "/packages/board-render/**",
       "/research/python-fow-lab/configs/**",
       "/research/python-fow-lab/engine_versions/**",
       "/research/python-fow-lab/scripts/**",
