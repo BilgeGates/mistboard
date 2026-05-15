@@ -1503,7 +1503,7 @@ function navLink(label: string, href: string): HTMLAnchorElement {
   link.textContent = label;
   link.className = 'site-nav-link';
   const path = currentPath();
-  if (path === href || (href === '/account' && path.startsWith('/account/'))) {
+  if (path === href || (href === '/account' && path.startsWith('/account/')) || (href === '/articles' && path.startsWith('/articles/'))) {
     link.classList.add('active');
     link.setAttribute('aria-current', 'page');
   }
