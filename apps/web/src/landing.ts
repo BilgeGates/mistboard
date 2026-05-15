@@ -1708,23 +1708,28 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startGroup.setAttribute('role', 'radiogroup');
   startGroup.setAttribute('aria-label', 'Fog start format');
 
+  const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
   const standardButton = startOptionButton('Standard', true);
-  const draftButton = startOptionButton('Draft960', false);
+  const draftButton = draft960Enabled ? startOptionButton('Draft960', false) : null;
   const syncOptions = () => {
     standardButton.classList.toggle('selected', startFormat === 'standard');
     standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
-    draftButton.classList.toggle('selected', startFormat === 'draft960');
-    draftButton.setAttribute('aria-checked', startFormat === 'draft960' ? 'true' : 'false');
+    if (draftButton) {
+      draftButton.classList.toggle('selected', startFormat === 'draft960');
+      draftButton.setAttribute('aria-checked', startFormat === 'draft960' ? 'true' : 'false');
+    }
   };
   standardButton.addEventListener('click', () => {
     startFormat = 'standard';
     syncOptions();
   });
-  draftButton.addEventListener('click', () => {
-    startFormat = 'draft960';
-    syncOptions();
-  });
-  startGroup.append(standardButton, draftButton);
+  if (draftButton) {
+    draftButton.addEventListener('click', () => {
+      startFormat = 'draft960';
+      syncOptions();
+    });
+  }
+  startGroup.append(standardButton, ...(draftButton ? [draftButton] : []));
   variantSection.append(startGroup);
 
   const timeSection = document.createElement('div');
