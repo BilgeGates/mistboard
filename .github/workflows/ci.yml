@@ -70,14 +70,41 @@ jobs:
           npm run test --workspace @mistboard/game
           npm run test --workspace @mistboard/web
           npm run test:persistent --workspace @mistboard/server
-          MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --workspace @mistboard/server
+          MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true TEST_DATABASE_URL=$TEST_DATABASE_URL npm run test:integration --workspace @mistboard/server
       - name: Audit production dependencies
         run: npm audit --omit=dev
 
-  notify-failure:
-    # Files (or appends to) a GitHub issue when CI fails on a push to main,
-    # so a red main isn't silent. Backstop for the .githooks/pre-push hook.
+  prod-smoke:
     needs: node
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Wait for Railway deploy
+        run: |
+          echo "Polling /health until the new deploy is live (max 5 min)..."
+          for i in $(seq 1 30); do
+            if curl -fsS https://mistboard.com/health | grep -q '"ok":true'; then
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i: not ready, waiting 10s..."
+            sleep 10
+          done
+          echo "Prod did not become healthy in 5 minutes" && exit 1
+      - name: Prod smoke
+        run: npm run prod:smoke
+      - name: Engine smoke
+        run: npm run prod:smoke:engines
+
+  notify-failure:
+    # Files (or appends to) a GitHub issue when CI or prod-smoke fails on a push to main.
+    needs: [node, prod-smoke]
     if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

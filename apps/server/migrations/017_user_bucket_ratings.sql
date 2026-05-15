@@ -11,7 +11,7 @@
 -- Rows are created lazily on the first rated game in a bucket.
 
 CREATE TABLE IF NOT EXISTS user_ratings (
-  user_id      UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id      TEXT         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   variant      TEXT         NOT NULL,
   time_class   TEXT         NOT NULL,
   elo_rating   INTEGER      NOT NULL DEFAULT 1200,

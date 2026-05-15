@@ -20,6 +20,7 @@ export type GameTermination =
   | 'timeout'
   | 'checkmate'
   | 'draw'
+  | 'resignation'
   | 'engine-failure'
   | 'worker-aborted'
   | 'server-restarted'
