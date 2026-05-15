@@ -6,6 +6,7 @@ An "incident" is anything user-visible or pipeline-blocking that required unplan
 
 | Date | Title | Status | Severity |
 |---|---|---|---|
+| 2026-05-15 | [Intermittent prod-smoke 500s from stale pool connections](2026-05-15-stale-pool-connections-smoke-500.md) | resolved | sev3 |
 | 2026-05-14 | [Silent recordGameEnd failure on every PvP resign](2026-05-14-resignation-termination-missing.md) | resolved | sev2 |
 <!-- | YYYY-MM-DD | [Short title](YYYY-MM-DD-short-title.md) | open | sev2 | -->
 
