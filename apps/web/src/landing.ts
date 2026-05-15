@@ -327,8 +327,6 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   shell.append(buildProfileHeader(profile), buildProfileGames(profile.games));
 }
 
-type LeaderboardVariant = 'fog' | 'fog_draft960';
-type LeaderboardTimeClass = 'bullet' | 'blitz';
 type LeaderboardEntry = {
   rank: number;
   handle: string;
@@ -337,32 +335,17 @@ type LeaderboardEntry = {
   gamesPlayed: number;
 };
 
-const LEADERBOARD_VARIANTS: { id: LeaderboardVariant; label: string; param: string }[] = [
-  { id: 'fog', label: 'Fog of War', param: 'fog' },
-  { id: 'fog_draft960', label: 'FoW + Draft960', param: 'fog-draft960' },
-];
-
-const LEADERBOARD_TIME_CLASSES: {
-  id: LeaderboardTimeClass;
-  label: string;
-  detail: string;
+const LEADERBOARD_BUCKETS: {
+  variantParam: string;
+  variantLabel: string;
+  timeClass: string;
+  timeLabel: string;
 }[] = [
-  { id: 'bullet', label: 'Bullet', detail: '1 + 1' },
-  { id: 'blitz', label: 'Blitz', detail: '3 + 2 · 5 + 3' },
+  { variantParam: 'fog', variantLabel: 'Fog of War', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
+  { variantParam: 'fog', variantLabel: 'Fog of War', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
+  { variantParam: 'fog-draft960', variantLabel: 'FoW + Draft960', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
+  { variantParam: 'fog-draft960', variantLabel: 'FoW + Draft960', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
 ];
-
-function parseLeaderboardVariant(value: string | null): LeaderboardVariant {
-  if (value === 'fog-draft960' || value === 'fog_draft960') return 'fog_draft960';
-  return 'fog';
-}
-
-function parseLeaderboardTimeClass(value: string | null): LeaderboardTimeClass {
-  return value === 'bullet' ? 'bullet' : 'blitz';
-}
-
-function variantQueryValue(variant: LeaderboardVariant): string {
-  return LEADERBOARD_VARIANTS.find((v) => v.id === variant)?.param ?? 'fog';
-}
 
 export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -376,129 +359,68 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   heading.className = 'site-section-heading';
   heading.textContent = 'Leaderboard';
 
-  const params = new URLSearchParams(window.location.search);
-  let variant = parseLeaderboardVariant(params.get('variant'));
-  let timeClass = parseLeaderboardTimeClass(params.get('time'));
+  const grid = document.createElement('div');
+  grid.className = 'leaderboard-grid';
 
-  const variantBar = buildBucketChipBar(
-    LEADERBOARD_VARIANTS.map((v) => ({ id: v.id, label: v.label })),
-    variant,
-    'Variant',
+  shell.append(heading, grid);
+
+  const results = await Promise.all(
+    LEADERBOARD_BUCKETS.map((b) =>
+      fetch(`/api/leaderboard?variant=${b.variantParam}&time=${b.timeClass}&limit=10`)
+        .then((r) => (r.ok ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>) : Promise.reject(r.status)))
+        .catch((err) => {
+          console.warn(err);
+          return null;
+        }),
+    ),
   );
-  const timeBar = buildBucketChipBar(
-    LEADERBOARD_TIME_CLASSES.map((t) => ({ id: t.id, label: t.label, detail: t.detail })),
-    timeClass,
-    'Time control',
-  );
 
-  const body = document.createElement('div');
-  body.className = 'leaderboard-body';
-
-  shell.append(heading, variantBar.el, timeBar.el, body);
-
-  async function load(): Promise<void> {
-    syncUrl(variant, timeClass);
-    body.replaceChildren(buildLoadingState('Loading leaderboard'));
-
-    const data = await fetch(
-      `/api/leaderboard?variant=${variantQueryValue(variant)}&time=${timeClass}&limit=100`,
-    )
-      .then((r) => (r.ok ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>) : Promise.reject(r.status)))
-      .catch((err) => {
-        console.warn(err);
-        return null;
-      });
-
-    body.replaceChildren();
-
-    if (!data) {
-      body.append(buildNotice('Leaderboard unavailable', 'Could not load ratings. Try again later.'));
-      return;
-    }
-
-    if (data.leaderboard.length === 0) {
-      body.append(buildNotice('No rated games yet', 'Be the first to rank in this bucket — play a rated PvP game.'));
-      return;
-    }
-
-    body.append(renderLeaderboardTable(data.leaderboard));
+  for (let i = 0; i < LEADERBOARD_BUCKETS.length; i++) {
+    const b = LEADERBOARD_BUCKETS[i];
+    grid.append(buildLeaderboardPanel(b.variantLabel, b.timeLabel, results[i]));
   }
-
-  variantBar.onChange((id) => {
-    variant = id as LeaderboardVariant;
-    void load();
-  });
-  timeBar.onChange((id) => {
-    timeClass = id as LeaderboardTimeClass;
-    void load();
-  });
-
-  await load();
 }
 
-function syncUrl(variant: LeaderboardVariant, timeClass: LeaderboardTimeClass): void {
-  const url = new URL(window.location.href);
-  url.searchParams.set('variant', variantQueryValue(variant));
-  url.searchParams.set('time', timeClass);
-  window.history.replaceState(null, '', url.toString());
-}
+function buildLeaderboardPanel(
+  variantLabel: string,
+  timeLabel: string,
+  data: { leaderboard: LeaderboardEntry[] } | null,
+): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'leaderboard-panel';
 
-function buildBucketChipBar(
-  options: { id: string; label: string; detail?: string }[],
-  initial: string,
-  ariaLabel: string,
-): { el: HTMLElement; onChange(handler: (id: string) => void): void } {
-  const bar = document.createElement('div');
-  bar.className = 'leaderboard-chip-bar';
-  bar.setAttribute('role', 'tablist');
-  bar.setAttribute('aria-label', ariaLabel);
+  const header = document.createElement('div');
+  header.className = 'leaderboard-panel-header';
 
-  let handler: ((id: string) => void) | null = null;
-  const chips: HTMLButtonElement[] = [];
+  const title = document.createElement('span');
+  title.className = 'leaderboard-panel-title';
+  title.textContent = variantLabel;
 
-  for (const option of options) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'leaderboard-chip';
-    chip.setAttribute('role', 'tab');
-    chip.dataset.bucketId = option.id;
+  const subtitle = document.createElement('span');
+  subtitle.className = 'leaderboard-panel-subtitle';
+  subtitle.textContent = timeLabel;
 
-    const label = document.createElement('span');
-    label.className = 'leaderboard-chip-label';
-    label.textContent = option.label;
-    chip.append(label);
+  header.append(title, subtitle);
+  panel.append(header);
 
-    if (option.detail) {
-      const detail = document.createElement('span');
-      detail.className = 'leaderboard-chip-detail';
-      detail.textContent = option.detail;
-      chip.append(detail);
-    }
-
-    const isActive = option.id === initial;
-    chip.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    chip.classList.toggle('active', isActive);
-
-    chip.addEventListener('click', () => {
-      if (chip.classList.contains('active')) return;
-      for (const c of chips) {
-        const on = c === chip;
-        c.classList.toggle('active', on);
-        c.setAttribute('aria-selected', on ? 'true' : 'false');
-      }
-      handler?.(option.id);
-    });
-
-    chips.push(chip);
-    bar.append(chip);
+  if (!data) {
+    const msg = document.createElement('p');
+    msg.className = 'leaderboard-panel-empty';
+    msg.textContent = 'Could not load ratings.';
+    panel.append(msg);
+    return panel;
   }
 
-  return {
-    el: bar,
-    onChange(h) {
-      handler = h;
-    },
-  };
+  if (data.leaderboard.length === 0) {
+    const msg = document.createElement('p');
+    msg.className = 'leaderboard-panel-empty';
+    msg.textContent = 'No rated games yet.';
+    panel.append(msg);
+    return panel;
+  }
+
+  panel.append(renderLeaderboardTable(data.leaderboard));
+  return panel;
 }
 
 function renderLeaderboardTable(entries: LeaderboardEntry[]): HTMLTableElement {
