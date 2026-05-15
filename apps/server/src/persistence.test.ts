@@ -930,7 +930,7 @@ if (!TEST_DATABASE_URL) {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_client, black_client, white_name, black_name, mode, status, visibility)
          VALUES
-           ('public-pvp', 'fog-of-war', 'white-wins', 'king-captured', 18, $1, $1,
+           ('public-pvp', 'fog-of-war', 'white-wins', 'king-captured', 31, $1, $1,
             'public-white', 'public-black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('public-pve', 'fog-of-war', 'black-wins', 'timeout', 23, $1, $1,
             'human-client-public', 'random-engine', NULL, NULL, 'pve', 'completed', 'public'),
@@ -985,7 +985,6 @@ if (!TEST_DATABASE_URL) {
       'public-pvp',
       'public-pve',
       'link-pve',
-      'short-capture',
       'link-eve',
     ]);
   });
