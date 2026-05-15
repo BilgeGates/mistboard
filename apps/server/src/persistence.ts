@@ -211,7 +211,23 @@ export type UserProfile = {
 
 export function init(connectionString: string): void {
   if (pool) throw new Error('persistence already initialized');
-  pool = new pg.Pool({ connectionString, max: 10 });
+  pool = new pg.Pool({
+    connectionString,
+    max: 10,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
+    idleTimeoutMillis: 30_000,
+  });
+}
+
+export async function probeDb(): Promise<boolean> {
+  if (!pool) return false;
+  try {
+    await pool.query('SELECT 1');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function close(): Promise<void> {

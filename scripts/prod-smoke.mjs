@@ -32,19 +32,26 @@ console.log(JSON.stringify({
 }));
 
 async function createRoom(baseUrl, timeoutMs) {
-  const response = await fetchJson(new URL('/api/rooms', baseUrl), {
-    timeoutMs,
-    init: {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ mode: 'pvp', variant: 'fog-of-war' }),
-    },
-  });
-  if (response.status !== 201) {
-    throw new Error(`/api/rooms failed: ${response.status} ${JSON.stringify(response.body)}`);
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const response = await fetchJson(new URL('/api/rooms', baseUrl), {
+      timeoutMs,
+      init: {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mode: 'pvp', variant: 'fog-of-war' }),
+      },
+    });
+    if (response.status === 201) {
+      if (typeof response.body?.roomId !== 'string') throw new Error('/api/rooms response missing roomId');
+      if (attempt > 1) console.error(`/api/rooms succeeded on attempt ${attempt}`);
+      return response.body;
+    }
+    lastError = new Error(`/api/rooms failed: ${response.status} ${JSON.stringify(response.body)}`);
+    console.error(`/api/rooms attempt ${attempt} failed: ${response.status}`);
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 2_000));
   }
-  if (typeof response.body?.roomId !== 'string') throw new Error('/api/rooms response missing roomId');
-  return response.body;
+  throw lastError;
 }
 
 async function connectSeat(baseUrl, roomId, expectedSeat, timeoutMs) {

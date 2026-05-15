@@ -299,19 +299,22 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   const pathname = url.split('?', 1)[0] ?? '/';
 
   if (url === '/health') {
-    const cutoff1m = Date.now() - 60_000;
-    const recent = persistenceErrors.filter((entry) => entry.at > cutoff1m);
-    const lastAt = persistenceErrors.length > 0
-      ? persistenceErrors[persistenceErrors.length - 1]!.at
-      : null;
-    const ok = recent.length === 0 && (!databaseRequired || persistence.isInitialized());
-    response.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({
-      ok,
-      databaseRequired,
-      persistence: persistence.isInitialized() ? 'enabled' : 'disabled',
-      persistenceErrors: { count1m: recent.length, lastAt },
-    }));
+    void (async () => {
+      const cutoff1m = Date.now() - 60_000;
+      const recent = persistenceErrors.filter((entry) => entry.at > cutoff1m);
+      const lastAt = persistenceErrors.length > 0
+        ? persistenceErrors[persistenceErrors.length - 1]!.at
+        : null;
+      const dbReachable = databaseRequired ? await persistence.probeDb() : true;
+      const ok = recent.length === 0 && dbReachable;
+      response.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({
+        ok,
+        databaseRequired,
+        persistence: persistence.isInitialized() ? 'enabled' : 'disabled',
+        persistenceErrors: { count1m: recent.length, lastAt },
+      }));
+    })();
     return;
   }
 
