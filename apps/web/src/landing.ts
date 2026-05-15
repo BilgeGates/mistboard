@@ -343,8 +343,8 @@ const LEADERBOARD_BUCKETS: {
 }[] = [
   { variantParam: 'fog', variantLabel: 'Fog of War', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
   { variantParam: 'fog', variantLabel: 'Fog of War', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
-  { variantParam: 'fog-draft960', variantLabel: 'FoW + Draft960', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
-  { variantParam: 'fog-draft960', variantLabel: 'FoW + Draft960', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
+  { variantParam: 'fog-draft960', variantLabel: 'Draft960', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
+  { variantParam: 'fog-draft960', variantLabel: 'Draft960', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
 ];
 
 export async function mountLeaderboard(root: HTMLElement): Promise<void> {
@@ -1505,22 +1505,6 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
   });
 
   panel.append(lobbyButton, challengeButton, engineButton);
-
-  const learnNav = document.createElement('nav');
-  learnNav.className = 'landing-learn-links';
-
-  const fowLink = document.createElement('a');
-  fowLink.className = 'landing-learn-link';
-  fowLink.href = '/articles/fog-of-war-rules';
-  fowLink.textContent = 'Fog of War rules';
-
-  const draft960Link = document.createElement('a');
-  draft960Link.className = 'landing-learn-link';
-  draft960Link.href = '/articles/draft960';
-  draft960Link.textContent = 'Draft960';
-
-  learnNav.append(fowLink, draft960Link);
-  panel.append(learnNav);
 
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow());

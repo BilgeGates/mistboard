@@ -731,85 +731,6 @@ const PICK_SCREEN_FOG: Square[] = [
 
 export const articles: Article[] = [
   {
-    slug: 'draft960',
-    title: 'Draft960: the end of opening theory in Fog of War',
-    summary:
-      'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
-    status: 'outline',
-    audience:
-      'Readers who have grokked Fog of War (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
-    tldr: [
-      'Fog of War hides the board mid-game. Draft960 also hides the starting position — from move 0, neither player knows the other\'s setup.',
-      'Each player picks from their own independent set of three Chess960 offers. The picks stay sealed until the pieces start moving.',
-    ],
-    sections: [
-      {
-        heading: 'The pick screen',
-        blocks: [
-          {
-            kind: 'static-boards',
-            layout: 'triptych',
-            canvasWidth: 720,
-            canvasHeight: 244,
-            boardSize: 200,
-            boardY: 34,
-            gap: 30,
-            labelY: 22,
-            labelFill: '#4b5563',
-            boards: [
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_A).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'A' },
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_B).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'B' },
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_C).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'C' },
-            ],
-            caption: "Your three offers. Your opponent gets their own independent set — they never see yours.",
-          } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text: "Draft960 merges Fog of War and Chess960 into one variant. Fog of War hides the board mid-game. Chess960 scrambles where everything starts. Both layers hidden simultaneously — pick one of three random setups, keep it sealed, and neither side knows what the other started from until the pieces start talking.",
-          },
-        ],
-      },
-      {
-        heading: 'The gradual reveal',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text: "Your opponent's setup is hidden — but not forever. Each piece that moves off the back rank tells you something about where it started. The reveal isn't an announcement; it happens one move at a time, through fog.",
-          },
-          {
-            kind: 'interactive',
-            widget: 'stepper',
-            spec: {
-              layout: 'triptych',
-              positions: D960_FULL_POSITIONS,
-            },
-            caption: "By move 3, each player has deduced something about the other's setup — through the fog, one piece at a time.",
-          } as ArticleBlock,
-        ],
-      },
-      {
-        heading: 'Try it',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text: "Draft960 is available as a pregame option when creating a private room. Pick your setup, share the link, play.",
-          },
-          {
-            kind: 'cta',
-            buttons: [
-              { label: 'Play a friend', href: '/', emphasis: 'primary' },
-              { label: 'Find an opponent', href: '/', emphasis: 'secondary' },
-            ],
-          } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text: "New to Fog of War? The [rules article](/articles/fog-of-war-rules) covers visibility, king capture, and the edge cases — start there before your first Draft960 game.",
-          },
-        ],
-      },
-    ],
-  },
-  {
     slug: 'fog-of-war-rules',
     title: 'Fog of War chess: the canonical reference',
     summary:
@@ -1312,6 +1233,85 @@ export const articles: Article[] = [
             kind: 'paragraph',
             text:
               "The full source is GPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard's servers run in production.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'draft960',
+    title: 'Draft960: the end of opening theory in Fog of War',
+    summary:
+      'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
+    status: 'outline',
+    audience:
+      'Readers who have grokked Fog of War (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
+    tldr: [
+      'Fog of War hides the board mid-game. Draft960 also hides the starting position — from move 0, neither player knows the other\'s setup.',
+      'Each player picks from their own independent set of three Chess960 offers. The picks stay sealed until the pieces start moving.',
+    ],
+    sections: [
+      {
+        heading: 'The pick screen',
+        blocks: [
+          {
+            kind: 'static-boards',
+            layout: 'triptych',
+            canvasWidth: 720,
+            canvasHeight: 244,
+            boardSize: 200,
+            boardY: 34,
+            gap: 30,
+            labelY: 22,
+            labelFill: '#4b5563',
+            boards: [
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_A).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'A' },
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_B).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'B' },
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_C).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'C' },
+            ],
+            caption: "Your three offers. Your opponent gets their own independent set — they never see yours.",
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text: "Draft960 merges Fog of War and Chess960 into one variant. Fog of War hides the board mid-game. Chess960 scrambles where everything starts. Both layers hidden simultaneously — pick one of three random setups, keep it sealed, and neither side knows what the other started from until the pieces start talking.",
+          },
+        ],
+      },
+      {
+        heading: 'The gradual reveal',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: "Your opponent's setup is hidden — but not forever. Each piece that moves off the back rank tells you something about where it started. The reveal isn't an announcement; it happens one move at a time, through fog.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'triptych',
+              positions: D960_FULL_POSITIONS,
+            },
+            caption: "By move 3, each player has deduced something about the other's setup — through the fog, one piece at a time.",
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'Try it',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: "Draft960 is available as a pregame option when creating a private room. Pick your setup, share the link, play.",
+          },
+          {
+            kind: 'cta',
+            buttons: [
+              { label: 'Play a friend', href: '/', emphasis: 'primary' },
+              { label: 'Find an opponent', href: '/', emphasis: 'secondary' },
+            ],
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text: "New to Fog of War? The [rules article](/articles/fog-of-war-rules) covers visibility, king capture, and the edge cases — start there before your first Draft960 game.",
           },
         ],
       },
