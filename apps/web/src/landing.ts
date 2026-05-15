@@ -1505,6 +1505,23 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
   });
 
   panel.append(lobbyButton, challengeButton, engineButton);
+
+  const learnNav = document.createElement('nav');
+  learnNav.className = 'landing-learn-links';
+
+  const fowLink = document.createElement('a');
+  fowLink.className = 'landing-learn-link';
+  fowLink.href = '/articles/fog-of-war-rules';
+  fowLink.textContent = 'Fog of War rules';
+
+  const draft960Link = document.createElement('a');
+  draft960Link.className = 'landing-learn-link';
+  draft960Link.href = '/articles/draft960';
+  draft960Link.textContent = 'Draft960';
+
+  learnNav.append(fowLink, draft960Link);
+  panel.append(learnNav);
+
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow());
   }
