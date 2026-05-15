@@ -9,6 +9,7 @@ import {
   type GameEvent,
   type GameState,
   type Move,
+  type Piece,
   type PieceRole,
   type PlayerView,
   type Square,
@@ -298,8 +299,24 @@ export async function mountReplay(
       lastWhiteView = null;
       lastBlackView = null;
     } else {
-      const whiteView = fogOfWarVariant.getPlayerView(state, 'white');
-      const blackView = fogOfWarVariant.getPlayerView(state, 'black');
+      let whiteView = fogOfWarVariant.getPlayerView(state, 'white');
+      let blackView = fogOfWarVariant.getPlayerView(state, 'black');
+      if (
+        finished
+        && state.status.type === 'finished'
+        && state.status.reason === 'king-captured'
+        && state.lastMove
+      ) {
+        const loser = state.status.winner === 'white' ? 'black' : 'white';
+        const attacker = state.board[state.lastMove.to];
+        if (attacker) {
+          if (loser === 'black') {
+            blackView = revealKingCaptureForLoser(blackView, state.lastMove, attacker);
+          } else {
+            whiteView = revealKingCaptureForLoser(whiteView, state.lastMove, attacker);
+          }
+        }
+      }
       setBoardFromView(whiteCg, whiteView, isSingleStepForward ? lastWhiteView : null);
       setBoardFromView(blackCg, blackView, isSingleStepForward ? lastBlackView : null);
       lastWhiteView = whiteView;
@@ -1577,12 +1594,27 @@ function setBoardFromState(api: Api, state: GameState): void {
 
 function hiddenSquareClasses(view: PlayerView): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
-  if (view.variant !== 'fog-of-war' || view.status.type === 'finished') return classes;
+  if (view.variant !== 'fog-of-war') return classes;
   const visible = new Set(view.visibleSquares);
   for (const square of allSquares) {
     if (!visible.has(square)) classes.set(square as cg.Key, 'fog-hidden');
   }
   return classes;
+}
+
+function revealKingCaptureForLoser(view: PlayerView, lastMove: Move, attacker: Piece): PlayerView {
+  const visible = new Set(view.visibleSquares);
+  const board = { ...view.board };
+  visible.add(lastMove.to);
+  visible.add(lastMove.from);
+  board[lastMove.to] = attacker;
+  delete board[lastMove.from];
+  return {
+    ...view,
+    board,
+    visibleSquares: [...visible].sort() as Square[],
+    lastMove,
+  };
 }
 
 function boardFen(board: Board): string {

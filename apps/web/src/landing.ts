@@ -182,7 +182,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   await mountReplay(stage.replayRoot, currentSample, {
     autoplay: true,
     showControls: false,
-    revealOnFinish: true,
+    revealOnFinish: false,
     blackOrientation: 'white',
     loopSamples: sampleIds,
     loaderForId: landingEventLoader,
