@@ -12,6 +12,7 @@ import {
 let pool: pg.Pool | null = null;
 
 const MIN_TIMEOUT_SOURCE_PLY_COUNT = 10;
+const MIN_TV_PVP_PLY_COUNT = 30;
 
 export type GameMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 export type GameResult = 'white-wins' | 'black-wins' | 'draw';
@@ -954,7 +955,8 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
        AND NOT (games.termination = 'timeout' AND games.ply_count < $1)
-       AND NOT (games.mode IN ('pvp', 'pve') AND games.ply_count < 2)
+       AND NOT (games.mode = 'pvp' AND games.ply_count < $3)
+       AND NOT (games.mode = 'pve' AND games.ply_count < 2)
        AND EXISTS (
          SELECT 1
          FROM events
@@ -968,7 +970,7 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $2`,
-    [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit],
+    [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit, MIN_TV_PVP_PLY_COUNT],
   );
 
   const records = rows.map((row): RecentEveGameRecord => ({

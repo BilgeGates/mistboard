@@ -712,21 +712,21 @@ function moveUciFromPayload(payload: Record<string, unknown>): string {
 }
 
 async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
-  const recentGames = await fetchRecentGames().catch((err) => {
-    console.warn(err);
-    return [];
-  });
-  if (recentGames.length > 0) return { games: recentGames, source: 'recent' };
-  const eveGames = await fetchRecentEveGames().catch((err) => {
-    console.warn(err);
-    return [];
-  });
-  if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
   const featuredGames = await fetchFeaturedGames().catch((err) => {
     console.warn(err);
     return [];
   });
   if (featuredGames.length > 0) return { games: featuredGames, source: 'featured' };
+  const eveGames = await fetchRecentEveGames().catch((err) => {
+    console.warn(err);
+    return [];
+  });
+  if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
+  const recentGames = await fetchRecentGames().catch((err) => {
+    console.warn(err);
+    return [];
+  });
+  if (recentGames.length > 0) return { games: recentGames, source: 'recent' };
   return { games: staticSampleGames(), source: 'sample' };
 }
 
