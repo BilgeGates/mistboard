@@ -445,7 +445,7 @@ const DISCOVERY_FINAL_FOG_B = fogFor(DISCOVERY_FINAL, 'black');
 // 70 ply. White's king never once sees it — until it walks to b4 on move 41
 // and the pawn captures it immediately.
 const PVP_START = fogOfWarVariant.createInitialState('pvp-t2t1-82ply');
-const PVP = replayMoves(PVP_START, [
+const PVP_STATES = replayMoves(PVP_START, [
   { from: 'e2', to: 'e4' },  // 1.e4
   { from: 'e7', to: 'e6' },  // 1...e6
   { from: 'b1', to: 'c3' },  // 2.Nc3
@@ -469,7 +469,7 @@ const PVP = replayMoves(PVP_START, [
   { from: 'd4', to: 'd5' },  // 11.d5
   { from: 'd7', to: 'c5' },  // 11...Nc5
   { from: 'e3', to: 'c5' },  // 12.Bxc5
-  { from: 'd6', to: 'c5' },  // 12...dxc5 ← THE PAWN
+  { from: 'd6', to: 'c5' },  // 12...dxc5 ← THE PAWN LANDS
   { from: 'd5', to: 'd6' },  // 13.d6
   { from: 'c7', to: 'd6' },  // 13...cxd6
   { from: 'd2', to: 'd6' },  // 14.Qxd6
@@ -504,7 +504,7 @@ const PVP = replayMoves(PVP_START, [
   { from: 'e5', to: 'd6' },  // 28...Bd6
   { from: 'e2', to: 'e8' },  // 29.Rxe8
   { from: 'd8', to: 'e8' },  // 29...Rxe8
-  { from: 'e1', to: 'e8' },  // 30.Rxe8+
+  { from: 'e1', to: 'e8' },  // 30.Rxe8
   { from: 'g8', to: 'f7' },  // 30...Kf7
   { from: 'e8', to: 'a8' },  // 31.Ra8
   { from: 'b7', to: 'a8' },  // 31...Bxa8
@@ -529,30 +529,18 @@ const PVP = replayMoves(PVP_START, [
   { from: 'c3', to: 'b4' },  // 41.Kb4 ← KING WALKS INTO c5 PAWN'S RANGE
   { from: 'c5', to: 'b4' },  // 41...cxb4 ← PAWN CAPTURES KING
 ]);
-// Key snapshots by ply index (PVP[0] = start, PVP[N] = after N-th move)
-const PVP_PLY16 = PVP[16]!;  // after 8.Rg1 Bf6
-const PVP_PLY24 = PVP[24]!;  // after 12...dxc5 — pawn lands on c5
-const PVP_PLY32 = PVP[32]!;  // after 16...O-O — simplified, pawn still there
-const PVP_PLY60 = PVP[60]!;  // after 30...Kf7 — endgame, rooks gone
-const PVP_PLY80 = PVP[80]!;  // after 40...g3 — king on c3, can't see c5
-const PVP_PLY81 = PVP[81]!;  // after 41.Kb4 — king just arrived, sees c5
-const PVP_PLY82 = PVP[82]!;  // after 41...cxb4 — pawn captures king
-// Fog views for each key snapshot
-const PVP16_FW = fogFor(PVP_PLY16, 'white');
-const PVP16_FB = fogFor(PVP_PLY16, 'black');
-const PVP24_FW = fogFor(PVP_PLY24, 'white');
-const PVP24_FB = fogFor(PVP_PLY24, 'black');
-const PVP32_FW = fogFor(PVP_PLY32, 'white');
-const PVP32_FB = fogFor(PVP_PLY32, 'black');
-const PVP60_FW = fogFor(PVP_PLY60, 'white');
-const PVP60_FB = fogFor(PVP_PLY60, 'black');
-const PVP80_FW = fogFor(PVP_PLY80, 'white');
-const PVP80_FB = fogFor(PVP_PLY80, 'black');
-const PVP81_FW = fogFor(PVP_PLY81, 'white');
-const PVP81_FB = fogFor(PVP_PLY81, 'black');
-// Fog stays at the pre-capture state for the final board.
-const PVP82_FW = PVP81_FW;
-const PVP82_FB = PVP81_FB;
+
+const PVP_FULL_POSITIONS = PVP_STATES.map((state, i) => {
+  const isLast = i === PVP_STATES.length - 1;
+  return {
+    ...(isLast ? { outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' as const } } : {}),
+    boards: [
+      { board: state.board, fogSquares: fogFor(state, 'white'), orientation: 'white' as const, label: "WHITE'S VIEW" },
+      { board: state.board, orientation: 'white' as const, label: 'TRUTH' },
+      { board: state.board, fogSquares: fogFor(state, 'black'), orientation: 'white' as const, label: "BLACK'S VIEW" },
+    ],
+  };
+});
 
 // ── Draft960 full game: room db07069c ────────────────────────────────────────
 // White #700 nnrkbqrb: a1=N b1=N c1=R d1=K e1=B f1=Q g1=R h1=B
@@ -1293,65 +1281,7 @@ export const articles: Article[] = [
             widget: 'stepper',
             spec: {
               layout: 'triptych',
-              positions: [
-                {
-                  narrative: "After 8.Rg1 Bf6. White has moved the h1 rook to g1 — not castling, but clearing h1 and eyeing a g-pawn advance. Black has developed the bishop to f6. Both sides are working from partial information: White's setup is dark to Black, Black's is dark to White.",
-                  boards: [
-                    { board: PVP_PLY16.board, fogSquares: PVP16_FW, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: PVP_PLY16.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PVP_PLY16.board, fogSquares: PVP16_FB, orientation: 'white', label: "BLACK'S VIEW" },
-                  ],
-                },
-                {
-                  narrative: "After 12.Bxc5 dxc5. White's bishop captures Black's knight on c5; Black recaptures with the d6 pawn. The pawn has landed on c5. It will stay there for the rest of the game — 70 more ply. White doesn't see c5 from any current piece position. It's just a square in the fog.",
-                  boards: [
-                    { board: PVP_PLY24.board, fogSquares: PVP24_FW, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: PVP_PLY24.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PVP_PLY24.board, fogSquares: PVP24_FB, orientation: 'white', label: "BLACK'S VIEW" },
-                  ],
-                },
-                {
-                  narrative: "After 16...O-O. The queens have traded on d6; White's rook occupied d6, then retreated to d2; Black castles kingside. The board has simplified significantly. The c5 pawn is still there — move 16 out of 41 — and White still can't see it.",
-                  boards: [
-                    { board: PVP_PLY32.board, fogSquares: PVP32_FW, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: PVP_PLY32.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PVP_PLY32.board, fogSquares: PVP32_FB, orientation: 'white', label: "BLACK'S VIEW" },
-                  ],
-                },
-                {
-                  narrative: "After 30...Kf7. Both pairs of rooks have been traded on the e-file; White's rook went to a8 and was captured by Black's bishop. It's a late endgame — bishops and pawns. The c5 pawn has now been on the board for 18 moves, 36 ply. White has never seen it.",
-                  boards: [
-                    { board: PVP_PLY60.board, fogSquares: PVP60_FW, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: PVP_PLY60.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PVP_PLY60.board, fogSquares: PVP60_FB, orientation: 'white', label: "BLACK'S VIEW" },
-                  ],
-                },
-                {
-                  narrative: "After 40...g3. White's king is on c3, marching toward the queenside. From c3 the king sees: b2, b3, b4, c2, c4, d2, d3, d4. Not c5. The Black pawn there is invisible. White is walking toward it, one square at a time, unaware.",
-                  boards: [
-                    { board: PVP_PLY80.board, fogSquares: PVP80_FW, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: PVP_PLY80.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PVP_PLY80.board, fogSquares: PVP80_FB, orientation: 'white', label: "BLACK'S VIEW" },
-                  ],
-                },
-                {
-                  narrative: "41.Kb4. The king moves from c3 to b4. The instant it arrives, its visibility expands — b4 is adjacent to c5. White sees the Black pawn on c5 for the first time. It has been there since move 12. But it's Black's turn.",
-                  boards: [
-                    { board: PVP_PLY81.board, fogSquares: PVP81_FW, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: PVP_PLY81.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PVP_PLY81.board, fogSquares: PVP81_FB, orientation: 'white', label: "BLACK'S VIEW" },
-                  ],
-                },
-                {
-                  narrative: "41...cxb4. The pawn on c5 captures the king on b4. It sat on c5 for 29 moves — 58 ply — undetected, while White traded queens, traded rooks, navigated a bishop endgame, and marched a king across the board. The king never saw it coming.",
-                  outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' },
-                  boards: [
-                    { board: PVP_PLY82.board, fogSquares: PVP82_FW, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: PVP_PLY82.board, orientation: 'white', label: 'TRUTH' },
-                    { board: PVP_PLY82.board, fogSquares: PVP82_FB, orientation: 'white', label: "BLACK'S VIEW" },
-                  ],
-                },
-              ],
+              positions: PVP_FULL_POSITIONS,
             },
             caption: "A pawn sat on c5 for 29 moves. White never saw it. The king walked into range on move 41.",
           } as ArticleBlock,
