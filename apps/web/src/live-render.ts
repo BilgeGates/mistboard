@@ -12,6 +12,7 @@ import {
   type PlayerView,
   type Square,
 } from '@mistboard/game';
+import { fogPatternDefs, renderBoardSvg, type PieceOnBoard } from '@mistboard/board-render';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
@@ -49,6 +50,35 @@ let reconnectNow: () => void = () => {};
 let ground: Api | null = null;
 let pendingPromotion: PendingPromotion | null = null;
 let orientation: Color = 'white';
+
+// Fog squares for the Draft960 pick overlay — opponent's half is always hidden.
+const PICKER_FOG_WHITE: Square[] = [
+  'a5','b5','c5','d5','e5','f5','g5','h5',
+  'a6','b6','c6','d6','e6','f6','g6','h6',
+  'a7','b7','c7','d7','e7','f7','g7','h7',
+  'a8','b8','c8','d8','e8','f8','g8','h8',
+];
+const PICKER_FOG_BLACK: Square[] = [
+  'a1','b1','c1','d1','e1','f1','g1','h1',
+  'a2','b2','c2','d2','e2','f2','g2','h2',
+  'a3','b3','c3','d3','e3','f3','g3','h3',
+  'a4','b4','c4','d4','e4','f4','g4','h4',
+];
+const FEN_CHAR_TO_ROLE: Partial<Record<string, PieceRole>> = {
+  r: 'rook', n: 'knight', b: 'bishop', q: 'queen', k: 'king',
+};
+
+function fenToPickerPieces(fenPlacement: string, color: Color): PieceOnBoard[] {
+  const pieces: PieceOnBoard[] = [];
+  const backRank = color === 'white' ? 0 : 7;
+  const pawnRank = color === 'white' ? 1 : 6;
+  for (let i = 0; i < 8; i++) {
+    const role = FEN_CHAR_TO_ROLE[fenPlacement[i] ?? ''];
+    if (role) pieces.push({ file: i, rank: backRank, color, role });
+    pieces.push({ file: i, rank: pawnRank, color, role: 'pawn' });
+  }
+  return pieces;
+}
 let postgameFogEnabled = false;
 let playAgainStatus: PlayAgainStatus = 'idle';
 let replayIndex: number | null = null;
@@ -131,6 +161,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
             <div data-board-status class="board-status">Connecting</div>
             <div data-board class="board" aria-label="chess board"></div>
             <div data-board-result class="board-result" hidden></div>
+            <div data-draft-picker class="draft-picker" hidden></div>
             <div data-promotion class="promotion-picker" hidden></div>
           </div>
           <aside class="side-panel moves-panel" aria-label="Replay and move list">
@@ -173,6 +204,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const bidSection = target.querySelector<HTMLElement>('[data-bid-section]');
   const bidStatus = target.querySelector<HTMLDivElement>('[data-bid-status]');
   const offerSection = target.querySelector<HTMLElement>('[data-offer-section]');
+  const draftPicker = target.querySelector<HTMLDivElement>('[data-draft-picker]');
   const promotion = target.querySelector<HTMLDivElement>('[data-promotion]');
   const selectionSection = target.querySelector<HTMLElement>('[data-selection-section]');
   const starts = target.querySelector<HTMLDivElement>('[data-starts]');
@@ -184,7 +216,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
   const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
+  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
     throw new Error('missing app region');
   }
 
@@ -194,6 +226,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
     board,
     boardResult,
     boardStatus,
+    draftPicker,
     actionStatus,
     bidControls,
     bidSection,
@@ -253,11 +286,14 @@ export function render(): void {
   const nextOrientation = view?.perspective ?? (liveState.seat === 'black' ? 'black' : 'white');
   orientation = nextOrientation;
   const showDraft = shouldShowDraftControls(view, projection);
+  const showPickerOverlay = !liveState.solo && isColor(liveState.seat)
+    && view?.status.type === 'pregame'
+    && draftOfferForColor(liveState.seat, projection).length > 0;
 
   refs.roomMeta.innerHTML = roomMetaHtml();
   refs.boardStatus.textContent = boardStatusLabel();
   refs.boardStatus.hidden = view !== null;
-  refs.offerSection.hidden = !showDraft;
+  refs.offerSection.hidden = !showDraft || showPickerOverlay;
   refs.selectionSection.hidden = !showDraft;
   refs.bidSection.hidden = view?.variant !== 'bid-for-white';
 
@@ -270,6 +306,7 @@ export function render(): void {
   renderBid(view);
   renderOffer(projection);
   renderSelections(projection);
+  renderDraftPicker();
   renderReplay();
   renderBoard(view);
   renderBoardResult(view);
@@ -434,6 +471,72 @@ function renderSelections(projection: GameProjection | null): void {
 
 // ── Action status / game info ─────────────────────────────────────────────────
 
+function renderDraftPicker(): void {
+  const view = currentView();
+  const projection = currentProjection();
+  if (liveState.solo || !isColor(liveState.seat) || view?.status.type !== 'pregame') {
+    refs.draftPicker.hidden = true;
+    return;
+  }
+  const color = liveState.seat;
+  const offers = draftOfferForColor(color, projection);
+  if (offers.length === 0) {
+    refs.draftPicker.hidden = true;
+    return;
+  }
+  refs.draftPicker.hidden = false;
+
+  const mySelection = selectedStartId(color, projection);
+  const fogSquares = color === 'white' ? PICKER_FOG_WHITE : PICKER_FOG_BLACK;
+
+  if (mySelection !== undefined) {
+    const selected = offers.find((o) => o.id === mySelection);
+    if (!selected) { refs.draftPicker.hidden = true; return; }
+    const pieces = fenToPickerPieces(selected.fenPlacement, color);
+    const size = 200;
+    const svgHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${fogPatternDefs(size)}${renderBoardSvg(pieces, fogSquares, 0, 0, size, color)}</svg>`;
+    refs.draftPicker.replaceChildren();
+    const waiting = document.createElement('div');
+    waiting.className = 'draft-picker-waiting';
+    waiting.innerHTML = `<div class="draft-picker-waiting-board">${svgHtml}</div>`;
+    const label = document.createElement('p');
+    label.className = 'draft-picker-waiting-label';
+    label.textContent = 'Waiting for opponent…';
+    waiting.append(label);
+    refs.draftPicker.append(waiting);
+    return;
+  }
+
+  refs.draftPicker.replaceChildren();
+  const inner = document.createElement('div');
+  inner.className = 'draft-picker-inner';
+  const heading = document.createElement('p');
+  heading.className = 'draft-picker-heading';
+  heading.textContent = 'Choose your starting position';
+  const boardsEl = document.createElement('div');
+  boardsEl.className = 'draft-picker-boards';
+  const size = 160;
+
+  ['A', 'B', 'C'].slice(0, offers.length).forEach((letter, i) => {
+    const offer = offers[i]!;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'draft-pick-board';
+    const pieces = fenToPickerPieces(offer.fenPlacement, color);
+    const svgHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${fogPatternDefs(size)}${renderBoardSvg(pieces, fogSquares, 0, 0, size, color)}</svg>`;
+    btn.innerHTML = svgHtml;
+    const lbl = document.createElement('span');
+    lbl.className = 'draft-pick-label';
+    lbl.textContent = letter;
+    btn.append(lbl);
+    btn.addEventListener('click', () => { sendSocket({ type: 'select-start', color, startId: offer.id }); });
+    boardsEl.append(btn);
+  });
+
+  inner.append(heading, boardsEl);
+  refs.draftPicker.append(inner);
+}
+
 function renderActionStatus(view: PlayerView | null): void {
   refs.actionStatus.replaceChildren();
   if (view?.status.type === 'finished' && isLive()) {
@@ -534,9 +637,24 @@ function requestResign(): void {
   sendSocket({ type: 'resign' });
 }
 
+function copyLinkButton(): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'primary';
+  btn.textContent = 'Copy invite link';
+  btn.addEventListener('click', () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      btn.textContent = 'Link copied!';
+      setTimeout(() => { btn.textContent = 'Copy invite link'; }, 2000);
+    }).catch(() => {});
+  });
+  return btn;
+}
+
 function renderRoomActions(): void {
+  const view = currentView();
   const actions: HTMLElement[] = [roomAction('Back home', '/')];
-  if (currentView()?.status.type === 'finished') {
+  if (view?.status.type === 'finished') {
     if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
       for (const el of rematchButtons()) actions.unshift(el);
     } else if (liveState.roomMode === 'pve') {
@@ -548,6 +666,9 @@ function renderRoomActions(): void {
     note.textContent = 'Open the review to see the full reveal and share the finished game.';
     refs.roomActions.replaceChildren(note, ...actions);
     return;
+  }
+  if (liveState.roomMode === 'pvp' && view?.status.type === 'pregame' && isColor(liveState.seat)) {
+    actions.unshift(copyLinkButton());
   }
   if (liveState.engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
   refs.roomActions.replaceChildren(...actions);
@@ -1605,7 +1726,13 @@ function actionTitle(view: PlayerView | null): string {
   if (!view || liveState.connectionState === 'connecting') return 'Connecting';
   if (view.status.type === 'finished') return resultTitle(view.status.winner);
   if (liveState.seat === 'spectator') return 'Watching';
-  if (view.status.type === 'pregame') return liveState.roomMode === 'pvp' ? 'Waiting for opponent' : 'Preparing game';
+  if (view.status.type === 'pregame') {
+    if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
+      const theirSeat: Color = liveState.seat === 'white' ? 'black' : 'white';
+      if (liveState.connectedSeats[theirSeat]) return 'Opponent connected';
+    }
+    return liveState.roomMode === 'pvp' ? 'Waiting for opponent' : 'Preparing game';
+  }
   if (view.status.type === 'playing' && liveState.roomMode === 'pve' && view.status.turn === 'black') return 'Engine thinking';
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) return 'Your move';
   return 'Opponent move';
@@ -1621,7 +1748,18 @@ function actionBody(view: PlayerView | null): string {
     return `Board is fully revealed. ${resultReasonLabel(view.status.reason)}.`;
   }
   if (liveState.seat === 'spectator') return spectatorBody(view);
-  if (view.status.type === 'pregame') return 'Share the room link when you are ready.';
+  if (view.status.type === 'pregame') {
+    if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
+      const theirSeat: Color = liveState.seat === 'white' ? 'black' : 'white';
+      if (liveState.connectedSeats[theirSeat]) {
+        return hasVisibleDraftData(currentProjection())
+          ? 'Choose your starting position from the options on the board.'
+          : 'Both players connected. Game starting.';
+      }
+      return 'Share the invite link below to invite your opponent.';
+    }
+    return 'Share the room link when you are ready.';
+  }
   if (view.status.type === 'playing' && liveState.roomMode === 'pve' && view.status.turn === 'black') {
     return 'The engine is on its own clock. Your clock resumes after its move.';
   }

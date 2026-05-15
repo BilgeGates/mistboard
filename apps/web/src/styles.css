@@ -772,21 +772,125 @@ button:focus-visible {
 
 .presence-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   margin-right: 6px;
   vertical-align: 1px;
-  background: #cbd5d0;
+  background: #b9c3bf;
+  flex-shrink: 0;
 }
 
 .presence-dot.is-online {
   background: #2f9e6e;
-  box-shadow: 0 0 0 2px rgba(47, 158, 110, 0.18);
+  box-shadow: 0 0 0 3px rgba(47, 158, 110, 0.2);
 }
 
 .presence-dot.is-offline {
   background: #b9c3bf;
+  animation: presence-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes presence-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Draft960 pick overlay ───────────────────────────────────────────────── */
+
+.draft-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(16, 22, 18, 0.93);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.draft-picker[hidden] { display: none; }
+
+.draft-picker-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+}
+
+.draft-picker-heading {
+  color: #c8d4cc;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0;
+  font-weight: 500;
+}
+
+.draft-picker-boards {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.draft-pick-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 2px solid rgba(200, 212, 204, 0.12);
+  border-radius: 6px;
+  padding: 8px 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.draft-pick-board:hover {
+  border-color: rgba(200, 212, 204, 0.35);
+  background: rgba(200, 212, 204, 0.04);
+}
+
+.draft-pick-board.selected {
+  border-color: #2f9e6e;
+  background: rgba(47, 158, 110, 0.08);
+}
+
+.draft-pick-board svg {
+  display: block;
+  border-radius: 2px;
+}
+
+.draft-pick-label {
+  color: #7a8f83;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.draft-pick-board.selected .draft-pick-label {
+  color: #2f9e6e;
+}
+
+.draft-picker-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+}
+
+.draft-picker-waiting-board svg {
+  display: block;
+  border-radius: 2px;
+  opacity: 0.75;
+}
+
+.draft-picker-waiting-label {
+  color: #7a8f83;
+  font-size: 0.85rem;
+  margin: 0;
 }
 
 .game-controls {

@@ -48,6 +48,7 @@ export type LiveRefs = {
   board: HTMLDivElement;
   boardResult: HTMLDivElement;
   boardStatus: HTMLDivElement;
+  draftPicker: HTMLDivElement;
   actionStatus: HTMLDivElement;
   bidControls: HTMLDivElement;
   bidSection: HTMLElement;

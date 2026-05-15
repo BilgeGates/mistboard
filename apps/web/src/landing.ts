@@ -1570,6 +1570,7 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
     openLandingSetupDialog({
       mode: 'pvp',
       title: 'Challenge a friend',
+      ratedDisabled: true,
     });
   });
   engineButton.addEventListener('click', () => {
@@ -1769,10 +1770,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startGroup.setAttribute('aria-label', 'Fog start format');
 
   const standardButton = startOptionButton('Standard', true);
-  const draftButton = startOptionButton('Draft960 (coming soon)', false);
-  draftButton.disabled = true;
-  draftButton.classList.add('disabled');
-  draftButton.title = 'Coming soon';
+  const draftButton = startOptionButton('Draft960', false);
   const syncOptions = () => {
     standardButton.classList.toggle('selected', startFormat === 'standard');
     standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
@@ -1781,6 +1779,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   };
   standardButton.addEventListener('click', () => {
     startFormat = 'standard';
+    syncOptions();
+  });
+  draftButton.addEventListener('click', () => {
+    startFormat = 'draft960';
     syncOptions();
   });
   startGroup.append(standardButton, draftButton);

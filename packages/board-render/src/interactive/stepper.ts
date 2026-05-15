@@ -128,7 +128,7 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
   next.textContent = '→';
   controls.append(prev, counter, next);
 
-  host.append(row, narrative, controls);
+  host.append(row, controls, narrative);
 
   let stepIdx = 0;
 

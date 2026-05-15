@@ -12,7 +12,17 @@ import {
   startingPositionFromBackRank,
 } from '@mistboard/board-render';
 import type { SteppedBoardsOptions } from '@mistboard/board-render/interactive';
-import { fogOfWarVariant, type Board, type GameState, type PieceRole, type Square } from '@mistboard/game';
+import {
+  createChess960CastlingRightsForSides,
+  createChess960InitialBoardForSides,
+  fogOfWarVariant,
+  type BackRankRole,
+  type Board,
+  type Chess960Start,
+  type GameState,
+  type PieceRole,
+  type Square,
+} from '@mistboard/game';
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
 
@@ -129,6 +139,19 @@ const FOW_START_FOG_B = fogSquaresFromVisible(FOW_START_VIEW_B.visibleSquares);
 // Helper: derive the visibility complement for a player on a state.
 function fogFor(state: GameState, player: 'white' | 'black'): Square[] {
   return fogSquaresFromVisible(fogOfWarVariant.getPlayerView(state, player).visibleSquares);
+}
+
+// Helper: apply a sequence of moves from a start state; returns all states
+// including the start. states[0] = start, states[N] = after N-th move.
+function replayMoves(
+  start: GameState,
+  moves: Array<{ from: Square; to: Square; promotion?: Exclude<PieceRole, 'king' | 'pawn'> }>,
+): GameState[] {
+  const states: GameState[] = [start];
+  for (const move of moves) {
+    states.push(fogOfWarVariant.applyMove(states[states.length - 1]!, move));
+  }
+  return states;
 }
 
 // ── Castling example 1: out of check, into safety ─────────────────────────
@@ -416,46 +439,320 @@ const DISCOVERY_BEFORE_FOG_B = fogFor(DISCOVERY_BEFORE, 'black');
 const DISCOVERY_AFTER_FOG_B = fogFor(DISCOVERY_AFTER_NMOVE, 'black');
 const DISCOVERY_FINAL_FOG_B = fogFor(DISCOVERY_FINAL, 'black');
 
-// ── Worked mini-game: scholar's-mate-style trap in Fog of War ────────────
-// 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6 4.Qxf7 Kxf7 5.Bxf7
-// The bishop is the real threat from move 2 onward, but no Black piece ever
-// reaches c4, so Black never sees it. The queen sortie looks like the
-// primary attack; Black plays 3...Nf6 to attack the queen. When 4.Qxf7
-// captures the f7 pawn, Black's king is forced to recapture (queen is
-// attacking the king next move). Kxf7 walks into the hidden bishop, which
-// captures the king. Information asymmetry directly causes the loss.
-const MINIGAME_START = fogOfWarVariant.createInitialState('fow-rules-minigame');
-const MINIGAME_E4 = fogOfWarVariant.applyMove(MINIGAME_START, { from: 'e2', to: 'e4' });
-const MINIGAME_E5 = fogOfWarVariant.applyMove(MINIGAME_E4, { from: 'e7', to: 'e5' });
-const MINIGAME_BC4 = fogOfWarVariant.applyMove(MINIGAME_E5, { from: 'f1', to: 'c4' });
-const MINIGAME_NC6 = fogOfWarVariant.applyMove(MINIGAME_BC4, { from: 'b8', to: 'c6' });
-const MINIGAME_QH5 = fogOfWarVariant.applyMove(MINIGAME_NC6, { from: 'd1', to: 'h5' });
-const MINIGAME_NF6 = fogOfWarVariant.applyMove(MINIGAME_QH5, { from: 'g8', to: 'f6' });
-const MINIGAME_QXF7 = fogOfWarVariant.applyMove(MINIGAME_NF6, { from: 'h5', to: 'f7' });
-const MINIGAME_KXF7 = fogOfWarVariant.applyMove(MINIGAME_QXF7, { from: 'e8', to: 'f7' });
-const MINIGAME_BXF7 = fogOfWarVariant.applyMove(MINIGAME_KXF7, { from: 'c4', to: 'f7' });
-const MINIGAME_E5_FOG_W = fogFor(MINIGAME_E5, 'white');
-const MINIGAME_NC6_FOG_W = fogFor(MINIGAME_NC6, 'white');
-const MINIGAME_NF6_FOG_W = fogFor(MINIGAME_NF6, 'white');
-const MINIGAME_KXF7_FOG_W = fogFor(MINIGAME_KXF7, 'white');
-// Fog stays on after capture: snapshot the pre-final fog so the win
-// position carries the same visibility filter the reader had at the moment
-// the king was captured.
-const MINIGAME_BXF7_FOG_W = MINIGAME_KXF7_FOG_W;
+// ── Worked game: test1 (Black) vs test2 (White), local 2026-05-15 ─────────────
+// Room 092ca35d-bd5d-4517-a135-cd7a9c3eb3f1 — 82 ply, Black wins, king captured
+// A 41-move game. The Black pawn lands on c5 on move 12 and stays there for
+// 70 ply. White's king never once sees it — until it walks to b4 on move 41
+// and the pawn captures it immediately.
+const PVP_START = fogOfWarVariant.createInitialState('pvp-t2t1-82ply');
+const PVP = replayMoves(PVP_START, [
+  { from: 'e2', to: 'e4' },  // 1.e4
+  { from: 'e7', to: 'e6' },  // 1...e6
+  { from: 'b1', to: 'c3' },  // 2.Nc3
+  { from: 'f8', to: 'e7' },  // 2...Be7
+  { from: 'f1', to: 'e2' },  // 3.Be2
+  { from: 'b7', to: 'b5' },  // 3...b5
+  { from: 'a2', to: 'a3' },  // 4.a3
+  { from: 'a7', to: 'a6' },  // 4...a6
+  { from: 'g1', to: 'f3' },  // 5.Nf3
+  { from: 'c8', to: 'b7' },  // 5...Bb7
+  { from: 'd2', to: 'd4' },  // 6.d4
+  { from: 'd7', to: 'd6' },  // 6...d6
+  { from: 'c1', to: 'e3' },  // 7.Be3
+  { from: 'b8', to: 'd7' },  // 7...Nd7
+  { from: 'h1', to: 'g1' },  // 8.Rg1
+  { from: 'e7', to: 'f6' },  // 8...Bf6
+  { from: 'd1', to: 'd2' },  // 9.Qd2
+  { from: 'd8', to: 'e7' },  // 9...Qe7
+  { from: 'a1', to: 'd1' },  // 10.Rd1
+  { from: 'e6', to: 'e5' },  // 10...e5
+  { from: 'd4', to: 'd5' },  // 11.d5
+  { from: 'd7', to: 'c5' },  // 11...Nc5
+  { from: 'e3', to: 'c5' },  // 12.Bxc5
+  { from: 'd6', to: 'c5' },  // 12...dxc5 ← THE PAWN
+  { from: 'd5', to: 'd6' },  // 13.d6
+  { from: 'c7', to: 'd6' },  // 13...cxd6
+  { from: 'd2', to: 'd6' },  // 14.Qxd6
+  { from: 'e7', to: 'd6' },  // 14...Qxd6
+  { from: 'd1', to: 'd6' },  // 15.Rxd6
+  { from: 'g8', to: 'e7' },  // 15...Ne7
+  { from: 'd6', to: 'd2' },  // 16.Rd2
+  { from: 'e8', to: 'h8' },  // 16...O-O
+  { from: 'c3', to: 'd5' },  // 17.Nd5
+  { from: 'e7', to: 'd5' },  // 17...Nxd5
+  { from: 'e4', to: 'd5' },  // 18.exd5
+  { from: 'f8', to: 'd8' },  // 18...Rfd8
+  { from: 'b2', to: 'b3' },  // 19.b3
+  { from: 'd8', to: 'd7' },  // 19...Rd7
+  { from: 'c2', to: 'c4' },  // 20.c4
+  { from: 'b5', to: 'c4' },  // 20...bxc4
+  { from: 'b3', to: 'c4' },  // 21.bxc4
+  { from: 'a8', to: 'd8' },  // 21...Rad8
+  { from: 'e2', to: 'd1' },  // 22.Bd1
+  { from: 'e5', to: 'e4' },  // 22...e4
+  { from: 'f3', to: 'e5' },  // 23.Ne5
+  { from: 'f6', to: 'e5' },  // 23...Bxe5
+  { from: 'f2', to: 'f3' },  // 24.f3
+  { from: 'e4', to: 'f3' },  // 24...exf3
+  { from: 'd1', to: 'f3' },  // 25.Bxf3
+  { from: 'f7', to: 'f6' },  // 25...f6
+  { from: 'e1', to: 'f2' },  // 26.Kf2
+  { from: 'd8', to: 'e8' },  // 26...Re8
+  { from: 'g1', to: 'e1' },  // 27.Re1
+  { from: 'd7', to: 'd8' },  // 27...Rd8
+  { from: 'd2', to: 'e2' },  // 28.Re2
+  { from: 'e5', to: 'd6' },  // 28...Bd6
+  { from: 'e2', to: 'e8' },  // 29.Rxe8
+  { from: 'd8', to: 'e8' },  // 29...Rxe8
+  { from: 'e1', to: 'e8' },  // 30.Rxe8+
+  { from: 'g8', to: 'f7' },  // 30...Kf7
+  { from: 'e8', to: 'a8' },  // 31.Ra8
+  { from: 'b7', to: 'a8' },  // 31...Bxa8
+  { from: 'f3', to: 'e4' },  // 32.Be4
+  { from: 'a8', to: 'b7' },  // 32...Bb7
+  { from: 'e4', to: 'h7' },  // 33.Bh7
+  { from: 'd6', to: 'h2' },  // 33...Bh2
+  { from: 'h7', to: 'd3' },  // 34.Bd3
+  { from: 'h2', to: 'e5' },  // 34...Be5
+  { from: 'd5', to: 'd6' },  // 35.d6
+  { from: 'e5', to: 'd6' },  // 35...Bxd6
+  { from: 'f2', to: 'e3' },  // 36.Ke3
+  { from: 'b7', to: 'g2' },  // 36...Bg2
+  { from: 'a3', to: 'a4' },  // 37.a4
+  { from: 'g7', to: 'g5' },  // 37...g5
+  { from: 'a4', to: 'a5' },  // 38.a5
+  { from: 'g2', to: 'c6' },  // 38...Bc6
+  { from: 'e3', to: 'd2' },  // 39.Kd2
+  { from: 'g5', to: 'g4' },  // 39...g4
+  { from: 'd2', to: 'c3' },  // 40.Kc3
+  { from: 'g4', to: 'g3' },  // 40...g3
+  { from: 'c3', to: 'b4' },  // 41.Kb4 ← KING WALKS INTO c5 PAWN'S RANGE
+  { from: 'c5', to: 'b4' },  // 41...cxb4 ← PAWN CAPTURES KING
+]);
+// Key snapshots by ply index (PVP[0] = start, PVP[N] = after N-th move)
+const PVP_PLY16 = PVP[16]!;  // after 8.Rg1 Bf6
+const PVP_PLY24 = PVP[24]!;  // after 12...dxc5 — pawn lands on c5
+const PVP_PLY32 = PVP[32]!;  // after 16...O-O — simplified, pawn still there
+const PVP_PLY60 = PVP[60]!;  // after 30...Kf7 — endgame, rooks gone
+const PVP_PLY80 = PVP[80]!;  // after 40...g3 — king on c3, can't see c5
+const PVP_PLY81 = PVP[81]!;  // after 41.Kb4 — king just arrived, sees c5
+const PVP_PLY82 = PVP[82]!;  // after 41...cxb4 — pawn captures king
+// Fog views for each key snapshot
+const PVP16_FW = fogFor(PVP_PLY16, 'white');
+const PVP16_FB = fogFor(PVP_PLY16, 'black');
+const PVP24_FW = fogFor(PVP_PLY24, 'white');
+const PVP24_FB = fogFor(PVP_PLY24, 'black');
+const PVP32_FW = fogFor(PVP_PLY32, 'white');
+const PVP32_FB = fogFor(PVP_PLY32, 'black');
+const PVP60_FW = fogFor(PVP_PLY60, 'white');
+const PVP60_FB = fogFor(PVP_PLY60, 'black');
+const PVP80_FW = fogFor(PVP_PLY80, 'white');
+const PVP80_FB = fogFor(PVP_PLY80, 'black');
+const PVP81_FW = fogFor(PVP_PLY81, 'white');
+const PVP81_FB = fogFor(PVP_PLY81, 'black');
+// Fog stays at the pre-capture state for the final board.
+const PVP82_FW = PVP81_FW;
+const PVP82_FB = PVP81_FB;
+
+// ── Draft960 full game: room db07069c ────────────────────────────────────────
+// White #700 nnrkbqrb: a1=N b1=N c1=R d1=K e1=B f1=Q g1=R h1=B
+// Black #626 rnqkbbrn: a8=R b8=N c8=Q d8=K e8=B f8=B g8=R h8=N
+const D960_W: Chess960Start = {
+  id: 700,
+  backRank: ['knight', 'knight', 'rook', 'king', 'bishop', 'queen', 'rook', 'bishop'] as BackRankRole[],
+  fenPlacement: 'nnrkbqrb',
+};
+const D960_B: Chess960Start = {
+  id: 626,
+  backRank: ['rook', 'knight', 'queen', 'king', 'bishop', 'bishop', 'rook', 'knight'] as BackRankRole[],
+  fenPlacement: 'rnqkbbrn',
+};
+const D960_REVEAL_S0: GameState = {
+  id: 'draft960-reveal',
+  variant: 'fog-of-war',
+  board: createChess960InitialBoardForSides(D960_W, D960_B),
+  status: { type: 'playing', turn: 'white' },
+  moveNumber: 1,
+  castlingRights: createChess960CastlingRightsForSides(D960_W, D960_B),
+  halfmoveClock: 0,
+};
+
+const D960_FULL_STATES = replayMoves(D960_REVEAL_S0, [
+  { from: 'e2', to: 'e4' },                        // 1. e4
+  { from: 'h8', to: 'g6' },                        // 1...Nhg6 ← h8 KNIGHT reveal
+  { from: 'f2', to: 'f3' },                        // 2. f3
+  { from: 'a7', to: 'a5' },                        // 2...a5
+  { from: 'e1', to: 'f2' },                        // 3. Be1f2 ← e1 BISHOP reveal
+  { from: 'a5', to: 'a4' },                        // 3...a4
+  { from: 'b1', to: 'c3' },                        // 4. Nc3
+  { from: 'f7', to: 'f6' },                        // 4...f6
+  { from: 'd2', to: 'd4' },                        // 5. d4
+  { from: 'e8', to: 'f7' },                        // 5...Bef7 ← e8 BISHOP reveal
+  { from: 'd1', to: 'c1' },                        // 6. O-O-O ← d1 KING reveals via castling
+  { from: 'e7', to: 'e5' },                        // 6...e5
+  { from: 'd4', to: 'd5' },                        // 7. d5
+  { from: 'f8', to: 'd6' },                        // 7...Bfd6 ← f8 BISHOP reveal
+  { from: 'g2', to: 'g4' },                        // 8. g4
+  { from: 'd8', to: 'g8' },                        // 8...O-O ← d8 KING reveals via castling
+  { from: 'c3', to: 'e2' },                        // 9. Ne2
+  { from: 'c7', to: 'c6' },                        // 9...c6
+  { from: 'd5', to: 'c6' },                        // 10. dxc6
+  { from: 'd7', to: 'c6' },                        // 10...dxc6
+  { from: 'e2', to: 'g3' },                        // 11. Ng3
+  { from: 'd6', to: 'c7' },                        // 11...Bc7
+  { from: 'h2', to: 'h4' },                        // 12. h4
+  { from: 'g6', to: 'e7' },                        // 12...Ne7
+  { from: 'f3', to: 'f4' },                        // 13. f4
+  { from: 'e5', to: 'f4' },                        // 13...exf4
+  { from: 'g3', to: 'e2' },                        // 14. Ne2
+  { from: 'g7', to: 'g5' },                        // 14...g5
+  { from: 'h4', to: 'g5' },                        // 15. hxg5
+  { from: 'f6', to: 'g5' },                        // 15...fxg5
+  { from: 'h1', to: 'f3' },                        // 16. Bhf3 ← h1 BISHOP reveal
+  { from: 'f7', to: 'g6' },                        // 16...Bg6
+  { from: 'c2', to: 'c3' },                        // 17. c3
+  { from: 'b8', to: 'd7' },                        // 17...Nbd7 ← b8 KNIGHT reveal
+  { from: 'a1', to: 'c2' },                        // 18. Na1c2 ← a1 KNIGHT reveal
+  { from: 'd7', to: 'e5' },                        // 18...Ne5
+  { from: 'c1', to: 'b1' },                        // 19. Kb1
+  { from: 'e5', to: 'f3' },                        // 19...Nxf3
+  { from: 'g1', to: 'h1' },                        // 20. Rh1
+  { from: 'f3', to: 'e5' },                        // 20...Ne5
+  { from: 'f2', to: 'c5' },                        // 21. Bc5
+  { from: 'c8', to: 'e6' },                        // 21...Qe6 ← c8 QUEEN reveal
+  { from: 'c5', to: 'e7' },                        // 22. Bxe7
+  { from: 'e6', to: 'e7' },                        // 22...Qxe7
+  { from: 'e2', to: 'd4' },                        // 23. Nd4
+  { from: 'f4', to: 'f3' },                        // 23...f3
+  { from: 'c2', to: 'b4' },                        // 24. Nb4
+  { from: 'e7', to: 'b4' },                        // 24...Qxb4
+  { from: 'c3', to: 'b4' },                        // 25. cxb4
+  { from: 'f3', to: 'f2' },                        // 25...f2
+  { from: 'h1', to: 'h2' },                        // 26. Rh2
+  { from: 'e5', to: 'g4' },                        // 26...Ng4
+  { from: 'h2', to: 'g2' },                        // 27. Rg2
+  { from: 'g4', to: 'e3' },                        // 27...Ne3
+  { from: 'd1', to: 'd2' },                        // 28. Rd2
+  { from: 'e3', to: 'g2' },                        // 28...Nxg2
+  { from: 'f1', to: 'g2' },                        // 29. Qxg2
+  { from: 'f2', to: 'f1', promotion: 'queen' },    // 29...f1=Q ← PROMOTION
+  { from: 'g2', to: 'f1' },                        // 30. Qxf1
+  { from: 'f8', to: 'f1' },                        // 30...Rxf1 (castled rook)
+  { from: 'b1', to: 'c2' },                        // 31. Kc2
+  { from: 'a8', to: 'e8' },                        // 31...Re8
+  { from: 'd4', to: 'c6' },                        // 32. Nc6
+  { from: 'b7', to: 'c6' },                        // 32...bxc6
+  { from: 'd2', to: 'd8' },                        // 33. Rd8+
+  { from: 'e8', to: 'd8' },                        // 33...Rxd8
+  { from: 'c2', to: 'd3' },                        // 34. Kd3
+  { from: 'd8', to: 'd3' },                        // 34...Rxd3# ← KING CAPTURED
+]);
+
+// Narratives: empty strings use auto-label; notable moments get annotations.
+const D960_NARRATIVES: string[] = [
+  "Both players have picked. White chose NNRKBQRB — knights on a1 and b1, king on d1, bishop on e1. Black chose RNQKBBRN — queen on c8, king on d8, knight on h8. Neither player can see the other's back rank.",
+  "1.e4. Standard-looking first move. Nothing unusual yet.",
+  "1...h8–g6. Something on h8 jumps to g6. Only a knight moves in an L-shape. In standard chess, h8 is a rook — rooks can't jump. Black's h8 has a knight.",
+  "2.f3. White's f-pawn advances, clearing f2.",
+  "2...a5. Black pushes the a-pawn.",
+  "3.Be1–f2. A piece slides from e1 to f2. In standard chess, e1 is the king — kings don't go to f2 on move 3. This is a bishop. White has a bishop on e1.",
+  "3...a4. Black's a-pawn keeps advancing.",
+  "4.Nc3. White's b1 knight develops — same square as standard chess.",
+  "4...f6. Black pushes the f-pawn.",
+  "5.d4. White plays d4.",
+  "5...Be8–f7. Black's e8 piece slides to f7 diagonally. Standard chess puts a king on e8 — Black has a bishop there.",
+  "6.O-O-O. White castles queenside. The king was on d1; it ends on c1, the rook moves to d1. Non-standard king square revealed through castling.",
+  "6...e5. Black's e-pawn advances.",
+  "7.d5. White pushes the d-pawn.",
+  "7...Bf8–d6. Black's f8 piece goes to d6 diagonally — a bishop. Standard chess also has a bishop on f8, so no surprise here.",
+  "8.g4. White's g-pawn advances.",
+  "8...O-O. Black castles kingside. The king was on d8; it ends on g8, the rook moves to f8. Non-standard king square revealed.",
+  "9.Ne2. White's knight retreats.",
+  "9...c6. Black challenges White's pawn chain.",
+  "10.dxc6. White captures.",
+  "10...dxc6. Black recaptures with the d-pawn.",
+  "11.Ng3. Knight moves to g3.",
+  "11...Bc7. Black's bishop retreats.",
+  "12.h4. White pushes the h-pawn.",
+  "12...Ne7. Black's knight repositions.",
+  "13.f4. White's f-pawn advances.",
+  "13...exf4. Black captures.",
+  "14.Ne2. Knight retreats.",
+  "14...g5. Black's g-pawn advances.",
+  "15.hxg5. White captures on g5.",
+  "15...fxg5. Black recaptures.",
+  "16.Bh1–f3. White's h1 piece goes to f3 diagonally. Standard chess also has a bishop on h1 in some openings — but White's h1 was definitely a bishop in this setup.",
+  "16...Bg6. Black's bishop moves.",
+  "17.c3. White's c-pawn advances.",
+  "17...Nb8–d7. Black's b8 piece jumps to d7 — a knight. Standard chess also has a knight on b8.",
+  "18.Na1–c2. White's a1 piece jumps to c2 — a knight. Standard chess has a rook on a1. White's a1 has a knight.",
+  "18...Ne5. Black's knight centralizes.",
+  "19.Kb1. White's king steps to b1.",
+  "19...Nxf3. Black's knight captures.",
+  "20.Rh1. White's rook moves.",
+  "20...Ne5. Black's knight returns.",
+  "21.Bc5. White's bishop moves to c5.",
+  "21...Qc8–e6. Black's c8 piece moves to e6 along a diagonal — a queen. Standard chess has a bishop on c8. Black has a queen there.",
+  "22.Bxe7. White captures.",
+  "22...Qxe7. Black recaptures with the queen.",
+  "23.Nd4. White's knight goes to d4.",
+  "23...f3. Black's pawn advances.",
+  "24.Nb4. White's knight jumps.",
+  "24...Qxb4. Black's queen captures.",
+  "25.cxb4. White's pawn recaptures.",
+  "25...f2. Black's pawn reaches f2.",
+  "26.Rh2. White's rook moves.",
+  "26...Ng4. Black's knight goes to g4.",
+  "27.Rg2. White's rook slides.",
+  "27...Ne3. Black's knight forks.",
+  "28.Rd2. White's rook moves.",
+  "28...Nxg2. Black's knight captures the rook.",
+  "29.Qxg2. White's queen recaptures.",
+  "29...f1=Q. Black's pawn promotes to queen.",
+  "30.Qxf1. White captures the new queen.",
+  "30...Rxf1. Black's rook recaptures.",
+  "31.Kc2. White's king steps forward.",
+  "31...Re8. Black's rook activates.",
+  "32.Nc6. White's knight attacks.",
+  "32...bxc6. Black's pawn captures.",
+  "33.Rd8+. White's rook checks.",
+  "33...Rxd8. Black's rook captures.",
+  "34.Kd3. White's king walks into the open.",
+  "34...Rxd3. Black's rook captures the king. Game over.",
+];
+
+const D960_FULL_POSITIONS = D960_FULL_STATES.map((state, i) => {
+  const isLast = i === D960_FULL_STATES.length - 1;
+  return {
+    ...(isLast ? { outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' as const } } : {}),
+    boards: [
+      { board: state.board, fogSquares: fogFor(state, 'white'), orientation: 'white' as const, label: "WHITE'S VIEW" },
+      { board: state.board, orientation: 'white' as const, label: 'TRUTH' },
+      { board: state.board, fogSquares: fogFor(state, 'black'), orientation: 'white' as const, label: "BLACK'S VIEW" },
+    ],
+  };
+});
+
+// Fog for the pick-screen boards — opponent's half of the board is always hidden
+const PICK_SCREEN_FOG: Square[] = [
+  'a5', 'b5', 'c5', 'd5', 'e5', 'f5', 'g5', 'h5',
+  'a6', 'b6', 'c6', 'd6', 'e6', 'f6', 'g6', 'h6',
+  'a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7',
+  'a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8',
+];
 
 export const articles: Article[] = [
   {
     slug: 'draft960',
     title: 'Draft960: the end of opening theory in Fog of War',
     summary:
-      'Fog of War already weakens memorized opening prep. Draft960 finishes the job — each player picks one of three offered Chess960 setups, hidden from the opponent. Choice within randomness, double-blind from move 1.',
+      'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
     status: 'outline',
     audience:
       'Readers who have grokked Fog of War (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
     tldr: [
-      'Fog of War already devalues deep opening prep — you can\'t follow a memorized line when you can\'t see the opponent\'s pieces.',
-      'But shared standard starting positions still allow shape and structure memorization. Draft960 attacks that residual weakness.',
-      'Each player picks one of 3 random Chess960 setups, hidden from the opponent until both decide. Choice within randomness — the specific design innovation.',
+      'Fog of War hides the board mid-game. Draft960 also hides the starting position — from move 0, neither player knows the other\'s setup.',
+      'Each player picks from their own independent set of three Chess960 offers. The picks stay sealed until the pieces start moving.',
     ],
     sections: [
       {
@@ -472,113 +769,54 @@ export const articles: Article[] = [
             labelY: 22,
             labelFill: '#4b5563',
             boards: [
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_A), label: 'A' },
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_B), label: 'B' },
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_C), label: 'C' },
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_A).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'A' },
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_B).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'B' },
+              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_C).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'C' },
             ],
-            caption: "Pick one. Don't show your opponent.",
+            caption: "Your three offers. Your opponent gets their own independent set — they never see yours.",
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text:
-              'Section TBD. Lead with the mechanic itself, not its history. Show what the player actually sees: three random valid Chess960 setups, choose one. Their pick stays hidden until the opponent has also chosen.',
+            text: "Draft960 merges Fog of War and Chess960 into one variant. Fog of War hides the board mid-game. Chess960 scrambles where everything starts. Both layers hidden simultaneously — pick one of three random setups, keep it sealed, and neither side knows what the other started from until the pieces start talking.",
           },
         ],
       },
       {
-        heading: 'Fog of War already weakens openings',
-        paragraphs: [
-          '[VISUAL: prep-value-vs-move-number curves for standard chess and Fog of War, showing how memorized opening lines decay faster in FoW after the early moves once opponent pieces become invisible.]',
-          'Section TBD. Cover: in standard chess, "Sicilian Najdorf line 12 moves deep" is a real prep advantage. In FoW, after move 3 you can\'t see opponent pieces — the deep-line edge collapses. The chess content economy is built on opening theory; that whole industry is partially defused by FoW.',
-          'Cross-reference the FoW rules article for readers who need a refresher on visibility mechanics.',
-        ],
-      },
-      {
-        heading: 'What\'s left to memorize',
-        paragraphs: [
-          '[VISUAL: two boards, both standard starting position, showing what shape-memorization still buys you in FoW — typical pawn structures, piece deployments that work regardless of opponent\'s response.]',
-          'Section TBD. Cover: even in FoW, both players start from the standard chess position. Shape and structure prep still has value — typical e4 e5 development, common pawn formations, classical piece coordination. The residual prep advantage lives in the shared starting position, not in deep lines.',
-        ],
-      },
-      {
-        heading: 'The design space',
-        paragraphs: [
-          '[VISUAL: two-axis diagram — agency (choice over starting position) on one axis, prep-resistance (how hard it is to memorize) on the other. Plot standard chess, Chess960, and Draft960. Each variant attacks the prep problem differently.]',
-          'Section TBD. Cover: two natural moves to attack the remaining prep advantage. (1) Pure randomization — Chess960 hands each game a different starting position. Effective at killing memorization but removes agency entirely. (2) Choice within randomness — Draft960 offers a small random set and lets each player pick. Preserves agency while removing the shared starting position.',
-        ],
-      },
-      {
-        heading: 'Why three offers',
-        paragraphs: [
-          '[VISUAL: three columns — "1 offer (pure C960)", "3 offers (Draft960)", "960 offers (free pick)" — each with notes on what it costs.]',
-          'Section TBD. The central design decision and the section a curious reader will pause on.',
-          'One offer (pure Chess960): no agency. Some players have setups they understand better than others — denying that choice removes a layer of skill.',
-          'All 960 offers (free pick): full agency, but players gravitate to their one favorite setup, which then becomes memorizable. Theory grows back.',
-          'Three offers: enough constraint that you can\'t always pick your favorite, enough choice that picks reflect style. Three also makes the pick a real decision (not a glance) without making it a slog.',
-        ],
-      },
-      {
-        heading: 'Why hide the picks',
-        paragraphs: [
-          '[VISUAL: two-phase reveal — pick screen (hidden) → reveal-to-self → reveal-to-opponent-through-visibility-leakage as the game starts.]',
-          'Section TBD. Cover: hidden picks compose with FoW\'s hidden-information theme. Both players reason about a setup they can\'t see — "what did they probably pick, given their playing style?" The reveal happens not as an announcement but gradually, as the first moves leak back-rank silhouettes through visibility.',
-          'This means Draft960 doesn\'t just *add* hidden information to FoW — it extends the hidden window backwards into the pre-game.',
-        ],
-      },
-      {
-        heading: 'The taxonomy of picks',
-        paragraphs: [
-          '[INTERACTIVE CENTERPIECE: pick taxonomy gallery — 8-12 Chess960 setups grouped by archetype. Click or hover each for character description, strategic notes, sample games where it worked or failed.]',
-          'Section TBD. Archetypes: standard-leaning (close to KRQK), bishop-pair aggressive (bishops central, diagonals open), knight-driven (knights ready to jump early), heavy-piece flank (queen or rook on the edge), bizarre (king on a-file, etc.).',
-          'This is the section players will reference repeatedly. Aim for permanence: a complete strategic taxonomy of Draft960 picks.',
-        ],
-      },
-      {
-        heading: 'The composition with Fog of War',
-        paragraphs: [
-          '[VISUAL: first 4 moves of a Draft960+FoW game. Two boards per ply (W view, B view), showing how each move leaks one or two pieces of back-rank information through visibility.]',
-          'Section TBD. Cover: how the asymmetric hidden starting positions interact with FoW visibility. Each early move reveals back-rank silhouettes one piece at a time. You learn the opponent\'s setup gradually, the way you learn about hidden mid-game pieces — but now it\'s structural information, not just tactical.',
-          'Draft960 + FoW composes hidden information across two axes simultaneously: position (what they picked) and visibility (where their pieces have moved). Neither variant alone produces this compound.',
-        ],
-      },
-      {
-        heading: 'Worked example',
+        heading: 'The gradual reveal',
         blocks: [
+          {
+            kind: 'paragraph',
+            text: "Your opponent's setup is hidden — but not forever. Each piece that moves off the back rank tells you something about where it started. The reveal isn't an announcement; it happens one move at a time, through fog.",
+          },
           {
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'single',
-              positions: [
-                {
-                  boards: [{ board: WORKED_EXAMPLE_START }],
-                  narrative:
-                    'Stepper dogfood — single-board layout, three placeholder positions. Real Worked-example content needs a dramatic Draft960+FoW game with triptych W view / truth / B view.',
-                },
-                {
-                  boards: [{ board: WORKED_EXAMPLE_AFTER_E4 }],
-                  narrative: '1.e4 — White pushes the king pawn.',
-                },
-                {
-                  boards: [{ board: WORKED_EXAMPLE_AFTER_E4_E5 }],
-                  narrative: '1...e5 — Black mirrors. Symmetric king-pawn opening.',
-                },
-              ],
+              layout: 'triptych',
+              positions: D960_FULL_POSITIONS,
             },
-            caption: 'Stepper dogfood — placeholder until a real game is selected.',
+            caption: "By move 3, each player has deduced something about the other's setup — through the fog, one piece at a time.",
           } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text:
-              'Section TBD. Pull a dramatic Draft960+FoW game from Mistboard. Annotate the moments where each player learned something about the other\'s pick, and where that knowledge changed their plan.',
-          },
         ],
       },
       {
         heading: 'Try it',
-        paragraphs: [
-          '[VISUAL: setup-dialog screenshot showing the Draft960 picker.]',
-          'CTA: during beta, Draft960 is available via friend-invite. Create a private room with the Draft960 variant, share the link, play.',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: "Draft960 is available as a pregame option when creating a private room. Pick your setup, share the link, play.",
+          },
+          {
+            kind: 'cta',
+            buttons: [
+              { label: 'Play a friend', href: '/', emphasis: 'primary' },
+              { label: 'Find an opponent', href: '/', emphasis: 'secondary' },
+            ],
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text: "New to Fog of War? The [rules article](/articles/fog-of-war-rules) covers visibility, king capture, and the edge cases — start there before your first Draft960 game.",
+          },
         ],
       },
     ],
@@ -1043,58 +1281,79 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'A worked mini-game',
+        heading: 'A worked game',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "Rules don't tell you how Fog of War feels. Here's a five-position trap that shows why information asymmetry is the variant's whole personality. You're White. Your bishop is the real threat from move two onward — but no Black piece will ever reach the squares from which c4 is visible, so Black never sees the bishop. The queen sortie is the bait; the bishop is the hammer.",
+              "Rules don't tell you how Fog of War feels. Here's a real 41-move game. A pawn lands on c5 on move 12 and stays there for the rest of the game — 70 ply — while queens are traded, rooks are exchanged, and a king marches across the board. White's king never sees c5, not once, until it steps to b4 on move 41. The pawn captures it immediately.",
           },
           {
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'pair',
+              layout: 'triptych',
               positions: [
                 {
-                  narrative: "1.e4 e5. Standard opening. Each side's pawn push expands its own visibility by a few squares; neither side has any tactical info yet.",
+                  narrative: "After 8.Rg1 Bf6. White has moved the h1 rook to g1 — not castling, but clearing h1 and eyeing a g-pawn advance. Black has developed the bishop to f6. Both sides are working from partial information: White's setup is dark to Black, Black's is dark to White.",
                   boards: [
-                    { board: MINIGAME_E5.board, fogSquares: MINIGAME_E5_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: MINIGAME_E5.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY16.board, fogSquares: PVP16_FW, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: PVP_PLY16.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY16.board, fogSquares: PVP16_FB, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "2.Bc4 Nc6. You develop the bishop to c4, where its diagonal cuts through to f7. You see the f7 pawn waiting. Black develops Nc6 — you don't see the knight, but you have your target.",
+                  narrative: "After 12.Bxc5 dxc5. White's bishop captures Black's knight on c5; Black recaptures with the d6 pawn. The pawn has landed on c5. It will stay there for the rest of the game — 70 more ply. White doesn't see c5 from any current piece position. It's just a square in the fog.",
                   boards: [
-                    { board: MINIGAME_NC6.board, fogSquares: MINIGAME_NC6_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: MINIGAME_NC6.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY24.board, fogSquares: PVP24_FW, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: PVP_PLY24.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY24.board, fogSquares: PVP24_FB, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "3.Qh5 Nf6. You bring the queen out to h5, doubling the attack on f7 (queen and bishop both aimed at it; the king on e8 is the sole defender). Black plays Nf6 — almost certainly attacking your queen on h5, which they can see via their h7 pawn. They think they're gaining tempo.",
+                  narrative: "After 16...O-O. The queens have traded on d6; White's rook occupied d6, then retreated to d2; Black castles kingside. The board has simplified significantly. The c5 pawn is still there — move 16 out of 41 — and White still can't see it.",
                   boards: [
-                    { board: MINIGAME_NF6.board, fogSquares: MINIGAME_NF6_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: MINIGAME_NF6.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY32.board, fogSquares: PVP32_FW, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: PVP_PLY32.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY32.board, fogSquares: PVP32_FB, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "4.Qxf7 Kxf7. You capture the f7 pawn with the queen — attacking the Black king directly. Black has to deal with the queen (it would capture the king on the next move), and from their view, the only attacker is the queen. Kxf7 looks like a free win of the queen. They take.",
+                  narrative: "After 30...Kf7. Both pairs of rooks have been traded on the e-file; White's rook went to a8 and was captured by Black's bishop. It's a late endgame — bishops and pawns. The c5 pawn has now been on the board for 18 moves, 36 ply. White has never seen it.",
                   boards: [
-                    { board: MINIGAME_KXF7.board, fogSquares: MINIGAME_KXF7_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: MINIGAME_KXF7.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY60.board, fogSquares: PVP60_FW, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: PVP_PLY60.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY60.board, fogSquares: PVP60_FB, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
-                  narrative: "5.Bxf7. The bishop captures the king. The bishop has been pointed at f7 since move 2; Black has never had a piece that reached c4, so Black has never seen the bishop. The queen sortie was the bait — the visible, obvious threat. The bishop was the real attack, and Black walked the king straight into its diagonal.",
-                  outcome: { headline: 'White wins', reason: 'king captured', tone: 'win' },
+                  narrative: "After 40...g3. White's king is on c3, marching toward the queenside. From c3 the king sees: b2, b3, b4, c2, c4, d2, d3, d4. Not c5. The Black pawn there is invisible. White is walking toward it, one square at a time, unaware.",
                   boards: [
-                    { board: MINIGAME_BXF7.board, fogSquares: MINIGAME_BXF7_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                    { board: MINIGAME_BXF7.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY80.board, fogSquares: PVP80_FW, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: PVP_PLY80.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY80.board, fogSquares: PVP80_FB, orientation: 'white', label: "BLACK'S VIEW" },
+                  ],
+                },
+                {
+                  narrative: "41.Kb4. The king moves from c3 to b4. The instant it arrives, its visibility expands — b4 is adjacent to c5. White sees the Black pawn on c5 for the first time. It has been there since move 12. But it's Black's turn.",
+                  boards: [
+                    { board: PVP_PLY81.board, fogSquares: PVP81_FW, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: PVP_PLY81.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY81.board, fogSquares: PVP81_FB, orientation: 'white', label: "BLACK'S VIEW" },
+                  ],
+                },
+                {
+                  narrative: "41...cxb4. The pawn on c5 captures the king on b4. It sat on c5 for 29 moves — 58 ply — undetected, while White traded queens, traded rooks, navigated a bishop endgame, and marched a king across the board. The king never saw it coming.",
+                  outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' },
+                  boards: [
+                    { board: PVP_PLY82.board, fogSquares: PVP82_FW, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: PVP_PLY82.board, orientation: 'white', label: 'TRUTH' },
+                    { board: PVP_PLY82.board, fogSquares: PVP82_FB, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
               ],
             },
-            caption: "Information asymmetry is Fog of War's whole personality. The visible threat is a distraction; the winning threat is the one your opponent can't see.",
+            caption: "A pawn sat on c5 for 29 moves. White never saw it. The king walked into range on move 41.",
           } as ArticleBlock,
         ],
       },
