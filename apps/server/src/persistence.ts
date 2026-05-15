@@ -2,6 +2,12 @@ import pg from 'pg';
 import type { Color, GameEvent } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
 import { computeElo, type EloResult } from './elo.js';
+import {
+  bucketForGame,
+  type RatingBucket,
+  type RatingTimeClass,
+  type RatingVariant,
+} from './rating-buckets.js';
 
 let pool: pg.Pool | null = null;
 
@@ -151,6 +157,13 @@ export type LeaderboardEntry = {
   handle: string;
   displayName: string;
   eloRating: number;
+  gamesPlayed: number;
+};
+
+export type LeaderboardQuery = {
+  variant: RatingVariant;
+  timeClass: RatingTimeClass;
+  limit?: number;
 };
 
 export type UpdateUserProfileResult =
@@ -776,27 +789,31 @@ export async function getUserProfileByHandle(
   };
 }
 
-export async function getLeaderboard(limit = 100): Promise<LeaderboardEntry[]> {
-  const bounded = Math.max(1, Math.min(limit, 500));
+export async function getLeaderboard(query: LeaderboardQuery): Promise<LeaderboardEntry[]> {
+  const bounded = Math.max(1, Math.min(query.limit ?? 100, 500));
   const { rows } = await getPool().query<{
     rank: string;
     handle: string;
     display_name: string;
     elo_rating: number;
+    games_played: number;
   }>(
-    `SELECT RANK() OVER (ORDER BY elo_rating DESC) AS rank,
-            handle, display_name, elo_rating
-     FROM users
-     WHERE profile_visibility IN ('public', 'unlisted')
-     ORDER BY elo_rating DESC
-     LIMIT $1`,
-    [bounded],
+    `SELECT RANK() OVER (ORDER BY r.elo_rating DESC) AS rank,
+            u.handle, u.display_name, r.elo_rating, r.games_played
+     FROM user_ratings r
+     JOIN users u ON u.id = r.user_id
+     WHERE r.variant = $1 AND r.time_class = $2
+       AND u.profile_visibility IN ('public', 'unlisted')
+     ORDER BY r.elo_rating DESC
+     LIMIT $3`,
+    [query.variant, query.timeClass, bounded],
   );
   return rows.map((row) => ({
     rank: Number(row.rank),
     handle: row.handle,
     displayName: row.display_name,
     eloRating: row.elo_rating,
+    gamesPlayed: row.games_played,
   }));
 }
 
@@ -1261,9 +1278,15 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
       );
     }
     if (mode === 'pvp' && rated) {
+      const bucket = bucketForGame({
+        initialMs: summary.initialMs,
+        incrementMs: summary.incrementMs,
+        hiddenDraft960: summary.hiddenDraft960,
+      });
       const whiteParticipant = participants.find((p) => p.color === 'white');
       const blackParticipant = participants.find((p) => p.color === 'black');
       if (
+        bucket &&
         whiteParticipant?.subjectType === 'user' && whiteParticipant.subjectId &&
         blackParticipant?.subjectType === 'user' && blackParticipant.subjectId
       ) {
@@ -1273,6 +1296,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
           whiteParticipant.subjectId,
           blackParticipant.subjectId,
           summary.result as EloResult,
+          bucket,
         );
       }
     }
@@ -1291,36 +1315,53 @@ async function updateEloInTransaction(
   whiteUserId: string,
   blackUserId: string,
   result: EloResult,
+  bucket: RatingBucket,
 ): Promise<void> {
-  const { rows } = await client.query<{ id: string; elo_rating: number }>(
-    `SELECT id, elo_rating FROM users WHERE id = ANY($1) FOR UPDATE`,
-    [[whiteUserId, blackUserId]],
+  // Lock-then-upsert: SELECT FOR UPDATE pins existing rows; if a side has no
+  // row yet in this bucket it gets the default 1200 and is created on the
+  // first UPDATE via the INSERT … ON CONFLICT path below.
+  const { rows } = await client.query<{ user_id: string; elo_rating: number }>(
+    `SELECT user_id, elo_rating FROM user_ratings
+     WHERE user_id = ANY($1) AND variant = $2 AND time_class = $3
+     FOR UPDATE`,
+    [[whiteUserId, blackUserId], bucket.variant, bucket.timeClass],
   );
-  const whiteRow = rows.find((r) => r.id === whiteUserId);
-  const blackRow = rows.find((r) => r.id === blackUserId);
-  if (!whiteRow || !blackRow) return;
+  const whiteBefore = rows.find((r) => r.user_id === whiteUserId)?.elo_rating ?? 1200;
+  const blackBefore = rows.find((r) => r.user_id === blackUserId)?.elo_rating ?? 1200;
 
-  const { newWhite, newBlack } = computeElo(whiteRow.elo_rating, blackRow.elo_rating, result);
+  const { newWhite, newBlack } = computeElo(whiteBefore, blackBefore, result);
 
-  await client.query(
-    `UPDATE users SET elo_rating = $2, updated_at = now() WHERE id = $1`,
-    [whiteUserId, newWhite],
-  );
-  await client.query(
-    `UPDATE users SET elo_rating = $2, updated_at = now() WHERE id = $1`,
-    [blackUserId, newBlack],
-  );
+  await upsertBucketRating(client, whiteUserId, bucket, newWhite);
+  await upsertBucketRating(client, blackUserId, bucket, newBlack);
+
   await client.query(
     `UPDATE game_participants
      SET elo_before = $2, elo_after = $3
      WHERE game_id = $1 AND color = 'white'`,
-    [roomId, whiteRow.elo_rating, newWhite],
+    [roomId, whiteBefore, newWhite],
   );
   await client.query(
     `UPDATE game_participants
      SET elo_before = $2, elo_after = $3
      WHERE game_id = $1 AND color = 'black'`,
-    [roomId, blackRow.elo_rating, newBlack],
+    [roomId, blackBefore, newBlack],
+  );
+}
+
+async function upsertBucketRating(
+  client: pg.PoolClient,
+  userId: string,
+  bucket: RatingBucket,
+  newRating: number,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO user_ratings (user_id, variant, time_class, elo_rating, games_played, updated_at)
+     VALUES ($1, $2, $3, $4, 1, now())
+     ON CONFLICT (user_id, variant, time_class) DO UPDATE
+       SET elo_rating   = EXCLUDED.elo_rating,
+           games_played = user_ratings.games_played + 1,
+           updated_at   = now()`,
+    [userId, bucket.variant, bucket.timeClass, newRating],
   );
 }
 

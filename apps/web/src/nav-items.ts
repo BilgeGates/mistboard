@@ -9,6 +9,7 @@ export interface NavItem {
 export function primaryNavItems(): NavItem[] {
   return [
     { label: 'Watch', href: '/watch' },
+    { label: 'Leaderboard', href: '/leaderboard' },
   ];
 }
 

@@ -9,6 +9,11 @@ import {
   type VariantId,
 } from '@mistboard/game';
 import * as persistence from './persistence.js';
+import {
+  DEFAULT_RATING_BUCKET,
+  parseRatingTimeClass,
+  parseRatingVariant,
+} from './rating-buckets.js';
 import { playableLiveEngines } from './engine-registry.js';
 import {
   adminDebugTokenFromProtocolHeader,
@@ -472,10 +477,14 @@ export async function handleApiRequest(
       writeJson(response, 405, { error: 'method_not_allowed' });
       return;
     }
+    const variant = parseRatingVariant(parsedUrl.searchParams.get('variant'))
+      ?? DEFAULT_RATING_BUCKET.variant;
+    const timeClass = parseRatingTimeClass(parsedUrl.searchParams.get('time'))
+      ?? DEFAULT_RATING_BUCKET.timeClass;
     const limitParam = parseInt(parsedUrl.searchParams.get('limit') ?? '100', 10);
     const limit = isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
-    const entries = await persistence.getLeaderboard(limit);
-    writeJson(response, 200, { leaderboard: entries });
+    const entries = await persistence.getLeaderboard({ variant, timeClass, limit });
+    writeJson(response, 200, { leaderboard: entries, bucket: { variant, timeClass } });
     return;
   }
 

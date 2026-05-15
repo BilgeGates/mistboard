@@ -5988,6 +5988,64 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   width: 72px;
 }
 
+.leaderboard-games {
+  width: 64px;
+  color: #5a6960;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: right;
+}
+
+.leaderboard-chip-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.leaderboard-chip-bar + .leaderboard-chip-bar {
+  margin-bottom: 20px;
+}
+
+.leaderboard-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #d8d8d8;
+  border-radius: 999px;
+  background: #fff;
+  color: #1f2521;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease, color 80ms ease;
+}
+
+.leaderboard-chip:hover {
+  background: #f6f4ef;
+}
+
+.leaderboard-chip.active {
+  background: #1f6f5b;
+  border-color: #1f6f5b;
+  color: #fff;
+}
+
+.leaderboard-chip-label {
+  font-weight: 600;
+}
+
+.leaderboard-chip-detail {
+  font-size: 11px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-body {
+  margin-top: 4px;
+}
+
 @media (max-width: 480px) {
   .leaderboard-shell {
     width: calc(100% - 24px);

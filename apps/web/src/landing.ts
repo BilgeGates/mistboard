@@ -327,43 +327,187 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   shell.append(buildProfileHeader(profile), buildProfileGames(profile.games));
 }
 
+type LeaderboardVariant = 'fog' | 'fog_draft960';
+type LeaderboardTimeClass = 'bullet' | 'blitz';
+type LeaderboardEntry = {
+  rank: number;
+  handle: string;
+  displayName: string;
+  eloRating: number;
+  gamesPlayed: number;
+};
+
+const LEADERBOARD_VARIANTS: { id: LeaderboardVariant; label: string; param: string }[] = [
+  { id: 'fog', label: 'Fog of War', param: 'fog' },
+  { id: 'fog_draft960', label: 'FoW + Draft960', param: 'fog-draft960' },
+];
+
+const LEADERBOARD_TIME_CLASSES: {
+  id: LeaderboardTimeClass;
+  label: string;
+  detail: string;
+}[] = [
+  { id: 'bullet', label: 'Bullet', detail: '1 + 1' },
+  { id: 'blitz', label: 'Blitz', detail: '3 + 2 · 5 + 3' },
+];
+
+function parseLeaderboardVariant(value: string | null): LeaderboardVariant {
+  if (value === 'fog-draft960' || value === 'fog_draft960') return 'fog_draft960';
+  return 'fog';
+}
+
+function parseLeaderboardTimeClass(value: string | null): LeaderboardTimeClass {
+  return value === 'bullet' ? 'bullet' : 'blitz';
+}
+
+function variantQueryValue(variant: LeaderboardVariant): string {
+  return LEADERBOARD_VARIANTS.find((v) => v.id === variant)?.param ?? 'fog';
+}
+
 export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
-  root.append(buildNav(), buildLoadingState('Loading leaderboard'), buildFooter());
 
   const shell = document.createElement('main');
   shell.className = 'site-section leaderboard-shell';
-  root.replaceChildren(buildNav(), shell, buildFooter());
-
-  type LeaderboardEntry = { rank: number; handle: string; displayName: string; eloRating: number };
-  const data = await fetch('/api/leaderboard?limit=100')
-    .then((r) => (r.ok ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>) : Promise.reject(r.status)))
-    .catch((err) => {
-      console.warn(err);
-      return null;
-    });
-
-  if (!data) {
-    shell.append(buildNotice('Leaderboard unavailable', 'Could not load ratings. Try again later.'));
-    return;
-  }
+  root.append(buildNav(), shell, buildFooter());
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
   heading.textContent = 'Leaderboard';
 
-  if (data.leaderboard.length === 0) {
-    shell.append(heading, buildNotice('No rated games yet', 'Play a PvP game to appear here.'));
-    return;
+  const params = new URLSearchParams(window.location.search);
+  let variant = parseLeaderboardVariant(params.get('variant'));
+  let timeClass = parseLeaderboardTimeClass(params.get('time'));
+
+  const variantBar = buildBucketChipBar(
+    LEADERBOARD_VARIANTS.map((v) => ({ id: v.id, label: v.label })),
+    variant,
+    'Variant',
+  );
+  const timeBar = buildBucketChipBar(
+    LEADERBOARD_TIME_CLASSES.map((t) => ({ id: t.id, label: t.label, detail: t.detail })),
+    timeClass,
+    'Time control',
+  );
+
+  const body = document.createElement('div');
+  body.className = 'leaderboard-body';
+
+  shell.append(heading, variantBar.el, timeBar.el, body);
+
+  async function load(): Promise<void> {
+    syncUrl(variant, timeClass);
+    body.replaceChildren(buildLoadingState('Loading leaderboard'));
+
+    const data = await fetch(
+      `/api/leaderboard?variant=${variantQueryValue(variant)}&time=${timeClass}&limit=100`,
+    )
+      .then((r) => (r.ok ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>) : Promise.reject(r.status)))
+      .catch((err) => {
+        console.warn(err);
+        return null;
+      });
+
+    body.replaceChildren();
+
+    if (!data) {
+      body.append(buildNotice('Leaderboard unavailable', 'Could not load ratings. Try again later.'));
+      return;
+    }
+
+    if (data.leaderboard.length === 0) {
+      body.append(buildNotice('No rated games yet', 'Be the first to rank in this bucket — play a rated PvP game.'));
+      return;
+    }
+
+    body.append(renderLeaderboardTable(data.leaderboard));
   }
 
+  variantBar.onChange((id) => {
+    variant = id as LeaderboardVariant;
+    void load();
+  });
+  timeBar.onChange((id) => {
+    timeClass = id as LeaderboardTimeClass;
+    void load();
+  });
+
+  await load();
+}
+
+function syncUrl(variant: LeaderboardVariant, timeClass: LeaderboardTimeClass): void {
+  const url = new URL(window.location.href);
+  url.searchParams.set('variant', variantQueryValue(variant));
+  url.searchParams.set('time', timeClass);
+  window.history.replaceState(null, '', url.toString());
+}
+
+function buildBucketChipBar(
+  options: { id: string; label: string; detail?: string }[],
+  initial: string,
+  ariaLabel: string,
+): { el: HTMLElement; onChange(handler: (id: string) => void): void } {
+  const bar = document.createElement('div');
+  bar.className = 'leaderboard-chip-bar';
+  bar.setAttribute('role', 'tablist');
+  bar.setAttribute('aria-label', ariaLabel);
+
+  let handler: ((id: string) => void) | null = null;
+  const chips: HTMLButtonElement[] = [];
+
+  for (const option of options) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'leaderboard-chip';
+    chip.setAttribute('role', 'tab');
+    chip.dataset.bucketId = option.id;
+
+    const label = document.createElement('span');
+    label.className = 'leaderboard-chip-label';
+    label.textContent = option.label;
+    chip.append(label);
+
+    if (option.detail) {
+      const detail = document.createElement('span');
+      detail.className = 'leaderboard-chip-detail';
+      detail.textContent = option.detail;
+      chip.append(detail);
+    }
+
+    const isActive = option.id === initial;
+    chip.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    chip.classList.toggle('active', isActive);
+
+    chip.addEventListener('click', () => {
+      if (chip.classList.contains('active')) return;
+      for (const c of chips) {
+        const on = c === chip;
+        c.classList.toggle('active', on);
+        c.setAttribute('aria-selected', on ? 'true' : 'false');
+      }
+      handler?.(option.id);
+    });
+
+    chips.push(chip);
+    bar.append(chip);
+  }
+
+  return {
+    el: bar,
+    onChange(h) {
+      handler = h;
+    },
+  };
+}
+
+function renderLeaderboardTable(entries: LeaderboardEntry[]): HTMLTableElement {
   const table = document.createElement('table');
   table.className = 'leaderboard-table';
 
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
-  for (const label of ['#', 'Player', 'Rating']) {
+  for (const label of ['#', 'Player', 'Games', 'Rating']) {
     const th = document.createElement('th');
     th.textContent = label;
     headerRow.append(th);
@@ -372,7 +516,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   table.append(thead);
 
   const tbody = document.createElement('tbody');
-  for (const entry of data.leaderboard) {
+  for (const entry of entries) {
     const tr = document.createElement('tr');
 
     const rankTd = document.createElement('td');
@@ -386,15 +530,19 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
     link.textContent = entry.displayName;
     nameTd.append(link);
 
+    const gamesTd = document.createElement('td');
+    gamesTd.className = 'leaderboard-games';
+    gamesTd.textContent = String(entry.gamesPlayed);
+
     const ratingTd = document.createElement('td');
     ratingTd.className = 'leaderboard-rating';
     ratingTd.textContent = String(entry.eloRating);
 
-    tr.append(rankTd, nameTd, ratingTd);
+    tr.append(rankTd, nameTd, gamesTd, ratingTd);
     tbody.append(tr);
   }
   table.append(tbody);
-  shell.append(heading, table);
+  return table;
 }
 
 async function loadGameForReview(roomId: string): Promise<{
@@ -1394,87 +1542,10 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
 
-  const leaderboardPanel = buildLandingLeaderboardPanel();
-  void populateLandingLeaderboard(leaderboardPanel);
-
-  section.append(playPanel, replayRoot, leaderboardPanel);
+  section.append(playPanel, replayRoot);
 
   stage.append(section);
   return { el: stage, replayRoot };
-}
-
-function buildLandingLeaderboardPanel(): HTMLElement {
-  const panel = document.createElement('aside');
-  panel.className = 'landing-leaderboard-panel';
-  panel.setAttribute('aria-label', 'Top rated players');
-
-  const header = document.createElement('div');
-  header.className = 'landing-leaderboard-header';
-  const title = document.createElement('strong');
-  title.textContent = 'Top rated';
-  const more = document.createElement('a');
-  more.href = '/leaderboard';
-  more.textContent = 'See all';
-  more.className = 'landing-leaderboard-more';
-  header.append(title, more);
-
-  const list = document.createElement('ol');
-  list.className = 'landing-leaderboard-list';
-  list.setAttribute('data-state', 'loading');
-
-  const placeholder = document.createElement('li');
-  placeholder.className = 'landing-leaderboard-empty';
-  placeholder.textContent = 'Loading…';
-  list.append(placeholder);
-
-  panel.append(header, list);
-  return panel;
-}
-
-async function populateLandingLeaderboard(panel: HTMLElement): Promise<void> {
-  const list = panel.querySelector<HTMLOListElement>('.landing-leaderboard-list');
-  if (!list) return;
-
-  type LeaderboardEntry = { rank: number; handle: string; displayName: string; eloRating: number };
-  const data = await fetch('/api/leaderboard?limit=10')
-    .then((r) => (r.ok ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>) : Promise.reject(r.status)))
-    .catch((err) => {
-      console.warn(err);
-      return null;
-    });
-
-  list.replaceChildren();
-
-  if (!data || data.leaderboard.length === 0) {
-    list.setAttribute('data-state', 'empty');
-    const empty = document.createElement('li');
-    empty.className = 'landing-leaderboard-empty';
-    empty.textContent = data ? 'No rated games yet.' : 'Unavailable.';
-    list.append(empty);
-    return;
-  }
-
-  list.setAttribute('data-state', 'ready');
-  for (const entry of data.leaderboard) {
-    const row = document.createElement('li');
-    row.className = 'landing-leaderboard-row';
-
-    const rank = document.createElement('span');
-    rank.className = 'landing-leaderboard-rank';
-    rank.textContent = String(entry.rank);
-
-    const name = document.createElement('a');
-    name.className = 'landing-leaderboard-name';
-    name.href = `/@/${encodeURIComponent(entry.handle)}`;
-    name.textContent = entry.displayName;
-
-    const rating = document.createElement('span');
-    rating.className = 'landing-leaderboard-rating';
-    rating.textContent = String(entry.eloRating);
-
-    row.append(rank, name, rating);
-    list.append(row);
-  }
 }
 
 function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRequests?: boolean } = {}): HTMLElement {
