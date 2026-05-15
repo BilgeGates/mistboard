@@ -4,7 +4,7 @@ import type { BeliefRow, TraceRow } from './belief-panel.js';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from '@mistboard/board-render/interactive';
 import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameMeta } from './replay.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
-import { track } from './analytics.js';
+import { classifyTimeControl, track } from './analytics.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -2214,6 +2214,7 @@ function joinLobbyFromPlay(
     variant: setup.startFormat,
     initialMs: setup.timeControl.initialMs,
     incrementMs: setup.timeControl.incrementMs,
+    time_class: classifyTimeControl(setup.timeControl.initialMs, setup.timeControl.incrementMs),
     rated: setup.rated,
   };
   let active = true;

@@ -1,3 +1,14 @@
+export function classifyTimeControl(
+  initialMs: number,
+  incrementMs: number,
+): 'bullet' | 'blitz' | 'rapid' | 'classical' {
+  const estimated = initialMs + 40 * incrementMs;
+  if (estimated < 3 * 60 * 1000) return 'bullet';
+  if (estimated < 8 * 60 * 1000) return 'blitz';
+  if (estimated < 25 * 60 * 1000) return 'rapid';
+  return 'classical';
+}
+
 type PostHogLike = {
   capture: (name: string, props?: Record<string, unknown>) => void;
 };

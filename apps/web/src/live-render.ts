@@ -35,7 +35,7 @@ import {
   type SoundKind,
 } from './live-state.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
-import { track } from './analytics.js';
+import { classifyTimeControl, track } from './analytics.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -322,6 +322,9 @@ function trackGameLifecycle(view: PlayerView | null): void {
     variant: view.variant,
     rated: liveState.rated,
     roomMode: liveState.roomMode,
+    initialMs: view.clock?.initialMs ?? null,
+    incrementMs: view.clock?.incrementMs ?? null,
+    time_class: view.clock != null ? classifyTimeControl(view.clock.initialMs, view.clock.incrementMs) : null,
   };
   if (statusType === 'playing' && lastTrackedStatusType !== 'playing') {
     playingSinceMs = Date.now();
