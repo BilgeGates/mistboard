@@ -1,0 +1,29 @@
+{
+  "name": "v0.9.0-king-defense-piece-save",
+  "play_signature": "b12bc2cbfbf8",
+  "captured_at": "2026-05-16T09:29:03.195407+00:00",
+  "git_head": "44d7f9d02fac7f2b6cec7caddbad846bd3af136e",
+  "git_dirty_in_src": true,
+  "stockfish_version_line": "Stockfish 18 by the Stockfish developers (see AUTHORS file)",
+  "files_in_play_signature": [
+    "strategies.py",
+    "engine.py",
+    "belief.py",
+    "evaluator.py",
+    "move_priors.py",
+    "selfplay.py",
+    "observation.py",
+    "visibility.py"
+  ],
+  "per_file_signatures": {
+    "belief.py": "9e4acb716ae0",
+    "engine.py": "03a691dafbe3",
+    "evaluator.py": "62ad96a674a2",
+    "move_priors.py": "ce7a117f09c4",
+    "observation.py": "82b33a9a1a07",
+    "selfplay.py": "a8f5604366e9",
+    "strategies.py": "24b655b62368",
+    "visibility.py": "e43f9b478c54"
+  },
+  "notes": "Fix 1: king-defense priority reorder \u2014 non-king captures before king captures (ply-90 class: Kxe8 into Re1xe8). Fix 2: belief-piece-save landing safety \u2014 visible attack hard filter + particle-weighted landing risk with pawn 1.5x multiplier (ply-65 class: Qe3->c5 into b6 pawn)."
+}

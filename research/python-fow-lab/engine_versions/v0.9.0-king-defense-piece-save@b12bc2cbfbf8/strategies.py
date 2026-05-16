@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.9.1"
+TIER1_VERSION = "0.9.0"
 
 
 def tier1_commit() -> str:
@@ -854,15 +854,6 @@ def _early_development_moves(view: PerspectiveView) -> list[chess.Move]:
     In FOW that creates avoidable loose-piece and king-safety problems. Keep the
     policy narrow: only home-king positions, only non-capturing d/e pawn moves,
     and prefer one-square e-pawn development before broader central pushes.
-
-    Pawn-shield diagonal tier: among candidates, prefer pawns whose home square
-    does NOT sit on a diagonal from the own king. Moving such a pawn vacates the
-    blocking square and opens a diagonal toward the uncastled king — a hidden
-    enemy slider (queen, bishop) could then arrive in one move. The e-file pawn
-    on e2/e7 is on the king's file (not a diagonal), so it's always tier-0.
-    The d-file pawn on d2/d7 IS on the king's a5-e1 / e8-a5 diagonal, so it
-    ranks below e-pawn when both are available. When only d-pawn remains (e-pawn
-    already advanced) the tier falls back gracefully — development still fires.
     """
     own = view.perspective
     king_home = chess.E1 if own == chess.WHITE else chess.E8
@@ -873,8 +864,7 @@ def _early_development_moves(view: PerspectiveView) -> list[chess.Move]:
     pawn_rank = 1 if own == chess.WHITE else 6
     direction = 1 if own == chess.WHITE else -1
     attacked = _squares_attacked_by_visible_enemy_full(view)
-    # (move, diag_pref, file_pref, step_pref)
-    candidates: list[tuple[chess.Move, int, int, int]] = []
+    candidates: list[tuple[chess.Move, int, int]] = []
     for move in view.own_legal_moves:
         piece = view.visible_piece_map.get(move.from_square)
         if piece is None or piece.color != own or piece.piece_type != chess.PAWN:
@@ -895,28 +885,16 @@ def _early_development_moves(view: PerspectiveView) -> list[chess.Move]:
         steps = rank_delta * direction
         if steps not in (1, 2):
             continue
-
         file_pref = 0 if from_file == 4 else 1
         step_pref = 0 if steps == 1 else 1
-
-        # Pawn-shield diagonal penalty: pawn on a diagonal from the king (|df|==|dr|,
-        # df≠0) blocks that diagonal; moving it forward (same file) opens it.
-        # Prefer non-diagonal pawns (diag_pref=0) so the engine doesn't voluntarily
-        # open king diagonals when a safer pawn advance exists.
-        df = chess.square_file(move.from_square) - chess.square_file(king_home)
-        dr = chess.square_rank(move.from_square) - chess.square_rank(king_home)
-        diag_pref = 1 if (df != 0 and abs(df) == abs(dr)) else 0
-
-        candidates.append((move, diag_pref, file_pref, step_pref))
+        candidates.append((move, file_pref, step_pref))
 
     if not candidates:
         return []
-    best_diag = min(d for _, d, _, _ in candidates)
-    best = [row for row in candidates if row[1] == best_diag]
-    best_file = min(f for _, _, f, _ in best)
-    best = [row for row in best if row[2] == best_file]
-    best_step = min(s for _, _, _, s in best)
-    return [move for move, _, _, s in best if s == best_step]
+    best_file = min(file_pref for _, file_pref, _ in candidates)
+    best = [row for row in candidates if row[1] == best_file]
+    best_step = min(step_pref for _, _, step_pref in best)
+    return [move for move, _, step_pref in best if step_pref == best_step]
 
 
 def _safe_visible_minor_or_rook_captures(

@@ -1,0 +1,29 @@
+{
+  "name": "v0.9.1-pawn-shield-diagonal",
+  "play_signature": "8918f287499f",
+  "captured_at": "2026-05-16T09:32:16.946020+00:00",
+  "git_head": "44d7f9d02fac7f2b6cec7caddbad846bd3af136e",
+  "git_dirty_in_src": true,
+  "stockfish_version_line": "Stockfish 18 by the Stockfish developers (see AUTHORS file)",
+  "files_in_play_signature": [
+    "strategies.py",
+    "engine.py",
+    "belief.py",
+    "evaluator.py",
+    "move_priors.py",
+    "selfplay.py",
+    "observation.py",
+    "visibility.py"
+  ],
+  "per_file_signatures": {
+    "belief.py": "9e4acb716ae0",
+    "engine.py": "03a691dafbe3",
+    "evaluator.py": "62ad96a674a2",
+    "move_priors.py": "ce7a117f09c4",
+    "observation.py": "82b33a9a1a07",
+    "selfplay.py": "a8f5604366e9",
+    "strategies.py": "20393ebee039",
+    "visibility.py": "e43f9b478c54"
+  },
+  "notes": "Add pawn-shield diagonal tier to early-development heuristic: prefer e-pawn (non-diagonal) over d-pawn (opens e1-a5 diagonal toward uncastled king) when both available. Falls back to d-pawn when e-pawn is already advanced. Addresses ply-5 class of king exposure in opening."
+}

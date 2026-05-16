@@ -20,11 +20,13 @@ export function playableBuiltinEngines(): EngineDefinition[] {
     .filter((engine) => engine.kind === 'builtin' && engine.chooseMove);
 }
 
+const PROD_PLAYABLE_ENGINE_IDS = new Set([
+  'builtin-random-legal',
+  'python-tier1-v0.9.1',
+]);
+
 export function playableLiveEngines(): EngineDefinition[] {
-  return Object.values(KNOWN_ENGINES).filter((engine) => (
-    (engine.kind === 'builtin' && Boolean(engine.chooseMove))
-      || engine.config.kind === 'python-subprocess'
-  ) && engine.id !== 'python-tier1-v0.7.0');
+  return Object.values(KNOWN_ENGINES).filter((engine) => PROD_PLAYABLE_ENGINE_IDS.has(engine.id));
 }
 
 export function isPlayableLiveEngineClientId(clientId: string | undefined): boolean {
@@ -34,6 +36,25 @@ export function isPlayableLiveEngineClientId(clientId: string | undefined): bool
 }
 
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
+  'python-tier1-v0.9.1': {
+    id: 'python-tier1-v0.9.1',
+    engineId: 'tier1',
+    engineName: 'Tier-1',
+    name: 'Tier-1 v0.9.1',
+    kind: 'container',
+    configHash: 'tier1-v0.9.1-8918f287499f',
+    playSignature: '8918f287499f',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'tier1',
+      version: '0.9.1',
+      config: 'tier1-v1',
+      config_hash: '8918f287499f',
+      engine_pin: 'v0.9.1-pawn-shield-diagonal@8918f287499f',
+    },
+    livePolicy: { timeoutMs: 5_000 },
+    notes: 'Tier-1 v0.9.1: king-defense priority reorder + belief-piece-save landing safety + pawn-shield diagonal tier in early development.',
+  },
   'python-tier1-v0.8.9': {
     id: 'python-tier1-v0.8.9',
     engineId: 'tier1',

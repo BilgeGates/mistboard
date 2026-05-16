@@ -276,7 +276,7 @@ export function createBeliefPanel(): BeliefPanelHandle {
   squareDetail.className = 'belief-square-detail';
   side.append(meta, clusters);
 
-  body.append(board, squareDetail, side);
+  body.append(board, side, squareDetail);
   el.append(header, body);
 
   let rows: BeliefRow[] = [];
@@ -386,20 +386,10 @@ export function createBeliefPanel(): BeliefPanelHandle {
     meta.append(
       metric('Path', row.decision_path),
       metric('Move', row.move_chosen_uci ?? 'n/a'),
-      metric('Particles', `${row.particle_count} (${row.particle_count_unique} unique)`),
-      metric('Pruned', String(row.last_constraint_pruned)),
-      metric('CSP', row.csp_reseed_fired ? String(row.csp_reseed_count ?? 0) : 'no'),
+      metric('Particles', `${row.particle_count_unique} unique`),
     );
     const health = renderBeliefHealth(row, trace);
     if (health) meta.append(health);
-    const counts = document.createElement('div');
-    counts.className = 'belief-counts';
-    for (const name of pieceOrder) {
-      const item = document.createElement('span');
-      item.textContent = `${name[0].toUpperCase()} ${row.opp_remaining_counts[name] ?? 0}`;
-      counts.append(item);
-    }
-    meta.append(counts);
     const hardFacts = renderHardFacts(row, (sq) => {
       selectedSquare = sq;
       render(lastPly);
@@ -535,20 +525,8 @@ function renderBeliefHealth(row: BeliefRow, trace: TraceRow | null): HTMLElement
   });
   wrap.append(healthCard('Decision', overview));
 
-  const weightModeLines = decisionWeightModeLines(trace, row);
-  if (weightModeLines.length) wrap.append(healthCard('Decision Weight Modes', weightModeLines));
-
   const latentDangerLines = latentDangerLinesFor(row, trace);
   if (latentDangerLines.length) wrap.append(healthCard('Latent Danger', latentDangerLines));
-
-  const stageALines = stageCardLines('A', trace);
-  if (stageALines.length) wrap.append(healthCard('Stage A · Own Move', stageALines));
-
-  const stageBLines = stageCardLines('B', trace);
-  if (stageBLines.length) wrap.append(healthCard('Stage B · Opp Move', stageBLines));
-
-  const recoveryLines = recoveryCardLines(trace);
-  if (recoveryLines.length) wrap.append(healthCard('Recovery', recoveryLines));
 
   return wrap;
 }

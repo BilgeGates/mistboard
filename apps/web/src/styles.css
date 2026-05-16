@@ -5040,7 +5040,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .bakeoff-replay-area .replay-board.cg-wrap {
-  max-width: min(29vw, 390px);
+  max-width: min(20vw, 240px);
 }
 
 .bakeoff-replay-area .replay-controls {
@@ -5049,12 +5049,43 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .bakeoff-replay-area .replay-tools-row {
-  flex: 1 1 auto;
-  grid-template-columns: minmax(900px, 1.65fr) minmax(430px, 0.75fr);
+  flex: 0 1 360px;
+  grid-template-columns: minmax(430px, 1.5fr) minmax(320px, 0.75fr);
+  grid-template-rows: auto 1fr;
   gap: 10px;
   max-width: none;
   min-height: 0;
   overflow: hidden;
+}
+
+/* Toggle bar spans all columns so belief + annot land side-by-side in row 2 */
+.bakeoff-replay-area .analysis-tool-togglebar {
+  grid-column: 1 / -1;
+}
+
+.bakeoff-replay-area .belief-panel {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.bakeoff-replay-area .annot-panel {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.bakeoff-replay-area .belief-panel-body {
+  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(140px, 200px);
+  overflow: hidden;
+}
+
+/* Board capped so it fits within the panel body height without causing scroll */
+.bakeoff-replay-area .belief-board {
+  inline-size: min(100%, 220px);
+}
+
+.bakeoff-replay-area .belief-sidebar {
+  grid-template-columns: minmax(220px, 0.95fr) minmax(200px, 1fr);
+  overflow-y: auto;
 }
 
 .bakeoff-replay-area .replay-button {
@@ -5179,11 +5210,9 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .belief-panel-body {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas:
-    "board side"
-    "detail side";
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(160px, 220px);
+  grid-template-rows: 1fr;
+  grid-template-areas: "board side detail";
   gap: 8px;
   min-height: 0;
   overflow: hidden;
@@ -5583,8 +5612,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   place-items: center;
   width: var(--belief-mini-square);
   height: var(--belief-mini-square);
-  background: #151d22;
-  box-shadow: inset 0 0 0 1px rgba(214, 221, 224, 0.04);
+  background: #7a5535;
   color: #d9e1e4;
   position: relative;
 }
@@ -5600,6 +5628,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   background-position: center;
 }
 
+/* Light squares */
 .belief-mini-board span:nth-child(16n + 1),
 .belief-mini-board span:nth-child(16n + 3),
 .belief-mini-board span:nth-child(16n + 5),
@@ -5608,7 +5637,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .belief-mini-board span:nth-child(16n + 12),
 .belief-mini-board span:nth-child(16n + 14),
 .belief-mini-board span:nth-child(16n + 16) {
-  filter: brightness(1.18);
+  background: #d4b483;
 }
 
 @media (max-width: 1120px) {
@@ -5620,13 +5649,11 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 @media (max-width: 900px) {
   .belief-panel-body {
     grid-template-columns: 1fr;
-  }
-
-  .belief-panel-body {
+    grid-template-rows: auto;
     grid-template-areas:
       "board"
-      "detail"
-      "side";
+      "side"
+      "detail";
   }
 
   .belief-sidebar {
