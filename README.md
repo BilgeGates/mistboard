@@ -10,164 +10,54 @@ Mistboard is an independent open-source project. It is not affiliated with liche
 
 ## Status
 
-Live PvP Fog of War is playable at [mistboard.com](https://mistboard.com). The project is working toward [M1 pre-distribution gates](docs/ROADMAP.md) — mobile pass, share surface, observability, and UX — before wider outreach. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for current milestones.
+Live PvP Fog of War is playable at [mistboard.com](https://mistboard.com). The project is working toward [M1 pre-distribution gates](docs/ROADMAP.md) before wider outreach.
 
-## Vision
+## How It Works
 
-Mistboard aims to make Fog of War chess playable, reviewable, and understandable from a link.
+Two players open a room link and play a hidden-information chess game. Optionally, each player privately drafts their own Chess960 back-rank before play begins (Draft960). The server enforces visibility — hidden pieces and hidden opponent moves are never sent to the wrong client. After the game ends, the full board is revealed and replayable from either player's perspective or full truth.
 
-That means:
-
-- correct hidden information, enforced by the server
-- fast shared-link games that are easy to start
-- clear player views, replay, and postgame reveal
-- pregame agency over the starting position when players want it
-- future tools for learning, analysis, and Fog-specific engine work
-
-## How A Game Works
-
-The flagship and only flagship mode is **Fog of War**. Two players open a room link, optionally pick their starting position, and play a hidden-information chess game.
-
-### Pregame: Standard Start vs Draft960
-
-Before the game begins, the room can be configured with one of two starting-position policies:
-
-- **Standard start** — the classical chess opening position. The fastest path to a Fog of War game.
-- **Draft960** — each player is privately offered three legal Chess960 back-ranks and picks one. The two offers are independent; neither player sees the other's offer or choice during the draft or the game. Both back-ranks are locked in before play begins and revealed only at game end. This means piece-arrangement uncertainty starts before move one.
-
-Draft960 is a pregame **feature** of Fog of War, not a separate mode. It exists because Fog of War is more interesting from non-mirrored starts: asymmetric setups create asymmetric vision, and the hidden back-rank draft adds a layer of uncertainty that the standard opening position cannot provide.
-
-### In-Game: Fog of War
-
-During play, Mistboard treats fog as a server-authoritative hidden-information game:
-
-- the server stores the canonical full board
-- the browser never receives hidden pieces or hidden opponent moves
-- each player receives only a `PlayerView`
-- spectators and replay modes are explicitly separated from live player views
-
-A correct Fog of War implementation must never send hidden truth to the wrong client. Existing UI-layer fog implementations leak the real opponent move in network payloads and rely on client code to hide it visually — anyone inspecting payloads or parsing client events can recover hidden information. Mistboard does not do that.
-
-### Postgame: Reveal And Replay
-
-After the game ends, the canonical truth is revealed. Replay can be viewed from White's perspective, Black's perspective, or full truth.
-
-## Why Fog of War
-
-Fog of War is Mistboard's main product focus. The medium-term roadmap centers on partial-information understanding:
-
-- visibility history (when did each side see what)
-- postgame reveal that highlights hidden-information turning points
-- analysis tooling that marks king exposure, missed king-capture chances, and high-information moves
-- engine and bot work that reasons about uncertainty instead of pretending the full board is known
-
-This is structurally different from analyzing classical chess. Mistboard treats hidden information as a first-class rules, replay, and analysis problem.
-
-## Experimental Lab
-
-**Bid For White** — players secretly bid clock time for the right to play White. After resolution, the game proceeds as normal Fog of War. Implemented and accessible via direct URL, but not part of the primary Create Room flow. Useful for testing the bid/resolve event architecture; not currently a flagship feature.
-
-## Scope
-
-In scope for v1:
-
-- anonymous create/join links
-- WebSocket game rooms
-- server-authoritative state
-- correct Fog of War player views
-- playable timed Fog of War games (standard start)
-- Fog of War games with Draft960 pregame start selection
-- Fog postgame reveal and replay foundations
-- replay from event history
-
-Out of scope for v1:
-
-- ratings
-- matchmaking
-- tournaments
-- chat / moderation
-- engine analysis
-- OAuth
-- monetization
-- standalone non-Fog game modes as primary product surface
+See [`docs/rules.md`](docs/rules.md) for the complete rule baseline and edge cases.
 
 ## Architecture
 
 ```text
-apps/web      browser UI, board rendering, player interaction
-apps/server   WebSocket game rooms, clocks, event log
-packages/game shared variant kernel, state types, player views
+packages/game   Pure game logic: types, rules, visibility, variants
+apps/server     WebSocket rooms, clocks, event log, HTTP API
+apps/web        Board UI, game screens, client WebSocket handling
 ```
 
-The critical abstraction is `getPlayerView(state, color)`. For Fog of War, this returns only the visible partial state for that player. For other game shapes used internally (e.g., the classical/Draft960 surface used to validate the play surface), it returns the full board.
-
-## Repository Layout
-
-```text
-apps/                  Production app (TS)
-packages/              Shared game kernel (TS)
-docs/                  Product docs and rules
-docs/fog-of-war/       FOW-specific rule and research notes
-research/              Offline research, not shipped in the product
-research/python-fow-lab/  Python sidecar for visibility/bot/inference experiments
-```
-
-## Persistence
-
-Events and games are persisted to Postgres. The `events` table is an append-only log of every `GameEvent` (JSONB payload, keyed by `(room_id, seq)`). The `games` table is a one-row-per-finished-game aggregate, written when a terminal projection state is observed. See [`docs/persistence.md`](docs/persistence.md).
-
-In dev, persistence is optional — `apps/server` falls back to in-memory rooms if `DATABASE_URL` is unset.
-Use the persistent dev script when testing postgame review, reconnect recovery, or anything that should survive a server restart.
-
-```bash
-npm run db:up            # local Postgres on host port 5435
-npm run db:migrate       # apply migrations without starting the dev server
-npm run dev:persistent   # server uses the local Docker Postgres
-npm run test:persistent  # server tests against local Postgres
-```
-
-Account auth requires persistence. In local/dev, passwordless email login returns
-the one-time code in the `/api/auth/email/start` JSON response so the flow can be
-tested without an email provider. For real email delivery, configure
-`RESEND_API_KEY` and `MISTBOARD_AUTH_EMAIL_FROM`. Production-like runtimes do not
-expose dev codes unless `MISTBOARD_DEV_AUTH_CODES=true` is set intentionally.
+The central abstraction is `getPlayerView(state, color)` — the security boundary that ensures no hidden truth reaches the wrong client. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full data flow and state model.
 
 ## Development
 
 ```bash
 npm install
 npm run dev              # in-memory server, fastest for UI work
-npm run dev:persistent   # Postgres-backed server, use for game/replay recovery
+npm run dev:persistent   # Postgres-backed server
 npm test
 ```
 
-Fog of War rooms can be created with:
+Fog of War dev room:
 
 ```text
 http://localhost:3000/?room=fog-dev&reset=1&variant=fog-of-war
 ```
 
-Fog of War random-engine dev rooms can be created with:
+Engine dev room (human as White, random-move engine as Black):
 
 ```text
 http://localhost:3000/?room=fog-engine-dev&reset=1&variant=fog-of-war&dev=engine
 ```
 
-This harness seats the human as White, reserves Black for a basic random-move engine, and shows dev-only Player, Black, and True view boards in the sidebar.
+Local Postgres (required for reconnect, replay, and postgame review):
 
-Bid For White remains available as an experimental direct URL:
-
-```text
-http://localhost:3000/?room=bid-dev&reset=1&variant=bid-for-white
+```bash
+npm run db:up            # local Postgres on host port 5435
+npm run db:migrate
+npm run test:persistent
 ```
 
-## Deployment
-
-Production builds run `apps/server`, which serves both the static `apps/web/dist` bundle and WebSocket upgrades on the same port. Postgres-backed persistence is required for production-like runtimes, and migrations apply on container boot.
-
-Production-like runtimes require `DATABASE_URL` by default. If it is missing, the server should fail startup or report unhealthy instead of silently falling back to in-memory rooms. Live game snapshots and event history are private until the game is over; public replay APIs only expose full events after terminal state.
-
-Provider-specific deployment details, account configuration, and operational runbooks live outside the public repository.
+See [`docs/persistence.md`](docs/persistence.md) for the full schema, env vars, and failure semantics.
 
 ## License
 
@@ -175,18 +65,8 @@ GPL-3.0-or-later. Mistboard uses GPL-family chess libraries (`chessops`, `chessg
 
 The npm packages are marked `"private": true` to prevent accidental package publishing — this is intentional and does not affect the repository's public/open-source status.
 
-## Governance And Funding
+## Governance
 
-Mistboard is founder-led. The code is open source, but the official project identity, `mistboard.com`, hosted service, package publishing, roadmap, tournaments, sponsorships, and production infrastructure remain controlled project assets.
+Mistboard is founder-led. The code is open source, but the official project identity, `mistboard.com`, hosted service, roadmap, and production infrastructure remain controlled project assets.
 
-See:
-
-- [`GOVERNANCE.md`](GOVERNANCE.md)
-- [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- [`SECURITY.md`](SECURITY.md)
-- [`TRADEMARK.md`](TRADEMARK.md)
-- [`SPONSORSHIP.md`](SPONSORSHIP.md)
-- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
-- [`docs/project-direction.md`](docs/project-direction.md)
-- [`docs/documentation-policy.md`](docs/documentation-policy.md)
-- [`docs/legal-and-fiscal.md`](docs/legal-and-fiscal.md)
+See [`GOVERNANCE.md`](GOVERNANCE.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), [`docs/project-direction.md`](docs/project-direction.md).
