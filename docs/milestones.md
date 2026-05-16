@@ -1,178 +1,6 @@
 # Milestones
 
-## Active Planning Tracks
-
-Use this section as the current planning index. Historical milestones below
-remain useful context, but private-alpha work should be driven by these tracks.
-See [`docs/private-alpha-priority-0-tech-scope.md`](private-alpha-priority-0-tech-scope.md)
-for the technical scope behind the Priority 0 gate.
-See [`docs/private-alpha-priority-1-tech-scope.md`](private-alpha-priority-1-tech-scope.md)
-for the technical scope behind Priority 1 usefulness work.
-
-### Already In Flight
-
-- Engine / EvE pipeline: queue, worker, engine versions, review surfaces.
-- Clocks: live clock correctness, persistence, timeout behavior, and UI.
-- Persistence for guest and signed-in players: room/event durability and identity-backed recovery.
-- Private-alpha replay/review and play UX polish: perspective consistency,
-  terminal handoff, mobile layout, and no-coaching tester flow.
-
-### Priority 0: Private-Alpha Safety
-
-These tracks block broader private-alpha use. They should be resolved before
-inviting more testers because mistakes here can leak hidden information or make
-live games unreliable.
-
-#### Live Privacy / Access Policy
-
-Outcome: every live-room and replay endpoint has an explicit policy for PvP,
-PvE, and EvE, and tests prove live Fog truth is not exposed to the wrong client.
-
-Status: implemented and covered by server policy, payload, and WebSocket tests.
-Local production-like health/PvP seat/PvE engine/browser flow smokes have
-passed; hands-on reconnect, duplicate-tab, clock, and postgame review smoke
-remain the release gate.
-
-Decisions to lock:
-
-- PvP live rooms are private to the seated players until terminal state.
-- PvE live rooms may be observable only from the human player's public perspective.
-- EvE live rooms may expose full truth because both sides are server engines.
-- Admin-debug truth is a separate capability, not authorized by room id, query params, or normal spectator status.
-
-Work:
-
-- [x] Centralize PvP/PvE/EvE mode detection and observer policy.
-- [x] Gate live spectators before they receive any room snapshot.
-- [x] Redact live Fog event streams consistently for WebSocket snapshots and replay APIs.
-- [x] Add regression tests for seated players, spectators, replay APIs, and finished-game reveal.
-- [x] Run local production-like health, PvP seat, PvE engine, and browser flow smokes.
-- [ ] Run and record the hands-on private-alpha PvP/PvE/EvE smoke.
-
-Verification gate: targeted server policy and payload tests pass, and a manual
-three-room smoke confirms PvP spectator rejection, PvE human-perspective
-observation, and EvE full-truth observation.
-
-#### Reconnect / Session Continuity
-
-Outcome: a player can lose the socket, refresh, or reconnect and recover the
-same live room state without silently changing seats or needing a new link.
-
-Status: seat-token authority is implemented for live rooms. `clientId` is now a
-browser/session label; room-scoped `seatToken` is the authority to reclaim or
-act as a seat. Automated tests cover valid reclaim, invalid/missing token
-rejection, duplicate displacement, and active abandoned-seat protection.
-
-Decisions to lock:
-
-- Reconnect authority is based on a room-scoped seat token, with `clientId` kept
-  as a non-secret browser/session label.
-- A reconnecting seated client with a valid seat token should recover its
-  original seat when possible.
-- Duplicate tabs with the same valid seat token use newest-valid-socket-wins
-  behavior with clear UI.
-- Socket retry should not create extra seats or leak a private room to spectators.
-
-Work:
-
-- [x] Add server-issued seat tokens and store only token hashes.
-- [x] Store and resend room-scoped seat tokens from the client without putting
-  them in URLs.
-- [x] Require valid seat tokens for occupied-seat reclaim and move authority.
-- [x] Add deterministic duplicate-tab displacement.
-- [x] Add server tests for seat recovery, invalid/missing tokens, spectator
-  overflow, duplicate displacement, and active abandoned seats.
-- [x] Run DB-backed persistence tests for persisted seat-token durability.
-- [ ] Manually smoke socket close, refresh, duplicate tab, cleared local storage,
-  and postgame reconnect.
-
-Verification gate: manual two-tab Fog game survives refresh and socket close for
-both colors, and no reconnect path creates a third live observer in PvP.
-
-#### QA / Release Readiness
-
-Outcome: private-alpha deploys have a small, repeatable gate that catches hidden
-information leaks, broken live play, and broken review handoff.
-
-Decisions to lock:
-
-- The release gate is small enough to run before every private-alpha push.
-- New bugs from manual QA become focused regression tests when they affect rules, privacy, persistence, or reconnect behavior.
-- Exact private operational checklists stay outside the public repo.
-
-Work:
-
-- [x] Turn the Fog section of `docs/qa-checklist.md` into a private-alpha smoke path.
-- [x] Add explicit PvP, PvE, EvE, reconnect, duplicate-tab, clock, and postgame review checks.
-- [x] Keep browser/manual checks separate from low-level unit tests.
-- Record known limitations in public-safe language when they affect testers.
-
-Verification gate: one complete manual smoke is run against a production-like
-build, with follow-up issues either fixed or documented as known limitations.
-
-### Priority 1: Private-Alpha Usefulness
-
-These tracks make the safe live game experience easier to share, finish, and
-review. They should follow Priority 0 work unless a small UX fix directly helps
-verify Priority 0.
-
-#### Replay / Review Experience
-
-Outcome: when a Fog game ends, players understand that the truth is now revealed
-and can review the game without confusion.
-
-Work:
-
-- Make the live-to-review transition clear after terminal state.
-- Preserve White view, Black view, and full-truth review modes.
-- Make move-list behavior match the selected review perspective.
-- Keep review URLs stable and shareable for finished games.
-
-Verification gate: finish a Fog game, open the review URL, switch perspectives,
-and confirm the board and move list match the selected perspective.
-
-#### Private-Alpha Play UX
-
-Outcome: two invited testers can create or open a room link, understand their
-seat/status, play on desktop or mobile, and recover from basic connection issues.
-
-Work:
-
-- Keep room creation focused on Fog of War.
-- Make copy/share link available where players naturally need it.
-- Tighten seat, turn, reconnect, and game-over status text.
-- Polish hidden-square styling, mobile spacing, and board-first layout.
-
-Verification gate: run a two-human Fog game on desktop and mobile-width layout
-without horizontal overflow or ambiguous status.
-
-#### Fog Rules Regression Coverage
-
-Outcome: the implemented Fog rules have enough focused regression coverage that
-private-alpha testers can stress ordinary play and known edge cases without
-rediscovering already-understood rules bugs.
-
-Work:
-
-- Expand visibility tests for pawn diagonals, blockers, en passant, captures, and king exposure.
-- Keep legal destinations derived from the server-owned player view.
-- Confirm king-capture termination and postgame truth reveal.
-- Convert any manual QA rules bug into a minimal `packages/game` or payload regression test.
-
-Verification gate: game-kernel tests pass and manual QA finds no unresolved
-rules mismatch in the private-alpha smoke path.
-
-### Backlog: Understanding And Expansion
-
-These tracks matter, but should not compete with Priority 0 or Priority 1 until
-private-alpha safety and usefulness are stable.
-
-- Visibility history / learning layer: visibility timeline, missed king-capture chances, scouting markers, and explanatory review affordances.
-- Draft960-as-Fog-pregame: start-position choice inside Fog of War, Chess960 visibility coverage, and replay labeling.
-- Fairness / transparency contract: public explanation of hidden-information safety, engine isolation, benchmark verifiability, game-design rationale, and public/private artifact boundaries.
-- Tournament track: engine events first, then private PvP events, then account-backed and Arena-style events only after live Fog safety and identity primitives are stable.
-- Operational safety / observability: health checks, structured logs, rate limits, payload limits, and failure visibility.
-- Public docs / positioning: contributor-safe docs, public/private documentation hygiene, and clear alpha-scope messaging.
+_This is a historical milestone record. For current planning see [ROADMAP.md](ROADMAP.md)._
 
 ## Milestone 0: Repo Bootstrap
 
@@ -268,7 +96,7 @@ Checkpoint: complete a Fog game without hidden-state leaks in network payloads.
 
 ## Note On Draft960 Framing (2026-05-05)
 
-Milestones 1, 1.5, and 2 below describe Draft960 work that originally shipped as a peer mode alongside Fog of War. As of 2026-05-05 Mistboard is sharpened to **Fog of War only** as the product, with Draft960 reframed as a Fog of War **pregame feature** (optional start-position draft inside a FOW game). The historical Draft960 work below is preserved as completed scaffolding — it built the shared play surface and pregame state machine that Fog of War depends on. New Draft960 work happens as part of Fog of War milestones, not as standalone Draft960 polish.
+Milestones 1, 1.5, and 2 describe Draft960 work that originally shipped as a peer mode alongside Fog of War. As of 2026-05-05 Mistboard is sharpened to **Fog of War only** as the product, with Draft960 reframed as a Fog of War **pregame feature** (optional hidden start-position draft inside a Fog game). The historical Draft960 work above is preserved as completed scaffolding — it built the shared play surface and pregame state machine that Fog of War depends on.
 
 ## Milestone 5: Bid For White Experimental
 
@@ -289,15 +117,14 @@ Product status: implemented as an experimental/lab mode and kept out of the prim
 
 Goal: turn Fog of War into a reliable private alpha that two people can share, play, finish, and understand.
 
-- [ ] Run the manual QA checklist for Fog of War.
-- [ ] Convert Fog QA issues into focused regression tests.
-- [ ] Improve Fog identity in the header and side panel.
-- [ ] Add copy/share room-link affordance.
-- [ ] Polish Fog board visuals, hidden-square styling, and mobile spacing.
-- [ ] Polish postgame reveal, replay controls, and move-list behavior.
+- [x] Run the manual QA checklist for Fog of War.
+- [x] Improve Fog identity in the header and side panel.
+- [x] Add copy/share room-link affordance.
+- [x] Polish Fog board visuals, hidden-square styling, and mobile spacing.
+- [x] Polish postgame reveal, replay controls, and move-list behavior.
+- [x] Decide persistence strategy for event logs and room recovery.
+- [x] Define the Fog engine/analysis direction.
 - [ ] Add visibility-history affordances that help players understand what each side could see.
-- [ ] Decide persistence strategy for event logs and room recovery.
-- [ ] Define the Fog engine/analysis direction.
 
 Checkpoint: Fog of War can be shared with private testers with known limitations documented.
 
@@ -305,8 +132,8 @@ Checkpoint: Fog of War can be shared with private testers with known limitations
 
 Goal: make Fog of War understandable after the game, not just playable during the game.
 
-- [ ] Show a clean postgame transition from player view to full truth.
-- [ ] Let replay switch between White view, Black view, and full-truth view.
+- [x] Show a clean postgame transition from player view to full truth.
+- [x] Let replay switch between White view, Black view, and full-truth view.
 - [ ] Mark moments where visibility changed materially.
 - [ ] Identify king exposure, missed king-capture chances, and high-risk scouting moves.
 - [ ] Add a basic legal-move bot that only consumes `PlayerView`.
@@ -317,12 +144,12 @@ Checkpoint: players can review a Fog game and understand the hidden-information 
 
 ## Milestone 8: Fog of War + Draft960 Pregame Integration
 
-Goal: Draft960 pregame becomes an optional starting-position picker inside Fog of War, replacing the standalone Draft960 mode as a primary product surface.
+Goal: Draft960 pregame becomes an optional hidden start-position draft inside Fog of War.
 
-- [ ] Add a "starting position" choice on Fog of War room creation: standard start (default) or Draft960 draft.
-- [ ] When Draft960 is chosen, generate three legal Chess960 starts and run the existing pregame selection state machine; resolve into a Fog of War game on the selected start.
-- [ ] Verify visibility tests cover non-mirrored Chess960 starts (asymmetric vision from non-classical positions).
-- [ ] Update the postgame reveal and replay flows to label and replay Draft960-start FOW games correctly.
-- [ ] Demote standalone Draft960 mode from the primary Create Room flow; keep the URL accessible during the transition for existing tests but stop investing in standalone Draft960 polish.
+- [x] Generate independent per-player Chess960 start offers (hidden from opponent).
+- [x] Run the pregame selection state machine; resolve into a Fog of War game.
+- [x] Verify visibility tests cover non-mirrored Chess960 starts.
+- [x] Postgame reveal exposes both players' chosen back-ranks.
+- [ ] Draft960 lobby and article published and linked from landing.
 
-Checkpoint: a single Create Room flow lets two players choose Fog of War with either standard or Draft960 start, and both paths play through to a clean reveal.
+Checkpoint: a Fog of War game with Draft960 starts plays through to a clean reveal.

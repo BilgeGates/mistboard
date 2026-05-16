@@ -1,0 +1,41 @@
+# Fog of War — Document Index
+
+Quick reference for what each file in this directory covers and whether it
+reflects current implemented behavior or future planning.
+
+## Implemented — read these to understand current behavior
+
+| File | Contents |
+|------|----------|
+| [`rulesets.md`](rulesets.md) | The Mistboard Fog of War ruleset contract. Treat as authoritative when changing move generation, visibility, replay, payloads, or engine harnesses. |
+| [`rules-edge-cases.md`](rules-edge-cases.md) | Subtle rule-risk areas: hidden occupancy inference, pawn diagonals, en passant visibility, castling under fog, no-check king semantics, terminal reveal boundaries. Regression target list is here. |
+
+## Planning — engine and research track
+
+These describe planned work for the engine track (M5+ on the roadmap). Not yet
+implemented in the main product.
+
+| File | Contents |
+|------|----------|
+| [`engine-roadmap.md`](engine-roadmap.md) | Public-facing engine interface notes: FUCI protocol, `PlayerView`-only engine contract. |
+| [`engine-architecture-roadmap.md`](engine-architecture-roadmap.md) | Long-arc architecture: belief layer, analysis workers, synthesis, anytime protocol, learning loop. Research map covering PIMC, ISMCTS, CFR, neural approaches. |
+| [`belief-particle-engine.md`](belief-particle-engine.md) | Particle-based belief state specification: hard facts, soft evidence, particle budget, diversity. Detailed spec for the Tier-2+ engine. |
+| [`engine-experiments.md`](engine-experiments.md) | EvE infrastructure: job queue, worker protocol, engine_versions, eve_jobs tables, claim protocol. |
+| [`engine-lab-loop.md`](engine-lab-loop.md) | Iterative development loop for the engine: annotation cycle, artifact retention, rung rollout. |
+| [`eve-roadmap.md`](eve-roadmap.md) | Engine-vs-engine infrastructure: storage model, EvE side tables, restart semantics, fair compute rules. |
+
+## Planning — product and learning track
+
+| File | Contents |
+|------|----------|
+| [`ui-polish-roadmap.md`](ui-polish-roadmap.md) | UI quality bar: fog feel (U1), reveal moments (U2), belief overlays (U3), onboarding (U4), viewer/exploration (U5). |
+| [`beginner-tutorial-curriculum.md`](beginner-tutorial-curriculum.md) | Detailed spec for a future interactive tutorial: piece lessons, Fog fundamentals, onboarding spine. Not yet implemented. |
+
+## Reference and research
+
+| File | Contents |
+|------|----------|
+| [`landscape.md`](landscape.md) | Related work pointers: Kriegspiel, RBC, Dark Chess, and search terms. |
+| [`research-questions.md`](research-questions.md) | Open research questions about hidden-information play, engine evaluation, and belief modeling. |
+| [`positioning-and-seo.md`](positioning-and-seo.md) | Topics Mistboard's public pages should cover for search discoverability. |
+| [`fog-of-war-chess-page.md`](fog-of-war-chess-page.md) | Draft content for the `/fog-of-war-chess` evergreen article page. |

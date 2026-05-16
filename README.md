@@ -10,7 +10,7 @@ Mistboard is an independent open-source project. It is not affiliated with liche
 
 ## Status
 
-The site at [mistboard.com](https://mistboard.com) is moving from public replay/engine review toward private-alpha live play. Playable rooms, server-enforced Fog of War views, persistence, and postgame reveal foundations are implemented; the current work is reliability, polish, and review quality. See [`docs/milestones.md`](docs/milestones.md) for the roadmap.
+Live PvP Fog of War is playable at [mistboard.com](https://mistboard.com). The project is working toward [M1 pre-distribution gates](docs/ROADMAP.md) — mobile pass, share surface, observability, and UX — before wider outreach. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for current milestones.
 
 ## Vision
 
@@ -33,9 +33,9 @@ The flagship and only flagship mode is **Fog of War**. Two players open a room l
 Before the game begins, the room can be configured with one of two starting-position policies:
 
 - **Standard start** — the classical chess opening position. The fastest path to a Fog of War game.
-- **Draft960** — both players are offered three legal Chess960 positions and each picks one. The selected position becomes the Fog of War starting position.
+- **Draft960** — each player is privately offered three legal Chess960 back-ranks and picks one. The two offers are independent; neither player sees the other's offer or choice during the draft or the game. Both back-ranks are locked in before play begins and revealed only at game end. This means piece-arrangement uncertainty starts before move one.
 
-Draft960 is a pregame **feature** of Fog of War, not a separate mode. It exists because Fog of War is more interesting from non-mirrored starts: asymmetric setups create asymmetric vision, and the pregame draft adds agency over the kind of positional texture both players want before move one.
+Draft960 is a pregame **feature** of Fog of War, not a separate mode. It exists because Fog of War is more interesting from non-mirrored starts: asymmetric setups create asymmetric vision, and the hidden back-rank draft adds a layer of uncertainty that the standard opening position cannot provide.
 
 ### In-Game: Fog of War
 
@@ -154,14 +154,6 @@ http://localhost:3000/?room=fog-engine-dev&reset=1&variant=fog-of-war&dev=engine
 ```
 
 This harness seats the human as White, reserves Black for a basic random-move engine, and shows dev-only Player, Black, and True view boards in the sidebar.
-
-For the Draft960 pregame surface (currently still wired to a standalone variant URL during the transition):
-
-```text
-http://localhost:3000/?room=dev-room&reset=1&variant=draft960&dev=solo
-```
-
-Solo dev mode lets one browser make both start selections and move for whichever color is on turn. Normal rooms still use two browser tabs.
 
 Bid For White remains available as an experimental direct URL:
 

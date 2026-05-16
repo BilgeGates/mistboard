@@ -1,14 +1,21 @@
 # Status
 
-_Last updated: 2026-05-14_
+_Last updated: 2026-05-15_
 
 **State:** active
-**Mode:** Active side quest
-**Launched:** https://mistboard.com (Vercel)
+**Launched:** https://mistboard.com
 
 ## What's Active
 
-Working toward **M1 — Pre-distribution gates** (see [ROADMAP.md](ROADMAP.md#m1--pre-distribution-gates)). Current focus: polish FoW rules article (mostly done), then Draft960 article. Per-game OG Phase 2, Draft960 lobby, engine strength bump, and Tier A reliability checks still ahead.
+Working toward **M1 — Pre-distribution gates** (see [ROADMAP.md](ROADMAP.md#m1--pre-distribution-gates)).
+
+Open items:
+- Mobile gameplay end-to-end (iPhone Safari + Android Chrome)
+- Per-game OG Phase 2 (loser-view + truth boards rendered)
+- Draft960 lobby + article published and linked
+- Engine strength bar ("not embarrassing" vs beginners)
+- PostHog funnel verified live
+- Article mobile pass
 
 ## What's Next
 
@@ -16,7 +23,7 @@ M1 gates → M2 soft launch (200 casual standard 3+2 games) → M3 Elo calibrati
 
 ## Risk
 
-Variant-lab scope creep or competing with higher-conviction active work (job search, chess-companion validation).
+Scope creep on variant-lab or engine work before M1 gates clear.
 
 ## Blockers
 

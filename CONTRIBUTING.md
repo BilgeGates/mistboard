@@ -38,16 +38,27 @@ Usually out of scope for v1:
 
 ```bash
 npm install
-npm run build
-npm test
+npm run dev              # in-memory server, fastest for UI work
+npm run dev:persistent   # Postgres-backed server (required for reconnect/replay testing)
+npm test                 # unit and integration tests, in-memory
+npm run test:persistent  # integration tests against local Postgres
 ```
 
-For local Postgres-backed persistence:
+For local Postgres:
 
 ```bash
-docker compose up -d postgres
-TEST_DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm test
+npm run db:up      # start Docker Postgres on port 5435
+npm run db:migrate # apply migrations
 ```
+
+Good entry points for Fog of War testing:
+
+```text
+http://localhost:3000/?room=fog-dev&reset=1&variant=fog-of-war
+http://localhost:3000/?room=fog-engine-dev&reset=1&variant=fog-of-war&dev=engine
+```
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's currently being worked on.
 
 ## Pull Requests
 

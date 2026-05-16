@@ -2,15 +2,40 @@
 
 ## Draft960
 
-Before the game:
+Draft960 is a Fog of War pregame configuration. Each player independently
+drafts their own Chess960 back-rank before play begins. The opponent's
+back-rank is never revealed during the game.
 
-1. The server generates three legal Chess960 starting positions.
-2. Both players choose one position.
-3. If both choose the same position, that position is used.
-4. If players choose different positions, the server randomly selects between the two chosen positions.
-5. The game begins as a normal Chess960 game from the selected position.
+Pregame:
 
-Design intent: add pregame agency over starting-position texture without changing chess after move one.
+1. The server generates a private offer of three legal Chess960 back-ranks for
+   each player independently. The two offers are drawn separately; they are not
+   conditioned on each other and are not visible to the opponent.
+2. Each player privately selects one of their three offered back-ranks.
+3. Neither the offer nor the choice is visible to the opponent at any point.
+4. Both choices are locked before play begins and cannot be changed.
+
+Starting position:
+
+- White's back-rank is White's chosen Chess960 arrangement on rank 1; pawns on rank 2.
+- Black's back-rank is Black's chosen Chess960 arrangement on rank 8; pawns on rank 7.
+- The two back-ranks are independent. Piece files need not match between sides.
+- Castling rights derive from each player's own back-rank rook positions.
+
+During play:
+
+- A player knows their own back-rank and castling rights, but not the opponent's.
+- Opponent pieces become visible only under normal Fog of War visibility rules.
+- A player can infer the opponent's back-rank arrangement from accumulated
+  observation, but the server provides no annotation or assistance.
+
+Postgame:
+
+- On game end, both players' chosen back-ranks are revealed alongside the
+  standard Fog of War reveal.
+- Replay supports per-side perspectives (preserving each player's initial
+  back-rank uncertainty) and a full-truth mode that shows both back-ranks from
+  move one.
 
 ## Fog of War
 
@@ -46,7 +71,10 @@ en-passant visibility, castling representation, no-check king semantics, and
 terminal reveal boundaries are tracked in
 [`docs/fog-of-war/rules-edge-cases.md`](./fog-of-war/rules-edge-cases.md).
 
-## Bid For White
+## Bid For White (Experimental)
+
+Bid For White is an experimental lab mode. It is not part of the main
+product. It is kept out of the primary Create Room flow.
 
 Working rule baseline:
 

@@ -35,41 +35,9 @@ Known subtle rule-risk areas are tracked in
 the rules contract when changing move generation, visibility, replay, payloads,
 or engine harnesses.
 
-## Open Ruleset Questions
-
-- Are check announcements hidden, transformed, or removed?
-- Can a king move into check if the checking piece is hidden?
-- Is the game won by checkmate, king capture, or another terminal condition?
-- Are illegal moves rejected based on full board state or only player-visible state?
-- Are castling rights visible, inferable, or hidden?
-- How are en passant targets represented under partial visibility?
-- Does a failed attempted move leak information?
-
-## Candidate Rulesets
-
-### Chess.com Style
-
-Status: needs verification before implementation.
-
-Known direction:
-
-- The board is partially hidden according to player visibility.
-- Standard chess movement remains the base.
-- Check and terminal-condition behavior must be verified before depending on it.
-
-### Engine-Lab Style
-
-Status: proposed for experiments.
-
-Principles:
-
-- Legal move generation uses true board state.
-- Visibility uses attacked squares plus own occupied squares.
-- Terminal condition is configurable: checkmate-like, king-capture-like, or platform-compatible.
-
 ## Configuration: Draft960 Hidden Starts
 
-Status: proposed for the Fog of War + Draft960 product configuration. Composes on top of any candidate ruleset's visibility and termination rules.
+Status: implemented. Composes on top of the Mistboard Fog of War Ruleset above.
 
 When this configuration is active, the canonical starting position is replaced with two independently-chosen Chess960 back-ranks — one per player — and neither back-rank is revealed to the opponent until the game ends.
 
