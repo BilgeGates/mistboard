@@ -526,6 +526,10 @@ button:focus-visible {
   color: #4a665b;
 }
 
+.board-result[data-outcome='win'] {
+  display: none;
+}
+
 .board-result[data-outcome='win'] .board-result__badge {
   background: linear-gradient(160deg, #e8f9ee 0%, #c4f0d2 100%);
   border-color: rgba(31, 111, 91, 0.4);
@@ -562,6 +566,17 @@ button:focus-visible {
   40% { transform: translateX(6px); }
   60% { transform: translateX(-4px); }
   80% { transform: translateX(4px); }
+}
+
+@keyframes king-celebrate {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-8px) rotate(-8deg); }
+  75% { transform: translateY(-8px) rotate(8deg); }
+}
+
+.board.king-celebrating cg-board piece.king {
+  animation: king-celebrate 0.6s ease-in-out 2;
+  transform-origin: center bottom;
 }
 
 .promotion-picker button {
@@ -745,11 +760,16 @@ button:focus-visible {
 }
 
 .game-info strong,
-.selection-list strong,
-.clocks strong {
+.selection-list strong {
   overflow-wrap: anywhere;
   color: #1d2522;
   font-size: 14px;
+  font-weight: 650;
+}
+
+.clocks strong {
+  overflow-wrap: anywhere;
+  color: #1d2522;
   font-weight: 650;
 }
 
@@ -759,7 +779,7 @@ button:focus-visible {
 }
 
 .clocks div {
-  min-height: 42px;
+  min-height: 52px;
   padding: 8px 10px;
   border: 1px solid #d3d9d2;
   background: #ffffff;
@@ -767,7 +787,8 @@ button:focus-visible {
 
 .clocks div.active {
   border-color: #1f6f5b;
-  box-shadow: inset 4px 0 0 #1f6f5b;
+  box-shadow: inset 5px 0 0 #1f6f5b;
+  background: #f2fbf7;
 }
 
 .presence-dot {
@@ -926,9 +947,21 @@ button:focus-visible {
 
 .clocks strong {
   font-variant-numeric: tabular-nums;
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1;
   text-align: right;
+}
+
+.clocks .clock-to-move {
+  display: none;
+  font-size: 11px;
+  color: #1f6f5b;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.clocks div.active .clock-to-move {
+  display: inline;
 }
 
 .starts {
@@ -1292,6 +1325,8 @@ button:focus-visible {
   min-height: 34px;
   padding: 6px 10px;
   text-align: center;
+  font-weight: 400;
+  color: #5f6b66;
 }
 
 .fog-toggle[aria-pressed="true"] {

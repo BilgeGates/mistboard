@@ -569,14 +569,13 @@ function renderActionStatus(view: PlayerView | null): void {
 }
 
 function renderGameInfo(view: PlayerView | null): void {
+  const gameSummary = liveState.roomMode === 'pvp'
+    ? `${liveState.rated ? 'Rated' : 'Casual'} · Playing as ${seatLabel(liveState.seat)}`
+    : `${modeLabel()} · Playing as ${seatLabel(liveState.seat)}`;
   const items = [
-    infoItem('Mode', modeLabel()),
-    ...(liveState.roomMode === 'pvp' ? [infoItem('Rating', liveState.rated ? 'Rated' : 'Casual')] : []),
-    infoItem('Seat', seatLabel(liveState.seat)),
-    infoItem('Turn', turnLabel(view)),
+    infoItem('Game', gameSummary),
+    infoItem('Status', turnLabel(view)),
     infoItem('Connection', connectionLabel()),
-    infoItem('Server', serverTimeLabel()),
-    infoItem('Clients', String(liveState.clientCount)),
   ];
   refs.gameInfo.replaceChildren(...items);
 }
@@ -664,10 +663,7 @@ function renderRoomActions(): void {
       actions.unshift(playAgainButton());
     }
     actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(liveState.room)}`, 'primary'));
-    const note = document.createElement('p');
-    note.className = 'room-actions-note';
-    note.textContent = 'Open the review to see the full reveal and share the finished game.';
-    refs.roomActions.replaceChildren(note, ...actions);
+    refs.roomActions.replaceChildren(...actions);
     return;
   }
   if (liveState.roomMode === 'pvp' && view?.status.type === 'pregame' && isColor(liveState.seat)) {
@@ -894,14 +890,26 @@ export function renderClocks(view: PlayerView | null): void {
   const displayAt = isLive() ? Date.now() : view.clock.runningSince ?? Date.now();
   const colors: Color[] = view.perspective === 'white' ? ['black', 'white'] : ['white', 'black'];
   const isPvp = liveState.roomMode === 'pvp';
+  const isPve = liveState.roomMode === 'pve';
+  const humanColor = isPve ? (isColor(liveState.seat) ? liveState.seat : null) : null;
   for (const color of colors) {
+    const isActive = view.clock.activeColor === color && view.status.type === 'playing';
     const row = document.createElement('div');
     const label = document.createElement('span');
     const time = document.createElement('strong');
     if (isPvp) label.append(presenceDot(liveState.connectedSeats[color]));
-    label.append(document.createTextNode(`${capitalize(color)}${view.clock.activeColor === color && view.status.type === 'playing' ? ' clock' : ''}`));
+    const playerName = isPve
+      ? (color === humanColor ? 'You' : 'Bot')
+      : capitalize(color);
+    label.append(document.createTextNode(playerName));
+    if (isActive) {
+      const toMove = document.createElement('span');
+      toMove.className = 'clock-to-move';
+      toMove.textContent = ' to move';
+      label.append(toMove);
+    }
     time.textContent = formatClock(clockRemainingMs(view.clock, color, displayAt));
-    row.className = view.clock.activeColor === color && view.status.type === 'playing' ? 'active' : '';
+    row.className = isActive ? 'active' : '';
     row.append(label, time);
     refs.clocks.append(row);
   }
@@ -980,6 +988,18 @@ function applyBoardConfig(
   config: NonNullable<Parameters<typeof Chessground>[1]>,
   view: PlayerView | null,
 ): void {
+  // Disable animation when stepping backward through replay. Chessground
+  // matches piece types between positions to compute movement vectors; going
+  // backward with fog-hidden pieces causes spurious animations (e.g. h7 pawn
+  // appearing to animate to g6 when replaying a fog-revealed capture backward).
+  if (
+    lastRenderedReplayIndex !== null
+    && replayIndex !== null
+    && replayIndex < lastRenderedReplayIndex
+  ) {
+    api.set({ ...config, animation: { enabled: false, duration: 0 } });
+    return;
+  }
   if (!shouldTwoPhaseAnimate(view)) {
     api.set(config);
     return;
@@ -1017,14 +1037,13 @@ function maybePlayPremove(): void {
 
 function renderBoardResult(view: PlayerView | null): void {
   refs.boardResult.replaceChildren();
+  refs.board.classList.remove('king-celebrating');
+
   if (view?.status.type !== 'finished' || !isLive()) {
     refs.boardResult.hidden = true;
     refs.boardResult.classList.remove('board-result--outcome');
     return;
   }
-
-  refs.boardResult.hidden = false;
-  refs.boardResult.classList.add('board-result--outcome');
 
   const winner = view.status.winner;
   const seat = liveState.seat;
@@ -1040,6 +1059,17 @@ function renderBoardResult(view: PlayerView | null): void {
     outcome = 'win';
     headline = resultTitle(winner);
   }
+
+  // Win: skip the overlay, animate the king instead
+  if (outcome === 'win') {
+    refs.boardResult.hidden = true;
+    refs.boardResult.classList.remove('board-result--outcome');
+    refs.board.classList.add('king-celebrating');
+    return;
+  }
+
+  refs.boardResult.hidden = false;
+  refs.boardResult.classList.add('board-result--outcome');
   refs.boardResult.dataset.outcome = outcome;
 
   const badge = document.createElement('div');
@@ -1256,7 +1286,7 @@ function pieceFen(role: PieceRole, color: Color): string {
 function renderReplay(): void {
   refs.replayMeta.textContent = replayMetaLabel();
   refs.fogToggle.hidden = !canTogglePostgameFog();
-  refs.fogToggle.textContent = postgameFogEnabled ? 'Fog on' : 'Reveal on';
+  refs.fogToggle.textContent = 'Fog';
   refs.fogToggle.setAttribute('aria-pressed', postgameFogEnabled ? 'true' : 'false');
   refs.fogToggle.onclick = () => {
     postgameFogEnabled = !postgameFogEnabled;
@@ -1266,7 +1296,9 @@ function renderReplay(): void {
   for (const control of refs.replayControls) {
     control.disabled = replayControlDisabled(control.dataset.replay ?? '');
     control.onclick = () => {
+      const prevReplayIndex = replayIndex;
       applyReplayControl(control.dataset.replay ?? '');
+      maybeSoundForReplayStep(prevReplayIndex, replayIndex);
       reconcileInteractionState();
       render();
     };
@@ -1449,9 +1481,21 @@ export function handleReplayKeyboard(event: KeyboardEvent): void {
   if (!action || replayControlDisabled(action)) return;
 
   event.preventDefault();
+  const prevReplayIndex = replayIndex;
   applyReplayControl(action);
+  maybeSoundForReplayStep(prevReplayIndex, replayIndex);
   reconcileInteractionState();
   render();
+}
+
+function maybeSoundForReplayStep(prevIndex: number | null, nextIndex: number | null): void {
+  if (nextIndex === null) return; // returning to live — live sound system handles it
+  const effectivePrev = prevIndex ?? liveState.events.length;
+  if (nextIndex <= effectivePrev) return; // backward step or no change — no sound
+  const eventIndex = nextIndex - 1;
+  const event = liveState.events[eventIndex];
+  if (!event || event.type !== 'move-played') return;
+  sound.play(soundForMove(liveState.events.slice(0, eventIndex), event));
 }
 
 function replayActionForKey(key: string): string | null {
