@@ -792,6 +792,9 @@ function canonicalEngineId(clientId: string): string {
 async function landingEventLoader(roomId: string): Promise<GameEvent[]> {
   const apiEvents = await apiEventLoader(roomId).catch(() => null);
   if (apiEvents) return apiEvents;
+  // Only fall back to bundled static samples for synthetic IDs — real DB room IDs (UUIDs, engine
+  // corpus IDs) won't have a matching file and would get the Vite SPA HTML fallback.
+  if (!/^sample-\d+$/.test(roomId)) throw new Error(`no events for game: ${roomId}`);
   return fetchStaticSample(roomId);
 }
 
@@ -799,6 +802,10 @@ async function fetchStaticSample(sampleId: string): Promise<GameEvent[]> {
   const safeId = sampleId.replace(/[^a-zA-Z0-9_-]/g, '');
   const resp = await fetch(`/replay-samples/${safeId}.jsonl`);
   if (!resp.ok) throw new Error(`failed to load replay sample ${safeId}: ${resp.status}`);
+  // Vite's SPA fallback returns 200 + text/html for any unmatched path. Detect it so we get a
+  // clear error instead of a JSON.parse crash on <!doctype html>.
+  const contentType = resp.headers.get('content-type') ?? '';
+  if (contentType.startsWith('text/html')) throw new Error(`static sample not found: ${safeId}`);
   const text = await resp.text();
   return text
     .split('\n')

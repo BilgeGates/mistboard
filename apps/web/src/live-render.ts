@@ -89,11 +89,15 @@ let lastRenderedReplayIndex: number | null = null;
 let lastSoundEventCount: number | null = null;
 let lastTerminalSound: string | null = null;
 let lastSoundView: PlayerView | null = null;
-// Fog-view history: stores server-provided PlayerView at each event count
-// during live Fog of War PvP. Replaying from fog-filtered events alone
-// would produce broken positions since opponent moves are stripped.
+// Fog-view history: server-provided PlayerView snapshots keyed by capture sequence number.
+// Opponent moves are absent from liveState.events (fog-filtered), so eventsLen is not a
+// reliable key — it only increments on own moves. Instead we capture on every server state
+// change (liveState.state reference change) and key by a monotonic counter so both own and
+// opponent moves produce distinct navigable positions.
 let fogViewHistory: Map<number, PlayerView> = new Map();
-let lastCapturedEventCount = 0;
+let fogSnapshotSeq = 0;
+let lastCapturedFogState: PlayerView | null = null;
+let fogFirstMoveSnapshotIndex: number | null = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -104,7 +108,9 @@ export function initRender(
   sendSocket = callbacks.sendSocket;
   reconnectNow = callbacks.reconnectNow;
   fogViewHistory = new Map();
-  lastCapturedEventCount = 0;
+  fogSnapshotSeq = 0;
+  lastCapturedFogState = null;
+  fogFirstMoveSnapshotIndex = null;
   lastRenderedView = null;
   lastRenderedReplayIndex = null;
   lastTrackedStatusType = null;
@@ -1497,7 +1503,8 @@ function applyReplayControl(action: string): void {
   if (action === 'prev') replayIndex = previousReplayHistoryIndex(currentIndex, history);
   if (action === 'next') {
     const next = nextReplayHistoryIndex(currentIndex, history);
-    replayIndex = next === null || next >= liveState.events.length ? null : next;
+    const livePos = fogLivePos();
+    replayIndex = next === null || next >= livePos ? null : next;
   }
 }
 
@@ -1548,7 +1555,13 @@ function replayControlDisabled(action: string): boolean {
   const currentIndex = currentReplayIndex();
   if (action === 'latest') return isLive();
   if (action === 'next') return isLive() || nextReplayHistoryIndex(currentIndex, history) === null;
-  if (action === 'first' || action === 'prev') return previousReplayHistoryIndex(currentIndex, history) === currentIndex;
+  if (action === 'first') return previousReplayHistoryIndex(currentIndex, history) === currentIndex;
+  if (action === 'prev') {
+    // Stop at the first move-played, not at room-created. |< still reaches the initial board.
+    const firstMove = firstMoveHistoryIndex();
+    if (firstMove !== null && currentIndex <= firstMove) return true;
+    return previousReplayHistoryIndex(currentIndex, history) === currentIndex;
+  }
   return false;
 }
 
@@ -1560,14 +1573,26 @@ function isFogLivePvp(): boolean {
 }
 
 function captureFogView(): void {
-  if (!isFogLivePvp() || !liveState.state) return;
-  if (liveState.events.length <= lastCapturedEventCount) return;
-  fogViewHistory.set(liveState.events.length, liveState.state);
-  lastCapturedEventCount = liveState.events.length;
+  if (!liveState.state || liveState.state.variant !== 'fog-of-war') return;
+  // Capture on every server state change, not just when eventsLen increases. Opponent moves
+  // don't appear in liveState.events (fog-filtered), so eventsLen stays constant after them —
+  // using it as the key would collapse own-move and opponent-move positions into one entry.
+  if (liveState.state === lastCapturedFogState) return;
+  if (fogFirstMoveSnapshotIndex === null && liveState.state.lastMove !== undefined) {
+    fogFirstMoveSnapshotIndex = fogSnapshotSeq;
+  }
+  fogViewHistory.set(fogSnapshotSeq, liveState.state);
+  fogSnapshotSeq++;
+  lastCapturedFogState = liveState.state;
 }
 
 function replayHistoryIndexes(): number[] {
-  if (isFogLivePvp() && fogViewHistory.size > 0) {
+  // For fog-of-war games, navigate through fogViewHistory keys rather than the events list.
+  // Events are fog-filtered: opponent moves are excluded from liveState.events, so events-based
+  // history only has the current player's moves — each step would span 2 chess ply. fogViewHistory
+  // is captured on every snapshot render (including after hidden opponent moves), giving 1-ply
+  // granularity. Filter to keys ≥ firstMoveHistoryIndex so setup-event positions are skipped.
+  if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
     return Array.from(fogViewHistory.keys()).sort((a, b) => a - b);
   }
   const indexes: number[] = [];
@@ -1578,11 +1603,23 @@ function replayHistoryIndexes(): number[] {
 }
 
 function isReplayHistoryEvent(event: GameEvent): boolean {
+  // clock-expired is excluded: it ends the game but doesn't move pieces, so navigating to it
+  // always shows the same board as the last move-played. Stepping backward would burn a key press
+  // with no visible board change.
   return event.type === 'room-created'
     || event.type === 'draft-start-resolved'
     || event.type === 'bid-resolved'
-    || event.type === 'move-played'
-    || event.type === 'clock-expired';
+    || event.type === 'move-played';
+}
+
+function firstMoveHistoryIndex(): number | null {
+  if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
+    return fogFirstMoveSnapshotIndex;
+  }
+  for (const [index, event] of liveState.events.entries()) {
+    if (event.type === 'move-played') return index + 1;
+  }
+  return null;
 }
 
 function previousReplayHistoryIndex(currentIndex: number, history: number[]): number {
@@ -1594,11 +1631,18 @@ function previousReplayHistoryIndex(currentIndex: number, history: number[]): nu
   return currentHistoryIndex;
 }
 
+function fogLivePos(): number {
+  return liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0
+    ? fogSnapshotSeq
+    : liveState.events.length;
+}
+
 function nextReplayHistoryIndex(currentIndex: number, history: number[]): number | null {
   for (const historyIndex of history) {
     if (historyIndex > currentIndex) return historyIndex;
   }
-  return currentIndex < liveState.events.length ? liveState.events.length : null;
+  const livePos = fogLivePos();
+  return currentIndex < livePos ? livePos : null;
 }
 
 function latestReplayHistoryIndexAtOrBefore(currentIndex: number, history: number[]): number {
@@ -1621,9 +1665,12 @@ export function currentView(): PlayerView | null {
   const projection = currentProjection();
   const perspective = liveState.seat === 'black' ? 'black' : 'white';
   if (isLive() && (!projection || projection.state.variant !== 'fog-of-war' || projection.state.status.type !== 'finished')) return liveState.state;
-  // Historical position during live fog pvp: events are fog-filtered so
-  // projection is incomplete — use stored server-provided view instead.
-  if (!isLive() && replayIndex !== null && isFogLivePvp()) {
+  // Historical fog position: use the server-provided snapshot captured at that event count.
+  // viewForProjection cannot reconstruct accurate historical fog views — events from WebSocket
+  // snapshots are fog-filtered and structured differently from what replayGameEvents expects,
+  // so the projection's moveNumber stays wrong. Walking back through fogViewHistory is correct
+  // for both PvP and PvE fog games.
+  if (!isLive() && replayIndex !== null && liveState.state?.variant === 'fog-of-war') {
     return fogViewHistory.get(replayIndex) ?? liveState.state;
   }
   if (!projection) return liveState.state;
@@ -1665,11 +1712,11 @@ export function currentDevViews(): DevViews | null {
 }
 
 function currentReplayIndex(): number {
-  return replayIndex ?? liveState.events.length;
+  return replayIndex ?? fogLivePos();
 }
 
 export function isLive(): boolean {
-  return replayIndex === null || replayIndex >= liveState.events.length;
+  return replayIndex === null || replayIndex >= fogLivePos();
 }
 
 function activeMoveColor(): Color | null {

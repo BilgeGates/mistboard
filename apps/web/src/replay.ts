@@ -560,7 +560,7 @@ export async function mountReplay(
     loopTimer = window.setTimeout(() => {
       loopTimer = null;
       const next = pickNextSample(loopSamples, activeSample);
-      void loadGame(next);
+      loadGame(next).catch((err) => console.warn('[replay loop] failed to load game, skipping:', next, err));
     }, betweenGameDelayMs);
   }
 
@@ -860,7 +860,18 @@ export async function mountReplay(
     clearLoopTimer();
   }, { once: true });
 
-  await loadGame(initialSampleId);
+  // If the initial sample fails to load (e.g. a DB game with no events endpoint),
+  // fall through to the next available loop sample rather than crashing the mount.
+  try {
+    await loadGame(initialSampleId);
+  } catch (err) {
+    const fallback = loopSamples?.find((id) => id !== initialSampleId);
+    if (fallback) {
+      await loadGame(fallback);
+    } else {
+      throw err;
+    }
+  }
 
   function applyBoardOrientation(): void {
     whiteCg.set({ orientation: boardOrientation });
