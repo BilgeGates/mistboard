@@ -137,7 +137,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
               <div data-game-info class="game-info"></div>
             </section>
             <section class="panel-section">
-              <h2>Next</h2>
               <div data-room-actions class="room-actions"></div>
             </section>
             <section data-game-controls-section class="panel-section" hidden>
@@ -1354,6 +1353,10 @@ function renderReplay(): void {
 
 function shouldMaskMoveList(): boolean {
   if (liveState.state?.variant !== 'fog-of-war' || liveState.roomMode === 'eve') return false;
+  // PvE spectators already receive only the human player's fog view — the
+  // engine's moves are filtered server-side, so the human's moves are not
+  // secret. Show the move list so spectators can follow along.
+  if (liveState.roomMode === 'pve' && liveState.seat === 'spectator') return false;
   if (liveState.state.status.type === 'finished') return postgameFogEnabled && canTogglePostgameFog();
   return true;
 }
@@ -1733,6 +1736,11 @@ function resolvedStartIdForColor(color: Color, projection: GameProjection | null
 }
 
 function shouldShowDraftControls(view: PlayerView | null, projection: GameProjection | null): boolean {
+  // Only show Draft960 UI for actual draft960 games — never for fog-of-war,
+  // regardless of what hasVisibleDraftData returns (avoids spurious "Draft960
+  // Offer" section on fog-of-war spectator views).
+  const variant = view?.variant ?? liveState.state?.variant;
+  if (variant && variant !== 'draft960') return false;
   if (view?.variant === 'draft960') return true;
   return hasVisibleDraftData(projection);
 }
