@@ -369,17 +369,16 @@ def _terminal_or_eval(
     opp = not perspective
     if board.king(opp) is None:
         return _KING_CAPTURE_SCORE
-    # Non-terminal leaf: evaluate with a dummy "pass" move that leaves the board
-    # unchanged, or just score the position directly via material_score as fallback.
-    # We call evaluator on the board with a pseudo-null move (king to same square).
-    own_king = board.king(perspective)
-    if own_king is not None:
-        null_move = chess.Move(own_king, own_king)
-        try:
-            return evaluator(board, null_move, perspective)
-        except Exception:
-            pass
-    return material_score(board, perspective)
+    # Non-terminal leaf: evaluate via chess.Move.null() so evaluators see a
+    # genuine null move (board.push handles Move(0,0) specially — just flips
+    # the turn, no piece movement). The earlier Move(own_king, own_king) trick
+    # tripped every evaluator's king-capture short-circuit (target piece on
+    # to_square == own king → return -KING_CAPTURE_SCORE), making every MCTS
+    # leaf return -100000 regardless of evaluator. Caught 2026-05-17.
+    try:
+        return evaluator(board, chess.Move.null(), perspective)
+    except Exception:
+        return material_score(board, perspective)
 
 
 # ---------------------------------------------------------------------------
