@@ -791,6 +791,18 @@ button:focus-visible {
   background: #ffffff;
 }
 
+.clocks div.pregame {
+  opacity: 0.45;
+}
+
+.clocks-pregame-note {
+  margin: 0;
+  font-size: 11px;
+  color: #8f9aa3;
+  text-align: center;
+  padding: 2px 0;
+}
+
 .clocks div.active {
   border-color: #1f6f5b;
   box-shadow: inset 5px 0 0 #1f6f5b;

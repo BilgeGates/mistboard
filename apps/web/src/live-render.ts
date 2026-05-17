@@ -883,7 +883,27 @@ function bidNotice(view: PlayerView): HTMLDivElement {
 export function renderClocks(view: PlayerView | null): void {
   refs.clocks.replaceChildren();
   if (!view?.clock) {
-    refs.clocks.append(infoNotice('default', 'The 0:30+2 server clock starts when both seats are ready.'));
+    const roomCreated = liveState.events.find((e): e is Extract<GameEvent, { type: 'room-created' }> => e.type === 'room-created');
+    const tc = roomCreated?.timeControl;
+    if (tc) {
+      const incrementSec = Math.round(tc.incrementMs / 1000);
+      const tcLabel = incrementSec > 0 ? `${formatClock(tc.initialMs)}+${incrementSec}` : formatClock(tc.initialMs);
+      const colors: Color[] = ['black', 'white'];
+      for (const color of colors) {
+        const row = document.createElement('div');
+        row.className = 'pregame';
+        const label = document.createElement('span');
+        label.textContent = capitalize(color);
+        const time = document.createElement('strong');
+        time.textContent = formatClock(tc.initialMs);
+        row.append(label, time);
+        refs.clocks.append(row);
+      }
+      const note = document.createElement('p');
+      note.className = 'clocks-pregame-note';
+      note.textContent = `${tcLabel} · clock starts when both players are ready`;
+      refs.clocks.append(note);
+    }
     return;
   }
 
