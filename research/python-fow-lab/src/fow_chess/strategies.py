@@ -33,6 +33,7 @@ import chess
 
 from .belief import BeliefState
 from .engine import EvaluatorBuilder, best_action
+from .mcts import mcts_pick_move
 from .move_priors import OpponentMovePrior, uniform_prior
 from .observation import Observation
 from .selfplay import PerspectiveView
@@ -1173,6 +1174,12 @@ class Tier1Strategy:
     max_eval_particles: int = 16
     risk_aversion: float = 0.0
     seed: int = 0
+    # MCTS: when mcts_rollouts > 0, use Monte Carlo Tree Search instead of the
+    # 1-ply short-circuit hierarchy after hard certainty vetoes.
+    mcts_rollouts: int = 0
+    mcts_rollout_depth: int = 8
+    mcts_selection_depth: int = 3
+    mcts_risk_lambda: float = 0.25
     # Per-pick observability. Populated by pick_move; the bake-off harness
     # reads this after each game to dump a per-Tier-1-ply trace JSONL. Each
     # entry: {tier1_move_count, ply, decision_path, particle_count_pre_sample,
@@ -2838,6 +2845,33 @@ class Tier1Strategy:
             chosen = self._rng.choice(_prefer_queen_promotion(king_captures))
             self._stage_pending_capture(chosen, view)
             self._emit_trace("king-capture", particle_count_pre, chosen)
+            return chosen
+
+        # MCTS path: when mcts_rollouts > 0, delegate to Monte Carlo Tree Search
+        # after hard certainty vetoes (king-capture above, king-defender veto below
+        # is applied inside mcts_pick_move via the evaluator's -∞ scoring).
+        # All other short-circuits are replaced by the search tree.
+        if self.mcts_rollouts > 0 and self._belief is not None and self._belief.particles:
+            deadline_monotonic: float | None = None
+            if view.clock_remaining_ms is not None:
+                usable_ms = max(0, view.clock_remaining_ms - 300)
+                budget_ms = _compute_per_move_budget_ms(usable_ms, view.increment_ms)
+                budget_ms = min(budget_ms, usable_ms) if usable_ms > 0 else 100
+                deadline_monotonic = time.monotonic() + budget_ms / 1000.0
+            evaluator = self.evaluator_builder(view)
+            chosen = mcts_pick_move(
+                self._belief,
+                view,
+                evaluator,
+                self._rng,
+                n_rollouts=self.mcts_rollouts,
+                selection_depth=self.mcts_selection_depth,
+                rollout_depth=self.mcts_rollout_depth,
+                risk_lambda=self.mcts_risk_lambda,
+                deadline_monotonic=deadline_monotonic,
+            )
+            self._stage_pending_capture(chosen, view)
+            self._emit_trace("mcts", particle_count_pre, chosen)
             return chosen
 
         # King-defense short-circuit. Symmetric to king-capture: if our king is

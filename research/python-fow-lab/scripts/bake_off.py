@@ -28,6 +28,7 @@ from contextlib import nullcontext
 from fow_chess.engine import EvaluatorBuilder, static_builder
 from fow_chess.evaluator import (
     fog_aware_evaluator,
+    fow_evaluator,
     king_safety_evaluator,
     material_evaluator,
     stockfish_evaluator,
@@ -63,7 +64,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--evaluator",
-        choices=("material", "threat", "visibility-threat", "stockfish"),
+        choices=("material", "threat", "visibility-threat", "stockfish", "fow"),
         default="material",
         help="Tier-1 evaluator. material: pure post-move material balance. "
         "threat: material minus particle-aggregated hanging-piece value "
@@ -71,7 +72,9 @@ def main() -> int:
         "visibility-threat: material minus threats from visible opp pieces "
         "only — observed truth, no particle aggregation. stockfish: "
         "Stockfish via UCI (flaky on FOW positions where side-to-move is "
-        "in check).",
+        "in check). fow: FoW-native evaluator (material + piece safety + "
+        "king pressure + visibility advantage + fog risk); no subprocess, "
+        "designed as MCTS leaf evaluator.",
     )
     parser.add_argument("--threat-lambda", type=float, default=0.3)
     parser.add_argument(
@@ -169,6 +172,17 @@ def main() -> int:
         help="Which games to save when --save-dir is set. Default: loss-or-draw "
         "(the games worth investigating).",
     )
+    parser.add_argument(
+        "--mcts-rollouts",
+        type=int,
+        default=0,
+        help="When > 0, use MCTS with this many rollouts per move instead of "
+        "the 1-ply short-circuit hierarchy. Requires --evaluator fow or "
+        "another fast evaluator (Stockfish is too slow per rollout).",
+    )
+    parser.add_argument("--mcts-rollout-depth", type=int, default=8)
+    parser.add_argument("--mcts-selection-depth", type=int, default=3)
+    parser.add_argument("--mcts-risk-lambda", type=float, default=0.25)
     args = parser.parse_args()
     if args.verbose_belief and args.save_dir is None:
         parser.error("--verbose-belief requires --save-dir")
@@ -220,6 +234,9 @@ def main() -> int:
         # Builder closes over the per-move PerspectiveView; no static evaluator.
         evaluator_ctx = nullcontext(visibility_threat_evaluator(args.threat_lambda))
         builder_factory = lambda builder: builder
+    elif args.evaluator == "fow":
+        evaluator_ctx = nullcontext(fow_evaluator())
+        builder_factory = lambda evaluate: static_builder(evaluate)
     else:
         evaluator_ctx = nullcontext(material_evaluator())
         builder_factory = lambda evaluate: static_builder(evaluate)
@@ -277,6 +294,10 @@ def main() -> int:
                 risk_aversion=args.risk_aversion,
                 seed=seed,
                 verbose_belief_capture=args.verbose_belief,
+                mcts_rollouts=args.mcts_rollouts,
+                mcts_rollout_depth=args.mcts_rollout_depth,
+                mcts_selection_depth=args.mcts_selection_depth,
+                mcts_risk_lambda=args.mcts_risk_lambda,
             )
 
         mirror_mode = args.opponent == "tier1"
