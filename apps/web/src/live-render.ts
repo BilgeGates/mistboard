@@ -282,7 +282,11 @@ export function render(): void {
   const view = currentView();
   const projection = currentProjection();
   trackGameLifecycle(view);
-  const nextOrientation = view?.perspective ?? (liveState.seat === 'black' ? 'black' : 'white');
+  // For seated players, lock orientation to their own seat regardless of what
+  // the view's perspective field says — fog history views can carry a stale or
+  // mismatched perspective if the server state was captured before the seat was
+  // confirmed. Spectators fall back to the view's perspective.
+  const nextOrientation = isColor(liveState.seat) ? liveState.seat : (view?.perspective ?? 'white');
   orientation = nextOrientation;
   const showDraft = shouldShowDraftControls(view, projection);
   const showPickerOverlay = !liveState.solo && isColor(liveState.seat)
@@ -1550,6 +1554,7 @@ function replayControlDisabled(action: string): boolean {
 
 function isFogLivePvp(): boolean {
   return liveState.roomMode === 'pvp'
+    && isColor(liveState.seat)
     && liveState.state?.variant === 'fog-of-war'
     && liveState.state?.status.type !== 'finished';
 }
