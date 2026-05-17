@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.9.1"
+TIER1_VERSION = "0.9.2"
 
 
 def tier1_commit() -> str:
@@ -1237,6 +1237,14 @@ class Tier1Strategy:
             pending_steps.get("csp_reseed_count_stage_a", 0),
             pending_steps.get("csp_reseed_count_stage_b", 0),
         )
+        jitter_fired = bool(
+            pending_steps.get("jitter_stage_a", 0)
+            or pending_steps.get("jitter_stage_b", 0)
+        )
+        jitter_count = max(
+            pending_steps.get("jitter_count_stage_a", 0),
+            pending_steps.get("jitter_count_stage_b", 0),
+        )
         repair_fired = bool(
             pending_steps.get("repair_stage_a", 0)
             or pending_steps.get("repair_stage_b", 0)
@@ -1338,6 +1346,8 @@ class Tier1Strategy:
             "opp_remaining_counts": opp_counts,
             "csp_reseed_fired": csp_reseed_fired,
             "csp_reseed_count": csp_reseed_count,
+            "jitter_fired": jitter_fired,
+            "jitter_count": jitter_count,
             "repair_fired": repair_fired,
             "repair_count": repair_count,
             "repair_cost_max": repair_cost_max,
@@ -1743,6 +1753,8 @@ class Tier1Strategy:
                 "stage_b_repair_supplement_dropped_count": (
                     self._belief.last_stage_b_repair_supplement_dropped_count
                 ),
+                "jitter_fired": bool(self._belief.last_jitter_fired),
+                "jitter_count": self._belief.last_jitter_count,
                 "hard_facts": self._belief.hard_fact_summary(),
                 "marginal_field": _marginal_field_for_json(
                     self._belief.marginal_piece_field()
@@ -1824,6 +1836,8 @@ class Tier1Strategy:
         self._pending_belief_steps["csp_reseed_count_stage_a"] = (
             self._belief.last_csp_reseed_count
         )
+        self._pending_belief_steps["jitter_stage_a"] = self._belief.last_jitter_fired
+        self._pending_belief_steps["jitter_count_stage_a"] = self._belief.last_jitter_count
         self._pending_belief_steps["repair_stage_a"] = self._belief.last_repair_fired
         self._pending_belief_steps["repair_count_stage_a"] = (
             self._belief.last_repair_count
@@ -2649,6 +2663,8 @@ class Tier1Strategy:
         self._pending_belief_steps["csp_reseed_count_stage_b"] = (
             self._belief.last_csp_reseed_count
         )
+        self._pending_belief_steps["jitter_stage_b"] = self._belief.last_jitter_fired
+        self._pending_belief_steps["jitter_count_stage_b"] = self._belief.last_jitter_count
         self._pending_belief_steps["repair_stage_b"] = self._belief.last_repair_fired
         self._pending_belief_steps["repair_count_stage_b"] = (
             self._belief.last_repair_count

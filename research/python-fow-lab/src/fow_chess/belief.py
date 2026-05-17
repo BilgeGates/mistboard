@@ -335,6 +335,11 @@ class BeliefState:
     # cycle (Stage A + Stage B). Surfaced in the trace.
     last_csp_reseed_fired: int = 0
     last_csp_reseed_count: int = 0
+    # v0.9.2: jitter augmentation fires when CSP reseed yields too few unique
+    # particles (< _JITTER_UNIQUE_FLOOR). Diversifies by swapping same-group
+    # hidden opponent pieces rather than random-refilling from scratch.
+    last_jitter_fired: int = 0
+    last_jitter_count: int = 0
     # v0.7.2: count of times continuity repair avoided generic CSP reseed.
     # Generic CSP is deliberately treated as a last resort because it preserves
     # hard facts but can scramble previously good hidden-piece tracks.
@@ -657,6 +662,8 @@ class BeliefState:
         # Reset per-update CSP diagnostics; they're set if reseed fires below.
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
+        self.last_jitter_fired = 0
+        self.last_jitter_count = 0
         self._reset_repair_diagnostics()
         self.last_stage_a_pushed_count = 0
         self.last_stage_a_pushed_unique = 0
@@ -844,6 +851,7 @@ class BeliefState:
                     ) * 1000.0
                     self.last_csp_reseed_fired += 1
                     self.last_csp_reseed_count = len(self.particles)
+                    _maybe_jitter(self, facts, not self.perspective)
         elif pushed:
             self.particles = pushed
             self.weights = pushed_weights
@@ -882,6 +890,7 @@ class BeliefState:
                 ) * 1000.0
                 self.last_csp_reseed_fired += 1
                 self.last_csp_reseed_count = len(self.particles)
+                _maybe_jitter(self, facts, not self.perspective)
         else:
             self.particles = []
             self.weights = []
@@ -911,6 +920,8 @@ class BeliefState:
         # Reset per-update CSP diagnostics; they're set if Trigger-B fires below.
         self.last_csp_reseed_fired = 0
         self.last_csp_reseed_count = 0
+        self.last_jitter_fired = 0
+        self.last_jitter_count = 0
         self._reset_repair_diagnostics()
         self.last_stage_b_primary_count = 0
         self.last_stage_b_primary_unique = 0
@@ -1132,6 +1143,7 @@ class BeliefState:
                 ) * 1000.0
                 self.last_csp_reseed_fired += 1
                 self.last_csp_reseed_count = len(self.particles)
+                _maybe_jitter(self, facts, self.perspective)
             self._prune_hard_opp_facts_to_particles()
             self.last_stage_b_elapsed_ms = (
                 time.perf_counter() - update_start
@@ -1169,6 +1181,7 @@ class BeliefState:
                 ) * 1000.0
                 self.last_csp_reseed_fired += 1
                 self.last_csp_reseed_count = len(self.particles)
+                _maybe_jitter(self, facts, self.perspective)
             self._prune_hard_opp_facts_to_particles()
             self.last_stage_b_elapsed_ms = (
                 time.perf_counter() - update_start
@@ -2235,6 +2248,117 @@ def _csp_reseed(
         hard_opp_occupancy_squares=frozenset(extra_required_opp_squares or set()),
     )
     return _csp_reseed_from_facts(facts, side_to_move, n, rng)
+
+
+_JITTER_UNIQUE_FLOOR: int = 4
+"""Unique-particle threshold below which jitter augmentation fires after CSP reseed.
+
+A 1-particle CSP result causes a belief-collapse spiral: Stage A/B pruning
+wipes the lone particle, triggering another CSP that also yields 1, and so on.
+Jitter breaks the cycle by deriving diverse variants from the survivors instead
+of random-filling from scratch.
+"""
+
+
+def _jitter_particles_from_seeds(
+    seeds: list[chess.Board],
+    facts: "BeliefHardFacts",
+    n: int,
+    rng: random.Random,
+    *,
+    max_attempts: int = 200,
+) -> tuple[list[chess.Board], list[float]]:
+    """Diversify a sparse CSP-reseed result by swapping hidden opponent piece positions.
+
+    For each seed particle, generates variants by randomly swapping pairs of
+    hidden opponent pieces that belong to the same swap-group. Bishops are
+    grouped by square colour so the bishop-colour constraint is always
+    preserved; all other same-type swaps are unconditionally valid (counts,
+    pawn-rank, and king-uniqueness constraints hold by construction).
+
+    Only non-locked squares participate: squares in hard_opp_piece_facts
+    (pinned by direct prior visibility) and required_hidden_opp_squares
+    (forced occupancy from move-affordance evidence) are left untouched.
+
+    Returns the original seeds plus jittered variants, up to n total, with
+    equal weights. Returns (seeds, equal-weights) unchanged if no valid swap
+    exists.
+    """
+    if not seeds:
+        return [], []
+
+    visibility_set = facts.visibility_set
+    opp = facts.opp
+    # Only exclude squares with exact piece-identity facts (type+color known from
+    # direct sighting). required_hidden_opp_squares are occupancy-only ("some piece
+    # must be here") — swapping between them still satisfies the occupancy constraint.
+    locked: set[chess.Square] = set(facts.hard_opp_piece_facts.keys()) - visibility_set
+
+    result: list[chess.Board] = list(seeds)
+    seen: set[str] = {b.fen() for b in seeds}
+
+    attempts = 0
+    seed_idx = 0
+    while len(result) < n and attempts < max_attempts:
+        attempts += 1
+        source = seeds[seed_idx % len(seeds)]
+        seed_idx += 1
+
+        # Group swappable hidden opp pieces. Bishops are split by square colour
+        # so a swap never moves a bishop onto the wrong colour.
+        by_group: dict[tuple[chess.PieceType, bool | None], list[chess.Square]] = defaultdict(list)
+        for sq in chess.SQUARES:
+            if sq in visibility_set or sq in locked:
+                continue
+            piece = source.piece_at(sq)
+            if piece is not None and piece.color == opp:
+                if piece.piece_type == chess.BISHOP:
+                    key: tuple[chess.PieceType, bool | None] = (chess.BISHOP, _is_light_square(sq))
+                else:
+                    key = (piece.piece_type, None)
+                by_group[key].append(sq)
+
+        swappable = [g for g, sqs in by_group.items() if len(sqs) >= 2]
+        if not swappable:
+            continue
+
+        group = rng.choice(swappable)
+        sq_a, sq_b = rng.sample(by_group[group], 2)
+
+        board = source.copy()
+        piece_a = board.piece_at(sq_a)
+        piece_b = board.piece_at(sq_b)
+        board.set_piece_at(sq_a, piece_b)
+        board.set_piece_at(sq_b, piece_a)
+
+        fen = board.fen()
+        if fen not in seen:
+            seen.add(fen)
+            result.append(board)
+
+    if not result:
+        return [], []
+    w = 1.0 / len(result)
+    return result, [w] * len(result)
+
+
+def _maybe_jitter(
+    belief: "BeliefState",
+    facts: "BeliefHardFacts",
+    side_to_move: chess.Color,
+) -> None:
+    """Augment belief in-place with jittered particles if CSP reseed was too sparse."""
+    unique = len({p.fen() for p in belief.particles})
+    if unique >= _JITTER_UNIQUE_FLOOR:
+        return
+    jittered, jitter_weights = _jitter_particles_from_seeds(
+        belief.particles, facts, belief.target_n, belief.rng
+    )
+    if len(jittered) > len(belief.particles):
+        belief.particles = jittered
+        belief.weights = jitter_weights
+        belief.last_jitter_fired += 1
+        belief.last_jitter_count = len(jittered)
 
 
 def _csp_reseed_from_facts(
