@@ -12,7 +12,7 @@ from pathlib import Path
 # architectural layer; minor = behavioural change (new short-circuit,
 # evaluator tweak, prior change); patch = refactor with no behaviour delta.
 # Written into bake-off manifests so we can A/B across versions.
-TIER1_VERSION = "0.9.2"
+TIER1_VERSION = "0.9.3"
 
 
 def tier1_commit() -> str:
@@ -778,6 +778,7 @@ def _advanced_minor_retreat_moves(
 
 def _visible_piece_save_moves(
     view: PerspectiveView,
+    belief: "BeliefState | None" = None,
     *,
     piece_types: tuple[chess.PieceType, ...] = (
         chess.KNIGHT,
@@ -832,18 +833,40 @@ def _visible_piece_save_moves(
             else 1000
         )
         moved_piece_depth = _fog_depth(move.to_square, own)
+        # Prefer recaptures over retreats when the recapture destination is
+        # belief-safe. Only credit capture_gain when particles confirm < 30%
+        # chance of an immediate recapture — prevents preferring captures
+        # defended by hidden pieces (e.g. a bishop outside the visibility set).
+        captured = view.visible_piece_map.get(move.to_square)
+        capture_gain = 0
+        if captured is not None and captured.color != own and belief is not None and belief.particles:
+            total_w = 0.0
+            recapturable_w = 0.0
+            for particle, weight in zip(belief.particles, belief.weights):
+                if not particle.is_pseudo_legal(move):
+                    continue
+                total_w += weight
+                sim = particle.copy()
+                sim.push(move)
+                sim.turn = not own
+                if any(r.to_square == move.to_square for r in sim.pseudo_legal_moves):
+                    recapturable_w += weight
+            if total_w > 0 and recapturable_w / total_w < 0.3:
+                capture_gain = _MATERIAL_VALUE.get(captured.piece_type, 0)
         candidates.append(
-            (move, post_value, mover_value, moved_piece_depth)
+            (move, post_value, mover_value, moved_piece_depth, capture_gain)
         )
 
     if not candidates:
         return []
-    best_post = min(post for _, post, _, _ in candidates)
+    best_post = min(post for _, post, _, _, _ in candidates)
     best = [row for row in candidates if row[1] == best_post]
-    best_mover = min(mover for _, _, mover, _ in best)
+    best_gain = max(gain for _, _, _, _, gain in best)
+    best = [row for row in best if row[4] == best_gain]
+    best_mover = min(mover for _, _, mover, _, _ in best)
     best = [row for row in best if row[2] == best_mover]
-    best_depth = min(depth for _, _, _, depth in best)
-    return [move for move, _, _, depth in best if depth == best_depth]
+    best_depth = min(depth for _, _, _, depth, _ in best)
+    return [move for move, _, _, depth, _ in best if depth == best_depth]
 
 
 def _early_development_moves(view: PerspectiveView) -> list[chess.Move]:
@@ -2101,6 +2124,49 @@ class Tier1Strategy:
                 survivors.append(move)
         return survivors
 
+    def _veto_captures_defended_by_visible_king(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+    ) -> list[chess.Move]:
+        """Drop captures where the destination is defended by the visible opponent king.
+
+        In FoW, particles may not consistently model the king's position, so the
+        aggregated Stockfish score underweights the certain king-recapture. If the
+        destination is visibly attacked by the opponent king and moving there would
+        be an unfavorable exchange (mover > captured), veto the move.
+        """
+        own = view.perspective
+        opp = not own
+        king_sq: chess.Square | None = None
+        for sq, piece in view.visible_piece_map.items():
+            if piece.color == opp and piece.piece_type == chess.KING:
+                king_sq = sq
+                break
+        if king_sq is None:
+            return candidates
+
+        king_attacks = chess.BB_KING_ATTACKS[king_sq]
+        survivors: list[chess.Move] = []
+        for move in candidates:
+            captured = view.visible_piece_map.get(move.to_square)
+            if captured is None or captured.color == own:
+                survivors.append(move)
+                continue
+            if not (chess.BB_SQUARES[move.to_square] & king_attacks):
+                survivors.append(move)
+                continue
+            mover = view.visible_piece_map.get(move.from_square)
+            mover_val = (
+                _MATERIAL_VALUE.get(mover.piece_type, 1000)
+                if mover is not None and mover.color == own
+                else 1000
+            )
+            captured_val = _MATERIAL_VALUE.get(captured.piece_type, 0)
+            if mover_val <= captured_val:
+                survivors.append(move)  # even or winning exchange — allow
+        return survivors or candidates
+
     def _belief_veto_queen_fog_risk(
         self,
         candidates: list[chess.Move],
@@ -2450,29 +2516,44 @@ class Tier1Strategy:
             if before - post < min_improvement:
                 continue
             landing_risk = landing_risk_weight / total_weight
-            scored.append((move, post, mover_value, _fog_depth(move.to_square, own), landing_risk))
+            # Prefer captures over retreats: credit visible enemy piece on
+            # the landing square so Nxh4 ranks above Ng6h8 when threat
+            # reduction and risk are otherwise equal. Mirrors _visible_piece_save_moves.
+            captured = view.visible_piece_map.get(move.to_square)
+            capture_gain = (
+                _MATERIAL_VALUE.get(captured.piece_type, 0)
+                if captured is not None and captured.color != own
+                else 0
+            )
+            scored.append((move, post, mover_value, _fog_depth(move.to_square, own), landing_risk, capture_gain))
 
         if not scored:
             return []
 
         # Tier by landing risk, then apply existing criteria within each tier.
-        # Thresholds: ≤0.5 = safe, ≤2.0 = moderate, >2.0 = risky.
+        # Thresholds: ≤0.3 = safe, ≤1.5 = moderate, >1.5 = risky.
+        # Tightened from (0.5, 2.0): the old bounds let the engine save a
+        # rook to a ~100%-bishop-attacked square (risk≈2.0 → "moderate") or
+        # a knight to a 30%-pawn-attacked square (risk≈0.9 → "moderate").
         def _risk_tier(risk: float) -> int:
-            if risk <= 0.5:
+            if risk <= 0.3:
                 return 0
-            if risk <= 2.0:
+            if risk <= 1.5:
                 return 1
             return 2
 
-        best_tier = min(_risk_tier(r) for _, _, _, _, r in scored)
+        best_tier = min(_risk_tier(r) for _, _, _, _, r, _ in scored)
         in_tier = [row for row in scored if _risk_tier(row[4]) == best_tier]
 
-        best_post = min(post for _, post, _, _, _ in in_tier)
+        best_post = min(post for _, post, _, _, _, _ in in_tier)
         best = [row for row in in_tier if row[1] <= best_post + 1e-9]
-        best_mover = min(mv for _, _, mv, _, _ in best)
+        # Captures beat retreats among equal-quality saves.
+        best_gain = max(gain for _, _, _, _, _, gain in best)
+        best = [row for row in best if row[5] == best_gain]
+        best_mover = min(mv for _, _, mv, _, _, _ in best)
         best = [row for row in best if row[2] == best_mover]
-        best_depth = min(d for _, _, _, d, _ in best)
-        return [move for move, _, _, d, _ in best if d == best_depth]
+        best_depth = min(d for _, _, _, d, _, _ in best)
+        return [move for move, _, _, d, _, _ in best if d == best_depth]
 
     def _belief_veto_piece_fog_risk(
         self,
@@ -2890,7 +2971,7 @@ class Tier1Strategy:
                 self._emit_trace("high-value-save", particle_count_pre, chosen)
                 return chosen
 
-        piece_save = _visible_piece_save_moves(view)
+        piece_save = _visible_piece_save_moves(view, self._belief)
         if piece_save:
             candidates = self._belief_veto_king_attack(piece_save, view)
             if candidates:
@@ -3049,6 +3130,8 @@ class Tier1Strategy:
         legal_moves = non_king_capture_moves or legal_moves
         trade_safe_moves = self._belief_veto_bad_capture_trade(legal_moves, view)
         legal_moves = trade_safe_moves or legal_moves
+        king_defended_safe = self._veto_captures_defended_by_visible_king(legal_moves, view)
+        legal_moves = king_defended_safe or legal_moves
         queen_fog_safe_moves = self._belief_veto_queen_fog_risk(legal_moves, view)
         legal_moves = queen_fog_safe_moves or legal_moves
         piece_fog_safe_moves = self._belief_veto_piece_fog_risk(legal_moves, view)
