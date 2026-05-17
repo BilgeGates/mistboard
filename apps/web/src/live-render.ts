@@ -95,9 +95,13 @@ let lastSoundView: PlayerView | null = null;
 // change (liveState.state reference change) and key by a monotonic counter so both own and
 // opponent moves produce distinct navigable positions.
 let fogViewHistory: Map<number, PlayerView> = new Map();
+let fogSnapshotToEventsLen: Map<number, number> = new Map();
 let fogSnapshotSeq = 0;
 let lastCapturedFogState: PlayerView | null = null;
 let fogFirstMoveSnapshotIndex: number | null = null;
+// Canonical events fetched from the API after the game ends, used for full-truth postgame replay.
+let canonicalEvents: GameEvent[] | null = null;
+let canonicalEventsFetching = false;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -108,9 +112,12 @@ export function initRender(
   sendSocket = callbacks.sendSocket;
   reconnectNow = callbacks.reconnectNow;
   fogViewHistory = new Map();
+  fogSnapshotToEventsLen = new Map();
   fogSnapshotSeq = 0;
   lastCapturedFogState = null;
   fogFirstMoveSnapshotIndex = null;
+  canonicalEvents = null;
+  canonicalEventsFetching = false;
   lastRenderedView = null;
   lastRenderedReplayIndex = null;
   lastTrackedStatusType = null;
@@ -285,6 +292,7 @@ function buildNavHtml(): string {
 
 export function render(): void {
   captureFogView();
+  maybeStartCanonicalEventsFetch();
   const view = currentView();
   const projection = currentProjection();
   trackGameLifecycle(view);
@@ -1341,6 +1349,7 @@ function renderReplay(): void {
   const labelsByEventIndex = algebraicMoveLabels();
   const plyCount = moveListPlyCount(masked, entries);
   const visibleColor = moveListVisibleColor(masked);
+  const activeEventIndex = computeActiveEventIndex(entries);
   const rows: HTMLLIElement[] = [];
 
   for (let row = 0; row < Math.ceil(plyCount / 2); row += 1) {
@@ -1354,8 +1363,8 @@ function renderReplay(): void {
 
     const whitePly = row * 2 + 1;
     const blackPly = row * 2 + 2;
-    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, visibleColor, plyCount, labelsByEventIndex));
-    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, visibleColor, plyCount, labelsByEventIndex));
+    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, visibleColor, plyCount, labelsByEventIndex, activeEventIndex));
+    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, visibleColor, plyCount, labelsByEventIndex, activeEventIndex));
     rows.push(item);
   }
   refs.moveList.append(...rows);
@@ -1411,6 +1420,29 @@ function moveListVisibleColor(masked: boolean): Color | null {
   return currentView()?.status.type === 'finished' ? currentView()?.perspective ?? 'white' : null;
 }
 
+function computeActiveEventIndex(entries: MoveListEntry[]): number | null {
+  if (replayIndex === null) return null;
+  if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
+    // replayIndex is a fog snapshot number. Map it to an eventsLen and find the last entry at or before that.
+    const eventsLen = fogSnapshotToEventsLen.get(replayIndex) ?? 0;
+    let active: number | null = null;
+    for (const entry of entries) {
+      if (entry.eventIndex <= eventsLen) active = entry.eventIndex;
+    }
+    return active;
+  }
+  return replayIndex;
+}
+
+function fogSnapshotForEventIndex(eventIndex: number): number | null {
+  // Find the earliest fog snapshot whose eventsLen covers this eventIndex.
+  let best: number | null = null;
+  for (const [snap, evLen] of fogSnapshotToEventsLen) {
+    if (evLen >= eventIndex && (best === null || snap < best)) best = snap;
+  }
+  return best;
+}
+
 function moveListCell(
   ply: number,
   color: Color,
@@ -1419,6 +1451,7 @@ function moveListCell(
   visibleColor: Color | null,
   plyCount: number,
   labelsByEventIndex: Map<number, string>,
+  activeEventIndex: number | null = null,
 ): HTMLElement {
   if (ply > plyCount) {
     const empty = document.createElement('span');
@@ -1446,10 +1479,14 @@ function moveListCell(
   button.textContent = moveLabel(entry, labelsByEventIndex);
   button.className = [
     color === 'white' ? 'white-ply' : 'black-ply',
-    replayIndex === entry.eventIndex ? 'active' : '',
+    activeEventIndex === entry.eventIndex ? 'active' : '',
   ].filter(Boolean).join(' ');
   button.addEventListener('click', () => {
-    replayIndex = entry.eventIndex;
+    if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
+      replayIndex = fogSnapshotForEventIndex(entry.eventIndex);
+    } else {
+      replayIndex = entry.eventIndex;
+    }
     reconcileInteractionState();
     render();
   });
@@ -1525,8 +1562,20 @@ export function handleReplayKeyboard(event: KeyboardEvent): void {
 
 function maybeSoundForReplayStep(prevIndex: number | null, nextIndex: number | null): void {
   if (nextIndex === null) return; // returning to live — live sound system handles it
-  const effectivePrev = prevIndex ?? liveState.events.length;
+  const effectivePrev = prevIndex ?? fogLivePos();
   if (nextIndex <= effectivePrev) return; // backward step or no change — no sound
+
+  if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
+    // replayIndex is a fog snapshot number, not an events index. Use fog view comparison to
+    // determine the sound — the same logic playSanitizedOpponentSound uses for live moves.
+    const prevView = prevIndex !== null ? fogViewHistory.get(prevIndex) : fogViewHistory.get(fogLivePos());
+    const nextView = fogViewHistory.get(nextIndex);
+    if (!prevView || !nextView) return;
+    const seat = isColor(liveState.seat) ? liveState.seat : 'white';
+    sound.play(ownPieceCount(nextView, seat) < ownPieceCount(prevView, seat) ? 'captured' : 'move');
+    return;
+  }
+
   const eventIndex = nextIndex - 1;
   const event = liveState.events[eventIndex];
   if (!event || event.type !== 'move-played') return;
@@ -1557,9 +1606,10 @@ function replayControlDisabled(action: string): boolean {
   if (action === 'next') return isLive() || nextReplayHistoryIndex(currentIndex, history) === null;
   if (action === 'first') return previousReplayHistoryIndex(currentIndex, history) === currentIndex;
   if (action === 'prev') {
-    // Stop at the first move-played, not at room-created. |< still reaches the initial board.
+    // Disable prev one step before the first move so the user can still step back to the initial
+    // board but not further. < (not <=) so the first-move position itself allows one more step.
     const firstMove = firstMoveHistoryIndex();
-    if (firstMove !== null && currentIndex <= firstMove) return true;
+    if (firstMove !== null && currentIndex < firstMove) return true;
     return previousReplayHistoryIndex(currentIndex, history) === currentIndex;
   }
   return false;
@@ -1582,8 +1632,24 @@ function captureFogView(): void {
     fogFirstMoveSnapshotIndex = fogSnapshotSeq;
   }
   fogViewHistory.set(fogSnapshotSeq, liveState.state);
+  fogSnapshotToEventsLen.set(fogSnapshotSeq, liveState.events.length);
   fogSnapshotSeq++;
   lastCapturedFogState = liveState.state;
+}
+
+function maybeStartCanonicalEventsFetch(): void {
+  if (!canTogglePostgameFog()) return;
+  if (canonicalEvents !== null || canonicalEventsFetching) return;
+  canonicalEventsFetching = true;
+  void fetch(`/api/games/${encodeURIComponent(liveState.room)}/events`)
+    .then((r) => r.ok ? r.json() : null)
+    .then((data: { events: GameEvent[] } | null) => {
+      if (data?.events) {
+        canonicalEvents = data.events;
+        render();
+      }
+    })
+    .catch(() => { canonicalEventsFetching = false; });
 }
 
 function replayHistoryIndexes(): number[] {
@@ -1624,6 +1690,9 @@ function firstMoveHistoryIndex(): number | null {
 
 function previousReplayHistoryIndex(currentIndex: number, history: number[]): number {
   const currentHistoryIndex = latestReplayHistoryIndexAtOrBefore(currentIndex, history);
+  // If currentIndex is not itself a history entry (e.g. the live position is one past the last
+  // snapshot), the nearest earlier history entry IS the previous position — don't step back again.
+  if (currentHistoryIndex !== currentIndex) return currentHistoryIndex;
   for (let index = history.length - 1; index >= 0; index -= 1) {
     const historyIndex = history[index]!;
     if (historyIndex < currentHistoryIndex) return historyIndex;
@@ -1632,8 +1701,11 @@ function previousReplayHistoryIndex(currentIndex: number, history: number[]): nu
 }
 
 function fogLivePos(): number {
+  // For fog games, the live position IS the last captured snapshot (fogSnapshotSeq - 1), not
+  // one past it. This eliminates the redundant extra right-press from "last snapshot" to "live"
+  // since both show the same board.
   return liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0
-    ? fogSnapshotSeq
+    ? fogSnapshotSeq - 1
     : liveState.events.length;
 }
 
@@ -1657,8 +1729,17 @@ function latestReplayHistoryIndexAtOrBefore(currentIndex: number, history: numbe
 // ── View / projection helpers ─────────────────────────────────────────────────
 
 export function currentProjection(): GameProjection | null {
-  if (liveState.events.length === 0) return null;
-  return replayGameEvents(liveState.events.slice(0, currentReplayIndex()));
+  // For revealed postgame (fog off), use canonical events fetched from the API so the full
+  // board state is available. Fog-filtered liveState.events omit opponent moves and produce
+  // broken projections (moveNumber stays 1, wrong board positions).
+  const events = (canonicalEvents && !postgameFogEnabled) ? canonicalEvents : liveState.events;
+  if (events.length === 0) return null;
+  // Fog replay uses fogSnapshotSeq as replayIndex — not an events index. For the canonical
+  // projection slice, map through fogSnapshotToEventsLen when in fog mode; otherwise use directly.
+  const sliceAt = (fogViewHistory.size > 0 && liveState.state?.variant === 'fog-of-war')
+    ? (isLive() ? events.length : (fogSnapshotToEventsLen.get(currentReplayIndex()) ?? events.length))
+    : currentReplayIndex();
+  return replayGameEvents(events.slice(0, sliceAt));
 }
 
 export function currentView(): PlayerView | null {
@@ -1670,11 +1751,13 @@ export function currentView(): PlayerView | null {
   // snapshots are fog-filtered and structured differently from what replayGameEvents expects,
   // so the projection's moveNumber stays wrong. Walking back through fogViewHistory is correct
   // for both PvP and PvE fog games.
-  if (!isLive() && replayIndex !== null && liveState.state?.variant === 'fog-of-war') {
+  // Skip this path when the game is finished and fog is OFF — the reveal path below uses
+  // canonical events fetched from the API to show the full board.
+  const gameFinished = liveState.state?.status.type === 'finished';
+  if (!isLive() && replayIndex !== null && liveState.state?.variant === 'fog-of-war' && (!gameFinished || postgameFogEnabled)) {
     return fogViewHistory.get(replayIndex) ?? liveState.state;
   }
   if (!projection) return liveState.state;
-  const gameFinished = liveState.state?.status.type === 'finished';
   if (projection.state.variant === 'fog-of-war' && gameFinished && !postgameFogEnabled) {
     return fullTruthViewForProjection(projection, perspective);
   }
@@ -1832,7 +1915,7 @@ function roomMetaHtml(): string {
 function replayMetaLabel(): string {
   if (liveState.events.length === 0) return 'No events';
   if (isLive()) return `Live · ${liveState.events.length} events`;
-  return `Replay · event ${currentReplayIndex()} of ${liveState.events.length}`;
+  return `Replay · event ${currentReplayIndex()} of ${fogLivePos()}`;
 }
 
 function actionTone(view: PlayerView | null): InfoTone {
