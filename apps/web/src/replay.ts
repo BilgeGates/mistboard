@@ -1558,20 +1558,48 @@ function setBoardFromView(api: Api, view: PlayerView, prevView: PlayerView | nul
   const prevMove = prevView?.lastMove;
   const movedSinceLastRender = view.lastMove !== undefined
     && (!prevMove || prevMove.from !== view.lastMove.from || prevMove.to !== view.lastMove.to);
-  if (view.variant === 'fog-of-war' && prevView && view.lastMove && movedSinceLastRender) {
-    const intermediate = intermediateBoard(prevView, view, view.lastMove);
-    api.set({
-      animation: { enabled: false, duration: 0 },
-      fen: boardFen(intermediate),
-      lastMove: undefined,
-      highlight: { custom: customClasses, lastMove: false },
-    });
-    api.set({
-      animation: { enabled: true, duration: 140 },
-      fen: boardFen(view.board),
-      lastMove,
-      highlight: { custom: customClasses, lastMove: true },
-    });
+  // Fog-of-war: chessground animates by diffing the previous piece-set against the new one and
+  // pairing each "disappeared" piece with the nearest same-color/role "appeared" piece. In a
+  // normal game that diff equals the move, so animation is correct. In fog-of-war the visible
+  // piece-set also changes whenever fog reveals or conceals squares independently of the move,
+  // producing phantom slides between unrelated pieces.
+  //
+  // The fix is a two-phase render that separates fog changes from move changes:
+  //   Phase A (animation off): snap to a board where the fog has been applied but the moved piece
+  //     is still at its source square. chessground's internal state now matches the new fog layout
+  //     but has no piece displacement to animate.
+  //   Phase B (animation on): set the real board. The only diff is the one canonical move, so
+  //     chessground produces the correct slide.
+  //
+  // The two sub-cases below share that invariant but differ because `view.lastMove` is only set
+  // for the MOVING player's own perspective. For the opponent's perspective,
+  // `visibleLastMoveForPlayer` returns undefined (the opponent's move is hidden by fog), so there
+  // is no move to animate at all — Phase A and Phase B would be identical. In that case we just
+  // snap directly with animation off and re-enable it; no intermediateBoard needed.
+  if (view.variant === 'fog-of-war' && prevView) {
+    if (view.lastMove && movedSinceLastRender) {
+      const intermediate = intermediateBoard(prevView, view, view.lastMove);
+      api.set({
+        animation: { enabled: false, duration: 0 },
+        fen: boardFen(intermediate),
+        lastMove: undefined,
+        highlight: { custom: customClasses, lastMove: false },
+      });
+      api.set({
+        animation: { enabled: true, duration: 140 },
+        fen: boardFen(view.board),
+        lastMove,
+        highlight: { custom: customClasses, lastMove: true },
+      });
+    } else {
+      api.set({
+        animation: { enabled: false, duration: 0 },
+        fen: boardFen(view.board),
+        lastMove: undefined,
+        highlight: { custom: customClasses, lastMove: false },
+      });
+      api.set({ animation: { enabled: true, duration: 140 } });
+    }
     return;
   }
   api.set({
