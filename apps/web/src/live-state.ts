@@ -100,6 +100,7 @@ export const liveState = {
   rated: true,
   pveEngineId: null as string | null,
   pveEngineName: null as string | null,
+  seatDisplayNames: {} as Partial<Record<Color, string>>,
   seat: 'spectator' as Seat,
   solo: false,
   offer: [] as Chess960Start[],

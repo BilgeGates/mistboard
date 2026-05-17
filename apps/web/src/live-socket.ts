@@ -42,6 +42,7 @@ type ServerMessage =
     rated?: boolean;
     connectedSeats?: { white: boolean; black: boolean };
     rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+    seatDisplayNames?: Partial<Record<Color, string>>;
   }
   | {
     type: 'snapshot';
@@ -67,6 +68,7 @@ type ServerMessage =
     rated?: boolean;
     connectedSeats?: { white: boolean; black: boolean };
     rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+    seatDisplayNames?: Partial<Record<Color, string>>;
   }
   | {
     type: 'rematch:state';
@@ -203,6 +205,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.state = message.state;
     if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
     if (message.rematch) liveState.rematch = message.rematch;
+    if (message.seatDisplayNames) liveState.seatDisplayNames = message.seatDisplayNames;
   }
   if (message.type === 'snapshot') {
     liveState.clientCount = message.clients;
@@ -226,6 +229,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.state = message.state;
     if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
     if (message.rematch) liveState.rematch = message.rematch;
+    if (message.seatDisplayNames) liveState.seatDisplayNames = message.seatDisplayNames;
   }
   _maybePlaySnapshotSound(liveState.events, liveState.state);
   _reconcileInteractionState();

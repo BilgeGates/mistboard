@@ -890,17 +890,17 @@ export function renderClocks(view: PlayerView | null): void {
   const displayAt = isLive() ? Date.now() : view.clock.runningSince ?? Date.now();
   const colors: Color[] = view.perspective === 'white' ? ['black', 'white'] : ['white', 'black'];
   const isPvp = liveState.roomMode === 'pvp';
-  const isPve = liveState.roomMode === 'pve';
-  const humanColor = isPve ? (isColor(liveState.seat) ? liveState.seat : null) : null;
+  const humanColor = isColor(liveState.seat) ? liveState.seat : null;
   for (const color of colors) {
     const isActive = view.clock.activeColor === color && view.status.type === 'playing';
     const row = document.createElement('div');
     const label = document.createElement('span');
     const time = document.createElement('strong');
     if (isPvp) label.append(presenceDot(liveState.connectedSeats[color]));
-    const playerName = isPve
-      ? (color === humanColor ? 'You' : 'Bot')
-      : capitalize(color);
+    // Prefer server-supplied display name; fall back to "You"/"Bot"/color
+    const serverName = liveState.seatDisplayNames[color];
+    const playerName = serverName
+      ?? (color === humanColor ? 'You' : (liveState.roomMode === 'pve' ? 'Bot' : capitalize(color)));
     label.append(document.createTextNode(playerName));
     if (isActive) {
       const toMove = document.createElement('span');

@@ -294,9 +294,27 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
 
 // ── Room event infrastructure ──────────────────────────────────────────────
 
+export function seatDisplayNamesForRoom(room: Room, ctx: RoomManagerContext): Partial<Record<Color, string>> {
+  const names: Partial<Record<Color, string>> = {};
+  for (const color of ['white', 'black'] as Color[]) {
+    const clientId = room.projection.seats[color];
+    if (!clientId) continue;
+    if (isServerEngineClient(clientId)) {
+      const engineId = clientId === 'random-engine' ? ctx.pveBuiltinEngineClientId : clientId;
+      names[color] = engineVersionDisplayName(engineId);
+    } else {
+      const token = room.seatTokens[color as Color];
+      const name = token?.userDisplayName ?? token?.userHandle ?? null;
+      if (name) names[color] = name;
+    }
+  }
+  return names;
+}
+
 export function broadcastSnapshot(ctx: RoomManagerContext, room: Room): void {
+  const seatDisplayNames = seatDisplayNamesForRoom(room, ctx);
   for (const client of room.clients) {
-    ctx.send(client, snapshotPayload(room, client));
+    ctx.send(client, snapshotPayload({ ...room, seatDisplayNames }, client));
   }
 }
 

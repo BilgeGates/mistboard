@@ -33,6 +33,7 @@ export type SnapshotRoom = {
   pveEngineId?: string | null;
   rated?: boolean;
   rematch?: { offers: Partial<Record<Color, unknown>>; finalizedRoomId?: string };
+  seatDisplayNames?: Partial<Record<Color, string>>;
 };
 
 export function computeConnectedSeats(
@@ -77,6 +78,7 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     state: getClientView(normalizedRoom, client),
     rated: room.rated ?? true,
     connectedSeats: computeConnectedSeats(room.clients),
+    seatDisplayNames: room.seatDisplayNames ?? {},
     rematch: room.rematch
       ? {
         offers: {

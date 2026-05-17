@@ -59,6 +59,7 @@ import {
   resolveBidIfReady,
   resolveStartIfReady,
   roomIdToSeed,
+  seatDisplayNamesForRoom,
   seatTokenStatesFromPersistence,
   scheduleClockTimeout,
   scheduleRandomEngineMove,
@@ -505,7 +506,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     clearPendingVacate(room, seat);
   }
 
-  const snapshot = snapshotPayload(room, client);
+  const snapshot = snapshotPayload({ ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) }, client);
   send(client, {
     ...snapshot,
     type: 'hello',
