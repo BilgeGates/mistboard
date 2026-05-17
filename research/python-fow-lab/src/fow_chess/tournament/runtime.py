@@ -132,6 +132,10 @@ def bot_runtime(
             target_n = config.target_n
             max_particles = config.max_particles
             risk_aversion = config.risk_aversion
+            mcts_rollouts = config.mcts_rollouts
+            mcts_rollout_depth = config.mcts_rollout_depth
+            mcts_selection_depth = config.mcts_selection_depth
+            mcts_risk_lambda = config.mcts_risk_lambda
             tier1_cls = ns.Tier1Strategy
 
             def factory(seed: int) -> object:
@@ -142,6 +146,10 @@ def bot_runtime(
                     max_eval_particles=max_particles,
                     risk_aversion=risk_aversion,
                     seed=seed,
+                    mcts_rollouts=mcts_rollouts,
+                    mcts_rollout_depth=mcts_rollout_depth,
+                    mcts_selection_depth=mcts_selection_depth,
+                    mcts_risk_lambda=mcts_risk_lambda,
                 )
 
             yield factory
@@ -179,8 +187,11 @@ def _enter_evaluator(
         )
     if config.evaluator == "material":
         return ns.material_evaluator()
+    if config.evaluator == "fow":
+        from ..evaluator import fow_evaluator
+        return fow_evaluator()
     raise BotConfigError(
-        f"{config.name}: tier1 requires evaluator in {{stockfish, material}}, "
+        f"{config.name}: tier1 requires evaluator in {{stockfish, material, fow}}, "
         f"got {config.evaluator!r}"
     )
 

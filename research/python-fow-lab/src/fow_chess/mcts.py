@@ -141,12 +141,34 @@ def _rollout_policy_own(
     rng: random.Random,
     top_k: int = 8,
 ) -> chess.Move | None:
-    """Pick own move during rollout: prefer captures and king-adjacent moves."""
+    """Pick own move during rollout.
+
+    Priority:
+      1. King capture (always).
+      2. King defense: if own king is under direct attack, restrict to
+         moves that resolve the attack (capture attacker, block, flee).
+         This prevents the engine from ignoring an opponent bishop
+         converging on the king while making irrelevant moves elsewhere.
+      3. Safe captures: prefer taking material that isn't defended cheaply.
+      4. Quiet moves away from attacked squares.
+    """
     moves = list(board.pseudo_legal_moves)
     if not moves:
         return None
 
     opp = not perspective
+
+    # Pre-compute opponent attacks.
+    board.turn = opp
+    opp_attack_squares: set[chess.Square] = {m.to_square for m in board.pseudo_legal_moves}
+    board.turn = perspective
+
+    # Check if own king is directly attacked.
+    own_king_sq = board.king(perspective)
+    king_under_attack = (
+        own_king_sq is not None and own_king_sq in opp_attack_squares
+    )
+
     opp_king_sq = board.king(opp)
     king_zone = (
         chess.BB_KING_ATTACKS[opp_king_sq] | chess.BB_SQUARES[opp_king_sq]
@@ -157,10 +179,39 @@ def _rollout_policy_own(
     def _score(m: chess.Move) -> float:
         target = board.piece_at(m.to_square)
         if target is not None and target.piece_type == chess.KING:
-            return 1e9  # always take king
-        capture = _PIECE_VALUES.get(target.piece_type, 0) if target else 0
-        king_hit = 50 if chess.BB_SQUARES[m.to_square] & king_zone else 0
-        return capture + king_hit
+            return 1e9
+
+        mover = board.piece_at(m.from_square)
+        mover_val = _PIECE_VALUES.get(mover.piece_type, 0) if mover else 0
+        target_val = _PIECE_VALUES.get(target.piece_type, 0) if target else 0
+
+        # King defense priority: heavily reward moves that resolve own king attack.
+        defense_bonus = 0.0
+        if king_under_attack and own_king_sq is not None:
+            # Simulate: does this move get the king out of check?
+            sim = board.copy()
+            sim.push(m)
+            sim.turn = opp
+            new_king_sq = sim.king(perspective)
+            if new_king_sq is not None:
+                still_attacked = any(
+                    rm.to_square == new_king_sq for rm in sim.pseudo_legal_moves
+                )
+                if not still_attacked:
+                    defense_bonus = 800.0  # large bonus for resolving king attack
+
+        # Penalty for moving into opponent-attacked square.
+        in_danger = m.to_square in opp_attack_squares
+        if in_danger and target_val < mover_val:
+            danger_penalty = -(mover_val - target_val) * 1.5
+        elif in_danger and target_val == 0:
+            danger_penalty = -mover_val * 0.8
+        else:
+            danger_penalty = 0.0
+
+        capture_gain = target_val
+        king_hit = 25 if chess.BB_SQUARES[m.to_square] & king_zone else 0
+        return defense_bonus + capture_gain + king_hit + danger_penalty
 
     scored = sorted(moves, key=_score, reverse=True)
     candidates = scored[:top_k]
@@ -173,7 +224,13 @@ def _rollout_policy_opp(
     rng: random.Random,
     top_k: int = 6,
 ) -> chess.Move | None:
-    """Sample opponent move weighted toward captures and central activity."""
+    """Sample opponent move during rollout.
+
+    The opponent prioritises capturing OUR hanging pieces — pieces that moved
+    to squares the opponent attacks. This is the critical fix: if our own
+    rollout policy leaves material hanging, the opponent punishes it here,
+    making the MCTS correctly penalise reckless moves.
+    """
     moves = list(board.pseudo_legal_moves)
     if not moves:
         return None
@@ -190,9 +247,10 @@ def _rollout_policy_opp(
         target = board.piece_at(m.to_square)
         if target is not None and target.piece_type == chess.KING:
             return 1e9
+        # Weight captures heavily — opponent punishes hanging pieces.
         capture = _PIECE_VALUES.get(target.piece_type, 0) if target else 0
-        king_hit = 60 if chess.BB_SQUARES[m.to_square] & king_zone else 0
-        return capture + king_hit + rng.random() * 10  # small noise for diversity
+        king_hit = 40 if chess.BB_SQUARES[m.to_square] & king_zone else 0
+        return capture * 1.5 + king_hit + rng.random() * 8
 
     scored = sorted(moves, key=_score, reverse=True)
     candidates = scored[:top_k]

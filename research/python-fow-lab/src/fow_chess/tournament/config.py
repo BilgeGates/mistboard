@@ -82,22 +82,41 @@ class BotConfig:
     # different pinned versions on each side).
     engine_version: str | None = None
 
+    # MCTS parameters. When mcts_rollouts > 0, the Tier1Strategy delegates
+    # move selection to Monte Carlo Tree Search after hard certainty vetoes.
+    mcts_rollouts: int = 0
+    mcts_rollout_depth: int = 8
+    mcts_selection_depth: int = 3
+    mcts_risk_lambda: float = 0.25
+
     notes: str = ""
 
 
 _VALID_KINDS = ("tier1", "legal_greedy", "random")
 
 
+_HASH_EXCLUDED_FIELDS = frozenset({
+    "notes",
+    # MCTS fields added post-v1 lock. Excluded so existing locked configs
+    # (tier1-v1) remain valid — their zero defaults carry no behavioral content.
+    "mcts_rollouts",
+    "mcts_rollout_depth",
+    "mcts_selection_depth",
+    "mcts_risk_lambda",
+})
+
+
 def canonical_hash(config: BotConfig) -> str:
     """SHA-12 hex of canonical JSON (sorted keys, no whitespace).
 
-    Notes field excluded — documentation should not change identity.
+    Fields in _HASH_EXCLUDED_FIELDS are omitted. Notes excluded — documentation
+    should not change identity. New optional fields with sentinel defaults are
+    added to _HASH_EXCLUDED_FIELDS to avoid invalidating existing lockfiles.
     Time control is NOT part of bot identity — it's a property of the
-    tournament/match, not the strategy. Two bots play under one shared
-    clock; cross-control comparisons are diagnostic experiments, not
-    ladder events.
+    tournament/match, not the strategy.
     """
-    payload = {k: v for k, v in asdict(config).items() if k != "notes"}
+    payload = {k: v for k, v in asdict(config).items()
+               if k not in _HASH_EXCLUDED_FIELDS}
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()[:12]
 

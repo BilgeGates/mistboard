@@ -811,12 +811,14 @@ def stockfish_evaluator(
 def fow_evaluator(
     *,
     material_weight: float = 1.0,
-    safety_weight: float = 0.4,
-    king_pressure_weight: float = 80.0,
-    visibility_weight: float = 8.0,
-    fog_risk_weight: float = 0.15,
+    safety_weight: float = 0.8,
+    king_pressure_weight: float = 25.0,
+    king_threat_weight: float = 200.0,
+    king_proximity_weight: float = 40.0,
+    visibility_weight: float = 6.0,
+    fog_risk_weight: float = 0.2,
 ) -> Evaluator:
-    """FoW-native evaluator combining five position signals on the particle board.
+    """FoW-native evaluator combining six position signals on the particle board.
 
     Designed as a fast (no subprocess), drop-in replacement for Stockfish in
     both the current 1-ply architecture and future MCTS rollouts. All terms
@@ -824,31 +826,29 @@ def fow_evaluator(
     piece positions that make each term particle-sensitive.
 
     Terms and centipawn scale:
-      material      — centipawn balance of all pieces on the particle board.
-                      Range ≈ ±4500cp. Anchors everything else.
+      material         — centipawn balance of all pieces on the particle board.
 
-      safety        — discount for own non-king pieces under opp pseudo-legal
-                      attack on this particle. High-value hanging pieces penalised
-                      by their full value × safety_weight. Incentivises resolving
-                      tension quickly rather than leaving pieces exposed.
+      safety           — discount for own non-king pieces under opp pseudo-legal
+                         attack. Penalised at piece_value × safety_weight.
 
-      king_pressure — bonus proportional to how many of own pseudo-legal moves
-                      target the zone around the opp king (king square + adjacent
-                      8). Capped at king_pressure_weight (≈200cp) when all 8
-                      king-zone squares are attacked. Directly incentivises king
-                      hunting without needing search depth to discover it.
+      king_pressure    — bonus for own attacks targeting opp king zone. Offensive
+                         signal; intentionally small (25cp max) so it doesn't
+                         override the defensive terms.
 
-      visibility    — bonus for controlling more board squares than the opponent.
-                      Uses the FoW visibility model on the particle board so
-                      pawn advances and piece placements that expand view score
-                      higher. Each net square of advantage ≈ visibility_weight cp.
+      king_threat      — penalty per opponent piece directly attacking own king
+                         square via pseudo-legal move. The defensive symmetric of
+                         king_pressure. Set large (200cp) so the evaluator
+                         strongly prefers moves that resolve direct king attacks.
 
-      fog_risk      — penalty for own pieces deep in enemy territory without
-                      defensive support (reuses fog_discount_term). Discourages
-                      sending high-value pieces into fog prematurely.
+      king_proximity   — penalty for each opponent slider/piece within 3 squares
+                         of own king, scaled by proximity (closer = worse). Catches
+                         the "bishop converging on the king" pattern before it
+                         becomes a direct attack; scaled by piece value weight.
 
-    Weights are exposed as constructor args for bake-off tuning. The defaults
-    are an initial calibrated guess; run a sweep to find the optimal blend.
+      visibility       — bonus for net board squares visible vs. opponent.
+
+      fog_risk         — penalty for own pieces deep in enemy territory without
+                         defensive support.
     """
     from .visibility import visible_squares as _vis
 
@@ -873,11 +873,12 @@ def fow_evaluator(
         # --- Term 1: material ---
         mat = material_weight * material_score(advanced, perspective)
 
-        # --- Term 2: piece safety ---
-        # Which of own non-king pieces are under opp pseudo-legal attack on
-        # this particle? Full particle board means hidden opp attackers count.
+        # --- Terms 2 + 3 + 4 share one opp pseudo-legal pass ---
         advanced.turn = opp
-        opp_targets: set[chess.Square] = {m.to_square for m in advanced.pseudo_legal_moves}
+        opp_moves = list(advanced.pseudo_legal_moves)
+        opp_targets: set[chess.Square] = {m.to_square for m in opp_moves}
+
+        # Term 2: piece safety
         safety_penalty = safety_weight * sum(
             _PIECE_VALUES[p.piece_type]
             for sq, p in advanced.piece_map().items()
@@ -886,32 +887,58 @@ def fow_evaluator(
             and sq in opp_targets
         )
 
-        # --- Term 3: king pressure ---
-        # Fraction of opp king-zone squares own pieces attack; scaled to cp.
+        # Term 3 (defensive): king threat — direct attacks on own king
+        own_king_sq = advanced.king(perspective)
+        king_threat_penalty = 0.0
+        if own_king_sq is not None:
+            direct_attackers = sum(
+                1 for m in opp_moves if m.to_square == own_king_sq
+            )
+            king_threat_penalty = king_threat_weight * direct_attackers
+
+        # Term 4 (defensive): king proximity — opponent pieces converging on king
+        king_proximity_penalty = 0.0
+        if own_king_sq is not None:
+            for sq, piece in advanced.piece_map().items():
+                if piece.color != opp:
+                    continue
+                if piece.piece_type == chess.KING:
+                    continue
+                dist = chess.square_distance(sq, own_king_sq)
+                if dist <= 3:
+                    # Closer = worse; weight by piece mobility (sliders more threatening)
+                    slider = piece.piece_type in (chess.QUEEN, chess.BISHOP, chess.ROOK)
+                    piece_weight = 1.5 if slider else 1.0
+                    king_proximity_penalty += king_proximity_weight * piece_weight * (4 - dist) / 3.0
+
+        # --- Term 5 (offensive): king pressure ---
         opp_king_sq = advanced.king(opp)
         king_pressure_bonus = 0.0
         if opp_king_sq is not None:
-            king_zone = (
-                chess.BB_KING_ATTACKS[opp_king_sq] | chess.BB_SQUARES[opp_king_sq]
-            )
+            king_zone = chess.BB_KING_ATTACKS[opp_king_sq] | chess.BB_SQUARES[opp_king_sq]
             advanced.turn = perspective
             hits = sum(
-                1
-                for m in advanced.pseudo_legal_moves
+                1 for m in advanced.pseudo_legal_moves
                 if chess.BB_SQUARES[m.to_square] & king_zone
             )
             king_pressure_bonus = king_pressure_weight * min(hits, 8) / 8.0
 
-        # --- Term 4: visibility advantage ---
-        # Net squares visible to perspective vs. opp on the particle board.
-        # visibility.visible_squares handles the turn flip internally.
+        # --- Term 6: visibility advantage ---
         my_vis = _vis(advanced, perspective)
         opp_vis = _vis(advanced, opp)
         vis_bonus = visibility_weight * (len(my_vis) - len(opp_vis))
 
-        # --- Term 5: fog risk ---
+        # --- Term 7: fog risk ---
         fog_penalty = fog_risk_weight * fog_discount_term(advanced, perspective)
 
-        return mat - safety_penalty + king_pressure_bonus + vis_bonus - fog_penalty
+        return (
+            mat
+            - safety_penalty
+            - king_threat_penalty
+            - king_proximity_penalty
+            + king_pressure_bonus
+            + vis_bonus
+            - fog_penalty
+        )
 
     return evaluate
