@@ -16,6 +16,24 @@ def _load_runner():
     return module
 
 
+def test_tier1_live_engines_includes_current_prod_version() -> None:
+    """Guard against silently falling back to random when prod engine ID changes.
+
+    Every version registered in the TypeScript registry's PROD_PLAYABLE_ENGINE_IDS
+    must appear in TIER1_LIVE_ENGINES. Failure here means live games will fall
+    back to builtin-random-legal (as happened with v0.9.1 at launch).
+    """
+    runner = _load_runner()
+    # Keep this list in sync with PROD_PLAYABLE_ENGINE_IDS in registry.ts.
+    # Update both together whenever the prod engine version changes.
+    prod_tier1_ids = ["python-tier1-v0.9.1"]
+    for engine_id in prod_tier1_ids:
+        assert engine_id in runner.TIER1_LIVE_ENGINES, (
+            f"{engine_id} missing from TIER1_LIVE_ENGINES in live_move_runner.py — "
+            "live games will silently fall back to random. Add the entry."
+        )
+
+
 def test_deadline_guard_prefers_visible_king_capture() -> None:
     runner = _load_runner()
     board = chess.Board.empty()
