@@ -569,13 +569,19 @@ button:focus-visible {
 }
 
 @keyframes king-celebrate {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-8px) rotate(-8deg); }
-  75% { transform: translateY(-8px) rotate(8deg); }
+  /* Use standalone translate/rotate so they compose with Chessground's
+     transform: translate(X%, Y%) positioning rather than overriding it. */
+  0%   { translate: 0 0;    rotate: 0deg; }
+  20%  { translate: 0 -7px; rotate: -10deg; }
+  40%  { translate: 0 -7px; rotate: 10deg; }
+  60%  { translate: 0 -4px; rotate: -6deg; }
+  80%  { translate: 0 -4px; rotate: 6deg; }
+  100% { translate: 0 0;    rotate: 0deg; }
 }
 
-.board.king-celebrating cg-board piece.king {
-  animation: king-celebrate 0.6s ease-in-out 2;
+.board.king-celebrating-white cg-board piece.king.white,
+.board.king-celebrating-black cg-board piece.king.black {
+  animation: king-celebrate 0.7s ease-in-out infinite;
   transform-origin: center bottom;
 }
 

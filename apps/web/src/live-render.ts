@@ -1037,7 +1037,7 @@ function maybePlayPremove(): void {
 
 function renderBoardResult(view: PlayerView | null): void {
   refs.boardResult.replaceChildren();
-  refs.board.classList.remove('king-celebrating');
+  refs.board.classList.remove('king-celebrating-white', 'king-celebrating-black');
 
   if (view?.status.type !== 'finished' || !isLive()) {
     refs.boardResult.hidden = true;
@@ -1060,11 +1060,12 @@ function renderBoardResult(view: PlayerView | null): void {
     headline = resultTitle(winner);
   }
 
-  // Win: skip the overlay, animate the king instead
+  // Win: skip the overlay, animate the winning king instead
   if (outcome === 'win') {
     refs.boardResult.hidden = true;
     refs.boardResult.classList.remove('board-result--outcome');
-    refs.board.classList.add('king-celebrating');
+    const celebratingColor = winner ?? (seat === 'spectator' ? 'white' : seat);
+    refs.board.classList.add(`king-celebrating-${celebratingColor}`);
     return;
   }
 
