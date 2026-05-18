@@ -732,25 +732,16 @@ const PICK_SCREEN_FOG: Square[] = [
 export const articles: Article[] = [
   {
     slug: 'fog-of-war-rules',
-    title: 'Fog of War chess: the canonical reference',
+    title: 'Fog of War: the canonical reference',
     summary:
-      'Regular chess with one rule change — you only see what your pieces can legally see — and one consequence change — captured kings end the game, not checkmate. This is the complete primer.',
+      'You only see what your pieces can legally see. Captured kings end the game, not checkmate. Everything else is regular chess.',
     status: 'draft',
     audience:
       'Any chess player who has heard of Fog of War or wants to understand it from scratch.',
-    tldr: [
-      'You see your own pieces and every square those pieces could legally move to. That’s it.',
-      'Kings are captured, not checkmated. You can walk into mate without knowing it.',
-      'No check enforcement anywhere. Castling, en passant, and promotion have FoW-specific texture worth knowing.',
-    ],
     sections: [
       {
-        heading: 'The one rule',
+        heading: 'What you see',
         blocks: [
-          {
-            kind: 'paragraph',
-            text: "Fog of War is regular chess with one change: you only see squares your pieces can see.",
-          },
           {
             kind: 'paragraph',
             text:
@@ -762,23 +753,19 @@ export const articles: Article[] = [
               "You also see the squares your own pieces are on, always. A pinned piece can't move but you still know it's there.",
           },
           {
-            kind: 'paragraph',
-            text: "That's the rule. Visibility is your pieces' squares plus their legal destinations.",
-          },
-          {
             kind: 'interactive',
             widget: 'stepper',
             spec: {
               layout: 'single',
               positions: [
                 {
-                  narrative: "Knight on e4. Knights jump — they see only the squares they could land on, not the squares between. The cone is the eight L-shaped destinations (c3, d2, f2, g3, c5, d6, f6, g5) plus the knight's own square. The king on h1 contributes its corner cone (g1, g2, h2).",
+                  narrative: "Knight on e4. Knights jump — they see only the squares they could land on. The cone is the eight L-shaped destinations (c3, d2, f2, g3, c5, d6, f6, g5) plus the knight's own square. The king on h1 contributes its corner cone (g1, g2, h2).",
                   boards: [
                     { board: CONE_KNIGHT.board, fogSquares: CONE_KNIGHT_FOG, orientation: 'white' },
                   ],
                 },
                 {
-                  narrative: "Bishop on e4. Sliders see along their lines — up to (and including) the first piece they could legally interact with. Both diagonals from e4 are clear, so the bishop sees them end to end — including the corner square a8, where Black's king happens to be sitting. The bishop's diagonal reveal lights up a sentinel you didn't know was there.",
+                  narrative: "Bishop on e4. Sliders see along their lines — up to (and including) the first piece they could legally interact with. Both diagonals from e4 are clear, so the bishop sees them end to end — including the corner square a8, where Black's king happens to be sitting. The bishop's diagonal reveal lights up a king you didn't know was there.",
                   boards: [
                     { board: CONE_BISHOP.board, fogSquares: CONE_BISHOP_FOG, orientation: 'white' },
                   ],
@@ -796,7 +783,7 @@ export const articles: Article[] = [
                   ],
                 },
                 {
-                  narrative: "Pawn on e4. Pawns are weird. The pawn sees its push square (e5) and its two capture diagonals (d5, f5) — three squares total. It does not see e3 (can't move backward) or e6 (no two-square push outside the starting rank). From e2, a pawn would also see the two-square push e4.",
+                  narrative: "Pawn on e4. Pawns are weird. The pawn sees its push square (e5) and its two capture diagonals (d5, f5) — three squares total. It does not see e3 (can't move backward) or e6 (no two-square push outside the starting rank). From e2, the pawn would see four squares: e3, the two-square push e4, and the two capture diagonals.",
                   boards: [
                     { board: CONE_PAWN.board, fogSquares: CONE_PAWN_FOG, orientation: 'white' },
                   ],
@@ -855,7 +842,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Standard chess ends in checkmate: the side to move has no legal way to remove their king from attack, and the game ends before any king is captured. Fog of War can't announce mate — the check rule assumes both sides see all the threats — so the game ends one step later, when a king is actually captured.",
+              "Standard chess ends in checkmate: the side to move has no legal way to remove their king from attack, so the game ends before any king is actually captured. Fog of War can't announce mate — the check rule assumes both sides see all the threats — so the game ends one step later, when a king is actually captured.",
           },
           {
             kind: 'paragraph',
@@ -869,7 +856,7 @@ export const articles: Article[] = [
               layout: 'pair',
               positions: [
                 {
-                  narrative: "Sparse middlegame after a queen trade. Your rook has slid down the open e-file to e8, controlling the entire file. White doesn't see it.",
+                  narrative: "Sparse middlegame after a queen trade. Your rook controls the open e-file from e8. White doesn't see it.",
                   boards: [
                     { board: MATE_BEFORE.board, fogSquares: MATE_BEFORE_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
                     { board: MATE_BEFORE.board, orientation: 'black', label: 'TRUTH' },
@@ -897,7 +884,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Capture-the-king isn't a Fog of War invention. Pre-1500s European chess and shatranj both ended in king capture; the checkmate rule was a later refinement that assumed shared information.",
+              "Capture-the-king isn't a Fog of War invention. Early chess variants ended in literal king capture; the checkmate rule was a later refinement that assumed shared information.",
           },
         ],
       },
@@ -1152,7 +1139,7 @@ export const articles: Article[] = [
               layout: 'pair',
               positions: [
                 {
-                  narrative: "Your rook on d8 would love to slide down the d-file. You don't see the white knight on f3, but its cone covers d4 — if you moved there now, you'd light up in White's view. So you wait. (From your side, you can't even see this — the only Black piece reaching anywhere near f3 would be a knight on d4 or e5, and you have neither.)",
+                  narrative: "Truth: a white knight on f3 covers d4. Black can't see the knight, but the knight's cone reaches into d4 — a Black rook stepping there would light up in White's view. The d-file is poisoned, and Black has no way of knowing.",
                   boards: [
                     { board: DISCOVERY_BEFORE.board, fogSquares: DISCOVERY_BEFORE_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
                     { board: DISCOVERY_BEFORE.board, orientation: 'black', label: 'TRUTH' },
@@ -1195,7 +1182,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Rules don't tell you how Fog of War feels. Here's a real 41-move game. A pawn lands on c5 on move 12 and stays there for the rest of the game — 70 ply — while queens are traded, rooks are exchanged, and a king marches across the board. White's king never sees c5, not once, until it steps to b4 on move 41. The pawn captures it immediately.",
+              "Rules don't tell you how Fog of War feels. Here's a real 41-move game. A pawn lands on c5 on move 12 and stays there for the rest of the game — 29 moves — while queens are traded, rooks are exchanged, and a king marches across the board. White's king never sees c5, not once, until it steps to b4 on move 41. The pawn captures it immediately.",
           },
           {
             kind: 'interactive',
