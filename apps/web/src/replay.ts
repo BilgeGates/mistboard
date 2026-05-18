@@ -186,6 +186,14 @@ export async function mountReplay(
   if (movesPanel) root.append(movesPanel.el);
   const clockPanel = createClockPanel();
   if (metadataMode === 'compact') {
+    // Un-hide the truth pane's clock rows immediately so the column reserves
+    // the same vertical space as the side panes' spacers from first paint;
+    // otherwise the truth board sits ~42px higher until clocks render, then
+    // jumps when renderClockPanel un-hides them.
+    clockPanel.blackRow.hidden = false;
+    clockPanel.whiteRow.hidden = false;
+    clockPanel.blackTime.textContent = '—';
+    clockPanel.whiteTime.textContent = '—';
     clockPanel.blackRow.classList.add('replay-clock-row-top');
     clockPanel.whiteRow.classList.add('replay-clock-row-bottom');
     whitePane.boardEl.before(createCompactClockSpacer());
