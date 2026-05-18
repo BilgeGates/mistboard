@@ -2254,6 +2254,24 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   margin-bottom: 0;
 }
 
+.about-subheading {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 28px 0 10px;
+  color: #1f2521;
+  letter-spacing: 0;
+}
+
+.about-section a {
+  color: #1f2521;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.about-section a:hover {
+  text-decoration-thickness: 2px;
+}
+
 .articles-index-intro {
   color: #3f4742;
   line-height: 1.65;

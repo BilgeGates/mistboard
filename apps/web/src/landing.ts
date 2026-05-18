@@ -2087,24 +2087,98 @@ function buildAbout(): HTMLElement {
   section.className = 'site-section about-section';
   section.id = 'about';
 
-  const heading = document.createElement('h2');
+  const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'About Fog of War';
+  heading.textContent = 'About Mistboard';
 
-  const p1 = document.createElement('p');
-  p1.textContent =
-    'Fog of War is hidden-information chess. Each player sees only their own pieces and the squares those pieces could legally move to. The game ends when a king is captured.';
+  const lede = aboutParagraph(['Mistboard is a free, open-source site for Fog of War chess.']);
 
-  const p2 = document.createElement('p');
-  p2.textContent =
-    'Mistboard enforces hidden information at the server. Your opponent’s pieces and moves never reach your browser until your pieces can see them. Most fog implementations send the full board and rely on the UI to hide it — anyone inspecting network traffic can recover hidden information. Mistboard doesn’t.';
+  const rulesHeading = aboutSubheading('What Fog of War is');
+  const rulesP = aboutParagraph([
+    'Fog of War is hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark. The game ends when a king is captured.',
+  ]);
 
-  const p3 = document.createElement('p');
-  p3.textContent =
-    'This project focuses on Fog of War play, replay, reveal, and engines that reason about uncertainty. Open source under GPL-3.0-or-later.';
+  const whyHeading = aboutSubheading('Why this site exists');
+  const whyP = aboutParagraph([
+    'Fog of War has lived for years as a side mode on larger chess sites. Mistboard treats it as the main event: a server, a board, replays that show what each side actually saw, and engines built for hidden-information play.',
+  ]);
 
-  section.append(heading, p1, p2, p3);
+  const featuresHeading = aboutSubheading('What you can do here');
+  const featuresP = aboutParagraph([
+    'Play a friend over a link. Join a lobby for a random opponent. Play the in-house engine. Replay any finished game and toggle reveal mode to see both perspectives. Try Draft960, a pregame variant where each player drafts their own back rank. Read the ',
+    aboutLink('articles', '/articles'),
+    ' for rules, openings, and engine research, or browse the ',
+    aboutLink('leaderboard', '/leaderboard'),
+    ' for top players (rated play arrives later).',
+  ]);
+
+  const fairnessHeading = aboutSubheading('Fairness and integrity');
+  const fairnessP = aboutParagraph([
+    'No ads, no trackers beyond aggregate analytics, no account required to play. Hidden information is enforced on the server — your opponent’s pieces and moves never reach your browser until your own pieces can see them.',
+  ]);
+
+  const oss1Heading = aboutSubheading('Open source');
+  const oss1P = aboutParagraph([
+    'Mistboard is published under GPL-3.0-or-later on ',
+    aboutExternalLink('GitHub', GITHUB_URL),
+    '. Contributions, bug reports, and article drafts are welcome. See ',
+    aboutLink('Source', '/source'),
+    ' for license and third-party credits.',
+  ]);
+
+  const engineHeading = aboutSubheading('Engines for hidden-information chess');
+  const engineP = aboutParagraph([
+    'Standard chess engines assume both sides see the full board. Fog of War breaks that assumption. The techniques that work — belief-state search, particle filters, Monte Carlo tree search over determinized positions — come from the Reconnaissance Blind Chess literature. Mistboard’s engine is in active development and open source. A protocol for third-party Fog of War engines (FUCI) is in design, and Mistboard plans to host engine tournaments and calibration runs once the protocol stabilizes. See ',
+    aboutLink('Building an engine for hidden-information chess', '/articles/engine-belief-state'),
+    ' for the technical background.',
+  ]);
+
+  const statusHeading = aboutSubheading('Project status');
+  const statusP = aboutParagraph([
+    'Early, single-maintainer, and shipping in public. New features, articles, and engine versions land regularly. Accounts and ratings are not yet considered stable — expect things to change.',
+  ]);
+
+  section.append(
+    heading,
+    lede,
+    rulesHeading, rulesP,
+    whyHeading, whyP,
+    featuresHeading, featuresP,
+    fairnessHeading, fairnessP,
+    oss1Heading, oss1P,
+    engineHeading, engineP,
+    statusHeading, statusP,
+  );
   return section;
+}
+
+function aboutSubheading(text: string): HTMLElement {
+  const h = document.createElement('h2');
+  h.className = 'about-subheading';
+  h.textContent = text;
+  return h;
+}
+
+function aboutParagraph(parts: Array<string | Node>): HTMLParagraphElement {
+  const p = document.createElement('p');
+  for (const part of parts) {
+    p.append(typeof part === 'string' ? document.createTextNode(part) : part);
+  }
+  return p;
+}
+
+function aboutLink(label: string, href: string): HTMLAnchorElement {
+  const a = document.createElement('a');
+  a.href = href;
+  a.textContent = label;
+  return a;
+}
+
+function aboutExternalLink(label: string, href: string): HTMLAnchorElement {
+  const a = aboutLink(label, href);
+  a.target = '_blank';
+  a.rel = 'noreferrer noopener';
+  return a;
 }
 
 function buildSource(): HTMLElement {
