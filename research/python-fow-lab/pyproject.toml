@@ -16,6 +16,9 @@ dependencies = [
 dev = [
   "pytest>=8",
 ]
+postgres = [
+  "psycopg[binary]>=3.2",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
