@@ -168,8 +168,10 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   }
 
   const metadataByRoomId: Record<string, GameMeta> = {};
+  const povByRoomId: Record<string, 'white' | 'black'> = {};
   for (const g of games) {
     metadataByRoomId[g.roomId] = gameMetaForGame(g);
+    povByRoomId[g.roomId] = pickHeroPovForGame(g);
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -187,7 +189,17 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     loaderForId: landingEventLoader,
     metadataMode: 'compact',
     metadataByRoomId,
+    hideGameIdPill: true,
+    panes: { resolver: (sampleId) => povByRoomId[sampleId] ?? 'white' },
   });
+}
+
+function pickHeroPovForGame(game: FeaturedGame): 'white' | 'black' {
+  // PvE: show the human player's POV.
+  if (game.mode === 'pve' && game.playerColor) return game.playerColor;
+  // EvE / PvP / unknown: show the winner; draws and unknown results fall back to white.
+  if (game.result === '0-1') return 'black';
+  return 'white';
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -1409,7 +1421,7 @@ function buildSignedOutAccountLinks(): HTMLElement {
 
   const register = document.createElement('a');
   register.href = '/account?tab=register';
-  register.className = 'site-nav-link-primary';
+  register.className = 'site-nav-link site-nav-link-register';
   register.textContent = 'Register';
   if (path === '/account' && tab === 'register') {
     register.classList.add('active');
@@ -1462,16 +1474,24 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
-  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
-
   const section = document.createElement('section');
   section.className = 'landing-demo';
+
+  const boardColumn = document.createElement('div');
+  boardColumn.className = 'landing-board-column';
+
+  const tagline = document.createElement('h1');
+  tagline.className = 'landing-hero-tagline';
+  tagline.textContent = 'Chess where you only see what your pieces see.';
 
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
 
-  section.append(playPanel, replayRoot);
+  boardColumn.append(tagline, replayRoot);
 
+  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: false });
+
+  section.append(boardColumn, playPanel);
   stage.append(section);
   return { el: stage, replayRoot };
 }
@@ -1512,10 +1532,56 @@ function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRe
 
   panel.append(lobbyButton, challengeButton, engineButton);
 
+  const anonNote = document.createElement('p');
+  anonNote.className = 'landing-play-anon-note';
+  anonNote.textContent = 'No account needed.';
+  panel.append(anonNote);
+
+  const stats = document.createElement('p');
+  stats.className = 'landing-play-stats';
+  stats.hidden = true;
+  panel.append(stats);
+  startLiveStatsPolling(stats);
+
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow());
   }
   return panel;
+}
+
+function startLiveStatsPolling(stats: HTMLElement): void {
+  const render = (data: { playing: number; online: number } | null) => {
+    if (!data || (data.playing === 0 && data.online === 0)) {
+      stats.hidden = true;
+      stats.textContent = '';
+      return;
+    }
+    const parts: string[] = [];
+    if (data.playing > 0) parts.push(`${data.playing} playing now`);
+    if (data.online > 0) parts.push(`${data.online} online`);
+    stats.textContent = parts.join(' · ');
+    stats.hidden = false;
+  };
+
+  const refresh = async () => {
+    try {
+      const resp = await fetch('/api/live-stats');
+      if (!resp.ok) return;
+      const data = (await resp.json()) as { playing: number; online: number };
+      render(data);
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  void refresh();
+  const timer = window.setInterval(() => {
+    if (!document.body.contains(stats)) {
+      window.clearInterval(timer);
+      return;
+    }
+    void refresh();
+  }, 5_000);
 }
 
 function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby'): HTMLButtonElement {

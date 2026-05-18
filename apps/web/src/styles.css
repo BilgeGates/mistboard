@@ -1723,6 +1723,19 @@ button:focus-visible {
   max-width: 1280px;
 }
 
+.replay-layout-single-white,
+.replay-layout-single-black {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: none;
+}
+
+.replay-layout-single-white .replay-pane-truth,
+.replay-layout-single-white .replay-pane-black,
+.replay-layout-single-black .replay-pane-truth,
+.replay-layout-single-black .replay-pane-white {
+  display: none;
+}
+
 .replay-pane-name {
   font-size: 14px;
   font-weight: 600;
@@ -2297,38 +2310,45 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-demo {
   display: grid;
-  grid-template-columns: minmax(190px, 220px) minmax(0, 1860px) minmax(190px, 220px);
-  gap: clamp(18px, 2.4vw, 28px);
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 340px);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: start;
   justify-content: center;
   width: 100%;
-  max-width: 2360px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: clamp(14px, 2vw, 22px);
-  border: 1px solid rgba(29, 37, 34, 0.1);
-  border-radius: 10px;
-  background:
-    linear-gradient(135deg, rgba(234, 229, 219, 0.82), rgba(245, 242, 235, 0.72));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    0 22px 62px rgba(29, 37, 34, 0.12);
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
 }
 
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-demo {
-  gap: clamp(14px, 1.8vw, 22px);
-  padding: clamp(8px, 1.1vw, 14px);
+  gap: clamp(20px, 3vw, 40px);
+  padding: 0;
 }
 
-.landing-demo #landing-replay {
-  grid-column: 2;
+.landing-board-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 1.4vw, 16px);
+  min-width: 0;
 }
 
-.landing-demo .landing-play-panel {
-  grid-column: 1;
+.landing-board-column #landing-replay {
+  width: 100%;
+  max-width: 640px;
 }
 
-.landing-demo .landing-leaderboard-panel {
-  grid-column: 3;
+.landing-hero-tagline {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(17px, 1.7vw, 21px);
+  font-weight: 500;
+  line-height: 1.3;
+  color: #2a312d;
+  letter-spacing: 0;
 }
 
 .site-section {
@@ -2920,13 +2940,13 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-play-action {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-columns: 30px minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 11px;
   width: 100%;
-  min-height: 48px;
+  min-height: 58px;
   border: 1.5px solid var(--site-accent);
-  border-radius: 8px;
+  border-radius: 10px;
   background: #ffffff;
   color: var(--site-text);
   box-shadow:
@@ -2934,10 +2954,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
     0 8px 18px rgba(27, 31, 27, 0.08);
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
-  font-weight: 760;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1.1;
-  padding: 8px 10px;
+  padding: 12px 14px;
   text-align: left;
   transition:
     background 120ms ease,
@@ -2991,9 +3011,39 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .landing-play-panel {
   display: flex;
   flex-direction: column;
-  align-self: stretch;
-  gap: 10px;
+  align-self: start;
+  gap: 12px;
   min-width: 0;
+  padding: clamp(16px, 1.6vw, 22px);
+  border: 1px solid rgba(29, 37, 34, 0.1);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 14px 36px rgba(29, 37, 34, 0.08);
+}
+
+.landing-play-anon-note {
+  margin: 2px 0 0;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.landing-play-stats {
+  margin: 6px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(29, 37, 34, 0.08);
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-play-stats[hidden] {
+  display: none;
 }
 
 .landing-play-status {
@@ -4825,35 +4875,26 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   }
 
   .landing-demo {
-    max-width: 980px;
+    max-width: 720px;
   }
 
+  .landing-board-column,
   .landing-demo .landing-play-panel,
   .landing-demo #landing-replay,
-  .landing-demo .landing-leaderboard-panel,
   .landing-demo .landing-games {
     grid-column: auto;
   }
 
-  .landing-play-panel {
+  .landing-board-column {
     order: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .landing-play-panel .landing-lobby-requests {
-    grid-column: 1 / -1;
+  .landing-play-panel {
+    order: 1;
   }
 
   .landing-games {
     order: 3;
-  }
-
-  #landing-replay {
-    order: 1;
-  }
-
-  .landing-leaderboard-panel {
-    order: 2;
   }
 
   .watch-games {

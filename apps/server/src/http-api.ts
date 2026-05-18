@@ -331,6 +331,24 @@ export async function handleApiRequest(
     return;
   }
 
+  if (url === '/api/live-stats') {
+    if (method !== 'GET') {
+      response.writeHead(405, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'method_not_allowed' }));
+      return;
+    }
+    let playing = 0;
+    const uniqueClientIds = new Set<string>();
+    for (const room of ctx.rooms.values()) {
+      if (room.projection.state.status.type === 'playing') playing += 1;
+      for (const client of room.clients) {
+        uniqueClientIds.add(client.id);
+      }
+    }
+    writeJson(response, 200, { playing, online: uniqueClientIds.size });
+    return;
+  }
+
   const lobbyMatch = parsedUrl.pathname.match(/^\/api\/lobby\/([^/]+)$/);
   if (lobbyMatch) {
     pruneLobbyTickets(ctx);

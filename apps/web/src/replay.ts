@@ -96,6 +96,15 @@ export type ReplayOptions = {
   metadataByRoomId?: Record<string, GameMeta>;
   metadataMode?: 'full' | 'compact';
   /**
+   * Which panes to render. 'all' (default) shows white | truth | black.
+   * Provide a resolver to pick a single pane per sample — used by the
+   * landing hero, which shows one player's POV instead of the review triptych.
+   * Returning 'all' from the resolver shows all three.
+   */
+  panes?: 'all' | { resolver: (sampleId: string, meta: GameMeta | undefined) => 'white' | 'black' | 'all' };
+  /** When true, suppress the compact-mode game id pill (room slug). */
+  hideGameIdPill?: boolean;
+  /**
    * When set, enables the annotation tooling. Press `a` at any ply to open
    * the modal pre-filled with the move just played. Annotations persist via
    * POST /api/annotations (handled by the Vite dev plugin in development).
@@ -145,6 +154,8 @@ export async function mountReplay(
   const loaderForId = options.loaderForId;
   const metadataByRoomId = options.metadataByRoomId;
   const metadataMode = options.metadataMode ?? 'full';
+  const panesResolver = typeof options.panes === 'object' ? options.panes.resolver : null;
+  const hideGameIdPill = options.hideGameIdPill === true;
   const onPlyChange = options.onPlyChange;
 
   // If mountReplay is called again on the same root (e.g. switching games
@@ -165,9 +176,9 @@ export async function mountReplay(
   const whiteBaseLabel = "White's view";
   const blackBaseLabel = "Black's view";
 
-  const whitePane = createPane(whiteBaseLabel);
-  const truthPane = createPane('Truth');
-  const blackPane = createPane(blackBaseLabel);
+  const whitePane = createPane(whiteBaseLabel, 'white');
+  const truthPane = createPane('Truth', 'truth');
+  const blackPane = createPane(blackBaseLabel, 'black');
   layout.append(whitePane.el, truthPane.el, blackPane.el);
   root.append(layout);
 
@@ -181,7 +192,7 @@ export async function mountReplay(
   plyLabel.className = 'replay-ply-label';
   const movesPanel = showControls && controlsMode === 'panel' ? createReplayMovesPanel() : null;
 
-  const gameMetaPanel = metadataByRoomId ? createGameMetaPanel(metadataMode) : null;
+  const gameMetaPanel = metadataByRoomId ? createGameMetaPanel(metadataMode, { hideGameIdPill }) : null;
   if (gameMetaPanel) root.append(gameMetaPanel.el);
   if (movesPanel) root.append(movesPanel.el);
   const clockPanel = createClockPanel();
@@ -737,6 +748,17 @@ export async function mountReplay(
     blackPane.nameEl.textContent = '';
     setClockPanelNames(clockPanel, meta);
     renderGameMetaPanel(gameMetaPanel, meta, activeSample);
+    if (panesResolver) {
+      const choice = panesResolver(activeSample, meta);
+      layout.classList.remove('replay-layout-single-white', 'replay-layout-single-black', 'replay-layout-all');
+      layout.classList.add(
+        choice === 'white'
+          ? 'replay-layout-single-white'
+          : choice === 'black'
+            ? 'replay-layout-single-black'
+            : 'replay-layout-all',
+      );
+    }
     // Reset any prior end-game state (returning to ply 0).
     whitePane.el.classList.remove('winner', 'loser');
     blackPane.el.classList.remove('winner', 'loser');
@@ -898,9 +920,13 @@ type GameMetaPanelHandle = {
   details: HTMLDivElement;
   el: HTMLElement;
   mode: 'full' | 'compact';
+  hideGameIdPill: boolean;
 };
 
-function createGameMetaPanel(mode: 'full' | 'compact' = 'full'): GameMetaPanelHandle {
+function createGameMetaPanel(
+  mode: 'full' | 'compact' = 'full',
+  opts: { hideGameIdPill?: boolean } = {},
+): GameMetaPanelHandle {
   const el = document.createElement('aside');
   el.className = `replay-game-meta-card replay-game-meta-card-${mode} side-panel meta-panel`;
   el.setAttribute('aria-label', 'Game metadata');
@@ -916,7 +942,7 @@ function createGameMetaPanel(mode: 'full' | 'compact' = 'full'): GameMetaPanelHa
     section.append(title, details);
   }
   el.append(section);
-  return { details, el, mode };
+  return { details, el, mode, hideGameIdPill: opts.hideGameIdPill === true };
 }
 
 function renderGameMetaPanel(
@@ -949,11 +975,13 @@ function renderGameMetaPanel(
     panel.details.append(infoItem(item.label, item.value));
   }
   if (panel.mode === 'compact') {
-    const gameId = document.createElement(meta.gameUrl ? 'a' : 'span');
-    gameId.className = 'replay-game-id';
-    gameId.textContent = activeSample;
-    if (gameId instanceof HTMLAnchorElement && meta.gameUrl) gameId.href = meta.gameUrl;
-    panel.details.append(gameId);
+    if (!panel.hideGameIdPill) {
+      const gameId = document.createElement(meta.gameUrl ? 'a' : 'span');
+      gameId.className = 'replay-game-id';
+      gameId.textContent = activeSample;
+      if (gameId instanceof HTMLAnchorElement && meta.gameUrl) gameId.href = meta.gameUrl;
+      panel.details.append(gameId);
+    }
   } else if (meta.gameUrl) {
     const link = document.createElement('a');
     link.className = 'replay-game-link';
@@ -1457,7 +1485,7 @@ function numericValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function createPane(label: string): {
+function createPane(label: string, kind: 'white' | 'truth' | 'black'): {
   el: HTMLDivElement;
   boardEl: HTMLDivElement;
   clockSlot: HTMLDivElement;
@@ -1466,7 +1494,7 @@ function createPane(label: string): {
   statusEl: HTMLDivElement;
 } {
   const el = document.createElement('div');
-  el.className = 'replay-pane';
+  el.className = `replay-pane replay-pane-${kind}`;
   const labelEl = document.createElement('div');
   labelEl.className = 'replay-pane-label';
   labelEl.textContent = label;
