@@ -397,6 +397,7 @@ def mcts_pick_move(
     risk_lambda: float = 0.25,
     deadline_monotonic: float | None = None,
     out_chosen_q: list[float] | None = None,
+    out_root_visits: dict[str, int] | None = None,
 ) -> chess.Move:
     """Pick a move via MCTS from the current belief state.
 
@@ -471,5 +472,15 @@ def mcts_pick_move(
         # POV (centipawns). Distillation labeler reads this to train an eval
         # that matches MCTS-amplified judgment, not just raw game outcomes.
         out_chosen_q.append(best_child.q() if best_child is not None else 0.0)
+
+    if out_root_visits is not None:
+        # MCTS root visit distribution — the policy target for AlphaZero-style
+        # training. Each legal move's visit count reflects MCTS's relative
+        # preference. Saved per ply so the corpus can train a policy net
+        # later without re-running self-play.
+        for move in legal:
+            child = root.children.get(hash(move))
+            if child is not None:
+                out_root_visits[move.uci()] = child.visits
 
     return best_move

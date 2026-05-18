@@ -2860,6 +2860,7 @@ class Tier1Strategy:
                 deadline_monotonic = time.monotonic() + budget_ms / 1000.0
             evaluator = self.evaluator_builder(view)
             q_out: list[float] = []
+            visits_out: dict[str, int] = {}
             chosen = mcts_pick_move(
                 self._belief,
                 view,
@@ -2871,12 +2872,29 @@ class Tier1Strategy:
                 risk_lambda=self.mcts_risk_lambda,
                 deadline_monotonic=deadline_monotonic,
                 out_chosen_q=q_out,
+                out_root_visits=visits_out,
             )
-            # Distillation hook: q-value of the chosen MCTS move, in centipawns
-            # from this side's POV. Set every MCTS call so callers can read it
-            # before the next select_move overwrites it. Used by corpus
-            # generation to train evals on MCTS-amplified labels.
+            # Distillation hooks. Set every MCTS call so callers can read them
+            # before the next pick_move overwrites them. Used by corpus
+            # generation to train value evals (q) and policy nets (visits)
+            # without re-running self-play.
             self.last_mcts_root_q: float | None = q_out[0] if q_out else None
+            self.last_mcts_root_visits: dict[str, int] = visits_out
+            # Belief summary for FoW-native architectures that may want to
+            # condition on uncertainty as an input feature. Shannon entropy
+            # over normalized particle weights; n is particle count.
+            _b = self._belief
+            _n = len(_b.particles)
+            _ent = 0.0
+            if _n > 0 and _b.weights:
+                _total = sum(_b.weights)
+                if _total > 0:
+                    import math as _math
+                    for _w in _b.weights:
+                        _p = _w / _total
+                        if _p > 0:
+                            _ent -= _p * _math.log(_p)
+            self.last_belief_summary: dict | None = {"n_particles": _n, "entropy": _ent}
             self._stage_pending_capture(chosen, view)
             self._emit_trace("mcts", particle_count_pre, chosen)
             return chosen

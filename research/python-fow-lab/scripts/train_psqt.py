@@ -82,7 +82,9 @@ def main() -> int:
         b = chess.Board(rec["fen"])
         persp = chess.WHITE if rec["perspective"] == "white" else chess.BLACK
         X[i] = encode_position(b, persp)
-        y[i] = rec["label"] * args.scale
+        # Accept v1 (`label`) and v2 (`q_value`) schemas.
+        label = rec.get("q_value", rec.get("label"))
+        y[i] = label * args.scale
 
     # Train/val split
     rng = np.random.default_rng(args.seed)

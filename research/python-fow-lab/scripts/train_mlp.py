@@ -100,7 +100,8 @@ def main() -> int:
         b = chess.Board(rec["fen"])
         persp = chess.WHITE if rec["perspective"] == "white" else chess.BLACK
         X[i] = encode_position(b, persp)
-        y[i] = rec["label"]
+        # v1 uses `label`; v2 uses `q_value`. Accept either.
+        y[i] = rec.get("q_value", rec.get("label"))
 
     rng = np.random.default_rng(args.seed)
     idx = rng.permutation(len(rows))
