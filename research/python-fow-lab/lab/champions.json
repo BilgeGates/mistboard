@@ -1,5 +1,6 @@
 {
+  "baseline": "configs/tier1-v093.json (production v0.9.3 \u2014 1-ply Tier1Strategy + fow_evaluator + all hand-tuned vetoes; defeated lab champion nets/psqt/v2 18-0-0 in 18 games)",
   "mlp": null,
-  "overall": "nets/psqt/v2",
-  "psqt": "nets/psqt/v2"
+  "overall": null,
+  "psqt": null
 }

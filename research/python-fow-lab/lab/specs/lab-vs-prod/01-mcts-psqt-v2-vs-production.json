@@ -1,0 +1,7 @@
+{
+  "type": "eval",
+  "bot_a": "fow",
+  "bot_b": "nets/psqt/v2",
+  "games": 30,
+  "notes": "STUB — overridden manually below because run_job.py only supports artifact refs. We need to evaluate vs the production config (tier1-v093.json) which is not a 'nets/...' ref."
+}

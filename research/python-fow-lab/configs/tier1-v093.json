@@ -1,0 +1,13 @@
+{
+  "name": "tier1-v093",
+  "family": "tier1",
+  "kind": "tier1",
+  "evaluator": "fow",
+  "prior": "uniform",
+  "fog_lambda": 0.0,
+  "target_n": 256,
+  "max_particles": 16,
+  "risk_aversion": 0.0,
+  "mcts_rollouts": 0,
+  "notes": "Production-style engine (v0.9.3-equivalent): Tier1Strategy with fow_evaluator and mcts_rollouts=0 → full hand-tuned strategy machinery fires (king-defender vetoes, piece-save logic, queen-fog-risk, hard certainty short-circuits). This is what runs in front of users in PvE, and what the lab champions should actually be benchmarked against."
+}
