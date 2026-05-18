@@ -371,11 +371,80 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
+  const articleRouteMatch = pathname.match(/^\/articles\/([^/]+)$/);
+  if (articleRouteMatch) {
+    const slug = decodeURIComponent(articleRouteMatch[1]!);
+    void serveArticlePage(slug, response).catch(() => {
+      request.url = '/';
+      void serveHandler(request, response, { public: staticDir });
+    });
+    return;
+  }
+
+  if (pathname === '/articles') {
+    void serveArticlesIndexPage(response).catch(() => {
+      request.url = '/';
+      void serveHandler(request, response, { public: staticDir });
+    });
+    return;
+  }
+
   if (isClientRoute(pathname)) {
     request.url = '/';
   }
 
   void serveHandler(request, response, { public: staticDir });
+}
+
+type PageMeta = {
+  title: string;
+  description: string;
+  url: string;
+  imageUrl?: string; // omit to keep the default OG image from index.html
+};
+
+// Article slug → page meta. Content source of truth is
+// apps/web/src/articles-data.ts; this map duplicates only the share-card
+// surface (title + description) so the server can inject per-route meta
+// without importing the web bundle. Keep in sync when titles/summaries change.
+const ARTICLE_META: Record<string, { title: string; description: string }> = {
+  'fog-of-war-rules': {
+    title: 'Fog of War: the canonical reference',
+    description: 'You only see what your pieces can legally see. Captured kings end the game, not checkmate. Everything else is regular chess.',
+  },
+  'draft960': {
+    title: 'Draft960: the end of opening theory in Fog of War',
+    description: 'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
+  },
+  'engine-belief-state': {
+    title: 'Building an engine for hidden-information chess',
+    description: "Stockfish-class engines don't transfer to Fog of War because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
+  },
+};
+
+function injectPageMeta(html: string, meta: PageMeta): string {
+  let out = html
+    .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(meta.title)}</title>`)
+    .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`)
+    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.title)}$2`)
+    .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`)
+    .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.url)}$2`)
+    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.title)}$2`)
+    .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`);
+  if (meta.imageUrl) {
+    out = out
+      .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(meta.imageUrl)}$2`)
+      .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(meta.imageUrl)}$2`);
+  }
+  return out;
 }
 
 async function serveGamePage(roomId: string, response: ServerResponse): Promise<void> {
@@ -398,28 +467,40 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
       : 'Game over';
     const description = `${white} vs ${black} · ${termination} after ${moves} move${moves !== 1 ? 's' : ''}. Watch the full Fog of War replay on Mistboard.`;
     const url = `${host}/game/${encodeURIComponent(roomId)}`;
-
-    const ogImageUrl = `${host}/og/game/${encodeURIComponent(roomId)}.png`;
-    html = html
-      .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
-      .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(description)}$2`)
-      .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(title)}$2`)
-      .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(description)}$2`)
-      .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(url)}$2`)
-      .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(ogImageUrl)}$2`)
-      .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(title)}$2`)
-      .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(description)}$2`)
-      .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(ogImageUrl)}$2`);
+    const imageUrl = `${host}/og/game/${encodeURIComponent(roomId)}.png`;
+    html = injectPageMeta(html, { title, description, url, imageUrl });
   }
 
+  response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  response.end(html);
+}
+
+async function serveArticlePage(slug: string, response: ServerResponse): Promise<void> {
+  const indexPath = resolve(staticDir, 'index.html');
+  let html = await fs.readFile(indexPath, 'utf-8');
+  const article = ARTICLE_META[slug];
+  if (article) {
+    const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+    const url = `${host}/articles/${encodeURIComponent(slug)}`;
+    html = injectPageMeta(html, {
+      title: `${article.title} | Mistboard`,
+      description: article.description,
+      url,
+    });
+  }
+  response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  response.end(html);
+}
+
+async function serveArticlesIndexPage(response: ServerResponse): Promise<void> {
+  const indexPath = resolve(staticDir, 'index.html');
+  let html = await fs.readFile(indexPath, 'utf-8');
+  const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+  html = injectPageMeta(html, {
+    title: 'Articles | Mistboard',
+    description: 'Long-form writing on Fog of War chess — rules, Draft960, and engine research.',
+    url: `${host}/articles`,
+  });
   response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   response.end(html);
 }
