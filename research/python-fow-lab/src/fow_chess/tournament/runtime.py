@@ -190,8 +190,36 @@ def _enter_evaluator(
     if config.evaluator == "fow":
         from ..evaluator import fow_evaluator
         return fow_evaluator()
+    if config.evaluator == "psqt":
+        from ..evaluator import psqt_evaluator
+        if config.psqt_weights_path is None:
+            raise BotConfigError(
+                f"{config.name}: evaluator='psqt' requires psqt_weights_path"
+            )
+        wp = Path(config.psqt_weights_path)
+        if not wp.is_absolute():
+            wp = _LAB_ROOT / wp
+        if not wp.exists():
+            raise BotConfigError(
+                f"{config.name}: psqt_weights_path {wp} does not exist"
+            )
+        return psqt_evaluator(str(wp))
+    if config.evaluator == "mlp":
+        from ..evaluator import mlp_evaluator
+        if config.mlp_weights_path is None:
+            raise BotConfigError(
+                f"{config.name}: evaluator='mlp' requires mlp_weights_path"
+            )
+        wp = Path(config.mlp_weights_path)
+        if not wp.is_absolute():
+            wp = _LAB_ROOT / wp
+        if not wp.exists():
+            raise BotConfigError(
+                f"{config.name}: mlp_weights_path {wp} does not exist"
+            )
+        return mlp_evaluator(str(wp))
     raise BotConfigError(
-        f"{config.name}: tier1 requires evaluator in {{stockfish, material, fow}}, "
+        f"{config.name}: tier1 requires evaluator in {{stockfish, material, fow, psqt, mlp}}, "
         f"got {config.evaluator!r}"
     )
 

@@ -2859,6 +2859,7 @@ class Tier1Strategy:
                 budget_ms = min(budget_ms, usable_ms) if usable_ms > 0 else 100
                 deadline_monotonic = time.monotonic() + budget_ms / 1000.0
             evaluator = self.evaluator_builder(view)
+            q_out: list[float] = []
             chosen = mcts_pick_move(
                 self._belief,
                 view,
@@ -2869,7 +2870,13 @@ class Tier1Strategy:
                 rollout_depth=self.mcts_rollout_depth,
                 risk_lambda=self.mcts_risk_lambda,
                 deadline_monotonic=deadline_monotonic,
+                out_chosen_q=q_out,
             )
+            # Distillation hook: q-value of the chosen MCTS move, in centipawns
+            # from this side's POV. Set every MCTS call so callers can read it
+            # before the next select_move overwrites it. Used by corpus
+            # generation to train evals on MCTS-amplified labels.
+            self.last_mcts_root_q: float | None = q_out[0] if q_out else None
             self._stage_pending_capture(chosen, view)
             self._emit_trace("mcts", particle_count_pre, chosen)
             return chosen

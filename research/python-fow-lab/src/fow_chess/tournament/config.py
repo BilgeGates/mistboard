@@ -54,6 +54,12 @@ class BotConfig:
 
     evaluator: str | None = None
     evaluator_depth: int | None = None
+    # For evaluator='psqt': path to the .npz weights, resolved against lab root
+    # when relative. Excluded from canonical_hash so we can re-fit weights
+    # without invalidating other locked configs.
+    psqt_weights_path: str | None = None
+    # For evaluator='mlp': path to the torch .pt state_dict checkpoint.
+    mlp_weights_path: str | None = None
 
     prior: str | None = None
     prior_depth: int | None = None
@@ -103,6 +109,9 @@ _HASH_EXCLUDED_FIELDS = frozenset({
     "mcts_rollout_depth",
     "mcts_selection_depth",
     "mcts_risk_lambda",
+    # PSQT weights path — refittable artifact, not part of bot identity.
+    "psqt_weights_path",
+    "mlp_weights_path",
 })
 
 

@@ -942,3 +942,128 @@ def fow_evaluator(
         )
 
     return evaluate
+
+
+_PSQT_PIECE_INDEX = {
+    chess.PAWN: 0,
+    chess.KNIGHT: 1,
+    chess.BISHOP: 2,
+    chess.ROOK: 3,
+    chess.QUEEN: 4,
+    chess.KING: 5,
+}
+
+
+def psqt_evaluator(weights_path: str) -> Evaluator:
+    """Linear piece-square-table evaluator loaded from an .npz checkpoint.
+
+    The .npz must contain:
+      w_own: float array of shape (6, 64) — own-piece coefficients (cp)
+      w_opp: float array of shape (6, 64) — opp-piece coefficients (cp)
+      bias:  float scalar offset
+
+    Trained by scripts/train_psqt.py on a distillation corpus. Output is in
+    centipawn-like units (corpus labels are rescaled by 1000 during training).
+    """
+    import numpy as np
+
+    data = np.load(weights_path)
+    w_own = data["w_own"].astype(np.float32)  # (6, 64)
+    w_opp = data["w_opp"].astype(np.float32)
+    bias = float(data["bias"])
+
+    def evaluate(
+        board: chess.Board, move: chess.Move, perspective: chess.Color
+    ) -> float:
+        target = board.piece_at(move.to_square)
+        if target is not None and target.piece_type == chess.KING:
+            return (
+                _KING_CAPTURE_SCORE
+                if target.color != perspective
+                else -_KING_CAPTURE_SCORE
+            )
+
+        advanced = board.copy()
+        advanced.push(move)
+        if (
+            advanced.king(chess.WHITE) is None
+            or advanced.king(chess.BLACK) is None
+        ):
+            return 0.0
+
+        score = bias
+        for sq, piece in advanced.piece_map().items():
+            pi = _PSQT_PIECE_INDEX[piece.piece_type]
+            if piece.color == perspective:
+                score += float(w_own[pi, sq])
+            else:
+                score += float(w_opp[pi, sq])
+        return score
+
+    return evaluate
+
+
+def mlp_evaluator(weights_path: str) -> Evaluator:
+    """Small MLP value evaluator loaded from a torch state_dict checkpoint.
+
+    Input is the same 768-d piece-square indicator vector PSQT uses; capacity
+    comes from the hidden layers. The checkpoint must include both the
+    state_dict and an 'arch' dict with in_dim/h1/h2 so the model can be
+    reconstructed at load time.
+    """
+    import numpy as np
+    import torch
+    import torch.nn as nn
+
+    ckpt = torch.load(weights_path, map_location="cpu", weights_only=True)
+    arch = ckpt["arch"]
+
+    class _MLP(nn.Module):
+        def __init__(self, in_dim, h1, h2):
+            super().__init__()
+            self.fc1 = nn.Linear(in_dim, h1)
+            self.fc2 = nn.Linear(h1, h2)
+            self.fc3 = nn.Linear(h2, 1)
+
+        def forward(self, x):
+            x = torch.relu(self.fc1(x))
+            x = torch.relu(self.fc2(x))
+            return self.fc3(x).squeeze(-1)
+
+    model = _MLP(arch["in_dim"], arch["h1"], arch["h2"])
+    model.load_state_dict(ckpt["state_dict"])
+    model.eval()
+    # Persistent input buffer — single position at a time, no batch.
+    buf = torch.zeros(1, arch["in_dim"], dtype=torch.float32)
+
+    def evaluate(
+        board: chess.Board, move: chess.Move, perspective: chess.Color
+    ) -> float:
+        target = board.piece_at(move.to_square)
+        if target is not None and target.piece_type == chess.KING:
+            return (
+                _KING_CAPTURE_SCORE
+                if target.color != perspective
+                else -_KING_CAPTURE_SCORE
+            )
+
+        advanced = board.copy()
+        advanced.push(move)
+        if (
+            advanced.king(chess.WHITE) is None
+            or advanced.king(chess.BLACK) is None
+        ):
+            return 0.0
+
+        buf.zero_()
+        for sq, piece in advanced.piece_map().items():
+            pi = _PSQT_PIECE_INDEX[piece.piece_type]
+            if piece.color == perspective:
+                buf[0, pi * 64 + sq] = 1.0
+            else:
+                buf[0, 384 + pi * 64 + sq] = 1.0
+        with torch.no_grad():
+            v = model(buf).item()
+        return float(v)
+
+    return evaluate

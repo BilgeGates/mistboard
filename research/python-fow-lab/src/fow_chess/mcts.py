@@ -396,6 +396,7 @@ def mcts_pick_move(
     rollout_depth: int = 8,
     risk_lambda: float = 0.25,
     deadline_monotonic: float | None = None,
+    out_chosen_q: list[float] | None = None,
 ) -> chess.Move:
     """Pick a move via MCTS from the current belief state.
 
@@ -454,6 +455,7 @@ def mcts_pick_move(
     # Select best move by risk-adjusted score
     best_move = legal[0]
     best_score = float("-inf")
+    best_child: MCTSNode | None = None
     for move in legal:
         child = root.children.get(hash(move))
         if child is None or child.visits == 0:
@@ -462,5 +464,12 @@ def mcts_pick_move(
         if score > best_score:
             best_score = score
             best_move = move
+            best_child = child
+
+    if out_chosen_q is not None:
+        # Mean rollout value of the chosen move's subtree, from perspective's
+        # POV (centipawns). Distillation labeler reads this to train an eval
+        # that matches MCTS-amplified judgment, not just raw game outcomes.
+        out_chosen_q.append(best_child.q() if best_child is not None else 0.0)
 
     return best_move
