@@ -12,7 +12,7 @@ providers = ["...", "python"]
 nixPkgs = ["...", "nodejs_22", "stockfish"]
 
 [phases.install]
-cmds = ["npm ci", "python -m pip install ./research/python-fow-lab"]
+cmds = ["npm ci", "python -m pip install './research/python-fow-lab[postgres]'"]
 
 [phases.build]
 cmds = ["npm run build"]

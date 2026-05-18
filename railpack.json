@@ -9,7 +9,7 @@
     "build": {
       "commands": [
         "...",
-        "python -m pip install --target research/python-fow-lab/vendor ./research/python-fow-lab"
+        "python -m pip install --target research/python-fow-lab/vendor './research/python-fow-lab[postgres]'"
       ]
     }
   },
