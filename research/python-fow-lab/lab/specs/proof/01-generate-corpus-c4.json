@@ -1,0 +1,10 @@
+{
+  "type": "generate-corpus",
+  "out_id": "c4_proof",
+  "games": 20,
+  "rollouts": 200,
+  "label_mode": "q",
+  "teacher": "nets/psqt/v2",
+  "seed": 4000,
+  "notes": "Foundations v1 proof: small corpus with current champion (PSQT-v2) as teacher. Exercises the generate-corpus job type."
+}

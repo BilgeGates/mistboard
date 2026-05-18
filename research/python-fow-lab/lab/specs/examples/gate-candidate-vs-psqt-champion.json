@@ -1,0 +1,9 @@
+{
+  "type": "gate",
+  "candidate": "nets/psqt/v3",
+  "champion_arch": "psqt",
+  "elo_lower": 0,
+  "elo_upper": 30,
+  "max_games": 100,
+  "notes": "Example gate: would the next PSQT version promote? Run after training a new one."
+}

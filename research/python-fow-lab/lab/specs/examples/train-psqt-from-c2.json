@@ -1,0 +1,11 @@
+{
+  "type": "train",
+  "arch": "psqt",
+  "corpus": "corpora/c2",
+  "out_id": "v2_retrained",
+  "hyperparams": {
+    "scale": 1.0,
+    "ridge": 1.0
+  },
+  "notes": "Example: retrain PSQT on c2 (reproduces the current champion)."
+}

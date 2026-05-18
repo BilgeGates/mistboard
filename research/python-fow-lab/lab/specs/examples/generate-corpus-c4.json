@@ -1,0 +1,10 @@
+{
+  "type": "generate-corpus",
+  "out_id": "c4",
+  "games": 50,
+  "rollouts": 200,
+  "label_mode": "q",
+  "teacher": "nets/psqt/v2",
+  "seed": 3000,
+  "notes": "Example corpus generation with current champion as teacher."
+}

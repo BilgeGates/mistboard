@@ -1,0 +1,28 @@
+{
+  "type": "net",
+  "id": "psqt/v3",
+  "created_at": "2026-05-18T05:04:30+00:00",
+  "git_sha": "8c27e3edba56",
+  "spec": {
+    "type": "train",
+    "arch": "psqt",
+    "corpus": "c3"
+  },
+  "inputs": {
+    "corpus": "corpora/c3"
+  },
+  "outputs": {
+    "weights": "weights.npz"
+  },
+  "metrics": {
+    "val_rmse": 601.2,
+    "val_sign_agreement": 0.958,
+    "elo_vs_fow": 21,
+    "elo_vs_fow_ci": 69,
+    "elo_vs_psqt_v2": -21
+  },
+  "lineage": [
+    "c3"
+  ],
+  "notes": "Expert iteration regressed. Linear PSQT can't absorb sharper labels."
+}

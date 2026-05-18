@@ -1,0 +1,8 @@
+{
+  "type": "eval",
+  "bot_a": "fow",
+  "bot_b": "nets/psqt/v2",
+  "games": 10,
+  "rollouts": 200,
+  "notes": "Smoke / sanity-check eval. PSQT-v2 should win ~60% (current local champion)."
+}

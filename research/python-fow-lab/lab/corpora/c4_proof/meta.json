@@ -1,0 +1,169 @@
+{
+  "games": 20,
+  "rollouts": 200,
+  "seed": 4000,
+  "n_positions": 453,
+  "wall_seconds": 151.2,
+  "summary": [
+    {
+      "game": 0,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 32,
+      "wall_s": 11.3,
+      "positions": 32
+    },
+    {
+      "game": 1,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 12,
+      "wall_s": 3.4,
+      "positions": 12
+    },
+    {
+      "game": 2,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 38,
+      "wall_s": 12.4,
+      "positions": 38
+    },
+    {
+      "game": 3,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 6,
+      "wall_s": 0.9,
+      "positions": 6
+    },
+    {
+      "game": 4,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 17,
+      "wall_s": 5.4,
+      "positions": 17
+    },
+    {
+      "game": 5,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 18,
+      "wall_s": 4.9,
+      "positions": 18
+    },
+    {
+      "game": 6,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 15,
+      "wall_s": 4.9,
+      "positions": 15
+    },
+    {
+      "game": 7,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 44,
+      "wall_s": 14.3,
+      "positions": 44
+    },
+    {
+      "game": 8,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 15,
+      "wall_s": 5.0,
+      "positions": 15
+    },
+    {
+      "game": 9,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 13,
+      "wall_s": 5.6,
+      "positions": 13
+    },
+    {
+      "game": 10,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 29,
+      "wall_s": 11.0,
+      "positions": 29
+    },
+    {
+      "game": 11,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 23,
+      "wall_s": 5.0,
+      "positions": 23
+    },
+    {
+      "game": 12,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 31,
+      "wall_s": 12.7,
+      "positions": 31
+    },
+    {
+      "game": 13,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 34,
+      "wall_s": 13.1,
+      "positions": 34
+    },
+    {
+      "game": 14,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 11,
+      "wall_s": 4.9,
+      "positions": 11
+    },
+    {
+      "game": 15,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 22,
+      "wall_s": 3.8,
+      "positions": 22
+    },
+    {
+      "game": 16,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 47,
+      "wall_s": 17.1,
+      "positions": 47
+    },
+    {
+      "game": 17,
+      "winner": "black",
+      "end_reason": "king-captured",
+      "plies": 10,
+      "wall_s": 2.1,
+      "positions": 10
+    },
+    {
+      "game": 18,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 7,
+      "wall_s": 1.4,
+      "positions": 7
+    },
+    {
+      "game": 19,
+      "winner": "white",
+      "end_reason": "king-captured",
+      "plies": 29,
+      "wall_s": 11.9,
+      "positions": 29
+    }
+  ]
+}
