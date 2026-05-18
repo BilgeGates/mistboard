@@ -110,7 +110,7 @@ type LandingPlayChoice = {
   title: string;
 };
 type LandingStartFormat = 'standard' | 'draft960';
-type LandingTimePresetId = '1m1' | '3m2' | '5m3' | 'custom';
+type LandingTimePresetId = '1m1' | '3m2' | '5m3';
 type LandingTimePreset = {
   id: LandingTimePresetId;
   label: string;
@@ -146,7 +146,6 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = [
   { id: '1m1', label: '1 + 1', initialMs: 60_000, incrementMs: 1_000 },
   { id: '3m2', label: '3 + 2', initialMs: 3 * 60_000, incrementMs: 2_000 },
   { id: '5m3', label: '5 + 3', initialMs: 5 * 60_000, incrementMs: 3_000 },
-  { id: 'custom', label: 'Custom', initialMs: 3 * 60_000, incrementMs: 2_000 },
 ];
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
@@ -1654,7 +1653,6 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   let rated = choice.ratedDisabled ? false : true;
   let selectedPreset: LandingTimePresetId = '3m2';
   let selectedEngineId = choice.engineId;
-  const defaultPreset = LANDING_TIME_PRESETS.find((preset) => preset.id === selectedPreset)!;
 
   const overlay = document.createElement('div');
   overlay.className = 'landing-setup-overlay';
@@ -1700,27 +1698,31 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startGroup.setAttribute('aria-label', 'Fog start format');
 
   const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
+  const draft960Selectable = draft960Enabled && choice.mode !== 'lobby';
   const standardButton = startOptionButton('Standard', true);
-  const draftButton = draft960Enabled ? startOptionButton('Draft960', false) : null;
+  const draftButton = startOptionButton(draft960Selectable ? 'Draft960' : 'Draft960 (soon)', false);
+  if (!draft960Selectable) {
+    draftButton.disabled = true;
+    draftButton.classList.add('disabled');
+    draftButton.title = 'Coming soon';
+  }
   const syncOptions = () => {
     standardButton.classList.toggle('selected', startFormat === 'standard');
     standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
-    if (draftButton) {
-      draftButton.classList.toggle('selected', startFormat === 'draft960');
-      draftButton.setAttribute('aria-checked', startFormat === 'draft960' ? 'true' : 'false');
-    }
+    draftButton.classList.toggle('selected', startFormat === 'draft960');
+    draftButton.setAttribute('aria-checked', startFormat === 'draft960' ? 'true' : 'false');
   };
   standardButton.addEventListener('click', () => {
     startFormat = 'standard';
     syncOptions();
   });
-  if (draftButton) {
+  if (draft960Selectable) {
     draftButton.addEventListener('click', () => {
       startFormat = 'draft960';
       syncOptions();
     });
   }
-  startGroup.append(standardButton, ...(draftButton ? [draftButton] : []));
+  startGroup.append(standardButton, draftButton);
   variantSection.append(startGroup);
 
   const timeSection = document.createElement('div');
@@ -1732,13 +1734,6 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   presetGroup.setAttribute('role', 'radiogroup');
   presetGroup.setAttribute('aria-label', 'Time control');
 
-  const customFields = document.createElement('div');
-  customFields.className = 'landing-custom-time';
-
-  const minutesInput = customTimeInput('Minutes', defaultPreset.initialMs / 60_000);
-  const incrementInput = customTimeInput('Increment', defaultPreset.incrementMs / 1000);
-  customFields.append(minutesInput.label, minutesInput.input, incrementInput.label, incrementInput.input);
-
   const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
     const enabled = preset.id === '3m2';
     const button = startOptionButton(enabled ? preset.label : `${preset.label} (soon)`, preset.id === selectedPreset);
@@ -1749,8 +1744,6 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     } else {
       button.addEventListener('click', () => {
         selectedPreset = preset.id;
-        minutesInput.input.value = String(preset.initialMs / 60_000);
-        incrementInput.input.value = String(preset.incrementMs / 1000);
         syncTimeControls();
       });
     }
@@ -1764,10 +1757,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-checked', selected ? 'true' : 'false');
     }
-    customFields.hidden = selectedPreset !== 'custom';
   };
   syncTimeControls();
-  timeSection.append(presetGroup, customFields);
+  timeSection.append(presetGroup);
 
   const actions = document.createElement('div');
   actions.className = 'landing-setup-actions';
@@ -1782,7 +1774,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startButton.className = 'landing-setup-start';
   startButton.textContent = choice.mode === 'lobby' ? 'Find opponent' : choice.mode === 'pvp' ? 'Create room' : 'Start game';
   startButton.addEventListener('click', () => {
-    const setup = selectedRoomSetup(startFormat, rated, selectedPreset, minutesInput.input, incrementInput.input);
+    const setup = selectedRoomSetup(startFormat, rated, selectedPreset);
     if (choice.mode === 'lobby') {
       cancelLobbyWait?.();
       cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status);
@@ -1900,58 +1892,20 @@ function setupSectionLabel(text: string): HTMLSpanElement {
   return label;
 }
 
-function customTimeInput(labelText: string, value: number): { label: HTMLLabelElement; input: HTMLInputElement } {
-  const id = `landing-time-${labelText.toLowerCase()}`;
-  const label = document.createElement('label');
-  label.className = 'landing-custom-time-label';
-  label.htmlFor = id;
-  label.textContent = labelText;
-
-  const input = document.createElement('input');
-  input.id = id;
-  input.type = 'number';
-  input.min = labelText === 'Minutes' ? '0.17' : '0';
-  input.max = labelText === 'Minutes' ? '180' : '60';
-  input.step = labelText === 'Minutes' ? '0.5' : '1';
-  input.value = String(value);
-
-  return { label, input };
-}
-
 function selectedRoomSetup(
   startFormat: LandingStartFormat,
   rated: boolean,
   presetId: LandingTimePresetId,
-  minutesInput: HTMLInputElement,
-  incrementInput: HTMLInputElement,
 ): LandingRoomSetup {
-  const preset = LANDING_TIME_PRESETS.find((candidate) => candidate.id === presetId);
-  if (preset && preset.id !== 'custom') {
-    return {
-      startFormat,
-      rated,
-      timeControl: {
-        initialMs: preset.initialMs,
-        incrementMs: preset.incrementMs,
-      },
-    };
-  }
-
-  const minutes = boundedNumber(minutesInput.valueAsNumber, 10 / 60, 180);
-  const incrementSeconds = boundedNumber(incrementInput.valueAsNumber, 0, 60);
+  const preset = LANDING_TIME_PRESETS.find((candidate) => candidate.id === presetId) ?? LANDING_TIME_PRESETS[1];
   return {
     startFormat,
     rated,
     timeControl: {
-      initialMs: Math.round(minutes * 60_000),
-      incrementMs: Math.round(incrementSeconds * 1000),
+      initialMs: preset.initialMs,
+      incrementMs: preset.incrementMs,
     },
   };
-}
-
-function boundedNumber(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return min;
-  return Math.min(max, Math.max(min, value));
 }
 
 function startOptionButton(label: string, selected: boolean): HTMLButtonElement {
