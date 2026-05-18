@@ -1,5 +1,5 @@
-type BoardTheme = 'standard' | 'contrast' | 'colorblind';
-type FogTheme = 'hatched' | 'solid' | 'soft';
+type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
+type FogTheme = 'hatched' | 'solid' | 'soft' | 'drift' | 'void' | 'invisible';
 
 const boardStorageKey = 'mistboard.boardTheme';
 const fogStorageKey = 'mistboard.fogTheme';
@@ -13,6 +13,9 @@ let cachedSoundVolume = defaultSoundVolume;
 let cachedSoundMuted = false;
 const themes: Array<{ id: BoardTheme; label: string }> = [
   { id: 'standard', label: 'Standard' },
+  { id: 'blue', label: 'Blue' },
+  { id: 'green', label: 'Tournament green' },
+  { id: 'mono', label: 'Mono' },
   { id: 'contrast', label: 'High contrast' },
   { id: 'colorblind', label: 'Colorblind' },
 ];
@@ -20,6 +23,9 @@ const fogThemes: Array<{ id: FogTheme; label: string }> = [
   { id: 'hatched', label: 'Hatched' },
   { id: 'solid', label: 'Solid' },
   { id: 'soft', label: 'Soft' },
+  { id: 'drift', label: 'Drift (animated)' },
+  { id: 'void', label: 'Void' },
+  { id: 'invisible', label: 'Invisible' },
 ];
 let navObserver: MutationObserver | null = null;
 
