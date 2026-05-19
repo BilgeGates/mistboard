@@ -66,14 +66,26 @@ def learned_policy_prior(weights_path: str, temperature: float = 1.0) -> Opponen
         h2 = np.maximum(0.0, W2 @ h1 + b2)
         return W3 @ h2 + b3
 
+    # The belief filter invokes this once per particle on the same opp ply.
+    # Many particles share canonical boards after observation filtering — the
+    # cache collapses 100+ calls per opp ply into a handful of forward passes.
+    # CACHE_CAP guards against unbounded growth across long games.
+    logits_cache: dict[str, np.ndarray] = {}
+    CACHE_CAP = 4096
+
     def prior(board: chess.Board, legal: list[chess.Move]) -> list[float]:
         if not legal:
             return []
         # The prior is called from the BELIEF FILTER for an OPPONENT move:
         # the board passed in is from the opponent's perspective (board.turn
         # is the opponent we're modeling). Encode from their POV.
-        x = _encode(board, board.turn)
-        logits = _forward(x)
+        fen = board.fen()
+        logits = logits_cache.get(fen)
+        if logits is None:
+            x = _encode(board, board.turn)
+            logits = _forward(x)
+            if len(logits_cache) < CACHE_CAP:
+                logits_cache[fen] = logits
         scores = np.fromiter(
             (logits[m.from_square * 64 + m.to_square] for m in legal),
             dtype=np.float32, count=len(legal),
