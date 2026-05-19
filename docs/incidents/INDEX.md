@@ -6,6 +6,7 @@ An "incident" is anything user-visible or pipeline-blocking that required unplan
 
 | Date | Title | Status | Severity |
 |---|---|---|---|
+| 2026-05-19 | [Railway platform outage — mistboard.com down](2026-05-19-railway-platform-outage.md) | resolved | sev1 |
 | 2026-05-18 | [Landing hero flashes triptych before single-POV](2026-05-18-landing-hero-triptych-flash.md) | resolved | sev3 |
 | 2026-05-18 | [CI red on main from ws npm audit vulnerability](2026-05-18-ci-npm-audit-ws-vuln.md) | resolved | sev3 |
 | 2026-05-15 | [Intermittent prod-smoke 500s from stale pool connections](2026-05-15-stale-pool-connections-smoke-500.md) | resolved | sev3 |
