@@ -743,7 +743,6 @@ type PublicParticipant = {
 Affected endpoints:
 
 - `GET /api/games/:roomId`
-- `GET /api/featured-games`
 - `GET /api/eve-games/recent`
 
 Compatibility:

@@ -101,7 +101,7 @@ type UserProfile = {
   games: FeaturedGame[];
 };
 
-type LandingGameSource = 'recent' | 'eve' | 'featured' | 'sample';
+type LandingGameSource = 'recent' | 'eve' | 'sample';
 type LandingPlayChoice = {
   engineId?: string;
   engines?: PlayableEngine[];
@@ -153,13 +153,14 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.classList.add('landing-page');
   root.append(buildNav(), buildLoadingState('Loading games'), buildFooter());
 
-  const [{ games }, engines] = await Promise.all([
+  const [{ games: allGames }, engines] = await Promise.all([
     fetchLandingGames(),
     fetchPlayableEngines().catch((err) => {
       console.warn(err);
       return fallbackPlayableEngines();
     }),
   ]);
+  const games = allGames.filter(isHeroEligibleGame);
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());
   if (games.length === 0) {
@@ -200,6 +201,24 @@ function pickHeroPovForGame(game: FeaturedGame): 'white' | 'black' {
   // EvE / PvP / unknown: show the winner; draws and unknown results fall back to white.
   if (game.result === '0-1') return 'black';
   return 'white';
+}
+
+// Weak engines that make for unimpressive hero demos. Used only by the landing
+// hero; /watch still shows everything.
+const HERO_INELIGIBLE_ENGINE_IDS = new Set([
+  'builtin-random-legal',
+  'python-random-legal',
+  'builtin-capture-seeker',
+]);
+
+function isHeroEligibleGame(game: FeaturedGame): boolean {
+  for (const participant of game.participants ?? []) {
+    if (participant.subjectType !== 'engine-version') continue;
+    if (participant.subjectId && HERO_INELIGIBLE_ENGINE_IDS.has(participant.subjectId)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -645,21 +664,16 @@ function moveUciFromPayload(payload: Record<string, unknown>): string {
 }
 
 async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
-  const featuredGames = await fetchFeaturedGames().catch((err) => {
-    console.warn(err);
-    return [];
-  });
-  if (featuredGames.length > 0) return { games: featuredGames, source: 'featured' };
-  const eveGames = await fetchRecentEveGames().catch((err) => {
-    console.warn(err);
-    return [];
-  });
-  if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
   const recentGames = await fetchRecentGames().catch((err) => {
     console.warn(err);
     return [];
   });
   if (recentGames.length > 0) return { games: recentGames, source: 'recent' };
+  const eveGames = await fetchRecentEveGames().catch((err) => {
+    console.warn(err);
+    return [];
+  });
+  if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
   return { games: staticSampleGames(), source: 'sample' };
 }
 
@@ -669,13 +683,6 @@ async function fetchGameSummary(roomId: string): Promise<FeaturedGame | null> {
   if (!resp.ok) throw new Error(`failed to load game summary for ${roomId}: ${resp.status}`);
   const data = (await resp.json()) as { game: FeaturedGame };
   return data.game;
-}
-
-async function fetchFeaturedGames(): Promise<FeaturedGame[]> {
-  const resp = await fetch('/api/featured-games');
-  if (!resp.ok) throw new Error(`failed to load featured games: ${resp.status}`);
-  const data = (await resp.json()) as { games: FeaturedGame[] };
-  return data.games;
 }
 
 async function fetchRecentGames(): Promise<FeaturedGame[]> {
