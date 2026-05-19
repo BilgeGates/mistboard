@@ -1487,14 +1487,23 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
   const boardColumn = document.createElement('div');
   boardColumn.className = 'landing-board-column';
 
+  const heroHeader = document.createElement('header');
+  heroHeader.className = 'landing-hero-header';
+
   const tagline = document.createElement('h1');
   tagline.className = 'landing-hero-tagline';
-  tagline.textContent = 'Chess where you only see what your pieces see.';
+  tagline.textContent = 'Fog of War chess';
+
+  const subtagline = document.createElement('p');
+  subtagline.className = 'landing-hero-subtagline';
+  subtagline.textContent = 'You only see what your pieces see.';
+
+  heroHeader.append(tagline, subtagline);
 
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
 
-  boardColumn.append(tagline, replayRoot);
+  boardColumn.append(heroHeader, replayRoot);
 
   const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
