@@ -180,6 +180,19 @@ export async function mountReplay(
   const truthPane = createPane('Truth', 'truth');
   const blackPane = createPane(blackBaseLabel, 'black');
   layout.append(whitePane.el, truthPane.el, blackPane.el);
+  // Apply the pane choice synchronously so the triptych doesn't flash before
+  // loadGame() finishes its async fetch and calls applyMetadata().
+  if (panesResolver) {
+    const initialMeta = metadataByRoomId?.[initialSampleId];
+    const initialChoice = panesResolver(initialSampleId, initialMeta);
+    layout.classList.add(
+      initialChoice === 'white'
+        ? 'replay-layout-single-white'
+        : initialChoice === 'black'
+          ? 'replay-layout-single-black'
+          : 'replay-layout-all',
+    );
+  }
   root.append(layout);
 
   const firstBtn = controlButton('|<', 'First position');
@@ -196,23 +209,51 @@ export async function mountReplay(
   if (gameMetaPanel) root.append(gameMetaPanel.el);
   if (movesPanel) root.append(movesPanel.el);
   const clockPanel = createClockPanel();
+  // In compact + single-POV mode (landing hero) the truth pane is CSS-hidden,
+  // so clocks hosted on truth would also be hidden. Track the current host
+  // pane so we can move the clock rows when the visible pane changes across
+  // looped games.
+  let compactClockHost: { boardEl: HTMLDivElement; clockSlot: HTMLDivElement } | null = null;
+  function relocateCompactClockRows(host: { boardEl: HTMLDivElement; clockSlot: HTMLDivElement }): void {
+    if (compactClockHost === host) return;
+    clockPanel.blackRow.remove();
+    clockPanel.whiteRow.remove();
+    host.boardEl.before(clockPanel.blackRow);
+    host.clockSlot.append(clockPanel.whiteRow);
+    compactClockHost = host;
+  }
+  function paneForChoice(choice: 'white' | 'black' | 'all'): { boardEl: HTMLDivElement; clockSlot: HTMLDivElement } {
+    return choice === 'white' ? whitePane : choice === 'black' ? blackPane : truthPane;
+  }
   if (metadataMode === 'compact') {
-    // Un-hide the truth pane's clock rows immediately so the column reserves
-    // the same vertical space as the side panes' spacers from first paint;
-    // otherwise the truth board sits ~42px higher until clocks render, then
-    // jumps when renderClockPanel un-hides them.
+    // Un-hide clock rows immediately so the host column reserves the same
+    // vertical space as the side panes' spacers from first paint; otherwise
+    // the board sits ~42px higher until clocks render, then jumps when
+    // renderClockPanel un-hides them.
     clockPanel.blackRow.hidden = false;
     clockPanel.whiteRow.hidden = false;
     clockPanel.blackTime.textContent = '—';
     clockPanel.whiteTime.textContent = '—';
     clockPanel.blackRow.classList.add('replay-clock-row-top');
     clockPanel.whiteRow.classList.add('replay-clock-row-bottom');
-    whitePane.boardEl.before(createCompactClockSpacer());
-    blackPane.boardEl.before(createCompactClockSpacer());
-    whitePane.clockSlot.append(createCompactClockSpacer());
-    blackPane.clockSlot.append(createCompactClockSpacer());
-    truthPane.boardEl.before(clockPanel.blackRow);
-    truthPane.clockSlot.append(clockPanel.whiteRow);
+
+    if (panesResolver) {
+      // Single-POV layout: the only visible pane hosts the clocks (and
+      // player names live inside the clock rows via setClockPanelNames).
+      // The hidden panes don't need spacers since they contribute nothing
+      // to layout.
+      const initialMeta = metadataByRoomId?.[initialSampleId];
+      const initialChoice = panesResolver(initialSampleId, initialMeta);
+      relocateCompactClockRows(paneForChoice(initialChoice));
+    } else {
+      // Triptych: clocks on truth, spacers on side panes so all three
+      // board tops align.
+      whitePane.boardEl.before(createCompactClockSpacer());
+      blackPane.boardEl.before(createCompactClockSpacer());
+      whitePane.clockSlot.append(createCompactClockSpacer());
+      blackPane.clockSlot.append(createCompactClockSpacer());
+      relocateCompactClockRows(truthPane);
+    }
   } else {
     whitePane.clockSlot.append(clockPanel.whiteRow);
     blackPane.clockSlot.append(clockPanel.blackRow);
@@ -318,8 +359,21 @@ export async function mountReplay(
       lastWhiteView = null;
       lastBlackView = null;
     } else {
-      let whiteView = fogOfWarVariant.getPlayerView(state, 'white');
-      let blackView = fogOfWarVariant.getPlayerView(state, 'black');
+      // At game end, getPlayerView would collapse visibility to just the
+      // player's own piece squares (getVisibilityMoves returns [] when
+      // state.status.type !== 'playing'). For postgame fog views where we
+      // intentionally don't reveal — the landing hero loop, primarily — that
+      // looks like the fog snuffs vision to nothing the instant the game
+      // ends. Compute visibility against a synthetic playing state so the
+      // player keeps the same mid-game vision they had on the last ply
+      // (fog still on, opponent moves still hidden — just not collapsed).
+      const visState = finished ? syntheticPlayingState(state) : state;
+      let whiteView = fogOfWarVariant.getPlayerView(visState, 'white');
+      let blackView = fogOfWarVariant.getPlayerView(visState, 'black');
+      if (finished) {
+        whiteView = { ...whiteView, status: state.status, legalMoves: [] };
+        blackView = { ...blackView, status: state.status, legalMoves: [] };
+      }
       if (
         finished
         && state.status.type === 'finished'
@@ -758,6 +812,11 @@ export async function mountReplay(
             ? 'replay-layout-single-black'
             : 'replay-layout-all',
       );
+      if (metadataMode === 'compact') {
+        // Move clock rows onto the now-visible pane so clocks + names stay
+        // attached to the only board the viewer sees.
+        relocateCompactClockRows(paneForChoice(choice));
+      }
     }
     // Reset any prior end-game state (returning to ply 0).
     whitePane.el.classList.remove('winner', 'loser');
@@ -1675,6 +1734,17 @@ function hiddenSquareClasses(view: PlayerView): cg.SquareClasses {
     if (!visible.has(square)) classes.set(square as cg.Key, 'fog-hidden');
   }
   return classes;
+}
+
+// Build a "playing"-status copy of a finished state so getPlayerView computes
+// visibility as if the game were still in progress. The synthetic turn is the
+// side that did NOT play the last move (i.e., whoever would have been to move
+// next), so visibleLastMoveForPlayer behaves the same as it did mid-game.
+function syntheticPlayingState(state: GameState): GameState {
+  const lastTo = state.lastMove?.to;
+  const moverColor: Color | null = lastTo ? (state.board[lastTo]?.color ?? null) : null;
+  const turn: Color = moverColor === 'white' ? 'black' : moverColor === 'black' ? 'white' : 'white';
+  return { ...state, status: { type: 'playing', turn } };
 }
 
 function revealKingCaptureForLoser(view: PlayerView, lastMove: Move, attacker: Piece): PlayerView {

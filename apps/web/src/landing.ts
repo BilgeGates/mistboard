@@ -1489,7 +1489,7 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
 
   boardColumn.append(tagline, replayRoot);
 
-  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: false });
+  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
   section.append(boardColumn, playPanel);
   stage.append(section);
