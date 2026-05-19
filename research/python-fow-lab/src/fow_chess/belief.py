@@ -289,17 +289,44 @@ class BeliefHardFacts:
     def with_piece_fact_moved_by(
         self, prev_board: chess.Board, opp_move: chess.Move
     ) -> BeliefHardFacts:
-        """Drop exactly the prior piece fact that this opponent move relocates.
+        """Drop exactly the prior piece fact(s) that this opponent move relocates.
 
         Exact visible-piece facts should not evaporate just because the opponent
         got a turn. They expire only when a surviving transition actually moves
         the same piece from the fact square.
+
+        Castling moves both the king AND a rook at once — only the king's from
+        square is on opp_move. Drop both facts for castling so the downstream
+        matches_hard_transition check doesn't reject the castled particle by
+        looking up a rook on its original square. Without this, hard rook facts
+        on a1/h1/a8/h8 silently kill every castled particle in the cloud (q0
+        ply 13 annotation).
         """
-        piece = self.hard_opp_piece_facts.get(opp_move.from_square)
-        if piece is None or prev_board.piece_at(opp_move.from_square) != piece:
-            return self
         next_piece_facts = dict(self.hard_opp_piece_facts)
-        del next_piece_facts[opp_move.from_square]
+        changed = False
+
+        piece = next_piece_facts.get(opp_move.from_square)
+        if piece is not None and prev_board.piece_at(opp_move.from_square) == piece:
+            del next_piece_facts[opp_move.from_square]
+            changed = True
+
+        if prev_board.is_castling(opp_move):
+            king_rank = chess.square_rank(opp_move.from_square)
+            # Kingside (king goes to file g): rook comes from h-file.
+            # Queenside (king goes to file c): rook comes from a-file.
+            kingside = chess.square_file(opp_move.to_square) == 6
+            rook_from = chess.square(7 if kingside else 0, king_rank)
+            rook_fact = next_piece_facts.get(rook_from)
+            if (
+                rook_fact is not None
+                and rook_fact.piece_type == chess.ROOK
+                and prev_board.piece_at(rook_from) == rook_fact
+            ):
+                del next_piece_facts[rook_from]
+                changed = True
+
+        if not changed:
+            return self
         return replace(self, hard_opp_piece_facts=next_piece_facts)
 
 
