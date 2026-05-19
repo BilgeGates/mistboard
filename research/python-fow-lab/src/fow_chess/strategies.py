@@ -1188,6 +1188,22 @@ class Tier1Strategy:
     trace_log: list[dict] = field(default_factory=list)
     verbose_belief_capture: bool = False
     belief_log: list[dict] = field(default_factory=list)
+    # v0.9.4-pre1 stopgap: belief-weighted soft penalties applied AFTER best_action
+    # scores the legal moves. Addresses annotation classes from q0:
+    #   - moves into known-attacker squares (plies 22, 94, 116, 170) -> capture_risk
+    #   - shuffle when ahead (ply 190) -> anti_shuffle
+    # Set to 0 to disable; production v0.9.3 behavior is recovered by zero values.
+    # First calibration (coef=100, anti_shuffle=200, thresholds=0.10/0.12)
+    # was catastrophically aggressive: both engines stopped making any non-king
+    # moves and games died to 50-move rule. Tuned values below leave existing
+    # vetoes near their production thresholds and add a SOFT nudge on top.
+    capture_risk_penalty_coef: float = 10.0
+    anti_shuffle_penalty: float = 20.0
+    anti_shuffle_window: int = 4
+    # Veto thresholds: keep production defaults (0.20 / 0.25). The soft
+    # penalty above subsumes the "tighten vetoes" use case.
+    queen_fog_risk_threshold: float = 0.20
+    piece_fog_risk_threshold: float = 0.25
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -1208,6 +1224,8 @@ class Tier1Strategy:
         # through observe_own_move.
         self._last_view_visible: dict[chess.Square, chess.Piece] = {}
         self._last_decision_view: PerspectiveView | None = None
+        # v0.9.4-pre1: rolling window of own (from_sq, to_sq) used by anti-shuffle.
+        self._recent_own_moves: list[tuple[int, int]] = []
 
     def reset(self, perspective: chess.Color) -> None:
         self._belief = BeliefState.initial(
@@ -1225,6 +1243,7 @@ class Tier1Strategy:
         self._pending_capture_square = None
         self._last_view_visible = {}
         self._last_decision_view = None
+        self._recent_own_moves = []
 
     def _emit_trace(
         self,
@@ -1802,6 +1821,10 @@ class Tier1Strategy:
 
     def observe_own_move(self, move: chess.Move, observation: Observation) -> None:
         assert self._belief is not None
+        # v0.9.4-pre1: track recent own (from, to) for anti-shuffle scoring.
+        self._recent_own_moves.append((move.from_square, move.to_square))
+        if len(self._recent_own_moves) > self.anti_shuffle_window:
+            self._recent_own_moves = self._recent_own_moves[-self.anti_shuffle_window:]
         # v0.6.0: register the capture detected in pick_move (visible enemy at
         # the destination, or en-passant). Decrements opp_remaining_counts so
         # the next Stage B can prune particles hallucinating extra pieces.
@@ -2562,6 +2585,59 @@ class Tier1Strategy:
         best_depth = min(d for _, _, _, d, _, _ in best)
         return [move for move, _, _, d, _, _ in best if d == best_depth]
 
+    def _compute_capture_risk_map(
+        self,
+        candidates: list[chess.Move],
+        view: PerspectiveView,
+    ) -> dict[chess.Move, float]:
+        """Belief-weighted P(landed own piece is recapturable) per move.
+
+        v0.9.4-pre1 stopgap helper. Scoped to non-pawn / non-king moves; for
+        pawns/kings the existing king-safety + en-passant vetoes already do
+        the work and pawn recapture is a normal trade. Returns {} for moves
+        the strategy doesn't apply the soft penalty to, so callers default
+        to 0.0 risk via .get().
+        """
+        if self._belief is None or not self._belief.particles:
+            return {}
+        own = view.perspective
+        risk_map: dict[chess.Move, float] = {}
+        for move in candidates:
+            mover = view.visible_piece_map.get(move.from_square)
+            if (
+                mover is None
+                or mover.color != own
+                or mover.piece_type in (chess.PAWN, chess.KING)
+            ):
+                continue
+            # Captures where the target is equal-or-higher value are trades
+            # the existing tier handles; skip them in the soft penalty too.
+            target = view.visible_piece_map.get(move.to_square)
+            if (
+                target is not None
+                and target.color != own
+                and _MATERIAL_VALUE.get(target.piece_type, 0)
+                >= _MATERIAL_VALUE.get(mover.piece_type, 0)
+            ):
+                continue
+            risk_weight = 0.0
+            support = 0.0
+            for particle, weight in zip(self._belief.particles, self._belief.weights):
+                if not particle.is_pseudo_legal(move):
+                    continue
+                sim = particle.copy()
+                sim.push(move)
+                landed = sim.piece_at(move.to_square)
+                if landed is None or landed.color != own:
+                    continue
+                support += weight
+                sim.turn = not own
+                if any(reply.to_square == move.to_square for reply in sim.pseudo_legal_moves):
+                    risk_weight += weight
+            if support > 0:
+                risk_map[move] = risk_weight / support
+        return risk_map
+
     def _belief_veto_piece_fog_risk(
         self,
         candidates: list[chess.Move],
@@ -3191,9 +3267,13 @@ class Tier1Strategy:
         legal_moves = trade_safe_moves or legal_moves
         king_defended_safe = self._veto_captures_defended_by_visible_king(legal_moves, view)
         legal_moves = king_defended_safe or legal_moves
-        queen_fog_safe_moves = self._belief_veto_queen_fog_risk(legal_moves, view)
+        queen_fog_safe_moves = self._belief_veto_queen_fog_risk(
+            legal_moves, view, threshold=self.queen_fog_risk_threshold
+        )
         legal_moves = queen_fog_safe_moves or legal_moves
-        piece_fog_safe_moves = self._belief_veto_piece_fog_risk(legal_moves, view)
+        piece_fog_safe_moves = self._belief_veto_piece_fog_risk(
+            legal_moves, view, max_capture_risk=self.piece_fog_risk_threshold
+        )
         legal_moves = piece_fog_safe_moves or legal_moves
         belief_piece_save = self._belief_piece_save_moves(legal_moves, view)
         if belief_piece_save:
@@ -3230,6 +3310,38 @@ class Tier1Strategy:
             legal_moves,
             max_clusters=max(16, self.max_eval_particles),
         )
+        # v0.9.4-pre1: soft post-score adjustments that the binary fog-risk
+        # vetoes miss (the vetoes only fire above their threshold; below they
+        # leave the move scored as if it were safe). Two adjustments:
+        #   - capture_risk: belief-weighted P(landed piece is recapturable) ×
+        #                   piece_value × coef. So even sub-threshold risk
+        #                   shows up as a proportional score penalty.
+        #   - anti_shuffle: flat penalty if (from, to) was played in the
+        #                   last N own plies. Forces conversion progress.
+        if scored and (self.capture_risk_penalty_coef > 0 or self.anti_shuffle_penalty > 0):
+            risk_map = self._compute_capture_risk_map(
+                [m for m, _, _ in scored], view
+            )
+            recent = set(self._recent_own_moves)
+            adjusted = []
+            for move, score, support in scored:
+                mover = view.visible_piece_map.get(move.from_square)
+                piece_val = _MATERIAL_VALUE.get(
+                    mover.piece_type, 0
+                ) if mover and mover.piece_type not in (chess.PAWN, chess.KING) else 0
+                risk = risk_map.get(move, 0.0)
+                risk_penalty = risk * piece_val * self.capture_risk_penalty_coef
+                shuffle_penalty = (
+                    self.anti_shuffle_penalty
+                    if (move.from_square, move.to_square) in recent
+                    else 0.0
+                )
+                adjusted.append((move, score - risk_penalty - shuffle_penalty, support))
+            adjusted.sort(key=lambda r: -r[1])
+            new_chosen = adjusted[0][0]
+            if new_chosen != chosen:
+                chosen = new_chosen
+            scored = adjusted
         # Top 5 moves by aggregated score; only surface what the trace actually needs.
         scored.sort(key=lambda r: -r[1])
         top_k = [(m.uci(), s, support) for m, s, support in scored[:5]]
