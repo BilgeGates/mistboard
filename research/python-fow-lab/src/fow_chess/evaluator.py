@@ -1003,6 +1003,79 @@ def psqt_evaluator(weights_path: str) -> Evaluator:
     return evaluate
 
 
+def value_net_evaluator(
+    weights_path: str,
+    *,
+    score_scale: float = 1000.0,
+) -> Evaluator:
+    """Pure-numpy value-net evaluator.
+
+    Loads a small MLP V(state, mover) from .npz weights and scores moves by
+    pushing the move on a copy of the particle board, then computing
+    -V(next_board, opp_mover) — the negamax-shaped expected outcome for
+    `perspective` after the move and an immediate opp response.
+
+    The net outputs in [-1, 1] (tanh head). `score_scale` maps that into
+    centipawn-ish units so the value net's scores mix sensibly with
+    fow_evaluator's centipawn output and with the v0.9.4 capture-risk
+    soft penalties. Default 1000.0 → a "winning position" reads as +1000cp.
+
+    Trained by scripts/train_value_net.py on a self-play corpus with
+    outcome labels in {-1, 0, +1} from each ply's mover's POV.
+    """
+    import numpy as np
+
+    weights = np.load(weights_path)
+    W1, b1 = weights["fc1.weight"], weights["fc1.bias"]
+    W2, b2 = weights["fc2.weight"], weights["fc2.bias"]
+    W3, b3 = weights["fc3.weight"], weights["fc3.bias"]
+    in_dim = W1.shape[1]
+    buf = np.zeros(in_dim, dtype=np.float32)
+
+    def _encode(board: chess.Board, perspective: chess.Color):
+        buf[:] = 0.0
+        for sq, piece in board.piece_map().items():
+            pi = _PSQT_PIECE_INDEX[piece.piece_type]
+            if piece.color == perspective:
+                buf[pi * 64 + sq] = 1.0
+            else:
+                buf[384 + pi * 64 + sq] = 1.0
+        return buf
+
+    def _forward(x):
+        h1 = np.maximum(0.0, W1 @ x + b1)
+        h2 = np.maximum(0.0, W2 @ h1 + b2)
+        out = W3 @ h2 + b3
+        return float(np.tanh(out[0]))
+
+    def evaluate(
+        board: chess.Board, move: chess.Move, perspective: chess.Color
+    ) -> float:
+        target = board.piece_at(move.to_square)
+        if target is not None and target.piece_type == chess.KING:
+            return (
+                _KING_CAPTURE_SCORE
+                if target.color != perspective
+                else -_KING_CAPTURE_SCORE
+            )
+
+        advanced = board.copy()
+        advanced.push(move)
+        if (
+            advanced.king(chess.WHITE) is None
+            or advanced.king(chess.BLACK) is None
+        ):
+            return 0.0
+
+        # Negamax: after my move, opp is to move. V(next, opp) is opp's
+        # expected outcome; my expected outcome = -V(next, opp).
+        x = _encode(advanced, not perspective)
+        v_opp = _forward(x)
+        return -v_opp * score_scale
+
+    return evaluate
+
+
 def mlp_evaluator(weights_path: str) -> Evaluator:
     """Small MLP value evaluator loaded from a torch state_dict checkpoint.
 
