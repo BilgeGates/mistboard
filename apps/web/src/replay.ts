@@ -331,6 +331,7 @@ export async function mountReplay(
   let shouldApplyInitialPly = Number.isFinite(options.initialPly);
   let playTimer: number | null = null;
   let loopTimer: number | null = null;
+  let clockTickTimer: number | null = null;
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
   let lastNotifiedPly: number | null = null;
@@ -654,6 +655,7 @@ export async function mountReplay(
       window.clearTimeout(playTimer);
       playTimer = null;
     }
+    clearClockTickTimer();
     playBtn.textContent = '▶ Play';
   }
 
@@ -672,10 +674,44 @@ export async function mountReplay(
     }
     const delay = delayForPly(nextPly);
     playTimer = window.setTimeout(() => {
+      clearClockTickTimer();
       setCurrentPly(nextPly);
       render();
       scheduleNextPly();
     }, delay);
+    startClockTickTimer(nextPly, delay);
+  }
+
+  function clearClockTickTimer(): void {
+    if (clockTickTimer !== null) {
+      window.clearInterval(clockTickTimer);
+      clockTickTimer = null;
+    }
+  }
+
+  function startClockTickTimer(nextPly: number, delay: number): void {
+    clearClockTickTimer();
+    if (delay <= 0) return;
+    const sliced = sliceToPly(events, currentPly);
+    const projection = replayGameEvents(sliced);
+    const state = projection.state;
+    const clock = state.clock;
+    if (!clock || state.status.type !== 'playing' || clock.runningSince === null) return;
+    const startDisplay = clock.runningSince;
+    const nextEvent = moveEventAtPly(nextPly);
+    const endDisplay = nextEvent && typeof nextEvent.at === 'number' && Number.isFinite(nextEvent.at)
+      ? nextEvent.at
+      : startDisplay + delay;
+    const gap = Math.max(0, endDisplay - startDisplay);
+    const startWall = performance.now();
+    const meta = currentMeta();
+    const tick = (): void => {
+      const elapsedWall = performance.now() - startWall;
+      const fraction = Math.min(elapsedWall / delay, 1);
+      const displayAt = startDisplay + gap * fraction;
+      renderClockPanel(clockPanel, clock, state, meta, displayAt);
+    };
+    clockTickTimer = window.setInterval(tick, 100);
   }
 
   function setCurrentPly(ply: number): void {
