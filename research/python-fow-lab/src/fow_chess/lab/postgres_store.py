@@ -111,7 +111,11 @@ class LabCorpusStore:
     def iter_games(self) -> Iterator[dict[str, Any]]:
         """Yield game payloads in corpus_idx order. For offline corpus reads."""
         conn = self._require_conn()
-        with conn.cursor(name=f"lab_games_iter_{self.corpus_id}") as cur:
+        # Use a client cursor (no name) so autocommit connections work. The
+        # whole corpus comfortably fits in memory at lab scale; if it grows
+        # past that, switch the connection out of autocommit and re-add the
+        # server cursor name for streaming.
+        with conn.cursor() as cur:
             cur.execute(
                 "SELECT data FROM lab_games WHERE corpus_id = %s ORDER BY corpus_idx",
                 (self.corpus_id,),
