@@ -2057,9 +2057,12 @@ a.replay-game-id:focus-visible {
 }
 
 .replay-compact .replay-pane-label,
-.replay-compact .replay-pane-name:empty,
-.replay-compact .replay-pane-status:empty {
+.replay-compact .replay-pane-name:empty {
   display: none;
+}
+
+.replay-compact .replay-pane-status:empty {
+  visibility: hidden;
 }
 
 .replay-compact .replay-pane {
