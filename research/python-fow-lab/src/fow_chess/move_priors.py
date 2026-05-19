@@ -23,6 +23,72 @@ def uniform_prior(board: chess.Board, legal: list[chess.Move]) -> list[float]:
     return [1.0 / n] * n if n else []
 
 
+_PIECE_INDEX_PRIOR = {
+    chess.PAWN: 0, chess.KNIGHT: 1, chess.BISHOP: 2,
+    chess.ROOK: 3, chess.QUEEN: 4, chess.KING: 5,
+}
+
+
+def learned_policy_prior(weights_path: str, temperature: float = 1.0) -> OpponentMovePrior:
+    """Small MLP policy net trained on production self-play.
+
+    Predicts the move distribution the engine would play from this position.
+    Plugged into the belief filter as the opponent model — should outperform
+    uniform_prior when modeling a known engine because real opponents play
+    purposefully, not uniformly.
+
+    The path must be a .npz with state_dict tensors (fc{1,2,3}.weight,
+    fc{1,2,3}.bias). Pure numpy inference — keeps torch out of the runtime
+    deploy. Train with scripts/train_policy_net.py which writes both .pt
+    (torch checkpoint, for retraining) and .npz (for serving).
+    """
+    import numpy as np
+
+    weights = np.load(weights_path)
+    W1, b1 = weights["fc1.weight"], weights["fc1.bias"]
+    W2, b2 = weights["fc2.weight"], weights["fc2.bias"]
+    W3, b3 = weights["fc3.weight"], weights["fc3.bias"]
+    in_dim = W1.shape[1]
+    buf = np.zeros(in_dim, dtype=np.float32)
+
+    def _encode(board: chess.Board, perspective: chess.Color):
+        buf[:] = 0.0
+        for sq, piece in board.piece_map().items():
+            pi = _PIECE_INDEX_PRIOR[piece.piece_type]
+            if piece.color == perspective:
+                buf[pi * 64 + sq] = 1.0
+            else:
+                buf[384 + pi * 64 + sq] = 1.0
+        return buf
+
+    def _forward(x):
+        h1 = np.maximum(0.0, W1 @ x + b1)
+        h2 = np.maximum(0.0, W2 @ h1 + b2)
+        return W3 @ h2 + b3
+
+    def prior(board: chess.Board, legal: list[chess.Move]) -> list[float]:
+        if not legal:
+            return []
+        # The prior is called from the BELIEF FILTER for an OPPONENT move:
+        # the board passed in is from the opponent's perspective (board.turn
+        # is the opponent we're modeling). Encode from their POV.
+        x = _encode(board, board.turn)
+        logits = _forward(x)
+        scores = np.fromiter(
+            (logits[m.from_square * 64 + m.to_square] for m in legal),
+            dtype=np.float32, count=len(legal),
+        )
+        scores = scores / max(temperature, 1e-6)
+        scores = scores - scores.max()  # numerical stability
+        ws = np.exp(scores)
+        total = float(ws.sum())
+        if total <= 0:
+            return [1.0 / len(legal)] * len(legal)
+        return (ws / total).tolist()
+
+    return prior
+
+
 def stockfish_shallow_prior(
     *,
     path: str = "stockfish",
