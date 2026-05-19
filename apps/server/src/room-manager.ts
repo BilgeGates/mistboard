@@ -6,6 +6,7 @@ import {
   clockRemainingMs,
   createClock,
   expireClock,
+  isGameEndReason,
   replayGameEvents,
   variantForId,
   type Color,
@@ -262,8 +263,10 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
     : status.winner === 'black' ? 'black-wins'
     : 'draw';
 
-  // status.reason is loosely typed as string in @mistboard/game; narrow here.
-  const termination = status.reason as GameSummary['termination'];
+  if (!isGameEndReason(status.reason)) {
+    throw new Error(`unknown finished-game reason: ${String(status.reason)}`);
+  }
+  const termination: GameSummary['termination'] = status.reason;
 
   const moveEvents = room.events.filter((e) => e.type === 'move-played');
   const firstAt = room.events[0]?.at ?? Date.now();

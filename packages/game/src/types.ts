@@ -35,10 +35,29 @@ export type ClockState = {
   runningSince: number | null;
 };
 
+export type GameEndReason =
+  | 'checkmate'
+  | 'draw'
+  | 'king-captured'
+  | 'timeout'
+  | 'resignation';
+
+export const gameEndReasons: readonly GameEndReason[] = [
+  'checkmate',
+  'draw',
+  'king-captured',
+  'timeout',
+  'resignation',
+] as const;
+
+export function isGameEndReason(value: unknown): value is GameEndReason {
+  return typeof value === 'string' && (gameEndReasons as readonly string[]).includes(value);
+}
+
 export type GameStatus =
   | { type: 'pregame' }
   | { type: 'playing'; turn: Color }
-  | { type: 'finished'; winner: Color | null; reason: string };
+  | { type: 'finished'; winner: Color | null; reason: GameEndReason };
 
 export type GameState = {
   id: string;

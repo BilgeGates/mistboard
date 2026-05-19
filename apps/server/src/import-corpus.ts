@@ -14,7 +14,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import pg from 'pg';
-import { replayGameEvents, type GameEvent } from '@mistboard/game';
+import { isGameEndReason, replayGameEvents, type GameEvent } from '@mistboard/game';
 import { runMigrations } from './migrate.js';
 import {
   appendEvent,
@@ -79,7 +79,10 @@ async function importFile(filePath: string, corpusId: string, whiteName: string,
   const result: GameSummary['result'] = status.winner === 'white' ? 'white-wins'
     : status.winner === 'black' ? 'black-wins'
     : 'draw';
-  const termination = status.reason as GameSummary['termination'];
+  if (!isGameEndReason(status.reason)) {
+    throw new Error(`unknown finished-game reason: ${String(status.reason)}`);
+  }
+  const termination: GameSummary['termination'] = status.reason;
   const now = new Date();
 
   const summary: GameSummary = {
