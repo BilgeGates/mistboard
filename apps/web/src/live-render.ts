@@ -968,7 +968,8 @@ export function renderClocks(view: PlayerView | null): void {
       toMove.textContent = ' to move';
       label.append(toMove);
     }
-    time.textContent = formatClock(clockRemainingMs(view.clock, color, displayAt));
+    const remainingMs = clockRemainingMs(view.clock, color, displayAt);
+    time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
     row.className = isActive ? 'active' : '';
     row.append(label, time);
     refs.clocks.append(row);

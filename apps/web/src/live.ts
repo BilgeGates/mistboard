@@ -101,7 +101,7 @@ window.setInterval(() => {
 window.setInterval(() => {
   const view = currentView();
   if (view?.clock) renderClocks(view);
-}, 250);
+}, 100);
 
 window.__MISTBOARD_DEBUG__ = () => ({
   bids: liveState.bids,
