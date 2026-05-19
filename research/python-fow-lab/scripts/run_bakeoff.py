@@ -54,7 +54,7 @@ def _make_prior(name: str, weights: str | None):
     raise ValueError(f"unsupported prior: {name}")
 
 
-def _make_strategy(builder, prior, seed: int) -> Tier1Strategy:
+def _make_strategy(builder, prior, seed: int, capture_belief: bool = False) -> Tier1Strategy:
     return Tier1Strategy(
         evaluator_builder=builder,
         move_prior=prior,
@@ -62,6 +62,7 @@ def _make_strategy(builder, prior, seed: int) -> Tier1Strategy:
         max_eval_particles=16,
         seed=seed,
         mcts_rollouts=0,
+        verbose_belief_capture=capture_belief,
     )
 
 
@@ -85,6 +86,11 @@ def main() -> int:
     ap.add_argument("--challenger-prior-weights", type=str, default=None)
     ap.add_argument("--baseline-prior", choices=["uniform", "learned"], required=True)
     ap.add_argument("--baseline-prior-weights", type=str, default=None)
+    ap.add_argument(
+        "--belief-dump-dir", type=str, default=None,
+        help="if set, both strategies run with verbose_belief_capture=True and the challenger's "
+             "trace_log + belief_log are dumped to <dir>/{trace,belief}-g{idx}.jsonl"
+    )
     args = ap.parse_args()
 
     from fow_chess.lab.postgres_store import LabCorpusStore
@@ -110,8 +116,9 @@ def main() -> int:
             seed_c = args.seed + i * 7919
             seed_b = args.seed + i * 7919 + 1
 
-            chall_strat = _make_strategy(builder, challenger_prior, seed_c)
-            base_strat = _make_strategy(builder, baseline_prior, seed_b)
+            cap = args.belief_dump_dir is not None
+            chall_strat = _make_strategy(builder, challenger_prior, seed_c, capture_belief=cap)
+            base_strat = _make_strategy(builder, baseline_prior, seed_b, capture_belief=cap)
 
             if not color_swap:
                 white, black = chall_strat, base_strat
@@ -153,6 +160,19 @@ def main() -> int:
                 "events": result.events,
             }
             store.insert_game(corpus_idx=i, game_id=data["game_id"], data=data)
+
+            if args.belief_dump_dir is not None:
+                from pathlib import Path as _P
+                ddir = _P(args.belief_dump_dir)
+                ddir.mkdir(parents=True, exist_ok=True)
+                chall_side = "black" if color_swap else "white"
+                tag = {"game_index": i, "tier1_side": chall_side, "tier1_seat": chall_side}
+                with (ddir / f"trace-g{i:04d}.jsonl").open("w") as ft:
+                    for row in chall_strat.trace_log:
+                        ft.write(json.dumps({**tag, **row}) + "\n")
+                with (ddir / f"belief-g{i:04d}.jsonl").open("w") as fb:
+                    for row in chall_strat.belief_log:
+                        fb.write(json.dumps({**tag, **row}) + "\n")
             print(
                 f"  g{i:04d} {'chall=B' if color_swap else 'chall=W'} "
                 f"winner={result.winner or 'none':<5} plies={result.plies:>3} "
