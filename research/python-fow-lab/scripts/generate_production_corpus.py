@@ -235,12 +235,20 @@ def _run_postgres(args) -> int:
     prior = uniform_prior
 
     with LabCorpusStore(corpus_id=args.out_postgres) as store:
-        start = store.next_corpus_idx()
-        target = start + args.games
-        print(
-            f"corpus={args.out_postgres} resume_from={start} target={target} "
-            f"({args.games} new games, base_seed={args.seed})"
-        )
+        if args.start_index is not None:
+            start = args.start_index
+            target = start + args.games
+            print(
+                f"corpus={args.out_postgres} explicit_start={start} target={target} "
+                f"({args.games} new games, base_seed={args.seed})"
+            )
+        else:
+            start = store.next_corpus_idx()
+            target = start + args.games
+            print(
+                f"corpus={args.out_postgres} resume_from={start} target={target} "
+                f"({args.games} new games, base_seed={args.seed})"
+            )
 
         winners = {"white": 0, "black": 0, "none": 0}
         n_positions = 0
@@ -276,6 +284,11 @@ def main() -> int:
     ap.add_argument("--games", type=int, default=30)
     ap.add_argument("--max-plies", type=int, default=200)
     ap.add_argument("--seed", type=int, default=3030)
+    ap.add_argument(
+        "--start-index", type=int, default=None,
+        help="explicit corpus_idx to start writing at (Postgres mode only); "
+             "lets parallel workers claim disjoint ranges. Default: resume from MAX+1.",
+    )
 
     out_group = ap.add_mutually_exclusive_group(required=True)
     out_group.add_argument(
