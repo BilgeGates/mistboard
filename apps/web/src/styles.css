@@ -569,12 +569,17 @@ button:focus-visible {
 .belief-mini-board cg-board,
 .stepper-board cg-board {
   background-color: var(--board-light);
+  /* Conic-gradient tile produces a 2x2 checker. The 2x2 tile is laid out as
+     [TL=light, TR=dark; BL=dark, BR=light] so that a1 (chess: dark) lands on
+     a dark cell in both orientations. The inverse tile (the one this CSS
+     used to ship) put a1 on a light cell, which only became obvious in
+     orientation-black views with white pieces at the top. */
   background-image:
     conic-gradient(
-      var(--board-light) 25%,
-      var(--board-dark) 0 50%,
-      var(--board-light) 0 75%,
-      var(--board-dark) 0
+      var(--board-dark) 25%,
+      var(--board-light) 0 50%,
+      var(--board-dark) 0 75%,
+      var(--board-light) 0
     );
   background-size: 25% 25%;
 }
