@@ -10,6 +10,7 @@ import {
 import {
   appendEvent,
   broadcastSnapshot,
+  buildGameSummary,
   expireActiveClock,
   playMove,
   resolveStartIfReady,
@@ -337,4 +338,43 @@ test('seat assignment: third connection is spectator (no seat left)', async () =
   // The projection confirms no empty seat remains.
   assert.ok(room.projection.seats.white !== undefined, 'white should be filled');
   assert.ok(room.projection.seats.black !== undefined, 'black should be filled');
+});
+
+// ── buildGameSummary: rated policy ────────────────────────────────────────────
+
+test('buildGameSummary: engine seat forces rated=false even when room.rated=true', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'room-pve', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: 'room-pve', clientId: 'builtin-random-legal', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: 'room-pve', clientId: 'human-c', seat: 'black' },
+    { type: 'seat-resigned', at: 4, roomId: 'room-pve', color: 'black' },
+  ];
+  const room = makeRoom('room-pve', 'fog-of-war', events);
+  room.mode = 'pve';
+  room.rated = true;
+  const ctx = makeCtx();
+
+  const summary = buildGameSummary(ctx, room);
+
+  assert.equal(summary.rated, false, 'engine participant must force casual');
+  assert.equal(summary.termination, 'resignation');
+  assert.equal(summary.participants?.[0]?.subjectType, 'engine-version');
+});
+
+test('buildGameSummary: two human seats preserve rated=true', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'room-pvp', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: 'room-pvp', clientId: 'human-w', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: 'room-pvp', clientId: 'human-b', seat: 'black' },
+    { type: 'seat-resigned', at: 4, roomId: 'room-pvp', color: 'white' },
+  ];
+  const room = makeRoom('room-pvp', 'fog-of-war', events);
+  room.rated = true;
+  const ctx = makeCtx();
+
+  const summary = buildGameSummary(ctx, room);
+
+  assert.equal(summary.rated, true);
+  assert.equal(summary.participants?.[0]?.subjectType, 'guest');
+  assert.equal(summary.participants?.[1]?.subjectType, 'guest');
 });

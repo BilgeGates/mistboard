@@ -274,7 +274,8 @@ export async function handleApiRequest(
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
     const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-    const rated = body.rated === false ? false : true;
+    // Engine games are never rated — rated play is human-vs-human only.
+    const rated = mode === 'pve' ? false : (body.rated === false ? false : true);
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_mode' }));

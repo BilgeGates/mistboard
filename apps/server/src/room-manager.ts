@@ -272,6 +272,13 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
   const firstAt = room.events[0]?.at ?? Date.now();
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
 
+  const participants = [
+    participantForSeatToken('white', room.projection.seats.white ?? null, room.seatTokens.white, room.mode, ctx.pveBuiltinEngineClientId),
+    participantForSeatToken('black', room.projection.seats.black ?? null, room.seatTokens.black, room.mode, ctx.pveBuiltinEngineClientId),
+  ];
+  // Rated play is human-vs-human only. Any engine seat forces casual.
+  const rated = room.rated && !participants.some((p) => p.subjectType === 'engine-version');
+
   return {
     variant: room.projection.variant,
     mode: room.mode,
@@ -285,14 +292,11 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
     whiteName: null,
     blackName: null,
     corpusId: null,
-    rated: room.rated,
+    rated,
     initialMs: room.timeControl?.initialMs ?? null,
     incrementMs: room.timeControl?.incrementMs ?? null,
     hiddenDraft960: room.hiddenDraft960,
-    participants: [
-      participantForSeatToken('white', room.projection.seats.white ?? null, room.seatTokens.white, room.mode, ctx.pveBuiltinEngineClientId),
-      participantForSeatToken('black', room.projection.seats.black ?? null, room.seatTokens.black, room.mode, ctx.pveBuiltinEngineClientId),
-    ],
+    participants,
   };
 }
 
