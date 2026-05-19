@@ -684,6 +684,26 @@ function oppositeColor(color: Color): Color {
 }
 
 // ── SECTION: Variant registry ───────────────────────────────────────────────
+// Detects the piece role (if any) that a move captures from the perspective of the
+// pre-move state. Returns undefined for non-capturing moves and for castling (the
+// piece on move.to is the mover's own rook). Handles en-passant for pawn moves.
+export function capturedRoleFor(state: GameState, move: Move): PieceRole | undefined {
+  if (state.status.type !== 'playing') return undefined;
+  const moving = state.board[move.from];
+  if (!moving || moving.color !== state.status.turn) return undefined;
+  const target = state.board[move.to];
+  if (target && target.color !== moving.color) return target.role;
+  if (
+    moving.role === 'pawn'
+    && !target
+    && move.to === state.enPassantSquare
+    && move.from[0] !== move.to[0]
+  ) {
+    return 'pawn';
+  }
+  return undefined;
+}
+
 export function variantForId(id: GameState['variant']): Variant {
   if (id === 'bid-for-white') return bidForWhiteVariant;
   if (id === 'fog-of-war') return fogOfWarVariant;

@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto';
 import {
   advanceClock,
   type Chess960Start,
+  capturedRoleFor,
   clockRemainingMs,
   createClock,
   expireClock,
@@ -535,6 +536,7 @@ export async function playMove(ctx: RoomManagerContext, room: Room, client: Clie
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, requestedMove);
   if (nextState === room.projection.state) return;
   const nextClock = advanceClock(room.projection.state.clock, now, moveColor, nextState.status);
+  const captured = capturedRoleFor(room.projection.state, nextState.lastMove ?? requestedMove);
 
   await appendEvent(ctx, room, {
     type: 'move-played',
@@ -543,6 +545,7 @@ export async function playMove(ctx: RoomManagerContext, room: Room, client: Clie
     clock: nextClock,
     color: moveColor,
     move: nextState.lastMove ?? requestedMove,
+    ...(captured ? { capturedRole: captured } : {}),
   });
   broadcastSnapshot(ctx, room);
   scheduleRandomEngineMove(ctx, room);
@@ -686,6 +689,7 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
   if (nextState === room.projection.state) return;
   const nextClock = advanceClock(room.projection.state.clock, decisionAt, 'black', nextState.status);
+  const captured = capturedRoleFor(room.projection.state, nextState.lastMove ?? move);
   await appendEvent(ctx, room, {
     type: 'move-played',
     at: decisionAt,
@@ -694,6 +698,7 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
     color: 'black',
     move,
     thinkTimeMs: engineThinkTimeMs,
+    ...(captured ? { capturedRole: captured } : {}),
   });
   await recordLiveEngineDecisionArtifact(room, {
     contextPly: context.ply,

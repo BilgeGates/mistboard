@@ -53,6 +53,7 @@ export type LiveRefs = {
   bidControls: HTMLDivElement;
   bidSection: HTMLElement;
   bidStatus: HTMLDivElement;
+  captures: HTMLDivElement;
   clocks: HTMLDivElement;
   devViews: HTMLDivElement;
   devViewsSection: HTMLElement;

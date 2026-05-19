@@ -6,7 +6,7 @@ import {
   type Chess960Start,
 } from './chess960.js';
 import { advanceClock, createClock, expireClock } from './clocks.js';
-import type { ClockState, Color, GameState, Move, VariantId } from './types.js';
+import type { ClockState, Color, GameState, Move, PieceRole, VariantId } from './types.js';
 import { variantForId } from './variants.js';
 
 export type RoomTimeControl = {
@@ -91,6 +91,7 @@ export type GameEvent =
     roomId: string;
     color: Color;
     move: Move;
+    capturedRole?: PieceRole;
     clock?: ClockState;
     thinkTimeMs?: number;
   }

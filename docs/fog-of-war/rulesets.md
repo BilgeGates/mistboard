@@ -29,6 +29,7 @@ Status: implemented.
 - Threefold repetition is enforced automatically as a draw.
 - Repetition identity is based on true board placement, side to move, castling rights, and en-passant square. Clocks, move number, halfmove clock, and visibility state are not part of repetition identity.
 - Draws are currently persisted as generic `draw` termination; we do not yet distinguish `fifty-move-rule` from `threefold-repetition` in the database.
+- Each player sees a running tally of opponent pieces they have personally captured. No other material information is revealed: surviving opponent material, opponent's own captures, and pieces lost in the fog are not surfaced. The tally is a UI memory aid for facts the player already witnessed at the moment of capture.
 
 Known subtle rule-risk areas are tracked in
 [`rules-edge-cases.md`](./rules-edge-cases.md). Treat that document as part of

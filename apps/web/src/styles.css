@@ -513,6 +513,52 @@ button:focus-visible {
   box-shadow: 0 0 0 3px var(--site-focus), 0 18px 46px rgba(29, 37, 34, 0.2);
 }
 
+.captures-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 26px;
+  padding: 4px 2px 0;
+}
+
+.captures-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  line-height: 0;
+}
+
+/* Reuse chessground's cburnett piece sprites by wrapping each glyph in a
+   .cg-wrap container, then override chessground's absolute board-square layout
+   so the piece fills our 22px inline cell instead. */
+.captures-piece {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  margin-left: -6px;
+  position: relative;
+  vertical-align: middle;
+}
+
+.captures-piece:first-child {
+  margin-left: 0;
+}
+
+.captures-piece piece {
+  display: block !important;
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  will-change: auto !important;
+  pointer-events: none;
+}
+
 .board cg-board {
   border-radius: 0;
 }
@@ -2338,7 +2384,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-board-column #landing-replay {
   width: 100%;
-  max-width: 640px;
+  max-width: 560px;
 }
 
 .landing-hero-tagline {

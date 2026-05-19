@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import {
+  capturedRoleFor,
   clockRemainingMs,
   expireClock,
   replayGameEvents,
@@ -159,12 +160,14 @@ export async function runRandomLegalEngineGame(
       });
       return { gameId, plyCount: ply, status: 'completed' };
     }
+    const captured = capturedRoleFor(projection.state, move);
     const event: GameEvent = {
       type: 'move-played',
       at: eventAt,
       roomId: gameId,
       color,
       move,
+      ...(captured ? { capturedRole: captured } : {}),
       ...(decision.thinkTimeMs !== undefined ? { thinkTimeMs } : {}),
     };
     await appendEvent(pool, gameId, events.length, event);

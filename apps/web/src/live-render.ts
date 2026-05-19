@@ -36,6 +36,7 @@ import {
 } from './live-state.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { classifyTimeControl, track } from './analytics.js';
+import { computeCaptures, sortCaptureRoles, type CaptureTally } from './captures.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -172,6 +173,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
           <div class="board-shell">
             <div data-board-status class="board-status">Connecting</div>
             <div data-board class="board" aria-label="chess board"></div>
+            <div data-captures class="captures-strip" aria-label="Pieces captured"></div>
             <div data-board-result class="board-result" hidden></div>
             <div data-draft-picker class="draft-picker" hidden></div>
             <div data-promotion class="promotion-picker" hidden></div>
@@ -208,6 +210,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
   const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
   const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
+  const captures = target.querySelector<HTMLDivElement>('[data-captures]');
   const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');
   const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
   const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
@@ -228,7 +231,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
   const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
+  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
     throw new Error('missing app region');
   }
 
@@ -243,6 +246,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
     bidControls,
     bidSection,
     bidStatus,
+    captures,
     clocks,
     devViews: devViewsPanel,
     devViewsSection,
@@ -317,6 +321,7 @@ export function render(): void {
   renderActionStatus(view);
   renderGameInfo(view);
   renderClocks(view);
+  renderCaptures(view);
   renderRoomActions();
   renderGameControls(view);
   renderDevViews();
@@ -794,14 +799,20 @@ function renderDevViews(): void {
   refs.devViewsSection.hidden = views === null;
   if (!views) return;
 
+  const tally = currentCaptures();
   refs.devViews.append(
-    devViewCard('Player view', views.player),
-    devViewCard(`${capitalize(views.opponent)} view`, views.opponentView),
-    devViewCard('True view', views.truth),
+    devViewCard('Player view', views.player, tally, [views.player.perspective]),
+    devViewCard(`${capitalize(views.opponent)} view`, views.opponentView, tally, [views.opponent]),
+    devViewCard('True view', views.truth, tally, ['white', 'black']),
   );
 }
 
-function devViewCard(label: string, view: PlayerView): HTMLDivElement {
+function devViewCard(
+  label: string,
+  view: PlayerView,
+  tally: CaptureTally,
+  capturingColors: Color[],
+): HTMLDivElement {
   const card = document.createElement('div');
   card.className = 'dev-view-card';
 
@@ -834,7 +845,19 @@ function devViewCard(label: string, view: PlayerView): HTMLDivElement {
     }
   }
 
-  card.append(title, meta, board);
+  const captures = document.createElement('div');
+  captures.className = 'dev-captures captures-strip';
+  for (const color of capturingColors) {
+    if (tally[color].length === 0) continue;
+    const row = document.createElement('div');
+    row.className = 'captures-row';
+    for (const role of sortCaptureRoles(tally[color])) {
+      row.append(capturePieceEl(role, oppositeColor(color)));
+    }
+    captures.append(row);
+  }
+
+  card.append(title, meta, board, captures);
   return card;
 }
 
@@ -950,6 +973,65 @@ export function renderClocks(view: PlayerView | null): void {
     row.append(label, time);
     refs.clocks.append(row);
   }
+}
+
+// ── Captures strip ────────────────────────────────────────────────────────────
+//
+// Renders pieces the viewer has personally captured. For a seated player, that's
+// their own color only — fog-filtered events naturally exclude the opponent's
+// captures, and the rule (see rulesets.md) is that no other material is revealed.
+// Spectators with access to the canonical event stream (postgame reveal) see both
+// sides, grouped by capturing color.
+function renderCaptures(view: PlayerView | null): void {
+  refs.captures.replaceChildren();
+  refs.captures.classList.toggle('has-captures', false);
+  if (!view) return;
+
+  const tally = currentCaptures();
+  const seat = liveState.seat;
+
+  const renderRow = (capturedRoles: PieceRole[], capturedColor: Color): HTMLDivElement | null => {
+    if (capturedRoles.length === 0) return null;
+    const row = document.createElement('div');
+    row.className = 'captures-row';
+    for (const role of sortCaptureRoles(capturedRoles)) {
+      row.append(capturePieceEl(role, capturedColor));
+    }
+    return row;
+  };
+
+  // Seated player: show only their own captures (the opponent pieces they took).
+  // Spectator/canonical view: show both sides.
+  let any = false;
+  if (isColor(seat)) {
+    const row = renderRow(tally[seat], oppositeColor(seat));
+    if (row) {
+      refs.captures.append(row);
+      any = true;
+    }
+  } else {
+    for (const color of ['white', 'black'] as Color[]) {
+      const row = renderRow(tally[color], oppositeColor(color));
+      if (row) {
+        refs.captures.append(row);
+        any = true;
+      }
+    }
+  }
+  refs.captures.classList.toggle('has-captures', any);
+}
+
+// Builds a chessground-styled piece sprite for the capture strip. The outer span
+// carries the cg-wrap class so chessground.cburnett.css applies its background-image
+// rules; the inner <piece> element matches the .role.color selector chessground uses.
+function capturePieceEl(role: PieceRole, color: Color): HTMLSpanElement {
+  const wrap = document.createElement('span');
+  wrap.className = `captures-piece cg-wrap`;
+  wrap.setAttribute('aria-label', `${color} ${role}`);
+  const piece = document.createElement('piece');
+  piece.className = `${color} ${role}`;
+  wrap.append(piece);
+  return wrap;
 }
 
 function presenceDot(connected: boolean): HTMLSpanElement {
@@ -1208,6 +1290,20 @@ function sendBoardMove(from: cg.Key, to: cg.Key): void {
 function submitBoardMove(move: Move, view: PlayerView | null): void {
   if (!sendSocket({ type: 'move', ...move })) return;
   sound.play(soundForOwnMove(view, move));
+}
+
+// Dev-only hook for browser-driven verification (synthetic chessground events
+// are rejected because trustAllEvents is off). Remove or wall behind a stricter
+// guard before flipping production builds.
+if (import.meta.env.DEV) {
+  (window as unknown as { __mbDev?: object }).__mbDev = {
+    move: (from: Square, to: Square, promotion?: PromotionRole) =>
+      submitBoardMove({ from, to, ...(promotion ? { promotion } : {}) }, currentView()),
+    view: () => currentView(),
+    captures: () => currentCaptures(),
+    events: () => liveState.events,
+    render: () => render(),
+  };
 }
 
 function bestMove(from: Square, to: Square) {
@@ -1729,6 +1825,17 @@ function latestReplayHistoryIndexAtOrBefore(currentIndex: number, history: numbe
 // ── View / projection helpers ─────────────────────────────────────────────────
 
 export function currentProjection(): GameProjection | null {
+  const slice = currentEventsSlice();
+  return slice ? replayGameEvents(slice) : null;
+}
+
+export function currentCaptures(): CaptureTally {
+  const slice = currentEventsSlice();
+  if (!slice) return { white: [], black: [] };
+  return computeCaptures(slice);
+}
+
+function currentEventsSlice(): GameEvent[] | null {
   // For revealed postgame (fog off), use canonical events fetched from the API so the full
   // board state is available. Fog-filtered liveState.events omit opponent moves and produce
   // broken projections (moveNumber stays 1, wrong board positions).
@@ -1739,7 +1846,7 @@ export function currentProjection(): GameProjection | null {
   const sliceAt = (fogViewHistory.size > 0 && liveState.state?.variant === 'fog-of-war')
     ? (isLive() ? events.length : (fogSnapshotToEventsLen.get(currentReplayIndex()) ?? events.length))
     : currentReplayIndex();
-  return replayGameEvents(events.slice(0, sliceAt));
+  return events.slice(0, sliceAt);
 }
 
 export function currentView(): PlayerView | null {
