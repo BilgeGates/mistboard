@@ -71,6 +71,8 @@ export interface HttpApiContext {
     options?: { randomSeating?: boolean },
   ): Promise<Room>;
   inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null;
+  isDraining(): boolean;
+  drainDeadlineMs(): number | null;
 }
 
 // ── Exported pure parse helpers (also used by WebSocket handler) ───────────
@@ -296,6 +298,11 @@ export async function handleApiRequest(
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
       return;
     }
+    if (ctx.isDraining()) {
+      response.writeHead(503, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'server_draining', restartAt: ctx.drainDeadlineMs() }));
+      return;
+    }
     const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined, rated);
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
@@ -325,6 +332,11 @@ export async function handleApiRequest(
     if (ctx.databaseRequired && !persistence.isInitialized()) {
       response.writeHead(503, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
+      return;
+    }
+    if (ctx.isDraining()) {
+      response.writeHead(503, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'server_draining', restartAt: ctx.drainDeadlineMs() }));
       return;
     }
     const ticket = await joinLobby(ctx, hiddenDraft960, timeControl ?? undefined, lobbyRated);
@@ -785,7 +797,7 @@ async function handleAnnotationsApi(
   writeJson(response, 405, { error: 'method_not_allowed' });
 }
 
-async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+export async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let total = 0;
   for await (const chunk of request) {

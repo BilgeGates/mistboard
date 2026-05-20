@@ -686,6 +686,53 @@ button:focus-visible {
   display: none;
 }
 
+/* ── Paused-game overlay ─────────────────────────────────────────────────── */
+.board-paused {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 29, 25, 0.32);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.board-paused[hidden] {
+  display: none;
+}
+
+.board-paused__badge {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 16px 28px;
+  border-radius: 12px;
+  border: 1px solid rgba(20, 29, 25, 0.18);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 48px rgba(20, 29, 25, 0.24);
+  text-align: center;
+  max-width: 80%;
+}
+
+.board-paused__badge strong {
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: 0.3px;
+  color: #123f32;
+}
+
+.board-paused__badge span {
+  font-size: 12px;
+  color: #4a665b;
+}
+
+.board.cg-wrap.paused-board {
+  filter: grayscale(0.35);
+}
+
 .board-result[data-outcome='win'] .board-result__badge {
   background: linear-gradient(160deg, #e8f9ee 0%, #c4f0d2 100%);
   border-color: rgba(31, 111, 91, 0.4);

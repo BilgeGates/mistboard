@@ -175,6 +175,12 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
             <div data-board class="board" aria-label="chess board"></div>
             <div data-captures class="captures-strip" aria-label="Pieces captured"></div>
             <div data-board-result class="board-result" hidden></div>
+            <div data-board-paused class="board-paused" hidden role="status" aria-live="polite">
+              <div class="board-paused__badge">
+                <strong>Game paused</strong>
+                <span>Server is restarting — your game will resume shortly</span>
+              </div>
+            </div>
             <div data-draft-picker class="draft-picker" hidden></div>
             <div data-promotion class="promotion-picker" hidden></div>
           </div>
@@ -206,6 +212,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const newRoom = target.querySelector<HTMLAnchorElement>('[data-new-room]');
   const roomMeta = target.querySelector<HTMLParagraphElement>('[data-room-meta]');
   const board = target.querySelector<HTMLDivElement>('[data-board]');
+  const boardPaused = target.querySelector<HTMLDivElement>('[data-board-paused]');
   const boardResult = target.querySelector<HTMLDivElement>('[data-board-result]');
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
   const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
@@ -231,7 +238,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
   const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!newRoom || !roomMeta || !board || !boardResult || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
+  if (!newRoom || !roomMeta || !board || !boardPaused || !boardResult || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
     throw new Error('missing app region');
   }
 
@@ -239,6 +246,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
 
   return {
     board,
+    boardPaused,
     boardResult,
     boardStatus,
     draftPicker,
@@ -1048,13 +1056,17 @@ function presenceDot(connected: boolean): HTMLSpanElement {
 function renderBoard(view: PlayerView | null): void {
   const moveColor = activeMoveColor();
   const ownSeat = isColor(liveState.seat) ? liveState.seat : null;
+  const paused = liveState.paused === true && view?.status.type === 'playing';
   const canInteractWithOwnPieces = isLive()
     && view?.status.type === 'playing'
+    && !paused
     && (liveState.solo || ownSeat !== null)
     && pendingPromotion === null;
   const boardIsLive = canInteractWithOwnPieces && moveColor !== null;
   const movableColor = boardIsLive ? moveColor : ownSeat;
   refs.board.classList.toggle('finished-board', view?.status.type === 'finished');
+  refs.board.classList.toggle('paused-board', paused);
+  renderPausedOverlay(paused);
   const config = {
     animation: { enabled: true, duration: 140 },
     autoCastle: true,
@@ -1153,6 +1165,10 @@ function shouldTwoPhaseAnimate(view: PlayerView | null): boolean {
 function maybePlayPremove(): void {
   if (!ground || activeMoveColor() === null || pendingPromotion !== null) return;
   ground.playPremove();
+}
+
+function renderPausedOverlay(paused: boolean): void {
+  refs.boardPaused.hidden = !paused;
 }
 
 function renderBoardResult(view: PlayerView | null): void {

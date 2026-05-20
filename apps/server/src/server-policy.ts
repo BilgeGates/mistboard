@@ -8,6 +8,7 @@ type RuntimeEnvKey =
   | 'MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE'
   | 'MISTBOARD_ALLOWED_ORIGINS'
   | 'MISTBOARD_ABORT_POLICY_SWEEP_MS'
+  | 'MISTBOARD_DRAIN_TOKEN'
   | 'MISTBOARD_GUEST_PRESTART_ABORT_MS'
   | 'MISTBOARD_REQUIRE_DATABASE'
   | 'NODE_ENV'
@@ -122,6 +123,17 @@ function tokenFromProtocolHeader(value: string | string[] | undefined, prefix: s
 
 export function isAdminDebugToken(candidate: string | undefined, env: RuntimeEnv = process.env): boolean {
   const expected = env.MISTBOARD_ADMIN_DEBUG_TOKEN;
+  if (!expected || !candidate) return false;
+  const left = Buffer.from(candidate);
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+// Drain-token check. Uses a SEPARATE env var from the debug token so a leak in
+// either secret doesn't escalate. Constant-time compare. See
+// docs/server-restart-pause-resume.md (Security & hardening).
+export function isDrainToken(candidate: string | undefined, env: RuntimeEnv = process.env): boolean {
+  const expected = env.MISTBOARD_DRAIN_TOKEN;
   if (!expected || !candidate) return false;
   const left = Buffer.from(candidate);
   const right = Buffer.from(expected);

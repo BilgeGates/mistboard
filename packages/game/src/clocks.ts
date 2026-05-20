@@ -52,6 +52,31 @@ export function expireClock(clock: ClockState | undefined, at: number, color: Co
   };
 }
 
+export function freezeClock(clock: ClockState | undefined, at: number): ClockState | undefined {
+  if (!clock) return clock;
+  if (clock.activeColor === null && clock.runningSince === null) return clock;
+  const active = clock.activeColor;
+  const remainingMs = { ...clock.remainingMs };
+  if (active) {
+    remainingMs[active] = Math.max(0, clockRemainingMs(clock, active, at));
+  }
+  return {
+    ...clock,
+    activeColor: null,
+    remainingMs,
+    runningSince: null,
+  };
+}
+
+export function unfreezeClock(clock: ClockState | undefined, at: number, turn: Color): ClockState | undefined {
+  if (!clock) return clock;
+  return {
+    ...clock,
+    activeColor: turn,
+    runningSince: at,
+  };
+}
+
 export function clockRemainingMs(clock: ClockState, color: Color, at: number): number {
   const remaining = clock.remainingMs[color];
   if (clock.activeColor !== color || clock.runningSince === null) return remaining;

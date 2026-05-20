@@ -52,6 +52,9 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
     bidResolution: null,
     resolvedStartId: null,
     resolvedStartIds: {},
+    paused: false,
+    pausedAt: null,
+    pauseReason: null,
   };
   const room: SnapshotRoom = {
     id: 'fog-payload',
@@ -439,6 +442,9 @@ function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.
     bidResolution: null,
     resolvedStartId: null,
     resolvedStartIds: {},
+    paused: false,
+    pausedAt: null,
+    pauseReason: null,
   };
   return {
     id: 'fog-payload',
@@ -493,6 +499,9 @@ function lastMoveRoomFixture(): SnapshotRoom {
       bidResolution: null,
       resolvedStartId: null,
       resolvedStartIds: {},
+    paused: false,
+    pausedAt: null,
+    pauseReason: null,
     },
   };
 }
@@ -594,6 +603,9 @@ function bidRoomFixture({ status }: { status: ReturnType<typeof bidForWhiteVaria
       },
     resolvedStartId: null,
     resolvedStartIds: {},
+    paused: false,
+    pausedAt: null,
+    pauseReason: null,
   };
   return {
     id: 'bid-payload',

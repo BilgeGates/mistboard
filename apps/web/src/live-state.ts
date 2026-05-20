@@ -46,6 +46,7 @@ export type StoredSeatToken = {
 
 export type LiveRefs = {
   board: HTMLDivElement;
+  boardPaused: HTMLDivElement;
   boardResult: HTMLDivElement;
   boardStatus: HTMLDivElement;
   draftPicker: HTMLDivElement;
@@ -99,6 +100,7 @@ export const liveState = {
   lastSnapshotAt: null as number | null,
   roomMode: 'pvp' as RoomMode,
   rated: true,
+  paused: false,
   pveEngineId: null as string | null,
   pveEngineName: null as string | null,
   seatDisplayNames: {} as Partial<Record<Color, string>>,

@@ -40,6 +40,7 @@ type ServerMessage =
     events: GameEvent[];
     state: PlayerView;
     rated?: boolean;
+    paused?: boolean;
     connectedSeats?: { white: boolean; black: boolean };
     rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
     seatDisplayNames?: Partial<Record<Color, string>>;
@@ -66,6 +67,7 @@ type ServerMessage =
     events: GameEvent[];
     state: PlayerView;
     rated?: boolean;
+    paused?: boolean;
     connectedSeats?: { white: boolean; black: boolean };
     rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
     seatDisplayNames?: Partial<Record<Color, string>>;
@@ -201,6 +203,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.resolvedStartId = message.resolvedStartId;
     liveState.resolvedStartIds = message.resolvedStartIds ?? {};
     liveState.rated = message.rated ?? true;
+    liveState.paused = message.paused ?? false;
     liveState.events = message.events;
     liveState.state = message.state;
     if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
@@ -225,6 +228,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.resolvedStartId = message.resolvedStartId;
     liveState.resolvedStartIds = message.resolvedStartIds ?? {};
     liveState.rated = message.rated ?? true;
+    liveState.paused = message.paused ?? false;
     liveState.events = message.events;
     liveState.state = message.state;
     if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;

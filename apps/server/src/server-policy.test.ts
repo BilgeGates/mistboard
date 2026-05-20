@@ -9,6 +9,7 @@ import {
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
   isDatabaseRequired,
+  isDrainToken,
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
   type RuntimeEnv,
@@ -116,6 +117,18 @@ test('admin debug token is required and constant-length checked', () => {
   assert.equal(isAdminDebugToken('wrong', env), false);
   assert.equal(isAdminDebugToken('secret-admin-token', env), true);
   assert.equal(isAdminDebugToken('secret-admin-token', {}), false);
+});
+
+test('drain token is separate from debug token and constant-length checked', () => {
+  const env: RuntimeEnv = { MISTBOARD_DRAIN_TOKEN: 'secret-drain-token' };
+
+  assert.equal(isDrainToken(undefined, env), false);
+  assert.equal(isDrainToken('wrong', env), false);
+  assert.equal(isDrainToken('secret-drain-token', env), true);
+  assert.equal(isDrainToken('secret-drain-token', {}), false);
+  // Debug token must NOT validate as drain token, even with same value.
+  const mixed: RuntimeEnv = { MISTBOARD_ADMIN_DEBUG_TOKEN: 'secret-drain-token' };
+  assert.equal(isDrainToken('secret-drain-token', mixed), false);
 });
 
 test('admin debug token can be read from a websocket subprotocol header', () => {

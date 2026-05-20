@@ -28,6 +28,7 @@ import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
   isAdminDebugToken,
+  isDrainToken,
   isServerEngineClient,
   isAllowedWebSocketOrigin,
   isDatabaseRequired,
@@ -45,19 +46,24 @@ import {
   parseHiddenDraft960,
   parseRoomTimeControl,
   parseVariantId,
+  readJsonBody,
   type HttpApiContext,
 } from './http-api.js';
 import {
   appendEvent,
+  applyOrphanRecoveryIfNeeded,
   broadcastSnapshot,
   buildGameSummary,
   canClientAct,
   offerForColor,
+  pauseRoomOnShutdown,
   PersistenceFailure,
   persistSeatToken,
   playMove,
   resolveBidIfReady,
   resolveStartIfReady,
+  resumeRoom,
+  resumeRoomIfReady,
   roomIdToSeed,
   seatDisplayNamesForRoom,
   seatTokenStatesFromPersistence,
@@ -101,6 +107,39 @@ const wsMaxPayloadBytes = parsePositiveInteger(process.env.MISTBOARD_WS_MAX_PAYL
 const wsMessageLimit = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_LIMIT) ?? 40;
 const wsMessageWindowMs = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_WINDOW_MS) ?? 10_000;
 const shutdownGraceMs = parsePositiveInteger(process.env.MISTBOARD_SHUTDOWN_GRACE_MS) ?? 10_000;
+const pauseGraceMs = parsePositiveInteger(process.env.MISTBOARD_RESUME_GRACE_MS) ?? 90_000;
+const orphanThresholdMs = parsePositiveInteger(process.env.MISTBOARD_ORPHAN_THRESHOLD_MS) ?? 300_000;
+const drainWindowMaxMs = parsePositiveInteger(process.env.MISTBOARD_DRAIN_WINDOW_MAX_MS) ?? 60 * 60 * 1000;
+const drainWindowDefaultMs = parsePositiveInteger(process.env.MISTBOARD_DRAIN_WINDOW_DEFAULT_MS) ?? 15 * 60 * 1000;
+
+// Drain state: when active, matchmaking is blocked and a 'server_restart_scheduled'
+// broadcast is sent to every connected client. Idempotent — re-hitting /admin/drain
+// returns the existing deadline rather than extending it.
+const drainState: { restartAt: number | null } = { restartAt: null };
+function isDraining(): boolean {
+  return drainState.restartAt !== null && drainState.restartAt > Date.now();
+}
+function drainDeadlineMs(): number | null {
+  return isDraining() ? drainState.restartAt : null;
+}
+
+// Per-IP rate limiter for the drain endpoint. 10 req/min/IP — tight cap;
+// /admin/drain is hit by deploy scripts at low frequency, never by users.
+const drainRateBuckets = new Map<string, number[]>();
+const drainRateLimit = 10;
+const drainRateWindowMs = 60_000;
+function drainRateAllowed(ip: string): boolean {
+  const now = Date.now();
+  const bucket = drainRateBuckets.get(ip) ?? [];
+  const fresh = bucket.filter((t) => now - t < drainRateWindowMs);
+  if (fresh.length >= drainRateLimit) {
+    drainRateBuckets.set(ip, fresh);
+    return false;
+  }
+  fresh.push(now);
+  drainRateBuckets.set(ip, fresh);
+  return true;
+}
 const liveClockInitialMs = 180_000;
 const liveClockIncrementMs = 2_000;
 const pveEngineMoveDelayMs = parsePositiveInteger(process.env.MISTBOARD_PVE_ENGINE_DELAY_MS) ?? 650;
@@ -243,9 +282,11 @@ export function installShutdownHandlers(): void {
 // process.exit, so the runner stays alive across tests.
 export async function stopServer(): Promise<void> {
   if (!server || !wss) return;
+  await pauseActiveRoomsOnShutdown();
   for (const room of rooms.values()) {
     if (room.clockTimer) clearTimeout(room.clockTimer);
     if (room.engineTimer) clearTimeout(room.engineTimer);
+    if (room.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
     for (const timer of Object.values(room.pendingVacates)) {
       if (timer) clearTimeout(timer);
     }
@@ -319,6 +360,22 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
+  if (pathname === '/admin/drain' || pathname === '/admin/drain/cancel') {
+    void handleDrainRequest(request, response, pathname).catch((err) => {
+      console.error(JSON.stringify({
+        level: 'error',
+        kind: 'drain_handler_failure',
+        error: (err as Error).message,
+        at: Date.now(),
+      }));
+      if (!response.headersSent) {
+        response.writeHead(500, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ error: 'internal_error' }));
+      }
+    });
+    return;
+  }
+
   if (url.startsWith('/api/')) {
     const apiCtx: HttpApiContext = {
       rooms,
@@ -331,6 +388,8 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
       liveClockIncrementMs,
       createRoom,
       inMemoryGameSummary,
+      isDraining,
+      drainDeadlineMs,
     };
     void handleApiRequest(apiCtx, request, response).catch((err) => {
       console.error(JSON.stringify({
@@ -587,6 +646,31 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     clearPendingVacate(room, seat);
   }
 
+  // If the room is paused (post-restart hydration), let resumeRoomIfReady
+  // decide whether resume is appropriate — it knows the mode-specific rules
+  // (PvP needs both humans, PvE needs the human, EvE auto-resumes on any
+  // connection). Safe to call for spectators too; it short-circuits when seats
+  // aren't satisfied.
+  if (room.projection.paused && !solo) {
+    try {
+      const resumed = await resumeRoomIfReady(roomMgrCtx, room, Date.now());
+      if (resumed) {
+        scheduleClockTimeout(roomMgrCtx, room);
+        scheduleRandomEngineMove(roomMgrCtx, room);
+      }
+    } catch (err) {
+      if (!(err instanceof PersistenceFailure)) {
+        console.error(JSON.stringify({
+          level: 'error',
+          kind: 'resume_on_connect_failure',
+          roomId: room.id,
+          error: (err as Error).message,
+          at: Date.now(),
+        }));
+      }
+    }
+  }
+
   const snapshot = snapshotPayload({ ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) }, client);
   send(client, {
     ...snapshot,
@@ -771,6 +855,31 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     events = [created];
   }
 
+  // SIGKILL recovery: if hydrating a stale "playing" room with no pause event,
+  // synthesize one so the rest of the pipeline treats it as a clean restart.
+  // See docs/server-restart-pause-resume.md (Phase 5).
+  const recoveredEvents = applyOrphanRecoveryIfNeeded(events, Date.now(), orphanThresholdMs);
+  if (recoveredEvents.length > events.length) {
+    const synthPause = recoveredEvents[recoveredEvents.length - 1]!;
+    if (persistence.isInitialized()) {
+      try {
+        await persistence.appendEvent(roomId, recoveredEvents.length - 1, synthPause);
+      } catch (err) {
+        recordPersistenceError(roomId, recoveredEvents.length - 1, synthPause, err as Error);
+        throw new PersistenceFailure();
+      }
+    }
+    console.log(JSON.stringify({
+      level: 'info',
+      kind: 'orphan_recovery_synth_pause',
+      roomId,
+      lastEventAt: events[events.length - 1]!.at,
+      synthPauseAt: synthPause.at,
+      at: Date.now(),
+    }));
+    events = recoveredEvents;
+  }
+
   const projection = replayGameEvents(events);
   const mode = modeForProjection(projection);
   if (createdNewPersistentRoom) {
@@ -806,10 +915,14 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     timeControl: projection.timeControl,
     rematch: { offers: {} },
     pendingVacates: {},
+    pauseGraceTimer: null,
   };
   rooms.set(roomId, room);
   scheduleClockTimeout(roomMgrCtx, room);
   scheduleRandomEngineMove(roomMgrCtx, room);
+  // Hydrated room came back paused (last event was 'pause'). Arm the grace
+  // timer so the game resumes even if both players don't reconnect in time.
+  if (room.projection.paused) armPauseGraceTimer(room);
   return room;
 }
 
@@ -884,6 +997,7 @@ async function createRoom(
       timeControl,
       rematch: { offers: {} },
     pendingVacates: {},
+    pauseGraceTimer: null,
     };
     rooms.set(roomId, room);
     scheduleClockTimeout(roomMgrCtx, room);
@@ -1239,6 +1353,7 @@ function resetRoom(roomId: string): void {
   const room = rooms.get(roomId);
   if (room?.clockTimer) clearTimeout(room.clockTimer);
   if (room?.engineTimer) clearTimeout(room.engineTimer);
+  if (room?.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
   rooms.delete(roomId);
 }
 
@@ -1336,12 +1451,169 @@ function isHttpAdminAuthorized(request: IncomingMessage): boolean {
   return isAdminDebugToken(token);
 }
 
+function requestIp(request: IncomingMessage): string {
+  // X-Forwarded-For from Railway: comma-separated, first is the client.
+  const xff = request.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0]!.trim();
+  return request.socket.remoteAddress ?? 'unknown';
+}
+
+// Broadcast 'server_restart_scheduled' to every connected WS client. Triggered
+// on drain activation. Clients render a countdown banner from `restartAt`.
+// Sending it as a stand-alone message (not inside a snapshot) avoids waking up
+// every game's snapshot-broadcast path.
+function broadcastDrainSchedule(): void {
+  const restartAt = drainState.restartAt;
+  if (restartAt === null) return;
+  const message = JSON.stringify({ type: 'server_restart_scheduled', restartAt });
+  for (const room of rooms.values()) {
+    for (const client of room.clients) {
+      try { client.socket.send(message); } catch { /* socket closed */ }
+    }
+  }
+}
+
+function broadcastDrainCancel(): void {
+  const message = JSON.stringify({ type: 'server_restart_cancelled' });
+  for (const room of rooms.values()) {
+    for (const client of room.clients) {
+      try { client.socket.send(message); } catch { /* socket closed */ }
+    }
+  }
+}
+
+async function handleDrainRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  pathname: string,
+): Promise<void> {
+  if (request.method !== 'POST') {
+    response.writeHead(405, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ error: 'method_not_allowed' }));
+    return;
+  }
+  const ip = requestIp(request);
+  if (!drainRateAllowed(ip)) {
+    response.writeHead(429, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ error: 'rate_limited' }));
+    return;
+  }
+  // Token check: only validate in production-like runtimes so local dev
+  // doesn't require setting MISTBOARD_DRAIN_TOKEN.
+  if (isProductionLikeRuntime()) {
+    const authorization = Array.isArray(request.headers.authorization)
+      ? request.headers.authorization[0]
+      : request.headers.authorization;
+    const token = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
+    if (!isDrainToken(token)) {
+      response.writeHead(401, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
+  }
+
+  if (pathname === '/admin/drain/cancel') {
+    const wasActive = isDraining();
+    drainState.restartAt = null;
+    if (wasActive) broadcastDrainCancel();
+    console.log(JSON.stringify({ level: 'info', kind: 'drain_cancelled', at: Date.now() }));
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ ok: true, draining: false }));
+    return;
+  }
+
+  // /admin/drain: idempotent activation. If already draining, return the
+  // existing deadline rather than extending it.
+  if (isDraining()) {
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ ok: true, draining: true, restartAt: drainState.restartAt, idempotent: true }));
+    return;
+  }
+
+  const body = await readJsonBody(request);
+  const requestedWindowMs = typeof body.windowMs === 'number'
+    ? body.windowMs
+    : typeof body.windowMinutes === 'number'
+      ? body.windowMinutes * 60_000
+      : drainWindowDefaultMs;
+  if (!Number.isFinite(requestedWindowMs) || requestedWindowMs <= 0) {
+    response.writeHead(400, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ error: 'invalid_window' }));
+    return;
+  }
+  const windowMs = Math.min(requestedWindowMs, drainWindowMaxMs);
+  drainState.restartAt = Date.now() + windowMs;
+  broadcastDrainSchedule();
+  console.log(JSON.stringify({
+    level: 'info',
+    kind: 'drain_activated',
+    windowMs,
+    restartAt: drainState.restartAt,
+    at: Date.now(),
+  }));
+  response.writeHead(200, { 'content-type': 'application/json' });
+  response.end(JSON.stringify({ ok: true, draining: true, restartAt: drainState.restartAt, idempotent: false }));
+}
+
 function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
   return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
 }
 
 function recordClientMessage(client: Client): boolean {
   return recordMessageTimestamp(client.messageTimestamps, Date.now(), wsMessageLimit, wsMessageWindowMs);
+}
+
+// Arm a one-shot timer that force-resumes a paused room after the grace
+// window, regardless of whether both players reconnected. Safe to call
+// repeatedly (subsequent calls are no-ops while a timer is already armed).
+function armPauseGraceTimer(room: Room): void {
+  if (!room.projection.paused) return;
+  if (room.pauseGraceTimer) return;
+  room.pauseGraceTimer = setTimeout(() => {
+    room.pauseGraceTimer = null;
+    void resumeRoom(roomMgrCtx, room, Date.now(), 'grace-elapsed')
+      .then(() => {
+        if (room.projection.state.status.type === 'playing' && !room.projection.paused) {
+          scheduleClockTimeout(roomMgrCtx, room);
+          scheduleRandomEngineMove(roomMgrCtx, room);
+        }
+        broadcastSnapshot(roomMgrCtx, room);
+      })
+      .catch((err) => {
+        if (!(err instanceof PersistenceFailure)) {
+          console.error(JSON.stringify({
+            level: 'error',
+            kind: 'pause_grace_resume_failure',
+            roomId: room.id,
+            error: (err as Error).message,
+            at: Date.now(),
+          }));
+        }
+      });
+  }, pauseGraceMs);
+}
+
+// Iterate active rooms and append a 'pause' event for each one that's still
+// playing. Awaits in parallel — each room serializes writes through its own
+// pendingWrites chain, so concurrent calls are safe.
+async function pauseActiveRoomsOnShutdown(): Promise<void> {
+  if (rooms.size === 0) return;
+  const at = Date.now();
+  const results = await Promise.allSettled(
+    [...rooms.values()].map((room) => pauseRoomOnShutdown(roomMgrCtx, room, at)),
+  );
+  for (const [idx, result] of results.entries()) {
+    if (result.status === 'rejected') {
+      const room = [...rooms.values()][idx];
+      console.error(JSON.stringify({
+        level: 'error',
+        kind: 'pause_on_shutdown_failure',
+        roomId: room?.id,
+        error: (result.reason as Error)?.message,
+        at: Date.now(),
+      }));
+    }
+  }
 }
 
 async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
@@ -1355,9 +1627,12 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   }, shutdownGraceMs);
   forceExit.unref();
 
+  await pauseActiveRoomsOnShutdown();
+
   for (const room of rooms.values()) {
     if (room.clockTimer) clearTimeout(room.clockTimer);
     if (room.engineTimer) clearTimeout(room.engineTimer);
+    if (room.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
   }
   if (abortPolicyTimer) clearInterval(abortPolicyTimer);
   for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {

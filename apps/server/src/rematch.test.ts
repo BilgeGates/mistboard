@@ -44,6 +44,7 @@ function makeFinishedRoom(id: string): Room {
     timeControl: undefined,
     rematch: { offers: {} },
     pendingVacates: {},
+    pauseGraceTimer: null,
   };
 }
 

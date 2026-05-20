@@ -77,6 +77,7 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     events: eventsForClient(normalizedRoom, client),
     state: getClientView(normalizedRoom, client),
     rated: room.rated ?? true,
+    paused: room.projection.paused,
     connectedSeats: computeConnectedSeats(room.clients),
     seatDisplayNames: room.seatDisplayNames ?? {},
     rematch: room.rematch

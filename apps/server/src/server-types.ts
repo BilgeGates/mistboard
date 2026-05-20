@@ -78,6 +78,10 @@ export type Room = {
   // before any move is played, we defer the seat-vacated event so a quick
   // reconnect cancels the abort.
   pendingVacates: Partial<Record<Color, ReturnType<typeof setTimeout>>>;
+  // Set when a paused room is hydrated post-restart. Fires the grace resume
+  // (reason='grace-elapsed') if both players don't show up within the window.
+  // Cleared on resume.
+  pauseGraceTimer: ReturnType<typeof setTimeout> | null;
 };
 
 export type LobbyTicket = {

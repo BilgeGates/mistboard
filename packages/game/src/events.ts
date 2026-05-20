@@ -5,7 +5,7 @@ import {
   createChess960InitialBoardForSides,
   type Chess960Start,
 } from './chess960.js';
-import { advanceClock, createClock, expireClock } from './clocks.js';
+import { advanceClock, createClock, expireClock, freezeClock, unfreezeClock } from './clocks.js';
 import type { ClockState, Color, GameState, Move, PieceRole, VariantId } from './types.js';
 import { variantForId } from './variants.js';
 
@@ -107,6 +107,20 @@ export type GameEvent =
     at: number;
     roomId: string;
     color: Color;
+  }
+  | {
+    type: 'pause';
+    at: number;
+    roomId: string;
+    reason: 'shutdown' | 'admin';
+    clock?: ClockState;
+  }
+  | {
+    type: 'resume';
+    at: number;
+    roomId: string;
+    reason: 'both-present' | 'grace-elapsed' | 'admin';
+    clock?: ClockState;
   };
 
 export type GameProjection = {
@@ -122,6 +136,9 @@ export type GameProjection = {
   resolvedStartId: number | null;
   resolvedStartIds: Partial<Record<Color, number>>;
   timeControl?: RoomTimeControl;
+  paused: boolean;
+  pausedAt: number | null;
+  pauseReason: 'shutdown' | 'admin' | null;
 };
 
 export function initialGameProjection(roomId: string, variant: VariantId = 'draft960'): GameProjection {
@@ -137,6 +154,9 @@ export function initialGameProjection(roomId: string, variant: VariantId = 'draf
     bidResolution: null,
     resolvedStartId: null,
     resolvedStartIds: {},
+    paused: false,
+    pausedAt: null,
+    pauseReason: null,
   };
 }
 
@@ -348,6 +368,37 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
           winner: event.color === 'white' ? 'black' : 'white',
           reason: 'resignation',
         },
+      },
+    };
+  }
+
+  if (event.type === 'pause') {
+    if (projection.state.status.type !== 'playing') return projection;
+    if (projection.paused) return projection;
+    return {
+      ...projection,
+      paused: true,
+      pausedAt: event.at,
+      pauseReason: event.reason,
+      state: {
+        ...projection.state,
+        clock: event.clock ?? freezeClock(projection.state.clock, event.at),
+      },
+    };
+  }
+
+  if (event.type === 'resume') {
+    if (!projection.paused) return projection;
+    if (projection.state.status.type !== 'playing') return projection;
+    const turn = projection.state.status.turn;
+    return {
+      ...projection,
+      paused: false,
+      pausedAt: null,
+      pauseReason: null,
+      state: {
+        ...projection.state,
+        clock: event.clock ?? unfreezeClock(projection.state.clock, event.at, turn),
       },
     };
   }

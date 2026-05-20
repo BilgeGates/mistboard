@@ -6,8 +6,10 @@ import {
   clockRemainingMs,
   createClock,
   expireClock,
+  freezeClock,
   isGameEndReason,
   replayGameEvents,
+  unfreezeClock,
   variantForId,
   type Color,
   type GameEvent,
@@ -384,6 +386,7 @@ export function scheduleClockTimeout(ctx: RoomManagerContext, room: Room): void 
   const delay = clockRemainingMs(clock, activeColor, Date.now());
   room.clockTimer = setTimeout(() => {
     if (room.projection.state.status.type !== 'playing') return;
+    if (room.projection.paused) return;
     if (room.projection.state.status.turn !== activeColor) return;
     void expireActiveClock(ctx, room, activeColor, Date.now())
       .then(() => broadcastSnapshot(ctx, room))
@@ -411,6 +414,122 @@ export async function expireActiveClock(ctx: RoomManagerContext, room: Room, col
     color,
     clock,
   });
+}
+
+// On hydrating a room post-restart, detect the case where a SIGKILL (or a
+// crash before pauseRoomOnShutdown wrote its event) left an in-flight game
+// stranded. Returns a possibly-extended events array — if the input ended
+// mid-game with a stale last-event, a synthetic 'pause' is appended at
+// lastEvent.at + 1 so the clock is frozen at the pre-crash moment (no
+// outage-time charged to either player). Otherwise returns the input.
+//
+// The threshold guards against false positives: a player thinking deeply for
+// 30 seconds shouldn't trigger recovery, but a 5-minute gap (longer than any
+// realistic bullet/blitz move) almost certainly means the server died.
+//
+// Pure function — does not touch persistence. Callers persist the returned
+// extra event before replaying state.
+export function applyOrphanRecoveryIfNeeded(
+  events: GameEvent[],
+  now: number,
+  orphanThresholdMs: number,
+): GameEvent[] {
+  if (events.length === 0) return events;
+  const projection = replayGameEvents(events);
+  if (projection.state.status.type !== 'playing') return events;
+  if (projection.paused) return events;
+  const lastEvent = events[events.length - 1]!;
+  if (now - lastEvent.at < orphanThresholdMs) return events;
+  // Synth a pause at lastEvent.at + 1. Clock freeze sees only 1ms elapsed
+  // since the previous move, which is a rounding-error cost — far better than
+  // attributing the entire outage to the active player.
+  const pauseAt = lastEvent.at + 1;
+  const frozenClock = freezeClock(projection.state.clock, pauseAt);
+  const syntheticPause: GameEvent = {
+    type: 'pause',
+    at: pauseAt,
+    roomId: lastEvent.roomId,
+    reason: 'shutdown',
+    ...(frozenClock ? { clock: frozenClock } : {}),
+  };
+  return [...events, syntheticPause];
+}
+
+// Pause a running room before server shutdown. No-op if not playing or
+// already paused. The pause snapshot freezes the active clock so wall-clock
+// time during the outage doesn't count against either player.
+export async function pauseRoomOnShutdown(ctx: RoomManagerContext, room: Room, at: number): Promise<void> {
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.paused) return;
+  const frozenClock = freezeClock(room.projection.state.clock, at);
+  await appendEvent(ctx, room, {
+    type: 'pause',
+    at,
+    roomId: room.id,
+    reason: 'shutdown',
+    ...(frozenClock ? { clock: frozenClock } : {}),
+  });
+}
+
+// Append a resume event for a paused room. Clears the pauseGraceTimer if set.
+// Caller broadcasts the resulting snapshot.
+export async function resumeRoom(
+  ctx: RoomManagerContext,
+  room: Room,
+  at: number,
+  reason: 'both-present' | 'grace-elapsed' | 'admin',
+): Promise<void> {
+  if (!room.projection.paused) return;
+  if (room.projection.state.status.type !== 'playing') return;
+  const turn = room.projection.state.status.turn;
+  const newClock = unfreezeClock(room.projection.state.clock, at, turn);
+  await appendEvent(ctx, room, {
+    type: 'resume',
+    at,
+    roomId: room.id,
+    reason,
+    ...(newClock ? { clock: newClock } : {}),
+  });
+  if (room.pauseGraceTimer) {
+    clearTimeout(room.pauseGraceTimer);
+    room.pauseGraceTimer = null;
+  }
+}
+
+// Fire resume if the room is paused AND every seat is "present." Returns true
+// if resume was appended.
+//
+// Presence rules:
+// - Engine seats (isServerEngineClient) are always present while the server is
+//   up. Engines are server-controlled — there's no reconnect to wait for.
+// - Human seats are present only when a non-displaced client occupies that
+//   seat with a matching seat-token hash. The token is the auth boundary; an
+//   attacker without the token cannot force-resume by connecting.
+//
+// Implications by mode:
+// - PvP: needs both human seats to have valid tokens — same as before.
+// - PvE: resumes the moment the human reconnects (engine is auto-present).
+// - EvE: resumes on the first connection of any kind (both engines auto-present).
+export async function resumeRoomIfReady(ctx: RoomManagerContext, room: Room, at: number): Promise<boolean> {
+  if (!room.projection.paused) return false;
+  if (room.projection.state.status.type !== 'playing') return false;
+  if (!room.projection.seats.white || !room.projection.seats.black) return false;
+
+  const seatPresent = (color: Color): boolean => {
+    if (isServerEngineClient(room.projection.seats[color])) return true;
+    for (const client of room.clients) {
+      if (client.displaced) continue;
+      if (client.seat !== color) continue;
+      const expected = room.seatTokens[color]?.tokenHash;
+      if (!expected || !client.seatTokenHash || client.seatTokenHash !== expected) continue;
+      return true;
+    }
+    return false;
+  };
+
+  if (!seatPresent('white') || !seatPresent('black')) return false;
+  await resumeRoom(ctx, room, at, 'both-present');
+  return true;
 }
 
 // ── Game flow ──────────────────────────────────────────────────────────────
@@ -525,6 +644,7 @@ type ClientMoveMessage = {
 
 export async function playMove(ctx: RoomManagerContext, room: Room, client: Client, move: ClientMoveMessage): Promise<void> {
   if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.paused) return;
   const now = Date.now();
   const moveColor = room.projection.state.status.turn;
   if (!canClientAct(room, client)) return;
@@ -624,6 +744,7 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
   const engine = loadEngine(room.pveEngineId ?? ctx.pveBuiltinEngineClientId);
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.paused) return;
   if (room.projection.state.status.turn !== 'black') return;
 
   const now = Date.now();
@@ -725,6 +846,7 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
   if (!room.randomEngine) return;
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.paused) return;
   if (room.projection.state.status.turn !== 'black') return;
 
   room.engineTimer = setTimeout(() => {
