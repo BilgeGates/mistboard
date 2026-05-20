@@ -487,6 +487,175 @@ def test_king_defense_skips_when_king_not_attacked() -> None:
     assert _king_defense_moves(view) == []
 
 
+def test_recapture_exempt_from_bad_capture_trade_veto() -> None:
+    """When opp just captured one of our pieces, _belief_veto_bad_capture_trade
+    must NOT drop our recapture even when belief sees a possible counter-recapture.
+    Otherwise the engine refuses to recapture and bleeds material — see
+    vs-brian-game-1/2 ply 12 (white plays exd5 against black's d-pawn, engine
+    fails to retake e6d5).
+    """
+    # Position: black to move; e6 black pawn can recapture white pawn on d5.
+    # White knight on c3 can recapture the d5 pawn → without the exemption,
+    # the equal-value-trade veto fires and drops e6d5.
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E6, chess.Piece(chess.PAWN, chess.BLACK))
+    board.set_piece_at(chess.D5, chess.Piece(chess.PAWN, chess.WHITE))
+    board.set_piece_at(chess.C3, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.turn = chess.BLACK
+    pieces = {
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+        chess.A1: chess.Piece(chess.KING, chess.WHITE),
+        chess.E6: chess.Piece(chess.PAWN, chess.BLACK),
+        chess.D5: chess.Piece(chess.PAWN, chess.WHITE),
+        chess.C3: chess.Piece(chess.KNIGHT, chess.WHITE),
+    }
+    s = _strategy()
+    s.reset(perspective=chess.BLACK)
+    # Tell the strategy that opp just captured on d5 (this is what
+    # observe_opp_move would set when white played exd5).
+    s._opp_last_capture_target = chess.D5
+    # Seed belief with a particle that matches truth so the veto's recapture
+    # check sees a counter-recapture (c3 knight → d5).
+    assert s._belief is not None
+    s._belief.particles = [board.copy() for _ in range(8)]
+    s._belief.weights = [1.0] * 8
+
+    view = _build_view(board, chess.BLACK, visible_pieces=pieces)
+    # The veto without the exemption would drop e6d5; with the exemption it stays.
+    survivors = s._belief_veto_bad_capture_trade(
+        [chess.Move.from_uci('e6d5'), chess.Move.from_uci('e6e5')],
+        view,
+    )
+    survivor_ucis = {m.uci() for m in survivors}
+    assert 'e6d5' in survivor_ucis, f"recapture must survive the bad-capture-trade veto; got {survivor_ucis}"
+
+
+def test_bad_capture_trade_still_filters_non_recapture() -> None:
+    """The recapture exemption must not collapse the veto's normal behavior:
+    when our capture is NOT a recapture, the equal-value trade veto should
+    still fire if belief says opp recaptures.
+    """
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    board.set_piece_at(chess.E6, chess.Piece(chess.PAWN, chess.BLACK))
+    board.set_piece_at(chess.D5, chess.Piece(chess.PAWN, chess.WHITE))
+    board.set_piece_at(chess.C3, chess.Piece(chess.KNIGHT, chess.WHITE))
+    board.turn = chess.BLACK
+    pieces = {
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+        chess.A1: chess.Piece(chess.KING, chess.WHITE),
+        chess.E6: chess.Piece(chess.PAWN, chess.BLACK),
+        chess.D5: chess.Piece(chess.PAWN, chess.WHITE),
+        chess.C3: chess.Piece(chess.KNIGHT, chess.WHITE),
+    }
+    s = _strategy()
+    s.reset(perspective=chess.BLACK)
+    # Opp did NOT just capture on d5 — this is a fresh capture initiation.
+    s._opp_last_capture_target = None
+    assert s._belief is not None
+    s._belief.particles = [board.copy() for _ in range(8)]
+    s._belief.weights = [1.0] * 8
+
+    view = _build_view(board, chess.BLACK, visible_pieces=pieces)
+    survivors = s._belief_veto_bad_capture_trade(
+        [chess.Move.from_uci('e6d5'), chess.Move.from_uci('e6e5')],
+        view,
+    )
+    survivor_ucis = {m.uci() for m in survivors}
+    assert 'e6d5' not in survivor_ucis, f"non-recapture must still be filtered; got {survivor_ucis}"
+
+
+def test_phantom_check_guard_dismisses_blocked_slider_attack() -> None:
+    """When a visible enemy slider APPEARS to attack our king on the visibility-only
+    board, but the belief has majority weight on a piece blocking the ray, the
+    king-defense tier must not fire on a phantom check. This is the ply-36 class
+    from the vs-brian-game-1 diagnostic: white bishop on b3 is visible, but a
+    hidden white knight on d5 (in truth, and in most belief particles) blocks
+    the b3-g8 long diagonal. The engine should NOT treat the bishop as a real
+    attacker; downstream, it can pick a non-defensive move.
+    """
+    board = chess.Board.empty()
+    board.set_piece_at(chess.G8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.A5, chess.Piece(chess.KNIGHT, chess.BLACK))
+    board.set_piece_at(chess.D5, chess.Piece(chess.KNIGHT, chess.WHITE))  # hidden blocker
+    board.set_piece_at(chess.B3, chess.Piece(chess.BISHOP, chess.WHITE))  # visible "attacker"
+    board.set_piece_at(chess.G1, chess.Piece(chess.KING, chess.WHITE))
+    board.turn = chess.BLACK
+    # Black sees b3 (knight a5 attacks b3) and own pieces; d5 is NOT visible.
+    pieces = {
+        chess.G8: chess.Piece(chess.KING, chess.BLACK),
+        chess.A5: chess.Piece(chess.KNIGHT, chess.BLACK),
+        chess.B3: chess.Piece(chess.BISHOP, chess.WHITE),
+        # d5 hidden from black; g1 hidden too
+    }
+    s = _strategy()
+    s.reset(perspective=chess.BLACK)
+    # Replace belief with particles that DO have the d5 knight (matching truth).
+    # Use multiple identical copies so weights and ESS are non-degenerate.
+    assert s._belief is not None
+    s._belief.particles = [board.copy() for _ in range(8)]
+    s._belief.weights = [1.0] * 8
+
+    view = _build_view(board, chess.BLACK, visible_pieces=pieces)
+    # The phantom-check guard should mark the b3 bishop as phantom (path
+    # blocked by d5 knight in 100% of particles), and king-defense should NOT
+    # be the decision path.
+    real = s._real_king_threat_attackers(view)
+    assert real == set(), f"expected b3 to be filtered as phantom; got {real}"
+
+
+def test_phantom_check_guard_keeps_real_visible_threat() -> None:
+    """When the belief AGREES the attack ray is clear, the attacker stays real
+    and king-defense should fire. Otherwise the guard would defang all visible
+    checks.
+    """
+    board = chess.Board.empty()
+    board.set_piece_at(chess.G8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.B3, chess.Piece(chess.BISHOP, chess.WHITE))
+    board.set_piece_at(chess.G1, chess.Piece(chess.KING, chess.WHITE))
+    board.turn = chess.BLACK
+    pieces = {
+        chess.G8: chess.Piece(chess.KING, chess.BLACK),
+        chess.B3: chess.Piece(chess.BISHOP, chess.WHITE),
+    }
+    s = _strategy()
+    s.reset(perspective=chess.BLACK)
+    # Belief has the b3 bishop AND no blockers on the b3-g8 diagonal.
+    assert s._belief is not None
+    s._belief.particles = [board.copy() for _ in range(8)]
+    s._belief.weights = [1.0] * 8
+
+    view = _build_view(board, chess.BLACK, visible_pieces=pieces)
+    real = s._real_king_threat_attackers(view)
+    assert chess.B3 in real, f"expected b3 to remain real; got {real}"
+
+
+def test_phantom_check_guard_trusts_visibility_when_belief_stale() -> None:
+    """If the belief doesn't even know about the visible attacker (stale belief
+    from reset+custom view, or unseeded belief), the guard must trust
+    visibility — otherwise it would dismiss every visible threat as phantom.
+    """
+    board = chess.Board.empty()
+    board.set_piece_at(chess.E8, chess.Piece(chess.KING, chess.BLACK))
+    board.set_piece_at(chess.A4, chess.Piece(chess.BISHOP, chess.WHITE))
+    board.set_piece_at(chess.A1, chess.Piece(chess.KING, chess.WHITE))
+    board.turn = chess.BLACK
+    pieces = {
+        chess.E8: chess.Piece(chess.KING, chess.BLACK),
+        chess.A4: chess.Piece(chess.BISHOP, chess.WHITE),
+    }
+    s = _strategy()
+    s.reset(perspective=chess.BLACK)
+    # Belief is the default initial-position belief from reset() — has nothing
+    # on a4. The guard should fall back to trusting visibility.
+    view = _build_view(board, chess.BLACK, visible_pieces=pieces)
+    real = s._real_king_threat_attackers(view)
+    assert chess.A4 in real, f"expected stale-belief fallback; got {real}"
+
+
 def test_king_defense_beats_queen_capture_when_king_attacked() -> None:
     # Black king on e8 attacked by white bishop on a4 (a4-e8 diagonal). Black
     # also has a queen-capture available (rook on h8 can take queen on h1

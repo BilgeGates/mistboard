@@ -72,6 +72,26 @@ def _visibility_board(view: PerspectiveView) -> chess.Board:
     return board
 
 
+def _ray_squares_between(from_sq: chess.Square, to_sq: chess.Square) -> list[chess.Square] | None:
+    """Squares strictly between `from_sq` and `to_sq` on a rank/file/diagonal ray.
+
+    Returns None if the two squares are not collinear (so a slider can't reach
+    one from the other in a single move). Returns [] for adjacent squares.
+    """
+    f1, r1 = chess.square_file(from_sq), chess.square_rank(from_sq)
+    f2, r2 = chess.square_file(to_sq), chess.square_rank(to_sq)
+    df = f2 - f1
+    dr = r2 - r1
+    if df == 0 and dr == 0:
+        return None
+    if df != 0 and dr != 0 and abs(df) != abs(dr):
+        return None
+    sf = 0 if df == 0 else (1 if df > 0 else -1)
+    sr = 0 if dr == 0 else (1 if dr > 0 else -1)
+    steps = max(abs(df), abs(dr))
+    return [chess.square(f1 + sf * i, r1 + sr * i) for i in range(1, steps)]
+
+
 def _squares_attacked_by_visible_enemy(view: PerspectiveView) -> set[chess.Square]:
     """Squares the visible enemy pieces could move to next turn.
 
@@ -1240,6 +1260,12 @@ class Tier1Strategy:
         self._last_decision_view: PerspectiveView | None = None
         # v0.9.4-pre1: rolling window of own (from_sq, to_sq) used by anti-shuffle.
         self._recent_own_moves: list[tuple[int, int]] = []
+        # v0.9.6-pre: square where opp captured one of our pieces on opp's most
+        # recent move. Read by _belief_veto_bad_capture_trade to exempt
+        # recaptures from the equal-value-trade veto — recapturing material
+        # opp just took is fundamentally different from initiating a fresh
+        # equal trade.
+        self._opp_last_capture_target: chess.Square | None = None
 
     def reset(self, perspective: chess.Color) -> None:
         self._belief = BeliefState.initial(
@@ -1258,6 +1284,7 @@ class Tier1Strategy:
         self._last_view_visible = {}
         self._last_decision_view = None
         self._recent_own_moves = []
+        self._opp_last_capture_target = None
 
     def _emit_trace(
         self,
@@ -1980,6 +2007,89 @@ class Tier1Strategy:
             move=move,
         )
 
+    def _real_king_threat_attackers(
+        self,
+        view: PerspectiveView,
+        *,
+        clear_threshold: float = 0.5,
+    ) -> set[chess.Square]:
+        """Visible enemy attackers of our king whose attack ray is plausibly clear in belief.
+
+        The visibility-only board used by `_categorize_king_defense_moves`
+        treats every visible enemy slider as if its attack ray were clear,
+        because hidden blockers are absent from the synthetic board. In
+        positions where a hidden defender (e.g., an opp piece the perspective
+        hasn't seen yet) blocks the ray in the TRUE position, the king-defense
+        tier fires on a phantom check and overrides better moves (queen-save,
+        material grab, etc.).
+
+        This method filters the raw set of visible attackers: for each
+        slider-class attacker (bishop/rook/queen), if `clear_threshold`
+        fraction of belief weight says the ray to the king is BLOCKED, the
+        attacker is treated as phantom and excluded. Non-sliders (knight,
+        pawn, king) can't be blocked and pass through unchanged.
+
+        When the returned set is empty AND `_categorize_king_defense_moves`
+        returned non-empty lists, the caller should skip the king-defense
+        tier — the apparent check is phantom.
+        """
+        own_king_squares = {
+            sq for sq, piece in view.visible_piece_map.items()
+            if piece.color == view.perspective and piece.piece_type == chess.KING
+        }
+        if not own_king_squares:
+            return set()
+        raw_attackers = _visible_attackers_of_squares(view, own_king_squares)
+        if not raw_attackers:
+            return set()
+        if self._belief is None or not self._belief.particles:
+            return raw_attackers
+
+        total_weight = sum(self._belief.weights) or 1.0
+        # Belief-staleness threshold: if the visible attacker isn't present in
+        # at least this fraction of belief particles (on the correct square,
+        # correct piece type, correct color), the belief is out of sync with
+        # visibility and we should NOT trust its blocker reasoning. Trust
+        # visibility instead.
+        attacker_in_belief_threshold = 0.5
+        real: set[chess.Square] = set()
+        for attacker_sq in raw_attackers:
+            piece = view.visible_piece_map.get(attacker_sq)
+            if piece is None:
+                continue
+            # Non-sliders can't be blocked by an intervening square — trust visibility.
+            if piece.piece_type not in (chess.BISHOP, chess.ROOK, chess.QUEEN):
+                real.add(attacker_sq)
+                continue
+            # Stale-belief guard: if the belief doesn't even know the attacker
+            # is on this square (e.g., test fixtures with reset+custom view,
+            # or a position where belief hasn't propagated the latest opp
+            # move), don't try to reason about hidden blockers. Trust the
+            # visible attacker as a real threat.
+            attacker_weight = 0.0
+            for particle, w in zip(self._belief.particles, self._belief.weights):
+                p = particle.piece_at(attacker_sq)
+                if p is not None and p.color == piece.color and p.piece_type == piece.piece_type:
+                    attacker_weight += w
+            if (attacker_weight / total_weight) < attacker_in_belief_threshold:
+                real.add(attacker_sq)
+                continue
+            # Belief is in sync with the visible attacker. Now check belief
+            # for blockers on the attack ray.
+            for king_sq in own_king_squares:
+                between = _ray_squares_between(attacker_sq, king_sq)
+                if between is None:
+                    continue
+                clear_weight = 0.0
+                for particle, w in zip(self._belief.particles, self._belief.weights):
+                    if all(particle.piece_at(sq) is None for sq in between):
+                        clear_weight += w
+                clear_frac = clear_weight / total_weight
+                if clear_frac >= clear_threshold:
+                    real.add(attacker_sq)
+                    break
+        return real
+
     def _belief_supports_move(self, move: chess.Move, threshold: float = 0.5) -> bool:
         """True iff `move` is pseudo-legal in at least `threshold` fraction of particles.
 
@@ -2152,6 +2262,43 @@ class Tier1Strategy:
                 survivors.append(move)
                 continue
 
+            # Recapture exemption — narrowed to EQUAL-value trades only.
+            #
+            # If opp just captured one of our pieces on this square, recapturing
+            # *at equal value* is recovering material — the alternative (don't
+            # recapture) leaves us strictly down material. Fixes game-1/game-2
+            # ply-12 (P captures P with possible-N-recapture: veto wrongly fired).
+            #
+            # For DOWN-trade recaptures (B captures defended P, etc.), the math
+            # flips: recapturing trades a higher-value piece for a lower-value
+            # one, *increasing* our loss. Game-3 ply-23 caught this: the bishop
+            # took a pawn defended by a knight, losing the bishop. The veto
+            # should still fire on down-trades even when they're recaptures.
+            attacker_color = attacker.color  # type: ignore[union-attr]
+            _ = attacker_color  # silence unused warning if optimizer complains
+            if (
+                target_value == attacker_value
+                and move.to_square == self._opp_last_capture_target
+            ):
+                survivors.append(move)
+                continue
+
+            # Tighten threshold by attacker/target value gap: a down-trade
+            # bishop-for-pawn at "only" 10% recapture probability has positive
+            # EV (+0.7) but high variance (1 vs −2) — a strong human declines.
+            # Game-3 ply-23 caught this with belief at 10% (below the default
+            # 0.35 threshold); the engine took Bxe4 into a hidden knight and
+            # lost the bishop. Equal-value trades stay at the default — only
+            # down-trades (attacker > target) tighten progressively.
+            value_gap = max(0, attacker_value - target_value)
+            if value_gap == 0:
+                effective_threshold = threshold  # 0.35 default — fine for P-P, N-B, etc.
+            else:
+                # Approximately EV-neutral divided by 2 for a half-Kelly-ish stance.
+                # _MATERIAL_VALUE is in pawn units (1-9), so gap is small ints.
+                # Gap 2 (B/N for P) → ~0.07. Gap 4 (R for P) → ~0.04. Gap 8 (Q for P) → ~0.02.
+                effective_threshold = max(0.02, 0.35 / (1.0 + 2.0 * value_gap))
+
             recapturable = 0
             total = 0
             for particle in self._belief.particles:
@@ -2164,7 +2311,7 @@ class Tier1Strategy:
                 if any(reply.to_square == move.to_square for reply in sim.pseudo_legal_moves):
                     recapturable += 1
 
-            if total == 0 or recapturable / total <= threshold:
+            if total == 0 or recapturable / total <= effective_threshold:
                 survivors.append(move)
         return survivors
 
@@ -2846,6 +2993,17 @@ class Tier1Strategy:
 
     def observe_opp_move(self, observation: Observation) -> None:
         assert self._belief is not None
+        # Track where opp just captured one of our pieces — read by
+        # _belief_veto_bad_capture_trade to exempt recaptures from the
+        # equal-value-trade veto.
+        if observation.own_capture_square is not None:
+            self._opp_last_capture_target = observation.own_capture_square
+        elif observation.opp_capture_landing_square is not None:
+            # En-passant-like edge: capture target differs from landing.
+            # Treat the landing square as the recapture target.
+            self._opp_last_capture_target = observation.opp_capture_landing_square
+        else:
+            self._opp_last_capture_target = None
         before = len(self._belief.particles)
         before_unique = len({p.fen() for p in self._belief.particles})
         self._belief.update_after_opp_move(observation)
@@ -3078,6 +3236,14 @@ class Tier1Strategy:
         # g12 p17) where the engine fled the king when a free pawn-takes-knight
         # was available.
         kd_captures, kd_blocks, kd_flights = _categorize_king_defense_moves(view)
+        # Phantom-check guard: _categorize_king_defense_moves uses a visibility-
+        # only board which treats every visible slider's ray as clear. If the
+        # belief has majority weight on "the ray is blocked," the check is
+        # phantom and king-defense should not fire (it would override better
+        # moves like queen-save in a position where the king isn't actually in
+        # danger). See engine_blunder_taxonomy memory for the ply-36 case.
+        if (kd_captures or kd_blocks or kd_flights) and not self._real_king_threat_attackers(view):
+            kd_captures, kd_blocks, kd_flights = [], [], []
         if kd_captures or kd_blocks or kd_flights:
             tier: list[chess.Move]
             tier_label: str
@@ -3198,6 +3364,13 @@ class Tier1Strategy:
         piece_save = _visible_piece_save_moves(view, self._belief)
         if piece_save:
             candidates = self._belief_veto_king_attack(piece_save, view)
+            # Also drop down-trade captures the belief says will be recaptured —
+            # "saving" a bishop by capturing a defended pawn loses more than it
+            # saves. Confirmed in vs-brian-game-3 ply-23 (Bxe4 into hidden knight).
+            # If ALL candidates fail the bad-trade veto, fall through to main-eval
+            # — don't force a bad save. The save tier is opt-in; main-eval can
+            # pick a non-save move (retreat, develop) that's globally better.
+            candidates = self._belief_veto_bad_capture_trade(candidates, view)
             if candidates:
                 chosen = self._rng.choice(candidates)
                 self._stage_pending_capture(chosen, view)

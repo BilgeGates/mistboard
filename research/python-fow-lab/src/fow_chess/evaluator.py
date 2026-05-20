@@ -808,6 +808,90 @@ def stockfish_evaluator(
         _restart()
 
 
+def _piece_protection_penalty(board: chess.Board, perspective: chess.Color) -> float:
+    """Per-piece penalty for own non-pawn non-king pieces with NO own defender.
+
+    Encourages "stacked defense" formations. Per the user's annotation on
+    vs-brian-game-2: "the engine doesn't have a great sense of safety and
+    keeping its formation well positioned... things protected." Standalone
+    from the safety term — safety penalizes pieces under opp attack, this
+    penalizes pieces without own defenders regardless of opp attack.
+
+    Scaled by 5% of piece value: knight 16cp, bishop ~17cp, rook 25cp,
+    queen 45cp per undefended instance. Modest scale so existing tactical
+    terms still dominate; this just biases choice when material is otherwise
+    equal.
+    """
+    penalty = 0.0
+    for sq, piece in board.piece_map().items():
+        if piece.color != perspective or piece.piece_type in (chess.PAWN, chess.KING):
+            continue
+        if not board.attackers(perspective, sq):
+            penalty += _PIECE_VALUES[piece.piece_type] * 0.05
+    return penalty
+
+
+def _rook_file_counts(board: chess.Board, perspective: chess.Color) -> tuple[int, int]:
+    """Returns (open_file_rook_count, semi_open_file_rook_count) for own rooks.
+
+    Open file: no own AND no opp pawns on the file.
+    Semi-open: no own pawns on the file (but opp pawns may exist).
+    """
+    open_count = 0
+    semi_count = 0
+    for sq, piece in board.piece_map().items():
+        if piece.color != perspective or piece.piece_type != chess.ROOK:
+            continue
+        f = chess.square_file(sq)
+        own_pawn = False
+        opp_pawn = False
+        for r in range(8):
+            other = board.piece_at(chess.square(f, r))
+            if other is None or other.piece_type != chess.PAWN:
+                continue
+            if other.color == perspective:
+                own_pawn = True
+            else:
+                opp_pawn = True
+        if not own_pawn and not opp_pawn:
+            open_count += 1
+        elif not own_pawn:
+            semi_count += 1
+    return open_count, semi_count
+
+
+def _rook_doubled_or_connected(board: chess.Board, perspective: chess.Color) -> int:
+    """Number of additional own rooks beyond the first that share a file or rank
+    with another own rook. 0 for one-or-fewer rooks; 1 if two rooks aligned;
+    higher possible with three rooks (rare). Bonus signal for rook coordination.
+    """
+    rook_squares = [
+        sq for sq, p in board.piece_map().items()
+        if p.color == perspective and p.piece_type == chess.ROOK
+    ]
+    if len(rook_squares) < 2:
+        return 0
+    aligned = 0
+    for i, sq_i in enumerate(rook_squares):
+        for sq_j in rook_squares[i + 1:]:
+            if (chess.square_file(sq_i) == chess.square_file(sq_j)
+                    or chess.square_rank(sq_i) == chess.square_rank(sq_j)):
+                aligned += 1
+    return aligned
+
+
+def _rook_on_7th_count(board: chess.Board, perspective: chess.Color) -> int:
+    """Number of own rooks on opp's second rank (rank 7 for white, rank 2 for black)."""
+    target_rank = 6 if perspective == chess.WHITE else 1
+    count = 0
+    for sq, piece in board.piece_map().items():
+        if (piece.color == perspective
+                and piece.piece_type == chess.ROOK
+                and chess.square_rank(sq) == target_rank):
+            count += 1
+    return count
+
+
 def fow_evaluator(
     *,
     material_weight: float = 1.0,
@@ -817,6 +901,15 @@ def fow_evaluator(
     king_proximity_weight: float = 40.0,
     visibility_weight: float = 6.0,
     fog_risk_weight: float = 0.2,
+    # v0.9.6: positional terms addressing "formation / safety" feedback from
+    # vs-brian asymmetric games. Modest weights so they nudge without
+    # dominating; together they max out around ~150cp in late middlegames
+    # which is comparable to a centralized minor piece in the material scale.
+    piece_protection_weight: float = 1.0,
+    rook_open_file_weight: float = 30.0,
+    rook_semi_open_file_weight: float = 15.0,
+    rook_doubled_weight: float = 15.0,
+    rook_on_7th_weight: float = 25.0,
 ) -> Evaluator:
     """FoW-native evaluator combining six position signals on the particle board.
 
@@ -931,6 +1024,24 @@ def fow_evaluator(
         # --- Term 7: fog risk ---
         fog_penalty = fog_risk_weight * fog_discount_term(advanced, perspective)
 
+        # --- Term 8: piece protection (undefended own piece penalty) ---
+        prot_penalty = piece_protection_weight * _piece_protection_penalty(advanced, perspective)
+
+        # --- Terms 9 + 10: rook on open / semi-open file ---
+        open_count, semi_count = _rook_file_counts(advanced, perspective)
+        rook_file_bonus = (
+            rook_open_file_weight * open_count
+            + rook_semi_open_file_weight * semi_count
+        )
+
+        # --- Term 11: rook coordination (doubled or connected) ---
+        rook_aligned = _rook_doubled_or_connected(advanced, perspective)
+        rook_coord_bonus = rook_doubled_weight * rook_aligned
+
+        # --- Term 12: rook on opp's 2nd rank ---
+        rook_7_count = _rook_on_7th_count(advanced, perspective)
+        rook_7_bonus = rook_on_7th_weight * rook_7_count
+
         return (
             mat
             - safety_penalty
@@ -939,6 +1050,10 @@ def fow_evaluator(
             + king_pressure_bonus
             + vis_bonus
             - fog_penalty
+            - prot_penalty
+            + rook_file_bonus
+            + rook_coord_bonus
+            + rook_7_bonus
         )
 
     return evaluate
