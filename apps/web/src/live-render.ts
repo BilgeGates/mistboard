@@ -2005,6 +2005,17 @@ function replayMetaLabel(): string {
   return `Replay · event ${currentReplayIndex()} of ${fogLivePos()}`;
 }
 
+/**
+ * Returns the seat color the engine is playing in a PvE room, or null if not
+ * PvE or the user isn't seated. Used to replace hardcoded `=== 'black'` checks
+ * that broke when engineColor='white' games landed.
+ */
+function pveEngineSeat(): Color | null {
+  if (liveState.roomMode !== 'pve') return null;
+  if (!isColor(liveState.seat)) return null;
+  return liveState.seat === 'white' ? 'black' : 'white';
+}
+
 function actionTone(view: PlayerView | null): InfoTone {
   if (liveState.connectionState === 'rejected') return 'danger';
   if (liveState.connectionState === 'displaced') return 'danger';
@@ -2012,7 +2023,7 @@ function actionTone(view: PlayerView | null): InfoTone {
   if (!view || liveState.connectionState === 'connecting' || liveState.connectionState === 'reconnecting') return 'pending';
   if (view.status.type === 'finished') return 'success';
   if (liveState.seat === 'spectator') return 'default';
-  if (view.status.type === 'playing' && liveState.roomMode === 'pve' && view.status.turn === 'black') return 'pending';
+  if (view.status.type === 'playing' && view.status.turn === pveEngineSeat()) return 'pending';
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) return 'success';
   return 'default';
 }
@@ -2031,7 +2042,7 @@ function actionTitle(view: PlayerView | null): string {
     }
     return liveState.roomMode === 'pvp' ? 'Waiting for opponent' : 'Preparing game';
   }
-  if (view.status.type === 'playing' && liveState.roomMode === 'pve' && view.status.turn === 'black') return 'Engine thinking';
+  if (view.status.type === 'playing' && view.status.turn === pveEngineSeat()) return 'Engine thinking';
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) return 'Your move';
   return 'Opponent move';
 }
@@ -2058,7 +2069,7 @@ function actionBody(view: PlayerView | null): string {
     }
     return 'Share the room link when you are ready.';
   }
-  if (view.status.type === 'playing' && liveState.roomMode === 'pve' && view.status.turn === 'black') {
+  if (view.status.type === 'playing' && view.status.turn === pveEngineSeat()) {
     return 'The engine is on its own clock. Your clock resumes after its move.';
   }
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) {

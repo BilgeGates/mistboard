@@ -2095,6 +2095,7 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'python-tier1-v0.7.0': 'Tier-1 v0.7.0',
     'python-tier1-v0.7.22': 'Tier-1 v0.7.22',
     'python-tier1-v0.8.9': 'Tier-1 v0.8.9',
+    'python-tier1-current': 'Tier-1 current src (v0.9.5)',
   };
   return known[name] ?? null;
 }

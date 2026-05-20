@@ -48,6 +48,28 @@ export function isPlayableLiveEngineClientId(clientId: string | undefined): bool
 }
 
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
+  // Uses current src/fow_chess/ (v0.9.5-equivalent + lab additions). Skipped
+  // by PROD_PLAYABLE_ENGINE_IDS — only available locally via the
+  // MISTBOARD_EXTRA_PLAYABLE_ENGINES env var. Intended for asymmetric strength
+  // testing against the diagnosis-target codebase.
+  'python-tier1-current': {
+    id: 'python-tier1-current',
+    engineId: 'tier1',
+    engineName: 'Tier-1',
+    name: 'Tier-1 current src',
+    kind: 'container',
+    configHash: 'tier1-current',
+    playSignature: 'current',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'tier1',
+      version: 'current',
+      config: 'tier1-v1',
+      config_hash: 'current',
+    },
+    livePolicy: { timeoutMs: 5_000 },
+    notes: 'Tier-1 backed by current src/fow_chess (no engine_version pin). Local-only; for v0.9.5 strength testing.',
+  },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
     engineId: 'tier1',

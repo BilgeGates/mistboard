@@ -68,7 +68,7 @@ export interface HttpApiContext {
     hiddenDraft960?: boolean,
     timeControl?: RoomTimeControl,
     rated?: boolean,
-    options?: { randomSeating?: boolean },
+    options?: { randomSeating?: boolean; engineColor?: 'white' | 'black' },
   ): Promise<Room>;
   inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null;
   isDraining(): boolean;
@@ -275,6 +275,12 @@ export async function handleApiRequest(
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
+    // engineColor: PvE only. 'black' (default) → human plays white. 'white' →
+    // human plays black. Lets us test color-asymmetric engine behavior without
+    // a UI control. Body field is ignored for PvP.
+    const engineColor: 'white' | 'black' = (
+      mode === 'pve' && body.engineColor === 'white' ? 'white' : 'black'
+    );
     const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     // Engine games are never rated — rated play is human-vs-human only.
     const rated = mode === 'pve' ? false : (body.rated === false ? false : true);
@@ -313,7 +319,7 @@ export async function handleApiRequest(
       response.end(JSON.stringify({ error: 'server_draining', restartAt: ctx.drainDeadlineMs() }));
       return;
     }
-    const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined, rated);
+    const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined, rated, { engineColor });
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
     return;

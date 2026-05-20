@@ -87,6 +87,19 @@ export function clearRandomEngineTimer(room: Room): void {
   room.engineTimer = null;
 }
 
+/**
+ * Returns the seat the engine plays for a PvE room ('white' or 'black'),
+ * or null if not a PvE room or the engine seat isn't set in the projection yet.
+ * Reads from the projection (populated by the seat-assigned event), so it
+ * correctly reflects engineColor='white' rooms.
+ */
+export function engineSeatFor(room: Room): Color | null {
+  if (!room.pveEngineId) return null;
+  if (room.projection.seats.white === room.pveEngineId) return 'white';
+  if (room.projection.seats.black === room.pveEngineId) return 'black';
+  return null;
+}
+
 // ── Seat token helpers ─────────────────────────────────────────────────────
 
 function persistenceRecordForSeatToken(token: SeatTokenState): persistence.RoomSeatTokenRecord {
@@ -346,8 +359,15 @@ export async function appendEvent(ctx: RoomManagerContext, room: Room, event: Ga
     room.projection = replayGameEvents(room.events);
     room.mode = modeForProjection(room.projection);
     scheduleClockTimeout(ctx, room);
-    if (room.projection.state.status.type !== 'playing' || room.projection.state.status.turn !== 'black') {
-      clearRandomEngineTimer(room);
+    {
+      const engineSeat = engineSeatFor(room);
+      if (
+        room.projection.state.status.type !== 'playing'
+        || engineSeat === null
+        || room.projection.state.status.turn !== engineSeat
+      ) {
+        clearRandomEngineTimer(room);
+      }
     }
 
     if (
@@ -543,14 +563,27 @@ export async function startLiveClockIfReady(ctx: RoomManagerContext, room: Room)
 
   const now = Date.now();
   const timeControl = room.projection.timeControl;
+  const initialClock = timeControl
+    ? createClock(now, timeControl.initialMs, timeControl.incrementMs)
+    : createClock(now, ctx.liveClockInitialMs, ctx.liveClockIncrementMs);
+  // createClock hardcodes activeColor='white'. If the projection has already
+  // advanced before clock-started (engineColor='white' rooms: engine plays
+  // its first move before both seats are filled), the clock must start for
+  // the side actually to move — otherwise the wrong clock ticks down and
+  // the active-color UI hints are inverted.
+  const clock = room.projection.state.status.turn !== initialClock.activeColor
+    ? { ...initialClock, activeColor: room.projection.state.status.turn }
+    : initialClock;
   await appendEvent(ctx, room, {
     type: 'clock-started',
     at: now,
     roomId: room.id,
-    clock: timeControl
-      ? createClock(now, timeControl.initialMs, timeControl.incrementMs)
-      : createClock(now, ctx.liveClockInitialMs, ctx.liveClockIncrementMs),
+    clock,
   });
+  // If the game starts with the engine to move (PvE with engineColor='white'),
+  // there's otherwise no trigger to kick off the engine's first move — the
+  // normal trigger fires after a human plays (line 699 of this file).
+  scheduleRandomEngineMove(ctx, room);
 }
 
 export async function resolveStartIfReady(ctx: RoomManagerContext, room: Room): Promise<void> {
@@ -700,7 +733,7 @@ async function recordLiveEngineDecisionArtifact(
     await persistence.recordGameDebugArtifact({
       gameId: room.id,
       ply: input.contextPly,
-      engineColor: 'black',
+      engineColor: engineSeatFor(room) ?? 'black',
       artifactType: 'live-engine-decision',
       payload: {
         requested_engine_id: input.requestedEngineId,
@@ -716,7 +749,7 @@ async function recordLiveEngineDecisionArtifact(
       await persistence.recordGameDebugArtifact({
         gameId: room.id,
         ply: input.contextPly,
-        engineColor: 'black',
+        engineColor: engineSeatFor(room) ?? 'black',
         artifactType: 'live-engine-fallback',
         payload: {
           engine_id: input.fallbackEvent.engineId,
@@ -746,24 +779,26 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
-  if (room.projection.state.status.turn !== 'black') return;
+  const engineSeat = engineSeatFor(room);
+  if (engineSeat === null) return;
+  if (room.projection.state.status.turn !== engineSeat) return;
 
   const now = Date.now();
-  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, 'black', now) <= 0) {
-    await expireActiveClock(ctx, room, 'black', now);
+  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, engineSeat, now) <= 0) {
+    await expireActiveClock(ctx, room, engineSeat, now);
     return;
   }
 
-  const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, 'black');
+  const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, engineSeat);
   if (moves.length === 0) return;
   const clock = room.projection.state.clock;
   const context = {
     baseThinkTimeMs: ctx.pveEngineMoveDelayMs,
-    clockRemainingMs: clock ? clockRemainingMs(clock, 'black', now) : undefined,
+    clockRemainingMs: clock ? clockRemainingMs(clock, engineSeat, now) : undefined,
     events: room.events,
     incrementMs: clock?.incrementMs,
     state: room.projection.state,
-    color: 'black',
+    color: engineSeat,
     legalMoves: moves,
     roomId: room.id,
     seed: liveEngineMoveSeed(room),
@@ -798,9 +833,9 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
   await sleepEngineThinkTime(startedAt, engineThinkTimeMs);
   const decisionAt = Date.now();
   if (room.projection.state.status.type !== 'playing') return;
-  if (room.projection.state.status.turn !== 'black') return;
-  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, 'black', decisionAt) <= 0) {
-    await expireActiveClock(ctx, room, 'black', decisionAt);
+  if (room.projection.state.status.turn !== engineSeat) return;
+  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, engineSeat, decisionAt) <= 0) {
+    await expireActiveClock(ctx, room, engineSeat, decisionAt);
     return;
   }
   engineCounters.recordMove(result.fallback);
@@ -823,14 +858,14 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
   if (!move) return;
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
   if (nextState === room.projection.state) return;
-  const nextClock = advanceClock(room.projection.state.clock, decisionAt, 'black', nextState.status);
+  const nextClock = advanceClock(room.projection.state.clock, decisionAt, engineSeat, nextState.status);
   const captured = capturedRoleFor(room.projection.state, nextState.lastMove ?? move);
   await appendEvent(ctx, room, {
     type: 'move-played',
     at: decisionAt,
     roomId: room.id,
     clock: nextClock,
-    color: 'black',
+    color: engineSeat,
     move,
     thinkTimeMs: engineThinkTimeMs,
     ...(captured ? { capturedRole: captured } : {}),
@@ -854,7 +889,9 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
   if (room.projection.variant !== 'fog-of-war') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
-  if (room.projection.state.status.turn !== 'black') return;
+  const engineSeat = engineSeatFor(room);
+  if (engineSeat === null) return;
+  if (room.projection.state.status.turn !== engineSeat) return;
 
   room.engineTimer = setTimeout(() => {
     room.engineTimer = null;

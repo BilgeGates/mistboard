@@ -90,6 +90,15 @@ TIER1_LIVE_ENGINES: dict[str, dict[str, str]] = {
         "playSignature": "2c010d792075",
         "engineVersion": "v0.8.9-repair-caps@2c010d792075",
     },
+    # Use current src/fow_chess/ (v0.9.5-equivalent with info_reveal_bonus_coef=25
+    # and the rest of the post-eval layer enabled). Empty engineVersion → runtime
+    # skips the snapshot load and uses live source. Local-only via the
+    # MISTBOARD_EXTRA_PLAYABLE_ENGINES env var; not in PROD_PLAYABLE_ENGINE_IDS.
+    "python-tier1-current": {
+        "tier1Version": "current",
+        "playSignature": "current",
+        "engineVersion": "",
+    },
 }
 
 
@@ -241,7 +250,9 @@ class _StrategyRuntime:
         config = load_config(ROOT / "configs" / "tier1-v1.json")
         if canonical_hash(config) != TIER1_CONFIG_HASH:
             raise RuntimeError("tier1-v1 config hash mismatch")
-        config = replace(config, engine_version=tier1["engineVersion"])
+        if tier1.get("engineVersion"):
+            config = replace(config, engine_version=tier1["engineVersion"])
+        # else: leave config.engine_version=None → runtime loads live src/fow_chess
         self._runtime = bot_runtime(config, stockfish_path=self.stockfish_path)
         factory = self._runtime.__enter__()
         self._strategy = factory(self.seed)

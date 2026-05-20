@@ -935,7 +935,7 @@ async function createRoom(
   hiddenDraft960 = false,
   timeControl?: RoomTimeControl,
   rated = true,
-  options: { randomSeating?: boolean } = {},
+  options: { randomSeating?: boolean; engineColor?: 'white' | 'black' } = {},
 ): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
@@ -953,12 +953,13 @@ async function createRoom(
     };
     const events: GameEvent[] = [roomCreated];
     if (mode === 'pve') {
+      const engineSeat: 'white' | 'black' = options.engineColor ?? 'black';
       events.push({
         type: 'seat-assigned',
         at,
         roomId,
         clientId: engineId,
-        seat: 'black',
+        seat: engineSeat,
       });
       const engineSelection = engineDraftSelectionEvent(roomCreated, roomId, at);
       if (engineSelection) events.push(engineSelection);

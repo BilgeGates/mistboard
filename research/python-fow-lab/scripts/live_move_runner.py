@@ -62,6 +62,12 @@ TIER1_LIVE_ENGINES: dict[str, dict[str, str]] = {
         "playSignature": "2c010d792075",
         "engineVersion": "v0.8.9-repair-caps@2c010d792075",
     },
+    # Live current-src variant; empty engineVersion → load from src/fow_chess.
+    "python-tier1-current": {
+        "tier1Version": "current",
+        "playSignature": "current",
+        "engineVersion": "",
+    },
 }
 
 
@@ -265,7 +271,8 @@ class strategy_runtime:
             config = load_config(ROOT / "configs" / "tier1-v1.json")
             if canonical_hash(config) != TIER1_CONFIG_HASH:
                 raise RuntimeError("tier1-v1 config hash mismatch")
-            config = replace(config, engine_version=tier1["engineVersion"])
+            if tier1.get("engineVersion"):
+                config = replace(config, engine_version=tier1["engineVersion"])
             self._runtime = bot_runtime(config, stockfish_path=self.stockfish_path)
             factory = self._runtime.__enter__()
             self._strategy = factory(self.seed)
