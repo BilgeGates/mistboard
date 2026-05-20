@@ -37,6 +37,7 @@ from .mcts import mcts_pick_move
 from .move_priors import OpponentMovePrior, uniform_prior
 from .observation import Observation
 from .selfplay import PerspectiveView
+from .visibility import visible_squares
 
 
 def _piece_color_name(color: chess.Color) -> str:
@@ -1209,6 +1210,14 @@ class Tier1Strategy:
     # penalty above subsumes the "tighten vetoes" use case.
     queen_fog_risk_threshold: float = 0.20
     piece_fog_risk_threshold: float = 0.25
+    # v0.9.5 draw-reduction knobs. Addresses the 67% draw rate observed in
+    # 100-game self-play corpus (the "shuffles instead of pushing when ahead"
+    # pathology q0 ply 190 annotated). Three additive bonuses applied in the
+    # same post-score loop as capture-risk/anti-shuffle:
+    push_when_ahead_bonus: float = 200.0    # cp per "advances toward opp side" move when material edge > threshold
+    push_when_ahead_min_edge: float = 3.0   # require material edge > this (in pawn units) for push bonus
+    info_reveal_bonus_coef: float = 25.0    # cp per square of new visibility unlocked by the move
+    anti_shuffle_penalty_strong: float = 250.0  # used in place of anti_shuffle_penalty when material edge > push_when_ahead_min_edge
 
     def __post_init__(self) -> None:
         self._rng = random.Random(self.seed)
@@ -2590,6 +2599,81 @@ class Tier1Strategy:
         best_depth = min(d for _, _, _, d, _, _ in best)
         return [move for move, _, _, d, _, _ in best if d == best_depth]
 
+    def _material_edge_estimate(self, view: PerspectiveView) -> float:
+        """Approximate (own_material - expected_opp_material) in pawn units.
+
+        Own material is exact (we see our pieces). Opp material is the
+        belief-weighted mean across particles — each particle is a full-board
+        hypothesis, so summing opp material on each and weighting by particle
+        weight gives the belief-implied opp material. This is much sharper
+        than opp_remaining_counts (which is a never-decreased-by-attrition
+        upper bound that says ~39 forever if we haven't captured pieces).
+        """
+        own = sum(
+            _MATERIAL_VALUE.get(p.piece_type, 0)
+            for p in view.visible_piece_map.values()
+            if p.color == view.perspective and p.piece_type != chess.KING
+        )
+        opp = 0.0
+        if self._belief is not None and self._belief.particles:
+            total_w = 0.0
+            opp_w = 0.0
+            opp_color = not view.perspective
+            for particle, weight in zip(self._belief.particles, self._belief.weights):
+                pmat = sum(
+                    _MATERIAL_VALUE.get(p.piece_type, 0)
+                    for p in particle.piece_map().values()
+                    if p.color == opp_color and p.piece_type != chess.KING
+                )
+                opp_w += weight * pmat
+                total_w += weight
+            if total_w > 0:
+                opp = opp_w / total_w
+        return own - opp
+
+    def _is_forward_progress(
+        self, move: chess.Move, perspective: chess.Color
+    ) -> bool:
+        """Heuristic: does this move advance the piece toward opp's side?
+
+        From white's POV, ranks increase toward black's home; from black's POV,
+        ranks decrease. The check is rank-monotonic — captures and pawn pushes
+        toward the opp side count; lateral moves and retreats don't.
+        """
+        from_rank = chess.square_rank(move.from_square)
+        to_rank = chess.square_rank(move.to_square)
+        if perspective == chess.WHITE:
+            return to_rank > from_rank
+        return to_rank < from_rank
+
+    def _cached_visibility_count(self, view: PerspectiveView) -> int:
+        """Pre-move count of squares visible to our perspective. Used as the
+        baseline for info-reveal deltas in the post-score loop."""
+        return len(view.visible_squares)
+
+    def _move_visibility_delta(
+        self,
+        move: chess.Move,
+        view: PerspectiveView,
+        pre_count: int,
+    ) -> int:
+        """Number of newly-visible squares this move would unlock.
+
+        Visibility depends only on OWN piece positions (squares attacked /
+        occupied by them). We construct a partial board from the visible
+        piece map, apply the move, and measure the new visibility count.
+        Sliding pieces into fog reveal the most; pawn pushes reveal one row.
+        """
+        partial = chess.Board.empty()
+        for sq, piece in view.visible_piece_map.items():
+            partial.set_piece_at(sq, piece)
+        partial.turn = view.perspective
+        if not partial.is_pseudo_legal(move):
+            return 0
+        partial.push(move)
+        new_count = len(visible_squares(partial, view.perspective))
+        return max(0, new_count - pre_count)
+
     def _compute_capture_risk_map(
         self,
         candidates: list[chess.Move],
@@ -3336,11 +3420,26 @@ class Tier1Strategy:
         #                   shows up as a proportional score penalty.
         #   - anti_shuffle: flat penalty if (from, to) was played in the
         #                   last N own plies. Forces conversion progress.
-        if scored and (self.capture_risk_penalty_coef > 0 or self.anti_shuffle_penalty > 0):
+        if scored and (
+            self.capture_risk_penalty_coef > 0
+            or self.anti_shuffle_penalty > 0
+            or self.push_when_ahead_bonus > 0
+            or self.info_reveal_bonus_coef > 0
+        ):
             risk_map = self._compute_capture_risk_map(
                 [m for m, _, _ in scored], view
             )
             recent = set(self._recent_own_moves)
+            # v0.9.5: material edge from belief gates push-when-ahead. Use the
+            # visible piece map (truth from our POV) for own material, and the
+            # belief's posterior expected count for opp.
+            edge = self._material_edge_estimate(view)
+            ahead = edge > self.push_when_ahead_min_edge
+            shuffle_pen = (
+                self.anti_shuffle_penalty_strong if ahead else self.anti_shuffle_penalty
+            )
+            # Precompute pre-move visibility for info-reveal calculations.
+            pre_vis = self._cached_visibility_count(view)
             adjusted = []
             for move, score, support in scored:
                 mover = view.visible_piece_map.get(move.from_square)
@@ -3350,11 +3449,35 @@ class Tier1Strategy:
                 risk = risk_map.get(move, 0.0)
                 risk_penalty = risk * piece_val * self.capture_risk_penalty_coef
                 shuffle_penalty = (
-                    self.anti_shuffle_penalty
+                    shuffle_pen
                     if (move.from_square, move.to_square) in recent
                     else 0.0
                 )
-                adjusted.append((move, score - risk_penalty - shuffle_penalty, support))
+                # Push-when-ahead bonus: any forward-progress move (rank
+                # increases toward opp side) when materially up. Pawns and
+                # sliding pieces contribute; piece values are not scaled (the
+                # bonus is the same regardless of mover) — the idea is to
+                # break ties toward forward motion, not to overrule major
+                # tactical considerations.
+                push_bonus = 0.0
+                if ahead and mover is not None:
+                    if self._is_forward_progress(move, view.perspective):
+                        push_bonus = self.push_when_ahead_bonus
+                # Info-reveal bonus: count newly visible squares after this
+                # move (sliding pieces into fog reveal more). Linear cp per
+                # square; capped implicitly by the small per-square coef.
+                reveal_bonus = 0.0
+                if self.info_reveal_bonus_coef > 0:
+                    delta = self._move_visibility_delta(move, view, pre_vis)
+                    reveal_bonus = delta * self.info_reveal_bonus_coef
+                final = (
+                    score
+                    - risk_penalty
+                    - shuffle_penalty
+                    + push_bonus
+                    + reveal_bonus
+                )
+                adjusted.append((move, final, support))
             adjusted.sort(key=lambda r: -r[1])
             new_chosen = adjusted[0][0]
             if new_chosen != chosen:

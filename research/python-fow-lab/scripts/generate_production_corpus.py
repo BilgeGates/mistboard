@@ -67,27 +67,71 @@ class GameRollout:
     positions: list[dict[str, Any]]
 
 
+def _make_strategy_for_corpus(
+    *,
+    builder,
+    prior,
+    seed: int,
+    version: str,  # "v094" (current default) or "v093" (no stopgap, recovers v0.9.3 production)
+) -> Tier1Strategy:
+    if version == "v093":
+        # Disable v0.9.4 stopgap soft penalties + v0.9.5 draw-reducers to recover
+        # exact v0.9.3 behavior. Engine asymmetry pairs v093 vs v094 so games
+        # diverge from the symmetric-mutual-shuffle pattern.
+        return Tier1Strategy(
+            evaluator_builder=builder, move_prior=prior,
+            target_n=256, max_eval_particles=16, seed=seed,
+            mcts_rollouts=0,
+            capture_risk_penalty_coef=0.0,
+            anti_shuffle_penalty=0.0,
+            anti_shuffle_penalty_strong=0.0,
+            push_when_ahead_bonus=0.0,
+            info_reveal_bonus_coef=0.0,
+        )
+    return Tier1Strategy(
+        evaluator_builder=builder, move_prior=prior,
+        target_n=256, max_eval_particles=16, seed=seed,
+        mcts_rollouts=0,
+    )
+
+
 def _play_one_game(
-    *, game_index: int, base_seed: int, max_plies: int, builder, prior
+    *,
+    game_index: int,
+    base_seed: int,
+    max_plies: int,
+    builder,
+    prior,
+    asymmetric: bool = False,
+    opening_random_plies: int = 0,
 ) -> GameRollout:
     seed_w = base_seed + game_index * 7919
     seed_b = base_seed + game_index * 7919 + 1
 
-    white = Tier1Strategy(
-        evaluator_builder=builder, move_prior=prior,
-        target_n=256, max_eval_particles=16, seed=seed_w,
-        mcts_rollouts=0,
-    )
-    black = Tier1Strategy(
-        evaluator_builder=builder, move_prior=prior,
-        target_n=256, max_eval_particles=16, seed=seed_b,
-        mcts_rollouts=0,
+    # Engine asymmetry: alternate which side gets v094 vs v093 by game parity.
+    if asymmetric:
+        if game_index % 2 == 0:
+            white_version, black_version = "v094", "v093"
+        else:
+            white_version, black_version = "v093", "v094"
+    else:
+        white_version, black_version = "v094", "v094"
+
+    white = _make_strategy_for_corpus(builder=builder, prior=prior, seed=seed_w, version=white_version)
+    black = _make_strategy_for_corpus(builder=builder, prior=prior, seed=seed_b, version=black_version)
+
+    from fow_chess.selfplay import OpeningPolicy
+    opening_policy = (
+        OpeningPolicy.random_first_n_plies(opening_random_plies)
+        if opening_random_plies > 0
+        else None
     )
 
     t_g = time.time()
     result = play_game(
         white, black, max_plies=max_plies,
         room_id=f"prod-g{game_index:04d}", seed=seed_w,
+        opening_policy=opening_policy,
     )
     wall = time.time() - t_g
 
@@ -178,6 +222,8 @@ def _run_filesystem(args) -> int:
             roll = _play_one_game(
                 game_index=i, base_seed=args.seed, max_plies=args.max_plies,
                 builder=builder, prior=prior,
+                asymmetric=args.asymmetric,
+                opening_random_plies=args.opening_random_plies,
             )
             winners[roll.winner or "none"] = winners.get(roll.winner or "none", 0) + 1
 
@@ -264,6 +310,8 @@ def _run_postgres(args) -> int:
             roll = _play_one_game(
                 game_index=i, base_seed=args.seed, max_plies=args.max_plies,
                 builder=builder, prior=prior,
+                asymmetric=args.asymmetric,
+                opening_random_plies=args.opening_random_plies,
             )
             winners[roll.winner or "none"] = winners.get(roll.winner or "none", 0) + 1
             store.insert_game(
@@ -293,6 +341,16 @@ def main() -> int:
         "--start-index", type=int, default=None,
         help="explicit corpus_idx to start writing at (Postgres mode only); "
              "lets parallel workers claim disjoint ranges. Default: resume from MAX+1.",
+    )
+    ap.add_argument(
+        "--asymmetric", action="store_true",
+        help="alternate v094 vs v093 (no-stopgap) pairings per game. Reduces "
+             "mutual-shuffle draws by introducing strength asymmetry.",
+    )
+    ap.add_argument(
+        "--opening-random-plies", type=int, default=0,
+        help="play this many uniformly-random pseudo-legal moves at the start "
+             "of each game before strategies take over. Diversifies openings.",
     )
 
     out_group = ap.add_mutually_exclusive_group(required=True)
