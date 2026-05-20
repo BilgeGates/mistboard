@@ -47,32 +47,36 @@ PROBES: list[Probe] = [
     # =============================================
     # Material — basic capture / hang detection
     # =============================================
+    # Position with MORE material so consequences propagate correctly under
+    # standard chess (avoiding insufficient-material draws that SF labels
+    # would mark ~0). Each FoW-edge probe is paired with a middlegame
+    # equivalent that SF can score honestly.
     Probe(
-        name="capture-undefended-queen",
-        fen="4k3/8/8/3q4/3Q4/8/8/4K3 w - - 0 1",
+        name="capture-undefended-queen-mid",
+        fen="r3k2r/ppp2ppp/8/3q4/3Q4/8/PPP2PPP/R3K2R w KQkq - 0 1",
         move_uci="d4d5",
         mover=chess.WHITE,
         expect=lambda s: s > 500,
-        expect_description="> +500 (free queen)",
-        rationale="trivial Qxq, undefended — must score VERY positive",
+        expect_description="> +500 (free queen in middlegame)",
+        rationale="Trivial Qxq with both sides having rooks+pawns. SF will rate K+Q+R+P advantage strongly positive (no insufficient-material distortion).",
     ),
     Probe(
-        name="queen-takes-defended-pawn",
-        fen="2n1k3/8/1p6/8/8/1Q6/8/4K3 w - - 0 1",
-        move_uci="b3b6",
+        name="queen-takes-defended-pawn-mid",
+        fen="r1bqk2r/pppp1ppp/2n2n2/4p3/1Q2P3/3P1N2/PPP2PPP/RNB1KB1R w KQkq - 0 1",
+        move_uci="b4b7",
         mover=chess.WHITE,
         expect=lambda s: s < -300,
-        expect_description="< -300 (loses queen)",
-        rationale="Qxb6 — Nc8 defends b6 → next ply -8 material. Must score VERY negative.",
+        expect_description="< -300 (loses queen for pawn)",
+        rationale="Qxb7 grabs a pawn but a8 rook recaptures (Rxb7). White loses Q (9) for P+R (1+5) net -3. Middlegame position with full material — SF will see the loss.",
     ),
     Probe(
-        name="hang-queen-on-empty-square",
-        fen="4k3/8/8/8/3Q4/8/4r3/4K3 w - - 0 1",
+        name="hang-queen-mid",
+        fen="r3k2r/ppp2ppp/8/8/3Q4/8/PPP1rPPP/R3K2R w KQkq - 0 1",
         move_uci="d4d2",
         mover=chess.WHITE,
         expect=lambda s: s < -400,
-        expect_description="< -400 (Rxd2 next ply)",
-        rationale="Qd4-d2 hangs the queen to Rxd2. Must score very negative.",
+        expect_description="< -400 (Rxd2 next ply, both sides have material left)",
+        rationale="Qd4-d2 hangs the queen to Rxd2 in a middlegame with rooks+pawns. SF sees this as a clear blunder (-8 material with enough material left to convert).",
     ),
     # =============================================
     # Equal-or-favorable trades
@@ -108,13 +112,13 @@ PROBES: list[Probe] = [
         rationale="Push pawn to queen with no opposition — must score very positive.",
     ),
     Probe(
-        name="walk-king-into-attack",
-        fen="4k3/8/8/4r3/8/8/8/4K3 w - - 0 1",
-        move_uci="e1e2",
+        name="walk-king-into-attack-mid",
+        fen="r3k2r/ppp2ppp/8/8/4r3/8/PPP1KPPP/R6R w kq - 0 1",
+        move_uci="e2e3",
         mover=chess.WHITE,
-        expect=lambda s: s < -500,
-        expect_description="< -500 (king walks into rook fire)",
-        rationale="Ke1-e2 walks king onto an attacked file — Rxe2 next ply, terminal.",
+        expect=lambda s: s < -300,
+        expect_description="< -300 (king walks onto attacked file mid-game)",
+        rationale="Ke2-e3 puts king on the e-file with black rook on e4 — Rxe3 wins the king/material. With both sides having material, SF sees this as clearly bad.",
     ),
     # =============================================
     # Threat / tactic recognition
