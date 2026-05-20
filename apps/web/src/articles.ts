@@ -421,6 +421,19 @@ function articleCard(article: Article): HTMLLIElement {
   link.className = 'articles-index-card';
   link.href = `/articles/${article.slug}`;
 
+  const body = document.createElement('div');
+  body.className = 'articles-index-card-body';
+
+  if (article.status === 'outline' || article.status === 'draft') {
+    const meta = document.createElement('div');
+    meta.className = 'articles-index-card-meta';
+    const badge = document.createElement('span');
+    badge.className = `article-status-badge article-status-${article.status}`;
+    badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
+    meta.append(badge);
+    body.append(meta);
+  }
+
   const title = document.createElement('strong');
   title.className = 'articles-index-card-title';
   title.textContent = article.title;
@@ -429,14 +442,14 @@ function articleCard(article: Article): HTMLLIElement {
   summary.className = 'articles-index-card-summary';
   summary.textContent = article.summary;
 
-  if (article.status === 'outline' || article.status === 'draft') {
-    const badge = document.createElement('span');
-    badge.className = `article-status-badge article-status-${article.status}`;
-    badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
-    title.append(' ', badge);
-  }
+  body.append(title, summary);
 
-  link.append(title, summary);
+  const arrow = document.createElement('span');
+  arrow.className = 'articles-index-card-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '→';
+
+  link.append(body, arrow);
   item.append(link);
   return item;
 }

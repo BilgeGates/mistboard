@@ -2352,6 +2352,18 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   max-width: 560px;
 }
 
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-board-column #landing-replay {
+  max-width: min(560px, calc(100dvh - 340px));
+}
+
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-board-column {
+  gap: clamp(6px, 1vw, 12px);
+}
+
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-play-panel {
+  align-self: center;
+}
+
 .landing-hero-header {
   display: flex;
   flex-direction: column;
@@ -2431,6 +2443,11 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   line-height: 1.65;
   font-size: 16px;
   margin: 0 0 28px;
+  max-width: 580px;
+}
+
+.articles-index .site-section-heading {
+  margin-bottom: 10px;
 }
 
 .articles-index-list {
@@ -2447,19 +2464,34 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 }
 
 .articles-index-card {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 16px;
   padding: 18px 20px;
   border: 1px solid #d8dad7;
   border-radius: 8px;
   background: #ffffff;
   color: inherit;
   text-decoration: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
 .articles-index-card:hover {
   border-color: #629924;
   background: #fafdf5;
+  box-shadow: 0 4px 14px rgba(29, 37, 34, 0.06);
+}
+
+.articles-index-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.articles-index-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
 }
 
 .articles-index-card-title {
@@ -2468,13 +2500,37 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   font-weight: 600;
   color: #1f2521;
   margin: 0 0 6px;
+  letter-spacing: -0.005em;
 }
 
 .articles-index-card-summary {
   margin: 0;
   color: #3f4742;
-  line-height: 1.5;
+  line-height: 1.55;
   font-size: 14px;
+}
+
+.articles-index-card-arrow {
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1;
+  color: #9ca3af;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.articles-index-card:hover .articles-index-card-arrow {
+  color: #629924;
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .articles-index-card,
+  .articles-index-card-arrow {
+    transition: none;
+  }
+  .articles-index-card:hover .articles-index-card-arrow {
+    transform: none;
+  }
 }
 
 .article-status-badge {
