@@ -293,6 +293,16 @@ export async function handleApiRequest(
       response.end(JSON.stringify({ error: 'invalid_engine' }));
       return;
     }
+    // PvE is scoped to 3+2 until the engine can hold its per-move budget at
+    // shorter time controls (currently Tier1 p99 ~12s on Railway prod). UI
+    // already disables non-3+2 presets for PvE; this is defense in depth
+    // against direct API calls. PvP keeps the full preset range — humans
+    // set their own pace.
+    if (mode === 'pve' && timeControl && !isPveAllowedTimeControl(timeControl)) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'time_control_unsupported_for_pve' }));
+      return;
+    }
     if (ctx.databaseRequired && !persistence.isInitialized()) {
       response.writeHead(503, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
@@ -821,6 +831,21 @@ function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
 function parsePlayablePveEngineId(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0) return null;
   return playableLiveEngines().some((engine) => engine.id === value) ? value : null;
+}
+
+// PvE time-control allowlist. Keep in sync with LANDING_TIME_PRESETS in
+// apps/web/src/landing.ts. Currently only 3+2 is enabled for PvE because
+// Tier1's per-move compute can exceed the per-move budget on shorter
+// time controls. When 1+1 is engine-ready, add it here and unstub it in
+// the UI in the same change.
+const PVE_ALLOWED_TIME_CONTROLS: ReadonlyArray<RoomTimeControl> = [
+  { initialMs: 180_000, incrementMs: 2_000 },
+];
+
+export function isPveAllowedTimeControl(tc: RoomTimeControl): boolean {
+  return PVE_ALLOWED_TIME_CONTROLS.some(
+    (allowed) => allowed.initialMs === tc.initialMs && allowed.incrementMs === tc.incrementMs,
+  );
 }
 
 export function parseRoomTimeControl(value: unknown): RoomTimeControl | null {

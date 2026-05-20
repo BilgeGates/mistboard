@@ -85,7 +85,14 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
   const target = `${opts.url}/?room=${encodeURIComponent(opts.room)}&variant=${variant}${hidden}`;
 
   const protocols = opts.seatToken ? [`mistboard-seat.${opts.seatToken}`] : undefined;
-  const socket = new WebSocket(target, protocols);
+  // Production WS handshake requires an Origin header matching the host
+  // (server-policy.ts: isAllowedWebSocketOrigin). Local dev/integration is
+  // permissive, so deriving Origin from the URL is safe everywhere and lets
+  // the harness target deployed services like wss://mistboard.com.
+  const parsedUrl = new URL(opts.url);
+  const originScheme = parsedUrl.protocol === 'wss:' ? 'https:' : 'http:';
+  const origin = `${originScheme}//${parsedUrl.host}`;
+  const socket = new WebSocket(target, protocols, { origin });
 
   const messages: unknown[] = [];
   const waiters: Array<{ predicate: (msg: MessageOf) => boolean; resolve: (msg: MessageOf) => void }> = [];

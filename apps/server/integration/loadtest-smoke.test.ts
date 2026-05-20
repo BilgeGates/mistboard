@@ -70,7 +70,9 @@ async function createPveRoom(): Promise<string> {
     body: JSON.stringify({
       mode: 'pve',
       variant: 'fog-of-war',
-      timeControl: { initialMs: 600_000, incrementMs: 0 }, // 10+0 casual; clock isn't the constraint here
+      // 3+2 is currently the only allowed PvE time control (see
+      // isPveAllowedTimeControl in http-api.ts). Keep this synced.
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     }),
   });
   assert.equal(res.status, 201, `POST /api/rooms returned ${res.status}`);
@@ -135,6 +137,37 @@ function isActionable(msg: SnapshotMessage, actedOnMove: number): boolean {
   const mn = msg.state?.moveNumber ?? -1;
   return mn > actedOnMove;
 }
+
+test('POST /api/rooms rejects PvE rooms with non-3+2 time controls', async () => {
+  // The UI scopes PvE to 3+2; this is the server-side defense-in-depth so a
+  // hand-crafted POST can't bypass the lock and melt the engine.
+  // PvP is unconstrained on the server (humans set their own pace) — verified
+  // by the smoke test below, which uses PvE 3+2 successfully.
+  const bullet = await fetch(`${httpBase}/api/rooms`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'pve',
+      variant: 'fog-of-war',
+      timeControl: { initialMs: 60_000, incrementMs: 1_000 },
+    }),
+  });
+  assert.equal(bullet.status, 400, 'PvE 1+1 should be rejected');
+  const body = (await bullet.json()) as { error?: string };
+  assert.equal(body.error, 'time_control_unsupported_for_pve');
+
+  // Sanity: PvP at the same 1+1 time control IS allowed (no PvE restriction).
+  const pvp = await fetch(`${httpBase}/api/rooms`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'pvp',
+      variant: 'fog-of-war',
+      timeControl: { initialMs: 60_000, incrementMs: 1_000 },
+    }),
+  });
+  assert.equal(pvp.status, 201, 'PvP 1+1 should be accepted');
+});
 
 test(`loadtest smoke: ${CONCURRENCY} concurrent PvE games produce engine moves with no fallbacks`, async () => {
   const results = await Promise.all(Array.from({ length: CONCURRENCY }, (_, i) => playOne(i)));

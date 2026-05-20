@@ -18,7 +18,11 @@ export interface Scenario {
 }
 
 const BULLET: RoomTimeControl = { initialMs: 60_000, incrementMs: 1_000 };
-const BLITZ: RoomTimeControl = { initialMs: 180_000, incrementMs: 0 };
+// 3+2 is the PvE allowlist (see isPveAllowedTimeControl in http-api.ts).
+// Other PvE scenarios will get rejected at /api/rooms; bullet/casual PvE
+// scenarios only work locally against an unrestricted server or against
+// PvP, not against PvE-on-prod.
+const BLITZ: RoomTimeControl = { initialMs: 180_000, incrementMs: 2_000 };
 const CASUAL: RoomTimeControl = { initialMs: 600_000, incrementMs: 0 };
 
 export const scenarios: Record<string, Scenario> = {
