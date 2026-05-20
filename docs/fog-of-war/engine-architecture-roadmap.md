@@ -25,28 +25,64 @@ The engine consumes only legal `PlayerView`-equivalent information. It may use
 saved truth boards for offline analysis, labels, and debugging, but not for
 live decision input.
 
+## Algorithm Family
+
+The five layers below describe the engine's *substrate*: belief representation,
+analysis workers, synthesis, anytime protocol, learning loop. Most of that
+substrate is family-agnostic — it serves whichever search and aggregation
+algorithm runs on top of it.
+
+The choice of *which* algorithm runs on top is a separate question, and it is
+load-bearing for long-term strength. Fog of War is structurally an imperfect-
+information game, and the algorithm families that work for imperfect-information
+game-solving (Counterfactual Regret Minimization and its neural descendants:
+DeepStack, Libratus, ReBeL, Deep CFR) are different from the algorithm families
+that work for perfect-information chess (search + leaf evaluation + self-play).
+
+The current engine uses PIMC (Perfect-Information Monte Carlo): sample hidden
+worlds, search perfect-info in each, aggregate. PIMC is a reasonable first
+approximation but has two known structural limitations — strategy fusion
+(cannot represent mixed strategies) and lack of Nash convergence under self-play
+improvement in imperfect-info games. The long-term engine direction is to move
+the search/aggregation layer toward CFR-family algorithms, while keeping the
+substrate below it.
+
+For the full analysis — what FoW shares with poker, what CFR provides that
+PIMC does not, candidate research directions, what translates from chess-family
+work and what does not — see `engine-algorithm-family.md`.
+
 ## Research Map
 
-Useful research families to track:
+Useful research families to track. CFR-family approaches are the load-bearing
+long-term direction; the other items remain useful as substrate work,
+intermediate baselines, or comparison points. See `engine-algorithm-family.md`
+for the framing.
 
+- **CFR, continual resolving, and public-belief search.** Poker engines are
+  the mature example of high-strength imperfect-information play. DeepStack,
+  Libratus, and ReBeL demonstrate that decision-time subgame solving with
+  neural value nets reaches expert-level play in two-player zero-sum imperfect-
+  info games. Open question for FoW: does Deep CFR scale to chess-sized state
+  spaces? The published FoW engine (Obscuro) skipped CFR for tractability
+  reasons that are worth revisiting at modern compute.
 - **Determinization / PIMC.** Sample plausible hidden worlds, run perfect-
-  information search in each, then aggregate. This is a practical baseline, but
-  it can suffer from strategy fusion: the search may act as if it can know
-  which hidden world is real after choosing a move.
+  information search in each, then aggregate. The current baseline. Known to
+  suffer from strategy fusion: the search acts as if it can know which hidden
+  world is real after choosing a move, which makes it unable to represent
+  mixed strategies.
 - **Information Set MCTS.** Search over what the player knows instead of one
-  concrete board. This is a natural classical upgrade once belief generation is
-  stable enough to provide good samples and rollout priors.
+  concrete board. A natural classical intermediate step between PIMC and full
+  CFR once belief generation is stable enough to provide good samples and
+  rollout priors.
 - **Kriegspiel and dark-chess work.** The closest chess-family cousins. Their
   "metaposition" and MCTS ideas are directly relevant to tracking possible
   worlds and choosing information-safe moves.
-- **CFR, continual resolving, and public-belief search.** Poker engines are
-  the mature example of high-strength imperfect-information play. They are not
-  drop-in solutions for chess, but they are useful design pressure for belief
-  states, counterfactual values, and online resolving.
-- **Neural policy/value models.** Later-stage option. A neural model can learn
-  policy, value, risk, and information-gain signals from self-play, full-info
-  analysis, and human annotations. It should follow a reliable data/replay
-  pipeline, not precede one.
+- **Neural policy/value models.** A neural model can learn policy, value, risk,
+  and information-gain signals from self-play, full-info analysis, and human
+  annotations. Most useful when its training signal comes from an equilibrium-
+  aware data generator (e.g., CFR-derived labels) rather than from perfect-info
+  oracles like Stockfish. Should follow a reliable data/replay pipeline, not
+  precede one.
 
 ## Layers
 
