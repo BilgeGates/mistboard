@@ -47,7 +47,6 @@ export type StoredSeatToken = {
 export type LiveRefs = {
   board: HTMLDivElement;
   boardPaused: HTMLDivElement;
-  boardResult: HTMLDivElement;
   boardStatus: HTMLDivElement;
   draftPicker: HTMLDivElement;
   actionStatus: HTMLDivElement;

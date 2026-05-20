@@ -174,7 +174,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
             <div data-board-status class="board-status">Connecting</div>
             <div data-board class="board" aria-label="chess board"></div>
             <div data-captures class="captures-strip" aria-label="Pieces captured"></div>
-            <div data-board-result class="board-result" hidden></div>
             <div data-board-paused class="board-paused" hidden role="status" aria-live="polite">
               <div class="board-paused__badge">
                 <strong>Game paused</strong>
@@ -213,7 +212,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const roomMeta = target.querySelector<HTMLParagraphElement>('[data-room-meta]');
   const board = target.querySelector<HTMLDivElement>('[data-board]');
   const boardPaused = target.querySelector<HTMLDivElement>('[data-board-paused]');
-  const boardResult = target.querySelector<HTMLDivElement>('[data-board-result]');
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
   const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
   const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
@@ -238,7 +236,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
   const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!newRoom || !roomMeta || !board || !boardPaused || !boardResult || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
+  if (!newRoom || !roomMeta || !board || !boardPaused || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
     throw new Error('missing app region');
   }
 
@@ -247,7 +245,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   return {
     board,
     boardPaused,
-    boardResult,
     boardStatus,
     draftPicker,
     actionStatus,
@@ -1172,51 +1169,17 @@ function renderPausedOverlay(paused: boolean): void {
 }
 
 function renderBoardResult(view: PlayerView | null): void {
-  refs.boardResult.replaceChildren();
   refs.board.classList.remove('king-celebrating-white', 'king-celebrating-black');
 
-  if (view?.status.type !== 'finished' || !isLive()) {
-    refs.boardResult.hidden = true;
-    refs.boardResult.classList.remove('board-result--outcome');
-    return;
-  }
+  if (view?.status.type !== 'finished' || !isLive()) return;
 
   const winner = view.status.winner;
+  if (!winner) return;
+
   const seat = liveState.seat;
-  let outcome: 'win' | 'loss' | 'draw';
-  let headline: string;
-  if (!winner) {
-    outcome = 'draw';
-    headline = 'Draw';
-  } else if (seat === 'white' || seat === 'black') {
-    outcome = winner === seat ? 'win' : 'loss';
-    headline = outcome === 'win' ? 'You won' : 'You lost';
-  } else {
-    outcome = 'win';
-    headline = resultTitle(winner);
-  }
+  if ((seat === 'white' || seat === 'black') && winner !== seat) return;
 
-  // Win: skip the overlay, animate the winning king instead
-  if (outcome === 'win') {
-    refs.boardResult.hidden = true;
-    refs.boardResult.classList.remove('board-result--outcome');
-    const celebratingColor = winner ?? (seat === 'spectator' ? 'white' : seat);
-    refs.board.classList.add(`king-celebrating-${celebratingColor}`);
-    return;
-  }
-
-  refs.boardResult.hidden = false;
-  refs.boardResult.classList.add('board-result--outcome');
-  refs.boardResult.dataset.outcome = outcome;
-
-  const badge = document.createElement('div');
-  badge.className = 'board-result__badge';
-  const title = document.createElement('strong');
-  title.textContent = headline;
-  const body = document.createElement('span');
-  body.textContent = resultReasonLabel(view.status.reason);
-  badge.append(title, body);
-  refs.boardResult.append(badge);
+  refs.board.classList.add(`king-celebrating-${winner}`);
 }
 
 // ── Interaction state ─────────────────────────────────────────────────────────
