@@ -168,3 +168,122 @@ def _sample_particles(
         return [], []
     weights = [belief.weights[i] / selected_total for i in indices]
     return particles, weights
+
+
+def _opp_best_score(
+    particle: chess.Board,
+    opp_color: chess.Color,
+    evaluator: Evaluator,
+) -> float:
+    """Best score opp can achieve from this position, scored from opp's POV.
+
+    Within a particle, the world is fully observed — opp picks the move that
+    maximizes its own eval. Used as the depth-1 response inside PIMC.
+    """
+    best = -float("inf")
+    for opp_move in particle.pseudo_legal_moves:
+        s = evaluator(particle, opp_move, opp_color)
+        if s > best:
+            best = s
+    return 0.0 if best == -float("inf") else best
+
+
+def pimc_best_action(
+    belief: BeliefState,
+    evaluator: Evaluator,
+    own_legal_moves: list[chess.Move],
+    *,
+    max_particles: int | None = 8,
+    search_depth: int = 2,
+    rng: random.Random | None = None,
+    deadline_monotonic: float | None = None,
+    out_scored_moves: list[tuple[chess.Move, float, float]] | None = None,
+) -> chess.Move:
+    """Belief-weighted EV move selection with bounded-depth lookahead per world.
+
+    For each candidate move m:
+      - Sample N worlds from belief (weighted by particle weights).
+      - In each world, simulate "me plays m → opp plays best response → ..."
+        to `search_depth` plies. Leaf evaluated with the supplied evaluator.
+      - Mean across worlds, weighted by particle weight.
+    Return argmax_m mean_EV(m).
+
+    search_depth=1 → leaf eval of "after my move" (= best_action with cleaner
+    semantics); search_depth=2 → my move + opp's best response; search_depth>=3
+    not yet implemented (would need recursive minimax — straightforward to add
+    but skipped for the v1 launch to keep latency bounded).
+
+    Returns argmax. Ties broken uniformly within an epsilon band.
+    """
+    if not own_legal_moves:
+        raise ValueError("pimc_best_action called with empty own_legal_moves")
+    if not belief.particles:
+        return own_legal_moves[0]
+    if search_depth < 1:
+        raise ValueError(f"search_depth must be >= 1, got {search_depth}")
+
+    rng = rng or random.Random(0)
+    own_color = belief.perspective
+    opp_color = not own_color
+    sampled_particles, sampled_weights = _sample_particles(belief, max_particles, rng)
+
+    n_moves = len(own_legal_moves)
+    weighted_sum = [0.0] * n_moves
+    total_weight = [0.0] * n_moves
+
+    for round_idx, (particle, weight) in enumerate(zip(sampled_particles, sampled_weights)):
+        for move_idx, move in enumerate(own_legal_moves):
+            if not particle.is_pseudo_legal(move):
+                continue
+            # Depth 1: leaf eval after my move.
+            if search_depth == 1:
+                score = evaluator(particle, move, own_color)
+            else:
+                # Depth 2: push my move, ask "what's opp's best score from
+                # there?" — opp picks max from their POV; we negate to get
+                # the score from our POV.
+                next_board = particle.copy()
+                next_board.push(move)
+                if next_board.king(own_color) is None or next_board.king(opp_color) is None:
+                    # Terminal — leaf eval handles the king-capture sentinel.
+                    score = evaluator(particle, move, own_color)
+                else:
+                    # Switch turn so opp's pseudo_legal_moves enumerate correctly.
+                    next_board.turn = opp_color
+                    opp_eval = _opp_best_score(next_board, opp_color, evaluator)
+                    # Negamax: our score = -opp's score from the post-move position.
+                    score = -opp_eval
+            weighted_sum[move_idx] += weight * score
+            total_weight[move_idx] += weight
+        if (
+            deadline_monotonic is not None
+            and time.monotonic() >= deadline_monotonic
+            and round_idx >= 0
+        ):
+            break
+
+    move_scores: list[tuple[chess.Move, float, float]] = []
+    best_score = -float("inf")
+    for move_idx, move in enumerate(own_legal_moves):
+        if total_weight[move_idx] <= 0.0:
+            continue
+        mean = weighted_sum[move_idx] / total_weight[move_idx]
+        move_scores.append((move, mean, total_weight[move_idx]))
+        if mean > best_score:
+            best_score = mean
+
+    if out_scored_moves is not None:
+        out_scored_moves.extend(move_scores)
+
+    if not move_scores:
+        return own_legal_moves[0]
+
+    epsilon = 1e-6
+    candidates = [
+        (move, support)
+        for move, score, support in move_scores
+        if score >= best_score - epsilon
+    ]
+    moves = [m for m, _ in candidates]
+    weights = [s for _, s in candidates]
+    return rng.choices(moves, weights=weights, k=1)[0]

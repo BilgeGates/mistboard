@@ -1188,6 +1188,11 @@ class Tier1Strategy:
     trace_log: list[dict] = field(default_factory=list)
     verbose_belief_capture: bool = False
     belief_log: list[dict] = field(default_factory=list)
+    # Pillar 1 — PIMC search depth. 0 disables (use legacy best_action 1-ply
+    # leaf eval, the v0.9.4 path). 2 enables depth-2 minimax per particle:
+    # me plays m → opp plays best response → leaf eval. Higher depths not
+    # yet supported. ~5x slower per ply at depth=2 with default N particles.
+    pimc_search_depth: int = 0
     # v0.9.4-pre1 stopgap: belief-weighted soft penalties applied AFTER best_action
     # scores the legal moves. Addresses annotation classes from q0:
     #   - moves into known-attacker squares (plies 22, 94, 116, 170) -> capture_risk
@@ -3295,16 +3300,29 @@ class Tier1Strategy:
             self._stage_pending_capture(chosen, view)
             self._emit_trace("queen-king-pressure", particle_count_pre, chosen)
             return chosen
-        chosen = best_action(
-            self._belief,
-            evaluator,
-            legal_moves,
-            max_particles=self.max_eval_particles,
-            risk_aversion=self.risk_aversion,
-            rng=self._rng,
-            deadline_monotonic=deadline_monotonic,
-            out_scored_moves=scored,
-        )
+        if self.pimc_search_depth > 0:
+            from .engine import pimc_best_action
+            chosen = pimc_best_action(
+                self._belief,
+                evaluator,
+                legal_moves,
+                max_particles=self.max_eval_particles,
+                search_depth=self.pimc_search_depth,
+                rng=self._rng,
+                deadline_monotonic=deadline_monotonic,
+                out_scored_moves=scored,
+            )
+        else:
+            chosen = best_action(
+                self._belief,
+                evaluator,
+                legal_moves,
+                max_particles=self.max_eval_particles,
+                risk_aversion=self.risk_aversion,
+                rng=self._rng,
+                deadline_monotonic=deadline_monotonic,
+                out_scored_moves=scored,
+            )
         decision_weight_modes = self._decision_weight_mode_scores(
             evaluator,
             legal_moves,

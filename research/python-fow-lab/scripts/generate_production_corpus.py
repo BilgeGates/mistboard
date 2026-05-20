@@ -167,9 +167,14 @@ def _run_filesystem(args) -> int:
     winners = {"white": 0, "black": 0, "none": 0}
     t_start = time.time()
 
+    # Allow disjoint game-index ranges across parallel workers writing to
+    # different out dirs. When --start-index is not provided in fs mode the
+    # behavior is unchanged (range 0..games).
+    start = args.start_index if args.start_index is not None else 0
+
     games_fh = games_path.open("w", encoding="utf-8", buffering=1)
     with corpus_path.open("w", encoding="utf-8", buffering=1) as fout:
-        for i in range(args.games):
+        for i in range(start, start + args.games):
             roll = _play_one_game(
                 game_index=i, base_seed=args.seed, max_plies=args.max_plies,
                 builder=builder, prior=prior,
