@@ -25,8 +25,20 @@ const PROD_PLAYABLE_ENGINE_IDS = new Set([
   'python-tier1-v0.9.1',
 ]);
 
+// Opt-in extras for load testing / local experimentation. Set
+// MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-random-legal,foo to enable.
+// Default empty → prod behavior is unchanged.
+function extraPlayableEngineIds(): Set<string> {
+  const raw = process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES;
+  if (!raw) return new Set();
+  return new Set(raw.split(',').map((s) => s.trim()).filter(Boolean));
+}
+
 export function playableLiveEngines(): EngineDefinition[] {
-  return Object.values(KNOWN_ENGINES).filter((engine) => PROD_PLAYABLE_ENGINE_IDS.has(engine.id));
+  const extras = extraPlayableEngineIds();
+  return Object.values(KNOWN_ENGINES).filter(
+    (engine) => PROD_PLAYABLE_ENGINE_IDS.has(engine.id) || extras.has(engine.id),
+  );
 }
 
 export function isPlayableLiveEngineClientId(clientId: string | undefined): boolean {

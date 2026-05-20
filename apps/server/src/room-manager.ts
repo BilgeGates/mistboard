@@ -25,6 +25,7 @@ import { snapshotPayload } from './payloads.js';
 import { engineVersionDisplayName, loadEngine } from './engine-registry.js';
 import { isServerEngineClient, modeForProjection } from './server-policy.js';
 import type { Client, Room, SeatTokenState } from './server-types.js';
+import { logger } from './obs.js';
 
 export interface RoomManagerContext {
   send: (client: Client, payload: unknown) => void;
@@ -776,22 +777,24 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
     timeoutMs: ctx.liveEngineTimeoutMs,
     onFallback(event) {
       fallbackEvent = event;
-      console.error(JSON.stringify({
-        level: 'error',
-        kind: 'live_engine_fallback',
-        roomId: room.id,
-        engineId: event.engineId,
-        fallbackEngineId: event.fallbackEngineId,
-        ply: event.ply,
-        reason: event.reason,
-        timeoutMs: event.timeoutMs,
-        durationMs: event.durationMs,
-        diagnostics: event.diagnostics,
-        at: Date.now(),
-      }));
+      logger.error(
+        {
+          kind: 'live_engine_fallback',
+          game_id: room.id,
+          engine_id: event.engineId,
+          fallback_engine_id: event.fallbackEngineId,
+          ply: event.ply,
+          reason: event.reason,
+          timeout_ms: event.timeoutMs,
+          duration_ms: event.durationMs,
+          diagnostics: event.diagnostics,
+        },
+        'live engine fallback',
+      );
     },
   });
-  const engineThinkTimeMs = result.decision.thinkTimeMs ?? Date.now() - startedAt;
+  const computeMs = Date.now() - startedAt;
+  const engineThinkTimeMs = result.decision.thinkTimeMs ?? computeMs;
   await sleepEngineThinkTime(startedAt, engineThinkTimeMs);
   const decisionAt = Date.now();
   if (room.projection.state.status.type !== 'playing') return;
@@ -800,18 +803,21 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
     await expireActiveClock(ctx, room, 'black', decisionAt);
     return;
   }
-  console.log(JSON.stringify({
-    level: 'info',
-    kind: 'live_engine_move',
-    roomId: room.id,
-    requestedEngineId: engine.id,
-    engineId: result.engineId,
-    fallback: result.fallback,
-    ply: context.ply,
-    durationMs: Date.now() - startedAt,
-    move: result.decision.move,
-    at: Date.now(),
-  }));
+  logger.info(
+    {
+      kind: 'live_engine_move',
+      game_id: room.id,
+      requested_engine_id: engine.id,
+      engine_id: result.engineId,
+      fallback: result.fallback,
+      ply: context.ply,
+      compute_ms: computeMs,
+      total_ms: decisionAt - startedAt,
+      think_time_ms: engineThinkTimeMs,
+      move: result.decision.move,
+    },
+    'live engine move',
+  );
   const move = result.decision.move;
   if (!move) return;
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);

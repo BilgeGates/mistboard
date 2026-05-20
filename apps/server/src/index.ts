@@ -216,6 +216,7 @@ export type StartServerOptions = {
 export type StartedServer = {
   port: number;
   rooms: Map<string, Room>;
+  wsClientCount: () => number;
   close: () => Promise<void>;
 };
 
@@ -264,6 +265,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
   return {
     port: boundPort,
     rooms,
+    wsClientCount: () => wsServer.clients.size,
     close: async () => {
       await stopServer();
     },

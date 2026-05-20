@@ -7,6 +7,18 @@
 // the harness on port:0 stays quiet).
 
 import { installShutdownHandlers, startServer } from './index.js';
+import { logger, startObservability } from './obs.js';
 
 installShutdownHandlers();
-await startServer();
+const started = await startServer();
+const stopObs = startObservability({
+  roomCount: () => started.rooms.size,
+  wsClientCount: started.wsClientCount,
+});
+logger.info({ kind: 'boot', port: started.port }, 'observability started');
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    stopObs();
+  });
+}
