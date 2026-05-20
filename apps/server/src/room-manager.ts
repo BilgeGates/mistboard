@@ -25,7 +25,7 @@ import { snapshotPayload } from './payloads.js';
 import { engineVersionDisplayName, loadEngine } from './engine-registry.js';
 import { isServerEngineClient, modeForProjection } from './server-policy.js';
 import type { Client, Room, SeatTokenState } from './server-types.js';
-import { logger } from './obs.js';
+import { engineCounters, logger } from './obs.js';
 
 export interface RoomManagerContext {
   send: (client: Client, payload: unknown) => void;
@@ -803,6 +803,7 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
     await expireActiveClock(ctx, room, 'black', decisionAt);
     return;
   }
+  engineCounters.recordMove(result.fallback);
   logger.info(
     {
       kind: 'live_engine_move',
