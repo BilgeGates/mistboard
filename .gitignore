@@ -39,3 +39,6 @@ research/python-fow-lab/tournaments/
 # Private founder/operator notes. Public docs should be contributor-safe.
 docs-private/
 .claude/
+
+# Repo uses npm, not pnpm. Stray pnpm-lock files are accidental artifacts.
+pnpm-lock.yaml
