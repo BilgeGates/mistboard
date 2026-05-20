@@ -147,18 +147,22 @@ test(`loadtest smoke: ${CONCURRENCY} concurrent PvE games produce engine moves w
   assert.ok(movesPlayed > 0, 'expected some engine moves to have been recorded');
   assert.equal(fallbacks, 0, `unexpected engine fallbacks: ${fallbacks} out of ${movesPlayed} engine moves`);
 
-  // Every game should have driven at least some moves through. A game that
-  // produced zero or trivially few moves means the WS / engine path stalled,
-  // which is also worth catching.
+  // Every game should drive moves through the WS + engine path. Catching
+  // stalls requires distinguishing "ended quickly because someone walked
+  // their king" (legit, fog-of-war random-vs-random does this) from "stuck
+  // because the engine path stopped responding" (the actual regression we
+  // want to catch).
   for (const r of results) {
-    assert.ok(
-      r.moves >= MIN_MOVES_PER_GAME,
-      `game ${r.gameIdx} only made ${r.moves} moves (note=${r.note ?? ''}); WS or engine path may be stuck`,
-    );
-    // A "wait-timeout" is a real failure — server stopped responding. A
-    // "max-moves" or "max-game-ms" is not: random vs random can drag.
     if (r.note?.startsWith('wait-timeout')) {
       assert.fail(`game ${r.gameIdx} hit a server-side wait timeout: ${r.note}`);
+    }
+    // Only enforce the floor on games that did NOT finish naturally. A 6-move
+    // king-capture is healthy; a 6-move stall mid-game is not.
+    if (!r.finished) {
+      assert.ok(
+        r.moves >= MIN_MOVES_PER_GAME,
+        `game ${r.gameIdx} only made ${r.moves} moves (note=${r.note ?? ''}); WS or engine path may be stuck`,
+      );
     }
   }
 
