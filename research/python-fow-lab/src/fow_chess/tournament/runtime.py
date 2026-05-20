@@ -19,6 +19,7 @@ between pinned versions and current code in one process.
 
 from __future__ import annotations
 
+import inspect
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -137,20 +138,40 @@ def bot_runtime(
             mcts_selection_depth = config.mcts_selection_depth
             mcts_risk_lambda = config.mcts_risk_lambda
             tier1_cls = ns.Tier1Strategy
+            # Pinned engine_versions/* snapshots predate fields added later
+            # (mcts_*, pimc_*, draw-reduction knobs). Filter the kwargs we
+            # pass down to what the *target* class actually accepts. Drop
+            # silently when the dropped field is at its default (no behavioral
+            # content); raise loudly when the caller asked for a non-default
+            # behavior that the pinned class can't honor.
+            tier1_accepted = set(inspect.signature(tier1_cls).parameters.keys())
+            optional_kwargs: dict[str, tuple[Any, Any]] = {
+                # name: (value, default_for_this_field)
+                "mcts_rollouts": (mcts_rollouts, 0),
+                "mcts_rollout_depth": (mcts_rollout_depth, 8),
+                "mcts_selection_depth": (mcts_selection_depth, 3),
+                "mcts_risk_lambda": (mcts_risk_lambda, 0.25),
+            }
+            base_kwargs: dict[str, Any] = {
+                "evaluator_builder": builder,
+                "move_prior": prior,
+                "target_n": target_n,
+                "max_eval_particles": max_particles,
+                "risk_aversion": risk_aversion,
+            }
+            for name, (value, default) in optional_kwargs.items():
+                if name in tier1_accepted:
+                    base_kwargs[name] = value
+                elif value != default:
+                    raise BotConfigError(
+                        f"{config.name}: engine_version {config.engine_version!r} "
+                        f"predates the {name!r} kwarg, but config sets it to "
+                        f"{value!r} (default {default!r}). Either clear the "
+                        f"override or pick a newer engine_version."
+                    )
 
             def factory(seed: int) -> object:
-                return tier1_cls(
-                    evaluator_builder=builder,
-                    move_prior=prior,
-                    target_n=target_n,
-                    max_eval_particles=max_particles,
-                    risk_aversion=risk_aversion,
-                    seed=seed,
-                    mcts_rollouts=mcts_rollouts,
-                    mcts_rollout_depth=mcts_rollout_depth,
-                    mcts_selection_depth=mcts_selection_depth,
-                    mcts_risk_lambda=mcts_risk_lambda,
-                )
+                return tier1_cls(seed=seed, **base_kwargs)
 
             yield factory
         return
