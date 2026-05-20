@@ -2174,6 +2174,8 @@ function selectionLabel(startId: number | null | undefined): string {
 
 // ── Sound ─────────────────────────────────────────────────────────────────────
 
+const SOUND_MASTER_GAIN = 4;
+
 export function createSoundController(): SoundController {
   let ctx: AudioContext | null = null;
   let unlocked = false;
@@ -2219,7 +2221,7 @@ export function createSoundController(): SoundController {
         osc.type = tone.type;
         osc.frequency.setValueAtTime(tone.frequency, now + tone.delay);
         gain.gain.setValueAtTime(0.0001, now + tone.delay);
-        gain.gain.exponentialRampToValueAtTime(tone.gain * volume, now + tone.delay + 0.012);
+        gain.gain.exponentialRampToValueAtTime(tone.gain * volume * SOUND_MASTER_GAIN, now + tone.delay + 0.012);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.delay + tone.duration);
         osc.connect(gain).connect(audio.destination);
         osc.start(now + tone.delay);
