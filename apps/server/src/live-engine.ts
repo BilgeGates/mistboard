@@ -10,6 +10,7 @@ import {
   type EngineMoveContext,
   type EngineMoveDecision,
 } from './engine-registry.js';
+import { getPythonPool } from './python-pool.js';
 
 export type LiveEngineFallbackReason =
   | 'timeout'
@@ -119,7 +120,7 @@ async function choosePythonSubprocessMove(
     throw new LiveEngineError('unsupported_engine', `engine ${engine.id} requires live room events`);
   }
   const watchdogTimeoutMs = pythonLiveWatchdogTimeoutMs(context, timeoutMs);
-  const result = await runPythonLiveMoveProcess({
+  const payload = {
     ...liveClockFields(context),
     color: context.color,
     engine: { id: engine.id },
@@ -127,7 +128,25 @@ async function choosePythonSubprocessMove(
     roomId: context.roomId,
     seed: context.seed.toString(),
     watchdogTimeoutMs,
-  }, watchdogTimeoutMs);
+  };
+
+  // Try the persistent pool first; if it's disabled (env-gated) or fails
+  // to initialize, fall through to the original subprocess-per-move path.
+  // That fallback preserves correctness while we roll out the pool.
+  const pool = await getPythonPool(engine.id).catch(() => null);
+  if (pool) {
+    const response = await pool.chooseMove(payload, watchdogTimeoutMs);
+    return {
+      move: response.move as PythonLiveMoveResult['move'],
+      scores: [{
+        move: response.move as PythonLiveMoveResult['move'],
+        score: 0,
+        reason: response.decisionSource ? `python-pool:${response.decisionSource}` : 'python-pool',
+      }],
+    };
+  }
+
+  const result = await runPythonLiveMoveProcess(payload, watchdogTimeoutMs);
   return {
     move: result.move,
     scores: [{
