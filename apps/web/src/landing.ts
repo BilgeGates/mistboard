@@ -2510,27 +2510,16 @@ function buildFooter(): HTMLElement {
   const footer = document.createElement('footer');
   footer.className = 'site-footer';
 
-  const left = document.createElement('div');
-  left.className = 'site-footer-left';
-  left.textContent = '© 2026 Mistboard';
-
-  const right = document.createElement('div');
-  right.className = 'site-footer-right';
-
-  const license = document.createElement('span');
-  license.textContent = 'GPL-3.0';
-
-  const sep = document.createElement('span');
-  sep.className = 'site-footer-sep';
-  sep.textContent = '·';
+  const links = document.createElement('div');
+  links.className = 'site-footer-links';
 
   const about = document.createElement('a');
   about.href = '/about';
   about.textContent = 'About';
 
-  const sep2 = document.createElement('span');
-  sep2.className = 'site-footer-sep';
-  sep2.textContent = '·';
+  const source = document.createElement('a');
+  source.href = '/source';
+  source.textContent = 'Source';
 
   const gh = document.createElement('a');
   gh.href = GITHUB_URL;
@@ -2538,16 +2527,12 @@ function buildFooter(): HTMLElement {
   gh.rel = 'noreferrer noopener';
   gh.textContent = 'GitHub';
 
-  const source = document.createElement('a');
-  source.href = '/source';
-  source.textContent = 'Source';
+  const identity = document.createElement('span');
+  identity.className = 'site-footer-identity';
+  identity.textContent = '© 2026 Mistboard · GPL-3.0';
 
-  const sep3 = document.createElement('span');
-  sep3.className = 'site-footer-sep';
-  sep3.textContent = '·';
-
-  right.append(license, sep, about, sep2, source, sep3, gh);
-  footer.append(left, right);
+  links.append(about, source, gh, identity);
+  footer.append(links);
   return footer;
 }
 
