@@ -317,6 +317,13 @@ body {
   gap: 8px;
 }
 
+.account-nav-pending {
+  display: inline-block;
+  width: 72px;
+  height: 30px;
+  border-radius: 6px;
+}
+
 .site-nav-link-primary {
   display: inline-flex;
   align-items: center;
@@ -618,6 +625,10 @@ button:focus-visible {
 .board cg-board square.fog-hidden.black {
   background: var(--board-fog-dark-background);
   background-size: var(--board-fog-size) var(--board-fog-size);
+}
+
+.board cg-board square.last-move {
+  background-color: var(--board-last-move);
 }
 
 .board cg-board square.fog-hidden.last-move {
