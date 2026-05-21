@@ -19,7 +19,11 @@ if (unknown.length > 0) {
 
 for (const engineId of requestedEngineIds) {
   const result = await smokeEngine(baseUrl, engineId, timeoutMs);
-  console.log(JSON.stringify(result));
+  const abandoned = await abandonRoom(baseUrl, result.roomId, result.seatToken, timeoutMs);
+  if (!abandoned.ok) {
+    throw new Error(`abandon failed for ${engineId} room ${result.roomId}: ${JSON.stringify(abandoned)}`);
+  }
+  console.log(JSON.stringify({ ...result, abandoned }));
 }
 
 async function fetchPlayableEngines(baseUrl) {
@@ -44,6 +48,7 @@ async function smokeEngine(baseUrl, engineId, timeoutMs) {
 
   let sentMove = false;
   let settled = false;
+  let capturedSeatToken = null;
 
   return await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -68,6 +73,9 @@ async function smokeEngine(baseUrl, engineId, timeoutMs) {
 
     socket.on('message', (raw) => {
       const message = JSON.parse(raw.toString());
+      if (message.type === 'hello' && typeof message.seatToken === 'string') {
+        capturedSeatToken = message.seatToken;
+      }
       const state = message.state;
       if (!state) return;
 
@@ -88,6 +96,7 @@ async function smokeEngine(baseUrl, engineId, timeoutMs) {
           ok: true,
           engineId,
           roomId: created.roomId,
+          seatToken: capturedSeatToken,
           elapsedMs: Date.now() - startedAt,
           moveNumber: state.moveNumber,
         });
@@ -115,6 +124,29 @@ async function createRoom(baseUrl, engineId) {
   const body = await response.json();
   if (typeof body.roomId !== 'string') throw new Error(`room creation response missing roomId for ${engineId}`);
   return body;
+}
+
+async function abandonRoom(baseUrl, roomId, seatToken, timeoutMs) {
+  if (!seatToken) return { ok: false, reason: 'no_seat_token' };
+  const url = new URL(`/api/rooms/${encodeURIComponent(roomId)}/abandon`, baseUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ seatToken }),
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+    return { ok: response.status === 200, status: response.status, body };
+  } catch (err) {
+    return { ok: false, error: err.message ?? String(err) };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function parseArgs(args) {

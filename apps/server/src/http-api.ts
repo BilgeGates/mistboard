@@ -70,6 +70,13 @@ export interface HttpApiContext {
     rated?: boolean,
     options?: { randomSeating?: boolean; engineColor?: 'white' | 'black' },
   ): Promise<Room>;
+  abandonRoom(
+    roomId: string,
+    seatToken: string,
+  ): Promise<
+    | { ok: true }
+    | { ok: false; error: 'not_found' | 'unauthorized' | 'already_terminal' }
+  >;
   inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null;
   isDraining(): boolean;
   drainDeadlineMs(): number | null;
@@ -322,6 +329,30 @@ export async function handleApiRequest(
     const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined, rated, { engineColor });
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
+    return;
+  }
+
+  const abandonMatch = parsedUrl.pathname.match(/^\/api\/rooms\/([^/]+)\/abandon$/);
+  if (abandonMatch) {
+    if (method !== 'POST') {
+      response.writeHead(405, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'method_not_allowed' }));
+      return;
+    }
+    const roomId = decodeURIComponent(abandonMatch[1]!);
+    const body = await readJsonBody(request);
+    const seatToken = typeof body.seatToken === 'string' ? body.seatToken : '';
+    if (!seatToken) {
+      writeJson(response, 400, { error: 'missing_seat_token' });
+      return;
+    }
+    const result = await ctx.abandonRoom(roomId, seatToken);
+    if (result.ok) {
+      writeJson(response, 200, { ok: true });
+      return;
+    }
+    const statusByError = { not_found: 404, unauthorized: 401, already_terminal: 409 } as const;
+    writeJson(response, statusByError[result.error], { error: result.error });
     return;
   }
 

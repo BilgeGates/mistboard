@@ -389,6 +389,7 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
       liveClockInitialMs,
       liveClockIncrementMs,
       createRoom,
+      abandonRoom,
       inMemoryGameSummary,
       isDraining,
       drainDeadlineMs,
@@ -1087,6 +1088,27 @@ async function runAbortPolicySweep(): Promise<void> {
       at: Date.now(),
     }));
   }
+}
+
+async function abandonRoom(
+  roomId: string,
+  seatToken: string,
+): Promise<
+  | { ok: true }
+  | { ok: false; error: 'not_found' | 'unauthorized' | 'already_terminal' }
+> {
+  const room = rooms.get(roomId);
+  if (!room) return { ok: false, error: 'not_found' };
+  if (!verifySeatToken(room, seatToken)) return { ok: false, error: 'unauthorized' };
+  if (room.projection.state.status.type === 'finished') return { ok: false, error: 'already_terminal' };
+  if (persistence.isInitialized()) {
+    await persistence.abortRunningGame(roomId, {
+      abortedReason: 'abandoned by creator',
+      termination: 'abandoned',
+    });
+  }
+  resetRoom(roomId);
+  return { ok: true };
 }
 
 // ── SECTION: Seat management ───────────────────────────────────────────────

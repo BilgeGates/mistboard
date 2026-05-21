@@ -23,12 +23,18 @@ const black = await connectSeat(baseUrl, room.roomId, 'black', timeoutMs);
 white.socket.close();
 black.socket.close();
 
+const abandoned = await abandonRoom(baseUrl, room.roomId, white.hello.seatToken, timeoutMs);
+if (!abandoned.ok) {
+  throw new Error(`abandon failed for ${room.roomId}: ${JSON.stringify(abandoned)}`);
+}
+
 console.log(JSON.stringify({
   ok: true,
   baseUrl: baseUrl.href,
   health: health.body,
   roomId: room.roomId,
   seats: [white.hello.seat, black.hello.seat],
+  abandoned,
 }));
 
 async function createRoom(baseUrl, timeoutMs) {
@@ -98,6 +104,23 @@ async function connectSeat(baseUrl, roomId, expectedSeat, timeoutMs) {
       reject(new Error(`socket closed before ${expectedSeat} hello: ${code} ${reason.toString()}`));
     });
   });
+}
+
+async function abandonRoom(baseUrl, roomId, seatToken, timeoutMs) {
+  if (!seatToken) return { ok: false, reason: 'no_seat_token' };
+  try {
+    const response = await fetchJson(new URL(`/api/rooms/${encodeURIComponent(roomId)}/abandon`, baseUrl), {
+      timeoutMs,
+      init: {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ seatToken }),
+      },
+    });
+    return { ok: response.status === 200, status: response.status, body: response.body };
+  } catch (err) {
+    return { ok: false, error: err.message ?? String(err) };
+  }
 }
 
 async function fetchJson(url, { timeoutMs, init = {} }) {
