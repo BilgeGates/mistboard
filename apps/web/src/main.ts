@@ -57,6 +57,8 @@ const articleSlug = articleSlugFromPath(path);
 const wantsArticlesIndex = path === '/articles' || page === 'articles';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
+const wantsVideo = path === '/video' || page === 'video';
+const videoPlayerId = videoIdFromPath(path);
 const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 const profileHandle = profileHandleFromPath(path);
 
@@ -87,6 +89,10 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountAccount }) => mountAccount(appRoot)));
 } else if (wantsWatch) {
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
+} else if (videoPlayerId) {
+  void mountOrReport(() => import('./landing.js').then(({ mountVideoPlayer }) => mountVideoPlayer(appRoot, videoPlayerId)));
+} else if (wantsVideo) {
+  void mountOrReport(() => import('./landing.js').then(({ mountVideo }) => mountVideo(appRoot)));
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
@@ -169,5 +175,10 @@ function profileHandleFromPath(value: string): string | null {
 
 function articleSlugFromPath(value: string): string | null {
   const match = value.match(/^\/articles\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function videoIdFromPath(value: string): string | null {
+  const match = value.match(/^\/video\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
