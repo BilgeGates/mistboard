@@ -13,7 +13,11 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+import chess
+import numpy as np
 import torch
+
+from .walker import OPP_PIECE_TYPE_ORDER
 
 
 # ---------------------------------------------------------------------------
@@ -120,17 +124,134 @@ class KuhnEncoder:
 # ---------------------------------------------------------------------------
 
 
-class FowFactoredMarginalsEncoder:
-    """Stub for the FoW info-set encoder (factored marginals).
+# ---------------------------------------------------------------------------
+# FoW chess — Phase 2 Day 4 implementation.
+# ---------------------------------------------------------------------------
 
-    Phase 2 implementation will compute marginals from a ``BeliefState``
-    derivable from observation history. For now this is a placeholder so
-    the Deep CFR core can be developed against the Kuhn encoder and
-    swapped in later without API changes.
+
+_ALL_PIECE_TYPES: tuple[chess.PieceType, ...] = (
+    chess.PAWN,
+    chess.KNIGHT,
+    chess.BISHOP,
+    chess.ROOK,
+    chess.QUEEN,
+    chess.KING,
+)
+
+
+def _build_action_table() -> tuple[list[chess.Move], dict[str, int]]:
+    """Enumerate every possible chess move once at import.
+
+    Includes all 4096 from×to pairs plus the legal pawn promotion (from,
+    to, promo) triples. Indices stay stable across the project life and
+    are usable by the regret net as a fixed output dimension.
+    """
+    moves: list[chess.Move] = []
+    for from_sq in range(64):
+        for to_sq in range(64):
+            if from_sq == to_sq:
+                continue
+            moves.append(chess.Move(from_sq, to_sq))
+
+    # Promotions: white pawn from rank 7 (0-indexed 6) → rank 8 (7);
+    # black pawn from rank 2 (1) → rank 1 (0). Files shift by -1/0/+1.
+    for from_rank, to_rank in ((6, 7), (1, 0)):
+        for from_file in range(8):
+            for df in (-1, 0, 1):
+                to_file = from_file + df
+                if not 0 <= to_file < 8:
+                    continue
+                from_sq = chess.square(from_file, from_rank)
+                to_sq = chess.square(to_file, to_rank)
+                for promo in (
+                    chess.QUEEN,
+                    chess.ROOK,
+                    chess.BISHOP,
+                    chess.KNIGHT,
+                ):
+                    moves.append(chess.Move(from_sq, to_sq, promotion=promo))
+
+    index = {move.uci(): i for i, move in enumerate(moves)}
+    return moves, index
+
+
+_FOW_MOVES, _FOW_MOVE_INDEX = _build_action_table()
+NUM_FOW_CHESS_ACTIONS: int = len(_FOW_MOVES)
+
+
+class FowFactoredMarginalsEncoder:
+    """FoW info-set encoder consuming propagated factored marginals.
+
+    Reads each player's ``[64, 6]`` opp-piece marginal table from the
+    ``SubgameNode`` (set at the subgame root and propagated by
+    ``walker.propagate_factored_marginals``). Emits a fixed-shape feature
+    tensor for the to-move player's info set.
+
+    Feature layout (length 832):
+    - First 384 floats: 64 squares × 6 own piece types, one-hot from
+      truth board (own pieces are deterministic — the player knows them).
+    - Next 384 floats: 64 squares × 6 opp piece types, read from the
+      to-move player's factored marginals.
+    - Last 64 floats: own-piece-any mask (1 where the player has any
+      piece). Redundant with the first block but matches spec, and helps
+      the network short-circuit "is my own piece here?" checks.
+
+    The "last-seen heatmap" mentioned in the spec is left out for Phase 2
+    (zeros aren't included). Add if Gate 2b shows the encoder is
+    capacity-bound on temporal cues.
+
+    Action space: ``NUM_FOW_CHESS_ACTIONS`` ≈ 4272 — all 4032 from→to
+    non-promotion pairs (excluding same-square) plus pawn-promotion
+    triples. Most output heads will never train (illegal in any reachable
+    position); the legal-action mask in deep_cfr.py zeros them at
+    inference. Acceptable Phase 2 trade — see ``cfr-phase2-day4-plan.md``.
     """
 
-    def __init__(self) -> None:
-        raise NotImplementedError(
-            "FowFactoredMarginalsEncoder is a Phase 2 Day 4-5 deliverable. "
-            "Use KuhnEncoder for Gate 2a validation first."
+    OWN_BLOCK_DIM = 64 * 6
+    OPP_BLOCK_DIM = 64 * 6
+    MASK_BLOCK_DIM = 64
+    FEATURE_DIM = OWN_BLOCK_DIM + OPP_BLOCK_DIM + MASK_BLOCK_DIM
+
+    @property
+    def feature_dim(self) -> int:
+        return self.FEATURE_DIM
+
+    @property
+    def num_actions(self) -> int:
+        return NUM_FOW_CHESS_ACTIONS
+
+    def encode_info_set(self, node) -> torch.Tensor:
+        perspective = node.to_move
+        if perspective == chess.WHITE:
+            opp_marginals = node.marginals_white
+        else:
+            opp_marginals = node.marginals_black
+        if opp_marginals is None:
+            raise ValueError(
+                "FowFactoredMarginalsEncoder requires propagated marginals on "
+                "the SubgameNode. Build the root via SubgameNode.root("
+                "..., marginals_white=..., marginals_black=...)."
+            )
+
+        own_block = np.zeros((64, len(_ALL_PIECE_TYPES)), dtype=np.float32)
+        own_mask = np.zeros(64, dtype=np.float32)
+        for sq, piece in node.truth.piece_map().items():
+            if piece.color != perspective:
+                continue
+            own_mask[sq] = 1.0
+            own_block[sq, _ALL_PIECE_TYPES.index(piece.piece_type)] = 1.0
+
+        # Both marginal slabs are already [64, 6] float32 from the walker.
+        flat = np.concatenate(
+            [own_block.reshape(-1), opp_marginals.reshape(-1), own_mask]
         )
+        return torch.from_numpy(flat)
+
+    def action_to_index(self, action: chess.Move) -> int:
+        try:
+            return _FOW_MOVE_INDEX[action.uci()]
+        except KeyError as exc:
+            raise ValueError(f"Unrecognized chess move: {action.uci()}") from exc
+
+    def index_to_action(self, idx: int) -> chess.Move:
+        return _FOW_MOVES[idx]

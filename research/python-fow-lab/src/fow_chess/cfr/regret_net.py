@@ -45,14 +45,42 @@ class KuhnRegretNet(nn.Module):
 
 
 class FowRegretNet(nn.Module):
-    """Stub for the FoW regret network (Phase 2 Day 4-5+).
+    """FoW regret network — Phase 2 Day 4 implementation.
 
-    Will consume ~900-dim factored-marginals features + ~133-dim per-action
-    features → regret per action. Architecture TBD; aim for 5-10M params.
+    Architecture:
+        info-set features (832) → Linear(832 → 512) → ReLU
+                              → Linear(512 → 512) → ReLU
+                              → Linear(512 → 256) → ReLU
+                              → Linear(256 → num_actions) → regrets
+
+    ~1.7M params at the default sizes — leaner than the spec's 5-10M
+    target band. Phase 2 is a correctness gate, not a strength gate; if
+    Gate 2b loss plateaus on capacity grounds, widen the hidden layers
+    (256→512→1024) before reaching for the per-action MLP head from
+    cfr-phase2-spec.md (that's Phase 3 territory).
+
+    Output is a fixed-size regret vector across the global FoW chess
+    action space (``encoders.NUM_FOW_CHESS_ACTIONS``). Illegal actions
+    are masked at inference by deep_cfr.py; their heads receive no
+    training signal and stay near initialization.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        raise NotImplementedError(
-            "FowRegretNet is a Phase 2 Day 4-5 deliverable. Use KuhnRegretNet "
-            "for Gate 2a validation first."
-        )
+    def __init__(
+        self,
+        feature_dim: int = 832,
+        num_actions: int = 4272,
+        hidden_dims: tuple[int, ...] = (512, 512, 256),
+    ) -> None:
+        super().__init__()
+        layers: list[nn.Module] = []
+        prev = feature_dim
+        for h in hidden_dims:
+            layers.append(nn.Linear(prev, h))
+            layers.append(nn.ReLU())
+            prev = h
+        layers.append(nn.Linear(prev, num_actions))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        """features: [batch, feature_dim] → [batch, num_actions]"""
+        return self.net(features)
