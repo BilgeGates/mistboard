@@ -2409,7 +2409,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   gap: clamp(6px, 1vw, 12px);
 }
 
-.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-play-panel {
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-play-panel,
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(.account-route):not(.profile-route):not(.source-route) .landing-announcements {
   align-self: center;
 }
 
@@ -3052,6 +3053,86 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   text-align: center;
   max-width: 560px;
   min-height: 1.55em;
+}
+
+.live-boards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  width: 100%;
+}
+
+.live-boards[data-layout="single"] .live-boards-cell {
+  width: min(360px, 100%);
+}
+
+.live-boards[data-layout="pair"] .live-boards-cell {
+  width: min(260px, 48%);
+}
+
+.live-boards[data-layout="triptych"] .live-boards-cell {
+  width: min(220px, 32%);
+}
+
+.live-boards[data-layout="grid"] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .live-boards[data-layout="grid"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.live-boards-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.live-boards-label {
+  color: #4b5563;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  min-height: 1em;
+  text-align: center;
+}
+
+.live-boards-board-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.live-boards-board.cg-wrap {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  display: block;
+  border: 2px solid var(--board-frame);
+  background: var(--board-frame);
+  overflow: hidden;
+}
+
+.live-boards-board cg-board square.fog-hidden {
+  background: var(--board-fog-light-background);
+  background-size: var(--board-fog-size) var(--board-fog-size);
+  box-shadow: inset 0 0 0 1px var(--board-fog-shadow);
+}
+
+.live-boards-board cg-board square.fog-hidden.white {
+  background: var(--board-fog-light-background);
+  background-size: var(--board-fog-size) var(--board-fog-size);
+}
+
+.live-boards-board cg-board square.fog-hidden.black {
+  background: var(--board-fog-dark-background);
+  background-size: var(--board-fog-size) var(--board-fog-size);
 }
 
 .stepper-controls {

@@ -14,10 +14,10 @@ export type Announcement = {
 
 export const announcements: Announcement[] = [
   {
-    date: '',
+    date: '2026-05-09',
     pinned: true,
     headline: 'Mistboard is in alpha.',
-    body: 'Live since May 9, 2026. Anonymous, link-share, no rated yet. Bug reports and feedback welcome.',
+    body: 'Anonymous, link-share, no rated yet. Bug reports and feedback welcome.',
     href: '/contact',
   },
 ];
