@@ -61,7 +61,7 @@ See [`docs/persistence.md`](docs/persistence.md) for the full schema, env vars, 
 
 ## License
 
-GPL-3.0-or-later. Mistboard uses GPL-family chess libraries (`chessops`, `chessground`).
+AGPL-3.0-or-later. See [`LICENSE`](LICENSE). Mistboard uses GPL-family chess libraries (`chessops`, `chessground`), which are AGPL-compatible.
 
 The npm packages are marked `"private": true` to prevent accidental package publishing — this is intentional and does not affect the repository's public/open-source status.
 

@@ -8,7 +8,7 @@ This model is meant to be explicit rather than implicit: contributors should kno
 
 ## What Is Open
 
-The source code is available under GPL-3.0-or-later. Users may inspect, run, modify, and fork the code under the license terms.
+The source code is available under AGPL-3.0-or-later. Users may inspect, run, modify, and fork the code under the license terms. Note that AGPL extends copyleft to network use — operators of modified hosted instances must make their source available to users.
 
 The project intends to keep the Fog of War rules, protocol work, engine research, and benchmark artifacts public where doing so does not compromise security, privacy, or competitive integrity.
 
@@ -78,6 +78,6 @@ Until explicitly changed, Mistboard remains founder-led.
 
 ## Maintainer Absence
 
-If the maintainer becomes inactive for an extended period, the code remains forkable under GPL-3.0-or-later. Control of the official domains, trademarks, hosted service, and production data does not automatically transfer to contributors or users.
+If the maintainer becomes inactive for an extended period, the code remains forkable under AGPL-3.0-or-later. Control of the official domains, trademarks, hosted service, and production data does not automatically transfer to contributors or users.
 
 If Mistboard has active users, sponsors, or contributors at that point, a successor-maintainer plan should be documented before any transfer of official project assets.

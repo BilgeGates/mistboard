@@ -78,7 +78,7 @@ Before opening a PR:
 
 Mistboard uses a Developer Certificate of Origin style contribution policy.
 
-By contributing, you certify that you have the right to submit the contribution and that it may be distributed under the project's license, GPL-3.0-or-later.
+By contributing, you certify that you have the right to submit the contribution and that it may be distributed under the project's license, AGPL-3.0-or-later.
 
 For nontrivial commits, include a sign-off line:
 

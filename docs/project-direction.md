@@ -27,14 +27,16 @@ experience.
 
 ## License And Source
 
-The project is licensed as GPL-3.0-or-later.
+The project is licensed as AGPL-3.0-or-later.
 
-GPL-compatible chess libraries and engines may be used when they fit the
-project. Third-party licenses and notices should remain clear.
+AGPL-compatible chess libraries and engines may be used when they fit the
+project, including GPL-3.0 libraries (which are explicitly AGPL-3.0-compatible).
+Third-party licenses and notices should remain clear.
 
-Do not add code, assets, data, or dependencies with unclear rights. Do not add
-AGPL components or copy code from AGPL projects unless the maintainer has
-explicitly accepted the license and architecture impact.
+Do not add code, assets, data, or dependencies with unclear rights. Avoid
+permissively-licensed dependencies (MIT, Apache-2.0, BSD) only where the
+dependency would force a license incompatibility — most permissive licenses
+are AGPL-compatible.
 
 Open source does not transfer control of the official hosted service, domains,
 trademarks, package publishing, roadmap, production infrastructure, events, or

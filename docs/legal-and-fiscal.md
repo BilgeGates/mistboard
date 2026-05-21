@@ -8,7 +8,7 @@ It is not legal or tax advice. Any legal entity, tax, prize, sponsorship, or fis
 
 Mistboard is a founder-led open-source project.
 
-The code is public under GPL-3.0-or-later. The official project identity, domains, trademarks, hosted service, package publishing, production infrastructure, official events, sponsorships, and roadmap remain controlled project assets.
+The code is public under AGPL-3.0-or-later. The official project identity, domains, trademarks, hosted service, package publishing, production infrastructure, official events, sponsorships, and roadmap remain controlled project assets.
 
 ## Funding Principles
 

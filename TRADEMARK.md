@@ -29,7 +29,7 @@ You may not use the Mistboard name, logo, or confusingly similar branding to:
 
 ## Forks
 
-Forks are allowed under GPL-3.0-or-later.
+Forks are allowed under AGPL-3.0-or-later.
 
 Forks should use a distinct name and clearly state that they are not the official Mistboard project.
 
