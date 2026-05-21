@@ -2831,7 +2831,7 @@ function buildFooter(): HTMLElement {
   right.className = 'site-footer-right';
 
   const license = document.createElement('span');
-  license.textContent = 'GPL-3.0';
+  license.textContent = 'AGPL-3.0';
 
   const sep = document.createElement('span');
   sep.className = 'site-footer-sep';

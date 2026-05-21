@@ -2183,7 +2183,7 @@ function buildAbout(): HTMLElement {
 
   const oss1Heading = aboutSubheading('Open source');
   const oss1P = aboutParagraph([
-    'Mistboard is published under GPL-3.0-or-later on ',
+    'Mistboard is published under AGPL-3.0-or-later on ',
     aboutExternalLink('GitHub', GITHUB_URL),
     '. Contributions, bug reports, and article drafts are welcome. See ',
     aboutLink('Source', '/source'),
@@ -2255,11 +2255,11 @@ function buildSource(): HTMLElement {
 
   const intro = document.createElement('p');
   intro.textContent =
-    'Mistboard is an independent open-source Fog of War chess project. The source code is published under GPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.';
+    'Mistboard is an independent open-source Fog of War chess project. The source code is published under AGPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.';
 
   const source = sourceBlock('Project source', [
     linkLine('GitHub repository', GITHUB_URL),
-    textLine('License: GPL-3.0-or-later'),
+    textLine('License: AGPL-3.0-or-later'),
     textLine('No warranty is provided. See the repository license for the full terms.'),
   ]);
 
@@ -2271,7 +2271,7 @@ function buildSource(): HTMLElement {
 
   const identity = sourceBlock('Project identity', [
     textLine('The Mistboard name, logo, mistboard.com domain, hosted service identity, and official events are controlled project assets.'),
-    textLine('Forks are allowed under the GPL, but should use a distinct name and avoid implying they are the official Mistboard service.'),
+    textLine('Forks are allowed under the AGPL, but should use a distinct name and avoid implying they are the official Mistboard service.'),
     textLine('Forks and derivatives should present their own public brand, domain, and hosted service identity.'),
   ]);
 
@@ -2556,7 +2556,7 @@ function buildFooter(): HTMLElement {
 
   const identity = document.createElement('span');
   identity.className = 'site-footer-identity';
-  identity.textContent = '© 2026 Mistboard · GPL-3.0';
+  identity.textContent = '© 2026 Mistboard · AGPL-3.0';
 
   links.append(about, source, gh, identity);
   footer.append(links);

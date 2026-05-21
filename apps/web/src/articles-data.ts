@@ -973,7 +973,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "The full source is GPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard's servers run in production.",
+              "The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard's servers run in production.",
           },
         ],
       },
@@ -1118,7 +1118,7 @@ export const articles: Article[] = [
         heading: 'Mistboard’s current engine',
         paragraphs: [
           '[VISUAL: screenshot from the Engine Lab showing particle visualizations on a real game.]',
-          'Section TBD. Cover: implementation (particle filter, Tier-1 strategy), current strength positioning, specific failure modes encountered (filter extinction, etc.), open source under GPL-3.',
+          'Section TBD. Cover: implementation (particle filter, Tier-1 strategy), current strength positioning, specific failure modes encountered (filter extinction, etc.), open source under AGPL-3.',
         ],
       },
       {
