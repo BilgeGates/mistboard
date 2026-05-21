@@ -27,6 +27,7 @@ Update this table as actual spend occurs.
 |---|---|---|---|---|---|
 | 2026-05-20 | 1b | $0 | $0 | $0 | CPU only; ran on Mac. Strict gates failed (28.9% argmax vs 35% gate; 32% conf-cond vs 60%) but direction-rate improved 71%→82%. |
 | 2026-05-20 | 1c | $0 | $0 | $0 | Hand-validation by user (2000+ FoW player) on 16 CFR third-move picks via HTML interface. **75% defensible (12/16)** — soft pass on the rubric's ≥60% threshold. Phase 1b confirmed as soft pass. |
+| 2026-05-20 | 2a | $2-5 (est) | $0 | $0 | Deep CFR neural regret network validated on Kuhn poker. Converges to −1/18 within 0.10; visits all 12 info sets. 52s on Mac CPU. **PASS.** Original estimate was $2-5 on Modal GPU; ran locally for $0 instead. |
 
 ## Hard rules
 
