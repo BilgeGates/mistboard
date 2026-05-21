@@ -4145,6 +4145,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-page #landing-replay .replay-board.cg-wrap {
   max-width: min(600px, calc(100dvh - 180px));
+  border: none;
   box-shadow:
     0 0 0 1px rgba(58, 65, 60, 0.18),
     0 12px 26px rgba(43, 49, 45, 0.14);
