@@ -17,6 +17,8 @@ Public API mirrors ``tabular.solve_subgame`` where possible.
 
 from __future__ import annotations
 
+import copy
+import math
 import random
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -42,6 +44,12 @@ class DeepCFRSolution:
     info_set_count: int
     regret_net_state_dicts: dict
     """Trained regret network states keyed by player; serialize for reuse."""
+
+    checkpoints: list = field(default_factory=list)
+    """Per-checkpoint diagnostics when ``checkpoint_interval`` is set.
+    Each entry: {"iteration": int, "strategy": {move_uci: prob}, "argmax_prob":
+    float, "entropy": float, "n_strategy_samples": int}.
+    """
 
 
 def _strategy_from_regrets(
@@ -385,6 +393,59 @@ def _rollout_with_avg_strategy(
     )
 
 
+def _checkpoint_strategy(
+    root,
+    encoder,
+    avg_strategy_net_factory: Callable[[], nn.Module],
+    strategy_samples: dict,
+    iteration: int,
+    train_epochs: int,
+    batch_size: int,
+    lr: float,
+    device: str,
+) -> dict:
+    """One checkpoint snapshot: train a FRESH avg-strategy net on samples-so-far,
+    sample strategy at root, return diagnostics.
+
+    Uses a fresh net (not the running production net) so checkpoints don't
+    entangle with each other or with the final solve.
+    """
+    legal = root.legal_moves()
+    _, _, mask = _legal_actions_with_indices(root, encoder)
+    feat = encoder.encode_info_set(root)
+
+    fresh_net = avg_strategy_net_factory().to(device)
+    _train_avg_strategy_net(
+        fresh_net,
+        strategy_samples[root.to_move],
+        epochs=train_epochs,
+        batch_size=batch_size,
+        lr=lr,
+        device=device,
+    )
+    probs = _avg_strategy_probs(feat, mask, fresh_net, device)
+
+    strat = {a: float(probs[encoder.action_to_index(a)].item()) for a in legal}
+    total = sum(strat.values())
+    if total > 1e-9:
+        strat = {a: v / total for a, v in strat.items()}
+    else:
+        strat = {a: 1.0 / len(legal) for a in legal}
+
+    argmax_prob = max(strat.values()) if strat else 0.0
+    entropy = -sum(
+        p * math.log(p) for p in strat.values() if p > 1e-12
+    )
+
+    return {
+        "iteration": iteration,
+        "strategy": {a.uci() if hasattr(a, "uci") else str(a): p for a, p in strat.items()},
+        "argmax_prob": argmax_prob,
+        "entropy": entropy,
+        "n_strategy_samples": len(strategy_samples[root.to_move]),
+    }
+
+
 def solve_subgame_deep_cfr(
     root,
     encoder,
@@ -402,6 +463,7 @@ def solve_subgame_deep_cfr(
     avg_strategy_batch_size: int = 256,
     avg_strategy_lr: float = 1e-3,
     value_estimate_samples: int = 1000,
+    checkpoint_interval: int | None = None,
     players: tuple = None,
     rng: random.Random = None,
     device: str = "cpu",
@@ -440,6 +502,7 @@ def solve_subgame_deep_cfr(
         strategy_samples = None
         strategy_sum = {}
 
+    checkpoints: list = []
     for it in range(iterations):
         for traversing_player in players:
             for _ in range(trajectories_per_iter):
@@ -464,6 +527,27 @@ def solve_subgame_deep_cfr(
                 batch_size=regret_batch_size,
                 lr=regret_lr,
                 device=device,
+            )
+
+        # Checkpoint after this completed iteration if enabled.
+        if (
+            checkpoint_interval is not None
+            and use_neural_avg
+            and not root_is_chance
+            and (it + 1) % checkpoint_interval == 0
+        ):
+            checkpoints.append(
+                _checkpoint_strategy(
+                    root,
+                    encoder,
+                    avg_strategy_net_factory,
+                    strategy_samples,
+                    iteration=it + 1,
+                    train_epochs=avg_strategy_train_epochs,
+                    batch_size=avg_strategy_batch_size,
+                    lr=avg_strategy_lr,
+                    device=device,
+                )
             )
 
     # Train avg-strategy nets once at the end of all iterations (FoW path).
@@ -542,4 +626,5 @@ def solve_subgame_deep_cfr(
         iterations=iterations,
         info_set_count=info_set_count,
         regret_net_state_dicts={p: regret_nets[p].state_dict() for p in players},
+        checkpoints=checkpoints,
     )
