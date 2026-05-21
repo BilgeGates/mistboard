@@ -14,7 +14,7 @@ import math
 
 import chess
 
-from ..evaluator import material_score
+from ..evaluator import fog_discount_term, material_score
 
 
 def material_leaf_eval(board: chess.Board, perspective: chess.Color) -> float:
@@ -24,4 +24,24 @@ def material_leaf_eval(board: chess.Board, perspective: chess.Color) -> float:
     maps to ~0.76; a queen advantage (+900cp) maps to ~0.95.
     """
     cp = material_score(board, perspective)
+    return math.tanh(cp / 500.0)
+
+
+def hybrid_fog_leaf_eval(board: chess.Board, perspective: chess.Color) -> float:
+    """Tanh-normalized (material - 0.2 * fog_discount) from ``perspective``'s POV.
+
+    Adds the simplest FoW-specific signal to material balance. ``fog_discount``
+    penalizes own non-king pieces deep in enemy territory without defensive
+    support — captures the FoW-implicit risk of exposed pieces to hidden
+    attackers. The 0.2 weight matches ``fow_evaluator``'s ``fog_risk_weight``
+    default, keeping this consistent with how the production evaluator
+    blends the two signals.
+
+    Cheaper than running full ``fow_evaluator`` at every leaf (which would
+    require evaluating all legal moves) while still carrying real FoW
+    knowledge into the CFR search.
+    """
+    cp = material_score(board, perspective) - 0.2 * fog_discount_term(
+        board, perspective
+    )
     return math.tanh(cp / 500.0)

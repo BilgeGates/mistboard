@@ -1,26 +1,22 @@
-"""Phase 1 smoke: tabular CFR on 10 annotated blunder positions.
+"""Phase 1 / 1b smoke: tabular CFR on annotated blunder positions.
 
 Pre-validation for the full Phase 1 experiment. Runs CFR at depth=3 /
 iter=500 across a stratified sample of major/minor blunder annotations,
 in parallel via multiprocessing. Compares CFR's strategy on the played
 vs. human-suggested moves to what fow_evaluator scores them at.
 
-Metrics per position:
-- ``direction_correct_cfr``: CFR puts more average-strategy mass on
-  ``suggested`` than on ``played``.
-- ``direction_correct_fow``: fow_evaluator scores ``suggested`` higher
-  than ``played``.
-- ``argmax_match_suggested_cfr``: CFR's top move equals the human's
-  suggested move.
-- ``argmax_match_suggested_fow``: fow_evaluator's argmax move equals
-  the human's suggested move.
+Leaf evaluator picked at runtime via ``CFR_LEAF_EVAL`` env var:
+- ``material`` (default) — tanh-normalized material balance only.
+- ``hybrid_fog`` — material + fog_discount_term. The Phase 1b leaf.
 
-The interesting Phase 1 question is whether CFR's argmax matches the
-human suggestion more often than fow_evaluator's does.
+Output file is named to reflect the leaf eval choice so Phase 1 and
+Phase 1b results live side-by-side.
 
-Run:
-    cd research/python-fow-lab
+Run Phase 1 (baseline):
     PYTHONPATH=src .venv/bin/python lab/diag/cfr_phase1_smoke.py
+
+Run Phase 1b (hybrid_fog leaf):
+    CFR_LEAF_EVAL=hybrid_fog PYTHONPATH=src .venv/bin/python lab/diag/cfr_phase1_smoke.py
 """
 
 from __future__ import annotations
@@ -33,7 +29,7 @@ from pathlib import Path
 
 import chess
 
-from fow_chess.cfr.leaf_eval import material_leaf_eval
+from fow_chess.cfr.leaf_eval import hybrid_fog_leaf_eval, material_leaf_eval
 from fow_chess.cfr.tabular import solve_subgame
 from fow_chess.cfr.walker import SubgameNode
 from fow_chess.evaluator import fow_evaluator, material_score
@@ -46,8 +42,24 @@ CFR_VALUE_SAMPLES = 500
 SAMPLE_MAJOR = 30
 SAMPLE_MINOR = 20
 
+# Leaf eval selection via env var. Output file name encodes the leaf used.
+LEAF_EVAL_KIND = os.environ.get("CFR_LEAF_EVAL", "material")
+_LEAF_EVAL_MAP = {
+    "material": material_leaf_eval,
+    "hybrid_fog": hybrid_fog_leaf_eval,
+}
+if LEAF_EVAL_KIND not in _LEAF_EVAL_MAP:
+    raise ValueError(
+        f"CFR_LEAF_EVAL={LEAF_EVAL_KIND!r}; expected one of {list(_LEAF_EVAL_MAP)}"
+    )
+LEAF_EVAL = _LEAF_EVAL_MAP[LEAF_EVAL_KIND]
+
 ANNOTATIONS_PATH = Path(__file__).parents[2] / "feedback" / "annotations.jsonl"
-RESULTS_PATH = Path(__file__).parent / "cfr-phase1-smoke-results.json"
+_PHASE_TAG = "phase1" if LEAF_EVAL_KIND == "material" else "phase1b"
+RESULTS_PATH = (
+    Path(__file__).parent
+    / f"cfr-{_PHASE_TAG}-smoke-results.json"
+)
 
 
 # Tags that indicate the suggested move is for the OPPONENT of move_played_color,
@@ -128,7 +140,7 @@ def _solve_one(ann: dict) -> dict:
         sol = solve_subgame(
             root,
             depth=CFR_DEPTH,
-            leaf_eval=material_leaf_eval,
+            leaf_eval=LEAF_EVAL,
             iterations=CFR_ITERATIONS,
             value_estimate_samples=CFR_VALUE_SAMPLES,
         )
@@ -266,7 +278,7 @@ def main() -> None:
     print(f"Loaded {len(annotations)} annotations; sampled {len(sample)}.")
     print(
         f"Settings: depth={CFR_DEPTH}, iterations={CFR_ITERATIONS}, "
-        f"value_samples={CFR_VALUE_SAMPLES}"
+        f"value_samples={CFR_VALUE_SAMPLES}, leaf_eval={LEAF_EVAL_KIND}"
     )
 
     n_workers = max(1, min(os.cpu_count() or 4, len(sample)))
