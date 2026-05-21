@@ -3606,44 +3606,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   color: var(--site-accent);
 }
 
-.landing-play-action-lobby .landing-play-icon {
-  background:
-    radial-gradient(circle at 50% 28%, currentColor 0 6px, transparent 7px),
-    radial-gradient(circle at 23% 34%, currentColor 0 4px, transparent 5px),
-    radial-gradient(circle at 77% 34%, currentColor 0 4px, transparent 5px),
-    radial-gradient(ellipse at 50% 76%, currentColor 0 13px, transparent 14px),
-    radial-gradient(ellipse at 20% 72%, currentColor 0 8px, transparent 9px),
-    radial-gradient(ellipse at 80% 72%, currentColor 0 8px, transparent 9px);
-}
-
-.landing-play-action-friend .landing-play-icon {
-  background:
-    radial-gradient(circle at 50% 26%, currentColor 0 7px, transparent 8px),
-    radial-gradient(ellipse at 50% 78%, currentColor 0 14px, transparent 15px);
-}
-
-.landing-play-action-computer .landing-play-icon {
-  border: 3px solid currentColor;
-  border-radius: 8px;
-}
-
-.landing-play-action-computer .landing-play-icon::before {
-  content: "";
-  position: absolute;
-  inset: 7px;
-  border: 3px solid currentColor;
-  border-radius: 4px;
-}
-
-.landing-play-action-computer .landing-play-icon::after {
-  content: "";
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: -10px;
-  height: 6px;
-  border-radius: 999px;
-  background: currentColor;
+.landing-play-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .landing-engine-select {

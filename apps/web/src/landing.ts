@@ -1618,6 +1618,12 @@ function startLiveStatsPolling(stats: HTMLElement): void {
   }, 5_000);
 }
 
+const LANDING_PLAY_ICON_SVG: Record<'computer' | 'friend' | 'lobby', string> = {
+  lobby: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="5.5" cy="5.5" r="2"/><path d="M2.5 16.5 4 9.5h3l1.5 7z"/><rect x="2" y="16.5" width="7" height="2" rx="0.5"/><circle cx="18.5" cy="5.5" r="2"/><path d="M15.5 16.5 17 9.5h3l1.5 7z"/><rect x="15" y="16.5" width="7" height="2" rx="0.5"/><path d="M10 11.5q1-1 2 0t2 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/><path d="M9.5 14q1-1 2 0t2 0 1 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/></svg>`,
+  friend: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.5 14.5l-2 2a3.5 3.5 0 1 1-5-5l2-2"/><path d="M14.5 9.5l2-2a3.5 3.5 0 1 1 5 5l-2 2"/><path d="M9 15l6-6"/></svg>`,
+  computer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="3.2" r="1" fill="currentColor" stroke="none"/><path d="M12 4.2v2"/><rect x="2" y="11" width="2" height="4" rx="0.5"/><rect x="20" y="11" width="2" height="4" rx="0.5"/><rect x="4.5" y="6.5" width="15" height="13" rx="2.5"/><circle cx="9.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="14.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><path d="M9.5 16h5"/></svg>`,
+};
+
 function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby'): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -1625,6 +1631,7 @@ function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby')
   const iconEl = document.createElement('span');
   iconEl.className = 'landing-play-icon';
   iconEl.setAttribute('aria-hidden', 'true');
+  iconEl.innerHTML = LANDING_PLAY_ICON_SVG[icon];
   const labelEl = document.createElement('span');
   labelEl.className = 'landing-play-action-label';
   labelEl.textContent = label;
@@ -2113,7 +2120,9 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'python-tier1-v0.7.0': 'Tier-1 v0.7.0',
     'python-tier1-v0.7.22': 'Tier-1 v0.7.22',
     'python-tier1-v0.8.9': 'Tier-1 v0.8.9',
-    'python-tier1-current': 'Tier-1 current src (v0.9.5)',
+    'python-tier1-v0.9.1': 'Tier-1 v0.9.1',
+    'python-tier1-v0.9.5': 'Tier-1 v0.9.5',
+    'python-tier1-current': 'Tier-1 current src',
   };
   return known[name] ?? null;
 }
