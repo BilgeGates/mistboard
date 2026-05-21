@@ -10,7 +10,6 @@ export function primaryNavItems(): NavItem[] {
   return [
     { label: 'Leaderboard', href: '/leaderboard' },
     { label: 'Articles', href: '/articles' },
-    { label: 'Video', href: '/video' },
   ];
 }
 
