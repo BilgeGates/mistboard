@@ -22,6 +22,7 @@ _Last updated: 2026-05-14_
 - Engine article (Article #3) — held for the open-source engine release moment.
 - FUCI / engine submission — Stage E1+ post-distribution.
 - Half-open TCP smoke and browser-level E2E (Playwright) — out of scope for v1.
+- SSR exploration — server-rendered nav/pages to eliminate auth-state flash and unlock SEO for /articles + /@/handle. Current mitigation is the `mb_signed_in` localStorage hint in `account-nav.ts`. Likely trigger: wanting articles/profiles to rank in search.
 
 ---
 

@@ -1178,6 +1178,7 @@ function buildLoginForm(
         const data = await resp.json() as { user?: AuthUser; isNewUser?: boolean; error?: string };
         if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
         if (data.isNewUser) track('signup_completed');
+        try { window.localStorage.setItem('mb_signed_in', '1'); } catch { /* ignore */ }
         onAuth(shell, data.user);
       }
     } catch (err) {

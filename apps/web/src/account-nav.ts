@@ -10,23 +10,32 @@ type AuthUser = {
   accountRole: 'player' | 'test' | 'admin';
 };
 
+const SIGNED_IN_HINT_KEY = 'mb_signed_in';
+
 let cachedUser: AuthUser | null | undefined = undefined;
 let userPromise: Promise<AuthUser | null> | null = null;
 let navObserver: MutationObserver | null = null;
 
 export function initializeAccountNav(): void {
+  applyPendingSlots();
   void primeAccountNav();
   watchForNavChanges();
 }
 
 async function primeAccountNav(): Promise<void> {
-  await loadCurrentUser();
-  mountAccountNavs();
+  const user = await loadCurrentUser();
+  writeSignedInHint(user !== null);
+  if (user) mountAccountNavs();
+  else revealSignedOutSlots();
 }
 
 function watchForNavChanges(): void {
   if (navObserver) return;
-  navObserver = new MutationObserver(() => mountAccountNavs());
+  navObserver = new MutationObserver(() => {
+    applyPendingSlots();
+    if (cachedUser) mountAccountNavs();
+    else if (cachedUser === null) revealSignedOutSlots();
+  });
   navObserver.observe(document.body, { childList: true, subtree: true });
   document.addEventListener('click', closeAccountMenusOnOutsideClick);
   document.addEventListener('keydown', closeAccountMenusOnEscape);
@@ -35,6 +44,52 @@ function watchForNavChanges(): void {
 function mountAccountNavs(): void {
   if (cachedUser === undefined || cachedUser === null) return;
   document.querySelectorAll<HTMLElement>('.site-nav').forEach((nav) => mountAccountNav(nav, cachedUser as AuthUser));
+}
+
+function readSignedInHint(): boolean {
+  try {
+    return window.localStorage.getItem(SIGNED_IN_HINT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeSignedInHint(value: boolean): void {
+  try {
+    if (value) window.localStorage.setItem(SIGNED_IN_HINT_KEY, '1');
+    else window.localStorage.removeItem(SIGNED_IN_HINT_KEY);
+  } catch {
+    // localStorage unavailable (private mode etc.) — fall through.
+  }
+}
+
+function applyPendingSlots(): void {
+  if (cachedUser !== undefined) return;
+  if (!readSignedInHint()) return;
+  document.querySelectorAll<HTMLElement>('[data-account-slot]').forEach((slot) => {
+    if (slot.dataset.accountPending === '1') return;
+    if (slot.querySelector('[data-account-nav]')) return;
+    slot.dataset.accountPending = '1';
+    const placeholder = document.createElement('span');
+    placeholder.className = 'account-nav-pending';
+    placeholder.setAttribute('aria-hidden', 'true');
+    slot.replaceChildren(placeholder);
+  });
+}
+
+function revealSignedOutSlots(): void {
+  document.querySelectorAll<HTMLElement>('[data-account-slot][data-account-pending="1"]').forEach((slot) => {
+    delete slot.dataset.accountPending;
+    const signIn = document.createElement('a');
+    signIn.href = '/account?tab=login';
+    signIn.className = 'site-nav-link site-nav-link-signin';
+    signIn.textContent = 'Sign in';
+    const register = document.createElement('a');
+    register.href = '/account?tab=register';
+    register.className = 'site-nav-link-primary';
+    register.textContent = 'Register';
+    slot.replaceChildren(signIn, register);
+  });
 }
 
 function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
@@ -110,6 +165,7 @@ async function handleLogout(button: HTMLButtonElement): Promise<void> {
     // Reload anyway so the page reflects the attempted sign-out.
   }
   invalidateAccountCache();
+  writeSignedInHint(false);
   window.location.reload();
 }
 
