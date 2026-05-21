@@ -1,0 +1,9 @@
+{
+  "type": "gate",
+  "candidate": "nets/psqt/v6",
+  "champion_arch": "psqt",
+  "elo_lower": 0,
+  "elo_upper": 30,
+  "max_games": 100,
+  "notes": "SPRT v6 vs PSQT-v2. If v6 promotes, corpus accumulation is the local lever to exploit before spending cloud compute."
+}

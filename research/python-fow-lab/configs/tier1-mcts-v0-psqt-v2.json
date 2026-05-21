@@ -1,0 +1,17 @@
+{
+  "name": "tier1-mcts-v0-psqt-v2",
+  "family": "tier1",
+  "kind": "tier1",
+  "evaluator": "psqt",
+  "psqt_weights_path": "distill/v2/psqt.npz",
+  "prior": "uniform",
+  "fog_lambda": 0.0,
+  "target_n": 256,
+  "max_particles": 16,
+  "risk_aversion": 0.0,
+  "mcts_rollouts": 200,
+  "mcts_rollout_depth": 8,
+  "mcts_selection_depth": 3,
+  "mcts_risk_lambda": 0.25,
+  "notes": "Phase 1 v1: same linear PSQT arch as v1, but trained on a 4x larger corpus (200 games / ~6k positions vs v1's 50 games / 1.6k). Tests whether data is a lever before committing to a neural net architecture (Phase 1 v2)."
+}

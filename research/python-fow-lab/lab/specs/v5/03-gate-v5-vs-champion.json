@@ -1,0 +1,9 @@
+{
+  "type": "gate",
+  "candidate": "nets/psqt/v5",
+  "champion_arch": "psqt",
+  "elo_lower": 0,
+  "elo_upper": 30,
+  "max_games": 100,
+  "notes": "SPRT v5 vs PSQT-v2. Promotion threshold: positive Elo at SPRT-significant level. If passes, v5 becomes champion."
+}

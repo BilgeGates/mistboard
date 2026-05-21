@@ -1,0 +1,41 @@
+{
+  "games": 3,
+  "wall_seconds": 354.7,
+  "tracked_plies": 420,
+  "truth_hit_count": 46,
+  "truth_hit_rate_overall": 0.10952380952380952,
+  "csp_reseed_fires_total": 0,
+  "jitter_fires_total": 0,
+  "per_game": [
+    {
+      "game": 0,
+      "winner": null,
+      "plies": 139,
+      "tracked_plies": 139,
+      "truth_hit_count": 20,
+      "truth_hit_rate": 0.14388489208633093,
+      "first_truth_lost_at_ply": 5,
+      "wall_seconds": 134.9
+    },
+    {
+      "game": 1,
+      "winner": null,
+      "plies": 200,
+      "tracked_plies": 200,
+      "truth_hit_count": 21,
+      "truth_hit_rate": 0.105,
+      "first_truth_lost_at_ply": 5,
+      "wall_seconds": 156.4
+    },
+    {
+      "game": 2,
+      "winner": null,
+      "plies": 81,
+      "tracked_plies": 81,
+      "truth_hit_count": 5,
+      "truth_hit_rate": 0.06172839506172839,
+      "first_truth_lost_at_ply": 5,
+      "wall_seconds": 63.4
+    }
+  ]
+}

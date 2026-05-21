@@ -1,0 +1,32 @@
+{
+  "type": "net",
+  "id": "psqt/v5",
+  "created_at": "2026-05-18T05:58:37+00:00",
+  "git_sha": "f214d0cd9aa3",
+  "spec": {
+    "type": "train",
+    "arch": "psqt",
+    "corpus": "corpora/c5",
+    "out_id": "v5",
+    "hyperparams": {
+      "scale": 1.0,
+      "ridge": 1.0
+    },
+    "notes": "PSQT on c5 (deep-teacher labels). Linear arch, same as v2 \u2014 pure label-quality test."
+  },
+  "inputs": {
+    "corpus": "corpora/c5"
+  },
+  "outputs": {
+    "weights": "weights.npz"
+  },
+  "metrics": {
+    "train_rmse": 476.4,
+    "val_rmse": 706.8,
+    "val_sign_agreement": 0.9520000000000001
+  },
+  "lineage": [
+    "c5"
+  ],
+  "notes": "PSQT on c5 (deep-teacher labels). Linear arch, same as v2 \u2014 pure label-quality test."
+}

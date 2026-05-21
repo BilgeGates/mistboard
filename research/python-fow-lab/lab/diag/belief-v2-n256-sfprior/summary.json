@@ -1,0 +1,47 @@
+{
+  "games": 3,
+  "target_n": 256,
+  "wall_seconds": 674.2,
+  "tracked_records": 425,
+  "exact_match_rate": 0.03764705882352941,
+  "marginal_strict_mean": 0.415027927643745,
+  "marginal_anyopp_mean": 0.6047944126718282,
+  "mean_ess": 101.52455751990455,
+  "csp_reseed_fires": 0,
+  "jitter_fires": 0,
+  "per_game": [
+    {
+      "game": 0,
+      "winner": null,
+      "plies": 131,
+      "tracked": 131,
+      "exact_match_rate": 0.04580152671755725,
+      "marginal_strict_mean": 0.41610758784093715,
+      "marginal_anyopp_mean": 0.6175525744724344,
+      "mean_ess": 99.2151485666264,
+      "wall_seconds": 174.1
+    },
+    {
+      "game": 1,
+      "winner": null,
+      "plies": 159,
+      "tracked": 159,
+      "exact_match_rate": 0.031446540880503145,
+      "marginal_strict_mean": 0.3689616652190053,
+      "marginal_anyopp_mean": 0.574364099125263,
+      "mean_ess": 83.53789307332764,
+      "wall_seconds": 285.4
+    },
+    {
+      "game": 2,
+      "winner": null,
+      "plies": 135,
+      "tracked": 135,
+      "exact_match_rate": 0.037037037037037035,
+      "marginal_strict_mean": 0.46823607756745994,
+      "marginal_anyopp_mean": 0.628254417546083,
+      "mean_ess": 124.94983322275738,
+      "wall_seconds": 212.2
+    }
+  ]
+}
