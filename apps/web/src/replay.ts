@@ -31,7 +31,6 @@ import {
 } from './annotations.js';
 import { files, ranks, allSquares, formatClock } from './web-utils.js';
 import { createBeliefPanel, type BeliefConfig, type BeliefPanelHandle } from './belief-panel.js';
-import { intermediateBoard } from './board-anim.js';
 
 const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;
@@ -335,9 +334,6 @@ export async function mountReplay(
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
   let lastNotifiedPly: number | null = null;
-  let lastWhiteView: PlayerView | null = null;
-  let lastBlackView: PlayerView | null = null;
-  let lastRenderedPly: number | null = null;
 
   function render(): void {
     root.dataset.sampleId = activeSample;
@@ -350,15 +346,11 @@ export async function mountReplay(
 
     setBoardFromState(truthCg, state);
 
-    const isSingleStepForward = lastRenderedPly !== null && currentPly === lastRenderedPly + 1;
-
     if (finished && reveal) {
       // Postgame reveal: collapse all three panes to truth so the viewer
       // sees the full board they couldn't see during play.
       setBoardFromState(whiteCg, state);
       setBoardFromState(blackCg, state);
-      lastWhiteView = null;
-      lastBlackView = null;
     } else {
       // At game end, getPlayerView would collapse visibility to just the
       // player's own piece squares (getVisibilityMoves returns [] when
@@ -391,12 +383,9 @@ export async function mountReplay(
           }
         }
       }
-      setBoardFromView(whiteCg, whiteView, isSingleStepForward ? lastWhiteView : null);
-      setBoardFromView(blackCg, blackView, isSingleStepForward ? lastBlackView : null);
-      lastWhiteView = whiteView;
-      lastBlackView = blackView;
+      setBoardFromView(whiteCg, whiteView);
+      setBoardFromView(blackCg, blackView);
     }
-    lastRenderedPly = currentPly;
 
     const showRevealLabels = finished && reveal;
     whitePane.labelEl.textContent = showRevealLabels
@@ -1651,7 +1640,7 @@ async function loadEvents(
 
 function createBoard(el: HTMLElement, orientation: Color): Api {
   return Chessground(el, {
-    animation: { enabled: true, duration: 140 },
+    animation: { enabled: false, duration: 0 },
     coordinates: false,
     coordinatesOnSquares: false,
     fen: '8/8/8/8/8/8/8/8',
@@ -1692,62 +1681,14 @@ function squareFromCgBoardClick(
   return `${fileChar}${rankNum}`;
 }
 
-function setBoardFromView(api: Api, view: PlayerView, prevView: PlayerView | null = null): void {
+function setBoardFromView(api: Api, view: PlayerView): void {
   const lastMove = view.lastMove
     ? ([view.lastMove.from, view.lastMove.to] as cg.Key[])
     : undefined;
-  const customClasses = hiddenSquareClasses(view);
-  const prevMove = prevView?.lastMove;
-  const movedSinceLastRender = view.lastMove !== undefined
-    && (!prevMove || prevMove.from !== view.lastMove.from || prevMove.to !== view.lastMove.to);
-  // Fog-of-war: chessground animates by diffing the previous piece-set against the new one and
-  // pairing each "disappeared" piece with the nearest same-color/role "appeared" piece. In a
-  // normal game that diff equals the move, so animation is correct. In fog-of-war the visible
-  // piece-set also changes whenever fog reveals or conceals squares independently of the move,
-  // producing phantom slides between unrelated pieces.
-  //
-  // The fix is a two-phase render that separates fog changes from move changes:
-  //   Phase A (animation off): snap to a board where the fog has been applied but the moved piece
-  //     is still at its source square. chessground's internal state now matches the new fog layout
-  //     but has no piece displacement to animate.
-  //   Phase B (animation on): set the real board. The only diff is the one canonical move, so
-  //     chessground produces the correct slide.
-  //
-  // The two sub-cases below share that invariant but differ because `view.lastMove` is only set
-  // for the MOVING player's own perspective. For the opponent's perspective,
-  // `visibleLastMoveForPlayer` returns undefined (the opponent's move is hidden by fog), so there
-  // is no move to animate at all — Phase A and Phase B would be identical. In that case we just
-  // snap directly with animation off and re-enable it; no intermediateBoard needed.
-  if (view.variant === 'fog-of-war' && prevView) {
-    if (view.lastMove && movedSinceLastRender) {
-      const intermediate = intermediateBoard(prevView, view, view.lastMove);
-      api.set({
-        animation: { enabled: false, duration: 0 },
-        fen: boardFen(intermediate),
-        lastMove: undefined,
-        highlight: { custom: customClasses, lastMove: false },
-      });
-      api.set({
-        animation: { enabled: true, duration: 140 },
-        fen: boardFen(view.board),
-        lastMove,
-        highlight: { custom: customClasses, lastMove: true },
-      });
-    } else {
-      api.set({
-        animation: { enabled: false, duration: 0 },
-        fen: boardFen(view.board),
-        lastMove: undefined,
-        highlight: { custom: customClasses, lastMove: false },
-      });
-      api.set({ animation: { enabled: true, duration: 140 } });
-    }
-    return;
-  }
   api.set({
     fen: boardFen(view.board),
     lastMove,
-    highlight: { custom: customClasses, lastMove: true },
+    highlight: { custom: hiddenSquareClasses(view), lastMove: true },
   });
 }
 

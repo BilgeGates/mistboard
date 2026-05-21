@@ -2558,7 +2558,7 @@ function createTutorialBoard(
   state: TutorialState,
 ): Api {
   const api = Chessground(el, {
-    animation: { enabled: true, duration: 160 },
+    animation: { enabled: false, duration: 0 },
     coordinates: true,
     coordinatesOnSquares: false,
     fen: boardFen(view.board),
