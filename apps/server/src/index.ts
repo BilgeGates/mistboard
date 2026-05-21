@@ -1097,16 +1097,28 @@ async function abandonRoom(
   | { ok: true }
   | { ok: false; error: 'not_found' | 'unauthorized' | 'already_terminal' }
 > {
-  const room = rooms.get(roomId);
-  if (!room) return { ok: false, error: 'not_found' };
-  if (!verifySeatToken(room, seatToken)) return { ok: false, error: 'unauthorized' };
-  if (room.projection.state.status.type === 'finished') return { ok: false, error: 'already_terminal' };
+  // Verify against persistence (source of truth across instances) rather than
+  // in-memory room state — the abandon HTTP request can land on a different
+  // instance from the one that handled room creation (notably during a
+  // Railway deploy cutover when both old and new containers serve traffic).
   if (persistence.isInitialized()) {
+    const lifecycle = await persistence.getGameLifecycleStatus(roomId);
+    if (!lifecycle) return { ok: false, error: 'not_found' };
+    if (lifecycle.status !== 'running') return { ok: false, error: 'already_terminal' };
+    const verified = await persistence.verifyRoomSeatToken(roomId, seatToken);
+    if (!verified) return { ok: false, error: 'unauthorized' };
     await persistence.abortRunningGame(roomId, {
       abortedReason: 'abandoned by creator',
       termination: 'abandoned',
     });
+    resetRoom(roomId);
+    return { ok: true };
   }
+  // In-memory fallback for tests / dev servers running without persistence.
+  const room = rooms.get(roomId);
+  if (!room) return { ok: false, error: 'not_found' };
+  if (!verifySeatToken(room, seatToken)) return { ok: false, error: 'unauthorized' };
+  if (room.projection.state.status.type === 'finished') return { ok: false, error: 'already_terminal' };
   resetRoom(roomId);
   return { ok: true };
 }

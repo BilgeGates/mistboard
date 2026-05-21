@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import pg from 'pg';
 import type { Color, GameEvent } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
@@ -399,6 +400,27 @@ export async function listActiveRoomIds(since: Date): Promise<string[]> {
     [since],
   );
   return rows.map((row) => row.room_id);
+}
+
+export async function verifyRoomSeatToken(
+  roomId: string,
+  rawSeatToken: string,
+): Promise<{ seat: Color } | null> {
+  if (!rawSeatToken) return null;
+  const supplied = createHash('sha256').update(rawSeatToken).digest();
+  const { rows } = await getPool().query<{ seat: Color; token_hash: string }>(
+    `SELECT seat, token_hash
+     FROM room_seat_tokens
+     WHERE room_id = $1 AND revoked_at IS NULL`,
+    [roomId],
+  );
+  for (const row of rows) {
+    const expected = Buffer.from(row.token_hash, 'hex');
+    if (expected.length === supplied.length && timingSafeEqual(expected, supplied)) {
+      return { seat: row.seat };
+    }
+  }
+  return null;
 }
 
 export async function getGameLifecycleStatus(roomId: string): Promise<{ mode: GameMode; status: 'running' | 'completed' | 'aborted' } | null> {
