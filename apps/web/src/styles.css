@@ -317,13 +317,6 @@ body {
   gap: 8px;
 }
 
-.account-nav-pending {
-  display: inline-block;
-  width: 72px;
-  height: 30px;
-  border-radius: 6px;
-}
-
 .site-nav-link-primary {
   display: inline-flex;
   align-items: center;
