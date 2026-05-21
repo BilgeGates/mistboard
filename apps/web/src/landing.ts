@@ -6,6 +6,7 @@ import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameM
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { classifyTimeControl, track } from './analytics.js';
 import { announcements, type Announcement } from './announcements.js';
+import { isLikelySignedIn, loadCachedCurrentUser } from './account-nav.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -1353,7 +1354,14 @@ export function mountSource(root: HTMLElement): void {
 export function mountContact(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'contact-route');
-  root.append(buildNav(), buildContact(), buildFooter());
+  // Synchronous best-guess from localStorage so the lane shape is right on
+  // first paint for returning signed-in users. Reconciled below with the
+  // authoritative cached /api/auth/me result.
+  const contact = buildContact(isLikelySignedIn());
+  root.append(buildNav(), contact.el, buildFooter());
+  void loadCachedCurrentUser()
+    .then((user) => contact.applyAuth(user))
+    .catch(() => contact.applyAuth(null));
 }
 
 export function mountNotFound(root: HTMLElement): void {
@@ -1587,17 +1595,30 @@ function renderAnnouncementCard(entry: Announcement): HTMLElement {
   item.className = 'landing-announcement-card';
   if (entry.pinned) item.classList.add('is-pinned');
 
-  if (entry.date && !entry.pinned) {
-    const date = document.createElement('time');
-    date.className = 'landing-announcement-date';
-    date.dateTime = entry.date;
-    date.textContent = formatAnnouncementDate(entry.date);
-    item.append(date);
-  } else if (entry.pinned) {
-    const tag = document.createElement('span');
-    tag.className = 'landing-announcement-tag';
-    tag.textContent = 'Pinned';
-    item.append(tag);
+  if (entry.date || entry.pinned) {
+    const header = document.createElement('div');
+    header.className = 'landing-announcement-meta';
+    if (entry.date) {
+      const date = document.createElement('time');
+      date.className = 'landing-announcement-date';
+      date.dateTime = entry.date;
+      date.textContent = formatAnnouncementDate(entry.date);
+      header.append(date);
+    }
+    if (entry.pinned) {
+      if (entry.date) {
+        const sep = document.createElement('span');
+        sep.className = 'landing-announcement-meta-sep';
+        sep.setAttribute('aria-hidden', 'true');
+        sep.textContent = '·';
+        header.append(sep);
+      }
+      const tag = document.createElement('span');
+      tag.className = 'landing-announcement-tag';
+      tag.textContent = 'Pinned';
+      header.append(tag);
+    }
+    item.append(header);
   }
 
   const headline = document.createElement(entry.href ? 'a' : 'p');
@@ -2693,7 +2714,12 @@ function buildNotFound(): HTMLElement {
   return section;
 }
 
-function buildContact(): HTMLElement {
+interface ContactView {
+  el: HTMLElement;
+  applyAuth: (user: AuthUser | null) => void;
+}
+
+function buildContact(initialSignedIn: boolean): ContactView {
   const section = document.createElement('section');
   section.className = 'site-section contact-section';
 
@@ -2701,9 +2727,12 @@ function buildContact(): HTMLElement {
   heading.className = 'site-section-heading';
   heading.textContent = 'Contact';
 
+  const introAnon = 'Bug, idea, broken game, anything else. Add an email if you want a reply.';
+  const introUser = 'Bug, idea, broken game, anything else.';
+
   const intro = document.createElement('p');
-  intro.textContent =
-    'Bug, idea, broken game, anything else. Add an email if you want a reply.';
+  intro.className = 'contact-intro';
+  intro.textContent = initialSignedIn ? introUser : introAnon;
 
   const form = document.createElement('form');
   form.className = 'contact-form';
@@ -2721,6 +2750,13 @@ function buildContact(): HTMLElement {
   messageInput.placeholder = "What's on your mind?";
   messageLabel.append(messageLabelText, messageInput);
 
+  // Lane slot: rendered in user-lane shape if we have a synchronous hint that
+  // the visitor is signed in (localStorage), otherwise anon. Reconciled with
+  // the real auth fetch via applyAuth below.
+  const laneSlot = document.createElement('div');
+  laneSlot.className = 'contact-lane-slot';
+
+  // Anon-lane elements (kept around to swap back into if needed).
   const emailLabel = document.createElement('label');
   emailLabel.className = 'contact-field';
   const emailLabelText = document.createElement('span');
@@ -2731,6 +2767,43 @@ function buildContact(): HTMLElement {
   emailInput.autocomplete = 'email';
   emailInput.placeholder = 'you@example.com';
   emailLabel.append(emailLabelText, emailInput);
+
+  const signinPrompt = document.createElement('p');
+  signinPrompt.className = 'contact-signin-prompt';
+  const signinLink = document.createElement('a');
+  signinLink.href = '/account';
+  signinLink.textContent = 'Sign in';
+  signinPrompt.append(signinLink, document.createTextNode(' for a faster reply.'));
+
+  const buildAnonSlot = (): void => {
+    laneSlot.dataset.lane = 'anon';
+    laneSlot.replaceChildren(emailLabel, signinPrompt);
+  };
+
+  const buildUserSlot = (user: AuthUser | null): void => {
+    laneSlot.dataset.lane = 'user';
+    const hint = document.createElement('p');
+    hint.className = 'contact-signed-in-hint';
+    if (user) {
+      hint.append(
+        document.createTextNode('Signed in as '),
+        Object.assign(document.createElement('strong'), { textContent: `@${user.handle}` }),
+      );
+      if (user.email) {
+        hint.append(document.createTextNode(` — we'll reply to ${user.email}.`));
+      } else {
+        hint.append(document.createTextNode('.'));
+      }
+    } else {
+      // Placeholder used when we only have the localStorage hint and haven't
+      // yet resolved the authoritative user.
+      hint.textContent = "Signed in — we'll reply to your account email.";
+    }
+    laneSlot.replaceChildren(hint);
+  };
+
+  // Initial paint.
+  if (initialSignedIn) buildUserSlot(null); else buildAnonSlot();
 
   // Honeypot: hidden from humans, attractive to bots. Server discards if filled.
   const honeypotLabel = document.createElement('label');
@@ -2759,7 +2832,25 @@ function buildContact(): HTMLElement {
   status.setAttribute('aria-live', 'polite');
   submitRow.append(submit, status);
 
-  form.append(messageLabel, emailLabel, honeypotLabel, submitRow);
+  form.append(messageLabel, laneSlot, honeypotLabel, submitRow);
+
+  // Closure flag: when true, omit the email from the submitted payload
+  // (server ignores it anyway, but no point sending it).
+  let signedIn = initialSignedIn;
+
+  const applyAuth = (user: AuthUser | null): void => {
+    if (user) {
+      signedIn = true;
+      buildUserSlot(user);
+      intro.textContent = introUser;
+    } else {
+      // Authoritative: not signed in. Either confirms the anon default or
+      // reverts a stale signed-in hint (sign-out from another tab, etc.).
+      signedIn = false;
+      buildAnonSlot();
+      intro.textContent = introAnon;
+    }
+  };
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -2783,17 +2874,20 @@ function buildContact(): HTMLElement {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             message,
-            email: emailInput.value.trim() || null,
+            email: signedIn ? null : (emailInput.value.trim() || null),
             path: window.location.pathname,
             website: honeypotInput.value,
           }),
         });
         if (response.ok) {
-          form.reset();
+          messageInput.value = '';
+          if (!signedIn) emailInput.value = '';
           status.textContent = 'Thanks — message received.';
           status.dataset.state = 'ok';
         } else if (response.status === 429) {
-          status.textContent = 'Too many submissions. Try again in a bit.';
+          status.textContent = signedIn
+            ? 'Too many submissions. Try again in a bit.'
+            : "Daily limit reached — sign in for unlimited replies, or try again tomorrow.";
           status.dataset.state = 'error';
         } else {
           status.textContent = "Couldn't send. Try again, or email if it keeps failing.";
@@ -2809,7 +2903,7 @@ function buildContact(): HTMLElement {
   });
 
   section.append(heading, intro, form);
-  return section;
+  return { el: section, applyAuth };
 }
 
 function pickSample(pool: string[], exclude?: string): string {

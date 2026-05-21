@@ -207,6 +207,21 @@ async function loadCurrentUser(): Promise<AuthUser | null> {
   return userPromise;
 }
 
+// Exported so other surfaces (e.g. the /contact form) can share the same
+// auth-state cache instead of refetching /api/auth/me on mount.
+export function loadCachedCurrentUser(): Promise<AuthUser | null> {
+  return loadCurrentUser();
+}
+
+// Synchronous "best guess" hint persisted from a prior signed-in load.
+// Used to pick the right initial render shape before the auth fetch resolves.
+// Stale only in edge cases (sign-out from another tab), reconciled by
+// awaiting loadCachedCurrentUser.
+export function isLikelySignedIn(): boolean {
+  if (cachedUser !== undefined) return cachedUser !== null;
+  return readSignedInHint();
+}
+
 async function fetchCurrentUser(): Promise<AuthUser | null> {
   const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
   if (!resp.ok) return null;

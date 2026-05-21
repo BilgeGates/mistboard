@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import { dirname } from 'node:path';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   type Color,
@@ -55,20 +55,11 @@ const maxRoomClockIncrementMs = 60_000;
 const feedbackMaxMessageLength = 5000;
 const feedbackMaxPathLength = 256;
 const feedbackMaxUserAgentLength = 512;
-const feedbackRateLimitWindowMs = 60 * 60 * 1000;
-const feedbackRateLimitPerIp = 5;
-const feedbackRateLimit = new Map<string, number[]>();
+const feedbackAnonWindowMs = 24 * 60 * 60 * 1000;
+const feedbackAnonPerWindow = 1;
 
-function feedbackRateLimitAllow(ip: string, now: number): boolean {
-  const cutoff = now - feedbackRateLimitWindowMs;
-  const recent = (feedbackRateLimit.get(ip) ?? []).filter((t) => t > cutoff);
-  if (recent.length >= feedbackRateLimitPerIp) {
-    feedbackRateLimit.set(ip, recent);
-    return false;
-  }
-  recent.push(now);
-  feedbackRateLimit.set(ip, recent);
-  return true;
+function hashIp(ip: string): string {
+  return createHash('sha256').update(ip).digest('hex');
 }
 
 // ── Context ────────────────────────────────────────────────────────────────
@@ -257,14 +248,32 @@ export async function handleApiRequest(
       writeJson(response, 405, { error: 'method_not_allowed' });
       return;
     }
+
+    const user = await currentAccountUser(request);
     const xff = request.headers['x-forwarded-for'];
     const ip = typeof xff === 'string' && xff.length > 0
       ? xff.split(',')[0]!.trim()
       : request.socket.remoteAddress ?? 'unknown';
-    if (!feedbackRateLimitAllow(ip, Date.now())) {
-      writeJson(response, 429, { error: 'rate_limited' });
-      return;
+    const ipHash = user ? null : hashIp(ip);
+
+    if (!user && persistence.isInitialized() && ipHash) {
+      const since = new Date(Date.now() - feedbackAnonWindowMs);
+      try {
+        const recent = await persistence.countAnonFeedbackSubmissionsSince(ipHash, since);
+        if (recent >= feedbackAnonPerWindow) {
+          writeJson(response, 429, { error: 'rate_limited' });
+          return;
+        }
+      } catch (err) {
+        console.error(JSON.stringify({
+          level: 'error',
+          kind: 'feedback_throttle_lookup_failure',
+          error: (err as Error).message,
+          at: Date.now(),
+        }));
+      }
     }
+
     const body = await readJsonBody(request);
 
     // Honeypot: bots often fill every text field. Real form leaves this blank.
@@ -279,21 +288,25 @@ export async function handleApiRequest(
       writeJson(response, 400, { error: 'invalid_message' });
       return;
     }
-    const email = normalizeEmail(typeof body.email === 'string' ? body.email : null);
+    // Anonymous lane: optional user-supplied reply email. Logged-in lane:
+    // reply_to is the verified account email (set in feedback-notify), so
+    // ignore any client-supplied email to avoid spoofing the audit trail.
+    const email = user
+      ? null
+      : normalizeEmail(typeof body.email === 'string' ? body.email : null);
     const rawPath = typeof body.path === 'string' ? body.path.trim() : '';
     const path = rawPath.length > 0 ? rawPath.slice(0, feedbackMaxPathLength) : null;
     const rawUa = request.headers['user-agent'];
     const userAgent = typeof rawUa === 'string' && rawUa.length > 0
       ? rawUa.slice(0, feedbackMaxUserAgentLength)
       : null;
-    const user = await currentAccountUser(request);
     const userId = user?.id ?? null;
     const id = randomUUID();
 
     if (persistence.isInitialized()) {
       try {
         await persistence.insertFeedbackSubmission({
-          id, message, email, path, userId, userAgent,
+          id, message, email, path, userId, userAgent, ipHash,
         });
       } catch (err) {
         console.error(JSON.stringify({
@@ -305,7 +318,16 @@ export async function handleApiRequest(
       }
     }
 
-    void sendFeedbackNotification({ id, message, email, path, userId, userAgent });
+    void sendFeedbackNotification({
+      id,
+      message,
+      email,
+      path,
+      userId,
+      userAgent,
+      accountHandle: user?.handle ?? null,
+      accountEmail: user?.email ?? null,
+    });
 
     writeJson(response, 202, { ok: true });
     return;

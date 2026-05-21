@@ -2547,6 +2547,39 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   color: #b03a2e;
 }
 
+/* Lane slot reserves layout space so the anon→user swap doesn't jolt the form. */
+.contact-lane-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 84px;
+}
+
+.contact-signin-prompt {
+  margin: 0;
+  font-size: 13px;
+  color: #6a716c;
+}
+
+.contact-signin-prompt a {
+  color: #2f6f4f;
+  text-decoration: underline;
+}
+
+.contact-signed-in-hint {
+  margin: 0;
+  font-size: 14px;
+  color: #3f4742;
+  padding: 12px 14px;
+  background: #eef3ef;
+  border: 1px solid #d4ddd6;
+  border-radius: 6px;
+}
+
+.contact-signed-in-hint strong {
+  color: #1f2521;
+}
+
 .about-subheading {
   font-size: 18px;
   font-weight: 600;
@@ -3277,7 +3310,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .landing-announcement-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   padding: 12px 14px;
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: 8px;
@@ -3289,12 +3322,31 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   border-color: rgba(29, 37, 34, 0.16);
 }
 
+.landing-announcement-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid rgba(29, 37, 34, 0.1);
+}
+
 .landing-announcement-date,
 .landing-announcement-tag {
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--site-ink, #1d2522);
+}
+
+.landing-announcement-tag {
+  color: var(--site-muted);
+}
+
+.landing-announcement-meta-sep {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--site-muted);
 }
 
