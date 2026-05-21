@@ -163,3 +163,185 @@ def test_propagation_rule_l1_at_depth_3() -> None:
         f"black-perspective L1 divergence too high: mean={mean_b:.3f} "
         f"(per-seed={depth_3_black})"
     )
+
+
+# ---------------------------------------------------------------------------
+# Experiment #2: multi-particle propagation stress.
+# ---------------------------------------------------------------------------
+
+
+def _warmup_belief_state(
+    perspective: chess.Color, warmup_plies: int, seed: int
+) -> tuple[chess.Board, BeliefState, BeliefState]:
+    """Walk ``warmup_plies`` random plies from canonical start, returning the
+    post-warmup truth board + both players' BeliefStates.
+
+    Multi-particle uncertainty develops naturally as the opp piece prior
+    expands particles on every opp turn.
+    """
+    rng = random.Random(seed)
+    truth = chess.Board()
+    bs_w = BeliefState.initial(
+        chess.WHITE,
+        uniform_prior,
+        target_n=64,
+        start_board=truth,
+        rng=random.Random(seed * 13 + 1),
+    )
+    bs_b = BeliefState.initial(
+        chess.BLACK,
+        uniform_prior,
+        target_n=64,
+        start_board=truth,
+        rng=random.Random(seed * 13 + 2),
+    )
+
+    for _ in range(warmup_plies):
+        legal = list(truth.pseudo_legal_moves)
+        if not legal:
+            break
+        move = rng.choice(legal)
+        prev_truth = truth.copy()
+        next_truth = truth.copy()
+        next_truth.push(move)
+        obs_w = observation_from_transition(prev_truth, next_truth, chess.WHITE)
+        obs_b = observation_from_transition(prev_truth, next_truth, chess.BLACK)
+        if prev_truth.turn == chess.WHITE:
+            bs_w.update_after_own_move(move, observation=obs_w)
+            bs_b.update_after_opp_move(obs_b)
+        else:
+            bs_b.update_after_own_move(move, observation=obs_b)
+            bs_w.update_after_opp_move(obs_w)
+        truth = next_truth
+
+    return truth, bs_w, bs_b
+
+
+def _run_multi_particle_sequence(
+    warmup_seed: int, walk_seed: int, warmup_plies: int, depth: int
+) -> list[tuple[float, float]]:
+    """Returns one (white_l1, black_l1) tuple per ply walked from the
+    post-warmup root.
+    """
+    truth_root, bs_w_root, bs_b_root = _warmup_belief_state(
+        chess.WHITE, warmup_plies, warmup_seed
+    )
+
+    node = SubgameNode.root(
+        truth_root,
+        to_move=truth_root.turn,
+        marginals_white=factored_marginals_from_belief(bs_w_root),
+        marginals_black=factored_marginals_from_belief(bs_b_root),
+    )
+
+    # Operate on copies so the same warmup belief can be reused across walks.
+    import copy as _copy
+
+    bs_w = _copy.deepcopy(bs_w_root)
+    bs_b = _copy.deepcopy(bs_b_root)
+
+    walk_rng = random.Random(walk_seed)
+    rows: list[tuple[float, float]] = []
+    for _ in range(depth):
+        legal = list(node.truth.pseudo_legal_moves)
+        if not legal:
+            break
+        move = walk_rng.choice(legal)
+        prev_truth = node.truth.copy()
+        next_node = node.apply(move)
+        obs_w = observation_from_transition(prev_truth, next_node.truth, chess.WHITE)
+        obs_b = observation_from_transition(prev_truth, next_node.truth, chess.BLACK)
+        if node.to_move == chess.WHITE:
+            bs_w.update_after_own_move(move, observation=obs_w)
+            bs_b.update_after_opp_move(obs_b)
+        else:
+            bs_b.update_after_own_move(move, observation=obs_b)
+            bs_w.update_after_opp_move(obs_w)
+
+        ref_w = factored_marginals_from_belief(bs_w)
+        ref_b = factored_marginals_from_belief(bs_b)
+        assert next_node.marginals_white is not None
+        assert next_node.marginals_black is not None
+        rows.append(
+            (
+                _l1_per_square(next_node.marginals_white, ref_w),
+                _l1_per_square(next_node.marginals_black, ref_b),
+            )
+        )
+        node = next_node
+
+    return rows
+
+
+def test_propagation_rule_multi_particle_through_depth_6() -> None:
+    """Phase 2 pre-spend gate (Experiment #2): does the snap-to-truth rule
+    track production belief beyond truth-singleton + depth 3?
+
+    Setup: walk 4 random plies from canonical start to develop multi-particle
+    uncertainty; that becomes the test root. Then walk depth 1-6 random
+    sequences and compare propagated marginals to fresh BeliefState marginals
+    at each ply.
+
+    Reports L1 mean per ply across 6 seeds. Pass: mean L1 ≤ 0.30 through
+    depth 6. Stricter band (≤0.20) would prove the rule generalizes; looser
+    (>0.30) signals a Phase 3 architectural rework.
+    """
+    warmup_plies = 4
+    depth = 6
+    warmup_seeds = [101, 103, 107, 109, 113, 127]
+    walk_seeds_per_warmup = 1  # one walk per warmup; cheaper, still tells us trend.
+
+    per_ply_white: list[list[float]] = [[] for _ in range(depth)]
+    per_ply_black: list[list[float]] = [[] for _ in range(depth)]
+    completed_seeds = 0
+    for ws in warmup_seeds:
+        try:
+            rows = _run_multi_particle_sequence(
+                warmup_seed=ws,
+                walk_seed=ws * 17,
+                warmup_plies=warmup_plies,
+                depth=depth,
+            )
+        except Exception as exc:  # belief code can raise on degenerate paths
+            print(f"  warmup seed {ws}: skipped ({type(exc).__name__})")
+            continue
+        for i, (w_l1, b_l1) in enumerate(rows):
+            per_ply_white[i].append(w_l1)
+            per_ply_black[i].append(b_l1)
+        completed_seeds += 1
+
+    print(
+        f"\n[multi-particle propagation L1] warmup={warmup_plies} plies, "
+        f"depth={depth}, n_seeds_completed={completed_seeds}"
+    )
+    print("  ply | n | white(mean/max) | black(mean/max)")
+    for i in range(depth):
+        if not per_ply_white[i]:
+            print(f"    {i+1} | 0 | -        | -")
+            continue
+        w_arr = np.array(per_ply_white[i])
+        b_arr = np.array(per_ply_black[i])
+        print(
+            f"    {i+1} | {len(w_arr)} | "
+            f"{w_arr.mean():.3f}/{w_arr.max():.3f} | "
+            f"{b_arr.mean():.3f}/{b_arr.max():.3f}"
+        )
+
+    # Assert: mean L1 over the deepest ply with data ≤ 0.30.
+    deepest_with_data_white = max(
+        (i for i in range(depth) if per_ply_white[i]), default=-1
+    )
+    deepest_with_data_black = max(
+        (i for i in range(depth) if per_ply_black[i]), default=-1
+    )
+    assert deepest_with_data_white >= 0, "no seeds completed any plies"
+    deepest_w_mean = float(np.mean(per_ply_white[deepest_with_data_white]))
+    deepest_b_mean = float(np.mean(per_ply_black[deepest_with_data_black]))
+    assert deepest_w_mean <= 0.30, (
+        f"white-perspective L1 at deepest ply ({deepest_with_data_white+1}) "
+        f"= {deepest_w_mean:.3f} exceeds 0.30"
+    )
+    assert deepest_b_mean <= 0.30, (
+        f"black-perspective L1 at deepest ply ({deepest_with_data_black+1}) "
+        f"= {deepest_b_mean:.3f} exceeds 0.30"
+    )
