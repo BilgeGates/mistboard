@@ -116,6 +116,17 @@ const drainWindowDefaultMs = parsePositiveInteger(process.env.MISTBOARD_DRAIN_WI
 // broadcast is sent to every connected client. Idempotent — re-hitting /admin/drain
 // returns the existing deadline rather than extending it.
 const drainState: { restartAt: number | null } = { restartAt: null };
+// Number of rooms with a live in-progress game (playing state, not paused).
+// Used by safe-deploy.sh and /api/server-status to gate deploys behind a
+// drain window — counts trend to zero as games finish or get paused.
+function countActiveGames(): number {
+  let count = 0;
+  for (const room of rooms.values()) {
+    if (room.projection.state.status.type === 'playing' && !room.projection.paused) count += 1;
+  }
+  return count;
+}
+
 function isDraining(): boolean {
   return drainState.restartAt !== null && drainState.restartAt > Date.now();
 }
@@ -401,6 +412,7 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
       inMemoryGameSummary,
       isDraining,
       drainDeadlineMs,
+      activeGameCount: countActiveGames,
     };
     void handleApiRequest(apiCtx, request, response).catch((err) => {
       console.error(JSON.stringify({

@@ -100,6 +100,7 @@ export interface HttpApiContext {
   inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null;
   isDraining(): boolean;
   drainDeadlineMs(): number | null;
+  activeGameCount(): number;
 }
 
 // ── Exported pure parse helpers (also used by WebSocket handler) ───────────
@@ -143,7 +144,10 @@ export async function handleApiRequest(
       writeJson(response, 405, { error: 'method_not_allowed' });
       return;
     }
-    writeJson(response, 200, { restartAt: ctx.drainDeadlineMs() });
+    writeJson(response, 200, {
+      restartAt: ctx.drainDeadlineMs(),
+      activeGames: ctx.activeGameCount(),
+    });
     return;
   }
 
