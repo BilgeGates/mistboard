@@ -217,109 +217,70 @@ test('live Fog Draft960 payload hides opponent offer and selection', () => {
   assert.doesNotMatch(json, /draft-start-resolved/);
 });
 
-test('live PvE spectator sees human perspective and not engine move events', () => {
-  const room = replayRoomFixture({
-    roomId: 'pve-payload',
-    seats: { white: 'human-white', black: 'random-engine' },
-    mode: 'pve',
-    pveEngineId: 'builtin-random-legal',
-  });
-  const payload = snapshotPayload(room, {
-    devViews: false,
-    id: 'spectator-client',
-    seat: 'spectator',
-    solo: false,
-  });
+test('live fog spectator payload is empty regardless of mode (PvP, PvE, EvE)', () => {
+  // Uniform rule: live games are private to seated players. Spectators are
+  // rejected at the connection layer; if a SnapshotClient with seat='spectator'
+  // ever reaches snapshotPayload for a live fog game, defense-in-depth returns
+  // an empty view rather than leaking any board state. This test pins the
+  // defense-in-depth behavior for all three modes.
+  const fixtures = [
+    {
+      label: 'pvp',
+      room: replayRoomFixture({
+        roomId: 'pvp-spectator-empty',
+        seats: { white: 'human-white', black: 'human-black' },
+        mode: 'pvp',
+      }),
+    },
+    {
+      label: 'pve',
+      room: replayRoomFixture({
+        roomId: 'pve-spectator-empty',
+        seats: { white: 'human-white', black: 'random-engine' },
+        mode: 'pve',
+        pveEngineId: 'builtin-random-legal',
+      }),
+    },
+    {
+      label: 'eve',
+      room: replayRoomFixture({
+        roomId: 'eve-spectator-empty',
+        seats: { white: 'engine:white', black: 'engine:black' },
+        mode: 'eve',
+      }),
+    },
+  ];
 
-  assert.equal(payload.pveEngineId, 'builtin-random-legal');
-  assert.equal(payload.pveEngineName, 'Random Legal v1');
-  assert.equal(payload.state.perspective, 'white');
-  assert.notDeepEqual(payload.state.board, {});
-  assert.equal(
-    payload.events.some((event) => event.type === 'move-played' && event.color === 'white'),
-    true,
-  );
-  assert.equal(
-    payload.events.some((event) => event.type === 'move-played' && event.color === 'black'),
-    false,
-  );
+  for (const { label, room } of fixtures) {
+    const payload = snapshotPayload(room, spectatorClient());
+    assert.deepEqual(payload.state.board, {}, `${label} board not empty`);
+    assert.deepEqual(payload.state.visibleSquares, [], `${label} visibleSquares not empty`);
+    assert.deepEqual(payload.state.legalMoves, [], `${label} legalMoves not empty`);
+    assert.equal(payload.events.some((event) => event.type === 'move-played'), false, `${label} leaked move-played`);
+  }
 });
 
-test('live PvE spectator follows the human perspective when the engine is white', () => {
-  const room = replayRoomFixture({
-    roomId: 'pve-engine-white-payload',
-    seats: { white: 'engine:white', black: 'human-black' },
-    mode: 'pve',
-  });
-  const payload = snapshotPayload(room, {
-    devViews: false,
-    id: 'spectator-client',
-    seat: 'spectator',
-    solo: false,
-  });
-
-  assert.equal(payload.state.perspective, 'black');
-  assert.notDeepEqual(payload.state.board, {});
-  assert.equal(
-    payload.events.some((event) => event.type === 'move-played' && event.color === 'black'),
-    true,
-  );
-  assert.equal(
-    payload.events.some((event) => event.type === 'move-played' && event.color === 'white'),
-    false,
-  );
-});
-
-test('live EvE spectator sees full truth and full event stream', () => {
-  const room = replayRoomFixture({
-    roomId: 'eve-payload',
-    seats: { white: 'engine:white', black: 'engine:black' },
-    mode: 'eve',
-  });
-  const payload = snapshotPayload(room, {
-    devViews: false,
-    id: 'spectator-client',
-    seat: 'spectator',
-    solo: false,
-  });
-
-  assert.equal(payload.state.visibleSquares.length, 64);
-  assert.deepEqual(payload.state.board.h8, { color: 'black', role: 'rook' });
-  assert.equal(
-    payload.events.filter((event) => event.type === 'move-played').length,
-    2,
-  );
-});
-
-test('live replay API and WebSocket snapshot event policies stay aligned', () => {
+test('live fog replay API returns 403 for every mode', () => {
   const pveRoom = replayRoomFixture({
     roomId: 'pve-policy-alignment',
     seats: { white: 'human-white', black: 'random-engine' },
     mode: 'pve',
   });
-  const pvePayload = snapshotPayload(pveRoom, spectatorClient());
-  const pveReplay = eventReplayResponse(pveRoom.events);
-  assert.equal(pveReplay.status, 200);
-  assert.deepEqual(pvePayload.events, pveReplay.body.events);
+  assert.deepEqual(eventReplayResponse(pveRoom.events), { status: 403, body: { error: 'game_not_public' } });
 
   const eveRoom = replayRoomFixture({
     roomId: 'eve-policy-alignment',
     seats: { white: 'engine:white', black: 'engine:black' },
     mode: 'eve',
   });
-  const evePayload = snapshotPayload(eveRoom, spectatorClient());
-  const eveReplay = eventReplayResponse(eveRoom.events);
-  assert.equal(eveReplay.status, 200);
-  assert.deepEqual(evePayload.events, eveReplay.body.events);
+  assert.deepEqual(eventReplayResponse(eveRoom.events), { status: 403, body: { error: 'game_not_public' } });
 
   const pvpRoom = replayRoomFixture({
     roomId: 'pvp-policy-alignment',
     seats: { white: 'human-white', black: 'human-black' },
     mode: 'pvp',
   });
-  const pvpPayload = snapshotPayload(pvpRoom, spectatorClient());
   assert.deepEqual(eventReplayResponse(pvpRoom.events), { status: 403, body: { error: 'game_not_public' } });
-  assert.equal(pvpPayload.events.some((event) => event.type === 'move-played'), false);
 });
 
 test('finished Fog of War payload exposes full-truth replay', () => {

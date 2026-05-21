@@ -9,8 +9,6 @@ import {
 } from '@mistboard/game';
 import {
   modeForProjection,
-  publicLivePerspective,
-  visibleEventsForLiveSnapshot,
   type GameAccessMode,
 } from './server-policy.js';
 import { engineVersionDisplayName } from './engine-registry.js';
@@ -107,16 +105,20 @@ function eventsVisibleByMode(room: SnapshotRoom, client: SnapshotClient): GameEv
   if (room.projection.variant === 'bid-for-white' && room.projection.state.status.type === 'pregame') {
     return room.events.filter((event) => event.type !== 'bid-submitted' && event.type !== 'bid-resolved');
   }
-  const mode = room.mode ?? modeForProjection(room.projection);
-  if (
-    room.projection.variant === 'fog-of-war'
-    && room.projection.state.status.type !== 'finished'
-    && mode === 'pvp'
-    && client.seat !== 'spectator'
-  ) {
+  // Live fog game: seated player sees only their own move-played events. This
+  // uniformly handles PvP (each player sees own moves) and PvE (human seat
+  // filters out engine moves automatically — engine doesn't connect as a WS
+  // client). Spectators are rejected at the connection layer
+  // (canObserveLiveRoom); the spectator branch here is defense-in-depth — if
+  // a spectator SnapshotClient ever reaches this function, strip every
+  // move-played event rather than leak any move history.
+  if (room.projection.variant === 'fog-of-war' && room.projection.state.status.type !== 'finished') {
+    if (client.seat === 'spectator') {
+      return room.events.filter((event) => event.type !== 'move-played');
+    }
     return room.events.filter((event) => event.type !== 'move-played' || event.color === client.seat);
   }
-  return visibleEventsForLiveSnapshot(room.events, room.projection, mode);
+  return room.events;
 }
 
 function bidsForClient(room: SnapshotRoom, client: SnapshotClient): Partial<Record<Color, number>> {
@@ -223,8 +225,13 @@ export function getClientView(room: SnapshotRoom, client: SnapshotClient): Playe
   if (room.projection.variant === 'fog-of-war' && room.projection.state.status.type === 'finished') {
     return fullTruthView(room, perspective);
   }
+  // Live spectator on a fog game: defense-in-depth. Spectators are rejected at
+  // the connection layer (canObserveLiveRoom returns false for unfinished
+  // games), so this branch should be unreachable in practice. If a spectator
+  // SnapshotClient ever reaches here we return an empty view rather than leak
+  // any board state.
   if (room.projection.variant === 'fog-of-war' && client.seat === 'spectator') {
-    return publicFogView(room, perspective);
+    return emptyFogView(room, perspective);
   }
 
   const variant = variantForId(room.projection.variant);
@@ -236,16 +243,7 @@ export function getClientView(room: SnapshotRoom, client: SnapshotClient): Playe
   };
 }
 
-function publicFogView(room: SnapshotRoom, perspective: Color): PlayerView {
-  const publicPerspective = publicLivePerspective(room.projection, room.mode ?? modeForProjection(room.projection));
-  if (publicPerspective === 'truth') return fullTruthView(room, perspective);
-  if (publicPerspective) {
-    return {
-      ...variantForId(room.projection.variant).getPlayerView(room.projection.state, publicPerspective),
-      legalMoves: [],
-    };
-  }
-
+function emptyFogView(room: SnapshotRoom, perspective: Color): PlayerView {
   return {
     id: room.projection.state.id,
     variant: room.projection.state.variant,

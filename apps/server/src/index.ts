@@ -647,7 +647,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
   const assignment = solo ? { seat: 'spectator' } satisfies SeatAssignment : await assignSeat(room, clientId, seatToken, accountUser);
   const seat = assignment.seat;
-  if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection, room.mode)) {
+  if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection)) {
     socket.close(1008, 'private room');
     return;
   }

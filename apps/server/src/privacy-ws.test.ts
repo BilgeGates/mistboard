@@ -192,7 +192,11 @@ test('unknown client cannot take an abandoned active private PvP seat', async (t
   assert.deepEqual(rejected.messages, []);
 });
 
-test('live PvE observer receives the human perspective and not engine moves', async (t) => {
+test('live PvE third client is rejected before any snapshot', async (t) => {
+  // Uniform rule: live games are private to seated players. The seated human
+  // gets their PlayerView; a third client trying to spectate is rejected with
+  // the same 1008 'private room' close used for PvP. Symmetric with the PvP
+  // third-client rejection above.
   const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
@@ -203,33 +207,17 @@ test('live PvE observer receives the human perspective and not engine moves', as
   assert.equal(human.messages[0]?.mode, 'pve');
   assert.equal(human.messages[0]?.seat, 'white');
 
-  const move = firstLegalMove(human.messages[0]);
-  human.socket.send(JSON.stringify({ type: 'move', ...move }));
-  await waitForMessage(
-    human.messages,
-    (message) => message.state.status.type === 'playing'
-      && message.state.status.turn === 'white'
-      && message.state.moveNumber > 1,
-    'PvE engine reply',
-  );
-
-  const observer = await connectForHello(port, `room=${room}&client=pve-observer-01`);
-  clients.push(observer);
-  const snapshot = observer.messages[0];
-  assert.ok(snapshot);
-
-  const moveColors = moveEventColors(snapshot.events);
-  assert.equal(snapshot.mode, 'pve');
-  assert.equal(snapshot.seat, 'spectator');
-  assert.equal(snapshot.state.perspective, 'white');
-  assert.notDeepEqual(snapshot.state.board, {});
-  assert.deepEqual(snapshot.state.legalMoves, []);
-  assert.equal(moveColors.includes('white'), true);
-  assert.equal(moveColors.includes('black'), false);
-  assert.equal(snapshot.state.visibleSquares.length < 64, true);
+  const rejected = await connectForClose(port, `room=${room}&client=pve-observer-01`);
+  assert.equal(rejected.code, 1008);
+  assert.equal(rejected.reason, 'private room');
+  assert.deepEqual(rejected.messages, []);
 });
 
-test('live EvE observer receives full truth and full event stream by design', async (t) => {
+test('live EvE third client is rejected before any snapshot', async (t) => {
+  // Uniform rule: live games are private to seated participants. Engines fill
+  // both seats; any non-seated observer is rejected. This is the strongest
+  // form of the rule — even though engines have no "privacy" of their own,
+  // exposing the live truth would still be a special case to maintain.
   const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
@@ -239,45 +227,10 @@ test('live EvE observer receives full truth and full event stream by design', as
   const black = await connectForHello(port, `room=${room}&client=engine:black`);
   clients.push(white, black);
 
-  const whiteReady = await waitForMessage(
-    white.messages,
-    (message) => message.mode === 'eve'
-      && message.state.status.type === 'playing'
-      && message.state.status.turn === 'white'
-      && message.state.legalMoves.length > 0,
-    'EvE white to move',
-  );
-  white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteReady) }));
-
-  const blackReady = await waitForMessage(
-    black.messages,
-    (message) => message.mode === 'eve'
-      && message.state.status.type === 'playing'
-      && message.state.status.turn === 'black'
-      && message.state.legalMoves.length > 0,
-    'EvE black to move',
-  );
-  black.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(blackReady) }));
-
-  await waitForMessage(
-    white.messages,
-    (message) => message.mode === 'eve'
-      && message.state.status.type === 'playing'
-      && message.state.status.turn === 'white'
-      && message.state.moveNumber > 1,
-    'EvE move pair',
-  );
-
-  const observer = await connectForHello(port, `room=${room}&client=eve-observer-01`);
-  clients.push(observer);
-  const snapshot = observer.messages[0];
-  assert.ok(snapshot);
-
-  assert.equal(snapshot.mode, 'eve');
-  assert.equal(snapshot.seat, 'spectator');
-  assert.equal(snapshot.state.visibleSquares.length, 64);
-  assert.equal(snapshot.state.legalMoves.length, 0);
-  assert.deepEqual(moveEventColors(snapshot.events), ['white', 'black']);
+  const rejected = await connectForClose(port, `room=${room}&client=eve-observer-01`);
+  assert.equal(rejected.code, 1008);
+  assert.equal(rejected.reason, 'private room');
+  assert.deepEqual(rejected.messages, []);
 });
 
 async function startServer(): Promise<{ port: number; child: ServerProcess }> {
@@ -430,10 +383,6 @@ function firstLegalMove(message: SnapshotMessage | undefined): Move {
   const move = message?.state.legalMoves[0];
   assert.ok(move, 'expected at least one legal move');
   return move;
-}
-
-function moveEventColors(events: GameEvent[]): Color[] {
-  return events.flatMap((event) => event.type === 'move-played' ? [event.color] : []);
 }
 
 async function closeClients(clients: TestClient[]): Promise<void> {
