@@ -2,9 +2,17 @@ import './styles.css';
 import { initializeThemeSettings } from './theme.js';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
+import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 
 initializeThemeSettings();
 initializeAccountNav();
+mountRestartBanner();
+void fetch('/api/server-status')
+  .then((r) => (r.ok ? r.json() : null))
+  .then((data: { restartAt: number | null } | null) => {
+    if (data && typeof data.restartAt === 'number') setRestartBanner(data.restartAt);
+  })
+  .catch(() => { /* banner stays hidden; WS broadcast still covers in-game users */ });
 
 const phKey = import.meta.env.VITE_POSTHOG_KEY;
 const phHost = import.meta.env.VITE_POSTHOG_HOST;

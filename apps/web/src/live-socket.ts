@@ -6,6 +6,7 @@ import {
   writeSeatTokenForRoom,
   seatTokenForRoom,
 } from './live-state.js';
+import { setRestartBanner } from './restart-banner.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,8 @@ type ServerMessage =
     seat: Color;
     seatToken: string;
   }
+  | { type: 'server_restart_scheduled'; restartAt: number }
+  | { type: 'server_restart_cancelled' }
   | { type: 'pong'; at: number };
 
 // ── Module-scope socket state ─────────────────────────────────────────────────
@@ -165,6 +168,14 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   if (message.type === 'pong') {
     liveState.latencyMs = Math.max(0, Date.now() - message.at);
     _render();
+    return;
+  }
+  if (message.type === 'server_restart_scheduled') {
+    setRestartBanner(message.restartAt);
+    return;
+  }
+  if (message.type === 'server_restart_cancelled') {
+    setRestartBanner(null);
     return;
   }
   if (message.type === 'rematch:state') {

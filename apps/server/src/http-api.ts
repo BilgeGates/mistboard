@@ -138,6 +138,15 @@ export async function handleApiRequest(
     return;
   }
 
+  if (parsedUrl.pathname === '/api/server-status') {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    writeJson(response, 200, { restartAt: ctx.drainDeadlineMs() });
+    return;
+  }
+
   if (url === '/api/engines/playable') {
     if (method !== 'GET') {
       writeJson(response, 405, { error: 'method_not_allowed' });
