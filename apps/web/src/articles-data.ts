@@ -968,11 +968,6 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Want to push the hidden-information idea further? [Draft960](/articles/draft960) is a pregame option that hides the starting position too — each side picks one of three Chess960 setups, kept secret from the opponent until pieces start moving.",
-          },
-          {
-            kind: 'paragraph',
-            text:
               "The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard's servers run in production.",
           },
         ],
@@ -984,7 +979,7 @@ export const articles: Article[] = [
     title: 'Draft960: the end of opening theory in Fog of War',
     summary:
       'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
-    status: 'published',
+    status: 'outline',
     audience:
       'Readers who have grokked Fog of War (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
     tldr: [
