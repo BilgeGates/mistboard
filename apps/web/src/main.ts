@@ -49,6 +49,7 @@ const gameRoomId = gameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsSource = path === '/source' || page === 'source';
+const wantsContact = path === '/contact' || page === 'contact';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
@@ -99,8 +100,12 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountAbout }) => mountAbout(appRoot)));
 } else if (wantsSource) {
   void mountOrReport(() => import('./landing.js').then(({ mountSource }) => mountSource(appRoot)));
-} else {
+} else if (wantsContact) {
+  void mountOrReport(() => import('./landing.js').then(({ mountContact }) => mountContact(appRoot)));
+} else if (path === '/') {
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
+} else {
+  void mountOrReport(() => import('./landing.js').then(({ mountNotFound }) => mountNotFound(appRoot)));
 }
 
 async function mountOrReport(run: () => Promise<void>): Promise<void> {

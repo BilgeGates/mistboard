@@ -1348,6 +1348,18 @@ export function mountSource(root: HTMLElement): void {
   root.append(buildNav(), buildSource(), buildFooter());
 }
 
+export function mountContact(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'contact-route');
+  root.append(buildNav(), buildContact(), buildFooter());
+}
+
+export function mountNotFound(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'not-found-route');
+  root.append(buildNav(), buildNotFound(), buildFooter());
+}
+
 export function mountLearn(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'learn-route');
@@ -2268,6 +2280,13 @@ function buildAbout(): HTMLElement {
     'Early, single-maintainer, and shipping in public. New features, articles, and engine versions land regularly. Accounts and ratings are not yet considered stable — expect things to change.',
   ]);
 
+  const contactHeading = aboutSubheading('Get in touch');
+  const contactP = aboutParagraph([
+    'Bug reports, feature ideas, broken games — send anything via ',
+    aboutLink('Contact', '/contact'),
+    '. Email is optional.',
+  ]);
+
   section.append(
     heading,
     lede,
@@ -2278,6 +2297,7 @@ function buildAbout(): HTMLElement {
     oss1Heading, oss1P,
     engineHeading, engineP,
     statusHeading, statusP,
+    contactHeading, contactP,
   );
   return section;
 }
@@ -2610,6 +2630,10 @@ function buildFooter(): HTMLElement {
   about.href = '/about';
   about.textContent = 'About';
 
+  const contact = document.createElement('a');
+  contact.href = '/contact';
+  contact.textContent = 'Contact';
+
   const source = document.createElement('a');
   source.href = '/source';
   source.textContent = 'Source';
@@ -2624,9 +2648,149 @@ function buildFooter(): HTMLElement {
   identity.className = 'site-footer-identity';
   identity.textContent = '© 2026 Mistboard · AGPL-3.0';
 
-  links.append(about, source, gh, identity);
+  links.append(about, contact, source, gh, identity);
   footer.append(links);
   return footer;
+}
+
+function buildNotFound(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'site-section not-found-section';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Page not found';
+
+  const p = document.createElement('p');
+  p.append(
+    document.createTextNode('Nothing here. Try the '),
+    aboutLink('home page', '/'),
+    document.createTextNode(', or let me know what you were looking for via '),
+    aboutLink('Contact', '/contact'),
+    document.createTextNode('.'),
+  );
+
+  section.append(heading, p);
+  return section;
+}
+
+function buildContact(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'site-section contact-section';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Contact';
+
+  const intro = document.createElement('p');
+  intro.textContent =
+    'Bug, idea, broken game, anything else. Add an email if you want a reply.';
+
+  const form = document.createElement('form');
+  form.className = 'contact-form';
+  form.noValidate = true;
+
+  const messageLabel = document.createElement('label');
+  messageLabel.className = 'contact-field';
+  const messageLabelText = document.createElement('span');
+  messageLabelText.textContent = 'Message';
+  const messageInput = document.createElement('textarea');
+  messageInput.name = 'message';
+  messageInput.required = true;
+  messageInput.rows = 8;
+  messageInput.maxLength = 5000;
+  messageInput.placeholder = "What's on your mind?";
+  messageLabel.append(messageLabelText, messageInput);
+
+  const emailLabel = document.createElement('label');
+  emailLabel.className = 'contact-field';
+  const emailLabelText = document.createElement('span');
+  emailLabelText.textContent = 'Email (optional)';
+  const emailInput = document.createElement('input');
+  emailInput.type = 'email';
+  emailInput.name = 'email';
+  emailInput.autocomplete = 'email';
+  emailInput.placeholder = 'you@example.com';
+  emailLabel.append(emailLabelText, emailInput);
+
+  // Honeypot: hidden from humans, attractive to bots. Server discards if filled.
+  const honeypotLabel = document.createElement('label');
+  honeypotLabel.setAttribute('aria-hidden', 'true');
+  honeypotLabel.style.position = 'absolute';
+  honeypotLabel.style.left = '-9999px';
+  honeypotLabel.style.opacity = '0';
+  honeypotLabel.style.pointerEvents = 'none';
+  honeypotLabel.tabIndex = -1;
+  const honeypotInput = document.createElement('input');
+  honeypotInput.type = 'text';
+  honeypotInput.name = 'website';
+  honeypotInput.autocomplete = 'off';
+  honeypotInput.tabIndex = -1;
+  honeypotLabel.append('Website', honeypotInput);
+
+  const submitRow = document.createElement('div');
+  submitRow.className = 'contact-submit-row';
+  const submit = document.createElement('button');
+  submit.type = 'submit';
+  submit.className = 'contact-submit';
+  submit.textContent = 'Send';
+  const status = document.createElement('span');
+  status.className = 'contact-status';
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  submitRow.append(submit, status);
+
+  form.append(messageLabel, emailLabel, honeypotLabel, submitRow);
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (submit.disabled) return;
+    const message = messageInput.value.trim();
+    if (message.length === 0) {
+      status.textContent = 'Please enter a message.';
+      status.dataset.state = 'error';
+      messageInput.focus();
+      return;
+    }
+    submit.disabled = true;
+    status.textContent = 'Sending…';
+    status.dataset.state = 'pending';
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/feedback', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            email: emailInput.value.trim() || null,
+            path: window.location.pathname,
+            website: honeypotInput.value,
+          }),
+        });
+        if (response.ok) {
+          form.reset();
+          status.textContent = 'Thanks — message received.';
+          status.dataset.state = 'ok';
+        } else if (response.status === 429) {
+          status.textContent = 'Too many submissions. Try again in a bit.';
+          status.dataset.state = 'error';
+        } else {
+          status.textContent = "Couldn't send. Try again, or email if it keeps failing.";
+          status.dataset.state = 'error';
+        }
+      } catch {
+        status.textContent = 'Network error. Try again.';
+        status.dataset.state = 'error';
+      } finally {
+        submit.disabled = false;
+      }
+    })();
+  });
+
+  section.append(heading, intro, form);
+  return section;
 }
 
 function pickSample(pool: string[], exclude?: string): string {
