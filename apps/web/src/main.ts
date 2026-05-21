@@ -63,8 +63,10 @@ const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 const profileHandle = profileHandleFromPath(path);
 
 if (replaySample) {
+  setTitle('Replay');
   void mountOrReport(() => import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)));
 } else if (wantsEngineLab) {
+  setTitle('Lab');
   void mountOrReport(async () => {
     if (!engineLabEnabled || !(await canOpenLab())) {
       renderNotFound(appRoot);
@@ -76,42 +78,62 @@ if (replaySample) {
     await mountBakeoff(appRoot, manifestUrl);
   });
 } else if (liveRoomId || wantsLive) {
+  setTitle('Live');
   void mountOrReport(() => import('./live.js').then(() => undefined));
 } else if (gameRoomId) {
+  setTitle('Game');
   void mountOrReport(() => import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)));
 } else if (wantsLeaderboard) {
+  setTitle('Leaderboard');
   void mountOrReport(() => import('./landing.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)));
 } else if (profileHandle) {
+  setTitle(`@${profileHandle}`);
   void mountOrReport(() => import('./landing.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
 } else if (wantsAccountSettings) {
+  setTitle('Settings');
   void mountOrReport(() => import('./landing.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)));
 } else if (wantsAccount) {
+  setTitle('Account');
   void mountOrReport(() => import('./landing.js').then(({ mountAccount }) => mountAccount(appRoot)));
 } else if (wantsWatch) {
+  setTitle('Watch');
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
 } else if (videoPlayerId) {
+  setTitle('Video');
   void mountOrReport(() => import('./landing.js').then(({ mountVideoPlayer }) => mountVideoPlayer(appRoot, videoPlayerId)));
 } else if (wantsVideo) {
+  setTitle('Video');
   void mountOrReport(() => import('./landing.js').then(({ mountVideo }) => mountVideo(appRoot)));
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
 } else if (articleSlug) {
+  setTitle('Articles');
   void mountOrReport(() => import('./landing.js').then(({ mountArticle }) => mountArticle(appRoot, articleSlug)));
 } else if (wantsArticlesIndex) {
+  setTitle('Articles');
   void mountOrReport(() => import('./landing.js').then(({ mountArticlesIndex }) => mountArticlesIndex(appRoot)));
 } else if (wantsLearn) {
+  setTitle('Learn');
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
+  setTitle('About');
   void mountOrReport(() => import('./landing.js').then(({ mountAbout }) => mountAbout(appRoot)));
 } else if (wantsSource) {
+  setTitle('Source');
   void mountOrReport(() => import('./landing.js').then(({ mountSource }) => mountSource(appRoot)));
 } else if (wantsContact) {
+  setTitle('Contact');
   void mountOrReport(() => import('./landing.js').then(({ mountContact }) => mountContact(appRoot)));
 } else if (path === '/') {
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
 } else {
+  setTitle('Not found');
   void mountOrReport(() => import('./landing.js').then(({ mountNotFound }) => mountNotFound(appRoot)));
+}
+
+function setTitle(page: string): void {
+  document.title = `${page} · Mistboard`;
 }
 
 async function mountOrReport(run: () => Promise<void>): Promise<void> {

@@ -351,6 +351,7 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
     return null;
   });
   if (!profile) {
+    document.title = 'Profile not found · Mistboard';
     shell.append(buildNotice('Profile not found', 'This profile is private or does not exist.'));
     return;
   }
@@ -1395,6 +1396,9 @@ export async function mountArticle(root: HTMLElement, slug: string): Promise<voi
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
   const { buildArticlePage, mountPendingWidgets, mountArticleEnhancements } = await import('./articles.js');
+  const { findArticle } = await import('./articles-data.js');
+  const article = findArticle(slug);
+  if (article) document.title = `${article.title} · Mistboard`;
   const articlePage = buildArticlePage(slug);
   root.append(buildNav(), articlePage, buildFooter());
   mountPendingWidgets(articlePage);
@@ -2233,7 +2237,7 @@ function buildGamePageTitle(game: FeaturedGame): string {
   const result =
     game.result === 'white-wins' ? `${white} beats ${black}` :
     game.result === 'black-wins' ? `${black} beats ${white}` : `${white} vs ${black} · Draw`;
-  return `${result} · Fog of War | Mistboard`;
+  return `${result} · Mistboard`;
 }
 
 function terminationLabel(termination: string): string {
