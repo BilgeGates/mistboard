@@ -14,6 +14,10 @@ from __future__ import annotations
 
 import random
 
+import pytest
+
+pytest.importorskip("torch")
+
 from fow_chess.cfr.deep_cfr import solve_subgame_deep_cfr
 from fow_chess.cfr.encoders import KuhnEncoder
 from fow_chess.cfr.regret_net import KuhnRegretNet
