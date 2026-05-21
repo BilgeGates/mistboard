@@ -5,6 +5,7 @@ import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from '@mis
 import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameMeta } from './replay.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { classifyTimeControl, track } from './analytics.js';
+import { announcements, type Announcement } from './announcements.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -1521,13 +1522,78 @@ function buildLandingAnnouncements(): HTMLElement {
   const heading = document.createElement('h2');
   heading.className = 'landing-announcements-heading';
   heading.textContent = 'Announcements';
+  panel.append(heading);
 
-  const empty = document.createElement('p');
-  empty.className = 'landing-announcements-empty';
-  empty.textContent = 'Nothing new yet.';
+  if (announcements.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'landing-announcements-empty';
+    empty.textContent = 'Nothing new yet.';
+    panel.append(empty);
+    return panel;
+  }
 
-  panel.append(heading, empty);
+  const list = document.createElement('ol');
+  list.className = 'landing-announcements-list';
+
+  const ordered = [...announcements].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1;
+    if (b.pinned && !a.pinned) return 1;
+    return b.date.localeCompare(a.date);
+  });
+
+  for (const entry of ordered) {
+    list.append(renderAnnouncementCard(entry));
+  }
+
+  panel.append(list);
   return panel;
+}
+
+function renderAnnouncementCard(entry: Announcement): HTMLElement {
+  const item = document.createElement('li');
+  item.className = 'landing-announcement-card';
+  if (entry.pinned) item.classList.add('is-pinned');
+
+  if (entry.date && !entry.pinned) {
+    const date = document.createElement('time');
+    date.className = 'landing-announcement-date';
+    date.dateTime = entry.date;
+    date.textContent = formatAnnouncementDate(entry.date);
+    item.append(date);
+  } else if (entry.pinned) {
+    const tag = document.createElement('span');
+    tag.className = 'landing-announcement-tag';
+    tag.textContent = 'Pinned';
+    item.append(tag);
+  }
+
+  const headline = document.createElement(entry.href ? 'a' : 'p');
+  headline.className = 'landing-announcement-headline';
+  headline.textContent = entry.headline;
+  if (entry.href && headline instanceof HTMLAnchorElement) {
+    headline.href = entry.href;
+    if (/^https?:/.test(entry.href)) {
+      headline.target = '_blank';
+      headline.rel = 'noopener noreferrer';
+    }
+  }
+  item.append(headline);
+
+  if (entry.body) {
+    const body = document.createElement('p');
+    body.className = 'landing-announcement-body';
+    body.textContent = entry.body;
+    item.append(body);
+  }
+
+  return item;
+}
+
+function formatAnnouncementDate(iso: string): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  if (!year || !month || !day) return iso;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRequests?: boolean } = {}): HTMLElement {

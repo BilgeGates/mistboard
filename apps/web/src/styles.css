@@ -3141,6 +3141,60 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   line-height: 1.5;
 }
 
+.landing-announcements-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.landing-announcement-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(29, 37, 34, 0.1);
+  border-radius: 8px;
+  background: #fafaf7;
+}
+
+.landing-announcement-card.is-pinned {
+  background: #f3f5f0;
+  border-color: rgba(29, 37, 34, 0.16);
+}
+
+.landing-announcement-date,
+.landing-announcement-tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--site-muted);
+}
+
+.landing-announcement-headline {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--site-ink, #1d2522);
+  text-decoration: none;
+}
+
+a.landing-announcement-headline:hover,
+a.landing-announcement-headline:focus-visible {
+  text-decoration: underline;
+}
+
+.landing-announcement-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--site-muted);
+}
+
 .landing-play-anon-note {
   margin: 2px 0 0;
   color: var(--site-muted);

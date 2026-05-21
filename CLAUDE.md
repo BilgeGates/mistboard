@@ -26,6 +26,10 @@ If no, defer it. Draft960 is a pregame feature inside Fog of War, not a separate
 - Private strategy, outreach, funding, entity planning, and operational notes belong outside the public repo.
 - Follow `docs/documentation-policy.md` before adding or expanding docs.
 
+## Announcements
+
+When the user says "card this" (or equivalent) after a user-facing change ships, append a one-line entry to `apps/web/src/announcements.ts` with today's date. Skip for internal-only changes (engine internals, infra, CI, refactors). When in doubt, ask.
+
 ## Hard Deferrals
 
 Do not build in v1:
