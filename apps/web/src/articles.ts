@@ -21,6 +21,15 @@ export type ChromeNodes = {
   footer: HTMLElement;
 };
 
+// Production hides non-published articles from both the index list and direct
+// URL access (the URL 404s). Dev shows everything so we can review outlines
+// and drafts locally before promoting them. Vite injects import.meta.env.DEV
+// as true in the dev server and false in the production build.
+function isArticleVisibleInThisEnv(article: Article): boolean {
+  if (article.status === 'published') return true;
+  return import.meta.env.DEV;
+}
+
 export function buildArticlesIndex(): HTMLElement {
   const main = document.createElement('main');
   main.className = 'site-section articles-index';
@@ -37,6 +46,7 @@ export function buildArticlesIndex(): HTMLElement {
   list.className = 'articles-index-list';
 
   for (const article of articles) {
+    if (!isArticleVisibleInThisEnv(article)) continue;
     list.append(articleCard(article));
   }
 
@@ -47,6 +57,7 @@ export function buildArticlesIndex(): HTMLElement {
 export function buildArticlePage(slug: string): HTMLElement {
   const article = findArticle(slug);
   if (!article) return buildArticleNotFound();
+  if (!isArticleVisibleInThisEnv(article)) return buildArticleNotFound();
 
   const main = document.createElement('main');
   main.className = 'site-section article-page';

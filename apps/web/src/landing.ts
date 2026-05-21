@@ -2291,9 +2291,7 @@ function buildAbout(): HTMLElement {
 
   const engineHeading = aboutSubheading('Engines for hidden-information chess');
   const engineP = aboutParagraph([
-    'Standard chess engines assume both sides see the full board. Fog of War breaks that assumption. The techniques that work — belief-state search, particle filters, Monte Carlo tree search over determinized positions — come from the Reconnaissance Blind Chess literature. Mistboard’s engine is in active development and open source. A protocol for third-party Fog of War engines (FUCI) is in design, and Mistboard plans to host engine tournaments and calibration runs once the protocol stabilizes. See ',
-    aboutLink('Building an engine for hidden-information chess', '/articles/engine-belief-state'),
-    ' for the technical background.',
+    'Standard chess engines assume both sides see the full board. Fog of War breaks that assumption. The techniques that work — belief-state search, particle filters, Monte Carlo tree search over determinized positions — come from the Reconnaissance Blind Chess literature. Mistboard’s engine is in active development and open source. A protocol for third-party Fog of War engines (FUCI) is in design, and Mistboard plans to host engine tournaments and calibration runs once the protocol stabilizes.',
   ]);
 
   const statusHeading = aboutSubheading('Project status');

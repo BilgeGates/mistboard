@@ -735,7 +735,7 @@ export const articles: Article[] = [
     title: 'Fog of War: the canonical reference',
     summary:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
-    status: 'draft',
+    status: 'published',
     audience:
       'Any chess player who has heard of Fog of War or wants to understand it from scratch.',
     sections: [
@@ -984,7 +984,7 @@ export const articles: Article[] = [
     title: 'Draft960: the end of opening theory in Fog of War',
     summary:
       'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
-    status: 'outline',
+    status: 'published',
     audience:
       'Readers who have grokked Fog of War (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
     tldr: [
