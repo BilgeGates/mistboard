@@ -1505,11 +1505,29 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
 
   boardColumn.append(heroHeader, replayRoot);
 
+  const announcements = buildLandingAnnouncements();
   const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
-  section.append(boardColumn, playPanel);
+  section.append(announcements, boardColumn, playPanel);
   stage.append(section);
   return { el: stage, replayRoot };
+}
+
+function buildLandingAnnouncements(): HTMLElement {
+  const panel = document.createElement('aside');
+  panel.className = 'landing-announcements';
+  panel.setAttribute('aria-label', 'Announcements');
+
+  const heading = document.createElement('h2');
+  heading.className = 'landing-announcements-heading';
+  heading.textContent = 'Announcements';
+
+  const empty = document.createElement('p');
+  empty.className = 'landing-announcements-empty';
+  empty.textContent = 'Nothing new yet.';
+
+  panel.append(heading, empty);
+  return panel;
 }
 
 function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRequests?: boolean } = {}): HTMLElement {

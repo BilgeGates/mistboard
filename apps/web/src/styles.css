@@ -2321,12 +2321,15 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-demo {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 340px);
+  grid-template-columns:
+    clamp(280px, 24vw, 340px)
+    minmax(0, 1fr)
+    clamp(280px, 24vw, 340px);
   gap: clamp(20px, 3vw, 40px);
-  align-items: start;
+  align-items: stretch;
   justify-content: center;
   width: 100%;
-  max-width: 1200px;
+  max-width: 1480px;
   margin: 0 auto;
   padding: 0;
   border: 0;
@@ -3095,7 +3098,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .landing-play-panel {
   display: flex;
   flex-direction: column;
-  align-self: start;
+  align-self: stretch;
   gap: 12px;
   min-width: 0;
   padding: clamp(16px, 1.6vw, 22px);
@@ -3105,6 +3108,37 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.86),
     0 14px 36px rgba(29, 37, 34, 0.08);
+}
+
+.landing-announcements {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 10px;
+  min-width: 0;
+  padding: clamp(16px, 1.6vw, 22px);
+  border: 1px solid rgba(29, 37, 34, 0.1);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 14px 36px rgba(29, 37, 34, 0.08);
+}
+
+.landing-announcements-heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-muted);
+}
+
+.landing-announcements-empty {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .landing-play-anon-note {
@@ -4964,6 +4998,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
   .landing-board-column,
   .landing-demo .landing-play-panel,
+  .landing-demo .landing-announcements,
   .landing-demo #landing-replay,
   .landing-demo .landing-games {
     grid-column: auto;
@@ -4975,6 +5010,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
   .landing-play-panel {
     order: 1;
+  }
+
+  .landing-announcements {
+    order: 2;
   }
 
   .landing-games {
