@@ -26,7 +26,7 @@ def test_tier1_live_engines_includes_current_prod_version() -> None:
     runner = _load_runner()
     # Keep this list in sync with PROD_PLAYABLE_ENGINE_IDS in registry.ts.
     # Update both together whenever the prod engine version changes.
-    prod_tier1_ids = ["python-tier1-v0.9.1"]
+    prod_tier1_ids = ["python-tier1-v0.9.5"]
     for engine_id in prod_tier1_ids:
         assert engine_id in runner.TIER1_LIVE_ENGINES, (
             f"{engine_id} missing from TIER1_LIVE_ENGINES in live_move_runner.py — "

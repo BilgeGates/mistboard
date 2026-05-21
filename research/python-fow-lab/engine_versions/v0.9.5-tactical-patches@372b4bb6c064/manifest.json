@@ -1,0 +1,29 @@
+{
+  "name": "v0.9.5-tactical-patches",
+  "play_signature": "372b4bb6c064",
+  "captured_at": "2026-05-21T04:57:51.268640+00:00",
+  "git_head": "7978b9a4c41ded9d9ef288d44947163fa32ca7f3",
+  "git_dirty_in_src": true,
+  "stockfish_version_line": "Stockfish 18 by the Stockfish developers (see AUTHORS file)",
+  "files_in_play_signature": [
+    "strategies.py",
+    "engine.py",
+    "belief.py",
+    "evaluator.py",
+    "move_priors.py",
+    "selfplay.py",
+    "observation.py",
+    "visibility.py"
+  ],
+  "per_file_signatures": {
+    "belief.py": "08d177c21773",
+    "engine.py": "1ff9e51e2f72",
+    "evaluator.py": "30c839f36374",
+    "move_priors.py": "3d458a2a20c8",
+    "observation.py": "82b33a9a1a07",
+    "selfplay.py": "a8f5604366e9",
+    "strategies.py": "10ec110d03ed",
+    "visibility.py": "e43f9b478c54"
+  },
+  "notes": "v0.9.5 snapshot for prod-playable PvE. Includes: v0.9.5 draw-reduction knobs (info_reveal_bonus_coef, push-when-ahead from belief material edge), phantom-check guard (stale-belief skip when slider's attack ray is blocked), recapture exemption (own_capture_square tracking, exempt recaptures from belief bad-capture-trade veto). TIER1_VERSION bumped 0.9.3 -> 0.9.5."
+}

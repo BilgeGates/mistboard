@@ -75,6 +75,11 @@ MATERIAL_VALUE = {
     chess.KING: 100_000,
 }
 TIER1_LIVE_ENGINES: dict[str, dict[str, str]] = {
+    "python-tier1-v0.9.5": {
+        "tier1Version": "0.9.5",
+        "playSignature": "372b4bb6c064",
+        "engineVersion": "v0.9.5-tactical-patches@372b4bb6c064",
+    },
     "python-tier1-v0.9.1": {
         "tier1Version": "0.9.1",
         "playSignature": "8918f287499f",

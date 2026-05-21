@@ -22,7 +22,7 @@ export function playableBuiltinEngines(): EngineDefinition[] {
 
 const PROD_PLAYABLE_ENGINE_IDS = new Set([
   'builtin-random-legal',
-  'python-tier1-v0.9.1',
+  'python-tier1-v0.9.5',
 ]);
 
 // Opt-in extras for load testing / local experimentation. Set
@@ -48,10 +48,28 @@ export function isPlayableLiveEngineClientId(clientId: string | undefined): bool
 }
 
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
-  // Uses current src/fow_chess/ (v0.9.5-equivalent + lab additions). Skipped
-  // by PROD_PLAYABLE_ENGINE_IDS — only available locally via the
-  // MISTBOARD_EXTRA_PLAYABLE_ENGINES env var. Intended for asymmetric strength
-  // testing against the diagnosis-target codebase.
+  'python-tier1-v0.9.5': {
+    id: 'python-tier1-v0.9.5',
+    engineId: 'tier1',
+    engineName: 'Tier-1',
+    name: 'Tier-1 v0.9.5',
+    kind: 'container',
+    configHash: 'tier1-v0.9.5-372b4bb6c064',
+    playSignature: '372b4bb6c064',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'tier1',
+      version: '0.9.5',
+      config: 'tier1-v1',
+      config_hash: '372b4bb6c064',
+      engine_pin: 'v0.9.5-tactical-patches@372b4bb6c064',
+    },
+    livePolicy: { timeoutMs: 5_000 },
+    notes: 'Tier-1 v0.9.5: draw-reduction knobs (info-reveal bonus + push-when-ahead from belief material edge), phantom-check guard (stale-belief skip when slider attack ray is blocked), recapture exemption (exempt recaptures from belief bad-capture-trade veto).',
+  },
+  // Uses current src/fow_chess/. Skipped by PROD_PLAYABLE_ENGINE_IDS — only
+  // available locally via the MISTBOARD_EXTRA_PLAYABLE_ENGINES env var.
+  // Intended for asymmetric strength testing against a moving target codebase.
   'python-tier1-current': {
     id: 'python-tier1-current',
     engineId: 'tier1',
