@@ -146,6 +146,8 @@ const pveEngineMoveDelayMs = parsePositiveInteger(process.env.MISTBOARD_PVE_ENGI
 const liveEngineTimeoutMs = parsePositiveInteger(process.env.MISTBOARD_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
 const guestPrestartAbortMs = parseNonNegativeInteger(process.env.MISTBOARD_GUEST_PRESTART_ABORT_MS) ?? 15 * 60 * 1000;
 const abortPolicySweepMs = parsePositiveInteger(process.env.MISTBOARD_ABORT_POLICY_SWEEP_MS) ?? 60_000;
+const stalePauseMs = (parsePositiveInteger(process.env.MISTBOARD_STALE_PAUSE_HOURS) ?? 24) * 60 * 60 * 1000;
+const stalePausedSweepMs = parsePositiveInteger(process.env.MISTBOARD_STALE_PAUSED_SWEEP_MS) ?? 15 * 60 * 1000;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
@@ -205,6 +207,7 @@ const rematchOrch: RematchOrchestrator = {
 let server: ReturnType<typeof createServer> | null = null;
 let wss: WebSocketServer | null = null;
 let abortPolicyTimer: ReturnType<typeof setInterval> | null = null;
+let stalePausedSweepTimer: ReturnType<typeof setInterval> | null = null;
 let shuttingDown = false;
 let seatVacateGraceMsOverride: number | null = null;
 
@@ -230,6 +233,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
   }
   await initPersistence();
   startAbortPolicySweep();
+  startStalePausedSweep();
 
   const httpServer = createServer(handleHttpRequest);
   const wsServer = new WebSocketServer({ server: httpServer, maxPayload: wsMaxPayloadBytes });
@@ -296,6 +300,10 @@ export async function stopServer(): Promise<void> {
   if (abortPolicyTimer) {
     clearInterval(abortPolicyTimer);
     abortPolicyTimer = null;
+  }
+  if (stalePausedSweepTimer) {
+    clearInterval(stalePausedSweepTimer);
+    stalePausedSweepTimer = null;
   }
   for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
     try { client.socket.close(1001, 'server shutting down'); } catch { /* socket already closed */ }
@@ -1086,6 +1094,54 @@ async function runAbortPolicySweep(): Promise<void> {
       kind: 'abort_policy_sweep_failure',
       error: (err as Error).message,
       at: Date.now(),
+    }));
+  }
+}
+
+function startStalePausedSweep(): void {
+  if (!persistence.isInitialized()) return;
+  if (stalePauseMs <= 0) return;
+  void runStalePausedSweep();
+  stalePausedSweepTimer = setInterval(() => {
+    void runStalePausedSweep();
+  }, stalePausedSweepMs);
+}
+
+async function runStalePausedSweep(): Promise<void> {
+  const now = new Date();
+  try {
+    const result = await persistence.finalizeStalePausedRooms(now, stalePauseMs);
+    if (result.finalized === 0) return;
+    for (const room of result.rooms) {
+      resetRoom(room.roomId);
+      // Per-room line: every stale-paused finalize is a yellow flag worth
+      // investigating, since post-restart the resume path is expected to
+      // either bring the game back or forfeit the absent player.
+      console.log(JSON.stringify({
+        level: 'warn',
+        kind: 'stale_paused_finalized',
+        roomId: room.roomId,
+        mode: room.mode,
+        pause_reason: room.pauseReason,
+        paused_at: room.pausedAtMs,
+        paused_duration_ms: now.getTime() - room.pausedAtMs,
+        started_at: room.startedAt.getTime(),
+        ply_count: room.plyCount,
+        at: now.getTime(),
+      }));
+    }
+    console.log(JSON.stringify({
+      level: 'info',
+      kind: 'stale_paused_sweep',
+      stale_paused_finalized_total: result.finalized,
+      at: now.getTime(),
+    }));
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      kind: 'stale_paused_sweep_failure',
+      error: (err as Error).message,
+      at: now.getTime(),
     }));
   }
 }

@@ -7,6 +7,7 @@ import { runMigrations } from './migrate.js';
 import {
   appendEvent,
   abortStaleGuestPrestartGames,
+  finalizeStalePausedRooms,
   close,
   consumeEmailLoginChallenge,
   createAccountSession,
@@ -633,6 +634,115 @@ if (!TEST_DATABASE_URL) {
     } finally {
       await verifyClient.end();
     }
+  });
+
+  test('finalizeStalePausedRooms only touches rooms whose last event is a stale pause', async () => {
+    const now = new Date('2026-05-22T12:00:00.000Z');
+    const stalePauseMs = 24 * 60 * 60 * 1000;
+    const stalePauseAt = now.getTime() - 25 * 60 * 60 * 1000; // older than window
+    const freshPauseAt = now.getTime() - 1 * 60 * 60 * 1000;  // within window
+    const startedAt = new Date(stalePauseAt - 60 * 60 * 1000);
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_client, black_client, white_name, black_name, mode, status)
+         VALUES
+           ('stale-paused-pvp', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
+           ('stale-paused-then-resumed', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
+           ('fresh-paused', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
+           ('running-no-pause', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
+           ('stale-paused-already-completed', 'fog-of-war', 'white-wins', 'king-captured', 12, $1, $2,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'completed')`,
+        [startedAt, now],
+      );
+
+      // Events: each stale-paused room gets a move + a pause as its last event.
+      // The resumed room has pause + resume after the pause.
+      await client.query(
+        `INSERT INTO events (room_id, seq, type, payload)
+         VALUES
+           ('stale-paused-pvp', 0, 'room-created', $1),
+           ('stale-paused-pvp', 1, 'move-played', $2),
+           ('stale-paused-pvp', 2, 'move-played', $3),
+           ('stale-paused-pvp', 3, 'pause', $4),
+           ('stale-paused-then-resumed', 0, 'room-created', $5),
+           ('stale-paused-then-resumed', 1, 'pause', $6),
+           ('stale-paused-then-resumed', 2, 'resume', $7),
+           ('fresh-paused', 0, 'room-created', $8),
+           ('fresh-paused', 1, 'pause', $9),
+           ('running-no-pause', 0, 'room-created', $10),
+           ('running-no-pause', 1, 'move-played', $11),
+           ('stale-paused-already-completed', 0, 'room-created', $12),
+           ('stale-paused-already-completed', 1, 'pause', $13)`,
+        [
+          { type: 'room-created', at: startedAt.getTime(), roomId: 'stale-paused-pvp', variant: 'fog-of-war', offer: [] },
+          { type: 'move-played', at: startedAt.getTime() + 1000, roomId: 'stale-paused-pvp', color: 'white', move: { from: 'e2', to: 'e4' } },
+          { type: 'move-played', at: startedAt.getTime() + 2000, roomId: 'stale-paused-pvp', color: 'black', move: { from: 'e7', to: 'e5' } },
+          { type: 'pause', at: stalePauseAt, roomId: 'stale-paused-pvp', reason: 'shutdown' },
+          { type: 'room-created', at: startedAt.getTime(), roomId: 'stale-paused-then-resumed', variant: 'fog-of-war', offer: [] },
+          { type: 'pause', at: stalePauseAt, roomId: 'stale-paused-then-resumed', reason: 'shutdown' },
+          { type: 'resume', at: stalePauseAt + 1000, roomId: 'stale-paused-then-resumed', reason: 'both-present' },
+          { type: 'room-created', at: startedAt.getTime(), roomId: 'fresh-paused', variant: 'fog-of-war', offer: [] },
+          { type: 'pause', at: freshPauseAt, roomId: 'fresh-paused', reason: 'shutdown' },
+          { type: 'room-created', at: startedAt.getTime(), roomId: 'running-no-pause', variant: 'fog-of-war', offer: [] },
+          { type: 'move-played', at: startedAt.getTime() + 1000, roomId: 'running-no-pause', color: 'white', move: { from: 'e2', to: 'e4' } },
+          { type: 'room-created', at: startedAt.getTime(), roomId: 'stale-paused-already-completed', variant: 'fog-of-war', offer: [] },
+          { type: 'pause', at: stalePauseAt, roomId: 'stale-paused-already-completed', reason: 'shutdown' },
+        ],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const result = await finalizeStalePausedRooms(now, stalePauseMs);
+    assert.equal(result.finalized, 1, 'exactly one room should finalize');
+    assert.equal(result.rooms[0]?.roomId, 'stale-paused-pvp');
+    assert.equal(result.rooms[0]?.mode, 'pvp');
+    assert.equal(result.rooms[0]?.pausedAtMs, stalePauseAt);
+    assert.equal(result.rooms[0]?.pauseReason, 'shutdown');
+    assert.equal(result.rooms[0]?.plyCount, 2, 'ply_count should reflect move-played events');
+
+    const verify = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await verify.connect();
+    try {
+      const { rows } = await verify.query<{
+        room_id: string;
+        status: string;
+        result: string | null;
+        termination: string | null;
+        ply_count: number;
+      }>(
+        `SELECT room_id, status, result, termination, ply_count
+         FROM games
+         WHERE room_id IN (
+           'stale-paused-pvp', 'stale-paused-then-resumed', 'fresh-paused',
+           'running-no-pause', 'stale-paused-already-completed'
+         )
+         ORDER BY room_id`,
+      );
+      assert.deepEqual(rows, [
+        { room_id: 'fresh-paused', status: 'running', result: null, termination: null, ply_count: 0 },
+        { room_id: 'running-no-pause', status: 'running', result: null, termination: null, ply_count: 0 },
+        // Already-completed row is untouched by the sweep.
+        { room_id: 'stale-paused-already-completed', status: 'completed', result: 'white-wins', termination: 'king-captured', ply_count: 12 },
+        { room_id: 'stale-paused-pvp', status: 'completed', result: 'draw', termination: 'server-restarted', ply_count: 2 },
+        { room_id: 'stale-paused-then-resumed', status: 'running', result: null, termination: null, ply_count: 0 },
+      ]);
+    } finally {
+      await verify.end();
+    }
+
+    // Idempotency — second sweep finds nothing.
+    const repeat = await finalizeStalePausedRooms(now, stalePauseMs);
+    assert.deepEqual(repeat, { finalized: 0, rooms: [] });
   });
 
   test('recordGameEnd is idempotent', async () => {

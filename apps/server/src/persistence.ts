@@ -505,6 +505,104 @@ export async function abortStaleGuestPrestartGames(
   return { aborted: rows.length, roomIds: rows.map((row) => row.room_id) };
 }
 
+export type StalePausedFinalizeRecord = {
+  roomId: string;
+  mode: GameMode;
+  startedAt: Date;
+  pausedAtMs: number;
+  pauseReason: string | null;
+  plyCount: number;
+};
+
+/**
+ * Finalize paused rooms whose last event is `pause` older than `staleAfterMs`.
+ *
+ * Marks the games row as completed with `result = 'draw'`, `termination =
+ * 'server-restarted'`. Idempotent via `WHERE games.status = 'running'` — a
+ * concurrent reconnect-triggered finalize races the sweep at the row level and
+ * first-writer wins.
+ *
+ * Returns one row per finalized game with enough context to log each as an
+ * investigable event (paused rooms shouldn't accumulate; every occurrence is
+ * a yellow flag).
+ */
+export async function finalizeStalePausedRooms(
+  now = new Date(),
+  staleAfterMs = 24 * 60 * 60 * 1000,
+): Promise<{ finalized: number; rooms: StalePausedFinalizeRecord[] }> {
+  const stalePauseBeforeMs = now.getTime() - staleAfterMs;
+  const { rows } = await getPool().query<{
+    room_id: string;
+    mode: GameMode;
+    started_at: Date;
+    paused_at_ms: string;
+    pause_reason: string | null;
+    ply_count: number;
+  }>(
+    `WITH running_rooms AS (
+       SELECT room_id, mode, started_at
+       FROM games
+       WHERE status = 'running'
+     ),
+     last_events AS (
+       SELECT DISTINCT ON (e.room_id) e.room_id, e.type, e.payload
+       FROM events e
+       JOIN running_rooms r ON r.room_id = e.room_id
+       ORDER BY e.room_id, e.seq DESC
+     ),
+     candidates AS (
+       SELECT
+         r.room_id,
+         r.mode,
+         r.started_at,
+         (le.payload->>'at')::bigint AS paused_at_ms,
+         le.payload->>'reason' AS pause_reason
+       FROM running_rooms r
+       JOIN last_events le ON le.room_id = r.room_id
+       WHERE le.type = 'pause'
+         AND (le.payload->>'at')::bigint < $1
+     ),
+     finalized AS (
+       UPDATE games
+       SET status = 'completed',
+           result = 'draw',
+           termination = 'server-restarted',
+           ended_at = $2,
+           ply_count = (
+             SELECT COUNT(*)::int
+             FROM events e2
+             WHERE e2.room_id = candidates.room_id
+               AND e2.type = 'move-played'
+           )
+       FROM candidates
+       WHERE games.room_id = candidates.room_id
+         AND games.status = 'running'
+       RETURNING
+         games.room_id,
+         games.mode,
+         games.started_at,
+         games.ply_count,
+         candidates.paused_at_ms,
+         candidates.pause_reason
+     )
+     SELECT room_id, mode, started_at, paused_at_ms, pause_reason, ply_count
+     FROM finalized
+     ORDER BY room_id`,
+    [stalePauseBeforeMs, now],
+  );
+  return {
+    finalized: rows.length,
+    rooms: rows.map((row) => ({
+      roomId: row.room_id,
+      mode: row.mode,
+      startedAt: row.started_at,
+      pausedAtMs: Number(row.paused_at_ms),
+      pauseReason: row.pause_reason,
+      plyCount: row.ply_count,
+    })),
+  };
+}
+
 export async function recordGameStart(roomId: string, summary: RunningGameSummary): Promise<void> {
   await getPool().query(
     `INSERT INTO games
