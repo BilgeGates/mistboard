@@ -2043,7 +2043,7 @@ function boardStatusLabel(): string {
 }
 
 function rejectedBody(): string {
-  if (liveState.closeReason === 'private room') return 'This live room is private to the seated players.';
+  if (liveState.closeReason === 'private room') return 'This game is in progress. Mistboard never shares live game state with anyone but the seated players. The full replay will be here once the game finishes.';
   if (liveState.closeReason === 'origin not allowed') return 'This browser origin is not allowed to open the room.';
   if (liveState.closeReason === 'rate limit') return 'The room connection was closed after too many messages.';
   return 'The server rejected this room connection.';

@@ -1150,6 +1150,102 @@ export const articles: Article[] = [
       },
     ],
   },
+  {
+    slug: 'server-enforced-fog',
+    title: 'How Mistboard enforces Fog of War',
+    summary:
+      'Each client receives only its own view — never the canonical position. The kernel that derives a per-player view, the gateway that shapes outbound traffic, and the regression tests that pin the contract. Plus how the same source-of-truth principle handles threefold repetition, the 50-move rule, and clocks.',
+    status: 'outline',
+    audience:
+      'Chess developers, security-minded readers, anyone curious about how an open-source online chess platform enforces a hidden-information variant correctly.',
+    tldr: [
+      'Mistboard\'s server holds the canonical game state. Clients never receive it — they receive a derived PlayerView, computed per recipient, with hidden pieces and hidden moves stripped before the bytes leave the server.',
+      'Three layers do the work: a per-recipient view kernel in packages/game, a per-recipient outbound shaper in apps/server, and a connection-layer rule that lets only seated players observe a live game.',
+      'The same source-of-truth principle decides threefold repetition (counted over canonical positions, not visible ones), the 50-move rule, and clock expiration. The server is authoritative; the client renders.',
+    ],
+    sections: [
+      {
+        heading: 'The architecture',
+        paragraphs: [
+          'Section TBD. Set up the three-layer model: (1) canonical GameState lives only on the server; (2) packages/game/src/variants.ts defines fogOfWarVariant.getPlayerView(state, player) which computes per-player visibility and masks the board; (3) apps/server/src/payloads.ts wraps getPlayerView into per-recipient snapshotPayload calls that are sent on the WebSocket.',
+          '[VISUAL: three-layer diagram. Top: canonical GameState (full board, full history). Middle: getPlayerView per side, producing two distinct PlayerViews. Bottom: snapshotPayload per recipient, fanning out over WS to the two seated clients only.]',
+        ],
+      },
+      {
+        heading: 'The visibility kernel',
+        paragraphs: [
+          'Section TBD. Walk through packages/game/src/variants.ts fogVisibleSquares (lines 184-193) and boardVisibleTo (lines 201-208) — together they are the entire fog primitive. "The opponent\'s piece on e5 isn\'t hidden by CSS — it\'s not in this object."',
+          '[VISUAL: annotated code snippet, side-by-side with a board diagram showing the visibility set as highlighted squares.]',
+          '[VISUAL: lastMove handling — visibleLastMoveForPlayer (lines 210-216). Diagram showing that the opponent\'s last move arrow is omitted from the view, even when you can see the destination piece.]',
+        ],
+      },
+      {
+        heading: 'The outbound gateway',
+        paragraphs: [
+          'Section TBD. apps/server/src/payloads.ts snapshotPayload is called once per recipient in broadcastSnapshot. Three fields matter: state (per-seat PlayerView), events (move-played events filtered to own color in live fog games), and devViews (admin-gated truth view; never reachable from a query param in production).',
+          '[VISUAL: a single broadcastSnapshot call expanded into two distinct WS frames, one per recipient, with the differing payloads side by side.]',
+        ],
+      },
+      {
+        heading: 'The one rule for live observation',
+        paragraphs: [
+          'Section TBD. server-policy.ts canObserveLiveRoom: returns true only when the game is finished. Live games are visible only to seated players, regardless of mode (PvP, PvE, EvE). Non-seated WebSocket connections to a live room are rejected with 1008 \'private room\'. This collapses what used to be a per-mode table (12 cells: mode × game-state × viewer) to a single rule. Tradeoff acknowledged: no live spectator view for engine games or for friends watching you play the bot. The simplification is worth it — every future variant or mode inherits the rule for free.',
+          '[VISUAL: small table — old per-mode rules (4 rows: PvP/PvE/EvE × live/finished) vs new single rule. Visual collapse from 12 cells to 2.]',
+        ],
+      },
+      {
+        heading: 'Show me: a captured WebSocket frame',
+        paragraphs: [
+          'Section TBD. Pretty-printed JSON of a real snapshot frame from a live PvP game sent to white\'s socket: state.board has ~16 entries (not 32), state.visibleSquares is a sorted list of white\'s seen squares, events contains only white\'s move-played records.',
+          '[VISUAL: JSON snippet of a captured snapshot frame (anonymized roomId, real data shape).]',
+          '[VISUAL: side-by-side — canonical state (server-only, 32 pieces, full history) on the left; white\'s PlayerView (16-20 pieces, white\'s moves only) on the right. Same position, two boxes.]',
+        ],
+      },
+      {
+        heading: 'Show me: see the same position from three sides',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              '[INTERACTIVE PLACEHOLDER: stepper widget with a tab strip — Truth / White\'s view / Black\'s view — over a single mid-game position. Reuses the triptych pattern from the Fog of War rules article. Possibly: a "click any square to highlight what each side sees from that piece" interaction.]',
+          },
+        ],
+      },
+      {
+        heading: 'Prove it: the regression tests',
+        paragraphs: [
+          'Section TBD. apps/server/src/privacy-ws.test.ts spawns a real built server, opens real WebSockets, and asserts on the wire bytes — not on mocked internals. The fog-specific assertions: PvE/EvE third-party WS connection is rejected with 1008 \'private room\' before any snapshot is sent; seated players in PvP can\'t see opponent move-played events; finished games reveal everything.',
+          '[VISUAL: code excerpt from privacy-ws.test.ts showing the rejection assertion. Caption: "clone the repo and run npm test — these run in CI on every commit."]',
+        ],
+      },
+      {
+        heading: 'More than fog: the server is the source of truth',
+        paragraphs: [
+          'Section TBD. The same principle that makes fog enforcement work decides the rest of the game state. Threefold repetition is the most interesting case in fog: two players can see the same visible position twice while the underlying canonical position differs (a phantom piece moved off-screen). The server counts repetitions over the canonical board (variants.ts:295-309 positionRepetitionKey), not over either player\'s view. Counting from views would be both wrong and exploitable.',
+          'Also enforced server-side: king capture as the win condition (variants.ts:267-269), the 50-move rule via halfmoveClock, clock expiration, resignation, draw-by-agreement, pause/resume across server restart. The client renders; the server decides.',
+          '[VISUAL: code excerpt of positionRepetitionKey showing the full board enumeration. Caption noting why view-based repetition would be both incorrect and exploitable in a fog setting.]',
+        ],
+      },
+      {
+        heading: 'Honest limits',
+        paragraphs: [
+          'Section TBD. Three caveats to be explicit about: (1) finished games reveal full truth — same as Lichess\'s FoW model; replay/share need it. (2) Live spectator view in PvP is "nothing" by design — we don\'t render a fair-fog-union view for friends watching, because we couldn\'t do it without exposing one side\'s perspective. (3) The devViews admin path exists for debugging and is gated on a constant-time-compared admin token (server-policy.ts isDebugViewAuthorized + index.ts handleAdminDebugAuth). Query params alone cannot flip it in production.',
+        ],
+      },
+      {
+        heading: 'Where the code lives',
+        paragraphs: [
+          'Section TBD. Repo map: packages/game/src/variants.ts (the kernel), apps/server/src/payloads.ts (the gateway), apps/server/src/server-policy.ts (the one observation rule), apps/server/src/privacy-ws.test.ts (the regression tests). Link to the repo, encourage forks and issues.',
+        ],
+      },
+      {
+        heading: 'Contribute',
+        paragraphs: [
+          'CTA: GitHub repo, file an issue if you spot a leak, run the test suite locally, link to the related Fog of War rules article.',
+        ],
+      },
+    ],
+  },
 ];
 
 export function findArticle(slug: string): Article | undefined {
