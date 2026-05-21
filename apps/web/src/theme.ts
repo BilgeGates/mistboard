@@ -6,26 +6,26 @@ const fogStorageKey = 'mistboard.fogTheme';
 const soundVolumeStorageKey = 'mistboard.soundVolume';
 const soundMutedStorageKey = 'mistboard.soundMuted';
 export const soundSettingsChangedEvent = 'mistboard:sound-settings-changed';
-const defaultTheme: BoardTheme = 'standard';
-const defaultFogTheme: FogTheme = 'hatched';
+const defaultTheme: BoardTheme = 'green';
+const defaultFogTheme: FogTheme = 'solid';
 const defaultSoundVolume = 0.7;
 let cachedSoundVolume = defaultSoundVolume;
 let cachedSoundMuted = false;
 const themes: Array<{ id: BoardTheme; label: string }> = [
-  { id: 'standard', label: 'Standard' },
+  { id: 'green', label: 'Tournament' },
+  { id: 'standard', label: 'Classic' },
   { id: 'blue', label: 'Blue' },
-  { id: 'green', label: 'Tournament green' },
-  { id: 'mono', label: 'Mono' },
+  { id: 'mono', label: 'Monochrome' },
   { id: 'contrast', label: 'High contrast' },
   { id: 'colorblind', label: 'Colorblind' },
 ];
 const fogThemes: Array<{ id: FogTheme; label: string }> = [
-  { id: 'hatched', label: 'Hatched' },
   { id: 'solid', label: 'Solid' },
   { id: 'soft', label: 'Soft' },
-  { id: 'drift', label: 'Drift (animated)' },
+  { id: 'drift', label: 'Drift' },
+  { id: 'hatched', label: 'Hatched' },
   { id: 'void', label: 'Void' },
-  { id: 'invisible', label: 'Invisible' },
+  { id: 'invisible', label: 'None' },
 ];
 let navObserver: MutationObserver | null = null;
 
