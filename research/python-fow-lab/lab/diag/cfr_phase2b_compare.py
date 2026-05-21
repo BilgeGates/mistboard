@@ -26,8 +26,23 @@ DIAG_DIR = Path(__file__).parent
 PHASE_1_PATH = DIAG_DIR / "cfr-phase1-smoke-results.json"
 PHASE_1B_PATH = DIAG_DIR / "cfr-phase1b-smoke-results.json"
 
-GATE_2B_ARGMAX_TARGET = 0.289
-GATE_2B_DIRECTION_TARGET = 0.82
+
+def _gate_targets() -> tuple[float, float]:
+    """Phase 1b's actual rates (not rounded values). Read at compare time so
+    re-running Phase 1b shifts the gate automatically.
+    """
+    if not PHASE_1B_PATH.exists():
+        # Fall back to the spec's rounded numbers if Phase 1b is missing.
+        return 0.289, 0.82
+    data = json.loads(PHASE_1B_PATH.read_text())
+    s = data.get("summary", {})
+    return (
+        float(s.get("cfr_argmax_match_rate", 0.289)),
+        float(s.get("cfr_direction_hit_rate", 0.82)),
+    )
+
+
+GATE_2B_ARGMAX_TARGET, GATE_2B_DIRECTION_TARGET = _gate_targets()
 
 
 def _load(path: Path) -> dict:
