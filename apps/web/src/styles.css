@@ -156,8 +156,8 @@
   --board-fog-shadow: rgba(255, 244, 224, 0.10);
   --board-fog-light-fill: rgba(20, 16, 12, 0.40);
   --board-fog-dark-fill: rgba(12, 10, 8, 0.50);
-  --board-fog-light-background: url('/fog/fog.gif'), var(--board-fog-light-fill);
-  --board-fog-dark-background: url('/fog/fog.gif'), var(--board-fog-dark-fill);
+  --board-fog-light-background: url('/fog/fog.webp'), var(--board-fog-light-fill);
+  --board-fog-dark-background: url('/fog/fog.webp'), var(--board-fog-dark-fill);
 }
 
 :root[data-fog-theme="void"] {
