@@ -1,9 +1,9 @@
-import type { Board, Square } from '@mistboard/game';
+import type { Board, Color, Square } from '@mistboard/game';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
 import type { DrawShape } from 'chessground/draw';
-import { boardFen } from './board.js';
+import { boardFen, fogHiddenClass } from './board.js';
 import { boardsInLayout, type CompositionLayout } from '../layouts.js';
 
 export type StepperArrow = {
@@ -47,9 +47,13 @@ function visibleBoard(board: Board, fogSquares: Square[]): Board {
   return out;
 }
 
-function fogSquareClasses(fogSquares: Square[], highlightSquares: Square[] = []): cg.SquareClasses {
+function fogSquareClasses(
+  fogSquares: Square[],
+  highlightSquares: Square[],
+  orientation: Color,
+): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
-  for (const sq of fogSquares) classes.set(sq as cg.Key, 'fog-hidden');
+  for (const sq of fogSquares) classes.set(sq as cg.Key, fogHiddenClass(sq, orientation));
   for (const sq of highlightSquares) {
     const prior = classes.get(sq as cg.Key);
     classes.set(sq as cg.Key, prior ? `${prior} deduction-highlight` : 'deduction-highlight');
@@ -128,7 +132,7 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
       coordinatesOnSquares: false,
       fen: boardFen(visibleBoard(initial.board, initialFog)),
       orientation: initial.orientation ?? 'white',
-      highlight: { custom: fogSquareClasses(initialFog, initial.highlightSquares ?? []) },
+      highlight: { custom: fogSquareClasses(initialFog, initial.highlightSquares ?? [], initial.orientation ?? 'white') },
       movable: { free: false, color: undefined, dests: new Map() },
       draggable: { enabled: false },
       selectable: { enabled: false },
@@ -172,7 +176,7 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
       cell.api.set({
         fen: boardFen(visibleBoard(spec.board, fog)),
         orientation: spec.orientation ?? 'white',
-        highlight: { custom: fogSquareClasses(fog, spec.highlightSquares ?? []) },
+        highlight: { custom: fogSquareClasses(fog, spec.highlightSquares ?? [], spec.orientation ?? 'white') },
         drawable: { enabled: false, shapes: toShapes(spec.arrows) },
       });
     }

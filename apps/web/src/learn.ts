@@ -593,7 +593,7 @@ function tutorialSquareClasses(
 ): cg.SquareClasses {
   const classes: cg.SquareClasses = showTruthBoard(chapter, state)
     ? new Map()
-    : hiddenSquareClasses(view);
+    : hiddenSquareClasses(view, 'white');
   const step = currentStep(state, chapter);
   const activeTargets = step.targets;
   for (const square of activeTargets) {

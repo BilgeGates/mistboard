@@ -14,6 +14,7 @@ import {
   type PlayerView,
   type Square,
 } from '@mistboard/game';
+import { fogHiddenClass } from '@mistboard/board-render/interactive';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
@@ -403,8 +404,8 @@ export async function mountReplay(
           }
         }
       }
-      setBoardFromView(whiteCg, whiteView);
-      setBoardFromView(blackCg, blackView);
+      setBoardFromView(whiteCg, whiteView, boardOrientation);
+      setBoardFromView(blackCg, blackView, boardOrientation);
     }
 
     const showRevealLabels = finished && reveal;
@@ -1885,14 +1886,14 @@ function squareFromCgBoardClick(
   return `${fileChar}${rankNum}`;
 }
 
-function setBoardFromView(api: Api, view: PlayerView): void {
+function setBoardFromView(api: Api, view: PlayerView, orientation: Color): void {
   const lastMove = view.lastMove
     ? ([view.lastMove.from, view.lastMove.to] as cg.Key[])
     : undefined;
   api.set({
     fen: boardFen(view.board),
     lastMove,
-    highlight: { custom: hiddenSquareClasses(view), lastMove: true },
+    highlight: { custom: hiddenSquareClasses(view, orientation), lastMove: true },
   });
 }
 
@@ -1907,12 +1908,12 @@ function setBoardFromState(api: Api, state: GameState): void {
   });
 }
 
-function hiddenSquareClasses(view: PlayerView): cg.SquareClasses {
+function hiddenSquareClasses(view: PlayerView, orientation: Color): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
   if (view.variant !== 'fog-of-war') return classes;
   const visible = new Set(view.visibleSquares);
   for (const square of allSquares) {
-    if (!visible.has(square)) classes.set(square as cg.Key, 'fog-hidden');
+    if (!visible.has(square)) classes.set(square as cg.Key, fogHiddenClass(square, orientation));
   }
   return classes;
 }

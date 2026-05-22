@@ -13,6 +13,7 @@ import {
   type Square,
 } from '@mistboard/game';
 import { fogPatternDefs, renderBoardSvg, type PieceOnBoard } from '@mistboard/board-render';
+import { fogHiddenClass } from '@mistboard/board-render/interactive';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
@@ -995,7 +996,7 @@ function renderBoard(view: PlayerView | null): void {
     coordinates: false,
     coordinatesOnSquares: false,
     fen: view ? boardFen(view) : '8/8/8/8/8/8/8/8',
-    highlight: { custom: hiddenSquareClasses(view), lastMove: true },
+    highlight: { custom: hiddenSquareClasses(view, orientation), lastMove: true },
     lastMove: view?.lastMove ? ([view.lastMove.from, view.lastMove.to] as cg.Key[]) : undefined,
     movable: {
       color: movableColor ?? undefined,
@@ -1102,13 +1103,13 @@ function castlingKingDestinationFromView(view: PlayerView, move: Move): Square |
   return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
 }
 
-export function hiddenSquareClasses(view: PlayerView | null): cg.SquareClasses {
+export function hiddenSquareClasses(view: PlayerView | null, orientation: Color = 'white'): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
   if (!view || view.variant !== 'fog-of-war') return classes;
 
   const visible = new Set(view.visibleSquares);
   for (const square of allSquares) {
-    if (!visible.has(square)) classes.set(square as cg.Key, 'fog-hidden');
+    if (!visible.has(square)) classes.set(square as cg.Key, fogHiddenClass(square, orientation));
   }
   return classes;
 }

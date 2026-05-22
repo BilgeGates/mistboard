@@ -97,8 +97,11 @@ describe('hiddenSquareClasses', () => {
     const view = makeView({ variant: 'fog-of-war', visibleSquares: [] });
     const classes = hiddenSquareClasses(view);
     expect(classes.size).toBe(64);
-    expect(classes.get('e1')).toBe('fog-hidden');
-    expect(classes.get('h8')).toBe('fog-hidden');
+    // The class string also encodes visual file/rank for per-tile fog rendering.
+    // e1 = file 4, rank 0; visual rank (white POV) = 7 - 0 = 7.
+    expect(classes.get('e1')).toBe('fog-hidden fog-tile-f4r7');
+    // h8 = file 7, rank 7; visual rank (white POV) = 7 - 7 = 0.
+    expect(classes.get('h8')).toBe('fog-hidden fog-tile-f7r0');
   });
 
   it('does not mark visible squares as fog-hidden', () => {
@@ -108,8 +111,18 @@ describe('hiddenSquareClasses', () => {
     expect(classes.has('e1')).toBe(false);
     expect(classes.has('e2')).toBe(false);
     expect(classes.has('d2')).toBe(false);
-    expect(classes.get('a1')).toBe('fog-hidden');
+    // a1 = file 0, rank 0; visual rank (white POV) = 7 - 0 = 7.
+    expect(classes.get('a1')).toBe('fog-hidden fog-tile-f0r7');
     expect(classes.size).toBe(64 - visible.length);
+  });
+
+  it('encodes visual position from black POV (mirror)', () => {
+    const view = makeView({ variant: 'fog-of-war', visibleSquares: [] });
+    const classes = hiddenSquareClasses(view, 'black');
+    // a1 from black POV: visual file = 7 - 0 = 7, visual rank = 0.
+    expect(classes.get('a1')).toBe('fog-hidden fog-tile-f7r0');
+    // h8 from black POV: visual file = 7 - 7 = 0, visual rank = 7.
+    expect(classes.get('h8')).toBe('fog-hidden fog-tile-f0r7');
   });
 });
 

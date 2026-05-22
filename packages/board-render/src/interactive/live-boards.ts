@@ -2,7 +2,7 @@ import type { Board, Color, Square } from '@mistboard/game';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
-import { boardFen } from './board.js';
+import { boardFen, fogHiddenClass } from './board.js';
 
 export type LiveBoardArrow = {
   orig: Square;
@@ -39,9 +39,9 @@ function visibleBoard(board: Board, fogSquares: Square[]): Board {
   return out;
 }
 
-function fogSquareClasses(fogSquares: Square[]): cg.SquareClasses {
+function fogSquareClasses(fogSquares: Square[], orientation: Color): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
-  for (const sq of fogSquares) classes.set(sq as cg.Key, 'fog-hidden');
+  for (const sq of fogSquares) classes.set(sq as cg.Key, fogHiddenClass(sq, orientation));
   return classes;
 }
 
@@ -80,7 +80,7 @@ export function mountLiveBoards(host: HTMLElement, opts: LiveBoardsOptions): Liv
       coordinatesOnSquares: false,
       fen: boardFen(visibleBoard(spec.board, fog)),
       orientation: spec.orientation ?? 'white',
-      highlight: { custom: fogSquareClasses(fog) },
+      highlight: { custom: fogSquareClasses(fog, spec.orientation ?? 'white') },
       movable: { free: false, color: undefined, dests: new Map() },
       draggable: { enabled: false },
       selectable: { enabled: false },

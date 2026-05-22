@@ -2,6 +2,7 @@ export {
   allBoardSquares,
   boardFen,
   createReadOnlyBoard,
+  fogHiddenClass,
   hiddenSquareClasses,
   setBoardPosition,
 } from './board.js';
