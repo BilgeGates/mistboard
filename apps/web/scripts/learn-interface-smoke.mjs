@@ -49,106 +49,63 @@ async function smokeLearnInterface() {
     await assertVisible(page, '.site-nav-brand img.site-nav-logo[src="/logo.svg"]');
     assert.equal(await page.locator('.site-nav-brand span').textContent(), 'MISTBOARD');
 
-    assert.equal(await page.locator('.learn-progress').textContent(), 'The Rook 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'The Rook');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up The File');
-    assert.equal(await page.locator('.learn-actions').getByText('Watch games').count(), 0);
-    assert.equal(await page.locator('.learn-menu-category h2').first().textContent(), 'Chess pieces');
-    assert.equal(await page.locator('.learn-menu-lesson').count(), 19);
-    assert.equal(await page.locator('.learn-menu-lesson.is-locked').count(), 0);
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+    // Tutorial shell: 5 steps with Steps 1-3 shipped — the other 2 are locked.
+    assert.equal(await page.locator('.learn-progress').textContent(), 'Step 1 of 5');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Vision');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Move and watch');
+    assert.equal(await page.locator('.learn-menu-category h2').first().textContent(), 'Tutorial');
+    assert.equal(await page.locator('.learn-menu-lesson').count(), 5);
+    assert.equal(await page.locator('.learn-menu-lesson.is-locked').count(), 2);
 
-    assert.equal(await page.locator('.learn-board square.learn-highlight').count(), 1);
-    assert.equal(await page.locator('.learn-board square.last-move').count(), 0);
-
-    await dragSquare(page, 'e2', 'e7');
+    // Step 1: any legal rook move counts.
+    await dragSquare(page, 'd1', 'd4');
     await page.waitForSelector('.learn-tutorial-message.success');
+    const step1Text = await page.locator('.learn-tutorial-message.success').textContent();
+    assert.match(step1Text ?? '', /Vision moves with the piece/);
+    // With Step 2 shipped, the next-step CTA is now "Next".
+    const nextButton = page.locator('.learn-actions').getByRole('button', { name: 'Next' });
+    assert.equal(await nextButton.count(), 1);
 
-    const successText = await page.locator('.learn-tutorial-message.success').textContent();
-    assert.match(successText ?? '', /straight up the file/);
-    assert.equal(await page.locator('.learn-actions').getByRole('button', { name: 'Next' }).count(), 1);
-    assert.equal(await page.locator('.learn-board square.last-move').count(), 0);
-    assert.equal(await page.locator('.learn-board square.learn-highlight').count(), 1);
-    assert.ok(await page.locator('.learn-board square.learn-explained').count() > 1);
+    // Advance to Step 2 via the Next button.
+    await nextButton.click();
+    await page.waitForFunction(
+      () => document.querySelector('.learn-progress')?.textContent === 'Step 2 of 5',
+    );
+    assert.equal(await page.locator('.learn-heading').textContent(), 'King Capture');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Take the king');
 
-    await clickLesson(page, 'The Bishop');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Bishop 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'The Bishop');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up Right');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+    // Step 2: drag rook h1→h8 to capture the exposed black king and win.
+    await dragSquare(page, 'h1', 'h8');
+    await page.waitForSelector('.learn-tutorial-message.success');
+    const step2Text = await page.locator('.learn-tutorial-message.success').textContent();
+    assert.match(step2Text ?? '', /You captured the king/);
+    // With Step 3 shipped, Step 2's success CTA is "Next".
+    const step2Next = page.locator('.learn-actions').getByRole('button', { name: 'Next' });
+    assert.equal(await step2Next.count(), 1);
 
-    await clickLesson(page, 'The Queen');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Queen 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'The Queen');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Up The File');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+    // Advance to Step 3.
+    await step2Next.click();
+    await page.waitForFunction(
+      () => document.querySelector('.learn-progress')?.textContent === 'Step 3 of 5',
+    );
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Hidden Moves');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'What just happened?');
 
-    await clickLesson(page, 'The King');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The King 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'The King');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'One Step Up');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
-
-    await clickLesson(page, 'The Knight');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Knight 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'The Knight');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'First L');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
-
-    await clickLesson(page, 'The Pawn');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'The Pawn 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'The Pawn');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'One Step');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
-
-    await clickLesson(page, 'Capture');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Capture 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'Capture');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'First Contact');
-    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Fundamentals');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
-
-    await clickLesson(page, 'Protection');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Protection 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'Protection');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Guard The File');
-    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Fundamentals');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
-
-    await clickLesson(page, 'Combat');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Combat 1 of 6');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'Combat');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Capture With Backup');
-    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Fundamentals');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
-
-    await clickLesson(page, 'Find The King');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Find The King 1 of 3');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'Find The King');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Open File');
-    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Fundamentals');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
-
-    await clickLesson(page, 'Board Setup');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Board Setup 1 of 3');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'Board Setup');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'First Pawn');
-    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Intermediate');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
-
-    await clickLesson(page, 'Castling');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Castling 1 of 3');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'Castling');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'King Side Castle');
-    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Intermediate');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
-
-    await clickLesson(page, 'Piece Value');
-    await page.waitForFunction(() => document.querySelector('.learn-progress')?.textContent === 'Piece Value 1 of 3');
-    assert.equal(await page.locator('.learn-heading').textContent(), 'Piece Value');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Big Prize');
-    assert.equal(await page.locator('.learn-menu-category.is-open h2').textContent(), 'Advanced');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
+    // Step 3 is a click-to-reveal chapter — no board moves accepted, just the
+    // "Reveal what happened" button.
+    const revealButton = page.locator('.learn-actions').getByRole('button', {
+      name: 'Reveal what happened',
+    });
+    assert.equal(await revealButton.count(), 1);
+    await revealButton.click();
+    await page.waitForSelector('.learn-tutorial-message.success');
+    const step3Text = await page.locator('.learn-tutorial-message.success').textContent();
+    assert.match(step3Text ?? '', /knight from b8 to c6/);
+    // Step 3 is the last shipped chapter — Restart CTA.
+    assert.equal(
+      await page.locator('.learn-actions').getByRole('button', { name: 'Restart' }).count(),
+      1,
+    );
   } finally {
     await browser.close();
   }
