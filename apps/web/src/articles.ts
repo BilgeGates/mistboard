@@ -11,6 +11,7 @@ import {
   type Article,
   type ArticleBlock,
   type ArticleSection,
+  type ArticleThumbnail,
   type CtaBlock,
   type InteractiveBlock,
   type LiveBoardsBlock,
@@ -46,7 +47,7 @@ export function buildArticlesIndex(): HTMLElement {
 
   const intro = document.createElement('p');
   intro.className = 'articles-index-intro';
-  intro.textContent = 'Canonical references on dark chess (also called Fog of War), Draft960, and the engine behind hidden-information chess.';
+  intro.textContent = 'Rules, variants, and engine work for dark chess.';
 
   const list = document.createElement('ul');
   list.className = 'articles-index-list';
@@ -465,6 +466,10 @@ function renderStaticBoardsBlock(block: StaticBoardsBlock): HTMLElement {
   return figure;
 }
 
+// Square thumbnail rendered into a fixed viewBox; CSS controls the on-page
+// size so the same SVG scales between mobile and desktop without recomputing.
+const THUMB_CANVAS = 200;
+
 function articleCard(article: Article): HTMLLIElement {
   const item = document.createElement('li');
   item.className = 'articles-index-item';
@@ -472,6 +477,10 @@ function articleCard(article: Article): HTMLLIElement {
   const link = document.createElement('a');
   link.className = 'articles-index-card';
   link.href = `/articles/${article.slug}`;
+
+  if (article.thumbnail) {
+    link.append(renderArticleThumbnail(article.thumbnail));
+  }
 
   const body = document.createElement('div');
   body.className = 'articles-index-card-body';
@@ -504,6 +513,26 @@ function articleCard(article: Article): HTMLLIElement {
   link.append(body, arrow);
   item.append(link);
   return item;
+}
+
+function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'articles-index-card-thumb';
+  wrap.setAttribute('aria-hidden', 'true');
+  const inner = renderBoardComposition({
+    layout: 'single',
+    boards: [{
+      pieces: thumb.pieces,
+      fogSquares: thumb.fogSquares,
+      orientation: thumb.orientation ?? 'white',
+    }],
+    canvasWidth: THUMB_CANVAS,
+    boardSize: THUMB_CANVAS,
+    boardY: 0,
+    labelY: -100,
+  });
+  wrap.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${THUMB_CANVAS} ${THUMB_CANVAS}" width="100%" preserveAspectRatio="xMidYMid meet" role="presentation">${inner}</svg>`;
+  return wrap;
 }
 
 function buildArticleNotFound(): HTMLElement {

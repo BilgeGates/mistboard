@@ -834,6 +834,13 @@ button:focus-visible {
     inset 0 0 0 2px var(--board-highlight);
 }
 
+.stepper-board cg-board square.deduction-highlight,
+.stepper-board cg-board square.fog-hidden.deduction-highlight {
+  box-shadow:
+    inset 0 0 0 999px rgba(212, 160, 23, 0.12),
+    inset 0 0 0 2px rgba(212, 160, 23, 0.6);
+}
+
 .board-shell > .promotion-picker {
   position: absolute;
   inset: 0;
@@ -2839,10 +2846,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .articles-index-card {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   padding: 18px 20px;
   border: 1px solid #d8dad7;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #ffffff;
   color: inherit;
   text-decoration: none;
@@ -2853,6 +2860,22 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   border-color: #629924;
   background: #fafdf5;
   box-shadow: 0 4px 14px rgba(29, 37, 34, 0.06);
+}
+
+.articles-index-card-thumb {
+  flex: 0 0 auto;
+  width: 132px;
+  height: 132px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f5f6f3;
+  box-shadow: inset 0 0 0 1px rgba(29, 37, 34, 0.06);
+}
+
+.articles-index-card-thumb svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .articles-index-card-body {
@@ -2869,11 +2892,12 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .articles-index-card-title {
   display: block;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 600;
   color: #1f2521;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   letter-spacing: -0.005em;
+  line-height: 1.3;
 }
 
 .articles-index-card-summary {
@@ -2894,6 +2918,23 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .articles-index-card:hover .articles-index-card-arrow {
   color: #629924;
   transform: translateX(3px);
+}
+
+@media (max-width: 560px) {
+  .articles-index-card {
+    gap: 14px;
+    padding: 14px;
+  }
+  .articles-index-card-thumb {
+    width: 96px;
+    height: 96px;
+  }
+  .articles-index-card-title {
+    font-size: 17px;
+  }
+  .articles-index-card-arrow {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

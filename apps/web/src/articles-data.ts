@@ -6,6 +6,7 @@
 import {
   type BoardSpec,
   type CompositionLayout,
+  boardToPieces,
   fogSquaresFromVisible,
   startingPositionFromBackRank,
 } from '@mistboard/board-render';
@@ -104,6 +105,16 @@ export type ArticleSection = {
   blocks?: ArticleBlock[];
 };
 
+// Single-board art rendered on the articles index card. No labels, no
+// caption — the card itself supplies title and summary. Use a position
+// that reads at a glance: a clear fog pattern, a recognisable setup, or
+// a moment from the article.
+export type ArticleThumbnail = {
+  pieces: BoardSpec['pieces'];
+  fogSquares?: BoardSpec['fogSquares'];
+  orientation?: BoardSpec['orientation'];
+};
+
 export type Article = {
   slug: string;
   title: string;
@@ -111,6 +122,7 @@ export type Article = {
   status: 'outline' | 'draft' | 'published';
   audience: string;
   tldr?: string[];
+  thumbnail?: ArticleThumbnail;
   sections: ArticleSection[];
 };
 
@@ -772,6 +784,11 @@ export const articles: Article[] = [
     status: 'published',
     audience:
       'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
+    thumbnail: {
+      pieces: boardToPieces(FOW_START_STATE.board),
+      fogSquares: FOW_START_FOG_W,
+      orientation: 'white',
+    },
     sections: [
       {
         heading: 'The starting position',
@@ -975,6 +992,10 @@ export const articles: Article[] = [
     status: 'outline',
     audience:
       'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
+    thumbnail: {
+      pieces: startingPositionFromBackRank(DRAFT960_OFFER_A),
+      orientation: 'white',
+    },
     tldr: [
       'Dark chess (also called Fog of War) hides the board mid-game. Draft960 also hides the starting position — from move 0, neither player knows the other\'s setup.',
       'Each player picks from their own independent set of three Chess960 offers. The picks stay sealed until the pieces start moving.',
@@ -1054,6 +1075,11 @@ export const articles: Article[] = [
     status: 'outline',
     audience:
       'Chess engine developers, AI/ML researchers, software engineers curious about belief-state methods.',
+    thumbnail: {
+      pieces: boardToPieces(DISCOVERY_BEFORE.board),
+      fogSquares: DISCOVERY_BEFORE_FOG_W,
+      orientation: 'white',
+    },
     tldr: [
       'Standard chess engines assume one ground-truth board. Dark chess requires reasoning over a distribution of possible truths.',
       'Particle filters are the tractable approximation: keep N candidate positions consistent with observations, simulate moves on each, aggregate.',
@@ -1146,6 +1172,11 @@ export const articles: Article[] = [
     status: 'outline',
     audience:
       'Chess developers, security-minded readers, anyone curious about how an open-source online chess platform enforces a hidden-information variant correctly.',
+    thumbnail: {
+      pieces: boardToPieces(CONE_QUEEN.board),
+      fogSquares: CONE_QUEEN_FOG,
+      orientation: 'white',
+    },
     tldr: [
       'Mistboard\'s server holds the canonical game state. Clients never receive it — they receive a derived PlayerView, computed per recipient, with hidden pieces and hidden moves stripped before the bytes leave the server.',
       'Three layers do the work: a per-recipient view kernel in packages/game, a per-recipient outbound shaper in apps/server, and a connection-layer rule that lets only seated players observe a live game.',
