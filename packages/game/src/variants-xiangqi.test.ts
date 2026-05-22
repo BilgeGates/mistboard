@@ -294,31 +294,73 @@ test('elephant eye blocker and river constraint', () => {
   }
 });
 
-test('flying general: moving the only screen off file e is illegal', () => {
-  // Kings face on file e. A red cannon on e5 is the only screen. Moving it
-  // sideways would leave file e empty and the kings facing — elephantops's
-  // dests() must omit any move that creates that state.
-  // (Cannon, not chariot — a chariot on e5 would already attack the black
-  // general through the empty file, which is an opposite-side-check setup
-  // that elephantops rejects.)
+test('FoW: flying-general is allowed (no check filter)', () => {
+  // Under FoW, players can move the screen and leave kings facing — the
+  // consequence is that the opponent can capture the exposed general next
+  // ply, which is the actual win condition.
+  // Cannon (not chariot — a chariot on e5 with no screen between kings
+  // would have already created an OppositeCheck setup under standard rules;
+  // FoW tolerates it via setupUnchecked).
   const state = buildState({
     e1: { color: 'red', role: 'general' },
     e5: { color: 'red', role: 'cannon' },
     e10: { color: 'black', role: 'general' },
   });
   const cannonMoves = getLegalMovesFrom(state, 'e5');
-  // Sideways off file e — all illegal because they unscreen the kings.
+  // Sideways off file e — now legal under FoW (unscreens but that's fine).
   for (const sq of ['a5', 'b5', 'c5', 'd5', 'f5', 'g5', 'h5', 'i5']) {
     assert.ok(
-      !cannonMoves.some((m) => m.to === sq),
-      `cannon e5->${sq} should be illegal (would unscreen facing kings)`,
+      cannonMoves.some((m) => m.to === sq),
+      `cannon e5->${sq} should be legal under FoW (check ignored)`,
     );
   }
-  // Up file e (still a screen) — legal quiet moves.
+  // Up file e (still a screen) — legal quiet moves (unchanged).
   assert.ok(cannonMoves.some((m) => m.to === 'e6'));
   assert.ok(cannonMoves.some((m) => m.to === 'e9'));
-  // Cannot "capture" the black general without a second screen.
+  // Cannon still requires a screen for capture — geometry rule, not check.
   assert.ok(!cannonMoves.some((m) => m.to === 'e10'));
+});
+
+test('FoW: capturing the general ends the game (winner = mover, general removed)', () => {
+  // Red chariot on a1 with a clear file up to the black general on a10.
+  // Capture should remove the general and finish the game.
+  const state = buildState({
+    e1: { color: 'red', role: 'general' },
+    a1: { color: 'red', role: 'chariot' },
+    a10: { color: 'black', role: 'general' },
+    i10: { color: 'black', role: 'chariot' },
+  });
+  const after = applyMove(state, { from: 'a1', to: 'a10' });
+  assert.equal(after.status.type, 'finished');
+  assert.deepEqual(after.status, {
+    type: 'finished',
+    winner: 'red',
+    reason: 'general-captured',
+  });
+  // Black general gone, red chariot now on a10.
+  assert.equal(after.board.a10?.color, 'red');
+  assert.equal(after.board.a10?.role, 'chariot');
+  // No black general anywhere on the board.
+  const blackGeneralPresent = Object.values(after.board).some(
+    (p) => p?.color === 'black' && p?.role === 'general',
+  );
+  assert.equal(blackGeneralPresent, false, 'black general must be off the board');
+});
+
+test('FoW: moving the general into an attacked square is legal', () => {
+  // Black chariot on e5 attacks the e-file. Red general on e1 can still
+  // step to e2 even though e2 is on the same file (would be check in
+  // standard xiangqi; allowed under FoW).
+  const state = buildState({
+    e1: { color: 'red', role: 'general' },
+    a10: { color: 'black', role: 'general' },
+    e5: { color: 'black', role: 'chariot' },
+  });
+  const generalMoves = getLegalMovesFrom(state, 'e1');
+  assert.ok(
+    generalMoves.some((m) => m.to === 'e2'),
+    'general should be able to step into check under FoW',
+  );
 });
 
 test('isLegalMove agrees with getLegalMoves on initial position', () => {

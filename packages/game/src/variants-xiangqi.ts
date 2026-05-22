@@ -238,21 +238,31 @@ function positionFromState(state: XiangqiGameState): EoXiangqi {
     halfmoves: state.progressClock,
     fullmoves: state.moveNumber,
   };
-  const result = EoXiangqi.fromSetup(setup);
-  if (result.isErr) {
-    throw new Error(`invalid xiangqi position: ${result.error.message}`);
-  }
-  return result.unwrap();
+  // FoW xiangqi ignores check: side-to-move may sit in check, kings may
+  // face each other across an empty file, and the previous mover may have
+  // exposed their own general. Standard `Xiangqi.fromSetup` rejects those
+  // as IllegalSetup, so we bypass it via the unchecked path.
+  const pos = EoXiangqi.default();
+  (pos as unknown as { setupUnchecked: (s: typeof setup) => void }).setupUnchecked(setup);
+  return pos;
 }
 
 // ── Move generation ────────────────────────────────────────────────────────
+
+// FoW xiangqi uses pseudo-legal moves (geometry only — no check / flying-
+// general / self-pin filtering). Real move legality under fog is "you can
+// move there geometrically"; the consequence of moving into check is that
+// the opponent can capture your general next turn. The game ends on actual
+// general capture, not on standard checkmate detection.
 
 export function getLegalMoves(state: XiangqiGameState): XiangqiMove[] {
   if (state.status.type !== 'playing') return [];
   const position = positionFromState(state);
   const moves: XiangqiMove[] = [];
-  for (const [fromEo, dests] of position.allDests()) {
-    const from = eoMakeSquare(fromEo as EoSquare);
+  for (const [sqEo, piece] of position.board) {
+    if (piece.color !== position.turn) continue;
+    const dests = position.pseudoDests(piece, sqEo as EoSquare);
+    const from = eoMakeSquare(sqEo as EoSquare);
     for (const toEo of dests) {
       moves.push({ from, to: eoMakeSquare(toEo) });
     }
@@ -267,7 +277,7 @@ export function getLegalMovesFrom(state: XiangqiGameState, from: XiangqiSquare):
   if (fromEo === undefined) return [];
   const piece = position.board.get(fromEo);
   if (!piece || piece.color !== state.status.turn) return [];
-  const dests = position.dests(fromEo);
+  const dests = position.pseudoDests(piece, fromEo);
   const moves: XiangqiMove[] = [];
   for (const toEo of dests) {
     moves.push({ from, to: eoMakeSquare(toEo) });
@@ -281,7 +291,17 @@ export function isLegalMove(state: XiangqiGameState, move: XiangqiMove): boolean
   const fromEo = eoParseSquare(move.from);
   const toEo = eoParseSquare(move.to);
   if (fromEo === undefined || toEo === undefined) return false;
-  return position.isLegal({ from: fromEo, to: toEo });
+  const piece = position.board.get(fromEo);
+  if (!piece || piece.color !== state.status.turn) return false;
+  return position.pseudoDests(piece, fromEo).has(toEo);
+}
+
+function hasPseudoLegalMove(position: EoXiangqi): boolean {
+  for (const [sqEo, piece] of position.board) {
+    if (piece.color !== position.turn) continue;
+    if (position.pseudoDests(piece, sqEo as EoSquare).nonEmpty()) return true;
+  }
+  return false;
 }
 
 // ── Apply move + end-condition detection ───────────────────────────────────
@@ -319,14 +339,20 @@ export function applyMove(
   const fromEo = eoParseSquare(move.from);
   const toEo = eoParseSquare(move.to);
   if (fromEo === undefined || toEo === undefined) return state;
-  if (!position.isLegal({ from: fromEo, to: toEo })) return state;
+
+  // FoW: pseudo-legality only — geometry, no check / flying-general filter.
+  const movingPieceEo = position.board.get(fromEo);
+  if (!movingPieceEo || movingPieceEo.color !== position.turn) return state;
+  if (!position.pseudoDests(movingPieceEo, fromEo).has(toEo)) return state;
 
   // Capture / soldier-advance detection — needed for the progress clock, and
   // must be read BEFORE position.play() mutates the board. (elephantops's
   // own `halfmoves` is just a plain ply counter, not a clock.)
   const movingPiece = state.board[move.from];
-  const wasCapture = state.board[move.to] !== undefined;
+  const capturedPiece = state.board[move.to];
+  const wasCapture = capturedPiece !== undefined;
   const wasSoldierMove = movingPiece?.role === 'soldier';
+  const capturedGeneral = capturedPiece?.role === 'general';
 
   position.play({ from: fromEo, to: toEo });
 
@@ -356,17 +382,23 @@ export function applyMove(
   const newPositionCounts = { ...state.positionCounts };
   newPositionCounts[repKey] = (newPositionCounts[repKey] ?? 0) + 1;
 
-  // End-condition detection. Order: standard outcome (checkmate/stalemate)
-  // first (decisive); then 3-fold repetition (silent draw); then progress
-  // clock (silent draw).
+  // End-condition detection under FoW (check rules ignored).
+  // Order: literal general capture > side-to-move has no pseudo-legal moves
+  // (stalemated side loses by xiangqi convention) > 3-fold repetition >
+  // progress-clock.
   const limit = opts.progressClockLimit ?? DEFAULT_PROGRESS_CLOCK_LIMIT;
   let nextStatus: XiangqiGameStatus = { type: 'playing', turn: nextTurn };
-  const outcome = position.outcome();
-  if (outcome !== undefined && outcome.winner !== undefined) {
+  if (capturedGeneral) {
     nextStatus = {
       type: 'finished',
-      winner: outcome.winner,
-      reason: position.isStalemate() ? 'stalemate' : 'general-captured',
+      winner: movingPiece!.color,
+      reason: 'general-captured',
+    };
+  } else if (!hasPseudoLegalMove(position)) {
+    nextStatus = {
+      type: 'finished',
+      winner: movingPiece!.color,
+      reason: 'stalemate',
     };
   } else if ((newPositionCounts[repKey] ?? 0) >= 3) {
     nextStatus = { type: 'finished', winner: null, reason: 'repetition' };
