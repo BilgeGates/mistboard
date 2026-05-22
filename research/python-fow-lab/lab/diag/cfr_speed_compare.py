@@ -115,6 +115,69 @@ td.move { font-family: ui-monospace, Menlo, monospace; }
 .color-tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-right: 6px; }
 .color-tag.white { background: #fff; color: #333; border: 1px solid #ccc; }
 .color-tag.black { background: #1a1a1a; color: #fff; }
+.toolbar { position: sticky; top: 0; z-index: 50; background: #fafafa; border-bottom: 1px solid #ddd; padding: 10px 32px; display: flex; gap: 10px; align-items: center; }
+.toolbar button { padding: 6px 12px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+.toolbar button:hover { background: #f0f0f0; }
+.toolbar .status { font-size: 12px; color: #555; }
+"""
+
+_TOOLBAR_JS = """
+<div class="toolbar">
+  <button onclick="saveJudgments()">💾 Save judgments → JSON</button>
+  <button onclick="loadJudgments()">📂 Load judgments from JSON</button>
+  <button onclick="clearAll()">🗑 Clear all</button>
+  <span class="status" id="status"></span>
+  <input type="file" id="loadInput" accept="application/json" style="display:none" onchange="onFileLoad(event)">
+</div>
+<script>
+function _collect() {
+  const data = {meta: {timestamp: new Date().toISOString(), report: document.title}, positions: {}};
+  document.querySelectorAll('input[type="checkbox"], input[type="text"]').forEach(el => {
+    const m = el.name.match(/^j-(\\d+)-(.+)$/);
+    if (!m) return;
+    const idx = m[1], key = m[2];
+    data.positions[idx] = data.positions[idx] || {};
+    data.positions[idx][key] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+  return data;
+}
+function saveJudgments() {
+  const data = _collect();
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = document.title.replace(/[^a-z0-9.-]/gi, '_') + '-judgments.json';
+  a.click();
+  document.getElementById('status').textContent = 'Saved ' + Object.keys(data.positions).length + ' positions';
+}
+function loadJudgments() { document.getElementById('loadInput').click(); }
+function onFileLoad(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let n = 0;
+      Object.entries(data.positions || {}).forEach(([idx, fields]) => {
+        Object.entries(fields).forEach(([key, val]) => {
+          const el = document.querySelector(`input[name="j-${idx}-${key}"]`);
+          if (el) { if (el.type === 'checkbox') el.checked = val; else el.value = val; n++; }
+        });
+      });
+      document.getElementById('status').textContent = 'Loaded ' + n + ' fields';
+    } catch (err) {
+      document.getElementById('status').textContent = 'Load failed: ' + err.message;
+    }
+  };
+  reader.readAsText(file);
+}
+function clearAll() {
+  document.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+  document.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
+  document.getElementById('status').textContent = 'Cleared';
+}
+</script>
 """
 
 _FAST_COLOR = "#3a6dd8"  # blue
@@ -312,7 +375,7 @@ def main():
     output = args.out or DIAG_DIR / f"speed-compare-{args.label}.html"
     output.write_text(f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{args.label}</title><style>{_CSS}</style></head>
-<body>{intro}<main>{''.join(sections)}</main></body></html>
+<body>{_TOOLBAR_JS}{intro}<main>{''.join(sections)}</main></body></html>
 """)
     print(f"Wrote {output}")
 
