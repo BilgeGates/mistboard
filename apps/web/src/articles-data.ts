@@ -1093,7 +1093,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "En passant is chess's strangest move, and our vision rule bends to fit: the capturing pawn sees the captured pawn on its adjacent square, even though it can't legally move there. The pawn is deducible from the e.p. opportunity; showing it directly is quality of life.",
+              "En passant is chess's strangest move, so our vision rule bends for it: the capturing pawn sees the captured pawn on its adjacent square. The window is one move only. Pass on the capture and the chance is gone.",
           },
           {
             kind: 'interactive',
