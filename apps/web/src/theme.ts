@@ -1,5 +1,5 @@
 type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
-type FogTheme = 'hatched' | 'solid' | 'soft' | 'drift' | 'void' | 'invisible';
+type FogTheme = 'hatched' | 'solid' | 'soft' | 'drift' | 'mistveil' | 'void' | 'invisible';
 type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';
 
 const boardStorageKey = 'mistboard.boardTheme';
@@ -27,6 +27,7 @@ const fogThemes: Array<{ id: FogTheme; label: string }> = [
   { id: 'soft', label: 'Soft' },
   { id: 'hatched', label: 'Hatched' },
   { id: 'drift', label: 'Drift' },
+  { id: 'mistveil', label: 'Mistveil' },
   { id: 'void', label: 'Void' },
   { id: 'invisible', label: 'None' },
 ];

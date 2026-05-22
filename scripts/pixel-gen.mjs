@@ -277,10 +277,9 @@ async function genGpt(prompt) {
       prompt,
       size: '1024x1024',
       quality: 'medium',
-      // Force real alpha-channel transparency. Without this, gpt-image-2
-      // renders a literal checkered "transparency indicator" pattern as
-      // opaque pixels instead of producing a truly transparent background.
-      background: 'transparent',
+      // NOTE: gpt-image-2 rejects `background: 'transparent'` (regression from
+      // gpt-image-1). For sprites needing alpha, run scripts/key-transparency.py
+      // as a post-process on the output PNG.
       n: 1,
     }),
   });

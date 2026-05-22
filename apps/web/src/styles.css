@@ -160,6 +160,14 @@
   --board-fog-dark-background: url('/fog/fog.webp'), var(--board-fog-dark-fill);
 }
 
+:root[data-fog-theme="mistveil"] {
+  --board-fog-shadow: rgba(180, 200, 220, 0.08);
+  --board-fog-light-fill: rgba(28, 32, 44, 0.55);
+  --board-fog-dark-fill: rgba(18, 22, 32, 0.65);
+  --board-fog-light-background: url('/fog/mistveil.webp'), var(--board-fog-light-fill);
+  --board-fog-dark-background: url('/fog/mistveil.webp'), var(--board-fog-dark-fill);
+}
+
 :root[data-fog-theme="void"] {
   --board-fog-shadow: rgba(0, 0, 0, 0);
   --board-fog-light-fill: #000;
@@ -206,7 +214,20 @@
 :root[data-fog-theme="drift"] .live-boards-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden,
 :root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden.white,
-:root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden.black {
+:root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .board cg-board square.fog-hidden,
+:root[data-fog-theme="mistveil"] .board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .replay-board cg-board square.fog-hidden,
+:root[data-fog-theme="mistveil"] .stepper-board cg-board square.fog-hidden,
+:root[data-fog-theme="mistveil"] .stepper-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .stepper-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .live-boards-board cg-board square.fog-hidden,
+:root[data-fog-theme="mistveil"] .live-boards-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .live-boards-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden,
+:root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden.black {
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
@@ -412,6 +433,10 @@ body {
 
 .theme-tile-preview-fog[data-id="drift"]::after {
   background: url('/fog/fog.webp') center / cover, rgba(20, 16, 12, 0.40);
+}
+
+.theme-tile-preview-fog[data-id="mistveil"]::after {
+  background: url('/fog/mistveil.webp') center / cover, rgba(28, 32, 44, 0.55);
 }
 
 .theme-tile-preview-fog[data-id="hatched"]::after {
@@ -2933,6 +2958,12 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   color: #3f4742;
   line-height: 1.55;
   font-size: 14px;
+}
+
+.articles-index-card-dates {
+  margin: 6px 0 0;
+  color: #6b746f;
+  font-size: 12px;
 }
 
 .articles-index-card-arrow {
