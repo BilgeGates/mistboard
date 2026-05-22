@@ -13,3 +13,10 @@ export type {
   StepperOutcome,
   StepperPosition,
 } from './stepper.js';
+export { mountLiveBoards } from './live-boards.js';
+export type {
+  LiveBoardSpec,
+  LiveBoardsController,
+  LiveBoardsLayout,
+  LiveBoardsOptions,
+} from './live-boards.js';

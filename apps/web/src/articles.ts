@@ -1,5 +1,10 @@
 import { renderBoardComposition } from '@mistboard/board-render';
-import { mountSteppedBoards, type StepperController } from '@mistboard/board-render/interactive';
+import {
+  mountLiveBoards,
+  mountSteppedBoards,
+  type LiveBoardsController,
+  type StepperController,
+} from '@mistboard/board-render/interactive';
 import {
   articles,
   findArticle,
@@ -8,6 +13,7 @@ import {
   type ArticleSection,
   type CtaBlock,
   type InteractiveBlock,
+  type LiveBoardsBlock,
   type RawSvgBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,
@@ -280,7 +286,8 @@ function renderSectionBody(section: ArticleSection): HTMLElement[] {
 // boots, so we defer the actual mount until the article element is attached.
 // renderBlock stamps the wrapper with a `data-pending-widget` marker that
 // mountPendingWidgets() picks up and dispatches by widget kind.
-const pendingMounts = new WeakMap<HTMLElement, InteractiveBlock>();
+type PendingBlock = InteractiveBlock | LiveBoardsBlock;
+const pendingMounts = new WeakMap<HTMLElement, PendingBlock>();
 
 function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'paragraph') return paragraphNode(block.text);
@@ -288,7 +295,28 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
   if (block.kind === 'cta') return renderCtaBlock(block);
   if (block.kind === 'raw-svg') return renderRawSvgBlock(block);
+  if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
   return renderInteractiveBlock(block);
+}
+
+function renderLiveBoardsBlock(block: LiveBoardsBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive';
+  figure.dataset.pendingWidget = 'live-boards';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  pendingMounts.set(figure, block);
+  return figure;
 }
 
 function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
@@ -335,23 +363,32 @@ function paragraphNode(text: string): HTMLParagraphElement {
   return p;
 }
 
-// Lightweight inline-link parser. Recognizes Markdown-style [text](href).
-// External hrefs (http/https) open in a new tab; internal hrefs (/foo, #foo)
-// do not. Anything that isn't a link is appended as a plain text node.
-const LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)/g;
+// Lightweight inline parser. Recognizes Markdown-style [text](href) for
+// links and **text** for bold. External link hrefs (http/https) open in a
+// new tab; internal hrefs (/foo, #foo) do not. Anything that isn't a
+// recognized token is appended as a plain text node.
+const INLINE_REGEX = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)/g;
 function appendRichText(el: HTMLElement, text: string): void {
   let lastIndex = 0;
-  for (const match of text.matchAll(LINK_REGEX)) {
+  for (const match of text.matchAll(INLINE_REGEX)) {
     const start = match.index ?? 0;
     if (start > lastIndex) el.append(text.slice(lastIndex, start));
-    const a = document.createElement('a');
-    a.href = match[2]!;
-    a.textContent = match[1]!;
-    if (/^https?:\/\//.test(match[2]!)) {
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
+    if (match[1] !== undefined) {
+      const strong = document.createElement('strong');
+      strong.textContent = match[1];
+      el.append(strong);
+    } else {
+      const linkText = match[2]!;
+      const href = match[3]!;
+      const a = document.createElement('a');
+      a.href = href;
+      a.textContent = linkText;
+      if (/^https?:\/\//.test(href)) {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      }
+      el.append(a);
     }
-    el.append(a);
     lastIndex = start + match[0].length;
   }
   if (lastIndex < text.length) el.append(text.slice(lastIndex));
@@ -377,16 +414,20 @@ function renderInteractiveBlock(block: InteractiveBlock): HTMLElement {
   return figure;
 }
 
-export function mountPendingWidgets(root: HTMLElement): StepperController[] {
-  const controllers: StepperController[] = [];
+export function mountPendingWidgets(
+  root: HTMLElement,
+): Array<StepperController | LiveBoardsController> {
+  const controllers: Array<StepperController | LiveBoardsController> = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
     const block = pendingMounts.get(figure);
     if (!block) return;
     const target = figure.querySelector<HTMLElement>('.article-interactive-target');
     if (!target) return;
-    if (block.widget === 'stepper') {
+    if (block.kind === 'interactive' && block.widget === 'stepper') {
       controllers.push(mountSteppedBoards(target, block.spec));
+    } else if (block.kind === 'live-boards') {
+      controllers.push(mountLiveBoards(target, block.spec));
     }
     pendingMounts.delete(figure);
     delete figure.dataset.pendingWidget;

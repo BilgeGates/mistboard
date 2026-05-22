@@ -170,7 +170,8 @@
 
 :root[data-fog-theme="invisible"] .board.cg-wrap,
 :root[data-fog-theme="invisible"] .replay-board.cg-wrap,
-:root[data-fog-theme="invisible"] .stepper-board.cg-wrap {
+:root[data-fog-theme="invisible"] .stepper-board.cg-wrap,
+:root[data-fog-theme="invisible"] .live-boards-board.cg-wrap {
   background: transparent;
 }
 
@@ -180,7 +181,10 @@
 :root[data-fog-theme="invisible"] .replay-board cg-board square.fog-hidden,
 :root[data-fog-theme="invisible"] .stepper-board cg-board square.fog-hidden,
 :root[data-fog-theme="invisible"] .stepper-board cg-board square.fog-hidden.white,
-:root[data-fog-theme="invisible"] .stepper-board cg-board square.fog-hidden.black {
+:root[data-fog-theme="invisible"] .stepper-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="invisible"] .live-boards-board cg-board square.fog-hidden,
+:root[data-fog-theme="invisible"] .live-boards-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="invisible"] .live-boards-board cg-board square.fog-hidden.black {
   background: transparent;
   background-color: transparent;
   box-shadow: none;
@@ -192,7 +196,10 @@
 :root[data-fog-theme="drift"] .replay-board cg-board square.fog-hidden,
 :root[data-fog-theme="drift"] .stepper-board cg-board square.fog-hidden,
 :root[data-fog-theme="drift"] .stepper-board cg-board square.fog-hidden.white,
-:root[data-fog-theme="drift"] .stepper-board cg-board square.fog-hidden.black {
+:root[data-fog-theme="drift"] .stepper-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="drift"] .live-boards-board cg-board square.fog-hidden,
+:root[data-fog-theme="drift"] .live-boards-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="drift"] .live-boards-board cg-board square.fog-hidden.black {
   background-size: 100% 100%;
   background-repeat: no-repeat;
 }
@@ -515,6 +522,73 @@ button:focus-visible {
   box-shadow: 0 14px 40px var(--site-shadow);
 }
 
+/* Shrink and slightly raise piece SVGs within their squares so chess pieces —
+   whose visual weight sits in the lower half of their SVG bounding box — get
+   breathing room from the board's bottom edge. Only the background-image
+   placement changes; chessground's pixel-based piece positioning and the
+   board's square pattern are untouched. Captures-piece sprites already
+   override these properties with !important, so they're unaffected. */
+.cg-wrap cg-board piece {
+  background-size: 96%;
+  background-position: 50% 49%;
+}
+
+/* Piece-set overrides. Cburnett is the default and ships embedded in
+   chessground.cburnett.css; no override is needed for it. Other sets ship as
+   plain SVG files in /pieces/<set>/. Selectors match chessground's
+   `.cg-wrap piece.<role>.<color>` shape. */
+:root[data-piece-set="merida"] .cg-wrap piece.pawn.white { background-image: url('/pieces/merida/wP.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.knight.white { background-image: url('/pieces/merida/wN.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.bishop.white { background-image: url('/pieces/merida/wB.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.rook.white { background-image: url('/pieces/merida/wR.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.queen.white { background-image: url('/pieces/merida/wQ.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.king.white { background-image: url('/pieces/merida/wK.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.pawn.black { background-image: url('/pieces/merida/bP.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.knight.black { background-image: url('/pieces/merida/bN.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.bishop.black { background-image: url('/pieces/merida/bB.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.rook.black { background-image: url('/pieces/merida/bR.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.queen.black { background-image: url('/pieces/merida/bQ.svg'); }
+:root[data-piece-set="merida"] .cg-wrap piece.king.black { background-image: url('/pieces/merida/bK.svg'); }
+
+:root[data-piece-set="chessnut"] .cg-wrap piece.pawn.white { background-image: url('/pieces/chessnut/wP.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.knight.white { background-image: url('/pieces/chessnut/wN.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.bishop.white { background-image: url('/pieces/chessnut/wB.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.rook.white { background-image: url('/pieces/chessnut/wR.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.queen.white { background-image: url('/pieces/chessnut/wQ.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.king.white { background-image: url('/pieces/chessnut/wK.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.pawn.black { background-image: url('/pieces/chessnut/bP.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.knight.black { background-image: url('/pieces/chessnut/bN.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.bishop.black { background-image: url('/pieces/chessnut/bB.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.rook.black { background-image: url('/pieces/chessnut/bR.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.queen.black { background-image: url('/pieces/chessnut/bQ.svg'); }
+:root[data-piece-set="chessnut"] .cg-wrap piece.king.black { background-image: url('/pieces/chessnut/bK.svg'); }
+
+:root[data-piece-set="fantasy"] .cg-wrap piece.pawn.white { background-image: url('/pieces/fantasy/wP.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.knight.white { background-image: url('/pieces/fantasy/wN.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.bishop.white { background-image: url('/pieces/fantasy/wB.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.rook.white { background-image: url('/pieces/fantasy/wR.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.queen.white { background-image: url('/pieces/fantasy/wQ.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.king.white { background-image: url('/pieces/fantasy/wK.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.pawn.black { background-image: url('/pieces/fantasy/bP.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.knight.black { background-image: url('/pieces/fantasy/bN.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.bishop.black { background-image: url('/pieces/fantasy/bB.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.rook.black { background-image: url('/pieces/fantasy/bR.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.queen.black { background-image: url('/pieces/fantasy/bQ.svg'); }
+:root[data-piece-set="fantasy"] .cg-wrap piece.king.black { background-image: url('/pieces/fantasy/bK.svg'); }
+
+:root[data-piece-set="letter"] .cg-wrap piece.pawn.white { background-image: url('/pieces/letter/wP.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.knight.white { background-image: url('/pieces/letter/wN.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.bishop.white { background-image: url('/pieces/letter/wB.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.rook.white { background-image: url('/pieces/letter/wR.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.queen.white { background-image: url('/pieces/letter/wQ.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.king.white { background-image: url('/pieces/letter/wK.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.pawn.black { background-image: url('/pieces/letter/bP.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.knight.black { background-image: url('/pieces/letter/bN.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.bishop.black { background-image: url('/pieces/letter/bB.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.rook.black { background-image: url('/pieces/letter/bR.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.queen.black { background-image: url('/pieces/letter/bQ.svg'); }
+:root[data-piece-set="letter"] .cg-wrap piece.king.black { background-image: url('/pieces/letter/bK.svg'); }
+
 .board.cg-wrap.finished-board {
   border-color: var(--site-accent);
   box-shadow: 0 0 0 3px var(--site-focus), 0 18px 46px rgba(29, 37, 34, 0.2);
@@ -574,7 +648,8 @@ button:focus-visible {
 .replay-board cg-board,
 .learn-board cg-board,
 .belief-mini-board cg-board,
-.stepper-board cg-board {
+.stepper-board cg-board,
+.live-boards-board cg-board {
   background-color: var(--board-light);
   /* Conic-gradient tile produces a 2x2 checker. The 2x2 tile is laid out as
      [TL=light, TR=dark; BL=dark, BR=light] so that a1 (chess: dark) lands on
@@ -591,11 +666,13 @@ button:focus-visible {
   background-size: 25% 25%;
 }
 
-.stepper-board cg-board square.white {
+.stepper-board cg-board square.white,
+.live-boards-board cg-board square.white {
   background-color: var(--board-light);
 }
 
-.stepper-board cg-board square.black {
+.stepper-board cg-board square.black,
+.live-boards-board cg-board square.black {
   background-color: var(--board-dark);
 }
 
@@ -3058,7 +3135,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 .live-boards {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
   justify-content: center;
   width: 100%;
 }
@@ -3071,8 +3148,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   width: min(260px, 48%);
 }
 
-.live-boards[data-layout="triptych"] .live-boards-cell {
-  width: min(220px, 32%);
+.live-boards[data-layout="triptych"] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .live-boards[data-layout="grid"] {
