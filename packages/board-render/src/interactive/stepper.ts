@@ -18,6 +18,9 @@ export type StepperBoardSpec = {
   orientation?: 'white' | 'black';
   label?: string;
   arrows?: StepperArrow[];
+  // Squares to draw a gold call-out border on (works on fogged squares too).
+  // Used by article diagrams to point the reader at a specific square.
+  highlightSquares?: Square[];
 };
 
 function toShapes(arrows: StepperArrow[] | undefined): DrawShape[] {
@@ -42,9 +45,13 @@ function visibleBoard(board: Board, fogSquares: Square[]): Board {
   return out;
 }
 
-function fogSquareClasses(fogSquares: Square[]): cg.SquareClasses {
+function fogSquareClasses(fogSquares: Square[], highlightSquares: Square[] = []): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
   for (const sq of fogSquares) classes.set(sq as cg.Key, 'fog-hidden');
+  for (const sq of highlightSquares) {
+    const prior = classes.get(sq as cg.Key);
+    classes.set(sq as cg.Key, prior ? `${prior} deduction-highlight` : 'deduction-highlight');
+  }
   return classes;
 }
 
@@ -119,7 +126,7 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
       coordinatesOnSquares: false,
       fen: boardFen(visibleBoard(initial.board, initialFog)),
       orientation: initial.orientation ?? 'white',
-      highlight: { custom: fogSquareClasses(initialFog) },
+      highlight: { custom: fogSquareClasses(initialFog, initial.highlightSquares ?? []) },
       movable: { free: false, color: undefined, dests: new Map() },
       draggable: { enabled: false },
       selectable: { enabled: false },
@@ -163,7 +170,7 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
       cell.api.set({
         fen: boardFen(visibleBoard(spec.board, fog)),
         orientation: spec.orientation ?? 'white',
-        highlight: { custom: fogSquareClasses(fog) },
+        highlight: { custom: fogSquareClasses(fog, spec.highlightSquares ?? []) },
         drawable: { enabled: false, shapes: toShapes(spec.arrows) },
       });
     }

@@ -262,6 +262,11 @@ const ENPASSANT_POSITIONS = ENPASSANT_STATES.map((state, i) => {
   // this state is at ENPASSANT_MOVES[i - 1].
   const lastMove = i === 0 ? undefined : ENPASSANT_MOVES[i - 1];
   const arrows = lastMove ? [{ orig: lastMove.from, dest: lastMove.to }] : undefined;
+  // Per-frame call-outs: frame 2/11 (after 1...b5) names the b5/b6 e.p.
+  // window; frame 5/11 (after 3.Kh1 passes) names the d5/d6 window that
+  // just closed.
+  const highlightSquares: Square[] =
+    i === 1 ? ['b5', 'b6'] : i === 4 ? ['d5', 'd6'] : [];
   return {
     boards: [
       {
@@ -269,6 +274,7 @@ const ENPASSANT_POSITIONS = ENPASSANT_STATES.map((state, i) => {
         fogSquares: fogFor(state, 'white'),
         orientation: 'white' as const,
         label: "WHITE'S VIEW",
+        ...(highlightSquares.length ? { highlightSquares } : {}),
       },
       {
         board: state.board,
@@ -775,6 +781,114 @@ const CASTLE_TRIPLE_BEFORE_FOG_B = fogFor(CASTLE_TRIPLE_BEFORE, 'black');
 const CASTLE_TRIPLE_AFTER_FOG_B = fogFor(CASTLE_TRIPLE_AFTER, 'black');
 const CASTLE_TRIPLE_FINAL_FOG_B = fogFor(CASTLE_TRIPLE_FINAL, 'black');
 
+// ── Deduction: pawn that can't push ─────────────────────────────────────────
+// Two single-board comparisons. A pawn always sees the square in front of it
+// — unless something occupies that square. Fog directly ahead of a pawn is
+// the simplest deduction available.
+const DEDUCE_PAWN_OPEN = coneState('deduction-pawn-open', {
+  e4: { color: 'white', role: 'pawn' },
+});
+const DEDUCE_PAWN_BLOCKED = coneState('deduction-pawn-blocked', {
+  e4: { color: 'white', role: 'pawn' },
+  e5: { color: 'black', role: 'knight' },
+});
+const DEDUCE_PAWN_OPEN_FOG = fogFor(DEDUCE_PAWN_OPEN, 'white');
+const DEDUCE_PAWN_BLOCKED_FOG = fogFor(DEDUCE_PAWN_BLOCKED, 'white');
+
+// ── Deduction: a square that flips to fog (1.d4 e6 2.Nf3 Bb4) ──────────────
+// After 2...Bb4, square b4 — previously visible to White via b2's two-square
+// push — falls to fog. With c3 and d2 both visible empty, the b4-e1 diagonal
+// is open and the king is one move from capture.
+const DEDUCE_BB4_START = fogOfWarVariant.createInitialState('deduction-bb4');
+const DEDUCE_BB4_STATES = replayMoves(DEDUCE_BB4_START, [
+  { from: 'd2', to: 'd4' },
+  { from: 'e7', to: 'e6' },
+  { from: 'g1', to: 'f3' },
+  { from: 'f8', to: 'b4' },
+]);
+const DEDUCE_BB4_POSITIONS = DEDUCE_BB4_STATES.map((state, i) => {
+  const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
+  const isFinal = i === DEDUCE_BB4_STATES.length - 1;
+  const whiteView = {
+    board: state.board,
+    fogSquares: fogFor(state, 'white'),
+    orientation: 'white' as const,
+    label: "WHITE'S VIEW",
+    ...(isFinal ? { highlightSquares: ['b4' as Square] } : {}),
+  };
+  return {
+    boards: [
+      whiteView,
+      { board: state.board, orientation: 'white' as const, label: 'SERVER TRUTH', arrows },
+      { board: state.board, fogSquares: fogFor(state, 'black'), orientation: 'white' as const, label: "BLACK'S VIEW" },
+    ],
+  };
+});
+
+// ── Deduction: a sight line names the capturer ────────────────────────────
+// White pawn on d5; Black pawns on c6 and e6 both attack it. White's bishop
+// on h3 keeps e6 in view via the h3-c8 diagonal. After 1...exd5, White's
+// pawn vanishes AND the bishop sees e6 fall empty — the e-pawn moved, so
+// White can name the capturer. Without the bishop, the capture square goes
+// to fog and either candidate could have taken.
+const DEDUCE_RECAP_BEFORE: GameState = {
+  id: 'deduction-capturer',
+  variant: 'fog-of-war',
+  board: {
+    g1: { color: 'white', role: 'king' },
+    d5: { color: 'white', role: 'pawn' },
+    h3: { color: 'white', role: 'bishop' },
+    g8: { color: 'black', role: 'king' },
+    c6: { color: 'black', role: 'pawn' },
+    e6: { color: 'black', role: 'pawn' },
+  },
+  status: { type: 'playing', turn: 'black' },
+  moveNumber: 20,
+  castlingRights: [],
+  halfmoveClock: 0,
+};
+const DEDUCE_RECAP_AFTER = fogOfWarVariant.applyMove(DEDUCE_RECAP_BEFORE, { from: 'e6', to: 'd5' });
+const DEDUCE_RECAP_POSITIONS = [DEDUCE_RECAP_BEFORE, DEDUCE_RECAP_AFTER].map((state) => {
+  const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
+  return {
+    boards: [
+      { board: state.board, fogSquares: fogFor(state, 'white'), orientation: 'white' as const, label: "WHITE'S VIEW" },
+      { board: state.board, orientation: 'white' as const, label: 'SERVER TRUTH', arrows },
+      { board: state.board, fogSquares: fogFor(state, 'black'), orientation: 'white' as const, label: "BLACK'S VIEW" },
+    ],
+  };
+});
+
+// Companion to DEDUCE_RECAP_*: same position minus the bishop on h3. Used
+// to show the "without a sight line" case — White sees the d5 pawn vanish
+// but can't tell which Black pawn took.
+const DEDUCE_RECAP_NB_BEFORE: GameState = {
+  id: 'deduction-capturer-no-bishop',
+  variant: 'fog-of-war',
+  board: {
+    g1: { color: 'white', role: 'king' },
+    d5: { color: 'white', role: 'pawn' },
+    g8: { color: 'black', role: 'king' },
+    c6: { color: 'black', role: 'pawn' },
+    e6: { color: 'black', role: 'pawn' },
+  },
+  status: { type: 'playing', turn: 'black' },
+  moveNumber: 20,
+  castlingRights: [],
+  halfmoveClock: 0,
+};
+const DEDUCE_RECAP_NB_AFTER = fogOfWarVariant.applyMove(DEDUCE_RECAP_NB_BEFORE, { from: 'e6', to: 'd5' });
+const DEDUCE_RECAP_NB_POSITIONS = [DEDUCE_RECAP_NB_BEFORE, DEDUCE_RECAP_NB_AFTER].map((state) => {
+  const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
+  return {
+    boards: [
+      { board: state.board, fogSquares: fogFor(state, 'white'), orientation: 'white' as const, label: "WHITE'S VIEW" },
+      { board: state.board, orientation: 'white' as const, label: 'SERVER TRUTH', arrows },
+      { board: state.board, fogSquares: fogFor(state, 'black'), orientation: 'white' as const, label: "BLACK'S VIEW" },
+    ],
+  };
+});
+
 export const articles: Article[] = [
   {
     slug: 'fog-of-war-rules',
@@ -931,7 +1045,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Standard en passant mechanics apply. The capturing side's visibility expands to include the target square and the adjacent square the captured pawn occupies — the only case where a pawn can see a square it could not legally move to.",
+              "Standard en passant mechanics apply. The capturing side's visibility expands to include the target square and the adjacent square the captured pawn occupies. That is the only case where a pawn can see a square it could not legally move to.",
           },
           {
             kind: 'interactive',
@@ -939,6 +1053,72 @@ export const articles: Article[] = [
             spec: {
               layout: 'triptych',
               positions: ENPASSANT_POSITIONS,
+            },
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'Deduction',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Visibility leaks information. What changed in your view implies what moved, sometimes pieces you've never seen.",
+          },
+          { kind: 'sub-heading', text: 'Deductions from pawn movement' },
+          {
+            kind: 'paragraph',
+            text:
+              "A pawn sees the squares it can push to. When a push is blocked, the push square falls to fog. The fog tells you something is standing there.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'pair',
+              boards: [
+                { board: DEDUCE_PAWN_OPEN.board, fogSquares: DEDUCE_PAWN_OPEN_FOG, orientation: 'white', label: 'EMPTY AHEAD' },
+                { board: DEDUCE_PAWN_BLOCKED.board, fogSquares: DEDUCE_PAWN_BLOCKED_FOG, orientation: 'white', label: 'BLOCKED AHEAD' },
+              ],
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "The same signal carries into opening play. After 1.d4 e6 2.Nf3 Bb4, White's b2-pawn was the only piece giving White vision of b4 (via its two-square push). After Bb4, b4 falls to fog. Something moved onto a square that was visible empty. With c3 and d2 both visible empty, the b4-e1 diagonal is open and the king is one Black move from capture.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'triptych',
+              positions: DEDUCE_BB4_POSITIONS,
+            },
+          } as ArticleBlock,
+          { kind: 'sub-heading', text: 'Deducing opponent captures' },
+          {
+            kind: 'paragraph',
+            text:
+              "When the opponent captures one of your pieces, the capture square falls to fog. You can't see what's standing there. Without other information the capturer could be any piece that attacks the square. White's pawn sits on d5; Black pawns on c6 and e6 both attack it. After 1...exd5, White's pawn vanishes. Which Black pawn took it?",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'triptych',
+              positions: DEDUCE_RECAP_NB_POSITIONS,
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "Add a White bishop on h3. It keeps e6 in view through the h3-c8 diagonal. After the same 1...exd5, White loses the d5 pawn, and the bishop sees e6 fall empty. The e-pawn moved, so the e-pawn captured.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'triptych',
+              positions: DEDUCE_RECAP_POSITIONS,
             },
           } as ArticleBlock,
         ],
@@ -988,7 +1168,7 @@ export const articles: Article[] = [
     slug: 'draft960',
     title: 'Draft960: the end of opening theory in dark chess',
     summary:
-      'A variant of dark chess built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
+      'A variant of dark chess built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information, and a different board every game.',
     status: 'outline',
     audience:
       'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
@@ -997,7 +1177,7 @@ export const articles: Article[] = [
       orientation: 'white',
     },
     tldr: [
-      'Dark chess (also called Fog of War) hides the board mid-game. Draft960 also hides the starting position — from move 0, neither player knows the other\'s setup.',
+      'Dark chess (also called Fog of War) hides the board mid-game. Draft960 also hides the starting position. From move 0, neither player knows the other\'s setup.',
       'Each player picks from their own independent set of three Chess960 offers. The picks stay sealed until the pieces start moving.',
     ],
     sections: [
@@ -1019,11 +1199,11 @@ export const articles: Article[] = [
               { pieces: startingPositionFromBackRank(DRAFT960_OFFER_B).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'B' },
               { pieces: startingPositionFromBackRank(DRAFT960_OFFER_C).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'C' },
             ],
-            caption: "Your three offers. Your opponent gets their own independent set — they never see yours.",
+            caption: "Your three offers. Your opponent gets their own independent set. They never see yours.",
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: "Draft960 merges dark chess and Chess960 into one variant. Dark chess hides the board mid-game. Chess960 scrambles where everything starts. Both layers hidden simultaneously — pick one of three random setups, keep it sealed, and neither side knows what the other started from until the pieces start talking.",
+            text: "Draft960 merges dark chess and Chess960 into one variant. Dark chess hides the board mid-game. Chess960 scrambles where everything starts. Both layers hidden simultaneously: pick one of three random setups, keep it sealed, and neither side knows what the other started from until the pieces start talking.",
           },
         ],
       },
@@ -1032,7 +1212,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: "Your opponent's setup is hidden — but not forever. Each piece that moves off the back rank tells you something about where it started. The reveal isn't an announcement; it happens one move at a time, through fog.",
+            text: "Your opponent's setup is hidden, but not forever. Each piece that moves off the back rank tells you something about where it started. The reveal isn't an announcement; it happens one move at a time, through fog.",
           },
           {
             kind: 'interactive',
@@ -1041,7 +1221,7 @@ export const articles: Article[] = [
               layout: 'triptych',
               positions: D960_FULL_POSITIONS,
             },
-            caption: "By move 3, each player has deduced something about the other's setup — through the fog, one piece at a time.",
+            caption: "By move 3, each player has deduced something about the other's setup, one piece at a time through the fog.",
           } as ArticleBlock,
         ],
       },
@@ -1061,7 +1241,7 @@ export const articles: Article[] = [
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: "New to dark chess? The [rules article](/articles/fog-of-war-rules) covers visibility, king capture, and the edge cases — start there before your first Draft960 game.",
+            text: "New to dark chess? The [rules article](/articles/fog-of-war-rules) covers visibility, king capture, and the edge cases. Start there before your first Draft960 game.",
           },
         ],
       },
