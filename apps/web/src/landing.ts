@@ -1596,54 +1596,100 @@ function buildLandingAnnouncements(): HTMLElement {
 function renderAnnouncementCard(entry: Announcement): HTMLElement {
   const item = document.createElement('li');
   item.className = 'landing-announcement-card';
+  item.classList.add(`is-${entry.kind}`);
   if (entry.pinned) item.classList.add('is-pinned');
 
-  if (entry.date || entry.pinned) {
-    const header = document.createElement('div');
-    header.className = 'landing-announcement-meta';
-    if (entry.date) {
-      const date = document.createElement('time');
-      date.className = 'landing-announcement-date';
-      date.dateTime = entry.date;
-      date.textContent = formatAnnouncementDate(entry.date);
-      header.append(date);
+  const isExternal = !!entry.href && /^https?:/.test(entry.href);
+
+  const container = document.createElement(entry.href ? 'a' : 'div');
+  container.className = 'landing-announcement-card-inner';
+  if (entry.href && container instanceof HTMLAnchorElement) {
+    container.href = entry.href;
+    if (isExternal) {
+      container.target = '_blank';
+      container.rel = 'noopener noreferrer';
     }
-    if (entry.pinned) {
-      if (entry.date) {
-        const sep = document.createElement('span');
-        sep.className = 'landing-announcement-meta-sep';
-        sep.setAttribute('aria-hidden', 'true');
-        sep.textContent = '·';
-        header.append(sep);
-      }
-      const tag = document.createElement('span');
-      tag.className = 'landing-announcement-tag';
-      tag.textContent = 'Pinned';
-      header.append(tag);
-    }
-    item.append(header);
+    item.classList.add('is-clickable');
   }
 
-  const headline = document.createElement(entry.href ? 'a' : 'p');
+  const header = document.createElement('div');
+  header.className = 'landing-announcement-meta';
+
+  const kind = document.createElement('span');
+  kind.className = `landing-announcement-kind kind-${entry.kind}`;
+  kind.textContent = announcementKindLabel(entry.kind);
+  header.append(kind);
+
+  if (entry.date) {
+    const sep = document.createElement('span');
+    sep.className = 'landing-announcement-meta-sep';
+    sep.setAttribute('aria-hidden', 'true');
+    sep.textContent = '·';
+    header.append(sep);
+
+    const date = document.createElement('time');
+    date.className = 'landing-announcement-date';
+    date.dateTime = entry.date;
+    date.textContent = formatAnnouncementDate(entry.date);
+    header.append(date);
+  }
+
+  container.append(header);
+
+  const headline = document.createElement('p');
   headline.className = 'landing-announcement-headline';
   headline.textContent = entry.headline;
-  if (entry.href && headline instanceof HTMLAnchorElement) {
-    headline.href = entry.href;
-    if (/^https?:/.test(entry.href)) {
-      headline.target = '_blank';
-      headline.rel = 'noopener noreferrer';
-    }
-  }
-  item.append(headline);
+  container.append(headline);
 
   if (entry.body) {
     const body = document.createElement('p');
     body.className = 'landing-announcement-body';
     body.textContent = entry.body;
-    item.append(body);
+    container.append(body);
   }
 
+  if (entry.href) {
+    const cta = document.createElement('span');
+    cta.className = 'landing-announcement-cta';
+    const label = document.createElement('span');
+    label.className = 'landing-announcement-cta-label';
+    label.textContent = entry.cta ?? announcementCtaLabel(entry.kind);
+    const arrow = document.createElement('span');
+    arrow.className = 'landing-announcement-cta-arrow';
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = isExternal ? '↗' : '→';
+    cta.append(label, arrow);
+    container.append(cta);
+  }
+
+  item.append(container);
   return item;
+}
+
+function announcementKindLabel(kind: Announcement['kind']): string {
+  switch (kind) {
+    case 'status':
+      return 'Status';
+    case 'article':
+      return 'Article';
+    case 'release':
+      return 'Release';
+    case 'update':
+      return 'Update';
+  }
+}
+
+function announcementCtaLabel(kind: Announcement['kind']): string {
+  switch (kind) {
+    case 'status':
+      return 'Learn more';
+    case 'article':
+      return 'Read article';
+    case 'release':
+      return 'See what shipped';
+    case 'update':
+      return 'Read update';
+  }
 }
 
 function formatAnnouncementDate(iso: string): string {

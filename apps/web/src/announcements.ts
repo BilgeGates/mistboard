@@ -4,11 +4,15 @@
 // today's date. Newest first. Skip for internal-only changes (engine
 // internals, infra, CI, refactors).
 
+export type AnnouncementKind = 'status' | 'article' | 'release' | 'update';
+
 export type Announcement = {
   date: string; // ISO YYYY-MM-DD; ignored for pinned entries
+  kind: AnnouncementKind;
   headline: string;
   body?: string;
   href?: string;
+  cta?: string; // optional override; otherwise derived from kind
   pinned?: boolean;
 };
 
@@ -16,12 +20,15 @@ export const announcements: Announcement[] = [
   {
     date: '2026-05-09',
     pinned: true,
+    kind: 'status',
     headline: 'Mistboard is in alpha.',
     body: 'Anonymous, link-share, no rated yet. Bug reports and feedback welcome.',
     href: '/contact',
+    cta: 'Send feedback',
   },
   {
     date: '2026-05-21',
+    kind: 'article',
     headline: 'Dark chess: the canonical reference.',
     body: 'How visibility works, what counts as a win, and the rule quirks (castling, en passant) you will actually run into.',
     href: '/articles/fog-of-war-rules',

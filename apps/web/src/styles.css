@@ -3605,12 +3605,10 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .landing-announcement-card {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: 8px;
   background: #fafaf7;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
 .landing-announcement-card.is-pinned {
@@ -3618,25 +3616,68 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   border-color: rgba(29, 37, 34, 0.16);
 }
 
+.landing-announcement-card-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 14px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: inherit;
+}
+
+a.landing-announcement-card-inner:focus-visible {
+  outline: 2px solid var(--site-accent, #1f6f5b);
+  outline-offset: 2px;
+}
+
+.landing-announcement-card.is-clickable {
+  cursor: pointer;
+}
+
+.landing-announcement-card.is-clickable:hover {
+  border-color: rgba(29, 37, 34, 0.24);
+  background: #ffffff;
+}
+
+.landing-announcement-card.is-clickable:hover .landing-announcement-cta-arrow {
+  transform: translateX(2px);
+}
+
 .landing-announcement-meta {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   padding-bottom: 6px;
   margin-bottom: 2px;
   border-bottom: 1px solid rgba(29, 37, 34, 0.1);
 }
 
-.landing-announcement-date,
-.landing-announcement-tag {
-  font-size: 11px;
+.landing-announcement-kind {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--site-ink, #1d2522);
+  background: var(--site-accent-soft, #eef8f2);
+  color: var(--site-accent-strong, #185947);
+  border: 1px solid rgba(31, 111, 91, 0.18);
 }
 
-.landing-announcement-tag {
+.landing-announcement-kind.kind-status {
+  background: #fdf2dc;
+  color: #7a4f10;
+  border-color: rgba(122, 79, 16, 0.22);
+}
+
+.landing-announcement-date {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--site-muted);
 }
 
@@ -3651,13 +3692,7 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
-  color: var(--site-ink, #1d2522);
-  text-decoration: none;
-}
-
-a.landing-announcement-headline:hover,
-a.landing-announcement-headline:focus-visible {
-  text-decoration: underline;
+  color: var(--site-text, #1d2522);
 }
 
 .landing-announcement-body {
@@ -3665,6 +3700,21 @@ a.landing-announcement-headline:focus-visible {
   font-size: 13px;
   line-height: 1.45;
   color: var(--site-muted);
+}
+
+.landing-announcement-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--site-accent-strong, #185947);
+}
+
+.landing-announcement-cta-arrow {
+  display: inline-block;
+  transition: transform 120ms ease;
 }
 
 .landing-play-anon-note {
