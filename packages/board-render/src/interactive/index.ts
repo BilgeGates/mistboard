@@ -8,6 +8,7 @@ export {
 export { mountSteppedBoards } from './stepper.js';
 export type {
   SteppedBoardsOptions,
+  StepperArrow,
   StepperBoardSpec,
   StepperController,
   StepperOutcome,

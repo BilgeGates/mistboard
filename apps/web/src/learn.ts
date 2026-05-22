@@ -122,7 +122,7 @@ const chapters: TutorialChapter[] = [
     steps: [
       {
         teach:
-          'In Fog of War there is no check or checkmate. When an enemy king is in your line of sight, you can take it and end the game. Capture the black king on h8.',
+          'In dark chess there is no check or checkmate. When an enemy king is in your line of sight, you can take it and end the game. Capture the black king on h8.',
         challenge: 'Capture the king on h8.',
         targets: ['h8'],
         afterTargets: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8'],
@@ -133,7 +133,7 @@ const chapters: TutorialChapter[] = [
           h1h3: 'The king is at the end of the file. Push the rook all the way to h8.',
         },
         success:
-          'You captured the king. In Fog of War there is no check or checkmate — when an enemy king is in your line of sight, you can take it and end the game.',
+          'You captured the king. In dark chess there is no check or checkmate — when an enemy king is in your line of sight, you can take it and end the game.',
       },
     ],
   },
@@ -193,7 +193,7 @@ const chapters: TutorialChapter[] = [
         accepted: [],
         softFailures: {},
         success:
-          "Black developed a knight from b8 to c6 — entirely in your fog. No white piece reaches b8 or c6, so you saw nothing change. In Fog of War, an opponent move that happens fully in your fog is invisible to you. You only ever see the parts of their moves that touch your vision.",
+          "Black developed a knight from b8 to c6 — entirely in your fog. No white piece reaches b8 or c6, so you saw nothing change. In dark chess, an opponent move that happens fully in your fog is invisible to you. You only ever see the parts of their moves that touch your vision.",
       },
     ],
   },
@@ -251,7 +251,7 @@ function render(state: TutorialState): void {
   boardPanel.className = 'learn-board-panel';
   const boardEl = document.createElement('div');
   boardEl.className = 'board learn-board';
-  boardEl.setAttribute('aria-label', 'Fog of War tutorial board');
+  boardEl.setAttribute('aria-label', 'Dark chess tutorial board');
   boardPanel.append(boardEl);
 
   const panel = buildPanel(state, chapter);

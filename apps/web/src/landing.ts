@@ -382,8 +382,8 @@ const LEADERBOARD_BUCKETS: {
   timeClass: string;
   timeLabel: string;
 }[] = [
-  { variantParam: 'fog', variantLabel: 'Fog of War', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
-  { variantParam: 'fog', variantLabel: 'Fog of War', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
+  { variantParam: 'fog', variantLabel: 'Dark chess', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
+  { variantParam: 'fog', variantLabel: 'Dark chess', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
   { variantParam: 'fog-draft960', variantLabel: 'Draft960', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
   { variantParam: 'fog-draft960', variantLabel: 'Draft960', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
 ];
@@ -1319,7 +1319,7 @@ function sourceLabel(mode: FeaturedGame['mode']): string {
   if (mode === 'pvp') return 'Human vs human';
   if (mode === 'imported') return 'Imported game';
   if (mode === 'manual') return 'Manual game';
-  return 'Fog of War game';
+  return 'Dark chess game';
 }
 
 function initialGamePly(): number {
@@ -1537,7 +1537,7 @@ function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replay
 
   const tagline = document.createElement('h1');
   tagline.className = 'landing-hero-tagline';
-  tagline.textContent = 'Fog of War chess';
+  tagline.textContent = 'Dark chess';
 
   const subtagline = document.createElement('p');
   subtagline.className = 'landing-hero-subtagline';
@@ -1915,7 +1915,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   const variantControl = document.createElement('div');
   variantControl.className = 'landing-variant-control';
-  variantControl.textContent = 'Fog of War';
+  variantControl.textContent = 'Dark chess';
   variantSection.append(variantControl);
 
   const engineSection = choice.mode === 'pve' ? buildEngineSetupSection(choice.engines ?? fallbackPlayableEngines(), selectedEngineId, (engineId) => {
@@ -2278,16 +2278,16 @@ function buildAbout(): HTMLElement {
   heading.className = 'site-section-heading';
   heading.textContent = 'About Mistboard';
 
-  const lede = aboutParagraph(['Mistboard is a free, open-source site for Fog of War chess.']);
+  const lede = aboutParagraph(['Mistboard is a free, open-source site for dark chess (also called Fog of War).']);
 
-  const rulesHeading = aboutSubheading('What Fog of War is');
+  const rulesHeading = aboutSubheading('What dark chess is');
   const rulesP = aboutParagraph([
-    'Fog of War is hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark. The game ends when a king is captured.',
+    'Dark chess is hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark. The game ends when a king is captured.',
   ]);
 
   const whyHeading = aboutSubheading('Why this site exists');
   const whyP = aboutParagraph([
-    'Fog of War has lived for years as a side mode on larger chess sites. Mistboard treats it as the main event: a server, a board, replays that show what each side actually saw, and engines built for hidden-information play.',
+    'Dark chess has lived for years as a side mode on larger chess sites. Mistboard treats it as the main event: a server, a board, replays that show what each side actually saw, and engines built for hidden-information play.',
   ]);
 
   const featuresHeading = aboutSubheading('What you can do here');
@@ -2315,7 +2315,7 @@ function buildAbout(): HTMLElement {
 
   const engineHeading = aboutSubheading('Engines for hidden-information chess');
   const engineP = aboutParagraph([
-    'Standard chess engines assume both sides see the full board. Fog of War breaks that assumption. The techniques that work — belief-state search, particle filters, Monte Carlo tree search over determinized positions — come from the Reconnaissance Blind Chess literature. Mistboard’s engine is in active development and open source. A protocol for third-party Fog of War engines (FUCI) is in design, and Mistboard plans to host engine tournaments and calibration runs once the protocol stabilizes.',
+    'Standard chess engines assume both sides see the full board. Dark chess breaks that assumption. The techniques that work — belief-state search, particle filters, Monte Carlo tree search over determinized positions — come from the Reconnaissance Blind Chess literature. Mistboard’s engine is in active development and open source. A protocol for third-party dark chess engines (FUCI) is in design, and Mistboard plans to host engine tournaments and calibration runs once the protocol stabilizes.',
   ]);
 
   const statusHeading = aboutSubheading('Project status');
@@ -2384,7 +2384,7 @@ function buildSource(): HTMLElement {
 
   const intro = document.createElement('p');
   intro.textContent =
-    'Mistboard is an independent open-source Fog of War chess project. The source code is published under AGPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.';
+    'Mistboard is an independent open-source dark chess project. The source code is published under AGPL-3.0-or-later. The hosted service is not affiliated with lichess, chess.com, or any other chess platform.';
 
   const source = sourceBlock('Project source', [
     linkLine('GitHub repository', GITHUB_URL),
@@ -2588,7 +2588,7 @@ function buildLearn(): { el: HTMLElement; boardEl: HTMLElement } {
   boardPanel.className = 'learn-board-panel';
   const boardEl = document.createElement('div');
   boardEl.className = 'board learn-board';
-  boardEl.setAttribute('aria-label', 'Tutorial Fog of War board');
+  boardEl.setAttribute('aria-label', 'Tutorial dark chess board');
   boardPanel.append(boardEl);
 
   const panel = document.createElement('section');
@@ -2605,7 +2605,7 @@ function buildLearn(): { el: HTMLElement; boardEl: HTMLElement } {
   const intro = document.createElement('p');
   intro.className = 'learn-copy';
   intro.textContent =
-    'In Fog of War, your board is built from your pieces and the squares they can legally move to. Everything else stays hidden.';
+    'In dark chess, your board is built from your pieces and the squares they can legally move to. Everything else stays hidden.';
 
   const steps = document.createElement('ol');
   steps.className = 'learn-steps';

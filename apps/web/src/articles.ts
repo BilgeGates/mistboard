@@ -46,7 +46,7 @@ export function buildArticlesIndex(): HTMLElement {
 
   const intro = document.createElement('p');
   intro.className = 'articles-index-intro';
-  intro.textContent = 'Canonical references on Fog of War, Draft960, and the engine behind hidden-information chess.';
+  intro.textContent = 'Canonical references on dark chess (also called Fog of War), Draft960, and the engine behind hidden-information chess.';
 
   const list = document.createElement('ul');
   list.className = 'articles-index-list';

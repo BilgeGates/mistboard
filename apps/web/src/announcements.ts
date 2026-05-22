@@ -20,4 +20,10 @@ export const announcements: Announcement[] = [
     body: 'Anonymous, link-share, no rated yet. Bug reports and feedback welcome.',
     href: '/contact',
   },
+  {
+    date: '2026-05-21',
+    headline: 'Dark chess: the canonical reference.',
+    body: 'How visibility works, what counts as a win, and the rule quirks (castling, en passant) you will actually run into.',
+    href: '/articles/fog-of-war-rules',
+  },
 ];

@@ -201,14 +201,27 @@ const CONE_PAWN_FOG = fogFor(CONE_PAWN, 'white');
 const CONE_KING_FOG = fogFor(CONE_KING, 'white');
 
 // ── En passant demo ───────────────────────────────────────────────────────
-// White pawn on a5; black just plays b7-b5 (a two-square push next to the
-// white pawn). axb6 e.p. is legal, so b6 (the e.p. target) and b5 (the
-// captured pawn) are both added to white's visibility.
+// Four white pawns on the 5th rank, full black 7th rank. Black pushes
+// b/d/f/h pawn two squares; white captures e.p. on three of them. The
+// second push (after d7-d5) white passes with Kh1 — the e.p. window
+// closes and the pushed pawn re-enters fog. The tail (a5/b7) shows white
+// declining e.p. with a quiet push instead — legal, and lets the e.p.
+// window close the same way Kh1 did.
 const ENPASSANT_INITIAL_BOARD: Board = {
   g1: { color: 'white', role: 'king' },
   a5: { color: 'white', role: 'pawn' },
+  c5: { color: 'white', role: 'pawn' },
+  e5: { color: 'white', role: 'pawn' },
+  g5: { color: 'white', role: 'pawn' },
   g8: { color: 'black', role: 'king' },
+  a7: { color: 'black', role: 'pawn' },
   b7: { color: 'black', role: 'pawn' },
+  c7: { color: 'black', role: 'pawn' },
+  d7: { color: 'black', role: 'pawn' },
+  e7: { color: 'black', role: 'pawn' },
+  f7: { color: 'black', role: 'pawn' },
+  g7: { color: 'black', role: 'pawn' },
+  h7: { color: 'black', role: 'pawn' },
 };
 const ENPASSANT_INITIAL: GameState = {
   id: 'fow-rules-enpassant',
@@ -219,35 +232,74 @@ const ENPASSANT_INITIAL: GameState = {
   castlingRights: [],
   halfmoveClock: 0,
 };
-const ENPASSANT_AFTER_PUSH = fogOfWarVariant.applyMove(ENPASSANT_INITIAL, { from: 'b7', to: 'b5' });
-const ENPASSANT_AFTER_CAPTURE = fogOfWarVariant.applyMove(ENPASSANT_AFTER_PUSH, { from: 'a5', to: 'b6' });
-const ENPASSANT_PUSH_FOG_W = fogFor(ENPASSANT_AFTER_PUSH, 'white');
-const ENPASSANT_CAPTURE_FOG_W = fogFor(ENPASSANT_AFTER_CAPTURE, 'white');
+const ENPASSANT_MOVES = [
+  { from: 'b7' as Square, to: 'b5' as Square },  // 1...b5
+  { from: 'a5' as Square, to: 'b6' as Square },  // 2. axb6 e.p.
+  { from: 'd7' as Square, to: 'd5' as Square },  // 2...d5
+  { from: 'g1' as Square, to: 'h1' as Square },  // 3. Kh1 — pass; e.p. window closes
+  { from: 'f7' as Square, to: 'f5' as Square },  // 3...f5
+  { from: 'e5' as Square, to: 'f6' as Square },  // 4. exf6 e.p.
+  { from: 'h7' as Square, to: 'h5' as Square },  // 4...h5
+  { from: 'g5' as Square, to: 'h6' as Square },  // 5. gxh6 e.p.
+  { from: 'a7' as Square, to: 'a5' as Square },  // 5...a5
+  { from: 'b6' as Square, to: 'b7' as Square },  // 6. b7 — quiet push, declines bxa6 e.p.
+];
+const ENPASSANT_STATES = replayMoves(ENPASSANT_INITIAL, ENPASSANT_MOVES);
+const ENPASSANT_POSITIONS = ENPASSANT_STATES.map((state, i) => {
+  // Frame 0 = initial (no prior move). Otherwise the move that produced
+  // this state is at ENPASSANT_MOVES[i - 1].
+  const lastMove = i === 0 ? undefined : ENPASSANT_MOVES[i - 1];
+  const arrows = lastMove ? [{ orig: lastMove.from, dest: lastMove.to }] : undefined;
+  return {
+    boards: [
+      {
+        board: state.board,
+        fogSquares: fogFor(state, 'white'),
+        orientation: 'white' as const,
+        label: "WHITE'S VIEW",
+      },
+      {
+        board: state.board,
+        orientation: 'white' as const,
+        label: 'SERVER TRUTH',
+        arrows,
+      },
+      {
+        board: state.board,
+        fogSquares: fogFor(state, 'black'),
+        orientation: 'white' as const,
+        label: "BLACK'S VIEW",
+      },
+    ],
+  };
+});
 
 // ── Discovered visibility demo ────────────────────────────────────────────
-// Black rook on d8 sees the d-file but nothing on rank 2. White's king (h2)
-// and bishop (a2) sit hidden in fog. Black slides Rd8-d2 — the rook's new
-// square reveals rank 2, and both white pieces appear in black's view at
-// once. Demonstrates "moving a piece moves its sight": new squares enter
-// visibility on the next half-move.
+// White rooks doubled on the d-file (d1 supports d2). White's d2 rook sees
+// up the d-file but not across rank 7, so Black's king (h7) and queen (b7)
+// sit in fog. White slides Rd2-d7 — the rook's new square reveals rank 7,
+// and both black pieces appear in white's view at once. The d1 rook keeps
+// the d-file in sight throughout. Demonstrates "moving a piece moves its
+// sight": new squares enter visibility on the next half-move.
 const DISCOVERY_BOARD: Board = {
-  h2: { color: 'white', role: 'king' },
-  a2: { color: 'white', role: 'bishop' },
-  g8: { color: 'black', role: 'king' },
-  d8: { color: 'black', role: 'rook' },
+  g1: { color: 'white', role: 'king' },
+  d1: { color: 'white', role: 'rook' },
+  d2: { color: 'white', role: 'rook' },
+  h7: { color: 'black', role: 'king' },
+  b7: { color: 'black', role: 'queen' },
 };
 const DISCOVERY_BEFORE: GameState = {
   id: 'fow-rules-discovery',
   variant: 'fog-of-war',
   board: DISCOVERY_BOARD,
-  status: { type: 'playing', turn: 'black' },
+  status: { type: 'playing', turn: 'white' },
   moveNumber: 15,
   castlingRights: [],
   halfmoveClock: 0,
 };
-const DISCOVERY_FINAL = fogOfWarVariant.applyMove(DISCOVERY_BEFORE, { from: 'd8', to: 'd2' });
-const DISCOVERY_BEFORE_FOG_B = fogFor(DISCOVERY_BEFORE, 'black');
-const DISCOVERY_FINAL_FOG_B = fogFor(DISCOVERY_FINAL, 'black');
+const DISCOVERY_FINAL = fogOfWarVariant.applyMove(DISCOVERY_BEFORE, { from: 'd2', to: 'd7' });
+const DISCOVERY_BEFORE_FOG_W = fogFor(DISCOVERY_BEFORE, 'white');
+const DISCOVERY_FINAL_FOG_W = fogFor(DISCOVERY_FINAL, 'white');
 
 // ── Worked game: test1 (Black) vs test2 (White), local 2026-05-15 ─────────────
 // Room 092ca35d-bd5d-4517-a135-cd7a9c3eb3f1 — 82 ply, Black wins, king captured
@@ -342,11 +394,12 @@ const PVP_STATES = replayMoves(PVP_START, [
 
 const PVP_FULL_POSITIONS = PVP_STATES.map((state, i) => {
   const isLast = i === PVP_STATES.length - 1;
+  const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
   return {
     ...(isLast ? { outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' as const } } : {}),
     boards: [
       { board: state.board, fogSquares: fogFor(state, 'white'), orientation: 'white' as const, label: "WHITE'S VIEW" },
-      { board: state.board, orientation: 'white' as const, label: 'SERVER TRUTH' },
+      { board: state.board, orientation: 'white' as const, label: 'SERVER TRUTH', arrows },
       { board: state.board, fogSquares: fogFor(state, 'black'), orientation: 'white' as const, label: "BLACK'S VIEW" },
     ],
   };
@@ -615,9 +668,9 @@ const VS_BRIAN_3_STATES = replayMoves(VS_BRIAN_3_START, [
 // Production tier1 (White) plays Bf1-b5, eyeing the long diagonal to e8.
 // Black, drawn to a material capture, plays dxe4 — that move persists into
 // the final frame (the e4 pawn is gone). White ignores the captured pawn
-// and plays Bxe8, taking the king on its starting square. Triptych is
-// rendered from White's POV with fog applied — the bishop on b5 reveals
-// the long diagonal down to e8.
+// and plays Bxe8, taking the king on its starting square. Rendered as a
+// triptych stepper (BLACK + SERVER + WHITE) so the reader can compare what
+// each side saw at each of the three key moves.
 const WHITE_BISHOP_WIN_START = fogOfWarVariant.createInitialState('white-bishop-win');
 const WHITE_BISHOP_WIN_STATES = replayMoves(WHITE_BISHOP_WIN_START, [
   { from: 'e2', to: 'e4' },
@@ -634,47 +687,47 @@ const WHITE_BISHOP_WIN_STATES = replayMoves(WHITE_BISHOP_WIN_START, [
   { from: 'd5', to: 'e4' },  // 12. ...dxe4 — black grabs the e4 pawn
   { from: 'b5', to: 'e8' },  // 13. Bxe8 — king captured on its starting square
 ]);
-// Frame 3 is post-capture (status=finished), so the canonical FoW kernel
-// collapses White's visibility to own pieces only. To keep the article's
-// frame-to-frame story coherent (black's dxe4 result should still be visible,
-// and the captured bishop sitting on e8 should be in view), we re-compute
-// fog from a mock playing-state of the same position — i.e., what White
-// would have seen if the game were still in motion.
-const WHITE_BISHOP_WIN_FINAL_AS_PLAYING: GameState = {
-  ...WHITE_BISHOP_WIN_STATES[13]!,
-  status: { type: 'playing', turn: 'black' },
-};
-const WHITE_BISHOP_WIN_BOARDS = [
-  {
-    board: WHITE_BISHOP_WIN_STATES[11]!.board,
-    fogSquares: fogFor(WHITE_BISHOP_WIN_STATES[11]!, 'white'),
-    orientation: 'white' as const,
-    arrows: [{ orig: 'f1' as Square, dest: 'b5' as Square }],
-  },
-  {
-    board: WHITE_BISHOP_WIN_STATES[12]!.board,
-    fogSquares: fogFor(WHITE_BISHOP_WIN_STATES[12]!, 'white'),
-    orientation: 'white' as const,
-    arrows: [{ orig: 'd5' as Square, dest: 'e4' as Square }],
-  },
-  {
-    board: WHITE_BISHOP_WIN_STATES[13]!.board,
-    fogSquares: fogFor(WHITE_BISHOP_WIN_FINAL_AS_PLAYING, 'white'),
-    orientation: 'white' as const,
-    arrows: [{ orig: 'b5' as Square, dest: 'e8' as Square }],
-  },
-];
+const WHITE_BISHOP_WIN_POSITIONS = [
+  { stateIdx: 10, arrow: null as { orig: Square; dest: Square } | null },
+  { stateIdx: 11, arrow: { orig: 'f1' as Square, dest: 'b5' as Square } },
+  { stateIdx: 12, arrow: { orig: 'd5' as Square, dest: 'e4' as Square } },
+  { stateIdx: 13, arrow: { orig: 'b5' as Square, dest: 'e8' as Square } },
+].map(({ stateIdx, arrow }) => {
+  const state = WHITE_BISHOP_WIN_STATES[stateIdx]!;
+  return {
+    boards: [
+      {
+        board: state.board,
+        fogSquares: fogFor(state, 'white'),
+        orientation: 'white' as const,
+        label: "WHITE'S VIEW",
+      },
+      {
+        board: state.board,
+        orientation: 'white' as const,
+        label: 'SERVER TRUTH',
+        arrows: arrow ? [arrow] : undefined,
+      },
+      {
+        board: state.board,
+        fogSquares: fogFor(state, 'black'),
+        orientation: 'white' as const,
+        label: "BLACK'S VIEW",
+      },
+    ],
+  };
+});
 
 // ── Castling triple-threat ──────────────────────────────────────────────────
 // Kingside castling that is simultaneously out of, through, and into check.
-// Black's knight on f3 covers e1 (out of) and g1 (into); black's rook on f8
-// covers f1 (through). In FoW none of these matter — castling has no check
-// restrictions. White castles, the king lands on g1, and Black's knight
-// captures it on the next move.
+// Black's knight on f3 covers e1 (out of) and g1 (into); black's bishop on a6
+// covers f1 (through) along the a6-f1 diagonal. In FoW none of these matter —
+// castling has no check restrictions. White castles, the king lands on g1,
+// and Black's knight captures it on the next move.
 //
 // White visibility is set up so neither attacker is in sight: no e2/f2/g2
-// pawns means no diagonal-capture vision onto f3, and the f-file is open
-// past white's rank-1 line.
+// pawns means no diagonal-capture vision onto f3, and a6 is far outside
+// white's rank-1 line.
 const CASTLE_TRIPLE_BOARD: Board = {
   a1: { color: 'white', role: 'rook' },
   e1: { color: 'white', role: 'king' },
@@ -684,14 +737,13 @@ const CASTLE_TRIPLE_BOARD: Board = {
   c2: { color: 'white', role: 'pawn' },
   d2: { color: 'white', role: 'pawn' },
   h2: { color: 'white', role: 'pawn' },
-  a7: { color: 'black', role: 'pawn' },
+  a6: { color: 'black', role: 'bishop' },
   b7: { color: 'black', role: 'pawn' },
   c7: { color: 'black', role: 'pawn' },
   d7: { color: 'black', role: 'pawn' },
   h7: { color: 'black', role: 'pawn' },
   b8: { color: 'black', role: 'king' },
   f3: { color: 'black', role: 'knight' },
-  f8: { color: 'black', role: 'rook' },
 };
 const CASTLE_TRIPLE_BEFORE: GameState = {
   id: 'fow-rules-castle-triple',
@@ -706,21 +758,34 @@ const CASTLE_TRIPLE_AFTER = fogOfWarVariant.applyMove(CASTLE_TRIPLE_BEFORE, { fr
 const CASTLE_TRIPLE_FINAL = fogOfWarVariant.applyMove(CASTLE_TRIPLE_AFTER, { from: 'f3', to: 'g1' });
 const CASTLE_TRIPLE_BEFORE_FOG_W = fogFor(CASTLE_TRIPLE_BEFORE, 'white');
 const CASTLE_TRIPLE_AFTER_FOG_W = fogFor(CASTLE_TRIPLE_AFTER, 'white');
-const CASTLE_TRIPLE_FINAL_FOG_W = CASTLE_TRIPLE_AFTER_FOG_W;
+const CASTLE_TRIPLE_FINAL_FOG_W = fogFor(CASTLE_TRIPLE_FINAL, 'white');
+const CASTLE_TRIPLE_BEFORE_FOG_B = fogFor(CASTLE_TRIPLE_BEFORE, 'black');
+const CASTLE_TRIPLE_AFTER_FOG_B = fogFor(CASTLE_TRIPLE_AFTER, 'black');
+const CASTLE_TRIPLE_FINAL_FOG_B = fogFor(CASTLE_TRIPLE_FINAL, 'black');
 
 export const articles: Article[] = [
   {
     slug: 'fog-of-war-rules',
-    title: 'Fog of War: the canonical reference',
+    title: 'Dark chess: the canonical reference',
     summary:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
     status: 'published',
     audience:
-      'Any chess player who has heard of Fog of War or wants to understand it from scratch.',
+      'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
     sections: [
       {
         heading: 'The starting position',
         blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "[Dark chess](https://en.wikipedia.org/wiki/Dark_chess) (also called Fog of War) was invented by Jens Bæk Nielsen and Torben Osted in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "Each side sees the squares its own pieces could legally move to, plus the squares they stand on. Everything else is fog. The rest of the game is [regular chess](https://en.wikipedia.org/wiki/Rules_of_chess).",
+          },
           {
             kind: 'live-boards',
             spec: {
@@ -740,7 +805,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "A piece sees the squares it could legally move to, plus the square it stands on. A side always sees its own pieces.",
+              "Here's the same rule, piece by piece.",
           },
           {
             kind: 'live-boards',
@@ -756,23 +821,18 @@ export const articles: Article[] = [
               ],
             },
           } as ArticleBlock,
-        ],
-      },
-      {
-        heading: 'Discovered visibility',
-        blocks: [
           {
             kind: 'paragraph',
             text:
-              "Moving a piece moves its sight. Squares it covered may go dark; squares it did not may become visible.",
+              "Vision moves with pieces. Squares a piece covered may go dark; squares it didn't may become visible.",
           },
           {
             kind: 'live-boards',
             spec: {
               layout: 'pair',
               boards: [
-                { board: DISCOVERY_BEFORE.board, fogSquares: DISCOVERY_BEFORE_FOG_B, orientation: 'black', label: 'BEFORE' },
-                { board: DISCOVERY_FINAL.board, fogSquares: DISCOVERY_FINAL_FOG_B, orientation: 'black', label: 'AFTER', arrows: [{ orig: 'd8', dest: 'd2' }] },
+                { board: DISCOVERY_BEFORE.board, fogSquares: DISCOVERY_BEFORE_FOG_W, orientation: 'white', label: 'BEFORE' },
+                { board: DISCOVERY_FINAL.board, fogSquares: DISCOVERY_FINAL_FOG_W, orientation: 'white', label: 'AFTER', arrows: [{ orig: 'd2', dest: 'd7' }] },
               ],
             },
           } as ArticleBlock,
@@ -784,13 +844,14 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Fog of War ends when a king is captured. No check, no checkmate — a side can walk into capture without seeing the threat.",
+              "The game ends when a king is captured. No check, no checkmate.",
           },
           {
-            kind: 'live-boards',
+            kind: 'interactive',
+            widget: 'stepper',
             spec: {
               layout: 'triptych',
-              boards: WHITE_BISHOP_WIN_BOARDS,
+              positions: WHITE_BISHOP_WIN_POSITIONS,
             },
           } as ArticleBlock,
         ],
@@ -817,31 +878,33 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "A king may castle out of, through, or into check. None of the standard-chess castling restrictions tied to check apply, because there is no check rule to enforce. The position below violates all three at once: Black's knight on f3 attacks e1 (out of) and g1 (into); Black's rook on f8 attacks f1 (through). White castles anyway — and is captured on the next move.",
+              "A king may castle out of, through, or into check.",
           },
           {
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'pair',
+              layout: 'triptych',
               positions: [
                 {
                   boards: [
-                    { board: CASTLE_TRIPLE_BEFORE.board, orientation: 'white', label: 'SERVER TRUTH' },
-                    { board: CASTLE_TRIPLE_BEFORE.board, fogSquares: CASTLE_TRIPLE_BEFORE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_BEFORE.board, fogSquares: CASTLE_TRIPLE_BEFORE_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: CASTLE_TRIPLE_BEFORE.board, orientation: 'black', label: 'SERVER TRUTH' },
+                    { board: CASTLE_TRIPLE_BEFORE.board, fogSquares: CASTLE_TRIPLE_BEFORE_FOG_W, orientation: 'black', label: "WHITE'S VIEW" },
                   ],
                 },
                 {
                   boards: [
-                    { board: CASTLE_TRIPLE_AFTER.board, orientation: 'white', label: 'SERVER TRUTH' },
-                    { board: CASTLE_TRIPLE_AFTER.board, fogSquares: CASTLE_TRIPLE_AFTER_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_AFTER.board, fogSquares: CASTLE_TRIPLE_AFTER_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: CASTLE_TRIPLE_AFTER.board, orientation: 'black', label: 'SERVER TRUTH', arrows: [{ orig: 'e1' as Square, dest: 'g1' as Square }] },
+                    { board: CASTLE_TRIPLE_AFTER.board, fogSquares: CASTLE_TRIPLE_AFTER_FOG_W, orientation: 'black', label: "WHITE'S VIEW" },
                   ],
                 },
                 {
-                  outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' },
                   boards: [
-                    { board: CASTLE_TRIPLE_FINAL.board, orientation: 'white', label: 'SERVER TRUTH' },
-                    { board: CASTLE_TRIPLE_FINAL.board, fogSquares: CASTLE_TRIPLE_FINAL_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_FINAL.board, fogSquares: CASTLE_TRIPLE_FINAL_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
+                    { board: CASTLE_TRIPLE_FINAL.board, orientation: 'black', label: 'SERVER TRUTH', arrows: [{ orig: 'f3' as Square, dest: 'g1' as Square }] },
+                    { board: CASTLE_TRIPLE_FINAL.board, fogSquares: CASTLE_TRIPLE_FINAL_FOG_W, orientation: 'black', label: "WHITE'S VIEW" },
                   ],
                 },
               ],
@@ -857,21 +920,8 @@ export const articles: Article[] = [
             kind: 'interactive',
             widget: 'stepper',
             spec: {
-              layout: 'pair',
-              positions: [
-                {
-                  boards: [
-                    { board: ENPASSANT_AFTER_PUSH.board, orientation: 'white', label: 'SERVER TRUTH' },
-                    { board: ENPASSANT_AFTER_PUSH.board, fogSquares: ENPASSANT_PUSH_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                  ],
-                },
-                {
-                  boards: [
-                    { board: ENPASSANT_AFTER_CAPTURE.board, orientation: 'white', label: 'SERVER TRUTH' },
-                    { board: ENPASSANT_AFTER_CAPTURE.board, fogSquares: ENPASSANT_CAPTURE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                  ],
-                },
-              ],
+              layout: 'triptych',
+              positions: ENPASSANT_POSITIONS,
             },
           } as ArticleBlock,
         ],
@@ -895,29 +945,17 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'Related variants',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              "Fog of War was invented by Jens Bæk Nielsen and Torben Osted in 1989; it is the implicit version of the idea — no umpire, no scan action, visibility derived from where each side's pieces can move. [Chess.com's variant](https://www.chess.com/variants/fog-of-war) popularized it online, and Mistboard's rules match theirs.",
-          },
-        ],
-      },
-      {
         heading: 'Try it',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "Mistboard runs Fog of War as the default variant. Casual games are 3 minutes plus a 2-second increment. No account, no rating during beta.",
+              "Open a board, share the link, play. No account required.",
           },
           {
             kind: 'cta',
             buttons: [
-              { label: 'Find an opponent', href: '/', emphasis: 'primary' },
-              { label: 'Play a friend', href: '/', emphasis: 'secondary' },
-              { label: 'View on GitHub', href: 'https://github.com/brianhliou/mistboard', emphasis: 'secondary', external: true },
+              { label: 'Play dark chess', href: '/', emphasis: 'primary' },
             ],
           } as ArticleBlock,
           {
@@ -931,14 +969,14 @@ export const articles: Article[] = [
   },
   {
     slug: 'draft960',
-    title: 'Draft960: the end of opening theory in Fog of War',
+    title: 'Draft960: the end of opening theory in dark chess',
     summary:
-      'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
+      'A variant of dark chess built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
     status: 'outline',
     audience:
-      'Readers who have grokked Fog of War (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
+      'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
     tldr: [
-      'Fog of War hides the board mid-game. Draft960 also hides the starting position — from move 0, neither player knows the other\'s setup.',
+      'Dark chess (also called Fog of War) hides the board mid-game. Draft960 also hides the starting position — from move 0, neither player knows the other\'s setup.',
       'Each player picks from their own independent set of three Chess960 offers. The picks stay sealed until the pieces start moving.',
     ],
     sections: [
@@ -964,7 +1002,7 @@ export const articles: Article[] = [
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: "Draft960 merges Fog of War and Chess960 into one variant. Fog of War hides the board mid-game. Chess960 scrambles where everything starts. Both layers hidden simultaneously — pick one of three random setups, keep it sealed, and neither side knows what the other started from until the pieces start talking.",
+            text: "Draft960 merges dark chess and Chess960 into one variant. Dark chess hides the board mid-game. Chess960 scrambles where everything starts. Both layers hidden simultaneously — pick one of three random setups, keep it sealed, and neither side knows what the other started from until the pieces start talking.",
           },
         ],
       },
@@ -1002,7 +1040,7 @@ export const articles: Article[] = [
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: "New to Fog of War? The [rules article](/articles/fog-of-war-rules) covers visibility, king capture, and the edge cases — start there before your first Draft960 game.",
+            text: "New to dark chess? The [rules article](/articles/fog-of-war-rules) covers visibility, king capture, and the edge cases — start there before your first Draft960 game.",
           },
         ],
       },
@@ -1012,12 +1050,12 @@ export const articles: Article[] = [
     slug: 'engine-belief-state',
     title: 'Building an engine for hidden-information chess',
     summary:
-      'Stockfish-class engines don’t transfer to Fog of War because they assume perfect information. The right technique is belief-state search with particle-filter approximations, drawn from the Reconnaissance Blind Chess literature.',
+      'Stockfish-class engines don’t transfer to dark chess because they assume perfect information. The right technique is belief-state search with particle-filter approximations, drawn from the Reconnaissance Blind Chess literature.',
     status: 'outline',
     audience:
       'Chess engine developers, AI/ML researchers, software engineers curious about belief-state methods.',
     tldr: [
-      'Standard chess engines assume one ground-truth board. Fog of War requires reasoning over a distribution of possible truths.',
+      'Standard chess engines assume one ground-truth board. Dark chess requires reasoning over a distribution of possible truths.',
       'Particle filters are the tractable approximation: keep N candidate positions consistent with observations, simulate moves on each, aggregate.',
       'Public RBC engines (StrangeFish, ReBeL, Penumbra, Obscuro) form the academic family. Mistboard’s engine is an open particle filter you can play against today.',
     ],
@@ -1102,7 +1140,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'server-enforced-fog',
-    title: 'How Mistboard enforces Fog of War',
+    title: 'How Mistboard enforces dark chess',
     summary:
       'Each client receives only its own view — never the canonical position. The kernel that derives a per-player view, the gateway that shapes outbound traffic, and the regression tests that pin the contract. Plus how the same source-of-truth principle handles threefold repetition, the 50-move rule, and clocks.',
     status: 'outline',
@@ -1157,7 +1195,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              '[INTERACTIVE PLACEHOLDER: stepper widget with a tab strip — Truth / White\'s view / Black\'s view — over a single mid-game position. Reuses the triptych pattern from the Fog of War rules article. Possibly: a "click any square to highlight what each side sees from that piece" interaction.]',
+              '[INTERACTIVE PLACEHOLDER: stepper widget with a tab strip — Truth / White\'s view / Black\'s view — over a single mid-game position. Reuses the triptych pattern from the dark chess rules article. Possibly: a "click any square to highlight what each side sees from that piece" interaction.]',
           },
         ],
       },
@@ -1191,7 +1229,7 @@ export const articles: Article[] = [
       {
         heading: 'Contribute',
         paragraphs: [
-          'CTA: GitHub repo, file an issue if you spot a leak, run the test suite locally, link to the related Fog of War rules article.',
+          'CTA: GitHub repo, file an issue if you spot a leak, run the test suite locally, link to the related dark chess rules article.',
         ],
       },
     ],

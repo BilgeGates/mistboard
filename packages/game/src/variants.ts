@@ -406,8 +406,12 @@ function getLegalMoves(state: GameState, player: Color): Move[] {
 }
 
 function getVisibilityMoves(state: GameState, player: Color): Move[] {
-  if (state.status.type !== 'playing') return [];
+  // Fog visibility is a pure function of piece placement, so it must stay
+  // defined for finished states too — otherwise the captured side's view
+  // collapses to its own piece squares the instant the game ends, and any
+  // post-finish render (replay, articles, postgame fog) "loses" all vision.
   if (state.variant === 'fog-of-war') return getFogMovesForPlayer(state, player);
+  if (state.status.type !== 'playing') return [];
   return getMovesForPlayer(state, player);
 }
 

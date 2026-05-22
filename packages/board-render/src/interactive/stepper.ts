@@ -2,15 +2,31 @@ import type { Board, Square } from '@mistboard/game';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
+import type { DrawShape } from 'chessground/draw';
 import { boardFen } from './board.js';
 import { boardsInLayout, type CompositionLayout } from '../layouts.js';
+
+export type StepperArrow = {
+  orig: Square;
+  dest: Square;
+  brush?: 'green' | 'red' | 'blue' | 'yellow';
+};
 
 export type StepperBoardSpec = {
   board: Board;
   fogSquares?: Square[];
   orientation?: 'white' | 'black';
   label?: string;
+  arrows?: StepperArrow[];
 };
+
+function toShapes(arrows: StepperArrow[] | undefined): DrawShape[] {
+  return (arrows ?? []).map((a) => ({
+    orig: a.orig as cg.Key,
+    dest: a.dest as cg.Key,
+    brush: a.brush ?? 'green',
+  }));
+}
 
 // Strip pieces sitting on fogged squares so chessground never renders them.
 // The fog square-class is just visual chrome; chessground itself does not
@@ -73,6 +89,10 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
 
   host.classList.add('stepper');
   host.dataset.layout = opts.layout;
+  // Make the widget focusable so keyboard nav (arrows, Q/E) routes through
+  // here when the user tabs into it or clicks the prev/next buttons.
+  const ownedTabindex = !host.hasAttribute('tabindex');
+  if (ownedTabindex) host.tabIndex = 0;
 
   const row = document.createElement('div');
   row.className = 'stepper-boards';
@@ -104,6 +124,7 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
       draggable: { enabled: false },
       selectable: { enabled: false },
       premovable: { enabled: false },
+      drawable: { enabled: false, shapes: toShapes(initial.arrows) },
       viewOnly: true,
     });
     cells.push({ labelEl, boardWrap, api });
@@ -143,12 +164,22 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
         fen: boardFen(visibleBoard(spec.board, fog)),
         orientation: spec.orientation ?? 'white',
         highlight: { custom: fogSquareClasses(fog) },
+        drawable: { enabled: false, shapes: toShapes(spec.arrows) },
       });
     }
     narrative.textContent = pos.narrative ?? '';
     counter.textContent = `${stepIdx + 1} / ${opts.positions.length}`;
-    prev.disabled = stepIdx === 0;
-    next.disabled = stepIdx === opts.positions.length - 1;
+    // If we're about to disable the currently focused button, hand focus
+    // back to the host so its keydown listener keeps catching arrows/Q/E.
+    // Disabled buttons drop focus to <body>, breaking keyboard nav.
+    const willDisablePrev = stepIdx === 0;
+    const willDisableNext = stepIdx === opts.positions.length - 1;
+    const focused = document.activeElement;
+    if ((focused === prev && willDisablePrev) || (focused === next && willDisableNext)) {
+      host.focus();
+    }
+    prev.disabled = willDisablePrev;
+    next.disabled = willDisableNext;
 
     // Outcome badge — removed on every render so the pop-in animation
     // replays whenever the user steps into the outcome position.
@@ -192,21 +223,49 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
       render();
     }
   }
+  function onKeyDown(event: KeyboardEvent): void {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'q':
+      case 'Q':
+        event.preventDefault();
+        onPrev();
+        return;
+      case 'ArrowRight':
+      case 'e':
+      case 'E':
+        event.preventDefault();
+        onNext();
+        return;
+    }
+  }
+
   prev.addEventListener('click', onPrev);
   next.addEventListener('click', onNext);
+  host.addEventListener('keydown', onKeyDown);
 
   render();
-  // Re-enable animations after the initial mount so subsequent step
-  // changes animate piece movement.
-  for (const cell of cells) cell.api.set({ animation: { enabled: true, duration: 220 } });
+  // Arrow coords need chessground to have computed DOM bounds first, which
+  // doesn't happen until layout completes. Re-render shapes on the next
+  // animation frame to lock in real pixel coordinates instead of NaN.
+  requestAnimationFrame(() => {
+    for (const cell of cells) cell.api.redrawAll();
+  });
+  // Animations stay off: with fog applied, chessground sees pieces appear
+  // and disappear as visibility changes and would animate "movement" that
+  // didn't actually happen. The stepper transitions are discrete frames,
+  // not a move feed — instant updates are correct.
 
   return {
     destroy(): void {
       prev.removeEventListener('click', onPrev);
       next.removeEventListener('click', onNext);
+      host.removeEventListener('keydown', onKeyDown);
       for (const cell of cells) cell.api.destroy();
       host.replaceChildren();
       host.classList.remove('stepper');
+      if (ownedTabindex) host.removeAttribute('tabindex');
       delete host.dataset.layout;
     },
   };

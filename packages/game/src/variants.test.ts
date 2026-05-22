@@ -364,6 +364,38 @@ test('Fog of War ends when a king is captured', () => {
   assert.deepEqual(next.status, { type: 'finished', winner: 'white', reason: 'king-captured' });
 });
 
+test('Fog of War vision survives king capture (finished status)', () => {
+  // After a king is captured, fogVisibleSquares must still iterate piece
+  // moves so each side keeps the vision it had while playing. Otherwise the
+  // captured side's view collapses to its own piece squares (a single square
+  // here) and any postgame render — replays, articles — would "lose" sight.
+  const state: GameState = {
+    ...fogOfWarVariant.createInitialState('fog-vision-after-capture'),
+    board: {
+      e1: { color: 'white', role: 'king' },
+      e2: { color: 'black', role: 'king' },
+      a1: { color: 'white', role: 'rook' }, // rook sees the a-file + rank 1
+    },
+    status: { type: 'playing', turn: 'white' } as const,
+    castlingRights: [],
+  };
+
+  const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'e2' });
+  assert.equal(next.status.type, 'finished');
+
+  // The losing side (black) lost its only piece — visibility is empty,
+  // which is correct (nothing left to see from).
+  const blackView = fogOfWarVariant.getPlayerView(next, 'black');
+  assert.deepEqual(blackView.visibleSquares, []);
+
+  // The winning side (white) still has pieces. Vision must include rook
+  // sight lines, not just own-piece squares.
+  const whiteView = fogOfWarVariant.getPlayerView(next, 'white');
+  assert.ok(whiteView.visibleSquares.includes('a8'), 'rook should still see up the a-file');
+  assert.ok(whiteView.visibleSquares.includes('h1'), 'rook should still see along rank 1');
+  assert.ok(whiteView.visibleSquares.includes('e2'), 'king should still see e2');
+});
+
 test('Fog of War draws on the 50-move rule', () => {
   const state: GameState = {
     ...fogOfWarVariant.createInitialState('fog-fifty-move'),

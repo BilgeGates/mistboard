@@ -195,7 +195,7 @@ export function buildVideoIndex(): HTMLElement {
   const intro = document.createElement('p');
   intro.className = 'video-index-intro';
   intro.textContent =
-    'Hand-picked Fog of War games and explainers from around the web. Growing. Submit a video by opening an issue.';
+    'Hand-picked dark chess (Fog of War) games and explainers from around the web. Growing. Submit a video by opening an issue.';
 
   const list = document.createElement('ul');
   list.className = 'video-index-list';
