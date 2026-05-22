@@ -16,7 +16,15 @@
 //   REPLICATE_API_TOKEN  (for flux + recraft)
 //   OPENAI_API_KEY       (for gpt)
 //
-// Outputs land in apps/web/public/pixel-lab/<provider>/<name>.png.
+// SECRET HANDLING: a repo-root `.env` is fine — Vite already uses one at
+// apps/web/.env without issue. The trap is that the Claude Code harness
+// auto-includes the contents of files Claude itself has touched, so the rule
+// is: **the agent must not Read or Write any .env file in this repo**. Users
+// create and populate .env in their own terminal; scripts here read it only
+// via Node's process.env (which doesn't fire the harness's file-modified
+// tracker).
+//
+// Outputs land in apps/web/public/pixel-lab-assets/<provider>/<name>.png.
 
 import { writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
@@ -24,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
-const OUT_BASE = resolve(REPO_ROOT, 'apps/web/public/pixel-lab');
+const OUT_BASE = resolve(REPO_ROOT, 'apps/web/public/pixel-lab-assets');
 
 const STYLES = {
   nes: {
@@ -91,6 +99,34 @@ const STYLES = {
       ? 'WHITE chess piece: solid pale cream-grey body (#e0d8c8) with dark brown outlines (#3a2818). The lantern glows WARM GOLDEN-AMBER (#ffb84a).'
       : 'BLACK chess piece: solid dark slate body (#3a3a4a) with near-black outlines (#0a0a14). The lantern glows COOL CYAN-ICE (#7adaff).',
     fogSuffix: 'NES 8-bit lantern fog, dark night with warm and cool light pinpricks',
+  },
+  // Lantern Dark 8-bit — same composition as lantern-dark, but with TIGHT
+  // pixel-art constraints to force a true 8-bit aesthetic instead of the
+  // illustrated/painterly rendering gpt-image-2 defaults to.
+  'lantern-dark-8bit': {
+    buildPrompt: (pieceKey, color) => {
+      const warmth = color === 'white' ? 'WARM GOLDEN-AMBER (#ffb84a)' : 'COOL CYAN-ICE (#7adaff)';
+      const bodyTone = color === 'white' ? 'dark navy (#1c2440)' : 'near-black charcoal (#0e1220)';
+      const style = `RENDERED AS STRICT 8-BIT PIXEL ART in the style of NES Final Fantasy 1 and Dragon Quest 3 sprites: chunky 1:1 pixels, every edge is a HARD pixel boundary, ZERO anti-aliasing, ZERO smooth gradients, ZERO painterly blur. Native 16x16 grid rendered at high resolution (each "pixel" is a clear chunky square). Strictly limited palette: ${bodyTone} body + 1 darker outline + 1 lighter highlight + ${warmth} lantern + 1 fog grey. NO additional colors. The fog at the base must be a DITHERED 2-color checker pattern, NOT a smooth gradient. The lantern's "glow" must be a 1-2 pixel chunky halo, NOT a soft radiance. Centered, full body visible, small margin. Transparent background.`;
+      const lanternCommon = `The lantern is the bright focal point (~15% of piece size). Side identified by lantern color: ${warmth}.`;
+      switch (pieceKey) {
+        case 'P':
+          return `A chess PAWN piece: short squat figure with a round ball-head on top of a ringed collar and a wide flared circular base. A small chunky-pixel lantern sits on the base beside the pawn. ${lanternCommon} ${style}`;
+        case 'N':
+          return `A chess KNIGHT piece: horsehead silhouette facing LEFT, mane down the back, mounted on a circular base. A small chunky-pixel lantern hangs from the bridle near the horse's mouth. ${lanternCommon} ${style}`;
+        case 'B':
+          return `A chess BISHOP piece: tall slim profile with a pointed mitre top split by a vertical slit, narrow collar, wide circular base. A small chunky-pixel lantern hangs from a 1-pixel chain off the front of the mitre. ${lanternCommon} ${style}`;
+        case 'R':
+          return `A chess ROOK piece: short castle tower with rectangular crenellations along the top edge, vertical sides, wide stepped base. A single chunky-pixel rectangular window in the tower wall glows. ${lanternCommon} ${style}`;
+        case 'Q':
+          return `A chess QUEEN piece: tall stately figure with a crown of rounded points along the top, narrowing collar, wide circular base. She holds a small chunky-pixel lantern aloft beside her crown. ${lanternCommon} ${style}`;
+        case 'K':
+          return `A chess KING piece: tallest figure with a CROSS on top above a rounded crown, narrowing collar, wide circular base. He holds a small chunky-pixel lantern aloft beside his crown. ${lanternCommon} ${style}`;
+        default:
+          throw new Error(`unknown piece key: ${pieceKey}`);
+      }
+    },
+    fogSuffix: 'NES 8-bit dithered night fog, dark navy with chunky pixel mist, warm and cool light pinpricks',
   },
 };
 
@@ -228,6 +264,8 @@ async function genRecraft(prompt) {
 async function genGpt(prompt) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error('OPENAI_API_KEY not set');
+  // Default to gpt-image-2 (April 2026 release). Override with GPT_MODEL env.
+  const model = process.env.GPT_MODEL || 'gpt-image-2';
   const r = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
     headers: {
@@ -235,15 +273,19 @@ async function genGpt(prompt) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-image-1',
+      model,
       prompt,
       size: '1024x1024',
       quality: 'medium',
+      // Force real alpha-channel transparency. Without this, gpt-image-2
+      // renders a literal checkered "transparency indicator" pattern as
+      // opaque pixels instead of producing a truly transparent background.
+      background: 'transparent',
       n: 1,
     }),
   });
   const text = await r.text();
-  if (!r.ok) throw new Error(`OpenAI gpt-image-1: ${r.status} ${text}`);
+  if (!r.ok) throw new Error(`OpenAI ${model}: ${r.status} ${text}`);
   const data = JSON.parse(text);
   const b64 = data?.data?.[0]?.b64_json;
   if (!b64) throw new Error(`OpenAI response missing b64_json: ${text.slice(0, 200)}`);

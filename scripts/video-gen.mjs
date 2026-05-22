@@ -2,13 +2,17 @@
 //
 // Usage:
 //   node --env-file=.env scripts/video-gen.mjs \
-//     --image apps/web/public/pixel-lab/gpt/fog-mistveil.png \
+//     --image apps/web/public/pixel-lab-assets/gpt/fog-mistveil.png \
 //     --out fog-mistveil
 //
-// Default model: stability-ai/stable-video-diffusion (img2vid, ~$0.30/video, 25 frames).
-// Override with --model svd | hailuo | hunyuan.
+// SECRET HANDLING: a repo-root .env is fine for Node's --env-file flag to
+// read. The agent (Claude) must NOT use its Read/Write tools on .env — only
+// the user touches that file. Node reading via process.env / --env-file does
+// not trigger the harness's file-modified tracker.
 //
-// Outputs land at apps/web/public/pixel-lab/video/<out>.mp4.
+// Default model: wan-video/wan-2.2-i2v-fast (img2vid, ~$0.04/video, 81 frames).
+//
+// Outputs land at apps/web/public/pixel-lab-assets/video/<out>.mp4.
 
 import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
@@ -16,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
-const OUT_DIR = resolve(REPO_ROOT, 'apps/web/public/pixel-lab/video');
+const OUT_DIR = resolve(REPO_ROOT, 'apps/web/public/pixel-lab-assets/video');
 
 function parseArgs(argv) {
   const args = {};

@@ -1,13 +1,15 @@
 // Hidden DEV-only experimentation surface at /pixel-lab. Compares AI-generated
 // pixel-art piece sets and fog tiles across multiple providers and styles.
 //
-// Assets at apps/web/public/pixel-lab/<provider>/*.png are gitignored (large,
+// Assets at apps/web/public/pixel-lab-assets/<provider>/*.png are gitignored (large,
 // reproducible). Regenerate with:
 //   node --env-file=.env scripts/pixel-gen.mjs --batch set --style <name>
 //   node --env-file=.env scripts/pixel-gen.mjs --batch fog
 //   node --env-file=.env scripts/video-gen.mjs --image <png> --out <name>
 //   node scripts/loop-video.mjs --in <mp4> --out <name>
-// Requires REPLICATE_API_TOKEN + OPENAI_API_KEY in .env (gitignored).
+// Requires REPLICATE_API_TOKEN + OPENAI_API_KEY in .env (gitignored). The
+// agent (Claude) must not Read or Write .env directly — only the user
+// populates it. Node reading via --env-file is fine.
 //
 // Findings as of 2026-05-22:
 //   * gpt-image-1 produces the most consistent pixel-art sets at scale.
@@ -334,7 +336,7 @@ function fogVariantsSection(): HTMLElement {
   const variants: Array<{ id: string; label: string; blurb: string; isVideo?: boolean; src?: string }> = [
     { id: 'fog-mistveil', label: 'Mistveil (static)', blurb: 'Dense rolling cloud cover, atmospheric depth' },
     { id: 'fog-mistveil-video', label: 'Mistveil (ANIMATED — raw)', blurb: 'Wan 2.2 i2v, 5s, raw — seam visible at loop point', isVideo: true },
-    { id: 'fog-mistveil-loop', label: 'Mistveil (LOOPED — palindrome)', blurb: '10s perfect loop, forward+reverse concat via ffmpeg', isVideo: true, src: '/pixel-lab/video/fog-mistveil-loop.mp4' },
+    { id: 'fog-mistveil-loop', label: 'Mistveil (LOOPED — palindrome)', blurb: '10s perfect loop, forward+reverse concat via ffmpeg', isVideo: true, src: '/pixel-lab-assets/video/fog-mistveil-loop.mp4' },
     { id: 'fog-lantern', label: 'Lantern-lit night', blurb: 'Dark with warm/cool light pinpricks' },
     { id: 'fog-wispy', label: 'Wispy sparse drift', blurb: 'Too sparse — reads as calligraphy not fog' },
     { id: 'fog-void', label: 'Deep void', blurb: 'Near-black, extreme "see nothing" mode' },
@@ -345,7 +347,7 @@ function fogVariantsSection(): HTMLElement {
     cell.className = 'pixel-lab__fog-cell';
     if (v.isVideo) {
       const vid = document.createElement('video');
-      vid.src = v.src || `/pixel-lab/video/fog-mistveil.mp4`;
+      vid.src = v.src || `/pixel-lab-assets/video/fog-mistveil.mp4`;
       vid.autoplay = true;
       vid.loop = true;
       vid.muted = true;
@@ -356,7 +358,7 @@ function fogVariantsSection(): HTMLElement {
       cell.append(vid);
     } else {
       const img = document.createElement('img');
-      img.src = `/pixel-lab/gpt/${v.id}.png`;
+      img.src = `/pixel-lab-assets/gpt/${v.id}.png`;
       img.alt = v.label;
       img.style.imageRendering = 'pixelated';
       img.style.width = '100%';
@@ -402,7 +404,7 @@ function themedKnightsSection(): HTMLElement {
     const card = document.createElement('div');
     card.className = 'pixel-lab__themed-card';
     const img = document.createElement('img');
-    img.src = `/pixel-lab/gpt/themed-${t.id}-w.png`;
+    img.src = `/pixel-lab-assets/gpt/themed-${t.id}-w.png`;
     img.alt = t.label;
     img.style.imageRendering = 'pixelated';
     const labelEl = document.createElement('h3');
@@ -427,10 +429,10 @@ function realScaleBoardSection(): HTMLElement {
   const header = document.createElement('header');
   header.className = 'pixel-lab__intro';
   const h2 = document.createElement('h2');
-  h2.textContent = 'Real-scale preview — starting position, gpt Modern set';
+  h2.textContent = 'Real-scale preview — Lantern Dark 8-bit (gpt-image-2)';
   const p = document.createElement('p');
   p.textContent =
-    'Pieces at ~64px squares (close to production board scale). Fog overlay on a4, c5, f5, h4 to test how the set reads with fog. If pieces and fog read here, the set is shippable.';
+    'Pieces at ~64px squares (close to production board scale). Fog overlay on a4, c5, f5, h4 to test how the set reads with mist. If pieces and fog read clearly here, the set is shippable.';
   header.append(h2, p);
   section.append(header);
 
@@ -464,7 +466,7 @@ function realScaleBoardSection(): HTMLElement {
         const img = document.createElement('img');
         const color = piece[0]; // w or b
         const type = piece[1]; // K Q R B N P
-        img.src = `/pixel-lab/gpt/set-modern-${color}${type}.png`;
+        img.src = `/pixel-lab-assets/gpt/set-lantern-dark-8bit-${color}${type}.png`;
         img.alt = piece;
         img.style.imageRendering = 'pixelated';
         sq.append(img);
@@ -501,7 +503,7 @@ function realScaleBoardSection(): HTMLElement {
         const img = document.createElement('img');
         const color = piece[0];
         const type = piece[1];
-        img.src = `/pixel-lab/gpt/set-modern-${color}${type}.png`;
+        img.src = `/pixel-lab-assets/gpt/set-lantern-dark-8bit-${color}${type}.png`;
         img.alt = piece;
         img.style.imageRendering = 'pixelated';
         sq.append(img);
@@ -585,7 +587,7 @@ function themedSetsSection(): HTMLElement {
   header.append(h2, p);
   section.append(header);
 
-  for (const style of ['lantern-dark', 'lantern-8bit', 'atmospheric', 'lantern'] as const) {
+  for (const style of ['lantern-dark-8bit', 'lantern-dark', 'lantern-dark-v1', 'lantern-8bit', 'atmospheric', 'lantern'] as const) {
     const block = document.createElement('div');
     block.className = 'pixel-lab__set-block';
 
@@ -594,7 +596,9 @@ function themedSetsSection(): HTMLElement {
       style === 'atmospheric' ? 'Atmospheric Staunton'
       : style === 'lantern' ? 'Lantern (v3, integrated gems — mixed quality)'
       : style === 'lantern-8bit' ? 'Lantern 8-bit (simpler — pieces holding lanterns)'
-      : 'Lantern Dark (bespoke per-piece — went TOO dark, mostly invisible)';
+      : style === 'lantern-dark-v1' ? 'Lantern Dark V1 (gpt-image-1, FAILED — invisible pieces)'
+      : style === 'lantern-dark-8bit' ? 'Lantern Dark — TRUE 8-BIT (gpt-image-2, tight constraints) ★'
+      : 'Lantern Dark V2 (gpt-image-2, illustrated — gorgeous but not 8-bit)';
     blockLabel.className = 'pixel-lab__api-subhead';
     block.append(blockLabel);
 
@@ -606,7 +610,10 @@ function themedSetsSection(): HTMLElement {
         const cell = document.createElement('div');
         cell.className = 'pixel-lab__set-cell';
         const img = document.createElement('img');
-        img.src = `/pixel-lab/gpt/set-${style}-${color}${piece}.png`;
+        // v1 outputs were renamed with -v1 suffix; remap path.
+        const fileStyle = style === 'lantern-dark-v1' ? 'lantern-dark' : style;
+        const suffix = style === 'lantern-dark-v1' ? '-v1' : '';
+        img.src = `/pixel-lab-assets/gpt/set-${fileStyle}-${color}${piece}${suffix}.png`;
         img.alt = `${style} ${color}${piece}`;
         img.loading = 'lazy';
         img.style.imageRendering = 'pixelated';
@@ -829,10 +836,10 @@ export function mountPixelLab(root: HTMLElement): void {
     .pixel-lab__realboard { display: grid; grid-template-columns: repeat(8, 64px); grid-auto-rows: 64px; border: 2px solid #1a1a1a; }
     .pixel-lab__realboard--small { grid-template-columns: repeat(8, 40px); grid-auto-rows: 40px; }
     .pixel-lab__realboard-sq { position: relative; width: 100%; height: 100%; }
-    .pixel-lab__realboard-sq.is-light { background: #d4c8e4; }
-    .pixel-lab__realboard-sq.is-dark { background: #6e5e8e; }
+    .pixel-lab__realboard-sq.is-light { background: #b5a890; }
+    .pixel-lab__realboard-sq.is-dark { background: #6a5a48; }
     .pixel-lab__realboard-sq img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-    .pixel-lab__realboard-fog { position: absolute; inset: 0; background-image: url('/pixel-lab/gpt/fog-modern.png'); background-size: cover; image-rendering: pixelated; opacity: 0.85; }
+    .pixel-lab__realboard-fog { position: absolute; inset: 0; background-image: url('/pixel-lab-assets/gpt/fog-mistveil.png'); background-size: cover; image-rendering: pixelated; opacity: 0.85; }
     .pixel-lab__realboard-caption { font-size: 12px; opacity: 0.6; margin: 16px 0 8px; }
     .pixel-lab__themed { margin-bottom: 48px; }
     .pixel-lab__themed-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }

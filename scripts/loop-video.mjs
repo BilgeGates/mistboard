@@ -8,11 +8,11 @@
 // we cross-fade the last second into the first second.
 //
 // Usage:
-//   node scripts/loop-video.mjs --in apps/web/public/pixel-lab/video/fog-mistveil.mp4 \
+//   node scripts/loop-video.mjs --in apps/web/public/pixel-lab-assets/video/fog-mistveil.mp4 \
 //     --out fog-mistveil --mode palindrome
 //
 // Outputs both .mp4 (looped) and .webp (animated, ~50% the size, browser-friendly)
-// into apps/web/public/pixel-lab/video/<out>-loop.{mp4,webp}.
+// into apps/web/public/pixel-lab-assets/video/<out>-loop.{mp4,webp}.
 
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,7 +55,7 @@ if (!args.in || !args.out) {
 
 const mode = typeof args.mode === 'string' ? args.mode : 'palindrome';
 const inPath = resolve(REPO_ROOT, args.in);
-const outDir = resolve(REPO_ROOT, 'apps/web/public/pixel-lab/video');
+const outDir = resolve(REPO_ROOT, 'apps/web/public/pixel-lab-assets/video');
 const outMp4 = resolve(outDir, `${args.out}-loop.mp4`);
 const outWebp = resolve(outDir, `${args.out}-loop.webp`);
 
