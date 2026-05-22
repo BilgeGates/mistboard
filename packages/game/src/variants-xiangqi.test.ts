@@ -566,27 +566,53 @@ test('soldier vision: 1 fwd in own half, 1 fwd + 2 sideways after crossing river
   assert.ok(v.directlyVisible.has('c6'));
 });
 
-test('cannon-vision modes A/B/C: target square rendering differs', () => {
+test('cannon-vision modes A/B/C/D: target square rendering differs', () => {
   const state = createInitialXiangqiState('t');
   // Initial position: red cannon b3 sees b10 as a screened target (black horse).
   const viewA = getPlayerView(state, 'red', 'A');
   const viewB = getPlayerView(state, 'red', 'B');
   const viewC = getPlayerView(state, 'red', 'C');
+  const viewD = getPlayerView(state, 'red', 'D');
 
-  // b10 (black horse, behind screen b8) — entry exists in all three modes.
+  // b10 (black horse, behind screen b8) — entry exists in all four modes.
   assert.ok(viewA.board['b10']);
   assert.ok(viewB.board['b10']);
   assert.ok(viewC.board['b10']);
-  // Mode A: revealed; modes B, C: shrouded.
+  assert.ok(viewD.board['b10']);
+  // Target: A and D reveal; B and C shroud.
   assert.equal(viewA.board['b10']!.shrouded, false);
   assert.equal(viewB.board['b10']!.shrouded, true);
   assert.equal(viewC.board['b10']!.shrouded, true);
+  assert.equal(viewD.board['b10']!.shrouded, false, 'D reveals the target');
 
-  // b8 (black cannon — the screen) — entry exists in all three.
-  // Mode A: revealed; mode B: shrouded; mode C: revealed (the C vs B difference).
+  // b8 (black cannon — the screen) — entry exists in all four.
+  // Screen: A and C reveal; B and D shroud.
   assert.equal(viewA.board['b8']!.shrouded, false);
   assert.equal(viewB.board['b8']!.shrouded, true);
   assert.equal(viewC.board['b8']!.shrouded, false);
+  assert.equal(viewD.board['b8']!.shrouded, true, 'D shrouds the screen');
+});
+
+test('cannon-vision mode D is the inverse of mode C', () => {
+  // Mode C: screen revealed, target shrouded.
+  // Mode D: screen shrouded (rendered as ? by renderXiangqiPiece), target revealed.
+  // Across every cannon-screen and cannon-target entry that exists in both
+  // views, the shrouded flags should be inverted.
+  const state = createInitialXiangqiState('t');
+  const viewC = getPlayerView(state, 'red', 'C');
+  const viewD = getPlayerView(state, 'red', 'D');
+
+  for (const sq of Object.keys(viewC.board) as XiangqiSquare[]) {
+    const c = viewC.board[sq]!;
+    const d = viewD.board[sq];
+    if (!d) continue;
+    // Only assert inversion on entries that are cannon-only-visible (where C
+    // and D differ). For entries that are directly visible from another piece,
+    // both modes set shrouded=false — that's not a violation.
+    if (c.shrouded || d.shrouded) {
+      assert.notEqual(c.shrouded, d.shrouded, `C and D should differ on cannon-only square ${sq}`);
+    }
+  }
 });
 
 test('player view legal-moves: only when it is the player\'s turn', () => {

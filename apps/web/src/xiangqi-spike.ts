@@ -7,7 +7,7 @@
 //   - Fog dots at intersections the perspective player cannot see
 //   - Click-to-move (Step 7)
 //   - POV switcher: red / black / god-view (Step 7)
-//   - Cannon-vision mode toggle: A / B / C (Step 8)
+//   - Cannon-vision mode toggle: A / B / C / D (Step 8)
 
 import {
   applyMove,
@@ -316,6 +316,7 @@ function controlsHtml(s: SpikeState): string {
         ${modeBtn('A', 'A · full reveal')}
         ${modeBtn('B', 'B · both shrouded')}
         ${modeBtn('C', 'C · screen full, target shrouded')}
+        ${modeBtn('D', 'D · screen shrouded, target full')}
       </div>
       <div class="xq-control-row">
         <button data-action="reset" class="xq-btn">Reset</button>

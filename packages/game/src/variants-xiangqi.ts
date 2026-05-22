@@ -49,8 +49,10 @@ export type XiangqiMove = {
 // Cannon-vision toggle (see docs-private/fog-of-war/library/variants/fow-xiangqi.md §1)
 //   A — screen + target both fully revealed
 //   B — screen + target both shrouded (occupancy only)
-//   C — screen revealed with type, target shrouded (the working lean)
-export type XiangqiCannonVisionMode = 'A' | 'B' | 'C';
+//   C — screen revealed with type, target shrouded
+//   D — screen shrouded with ? marker, target revealed (inverse of C —
+//       "you see what you can land on, not what enables the line")
+export type XiangqiCannonVisionMode = 'A' | 'B' | 'C' | 'D';
 
 export type XiangqiVisibleBoardEntry = {
   piece: XiangqiPiece;
@@ -574,7 +576,12 @@ export function getPlayerView(
   // Mode rendering rules for cannon-only-visible squares.
   // For a square that is BOTH in directlyVisible AND in cannonScreens/Targets,
   // directlyVisible wins (no shrouding).
-  const screenShrouded = mode === 'B';
+  //
+  // The shrouded `?` rendering is provided by renderXiangqiPiece — when a screen
+  // is shrouded the player sees "something is here, identity unknown," which
+  // also serves as the Mode-D "screen has a ? marker" hint that the capture
+  // line exists.
+  const screenShrouded = mode === 'B' || mode === 'D';
   const targetShrouded = mode === 'B' || mode === 'C';
 
   for (const sq of vision.directlyVisible) {
