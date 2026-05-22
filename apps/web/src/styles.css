@@ -2669,11 +2669,27 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   margin-bottom: 0;
 }
 
+.contact-section {
+  max-width: 600px;
+}
+
+.contact-reply-note {
+  font-size: 13px;
+  color: #6a716c;
+  margin: -4px 0 20px;
+}
+
+.contact-card {
+  background: #ffffff;
+  border: 1px solid #d4ddd6;
+  border-radius: 10px;
+  padding: 24px;
+}
+
 .contact-form {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  margin-top: 8px;
 }
 
 .contact-field {
@@ -2745,11 +2761,15 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   color: #b03a2e;
 }
 
-/* Lane slot reserves layout space so the anon→user swap doesn't jolt the form. */
+/* Lane slot reserves layout space so the anon→user swap doesn't jolt the form.
+   Only the anon lane needs the reservation — the user lane is a one-line note
+   and an 84px reservation would leave a visible gap below it. */
 .contact-lane-slot {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.contact-lane-slot[data-lane='anon'] {
   min-height: 84px;
 }
 
@@ -2766,12 +2786,8 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .contact-signed-in-hint {
   margin: 0;
-  font-size: 14px;
-  color: #3f4742;
-  padding: 12px 14px;
-  background: #eef3ef;
-  border: 1px solid #d4ddd6;
-  border-radius: 6px;
+  font-size: 13px;
+  color: #6a716c;
 }
 
 .contact-signed-in-hint strong {

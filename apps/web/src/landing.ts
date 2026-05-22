@@ -2734,6 +2734,10 @@ function buildContact(initialSignedIn: boolean): ContactView {
   intro.className = 'contact-intro';
   intro.textContent = initialSignedIn ? introUser : introAnon;
 
+  const replyNote = document.createElement('p');
+  replyNote.className = 'contact-reply-note';
+  replyNote.textContent = 'Usually a reply within a day or two.';
+
   const form = document.createElement('form');
   form.className = 'contact-form';
   form.noValidate = true;
@@ -2745,7 +2749,7 @@ function buildContact(initialSignedIn: boolean): ContactView {
   const messageInput = document.createElement('textarea');
   messageInput.name = 'message';
   messageInput.required = true;
-  messageInput.rows = 8;
+  messageInput.rows = 6;
   messageInput.maxLength = 5000;
   messageInput.placeholder = "What's on your mind?";
   messageLabel.append(messageLabelText, messageInput);
@@ -2902,7 +2906,11 @@ function buildContact(initialSignedIn: boolean): ContactView {
     })();
   });
 
-  section.append(heading, intro, form);
+  const card = document.createElement('div');
+  card.className = 'contact-card';
+  card.append(form);
+
+  section.append(heading, intro, replyNote, card);
   return { el: section, applyAuth };
 }
 
