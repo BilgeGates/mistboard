@@ -29,6 +29,36 @@ FoW play over Phase 2's hand-engineered marginals. Two gates:
   (+10pp over Phase 1b's 0.289) AND **per-position solve time ≤ 60s
   on GPU**.
 
+### Chess-judgable success criteria (added 2026-05-22)
+
+The "+10pp argmax-match" gate is metric-driven and we've shown the
+underlying metric is noisy (the 100-iter partial showed gate metrics
+don't move with more compute; the both-miss inspection showed ~50% of
+suggested moves are themselves questionable in chess terms). So we
+ALSO commit to a chess-judgable success criterion that Brian can
+score independently of the argmax-match metric:
+
+- **Mandatory pre-commit:** before Phase 3 training begins, Brian
+  reviews a random subset of 10 positions from the Phase 2b
+  100-iter result via `cfr_review_packet.py`, and commits to a
+  baseline "Phase 2b chess-quality" score: N/10 positions where
+  Phase 2b's argmax is either (a) the best available move or (b)
+  reasonable + no better alternative exists. Record this as the
+  Phase 3 chess-quality bar.
+- **Phase 3 chess success:** Phase 3's model evaluated on the SAME
+  10 positions scores **≥ N+2 / 10** on the same chess-judgable
+  rubric. Brian's judgment is the gate; the argmax-match metric is
+  a secondary signal.
+- **Phase 3 chess failure:** Phase 3 model scores ≤ N on the same
+  10 positions. Architecture didn't help in chess terms even if it
+  moves the metric.
+- **Phase 3 mixed:** N+1 / 10 (one position improvement). Treat as
+  inconclusive; don't auto-promote to Phase 4.
+
+This forces us to specify "this works" in terms Brian can grade
+before any GPU spend, and decouples our continue/stop decision from
+the noisy argmax-match-suggested metric.
+
 If both pass: CFR-direction is the engine track's primary investment;
 move toward a production deployment plan.
 
