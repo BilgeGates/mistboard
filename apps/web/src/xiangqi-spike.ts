@@ -13,6 +13,7 @@ import {
   applyMove,
   coordOf,
   createInitialXiangqiState,
+  getLegalMoves,
   getLegalMovesFrom,
   getPlayerView,
   squareOf,
@@ -20,11 +21,13 @@ import {
   type XiangqiCannonVisionMode,
   type XiangqiColor,
   type XiangqiGameState,
+  type XiangqiMove,
   type XiangqiPiece,
   type XiangqiPlayerView,
   type XiangqiSquare,
 } from '@mistboard/game';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
+import { chooseHandTunedMove } from './xiangqi-bot.js';
 
 // ── Geometry ───────────────────────────────────────────────────────────────
 
@@ -147,6 +150,24 @@ function selectionRing(selection: XiangqiSquare | null, perspective: XiangqiColo
   return `<circle class="xq-selection-ring" cx="${x}" cy="${y}" r="29"/>`;
 }
 
+function lastMoveMarkers(
+  view: XiangqiPlayerView,
+  perspective: XiangqiColor,
+): string {
+  const move = view.lastMove;
+  if (!move) return '';
+  const parts: string[] = [];
+  for (const sq of [move.from, move.to]) {
+    // Only highlight squares the perspective player can actually see; under
+    // FoW it's possible only the destination is visible (or neither).
+    if (!view.visibleSquares.includes(sq)) continue;
+    const { file, rank } = coordOf(sq);
+    const { x, y } = intersection(file, rank, perspective);
+    parts.push(`<circle class="xq-lastmove" cx="${x}" cy="${y}" r="26"/>`);
+  }
+  return parts.join('');
+}
+
 function moveHints(
   selection: XiangqiSquare | null,
   state: XiangqiGameState,
@@ -209,6 +230,7 @@ function renderBoardSvg(
     `<g class="xq-marks">${positionMarks(perspective)}</g>`,
     `<g class="xq-river-text">${riverLabel(perspective)}</g>`,
     `<g class="xq-fog-layer">${fogLayer(view, perspective)}</g>`,
+    `<g class="xq-lastmove-layer">${lastMoveMarkers(view, perspective)}</g>`,
     `<g class="xq-selection">${selectionRing(selection, perspective)}</g>`,
     `<g class="xq-hints">${moveHints(selection, state, perspective)}</g>`,
     `<g class="xq-pieces">${piecesLayer(view, perspective)}</g>`,
@@ -252,6 +274,60 @@ interface SpikeState {
   perspective: Perspective;
   mode: XiangqiCannonVisionMode;
   selection: XiangqiSquare | null;
+  // Move history is recorded for every move (player or bot). Cursor points at
+  // a ply 0..history.length; `game` is always the state at `cursor`.
+  history: XiangqiMove[];
+  cursor: number;
+}
+
+function freshState(): SpikeState {
+  return {
+    game: createInitialXiangqiState('xq-spike'),
+    perspective: 'red',
+    mode: 'C',
+    selection: null,
+    history: [],
+    cursor: 0,
+  };
+}
+
+function gameAtCursor(history: XiangqiMove[], cursor: number): XiangqiGameState {
+  let g = createInitialXiangqiState('xq-spike');
+  for (let i = 0; i < cursor; i++) g = applyMove(g, history[i]);
+  return g;
+}
+
+// Self-play. Capped to keep pathological loops bounded; the progress-clock
+// and 3-fold repetition end conditions in applyMove will usually terminate
+// well before the cap (especially for hand-tuned, which trades pieces).
+const SELFPLAY_PLY_CAP = 600;
+
+type BotKind = 'random' | 'hand-tuned';
+
+function pickMove(state: XiangqiGameState, kind: BotKind): XiangqiMove | null {
+  if (state.status.type !== 'playing') return null;
+  if (kind === 'hand-tuned') return chooseHandTunedMove(state, state.status.turn);
+  const legal = getLegalMoves(state);
+  if (legal.length === 0) return null;
+  return legal[Math.floor(Math.random() * legal.length)];
+}
+
+function runBotGame(redBot: BotKind, blackBot: BotKind): XiangqiMove[] {
+  let g = createInitialXiangqiState('xq-spike');
+  const moves: XiangqiMove[] = [];
+  for (let i = 0; i < SELFPLAY_PLY_CAP; i++) {
+    if (g.status.type !== 'playing') break;
+    const bot = g.status.turn === 'red' ? redBot : blackBot;
+    const pick = pickMove(g, bot);
+    if (!pick) break;
+    g = applyMove(g, pick);
+    moves.push(pick);
+  }
+  return moves;
+}
+
+function isReplay(s: SpikeState): boolean {
+  return s.cursor < s.history.length;
 }
 
 function viewForState(s: SpikeState): { view: XiangqiPlayerView; orient: XiangqiColor } {
@@ -274,6 +350,8 @@ function canSelect(s: SpikeState, square: XiangqiSquare): boolean {
 }
 
 function handleSquareClick(s: SpikeState, square: XiangqiSquare): SpikeState {
+  // Replay mode: board is read-only — user must scrub to live before moving.
+  if (isReplay(s)) return s;
   if (s.game.status.type !== 'playing') return s;
   const piece = s.game.board[square];
 
@@ -287,9 +365,16 @@ function handleSquareClick(s: SpikeState, square: XiangqiSquare): SpikeState {
   }
 
   const legal = getLegalMovesFrom(s.game, s.selection);
-  if (legal.some((m) => m.to === square)) {
-    const next = applyMove(s.game, { from: s.selection, to: square });
-    return { ...s, game: next, selection: null };
+  const move = legal.find((m) => m.to === square);
+  if (move) {
+    const next = applyMove(s.game, move);
+    return {
+      ...s,
+      game: next,
+      selection: null,
+      history: [...s.history, move],
+      cursor: s.cursor + 1,
+    };
   }
 
   // Click on a non-destination square: reselect if it's another own piece,
@@ -319,8 +404,33 @@ function controlsHtml(s: SpikeState): string {
         ${modeBtn('D', 'D · screen shrouded, target full')}
       </div>
       <div class="xq-control-row">
+        <span class="xq-control-label">Bot game</span>
+        <button data-bots="random,random" class="xq-btn">Random vs Random</button>
+        <button data-bots="hand-tuned,hand-tuned" class="xq-btn">Tuned vs Tuned</button>
+        <button data-bots="hand-tuned,random" class="xq-btn">Tuned (red) vs Random</button>
+      </div>
+      <div class="xq-control-row">
         <button data-action="reset" class="xq-btn">Reset</button>
       </div>
+      ${replayHtml(s)}
+    </div>
+  `;
+}
+
+function replayHtml(s: SpikeState): string {
+  if (s.history.length === 0) return '';
+  const max = s.history.length;
+  const disabledStart = s.cursor === 0 ? ' disabled' : '';
+  const disabledEnd = s.cursor === max ? ' disabled' : '';
+  return `
+    <div class="xq-control-row">
+      <span class="xq-control-label">Replay</span>
+      <button data-action="ply-start" class="xq-btn"${disabledStart}>⏮</button>
+      <button data-action="ply-prev" class="xq-btn"${disabledStart}>◀</button>
+      <input type="range" min="0" max="${max}" value="${s.cursor}" data-action="ply-slider" class="xq-slider"/>
+      <button data-action="ply-next" class="xq-btn"${disabledEnd}>▶</button>
+      <button data-action="ply-end" class="xq-btn"${disabledEnd}>⏭</button>
+      <span class="xq-ply-readout">${s.cursor} / ${max}</span>
     </div>
   `;
 }
@@ -334,7 +444,8 @@ function statusHtml(s: SpikeState): string {
   } else {
     line = `Move ${game.moveNumber} · ${game.status.turn} to move`;
   }
-  return `<div class="xq-status">${line}</div>`;
+  const tag = isReplay(s) ? ` <span class="xq-replay-tag">replay</span>` : '';
+  return `<div class="xq-status">${line}${tag}</div>`;
 }
 
 let active: { root: HTMLElement; state: SpikeState } | null = null;
@@ -357,6 +468,16 @@ function rerender(): void {
   `;
   root.append(container);
   attachHandlers(container);
+}
+
+function setCursor(s: SpikeState, cursor: number): SpikeState {
+  const clamped = Math.max(0, Math.min(s.history.length, cursor));
+  return {
+    ...s,
+    cursor: clamped,
+    game: gameAtCursor(s.history, clamped),
+    selection: null,
+  };
 }
 
 function attachHandlers(container: HTMLElement): void {
@@ -383,7 +504,52 @@ function attachHandlers(container: HTMLElement): void {
         ...active.state,
         game: createInitialXiangqiState('xq-spike'),
         selection: null,
+        history: [],
+        cursor: 0,
       };
+      rerender();
+    });
+  });
+  container.querySelectorAll<HTMLElement>('[data-bots]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!active) return;
+      const [red, black] = (btn.dataset.bots ?? 'random,random').split(',') as [BotKind, BotKind];
+      const history = runBotGame(red, black);
+      active.state = {
+        ...active.state,
+        history,
+        cursor: history.length,
+        game: gameAtCursor(history, history.length),
+        selection: null,
+      };
+      rerender();
+    });
+  });
+  for (const [action, delta] of [
+    ['ply-start', -Infinity],
+    ['ply-prev', -1],
+    ['ply-next', 1],
+    ['ply-end', Infinity],
+  ] as const) {
+    container.querySelectorAll<HTMLElement>(`[data-action="${action}"]`).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!active) return;
+        const target = delta === -Infinity
+          ? 0
+          : delta === Infinity
+            ? active.state.history.length
+            : active.state.cursor + delta;
+        active.state = setCursor(active.state, target);
+        rerender();
+      });
+    });
+  }
+  container.querySelectorAll<HTMLInputElement>('[data-action="ply-slider"]').forEach((el) => {
+    el.addEventListener('input', () => {
+      if (!active) return;
+      const target = Number(el.value);
+      if (!Number.isFinite(target)) return;
+      active.state = setCursor(active.state, target);
       rerender();
     });
   });
@@ -422,10 +588,29 @@ const STYLE = `
   }
   .xq-btn:hover { background: #efefef; }
   .xq-btn.on { background: #1f2521; color: #f7e8c5; border-color: #1f2521; }
+  .xq-btn[disabled] { opacity: 0.4; cursor: default; }
+  .xq-slider { flex: 1; min-width: 160px; accent-color: #1f2521; }
+  .xq-ply-readout {
+    font-size: 0.85rem;
+    color: #6b6b6b;
+    font-variant-numeric: tabular-nums;
+    min-width: 64px;
+    text-align: right;
+  }
   .xq-status {
     margin-bottom: 0.75rem;
     font-size: 0.95rem;
     color: #444;
+  }
+  .xq-replay-tag {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.45rem;
+    font-size: 0.75rem;
+    background: #1f2521;
+    color: #f7e8c5;
+    border-radius: 3px;
+    vertical-align: 1px;
   }
   .xq-board-wrap { display: flex; justify-content: center; }
   .xq-board-svg {
@@ -447,6 +632,7 @@ const STYLE = `
     letter-spacing: 4px;
   }
   .xq-fog { fill: #2a2218; opacity: 0.55; }
+  .xq-lastmove { fill: #f59e0b; opacity: 0.22; }
   .xq-selection-ring { fill: none; stroke: #f59e0b; stroke-width: 3; }
   .xq-hint-dot { fill: #15803d; opacity: 0.85; }
   .xq-hint-capture { fill: none; stroke: #b91c1c; stroke-width: 3; opacity: 0.85; stroke-dasharray: 5 4; }
@@ -454,15 +640,7 @@ const STYLE = `
 `;
 
 export function mountXiangqiSpike(root: HTMLElement): void {
-  active = {
-    root,
-    state: {
-      game: createInitialXiangqiState('xq-spike'),
-      perspective: 'red',
-      mode: 'C',
-      selection: null,
-    },
-  };
+  active = { root, state: freshState() };
   rerender();
 }
 
