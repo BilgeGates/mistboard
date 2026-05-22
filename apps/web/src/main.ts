@@ -72,6 +72,8 @@ const profileHandle = profileHandleFromPath(path);
 // Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
 // See docs-private/fog-of-war/library/variants/fow-xiangqi.md.
 const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
+// Hidden DEV-only spike: pixel-art piece + fog style probes. No nav entry.
+const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 
 if (replaySample) {
   setTitle('Replay');
@@ -118,6 +120,9 @@ if (replaySample) {
 } else if (wantsXiangqiSpike) {
   setTitle('Xiangqi spike');
   void mountOrReport(() => import('./xiangqi-spike.js').then(({ mountXiangqiSpike }) => mountXiangqiSpike(appRoot)));
+} else if (wantsPixelLab) {
+  setTitle('Pixel lab');
+  void mountOrReport(() => import('./pixel-lab.js').then(({ mountPixelLab }) => mountPixelLab(appRoot)));
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
