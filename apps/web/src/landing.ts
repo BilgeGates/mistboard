@@ -2338,7 +2338,7 @@ function buildAbout(): HTMLElement {
 
   const featuresHeading = aboutSubheading('What you can do here');
   const featuresP = aboutParagraph([
-    'Play a friend over a link. Join a lobby for a random opponent. Play the in-house engine. Replay any finished game and toggle reveal mode to see both perspectives. Try Draft960, a pregame variant where each player drafts their own back rank. Read the ',
+    'Play a friend over a link. Join a lobby for a random opponent. Play the engine. Replay any finished game and toggle reveal mode to see both perspectives. Try Draft960, a pregame variant where each player drafts their own back rank. Read the ',
     aboutLink('articles', '/articles'),
     ' for rules, openings, and engine research, or browse the ',
     aboutLink('leaderboard', '/leaderboard'),
@@ -2347,7 +2347,7 @@ function buildAbout(): HTMLElement {
 
   const fairnessHeading = aboutSubheading('Fairness and integrity');
   const fairnessP = aboutParagraph([
-    'No ads, no trackers beyond aggregate analytics, no account required to play. Hidden information is enforced on the server — your opponent’s pieces and moves never reach your browser until your own pieces can see them.',
+    'No ads, no trackers beyond aggregate analytics, no account required to play. Hidden information is enforced on the server: your opponent’s pieces and moves never reach your browser until your own pieces can see them.',
   ]);
 
   const oss1Heading = aboutSubheading('Open source');
@@ -2361,17 +2361,17 @@ function buildAbout(): HTMLElement {
 
   const engineHeading = aboutSubheading('Engines for hidden-information chess');
   const engineP = aboutParagraph([
-    'Standard chess engines assume both sides see the full board. Dark chess breaks that assumption. The techniques that work — belief-state search, particle filters, Monte Carlo tree search over determinized positions — come from the Reconnaissance Blind Chess literature. Mistboard’s engine is in active development and open source. A protocol for third-party dark chess engines (FUCI) is in design, and Mistboard plans to host engine tournaments and calibration runs once the protocol stabilizes.',
+    'Standard chess engines need to see the full board. The techniques that work for dark chess (belief-state search, particle filters, Monte Carlo tree search over determinized positions) come from the Reconnaissance Blind Chess literature. Mistboard’s engine is in active development and open source. A protocol for third-party engines (FUCI) is in design. Engine tournaments and calibration runs follow once it stabilizes.',
   ]);
 
   const statusHeading = aboutSubheading('Project status');
   const statusP = aboutParagraph([
-    'Early, single-maintainer, and shipping in public. New features, articles, and engine versions land regularly. Accounts and ratings are not yet considered stable — expect things to change.',
+    'Early, single-maintainer, and shipping in public. New features, articles, and engine versions land regularly. Accounts and ratings aren’t stable yet. Expect things to change.',
   ]);
 
   const contactHeading = aboutSubheading('Get in touch');
   const contactP = aboutParagraph([
-    'Bug reports, feature ideas, broken games — send anything via ',
+    'Bug reports, feature ideas, broken games: send anything via ',
     aboutLink('Contact', '/contact'),
     '. Email is optional.',
   ]);
