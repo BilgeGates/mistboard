@@ -60,6 +60,30 @@ export function canObserveLiveRoom(projection: GameProjection): boolean {
   return projection.state.status.type === 'finished';
 }
 
+// SPA fallback allowlist. The web client owns these routes (see apps/web/src/main.ts);
+// the server must hand them index.html so direct hits and refreshes don't 404. Keep in
+// sync with main.ts — server-policy.test.ts covers parity.
+export function isClientRoute(pathname: string): boolean {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return normalized === '/about'
+    || normalized === '/learn'
+    || normalized === '/play'
+    || normalized === '/watch'
+    || normalized === '/source'
+    || normalized === '/contact'
+    || normalized === '/account'
+    || normalized === '/account/settings'
+    || normalized === '/leaderboard'
+    || normalized === '/lab'
+    || normalized === '/engine-lab'
+    || normalized === '/arena'
+    || normalized === '/articles'
+    || normalized.startsWith('/articles/')
+    || normalized.startsWith('/game/')
+    || normalized.startsWith('/@/')
+    || normalized.startsWith('/room/');
+}
+
 export function adminDebugTokenFromProtocolHeader(value: string | string[] | undefined): string | undefined {
   return tokenFromProtocolHeader(value, 'mistboard-admin-debug.');
 }

@@ -28,6 +28,7 @@ import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
   isAdminDebugToken,
+  isClientRoute,
   isDrainToken,
   isServerEngineClient,
   isAllowedWebSocketOrigin,
@@ -589,26 +590,6 @@ async function serveArticlesIndexPage(response: ServerResponse): Promise<void> {
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function isClientRoute(pathname: string): boolean {
-  const normalized = pathname.replace(/\/+$/, '') || '/';
-  return normalized === '/about'
-    || normalized === '/learn'
-    || normalized === '/play'
-    || normalized === '/watch'
-    || normalized === '/source'
-    || normalized === '/account'
-    || normalized === '/account/settings'
-    || normalized === '/leaderboard'
-    || normalized === '/lab'
-    || normalized === '/engine-lab'
-    || normalized === '/arena'
-    || normalized === '/articles'
-    || normalized.startsWith('/articles/')
-    || normalized.startsWith('/game/')
-    || normalized.startsWith('/@/')
-    || normalized.startsWith('/room/');
 }
 
 function resolveRepoPath(...parts: string[]): string {

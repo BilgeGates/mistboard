@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { createClock, expireClock, replayGameEvents, type GameEvent } from '@mistboard/game';
 import {
   adminDebugTokenFromProtocolHeader,
@@ -8,6 +11,7 @@ import {
   eventReplayResponse,
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
+  isClientRoute,
   isDatabaseRequired,
   isDrainToken,
   recordMessageTimestamp,
@@ -170,4 +174,47 @@ test('websocket message rate window rejects over-limit bursts and recovers after
   assert.equal(recordMessageTimestamp(timestamps, 1_200, 2, 1_000), false);
   assert.equal(recordMessageTimestamp(timestamps, 2_300, 2, 1_000), true);
   assert.deepEqual(timestamps, [2_300]);
+});
+
+// Parity: every literal client route in apps/web/src/main.ts must be in the SPA
+// fallback allowlist. Static parse of main.ts catches the bug class where a new
+// route is wired client-side but the server still 404s direct hits.
+// Intentionally-parked or DEV-only client routes that should NOT 200 in prod.
+const PARKED_CLIENT_ROUTES = new Set<string>([
+  '/video', // see memory: video_page_parked
+  '/xiangqi-spike', // DEV-only; gated by import.meta.env.DEV in main.ts
+]);
+
+test('isClientRoute covers every literal route declared in main.ts', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const mainPath = resolve(here, '..', '..', 'web', 'src', 'main.ts');
+  const source = readFileSync(mainPath, 'utf-8');
+  // Matches `path === '/foo'` or `path === '/foo/bar'` — the canonical pattern
+  // for top-level routes in main.ts (e.g. wantsAbout, wantsContact). Parametric
+  // routes (/game/:id, /@/:handle, /articles/:slug, /room/:id) live in helper
+  // functions and are exercised by the literal startsWith branches below.
+  const literalRoutes = Array.from(source.matchAll(/path === '(\/[^']*)'/g))
+    .map((match) => match[1]!)
+    // `/` is served as the static index.html itself, no SPA fallback needed.
+    .filter((route) => route !== '/' && !PARKED_CLIENT_ROUTES.has(route));
+  assert.ok(literalRoutes.length > 0, 'expected to find literal routes in main.ts');
+  for (const route of literalRoutes) {
+    assert.equal(
+      isClientRoute(route),
+      true,
+      `main.ts routes ${route} client-side but server isClientRoute() returns 404`,
+    );
+  }
+});
+
+test('isClientRoute matches parametric SPA routes', () => {
+  assert.equal(isClientRoute('/game/abc123'), true);
+  assert.equal(isClientRoute('/room/abc123'), true);
+  assert.equal(isClientRoute('/@/brianhliou'), true);
+  assert.equal(isClientRoute('/articles/draft960'), true);
+});
+
+test('isClientRoute rejects unknown paths', () => {
+  assert.equal(isClientRoute('/does-not-exist'), false);
+  assert.equal(isClientRoute('/api/games/recent'), false);
 });
