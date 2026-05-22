@@ -1063,13 +1063,13 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Visibility leaks information. What changed in your view implies what moved, sometimes pieces you've never seen.",
+              "Visibility leaks information. What changes in your view tells you what moved.",
           },
-          { kind: 'sub-heading', text: 'Deductions from pawn movement' },
+          { kind: 'sub-heading', text: 'Pawn moves' },
           {
             kind: 'paragraph',
             text:
-              "A pawn sees the squares it can push to. When a push is blocked, the push square falls to fog. The fog tells you something is standing there.",
+              "A pawn sees where it can push. Fog on a push square means a piece is blocking it.",
           },
           {
             kind: 'live-boards',
@@ -1084,7 +1084,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "The same signal carries into opening play. After 1.d4 e6 2.Nf3 Bb4, White's b2-pawn was the only piece giving White vision of b4 (via its two-square push). After Bb4, b4 falls to fog. Something moved onto a square that was visible empty. With c3 and d2 both visible empty, the b4-e1 diagonal is open and the king is one Black move from capture.",
+              "Same signal in opening play. After 1.d4 e6 2.Nf3 Bb4, b4 leaves White's view: the b2-pawn no longer pushes there. c3 and d2 are visible empty, so the b4-e1 diagonal is open. Black captures the king next move.",
           },
           {
             kind: 'interactive',
@@ -1094,11 +1094,11 @@ export const articles: Article[] = [
               positions: DEDUCE_BB4_POSITIONS,
             },
           } as ArticleBlock,
-          { kind: 'sub-heading', text: 'Deducing opponent captures' },
+          { kind: 'sub-heading', text: 'Captures' },
           {
             kind: 'paragraph',
             text:
-              "When the opponent captures one of your pieces, the capture square falls to fog. You can't see what's standing there. Without other information the capturer could be any piece that attacks the square. White's pawn sits on d5; Black pawns on c6 and e6 both attack it. After 1...exd5, White's pawn vanishes. Which Black pawn took it?",
+              "When the opponent takes one of your pieces, the capture square falls to fog. You can't see what took. Here: White pawn on d5, Black pawns on c6 and e6, both attacking. After 1...exd5, the d5 pawn vanishes. Which Black pawn took it?",
           },
           {
             kind: 'interactive',
@@ -1111,7 +1111,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Add a White bishop on h3. It keeps e6 in view through the h3-c8 diagonal. After the same 1...exd5, White loses the d5 pawn, and the bishop sees e6 fall empty. The e-pawn moved, so the e-pawn captured.",
+              "Add a White bishop on h3. Its diagonal keeps e6 in view. After the same 1...exd5, White loses d5 and the bishop sees e6 fall empty. So the e-pawn took.",
           },
           {
             kind: 'interactive',
