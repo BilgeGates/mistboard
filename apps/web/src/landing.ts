@@ -6,7 +6,7 @@ import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameM
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { classifyTimeControl, track } from './analytics.js';
 import { announcements, type Announcement } from './announcements.js';
-import { isLikelySignedIn, loadCachedCurrentUser } from './account-nav.js';
+import { isLikelySignedIn, loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -1354,10 +1354,13 @@ export function mountSource(root: HTMLElement): void {
 export function mountContact(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'contact-route');
-  // Synchronous best-guess from localStorage so the lane shape is right on
-  // first paint for returning signed-in users. Reconciled below with the
-  // authoritative cached /api/auth/me result.
-  const contact = buildContact(isLikelySignedIn());
+  // Synchronous best-guess from localStorage so the lane shape and text are
+  // right on first paint for returning signed-in users. The full user object
+  // is cached when present (handle, email) so we can render the real banner
+  // immediately; the boolean hint is a fallback for stale-cache cases.
+  // Reconciled below with the authoritative cached /api/auth/me result.
+  const cachedUser = readCachedUser();
+  const contact = buildContact(cachedUser, isLikelySignedIn());
   root.append(buildNav(), contact.el, buildFooter());
   void loadCachedCurrentUser()
     .then((user) => contact.applyAuth(user))
@@ -2719,7 +2722,11 @@ interface ContactView {
   applyAuth: (user: AuthUser | null) => void;
 }
 
-function buildContact(initialSignedIn: boolean): ContactView {
+function buildContact(initialUser: AuthUser | null, initialSignedInHint: boolean): ContactView {
+  // Three initial states: confirmed user (cached object → render real banner),
+  // hinted signed-in (boolean only → render placeholder banner), or anon.
+  const initialSignedIn = initialUser !== null || initialSignedInHint;
+
   const section = document.createElement('section');
   section.className = 'site-section contact-section';
 
@@ -2806,8 +2813,11 @@ function buildContact(initialSignedIn: boolean): ContactView {
     laneSlot.replaceChildren(hint);
   };
 
-  // Initial paint.
-  if (initialSignedIn) buildUserSlot(null); else buildAnonSlot();
+  // Initial paint. If we have the full user object, render the real banner
+  // immediately (no placeholder→real swap when /api/auth/me resolves).
+  if (initialUser) buildUserSlot(initialUser);
+  else if (initialSignedInHint) buildUserSlot(null);
+  else buildAnonSlot();
 
   // Honeypot: hidden from humans, attractive to bots. Server discards if filled.
   const honeypotLabel = document.createElement('label');

@@ -2761,16 +2761,15 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   color: #b03a2e;
 }
 
-/* Lane slot reserves layout space so the anon→user swap doesn't jolt the form.
-   Only the anon lane needs the reservation — the user lane is a one-line note
-   and an 84px reservation would leave a visible gap below it. */
+/* Lane slot has natural height. The common case (returning signed-in user)
+   paints the right lane with real text on first mount via readCachedUser(),
+   so no reservation is needed to suppress a first-paint jolt. Rare auth
+   reconciliation events (sign-out elsewhere, cleared storage) will shift
+   the form height as the auth fetch resolves — that's an acceptable signal. */
 .contact-lane-slot {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-.contact-lane-slot[data-lane='anon'] {
-  min-height: 84px;
 }
 
 .contact-signin-prompt {

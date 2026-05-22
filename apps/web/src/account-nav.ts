@@ -11,6 +11,7 @@ type AuthUser = {
 };
 
 const SIGNED_IN_HINT_KEY = 'mb_signed_in';
+const CACHED_USER_KEY = 'mb_cached_user';
 
 let cachedUser: AuthUser | null | undefined = undefined;
 let userPromise: Promise<AuthUser | null> | null = null;
@@ -25,6 +26,7 @@ export function initializeAccountNav(): void {
 async function primeAccountNav(): Promise<void> {
   const user = await loadCurrentUser();
   writeSignedInHint(user !== null);
+  writeCachedUser(user);
   if (user) mountAccountNavs();
   else revealSignedOutSlots();
 }
@@ -60,6 +62,29 @@ function writeSignedInHint(value: boolean): void {
     else window.localStorage.removeItem(SIGNED_IN_HINT_KEY);
   } catch {
     // localStorage unavailable (private mode etc.) — fall through.
+  }
+}
+
+// Persisted user object. Lets surfaces that need handle/email render the real
+// text on first paint instead of a placeholder that swaps post-fetch. Stale
+// only on edge cases (sign-out elsewhere, email change in another tab) —
+// reconciled by the authoritative /api/auth/me fetch.
+function writeCachedUser(user: AuthUser | null): void {
+  try {
+    if (user) window.localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+    else window.localStorage.removeItem(CACHED_USER_KEY);
+  } catch {
+    // localStorage unavailable — fall through.
+  }
+}
+
+export function readCachedUser(): AuthUser | null {
+  try {
+    const raw = window.localStorage.getItem(CACHED_USER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
   }
 }
 
@@ -166,6 +191,7 @@ async function handleLogout(button: HTMLButtonElement): Promise<void> {
   }
   invalidateAccountCache();
   writeSignedInHint(false);
+  writeCachedUser(null);
   window.location.reload();
 }
 
