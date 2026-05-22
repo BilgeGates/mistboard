@@ -214,7 +214,17 @@
 :root[data-fog-theme="drift"] .live-boards-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden,
 :root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden.white,
-:root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden.black {
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+
+/* Mistveil uses ONE continuous 1024x1024 image spanning the whole board.
+   background-size 800% makes the image 8x the square size (= full-board size);
+   per-square --fog-file (0-7) and --fog-rank (0-7) shift which region is
+   visible. JS in apps/web/src/fog-positioning.ts sets the vars after each
+   chessground render. Result: adjacent fog squares show visually continuous
+   mist, eliminating the "64 tiled copies" effect. */
 :root[data-fog-theme="mistveil"] .board cg-board square.fog-hidden,
 :root[data-fog-theme="mistveil"] .board cg-board square.fog-hidden.white,
 :root[data-fog-theme="mistveil"] .board cg-board square.fog-hidden.black,
@@ -228,8 +238,9 @@
 :root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden,
 :root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden.black {
-  background-size: 100% 100%;
+  background-size: 800% 800%;
   background-repeat: no-repeat;
+  background-position: calc(var(--fog-file, 0) * 100% / 7) calc(var(--fog-rank, 0) * 100% / 7);
 }
 
 * {
