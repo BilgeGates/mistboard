@@ -3733,6 +3733,26 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   border-radius: inherit;
 }
 
+.landing-announcement-card-inner.has-thumb {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.landing-announcement-card-inner.has-thumb .landing-announcement-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.landing-announcement-thumb.articles-index-card-thumb {
+  width: 92px;
+  height: 92px;
+  flex: 0 0 auto;
+}
+
 a.landing-announcement-card-inner:focus-visible {
   outline: 2px solid var(--site-accent, #1f6f5b);
   outline-offset: 2px;

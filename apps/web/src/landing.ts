@@ -6,6 +6,8 @@ import { mountReplay, type EngineReviewPanels, type GameMeta } from './replay.js
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { classifyTimeControl, track } from './analytics.js';
 import { announcements, type Announcement } from './announcements.js';
+import { findArticle } from './articles-data.js';
+import { renderArticleThumbnail, mountArticleThumbnails } from './articles.js';
 import { isLikelySignedIn, loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 
 type FeaturedGame = {
@@ -178,6 +180,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const games = allGames.filter(isHeroEligibleGame);
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());
+  mountArticleThumbnails(stage.el);
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
     return;
@@ -1782,6 +1785,21 @@ function renderAnnouncementCard(entry: Announcement): HTMLElement {
     item.classList.add('is-clickable');
   }
 
+  // Article announcements pull their thumbnail from the linked article.
+  if (entry.kind === 'article' && entry.href) {
+    const match = entry.href.match(/^\/articles\/([^/?#]+)/);
+    const article = match ? findArticle(match[1]!) : undefined;
+    if (article?.thumbnail) {
+      const thumb = renderArticleThumbnail(article.thumbnail);
+      thumb.classList.add('landing-announcement-thumb');
+      container.append(thumb);
+      container.classList.add('has-thumb');
+    }
+  }
+
+  const text = document.createElement('div');
+  text.className = 'landing-announcement-text';
+
   const header = document.createElement('div');
   header.className = 'landing-announcement-meta';
 
@@ -1804,18 +1822,18 @@ function renderAnnouncementCard(entry: Announcement): HTMLElement {
     header.append(date);
   }
 
-  container.append(header);
+  text.append(header);
 
   const headline = document.createElement('p');
   headline.className = 'landing-announcement-headline';
   headline.textContent = entry.headline;
-  container.append(headline);
+  text.append(headline);
 
   if (entry.body) {
     const body = document.createElement('p');
     body.className = 'landing-announcement-body';
     body.textContent = entry.body;
-    container.append(body);
+    text.append(body);
   }
 
   if (entry.href) {
@@ -1829,9 +1847,10 @@ function renderAnnouncementCard(entry: Announcement): HTMLElement {
     arrow.setAttribute('aria-hidden', 'true');
     arrow.textContent = isExternal ? '↗' : '→';
     cta.append(label, arrow);
-    container.append(cta);
+    text.append(cta);
   }
 
+  container.append(text);
   item.append(container);
   return item;
 }

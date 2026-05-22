@@ -8,7 +8,9 @@ import { boardsInLayout, type CompositionLayout } from '../layouts.js';
 
 export type StepperArrow = {
   orig: Square;
-  dest: Square;
+  // When dest is omitted, the shape renders as a circle on orig (useful for
+  // pointing the reader at a single square — e.g. an attacked square).
+  dest?: Square;
   brush?: 'green' | 'red' | 'blue' | 'yellow';
 };
 
@@ -26,8 +28,8 @@ export type StepperBoardSpec = {
 function toShapes(arrows: StepperArrow[] | undefined): DrawShape[] {
   return (arrows ?? []).map((a) => ({
     orig: a.orig as cg.Key,
-    dest: a.dest as cg.Key,
     brush: a.brush ?? 'green',
+    ...(a.dest !== undefined ? { dest: a.dest as cg.Key } : {}),
   }));
 }
 

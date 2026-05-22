@@ -94,6 +94,22 @@ export function buildArticlePage(slug: string): HTMLElement {
 
   main.append(breadcrumb, heading, meta);
 
+  if (article.publishedAt) {
+    const dates = document.createElement('p');
+    dates.className = 'article-dates';
+    const fmt = (iso: string): string => {
+      // YYYY-MM-DD → "Month D, YYYY"
+      const d = new Date(`${iso}T00:00:00Z`);
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    };
+    const published = fmt(article.publishedAt);
+    dates.textContent = `Published ${published}`;
+    if (article.updatedAt && article.updatedAt !== article.publishedAt) {
+      dates.textContent += ` · Updated ${fmt(article.updatedAt)}`;
+    }
+    main.append(dates);
+  }
+
   if (article.tldr && article.tldr.length > 0) {
     const tldr = document.createElement('aside');
     tldr.className = 'article-tldr';
@@ -508,6 +524,18 @@ function articleCard(article: Article): HTMLLIElement {
 
   body.append(title, summary);
 
+  if (article.publishedAt) {
+    const dates = document.createElement('p');
+    dates.className = 'articles-index-card-dates';
+    const fmt = (iso: string): string => {
+      const d = new Date(`${iso}T00:00:00Z`);
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+    };
+    const showUpdated = article.updatedAt && article.updatedAt !== article.publishedAt;
+    dates.textContent = showUpdated ? `Updated ${fmt(article.updatedAt!)}` : `Published ${fmt(article.publishedAt)}`;
+    body.append(dates);
+  }
+
   const arrow = document.createElement('span');
   arrow.className = 'articles-index-card-arrow';
   arrow.setAttribute('aria-hidden', 'true');
@@ -518,7 +546,7 @@ function articleCard(article: Article): HTMLLIElement {
   return item;
 }
 
-function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
+export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'articles-index-card-thumb';
   wrap.setAttribute('aria-hidden', 'true');

@@ -121,6 +121,9 @@ export type Article = {
   summary: string;
   status: 'outline' | 'draft' | 'published';
   audience: string;
+  // ISO-8601 dates (YYYY-MM-DD). When present, rendered in the article meta.
+  publishedAt?: string;
+  updatedAt?: string;
   tldr?: string[];
   thumbnail?: ArticleThumbnail;
   sections: ArticleSection[];
@@ -197,9 +200,12 @@ const CONE_QUEEN = coneState('cone-queen', {
 });
 const CONE_PAWN = coneState('cone-pawn', {
   a2: { color: 'white', role: 'pawn' },
+  b3: { color: 'white', role: 'pawn' },
   c2: { color: 'white', role: 'pawn' },
+  d2: { color: 'white', role: 'pawn' },
   e4: { color: 'white', role: 'pawn' },
   f3: { color: 'white', role: 'pawn' },
+  g3: { color: 'white', role: 'pawn' },
   h5: { color: 'white', role: 'pawn' },
 });
 const CONE_KING = coneState('cone-king', {
@@ -397,24 +403,22 @@ const PVP_STATES = replayMoves(PVP_START, [
   { from: 'd5', to: 'd6' },  // 35.d6
   { from: 'e5', to: 'd6' },  // 35...Bxd6
   { from: 'f2', to: 'e3' },  // 36.Ke3
-  { from: 'b7', to: 'g2' },  // 36...Bg2
+  { from: 'b7', to: 'g2' },  // 36...Bg2 (captures white g-pawn)
   { from: 'a3', to: 'a4' },  // 37.a4
   { from: 'g7', to: 'g5' },  // 37...g5
   { from: 'a4', to: 'a5' },  // 38.a5
   { from: 'g2', to: 'c6' },  // 38...Bc6
   { from: 'e3', to: 'd2' },  // 39.Kd2
   { from: 'g5', to: 'g4' },  // 39...g4
-  { from: 'd2', to: 'c3' },  // 40.Kc3
+  { from: 'd2', to: 'e3' },  // 40.Ke3 (was Kc3) — king walks toward attacker
   { from: 'g4', to: 'g3' },  // 40...g3
-  { from: 'c3', to: 'b4' },  // 41.Kb4 ← KING WALKS INTO c5 PAWN'S RANGE
-  { from: 'c5', to: 'b4' },  // 41...cxb4 ← PAWN CAPTURES KING
+  { from: 'e3', to: 'f4' },  // 41.Kf4 (was Kb4) — walks onto d6-bishop's h2-d6 diagonal
+  { from: 'd6', to: 'f4' },  // 41...Bxf4 (was cxb4) — bishop captures king
 ]);
 
-const PVP_FULL_POSITIONS = PVP_STATES.map((state, i) => {
-  const isLast = i === PVP_STATES.length - 1;
+const PVP_FULL_POSITIONS = PVP_STATES.map((state) => {
   const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
   return {
-    ...(isLast ? { outcome: { headline: 'Black wins', reason: 'king captured', tone: 'win' as const } } : {}),
     boards: [
       { board: state.board, fogSquares: fogFor(state, 'white'), orientation: 'white' as const, label: "WHITE'S VIEW" },
       { board: state.board, orientation: 'white' as const, label: 'SERVER TRUTH', arrows },
@@ -705,12 +709,21 @@ const WHITE_BISHOP_WIN_STATES = replayMoves(WHITE_BISHOP_WIN_START, [
   { from: 'd5', to: 'e4' },  // 12. ...dxe4 — black grabs the e4 pawn
   { from: 'b5', to: 'e8' },  // 13. Bxe8 — king captured on its starting square
 ]);
+// Frame 2 (after 11. Bb5) gets a red circle on e8 to call out that the bishop
+// is now eyeing the king's starting square through a clear diagonal.
+type WinShape = { orig: Square; dest?: Square; brush?: 'red' | 'green' };
 const WHITE_BISHOP_WIN_POSITIONS = [
-  { stateIdx: 10, arrow: null as { orig: Square; dest: Square } | null },
-  { stateIdx: 11, arrow: { orig: 'f1' as Square, dest: 'b5' as Square } },
-  { stateIdx: 12, arrow: { orig: 'd5' as Square, dest: 'e4' as Square } },
-  { stateIdx: 13, arrow: { orig: 'b5' as Square, dest: 'e8' as Square } },
-].map(({ stateIdx, arrow }) => {
+  { stateIdx: 10, shapes: [] as WinShape[] },
+  {
+    stateIdx: 11,
+    shapes: [
+      { orig: 'f1' as Square, dest: 'b5' as Square },
+      { orig: 'e8' as Square, brush: 'red' as const },
+    ] as WinShape[],
+  },
+  { stateIdx: 12, shapes: [{ orig: 'd5' as Square, dest: 'e4' as Square }] as WinShape[] },
+  { stateIdx: 13, shapes: [{ orig: 'b5' as Square, dest: 'e8' as Square }] as WinShape[] },
+].map(({ stateIdx, shapes }) => {
   const state = WHITE_BISHOP_WIN_STATES[stateIdx]!;
   return {
     boards: [
@@ -724,7 +737,7 @@ const WHITE_BISHOP_WIN_POSITIONS = [
         board: state.board,
         orientation: 'white' as const,
         label: 'SERVER TRUTH',
-        arrows: arrow ? [arrow] : undefined,
+        arrows: shapes.length ? shapes : undefined,
       },
       {
         board: state.board,
@@ -746,34 +759,46 @@ const WHITE_BISHOP_WIN_POSITIONS = [
 // White visibility is set up so neither attacker is in sight: no e2/f2/g2
 // pawns means no diagonal-capture vision onto f3, and a6 is far outside
 // white's rank-1 line.
-const CASTLE_TRIPLE_BOARD: Board = {
-  a1: { color: 'white', role: 'rook' },
-  e1: { color: 'white', role: 'king' },
-  h1: { color: 'white', role: 'rook' },
-  a2: { color: 'white', role: 'pawn' },
-  b2: { color: 'white', role: 'pawn' },
-  c2: { color: 'white', role: 'pawn' },
-  d2: { color: 'white', role: 'pawn' },
-  h2: { color: 'white', role: 'pawn' },
-  a6: { color: 'black', role: 'bishop' },
+// PRE state: White knight is still on e4, about to jump to f6. Frame 1 of
+// the stepper. After White plays Ne4-f6, the position becomes
+// CASTLE_TRIPLE_BEFORE. Mirrored from the symmetric setup so that the
+// reader views from White's perspective and Black is the side castling
+// into the threat.
+const CASTLE_TRIPLE_PRE_BOARD: Board = {
+  // Black: castling side
+  a8: { color: 'black', role: 'rook' },
+  e8: { color: 'black', role: 'king' },
+  h8: { color: 'black', role: 'rook' },
+  a7: { color: 'black', role: 'pawn' },
   b7: { color: 'black', role: 'pawn' },
   c7: { color: 'black', role: 'pawn' },
   d7: { color: 'black', role: 'pawn' },
   h7: { color: 'black', role: 'pawn' },
-  b8: { color: 'black', role: 'king' },
-  f3: { color: 'black', role: 'knight' },
+  // White: attacking side
+  a3: { color: 'white', role: 'bishop' },
+  b2: { color: 'white', role: 'pawn' },
+  c2: { color: 'white', role: 'pawn' },
+  d2: { color: 'white', role: 'pawn' },
+  h2: { color: 'white', role: 'pawn' },
+  b1: { color: 'white', role: 'king' },
+  e4: { color: 'white', role: 'knight' },
 };
-const CASTLE_TRIPLE_BEFORE: GameState = {
+const CASTLE_TRIPLE_PRE: GameState = {
   id: 'fow-rules-castle-triple',
   variant: 'fog-of-war',
-  board: CASTLE_TRIPLE_BOARD,
+  board: CASTLE_TRIPLE_PRE_BOARD,
   status: { type: 'playing', turn: 'white' },
   moveNumber: 20,
-  castlingRights: ['a1', 'h1'],
+  castlingRights: ['a8', 'h8'],
   halfmoveClock: 0,
 };
-const CASTLE_TRIPLE_AFTER = fogOfWarVariant.applyMove(CASTLE_TRIPLE_BEFORE, { from: 'e1', to: 'h1' });
-const CASTLE_TRIPLE_FINAL = fogOfWarVariant.applyMove(CASTLE_TRIPLE_AFTER, { from: 'f3', to: 'g1' });
+// White plays Ne4-f6, landing the threat on e8/f8/g8. Then Black castles
+// kingside; then White's knight captures the king on g8.
+const CASTLE_TRIPLE_BEFORE = fogOfWarVariant.applyMove(CASTLE_TRIPLE_PRE, { from: 'e4', to: 'f6' });
+const CASTLE_TRIPLE_AFTER = fogOfWarVariant.applyMove(CASTLE_TRIPLE_BEFORE, { from: 'e8', to: 'h8' });
+const CASTLE_TRIPLE_FINAL = fogOfWarVariant.applyMove(CASTLE_TRIPLE_AFTER, { from: 'f6', to: 'g8' });
+const CASTLE_TRIPLE_PRE_FOG_W = fogFor(CASTLE_TRIPLE_PRE, 'white');
+const CASTLE_TRIPLE_PRE_FOG_B = fogFor(CASTLE_TRIPLE_PRE, 'black');
 const CASTLE_TRIPLE_BEFORE_FOG_W = fogFor(CASTLE_TRIPLE_BEFORE, 'white');
 const CASTLE_TRIPLE_AFTER_FOG_W = fogFor(CASTLE_TRIPLE_AFTER, 'white');
 const CASTLE_TRIPLE_FINAL_FOG_W = fogFor(CASTLE_TRIPLE_FINAL, 'white');
@@ -841,6 +866,8 @@ const DEDUCE_RECAP_BEFORE: GameState = {
     g8: { color: 'black', role: 'king' },
     c6: { color: 'black', role: 'pawn' },
     e6: { color: 'black', role: 'pawn' },
+    c7: { color: 'black', role: 'knight' },
+    d7: { color: 'black', role: 'rook' },
   },
   status: { type: 'playing', turn: 'black' },
   moveNumber: 20,
@@ -871,6 +898,8 @@ const DEDUCE_RECAP_NB_BEFORE: GameState = {
     g8: { color: 'black', role: 'king' },
     c6: { color: 'black', role: 'pawn' },
     e6: { color: 'black', role: 'pawn' },
+    c7: { color: 'black', role: 'knight' },
+    d7: { color: 'black', role: 'rook' },
   },
   status: { type: 'playing', turn: 'black' },
   moveNumber: 20,
@@ -896,6 +925,8 @@ export const articles: Article[] = [
     summary:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
     status: 'published',
+    publishedAt: '2026-05-22',
+    updatedAt: '2026-05-22',
     audience:
       'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
     thumbnail: {
@@ -915,7 +946,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Each side sees the squares its own pieces could legally move to, plus the squares they stand on. Everything else is fog. The rest of the game is [regular chess](https://en.wikipedia.org/wiki/Rules_of_chess).",
+              "Each side sees the squares its own pieces could legally move to (under [regular chess rules](https://en.wikipedia.org/wiki/Rules_of_chess)), plus the squares they stand on. Everything else is fog.",
           },
           {
             kind: 'live-boards',
@@ -955,7 +986,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Vision moves with pieces. Squares a piece covered may go dark; squares it didn't may become visible.",
+              "Vision moves with pieces. When a piece moves, the squares it used to cover go dark (unless another piece still sees them), and the squares it now reaches light up.",
           },
           {
             kind: 'live-boards',
@@ -967,6 +998,11 @@ export const articles: Article[] = [
               ],
             },
           } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "Notice the rook on d7 sees the queen on b7 and the king on h7, but not a7. A piece's vision ends where its movement ends.",
+          },
         ],
       },
       {
@@ -993,7 +1029,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Games auto-draw on **threefold repetition** (same position three times, same side to move, same castling and en-passant rights) or the **50-move rule** (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. **No stalemate, no insufficient-material draw.**",
+              "Games auto-draw on threefold repetition (same position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. No stalemate, no insufficient-material draw.",
           },
         ],
       },
@@ -1014,23 +1050,40 @@ export const articles: Article[] = [
               positions: [
                 {
                   boards: [
-                    { board: CASTLE_TRIPLE_BEFORE.board, fogSquares: CASTLE_TRIPLE_BEFORE_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
-                    { board: CASTLE_TRIPLE_BEFORE.board, orientation: 'black', label: 'SERVER TRUTH' },
-                    { board: CASTLE_TRIPLE_BEFORE.board, fogSquares: CASTLE_TRIPLE_BEFORE_FOG_W, orientation: 'black', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_PRE.board, fogSquares: CASTLE_TRIPLE_PRE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_PRE.board, orientation: 'white', label: 'SERVER TRUTH' },
+                    { board: CASTLE_TRIPLE_PRE.board, fogSquares: CASTLE_TRIPLE_PRE_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
                   boards: [
-                    { board: CASTLE_TRIPLE_AFTER.board, fogSquares: CASTLE_TRIPLE_AFTER_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
-                    { board: CASTLE_TRIPLE_AFTER.board, orientation: 'black', label: 'SERVER TRUTH', arrows: [{ orig: 'e1' as Square, dest: 'g1' as Square }] },
-                    { board: CASTLE_TRIPLE_AFTER.board, fogSquares: CASTLE_TRIPLE_AFTER_FOG_W, orientation: 'black', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_BEFORE.board, fogSquares: CASTLE_TRIPLE_BEFORE_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    {
+                      board: CASTLE_TRIPLE_BEFORE.board,
+                      orientation: 'white',
+                      label: 'SERVER TRUTH',
+                      arrows: [
+                        { orig: 'e4' as Square, dest: 'f6' as Square },
+                        { orig: 'e8' as Square, brush: 'red' as const },
+                        { orig: 'f8' as Square, brush: 'red' as const },
+                        { orig: 'g8' as Square, brush: 'red' as const },
+                      ],
+                    },
+                    { board: CASTLE_TRIPLE_BEFORE.board, fogSquares: CASTLE_TRIPLE_BEFORE_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
                 {
                   boards: [
-                    { board: CASTLE_TRIPLE_FINAL.board, fogSquares: CASTLE_TRIPLE_FINAL_FOG_B, orientation: 'black', label: "BLACK'S VIEW" },
-                    { board: CASTLE_TRIPLE_FINAL.board, orientation: 'black', label: 'SERVER TRUTH', arrows: [{ orig: 'f3' as Square, dest: 'g1' as Square }] },
-                    { board: CASTLE_TRIPLE_FINAL.board, fogSquares: CASTLE_TRIPLE_FINAL_FOG_W, orientation: 'black', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_AFTER.board, fogSquares: CASTLE_TRIPLE_AFTER_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_AFTER.board, orientation: 'white', label: 'SERVER TRUTH', arrows: [{ orig: 'e8' as Square, dest: 'g8' as Square }] },
+                    { board: CASTLE_TRIPLE_AFTER.board, fogSquares: CASTLE_TRIPLE_AFTER_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+                  ],
+                },
+                {
+                  boards: [
+                    { board: CASTLE_TRIPLE_FINAL.board, fogSquares: CASTLE_TRIPLE_FINAL_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                    { board: CASTLE_TRIPLE_FINAL.board, orientation: 'white', label: 'SERVER TRUTH', arrows: [{ orig: 'f6' as Square, dest: 'g8' as Square }] },
+                    { board: CASTLE_TRIPLE_FINAL.board, fogSquares: CASTLE_TRIPLE_FINAL_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
                   ],
                 },
               ],
@@ -1058,13 +1111,13 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Visibility leaks information. What changes in your view tells you what moved.",
+              "You can read the darkness to deduce what's happening on the board.",
           },
           { kind: 'sub-heading', text: 'Pawn moves' },
           {
             kind: 'paragraph',
             text:
-              "A pawn sees where it can push. Fog on a push square means a piece is blocking it.",
+              "A pawn sees where it can push. Fog on a push square means an opponent piece or pawn is blocking it.",
           },
           {
             kind: 'live-boards',
@@ -1079,7 +1132,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Same signal in opening play. After 1.d4 e6 2.Nf3 Bb4, b4 leaves White's view: the b2-pawn no longer pushes there. c3 and d2 are visible empty, so the b4-e1 diagonal is open. Black captures the king next move.",
+              "Same signal in opening play. After 1.d4 e6 2.Nf3 Bb4, b4 leaves White's view: the b2-pawn no longer pushes there. A Black piece just landed on b4. Pawn, knight, or bishop, and White can't tell which. But c3 and d2 are visible empty, so a bishop would capture the king next move. White has to defend on that assumption.",
           },
           {
             kind: 'interactive',
@@ -1093,7 +1146,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "When the opponent takes one of your pieces, the capture square falls to fog. You can't see what took. Here: White pawn on d5, Black pawns on c6 and e6, both attacking. After 1...exd5, the d5 pawn vanishes. Which Black pawn took it?",
+              "When the opponent takes one of your pieces, the capture square falls to fog. You can't see what took. Here: White pawn on d5, with four Black attackers around it (c6 pawn, e6 pawn, c7 knight, d7 rook). After 1...exd5, the d5 pawn vanishes. Which Black piece took it?",
           },
           {
             kind: 'interactive',
@@ -1119,12 +1172,12 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'A worked game',
+        heading: 'A sample game',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "A complete 41-move game. Watch the Black pawn that lands on c5 on move 12. White's king never sees it once, then walks into b4 on move 41 and is captured on the next half-move.",
+              "A realistic 41-move game between two decent players.",
           },
           {
             kind: 'interactive',
