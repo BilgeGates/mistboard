@@ -246,6 +246,16 @@ body {
 .theme-control-volume-field input[type="range"] {
   width: 100%;
   accent-color: var(--site-accent);
+  transition: opacity 140ms ease;
+}
+
+.theme-control-volume-field.muted input[type="range"] {
+  opacity: 0.45;
+}
+
+.theme-control-volume-field.muted .theme-control-field-row output {
+  color: var(--site-muted);
+  font-style: italic;
 }
 
 .theme-control-check-field {
@@ -317,6 +327,116 @@ body {
   font-weight: 600;
   padding: 0 28px 0 10px;
 }
+
+.theme-tile-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.theme-tile {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.theme-tile:hover {
+  border-color: color-mix(in srgb, var(--site-accent) 40%, transparent);
+}
+
+.theme-tile:focus-visible {
+  outline: none;
+  border-color: var(--site-accent);
+}
+
+.theme-tile.selected {
+  border-color: var(--site-accent);
+}
+
+.theme-tile-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+}
+
+/* Board palette previews: diagonal split of light + dark squares. Values
+   mirror the --board-light/--board-dark pairs in the :root theme blocks
+   above. If a palette changes, update both. */
+.theme-tile-preview-board[data-id="green"]      { background: linear-gradient(135deg, #eeeed2 0 50%, #769656 50% 100%); }
+.theme-tile-preview-board[data-id="standard"]   { background: linear-gradient(135deg, #f0d9b5 0 50%, #b58863 50% 100%); }
+.theme-tile-preview-board[data-id="blue"]       { background: linear-gradient(135deg, #dee3e6 0 50%, #8ca2ad 50% 100%); }
+.theme-tile-preview-board[data-id="mono"]       { background: linear-gradient(135deg, #e6e6e6 0 50%, #8a8a8a 50% 100%); }
+.theme-tile-preview-board[data-id="contrast"]   { background: linear-gradient(135deg, #fdf2cc 0 50%, #5c6b7a 50% 100%); }
+.theme-tile-preview-board[data-id="colorblind"] { background: linear-gradient(135deg, #f4e6b1 0 50%, #5c7fa0 50% 100%); }
+
+/* Fog previews: each shows the fog effect over a neutral dark-square
+   background so the style reads at small size regardless of current palette. */
+.theme-tile-preview-fog {
+  position: relative;
+  background-color: #769656;
+  overflow: hidden;
+}
+
+.theme-tile-preview-fog::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.theme-tile-preview-fog[data-id="solid"]::after {
+  background: #2a2a2a;
+}
+
+.theme-tile-preview-fog[data-id="soft"]::after {
+  background:
+    linear-gradient(135deg, rgba(0, 0, 0, 0.22) 0 22%, transparent 22% 50%, rgba(255, 255, 255, 0.12) 50% 72%, transparent 72%),
+    rgba(40, 30, 20, 0.62);
+}
+
+.theme-tile-preview-fog[data-id="drift"]::after {
+  background: url('/fog/fog.webp') center / cover, rgba(20, 16, 12, 0.40);
+}
+
+.theme-tile-preview-fog[data-id="hatched"]::after {
+  background:
+    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.40) 0 2px, transparent 2px 5px),
+    rgba(40, 30, 20, 0.70);
+}
+
+.theme-tile-preview-fog[data-id="void"]::after {
+  background: #000;
+}
+
+.theme-tile-preview-fog[data-id="invisible"]::after {
+  inset: 4px;
+  border: 1px dashed rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  background: transparent;
+}
+
+/* Piece previews: white king on a neutral light square. */
+.theme-tile-preview-piece {
+  background-color: #eeeed2;
+  background-size: 96%;
+  background-position: 50% 49%;
+  background-repeat: no-repeat;
+}
+
+.theme-tile-preview-piece[data-id="cburnett"] { background-image: url('/pieces/cburnett/wK.svg'); }
+.theme-tile-preview-piece[data-id="merida"]   { background-image: url('/pieces/merida/wK.svg'); }
+.theme-tile-preview-piece[data-id="chessnut"] { background-image: url('/pieces/chessnut/wK.svg'); }
+.theme-tile-preview-piece[data-id="fantasy"]  { background-image: url('/pieces/fantasy/wK.svg'); }
+.theme-tile-preview-piece[data-id="letter"]   { background-image: url('/pieces/letter/wK.svg'); }
 
 .site-nav-auth {
   display: inline-flex;
@@ -3132,6 +3252,11 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   min-height: 1.55em;
 }
 
+.stepper-narrative:empty {
+  display: none;
+  min-height: 0;
+}
+
 .live-boards {
   display: flex;
   flex-wrap: wrap;
@@ -4536,6 +4661,7 @@ a.landing-announcement-headline:focus-visible {
 .landing-page #landing-replay .replay-board.cg-wrap {
   max-width: min(600px, calc(100dvh - 180px));
   border: none;
+  background: transparent;
   box-shadow:
     0 0 0 1px rgba(58, 65, 60, 0.18),
     0 12px 26px rgba(43, 49, 45, 0.14);

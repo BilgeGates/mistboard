@@ -1,13 +1,16 @@
 type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
 type FogTheme = 'hatched' | 'solid' | 'soft' | 'drift' | 'void' | 'invisible';
+type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';
 
 const boardStorageKey = 'mistboard.boardTheme';
 const fogStorageKey = 'mistboard.fogTheme';
+const pieceSetStorageKey = 'mistboard.pieceSet';
 const soundVolumeStorageKey = 'mistboard.soundVolume';
 const soundMutedStorageKey = 'mistboard.soundMuted';
 export const soundSettingsChangedEvent = 'mistboard:sound-settings-changed';
 const defaultTheme: BoardTheme = 'green';
 const defaultFogTheme: FogTheme = 'solid';
+const defaultPieceSet: PieceSet = 'cburnett';
 const defaultSoundVolume = 0.7;
 let cachedSoundVolume = defaultSoundVolume;
 let cachedSoundMuted = false;
@@ -22,16 +25,24 @@ const themes: Array<{ id: BoardTheme; label: string }> = [
 const fogThemes: Array<{ id: FogTheme; label: string }> = [
   { id: 'solid', label: 'Solid' },
   { id: 'soft', label: 'Soft' },
-  { id: 'drift', label: 'Drift' },
   { id: 'hatched', label: 'Hatched' },
+  { id: 'drift', label: 'Drift' },
   { id: 'void', label: 'Void' },
   { id: 'invisible', label: 'None' },
+];
+const pieceSets: Array<{ id: PieceSet; label: string }> = [
+  { id: 'cburnett', label: 'Cburnett' },
+  { id: 'merida', label: 'Merida' },
+  { id: 'chessnut', label: 'Chessnut' },
+  { id: 'fantasy', label: 'Fantasy' },
+  { id: 'letter', label: 'Letter' },
 ];
 let navObserver: MutationObserver | null = null;
 
 export function initializeThemeSettings(): void {
   applyBoardTheme(readStoredTheme());
   applyFogTheme(readStoredFogTheme());
+  applyPieceSet(readStoredPieceSet());
   mountThemeControls();
   watchForNavChanges();
 }
@@ -42,6 +53,10 @@ function applyBoardTheme(theme: BoardTheme): void {
 
 function applyFogTheme(theme: FogTheme): void {
   document.documentElement.dataset.fogTheme = theme;
+}
+
+function applyPieceSet(pieceSet: PieceSet): void {
+  document.documentElement.dataset.pieceSet = pieceSet;
 }
 
 function mountThemeControls(): void {
@@ -71,23 +86,26 @@ function mountThemeControl(nav: HTMLElement): void {
   trigger.className = 'theme-control-trigger';
   trigger.type = 'button';
   trigger.setAttribute('aria-expanded', 'false');
-  trigger.textContent = 'Controls';
+  trigger.textContent = 'Settings';
 
   const panel = document.createElement('div');
   panel.className = 'theme-control-panel';
   panel.setAttribute('role', 'group');
   panel.setAttribute('aria-label', 'Display and sound settings');
 
-  const boardField = createSelectField('board', 'Board colors', 'Board color scheme', themes, readStoredTheme(), (value) => {
-    const nextTheme = normalizeTheme(value);
-    applyBoardTheme(nextTheme);
-    writeStoredTheme(nextTheme);
+  const boardField = createTileField('board', 'Board colors', 'Board color scheme', themes, readStoredTheme(), (value) => {
+    applyBoardTheme(value);
+    writeStoredTheme(value);
     syncThemeControls();
   });
-  const fogField = createSelectField('fog', 'Fog', 'Fog shading style', fogThemes, readStoredFogTheme(), (value) => {
-    const nextTheme = normalizeFogTheme(value);
-    applyFogTheme(nextTheme);
-    writeStoredFogTheme(nextTheme);
+  const fogField = createTileField('fog', 'Fog', 'Fog shading style', fogThemes, readStoredFogTheme(), (value) => {
+    applyFogTheme(value);
+    writeStoredFogTheme(value);
+    syncThemeControls();
+  });
+  const pieceField = createTileField('piece', 'Pieces', 'Piece set', pieceSets, readStoredPieceSet(), (value) => {
+    applyPieceSet(value);
+    writeStoredPieceSet(value);
     syncThemeControls();
   });
   const volumeField = createVolumeField();
@@ -99,37 +117,52 @@ function mountThemeControl(nav: HTMLElement): void {
     if (!expanded) openThemeMenu(control);
   });
 
-  panel.append(boardField, fogField, volumeField, muteField);
+  panel.append(boardField, fogField, pieceField, volumeField, muteField);
   control.append(trigger, panel);
   target.prepend(control);
 }
 
-function createSelectField<T extends string>(
-  kind: 'board' | 'fog',
+function createTileField<T extends string>(
+  kind: 'board' | 'fog' | 'piece',
   label: string,
   ariaLabel: string,
   options: Array<{ id: T; label: string }>,
   value: T,
-  onChange: (value: string) => void,
-): HTMLLabelElement {
-  const field = document.createElement('label');
+  onChange: (value: T) => void,
+): HTMLDivElement {
+  const field = document.createElement('div');
   field.className = 'theme-control-field';
   const text = document.createElement('span');
   text.textContent = label;
 
-  const select = document.createElement('select');
-  select.dataset.themeSelect = kind;
-  select.setAttribute('aria-label', ariaLabel);
-  for (const theme of options) {
-    const option = document.createElement('option');
-    option.value = theme.id;
-    option.textContent = theme.label;
-    select.append(option);
-  }
-  select.value = value;
-  select.addEventListener('change', () => onChange(select.value));
+  const row = document.createElement('div');
+  row.className = 'theme-tile-row';
+  row.dataset.themeTileRow = kind;
+  row.setAttribute('role', 'radiogroup');
+  row.setAttribute('aria-label', ariaLabel);
 
-  field.append(text, select);
+  for (const option of options) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'theme-tile';
+    tile.dataset.themeTile = kind;
+    tile.dataset.id = option.id;
+    tile.setAttribute('role', 'radio');
+    tile.setAttribute('aria-checked', String(option.id === value));
+    tile.setAttribute('aria-label', option.label);
+    tile.title = option.label;
+    if (option.id === value) tile.classList.add('selected');
+
+    const preview = document.createElement('span');
+    preview.className = `theme-tile-preview theme-tile-preview-${kind}`;
+    preview.dataset.id = option.id;
+    tile.append(preview);
+
+    tile.addEventListener('click', () => onChange(option.id));
+    row.append(tile);
+  }
+
+  field.append(text, row);
   return field;
 }
 
@@ -142,15 +175,17 @@ function createVolumeField(): HTMLLabelElement {
   label.textContent = 'Volume';
   const value = document.createElement('output');
   value.dataset.soundVolumeValue = '';
-  value.textContent = formatVolume(readStoredSoundVolume());
+  value.textContent = readStoredSoundMuted() ? 'Muted' : formatVolume(readEffectiveSoundVolume());
   row.append(label, value);
+
+  if (readStoredSoundMuted()) field.classList.add('muted');
 
   const input = document.createElement('input');
   input.type = 'range';
   input.min = '0';
   input.max = '100';
   input.step = '5';
-  input.value = String(Math.round(readStoredSoundVolume() * 100));
+  input.value = String(Math.round(readEffectiveSoundVolume() * 100));
   input.dataset.soundVolume = '';
   input.setAttribute('aria-label', 'Sound volume');
   input.addEventListener('input', () => {
@@ -214,22 +249,31 @@ function closeThemeMenusOnEscape(event: KeyboardEvent): void {
 function syncThemeControls(): void {
   const boardTheme = readStoredTheme();
   const fogTheme = readStoredFogTheme();
-  const soundVolume = readStoredSoundVolume();
+  const pieceSet = readStoredPieceSet();
   const soundMuted = readStoredSoundMuted();
-  document.querySelectorAll<HTMLSelectElement>('select[data-theme-select="board"]').forEach((select) => {
-    select.value = boardTheme;
-  });
-  document.querySelectorAll<HTMLSelectElement>('select[data-theme-select="fog"]').forEach((select) => {
-    select.value = fogTheme;
-  });
+  const effectiveVolume = readEffectiveSoundVolume();
+  syncTileRow('board', boardTheme);
+  syncTileRow('fog', fogTheme);
+  syncTileRow('piece', pieceSet);
   document.querySelectorAll<HTMLInputElement>('input[data-sound-volume]').forEach((input) => {
-    input.value = String(Math.round(soundVolume * 100));
+    input.value = String(Math.round(effectiveVolume * 100));
   });
   document.querySelectorAll<HTMLOutputElement>('output[data-sound-volume-value]').forEach((output) => {
-    output.textContent = formatVolume(soundVolume);
+    output.textContent = soundMuted ? 'Muted' : formatVolume(effectiveVolume);
   });
   document.querySelectorAll<HTMLInputElement>('input[data-sound-muted]').forEach((input) => {
     input.checked = soundMuted;
+  });
+  document.querySelectorAll<HTMLElement>('.theme-control-volume-field').forEach((field) => {
+    field.classList.toggle('muted', soundMuted);
+  });
+}
+
+function syncTileRow(kind: 'board' | 'fog' | 'piece', activeId: string): void {
+  document.querySelectorAll<HTMLButtonElement>(`button[data-theme-tile="${kind}"]`).forEach((tile) => {
+    const isActive = tile.dataset.id === activeId;
+    tile.setAttribute('aria-checked', String(isActive));
+    tile.classList.toggle('selected', isActive);
   });
 }
 
@@ -260,6 +304,22 @@ function readStoredFogTheme(): FogTheme {
 function writeStoredFogTheme(theme: FogTheme): void {
   try {
     window.localStorage.setItem(fogStorageKey, theme);
+  } catch {
+    // The data attribute still updates for the current page.
+  }
+}
+
+function readStoredPieceSet(): PieceSet {
+  try {
+    return normalizePieceSet(window.localStorage.getItem(pieceSetStorageKey));
+  } catch {
+    return defaultPieceSet;
+  }
+}
+
+function writeStoredPieceSet(pieceSet: PieceSet): void {
+  try {
+    window.localStorage.setItem(pieceSetStorageKey, pieceSet);
   } catch {
     // The data attribute still updates for the current page.
   }
@@ -315,6 +375,10 @@ function normalizeTheme(value: string | null): BoardTheme {
 
 function normalizeFogTheme(value: string | null): FogTheme {
   return fogThemes.some((theme) => theme.id === value) ? (value as FogTheme) : defaultFogTheme;
+}
+
+function normalizePieceSet(value: string | null): PieceSet {
+  return pieceSets.some((set) => set.id === value) ? (value as PieceSet) : defaultPieceSet;
 }
 
 function normalizeVolume(value: string | number | null): number {
