@@ -975,7 +975,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "The game ends when a king is captured. No check, no checkmate.",
+              "The game ends when a king is captured. No check, no checkmate, no warning.",
           },
           {
             kind: 'interactive',
@@ -993,12 +993,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Games auto-draw on **threefold repetition** (same position three times, same side to move, same castling and en-passant rights) or the **50-move rule** (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view.",
-          },
-          {
-            kind: 'paragraph',
-            text:
-              "There's **no stalemate and no insufficient-material draw**.",
+              "Games auto-draw on **threefold repetition** (same position three times, same side to move, same castling and en-passant rights) or the **50-move rule** (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. **No stalemate, no insufficient-material draw.**",
           },
         ],
       },
@@ -1045,7 +1040,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Standard en passant mechanics apply. The capturing side's visibility expands to include the target square and the adjacent square the captured pawn occupies. That is the only case where a pawn can see a square it could not legally move to.",
+              "En passant is chess's strangest move, and our vision rule bends to fit: the capturing pawn sees the captured pawn on its adjacent square, even though it can't legally move there. The pawn is deducible from the e.p. opportunity; showing it directly is quality of life.",
           },
           {
             kind: 'interactive',
@@ -1129,7 +1124,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "A complete 41-move game. Step through to see how visibility shifts across the board.",
+              "A complete 41-move game. Watch the Black pawn that lands on c5 on move 12. White's king never sees it once, then walks into b4 on move 41 and is captured on the next half-move.",
           },
           {
             kind: 'interactive',

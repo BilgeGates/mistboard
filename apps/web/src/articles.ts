@@ -1,9 +1,11 @@
-import { renderBoardComposition } from '@mistboard/board-render';
+import { piecesToBoard, renderBoardComposition } from '@mistboard/board-render';
 import {
   mountLiveBoards,
   mountSteppedBoards,
+  mountThumbnailBoard,
   type LiveBoardsController,
   type StepperController,
+  type ThumbnailBoardController,
 } from '@mistboard/board-render/interactive';
 import {
   articles,
@@ -466,9 +468,10 @@ function renderStaticBoardsBlock(block: StaticBoardsBlock): HTMLElement {
   return figure;
 }
 
-// Square thumbnail rendered into a fixed viewBox; CSS controls the on-page
-// size so the same SVG scales between mobile and desktop without recomputing.
-const THUMB_CANVAS = 200;
+// Article thumbnails are bound to chessground after the index lands in the
+// DOM (chessground needs the host sized to render correctly). We stash the
+// spec on each pending wrap and consume it in mountArticleThumbnails.
+const pendingThumbnails = new WeakMap<HTMLElement, ArticleThumbnail>();
 
 function articleCard(article: Article): HTMLLIElement {
   const item = document.createElement('li');
@@ -519,20 +522,27 @@ function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'articles-index-card-thumb';
   wrap.setAttribute('aria-hidden', 'true');
-  const inner = renderBoardComposition({
-    layout: 'single',
-    boards: [{
-      pieces: thumb.pieces,
+  const board = document.createElement('div');
+  board.className = 'articles-thumb-board cg-wrap';
+  wrap.append(board);
+  pendingThumbnails.set(board, thumb);
+  return wrap;
+}
+
+export function mountArticleThumbnails(root: HTMLElement): ThumbnailBoardController[] {
+  const controllers: ThumbnailBoardController[] = [];
+  const hosts = root.querySelectorAll<HTMLElement>('.articles-thumb-board.cg-wrap');
+  hosts.forEach((host) => {
+    const thumb = pendingThumbnails.get(host);
+    if (!thumb) return;
+    controllers.push(mountThumbnailBoard(host, {
+      board: piecesToBoard(thumb.pieces),
       fogSquares: thumb.fogSquares,
       orientation: thumb.orientation ?? 'white',
-    }],
-    canvasWidth: THUMB_CANVAS,
-    boardSize: THUMB_CANVAS,
-    boardY: 0,
-    labelY: -100,
+    }));
+    pendingThumbnails.delete(host);
   });
-  wrap.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${THUMB_CANVAS} ${THUMB_CANVAS}" width="100%" preserveAspectRatio="xMidYMid meet" role="presentation">${inner}</svg>`;
-  return wrap;
+  return controllers;
 }
 
 function buildArticleNotFound(): HTMLElement {

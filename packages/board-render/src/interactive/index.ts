@@ -21,3 +21,8 @@ export type {
   LiveBoardsLayout,
   LiveBoardsOptions,
 } from './live-boards.js';
+export { mountThumbnailBoard } from './thumbnail.js';
+export type {
+  ThumbnailBoardController,
+  ThumbnailBoardSpec,
+} from './thumbnail.js';

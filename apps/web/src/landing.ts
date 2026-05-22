@@ -1384,8 +1384,10 @@ export function mountLearn(root: HTMLElement): void {
 export async function mountArticlesIndex(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
-  const { buildArticlesIndex } = await import('./articles.js');
-  root.append(buildNav(), buildArticlesIndex(), buildFooter());
+  const { buildArticlesIndex, mountArticleThumbnails } = await import('./articles.js');
+  const index = buildArticlesIndex();
+  root.append(buildNav(), index, buildFooter());
+  mountArticleThumbnails(index);
 }
 
 export async function mountVideo(root: HTMLElement): Promise<void> {
