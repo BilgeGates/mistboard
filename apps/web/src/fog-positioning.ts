@@ -34,6 +34,13 @@ function updateBoard(cgBoard: HTMLElement): void {
     const r = Math.max(0, Math.min(7, rank));
     sq.style.setProperty('--fog-file', String(f));
     sq.style.setProperty('--fog-rank', String(r));
+    // Gate the background image on positioning being computed. Without this,
+    // squares briefly show background-position 0% 0% (all the same upper-left
+    // region of the source image) between chessground render and observer
+    // firing, which reads as a "drift in" / shuffle effect. See the matching
+    // `:not([data-fog-positioned])` CSS rule that suppresses the image until
+    // this attribute is set.
+    sq.dataset.fogPositioned = '1';
   }
 }
 
