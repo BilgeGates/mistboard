@@ -29,6 +29,43 @@ import torch.nn as nn
 import torch.optim as optim
 
 
+class _ReservoirBuffer:
+    """Reservoir-sampling buffer to bound memory of CFR sample collections.
+
+    With ``max_size=None`` behaves as an unbounded list (backward-compat
+    with the original deep_cfr.py code path). With ``max_size=N``, keeps
+    a uniform-random subset of the ``seen`` items via Vitter's reservoir
+    sampling — once the buffer is full, each subsequent ``append`` replaces
+    a random existing slot with probability ``max_size/seen``.
+
+    Required because the FoW smoke at iters≥100 accumulates ~5000 samples
+    per iter per player, blowing past available RAM for 10 parallel workers.
+    Brown et al. 2019 "Deep CFR" specifies reservoir sampling for exactly
+    this reason.
+    """
+
+    def __init__(self, max_size: int | None = None, rng: random.Random | None = None) -> None:
+        self._buffer: list = []
+        self._max = max_size
+        self._rng = rng or random.Random()
+        self._seen = 0
+
+    def append(self, item) -> None:
+        self._seen += 1
+        if self._max is None or len(self._buffer) < self._max:
+            self._buffer.append(item)
+            return
+        i = self._rng.randint(0, self._seen - 1)
+        if i < self._max:
+            self._buffer[i] = item
+
+    def __iter__(self):
+        return iter(self._buffer)
+
+    def __len__(self) -> int:
+        return len(self._buffer)
+
+
 @dataclass
 class DeepCFRSolution:
     """Output of a Deep CFR solve."""
@@ -464,6 +501,7 @@ def solve_subgame_deep_cfr(
     avg_strategy_lr: float = 1e-3,
     value_estimate_samples: int = 1000,
     checkpoint_interval: int | None = None,
+    max_samples_per_player: int | None = None,
     players: tuple = None,
     rng: random.Random = None,
     device: str = "cpu",
@@ -488,14 +526,20 @@ def solve_subgame_deep_cfr(
         players = (root.to_move, not root.to_move)
 
     regret_nets = {p: regret_net_factory().to(device) for p in players}
-    samples: dict = {p: [] for p in players}
+    # Reservoir-bounded sample buffers (acts as unbounded list when
+    # max_samples_per_player is None — backward compat with Kuhn path).
+    samples: dict = {
+        p: _ReservoirBuffer(max_samples_per_player, rng) for p in players
+    }
 
     use_neural_avg = avg_strategy_net_factory is not None
     if use_neural_avg:
         avg_strategy_nets: dict | None = {
             p: avg_strategy_net_factory().to(device) for p in players
         }
-        strategy_samples: dict | None = {p: [] for p in players}
+        strategy_samples: dict | None = {
+            p: _ReservoirBuffer(max_samples_per_player, rng) for p in players
+        }
         strategy_sum: dict | None = None
     else:
         avg_strategy_nets = None

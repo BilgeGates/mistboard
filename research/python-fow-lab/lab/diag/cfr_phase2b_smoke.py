@@ -46,6 +46,12 @@ CFR_TRAJECTORIES = int(os.environ.get("CFR_TRAJECTORIES", "100"))
 CFR_REGRET_EPOCHS = int(os.environ.get("CFR_REGRET_EPOCHS", "10"))
 CFR_STRATEGY_EPOCHS = int(os.environ.get("CFR_STRATEGY_EPOCHS", "20"))
 CFR_VALUE_SAMPLES = int(os.environ.get("CFR_VALUE_SAMPLES", "500"))
+# Reservoir-buffer cap on samples per player per worker. Per Brown et al.
+# 2019 "Deep CFR", standard practice. Bounds memory; without this, 100-iter
+# runs grow to ~10 GB per worker (~100 GB across 10 workers), which OOMs
+# most Macs. Set to None to disable (matches original unbounded behavior).
+CFR_MAX_SAMPLES_RAW = os.environ.get("CFR_MAX_SAMPLES", "50000")
+CFR_MAX_SAMPLES = None if CFR_MAX_SAMPLES_RAW.lower() in ("none", "0", "") else int(CFR_MAX_SAMPLES_RAW)
 SAMPLE_MAJOR = int(os.environ.get("SAMPLE_MAJOR", "30"))
 SAMPLE_MINOR = int(os.environ.get("SAMPLE_MINOR", "20"))
 WORKERS_OVERRIDE = os.environ.get("WORKERS")
@@ -177,6 +183,7 @@ def _solve_one(ann: dict) -> dict:
             regret_train_epochs=CFR_REGRET_EPOCHS,
             avg_strategy_train_epochs=CFR_STRATEGY_EPOCHS,
             value_estimate_samples=CFR_VALUE_SAMPLES,
+            max_samples_per_player=CFR_MAX_SAMPLES,
         )
         cfr_wall = time.monotonic() - t0
 
@@ -352,7 +359,8 @@ def main() -> None:
     print(
         f"Settings: depth={CFR_DEPTH}, iterations={CFR_ITERATIONS}, "
         f"trajectories={CFR_TRAJECTORIES}, regret_epochs={CFR_REGRET_EPOCHS}, "
-        f"strategy_epochs={CFR_STRATEGY_EPOCHS}, leaf_eval={LEAF_EVAL_KIND}"
+        f"strategy_epochs={CFR_STRATEGY_EPOCHS}, leaf_eval={LEAF_EVAL_KIND}, "
+        f"max_samples_per_player={CFR_MAX_SAMPLES}"
     )
 
     n_workers = (
