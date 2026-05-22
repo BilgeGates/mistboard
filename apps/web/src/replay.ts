@@ -93,7 +93,14 @@ export type ReplayOptions = {
    * by sampleId. When absent, no bar renders.
    */
   metadataByRoomId?: Record<string, GameMeta>;
-  metadataMode?: 'full' | 'compact';
+  /**
+   * 'full' (default): left-rail meta card + clocks docked under panes + floating time pill.
+   * 'compact': landing-hero single-pane mode (clocks above/below the visible pane).
+   * 'header': horizontal header strip above the boards (title · result · end · time · plies)
+   *           with player+clock cells on each end. Used by the review page; lets the boards
+   *           own the full content width with only the moves rail to their right.
+   */
+  metadataMode?: 'full' | 'compact' | 'header';
   /**
    * Which panes to render. 'all' (default) shows white | truth | black.
    * Provide a resolver to pick a single pane per sample — used by the
@@ -168,12 +175,19 @@ export async function mountReplay(
   root.replaceChildren();
   root.classList.add('replay-page');
   root.classList.toggle('replay-compact', metadataMode === 'compact');
+  root.classList.toggle('replay-meta-header', metadataMode === 'header');
+
+  const gameHeader = metadataMode === 'header' ? createGameHeaderStrip() : null;
+  if (gameHeader) root.append(gameHeader.el);
 
   const layout = document.createElement('div');
   layout.className = 'replay-layout';
 
-  const whiteBaseLabel = "White's view";
-  const blackBaseLabel = "Black's view";
+  // Base labels are recomputed from meta in applyMetadata() so we can fold
+  // the player name into the board label ("Guest's view"). Default fallbacks
+  // are used until meta arrives.
+  let whiteBaseLabel = "White's view";
+  let blackBaseLabel = "Black's view";
 
   const whitePane = createPane(whiteBaseLabel, 'white');
   const truthPane = createPane('Truth', 'truth');
@@ -204,7 +218,11 @@ export async function mountReplay(
   plyLabel.className = 'replay-ply-label';
   const movesPanel = showControls && controlsMode === 'panel' ? createReplayMovesPanel() : null;
 
-  const gameMetaPanel = metadataByRoomId ? createGameMetaPanel(metadataMode, { hideGameIdPill }) : null;
+  // 'header' mode renders metadata as a horizontal strip above the boards instead
+  // of as a side-rail panel, so the boards can use the full content width.
+  const gameMetaPanel = metadataByRoomId && metadataMode !== 'header'
+    ? createGameMetaPanel(metadataMode === 'compact' ? 'compact' : 'full', { hideGameIdPill })
+    : null;
   if (gameMetaPanel) root.append(gameMetaPanel.el);
   if (movesPanel) root.append(movesPanel.el);
   const clockPanel = createClockPanel();
@@ -252,6 +270,19 @@ export async function mountReplay(
       whitePane.clockSlot.append(createCompactClockSpacer());
       blackPane.clockSlot.append(createCompactClockSpacer());
       relocateCompactClockRows(truthPane);
+    }
+  } else if (metadataMode === 'header' && gameHeader) {
+    // Header strip hosts the clocks in the player cells; the floating
+    // "Time" pill is suppressed entirely.
+    gameHeader.whiteCell.append(clockPanel.whiteRow);
+    gameHeader.blackCell.append(clockPanel.blackRow);
+    if (showControls) {
+      gameHeader.actions.append(createShareButton());
+      flipBtn.classList.add('replay-game-header-action', 'replay-game-header-action-secondary');
+      flipBtn.innerHTML = `${ICON_FLIP}<span class="replay-game-header-action-label">Flip</span>`;
+      flipBtn.title = 'Flip all boards (f)';
+      flipBtn.setAttribute('aria-label', 'Flip all boards');
+      gameHeader.actions.append(flipBtn);
     }
   } else {
     whitePane.clockSlot.append(clockPanel.whiteRow);
@@ -347,32 +378,21 @@ export async function mountReplay(
     setBoardFromState(truthCg, state);
 
     if (finished && reveal) {
-      // Postgame reveal: collapse all three panes to truth so the viewer
-      // sees the full board they couldn't see during play.
+      // Postgame reveal: collapse the POV panes to truth so the viewer sees
+      // the full board they couldn't see during play.
       setBoardFromState(whiteCg, state);
       setBoardFromState(blackCg, state);
     } else {
-      // At game end, getPlayerView would collapse visibility to just the
-      // player's own piece squares (getVisibilityMoves returns [] when
-      // state.status.type !== 'playing'). For postgame fog views where we
-      // intentionally don't reveal — the landing hero loop, primarily — that
-      // looks like the fog snuffs vision to nothing the instant the game
-      // ends. Compute visibility against a synthetic playing state so the
-      // player keeps the same mid-game vision they had on the last ply
-      // (fog still on, opponent moves still hidden — just not collapsed).
-      const visState = finished ? syntheticPlayingState(state) : state;
-      let whiteView = fogOfWarVariant.getPlayerView(visState, 'white');
-      let blackView = fogOfWarVariant.getPlayerView(visState, 'black');
-      if (finished) {
-        whiteView = { ...whiteView, status: state.status, legalMoves: [] };
-        blackView = { ...blackView, status: state.status, legalMoves: [] };
-      }
+      let whiteView = fogOfWarVariant.getPlayerView(state, 'white');
+      let blackView = fogOfWarVariant.getPlayerView(state, 'black');
       if (
         finished
         && state.status.type === 'finished'
         && state.status.reason === 'king-captured'
         && state.lastMove
       ) {
+        // The loser saw their king die — the attacker becomes visible to them
+        // on the king-capture square at that moment.
         const loser = state.status.winner === 'white' ? 'black' : 'white';
         const attacker = state.board[state.lastMove.to];
         if (attacker) {
@@ -827,6 +847,11 @@ export async function mountReplay(
     blackPane.nameEl.textContent = '';
     setClockPanelNames(clockPanel, meta);
     renderGameMetaPanel(gameMetaPanel, meta, activeSample);
+    renderGameHeader(gameHeader, meta);
+    whiteBaseLabel = playerViewLabel(meta?.whiteName, 'white');
+    blackBaseLabel = playerViewLabel(meta?.blackName, 'black');
+    whitePane.labelEl.textContent = whiteBaseLabel;
+    blackPane.labelEl.textContent = blackBaseLabel;
     if (panesResolver) {
       const choice = panesResolver(activeSample, meta);
       layout.classList.remove('replay-layout-single-white', 'replay-layout-single-black', 'replay-layout-all');
@@ -965,6 +990,10 @@ export async function mountReplay(
         stopPlay();
         clearLoopTimer();
         annotForm.focus();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
+        applyBoardOrientation();
       }
     },
     { signal: abortController.signal },
@@ -1006,6 +1035,163 @@ type GameMetaPanelHandle = {
   mode: 'full' | 'compact';
   hideGameIdPill: boolean;
 };
+
+type GameHeaderHandle = {
+  el: HTMLElement;
+  title: HTMLHeadingElement;
+  result: HTMLDivElement;
+  meta: HTMLDivElement;
+  whiteCell: HTMLDivElement;
+  blackCell: HTMLDivElement;
+  /** Slot for action buttons (Flip, future toggles) on the center column. */
+  actions: HTMLDivElement;
+};
+
+function createGameHeaderStrip(): GameHeaderHandle {
+  const el = document.createElement('header');
+  el.className = 'replay-game-header';
+  el.setAttribute('aria-label', 'Game summary');
+
+  const whiteCell = document.createElement('div');
+  whiteCell.className = 'replay-game-header-cell replay-game-header-cell-white';
+
+  const center = document.createElement('div');
+  center.className = 'replay-game-header-center';
+  const title = document.createElement('h1');
+  title.className = 'replay-game-header-title';
+  const result = document.createElement('div');
+  result.className = 'replay-game-header-result';
+  const meta = document.createElement('div');
+  meta.className = 'replay-game-header-meta';
+  const actions = document.createElement('div');
+  actions.className = 'replay-game-header-actions';
+  center.append(title, result, meta, actions);
+
+  const blackCell = document.createElement('div');
+  blackCell.className = 'replay-game-header-cell replay-game-header-cell-black';
+
+  el.append(whiteCell, center, blackCell);
+  return { el, title, result, meta, whiteCell, blackCell, actions };
+}
+
+function playerViewLabel(name: string | null | undefined, side: 'white' | 'black'): string {
+  const fallback = side === 'white' ? "White's view" : "Black's view";
+  const trimmed = name?.trim();
+  if (!trimmed) return fallback;
+  // Use the name verbatim so casing the user chose ("Tier-1 v0.9.1") is preserved.
+  // Possessive form is fine for plain names; engine version strings ("v0.9.1")
+  // tolerate it too.
+  const apostrophe = trimmed.endsWith('s') || trimmed.endsWith('S') ? "'" : "'s";
+  return `${trimmed}${apostrophe} view`;
+}
+
+const ICON_SHARE =
+  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5.5 9 10 4.5M5.5 7l4.5 4.5M11.5 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm0 7a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM5.5 8a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>';
+const ICON_FLIP =
+  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 5h7.5L8.5 3M13 11H5.5L7.5 13" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function createShareButton(): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'replay-game-header-action replay-game-header-share';
+  btn.innerHTML = `${ICON_SHARE}<span class="replay-game-header-action-label">Share</span>`;
+  btn.title = 'Copy link to this position';
+  const labelEl = btn.querySelector<HTMLSpanElement>('.replay-game-header-action-label')!;
+  let resetTimer: number | null = null;
+  btn.addEventListener('click', async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      labelEl.textContent = 'Copied';
+      btn.classList.add('replay-game-header-share-copied');
+    } catch {
+      // Older browsers / clipboard-blocked contexts: fall back to a transient prompt.
+      try {
+        window.prompt('Copy this link:', url);
+      } catch {
+        return;
+      }
+    }
+    if (resetTimer !== null) window.clearTimeout(resetTimer);
+    resetTimer = window.setTimeout(() => {
+      labelEl.textContent = 'Share';
+      btn.classList.remove('replay-game-header-share-copied');
+      resetTimer = null;
+    }, 1600);
+  });
+  return btn;
+}
+
+function renderGameHeader(handle: GameHeaderHandle | null, meta: GameMeta | undefined): void {
+  if (!handle) return;
+  if (!meta) {
+    handle.title.textContent = '';
+    handle.result.replaceChildren();
+    handle.meta.replaceChildren();
+    return;
+  }
+  handle.title.textContent = meta.modeLabel ?? 'Game';
+
+  // Result chip: color-coded by winning side. Detail is the termination
+  // (e.g. "by king capture", "by timeout"). Together they tell the page's
+  // story at a glance.
+  const resultSide = winningSideFromResult(meta.result);
+  const resultText = resultLabel(meta.result);
+  const terminationText = terminationDetailLabel(meta.termination);
+  handle.result.replaceChildren();
+  const chip = document.createElement('span');
+  chip.className = `replay-game-header-result-chip replay-game-header-result-${resultSide}`;
+  chip.textContent = resultText;
+  handle.result.append(chip);
+  if (terminationText) {
+    const detail = document.createElement('span');
+    detail.className = 'replay-game-header-result-detail';
+    detail.textContent = terminationText;
+    handle.result.append(detail);
+  }
+
+  // Meta line (smaller, gray): time control + ply count. The View-game link
+  // is only added when a distinct external URL is present.
+  const timeControl = timeControlLabelFromMeta(meta.timeControl);
+  const bits: string[] = [
+    ...(timeControl ? [timeControl] : []),
+    `${meta.plyCount} ${meta.plyCount === 1 ? 'ply' : 'plies'}`,
+  ];
+  handle.meta.replaceChildren();
+  bits.forEach((bit, i) => {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'replay-game-header-sep';
+      sep.textContent = '·';
+      handle.meta.append(sep);
+    }
+    const span = document.createElement('span');
+    span.textContent = bit;
+    handle.meta.append(span);
+  });
+  if (meta.gameUrl) {
+    const sep = document.createElement('span');
+    sep.className = 'replay-game-header-sep';
+    sep.textContent = '·';
+    const link = document.createElement('a');
+    link.className = 'replay-game-header-link';
+    link.href = meta.gameUrl;
+    link.textContent = 'View game';
+    handle.meta.append(sep, link);
+  }
+}
+
+function winningSideFromResult(result: string): 'white' | 'black' | 'draw' {
+  if (result === 'white-wins' || result === '1-0') return 'white';
+  if (result === 'black-wins' || result === '0-1') return 'black';
+  return 'draw';
+}
+
+function terminationDetailLabel(termination: string): string | null {
+  const label = terminationLabel(termination).toLowerCase();
+  if (!label || label === 'unknown') return null;
+  return `by ${label}`;
+}
 
 function createGameMetaPanel(
   mode: 'full' | 'compact' = 'full',
@@ -1148,14 +1334,14 @@ function createReplayMovesPanel(): ReplayMovesPanelHandle {
   const section = document.createElement('section');
   section.className = 'panel-section';
   const title = document.createElement('h2');
-  title.textContent = 'Replay';
+  title.textContent = 'Moves';
 
   const controls = document.createElement('div');
   controls.className = 'replay-controls';
-  const first = controlButton('|<', 'First position');
-  const prev = controlButton('<', 'Previous move');
-  const next = controlButton('>', 'Next move');
-  const last = controlButton('>|', 'Latest position');
+  const first = iconButton(ICON_FIRST, 'First position');
+  const prev = iconButton(ICON_PREV, 'Previous move');
+  const next = iconButton(ICON_NEXT, 'Next move');
+  const last = iconButton(ICON_LAST, 'Latest position');
   controls.append(first, prev, next, last);
 
   const meta = document.createElement('p');
@@ -1186,8 +1372,8 @@ function renderReplayMovesPanel(
   },
 ): void {
   panel.meta.textContent = state.events.length === 0
-    ? 'No events'
-    : `Replay · event ${state.eventIndex} of ${state.events.length}`;
+    ? 'No moves'
+    : `Move ${Math.ceil(state.activePly / 2)} · ply ${state.activePly} of ${state.moveCount}`;
   panel.controls.first.disabled = state.activePly === 0;
   panel.controls.prev.disabled = state.activePly === 0;
   panel.controls.next.disabled = state.activePly >= state.moveCount;
@@ -1603,6 +1789,25 @@ function controlButton(text: string, title: string): HTMLButtonElement {
   return btn;
 }
 
+const ICON_FIRST =
+  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 3h1.5v10H4zM6.5 8l5-4v8z" fill="currentColor"/></svg>';
+const ICON_PREV =
+  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11 3.5v9L5 8z" fill="currentColor"/></svg>';
+const ICON_NEXT =
+  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5 3.5v9L11 8z" fill="currentColor"/></svg>';
+const ICON_LAST =
+  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M10.5 3H12v10h-1.5zM4.5 12V4l5 4z" fill="currentColor"/></svg>';
+
+function iconButton(svgMarkup: string, titleText: string): HTMLButtonElement {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'replay-button replay-icon-button';
+  btn.innerHTML = svgMarkup;
+  btn.title = titleText;
+  btn.setAttribute('aria-label', titleText);
+  return btn;
+}
+
 function sliceToPly(events: GameEvent[], ply: number): GameEvent[] {
   const result: GameEvent[] = [];
   let moves = 0;
@@ -1711,17 +1916,6 @@ function hiddenSquareClasses(view: PlayerView): cg.SquareClasses {
     if (!visible.has(square)) classes.set(square as cg.Key, 'fog-hidden');
   }
   return classes;
-}
-
-// Build a "playing"-status copy of a finished state so getPlayerView computes
-// visibility as if the game were still in progress. The synthetic turn is the
-// side that did NOT play the last move (i.e., whoever would have been to move
-// next), so visibleLastMoveForPlayer behaves the same as it did mid-game.
-function syntheticPlayingState(state: GameState): GameState {
-  const lastTo = state.lastMove?.to;
-  const moverColor: Color | null = lastTo ? (state.board[lastTo]?.color ?? null) : null;
-  const turn: Color = moverColor === 'white' ? 'black' : moverColor === 'black' ? 'white' : 'white';
-  return { ...state, status: { type: 'playing', turn } };
 }
 
 function revealKingCaptureForLoser(view: PlayerView, lastMove: Move, attacker: Piece): PlayerView {

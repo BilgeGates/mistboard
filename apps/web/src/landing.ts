@@ -2,7 +2,7 @@ import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Squ
 import type * as cg from 'chessground/types';
 import type { BeliefRow, TraceRow } from './belief-panel.js';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from '@mistboard/board-render/interactive';
-import { mountReplay, type AnnotationConfig, type EngineReviewPanels, type GameMeta } from './replay.js';
+import { mountReplay, type EngineReviewPanels, type GameMeta } from './replay.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { classifyTimeControl, track } from './analytics.js';
 import { announcements, type Announcement } from './announcements.js';
@@ -285,7 +285,13 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
     onPlyChange: syncGamePlyUrl,
     showControls: true,
     controlsMode: 'panel',
-    revealOnFinish: true,
+    metadataMode: 'header',
+    // FoW review preserves each player's perspective: keep their fog as it
+    // was at game end. Truth is always shown on the truth pane; the only
+    // post-finish change to the POVs is the king-capture attacker reveal —
+    // i.e. the attacker becoming visible at the moment of death, which is
+    // what the loser actually saw.
+    revealOnFinish: false,
     loaderForId: events ? async () => events : apiEventLoader,
     metadataByRoomId: {
       [game.roomId]: gameMetaForGame(game),
@@ -303,7 +309,9 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
           traceRowsForSampleId: () => loaded.traceRows,
         }
       : undefined,
-    annotation: import.meta.env.DEV ? annotationConfigForGame(game, loaded.beliefRows) : undefined,
+    // Annotation panel is research-only — not shown on the public game viewer
+    // (use a dedicated research surface when annotating).
+    annotation: undefined,
   });
 }
 
@@ -567,14 +575,6 @@ function enginePanelsForReview(review: GameReviewPayload, hasBeliefRows: boolean
   };
 }
 
-function annotationConfigForGame(game: FeaturedGame, beliefRows: BeliefRow[]): AnnotationConfig {
-  const tier1Side = beliefRows[0]?.tier1_side ?? null;
-  return {
-    manifestUrl: `game:${game.roomId}`,
-    gameIndexForSampleId: () => game.gameIndex ?? 0,
-    tier1ColorForSampleId: () => tier1Side,
-  };
-}
 async function fetchGameArtifacts(
   roomId: string,
   type: GameArtifactType,

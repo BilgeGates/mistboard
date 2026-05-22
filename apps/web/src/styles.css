@@ -3237,8 +3237,6 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   aspect-ratio: 1 / 1;
   position: relative;
   display: block;
-  border: 2px solid var(--board-frame);
-  background: var(--board-frame);
   overflow: hidden;
 }
 
@@ -3333,8 +3331,6 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   aspect-ratio: 1 / 1;
   position: relative;
   display: block;
-  border: 2px solid var(--board-frame);
-  background: var(--board-frame);
   overflow: hidden;
 }
 
@@ -5480,6 +5476,371 @@ a.landing-announcement-headline:focus-visible {
   .game-replay .replay-tools-row.analysis-belief-open.analysis-annotation-open .belief-sidebar {
     grid-template-columns: 1fr;
     overflow: auto;
+  }
+}
+
+/* ---- replay-meta-header mode: horizontal header strip + 2-col body ---- */
+
+.replay-game-header {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 20px;
+  border: 1px solid #e2e0d6;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.replay-game-header-cell {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 220px;
+}
+
+.replay-game-header-cell-black {
+  justify-content: flex-end;
+}
+
+.replay-game-header-cell .replay-clock-row {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 8px;
+  padding: 8px 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-color: #e2e0d6;
+  background: #faf8f1;
+}
+
+.replay-game-header-cell .replay-clock-side {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3530;
+}
+
+.replay-game-header-cell .replay-clock-time {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2521;
+}
+
+.replay-game-header-center {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.replay-game-header-title {
+  margin: 0;
+  color: #1f2521;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+  letter-spacing: -0.005em;
+}
+
+.replay-game-header-title::first-letter {
+  text-transform: uppercase;
+}
+
+.replay-game-header-result {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.replay-game-header-result-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.replay-game-header-result-white {
+  background: #f3efe2;
+  color: #2d2a20;
+  border: 1px solid #d6cfb6;
+}
+
+.replay-game-header-result-black {
+  background: #1f2521;
+  color: #f6f4ec;
+  border: 1px solid #1f2521;
+}
+
+.replay-game-header-result-draw {
+  background: #ecede9;
+  color: #4d5450;
+  border: 1px solid #d1d3cd;
+}
+
+.replay-game-header-result-detail {
+  font-size: 13px;
+  color: #5a6960;
+  font-weight: 500;
+}
+
+.replay-game-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  color: #7a847e;
+  font-size: 12px;
+}
+
+.replay-game-header-meta > span:first-child::first-letter {
+  text-transform: uppercase;
+}
+
+.replay-game-header-sep {
+  color: #c9cec5;
+}
+
+.replay-game-header-link {
+  color: #1f6f5b;
+  font-weight: 600;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.replay-game-header-link:hover {
+  text-decoration: underline;
+}
+
+.replay-game-header-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.replay-game-header-actions:empty {
+  display: none;
+}
+
+.replay-game-header-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.replay-game-header-action:active {
+  transform: translateY(1px);
+}
+
+.replay-game-header-action svg {
+  display: block;
+}
+
+/* Primary: filled green (Share is the page's primary CTA). */
+.replay-game-header-share {
+  border: 1px solid #1f6f5b;
+  background: #1f6f5b;
+  color: #ffffff;
+}
+
+.replay-game-header-share:hover {
+  background: #185545;
+  border-color: #185545;
+}
+
+.replay-game-header-share-copied,
+.replay-game-header-share-copied:hover {
+  background: #2c8e76;
+  border-color: #2c8e76;
+}
+
+/* Secondary: ghost. */
+.replay-game-header-action-secondary {
+  border: 1px solid #d6d2c1;
+  background: #ffffff;
+  color: #2c3530;
+}
+
+.replay-game-header-action-secondary:hover {
+  border-color: #1f6f5b;
+  background: #f0f7f3;
+  color: #123f32;
+}
+
+/* Triptych container — soft shared card behind the three boards so they
+ * feel like one review object rather than three independent cards. */
+.replay-meta-header .replay-layout {
+  padding: 14px;
+  border-radius: 10px;
+  background: #faf8f1;
+  border: 1px solid #ece8d8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* Winner / loser pane treatment — refined from the legacy golden ring to
+ * a soft green accent (winner) and gentle desaturation (loser). */
+.replay-meta-header .replay-pane.winner .replay-board {
+  box-shadow:
+    0 0 0 2px #1f6f5b,
+    0 0 22px color-mix(in srgb, #1f6f5b 22%, transparent);
+  animation: none;
+  border-radius: 4px;
+}
+
+.replay-meta-header .replay-pane.loser .replay-board {
+  filter: brightness(0.78) saturate(0.85);
+}
+
+.replay-meta-header .replay-pane.winner .replay-pane-label {
+  color: #1f6f5b;
+  font-weight: 700;
+}
+
+.replay-meta-header .replay-pane.loser .replay-pane-label {
+  color: #8a8f8a;
+}
+
+/* Status labels under each pane: compact pill instead of gray debug text. */
+.replay-meta-header .replay-pane-status {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-top: 8px;
+  min-height: 18px;
+}
+
+.replay-meta-header .replay-pane-status:empty {
+  visibility: hidden;
+}
+
+.replay-meta-header .replay-pane.winner .replay-pane-status {
+  color: #1f6f5b;
+}
+
+.replay-meta-header .replay-pane.loser .replay-pane-status {
+  color: #9aa19c;
+}
+
+.replay-meta-header .replay-pane-truth .replay-pane-status {
+  color: #7a847e;
+}
+
+/* Transport icon buttons (Moves panel). */
+.replay-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 0;
+  color: #2c3530;
+}
+
+.replay-icon-button:hover:not(:disabled) {
+  color: #123f32;
+}
+
+.replay-icon-button:disabled {
+  color: #b8bbb4;
+}
+
+/* Board labels in the meta-header surface use title case so player-supplied
+ * names ("Tier-1 v0.9.1") and possessives don't get shouted in all-caps. */
+.replay-meta-header .replay-pane-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: #5a6960;
+}
+
+@media (max-width: 720px) {
+  .replay-game-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .replay-game-header-cell {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .replay-game-header-cell-black {
+    justify-content: flex-start;
+  }
+}
+
+/* Desktop grid for the game-review surface: header (full-width) +
+ * boards (left, fluid) + moves rail (right). Replaces the 3-column
+ * (meta | boards | moves) grid above when metadataMode === 'header'.
+ */
+@media (min-width: 1100px) {
+  .game-replay.replay-page.replay-meta-header {
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+    column-gap: 14px;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .game-replay.replay-meta-header .replay-layout {
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
+    justify-self: stretch;
+    align-self: start;
+    gap: 10px;
+    max-width: none;
+  }
+
+  .game-replay.replay-meta-header .replay-board.cg-wrap,
+  .game-replay.replay-meta-header .replay-pane-clock-slot {
+    max-width: none;
+    width: 100%;
+  }
+
+  .game-replay.replay-meta-header.analysis-tools-open .replay-board.cg-wrap,
+  .game-replay.replay-meta-header.analysis-tools-open .replay-pane-clock-slot {
+    max-width: none;
+  }
+
+  .game-replay.replay-meta-header.analysis-tools-open .replay-layout {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .game-replay.replay-meta-header .replay-moves-panel {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+  }
+
+  .game-replay.replay-meta-header .replay-tools-row {
+    grid-column: 1 / -1;
+    grid-row: 3;
   }
 }
 
