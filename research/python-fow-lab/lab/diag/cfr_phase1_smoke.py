@@ -35,12 +35,15 @@ from fow_chess.cfr.walker import SubgameNode
 from fow_chess.evaluator import fow_evaluator, material_score
 
 
-# Settings — change here if you want a different smoke shape.
-CFR_DEPTH = 3
-CFR_ITERATIONS = 500
-CFR_VALUE_SAMPLES = 500
-SAMPLE_MAJOR = 30
-SAMPLE_MINOR = 20
+# Settings — env-overridable for speed-tune sweeps.
+CFR_DEPTH = int(os.environ.get("CFR_DEPTH", "3"))
+CFR_ITERATIONS = int(os.environ.get("CFR_ITERATIONS", "500"))
+CFR_VALUE_SAMPLES = int(os.environ.get("CFR_VALUE_SAMPLES", "500"))
+SAMPLE_MAJOR = int(os.environ.get("SAMPLE_MAJOR", "30"))
+SAMPLE_MINOR = int(os.environ.get("SAMPLE_MINOR", "20"))
+# Optional suffix on output filename so re-runs at different settings
+# don't overwrite the original Phase 1/1b baselines.
+CFR_RESULTS_SUFFIX = os.environ.get("CFR_RESULTS_SUFFIX", "")
 
 # Leaf eval selection via env var. Output file name encodes the leaf used.
 LEAF_EVAL_KIND = os.environ.get("CFR_LEAF_EVAL", "material")
@@ -58,7 +61,7 @@ ANNOTATIONS_PATH = Path(__file__).parents[2] / "feedback" / "annotations.jsonl"
 _PHASE_TAG = "phase1" if LEAF_EVAL_KIND == "material" else "phase1b"
 RESULTS_PATH = (
     Path(__file__).parent
-    / f"cfr-{_PHASE_TAG}-smoke-results.json"
+    / f"cfr-{_PHASE_TAG}{CFR_RESULTS_SUFFIX}-smoke-results.json"
 )
 
 
