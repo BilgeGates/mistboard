@@ -4667,6 +4667,17 @@ a.landing-announcement-headline:focus-visible {
     0 12px 26px rgba(43, 49, 45, 0.14);
 }
 
+/* Chessground floors the inner container width to a multiple of 8 physical
+   pixels for crisp squares (render.js updateBounds). With its default
+   top:0;left:0 positioning, the leftover always lands on bottom/right. The
+   landing replay is non-interactive (hit-test alignment doesn't matter), so
+   center the container — the remainder splits evenly across all four sides. */
+.landing-page #landing-replay .replay-board.cg-wrap cg-container {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .landing-page #landing-replay .replay-clock-row {
   border-color: #cfd4cc;
   background: #ffffff;
