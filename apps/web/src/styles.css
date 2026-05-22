@@ -243,14 +243,15 @@
   background-position: calc(var(--fog-file, 0) * 100% / 7) calc(var(--fog-rank, 0) * 100% / 7);
 }
 
-/* Suppress the mist image on fog-hidden squares until fog-positioning.ts has
-   computed and applied each square's --fog-file / --fog-rank. Otherwise every
-   square briefly shows the same upper-left region of the source image (the
-   CSS-variable default of 0/0) before the observer fires, which reads as a
-   visible shuffle / "drift in" effect at mount. */
-:root[data-fog-theme="mistveil"] cg-board square.fog-hidden:not([data-fog-positioned]) {
-  background-image: none;
-}
+/* Note: previously had a `:not([data-fog-positioned])` gate here that
+   suppressed the mist image until JS had set --fog-file / --fog-rank on each
+   square. That gate caused a visible per-square fade-in on every move (fog
+   squares created during chessground re-render briefly showed only the fill
+   color, then the image appeared 1 frame later when the MutationObserver
+   fired). MutationObserver callbacks run in microtasks before the next paint,
+   so removing the gate means the image paints at the correct position from
+   the first frame in the common case. The fog-positioning.ts module still
+   sets --fog-file/--fog-rank to keep the per-square shifting correct. */
 
 * {
   box-sizing: border-box;
