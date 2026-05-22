@@ -3055,6 +3055,12 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
   color: #3f4742;
   line-height: 1.55;
   font-size: 15px;
+  margin: 0 0 6px;
+}
+
+.article-dates {
+  color: #6b746f;
+  font-size: 13px;
   margin: 0 0 28px;
 }
 
@@ -5084,6 +5090,7 @@ a.landing-announcement-card-inner:focus-visible {
 
 .account-panel,
 .profile-header,
+.profile-ratings,
 .profile-games {
   border: 1px solid #d8d8d8;
   border-radius: 3px;
@@ -5274,6 +5281,158 @@ a.landing-announcement-card-inner:focus-visible {
   margin: 0;
   color: #666666;
   font-size: 13px;
+}
+
+.profile-header-meta {
+  line-height: 1.6;
+}
+
+.profile-handle,
+.profile-joined,
+.profile-game-count {
+  color: #666666;
+}
+
+.profile-header-meta .profile-role-badge {
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+
+.profile-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+
+.profile-role-admin {
+  background: #fdecea;
+  color: #b3261e;
+}
+
+.profile-role-test {
+  background: #eef3fb;
+  color: #1f6feb;
+}
+
+.profile-ratings {
+  margin-top: 12px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.profile-ratings h2 {
+  margin: 0;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e2e2e2;
+  color: #262421;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.profile-ratings-empty {
+  margin: 0;
+  padding: 18px 16px;
+  color: #777777;
+  font-size: 14px;
+}
+
+.profile-ratings-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+  row-gap: 14px;
+  align-items: baseline;
+  padding: 18px 16px;
+}
+
+.profile-ratings-th {
+  color: #777777;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-ratings-variant {
+  color: #262421;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.profile-rating-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profile-rating-value {
+  color: #262421;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.profile-rating-value-empty {
+  color: #bbbbbb;
+  font-weight: 500;
+}
+
+.profile-rating-value-unrated {
+  color: #777777;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.profile-rating-games {
+  color: #888888;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+@media (max-width: 720px) {
+  .profile-ratings-grid {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+    row-gap: 12px;
+  }
+
+  .profile-ratings-corner {
+    display: none;
+  }
+
+  .profile-ratings-th:first-of-type {
+    display: none;
+  }
+
+  .profile-ratings-variant {
+    grid-column: 1 / -1;
+    padding-top: 6px;
+    border-top: 1px solid #eeeeee;
+  }
+
+  .profile-ratings-grid > .profile-ratings-variant:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .profile-rating-cell::before {
+    content: attr(data-time-class);
+    display: block;
+    color: #777777;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
 }
 
 .profile-games {

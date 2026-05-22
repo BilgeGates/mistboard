@@ -203,10 +203,26 @@ export type PublicProfileUser = {
   handle: string;
   displayName: string;
   profileVisibility: UserAccount['profileVisibility'];
+  accountRole: AccountRole;
+  createdAt: Date;
+};
+
+export type ProfileBucketRating = {
+  variant: RatingVariant;
+  timeClass: RatingTimeClass;
+  eloRating: number | null;
+  // Count of rated games only. user_ratings.games_played is incremented per
+  // rated game; casual games are not counted here. Activity in casual buckets
+  // is reflected by the row existing (see UserProfile.ratings filtering).
+  ratedGamesPlayed: number;
+  // Count of all completed games (rated + casual). Used to decide whether
+  // a row should appear for a variant; not surfaced as a number in the UI.
+  totalGamesPlayed: number;
 };
 
 export type UserProfile = {
   user: PublicProfileUser;
+  ratings: ProfileBucketRating[];
   games: ProfileGameRecord[];
 };
 
@@ -953,12 +969,82 @@ export async function getUserProfileByHandle(
     participants: [],
   }));
 
+  const { rows: ratingRows } = await getPool().query<{
+    variant: RatingVariant;
+    time_class: RatingTimeClass;
+    elo_rating: number;
+    games_played: number;
+  }>(
+    `SELECT variant, time_class, elo_rating, games_played
+     FROM user_ratings
+     WHERE user_id = $1`,
+    [user.id],
+  );
+  const ratingByBucket = new Map<string, { eloRating: number; gamesPlayed: number }>();
+  for (const row of ratingRows) {
+    ratingByBucket.set(`${row.variant}:${row.time_class}`, {
+      eloRating: row.elo_rating,
+      gamesPlayed: row.games_played,
+    });
+  }
+
+  // Bucketed game counts derived from time control, so the rating section
+  // shows activity per bucket even pre-rated-flip when user_ratings is empty.
+  const { rows: bucketCountRows } = await getPool().query<{
+    variant: RatingVariant;
+    time_class: RatingTimeClass;
+    games_played: string;
+  }>(
+    `SELECT
+       CASE WHEN COALESCE(games.hidden_draft960, false)
+            THEN 'fog_draft960' ELSE 'fog' END AS variant,
+       CASE
+         WHEN games.initial_ms = 60000  AND games.increment_ms = 1000 THEN 'bullet'
+         WHEN games.initial_ms = 180000 AND games.increment_ms = 2000 THEN 'blitz'
+         WHEN games.initial_ms = 300000 AND games.increment_ms = 3000 THEN 'blitz'
+         ELSE NULL
+       END AS time_class,
+       COUNT(*)::text AS games_played
+     FROM game_participants
+     JOIN games ON games.room_id = game_participants.game_id
+     WHERE game_participants.subject_type = 'user'
+       AND game_participants.subject_id = $1
+       AND games.status = 'completed'
+       ${visibilityClause}
+     GROUP BY 1, 2`,
+    [user.id],
+  );
+  const bucketGameCounts = new Map<string, number>();
+  for (const row of bucketCountRows) {
+    if (!row.time_class) continue;
+    bucketGameCounts.set(`${row.variant}:${row.time_class}`, Number(row.games_played));
+  }
+
+  const bucketKeys = new Set<string>([...ratingByBucket.keys(), ...bucketGameCounts.keys()]);
+  const ratings: ProfileBucketRating[] = [];
+  for (const key of bucketKeys) {
+    const [variant, timeClass] = key.split(':') as [RatingVariant, RatingTimeClass];
+    const rating = ratingByBucket.get(key);
+    const totalGames = bucketGameCounts.get(key) ?? 0;
+    if (totalGames === 0 && !rating) continue;
+    ratings.push({
+      variant,
+      timeClass,
+      eloRating: rating?.eloRating ?? null,
+      ratedGamesPlayed: rating?.gamesPlayed ?? 0,
+      totalGamesPlayed: totalGames,
+    });
+  }
+
   return {
     user: {
       handle: user.handle,
       displayName: user.displayName,
       profileVisibility: user.profileVisibility,
+      accountRole: user.accountRole,
+      createdAt: user.createdAt,
     },
+    ratings,
     games: await withParticipants(games),
   };
 }

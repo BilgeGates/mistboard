@@ -93,13 +93,26 @@ type GameArtifactPayload = {
 };
 type GameArtifactType = 'belief-snapshot' | 'trace-row' | 'engine-move-choice';
 
+type ProfileRatingVariant = 'fog' | 'fog_draft960';
+type ProfileRatingTimeClass = 'bullet' | 'blitz';
+type ProfileBucketRating = {
+  variant: ProfileRatingVariant;
+  timeClass: ProfileRatingTimeClass;
+  eloRating: number | null;
+  ratedGamesPlayed: number;
+  totalGamesPlayed: number;
+};
+
 type UserProfile = {
   isViewer?: boolean;
   user: {
     handle: string;
     displayName: string;
     profileVisibility: 'private' | 'unlisted' | 'public';
+    accountRole: 'player' | 'test' | 'admin';
+    createdAt: string;
   };
+  ratings: ProfileBucketRating[];
   games: FeaturedGame[];
 };
 
@@ -365,7 +378,11 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
     return;
   }
 
-  shell.append(buildProfileHeader(profile), buildProfileGames(profile.games));
+  shell.append(
+    buildProfileHeader(profile),
+    buildProfileRatings(profile.ratings),
+    buildProfileGames(profile.games),
+  );
 }
 
 type LeaderboardEntry = {
@@ -1216,11 +1233,162 @@ function buildProfileHeader(profile: UserProfile): HTMLElement {
   title.textContent = profile.user.displayName;
 
   const meta = document.createElement('p');
-  meta.className = 'account-copy';
-  meta.textContent = `@${profile.user.handle} · ${profile.games.length} ${profile.games.length === 1 ? 'game' : 'games'}`;
+  meta.className = 'account-copy profile-header-meta';
+
+  const handlePart = document.createElement('span');
+  handlePart.className = 'profile-handle';
+  handlePart.textContent = `@${profile.user.handle}`;
+  meta.append(handlePart);
+
+  const joinedLabel = formatJoinedDate(profile.user.createdAt);
+  if (joinedLabel) {
+    meta.append(document.createTextNode(' · '));
+    const joined = document.createElement('span');
+    joined.className = 'profile-joined';
+    joined.textContent = `Joined ${joinedLabel}`;
+    meta.append(joined);
+  }
+
+  meta.append(document.createTextNode(' · '));
+  const gameCount = document.createElement('span');
+  gameCount.className = 'profile-game-count';
+  gameCount.textContent = `${profile.games.length} ${profile.games.length === 1 ? 'game' : 'games'}`;
+  meta.append(gameCount);
+
+  const roleBadge = buildRoleBadge(profile.user.accountRole);
+  if (roleBadge) {
+    meta.append(document.createTextNode(' · '));
+    meta.append(roleBadge);
+  }
 
   header.append(eyebrow, title, meta);
   return header;
+}
+
+function buildRoleBadge(role: UserProfile['user']['accountRole']): HTMLElement | null {
+  if (role === 'admin') {
+    const badge = document.createElement('span');
+    badge.className = 'profile-role-badge profile-role-admin';
+    badge.textContent = 'Admin';
+    return badge;
+  }
+  if (role === 'test') {
+    const badge = document.createElement('span');
+    badge.className = 'profile-role-badge profile-role-test';
+    badge.textContent = 'Test';
+    return badge;
+  }
+  return null;
+}
+
+function formatJoinedDate(value: string | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date);
+}
+
+const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
+  fog: 'Dark Chess',
+  fog_draft960: 'Draft960',
+};
+
+const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = ['fog', 'fog_draft960'];
+const PROFILE_TIME_CLASS_ORDER: ProfileRatingTimeClass[] = ['bullet', 'blitz'];
+const PROFILE_TIME_CLASS_LABEL: Record<ProfileRatingTimeClass, string> = {
+  bullet: 'Bullet',
+  blitz: 'Blitz',
+};
+
+function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'profile-ratings';
+
+  const heading = document.createElement('h2');
+  heading.textContent = 'Ratings';
+  section.append(heading);
+
+  const variantsTouched = PROFILE_VARIANT_ORDER.filter((variant) =>
+    ratings.some((r) => r.variant === variant && r.totalGamesPlayed > 0),
+  );
+
+  if (variantsTouched.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'profile-ratings-empty';
+    empty.textContent = 'No rated time controls played yet.';
+    section.append(empty);
+    return section;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'profile-ratings-grid';
+
+  // Header row: empty corner + one column header per time class.
+  const corner = document.createElement('span');
+  corner.className = 'profile-ratings-corner';
+  corner.setAttribute('aria-hidden', 'true');
+  grid.append(corner);
+  for (const timeClass of PROFILE_TIME_CLASS_ORDER) {
+    const th = document.createElement('span');
+    th.className = 'profile-ratings-th';
+    th.textContent = PROFILE_TIME_CLASS_LABEL[timeClass];
+    grid.append(th);
+  }
+
+  for (const variant of variantsTouched) {
+    const label = document.createElement('span');
+    label.className = 'profile-ratings-variant';
+    label.textContent = PROFILE_VARIANT_LABEL[variant];
+    grid.append(label);
+
+    for (const timeClass of PROFILE_TIME_CLASS_ORDER) {
+      grid.append(buildRatingCell(ratings, variant, timeClass));
+    }
+  }
+
+  section.append(grid);
+  return section;
+}
+
+function buildRatingCell(
+  ratings: ProfileBucketRating[],
+  variant: ProfileRatingVariant,
+  timeClass: ProfileRatingTimeClass,
+): HTMLElement {
+  const cell = document.createElement('div');
+  cell.className = 'profile-rating-cell';
+  cell.dataset.timeClass = timeClass;
+
+  const bucket = ratings.find((r) => r.variant === variant && r.timeClass === timeClass);
+
+  const value = document.createElement('span');
+  value.className = 'profile-rating-value';
+
+  if (!bucket || bucket.totalGamesPlayed === 0) {
+    value.textContent = '—';
+    value.classList.add('profile-rating-value-empty');
+    cell.append(value);
+    return cell;
+  }
+
+  if (bucket.eloRating == null) {
+    value.textContent = 'Unrated';
+    value.classList.add('profile-rating-value-unrated');
+    cell.append(value);
+    return cell;
+  }
+
+  value.textContent = String(bucket.eloRating);
+  cell.append(value);
+
+  if (bucket.ratedGamesPlayed > 0) {
+    const count = document.createElement('span');
+    count.className = 'profile-rating-games';
+    count.textContent = `${bucket.ratedGamesPlayed} rated ${bucket.ratedGamesPlayed === 1 ? 'game' : 'games'}`;
+    cell.append(count);
+  }
+
+  return cell;
 }
 
 function buildProfileGames(games: FeaturedGame[]): HTMLElement {
@@ -1970,38 +2138,39 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     selectedEngineId = engineId;
   }) : null;
 
-  const startGroup = document.createElement('div');
-  startGroup.className = 'landing-start-options';
-  startGroup.setAttribute('role', 'radiogroup');
-  startGroup.setAttribute('aria-label', 'Fog start format');
-
   const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
   const draft960Selectable = draft960Enabled && choice.mode !== 'lobby';
   const standardButton = startOptionButton('Standard', true);
   const draftButton = startOptionButton(draft960Selectable ? 'Draft960' : 'Draft960 (soon)', false);
-  if (!draft960Selectable) {
-    draftButton.disabled = true;
-    draftButton.classList.add('disabled');
-    draftButton.title = 'Coming soon';
-  }
-  const syncOptions = () => {
-    standardButton.classList.toggle('selected', startFormat === 'standard');
-    standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
-    draftButton.classList.toggle('selected', startFormat === 'draft960');
-    draftButton.setAttribute('aria-checked', startFormat === 'draft960' ? 'true' : 'false');
-  };
-  standardButton.addEventListener('click', () => {
-    startFormat = 'standard';
-    syncOptions();
-  });
-  if (draft960Selectable) {
-    draftButton.addEventListener('click', () => {
-      startFormat = 'draft960';
+  if (draft960Enabled) {
+    const startGroup = document.createElement('div');
+    startGroup.className = 'landing-start-options';
+    startGroup.setAttribute('role', 'radiogroup');
+    startGroup.setAttribute('aria-label', 'Fog start format');
+    if (!draft960Selectable) {
+      draftButton.disabled = true;
+      draftButton.classList.add('disabled');
+      draftButton.title = 'Coming soon';
+    }
+    const syncOptions = () => {
+      standardButton.classList.toggle('selected', startFormat === 'standard');
+      standardButton.setAttribute('aria-checked', startFormat === 'standard' ? 'true' : 'false');
+      draftButton.classList.toggle('selected', startFormat === 'draft960');
+      draftButton.setAttribute('aria-checked', startFormat === 'draft960' ? 'true' : 'false');
+    };
+    standardButton.addEventListener('click', () => {
+      startFormat = 'standard';
       syncOptions();
     });
+    if (draft960Selectable) {
+      draftButton.addEventListener('click', () => {
+        startFormat = 'draft960';
+        syncOptions();
+      });
+    }
+    startGroup.append(standardButton, draftButton);
+    variantSection.append(startGroup);
   }
-  startGroup.append(standardButton, draftButton);
-  variantSection.append(startGroup);
 
   const timeSection = document.createElement('div');
   timeSection.className = 'landing-setup-section';
@@ -2093,7 +2262,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   dialog.append(status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
-  standardButton.focus();
+  (draft960Enabled ? standardButton : startButton).focus();
 }
 
 function buildEngineSetupSection(
