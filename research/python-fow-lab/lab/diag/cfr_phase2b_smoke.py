@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import multiprocessing as mp
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -62,7 +63,13 @@ LEAF_EVAL = _LEAF_EVAL_MAP[LEAF_EVAL_KIND]
 
 ANNOTATIONS_PATH = Path(__file__).parents[2] / "feedback" / "annotations.jsonl"
 _PHASE_TAG = "phase2b-material" if LEAF_EVAL_KIND == "material" else "phase2b-hybrid_fog"
-RESULTS_PATH = Path(__file__).parent / f"cfr-{_PHASE_TAG}-smoke-results.json"
+# Default filename omits iter count for backward compat with the original Gate 2b
+# artifact. Set CFR_RESULTS_SUFFIX to include iter+traj info (e.g., "-100iter") to
+# avoid overwriting prior results when re-running with different settings.
+_RESULTS_SUFFIX = os.environ.get("CFR_RESULTS_SUFFIX", "")
+RESULTS_PATH = (
+    Path(__file__).parent / f"cfr-{_PHASE_TAG}{_RESULTS_SUFFIX}-smoke-results.json"
+)
 
 
 EXCLUDE_TAGS = {"opponent-blunder"}
@@ -259,6 +266,61 @@ def _stratified_sample(annotations: list[dict]) -> list[dict]:
     return sample
 
 
+def _write_results(
+    results: list[dict],
+    sample_total: int,
+    n_workers: int,
+    elapsed_seconds: float,
+    partial: bool,
+) -> None:
+    """Atomic write of (possibly partial) results to RESULTS_PATH.
+
+    Writes to a tmp file + renames so a kill mid-write never produces a
+    corrupted JSON. ``partial=True`` is set while the run is in progress;
+    flipped to False on the final write.
+    """
+    payload = {
+        "partial": partial,
+        "completed": len(results),
+        "total": sample_total,
+        "elapsed_seconds": elapsed_seconds,
+        "settings": {
+            "depth": CFR_DEPTH,
+            "iterations": CFR_ITERATIONS,
+            "trajectories_per_iter": CFR_TRAJECTORIES,
+            "regret_train_epochs": CFR_REGRET_EPOCHS,
+            "avg_strategy_train_epochs": CFR_STRATEGY_EPOCHS,
+            "value_samples": CFR_VALUE_SAMPLES,
+            "leaf_eval": LEAF_EVAL_KIND,
+        },
+        "n_workers": n_workers,
+        "summary": _summarize(results),
+        "results": results,
+    }
+    tmp = RESULTS_PATH.with_suffix(RESULTS_PATH.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=2, default=str))
+    tmp.replace(RESULTS_PATH)
+
+
+def _load_resume_state() -> list[dict]:
+    """If a partial result file exists, return its completed results so we
+    can skip them on this run."""
+    if not RESULTS_PATH.exists():
+        return []
+    try:
+        existing = json.loads(RESULTS_PATH.read_text())
+    except Exception as exc:
+        print(f"Could not parse existing results file ({exc}); starting fresh.")
+        return []
+    if not existing.get("partial"):
+        print(
+            f"Existing results file is complete ({existing.get('total', '?')} "
+            "positions). Overwrite by deleting it; otherwise this run exits."
+        )
+        sys.exit(0)
+    return list(existing.get("results", []))
+
+
 def _summarize(results: list[dict]) -> dict:
     valid = [r for r in results if "error" not in r]
     if not valid:
@@ -298,33 +360,51 @@ def main() -> None:
         if WORKERS_OVERRIDE
         else max(1, min(os.cpu_count() or 4, len(sample)))
     )
+
+    # Resume-from-partial-if-present.
+    prior_results = _load_resume_state()
+    done_ids = {r.get("annotation_id") for r in prior_results if "error" not in r}
+    remaining = [a for a in sample if a["id"] not in done_ids]
+    if prior_results:
+        print(
+            f"Resuming: {len(prior_results)} positions already complete; "
+            f"{len(remaining)} positions remaining."
+        )
     print(f"Running on {n_workers} parallel workers...")
 
     t0 = time.monotonic()
-    with mp.Pool(processes=n_workers) as pool:
-        results = list(pool.imap_unordered(_solve_one, sample))
-    wall = time.monotonic() - t0
-    print(f"Total wall: {wall:.1f}s")
+    results: list[dict] = list(prior_results)
+    # Persist the resumed state immediately so a kill before any new work
+    # leaves an explicit partial artifact (not "no file written").
+    _write_results(
+        results, len(sample), n_workers, time.monotonic() - t0, partial=True
+    )
 
-    summary = _summarize(results)
-    payload = {
-        "settings": {
-            "depth": CFR_DEPTH,
-            "iterations": CFR_ITERATIONS,
-            "trajectories_per_iter": CFR_TRAJECTORIES,
-            "regret_train_epochs": CFR_REGRET_EPOCHS,
-            "avg_strategy_train_epochs": CFR_STRATEGY_EPOCHS,
-            "value_samples": CFR_VALUE_SAMPLES,
-            "leaf_eval": LEAF_EVAL_KIND,
-        },
-        "n_workers": n_workers,
-        "total_wall_seconds": wall,
-        "summary": summary,
-        "results": results,
-    }
-    RESULTS_PATH.write_text(json.dumps(payload, indent=2, default=str))
+    if remaining:
+        with mp.Pool(processes=n_workers) as pool:
+            for i, result in enumerate(
+                pool.imap_unordered(_solve_one, remaining),
+                start=len(prior_results) + 1,
+            ):
+                results.append(result)
+                elapsed = time.monotonic() - t0
+                aid = (result.get("annotation_id") or "?")[:8]
+                err = result.get("error")
+                tag = f" ERROR={err}" if err else ""
+                print(
+                    f"[{i}/{len(sample)}] {aid} elapsed={elapsed:.0f}s{tag}",
+                    flush=True,
+                )
+                _write_results(
+                    results, len(sample), n_workers, elapsed, partial=True
+                )
+
+    wall = time.monotonic() - t0
+    _write_results(results, len(sample), n_workers, wall, partial=False)
+    print(f"Total wall: {wall:.1f}s")
     print(f"Wrote {RESULTS_PATH}")
 
+    summary = _summarize(results)
     print()
     print("Summary:")
     for k, v in summary.items():
