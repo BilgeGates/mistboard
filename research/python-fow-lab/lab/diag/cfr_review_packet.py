@@ -393,15 +393,36 @@ def _render_position_html(
     p1b_argmax_uci = phase1b_result["cfr_argmax_move"] if phase1b_result else None
     p1b_argmax_move = chess.Move.from_uci(p1b_argmax_uci) if p1b_argmax_uci else None
 
-    # Build the board SVG with one arrow per source-of-pick.
+    # Build the board SVG. Always include every arrow — later ones draw on
+    # top, so we order played → suggested → Deep CFR → Phase 1b for visibility
+    # of the engine picks when they overlap with played/suggested.
     arrows = []
     arrows.append(chess.svg.Arrow(played.from_square, played.to_square, color=_ARROW_PLAYED))
-    if suggested.uci() != played.uci():
-        arrows.append(chess.svg.Arrow(suggested.from_square, suggested.to_square, color=_ARROW_SUGGESTED))
-    if cfr_argmax_uci != suggested.uci() and cfr_argmax_uci != played.uci():
-        arrows.append(chess.svg.Arrow(cfr_argmax_move.from_square, cfr_argmax_move.to_square, color=_ARROW_ARGMAX))
-    if p1b_argmax_move and p1b_argmax_uci not in (cfr_argmax_uci, suggested.uci(), played.uci()):
+    arrows.append(chess.svg.Arrow(suggested.from_square, suggested.to_square, color=_ARROW_SUGGESTED))
+    arrows.append(chess.svg.Arrow(cfr_argmax_move.from_square, cfr_argmax_move.to_square, color=_ARROW_ARGMAX))
+    if p1b_argmax_move:
         arrows.append(chess.svg.Arrow(p1b_argmax_move.from_square, p1b_argmax_move.to_square, color=_ARROW_P1B))
+
+    # Compute overlap notes so the user knows when a single color masks
+    # multiple sources.
+    overlap_notes = []
+    if cfr_argmax_uci == suggested.uci():
+        overlap_notes.append("🔵 = 🟢 (Deep CFR = suggested)")
+    elif cfr_argmax_uci == played.uci():
+        overlap_notes.append("🔵 = 🔴 (Deep CFR = played — bad sign)")
+    if p1b_argmax_uci == cfr_argmax_uci and p1b_argmax_uci:
+        overlap_notes.append("🟣 = 🔵 (Phase 1b = Deep CFR)")
+    elif p1b_argmax_uci == suggested.uci():
+        overlap_notes.append("🟣 = 🟢 (Phase 1b = suggested)")
+    elif p1b_argmax_uci == played.uci():
+        overlap_notes.append("🟣 = 🔴 (Phase 1b = played — bad sign)")
+    if suggested.uci() == played.uci():
+        overlap_notes.append("🟢 = 🔴 (suggested = played — annotation oddity)")
+    overlap_html = (
+        f'<div style="font-size:12px;color:#a06000;margin-top:6px;"><strong>Overlap:</strong> {" · ".join(overlap_notes)}</div>'
+        if overlap_notes
+        else ""
+    )
 
     svg = chess.svg.board(
         board_before,
@@ -494,6 +515,7 @@ def _render_position_html(
         <div><span class="swatch" style="background:{_ARROW_SUGGESTED}"></span> annotator's suggested</div>
         <div><span class="swatch" style="background:{_ARROW_ARGMAX}"></span> Deep CFR's argmax</div>
         <div><span class="swatch" style="background:{_ARROW_P1B}"></span> Phase 1b (tabular) argmax</div>
+        {overlap_html}
       </div>
     </div>
     <div class="data-side">
