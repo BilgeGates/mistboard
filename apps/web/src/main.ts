@@ -69,6 +69,9 @@ const wantsVideo = path === '/video' || page === 'video';
 const videoPlayerId = videoIdFromPath(path);
 const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 const profileHandle = profileHandleFromPath(path);
+// Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
+// See docs-private/fog-of-war/library/variants/fow-xiangqi.md.
+const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
 
 if (replaySample) {
   setTitle('Replay');
@@ -112,6 +115,9 @@ if (replaySample) {
 } else if (wantsVideo) {
   setTitle('Video');
   void mountOrReport(() => import('./landing.js').then(({ mountVideo }) => mountVideo(appRoot)));
+} else if (wantsXiangqiSpike) {
+  setTitle('Xiangqi spike');
+  void mountOrReport(() => import('./xiangqi-spike.js').then(({ mountXiangqiSpike }) => mountXiangqiSpike(appRoot)));
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
