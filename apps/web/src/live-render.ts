@@ -151,11 +151,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
             <section data-game-controls-section class="panel-section" hidden>
               <div data-game-controls class="game-controls"></div>
             </section>
-            <section data-bid-section class="panel-section">
-              <h2>Bid For White</h2>
-              <div data-bid-controls class="bid-controls"></div>
-              <div data-bid-status class="selection-list"></div>
-            </section>
             <section data-offer-section class="panel-section">
               <h2>Draft960 Offer</h2>
               <div data-starts class="starts"></div>
@@ -215,9 +210,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
   const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
   const devViewsPanel = target.querySelector<HTMLDivElement>('[data-dev-views]');
-  const bidControls = target.querySelector<HTMLDivElement>('[data-bid-controls]');
-  const bidSection = target.querySelector<HTMLElement>('[data-bid-section]');
-  const bidStatus = target.querySelector<HTMLDivElement>('[data-bid-status]');
   const offerSection = target.querySelector<HTMLElement>('[data-offer-section]');
   const draftPicker = target.querySelector<HTMLDivElement>('[data-draft-picker]');
   const promotion = target.querySelector<HTMLDivElement>('[data-promotion]');
@@ -231,7 +223,7 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
   const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!newRoom || !roomMeta || !board || !boardPaused || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !bidControls || !bidSection || !bidStatus || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
+  if (!newRoom || !roomMeta || !board || !boardPaused || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
     throw new Error('missing app region');
   }
 
@@ -243,9 +235,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
     boardStatus,
     draftPicker,
     actionStatus,
-    bidControls,
-    bidSection,
-    bidStatus,
     captures,
     clocks,
     devViews: devViewsPanel,
@@ -316,7 +305,6 @@ export function render(): void {
   refs.boardStatus.hidden = view !== null;
   refs.offerSection.hidden = !showDraft || showPickerOverlay;
   refs.selectionSection.hidden = !showDraft;
-  refs.bidSection.hidden = view?.variant !== 'bid-for-white';
 
   renderActionStatus(view);
   renderGameInfo(view);
@@ -325,7 +313,6 @@ export function render(): void {
   renderRoomActions();
   renderGameControls(view);
   renderDevViews();
-  renderBid(view);
   renderOffer(projection);
   renderSelections(projection);
   renderDraftPicker();
@@ -859,63 +846,6 @@ function devViewCard(
 
   card.append(title, meta, board, captures);
   return card;
-}
-
-// ── Bid ───────────────────────────────────────────────────────────────────────
-
-function renderBid(view: PlayerView | null): void {
-  refs.bidControls.replaceChildren();
-  refs.bidStatus.replaceChildren();
-
-  if (view?.variant === 'bid-for-white') {
-    refs.bidStatus.append(bidNotice(view));
-  }
-
-  refs.bidStatus.append(
-    selectionItem('Your bid', ownBidLabel()),
-    selectionItem('White bid', revealedBidLabel('white')),
-    selectionItem('Black bid', revealedBidLabel('black')),
-    selectionItem('If you win', bidImpactLabel()),
-    selectionItem('Winner', bidWinnerLabel()),
-  );
-
-  if (view?.variant !== 'bid-for-white' || view.status.type !== 'pregame' || liveState.seat === 'spectator') return;
-
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.min = '0';
-  input.max = '299';
-  input.step = '1';
-  const ownSeat = liveState.seat;
-  input.value = String(Math.floor((ownSeat === 'white' ? liveState.bids.white ?? 0 : liveState.bids.black ?? 0) / 1000));
-  input.setAttribute('aria-label', 'Bid seconds');
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.textContent = liveState.bids[ownSeat as Color] === undefined ? 'Submit' : 'Update';
-  button.disabled = !isLive();
-  button.addEventListener('click', () => {
-    const seconds = Number(input.value);
-    if (!Number.isFinite(seconds)) return;
-    sendSocket({
-      type: 'submit-bid',
-      bidMs: Math.max(0, Math.round(seconds * 1000)),
-    });
-  });
-
-  refs.bidControls.append(input, button);
-}
-
-function bidNotice(view: PlayerView): HTMLDivElement {
-  if (view.status.type !== 'pregame') {
-    return infoNotice('success', liveState.bidResolution ? 'Bids revealed. The game is underway.' : 'Game underway.');
-  }
-  if (liveState.seat === 'spectator') return infoNotice('pending', 'Bids are private until both players submit.');
-  if (liveState.bids[liveState.seat as Color] === undefined) return infoNotice('default', 'Enter seconds to give up if you win White.');
-
-  const opponent = oppositeColor(liveState.seat as Color);
-  if (liveState.bids[opponent] === undefined) return infoNotice('pending', 'Your bid is hidden. Waiting for the opponent.');
-  return infoNotice('pending', 'Resolving bids.');
 }
 
 // ── Clocks ────────────────────────────────────────────────────────────────────
@@ -1691,7 +1621,6 @@ function isReplayHistoryEvent(event: GameEvent): boolean {
   // with no visible board change.
   return event.type === 'room-created'
     || event.type === 'draft-start-resolved'
-    || event.type === 'bid-resolved'
     || event.type === 'move-played';
 }
 
@@ -2083,41 +2012,6 @@ function seatLabel(value: Seat): string {
   if (liveState.solo) return 'Solo dev';
   if (value === 'spectator') return 'Spectator';
   return capitalize(value);
-}
-
-function ownBidLabel(): string {
-  if (liveState.seat === 'spectator') return 'none';
-  const bid = liveState.bids[liveState.seat as Color];
-  return bid === undefined ? 'not submitted' : formatBid(bid);
-}
-
-function bidImpactLabel(): string {
-  if (liveState.state?.variant !== 'bid-for-white') return 'none';
-  if (liveState.seat === 'spectator') return 'hidden';
-  if (liveState.bidResolution) return `${liveState.bidResolution.whiteSeat} pays ${formatBid(liveState.bidResolution.winningBidMs)}`;
-
-  const bid = liveState.bids[liveState.seat as Color];
-  if (bid === undefined) return 'set a bid';
-  return `${formatClock(Math.max(0, 300_000 - bid))} as White`;
-}
-
-function revealedBidLabel(color: Color): string {
-  if (!liveState.bidResolution && liveState.state?.variant === 'bid-for-white') {
-    if (liveState.seat === color && liveState.bids[color] !== undefined) return formatBid(liveState.bids[color]!);
-    return liveState.bids[color] === undefined ? 'pending' : 'hidden';
-  }
-  return liveState.bids[color] === undefined ? 'none' : formatBid(liveState.bids[color]!);
-}
-
-function bidWinnerLabel(): string {
-  if (liveState.state?.variant !== 'bid-for-white') return 'none';
-  if (!liveState.bidResolution) return liveState.state.status.type === 'pregame' ? 'pending' : 'none';
-  if (liveState.bidResolution.winner === null) return `tie (${liveState.bidResolution.whiteSeat} gets white)`;
-  return `${liveState.bidResolution.winner} bid ${formatBid(liveState.bidResolution.winningBidMs)}`;
-}
-
-function formatBid(ms: number): string {
-  return `${Math.round(ms / 1000)}s`;
 }
 
 function selectionLabel(startId: number | null | undefined): string {

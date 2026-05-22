@@ -89,9 +89,6 @@ for (const viewport of viewports) {
   if (metrics.roomLinks.some((link) => link.href.includes('dev=engine'))) {
     failures.push(`${viewport.name}: random-engine debug link should not be in the normal room picker`);
   }
-  if (metrics.roomLinks.some((link) => link.label === 'Bid For White' || link.href.includes('variant=bid-for-white'))) {
-    failures.push(`${viewport.name}: Bid For White should not be in primary create-room links`);
-  }
   const screenshotPath = `${outputDir}/${viewport.name}.png`;
   await page.screenshot({ path: screenshotPath, fullPage: true });
   console.log(`${viewport.name}: ${JSON.stringify(metrics)} screenshot=${screenshotPath}`);
@@ -378,67 +375,6 @@ console.log(`fog flow: ${JSON.stringify(fogFlowMetrics)} screenshots=${fogFlowWh
 await whitePage.close();
 await blackPage.close();
 
-const bidRoom = `visual-bid-${Date.now()}`;
-const firstBidPage = await browser.newPage({ viewport: viewports[0] });
-const secondBidPage = await browser.newPage({ viewport: viewports[0] });
-await firstBidPage.goto(`${baseUrl}/room/${encodeURIComponent(bidRoom)}?reset=1&variant=bid-for-white`, { waitUntil: 'networkidle' });
-await secondBidPage.goto(`${baseUrl}/room/${encodeURIComponent(bidRoom)}?variant=bid-for-white`, { waitUntil: 'networkidle' });
-await firstBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'white');
-await secondBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'black');
-await firstBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('Enter seconds to give up'));
-await submitBid(firstBidPage, 10);
-await firstBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().bids.white === 10000);
-await firstBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('Your bid is hidden')
-  && document.querySelector('[data-bid-section]')?.textContent?.includes('4:50 as White'));
-await secondBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('White bid')
-  && document.querySelector('[data-bid-section]')?.textContent?.includes('hidden') === false);
-await submitBid(secondBidPage, 30);
-await secondBidPage.waitForFunction(() => {
-  const debug = window.__MISTBOARD_DEBUG__?.();
-  return debug?.seat === 'white'
-    && debug.currentView?.status.type === 'playing'
-    && debug.currentView.clock?.remainingMs.white === 270000
-    && debug.bidResolution?.winner === 'black';
-});
-await secondBidPage.waitForFunction(() => document.querySelector('[data-bid-section]')?.textContent?.includes('Bids revealed')
-  && document.querySelector('[data-bid-section]')?.textContent?.includes('black bid 30s'));
-await movePiece(secondBidPage, 'e2', 'e4');
-await secondBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
-await firstBidPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.board.e4?.color === 'white');
-await secondBidPage.waitForTimeout(250);
-
-const bidMetrics = await secondBidPage.evaluate(() => {
-  const debug = window.__MISTBOARD_DEBUG__?.();
-  const view = debug?.currentView;
-  if (!debug || !view) throw new Error('missing Bid For White debug view');
-  return {
-    bidResolution: debug.bidResolution,
-    bids: debug.bids,
-    e4Piece: view.board.e4,
-    seat: debug.seat,
-    status: view.status,
-    whiteRemainingMs: view.clock?.remainingMs.white,
-  };
-});
-if (bidMetrics.seat !== 'white') {
-  failures.push(`bid flow: expected higher bidder to be white, found ${bidMetrics.seat}`);
-}
-if (bidMetrics.whiteRemainingMs > 270000 || bidMetrics.whiteRemainingMs < 269000) {
-  failures.push(`bid flow: expected white clock near 270000ms, found ${bidMetrics.whiteRemainingMs}`);
-}
-if (bidMetrics.e4Piece?.color !== 'white' || bidMetrics.e4Piece?.role !== 'pawn') {
-  failures.push(`bid flow: expected white pawn on e4 after first move, found ${JSON.stringify(bidMetrics.e4Piece)}`);
-}
-
-const bidWhitePath = `${outputDir}/bid-white.png`;
-const bidBlackPath = `${outputDir}/bid-black.png`;
-await secondBidPage.screenshot({ path: bidWhitePath, fullPage: true });
-await firstBidPage.screenshot({ path: bidBlackPath, fullPage: true });
-console.log(`bid flow: ${JSON.stringify(bidMetrics)} screenshots=${bidWhitePath},${bidBlackPath}`);
-await firstBidPage.close();
-await secondBidPage.close();
-
 await browser.close();
 
 if (failures.length > 0) {
@@ -467,12 +403,6 @@ async function movePiece(page, from, to) {
   }
   await clickSquare(page, from);
   await clickSquare(page, to);
-}
-
-async function submitBid(page, seconds) {
-  await page.waitForSelector('[data-bid-section] input');
-  await page.locator('[data-bid-section] input').fill(String(seconds));
-  await page.locator('[data-bid-section] button').click();
 }
 
 async function clickSquare(page, square) {

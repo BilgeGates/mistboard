@@ -8,7 +8,7 @@ Edit task → find file → open only that file.
 | File | Owns |
 |------|------|
 | `types.ts` | Shared types: `Color`, `Square`, `Board`, `Move`, `GameState`, `PlayerView`, `Variant` |
-| `variants.ts` | All three variants (`draft960Variant`, `fogOfWarVariant`, `bidForWhiteVariant`); fog kernel: `fogVisibleSquares`, `fogMovesFrom`, `fogPawnMoves`, `fogSlideMoves`, `fogCastlingMoves`, `applyFogMove` |
+| `variants.ts` | Variants (`draft960Variant`, `fogOfWarVariant`); fog kernel: `fogVisibleSquares`, `fogMovesFrom`, `fogPawnMoves`, `fogSlideMoves`, `fogCastlingMoves`, `applyFogMove` |
 | `events.ts` | `GameEvent` union type, `replayGameEvents` reducer, `GameProjection` |
 | `notation.ts` | `algebraicMoveLabels` — algebraic/coordinate notation for move lists and replay |
 | `clocks.ts` | `createClock`, `advanceClock`, `clockRemainingMs`, `expireClock` |

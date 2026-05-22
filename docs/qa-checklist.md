@@ -140,17 +140,6 @@ Use these checks after the smoke path passes or when changing the related area.
 - Confirm failed or missing engine games show an empty/error state instead of a
   blank page.
 
-### Experimental Modes
-
-- Open Bid For White by direct URL with `variant=bid-for-white`.
-- Confirm the mode does not appear as a flagship Create Room choice.
-- Submit a bid in one tab and confirm the other tab does not see the amount.
-- Submit the second bid and confirm bids reveal.
-- Confirm the higher bidder receives White and White's clock is reduced by the
-  winning bid.
-- Open a Draft960-start path only when testing Fog pregame work, not as a
-  standalone product surface.
-
 ### Regression Triggers
 
 Add or update tests when manual QA finds:

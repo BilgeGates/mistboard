@@ -61,7 +61,6 @@ import {
   PersistenceFailure,
   persistSeatToken,
   playMove,
-  resolveBidIfReady,
   resolveStartIfReady,
   resumeRoom,
   resumeRoomIfReady,
@@ -93,7 +92,7 @@ import {
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
 // SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
 // SECTION: Seat management              (~line 560)   assignSeat, existingSeatAssignment, newSeatAssignment, verifySeatToken, displaceOlderSeatClients, canClientAct
-// SECTION: Game flow                    (~line 700)   enableRandomEngine, selectStart, submitBid
+// SECTION: Game flow                    (~line 700)   enableRandomEngine, selectStart
 // SECTION: Room event infrastructure    (~line 760)   inMemoryGameSummary, recordPersistenceError, resetRoom
 // SECTION: Helpers and shutdown         (~line 810)   send, parseMessage, isColor, roomCreatedDraftOfferFields, shutdown
 
@@ -710,9 +709,6 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
     }
     if (message.type === 'select-start') {
       await selectStart(room, client, message.startId, message.color);
-    }
-    if (message.type === 'submit-bid') {
-      await submitBid(room, client, message.bidMs, message.color);
     }
     if (message.type === 'move' && typeof message.from === 'string' && typeof message.to === 'string') {
       await playMove(roomMgrCtx, room, client, {
@@ -1353,28 +1349,6 @@ async function selectStart(room: Room, client: Client, startId: number | undefin
   broadcastSnapshot(roomMgrCtx, room);
 }
 
-async function submitBid(room: Room, client: Client, bidMs: number | undefined, color: string | undefined): Promise<void> {
-  if (!canClientAct(room, client)) return;
-  if (room.projection.variant !== 'bid-for-white') return;
-  if (room.projection.state.status.type !== 'pregame') return;
-
-  const biddingSeat = client.solo && isColor(color) ? color : client.seat;
-  if (biddingSeat === 'spectator') return;
-  if (typeof bidMs !== 'number' || !Number.isInteger(bidMs)) return;
-
-  const requestedBidMs = bidMs;
-  const boundedBidMs = Math.max(0, Math.min(requestedBidMs, defaultClockInitialMs - 1000));
-  await appendEvent(roomMgrCtx, room, {
-    type: 'bid-submitted',
-    at: Date.now(),
-    roomId: room.id,
-    color: biddingSeat,
-    bidMs: boundedBidMs,
-  });
-  await resolveBidIfReady(roomMgrCtx, room);
-  broadcastSnapshot(roomMgrCtx, room);
-}
-
 async function handleResign(room: Room, client: Client): Promise<void> {
   if (!canClientAct(room, client)) return;
   if (client.seat !== 'white' && client.seat !== 'black') return;
@@ -1448,7 +1422,7 @@ function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
 }
 
-function parseMessage(raw: string): { type: string; bidMs?: number; startId?: number; color?: string; from?: string; to?: string; promotion?: string; token?: string } | null {
+function parseMessage(raw: string): { type: string; startId?: number; color?: string; from?: string; to?: string; promotion?: string; token?: string } | null {
   try {
     const value = JSON.parse(raw) as unknown;
     if (typeof value === 'object' && value !== null && 'type' in value) {

@@ -97,7 +97,6 @@ export interface HttpApiContext {
 // ── Exported pure parse helpers (also used by WebSocket handler) ───────────
 export function parseVariantId(value: string | null): VariantId {
   if (value === 'draft960') return 'draft960';
-  if (value === 'bid-for-white') return 'bid-for-white';
   return 'fog-of-war';
 }
 

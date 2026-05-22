@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  bidForWhiteVariant,
   fogOfWarVariant,
   generateChess960Starts,
   replayGameEvents,
@@ -48,8 +47,6 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
     state,
     seats: { white: 'white-client', black: 'black-client' },
     selections: {},
-    bids: {},
-    bidResolution: null,
     resolvedStartId: null,
     resolvedStartIds: {},
     paused: false,
@@ -327,41 +324,6 @@ test('regular Fog of War payload does not include dev views', () => {
   assert.equal(payload.devViews, null);
 });
 
-test('pregame Bid For White payload exposes only the client bid', () => {
-  const room = bidRoomFixture({ status: { type: 'pregame' } });
-  const payload = snapshotPayload(room, {
-    devViews: false,
-    id: 'white-client',
-    seat: 'white',
-    solo: false,
-  });
-  const body = JSON.stringify(payload);
-
-  assert.deepEqual(payload.bids, { white: 10_000 });
-  assert.equal(payload.bidResolution, null);
-  assert.doesNotMatch(body, /30000/);
-  assert.equal(payload.events.some((event) => event.type === 'bid-submitted'), false);
-});
-
-test('resolved Bid For White payload exposes bids and resolution', () => {
-  const room = bidRoomFixture({ status: { type: 'playing', turn: 'white' } });
-  const payload = snapshotPayload(room, {
-    devViews: false,
-    id: 'black-client',
-    seat: 'white',
-    solo: false,
-  });
-
-  assert.deepEqual(payload.bids, { white: 10_000, black: 30_000 });
-  assert.deepEqual(payload.bidResolution, {
-    bids: { white: 10_000, black: 30_000 },
-    blackSeat: 'white',
-    winner: 'black',
-    whiteSeat: 'black',
-    winningBidMs: 30_000,
-  });
-});
-
 function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.createInitialState>['status'] }): SnapshotRoom {
   const state = {
     ...fogOfWarVariant.createInitialState('fog-payload'),
@@ -399,8 +361,6 @@ function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.
     state,
     seats: { white: 'white-client', black: 'black-client' },
     selections: {},
-    bids: {},
-    bidResolution: null,
     resolvedStartId: null,
     resolvedStartIds: {},
     paused: false,
@@ -456,8 +416,6 @@ function lastMoveRoomFixture(): SnapshotRoom {
       state,
       seats: { white: 'white-client', black: 'black-client' },
       selections: {},
-      bids: {},
-      bidResolution: null,
       resolvedStartId: null,
       resolvedStartIds: {},
     paused: false,
@@ -504,74 +462,3 @@ function spectatorClient(): SnapshotClient {
   };
 }
 
-function bidRoomFixture({ status }: { status: ReturnType<typeof bidForWhiteVariant.createInitialState>['status'] }): SnapshotRoom {
-  const state = {
-    ...bidForWhiteVariant.createInitialState('bid-payload'),
-    status,
-  } satisfies ReturnType<typeof bidForWhiteVariant.createInitialState>;
-  const events: GameEvent[] = [
-    {
-      type: 'room-created',
-      at: 1,
-      roomId: 'bid-payload',
-      variant: 'bid-for-white',
-      offer: [],
-    },
-    {
-      type: 'bid-submitted',
-      at: 2,
-      roomId: 'bid-payload',
-      color: 'white',
-      bidMs: 10_000,
-    },
-    {
-      type: 'bid-submitted',
-      at: 3,
-      roomId: 'bid-payload',
-      color: 'black',
-      bidMs: 30_000,
-    },
-    {
-      type: 'bid-resolved',
-      at: 4,
-      roomId: 'bid-payload',
-      bids: { white: 10_000, black: 30_000 },
-      blackSeat: 'white',
-      winner: 'black',
-      whiteSeat: 'black',
-      winningBidMs: 30_000,
-    },
-  ];
-  const projection: GameProjection = {
-    roomId: 'bid-payload',
-    variant: 'bid-for-white',
-    offer: [],
-    offers: {},
-    state,
-    seats: status.type === 'pregame'
-      ? { white: 'white-client', black: 'black-client' }
-      : { white: 'black-client', black: 'white-client' },
-    selections: {},
-    bids: { white: 10_000, black: 30_000 },
-    bidResolution: status.type === 'pregame'
-      ? null
-      : {
-        bids: { white: 10_000, black: 30_000 },
-        blackSeat: 'white',
-        winner: 'black',
-        whiteSeat: 'black',
-        winningBidMs: 30_000,
-      },
-    resolvedStartId: null,
-    resolvedStartIds: {},
-    paused: false,
-    pausedAt: null,
-    pauseReason: null,
-  };
-  return {
-    id: 'bid-payload',
-    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
-    events,
-    projection,
-  };
-}

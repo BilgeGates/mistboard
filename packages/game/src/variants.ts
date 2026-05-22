@@ -7,16 +7,15 @@ import type { Setup } from 'chessops/setup';
 import type { Board, Color, GameState, Move, PieceRole, PlayerView, Square, Variant } from './types.js';
 
 // Navigation index — grep for section name to jump to the right block
-// SECTION: Draft960 variant         (~line 49)   draft960Variant
-// SECTION: Fog of War variant        (~line 113)  fogOfWarVariant
-// SECTION: Bid for White variant     (~line 157)  bidForWhiteVariant
-// SECTION: Fog visibility kernel     (~line 168)  fogVisibleSquares, applyFogMove
-// SECTION: Fog move generation       (~line 303)  fogMovesFrom, getFogMovesForPlayer
-// SECTION: Fog pawn moves            (~line 318)  fogPawnMoves
-// SECTION: Fog sliding/stepping      (~line 346)  fogStepMoves, fogSlideMoves
-// SECTION: Fog castling              (~line 367)  fogCastlingMoves
-// SECTION: Standard chess helpers    (~line 414)  positionFromState, boardToChessops, boardFromChessops
-// SECTION: Variant registry          (~line 665)  variantForId
+// SECTION: Draft960 variant         draft960Variant
+// SECTION: Fog of War variant        fogOfWarVariant
+// SECTION: Fog visibility kernel     fogVisibleSquares, applyFogMove
+// SECTION: Fog move generation       fogMovesFrom, getFogMovesForPlayer
+// SECTION: Fog pawn moves            fogPawnMoves
+// SECTION: Fog sliding/stepping      fogStepMoves, fogSlideMoves
+// SECTION: Fog castling              fogCastlingMoves
+// SECTION: Standard chess helpers    positionFromState, boardToChessops, boardFromChessops
+// SECTION: Variant registry          variantForId
 
 const initialBoard: Board = {
   a1: { color: 'white', role: 'rook' },
@@ -164,18 +163,6 @@ export const fogOfWarVariant: Variant = {
       moveNumber: state.moveNumber,
       lastMove,
       clock: state.clock,
-    };
-  },
-};
-
-// ── SECTION: Bid for White variant ─────────────────────────────────────────
-export const bidForWhiteVariant: Variant = {
-  ...draft960Variant,
-  id: 'bid-for-white',
-  createInitialState(gameId: string): GameState {
-    return {
-      ...draft960Variant.createInitialState(gameId),
-      variant: 'bid-for-white',
     };
   },
 };
@@ -709,7 +696,6 @@ export function capturedRoleFor(state: GameState, move: Move): PieceRole | undef
 }
 
 export function variantForId(id: GameState['variant']): Variant {
-  if (id === 'bid-for-white') return bidForWhiteVariant;
   if (id === 'fog-of-war') return fogOfWarVariant;
   return draft960Variant;
 }

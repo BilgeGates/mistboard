@@ -777,7 +777,6 @@ export async function mountReplay(
       if (
         event.type === 'clock-started'
         || event.type === 'draft-start-resolved'
-        || event.type === 'bid-resolved'
         || event.type === 'room-created'
       ) {
         startedAt = event.at;

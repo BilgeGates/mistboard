@@ -25,7 +25,7 @@ This is the correct place to work on:
 |------|---------|
 | `types.ts` | `GameState`, `PlayerView`, `GameEvent`, piece and square types |
 | `visibility.ts` | Fog of War visibility computation |
-| `variants.ts` | `fogOfWarVariant`, `draft960Variant`, `bidForWhiteVariant` |
+| `variants.ts` | `fogOfWarVariant`, `draft960Variant` |
 | `chess960.ts` | `pickDraft960Offer(seed)` — seeded offer of 3 Chess960 back-ranks |
 | `events.ts` | Event projection: sequence of `GameEvent` → `GameState` |
 

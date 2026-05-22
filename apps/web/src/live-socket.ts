@@ -11,7 +11,6 @@ import { setRestartBanner } from './restart-banner.js';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 import type {
-  BidResolution,
   Chess960Start,
   Color,
 } from '@mistboard/game';
@@ -33,8 +32,6 @@ type ServerMessage =
     offer: Chess960Start[];
     offers?: DraftOffers;
     selections: Partial<Record<Color, number>>;
-    bids: Partial<Record<Color, number>>;
-    bidResolution: BidResolution | null;
     devViews: DevViews | null;
     resolvedStartId: number | null;
     resolvedStartIds?: DraftResolvedStartIds;
@@ -60,8 +57,6 @@ type ServerMessage =
     offer: Chess960Start[];
     offers?: DraftOffers;
     selections: Partial<Record<Color, number>>;
-    bids: Partial<Record<Color, number>>;
-    bidResolution: BidResolution | null;
     devViews: DevViews | null;
     resolvedStartId: number | null;
     resolvedStartIds?: DraftResolvedStartIds;
@@ -208,8 +203,6 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.offer = message.offer;
     liveState.offers = normalizedOffers(message.offer, message.offers);
     liveState.selections = message.selections;
-    liveState.bids = message.bids;
-    liveState.bidResolution = message.bidResolution;
     liveState.devViews = message.devViews;
     liveState.resolvedStartId = message.resolvedStartId;
     liveState.resolvedStartIds = message.resolvedStartIds ?? {};
@@ -233,8 +226,6 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     liveState.offer = message.offer;
     liveState.offers = normalizedOffers(message.offer, message.offers);
     liveState.selections = message.selections;
-    liveState.bids = message.bids;
-    liveState.bidResolution = message.bidResolution;
     liveState.devViews = message.devViews;
     liveState.resolvedStartId = message.resolvedStartId;
     liveState.resolvedStartIds = message.resolvedStartIds ?? {};

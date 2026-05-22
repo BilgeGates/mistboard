@@ -184,8 +184,8 @@ For game design:
 
 - document rule choices and why they exist
 - distinguish implemented rules from experimental lab surfaces
-- keep Draft960, Bid For White, and other experiments clearly framed as Fog
-  features or lab work rather than confusing primary modes
+- keep Draft960 and other experiments clearly framed as Fog
+  features rather than confusing primary modes
 - publish known limitations when they affect player expectations or research interpretation
 
 The standard is not just "trust the site." The standard is that contributors,

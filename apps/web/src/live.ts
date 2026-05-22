@@ -38,8 +38,6 @@ type DebugSnapshot = {
   currentView: PlayerView | null;
   connectionState: typeof liveState.connectionState;
   devViews: DevViews | null;
-  bids: typeof liveState.bids;
-  bidResolution: typeof liveState.bidResolution;
   events: GameEvent[];
   seat: typeof liveState.seat;
   solo: boolean;
@@ -104,8 +102,6 @@ window.setInterval(() => {
 }, 100);
 
 window.__MISTBOARD_DEBUG__ = () => ({
-  bids: liveState.bids,
-  bidResolution: liveState.bidResolution,
   clientCount: liveState.clientCount,
   connectionState: liveState.connectionState,
   currentView: currentView(),

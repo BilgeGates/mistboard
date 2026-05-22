@@ -71,21 +71,3 @@ en-passant visibility, castling representation, no-check king semantics, and
 terminal reveal boundaries are tracked in
 [`docs/fog-of-war/rules-edge-cases.md`](./fog-of-war/rules-edge-cases.md).
 
-## Bid For White (Experimental)
-
-Bid For White is an experimental lab mode. It is not part of the main
-product. It is kept out of the primary Create Room flow.
-
-Working rule baseline:
-
-1. Both players join provisional seats.
-2. Each player privately bids an amount of starting clock time.
-3. Before resolution, a player can see only their own submitted bid.
-4. After both players bid, the higher bidder receives White.
-5. The player who receives White starts with their clock reduced by the winning bid amount.
-6. The other player receives Black with the normal starting clock.
-7. Ties are resolved randomly between the two players.
-8. After color resolution, the game is normal chess from the standard starting position.
-9. Bids and the color assignment are revealed after resolution.
-
-Design intent: price White's first-move advantage without changing chess rules.

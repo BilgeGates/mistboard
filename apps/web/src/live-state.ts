@@ -1,6 +1,5 @@
 import type { Api } from 'chessground/api';
 import type {
-  BidResolution,
   Chess960Start,
   Color,
   GameEvent,
@@ -50,9 +49,6 @@ export type LiveRefs = {
   boardStatus: HTMLDivElement;
   draftPicker: HTMLDivElement;
   actionStatus: HTMLDivElement;
-  bidControls: HTMLDivElement;
-  bidSection: HTMLElement;
-  bidStatus: HTMLDivElement;
   captures: HTMLDivElement;
   clocks: HTMLDivElement;
   devViews: HTMLDivElement;
@@ -108,8 +104,6 @@ export const liveState = {
   offer: [] as Chess960Start[],
   offers: {} as DraftOffers,
   selections: {} as Partial<Record<Color, number>>,
-  bids: {} as Partial<Record<Color, number>>,
-  bidResolution: null as BidResolution | null,
   devViews: null as DevViews | null,
   resolvedStartId: null as number | null,
   resolvedStartIds: {} as DraftResolvedStartIds,

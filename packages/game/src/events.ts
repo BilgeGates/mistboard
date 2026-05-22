@@ -14,14 +14,6 @@ export type RoomTimeControl = {
   incrementMs: number;
 };
 
-export type BidResolution = {
-  bids: Record<Color, number>;
-  blackSeat: Color;
-  winner: Color | null;
-  whiteSeat: Color;
-  winningBidMs: number;
-};
-
 export type GameEvent =
   | {
     type: 'room-created';
@@ -66,24 +58,6 @@ export type GameEvent =
     startId?: number;
     startIds?: Record<Color, number>;
     clock?: ClockState;
-  }
-  | {
-    type: 'bid-submitted';
-    at: number;
-    roomId: string;
-    color: Color;
-    bidMs: number;
-  }
-  | {
-    type: 'bid-resolved';
-    at: number;
-    roomId: string;
-    bids: Record<Color, number>;
-    blackSeat: Color;
-    clock?: ClockState;
-    winner: Color | null;
-    whiteSeat: Color;
-    winningBidMs: number;
   }
   | {
     type: 'move-played';
@@ -131,8 +105,6 @@ export type GameProjection = {
   state: GameState;
   seats: Partial<Record<Color, string>>;
   selections: Partial<Record<Color, number>>;
-  bids: Partial<Record<Color, number>>;
-  bidResolution: BidResolution | null;
   resolvedStartId: number | null;
   resolvedStartIds: Partial<Record<Color, number>>;
   timeControl?: RoomTimeControl;
@@ -150,8 +122,6 @@ export function initialGameProjection(roomId: string, variant: VariantId = 'draf
     state: variantForId(variant).createInitialState(roomId),
     seats: {},
     selections: {},
-    bids: {},
-    bidResolution: null,
     resolvedStartId: null,
     resolvedStartIds: {},
     paused: false,
@@ -206,14 +176,11 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
 
     const seats = { ...projection.seats };
     const selections = { ...projection.selections };
-    const bids = { ...projection.bids };
     delete seats[event.seat];
     delete selections[event.seat];
-    delete bids[event.seat];
 
     return {
       ...projection,
-      bids,
       seats,
       selections,
     };
@@ -274,51 +241,6 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
         halfmoveClock: 0,
         lastMove: undefined,
         clock: event.clock ?? createClock(event.at),
-      },
-    };
-  }
-
-  if (event.type === 'bid-submitted') {
-    if (projection.variant !== 'bid-for-white') return projection;
-    if (projection.state.status.type !== 'pregame') return projection;
-    if (event.bidMs < 0) return projection;
-
-    return {
-      ...projection,
-      bids: {
-        ...projection.bids,
-        [event.color]: event.bidMs,
-      },
-    };
-  }
-
-  if (event.type === 'bid-resolved') {
-    if (projection.variant !== 'bid-for-white') return projection;
-    if (projection.state.status.type !== 'pregame') return projection;
-
-    const whiteClientId = projection.seats[event.whiteSeat];
-    const blackClientId = projection.seats[event.blackSeat];
-    if (!whiteClientId || !blackClientId) return projection;
-
-    const startedState = variantForId('bid-for-white').createInitialState(event.roomId);
-    return {
-      ...projection,
-      bids: event.bids,
-      bidResolution: {
-        bids: event.bids,
-        blackSeat: event.blackSeat,
-        winner: event.winner,
-        whiteSeat: event.whiteSeat,
-        winningBidMs: event.winningBidMs,
-      },
-      seats: {
-        white: whiteClientId,
-        black: blackClientId,
-      },
-      state: {
-        ...startedState,
-        status: { type: 'playing', turn: 'white' },
-        clock: event.clock ?? createBidClock(event.at, event.winningBidMs),
       },
     };
   }
@@ -416,13 +338,3 @@ function hasDraftOffer(event: Extract<GameEvent, { type: 'room-created' }>): boo
     || !!event.offers?.black?.length;
 }
 
-function createBidClock(at: number, winningBidMs: number): ClockState {
-  const clock = createClock(at);
-  return {
-    ...clock,
-    remainingMs: {
-      ...clock.remainingMs,
-      white: Math.max(0, clock.remainingMs.white - winningBidMs),
-    },
-  };
-}

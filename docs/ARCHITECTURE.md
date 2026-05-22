@@ -39,7 +39,7 @@ research/python-fow-lab  Offline Python sidecar for visibility/bot/inference exp
 Key files:
 - `types.ts` — `GameState`, `PlayerView`, `GameEvent`, piece and square types
 - `visibility.ts` — Fog of War visibility computation from `GameState`
-- `variants.ts` — `fogOfWarVariant`, `draft960Variant`, `bidForWhiteVariant`; each exposes `applyMove` and `createInitialState`
+- `variants.ts` — `fogOfWarVariant`, `draft960Variant`; each exposes `applyMove` and `createInitialState`
 - `chess960.ts` — `pickDraft960Offer(seed)` — generates a seeded offer of 3 Chess960 back-ranks
 - `events.ts` — event projection logic: turns a sequence of `GameEvent`s into a `GameState`
 
@@ -74,4 +74,4 @@ See [`docs/persistence.md`](persistence.md) for the full schema and API surface.
 - **Server-authoritative is non-negotiable.** Hidden-information correctness depends on it. The client never holds the canonical `GameState`. A correct Fog of War implementation must never send hidden truth to the wrong consumer.
 - **Event log as source of truth.** Game state is always reconstructable by replaying the event log. This means replay, reconnect, and postgame review all share the same projection path.
 - **`PlayerView` as the security boundary.** All outbound WebSocket messages and non-admin API responses go through `getPlayerView` before leaving the server. Sending raw `GameState` to a client is a security bug.
-- **Variants are pluggable but Fog of War is the only flagship.** `draft960` and `bid-for-white` variants exist in code but Draft960 is a pregame configuration inside Fog of War; Bid for White is an experimental lab mode not in the main product flow.
+- **Variants are pluggable but Fog of War is the only flagship.** `draft960` exists in code but is a pregame configuration inside Fog of War, not a separate product surface.

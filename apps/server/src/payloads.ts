@@ -1,6 +1,5 @@
 import {
   variantForId,
-  type BidResolution,
   type Color,
   type GameEvent,
   type GameProjection,
@@ -67,8 +66,6 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     offer: offerForClient(room.projection, client),
     offers: offersForClient(room.projection, client),
     selections: selectionsForClient(room.projection, client),
-    bids: bidsForClient(room, client),
-    bidResolution: bidResolutionForClient(room),
     devViews: devViewsForClient(room, client),
     resolvedStartId: resolvedStartIdForClient(room.projection, client),
     resolvedStartIds: resolvedStartIdsForClient(room.projection, client),
@@ -102,9 +99,6 @@ export function eventsForClient(room: SnapshotRoom, client: SnapshotClient): Gam
 }
 
 function eventsVisibleByMode(room: SnapshotRoom, client: SnapshotClient): GameEvent[] {
-  if (room.projection.variant === 'bid-for-white' && room.projection.state.status.type === 'pregame') {
-    return room.events.filter((event) => event.type !== 'bid-submitted' && event.type !== 'bid-resolved');
-  }
   // Live fog game: seated player sees only their own move-played events. This
   // uniformly handles PvP (each player sees own moves) and PvE (human seat
   // filters out engine moves automatically — engine doesn't connect as a WS
@@ -119,21 +113,6 @@ function eventsVisibleByMode(room: SnapshotRoom, client: SnapshotClient): GameEv
     return room.events.filter((event) => event.type !== 'move-played' || event.color === client.seat);
   }
   return room.events;
-}
-
-function bidsForClient(room: SnapshotRoom, client: SnapshotClient): Partial<Record<Color, number>> {
-  if (room.projection.variant !== 'bid-for-white') return {};
-  if (room.projection.state.status.type !== 'pregame') return room.projection.bids;
-  if (client.seat === 'spectator') return {};
-
-  const bid = room.projection.bids[client.seat];
-  return bid === undefined ? {} : { [client.seat]: bid };
-}
-
-function bidResolutionForClient(room: SnapshotRoom): BidResolution | null {
-  if (room.projection.variant !== 'bid-for-white') return null;
-  if (room.projection.state.status.type === 'pregame') return null;
-  return room.projection.bidResolution;
 }
 
 function offerForClient(projection: GameProjection, client: SnapshotClient) {

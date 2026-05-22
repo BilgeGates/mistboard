@@ -115,7 +115,6 @@ This is symmetric and matches Lichess. The player who was to move at pause is to
 ### Edge cases
 
 - **Time control with no clock yet (pregame).** Pause is a no-op; nothing to freeze.
-- **Bid-for-white winner clock during bid resolution.** Same handling — if `clock.activeColor === 'white'` when paused, freeze normally.
 - **A player resigns from a paused game** (e.g., from another tab where they can still click resign). Allowed. Resignation is unilateral and doesn't depend on clocks. Game terminates with `reason: 'resignation'` as usual.
 - **A move arrives at the server while paused.** Reject with an error event back to the client. Don't silently drop. UI should already be greyed out, but defensive server check is required.
 

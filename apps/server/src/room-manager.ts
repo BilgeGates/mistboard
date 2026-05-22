@@ -1,4 +1,3 @@
-import { randomInt } from 'node:crypto';
 import {
   advanceClock,
   type Chess960Start,
@@ -630,43 +629,6 @@ export async function selectEngineDraftStart(ctx: RoomManagerContext, room: Room
     startId: start.id,
   });
   await resolveStartIfReady(ctx, room);
-}
-
-export async function resolveBidIfReady(ctx: RoomManagerContext, room: Room): Promise<void> {
-  if (room.projection.variant !== 'bid-for-white') return;
-  if (room.projection.state.status.type !== 'pregame') return;
-
-  const whiteBid = room.projection.bids.white;
-  const blackBid = room.projection.bids.black;
-  if (whiteBid === undefined || blackBid === undefined) return;
-
-  const whiteSeat: Color = whiteBid === blackBid
-    ? (randomInt(2) === 0 ? 'white' : 'black')
-    : (whiteBid > blackBid ? 'white' : 'black');
-  const blackSeat: Color = whiteSeat === 'white' ? 'black' : 'white';
-  const winningBidMs = whiteSeat === 'white' ? whiteBid : blackBid;
-  const now = Date.now();
-  const clock = createClock(now);
-  const adjustedClock = {
-    ...clock,
-    remainingMs: {
-      ...clock.remainingMs,
-      white: Math.max(0, clock.remainingMs.white - winningBidMs),
-    },
-  };
-
-  await appendEvent(ctx, room, {
-    type: 'bid-resolved',
-    at: now,
-    roomId: room.id,
-    bids: { white: whiteBid, black: blackBid },
-    blackSeat,
-    clock: adjustedClock,
-    winner: whiteBid === blackBid ? null : whiteSeat,
-    whiteSeat,
-    winningBidMs,
-  });
-  await reconcileClientSeats(ctx, room);
 }
 
 type ClientMoveMessage = {

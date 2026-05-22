@@ -28,7 +28,7 @@ import type { Seat } from './payloads.js';
 
 function makeRoom(
   id: string,
-  variant: 'fog-of-war' | 'draft960' | 'bid-for-white' = 'fog-of-war',
+  variant: 'fog-of-war' | 'draft960' = 'fog-of-war',
   events?: GameEvent[],
 ): Room {
   const roomEvents: GameEvent[] = events ?? [

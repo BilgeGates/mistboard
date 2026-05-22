@@ -98,20 +98,9 @@ Checkpoint: complete a Fog game without hidden-state leaks in network payloads.
 
 Milestones 1, 1.5, and 2 describe Draft960 work that originally shipped as a peer mode alongside Fog of War. As of 2026-05-05 Mistboard is sharpened to **Fog of War only** as the product, with Draft960 reframed as a Fog of War **pregame feature** (optional hidden start-position draft inside a Fog game). The historical Draft960 work above is preserved as completed scaffolding — it built the shared play surface and pregame state machine that Fog of War depends on.
 
-## Milestone 5: Bid For White Experimental
+## Milestone 5: Bid For White Experimental (Removed)
 
-Goal: two players can privately bid clock time for the White pieces, then play a normal timed game.
-
-- [x] Define Bid For White rules.
-- [x] Add bid submission and resolution events.
-- [x] Replay resolved bids into swapped color seats and adjusted clocks.
-- [x] Keep unrevealed opponent bids out of live pregame payloads.
-- [x] Add a minimal bid submission UI.
-- [x] Add browser smoke coverage for bid resolution and first move.
-
-Checkpoint: two browser tabs submit bids, the higher bidder receives White with the bid deducted from their clock, and play starts.
-
-Product status: implemented as an experimental/lab mode and kept out of the primary Create Room picker. Fog of War is the only flagship; Bid For White stays in the lab.
+Bid For White existed briefly as an experimental lab mode (private clock-time bidding for the White pieces). Removed 2026-05-22 along with its events, projection fields, and UI. The variant ID and `bid-submitted` / `bid-resolved` events are no longer recognized. Historical games with `variant='bid-for-white'` may persist in the `games` table.
 
 ## Milestone 6: Fog of War Private Alpha
 

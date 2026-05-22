@@ -70,7 +70,7 @@ export async function startTestServer(opts: { seatVacateGraceMs?: number } = {})
 export interface ConnectOptions {
   url: string;
   room: string;
-  variant?: 'fog-of-war' | 'draft960' | 'bid-for-white';
+  variant?: 'fog-of-war' | 'draft960';
   hiddenDraft960?: boolean;
   seatToken?: string;
   /** Wait for the initial `hello` message before resolving. Default: true. */
