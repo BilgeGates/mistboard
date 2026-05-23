@@ -389,6 +389,40 @@ test('delta: game-end transition broadcasts a snapshot but stays fogged (model A
   );
 });
 
+test('delta: user abort pre-move-1 ends both clients in the aborted state', async (t) => {
+  const port = serverPort;
+  const clients: TestClient[] = [];
+  t.after(async () => closeClients(clients));
+
+  const room = uniqueRoomId('ws-delta-user-abort');
+  const white = await connectForHello(port, `room=${room}&client=white-abort-0001&reset=1`);
+  const black = await connectForHello(port, `room=${room}&client=black-abort-0001`);
+  clients.push(white, black);
+
+  await waitForMessage(
+    white.messages,
+    (m) => m.state.status.type === 'playing' && m.state.status.turn === 'white',
+    'initial white turn',
+  );
+
+  // Black is not the side to move during white's window — its abort is ignored.
+  black.socket.send(JSON.stringify({ type: 'abort' }));
+  // White (side to move) aborts before any move.
+  white.socket.send(JSON.stringify({ type: 'abort' }));
+
+  for (const c of [white, black]) {
+    const ended = await waitForMessage(
+      c.messages,
+      (m) => m.state.status.type === 'aborted',
+      'client sees aborted status',
+    );
+    assert.equal(
+      (ended.state.status as { type: 'aborted'; reason: string }).reason,
+      'user-abort',
+    );
+  }
+});
+
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 async function startServer(): Promise<{ port: number; child: ServerProcess }> {
