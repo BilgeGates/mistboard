@@ -2737,8 +2737,11 @@ a.replay-game-id:focus-visible {
 }
 
 .replay-board.cg-wrap {
-  width: 100%;
-  max-width: 380px;
+  /* Snap to a multiple of 8 CSS px so chessground's floor-to-8-physical-px
+     leaves no bottom/right remainder (same fix as .board-shell). Here the gap
+     reads as a black border because the wrap background is the dark board
+     frame. Gap-free at dpr 1 and 2. */
+  width: round(down, min(100%, 380px), 8px);
   transition: box-shadow 600ms ease;
 }
 
