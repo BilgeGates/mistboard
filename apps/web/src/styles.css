@@ -1201,13 +1201,6 @@ button:focus-visible {
   background-image: url("/pieces/letter/bK.svg");
 }
 
-.board.cg-wrap.finished-board {
-  border-color: var(--site-accent);
-  box-shadow:
-    0 0 0 3px var(--site-focus),
-    0 18px 46px rgba(29, 37, 34, 0.2);
-}
-
 .captures-strip {
   display: flex;
   flex-direction: column;
