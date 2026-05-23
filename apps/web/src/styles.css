@@ -4056,6 +4056,10 @@ body:has(
 
 .live-boards[data-layout="pair"] .live-boards-cell {
   width: min(260px, 48%);
+  /* Round down to a multiple of 8px so chessground lands on a clean square
+     grid; otherwise it floors the board and leaves a fog/edge seam. Older
+     browsers ignore round() and fall back to the line above. */
+  width: round(down, min(260px, 48%), 8px);
 }
 
 .live-boards[data-layout="triptych"] {
@@ -8543,15 +8547,126 @@ a.landing-announcement-card-inner:focus-visible {
   }
 }
 
-/* ── Mobile nav: keep 3 links from overflowing ─────────────────────────────── */
+/* ── Mobile landing coherence ──────────────────────────────────────────────── */
 
-@media (max-width: 480px) {
-  .site-nav-links {
-    gap: 8px;
+@media (max-width: 600px) {
+  /* Open-requests widget is desktop-grade noise on mobile — anonymous link-share
+     flow goes through the CTAs above, not the lobby browser. */
+  .landing-lobby-requests {
+    display: none;
   }
 
-  .site-nav a {
-    font-size: 13px;
+  /* Announcement cards carry their own context (status / article tag, date,
+     title) — the section heading is redundant weight on a narrow viewport. */
+  .landing-announcements-heading {
+    display: none;
+  }
+}
+
+/* ── Mobile hamburger nav ──────────────────────────────────────────────────── */
+
+/* Desktop: wrapper is transparent to layout (links + utilities stay flex
+   children of .site-nav exactly as before); toggle hidden. */
+.site-nav-toggle {
+  display: none;
+}
+
+.site-nav-collapse {
+  display: contents;
+}
+
+@media (max-width: 600px) {
+  .site-nav {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Logo-only brand on the bar. */
+  .site-nav-brand span {
+    display: none;
+  }
+
+  .site-nav-toggle {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    margin-left: auto;
+    width: 40px;
+    height: 40px;
+    padding: 9px;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .site-nav-toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-radius: 2px;
+    background: #262421;
+    transition:
+      transform 140ms ease,
+      opacity 140ms ease;
+  }
+
+  .site-nav.nav-open .site-nav-toggle span:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+  }
+
+  .site-nav.nav-open .site-nav-toggle span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .site-nav.nav-open .site-nav-toggle span:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+
+  /* Collapse becomes a dropdown panel below the bar. */
+  .site-nav-collapse {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 8px 16px 12px;
+    background: rgba(255, 255, 255, 0.98);
+    border-bottom: 1px solid #d8d8d8;
+    box-shadow: 0 10px 18px rgba(29, 37, 34, 0.1);
+    backdrop-filter: saturate(130%) blur(8px);
+  }
+
+  .site-nav.nav-open .site-nav-collapse {
+    display: flex;
+  }
+
+  .site-nav-collapse .site-nav-links,
+  .site-nav-collapse .site-nav-utilities {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 0 0 auto;
+    gap: 2px;
+    margin: 0;
+    width: 100%;
+  }
+
+  .site-nav-collapse .site-nav-link {
+    padding: 11px 8px;
+  }
+
+  /* Stack the auth links with the rest instead of an inline row. */
+  .site-nav-collapse .site-nav-auth {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    width: 100%;
   }
 }
 
