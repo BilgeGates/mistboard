@@ -949,13 +949,24 @@ button:focus-visible {
 
 .board-shell {
   position: relative;
-  /* Snap the board width to a multiple of 8 CSS px. Chessground floors its
-     cg-container to a multiple of 8 *physical* pixels and anchors it top-left,
-     so any remainder lands on the bottom/right edge and shows the page
-     background through it (see the asymmetric-gap note: interactive boards must
-     snap width, never center the container — centering desyncs click
-     hit-testing). An 8px-CSS multiple is gap-free at dpr 1 and 2. */
-  width: round(down, min(100%, 66vh, 640px), 8px);
+  width: min(100%, 66vh, 640px);
+}
+
+/* ── Board width snapping (central) ────────────────────────────────────────
+   Every chessground board mounted via mountBoard() carries `.cg-snap`. This is
+   the single place the edge gap is fixed: chessground floors its cg-container
+   to a multiple of 8 PHYSICAL px and anchors it top-left, so any width
+   remainder shows as an asymmetric bottom/right gap. Snapping the wrap width to
+   a multiple of 8 CSS px leaves no remainder at dpr 1 and 2. A surface that
+   needs a width cap sets `--cg-w: min(100%, <cap>)`; the default is 100% (fill
+   the parent). The first declaration is a fallback for browsers without round()
+   support — they keep a sized board (the gap reappears, but nothing collapses).
+   Interactive boards must NOT center the container instead: chessground reads
+   the wrap bounds for click hit-testing while pieces translate inside the
+   container, so centering desyncs edge clicks by 1-4px. */
+.cg-snap {
+  width: var(--cg-w, 100%);
+  width: round(down, var(--cg-w, 100%), 8px);
 }
 
 .board-status {
@@ -1025,8 +1036,8 @@ button:focus-visible {
 }
 
 .board.cg-wrap {
-  width: 100%;
-  max-width: 640px;
+  /* Width comes from .cg-snap (default --cg-w: 100%); .board-shell caps the
+     outer size, so the board fills the shell and snaps to a multiple of 8. */
   aspect-ratio: 1;
   border: none;
   /* Fallback for fractional dpr (1.25/1.5), where an 8px-CSS-multiple width can
@@ -2427,12 +2438,10 @@ button:focus-visible {
     justify-self: start;
   }
 
-  .board-shell,
-  .board.cg-wrap {
-    max-width: min(100%, calc(100vh - 220px));
-  }
-
+  /* Cap on the shell only; the board fills it via .cg-snap. A max-width on the
+     board itself would clamp the snapped width and reopen the edge gap. */
   .board-shell {
+    max-width: min(100%, calc(100vh - 220px));
     order: -1;
     justify-self: center;
   }
@@ -2490,8 +2499,7 @@ button:focus-visible {
     gap: clamp(14px, 2vw, 24px);
   }
 
-  .debug-shell .board-shell,
-  .debug-shell .board.cg-wrap {
+  .debug-shell .board-shell {
     max-width: min(100%, 60vh, 540px);
   }
 
@@ -2737,11 +2745,8 @@ a.replay-game-id:focus-visible {
 }
 
 .replay-board.cg-wrap {
-  /* Snap to a multiple of 8 CSS px so chessground's floor-to-8-physical-px
-     leaves no bottom/right remainder (same fix as .board-shell). Here the gap
-     reads as a black border because the wrap background is the dark board
-     frame. Gap-free at dpr 1 and 2. */
-  width: round(down, min(100%, 380px), 8px);
+  /* Width + snap handled centrally by .cg-snap; this just sets the cap. */
+  --cg-w: min(100%, 380px);
   transition: box-shadow 600ms ease;
 }
 
@@ -3546,7 +3551,7 @@ body:has(
 }
 
 .articles-thumb-board.cg-wrap {
-  width: 100%;
+  /* width comes from .cg-snap (default --cg-w: 100%) */
   height: 100%;
   position: relative;
   display: block;
@@ -4010,7 +4015,7 @@ body:has(
 }
 
 .stepper-board.cg-wrap {
-  width: 100%;
+  /* width comes from .cg-snap (default --cg-w: 100%) */
   height: auto;
   aspect-ratio: 1 / 1;
   position: relative;
@@ -4108,7 +4113,7 @@ body:has(
 }
 
 .live-boards-board.cg-wrap {
-  width: 100%;
+  /* width comes from .cg-snap (default --cg-w: 100%) */
   height: auto;
   aspect-ratio: 1 / 1;
   position: relative;
@@ -5354,7 +5359,8 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 .learn-board {
-  width: min(100%, 620px, calc(100vh - 180px));
+  /* width + snap handled centrally by .cg-snap; this sets the cap */
+  --cg-w: min(100%, 620px, calc(100vh - 180px));
   aspect-ratio: 1;
   border: 2px solid var(--board-frame);
   background: var(--board-frame);
@@ -5616,7 +5622,8 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 .landing-page #landing-replay .replay-board.cg-wrap {
-  max-width: min(600px, calc(100dvh - 180px));
+  /* Override the base .replay-board cap (380px); .cg-snap reads this. */
+  --cg-w: min(100%, 600px, calc(100dvh - 180px));
   border: none;
   background: transparent;
   box-shadow:
@@ -5818,7 +5825,7 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 .watch-replay .replay-board.cg-wrap {
-  max-width: 360px;
+  --cg-w: min(100%, 360px);
 }
 
 @media (min-width: 1181px) {
@@ -7039,7 +7046,7 @@ a.landing-announcement-card-inner:focus-visible {
   }
 
   .learn-board {
-    width: min(100%, calc(100vh - 240px));
+    --cg-w: min(100%, calc(100vh - 240px));
   }
 
   .game-header {
@@ -7385,7 +7392,7 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 .bakeoff-replay-area .replay-board.cg-wrap {
-  max-width: min(20vw, 240px);
+  --cg-w: min(100%, 20vw, 240px);
 }
 
 .bakeoff-replay-area .replay-controls {

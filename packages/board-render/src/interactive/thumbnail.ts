@@ -1,8 +1,7 @@
 import type { Board, Color, Square } from '@mistboard/game';
-import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
-import { boardFen, fogHiddenClass } from './board.js';
+import { boardFen, fogHiddenClass, mountBoard } from './board.js';
 
 export type ThumbnailBoardSpec = {
   board: Board;
@@ -38,7 +37,7 @@ export function mountThumbnailBoard(
   spec: ThumbnailBoardSpec,
 ): ThumbnailBoardController {
   const fog = spec.fogSquares ?? [];
-  const api: Api = Chessground(host, {
+  const api: Api = mountBoard(host, {
     animation: { enabled: false },
     coordinates: false,
     coordinatesOnSquares: false,

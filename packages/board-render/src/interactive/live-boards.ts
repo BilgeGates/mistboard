@@ -1,8 +1,7 @@
 import type { Board, Color, Square } from '@mistboard/game';
-import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
-import { boardFen, fogHiddenClass } from './board.js';
+import { boardFen, fogHiddenClass, mountBoard } from './board.js';
 
 export type LiveBoardArrow = {
   orig: Square;
@@ -74,7 +73,7 @@ export function mountLiveBoards(host: HTMLElement, opts: LiveBoardsOptions): Liv
       dest: a.dest as cg.Key,
       brush: a.brush ?? 'green',
     }));
-    const api = Chessground(boardEl, {
+    const api = mountBoard(boardEl, {
       animation: { enabled: false },
       coordinates: false,
       coordinatesOnSquares: false,

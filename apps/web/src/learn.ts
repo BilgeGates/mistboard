@@ -1,4 +1,4 @@
-import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
+import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-render/interactive';
 import {
   type Board,
   fogOfWarVariant,
@@ -7,7 +7,6 @@ import {
   type PlayerView,
   type Square,
 } from '@mistboard/game';
-import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
@@ -442,7 +441,7 @@ function createTutorialBoard(
   state: TutorialState,
 ): Api {
   const interactive = chapter.interaction !== 'reveal';
-  const api = Chessground(el, {
+  const api = mountBoard(el, {
     animation: { enabled: false, duration: 0 },
     coordinates: true,
     coordinatesOnSquares: false,

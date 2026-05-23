@@ -1,4 +1,9 @@
-import { boardFen, hiddenSquareClasses, pieceFen } from '@mistboard/board-render/interactive';
+import {
+  boardFen,
+  hiddenSquareClasses,
+  mountBoard,
+  pieceFen,
+} from '@mistboard/board-render/interactive';
 import {
   algebraicMoveLabels as buildAlgebraicMoveLabels,
   type ClockState,
@@ -15,7 +20,6 @@ import {
   replayGameEvents,
   type Square,
 } from '@mistboard/game';
-import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
 import 'chessground/assets/chessground.base.css';
@@ -1883,7 +1887,7 @@ async function loadEvents(
 }
 
 function createBoard(el: HTMLElement, orientation: Color): Api {
-  return Chessground(el, {
+  return mountBoard(el, {
     animation: { enabled: false, duration: 0 },
     coordinates: false,
     coordinatesOnSquares: false,

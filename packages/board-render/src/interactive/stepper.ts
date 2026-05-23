@@ -1,10 +1,9 @@
 import type { Board, Color, Square } from '@mistboard/game';
-import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { DrawShape } from 'chessground/draw';
 import type * as cg from 'chessground/types';
 import { boardsInLayout, type CompositionLayout } from '../layouts.js';
-import { boardFen, fogHiddenClass } from './board.js';
+import { boardFen, fogHiddenClass, mountBoard } from './board.js';
 
 export type StepperArrow = {
   orig: Square;
@@ -129,7 +128,7 @@ export function mountSteppedBoards(
     row.append(cell);
     const initial = opts.positions[0]!.boards[i]!;
     const initialFog = initial.fogSquares ?? [];
-    const api = Chessground(boardEl, {
+    const api = mountBoard(boardEl, {
       animation: { enabled: false },
       coordinates: false,
       coordinatesOnSquares: false,

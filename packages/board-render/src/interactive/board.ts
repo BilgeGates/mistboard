@@ -1,6 +1,7 @@
 import type { Board, Color, PieceRole, PlayerView, Square } from '@mistboard/game';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
+import type { Config } from 'chessground/config';
 import type * as cg from 'chessground/types';
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
@@ -13,8 +14,22 @@ export const allBoardSquares: Square[] = ranks.flatMap((rank) =>
   files.map((file) => `${file}${rank}` as Square),
 );
 
+// The single sanctioned way to mount a chessground board. Stamps the `cg-snap`
+// class on the host so the one global width rule
+// (`.cg-snap { width: round(down, var(--cg-w, 100%), 8px) }`) snaps every board
+// to a multiple of 8 CSS px. Chessground floors its cg-container to a multiple
+// of 8 *physical* px and anchors it top-left; without the snap the remainder
+// shows as an asymmetric bottom/right edge gap. Routing every mount through here
+// means a new board surface is gap-free by construction instead of needing its
+// own per-selector fix. Surfaces that need a width cap set
+// `--cg-w: min(100%, <cap>)`; the default is 100%.
+export function mountBoard(el: HTMLElement, config: Config): Api {
+  el.classList.add('cg-snap');
+  return Chessground(el, config);
+}
+
 export function createReadOnlyBoard(el: HTMLElement, orientation: Color = 'white'): Api {
-  return Chessground(el, {
+  return mountBoard(el, {
     animation: { enabled: true, duration: 140 },
     coordinates: false,
     coordinatesOnSquares: false,

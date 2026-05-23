@@ -4,6 +4,7 @@ export {
   createReadOnlyBoard,
   fogHiddenClass,
   hiddenSquareClasses,
+  mountBoard,
   pieceFen,
   setBoardPosition,
 } from './board.js';

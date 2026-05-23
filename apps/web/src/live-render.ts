@@ -1,5 +1,5 @@
 import { fogPatternDefs, type PieceOnBoard, renderBoardSvg } from '@mistboard/board-render';
-import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
+import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-render/interactive';
 import {
   algebraicMoveLabels as buildAlgebraicMoveLabels,
   type Color,
@@ -15,8 +15,8 @@ import {
   type Square,
   variantForId,
 } from '@mistboard/game';
-import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
+import type { Config } from 'chessground/config';
 import type * as cg from 'chessground/types';
 import { classifyTimeControl, track } from './analytics.js';
 import { type CaptureTally, computeCaptures, sortCaptureRoles } from './captures.js';
@@ -1349,7 +1349,7 @@ function renderBoard(view: PlayerView | null): void {
     draggable: { enabled: canInteractWithOwnPieces, showGhost: true },
     turnColor: view?.status.type === 'playing' ? view.status.turn : undefined,
     viewOnly: false,
-  } satisfies Parameters<typeof Chessground>[1];
+  } satisfies Config;
 
   if (ground) {
     ground.set(config);
@@ -1357,7 +1357,7 @@ function renderBoard(view: PlayerView | null): void {
     return;
   }
 
-  ground = Chessground(refs.board, config);
+  ground = mountBoard(refs.board, config);
   liveState.ground = ground;
   maybePlayPremove();
 }
