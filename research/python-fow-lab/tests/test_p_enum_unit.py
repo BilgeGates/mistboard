@@ -20,6 +20,23 @@ from fow_chess.p_enum import PEnumerator, assert_truth_in_P
 # ---------------------------------------------------------------------------
 
 
+def test_iter_positions_streams_without_copy():
+    """`iter_positions()` and `__iter__` should yield FENs directly from
+    the internal set — no snapshot copy. This is the downstream-streaming
+    API (mining/projection consumers)."""
+    e = PEnumerator(chess.WHITE)
+    # __iter__ works
+    fens_iter = list(e)
+    assert len(fens_iter) == 1
+    # iter_positions() works
+    fens_method = list(e.iter_positions())
+    assert fens_method == fens_iter
+    # `positions` property is a separate snapshot (different object identity).
+    snapshot_a = e.positions
+    snapshot_b = e.positions
+    assert snapshot_a is not snapshot_b  # fresh frozenset each time
+
+
 def test_initial_P_is_singleton_starting_board():
     e_white = PEnumerator(chess.WHITE)
     e_black = PEnumerator(chess.BLACK)

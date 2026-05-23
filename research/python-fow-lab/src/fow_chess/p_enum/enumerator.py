@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Iterator
+
 import chess
 
 from ..observation import Observation, consistent_with
@@ -51,8 +53,35 @@ class PEnumerator:
 
     @property
     def positions(self) -> frozenset[str]:
-        """Frozen view of the current P, as board FEN strings."""
+        """Frozen snapshot of the current P, as board FEN strings.
+
+        Copies the internal set on every access — safe for callers that
+        need immutable-snapshot semantics (engine truth-in-P checks,
+        debugging, tests). NOT recommended for downstream consumers
+        that just want to iterate; use ``iter_positions()`` for that.
+        """
         return frozenset(self._positions)
+
+    def iter_positions(self) -> Iterator[str]:
+        """Stream over the current P without copying.
+
+        Yields each board FEN string in P one at a time. No
+        materialization beyond the existing internal set. Use this for
+        downstream consumers that aggregate or filter (e.g.,
+        ``lab/mining/`` puzzle-mining stats) where building a 10⁶-board
+        frozenset snapshot would be wasteful.
+
+        Mutation contract: do NOT call ``update_own_move`` /
+        ``update_opp_move`` while iterating; doing so invalidates the
+        iterator (RuntimeError: set changed size during iteration).
+        """
+        return iter(self._positions)
+
+    def __iter__(self) -> Iterator[str]:
+        """Same as ``iter_positions()``. Lets ``for fen in enumerator:``
+        work without going through the snapshot-copy ``positions``
+        property."""
+        return iter(self._positions)
 
     @property
     def size(self) -> int:
