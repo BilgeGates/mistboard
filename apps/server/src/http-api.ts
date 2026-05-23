@@ -225,10 +225,7 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/feedback') {
-    if (method !== 'POST') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    if (!requireMethod(request, response, 'POST')) return;
 
     const user = await currentAccountUser(request);
     const xff = request.headers['x-forwarded-for'];
@@ -315,10 +312,7 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/auth/logout') {
-    if (method !== 'POST') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    if (!requireMethod(request, response, 'POST')) return;
     const session = accountSessionFromRequest(request);
     if (session && persistence.isInitialized()) {
       await persistence.revokeAccountSession(session.sessionId, hashSecret(session.token), new Date());
@@ -330,14 +324,8 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/account/profile') {
-    if (method !== 'PATCH') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    if (!persistence.isInitialized()) {
-      writeJson(response, 503, { error: 'persistence_disabled' });
-      return;
-    }
+    if (!requireMethod(request, response, 'PATCH')) return;
+    if (!requirePersistence(response)) return;
     const user = await currentAccountUser(request);
     if (!user) {
       writeJson(response, 401, { error: 'not_signed_in' });
@@ -367,11 +355,7 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/rooms') {
-    if (method !== 'POST') {
-      response.writeHead(405, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'method_not_allowed' }));
-      return;
-    }
+    if (!requireMethod(request, response, 'POST')) return;
     const body = await readJsonBody(request);
     const mode = parseRoomMode(body);
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
@@ -429,11 +413,7 @@ export async function handleApiRequest(
 
   const abandonMatch = parsedUrl.pathname.match(/^\/api\/rooms\/([^/]+)\/abandon$/);
   if (abandonMatch) {
-    if (method !== 'POST') {
-      response.writeHead(405, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'method_not_allowed' }));
-      return;
-    }
+    if (!requireMethod(request, response, 'POST')) return;
     const roomId = decodeURIComponent(abandonMatch[1]!);
     const body = await readJsonBody(request);
     const seatToken = typeof body.seatToken === 'string' ? body.seatToken : '';
@@ -457,11 +437,7 @@ export async function handleApiRequest(
       writeJson(response, 200, { requests: lobbyOpenRequests(ctx) });
       return;
     }
-    if (method !== 'POST') {
-      response.writeHead(405, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'method_not_allowed' }));
-      return;
-    }
+    if (!requireMethod(request, response, 'POST')) return;
     const body = await readJsonBody(request);
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
@@ -487,11 +463,7 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/live-stats') {
-    if (method !== 'GET') {
-      response.writeHead(405, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'method_not_allowed' }));
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
     let playing = 0;
     const uniqueClientIds = new Set<string>();
     for (const room of ctx.rooms.values()) {
@@ -528,11 +500,7 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/games/recent') {
-    if (!persistence.isInitialized()) {
-      response.writeHead(503, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'persistence_disabled' }));
-      return;
-    }
+    if (!requirePersistence(response)) return;
     const games = await persistence.listRecentPublicGames(10);
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ games }));
@@ -541,10 +509,7 @@ export async function handleApiRequest(
 
   const reviewMatch = url.match(/^\/api\/games\/([^/]+)\/review$/);
   if (reviewMatch) {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
     const roomId = decodeURIComponent(reviewMatch[1]!);
     const review = await gameReviewForApi(ctx, roomId, request);
     if (!review) {
@@ -557,10 +522,7 @@ export async function handleApiRequest(
 
   const artifactsMatch = parsedUrl.pathname.match(/^\/api\/games\/([^/]+)\/artifacts$/);
   if (artifactsMatch) {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
     const artifactType = parseReviewArtifactType(parsedUrl.searchParams.get('type'));
     if (!artifactType) {
       writeJson(response, 400, { error: 'invalid_artifact_type' });
@@ -587,10 +549,7 @@ export async function handleApiRequest(
 
   const exportMatch = parsedUrl.pathname.match(/^\/api\/games\/([^/]+)\/export\.(pgn|json)$/);
   if (exportMatch) {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
     const roomId = decodeURIComponent(exportMatch[1]!);
     const format = exportMatch[2]!;
     const summary = await gameSummaryForApi(ctx, roomId);
@@ -648,14 +607,8 @@ export async function handleApiRequest(
 
   const profileMatch = parsedUrl.pathname.match(/^\/api\/users\/([^/]+)\/profile$/);
   if (profileMatch) {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    if (!persistence.isInitialized()) {
-      writeJson(response, 503, { error: 'persistence_disabled' });
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
+    if (!requirePersistence(response)) return;
     const handle = decodeURIComponent(profileMatch[1] ?? '').trim();
     if (!/^[a-zA-Z0-9_-]{1,40}$/.test(handle)) {
       writeJson(response, 400, { error: 'invalid_handle' });
@@ -676,17 +629,10 @@ export async function handleApiRequest(
     return;
   }
 
-  if (!persistence.isInitialized()) {
-    response.writeHead(503, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ error: 'persistence_disabled' }));
-    return;
-  }
+  if (!requirePersistence(response)) return;
 
   if (parsedUrl.pathname === '/api/leaderboard') {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
     const variant = parseRatingVariant(parsedUrl.searchParams.get('variant'))
       ?? DEFAULT_RATING_BUCKET.variant;
     const timeClass = parseRatingTimeClass(parsedUrl.searchParams.get('time'))
@@ -699,11 +645,7 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/games') {
-    if (method !== 'GET') {
-      response.writeHead(405, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'method_not_allowed' }));
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
     if (!isHttpAdminAuthorized(request)) {
       response.writeHead(403, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'admin_required' }));
