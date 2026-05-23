@@ -15,7 +15,7 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 
 export function moveToAlgebraic(state: GameState, move: Move): string {
   const piece = state.board[move.from];
-  if (!piece) return moveToCoordinate(move);
+  if (!piece) return coordinateMoveLabel(move);
 
   const castlingSide = castlingMoveSide(state, move);
   if (castlingSide) return castlingSide === 'king' ? 'O-O' : 'O-O-O';
@@ -54,7 +54,7 @@ export function algebraicMoveLabels(events: GameEvent[], roomId = events[0]?.roo
   return labels;
 }
 
-function moveToCoordinate(move: Move): string {
+export function coordinateMoveLabel(move: Move): string {
   return `${move.from}${move.to}${move.promotion ? `=${promotionLetter(move.promotion)}` : ''}`;
 }
 
@@ -104,7 +104,7 @@ function applyVisibleMoveEvent(
   };
 }
 
-function promotionLetter(role: PromotionRole): string {
+export function promotionLetter(role: PromotionRole): string {
   return pieceLetters[role];
 }
 

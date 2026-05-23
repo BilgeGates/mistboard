@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Board, PlayerView, Square } from '@mistboard/game';
-import { boardFen, hiddenSquareClasses, legalDests } from './live-render.js';
+import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
+import { legalDests } from './live-render.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -57,17 +58,15 @@ const initialBoard: Board = {
 
 describe('boardFen', () => {
   it('produces 8/8/8/8/8/8/8/8 for an empty board', () => {
-    expect(boardFen(makeView({ board: {} }))).toBe('8/8/8/8/8/8/8/8');
+    expect(boardFen({})).toBe('8/8/8/8/8/8/8/8');
   });
 
   it('places a white king on e1 correctly', () => {
-    const view = makeView({ board: { e1: { color: 'white', role: 'king' } } });
-    expect(boardFen(view)).toBe('8/8/8/8/8/8/8/4K3');
+    expect(boardFen({ e1: { color: 'white', role: 'king' } })).toBe('8/8/8/8/8/8/8/4K3');
   });
 
   it('produces the standard opening FEN for the initial board', () => {
-    const view = makeView({ board: initialBoard });
-    expect(boardFen(view)).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
+    expect(boardFen(initialBoard)).toBe('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
   });
 
   it('uses uppercase for white pieces, lowercase for black', () => {
@@ -75,7 +74,7 @@ describe('boardFen', () => {
       a8: { color: 'black', role: 'rook' },
       h1: { color: 'white', role: 'rook' },
     };
-    const fen = boardFen(makeView({ board }));
+    const fen = boardFen(board);
     expect(fen.startsWith('r')).toBe(true);  // rank 8: black rook on a8
     expect(fen.endsWith('R')).toBe(true);    // rank 1: white rook on h1
   });
@@ -84,13 +83,28 @@ describe('boardFen', () => {
 // ── hiddenSquareClasses ───────────────────────────────────────────────────────
 
 describe('hiddenSquareClasses', () => {
-  it('returns an empty map for a null view', () => {
-    expect(hiddenSquareClasses(null).size).toBe(0);
-  });
-
   it('returns an empty map for a non-fog variant', () => {
     const view = makeView({ variant: 'draft960', visibleSquares: [] });
     expect(hiddenSquareClasses(view).size).toBe(0);
+  });
+
+  it('returns an empty map on finished status by default (reveal)', () => {
+    const view = makeView({
+      variant: 'fog-of-war',
+      visibleSquares: [],
+      status: { type: 'finished', winner: 'white', reason: 'checkmate' },
+    });
+    expect(hiddenSquareClasses(view).size).toBe(0);
+  });
+
+  it('preserves fog on finished when preserveFogOnFinished is true', () => {
+    const view = makeView({
+      variant: 'fog-of-war',
+      visibleSquares: [],
+      status: { type: 'finished', winner: 'white', reason: 'checkmate' },
+    });
+    const classes = hiddenSquareClasses(view, 'white', { preserveFogOnFinished: true });
+    expect(classes.size).toBe(64);
   });
 
   it('marks all 64 squares as fog-hidden when nothing is visible', () => {

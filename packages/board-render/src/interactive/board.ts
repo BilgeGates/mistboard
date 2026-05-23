@@ -56,9 +56,14 @@ export function fogHiddenClass(square: Square, orientation: Color): string {
 export function hiddenSquareClasses(
   view: Pick<PlayerView, 'variant' | 'status' | 'visibleSquares'>,
   orientation: Color = 'white',
+  options: { preserveFogOnFinished?: boolean } = {},
 ): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
-  if (view.variant !== 'fog-of-war' || view.status.type === 'finished') return classes;
+  if (view.variant !== 'fog-of-war') return classes;
+  // Triptychs and thumbnails reveal at game-end (no fog overlay on finished
+  // games). The live-room and the game-review viewer preserve the fog to
+  // match what the player saw — pass preserveFogOnFinished: true for that.
+  if (view.status.type === 'finished' && !options.preserveFogOnFinished) return classes;
 
   const visible = new Set(view.visibleSquares);
   for (const square of allBoardSquares) {
@@ -90,7 +95,7 @@ function boardRankFen(board: Board, rank: number): string {
   return empty > 0 ? `${fen}${empty}` : fen;
 }
 
-function pieceFen(role: PieceRole, color: Color): string {
+export function pieceFen(role: PieceRole, color: Color): string {
   const map: Record<PieceRole, string> = {
     bishop: 'b',
     king: 'k',

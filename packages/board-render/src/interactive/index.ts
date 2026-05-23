@@ -4,6 +4,7 @@ export {
   createReadOnlyBoard,
   fogHiddenClass,
   hiddenSquareClasses,
+  pieceFen,
   setBoardPosition,
 } from './board.js';
 export { mountSteppedBoards } from './stepper.js';

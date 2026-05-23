@@ -1,6 +1,8 @@
 import {
   algebraicMoveLabels as buildAlgebraicMoveLabels,
   clockRemainingMs,
+  coordinateMoveLabel,
+  promotionLetter,
   replayGameEvents,
   variantForId,
   type Board,
@@ -13,7 +15,7 @@ import {
   type Square,
 } from '@mistboard/game';
 import { fogPatternDefs, renderBoardSvg, type PieceOnBoard } from '@mistboard/board-render';
-import { fogHiddenClass } from '@mistboard/board-render/interactive';
+import { boardFen, fogHiddenClass, hiddenSquareClasses } from '@mistboard/board-render/interactive';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
@@ -158,7 +160,12 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
             </section>
           </aside>
           <div class="board-shell">
-            <div data-board-status class="board-status">Connecting</div>
+            <div data-board-status class="board-status">
+              <div class="board-status__inner">
+                <span data-board-status-spinner class="board-status__spinner" aria-hidden="true"></span>
+                <p data-board-status-label class="board-status__label">Connecting</p>
+              </div>
+            </div>
             <div data-board class="board" aria-label="chess board"></div>
             <div data-captures class="captures-strip" aria-label="Pieces captured"></div>
             <div data-board-paused class="board-paused" hidden role="status" aria-live="polite">
@@ -291,8 +298,7 @@ export function render(): void {
     && draftOfferForColor(liveState.seat, projection).length > 0;
 
   if (liveState.debugRequested) refs.roomMeta.innerHTML = roomMetaHtml();
-  refs.boardStatus.textContent = boardStatusLabel();
-  refs.boardStatus.hidden = view !== null;
+  renderBoardStatus(view);
   refs.offerSection.hidden = !showDraft || showPickerOverlay;
   refs.selectionSection.hidden = !showDraft;
 
@@ -1024,8 +1030,13 @@ function renderBoard(view: PlayerView | null): void {
     autoCastle: true,
     coordinates: false,
     coordinatesOnSquares: false,
-    fen: view ? boardFen(view) : '8/8/8/8/8/8/8/8',
-    highlight: { custom: hiddenSquareClasses(view, orientation), lastMove: true },
+    fen: view ? boardFen(view.board) : '8/8/8/8/8/8/8/8',
+    highlight: {
+      custom: view
+        ? hiddenSquareClasses(view, orientation, { preserveFogOnFinished: true })
+        : new Map(),
+      lastMove: true,
+    },
     lastMove: view?.lastMove ? ([view.lastMove.from, view.lastMove.to] as cg.Key[]) : undefined,
     movable: {
       color: movableColor ?? undefined,
@@ -1130,17 +1141,6 @@ function castlingKingDestinationFromView(view: PlayerView, move: Move): Square |
   if (!piece || piece.role !== 'king' || !rook || rook.role !== 'rook' || rook.color !== piece.color) return null;
   if (rankOf(move.from) !== rankOf(move.to)) return null;
   return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
-}
-
-export function hiddenSquareClasses(view: PlayerView | null, orientation: Color = 'white'): cg.SquareClasses {
-  const classes = new Map<cg.Key, string>();
-  if (!view || view.variant !== 'fog-of-war') return classes;
-
-  const visible = new Set(view.visibleSquares);
-  for (const square of allSquares) {
-    if (!visible.has(square)) classes.set(square as cg.Key, fogHiddenClass(square, orientation));
-  }
-  return classes;
 }
 
 function sendBoardMove(from: cg.Key, to: cg.Key): void {
@@ -1256,45 +1256,6 @@ function promotionLabel(role: PromotionRole, color: Color): HTMLElement {
 }
 
 // ── Board FEN / piece helpers ─────────────────────────────────────────────────
-
-export function boardFen(view: PlayerView): string {
-  const rankNums = [8, 7, 6, 5, 4, 3, 2, 1];
-  return rankNums.map((rank) => boardRankFen(view, rank)).join('/');
-}
-
-function boardRankFen(view: PlayerView, rank: number): string {
-  let empty = 0;
-  let fen = '';
-
-  for (const file of files) {
-    const piece = view.board[`${file}${rank}` as Square];
-    if (!piece) {
-      empty += 1;
-      continue;
-    }
-
-    if (empty > 0) {
-      fen += String(empty);
-      empty = 0;
-    }
-    fen += pieceFen(piece.role, piece.color);
-  }
-
-  return empty > 0 ? `${fen}${empty}` : fen;
-}
-
-function pieceFen(role: PieceRole, color: Color): string {
-  const pieces = {
-    bishop: 'b',
-    king: 'k',
-    knight: 'n',
-    pawn: 'p',
-    queen: 'q',
-    rook: 'r',
-  } satisfies Record<PieceRole, string>;
-  const piece = pieces[role];
-  return color === 'white' ? piece.toUpperCase() : piece;
-}
 
 // ── Replay ────────────────────────────────────────────────────────────────────
 
@@ -1480,21 +1441,6 @@ function algebraicMoveLabels(): Map<number, string> {
 
 function moveLabel(entry: MoveListEntry, labelsByEventIndex: Map<number, string>): string {
   return labelsByEventIndex.get(entry.eventIndex) ?? coordinateMoveLabel(entry.event.move);
-}
-
-function coordinateMoveLabel(move: Move): string {
-  const promotion = move.promotion ? `=${pieceLetter(move.promotion)}` : '';
-  return `${move.from}${move.to}${promotion}`;
-}
-
-function pieceLetter(role: PromotionRole): string {
-  const letters: Record<PromotionRole, string> = {
-    bishop: 'B',
-    knight: 'N',
-    queen: 'Q',
-    rook: 'R',
-  };
-  return letters[role];
 }
 
 // ── Replay controls / keyboard ────────────────────────────────────────────────
@@ -2008,6 +1954,27 @@ function boardStatusLabel(): string {
   if (liveState.connectionState === 'displaced') return 'Session moved';
   if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting') return 'Reconnecting';
   return liveState.clientId ? 'Waiting for board' : 'Connecting';
+}
+
+function boardStatusTone(): 'pending' | 'danger' {
+  if (liveState.connectionState === 'rejected') return 'danger';
+  if (liveState.connectionState === 'displaced') return 'danger';
+  if (liveState.connectionState === 'disconnected') return 'danger';
+  return 'pending';
+}
+
+function renderBoardStatus(view: PlayerView | null): void {
+  refs.boardStatus.hidden = view !== null;
+  refs.boardStatus.dataset.tone = boardStatusTone();
+  const label = refs.boardStatus.querySelector<HTMLParagraphElement>('[data-board-status-label]');
+  if (label) label.textContent = boardStatusLabel();
+  const spinner = refs.boardStatus.querySelector<HTMLSpanElement>('[data-board-status-spinner]');
+  if (spinner) {
+    const showSpinner = liveState.connectionState === 'connecting'
+      || liveState.connectionState === 'reconnecting'
+      || liveState.connectionState === 'disconnected';
+    spinner.hidden = !showSpinner;
+  }
 }
 
 function rejectedBody(): string {
