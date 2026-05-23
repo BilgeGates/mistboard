@@ -226,7 +226,7 @@ function buildFaq(): HTMLElement {
   const q1 = aboutSubheading('What is dark chess?');
   const a1 = aboutParagraph([
     'Hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark, so an opponent’s pieces and moves stay hidden until your pieces can see them. The game ends when a king is captured. The ',
-    aboutLink('canonical reference', '/articles/fog-of-war-rules'),
+    aboutLink('canonical reference', '/articles/dark-chess-rules'),
     ' has the full rules.',
   ]);
 

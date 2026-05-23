@@ -1144,7 +1144,7 @@ regression tests pinning the wire format
 
 export const articles: Article[] = [
   {
-    slug: 'fog-of-war-rules',
+    slug: 'dark-chess-rules',
     title: 'Dark chess: the canonical reference',
     summary:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',

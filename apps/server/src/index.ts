@@ -524,7 +524,7 @@ type PageMeta = {
 // surface (title + description) so the server can inject per-route meta
 // without importing the web bundle. Keep in sync when titles/summaries change.
 const ARTICLE_META: Record<string, { title: string; description: string }> = {
-  'fog-of-war-rules': {
+  'dark-chess-rules': {
     title: 'Dark chess: the canonical reference',
     description:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',

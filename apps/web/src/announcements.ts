@@ -31,6 +31,6 @@ export const announcements: Announcement[] = [
     kind: 'article',
     headline: 'Dark chess: the canonical reference.',
     body: 'How visibility works, what counts as a win, and the rule quirks (castling, en passant) you will actually run into.',
-    href: '/articles/fog-of-war-rules',
+    href: '/articles/dark-chess-rules',
   },
 ];
