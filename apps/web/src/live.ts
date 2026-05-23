@@ -22,7 +22,7 @@ import {
   render,
   reconcileInteractionState,
   currentView,
-  renderClocks,
+  tickClockTimers,
   handleReplayKeyboard,
 } from './live-render.js';
 import { maybePlaySnapshotSound } from './live-sound.js';
@@ -122,7 +122,7 @@ if (!connOverride) {
 
 window.setInterval(() => {
   const view = currentView();
-  if (view?.clock) renderClocks(view);
+  if (view?.clock) tickClockTimers(view);
 }, 100);
 
 window.__MISTBOARD_DEBUG__ = () => ({

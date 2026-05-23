@@ -1300,8 +1300,25 @@ button:focus-visible {
 
 .clocks div.active {
   border-color: #1f6f5b;
-  box-shadow: inset 5px 0 0 #1f6f5b;
-  background: #f2fbf7;
+  box-shadow: inset 8px 0 0 #1f6f5b;
+  background: #e3f3ea;
+}
+
+/* Brief one-shot flash when the active clock flips to the seated player. The
+   100ms timer-only refresh (tickClockTimers) doesn't re-mount the row, so the
+   animation plays once cleanly. */
+.clocks div.just-activated {
+  animation: clock-flip-flash 650ms ease-out 1;
+}
+
+@keyframes clock-flip-flash {
+  0%   { background: #b6e9cd; box-shadow: inset 8px 0 0 #1f6f5b, 0 0 0 3px rgba(31, 111, 91, 0.35); }
+  60%  { background: #cfeedc; box-shadow: inset 8px 0 0 #1f6f5b, 0 0 0 2px rgba(31, 111, 91, 0.18); }
+  100% { background: #e3f3ea; box-shadow: inset 8px 0 0 #1f6f5b; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clocks div.just-activated { animation: none; }
 }
 
 .presence-dot {

@@ -91,6 +91,10 @@ let playAgainStatus: PlayAgainStatus = 'idle';
 let replayIndex: number | null = null;
 let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | null = null;
 let playingSinceMs: number | null = null;
+// Tracks the previous active clock color across renderClocks() calls so we can
+// detect the turn flip into the seated player's clock and play a flash. Reset
+// on room mount, on non-playing status, or when seat is not a color.
+let lastActiveClockColor: Color | null = null;
 // Fog-view history: server-provided PlayerView snapshots keyed by capture sequence number.
 // Opponent moves are absent from liveState.events (fog-filtered), so eventsLen is not a
 // reliable key — it only increments on own moves. Instead we capture on every server state
@@ -117,6 +121,7 @@ export function initRender(
   fogFirstMoveSnapshotIndex = null;
   lastTrackedStatusType = null;
   playingSinceMs = null;
+  lastActiveClockColor = null;
   refs = createLayout(target);
   initLiveSound();
   resetLiveSoundState();
@@ -893,6 +898,7 @@ function devViewCard(
 export function renderClocks(view: PlayerView | null): void {
   refs.clocks.replaceChildren();
   if (!view?.clock) {
+    lastActiveClockColor = null;
     const roomCreated = liveState.events.find((e): e is Extract<GameEvent, { type: 'room-created' }> => e.type === 'room-created');
     const tc = roomCreated?.timeControl;
     if (tc) {
@@ -921,9 +927,21 @@ export function renderClocks(view: PlayerView | null): void {
   const colors: Color[] = view.perspective === 'white' ? ['black', 'white'] : ['white', 'black'];
   const isPvp = liveState.roomMode === 'pvp';
   const humanColor = isColor(liveState.seat) ? liveState.seat : null;
+  const playing = view.status.type === 'playing';
+  const nextActiveColor = playing ? view.clock.activeColor : null;
+  // Flash fires once on the transition: previous render had a different active
+  // color (or none), and the new active is the seated player's. Skips the very
+  // first render of a game so we don't flash on initial pregame→playing flip.
+  const flashThisRender =
+    playing
+    && humanColor !== null
+    && nextActiveColor === humanColor
+    && lastActiveClockColor !== null
+    && lastActiveClockColor !== humanColor;
   for (const color of colors) {
-    const isActive = view.clock.activeColor === color && view.status.type === 'playing';
+    const isActive = nextActiveColor === color;
     const row = document.createElement('div');
+    row.dataset.color = color;
     const label = document.createElement('span');
     const time = document.createElement('strong');
     if (isPvp) label.append(presenceDot(liveState.connectedSeats[color]));
@@ -940,9 +958,33 @@ export function renderClocks(view: PlayerView | null): void {
     }
     const remainingMs = clockRemainingMs(view.clock, color, displayAt);
     time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
-    row.className = isActive ? 'active' : '';
+    const classes: string[] = [];
+    if (isActive) classes.push('active');
+    if (isActive && flashThisRender) classes.push('just-activated');
+    row.className = classes.join(' ');
     row.append(label, time);
     refs.clocks.append(row);
+  }
+  lastActiveClockColor = nextActiveColor;
+}
+
+// Lightweight per-tick refresh used by the 100ms interval. Updates only the
+// time text (and the low-time emphasis) on existing rows so a CSS animation
+// applied to the active row by renderClocks() isn't restarted each tick.
+export function tickClockTimers(view: PlayerView | null): void {
+  if (!view?.clock || view.status.type !== 'playing') return;
+  if (refs.clocks.children.length === 0) {
+    renderClocks(view);
+    return;
+  }
+  const displayAt = isLive() ? Date.now() : view.clock.runningSince ?? Date.now();
+  for (const row of Array.from(refs.clocks.children) as HTMLDivElement[]) {
+    const color = row.dataset.color;
+    if (color !== 'white' && color !== 'black') continue;
+    const isActive = view.clock.activeColor === color;
+    const remainingMs = clockRemainingMs(view.clock, color, displayAt);
+    const strong = row.querySelector('strong');
+    if (strong) strong.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
   }
 }
 
