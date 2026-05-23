@@ -1049,15 +1049,16 @@ button:focus-visible {
   box-shadow: 0 14px 40px var(--site-shadow);
 }
 
-/* Shrink and slightly raise piece SVGs within their squares so chess pieces —
-   whose visual weight sits in the lower half of their SVG bounding box — get
-   breathing room from the board's bottom edge. Only the background-image
-   placement changes; chessground's pixel-based piece positioning and the
-   board's square pattern are untouched. Captures-piece sprites already
-   override these properties with !important, so they're unaffected. */
+/* Piece SVGs fill their square and sit on the pixel grid. An earlier inset
+   (background-size: 96%; background-position: 50% 49%) gave bottom breathing
+   room, but the fractional size/position landed the SVG ~1 device px off the
+   integer grid, softening the piece edges on every board. Filling the square
+   (100% / centered) keeps the sprite pixel-aligned and sharp (matches the
+   chessground/lichess default). Captures-piece sprites override these with
+   !important, so they're unaffected. */
 .cg-wrap cg-board piece {
-  background-size: 96%;
-  background-position: 50% 49%;
+  background-size: 100%;
+  background-position: 50% 50%;
 }
 
 /* Piece-set overrides. Cburnett is the default and ships embedded in
