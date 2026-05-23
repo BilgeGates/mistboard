@@ -66,5 +66,5 @@ Outreach is one-shot for HN reputation and streamer credibility. Every item is p
 ### Tier E — Product depth
 
 - [ ] Draft960 lobby real (not "coming soon" stub). Casual-only at soft-launch; rated flip sequenced for M4.
-- [ ] Engine strength bar: "not embarrassing." Stronger than current fallback so beginners aren't bored, weaker than club player. Not Tier-1 — that's M5+.
+- [ ] Engine strength bar: **M1-bar**, not Brian-bar. Stronger than current fallback so beginners aren't bored, weaker than club player. Days of work, not months. **Do not conflate with the Obscuro replication track** (post-distribution, M5+) — that's the bar a strong dark-chess player isn't embarrassed by, and it's a months-of-research problem, not weeks. Shipping M1-bar engine for the empty-lobby flow is the gate; Obscuro runs on its own clock.
 - [ ] (M3 gate, not M1) Rated leaderboard flipped on after M2 calibration completes.
