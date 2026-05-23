@@ -341,11 +341,10 @@ export function broadcastSnapshot(ctx: RoomManagerContext, room: Room): void {
   }
 }
 
-// Broadcast a paired-with-appendEvent state change. For delta-capable
-// clients, send one event-appended frame per newly-appended event in
-// [fromSeq, room.events.length). For non-delta clients, send a single
-// snapshot at the current state. Callers record fromSeq before any
-// appendEvent calls; the range catches multi-event flows (selectStart →
+// Broadcast a paired-with-appendEvent state change. Sends one event-
+// appended frame per newly-appended event in [fromSeq, room.events.length)
+// to every connected client. Callers record fromSeq before any appendEvent
+// calls; the range catches multi-event flows (selectStart →
 // draft-start-selected then optional draft-start-resolved) without
 // requiring helpers to thread seq through their signatures.
 //
@@ -363,7 +362,7 @@ export function broadcastEventAppended(
   const enrichedRoom = { ...room, seatDisplayNames };
   const isGameEnd = room.projection.state.status.type === 'finished';
   for (const client of room.clients) {
-    if (!client.hasDeltaCapability || isGameEnd) {
+    if (isGameEnd) {
       ctx.send(client, snapshotPayload(enrichedRoom, client));
       continue;
     }

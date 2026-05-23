@@ -68,7 +68,6 @@ function makeClient(id: string, seat: Seat = 'white', solo = false, roomId = 'ro
     messageTimestamps: [],
     devViews: false,
     debugRequested: false,
-    hasDeltaCapability: false,
     roomId,
     socket: { send: () => {} } as unknown as WebSocket,
   };

@@ -8,12 +8,13 @@ import test, { after, before } from 'node:test';
 import WebSocket from 'ws';
 import type { Color, GameEvent, Move, PlayerView } from '@mistboard/game';
 
-// Sibling regression suite to privacy-ws.test.ts. Same assertions, but every
-// seated client connects with the `delta` capability so paired broadcasts
-// arrive as `event-appended` frames. Keep privacy-ws.test.ts unchanged — it
-// stays the snapshot-recovery-path contract; this file is the delta-path
-// contract. Any new fog-leak rule should land in BOTH files via the shared
-// filterEventForClient helper in payloads.ts.
+// End-to-end wire-format regression suite. All paired broadcasts arrive as
+// `event-appended` frames per the snapshot→delta migration (Phase 3,
+// 2026-05-22 — capability gate removed). Snapshot frames remain for the
+// recovery channels: hello/first-connect, snapshot:request, and the
+// game-end reveal. Any new fog-leak rule must land in the shared
+// filterEventForClient helper in payloads.ts so both wire paths stay in
+// lock-step.
 
 type ServerMessage = {
   type: 'hello' | 'snapshot' | 'event-appended';
@@ -53,10 +54,10 @@ test('delta: live PvP third client is rejected before any frame', async (t) => {
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-pvp');
-  clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1&caps=delta`));
-  clients.push(await connectForHello(port, `room=${room}&client=black-client-0001&caps=delta`));
+  clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
+  clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
 
-  const rejected = await connectForClose(port, `room=${room}&client=third-client-0001&caps=delta`);
+  const rejected = await connectForClose(port, `room=${room}&client=third-client-0001`);
 
   assert.equal(rejected.code, 1008);
   assert.equal(rejected.reason, 'private room');
@@ -69,7 +70,7 @@ test('delta: seated clients receive seat tokens only in hello payloads (no other
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-token');
-  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1&caps=delta`);
+  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
   clients.push(white);
   const hello = white.messages[0];
   assert.equal(hello?.type, 'hello');
@@ -92,12 +93,12 @@ test('delta: valid seat token reclaims a seat and displaces the older socket', a
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-reclaim');
-  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1&caps=delta`);
+  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
   const token = white.messages[0]?.seatToken;
   assert.ok(token);
   clients.push(white);
 
-  const black = await connectForHello(port, `room=${room}&client=black-client-0001&caps=delta`);
+  const black = await connectForHello(port, `room=${room}&client=black-client-0001`);
   clients.push(black);
   await waitForMessage(
     white.messages,
@@ -110,7 +111,7 @@ test('delta: valid seat token reclaims a seat and displaces the older socket', a
   const oldWhiteClosed = waitForSocketClose(white.socket);
   const replacement = await connectForHello(
     port,
-    `room=${room}&client=white-replacement-0001&caps=delta`,
+    `room=${room}&client=white-replacement-0001`,
     { seatToken: token },
   );
   clients.push(replacement);
@@ -140,10 +141,10 @@ test('delta: copied client id without a seat token cannot reclaim a private PvP 
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-token-required');
-  clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1&caps=delta`));
-  clients.push(await connectForHello(port, `room=${room}&client=black-client-0001&caps=delta`));
+  clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
+  clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
 
-  const rejected = await connectForClose(port, `room=${room}&client=white-client-0001&caps=delta`);
+  const rejected = await connectForClose(port, `room=${room}&client=white-client-0001`);
 
   assert.equal(rejected.code, 1008);
   assert.equal(rejected.reason, 'private room');
@@ -156,12 +157,12 @@ test('delta: wrong seat token cannot reclaim a private PvP seat', async (t) => {
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-wrong-token');
-  clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1&caps=delta`));
-  clients.push(await connectForHello(port, `room=${room}&client=black-client-0001&caps=delta`));
+  clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
+  clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
 
   const rejected = await connectForClose(
     port,
-    `room=${room}&client=white-replacement-0001&caps=delta`,
+    `room=${room}&client=white-replacement-0001`,
     { seatToken: 'not-the-issued-seat-token' },
   );
 
@@ -176,8 +177,8 @@ test('delta: unknown client cannot take an abandoned active private PvP seat', a
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-active-abandoned');
-  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1&caps=delta`);
-  const black = await connectForHello(port, `room=${room}&client=black-client-0001&caps=delta`);
+  const white = await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`);
+  const black = await connectForHello(port, `room=${room}&client=black-client-0001`);
   clients.push(white, black);
 
   const whiteReady = await waitForMessage(
@@ -199,7 +200,7 @@ test('delta: unknown client cannot take an abandoned active private PvP seat', a
   black.socket.close();
   await blackClosed;
 
-  const rejected = await connectForClose(port, `room=${room}&client=unknown-client-001&caps=delta`);
+  const rejected = await connectForClose(port, `room=${room}&client=unknown-client-001`);
 
   assert.equal(rejected.code, 1008);
   assert.equal(rejected.reason, 'private room');
@@ -212,12 +213,12 @@ test('delta: live PvE third client is rejected before any frame', async (t) => {
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-pve');
-  const human = await connectForHello(port, `room=${room}&client=pve-human-0001&engine=random&reset=1&caps=delta`);
+  const human = await connectForHello(port, `room=${room}&client=pve-human-0001&engine=random&reset=1`);
   clients.push(human);
   assert.equal(human.messages[0]?.mode, 'pve');
   assert.equal(human.messages[0]?.seat, 'white');
 
-  const rejected = await connectForClose(port, `room=${room}&client=pve-observer-01&caps=delta`);
+  const rejected = await connectForClose(port, `room=${room}&client=pve-observer-01`);
   assert.equal(rejected.code, 1008);
   assert.equal(rejected.reason, 'private room');
   assert.deepEqual(rejected.messages, []);
@@ -229,11 +230,11 @@ test('delta: live EvE third client is rejected before any frame', async (t) => {
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-eve');
-  const white = await connectForHello(port, `room=${room}&client=engine:white&reset=1&caps=delta`);
-  const black = await connectForHello(port, `room=${room}&client=engine:black&caps=delta`);
+  const white = await connectForHello(port, `room=${room}&client=engine:white&reset=1`);
+  const black = await connectForHello(port, `room=${room}&client=engine:black`);
   clients.push(white, black);
 
-  const rejected = await connectForClose(port, `room=${room}&client=eve-observer-01&caps=delta`);
+  const rejected = await connectForClose(port, `room=${room}&client=eve-observer-01`);
   assert.equal(rejected.code, 1008);
   assert.equal(rejected.reason, 'private room');
   assert.deepEqual(rejected.messages, []);
@@ -247,8 +248,8 @@ test('delta: white move yields event-appended to white (own move visible) and to
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-move-fog');
-  const white = await connectForHello(port, `room=${room}&client=white-fog-0001&reset=1&caps=delta`);
-  const black = await connectForHello(port, `room=${room}&client=black-fog-0001&caps=delta`);
+  const white = await connectForHello(port, `room=${room}&client=white-fog-0001&reset=1`);
+  const black = await connectForHello(port, `room=${room}&client=black-fog-0001`);
   clients.push(white, black);
 
   const whiteReady = await waitForMessage(
@@ -295,8 +296,8 @@ test('delta: snapshot:request triggers a full snapshot reply on the same socket'
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-snapshot-request');
-  const white = await connectForHello(port, `room=${room}&client=white-req-0001&reset=1&caps=delta`);
-  const black = await connectForHello(port, `room=${room}&client=black-req-0001&caps=delta`);
+  const white = await connectForHello(port, `room=${room}&client=white-req-0001&reset=1`);
+  const black = await connectForHello(port, `room=${room}&client=black-req-0001`);
   clients.push(white, black);
 
   await waitForMessage(
@@ -328,8 +329,8 @@ test('delta: game-end transition falls back to snapshot for full reveal', async 
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-resign-reveal');
-  const white = await connectForHello(port, `room=${room}&client=white-resign-0001&reset=1&caps=delta`);
-  const black = await connectForHello(port, `room=${room}&client=black-resign-0001&caps=delta`);
+  const white = await connectForHello(port, `room=${room}&client=white-resign-0001&reset=1`);
+  const black = await connectForHello(port, `room=${room}&client=black-resign-0001`);
   clients.push(white, black);
 
   const whiteReady = await waitForMessage(
@@ -363,38 +364,6 @@ test('delta: game-end transition falls back to snapshot for full reveal', async 
   // finished.
   const movePlayed = blackEnd.events?.find((e) => e.type === 'move-played');
   assert.ok(movePlayed, 'reveal: white move-played must appear in black\'s finished-game snapshot');
-});
-
-test('delta: non-delta client (no caps) still receives snapshot frames after moves', async (t) => {
-  // Backward-compat path: a client that does NOT advertise the delta
-  // capability stays on the snapshot wire format even while a delta-mode
-  // peer plays. Same room, two formats — that's the Phase 1 promise.
-  const port = serverPort;
-  const clients: TestClient[] = [];
-  t.after(async () => closeClients(clients));
-
-  const room = uniqueRoomId('ws-delta-mixed');
-  const white = await connectForHello(port, `room=${room}&client=white-mix-0001&reset=1&caps=delta`);
-  const black = await connectForHello(port, `room=${room}&client=black-mix-0001`); // no caps=delta
-  clients.push(white, black);
-
-  const whiteReady = await waitForMessage(
-    white.messages,
-    (m) => m.state.status.type === 'playing'
-      && m.state.status.turn === 'white'
-      && m.state.legalMoves.length > 0,
-    'initial white turn',
-  );
-  const baselineBlack = black.messages.length;
-  white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteReady) }));
-
-  const blackFrame = await waitForMessageAfter(
-    black,
-    baselineBlack,
-    (m) => m.state.status.type === 'playing' && m.state.status.turn === 'black',
-    'legacy-client frame after move',
-  );
-  assert.equal(blackFrame.type, 'snapshot', 'non-delta client must still receive snapshot frames');
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────

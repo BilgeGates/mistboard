@@ -617,12 +617,6 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
   const debugRequested = randomEngine || url.searchParams.get('views') === 'all';
   const devViews = debugRequested && isDebugViewAuthorized(request);
-  // Hello-time capability negotiation. `caps` is a comma-separated list of
-  // tokens the client supports; Phase 1 recognizes 'delta' to switch this
-  // socket from the snapshot-on-every-event wire format to event-appended
-  // frames. See docs/specs/incremental-snapshot-protocol.md.
-  const clientCapabilities = parseClientCapabilities(url.searchParams.get('caps'));
-  const hasDeltaCapability = clientCapabilities.includes('delta');
   const accountUser = await currentAccountUser(request);
   const room = await getOrCreateRoom(
     roomId,
@@ -641,7 +635,6 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const client: Client = {
     debugRequested,
     devViews,
-    hasDeltaCapability,
     id: clientId,
     messageTimestamps: [],
     socket,
@@ -1461,18 +1454,6 @@ function isColor(value: string | undefined): value is Color {
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
-}
-
-// Comma-separated capability tokens (`caps=delta,foo`). Validation is
-// permissive (a-z0-9-, ≤32 chars per token) since unknown tokens are
-// ignored by the server; we only need to keep the field from carrying
-// pathological strings into client state.
-function parseClientCapabilities(value: string | null): string[] {
-  if (!value) return [];
-  return value
-    .split(',')
-    .map((token) => token.trim())
-    .filter((token) => /^[a-z0-9-]{1,32}$/.test(token));
 }
 
 function roomCreatedDraftOfferFields(

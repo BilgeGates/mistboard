@@ -1,19 +1,15 @@
 // Measure WebSocket ingress per client for a PvP fog-of-war room. Plays N
-// plies of legal moves picked from each client's own snapshot, recording the
+// plies of legal moves picked from each client's own state, recording the
 // raw JSON byte size of every WS frame received per client.
 //
 // Output: a CSV-ish table to stdout (move,white_bytes,black_bytes,
 // white_cumulative,black_cumulative) followed by a summary. Useful for
-// validating the O(n^2) bandwidth claim in
-// docs/specs/incremental-snapshot-protocol.md before any wire-format change.
+// regression-checking the steady-state bandwidth of the event-appended
+// wire format. See docs/specs/incremental-snapshot-protocol.md.
 //
 // Run from repo root:
 //   MOVES=20 node apps/server/scripts/measure-snapshot-bandwidth.mjs
 //   MOVES=60 node apps/server/scripts/measure-snapshot-bandwidth.mjs
-//
-// Pass DELTA=1 to have the test clients advertise the `delta` capability
-// (Phase 1 of the snapshot→delta migration). Compare the CSVs side-by-side
-// to confirm steady-state per-ply frame size flattens out.
 //
 // Requires `apps/server/dist/main.js` to exist
 // (`npm --workspace apps/server run build`).
@@ -25,8 +21,6 @@ import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 
 const MOVES = Number(process.env.MOVES ?? 20);
-const DELTA = process.env.DELTA === '1' || process.env.DELTA === 'true';
-const CAPS_SUFFIX = DELTA ? '&caps=delta' : '';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const serverEntry = join(scriptDir, '..', 'dist', 'main.js');
@@ -51,8 +45,8 @@ try {
   await waitForReady(child);
 
   const room = `bw-${Date.now()}`;
-  const white = await connect(port, `room=${room}&client=white-bw-0001&reset=1${CAPS_SUFFIX}`);
-  const black = await connect(port, `room=${room}&client=black-bw-0001${CAPS_SUFFIX}`);
+  const white = await connect(port, `room=${room}&client=white-bw-0001&reset=1`);
+  const black = await connect(port, `room=${room}&client=black-bw-0001`);
 
   const perMove = [];
   let lastWhiteBytes = white.cumulativeBytes;
@@ -101,7 +95,7 @@ try {
   // Output: table + summary.
   process.stdout.write('# Snapshot bandwidth measurement\n');
   process.stdout.write(`# server: in-memory persistence, fog-of-war PvP, ${perMove.length} plies played\n`);
-  process.stdout.write(`# wire format: ${DELTA ? 'event-appended (delta capability)' : 'snapshot-on-every-event (legacy)'}\n`);
+  process.stdout.write('# wire format: event-appended (incremental snapshot protocol)\n');
   process.stdout.write('# bytes are raw JSON length of WS frames received per client\n');
   process.stdout.write('#\n');
   process.stdout.write('ply,mover,white_frame_bytes,black_frame_bytes,white_cumulative,black_cumulative\n');

@@ -71,11 +71,6 @@ if (soloRequested) socketParams.set('dev', 'solo');
 if (engineRequested) socketParams.set('dev', 'engine');
 if (allViewsRequested) socketParams.set('views', 'all');
 if (variantRequested) socketParams.set('variant', variantRequested);
-// Phase 2 of snapshot→delta migration: opt this socket into event-appended
-// frames. Server gates on this flag (apps/server/src/index.ts handleConnection);
-// frames arrive as 'event-appended' instead of 'snapshot' for paired
-// broadcasts. See docs/specs/incremental-snapshot-protocol.md.
-socketParams.set('caps', 'delta');
 
 // ── Populate shared state ─────────────────────────────────────────────────────
 
