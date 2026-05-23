@@ -1279,7 +1279,7 @@ function renderReplay(): void {
   const labelsByEventIndex = algebraicMoveLabels();
   const plyCount = moveListPlyCount(masked, entries);
   const visibleColor = moveListVisibleColor(masked);
-  const activeEventIndex = computeActiveEventIndex(entries);
+  const activePly = computeActivePly();
   const rows: HTMLLIElement[] = [];
 
   for (let row = 0; row < Math.ceil(plyCount / 2); row += 1) {
@@ -1293,8 +1293,8 @@ function renderReplay(): void {
 
     const whitePly = row * 2 + 1;
     const blackPly = row * 2 + 2;
-    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, visibleColor, plyCount, labelsByEventIndex, activeEventIndex));
-    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, visibleColor, plyCount, labelsByEventIndex, activeEventIndex));
+    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, visibleColor, plyCount, labelsByEventIndex, activePly));
+    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, visibleColor, plyCount, labelsByEventIndex, activePly));
     rows.push(item);
   }
   refs.moveList.append(...rows);
@@ -1351,18 +1351,19 @@ function moveListVisibleColor(masked: boolean): Color | null {
   return currentView()?.status.type === 'finished' ? currentView()?.perspective ?? 'white' : null;
 }
 
-function computeActiveEventIndex(entries: MoveListEntry[]): number | null {
+function computeActivePly(): number | null {
   if (replayIndex === null) return null;
+  // Fog: replayIndex is a fog-snapshot number; snapshotToPly converts to a chess ply (1-based,
+  // odd = white, even = black, 0 = pre-first-move).
   if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
-    // replayIndex is a fog snapshot number. Map it to an eventsLen and find the last entry at or before that.
-    const eventsLen = fogSnapshotToEventsLen.get(replayIndex) ?? 0;
-    let active: number | null = null;
-    for (const entry of entries) {
-      if (entry.eventIndex <= eventsLen) active = entry.eventIndex;
-    }
-    return active;
+    return snapshotToPly(replayIndex);
   }
-  return replayIndex;
+  // Non-fog: replayIndex is an events-list index; count move-played events up to it.
+  let plies = 0;
+  for (let i = 0; i < replayIndex && i < liveState.events.length; i += 1) {
+    if (liveState.events[i]?.type === 'move-played') plies += 1;
+  }
+  return plies;
 }
 
 function fogSnapshotForEventIndex(eventIndex: number): number | null {
@@ -1382,7 +1383,7 @@ function moveListCell(
   visibleColor: Color | null,
   plyCount: number,
   labelsByEventIndex: Map<number, string>,
-  activeEventIndex: number | null = null,
+  activePly: number | null = null,
 ): HTMLElement {
   if (ply > plyCount) {
     const empty = document.createElement('span');
@@ -1390,10 +1391,15 @@ function moveListCell(
     return empty;
   }
 
+  const isActive = activePly === ply;
   const hidden = masked && color !== visibleColor;
   if (!entry || hidden) {
     const placeholder = document.createElement('span');
-    placeholder.className = `${color}-ply move-placeholder`;
+    placeholder.className = [
+      `${color}-ply`,
+      'move-placeholder',
+      isActive ? 'active' : '',
+    ].filter(Boolean).join(' ');
     placeholder.textContent = '..';
     return placeholder;
   }
@@ -1403,7 +1409,7 @@ function moveListCell(
     label.className = [
       `${color}-ply`,
       'move-visible',
-      activeEventIndex === entry.eventIndex ? 'active' : '',
+      isActive ? 'active' : '',
     ].filter(Boolean).join(' ');
     label.textContent = moveLabel(entry, labelsByEventIndex);
     return label;
@@ -1414,7 +1420,7 @@ function moveListCell(
   button.textContent = moveLabel(entry, labelsByEventIndex);
   button.className = [
     color === 'white' ? 'white-ply' : 'black-ply',
-    activeEventIndex === entry.eventIndex ? 'active' : '',
+    isActive ? 'active' : '',
   ].filter(Boolean).join(' ');
   button.addEventListener('click', () => {
     if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {

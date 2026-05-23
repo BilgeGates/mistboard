@@ -1864,10 +1864,15 @@ button:focus-visible {
 }
 
 .move-list button.active,
-.move-visible.active {
+.move-visible.active,
+.move-placeholder.active {
   border-color: #1f6f5b;
   background: #eef8f2;
   box-shadow: inset 3px 0 0 #1f6f5b;
+}
+
+.move-placeholder.active {
+  color: #1d2522;
 }
 
 @media (max-width: 980px) {
