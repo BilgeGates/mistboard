@@ -9,8 +9,8 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @mistboard/server & npm run dev --workspace @mistboard/web",
-    "dev:persistent": "npm run dev:persistent --workspace @mistboard/server & npm run dev --workspace @mistboard/web",
+    "dev": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,green 'npm run dev --workspace @mistboard/server' 'npm run dev --workspace @mistboard/web'",
+    "dev:persistent": "concurrently --kill-others-on-fail --names server,web --prefix-colors blue,green 'npm run dev:persistent --workspace @mistboard/server' 'npm run dev --workspace @mistboard/web'",
     "db:up": "docker compose up -d postgres",
     "db:migrate": "env DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run migrate --workspace @mistboard/server",
     "test:persistent": "env TEST_DATABASE_URL=postgres://mistboard:mistboard@localhost:5435/mistboard npm run test:persistent --workspace @mistboard/server",
@@ -35,6 +35,11 @@
     "test": "npm run test --workspaces --if-present",
     "test:unit": "npm run test:unit --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "biome check",
+    "lint:fix": "biome check --write",
+    "format": "biome format --write",
+    "format:check": "biome format",
+    "check:cycles": "madge --circular --extensions ts apps packages",
     "hooks:install": "git config core.hooksPath .githooks",
     "visual:check": "node scripts/visual-check.mjs",
     "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs",
@@ -45,6 +50,9 @@
     "node": ">=22"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1"
+    "@biomejs/biome": "2.4.15",
+    "@playwright/test": "^1.59.1",
+    "concurrently": "9.2.1",
+    "madge": "8.0.0"
   }
 }
