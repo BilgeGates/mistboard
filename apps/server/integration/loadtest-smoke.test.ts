@@ -76,6 +76,12 @@ async function createPveRoom(): Promise<string> {
       // 3+2 is currently the only allowed PvE time control (see
       // isPveAllowedTimeControl in http-api.ts). Keep this synced.
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      // Force engine to black so the test client (which connects as white
+      // by default) drives white moves. Without this, /api/rooms defaults
+      // preferredColor to 'random' (added in 047f5c4) — 50% of games would
+      // assign the human black and the test's white-turn predicate would
+      // wait forever.
+      preferredColor: 'white',
     }),
   });
   assert.equal(res.status, 201, `POST /api/rooms returned ${res.status}`);
