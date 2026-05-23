@@ -1480,6 +1480,69 @@ button:focus-visible {
   outline-color: rgba(185, 74, 74, 0.18);
 }
 
+.confirm-dialog {
+  border: 1px solid #bdc8bf;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1d2522;
+  padding: 22px 22px 18px;
+  max-width: 360px;
+  width: calc(100vw - 32px);
+  box-shadow: 0 18px 48px rgba(15, 30, 24, 0.22);
+  font: inherit;
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(15, 30, 24, 0.42);
+}
+
+.confirm-dialog-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.confirm-dialog-body {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 0 0 18px;
+  color: #4a574f;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-dialog-actions button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid #bdc8bf;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2522;
+  font: inherit;
+  cursor: pointer;
+}
+
+.confirm-dialog-actions button:hover:not(:disabled),
+.confirm-dialog-actions button:focus-visible {
+  border-color: #1f6f5b;
+  outline: 3px solid rgba(31, 111, 91, 0.18);
+}
+
+.confirm-dialog-actions button.danger {
+  border-color: #c79898;
+  color: #7a2f2f;
+}
+
+.confirm-dialog-actions button.danger:hover:not(:disabled),
+.confirm-dialog-actions button.danger:focus-visible {
+  border-color: #b94a4a;
+  outline-color: rgba(185, 74, 74, 0.18);
+}
+
 .clocks strong {
   font-variant-numeric: tabular-nums;
   font-size: 26px;
@@ -4381,6 +4444,67 @@ a.landing-announcement-card-inner:focus-visible {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.landing-start-options.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.landing-color-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 8px;
+}
+
+.landing-color-option .landing-color-glyph {
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -2px;
+  color: var(--site-text);
+}
+
+.landing-color-option .landing-color-glyph.white {
+  color: #6b6f6b;
+}
+
+.landing-color-option .landing-color-glyph.black {
+  color: #1a1a1a;
+}
+
+.landing-color-option .landing-color-glyph.random {
+  letter-spacing: 0;
+}
+
+.landing-color-option .landing-color-glyph.random .white {
+  color: #6b6f6b;
+}
+
+.landing-color-option .landing-color-glyph.random .black {
+  color: #1a1a1a;
+}
+
+.landing-color-option.selected .landing-color-glyph {
+  color: var(--site-accent);
+}
+
+.landing-color-option.selected .landing-color-glyph.white,
+.landing-color-option.selected .landing-color-glyph.black,
+.landing-color-option.selected .landing-color-glyph.random .white,
+.landing-color-option.selected .landing-color-glyph.random .black {
+  /* Keep the king's own color when selected; the accent ring + soft bg already
+     signal selection. Otherwise the glyph turns green and loses its meaning. */
+  color: inherit;
+}
+
+.landing-color-option.selected .landing-color-glyph.white {
+  color: #6b6f6b;
+}
+
+.landing-color-option.selected .landing-color-glyph.black {
+  color: #1a1a1a;
 }
 
 .landing-time-presets {

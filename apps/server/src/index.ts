@@ -947,6 +947,7 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     rated: true,
     randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
     randomSeating: false,
+    creatorPreference: null,
     pveEngineId: isPlayableLiveEngineClientId(projection.seats.black)
       ? canonicalEngineVersionId(projection.seats.black!)
       : null,
@@ -975,7 +976,15 @@ async function createRoom(
   hiddenDraft960 = false,
   timeControl?: RoomTimeControl,
   rated = true,
-  options: { randomSeating?: boolean; engineColor?: 'white' | 'black' } = {},
+  options: {
+    randomSeating?: boolean;
+    engineColor?: 'white' | 'black';
+    // PvP only. When set, the first arrival in this room is assigned this seat;
+    // the second arrival gets the other side. Mutually exclusive with randomSeating
+    // (random preference uses randomSeating). Ignored for PvE — engine pre-seat
+    // is set via engineColor at room creation.
+    creatorPreference?: 'white' | 'black';
+  } = {},
 ): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
@@ -1032,6 +1041,7 @@ async function createRoom(
       rated,
       randomEngine: mode === 'pve',
       randomSeating: options.randomSeating === true && mode === 'pvp',
+      creatorPreference: mode === 'pvp' && options.creatorPreference ? options.creatorPreference : null,
       pveEngineId: mode === 'pve' ? engineId : null,
       pendingWrites: Promise.resolve(),
       gameEndRecorded: false,
@@ -1237,6 +1247,18 @@ async function assignSeat(
   }
   if (room.randomSeating && !room.projection.seats.white && !room.projection.seats.black) {
     const seat: Color = randomBytes(1)[0]! < 128 ? 'white' : 'black';
+    await appendEvent(roomMgrCtx, room, {
+      type: 'seat-assigned',
+      at: Date.now(),
+      roomId: room.id,
+      clientId,
+      seat,
+    });
+    await startLiveClockIfReady(roomMgrCtx, room);
+    return await newSeatAssignment(room, seat, clientId, accountUser);
+  }
+  if (room.creatorPreference && !room.projection.seats.white && !room.projection.seats.black) {
+    const seat = room.creatorPreference;
     await appendEvent(roomMgrCtx, room, {
       type: 'seat-assigned',
       at: Date.now(),

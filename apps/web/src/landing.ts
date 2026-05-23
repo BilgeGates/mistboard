@@ -98,6 +98,7 @@ type LandingTimePreset = {
   initialMs: number;
   incrementMs: number;
 };
+type LandingColorPreference = 'white' | 'black' | 'random';
 type LandingRoomSetup = {
   startFormat: LandingStartFormat;
   rated: boolean;
@@ -105,6 +106,7 @@ type LandingRoomSetup = {
     initialMs: number;
     incrementMs: number;
   };
+  preferredColor: LandingColorPreference;
 };
 type LobbyTicketResponse = {
   pollAfterMs?: number;
@@ -1256,6 +1258,18 @@ export function mountSource(root: HTMLElement): void {
   root.append(buildNav(), buildSource(), buildFooter());
 }
 
+export function mountFaq(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'faq-route');
+  root.append(buildNav(), buildFaq(), buildFooter());
+}
+
+export function mountTerms(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'terms-route');
+  root.append(buildNav(), buildTerms(), buildFooter());
+}
+
 export function mountContact(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'contact-route');
@@ -1823,6 +1837,7 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
       startFormat: request.hiddenDraft960 ? 'draft960' : 'standard',
       rated: request.rated ?? true,
       timeControl: request.timeControl,
+      preferredColor: 'random',
     };
     joinLobbyFromPlay(join, setup, status);
   });
@@ -1859,6 +1874,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   let rated = (choice.mode === 'pve' || choice.ratedDisabled) ? false : true;
   let selectedPreset: LandingTimePresetId = '3m2';
   let selectedEngineId = choice.engineId;
+  let preferredColor: LandingColorPreference = loadStoredColorPreference();
 
   const overlay = document.createElement('div');
   overlay.className = 'landing-setup-overlay';
@@ -1981,7 +1997,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   startButton.className = 'landing-setup-start';
   startButton.textContent = choice.mode === 'lobby' ? 'Find opponent' : choice.mode === 'pvp' ? 'Create room' : 'Start game';
   startButton.addEventListener('click', () => {
-    const setup = selectedRoomSetup(startFormat, rated, selectedPreset);
+    const setup = selectedRoomSetup(startFormat, rated, selectedPreset, preferredColor);
     if (choice.mode === 'lobby') {
       cancelLobbyWait?.();
       cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status);
@@ -2014,10 +2030,20 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     ? buildRatedToggleSection(() => rated, (v) => { rated = v; }, choice.ratedDisabled)
     : null;
 
+  // Color picker shows for PvE and Challenge-a-friend. Hidden for casual/rated
+  // lobby matchmaking — color is server-assigned there so the pool stays unified.
+  const colorSection = (choice.mode === 'pve' || choice.mode === 'pvp')
+    ? buildColorPreferenceSection(() => preferredColor, (value) => {
+      preferredColor = value;
+      storeColorPreference(value);
+    })
+    : null;
+
   actions.append(startButton, backButton);
   dialog.append(header, variantSection);
   if (engineSection) dialog.append(engineSection);
   dialog.append(timeSection);
+  if (colorSection) dialog.append(colorSection);
   if (ratingSection) dialog.append(ratingSection);
   dialog.append(status, actions);
   overlay.append(dialog);
@@ -2092,6 +2118,100 @@ function buildRatedToggleSection(get: () => boolean, set: (v: boolean) => void, 
   return section;
 }
 
+const COLOR_PREFERENCE_STORAGE_KEY = 'mistboard:setup:preferredColor';
+
+function loadStoredColorPreference(): LandingColorPreference {
+  try {
+    const raw = window.localStorage.getItem(COLOR_PREFERENCE_STORAGE_KEY);
+    if (raw === 'white' || raw === 'black' || raw === 'random') return raw;
+  } catch {
+    // ignore — storage may be disabled (private mode, quota); fall through to default
+  }
+  return 'random';
+}
+
+function storeColorPreference(value: LandingColorPreference): void {
+  try {
+    window.localStorage.setItem(COLOR_PREFERENCE_STORAGE_KEY, value);
+  } catch {
+    // ignore
+  }
+}
+
+function buildColorPreferenceSection(
+  get: () => LandingColorPreference,
+  set: (value: LandingColorPreference) => void,
+): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'landing-setup-section';
+  section.append(setupSectionLabel('Color'));
+
+  const group = document.createElement('div');
+  group.className = 'landing-start-options three';
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Color');
+
+  const initial = get();
+  const whiteButton = colorOptionButton('white', 'White', initial === 'white');
+  const randomButton = colorOptionButton('random', 'Random', initial === 'random');
+  const blackButton = colorOptionButton('black', 'Black', initial === 'black');
+
+  const sync = () => {
+    const current = get();
+    for (const [button, value] of [
+      [whiteButton, 'white'],
+      [randomButton, 'random'],
+      [blackButton, 'black'],
+    ] as const) {
+      const selected = current === value;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-checked', selected ? 'true' : 'false');
+    }
+  };
+
+  whiteButton.addEventListener('click', () => { set('white'); sync(); });
+  randomButton.addEventListener('click', () => { set('random'); sync(); });
+  blackButton.addEventListener('click', () => { set('black'); sync(); });
+
+  group.append(whiteButton, randomButton, blackButton);
+  section.append(group);
+  return section;
+}
+
+function colorOptionButton(
+  value: LandingColorPreference,
+  label: string,
+  selected: boolean,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `landing-start-option landing-color-option${selected ? ' selected' : ''}`;
+  button.setAttribute('role', 'radio');
+  button.setAttribute('aria-checked', selected ? 'true' : 'false');
+
+  const glyph = document.createElement('span');
+  glyph.className = `landing-color-glyph ${value}`;
+  glyph.setAttribute('aria-hidden', 'true');
+  if (value === 'random') {
+    const w = document.createElement('span');
+    w.className = 'white';
+    w.textContent = '♔';
+    const b = document.createElement('span');
+    b.className = 'black';
+    b.textContent = '♚';
+    glyph.append(w, b);
+  } else {
+    glyph.textContent = value === 'white' ? '♔' : '♚';
+  }
+
+  const text = document.createElement('span');
+  text.className = 'landing-color-label';
+  text.textContent = label;
+
+  button.append(glyph, text);
+  return button;
+}
+
 function setupSectionLabel(text: string): HTMLSpanElement {
   const label = document.createElement('span');
   label.className = 'landing-setup-label';
@@ -2103,6 +2223,7 @@ function selectedRoomSetup(
   startFormat: LandingStartFormat,
   rated: boolean,
   presetId: LandingTimePresetId,
+  preferredColor: LandingColorPreference,
 ): LandingRoomSetup {
   const preset = LANDING_TIME_PRESETS.find((candidate) => candidate.id === presetId) ?? LANDING_TIME_PRESETS[1];
   return {
@@ -2112,6 +2233,7 @@ function selectedRoomSetup(
       initialMs: preset.initialMs,
       incrementMs: preset.incrementMs,
     },
+    preferredColor,
   };
 }
 
@@ -2412,6 +2534,140 @@ function buildSource(): HTMLElement {
   return section;
 }
 
+function buildFaq(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'site-section faq-section';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'FAQ';
+
+  const intro = aboutParagraph([
+    'For anything not answered here, ping ',
+    aboutLink('Contact', '/contact'),
+    '.',
+  ]);
+
+  const q1 = aboutSubheading('What is dark chess?');
+  const a1 = aboutParagraph([
+    'Hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark. The game ends when a king is captured. ',
+    aboutLink('Learn', '/learn'),
+    ' walks through it.',
+  ]);
+
+  const q2 = aboutSubheading('How do I start a game?');
+  const a2 = aboutParagraph([
+    'From the home page, create a room and share the link, join a lobby for a random opponent, or play the engine. No account needed.',
+  ]);
+
+  const q3 = aboutSubheading('Why can’t I see my opponent’s pieces or moves?');
+  const a3 = aboutParagraph([
+    'That’s the game. You only see squares your own pieces can reach. The filtering happens on the server, so an opponent’s hidden pieces and moves never reach your browser until your pieces can see them.',
+  ]);
+
+  const q4 = aboutSubheading('Are games rated?');
+  const a4 = aboutParagraph([
+    'Not yet. Mistboard is casual-only while account UX and anti-abuse work catch up. The rating system exists in code but is dormant until then.',
+  ]);
+
+  const q5 = aboutSubheading('What is Draft960?');
+  const a5 = aboutParagraph([
+    'A pregame variant where each side drafts their own back rank before the game starts. The ',
+    aboutLink('Draft960 article', '/articles/draft960'),
+    ' has the details.',
+  ]);
+
+  const q6 = aboutSubheading('Can I play against the engine?');
+  const a6 = aboutParagraph([
+    'Yes, at 3+2. The dark-chess engine is in active development and open source. It will get stronger over time.',
+  ]);
+
+  const q7 = aboutSubheading('How do I report a bug?');
+  const a7 = aboutParagraph([
+    'File an issue on ',
+    aboutExternalLink('GitHub', GITHUB_URL),
+    ' or send a note via ',
+    aboutLink('Contact', '/contact'),
+    '. Include the room link if it’s about a specific game.',
+  ]);
+
+  section.append(
+    heading,
+    intro,
+    q1, a1,
+    q2, a2,
+    q3, a3,
+    q4, a4,
+    q5, a5,
+    q6, a6,
+    q7, a7,
+  );
+  return section;
+}
+
+function buildTerms(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'site-section terms-section';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Terms of Use';
+
+  const intro = aboutParagraph([
+    'Mistboard is a free, open-source hobby project. These are the basic rules for using the hosted site at mistboard.com. They will change as the project grows; this page is always the current version.',
+  ]);
+
+  const h1 = aboutSubheading('The site is offered as-is');
+  const p1 = aboutParagraph([
+    'No warranty. Games, accounts, ratings, and stored data can be lost, reset, or removed without notice during development. Don’t put anything on Mistboard you can’t afford to lose.',
+  ]);
+
+  const h2 = aboutSubheading('Anonymous play');
+  const p2 = aboutParagraph([
+    'Play is anonymous and link-based by default. Accounts are optional and add a profile and a handle. Don’t use the service for anything that needs an identity you can’t lose.',
+  ]);
+
+  const h3 = aboutSubheading('Acceptable use');
+  const p3 = aboutParagraph([
+    'Don’t harass other players, spam, abuse the service, try to break the fog filter, or hammer the site with scrapers. Don’t use external engine help during rated play once rated mode launches. Handles, rooms, and accounts may be revoked for abuse.',
+  ]);
+
+  const h4 = aboutSubheading('Finished games are public by default');
+  const p4 = aboutParagraph([
+    'Completed games are published under ',
+    aboutExternalLink('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
+    '. Anyone can share or reuse the game record as long as they credit Mistboard. To take down a specific game, use ',
+    aboutLink('Contact', '/contact'),
+    '. A self-serve opt-out is on the roadmap.',
+  ]);
+
+  const h5 = aboutSubheading('Open source and brand');
+  const p5 = aboutParagraph([
+    'The source is AGPL-3.0-or-later. The Mistboard name, logo, domain, and hosted service identity are project assets. Forks are welcome but should pick their own name. See ',
+    aboutLink('Source', '/source'),
+    ' for license and credits.',
+  ]);
+
+  const h6 = aboutSubheading('Contact');
+  const p6 = aboutParagraph([
+    'Questions, takedown requests, anything else: ',
+    aboutLink('Contact', '/contact'),
+    '.',
+  ]);
+
+  section.append(
+    heading,
+    intro,
+    h1, p1,
+    h2, p2,
+    h3, p3,
+    h4, p4,
+    h5, p5,
+    h6, p6,
+  );
+  return section;
+}
+
 function sourceBlock(titleText: string, lines: HTMLElement[]): HTMLElement {
   const block = document.createElement('section');
   block.className = 'source-block';
@@ -2450,6 +2706,7 @@ async function createRoomFromPlay(
     startFormat: 'standard',
     rated: true,
     timeControl: { initialMs: 30_000, incrementMs: 2_000 },
+    preferredColor: 'random',
   },
 ): Promise<void> {
   const label = button.querySelector<HTMLElement>('.landing-play-action-label');
@@ -2467,6 +2724,7 @@ async function createRoomFromPlay(
         hiddenDraft960: setup.startFormat === 'draft960',
         timeControl: setup.timeControl,
         rated: setup.rated,
+        preferredColor: setup.preferredColor,
         ...(mode === 'pve' && engineId ? { engineId } : {}),
       }),
     });
@@ -2685,6 +2943,14 @@ function buildFooter(): HTMLElement {
   source.href = '/source';
   source.textContent = 'Source';
 
+  const faq = document.createElement('a');
+  faq.href = '/faq';
+  faq.textContent = 'FAQ';
+
+  const terms = document.createElement('a');
+  terms.href = '/terms';
+  terms.textContent = 'Terms';
+
   const gh = document.createElement('a');
   gh.href = GITHUB_URL;
   gh.target = '_blank';
@@ -2695,7 +2961,7 @@ function buildFooter(): HTMLElement {
   identity.className = 'site-footer-identity';
   identity.textContent = '© 2026 Mistboard · AGPL-3.0';
 
-  links.append(about, contact, source, gh, identity);
+  links.append(about, contact, source, faq, terms, gh, identity);
   footer.append(links);
   return footer;
 }

@@ -67,6 +67,9 @@ export type Room = {
   rated: boolean;
   randomEngine: boolean;
   randomSeating: boolean;
+  // Honored on the first PvP arrival when set: assigns that color to the creator.
+  // Random preference uses randomSeating instead, so this is null in that path.
+  creatorPreference: 'white' | 'black' | null;
   pveEngineId: string | null;
   pendingWrites: Promise<void>;
   gameEndRecorded: boolean;

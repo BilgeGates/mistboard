@@ -36,6 +36,7 @@ function makeFinishedRoom(id: string): Room {
     rated: true,
     randomEngine: false,
     randomSeating: false,
+    creatorPreference: null,
     pveEngineId: null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: true,

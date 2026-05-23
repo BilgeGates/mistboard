@@ -82,7 +82,11 @@ export interface HttpApiContext {
     hiddenDraft960?: boolean,
     timeControl?: RoomTimeControl,
     rated?: boolean,
-    options?: { randomSeating?: boolean; engineColor?: 'white' | 'black' },
+    options?: {
+      randomSeating?: boolean;
+      engineColor?: 'white' | 'black';
+      creatorPreference?: 'white' | 'black';
+    },
   ): Promise<Room>;
   abandonRoom(
     roomId: string,
@@ -361,12 +365,32 @@ export async function handleApiRequest(
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
-    // engineColor: PvE only. 'black' (default) → human plays white. 'white' →
-    // human plays black. Lets us test color-asymmetric engine behavior without
-    // a UI control. Body field is ignored for PvP.
-    const engineColor: 'white' | 'black' = (
-      mode === 'pve' && body.engineColor === 'white' ? 'white' : 'black'
-    );
+    // preferredColor: caller's requested side. 'random' (default) coinflips —
+    // PvE picks engine seat at creation, PvP picks creator's seat on first
+    // connect via randomSeating. 'white'/'black' is honored deterministically:
+    // PvE pre-seats the engine on the opposite side; PvP stores creatorPreference
+    // so the first arrival is assigned that color and the second gets the other.
+    // Body's legacy `engineColor` field is still accepted for PvE direct-API
+    // callers (smoke scripts, bots) but takes lower precedence than preferredColor.
+    const preferredColor: 'white' | 'black' | 'random' =
+      body.preferredColor === 'white' || body.preferredColor === 'black' || body.preferredColor === 'random'
+        ? body.preferredColor
+        : 'random';
+    let engineColor: 'white' | 'black';
+    if (mode === 'pve') {
+      if (preferredColor === 'white') engineColor = 'black';
+      else if (preferredColor === 'black') engineColor = 'white';
+      else if (body.engineColor === 'white') engineColor = 'white';
+      else if (body.engineColor === 'black') engineColor = 'black';
+      else engineColor = randomBytes(1)[0]! < 128 ? 'white' : 'black';
+    } else {
+      engineColor = 'black';
+    }
+    const pvpRandomSeating = mode === 'pvp' && preferredColor === 'random';
+    const pvpCreatorPreference: 'white' | 'black' | undefined =
+      mode === 'pvp' && (preferredColor === 'white' || preferredColor === 'black')
+        ? preferredColor
+        : undefined;
     const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     // Engine games are never rated — rated play is human-vs-human only.
     const rated = mode === 'pve' ? false : (body.rated === false ? false : true);
@@ -405,7 +429,11 @@ export async function handleApiRequest(
       response.end(JSON.stringify({ error: 'server_draining', restartAt: ctx.drainDeadlineMs() }));
       return;
     }
-    const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined, rated, { engineColor });
+    const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined, rated, {
+      engineColor,
+      ...(pvpRandomSeating ? { randomSeating: true } : {}),
+      ...(pvpCreatorPreference ? { creatorPreference: pvpCreatorPreference } : {}),
+    });
     response.writeHead(201, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
     return;
