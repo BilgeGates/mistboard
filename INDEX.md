@@ -3,7 +3,7 @@
 Fast orientation for agents. One line per file. Read this before opening any source file.
 Edit task → find file → open only that file.
 
-> **Refactor in progress (2026-05-22 → 2026-05-23):** The god files are being split into focused modules. So far: `live-sound.ts`, `time-controls.ts`, `review.ts`, `contact.ts`, `account.ts`, `profile.ts`, `pages-static.ts` extracted. Still pending: `live-replay.ts`. `http-api.ts` was hardened in-place (querystring bug fix + `requireMethod`/`requirePersistence` helpers) but not yet split into `routes/*`.
+> **Refactor in progress (2026-05-22 → 2026-05-23):** The god files are being split into focused modules. So far: `live-sound.ts`, `time-controls.ts`, `review.ts`, `contact.ts`, `account.ts`, `profile.ts`, `pages-static.ts`, `live-replay.ts` extracted. `http-api.ts` was hardened in-place (querystring bug fix + `requireMethod`/`requirePersistence` helpers) but not yet split into `routes/*`.
 
 ## packages/game/src/ — Pure game logic (no server/browser deps)
 
@@ -111,8 +111,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live.ts` | Live-game page bootstrap — wires `live-state`, `live-socket`, `live-render` for `/room/:id` |
 | `live-state.ts` | Live-game module state (`liveState`, seat-token storage, WS base URL resolver) |
 | `live-socket.ts` | WebSocket connect / reconnect / send for live games |
-| `live-render.ts` | Live-game render: board, clocks, captures, controls, draft picker, replay-of-live. Sound subsystem extracted to `live-sound.ts`. Still ~2,100 LOC — replay-of-live extraction (`live-replay.ts`) still pending |
+| `live-render.ts` | Live-game render: board, clocks, captures, controls, draft picker. Reads replay state via accessors from `live-replay.ts`. Sound subsystem in `live-sound.ts`. ~1,990 LOC |
 | `live-sound.ts` | SoundController + `maybePlaySnapshotSound` + per-move sound policy. Owns the audio context, volume tracking, win/lose/capture/castle tone generation. Wired by live-render's render flow + live.ts's snapshot handler |
+| `live-replay.ts` | Replay-of-live navigation. Owns `replayIndex` + `fogViewHistory` + 4 fog tracking vars. Exports state accessors (`getReplayIndex`, `getFogViewHistory`, `isLive`, `currentReplayIndex`, `fogLivePos`, `snapshotToPly`), DOM labels (`replayMetaLabel`, `replayControlDisabled`), and the navigation entry points (`handleReplayButtonClick`, `handleReplayKeyboard`, `handleMoveListClick`, `captureFogView`, `resetReplayState`). `initReplay({onStateChange})` injects the render-trigger callback so the dep is one-way (live-render → live-replay) |
 | `landing.ts` | Mounts for landing / watch / game / contact. Lobby + create-room flows, recent-games render, landing widgets, setup dialog. Exports the shared shell helpers (`buildNav`, `buildFooter`, `buildLoadingState`, `buildNotice`, `fetchCurrentUser`), game-row formatters (`displayParticipantName`, `sourceLabel`), and `GITHUB_URL` consumed by the split-out modules. ~1,800 LOC after pages-static + profile + account + contact + review cuts |
 | `account.ts` | `/account` + `/account/settings` mounts. Sign-in/registration form (email + magic code), signed-in account card, settings form (display name / handle / email), auth-tabs |
 | `profile.ts` | `/@/:handle` + `/leaderboard` mounts. `mountProfile`, `mountLeaderboard`, profile header/ratings/games builders, leaderboard panel + table. Imports shell helpers + game-row formatters back from `landing.ts` |
