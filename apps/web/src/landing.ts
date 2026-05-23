@@ -1,6 +1,4 @@
-import { TIME_CONTROLS, type Board, type GameEvent, type PlayerView, type Square, type TimeControlId } from '@mistboard/game';
-import type * as cg from 'chessground/types';
-import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from '@mistboard/board-render/interactive';
+import { TIME_CONTROLS, type GameEvent, type TimeControlId } from '@mistboard/game';
 import { mountReplay, type GameMeta } from './replay.js';
 import { loadGameForReview, enginePanelsForReview } from './review.js';
 import { buildContact } from './contact.js';
@@ -469,14 +467,6 @@ export function mountContact(root: HTMLElement): void {
   void loadCachedCurrentUser()
     .then((user) => contact.applyAuth(user))
     .catch(() => contact.applyAuth(null));
-}
-
-export function mountLearn(root: HTMLElement): void {
-  root.replaceChildren();
-  root.classList.add('landing-page', 'learn-route');
-  const learn = buildLearn();
-  root.append(buildNav(), learn.el, buildFooter());
-  mountLearnBoard(learn.boardEl);
 }
 
 export function buildNav(): HTMLElement {
@@ -1690,88 +1680,6 @@ function setButtonLabel(button: HTMLButtonElement, text: string): void {
   } else {
     button.textContent = text;
   }
-}
-
-function buildLearn(): { el: HTMLElement; boardEl: HTMLElement } {
-  const section = document.createElement('main');
-  section.className = 'learn-shell';
-
-  const boardPanel = document.createElement('section');
-  boardPanel.className = 'learn-board-panel';
-  const boardEl = document.createElement('div');
-  boardEl.className = 'board learn-board';
-  boardEl.setAttribute('aria-label', 'Tutorial dark chess board');
-  boardPanel.append(boardEl);
-
-  const panel = document.createElement('section');
-  panel.className = 'learn-panel';
-
-  const progress = document.createElement('div');
-  progress.className = 'learn-progress';
-  progress.textContent = 'Lesson 1 of 4';
-
-  const heading = document.createElement('h1');
-  heading.className = 'learn-heading';
-  heading.textContent = 'See With Your Pieces';
-
-  const intro = document.createElement('p');
-  intro.className = 'learn-copy';
-  intro.textContent =
-    'In dark chess, your board is built from your pieces and the squares they can legally move to. Everything else stays hidden.';
-
-  const steps = document.createElement('ol');
-  steps.className = 'learn-steps';
-  for (const text of [
-    'Select a piece to inspect its vision.',
-    'Use vision to scout before your king is exposed.',
-    'Replay later reveals what both sides could actually see.',
-  ]) {
-    const item = document.createElement('li');
-    item.textContent = text;
-    steps.append(item);
-  }
-
-  const actions = document.createElement('div');
-  actions.className = 'learn-actions';
-
-  const next = document.createElement('button');
-  next.type = 'button';
-  next.className = 'landing-cta-primary';
-  next.disabled = true;
-  next.textContent = 'Interactive lessons coming soon';
-
-  const watch = document.createElement('a');
-  watch.href = '/watch';
-  watch.className = 'landing-cta-secondary';
-  watch.textContent = 'Watch games';
-
-  actions.append(next, watch);
-  panel.append(progress, heading, intro, steps, actions);
-  section.append(boardPanel, panel);
-  return { el: section, boardEl };
-}
-
-function mountLearnBoard(boardEl: HTMLElement): void {
-  const board: Board = {
-    a1: { color: 'white', role: 'rook' },
-    d1: { color: 'white', role: 'queen' },
-    e1: { color: 'white', role: 'king' },
-    e4: { color: 'white', role: 'knight' },
-  };
-  const visibleSquares: Square[] = [
-    'a1', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1',
-    'c3', 'd2', 'f2', 'g3', 'c5', 'd6', 'e4', 'f6', 'g5',
-  ];
-  const squareClasses = hiddenSquareClasses({
-    variant: 'fog-of-war',
-    status: { type: 'playing', turn: 'white' },
-    visibleSquares,
-  } satisfies Pick<PlayerView, 'variant' | 'status' | 'visibleSquares'>);
-  for (const square of ['c5', 'd6', 'f6', 'g5'] as const) {
-    squareClasses.set(square as cg.Key, `${squareClasses.get(square as cg.Key) ?? ''} learn-highlight`.trim());
-  }
-  const api = createReadOnlyBoard(boardEl, 'white');
-  setBoardPosition(api, board, squareClasses);
 }
 
 export function buildFooter(): HTMLElement {
