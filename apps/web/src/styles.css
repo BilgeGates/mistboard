@@ -1022,8 +1022,8 @@ button:focus-visible {
   width: 100%;
   max-width: 640px;
   aspect-ratio: 1;
-  border: 2px solid var(--board-frame);
-  background: var(--board-frame);
+  border: none;
+  background: transparent;
   overflow: hidden;
   box-shadow: 0 14px 40px var(--site-shadow);
 }
