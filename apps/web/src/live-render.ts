@@ -854,8 +854,8 @@ function abortCountdownText(isSideToMove: boolean): string {
   const remaining = abortRemainingMs();
   const seconds = remaining === null ? 0 : Math.ceil(remaining / 1000);
   return isSideToMove
-    ? `Make your first move — aborting in ${seconds}s`
-    : `Waiting for first move — aborting in ${seconds}s`;
+    ? `Make your first move, aborting in ${seconds}s`
+    : `Waiting for first move, aborting in ${seconds}s`;
 }
 
 function forfeitRemainingSeconds(): number {
@@ -864,7 +864,7 @@ function forfeitRemainingSeconds(): number {
 }
 
 function forfeitCountdownText(): string {
-  return `Opponent left — you win in ${forfeitRemainingSeconds()}s`;
+  return `Opponent left, you win in ${forfeitRemainingSeconds()}s`;
 }
 
 // Driven by the 100ms tick loop so the countdowns advance without a full
