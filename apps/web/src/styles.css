@@ -949,7 +949,13 @@ button:focus-visible {
 
 .board-shell {
   position: relative;
-  width: min(100%, 66vh, 640px);
+  /* Snap the board width to a multiple of 8 CSS px. Chessground floors its
+     cg-container to a multiple of 8 *physical* pixels and anchors it top-left,
+     so any remainder lands on the bottom/right edge and shows the page
+     background through it (see the asymmetric-gap note: interactive boards must
+     snap width, never center the container — centering desyncs click
+     hit-testing). An 8px-CSS multiple is gap-free at dpr 1 and 2. */
+  width: round(down, min(100%, 66vh, 640px), 8px);
 }
 
 .board-status {
@@ -1023,7 +1029,11 @@ button:focus-visible {
   max-width: 640px;
   aspect-ratio: 1;
   border: none;
-  background: transparent;
+  /* Fallback for fractional dpr (1.25/1.5), where an 8px-CSS-multiple width can
+     still leave a sub-pixel remainder chessground floors away: any residual gap
+     on the bottom/right reads as a hairline board frame instead of glaring page
+     background. At dpr 1/2 the gap is 0 and this is never visible. */
+  background: var(--board-frame);
   overflow: hidden;
   box-shadow: 0 14px 40px var(--site-shadow);
 }
