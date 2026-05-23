@@ -161,7 +161,7 @@ function fenToPickerPieces(fenPlacement: string, color: Color): PieceOnBoard[] {
   return pieces;
 }
 let playAgainStatus: PlayAgainStatus = 'idle';
-let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | null = null;
+let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | 'aborted' | null = null;
 let playingSinceMs: number | null = null;
 // Tracks the previous active clock color across renderClocks() calls so we can
 // detect the turn flip into the seated player's clock and play a flash. Reset
@@ -2027,6 +2027,9 @@ function actionBody(view: PlayerView | null): string {
     return 'Opening the room and loading the current server state.';
   if (view.status.type === 'finished') {
     return finishedBody(view.status.winner, view.status.reason);
+  }
+  if (view.status.type === 'aborted') {
+    return 'This game was aborted before either side committed to it. No result was recorded.';
   }
   if (liveState.seat === 'spectator') return spectatorBody(view);
   if (view.status.type === 'pregame') {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  type ClockState,
   createClock,
   type GameEvent,
   generateChess960Starts,
@@ -25,6 +26,15 @@ import {
 import type { Client, Room } from './server-types.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
+
+// An armed clock (white ticking) — createClock now starts frozen and arms only
+// once both players have completed their first move. Pause-only tests inject an
+// already-armed clock to exercise freeze behavior directly. Resume tests must
+// instead arm via two real moves (moveNumber >= 2), since resume deliberately
+// refuses to start a clock that never ticked.
+function armedClock(at: number, initialMs?: number, incrementMs?: number): ClockState {
+  return { ...createClock(at, initialMs, incrementMs), activeColor: 'white', runningSince: at };
+}
 
 function makeRoom(
   id: string,
@@ -442,7 +452,7 @@ test('buildGameSummary: two human seats preserve rated=true', () => {
 // ── pauseRoomOnShutdown ────────────────────────────────────────────────────────
 
 test('pauseRoomOnShutdown: appends a pause event and freezes the active clock', async () => {
-  const startedClock = createClock(1000, 60_000, 0);
+  const startedClock = armedClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'room-pause', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'room-pause', clientId: 'w', seat: 'white' },
@@ -540,7 +550,7 @@ test('scheduleRandomEngineMove: no-op when room is paused', () => {
 test('replay: hydrating a room from a pause event reconstructs the paused projection', () => {
   // This is the post-restart hydration path: loadRoom returns events including the pause,
   // replayGameEvents reconstructs the projection. Same code path as getOrCreateRoom uses.
-  const startedClock = createClock(1000, 60_000, 0);
+  const startedClock = armedClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'room-hydrate', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'room-hydrate', clientId: 'w', seat: 'white' },
@@ -565,13 +575,16 @@ test('replay: hydrating a room from a pause event reconstructs the paused projec
 // are populated for both seats so the presence check has something to validate
 // against.
 function makePausedSeatedRoom(id: string): Room {
-  const startedClock = createClock(1000, 60_000, 0);
+  // Both players complete their first move so the clock arms (white ticking from
+  // t=2000); pause at t=4500 leaves white with 57_500ms. Resume can then rearm.
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: id, variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: id, clientId: 'white-client', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: id, clientId: 'black-client', seat: 'black' },
-    { type: 'clock-started', at: 1000, roomId: id, clock: startedClock },
-    { type: 'pause', at: 3500, roomId: id, reason: 'shutdown' },
+    { type: 'clock-started', at: 4, roomId: id, clock: createClock(4, 60_000, 0) },
+    { type: 'move-played', at: 1000, roomId: id, color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 2000, roomId: id, color: 'black', move: { from: 'e7', to: 'e5' } },
+    { type: 'pause', at: 4500, roomId: id, reason: 'shutdown' },
   ];
   const room = makeRoom(id, 'dark-chess', events);
   const now = new Date();
@@ -722,7 +735,8 @@ test('playMove: accepted after resume reactivates the room', async () => {
   const white = makeClient('white-client', 'white', /* solo= */ true);
   room.clients.add(white);
 
-  await playMove(ctx, room, white, { type: 'move', from: 'e2', to: 'e4' });
+  // e2e4/e7e5 are already played in the fixture; d2d4 is white's legal move here.
+  await playMove(ctx, room, white, { type: 'move', from: 'd2', to: 'd4' });
 
   const last = room.events[room.events.length - 1];
   assert.equal(last.type, 'move-played', 'paused→resumed room must accept moves again');
@@ -731,20 +745,14 @@ test('playMove: accepted after resume reactivates the room', async () => {
 // ── applyOrphanRecoveryIfNeeded ───────────────────────────────────────────────
 
 test('applyOrphanRecoveryIfNeeded: synthesises a pause for a stale playing room', () => {
-  const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'orphan-stale', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'orphan-stale', clientId: 'w', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'orphan-stale', clientId: 'b', seat: 'black' },
-    { type: 'clock-started', at: 1000, roomId: 'orphan-stale', clock: startedClock },
-    // Move at t=2000 — opponent's clock is now active.
-    {
-      type: 'move-played',
-      at: 2000,
-      roomId: 'orphan-stale',
-      color: 'white',
-      move: { from: 'e2', to: 'e4' },
-    },
+    { type: 'clock-started', at: 4, roomId: 'orphan-stale', clock: createClock(4, 60_000, 0) },
+    // Both first moves complete; black's reply at t=2000 arms the clock for white.
+    { type: 'move-played', at: 1500, roomId: 'orphan-stale', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 2000, roomId: 'orphan-stale', color: 'black', move: { from: 'e7', to: 'e5' } },
   ];
   // 10 minutes later, the server "comes back" — far past the 5-minute threshold.
   const now = 2000 + 10 * 60_000;
@@ -758,11 +766,11 @@ test('applyOrphanRecoveryIfNeeded: synthesises a pause for a stale playing room'
   assert.equal((synth as { reason: string }).reason, 'shutdown');
 
   // Replaying the recovered events should produce a paused projection with
-  // black's clock effectively unchanged (since the synth pause fires 1ms after
-  // the move that started black's clock).
+  // white's (now-active) clock effectively unchanged, since the synth pause
+  // fires 1ms after the move that armed white's clock.
   const projection = replayGameEvents(out);
   assert.equal(projection.paused, true);
-  assert.equal(projection.state.clock?.remainingMs.black, 59_999);
+  assert.equal(projection.state.clock?.remainingMs.white, 59_999);
   assert.equal(projection.state.clock?.activeColor, null);
 });
 

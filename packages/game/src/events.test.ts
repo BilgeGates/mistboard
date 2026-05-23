@@ -3,6 +3,15 @@ import test from 'node:test';
 import { generateChess960Starts, pickDraft960Offer } from './chess960.js';
 import { advanceClock, createClock, expireClock } from './clocks.js';
 import { type GameEvent, replayGameEvents } from './events.js';
+import type { ClockState } from './types.js';
+
+// A clock already armed and ticking for white — the post-first-moves state that
+// pause/expire/advance mechanics operate on. createClock now starts frozen
+// (no ticking until both players complete their first move), so tests that
+// exercise mid-game clock behavior inject an armed clock directly.
+function armedClock(at: number, initialMs?: number, incrementMs?: number): ClockState {
+  return { ...createClock(at, initialMs, incrementMs), activeColor: 'white', runningSince: at };
+}
 
 test('replays Draft960 pregame events into a resolved starting position', () => {
   const offer = pickDraft960Offer(42);
@@ -283,9 +292,9 @@ test('keeps Fog of War seats after play starts', () => {
   assert.deepEqual(projection.seats, { white: 'white-client' });
 });
 
-test('starts a live Fog of War clock after seats are ready', () => {
+test('starts a frozen Fog of War clock after seats are ready (arms after both first moves)', () => {
   const clock = createClock(4, 30_000, 2_000);
-  const events: GameEvent[] = [
+  const baseEvents: GameEvent[] = [
     {
       type: 'room-created',
       at: 1,
@@ -315,12 +324,33 @@ test('starts a live Fog of War clock after seats are ready', () => {
     },
   ];
 
-  const projection = replayGameEvents(events);
+  // Frozen at start: neither side ticks before move 1.
+  const atStart = replayGameEvents(baseEvents);
+  assert.equal(atStart.state.clock?.initialMs, 30_000);
+  assert.equal(atStart.state.clock?.incrementMs, 2_000);
+  assert.equal(atStart.state.clock?.activeColor, null);
+  assert.equal(atStart.state.clock?.runningSince, null);
 
-  assert.equal(projection.state.clock?.initialMs, 30_000);
-  assert.equal(projection.state.clock?.incrementMs, 2_000);
-  assert.equal(projection.state.clock?.activeColor, 'white');
-  assert.equal(projection.state.clock?.runningSince, 4);
+  // White's first move spends no time but is granted the increment; still frozen.
+  const afterWhite = replayGameEvents([
+    ...baseEvents,
+    { type: 'move-played', at: 10_000, roomId: 'clocked-fog-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+  ]);
+  assert.equal(afterWhite.state.clock?.activeColor, null);
+  assert.equal(afterWhite.state.clock?.runningSince, null);
+  assert.equal(afterWhite.state.clock?.remainingMs.white, 32_000);
+  assert.equal(afterWhite.state.clock?.remainingMs.black, 30_000);
+
+  // Black's first move arms the clock: white (next to move) begins ticking.
+  const afterBlack = replayGameEvents([
+    ...baseEvents,
+    { type: 'move-played', at: 10_000, roomId: 'clocked-fog-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 20_000, roomId: 'clocked-fog-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+  ]);
+  assert.equal(afterBlack.state.clock?.activeColor, 'white');
+  assert.equal(afterBlack.state.clock?.runningSince, 20_000);
+  assert.equal(afterBlack.state.clock?.remainingMs.white, 32_000);
+  assert.equal(afterBlack.state.clock?.remainingMs.black, 32_000);
 });
 
 test('replays room-created time control metadata', () => {
@@ -349,7 +379,7 @@ test('replays room-created time control metadata', () => {
 test('replays clock snapshots on start and move events', () => {
   const offer = pickDraft960Offer(8);
   const start = offer[0];
-  const startedClock = createClock(4);
+  const startedClock = armedClock(4);
   const movedClock = advanceClock(startedClock, 1504, 'white', { type: 'playing', turn: 'black' });
   const events: GameEvent[] = [
     {
@@ -387,7 +417,7 @@ test('replays clock snapshots on start and move events', () => {
 test('replays timeout events into a finished game', () => {
   const offer = pickDraft960Offer(9);
   const start = offer[0];
-  const startedClock = createClock(4, 1000, 0);
+  const startedClock = armedClock(4, 1000, 0);
   const expiredClock = expireClock(startedClock, 1004, 'white');
   assert.ok(expiredClock);
   const events: GameEvent[] = [
@@ -541,7 +571,7 @@ test('seat-resigned ends the game with opposite color winning', () => {
 });
 
 test('seat-resigned freezes the clock at the resign timestamp', () => {
-  const startedClock = createClock(1000, 60_000, 0);
+  const startedClock = armedClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'resign-clock-room', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'resign-clock-room', clientId: 'wc', seat: 'white' },
@@ -563,6 +593,43 @@ test('seat-resigned freezes the clock at the resign timestamp', () => {
   assert.equal(projection.state.clock?.remainingMs.black, 60_000);
 });
 
+test('game-aborted before any move ends the game in the aborted state', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'abort-room', variant: 'dark-chess', offer: [] },
+    { type: 'clock-started', at: 4, roomId: 'abort-room', clock: createClock(4, 60_000, 0) },
+    { type: 'game-aborted', at: 5, roomId: 'abort-room', reason: 'pregame-timeout' },
+  ];
+  const projection = replayGameEvents(events);
+  assert.deepEqual(projection.state.status, { type: 'aborted', reason: 'pregame-timeout' });
+  // Clock never ticked; remains full and frozen.
+  assert.equal(projection.state.clock?.activeColor, null);
+  assert.equal(projection.state.clock?.remainingMs.white, 60_000);
+});
+
+test('game-aborted after only white has moved is still valid (before both first moves)', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'abort-w-room', variant: 'dark-chess', offer: [] },
+    { type: 'clock-started', at: 4, roomId: 'abort-w-room', clock: createClock(4, 60_000, 0) },
+    { type: 'move-played', at: 1000, roomId: 'abort-w-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'game-aborted', at: 2000, roomId: 'abort-w-room', reason: 'user-abort' },
+  ];
+  const projection = replayGameEvents(events);
+  assert.deepEqual(projection.state.status, { type: 'aborted', reason: 'user-abort' });
+});
+
+test('game-aborted after both players have moved is a no-op (abort window closed)', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'abort-closed-room', variant: 'dark-chess', offer: [] },
+    { type: 'clock-started', at: 4, roomId: 'abort-closed-room', clock: createClock(4, 60_000, 0) },
+    { type: 'move-played', at: 1000, roomId: 'abort-closed-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 2000, roomId: 'abort-closed-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    { type: 'game-aborted', at: 3000, roomId: 'abort-closed-room', reason: 'user-abort' },
+  ];
+  const projection = replayGameEvents(events);
+  // Both first moves are in; the game continues rather than aborting.
+  assert.deepEqual(projection.state.status, { type: 'playing', turn: 'white' });
+});
+
 test('seat-resigned after game already finished is a no-op (only first resignation counts)', () => {
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'r', variant: 'dark-chess', offer: [] },
@@ -580,7 +647,7 @@ test('seat-resigned after game already finished is a no-op (only first resignati
 test('pause freezes the clock at the pause timestamp and marks the projection paused', () => {
   const offer = pickDraft960Offer(50);
   const start = offer[0];
-  const startedClock = createClock(1000, 60_000, 0);
+  const startedClock = armedClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'pause-room', variant: 'draft960', offer },
     {
@@ -607,21 +674,16 @@ test('pause freezes the clock at the pause timestamp and marks the projection pa
 });
 
 test('resume rearms the clock for the current turn without altering remaining time', () => {
-  const offer = pickDraft960Offer(51);
-  const start = offer[0];
-  const startedClock = createClock(1000, 60_000, 0);
+  // Both players complete their first move so the clock arms (white ticking from
+  // t=2000), then a server outage pauses and resumes 10 minutes later.
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'resume-room', variant: 'draft960', offer },
-    {
-      type: 'draft-start-resolved',
-      at: 1000,
-      roomId: 'resume-room',
-      clock: startedClock,
-      startId: start.id,
-    },
-    { type: 'pause', at: 3500, roomId: 'resume-room', reason: 'shutdown' },
+    { type: 'room-created', at: 1, roomId: 'resume-room', variant: 'dark-chess', offer: [] },
+    { type: 'clock-started', at: 4, roomId: 'resume-room', clock: createClock(4, 60_000, 0) },
+    { type: 'move-played', at: 1000, roomId: 'resume-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 2000, roomId: 'resume-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    { type: 'pause', at: 4500, roomId: 'resume-room', reason: 'shutdown' },
     // Wall-clock elapsed 10 minutes during server outage; resume at a much later time.
-    { type: 'resume', at: 603_500, roomId: 'resume-room', reason: 'both-present' },
+    { type: 'resume', at: 604_500, roomId: 'resume-room', reason: 'both-present' },
   ];
   const projection = replayGameEvents(events);
 
@@ -629,8 +691,8 @@ test('resume rearms the clock for the current turn without altering remaining ti
   assert.equal(projection.pausedAt, null);
   assert.equal(projection.pauseReason, null);
   assert.equal(projection.state.clock?.activeColor, 'white');
-  assert.equal(projection.state.clock?.runningSince, 603_500);
-  // Remaining time should be exactly what it was at pause — the 10-minute outage doesn't count.
+  assert.equal(projection.state.clock?.runningSince, 604_500);
+  // White ticked from t=2000 (arm) to t=4500 (pause) = 2500ms. The outage doesn't count.
   assert.equal(projection.state.clock?.remainingMs.white, 57_500);
   assert.equal(projection.state.clock?.remainingMs.black, 60_000);
 });
@@ -673,7 +735,7 @@ test('pause is a no-op after the game has finished', () => {
 test('a second pause while already paused is a no-op (preserves first pause snapshot)', () => {
   const offer = pickDraft960Offer(53);
   const start = offer[0];
-  const startedClock = createClock(1000, 60_000, 0);
+  const startedClock = armedClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'double-pause-room', variant: 'draft960', offer },
     {
@@ -697,7 +759,7 @@ test('a second pause while already paused is a no-op (preserves first pause snap
 test('resume while not paused is a no-op', () => {
   const offer = pickDraft960Offer(54);
   const start = offer[0];
-  const startedClock = createClock(1000, 60_000, 0);
+  const startedClock = armedClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'stray-resume-room', variant: 'draft960', offer },
     {
@@ -717,33 +779,22 @@ test('resume while not paused is a no-op', () => {
 });
 
 test('move after resume continues the game with the unchanged clock', () => {
-  const offer = pickDraft960Offer(55);
-  const start = offer[0];
-  const startedClock = createClock(1000, 60_000, 0);
+  // Arm via both first moves (white ticks from t=2000), pause/resume across an
+  // outage, then white's second move spends real time.
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'resume-move-room', variant: 'draft960', offer },
-    {
-      type: 'draft-start-resolved',
-      at: 1000,
-      roomId: 'resume-move-room',
-      clock: startedClock,
-      startId: start.id,
-    },
-    { type: 'pause', at: 3500, roomId: 'resume-move-room', reason: 'shutdown' },
-    { type: 'resume', at: 603_500, roomId: 'resume-move-room', reason: 'both-present' },
-    // White moves 500ms after resume.
-    {
-      type: 'move-played',
-      at: 604_000,
-      roomId: 'resume-move-room',
-      color: 'white',
-      move: { from: 'e2', to: 'e4' },
-    },
+    { type: 'room-created', at: 1, roomId: 'resume-move-room', variant: 'dark-chess', offer: [] },
+    { type: 'clock-started', at: 4, roomId: 'resume-move-room', clock: createClock(4, 60_000, 0) },
+    { type: 'move-played', at: 1000, roomId: 'resume-move-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 2000, roomId: 'resume-move-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    { type: 'pause', at: 4500, roomId: 'resume-move-room', reason: 'shutdown' },
+    { type: 'resume', at: 604_500, roomId: 'resume-move-room', reason: 'both-present' },
+    // White's second move, 500ms after resume.
+    { type: 'move-played', at: 605_000, roomId: 'resume-move-room', color: 'white', move: { from: 'g1', to: 'f3' } },
   ];
   const projection = replayGameEvents(events);
 
   assert.deepEqual(projection.state.status, { type: 'playing', turn: 'black' });
-  // White used 2500ms before pause + 500ms after resume = 3000ms total. 60_000 − 3000 = 57_000.
+  // White ticked 2500ms before pause + 500ms after resume = 3000ms. 60_000 − 3000 = 57_000.
   assert.equal(projection.state.clock?.remainingMs.white, 57_000);
   // The 10-minute server outage between pause and resume must not appear in either player's clock.
   assert.equal(projection.state.clock?.remainingMs.black, 60_000);
@@ -751,24 +802,18 @@ test('move after resume continues the game with the unchanged clock', () => {
 });
 
 test('multiple pause/resume cycles do not leak wall-clock time into player clocks', () => {
-  const offer = pickDraft960Offer(56);
-  const start = offer[0];
-  const startedClock = createClock(1000, 60_000, 0);
+  // Arm via both first moves (white ticks from t=200), then two long outages.
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'cycle-room', variant: 'draft960', offer },
-    {
-      type: 'draft-start-resolved',
-      at: 1000,
-      roomId: 'cycle-room',
-      clock: startedClock,
-      startId: start.id,
-    },
-    // First outage: 1 hour.
-    { type: 'pause', at: 2000, roomId: 'cycle-room', reason: 'shutdown' },
-    { type: 'resume', at: 3_602_000, roomId: 'cycle-room', reason: 'both-present' },
+    { type: 'room-created', at: 1, roomId: 'cycle-room', variant: 'dark-chess', offer: [] },
+    { type: 'clock-started', at: 4, roomId: 'cycle-room', clock: createClock(4, 60_000, 0) },
+    { type: 'move-played', at: 100, roomId: 'cycle-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 200, roomId: 'cycle-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    // First outage: 1 hour, after 1s of armed play.
+    { type: 'pause', at: 1200, roomId: 'cycle-room', reason: 'shutdown' },
+    { type: 'resume', at: 3_601_200, roomId: 'cycle-room', reason: 'both-present' },
     // Second outage: another 1 hour, starting after 1s of resumed play.
-    { type: 'pause', at: 3_603_000, roomId: 'cycle-room', reason: 'shutdown' },
-    { type: 'resume', at: 7_203_000, roomId: 'cycle-room', reason: 'both-present' },
+    { type: 'pause', at: 3_602_200, roomId: 'cycle-room', reason: 'shutdown' },
+    { type: 'resume', at: 7_202_200, roomId: 'cycle-room', reason: 'both-present' },
   ];
   const projection = replayGameEvents(events);
 

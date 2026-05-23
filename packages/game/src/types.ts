@@ -105,10 +105,19 @@ export function isGameEndReason(value: unknown): value is GameEndReason {
   return typeof value === 'string' && (gameEndReasons as readonly string[]).includes(value);
 }
 
+export type AbortReason = 'pregame-timeout' | 'user-abort';
+
+export const abortReasons: readonly AbortReason[] = ['pregame-timeout', 'user-abort'] as const;
+
+export function isAbortReason(value: unknown): value is AbortReason {
+  return typeof value === 'string' && (abortReasons as readonly string[]).includes(value);
+}
+
 export type GameStatus =
   | { type: 'pregame' }
   | { type: 'playing'; turn: Color }
-  | { type: 'finished'; winner: Color | null; reason: GameEndReason };
+  | { type: 'finished'; winner: Color | null; reason: GameEndReason }
+  | { type: 'aborted'; reason: AbortReason };
 
 export type GameState = {
   id: string;

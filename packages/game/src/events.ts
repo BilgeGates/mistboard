@@ -5,8 +5,24 @@ import {
   createChess960InitialBoard,
   createChess960InitialBoardForSides,
 } from './chess960.js';
-import { advanceClock, createClock, expireClock, freezeClock, unfreezeClock } from './clocks.js';
-import type { ClockState, Color, GameState, Move, PieceRole, VariantId } from './types.js';
+import {
+  advanceClock,
+  armClockOnFirstMoves,
+  createClock,
+  expireClock,
+  freezeClock,
+  isClockFrozenPregame,
+  unfreezeClock,
+} from './clocks.js';
+import type {
+  AbortReason,
+  ClockState,
+  Color,
+  GameState,
+  Move,
+  PieceRole,
+  VariantId,
+} from './types.js';
 import { variantForId } from './variants.js';
 
 export type RoomTimeControl = {
@@ -81,6 +97,13 @@ export type GameEvent =
       at: number;
       roomId: string;
       color: Color;
+      clock?: ClockState;
+    }
+  | {
+      type: 'game-aborted';
+      at: number;
+      roomId: string;
+      reason: AbortReason;
       clock?: ClockState;
     }
   | {
@@ -258,16 +281,25 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
     if (projection.state.status.type !== 'playing') return projection;
     if (projection.state.status.turn !== event.color) return projection;
 
+    const prevMoveNumber = projection.state.moveNumber;
     const nextState = variantForId(projection.variant).applyMove(projection.state, event.move);
     if (nextState === projection.state) return projection;
+
+    const nextClock = isClockFrozenPregame(projection.state.clock)
+      ? armClockOnFirstMoves(
+          projection.state.clock,
+          event.at,
+          event.color,
+          prevMoveNumber,
+          nextState.status,
+        )
+      : advanceClock(projection.state.clock, event.at, event.color, nextState.status);
 
     return {
       ...projection,
       state: {
         ...nextState,
-        clock:
-          event.clock ??
-          advanceClock(projection.state.clock, event.at, event.color, nextState.status),
+        clock: event.clock ?? nextClock,
       },
     };
   }
@@ -306,6 +338,21 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
     };
   }
 
+  if (event.type === 'game-aborted') {
+    // Abort is only valid before both players have completed their first move
+    // (fewer than two plies; moveNumber increments to 2 on black's first move).
+    if (projection.state.status.type !== 'playing') return projection;
+    if (projection.state.moveNumber !== 1) return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: { type: 'aborted', reason: event.reason },
+        clock: event.clock ?? freezeClock(projection.state.clock, event.at),
+      },
+    };
+  }
+
   if (event.type === 'pause') {
     if (projection.state.status.type !== 'playing') return projection;
     if (projection.paused) return projection;
@@ -325,6 +372,14 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
     if (!projection.paused) return projection;
     if (projection.state.status.type !== 'playing') return projection;
     const turn = projection.state.status.turn;
+    // Don't arm a clock that never started ticking. Before both players have
+    // completed their first move (moveNumber < 2) the clock is frozen-pregame,
+    // which is indistinguishable from a pause-frozen clock; resuming must leave
+    // it frozen rather than start the side-to-move's clock prematurely.
+    const resumedClock =
+      projection.state.moveNumber >= 2
+        ? unfreezeClock(projection.state.clock, event.at, turn)
+        : projection.state.clock;
     return {
       ...projection,
       paused: false,
@@ -332,7 +387,7 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       pauseReason: null,
       state: {
         ...projection.state,
-        clock: event.clock ?? unfreezeClock(projection.state.clock, event.at, turn),
+        clock: event.clock ?? resumedClock,
       },
     };
   }

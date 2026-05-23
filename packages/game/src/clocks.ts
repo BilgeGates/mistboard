@@ -4,20 +4,50 @@ export const defaultClockInitialMs = 5 * 60 * 1000;
 export const defaultClockIncrementMs = 0;
 
 export function createClock(
-  at: number,
+  _at: number,
   initialMs = defaultClockInitialMs,
   incrementMs = defaultClockIncrementMs,
 ): ClockState {
+  // Starts frozen: neither clock ticks until both players have played their
+  // first move. The clock is armed (see armClockOnFirstMoves) when black
+  // completes the first full move.
   return {
-    activeColor: 'white',
+    activeColor: null,
     incrementMs,
     initialMs,
     remainingMs: {
       black: initialMs,
       white: initialMs,
     },
-    runningSince: at,
+    runningSince: null,
   };
+}
+
+// Pre-arm clock progression for the first two plies. While the clock is frozen
+// (before both first moves), no time is spent, but the mover is granted their
+// increment (increment-from-move-1). Black's first move (moveNumber 1 -> 2)
+// arms the clock so the side to move begins ticking normally.
+export function armClockOnFirstMoves(
+  clock: ClockState | undefined,
+  at: number,
+  movedColor: Color,
+  prevMoveNumber: number,
+  nextStatus: GameStatus,
+): ClockState | undefined {
+  if (!clock) return clock;
+  const remainingMs = {
+    ...clock.remainingMs,
+    [movedColor]: clock.remainingMs[movedColor] + clock.incrementMs,
+  };
+  const armsNow = movedColor === 'black' && prevMoveNumber === 1;
+  if (armsNow && nextStatus.type === 'playing') {
+    return { ...clock, activeColor: nextStatus.turn, remainingMs, runningSince: at };
+  }
+  return { ...clock, remainingMs };
+}
+
+export function isClockFrozenPregame(clock: ClockState | undefined): boolean {
+  return !!clock && clock.activeColor === null && clock.runningSince === null;
 }
 
 export function advanceClock(

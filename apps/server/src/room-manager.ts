@@ -642,23 +642,18 @@ export async function startLiveClockIfReady(ctx: RoomManagerContext, room: Room)
 
   const now = Date.now();
   const timeControl = room.projection.timeControl;
+  // The clock starts frozen and arms only once both players complete their
+  // first move (see armClockOnFirstMoves in the reducer). This holds for
+  // engineColor='white' PvE too: the engine's first move lands before
+  // clock-started, and the human's first reply (black) arms the clock.
   const initialClock = timeControl
     ? createClock(now, timeControl.initialMs, timeControl.incrementMs)
     : createClock(now, ctx.liveClockInitialMs, ctx.liveClockIncrementMs);
-  // createClock hardcodes activeColor='white'. If the projection has already
-  // advanced before clock-started (engineColor='white' rooms: engine plays
-  // its first move before both seats are filled), the clock must start for
-  // the side actually to move — otherwise the wrong clock ticks down and
-  // the active-color UI hints are inverted.
-  const clock =
-    room.projection.state.status.turn !== initialClock.activeColor
-      ? { ...initialClock, activeColor: room.projection.state.status.turn }
-      : initialClock;
   await appendEvent(ctx, room, {
     type: 'clock-started',
     at: now,
     roomId: room.id,
-    clock,
+    clock: initialClock,
   });
   // If the game starts with the engine to move (PvE with engineColor='white'),
   // there's otherwise no trigger to kick off the engine's first move — the
