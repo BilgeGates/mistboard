@@ -1543,6 +1543,10 @@ async function handleResign(room: Room, client: Client): Promise<void> {
   if (!canClientAct(room, client)) return;
   if (client.seat !== 'white' && client.seat !== 'black') return;
   if (room.projection.state.status.type !== 'playing') return;
+  // Before both players have completed their first move the game isn't a real
+  // contest yet — bailing is an abort (no result), not a resignation (which
+  // would wrongly award the opponent a win). Resign is only valid from move 2.
+  if (room.projection.state.moveNumber < 2) return;
   const fromSeq = room.events.length;
   await appendEvent(roomMgrCtx, room, {
     type: 'seat-resigned',

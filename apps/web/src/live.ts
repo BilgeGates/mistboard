@@ -9,6 +9,7 @@ import {
   reconcileInteractionState,
   render,
   tickClockTimers,
+  updateAbortCountdown,
 } from './live-render.js';
 import { handleReplayKeyboard } from './live-replay.js';
 import { connectSocket, initSocket, reconnectNow, sendSocket } from './live-socket.js';
@@ -128,6 +129,7 @@ if (!connOverride) {
 window.setInterval(() => {
   const view = currentView();
   if (view?.clock) tickClockTimers(view);
+  updateAbortCountdown();
 }, 100);
 
 window.__MISTBOARD_DEBUG__ = () => ({

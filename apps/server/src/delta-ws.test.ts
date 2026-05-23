@@ -345,10 +345,21 @@ test('delta: game-end transition broadcasts a snapshot but stays fogged (model A
     'initial white turn',
   );
   white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteReady) }));
-  await waitForMessage(
+  const blackReady = await waitForMessage(
     black.messages,
-    (message) => message.state.status.type === 'playing' && message.state.status.turn === 'black',
+    (message) =>
+      message.state.status.type === 'playing' &&
+      message.state.status.turn === 'black' &&
+      message.state.legalMoves.length > 0,
     'black turn',
+  );
+  // Both players must complete their first move before resign is valid — until
+  // then the game is in the abort window (resign would wrongly award a result).
+  black.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(blackReady) }));
+  await waitForMessage(
+    white.messages,
+    (message) => message.state.status.type === 'playing' && message.state.status.turn === 'white',
+    'white turn after black reply',
   );
 
   const baselineBlack = black.messages.length;
@@ -366,10 +377,12 @@ test('delta: game-end transition broadcasts a snapshot but stays fogged (model A
     'game-end broadcast must be a full-frame snapshot at the boundary',
   );
   assert.ok(Array.isArray(blackEnd.events));
-  // Model A: the room never reveals on finish. Black sees only its own
-  // move-played events, so white's hidden move must NOT leak into black's
-  // finished-game snapshot, even though the game is over.
-  const whiteMove = blackEnd.events?.find((e) => e.type === 'move-played');
+  // Model A: the room never reveals on finish. Black sees its OWN move-played
+  // events but white's must NOT leak into black's finished-game snapshot, even
+  // though the game is over.
+  const whiteMove = blackEnd.events?.find(
+    (e) => e.type === 'move-played' && e.color === 'white',
+  );
   assert.ok(
     !whiteMove,
     "model A: white's hidden move-played must NOT appear in black's finished-game snapshot",

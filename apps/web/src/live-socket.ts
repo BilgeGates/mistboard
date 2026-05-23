@@ -36,6 +36,7 @@ type ServerMessage =
       state: PlayerView;
       rated?: boolean;
       paused?: boolean;
+      abortDeadline?: number | null;
       connectedSeats?: { white: boolean; black: boolean };
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
@@ -61,6 +62,7 @@ type ServerMessage =
       state: PlayerView;
       rated?: boolean;
       paused?: boolean;
+      abortDeadline?: number | null;
       connectedSeats?: { white: boolean; black: boolean };
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
@@ -90,6 +92,7 @@ type ServerMessage =
       state: PlayerView;
       rated?: boolean;
       paused?: boolean;
+      abortDeadline?: number | null;
       connectedSeats?: { white: boolean; black: boolean };
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
@@ -266,6 +269,7 @@ function applyFullFrame(message: FullFrameSource): void {
   liveState.resolvedStartIds = message.resolvedStartIds ?? {};
   liveState.rated = message.rated ?? true;
   liveState.paused = message.paused ?? false;
+  liveState.abortDeadline = message.abortDeadline ?? null;
   liveState.state = message.state;
   if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
   if (message.rematch) liveState.rematch = message.rematch;

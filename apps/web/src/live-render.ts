@@ -799,25 +799,75 @@ function connectionDetailLabel(): string | null {
 // ── Game controls (resign, etc.) ──────────────────────────────────────────────
 
 function renderGameControls(view: PlayerView | null): void {
-  const canResign =
+  const isLivePvp =
     liveState.roomMode === 'pvp' &&
     isColor(liveState.seat) &&
     view?.status.type === 'playing' &&
     !liveState.solo;
-  refs.gameControlsSection.hidden = !canResign;
-  if (!canResign) {
+  if (!isLivePvp || !view || view.status.type !== 'playing') {
+    refs.gameControlsSection.hidden = true;
     refs.gameControls.replaceChildren();
     return;
   }
+
+  // Before both players have completed their first move (moveNumber < 2) the
+  // game can only be aborted (no result), and only by the side to move — the
+  // waiting player has no control yet. From move 2 on, either player resigns.
+  const preMove = view.moveNumber < 2;
+  const isSideToMove = view.status.turn === liveState.seat;
+
+  const children: HTMLElement[] = [];
+  // Show the abort countdown to both players while a window is live, so the
+  // waiting side understands the pause. Timing info only — leaks no board state.
+  if (preMove && liveState.abortDeadline !== null) {
+    const countdown = document.createElement('span');
+    countdown.className = 'abort-countdown';
+    countdown.dataset.abortCountdown = '';
+    countdown.textContent = abortCountdownText(isSideToMove);
+    children.push(countdown);
+  }
+  if (preMove) {
+    if (isSideToMove) children.push(makeControlButton('Abort', requestAbort));
+  } else {
+    children.push(makeControlButton('Resign', requestResign));
+  }
+
+  refs.gameControlsSection.hidden = children.length === 0;
+  refs.gameControls.replaceChildren(...children);
+}
+
+function abortRemainingMs(): number | null {
+  if (liveState.abortDeadline === null) return null;
+  return Math.max(0, liveState.abortDeadline - Date.now());
+}
+
+function abortCountdownText(isSideToMove: boolean): string {
+  const remaining = abortRemainingMs();
+  const seconds = remaining === null ? 0 : Math.ceil(remaining / 1000);
+  return isSideToMove
+    ? `Make your first move — aborting in ${seconds}s`
+    : `Waiting for first move — aborting in ${seconds}s`;
+}
+
+// Driven by the 100ms tick loop so the countdown advances without a full
+// re-render. Only touches the existing element's text; render() owns creation
+// and teardown of the element itself.
+export function updateAbortCountdown(): void {
+  const el = refs.gameControls?.querySelector<HTMLElement>('[data-abort-countdown]');
+  if (!el) return;
+  const view = currentView();
+  if (!view || view.status.type !== 'playing' || view.moveNumber >= 2) return;
+  const isSideToMove = view.status.turn === liveState.seat;
+  el.textContent = abortCountdownText(isSideToMove);
+}
+
+function makeControlButton(label: string, onClick: () => void): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'danger';
-  button.textContent = 'Resign';
-  button.addEventListener('click', () => {
-    requestResign();
-  });
-
-  refs.gameControls.replaceChildren(button);
+  button.textContent = label;
+  button.addEventListener('click', onClick);
+  return button;
 }
 
 function requestResign(): void {
@@ -828,6 +878,18 @@ function requestResign(): void {
     confirmTone: 'danger',
     onConfirm: () => {
       sendSocket({ type: 'resign' });
+    },
+  });
+}
+
+function requestAbort(): void {
+  openConfirmDialog({
+    title: 'Abort this game?',
+    body: 'The game ends with no result. Neither player is affected.',
+    confirmLabel: 'Abort',
+    confirmTone: 'danger',
+    onConfirm: () => {
+      sendSocket({ type: 'abort' });
     },
   });
 }
@@ -2002,6 +2064,7 @@ function actionTitle(view: PlayerView | null): string {
     return 'Reconnecting';
   if (!view || liveState.connectionState === 'connecting') return 'Connecting';
   if (view.status.type === 'finished') return finishedTitle(view.status.winner);
+  if (view.status.type === 'aborted') return 'Game aborted';
   if (liveState.seat === 'spectator') return 'Watching';
   if (view.status.type === 'pregame') {
     if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
