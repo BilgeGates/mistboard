@@ -731,16 +731,66 @@ button:focus-visible {
 
 .board-status {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: calc(100% + 4px);
+  aspect-ratio: 1;
   z-index: 1;
   display: grid;
   place-items: center;
-  color: #ffffff;
-  background: var(--board-frame);
+  color: rgba(255, 255, 255, 0.92);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.06), transparent 60%),
+    var(--board-frame);
 }
 
 .board-status[hidden] {
   display: none;
+}
+
+.board-status__inner {
+  display: grid;
+  gap: 16px;
+  place-items: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.board-status__spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  animation: board-status-spin 0.9s linear infinite;
+}
+
+.board-status[data-tone="danger"] .board-status__spinner {
+  border-color: rgba(232, 120, 120, 0.22);
+  border-top-color: rgba(255, 168, 168, 0.95);
+}
+
+.board-status__spinner[hidden] {
+  display: none;
+}
+
+.board-status__label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@keyframes board-status-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-status__spinner {
+    animation: none;
+    border-top-color: rgba(255, 255, 255, 0.55);
+  }
 }
 
 .board.cg-wrap {
