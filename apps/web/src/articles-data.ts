@@ -1330,7 +1330,7 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'Deduction',
+        heading: 'Basic deduction',
         blocks: [
           {
             kind: 'paragraph',
