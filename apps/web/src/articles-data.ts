@@ -22,6 +22,7 @@ import {
   type PieceRole,
   type Square,
 } from '@mistboard/game';
+import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
 
@@ -1396,93 +1397,88 @@ export const articles: Article[] = [
     slug: 'server-enforced-fog',
     title: 'How Mistboard enforces dark chess',
     summary:
-      'Each client receives only its own view — never the canonical position. The kernel that derives a per-player view, the gateway that shapes outbound traffic, and the regression tests that pin the contract. Plus how the same source-of-truth principle handles threefold repetition, the 50-move rule, and clocks.',
+      'Server-authoritative state, applied to dark chess. The bytes for what you can\'t see never leave the server. Identity, the visibility kernel, the outbound gateway, the connection-layer guard, a real captured WebSocket frame, and the regression tests that pin the contract.',
     status: 'outline',
     audience:
-      'Chess developers, security-minded readers, anyone curious about how an open-source online chess platform enforces a hidden-information variant correctly.',
+      'Chess developers, security-minded readers, and multiplayer-game developers who already know the server-authoritative pattern from FPS/RTS work and want to see it applied to chess.',
     thumbnail: {
       pieces: boardToPieces(CONE_QUEEN.board),
       fogSquares: CONE_QUEEN_FOG,
       orientation: 'white',
     },
     tldr: [
-      'Mistboard\'s server holds the canonical game state. Clients never receive it — they receive a derived PlayerView, computed per recipient, with hidden pieces and hidden moves stripped before the bytes leave the server.',
-      'Three layers do the work: a per-recipient view kernel in packages/game, a per-recipient outbound shaper in apps/server, and a connection-layer rule that lets only seated players observe a live game.',
+      'Mistboard\'s server holds the canonical game state. Clients never receive it — they receive a derived PlayerView, computed per recipient, with hidden pieces and hidden moves stripped before the bytes leave the server. This is the standard server-authoritative pattern from FPS/RTS games, applied to chess.',
+      'A snapshot\'s journey: server-assigned identity (seat token) → per-recipient view (visibility kernel) → per-recipient outbound frame (gateway) → a connection-layer guard that lets only seated players observe a live game. The same rule also gates HTTP replay.',
       'The same source-of-truth principle decides threefold repetition (counted over canonical positions, not visible ones), the 50-move rule, and clock expiration. The server is authoritative; the client renders.',
     ],
     sections: [
       {
-        heading: 'The architecture',
+        heading: 'The pattern: server-authoritative state',
         paragraphs: [
-          'Section TBD. Set up the three-layer model: (1) canonical GameState lives only on the server; (2) packages/game/src/variants.ts defines fogOfWarVariant.getPlayerView(state, player) which computes per-player visibility and masks the board; (3) apps/server/src/payloads.ts wraps getPlayerView into per-recipient snapshotPayload calls that are sent on the WebSocket.',
-          '[VISUAL: three-layer diagram. Top: canonical GameState (full board, full history). Middle: getPlayerView per side, producing two distinct PlayerViews. Bottom: snapshotPayload per recipient, fanning out over WS to the two seated clients only.]',
+          'Section TBD. Frame the article as applied engineering, not invented theory. If you\'ve shipped a multiplayer FPS or RTS, this won\'t surprise you: the server holds true state; the client holds a derived view; identity is server-assigned. Counter-Strike does it for players behind walls. Starcraft does it for fog of war. League does it for jungler ganks. The pattern has been the right answer in real-time games for decades.',
+          'Chess is unusual in two ways. (1) Most chess servers don\'t need this discipline because there\'s no hidden state to leak — the position is public by definition. (2) Among servers that DO host hidden-information variants, the dominant pattern has been client-side enforcement: the canonical position is broadcast to both clients and the fog is applied in CSS. That\'s a leak by construction. Browser extensions exist that strip the fog — see chesscom_client_side_fog_confirmed in the FoW library.',
+          'Mistboard treats dark chess the way Counter-Strike treats walls: the bytes for what you can\'t see never leave the server. The rest of this article is what that takes.',
+          '[VISUAL: small comparison — left panel: client-side fog architecture (server sends full GameState, client masks). Right panel: server-side fog architecture (server sends per-recipient PlayerView). Arrow from left panel to a "stripped by browser extension" leak; arrow from right panel to nothing.]',
         ],
       },
       {
-        heading: 'The visibility kernel',
+        heading: 'The journey of a snapshot',
         paragraphs: [
-          'Section TBD. Walk through packages/game/src/variants.ts fogVisibleSquares (lines 184-193) and boardVisibleTo (lines 201-208) — together they are the entire fog primitive. "The opponent\'s piece on e5 isn\'t hidden by CSS — it\'s not in this object."',
-          '[VISUAL: annotated code snippet, side-by-side with a board diagram showing the visibility set as highlighted squares.]',
-          '[VISUAL: lastMove handling — visibleLastMoveForPlayer (lines 210-216). Diagram showing that the opponent\'s last move arrow is omitted from the view, even when you can see the destination piece.]',
+          'Section TBD. Walk one frame end-to-end. A move happens. The server applies it to the canonical state. Now four things need to happen before bytes reach a client: confirm identity, derive a view, shape the outbound frame, and (for any new connection) check observation rights.',
+          '[VISUAL: four-beat flow diagram. Identity → Kernel → Gateway → Observation guard. Each beat labeled with its file: index.ts (assignSeat / verifySeatToken) → variants.ts (getPlayerView) → payloads.ts (snapshotPayload) → server-policy.ts (canObserveLiveRoom).]',
+          'BEAT 1 — Identity. When a player claims a seat, the server mints a per-seat token (index.ts:1140 assignSeat), stores its bcrypt hash in Postgres (room_seat_tokens.token_hash), and hands the raw token back to that client. Future WS connections present the token via the Sec-WebSocket-Protocol header (server-policy.ts seatTokenFromProtocolHeader, around line 91). The server verifies the token against the stored hash (verifyRoomSeatToken) and binds the socket to a server-assigned Seat: \'white\' | \'black\' | \'spectator\'. The seat is server-assigned, never client-claimed. This is the trust boundary the rest of the system depends on.',
+          'BEAT 2 — Visibility kernel. With a trusted seat in hand, the server derives a PlayerView. packages/game/src/variants.ts fogVisibleSquares (around line 171) computes the set of squares this player can see; boardVisibleTo (around line 188) returns a new board object containing only pieces on those squares; visibleLastMoveForPlayer (around line 197) decides whether to surface the opponent\'s last move arrow (it doesn\'t, during play). The framing: "the opponent\'s piece on e5 isn\'t hidden by CSS — it\'s not in this object."',
+          'BEAT 3 — Outbound gateway. apps/server/src/payloads.ts snapshotPayload (around line 52) is called once per recipient in broadcastSnapshot. Three fields matter for fog: state (the per-seat PlayerView from beat 2), events (move-played events filtered to own color in live fog games, see eventsVisibleByMode around line 101), and devViews (admin-gated truth view; never reachable from a query param in production). A defense-in-depth detail worth noting: eventsVisibleByMode strips move-played events for spectators even though spectators are rejected at the connection layer in beat 4 — belt and suspenders, in case a spectator client ever reaches the gateway.',
+          'BEAT 4 — Connection-layer guard. For any NEW connection (not just snapshots flowing on an existing one), server-policy.ts canObserveLiveRoom (line 59) decides if a non-seated client can join. It returns true only when the game is finished. Non-seated WS connections to a live room are rejected with a 1008 \'private room\' close — before any snapshot is computed or sent. The same rule gates HTTP replay: eventReplayResponse (server-policy.ts:31) returns 403 game_not_public on any unfinished game, and re-derives finished-ness by replaying the event log (replayGameEvents) rather than trusting a stored flag.',
+          '[VISUAL: a single broadcastSnapshot call expanded into two distinct WS frames, one per recipient, with the differing state.board contents shown side by side.]',
+          '[VISUAL: annotated code snippet of fogVisibleSquares + boardVisibleTo side-by-side with a board diagram showing the visibility set as highlighted squares.]',
         ],
       },
       {
-        heading: 'The outbound gateway',
+        heading: 'One rule, all modes',
         paragraphs: [
-          'Section TBD. apps/server/src/payloads.ts snapshotPayload is called once per recipient in broadcastSnapshot. Three fields matter: state (per-seat PlayerView), events (move-played events filtered to own color in live fog games), and devViews (admin-gated truth view; never reachable from a query param in production).',
-          '[VISUAL: a single broadcastSnapshot call expanded into two distinct WS frames, one per recipient, with the differing payloads side by side.]',
+          'Section TBD. canObserveLiveRoom is one line: return projection.state.status.type === \'finished\'. Live games are visible only to seated players, regardless of mode (PvP, PvE, EvE). A naive implementation would enumerate a per-mode table — does PvP allow spectators? PvE? EvE? Live vs finished vs aborted? — and a careless cell in that table would be a leak. The single rule sidesteps the whole grid.',
+          'Tradeoff acknowledged: no live spectator view for engine games or for friends watching you play the bot. The simplification is worth it. Every future variant or mode inherits the rule for free, and there are zero cells in a table that can drift out of sync.',
+          '[VISUAL: small comparison — left: a 4×3 per-mode table (PvP/PvE/EvE × live/finished/aborted) with question marks in some cells. Right: a single rule. Visual collapse from many cells to one.]',
         ],
       },
       {
-        heading: 'The one rule for live observation',
+        heading: 'See it: a captured WebSocket frame + the triptych',
         paragraphs: [
-          'Section TBD. server-policy.ts canObserveLiveRoom: returns true only when the game is finished. Live games are visible only to seated players, regardless of mode (PvP, PvE, EvE). Non-seated WebSocket connections to a live room are rejected with 1008 \'private room\'. This collapses what used to be a per-mode table (12 cells: mode × game-state × viewer) to a single rule. Tradeoff acknowledged: no live spectator view for engine games or for friends watching you play the bot. The simplification is worth it — every future variant or mode inherits the rule for free.',
-          '[VISUAL: small table — old per-mode rules (4 rows: PvP/PvE/EvE × live/finished) vs new single rule. Visual collapse from 12 cells to 2.]',
-        ],
-      },
-      {
-        heading: 'Show me: a captured WebSocket frame',
-        paragraphs: [
-          'Section TBD. Pretty-printed JSON of a real snapshot frame from a live PvP game sent to white\'s socket: state.board has ~16 entries (not 32), state.visibleSquares is a sorted list of white\'s seen squares, events contains only white\'s move-played records.',
-          '[VISUAL: JSON snippet of a captured snapshot frame (anonymized roomId, real data shape).]',
-          '[VISUAL: side-by-side — canonical state (server-only, 32 pieces, full history) on the left; white\'s PlayerView (16-20 pieces, white\'s moves only) on the right. Same position, two boxes.]',
-        ],
-      },
-      {
-        heading: 'Show me: see the same position from three sides',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              '[INTERACTIVE PLACEHOLDER: stepper widget with a tab strip — Truth / White\'s view / Black\'s view — over a single mid-game position. Reuses the triptych pattern from the dark chess rules article. Possibly: a "click any square to highlight what each side sees from that piece" interaction.]',
-          },
+          'Section TBD. Two artifacts in one section, each doing different work.',
+          'ARTIFACT 1 — a real captured snapshot frame, exported as SERVER_FOG_SNAPSHOT_ARTIFACT from articles-data.ts and stored verbatim at apps/web/src/article-snapshot-fog.json. Captured via apps/server/scripts/capture-snapshot.mjs from a live PvP fog room after the sequence 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6, recorded from white\'s socket on white\'s next turn. roomId and clientId anonymized; epochs replaced with a fixed base time; everything else is the real wire format. Receipts to highlight in the prose: state.board has 18 entries (white\'s 16 + black\'s e5 pawn + black\'s f7 pawn — note: the black knight on c6 is NOT in white\'s board even though it canonically exists, because c6 is not in state.visibleSquares); state.visibleSquares is a sorted list of 37 squares; events contains 3 move-played records, all color: "white", with black\'s 3 move-played events completely absent; state.lastMove is absent (visibleLastMoveForPlayer returns undefined for the opponent\'s last move during play). Re-run the capture script after any wire-format change.',
+          '[VISUAL: JSON snippet of the captured snapshot frame.]',
+          '[VISUAL: side-by-side — canonical state (server-only, 32 pieces, full history) on the left; white\'s PlayerView (~16 pieces, white\'s moves only) on the right. Same position, two boxes, different bytes.]',
+          'ARTIFACT 2 — an interactive triptych. Truth / White\'s view / Black\'s view tab strip over a single mid-game position. Reuses the triptych pattern from the dark chess rules article. The "feel it, don\'t just read it" moment for chess players who skipped past the JSON.',
+          '[INTERACTIVE PLACEHOLDER: triptych stepper with Truth / White / Black tabs over one position.]',
         ],
       },
       {
         heading: 'Prove it: the regression tests',
         paragraphs: [
-          'Section TBD. apps/server/src/privacy-ws.test.ts spawns a real built server, opens real WebSockets, and asserts on the wire bytes — not on mocked internals. The fog-specific assertions: PvE/EvE third-party WS connection is rejected with 1008 \'private room\' before any snapshot is sent; seated players in PvP can\'t see opponent move-played events; finished games reveal everything.',
-          '[VISUAL: code excerpt from privacy-ws.test.ts showing the rejection assertion. Caption: "clone the repo and run npm test — these run in CI on every commit."]',
+          'Section TBD. apps/server/src/privacy-ws.test.ts spawns a real built server, opens real WebSockets, and asserts on the wire bytes — not on mocked internals. The fog-specific assertions: PvP/PvE/EvE third-party WS connection is rejected with 1008 \'private room\' before any snapshot is sent (lines 41, 195, 216); a copied client id without a seat token cannot reclaim a private PvP seat (line 123); a wrong seat token cannot reclaim either (line 139); seated players in PvP don\'t see opponent move-played events; finished games reveal everything.',
+          'These run in CI on every commit. The article links the file and invites clone + npm test.',
+          '[VISUAL: code excerpt from privacy-ws.test.ts showing the 1008 rejection assertion. Caption: "clone the repo and run npm test — these run in CI on every commit."]',
         ],
       },
       {
         heading: 'More than fog: the server is the source of truth',
         paragraphs: [
-          'Section TBD. The same principle that makes fog enforcement work decides the rest of the game state. Threefold repetition is the most interesting case in fog: two players can see the same visible position twice while the underlying canonical position differs (a phantom piece moved off-screen). The server counts repetitions over the canonical board (variants.ts:295-309 positionRepetitionKey), not over either player\'s view. Counting from views would be both wrong and exploitable.',
-          'Also enforced server-side: king capture as the win condition (variants.ts:267-269), the 50-move rule via halfmoveClock, clock expiration, resignation, draw-by-agreement, pause/resume across server restart. The client renders; the server decides.',
+          'Section TBD. The same principle that makes fog enforcement work decides the rest of the game state. Threefold repetition is the most interesting case in fog: two players can see the same visible position twice while the underlying canonical position differs (a phantom piece moved off-screen). The server counts repetitions over the canonical board (variants.ts positionRepetitionKey around line 282), not over either player\'s view. Counting from views would be both wrong and exploitable.',
+          'Also enforced server-side: king capture as the win condition (variants.ts around line 254), the 50-move rule via halfmoveClock, clock expiration, resignation, draw-by-agreement, pause/resume across server restart. The client renders; the server decides.',
           '[VISUAL: code excerpt of positionRepetitionKey showing the full board enumeration. Caption noting why view-based repetition would be both incorrect and exploitable in a fog setting.]',
         ],
       },
       {
         heading: 'Honest limits',
         paragraphs: [
-          'Section TBD. Three caveats to be explicit about: (1) finished games reveal full truth — same as Lichess\'s FoW model; replay/share need it. (2) Live spectator view in PvP is "nothing" by design — we don\'t render a fair-fog-union view for friends watching, because we couldn\'t do it without exposing one side\'s perspective. (3) The devViews admin path exists for debugging and is gated on a constant-time-compared admin token (server-policy.ts isDebugViewAuthorized + index.ts handleAdminDebugAuth). Query params alone cannot flip it in production.',
+          'Section TBD. Four caveats to be explicit about. (1) Finished games reveal full truth — same as Lichess\'s FoW model; replay/share need it. (2) Live spectator view in PvP is "nothing" by design — we don\'t render a fair-fog-union view for friends watching, because we couldn\'t do it without exposing one side\'s perspective. (3) Identity in v1 is "possession of the seat token shared via the room link" — anonymous, not OAuth, not email-bound for casual play; this is a deliberate v1 choice that supports the link-share product loop. (4) The devViews admin path exists for debugging and is gated on a constant-time-compared admin token (server-policy.ts isDebugViewAuthorized + index.ts handleAdminDebugAuth, around line 1487). Query params alone cannot flip it in production.',
         ],
       },
       {
         heading: 'Where the code lives',
         paragraphs: [
-          'Section TBD. Repo map: packages/game/src/variants.ts (the kernel), apps/server/src/payloads.ts (the gateway), apps/server/src/server-policy.ts (the one observation rule), apps/server/src/privacy-ws.test.ts (the regression tests). Link to the repo, encourage forks and issues.',
+          'Section TBD. Repo map: packages/game/src/variants.ts (the kernel), apps/server/src/payloads.ts (the gateway), apps/server/src/server-policy.ts (the observation rule + HTTP replay rule), apps/server/src/index.ts (seat-token mint + verify), apps/server/src/privacy-ws.test.ts (the regression tests). Link to the repo.',
         ],
       },
       {
@@ -1498,3 +1494,9 @@ export const articles: Article[] = [
 export function findArticle(slug: string): Article | undefined {
   return articles.find((a) => a.slug === slug);
 }
+
+// Real WebSocket snapshot frame captured from a live PvP dark-chess room
+// via apps/server/scripts/capture-snapshot.mjs and anonymized. Embedded as
+// a verbatim artifact for the server-enforced-fog article. Re-run the
+// capture script after wire-format changes.
+export const SERVER_FOG_SNAPSHOT_ARTIFACT = articleSnapshotFog as unknown as Record<string, unknown>;

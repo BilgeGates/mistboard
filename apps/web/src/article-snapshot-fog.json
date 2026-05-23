@@ -1,0 +1,403 @@
+{
+  "type": "snapshot",
+  "roomId": "mb-demo-room-001",
+  "mode": "pvp",
+  "pveEngineId": null,
+  "pveEngineName": null,
+  "serverAt": 1700000010000,
+  "clients": 2,
+  "seat": "white",
+  "solo": false,
+  "seats": {
+    "white": "white-client-0001",
+    "black": "black-client-0001"
+  },
+  "offer": [],
+  "offers": {
+    "white": [],
+    "black": []
+  },
+  "selections": {},
+  "devViews": null,
+  "resolvedStartId": null,
+  "resolvedStartIds": {},
+  "events": [
+    {
+      "type": "room-created",
+      "at": 1700000001000,
+      "roomId": "mb-demo-room-001",
+      "variant": "fog-of-war",
+      "offer": []
+    },
+    {
+      "type": "seat-assigned",
+      "at": 1700000002000,
+      "roomId": "mb-demo-room-001",
+      "clientId": "white-client-0001",
+      "seat": "white"
+    },
+    {
+      "type": "seat-assigned",
+      "at": 1700000003000,
+      "roomId": "mb-demo-room-001",
+      "clientId": "black-client-0001",
+      "seat": "black"
+    },
+    {
+      "type": "clock-started",
+      "at": 1700000004000,
+      "roomId": "mb-demo-room-001",
+      "clock": {
+        "activeColor": "white",
+        "incrementMs": 2000,
+        "initialMs": 180000,
+        "remainingMs": {
+          "black": 180000,
+          "white": 180000
+        },
+        "runningSince": 1700000010000
+      }
+    },
+    {
+      "type": "move-played",
+      "at": 1700000005000,
+      "roomId": "mb-demo-room-001",
+      "clock": {
+        "activeColor": "black",
+        "incrementMs": 2000,
+        "initialMs": 180000,
+        "remainingMs": {
+          "black": 180000,
+          "white": 181988
+        },
+        "runningSince": 1700000010000
+      },
+      "color": "white",
+      "move": {
+        "from": "e2",
+        "to": "e4"
+      }
+    },
+    {
+      "type": "move-played",
+      "at": 1700000006000,
+      "roomId": "mb-demo-room-001",
+      "clock": {
+        "activeColor": "black",
+        "incrementMs": 2000,
+        "initialMs": 180000,
+        "remainingMs": {
+          "black": 181989,
+          "white": 183976
+        },
+        "runningSince": 1700000010000
+      },
+      "color": "white",
+      "move": {
+        "from": "g1",
+        "to": "f3"
+      }
+    },
+    {
+      "type": "move-played",
+      "at": 1700000007000,
+      "roomId": "mb-demo-room-001",
+      "clock": {
+        "activeColor": "black",
+        "incrementMs": 2000,
+        "initialMs": 180000,
+        "remainingMs": {
+          "black": 183979,
+          "white": 185965
+        },
+        "runningSince": 1700000010000
+      },
+      "color": "white",
+      "move": {
+        "from": "f1",
+        "to": "c4"
+      }
+    }
+  ],
+  "state": {
+    "id": "mb-demo-room-001",
+    "variant": "fog-of-war",
+    "board": {
+      "a1": {
+        "color": "white",
+        "role": "rook"
+      },
+      "b1": {
+        "color": "white",
+        "role": "knight"
+      },
+      "c1": {
+        "color": "white",
+        "role": "bishop"
+      },
+      "d1": {
+        "color": "white",
+        "role": "queen"
+      },
+      "e1": {
+        "color": "white",
+        "role": "king"
+      },
+      "h1": {
+        "color": "white",
+        "role": "rook"
+      },
+      "a2": {
+        "color": "white",
+        "role": "pawn"
+      },
+      "b2": {
+        "color": "white",
+        "role": "pawn"
+      },
+      "c2": {
+        "color": "white",
+        "role": "pawn"
+      },
+      "d2": {
+        "color": "white",
+        "role": "pawn"
+      },
+      "f2": {
+        "color": "white",
+        "role": "pawn"
+      },
+      "g2": {
+        "color": "white",
+        "role": "pawn"
+      },
+      "h2": {
+        "color": "white",
+        "role": "pawn"
+      },
+      "f7": {
+        "color": "black",
+        "role": "pawn"
+      },
+      "e4": {
+        "color": "white",
+        "role": "pawn"
+      },
+      "e5": {
+        "color": "black",
+        "role": "pawn"
+      },
+      "f3": {
+        "color": "white",
+        "role": "knight"
+      },
+      "c4": {
+        "color": "white",
+        "role": "bishop"
+      }
+    },
+    "visibleSquares": [
+      "a1",
+      "a2",
+      "a3",
+      "a4",
+      "a6",
+      "b1",
+      "b2",
+      "b3",
+      "b4",
+      "b5",
+      "c1",
+      "c2",
+      "c3",
+      "c4",
+      "d1",
+      "d2",
+      "d3",
+      "d4",
+      "d5",
+      "e1",
+      "e2",
+      "e4",
+      "e5",
+      "e6",
+      "f1",
+      "f2",
+      "f3",
+      "f7",
+      "g1",
+      "g2",
+      "g3",
+      "g4",
+      "g5",
+      "h1",
+      "h2",
+      "h3",
+      "h4"
+    ],
+    "legalMoves": [
+      {
+        "from": "b1",
+        "to": "a3"
+      },
+      {
+        "from": "b1",
+        "to": "c3"
+      },
+      {
+        "from": "d1",
+        "to": "e2"
+      },
+      {
+        "from": "e1",
+        "to": "e2"
+      },
+      {
+        "from": "e1",
+        "to": "f1"
+      },
+      {
+        "from": "e1",
+        "to": "h1"
+      },
+      {
+        "from": "h1",
+        "to": "g1"
+      },
+      {
+        "from": "h1",
+        "to": "f1"
+      },
+      {
+        "from": "a2",
+        "to": "a3"
+      },
+      {
+        "from": "a2",
+        "to": "a4"
+      },
+      {
+        "from": "b2",
+        "to": "b3"
+      },
+      {
+        "from": "b2",
+        "to": "b4"
+      },
+      {
+        "from": "c2",
+        "to": "c3"
+      },
+      {
+        "from": "d2",
+        "to": "d3"
+      },
+      {
+        "from": "d2",
+        "to": "d4"
+      },
+      {
+        "from": "g2",
+        "to": "g3"
+      },
+      {
+        "from": "g2",
+        "to": "g4"
+      },
+      {
+        "from": "h2",
+        "to": "h3"
+      },
+      {
+        "from": "h2",
+        "to": "h4"
+      },
+      {
+        "from": "f3",
+        "to": "d4"
+      },
+      {
+        "from": "f3",
+        "to": "e5"
+      },
+      {
+        "from": "f3",
+        "to": "g1"
+      },
+      {
+        "from": "f3",
+        "to": "g5"
+      },
+      {
+        "from": "f3",
+        "to": "h4"
+      },
+      {
+        "from": "c4",
+        "to": "b3"
+      },
+      {
+        "from": "c4",
+        "to": "b5"
+      },
+      {
+        "from": "c4",
+        "to": "a6"
+      },
+      {
+        "from": "c4",
+        "to": "d3"
+      },
+      {
+        "from": "c4",
+        "to": "e2"
+      },
+      {
+        "from": "c4",
+        "to": "f1"
+      },
+      {
+        "from": "c4",
+        "to": "d5"
+      },
+      {
+        "from": "c4",
+        "to": "e6"
+      },
+      {
+        "from": "c4",
+        "to": "f7"
+      }
+    ],
+    "status": {
+      "type": "playing",
+      "turn": "white"
+    },
+    "perspective": "white",
+    "moveNumber": 4,
+    "clock": {
+      "activeColor": "white",
+      "incrementMs": 2000,
+      "initialMs": 180000,
+      "remainingMs": {
+        "black": 185968,
+        "white": 185965
+      },
+      "runningSince": 1700000010000
+    }
+  },
+  "rated": true,
+  "paused": false,
+  "connectedSeats": {
+    "white": true,
+    "black": true
+  },
+  "seatDisplayNames": {},
+  "rematch": {
+    "offers": {
+      "white": false,
+      "black": false
+    },
+    "finalizedRoomId": null
+  }
+}
