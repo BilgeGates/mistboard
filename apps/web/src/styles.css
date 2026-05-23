@@ -3551,7 +3551,13 @@ body:has(
 }
 
 .articles-thumb-board.cg-wrap {
-  /* width comes from .cg-snap (default --cg-w: 100%) */
+  /* Thumbnails opt OUT of the .cg-snap width snap: the card clips with
+     border-radius + overflow:hidden, so the board fills the card edge-to-edge
+     (rounded corners clip it) rather than snapping to a multiple of 8 and
+     leaving a matte border inside the rounded card. Any sub-pixel quantization
+     gap is hidden by the clip. width:100% (specificity 0,2,0) overrides .cg-snap
+     (0,1,0). */
+  width: 100%;
   height: 100%;
   position: relative;
   display: block;
