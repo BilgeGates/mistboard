@@ -9,9 +9,14 @@ ALTER TABLE games
   ADD COLUMN IF NOT EXISTS review_status TEXT NOT NULL DEFAULT 'unreviewed',
   ADD COLUMN IF NOT EXISTS aborted_reason TEXT;
 
+-- Backfill: corpus-imported games default to mode='imported'. Filtered to
+-- mode='pvp' (the previous schema default) so a re-run won't overwrite any
+-- row whose mode was deliberately set to something else (e.g. 'manual',
+-- 'eve') after this migration first applied.
 UPDATE games
 SET mode = 'imported'
-WHERE corpus_id IS NOT NULL;
+WHERE corpus_id IS NOT NULL
+  AND mode = 'pvp';
 
 ALTER TABLE games
   ALTER COLUMN result DROP NOT NULL,

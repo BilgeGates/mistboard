@@ -14,6 +14,11 @@ ALTER TABLE users
 ALTER TABLE users
   ALTER COLUMN profile_visibility SET DEFAULT 'public';
 
+-- The WHERE clauses below act as their own idempotency guard: value-filtered
+-- UPDATEs are no-ops on re-run. CAVEAT: if a user opts back to 'private' after
+-- this migration applies, a manual re-run of this file would un-do that opt-out.
+-- The `_migrations` table dedup is what actually prevents that — do not run
+-- this file directly via psql.
 UPDATE users
 SET profile_visibility = 'public'
 WHERE profile_visibility = 'private';
