@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "timestamp": "2026-05-22T23:34:45.835Z",
+    "report": "d3i50 fresh"
+  },
+  "positions": {
+    "1": {
+      "fast-equal": false,
+      "fast-better": false,
+      "slow-better": true,
+      "fast-bad": false,
+      "both-bad": false,
+      "comment": ""
+    },
+    "2": {
+      "fast-equal": true,
+      "fast-better": false,
+      "slow-better": true,
+      "fast-bad": false,
+      "both-bad": false,
+      "comment": ""
+    },
+    "3": {
+      "fast-equal": true,
+      "fast-better": false,
+      "slow-better": false,
+      "fast-bad": false,
+      "both-bad": false,
+      "comment": ""
+    },
+    "4": {
+      "fast-equal": true,
+      "fast-better": false,
+      "slow-better": false,
+      "fast-bad": false,
+      "both-bad": false,
+      "comment": ""
+    },
+    "5": {
+      "fast-equal": false,
+      "fast-better": false,
+      "slow-better": false,
+      "fast-bad": true,
+      "both-bad": false,
+      "comment": ""
+    },
+    "6": {
+      "fast-equal": false,
+      "fast-better": false,
+      "slow-better": false,
+      "fast-bad": true,
+      "both-bad": false,
+      "comment": ""
+    }
+  }
+}
