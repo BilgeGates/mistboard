@@ -7,7 +7,7 @@ import {
 } from './chess960.js';
 import { advanceClock, createClock, expireClock, freezeClock, unfreezeClock } from './clocks.js';
 import type { ClockState, Color, GameState, Move, PieceRole, VariantId } from './types.js';
-import { variantForId } from './variants.js';
+import { normalizeVariantId, variantForId } from './variants.js';
 
 export type RoomTimeControl = {
   initialMs: number;
@@ -146,15 +146,16 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   if (event.roomId !== projection.roomId) return projection;
 
   if (event.type === 'room-created') {
-    const state = variantForId(event.variant).createInitialState(event.roomId);
+    const variant = normalizeVariantId(event.variant);
+    const state = variantForId(variant).createInitialState(event.roomId);
     return {
       ...projection,
-      variant: event.variant,
+      variant,
       offer: event.offer,
       offers: event.offers ?? { white: event.offer, black: event.offer },
       timeControl: event.timeControl,
       state:
-        event.variant === 'fog-of-war' && hasDraftOffer(event)
+        variant === 'fog-of-war' && hasDraftOffer(event)
           ? { ...state, status: { type: 'pregame' } }
           : state,
     };

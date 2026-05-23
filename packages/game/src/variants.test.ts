@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GameState, Move } from './types.js';
-import { draft960Variant, fogOfWarVariant } from './variants.js';
+import { draft960Variant, fogOfWarVariant, normalizeVariantId } from './variants.js';
+
+test('normalizeVariantId accepts both fog slugs and maps to the canonical id', () => {
+  assert.equal(normalizeVariantId('fog-of-war'), 'fog-of-war');
+  assert.equal(normalizeVariantId('dark-chess'), 'fog-of-war');
+  assert.equal(normalizeVariantId('draft960'), 'draft960');
+});
+
+test('normalizeVariantId throws on an unknown slug', () => {
+  assert.throws(() => normalizeVariantId('chess'), /unknown variant id/);
+});
 
 test('Draft960 exposes legal moves once playing', () => {
   const state: GameState = {

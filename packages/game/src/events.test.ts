@@ -778,3 +778,28 @@ test('multiple pause/resume cycles do not leak wall-clock time into player clock
   assert.equal(projection.paused, false);
   assert.equal(projection.state.clock?.activeColor, 'white');
 });
+
+test('replay normalizes a dark-chess room-created event to the fog-of-war projection', () => {
+  // Simulates a persisted event stream that carries the future canonical slug.
+  // The slug is cast in because it is not yet a member of the VariantId union;
+  // at rest in the DB it is just JSON, which is exactly the boundary the alias
+  // defends. Replaying either spelling must yield an identical projection.
+  const stream = (slug: string): GameEvent[] =>
+    [
+      { type: 'room-created', at: 1, roomId: 'parity-room', variant: slug, offer: [] },
+      { type: 'seat-assigned', at: 2, roomId: 'parity-room', clientId: 'w', seat: 'white' },
+      {
+        type: 'move-played',
+        at: 3,
+        roomId: 'parity-room',
+        color: 'white',
+        move: { from: 'e2', to: 'e4' },
+      },
+    ] as GameEvent[];
+
+  const fog = replayGameEvents(stream('fog-of-war'));
+  const dark = replayGameEvents(stream('dark-chess'));
+
+  assert.deepEqual(dark, fog);
+  assert.equal(dark.variant, 'fog-of-war');
+});
