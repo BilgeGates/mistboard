@@ -32,6 +32,10 @@ export type SnapshotRoom = {
   // window is live. Sent to clients to render the abort countdown; survives
   // reconnect since it's an absolute timestamp.
   abortDeadline?: number | null;
+  // Absolute ms deadline for the post-move-1 leaver forfeit countdown, or null.
+  // Drives the "opponent left — you win in Ns" banner; absolute so it survives
+  // reconnect.
+  forfeitDeadline?: number | null;
 };
 
 export function computeConnectedSeats(clients: Iterable<{ seat: Seat; displaced: boolean }>): {
@@ -131,6 +135,7 @@ function basePayloadFields(room: SnapshotRoom, client: SnapshotClient) {
     rated: room.rated ?? true,
     paused: room.projection.paused,
     abortDeadline: room.abortDeadline ?? null,
+    forfeitDeadline: room.forfeitDeadline ?? null,
     connectedSeats: computeConnectedSeats(room.clients),
     seatDisplayNames: room.seatDisplayNames ?? {},
     rematch: room.rematch

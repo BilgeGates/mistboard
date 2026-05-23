@@ -19,8 +19,9 @@ test('isGameEndReason rejects unknown strings and non-strings', () => {
   assert.equal(isGameEndReason({}), false);
 });
 
-test('gameEndReasons covers exactly the five known reasons', () => {
+test('gameEndReasons covers exactly the known reasons', () => {
   assert.deepEqual([...gameEndReasons].sort(), [
+    'abandonment',
     'checkmate',
     'draw',
     'king-captured',

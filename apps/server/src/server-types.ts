@@ -77,6 +77,16 @@ export type Room = {
   abortTimer: ReturnType<typeof setTimeout> | null;
   abortDeadline: number | null;
   abortPhase: 'white-1' | 'black-1' | null;
+  // Post-move-1 leaver forfeit. When a seated player disconnects from an
+  // in-progress game and their opponent is present, the absent side has
+  // FORFEIT_WINDOW_MS to return or it forfeits (opponent wins by abandonment).
+  // forfeitSeat is the absent side counting down; deadline is the absolute ms
+  // timestamp sent to clients. Re-derived from seat presence on every
+  // connect/disconnect and state change; the deadline only resets when
+  // forfeitSeat changes, so a reconnect-then-redrop doesn't extend it.
+  forfeitTimer: ReturnType<typeof setTimeout> | null;
+  forfeitDeadline: number | null;
+  forfeitSeat: Color | null;
   mode: GameMode;
   rated: boolean;
   randomEngine: boolean;

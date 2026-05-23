@@ -37,6 +37,7 @@ export type GameTermination =
   | 'worker-aborted'
   | 'server-restarted'
   | 'abandoned'
+  | 'abandonment'
   | 'no-legal-moves'
   | 'truncated';
 export type GameReviewStatus = 'unreviewed' | 'flagged' | 'reviewed' | 'training' | 'rejected';

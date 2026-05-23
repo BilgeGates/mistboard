@@ -16,7 +16,9 @@ import {
   broadcastSnapshot,
   buildGameSummary,
   clearAbortTimer,
+  clearForfeitTimer,
   expireActiveClock,
+  FORFEIT_WINDOW_MS,
   pauseRoomOnShutdown,
   playMove,
   type RoomManagerContext,
@@ -24,6 +26,7 @@ import {
   resumeRoom,
   resumeRoomIfReady,
   scheduleAbortTimeout,
+  scheduleForfeitTimeout,
   scheduleRandomEngineMove,
 } from './room-manager.js';
 import type { Client, Room } from './server-types.js';
@@ -58,6 +61,9 @@ function makeRoom(
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
+    forfeitTimer: null,
+    forfeitDeadline: null,
+    forfeitSeat: null,
     mode: 'pvp',
     rated: true,
     randomEngine: false,
@@ -1063,4 +1069,82 @@ test('scheduleAbortTimeout: re-running within the same phase preserves the deadl
   scheduleAbortTimeout(ctx, room);
   assert.equal(room.abortDeadline, firstDeadline, 're-broadcast must not extend the window');
   clearAbortTimer(room);
+});
+
+// ── scheduleForfeitTimeout ────────────────────────────────────────────────────
+
+function move2Events(id: string, whiteClient = 'wc', blackClient = 'bc'): GameEvent[] {
+  return [
+    { type: 'room-created', at: 1, roomId: id, variant: 'dark-chess', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: id, clientId: whiteClient, seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: id, clientId: blackClient, seat: 'black' },
+    { type: 'clock-started', at: 4, roomId: id, clock: createClock(4, 60_000, 0) },
+    { type: 'move-played', at: 1000, roomId: id, color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 2000, roomId: id, color: 'black', move: { from: 'e7', to: 'e5' } },
+  ];
+}
+
+test('scheduleForfeitTimeout: no forfeit while both players are present', () => {
+  const room = makeRoom('ff-both', 'dark-chess', move2Events('ff-both'));
+  room.clients.add(makeClient('wc', 'white'));
+  room.clients.add(makeClient('bc', 'black'));
+  scheduleForfeitTimeout(makeCtx(), room);
+  assert.equal(room.forfeitSeat, null);
+  assert.equal(room.forfeitTimer, null);
+});
+
+test('scheduleForfeitTimeout: arms a countdown for the lone absent seat', () => {
+  const room = makeRoom('ff-gone', 'dark-chess', move2Events('ff-gone'));
+  room.clients.add(makeClient('wc', 'white')); // only white present; black is gone
+  const before = Date.now();
+  scheduleForfeitTimeout(makeCtx(), room);
+  assert.equal(room.forfeitSeat, 'black');
+  assert.ok(room.forfeitTimer !== null);
+  assert.ok(
+    room.forfeitDeadline !== null && room.forfeitDeadline >= before + FORFEIT_WINDOW_MS - 50,
+  );
+  clearForfeitTimer(room);
+});
+
+test('scheduleForfeitTimeout: no forfeit before both first moves (pre-move-2)', () => {
+  const room = makeRoom('ff-premove', 'dark-chess', clockStartedEvents('ff-premove'));
+  room.clients.add(makeClient('wc', 'white')); // black absent, but it's still the abort phase
+  scheduleForfeitTimeout(makeCtx(), room);
+  assert.equal(room.forfeitSeat, null);
+  assert.equal(room.forfeitTimer, null);
+});
+
+test('scheduleForfeitTimeout: no forfeit when both players are absent', () => {
+  const room = makeRoom('ff-empty', 'dark-chess', move2Events('ff-empty'));
+  // No clients connected — nobody to award the win to.
+  scheduleForfeitTimeout(makeCtx(), room);
+  assert.equal(room.forfeitSeat, null);
+  assert.equal(room.forfeitTimer, null);
+});
+
+test('scheduleForfeitTimeout: reconnect (both present again) cancels the countdown', () => {
+  const room = makeRoom('ff-reconnect', 'dark-chess', move2Events('ff-reconnect'));
+  const white = makeClient('wc', 'white');
+  room.clients.add(white); // black gone → forfeit armed
+  scheduleForfeitTimeout(makeCtx(), room);
+  assert.equal(room.forfeitSeat, 'black');
+  // Black returns.
+  room.clients.add(makeClient('bc', 'black'));
+  scheduleForfeitTimeout(makeCtx(), room);
+  assert.equal(room.forfeitSeat, null);
+  assert.equal(room.forfeitTimer, null);
+});
+
+test('scheduleForfeitTimeout: PvE human disconnect forfeits to the always-present engine', () => {
+  const room = makeRoom('ff-pve', 'dark-chess', move2Events('ff-pve', 'engine-1', 'human-1'));
+  room.pveEngineId = 'engine-1'; // engine plays white; it never holds a WS client
+  // Human (black) is absent; the engine seat counts as present.
+  scheduleForfeitTimeout(makeCtx(), room);
+  assert.equal(room.forfeitSeat, 'black', 'human forfeits to the engine');
+  clearForfeitTimer(room);
+
+  // With the human present, no forfeit — and the engine seat never forfeits.
+  room.clients.add(makeClient('human-1', 'black'));
+  scheduleForfeitTimeout(makeCtx(), room);
+  assert.equal(room.forfeitSeat, null);
 });

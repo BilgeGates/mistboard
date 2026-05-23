@@ -107,6 +107,13 @@ export type GameEvent =
       clock?: ClockState;
     }
   | {
+      type: 'seat-forfeited';
+      at: number;
+      roomId: string;
+      color: Color;
+      clock?: ClockState;
+    }
+  | {
       type: 'pause';
       at: number;
       roomId: string;
@@ -332,6 +339,25 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
           type: 'finished',
           winner: event.color === 'white' ? 'black' : 'white',
           reason: 'resignation',
+        },
+        clock: event.clock ?? freezeClock(projection.state.clock, event.at),
+      },
+    };
+  }
+
+  if (event.type === 'seat-forfeited') {
+    // The player of `color` abandoned an in-progress game; the opponent wins.
+    // Distinct from resignation only in reason ('abandonment') so PGN/analytics
+    // can tell a deliberate resign from a disconnect forfeit.
+    if (projection.state.status.type !== 'playing') return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: {
+          type: 'finished',
+          winner: event.color === 'white' ? 'black' : 'white',
+          reason: 'abandonment',
         },
         clock: event.clock ?? freezeClock(projection.state.clock, event.at),
       },

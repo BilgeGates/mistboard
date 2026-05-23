@@ -46,6 +46,7 @@ import {
   buildGameSummary,
   canClientAct,
   clearAbortTimer,
+  clearForfeitTimer,
   offerForColor,
   PersistenceFailure,
   pauseRoomOnShutdown,
@@ -58,6 +59,7 @@ import {
   roomIdToSeed,
   scheduleAbortTimeout,
   scheduleClockTimeout,
+  scheduleForfeitTimeout,
   scheduleRandomEngineMove,
   seatDisplayNamesForRoom,
   seatTokenStatesFromPersistence,
@@ -325,6 +327,7 @@ export async function stopServer(): Promise<void> {
     if (room.clockTimer) clearTimeout(room.clockTimer);
     if (room.engineTimer) clearTimeout(room.engineTimer);
     clearAbortTimer(room);
+    clearForfeitTimer(room);
     if (room.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
     for (const timer of Object.values(room.pendingVacates)) {
       if (timer) clearTimeout(timer);
@@ -705,6 +708,11 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   if (!solo && seat !== 'spectator') {
     displaceOlderSeatClients(room, client);
     clearPendingVacate(room, seat);
+    // A returning seat-holder re-derives the forfeit countdown: if this brings
+    // both sides present, the leaver's forfeit is cancelled. Runs after the
+    // auth gate (assignSeat) has already granted a color seat, so an
+    // unauthenticated client never reaches here as a seat-holder.
+    scheduleForfeitTimeout(roomMgrCtx, room);
   }
 
   // If the room is paused (post-restart hydration), let resumeRoomIfReady
@@ -876,6 +884,12 @@ async function handleClose(room: Room, client: Client): Promise<void> {
   ) {
     scheduleSeatVacate(room, client);
   }
+  // Post-move-1, a seated player leaving starts (or, if the opponent also just
+  // left, clears) the forfeit countdown. Re-derived from current presence —
+  // the disconnecting client was already removed from room.clients above. The
+  // displaced early-out higher up means a same-account device switch never
+  // reaches here, so it can't trigger a phantom forfeit.
+  scheduleForfeitTimeout(roomMgrCtx, room);
   broadcastSnapshot(roomMgrCtx, room);
 }
 
@@ -1037,6 +1051,9 @@ async function getOrCreateRoom(
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
+    forfeitTimer: null,
+    forfeitDeadline: null,
+    forfeitSeat: null,
     mode,
     rated: true,
     randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
@@ -1137,6 +1154,9 @@ async function createRoom(
       abortTimer: null,
       abortDeadline: null,
       abortPhase: null,
+      forfeitTimer: null,
+      forfeitDeadline: null,
+      forfeitSeat: null,
       mode,
       rated,
       randomEngine: mode === 'pve',
@@ -1633,6 +1653,7 @@ function resetRoom(roomId: string): void {
   if (room?.clockTimer) clearTimeout(room.clockTimer);
   if (room?.engineTimer) clearTimeout(room.engineTimer);
   if (room) clearAbortTimer(room);
+  if (room) clearForfeitTimer(room);
   if (room?.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
   rooms.delete(roomId);
 }
@@ -1971,6 +1992,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
     if (room.clockTimer) clearTimeout(room.clockTimer);
     if (room.engineTimer) clearTimeout(room.engineTimer);
     clearAbortTimer(room);
+    clearForfeitTimer(room);
     if (room.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
   }
   if (abortPolicyTimer) clearInterval(abortPolicyTimer);

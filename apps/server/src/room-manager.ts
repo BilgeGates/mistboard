@@ -20,7 +20,7 @@ import {
 import { engineVersionDisplayName, loadEngine } from './engine-registry.js';
 import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
 import { engineCounters, logger } from './obs.js';
-import { eventAppendedPayload, snapshotPayload } from './payloads.js';
+import { computeConnectedSeats, eventAppendedPayload, snapshotPayload } from './payloads.js';
 import type { GameSummary } from './persistence.js';
 import * as persistence from './persistence.js';
 import { isServerEngineClient, modeForProjection } from './server-policy.js';
@@ -421,6 +421,7 @@ export async function appendEvent(
     room.mode = modeForProjection(room.projection);
     scheduleClockTimeout(ctx, room);
     scheduleAbortTimeout(ctx, room);
+    scheduleForfeitTimeout(ctx, room);
     {
       const engineSeat = engineSeatFor(room);
       if (
@@ -603,6 +604,79 @@ export function scheduleAbortTimeout(ctx: RoomManagerContext, room: Room): void 
       });
   }, delay + 25);
   room.abortTimer.unref();
+}
+
+// How long a disconnected player has to return before forfeiting an
+// in-progress game (post-move-1). Reconnecting within the window cancels it.
+export const FORFEIT_WINDOW_MS = 30_000;
+
+export function clearForfeitTimer(room: Room): void {
+  if (room.forfeitTimer) clearTimeout(room.forfeitTimer);
+  room.forfeitTimer = null;
+}
+
+// The seat that should be forfeiting right now, or null if no forfeit applies.
+// A forfeit runs only when exactly one side is absent (the other is present to
+// be awarded the win). The engine seat counts as always-present (it lives
+// server-side and never holds a WS client), so a PvE human disconnect forfeits
+// to the engine, and the engine itself never forfeits. Both-absent → null (no
+// one to award), both-present → null (nobody left).
+function forfeitingSeat(room: Room): Color | null {
+  const { status, moveNumber } = room.projection.state;
+  if (status.type !== 'playing' || moveNumber < 2 || room.projection.paused) return null;
+  const engineSeat = engineSeatFor(room);
+  const connected = computeConnectedSeats(room.clients);
+  const present = (seat: Color): boolean => seat === engineSeat || connected[seat];
+  const whitePresent = present('white');
+  const blackPresent = present('black');
+  if (whitePresent && !blackPresent) return 'black';
+  if (!whitePresent && blackPresent) return 'white';
+  return null;
+}
+
+// Re-derive the leaver-forfeit countdown from current seat presence + game
+// state. Called on every connect, disconnect, and state change. Idempotent: the
+// 30s deadline only (re)starts when the forfeiting seat changes, so a transient
+// reconnect-then-redrop doesn't grant a fresh window. The clock keeps running
+// independently during a disconnect, so flagging still works in parallel.
+export function scheduleForfeitTimeout(ctx: RoomManagerContext, room: Room): void {
+  clearForfeitTimer(room);
+  const seat = forfeitingSeat(room);
+  if (seat === null) {
+    room.forfeitSeat = null;
+    room.forfeitDeadline = null;
+    return;
+  }
+  if (room.forfeitSeat !== seat || room.forfeitDeadline === null) {
+    room.forfeitSeat = seat;
+    room.forfeitDeadline = Date.now() + FORFEIT_WINDOW_MS;
+  }
+  const delay = Math.max(0, room.forfeitDeadline - Date.now());
+  room.forfeitTimer = setTimeout(() => {
+    if (forfeitingSeat(room) !== seat) return;
+    const fromSeq = room.events.length;
+    void appendEvent(ctx, room, {
+      type: 'seat-forfeited',
+      at: Date.now(),
+      roomId: room.id,
+      color: seat,
+    })
+      .then(() => broadcastEventAppended(ctx, room, fromSeq))
+      .catch((err) => {
+        if (!(err instanceof PersistenceFailure)) {
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              kind: 'forfeit_window_failure',
+              roomId: room.id,
+              error: (err as Error).message,
+              at: Date.now(),
+            }),
+          );
+        }
+      });
+  }, delay + 25);
+  room.forfeitTimer.unref();
 }
 
 // On hydrating a room post-restart, detect the case where a SIGKILL (or a

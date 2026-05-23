@@ -91,7 +91,13 @@ export type ClockState = {
   runningSince: number | null;
 };
 
-export type GameEndReason = 'checkmate' | 'draw' | 'king-captured' | 'timeout' | 'resignation';
+export type GameEndReason =
+  | 'checkmate'
+  | 'draw'
+  | 'king-captured'
+  | 'timeout'
+  | 'resignation'
+  | 'abandonment';
 
 export const gameEndReasons: readonly GameEndReason[] = [
   'checkmate',
@@ -99,6 +105,7 @@ export const gameEndReasons: readonly GameEndReason[] = [
   'king-captured',
   'timeout',
   'resignation',
+  'abandonment',
 ] as const;
 
 export function isGameEndReason(value: unknown): value is GameEndReason {

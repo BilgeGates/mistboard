@@ -570,6 +570,39 @@ test('seat-resigned ends the game with opposite color winning', () => {
   });
 });
 
+test('seat-forfeited ends the game for the opponent with reason abandonment', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'forfeit-room', variant: 'dark-chess', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: 'forfeit-room', clientId: 'wc', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: 'forfeit-room', clientId: 'bc', seat: 'black' },
+    { type: 'move-played', at: 4, roomId: 'forfeit-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 5, roomId: 'forfeit-room', color: 'black', move: { from: 'e7', to: 'e5' } },
+    // White abandons; black wins by abandonment.
+    { type: 'seat-forfeited', at: 6, roomId: 'forfeit-room', color: 'white' },
+  ];
+  const projection = replayGameEvents(events);
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'abandonment',
+  });
+});
+
+test('seat-forfeited after the game has finished is a no-op', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'forfeit-done', variant: 'dark-chess', offer: [] },
+    { type: 'seat-resigned', at: 2, roomId: 'forfeit-done', color: 'black' },
+    { type: 'seat-forfeited', at: 3, roomId: 'forfeit-done', color: 'white' },
+  ];
+  const projection = replayGameEvents(events);
+  // First terminal event wins; the forfeit is ignored.
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'white',
+    reason: 'resignation',
+  });
+});
+
 test('seat-resigned freezes the clock at the resign timestamp', () => {
   const startedClock = armedClock(1000, 60_000, 0);
   const events: GameEvent[] = [

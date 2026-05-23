@@ -111,6 +111,10 @@ export const liveState = {
   // Absolute ms deadline of the live pre-move abort window, or null. Drives the
   // "Aborting in 0:NN" countdown; an absolute timestamp so it survives reconnect.
   abortDeadline: null as number | null,
+  // Absolute ms deadline of the post-move-1 leaver forfeit window, or null. Only
+  // a present (winning) player ever receives this set — drives the "opponent
+  // left, you win in 0:NN" banner.
+  forfeitDeadline: null as number | null,
   pveEngineId: null as string | null,
   pveEngineName: null as string | null,
   seatDisplayNames: {} as Partial<Record<Color, string>>,

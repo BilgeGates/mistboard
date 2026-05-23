@@ -826,6 +826,15 @@ function renderGameControls(view: PlayerView | null): void {
     countdown.textContent = abortCountdownText(isSideToMove);
     children.push(countdown);
   }
+  // Post-move-1: only a present (winning) player ever receives forfeitDeadline,
+  // so this banner always reads from the beneficiary's POV.
+  if (!preMove && liveState.forfeitDeadline !== null) {
+    const banner = document.createElement('span');
+    banner.className = 'forfeit-countdown';
+    banner.dataset.forfeitCountdown = '';
+    banner.textContent = forfeitCountdownText();
+    children.push(banner);
+  }
   if (preMove) {
     if (isSideToMove) children.push(makeControlButton('Abort', requestAbort));
   } else {
@@ -849,16 +858,28 @@ function abortCountdownText(isSideToMove: boolean): string {
     : `Waiting for first move — aborting in ${seconds}s`;
 }
 
-// Driven by the 100ms tick loop so the countdown advances without a full
-// re-render. Only touches the existing element's text; render() owns creation
-// and teardown of the element itself.
+function forfeitRemainingSeconds(): number {
+  if (liveState.forfeitDeadline === null) return 0;
+  return Math.ceil(Math.max(0, liveState.forfeitDeadline - Date.now()) / 1000);
+}
+
+function forfeitCountdownText(): string {
+  return `Opponent left — you win in ${forfeitRemainingSeconds()}s`;
+}
+
+// Driven by the 100ms tick loop so the countdowns advance without a full
+// re-render. Only touch the existing elements' text; render() owns creation
+// and teardown of the elements themselves.
 export function updateAbortCountdown(): void {
-  const el = refs.gameControls?.querySelector<HTMLElement>('[data-abort-countdown]');
-  if (!el) return;
   const view = currentView();
-  if (!view || view.status.type !== 'playing' || view.moveNumber >= 2) return;
-  const isSideToMove = view.status.turn === liveState.seat;
-  el.textContent = abortCountdownText(isSideToMove);
+  const abortEl = refs.gameControls?.querySelector<HTMLElement>('[data-abort-countdown]');
+  if (abortEl && view && view.status.type === 'playing' && view.moveNumber < 2) {
+    abortEl.textContent = abortCountdownText(view.status.turn === liveState.seat);
+  }
+  const forfeitEl = refs.gameControls?.querySelector<HTMLElement>('[data-forfeit-countdown]');
+  if (forfeitEl && liveState.forfeitDeadline !== null) {
+    forfeitEl.textContent = forfeitCountdownText();
+  }
 }
 
 function makeControlButton(label: string, onClick: () => void): HTMLButtonElement {
