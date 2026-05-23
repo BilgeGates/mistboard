@@ -102,10 +102,13 @@ jobs:
       - name: Engine smoke
         run: npm run prod:smoke:engines
 
-  notify-failure:
-    # Files (or appends to) a GitHub issue when CI or prod-smoke fails on a push to main.
-    needs: [node, prod-smoke]
-    if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # --- Code-red signal (label: ci-failure) -----------------------------------
+  # The `node` job is "did you break the build/tests". Its own self-clearing issue.
+
+  notify-ci-failure:
+    # Files (or appends to) the ci-failure issue when the build/test job fails on main.
+    needs: [node]
+    if: always() && needs.node.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -118,7 +121,7 @@ jobs:
             const sha = context.sha.slice(0, 7);
             const commitMsg = (context.payload.head_commit?.message ?? '').split('\n')[0];
             const body = [
-              `CI failed on \`main\` at \`${sha}\` — ${commitMsg}`,
+              `CI (build/test) failed on \`main\` at \`${sha}\` — ${commitMsg}`,
               '',
               `Run: ${runUrl}`,
             ].join('\n');
@@ -145,5 +148,127 @@ jobs:
                 title: 'CI red on main',
                 body,
                 labels: ['ci-failure'],
+              });
+            }
+
+  close-ci-failure:
+    # Closes the open ci-failure issue when the build/test job goes green on main.
+    needs: [node]
+    if: always() && needs.node.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha.slice(0, 7);
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'ci-failure',
+              per_page: 20,
+            });
+            for (const issue of open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `✅ CI (build/test) green on \`main\` at \`${sha}\` — auto-closing.`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              });
+            }
+
+  # --- Prod-health signal (label: prod-health) -------------------------------
+  # prod-smoke is "is the deployed site healthy", not "is your code correct".
+  # Separate self-clearing issue so a Railway hiccup doesn't read as a code break.
+  # Note: prod-smoke only runs on push to main and is skipped when `node` fails,
+  # so result == 'skipped' fires neither job below (state left untouched).
+
+  notify-prod-failure:
+    needs: [prod-smoke]
+    if: always() && needs.prod-smoke.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const sha = context.sha.slice(0, 7);
+            const commitMsg = (context.payload.head_commit?.message ?? '').split('\n')[0];
+            const body = [
+              `Prod smoke failed on \`main\` at \`${sha}\` — ${commitMsg}`,
+              '',
+              `This is a deploy/health signal, not necessarily a code bug.`,
+              '',
+              `Run: ${runUrl}`,
+            ].join('\n');
+
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'prod-health',
+              per_page: 1,
+            });
+
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'Prod smoke failing',
+                body,
+                labels: ['prod-health'],
+              });
+            }
+
+  close-prod-health:
+    needs: [prod-smoke]
+    if: always() && needs.prod-smoke.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha.slice(0, 7);
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'prod-health',
+              per_page: 20,
+            });
+            for (const issue of open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `✅ Prod smoke green on \`main\` at \`${sha}\` — auto-closing.`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
               });
             }
