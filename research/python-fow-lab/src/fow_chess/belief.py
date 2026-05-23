@@ -10,56 +10,15 @@ from dataclasses import dataclass, field, replace
 
 import chess
 
+from .constraints import (
+    STANDARD_OPP_COUNTS as _STANDARD_OPP_COUNTS,
+    opp_piece_counts as _opp_piece_counts,
+    is_light_square as _is_light_square,
+    opp_bishop_color_counts as _opp_bishop_color_counts,
+)
 from .move_priors import OpponentMovePrior
 from .observation import Observation, consistent_with
 from .visibility import piece_map_for_squares, visible_squares
-
-
-# Standard starting piece counts (per side). Used to seed
-# `BeliefState.opp_remaining_counts`. v0.6.0 treats this as a hard upper bound
-# on every belief particle's opp piece count after captures we register: any
-# particle hallucinating extra pieces of a captured type gets pruned.
-#
-# Promotion edge case: opp pawn -> opp queen (or other) increments their
-# non-pawn count while decrementing pawn count. Count constraints are promotion-
-# aware below: non-pawn excess is allowed only when compensated by missing
-# pawns.
-_STANDARD_OPP_COUNTS: dict[chess.PieceType, int] = {
-    chess.PAWN: 8,
-    chess.KNIGHT: 2,
-    chess.BISHOP: 2,
-    chess.ROOK: 2,
-    chess.QUEEN: 1,
-    chess.KING: 1,
-}
-
-
-def _opp_piece_counts(
-    board: chess.Board, perspective: chess.Color
-) -> dict[chess.PieceType, int]:
-    counts: dict[chess.PieceType, int] = {}
-    opp = not perspective
-    for piece in board.piece_map().values():
-        if piece.color == opp:
-            counts[piece.piece_type] = counts.get(piece.piece_type, 0) + 1
-    return counts
-
-
-def _is_light_square(square: chess.Square) -> bool:
-    """True if `square` is a light square (a1 = dark; alternates standard)."""
-    return (chess.square_file(square) + chess.square_rank(square)) % 2 == 1
-
-
-def _opp_bishop_color_counts(
-    board: chess.Board, perspective: chess.Color
-) -> dict[bool, int]:
-    """Count opp bishops by square color (True=light, False=dark)."""
-    counts = {True: 0, False: 0}
-    opp = not perspective
-    for sq, piece in board.piece_map().items():
-        if piece.color == opp and piece.piece_type == chess.BISHOP:
-            counts[_is_light_square(sq)] += 1
-    return counts
 
 
 @dataclass(frozen=True)

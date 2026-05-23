@@ -23,8 +23,23 @@ python3 -m venv .venv
 ## Structure
 
 - `src/fow_chess/visibility.py` — visibility primitives (true → visible).
-- `tests/` — visibility regression tests.
+- `src/fow_chess/observation.py` — per-ply observation + `consistent_with` predicate (the kernel of the forthcoming `P` enumerator).
+- `src/fow_chess/constraints.py` — piece-count and bishop-color constraints for pruning candidate opponent positions.
+- `src/fow_chess/cfr/walker.py` — depth-bounded CFR subgame walker (pure tree-walking + observation-history tracking).
+- `src/fow_chess/cfr/tabular.py` — tabular CFR loop. PCFR+ replacement scheduled for Phase A2.
+- `src/fow_chess/cfr/leaf_eval.py` — leaf evaluator interface. Stockfish leaf eval lands in Phase A1.
+- `src/fow_chess/cfr/observability/marginals.py` — debug-only marginal projections.
+- `src/fow_chess/belief.py` + `engine.py` + `strategies.py` + `scripts/` — **Tier-1 v0.9.5 engine.** Frozen substrate; kept alive as the Phase A bakeoff baseline. Will be deleted after A7 (see `docs-private/engine-track/phase-a-scope-2026-05-22.md`).
+- `tests/test_p_predicate.py` — locked-down invariants for `consistent_with`.
+- `lab/diag/_archive/` — parked diagnostics for abandoned Phase 2/2b substrate.
 - `experiments-README.md` — promotion rule for one-off experiments (move stable primitives into `src/fow_chess/`).
+
+## Engine track
+
+Phase A (current): replicate Obscuro's architecture in open source.
+See `docs-private/engine-track/vision-2026-05-22.md` for the vision
+and `docs-private/engine-track/phase-a-scope-2026-05-22.md` for the
+scope and stage breakdown.
 
 ## Relationship To The TS Product
 
