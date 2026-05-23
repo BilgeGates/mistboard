@@ -8,6 +8,7 @@ import {
   clientIdForRoom,
   clearSeatTokenForRoom,
   resolveWebSocketBaseUrl,
+  type ConnectionState,
   type DevViews,
 } from './live-state.js';
 import {
@@ -20,11 +21,11 @@ import {
   initRender,
   render,
   reconcileInteractionState,
-  maybePlaySnapshotSound,
   currentView,
   renderClocks,
   handleReplayKeyboard,
 } from './live-render.js';
+import { maybePlaySnapshotSound } from './live-sound.js';
 
 declare global {
   interface Window {
@@ -87,14 +88,37 @@ liveState.roomMode = engineRequested ? 'pve' : 'pvp';
 initRender(app, { sendSocket, reconnectNow });
 initSocket({ render, reconcileInteractionState, maybePlaySnapshotSound });
 
+// ── Dev-only: ?conn= override for static visual checks of connection states ──
+
+const CONN_OVERRIDE_STATES: readonly ConnectionState[] = [
+  'connecting', 'connected', 'disconnected', 'reconnecting', 'displaced', 'rejected',
+];
+const connParam = pageParams.get('conn');
+const connOverride = connParam && (CONN_OVERRIDE_STATES as readonly string[]).includes(connParam)
+  ? (connParam as ConnectionState)
+  : null;
+
+if (connOverride) {
+  liveState.connectionState = connOverride;
+  liveState.clientId = liveState.clientId || 'dev-client';
+  if (connOverride === 'reconnecting' || connOverride === 'disconnected') {
+    liveState.reconnectAttempt = Number(pageParams.get('attempt') ?? '3');
+  }
+  if (connOverride === 'rejected') {
+    liveState.closeReason = pageParams.get('reason') ?? '';
+  }
+}
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 
-connectSocket();
+if (!connOverride) connectSocket();
 window.addEventListener('keydown', handleReplayKeyboard);
 
-window.setInterval(() => {
-  void sendSocket({ type: 'ping' });
-}, 5_000);
+if (!connOverride) {
+  window.setInterval(() => {
+    void sendSocket({ type: 'ping' });
+  }, 5_000);
+}
 
 window.setInterval(() => {
   const view = currentView();
