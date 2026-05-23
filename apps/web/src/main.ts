@@ -104,10 +104,10 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
 } else if (wantsAccountSettings) {
   setTitle('Settings');
-  void mountOrReport(() => import('./landing.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)));
+  void mountOrReport(() => import('./account.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)));
 } else if (wantsAccount) {
   setTitle('Account');
-  void mountOrReport(() => import('./landing.js').then(({ mountAccount }) => mountAccount(appRoot)));
+  void mountOrReport(() => import('./account.js').then(({ mountAccount }) => mountAccount(appRoot)));
 } else if (wantsWatch) {
   setTitle('Watch');
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
