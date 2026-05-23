@@ -140,13 +140,18 @@ This migration creates a second wire path that carries fog-filtered data. Any dr
 3. **No tempo regression.** Today's snapshot system broadcasts on every event, so a delta migration does not widen the existing "opponent moved" tempo signal. Verify this by checking that delta frame timing for a given recipient matches snapshot frame timing on the same trace. If a recipient receives a delta when they wouldn't have received a snapshot (or vice versa), that's a new signal and a bug.
 4. **`snapshot:request` auth.** Inherit room-access checks from the existing WS connect path. Do not write a new auth path.
 
-## Parallel cleanups (out of scope, but worth tracking)
+## Parallel cleanups (re-evaluated 2026-05-22)
 
-Identified during the spec review. These are independent of the delta migration; if shipped first, they shrink the steady-state frame meaningfully and exercise the surrounding code paths before the harder migration lands. None of them are blockers.
+Three were identified during the spec review. Re-evaluating each:
 
-- **Target `legalMoves` to the player-to-move.** Today every snapshot ships `legalMoves` to both players. The off-turn player never consumes them, and `legalMoves` is computed against the recipient's fog visibility — so sending it to the off-turn player is also a slightly larger fog-leak surface than needed. Ship `legalMoves: []` (or omit the field) to the off-turn player.
-- **Encode `visibleSquares` as a 64-bit bitmask.** ~30× compression over the current array form. Cost: client has to translate to a `Set<Square>` on receipt. Probably not worth doing standalone; reconsider if frame size after delta migration is still uncomfortable.
-- **Drop default-valued lobby fields from the payload.** `offers: { white: [], black: [] }`, `seatDisplayNames: {}`, `rematch: { offers: { white: false, black: false }, finalizedRoomId: null }` — when these are at their default, omit them rather than serialize them. Client treats absence as default.
+- **~~Target `legalMoves` to the player-to-move.~~ Already in place.**
+  `packages/game/src/variants.ts:158-160` — the FoW variant's `getPlayerView` already returns `legalMoves: []` when `state.status.turn !== player`. Confirmed by the bandwidth measurement: at ply 1 after white moves, white's off-turn frame is 2459 bytes, black's on-turn frame is 2641 bytes — the ~180-byte delta is the legalMoves payload going only to the player who needs it. No work needed at the variant layer. The wire frame still carries an empty `legalMoves: []` field, but stripping that ~10-byte field is not worth the type-signature churn standalone.
+
+- **Encode `visibleSquares` as a 64-bit bitmask.** Deferred. ~30× compression on that field, but the client uses array semantics (`Set`, `includes`) throughout — refactoring is not worth doing standalone. Reconsider if post-delta frame size is uncomfortable.
+
+- **Drop default-valued lobby fields from the payload.** Folded into the main migration, not done standalone. Estimated savings ~125 bytes per snapshot at default (`rematch`, `seatDisplayNames`, `selections`, `resolvedStartIds`, `offers` — most are empty for the entire game in regular PvP fog). Over a 60-ply game that's ~15KB combined. The delta migration drops these fields naturally because the `event-appended` payload only carries fields that actually changed. Doing the cleanup standalone would require the same server payload + client handler changes as Phase 1, for ~5% of Phase 1's savings. Skip.
+
+**Conclusion:** no parallel cleanups should ship before Phase 1. Go straight to the main migration.
 
 ## Verification
 
