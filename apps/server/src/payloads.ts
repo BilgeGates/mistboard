@@ -50,10 +50,66 @@ const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const allSquares = ranks.flatMap((rank) => files.map((file) => `${file}${rank}` as Square));
 
 export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
-  const mode = room.mode ?? modeForProjection(room.projection);
-  const normalizedRoom = room.mode === mode ? room : { ...room, mode };
+  const normalized = normalizeRoom(room);
   return {
     type: 'snapshot',
+    ...basePayloadFields(normalized, client),
+    events: eventsForClient(normalized, client),
+  };
+}
+
+// Sibling wire message reserved for server-pushed clock updates that have
+// no corresponding event-log entry (e.g. periodic resync during a long
+// think). NOT emitted today — the client extrapolates clocks from
+// state.clock + serverAt across events. Reserved here per the locked
+// design decision (see docs/specs/incremental-snapshot-protocol.md, "clock
+// ticks: sibling clock-tick message, NOT part of event-appended") so the
+// next emitter has a clean wire path and event-appended doesn't grow an
+// optional non-event branch.
+export function clockTickPayload(room: SnapshotRoom, client: SnapshotClient) {
+  return {
+    type: 'clock-tick' as const,
+    roomId: room.id,
+    serverAt: Date.now(),
+    seat: client.seat,
+    clock: room.projection.state.clock ?? null,
+  };
+}
+
+// Incremental delta frame. Shape mirrors snapshotPayload minus the events
+// array (the bandwidth-quadratic field) and plus `seq` + `event`. Both
+// payload builders project from the same per-recipient filter helpers, so
+// the snapshot recovery path and the delta steady-state path stay in lock-
+// step on what each recipient is allowed to see.
+//
+// Recipient with the event entirely filtered out (e.g. opponent move-played
+// in a live fog game) still gets the frame so their PlayerView can absorb
+// visibility changes the hidden move caused — only the `event` field is
+// omitted.
+export function eventAppendedPayload(
+  room: SnapshotRoom,
+  client: SnapshotClient,
+  event: GameEvent,
+  seq: number,
+) {
+  const normalized = normalizeRoom(room);
+  const filteredEvent = filterEventForClient(normalized, client, event);
+  return {
+    type: 'event-appended' as const,
+    ...basePayloadFields(normalized, client),
+    seq,
+    ...(filteredEvent ? { event: filteredEvent } : {}),
+  };
+}
+
+function normalizeRoom(room: SnapshotRoom): SnapshotRoom {
+  const mode = room.mode ?? modeForProjection(room.projection);
+  return room.mode === mode ? room : { ...room, mode };
+}
+
+function basePayloadFields(room: SnapshotRoom, client: SnapshotClient) {
+  const mode = room.mode ?? modeForProjection(room.projection);
+  return {
     roomId: room.id,
     mode,
     pveEngineId: mode === 'pve' ? room.pveEngineId ?? null : null,
@@ -69,8 +125,7 @@ export function snapshotPayload(room: SnapshotRoom, client: SnapshotClient) {
     devViews: devViewsForClient(room, client),
     resolvedStartId: resolvedStartIdForClient(room.projection, client),
     resolvedStartIds: resolvedStartIdsForClient(room.projection, client),
-    events: eventsForClient(normalizedRoom, client),
-    state: getClientView(normalizedRoom, client),
+    state: getClientView(room, client),
     rated: room.rated ?? true,
     paused: room.projection.paused,
     connectedSeats: computeConnectedSeats(room.clients),
@@ -93,12 +148,32 @@ function pveEngineName(room: SnapshotRoom, mode: GameAccessMode): string | null 
 }
 
 export function eventsForClient(room: SnapshotRoom, client: SnapshotClient): GameEvent[] {
-  const events = eventsVisibleByMode(room, client);
-  if (!shouldRedactHiddenDraft(room.projection, client)) return events;
-  return events.flatMap((event) => redactHiddenDraftEvent(event, room.projection, client));
+  const out: GameEvent[] = [];
+  for (const event of room.events) {
+    const filtered = filterEventForClient(room, client, event);
+    if (filtered) out.push(filtered);
+  }
+  return out;
 }
 
-function eventsVisibleByMode(room: SnapshotRoom, client: SnapshotClient): GameEvent[] {
+// Per-recipient filter for a single event. Returns the (possibly redacted)
+// event the recipient is allowed to see, or null if the event is fully
+// hidden from them. This is the single source of truth shared between the
+// snapshot path (via eventsForClient) and the delta path (via
+// eventAppendedPayload). Any change to fog-filter or hidden-draft semantics
+// must land here, not in either caller.
+export function filterEventForClient(
+  room: SnapshotRoom,
+  client: SnapshotClient,
+  event: GameEvent,
+): GameEvent | null {
+  if (!isEventVisibleByMode(room, client, event)) return null;
+  if (!shouldRedactHiddenDraft(room.projection, client)) return event;
+  const redacted = redactHiddenDraftEvent(event, room.projection, client);
+  return redacted[0] ?? null;
+}
+
+function isEventVisibleByMode(room: SnapshotRoom, client: SnapshotClient, event: GameEvent): boolean {
   // Live fog game: seated player sees only their own move-played events. This
   // uniformly handles PvP (each player sees own moves) and PvE (human seat
   // filters out engine moves automatically — engine doesn't connect as a WS
@@ -107,12 +182,10 @@ function eventsVisibleByMode(room: SnapshotRoom, client: SnapshotClient): GameEv
   // a spectator SnapshotClient ever reaches this function, strip every
   // move-played event rather than leak any move history.
   if (room.projection.variant === 'fog-of-war' && room.projection.state.status.type !== 'finished') {
-    if (client.seat === 'spectator') {
-      return room.events.filter((event) => event.type !== 'move-played');
-    }
-    return room.events.filter((event) => event.type !== 'move-played' || event.color === client.seat);
+    if (client.seat === 'spectator') return event.type !== 'move-played';
+    return event.type !== 'move-played' || event.color === client.seat;
   }
-  return room.events;
+  return true;
 }
 
 function offerForClient(projection: GameProjection, client: SnapshotClient) {

@@ -53,6 +53,7 @@ import {
 import {
   appendEvent,
   applyOrphanRecoveryIfNeeded,
+  broadcastEventAppended,
   broadcastSnapshot,
   buildGameSummary,
   canClientAct,
@@ -616,6 +617,12 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
   const debugRequested = randomEngine || url.searchParams.get('views') === 'all';
   const devViews = debugRequested && isDebugViewAuthorized(request);
+  // Hello-time capability negotiation. `caps` is a comma-separated list of
+  // tokens the client supports; Phase 1 recognizes 'delta' to switch this
+  // socket from the snapshot-on-every-event wire format to event-appended
+  // frames. See docs/specs/incremental-snapshot-protocol.md.
+  const clientCapabilities = parseClientCapabilities(url.searchParams.get('caps'));
+  const hasDeltaCapability = clientCapabilities.includes('delta');
   const accountUser = await currentAccountUser(request);
   const room = await getOrCreateRoom(
     roomId,
@@ -634,6 +641,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const client: Client = {
     debugRequested,
     devViews,
+    hasDeltaCapability,
     id: clientId,
     messageTimestamps: [],
     socket,
@@ -705,6 +713,16 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
     if (message.type === 'ping') send(client, { type: 'pong', at: Date.now() });
     if (message.type === 'admin-debug-auth') {
       handleAdminDebugAuth(room, client, typeof message.token === 'string' ? message.token : undefined);
+      return;
+    }
+    if (message.type === 'snapshot:request') {
+      // Delta-mode recovery channel. The client is already authenticated to
+      // this room via the WS connect handshake (canObserveLiveRoom + seat
+      // token); we inherit that auth here rather than re-deriving it.
+      send(client, snapshotPayload(
+        { ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) },
+        client,
+      ));
       return;
     }
     if (message.type === 'select-start') {
@@ -1338,6 +1356,7 @@ async function selectStart(room: Room, client: Client, startId: number | undefin
   if (!offerForColor(room.projection, selectionColor).some((start) => start.id === startId)) return;
   if (startId === undefined) return;
 
+  const fromSeq = room.events.length;
   await appendEvent(roomMgrCtx, room, {
     type: 'draft-start-selected',
     at: Date.now(),
@@ -1346,20 +1365,21 @@ async function selectStart(room: Room, client: Client, startId: number | undefin
     startId,
   });
   await resolveStartIfReady(roomMgrCtx, room);
-  broadcastSnapshot(roomMgrCtx, room);
+  broadcastEventAppended(roomMgrCtx, room, fromSeq);
 }
 
 async function handleResign(room: Room, client: Client): Promise<void> {
   if (!canClientAct(room, client)) return;
   if (client.seat !== 'white' && client.seat !== 'black') return;
   if (room.projection.state.status.type !== 'playing') return;
+  const fromSeq = room.events.length;
   await appendEvent(roomMgrCtx, room, {
     type: 'seat-resigned',
     at: Date.now(),
     roomId: room.id,
     color: client.seat,
   });
-  broadcastSnapshot(roomMgrCtx, room);
+  broadcastEventAppended(roomMgrCtx, room, fromSeq);
 }
 
 // ── SECTION: Room event infrastructure ─────────────────────────────────────
@@ -1441,6 +1461,18 @@ function isColor(value: string | undefined): value is Color {
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
+}
+
+// Comma-separated capability tokens (`caps=delta,foo`). Validation is
+// permissive (a-z0-9-, ≤32 chars per token) since unknown tokens are
+// ignored by the server; we only need to keep the field from carrying
+// pathological strings into client state.
+function parseClientCapabilities(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((token) => token.trim())
+    .filter((token) => /^[a-z0-9-]{1,32}$/.test(token));
 }
 
 function roomCreatedDraftOfferFields(
@@ -1631,13 +1663,14 @@ function armPauseGraceTimer(room: Room): void {
   if (room.pauseGraceTimer) return;
   room.pauseGraceTimer = setTimeout(() => {
     room.pauseGraceTimer = null;
+    const fromSeq = room.events.length;
     void resumeRoom(roomMgrCtx, room, Date.now(), 'grace-elapsed')
       .then(() => {
         if (room.projection.state.status.type === 'playing' && !room.projection.paused) {
           scheduleClockTimeout(roomMgrCtx, room);
           scheduleRandomEngineMove(roomMgrCtx, room);
         }
-        broadcastSnapshot(roomMgrCtx, room);
+        broadcastEventAppended(roomMgrCtx, room, fromSeq);
       })
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {

@@ -11,6 +11,10 @@
 //   MOVES=20 node apps/server/scripts/measure-snapshot-bandwidth.mjs
 //   MOVES=60 node apps/server/scripts/measure-snapshot-bandwidth.mjs
 //
+// Pass DELTA=1 to have the test clients advertise the `delta` capability
+// (Phase 1 of the snapshot→delta migration). Compare the CSVs side-by-side
+// to confirm steady-state per-ply frame size flattens out.
+//
 // Requires `apps/server/dist/main.js` to exist
 // (`npm --workspace apps/server run build`).
 
@@ -21,6 +25,8 @@ import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 
 const MOVES = Number(process.env.MOVES ?? 20);
+const DELTA = process.env.DELTA === '1' || process.env.DELTA === 'true';
+const CAPS_SUFFIX = DELTA ? '&caps=delta' : '';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const serverEntry = join(scriptDir, '..', 'dist', 'main.js');
@@ -45,8 +51,8 @@ try {
   await waitForReady(child);
 
   const room = `bw-${Date.now()}`;
-  const white = await connect(port, `room=${room}&client=white-bw-0001&reset=1`);
-  const black = await connect(port, `room=${room}&client=black-bw-0001`);
+  const white = await connect(port, `room=${room}&client=white-bw-0001&reset=1${CAPS_SUFFIX}`);
+  const black = await connect(port, `room=${room}&client=black-bw-0001${CAPS_SUFFIX}`);
 
   const perMove = [];
   let lastWhiteBytes = white.cumulativeBytes;
@@ -57,7 +63,7 @@ try {
     const observer = ply % 2 === 1 ? black : white;
     await waitForOwnTurn(mover);
 
-    const snap = lastSnapshot(mover);
+    const snap = lastFrame(mover);
     const legal = snap?.state?.legalMoves ?? [];
     const move = pickMove(legal);
     if (!move) {
@@ -69,8 +75,8 @@ try {
     const baselineMover = mover.messages.length;
     const baselineObserver = observer.messages.length;
     mover.socket.send(JSON.stringify({ type: 'move', from: move.from, to: move.to }));
-    await waitForSnapshotAfter(mover, baselineMover);
-    await waitForSnapshotAfter(observer, baselineObserver);
+    await waitForFrameAfter(mover, baselineMover);
+    await waitForFrameAfter(observer, baselineObserver);
 
     const whiteDelta = white.cumulativeBytes - lastWhiteBytes;
     const blackDelta = black.cumulativeBytes - lastBlackBytes;
@@ -85,7 +91,7 @@ try {
     lastWhiteBytes = white.cumulativeBytes;
     lastBlackBytes = black.cumulativeBytes;
 
-    const status = lastSnapshot(mover)?.state?.status;
+    const status = lastFrame(mover)?.state?.status;
     if (status?.type === 'finished') {
       process.stderr.write(`game ended at ply ${ply}: ${status.reason ?? 'unknown'}\n`);
       break;
@@ -95,6 +101,7 @@ try {
   // Output: table + summary.
   process.stdout.write('# Snapshot bandwidth measurement\n');
   process.stdout.write(`# server: in-memory persistence, fog-of-war PvP, ${perMove.length} plies played\n`);
+  process.stdout.write(`# wire format: ${DELTA ? 'event-appended (delta capability)' : 'snapshot-on-every-event (legacy)'}\n`);
   process.stdout.write('# bytes are raw JSON length of WS frames received per client\n');
   process.stdout.write('#\n');
   process.stdout.write('ply,mover,white_frame_bytes,black_frame_bytes,white_cumulative,black_cumulative\n');
@@ -173,7 +180,7 @@ function connect(port, query) {
     const text = String(raw);
     state.cumulativeBytes += Buffer.byteLength(text, 'utf8');
     const m = JSON.parse(text);
-    if (m.type === 'hello' || m.type === 'snapshot') {
+    if (m.type === 'hello' || m.type === 'snapshot' || m.type === 'event-appended') {
       messages.push(m);
       if (!state.seat && m.seat) state.seat = m.seat;
     }
@@ -196,9 +203,12 @@ function connect(port, query) {
   });
 }
 
-function lastSnapshot(client) {
+// Most-recent state-bearing frame, regardless of wire format. snapshot,
+// hello, and event-appended all carry `state: PlayerView`.
+function lastFrame(client) {
   for (let i = client.messages.length - 1; i >= 0; i -= 1) {
-    if (client.messages[i].type === 'snapshot') return client.messages[i];
+    const m = client.messages[i];
+    if (m.type === 'snapshot' || m.type === 'hello' || m.type === 'event-appended') return m;
   }
   return undefined;
 }
@@ -206,7 +216,7 @@ function lastSnapshot(client) {
 async function waitForOwnTurn(client) {
   const started = Date.now();
   while (Date.now() - started < 3000) {
-    const m = lastSnapshot(client);
+    const m = lastFrame(client);
     if (
       m
       && m.state.status.type === 'playing'
@@ -218,13 +228,13 @@ async function waitForOwnTurn(client) {
   throw new Error(`timed out waiting for own turn (seat=${client.seat})`);
 }
 
-async function waitForSnapshotAfter(client, baselineCount) {
+async function waitForFrameAfter(client, baselineCount) {
   const started = Date.now();
   while (Date.now() - started < 3000) {
-    if (client.messages.length > baselineCount && lastSnapshot(client)) return;
+    if (client.messages.length > baselineCount && lastFrame(client)) return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  throw new Error('timed out waiting for snapshot after move');
+  throw new Error('timed out waiting for frame after move');
 }
 
 // Pick a legal move. Prefer non-promotion moves and skip ones that obviously

@@ -20,7 +20,7 @@ import {
 import * as persistence from './persistence.js';
 import type { GameSummary } from './persistence.js';
 import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
-import { snapshotPayload } from './payloads.js';
+import { eventAppendedPayload, snapshotPayload } from './payloads.js';
 import { engineVersionDisplayName, loadEngine } from './engine-registry.js';
 import { isServerEngineClient, modeForProjection } from './server-policy.js';
 import type { Client, Room, SeatTokenState } from './server-types.js';
@@ -341,6 +341,40 @@ export function broadcastSnapshot(ctx: RoomManagerContext, room: Room): void {
   }
 }
 
+// Broadcast a paired-with-appendEvent state change. For delta-capable
+// clients, send one event-appended frame per newly-appended event in
+// [fromSeq, room.events.length). For non-delta clients, send a single
+// snapshot at the current state. Callers record fromSeq before any
+// appendEvent calls; the range catches multi-event flows (selectStart →
+// draft-start-selected then optional draft-start-resolved) without
+// requiring helpers to thread seq through their signatures.
+//
+// Game-end transition (status flips to 'finished') falls back to a full
+// snapshot for every recipient. Reason: redaction relaxes on game-end —
+// previously-hidden opponent moves become visible. The delta path has not
+// delivered those events to recipients, so re-syncing via snapshot is the
+// correct reveal channel.
+export function broadcastEventAppended(
+  ctx: RoomManagerContext,
+  room: Room,
+  fromSeq: number,
+): void {
+  const seatDisplayNames = seatDisplayNamesForRoom(room, ctx);
+  const enrichedRoom = { ...room, seatDisplayNames };
+  const isGameEnd = room.projection.state.status.type === 'finished';
+  for (const client of room.clients) {
+    if (!client.hasDeltaCapability || isGameEnd) {
+      ctx.send(client, snapshotPayload(enrichedRoom, client));
+      continue;
+    }
+    for (let seq = fromSeq; seq < room.events.length; seq += 1) {
+      const event = room.events[seq];
+      if (!event) continue;
+      ctx.send(client, eventAppendedPayload(enrichedRoom, client, event, seq));
+    }
+  }
+}
+
 export async function appendEvent(ctx: RoomManagerContext, room: Room, event: GameEvent): Promise<void> {
   // Serialize per-room writes. Chaining onto pendingWrites guarantees
   // sequence assignment is atomic with the persistence write.
@@ -408,8 +442,9 @@ export function scheduleClockTimeout(ctx: RoomManagerContext, room: Room): void 
     if (room.projection.state.status.type !== 'playing') return;
     if (room.projection.paused) return;
     if (room.projection.state.status.turn !== activeColor) return;
+    const fromSeq = room.events.length;
     void expireActiveClock(ctx, room, activeColor, Date.now())
-      .then(() => broadcastSnapshot(ctx, room))
+      .then(() => broadcastEventAppended(ctx, room, fromSeq))
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {
           console.error(JSON.stringify({
@@ -646,8 +681,9 @@ export async function playMove(ctx: RoomManagerContext, room: Room, client: Clie
   if (!canClientAct(room, client)) return;
   if (!client.solo && (client.seat === 'spectator' || moveColor !== client.seat)) return;
   if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, moveColor, now) <= 0) {
+    const fromSeq = room.events.length;
     await expireActiveClock(ctx, room, moveColor, now);
-    broadcastSnapshot(ctx, room);
+    broadcastEventAppended(ctx, room, fromSeq);
     return;
   }
 
@@ -661,6 +697,7 @@ export async function playMove(ctx: RoomManagerContext, room: Room, client: Clie
   const nextClock = advanceClock(room.projection.state.clock, now, moveColor, nextState.status);
   const captured = capturedRoleFor(room.projection.state, nextState.lastMove ?? requestedMove);
 
+  const fromSeq = room.events.length;
   await appendEvent(ctx, room, {
     type: 'move-played',
     at: now,
@@ -670,7 +707,7 @@ export async function playMove(ctx: RoomManagerContext, room: Room, client: Clie
     move: nextState.lastMove ?? requestedMove,
     ...(captured ? { capturedRole: captured } : {}),
   });
-  broadcastSnapshot(ctx, room);
+  broadcastEventAppended(ctx, room, fromSeq);
   scheduleRandomEngineMove(ctx, room);
 }
 
@@ -857,8 +894,9 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
 
   room.engineTimer = setTimeout(() => {
     room.engineTimer = null;
+    const fromSeq = room.events.length;
     void playRandomEngineMoveIfReady(ctx, room)
-      .then(() => broadcastSnapshot(ctx, room))
+      .then(() => broadcastEventAppended(ctx, room, fromSeq))
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {
           console.error(JSON.stringify({

@@ -78,6 +78,7 @@ function client(seat: 'white' | 'black', tokenHash: string): Client {
     messageTimestamps: [],
     devViews: false,
     debugRequested: false,
+    hasDeltaCapability: false,
     roomId: 'irrelevant',
     socket: { send: () => {} } as unknown as WebSocket,
   };

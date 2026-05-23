@@ -27,6 +27,10 @@ export type RematchState = {
 export type Client = {
   debugRequested: boolean;
   devViews: boolean;
+  // True when the client advertised the 'delta' capability at hello time.
+  // Gates whether paired broadcasts emit event-appended frames vs the
+  // legacy full-snapshot frame. Read once at connect; never mutated.
+  hasDeltaCapability: boolean;
   id: string;
   messageTimestamps: number[];
   socket: WebSocket;
