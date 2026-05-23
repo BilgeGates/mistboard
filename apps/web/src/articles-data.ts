@@ -8,6 +8,7 @@ import {
   type CompositionLayout,
   boardToPieces,
   fogSquaresFromVisible,
+  piecesToBoard,
   startingPositionFromBackRank,
 } from '@mistboard/board-render';
 import type { LiveBoardsOptions, SteppedBoardsOptions } from '@mistboard/board-render/interactive';
@@ -23,6 +24,7 @@ import {
   type Square,
 } from '@mistboard/game';
 import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
+import articleSnapshotFogBlack from './article-snapshot-fog-black.json' with { type: 'json' };
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
 
@@ -935,8 +937,24 @@ const DEDUCE_RECAP_NB_POSITIONS = [DEDUCE_RECAP_NB_BEFORE, DEDUCE_RECAP_NB_AFTER
 });
 
 // Pre-stringified captured WS frame for the server-enforced-fog article.
-// Re-stringifying at module load keeps this in sync with the JSON file.
+// White's payload is rendered as a code block; black's snapshot is consumed
+// only by the live-boards pair (board + visibleSquares), so only one JSON
+// text constant is needed.
 const SERVER_FOG_SNAPSHOT_JSON_TEXT = JSON.stringify(articleSnapshotFog, null, 2);
+
+// Board + fog projections for the live-boards pair in the article. Sourced
+// from the captured snapshots so the rendered position is exactly what was
+// on the wire (not a re-simulated approximation).
+type CapturedFrame = { state: { board: Board; visibleSquares: Square[] } };
+const SERVER_FOG_FRAME_W = articleSnapshotFog as unknown as CapturedFrame;
+const SERVER_FOG_FRAME_B = articleSnapshotFogBlack as unknown as CapturedFrame;
+const SERVER_FOG_FOG_W = fogSquaresFromVisible(SERVER_FOG_FRAME_W.state.visibleSquares);
+const SERVER_FOG_FOG_B = fogSquaresFromVisible(SERVER_FOG_FRAME_B.state.visibleSquares);
+
+// Anatomy of the move-submission wire (client → server). One small payload;
+// the loop closes here.
+const SERVER_FOG_MOVE_PAYLOAD = `// client → server, sent on player's move
+{ type: 'move', from: 'e2', to: 'e4' }`;
 
 // ---------------------------------------------------------------------------
 // server-enforced-fog article: diagrams + small code excerpts.
@@ -1094,22 +1112,10 @@ function serverFogConnectionRuleDiagram(): string {
   return sfWrap(224, body);
 }
 
-const SERVER_FOG_TEST_EXCERPT = `test('live PvP third client is rejected before any snapshot', async (t) => {
-  const room = uniqueRoomId('ws-pvp');
-  await connectForHello(port, \`room=\${room}&client=white-client-0001&reset=1\`);
-  await connectForHello(port, \`room=\${room}&client=black-client-0001\`);
-
-  const rejected = await connectForClose(port, \`room=\${room}&client=third-client-0001\`);
-
-  assert.equal(rejected.code, 1008);
-  assert.equal(rejected.reason, 'private room');
-  assert.deepEqual(rejected.messages, []);
-});`;
-
 const SERVER_FOG_CODE_MAP = `visibility set, masked board, player view
   packages/game/src/variants.ts
 
-per-recipient outbound layer
+per-recipient outbound layer (snapshot and delta share one filter)
   apps/server/src/payloads.ts
 
 connection rule + HTTP replay rule
@@ -1119,7 +1125,7 @@ seat token mint + verify
   apps/server/src/index.ts
 
 regression tests pinning the wire format
-  apps/server/src/privacy-ws.test.ts`;
+  apps/server/src/delta-ws.test.ts`;
 
 export const articles: Article[] = [
   {
@@ -1427,43 +1433,58 @@ export const articles: Article[] = [
       pieces: startingPositionFromBackRank(DRAFT960_OFFER_A),
       orientation: 'white',
     },
-    tldr: [
-      'Dark chess (also called Fog of War) hides the board mid-game. Draft960 also hides the starting position. From move 0, neither player knows the other\'s setup.',
-      'Each player picks from their own independent set of three Chess960 offers. The picks stay sealed until the pieces start moving.',
-    ],
     sections: [
       {
-        heading: 'The pick screen',
+        heading: 'The pick',
         blocks: [
           {
-            kind: 'static-boards',
-            layout: 'triptych',
-            canvasWidth: 720,
-            canvasHeight: 244,
-            boardSize: 200,
-            boardY: 34,
-            gap: 30,
-            labelY: 22,
-            labelFill: '#4b5563',
-            boards: [
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_A).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'A' },
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_B).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'B' },
-              { pieces: startingPositionFromBackRank(DRAFT960_OFFER_C).filter((p) => p.color === 'white'), fogSquares: PICK_SCREEN_FOG, label: 'C' },
-            ],
-            caption: "Your three offers. Your opponent gets their own independent set. They never see yours.",
+            kind: 'paragraph',
+            text: "Each player picks one of three Chess960 back ranks. The picks are independent and sealed — neither side sees the other's offers or choice.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'triptych',
+              boards: [
+                { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_OFFER_A).filter((p) => p.color === 'white')), fogSquares: PICK_SCREEN_FOG, orientation: 'white', label: 'A' },
+                { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_OFFER_B).filter((p) => p.color === 'white')), fogSquares: PICK_SCREEN_FOG, orientation: 'white', label: 'B' },
+                { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_OFFER_C).filter((p) => p.color === 'white')), fogSquares: PICK_SCREEN_FOG, orientation: 'white', label: 'C' },
+              ],
+            },
+            caption: "Your three offers. Your opponent gets an independent set of three and never sees yours.",
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'The starting position',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: "Once both players pick, the board fills in: each side's back rank on its first rank, pawns in front. The opponent's back rank stays hidden by fog.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'triptych',
+              boards: [
+                { board: D960_FULL_STATES[0]!.board, fogSquares: fogFor(D960_FULL_STATES[0]!, 'white'), orientation: 'white', label: "WHITE'S VIEW" },
+                { board: D960_FULL_STATES[0]!.board, orientation: 'white', label: 'SERVER TRUTH' },
+                { board: D960_FULL_STATES[0]!.board, fogSquares: fogFor(D960_FULL_STATES[0]!, 'black'), orientation: 'white', label: "BLACK'S VIEW" },
+              ],
+            },
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: "Draft960 merges dark chess and Chess960 into one variant. Dark chess hides the board mid-game. Chess960 scrambles where everything starts. Both layers hidden simultaneously: pick one of three random setups, keep it sealed, and neither side knows what the other started from until the pieces start talking.",
+            text: "960 valid Chess960 back ranks × 960 = **921,600** unique Draft960 starts. Standard chess (`RNBQKBNR`, SP518 in the Chess960 numbering) is one of them; the odds of drawing it are 1 in 921,600.",
           },
         ],
       },
       {
-        heading: 'The gradual reveal',
+        heading: 'The reveal',
         blocks: [
           {
             kind: 'paragraph',
-            text: "Your opponent's setup is hidden, but not forever. Each piece that moves off the back rank tells you something about where it started. The reveal isn't an announcement; it happens one move at a time, through fog.",
+            text: "Each piece moving off the back rank tells you what it was. Knights jump in L-shapes, bishops travel diagonals, rooks slide files and ranks. The reveal happens one move at a time, through fog.",
           },
           {
             kind: 'interactive',
@@ -1472,7 +1493,6 @@ export const articles: Article[] = [
               layout: 'triptych',
               positions: D960_FULL_POSITIONS,
             },
-            caption: "By move 3, each player has deduced something about the other's setup, one piece at a time through the fog.",
           } as ArticleBlock,
         ],
       },
@@ -1599,120 +1619,100 @@ export const articles: Article[] = [
     slug: 'server-enforced-fog',
     title: 'Designing a dark chess server',
     summary:
-      'A system-design walkthrough: what "correct" means when half the game is hidden, why the obvious approach is structurally broken, and the small set of design choices that produce a fair server.',
+      'How the server keeps half the game hidden: one view per recipient, the rules that compute it, and the bytes of a real frame.',
     status: 'outline',
     audience:
-      'Engineers reading a system-design walkthrough — what the data model is, where identity sits, what tradeoffs the design accepts, and where the bytes go.',
+      'Engineers curious how a hidden-information game enforces visibility server-side.',
     thumbnail: {
       pieces: boardToPieces(CONE_QUEEN.board),
       fogSquares: CONE_QUEEN_FOG,
       orientation: 'white',
     },
     tldr: [
-      'Designing a hidden-information multiplayer game on the web — what correct, fair, and unexploitable look like.',
-      'The obvious approach is structurally broken. The right approach is small. The interesting engineering is in identity.',
+      'Dark chess server-side: one PlayerView per recipient, hidden state never leaves the box.',
+      'Captured wire payload + the identity layer the views rest on.',
     ],
     sections: [
       {
-        heading: 'The problem',
+        heading: 'The obvious approach doesn\'t work',
         blocks: [
-          { kind: 'paragraph', text: 'Dark chess (also called Fog of War chess) is regular chess with one change: each side sees only the squares its pieces can reach. The opponent\'s pieces are hidden until you can see them.' },
-          { kind: 'paragraph', text: 'A correct dark chess server has to satisfy three properties at once. (1) Each player should be able to play their game without leaking information they don\'t have. (2) The two players\' views of the same game should be consistent — same moves applied to the same canonical position. (3) The rules of chess that depend on the canonical position (threefold repetition, 50-move rule, clock expiration) should still apply, even though neither player can see the canonical position.' },
-          { kind: 'paragraph', text: 'The bar is higher than for normal chess. In normal chess, the position is public and the server has no secrets to protect. In dark chess, every byte that leaves the server is potentially a leak.' },
+          { kind: 'paragraph', text: 'Dark chess is regular chess with one change: each side sees only the squares its pieces can reach. The opponent\'s pieces are hidden until you can see them.' },
+          { kind: 'paragraph', text: 'The obvious way to build it on the web is to send the canonical position to both clients and paint fog over the squares each player isn\'t supposed to see. The opponent\'s pieces are still in the browser; they just aren\'t on the screen. Anyone with dev tools can read them, and browser extensions that strip the fog already exist for the dominant chess platform\'s dark chess offering.' },
+          { kind: 'paragraph', text: 'The fix is structural: the server has to compute one view per recipient and never let the hidden state leave the box.' },
         ],
       },
       {
-        heading: 'The wrong way',
+        heading: 'What the server enforces',
         blocks: [
-          { kind: 'paragraph', text: 'The obvious approach: send the canonical game state to both clients. Have each client hide the parts that player isn\'t supposed to see. The fog is CSS. The opponent\'s pieces are in the browser; they just aren\'t painted on the screen.' },
-          { kind: 'paragraph', text: 'This is structurally broken. The data is on the player\'s computer. Anyone who can open the dev tools can read it. Browser extensions that strip the fog already exist for the dominant chess platform\'s dark chess offering. There is nothing the server can do at runtime to recover from "we already sent the secret."' },
+          { kind: 'paragraph', text: 'The server holds the full game state — board, both clocks, both move histories. Clients never see it. They receive a PlayerView, computed per recipient: take this player\'s pieces, derive a visibility set, mask the board to that set, strip the opponent\'s last move, attach this player\'s legal moves and clock.' },
+          { kind: 'paragraph', text: 'Every state-changing event triggers one PlayerView per connected client. Two recipients, two distinct messages, two different sets of bytes. There is no "broadcast then mask later."' },
+          { kind: 'paragraph', text: 'Three rules layer on top of the per-recipient computation.' },
+          { kind: 'sub-heading', text: 'Connection gate' },
+          { kind: 'paragraph', text: 'A live dark chess game is private to its seated players. Anyone else is closed at the WebSocket layer before any game data is sent. The same rule gates HTTP replay: live games return 403, finished games return the event log. One rule covers PvP, PvE, and EvE — no per-mode access table to drift out of sync.' },
+          { kind: 'sub-heading', text: 'Game-end reveal' },
+          { kind: 'paragraph', text: 'When a game ends, the canonical position becomes public. Hidden moves show up in replay; the replay endpoint opens. This is the rulebook, not a leak — finished games are how share links work.' },
+          { kind: 'sub-heading', text: 'Canonical position decides draws and clocks' },
+          { kind: 'paragraph', text: 'Threefold repetition, the 50-move rule, and clock expiration run against the canonical position, not what either player can see. Counting from views would be both incorrect (positions that aren\'t equal would be called equal) and exploitable (a player could construct a draw they don\'t have).' },
+        ],
+      },
+      {
+        heading: 'The two views',
+        blocks: [
+          { kind: 'paragraph', text: 'Same canonical game state, three moves in (1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6). The server\'s job is to project one view per recipient.' },
           {
-            kind: 'raw-svg',
-            svg: serverFogTwoArchitecturesDiagram(),
-            caption: 'Left: the broken approach (server truth in every browser, fog applied in CSS). Right: per-recipient views computed server-side.',
-          },
-          { kind: 'paragraph', text: 'The right approach is to never let the secret leave the server. The rest of this article is what that takes.' },
+            kind: 'live-boards',
+            spec: {
+              layout: 'pair',
+              boards: [
+                { board: SERVER_FOG_FRAME_W.state.board, fogSquares: SERVER_FOG_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                { board: SERVER_FOG_FRAME_B.state.board, fogSquares: SERVER_FOG_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+              ],
+            },
+            caption: 'Both boards drawn from the captured payloads below — verbatim positions, not re-simulated. Black\'s view is drawn from white\'s side for easier comparison; from black\'s actual perspective the board is flipped.',
+          } as ArticleBlock,
+          { kind: 'paragraph', text: 'White sees two of black\'s pieces — black\'s e-pawn and f6-knight have wandered into the squares white\'s pieces light up. Black sees one of white\'s — only the e-pawn. The bishop on c4 sits aimed at f7, completely invisible to black.' },
+          { kind: 'sub-heading', text: 'On the wire' },
+          { kind: 'paragraph', text: 'Here\'s the WebSocket payload behind white\'s board above. Real bytes, anonymized.' },
+          { kind: 'code', language: 'json', text: SERVER_FOG_SNAPSHOT_JSON_TEXT, caption: 'White\'s snapshot frame. The `state.board` and `state.visibleSquares` fields are what render the board.', maxHeight: 340 },
+          { kind: 'paragraph', text: 'Black\'s payload is the same shape projected the other way: `state.board` has black\'s 16 pieces plus the one visible white pawn; `state.visibleSquares` is black\'s lit set; `events` carries three move-played entries all `color: "black"`; `state.lastMove` is present and equals their own `g8-f6` (a player always keeps their own last move; only the opponent\'s gets stripped during play). One field both payloads agree on: `state.status.turn` is `"white"` in both — turn is canonical state, it has to agree across recipients.' },
+          { kind: 'paragraph', text: 'This is the hydration shape — what a browser gets on first connect or when it explicitly asks via snapshot:request. Steady-state moves ship as smaller event-appended deltas (one filtered event per frame, same per-recipient projection); snapshots stay for first connect, gap recovery, and the game-end reveal.' },
+          { kind: 'paragraph', text: 'The same harness that captured these — spawning the production server, opening real WebSockets, asserting on bytes — runs on every commit.' },
         ],
       },
       {
-        heading: 'The data model',
+        heading: 'What the client does with it',
         blocks: [
-          { kind: 'paragraph', text: 'Two types. The server holds a GameState — the full position, full move history, both clocks, all status. Clients never see this type. Clients receive a PlayerView — a board containing only the pieces this player can see, the set of squares this player\'s pieces light up, this player\'s legal moves, this player\'s view of the clock, and the game\'s status. That\'s it.' },
-          { kind: 'paragraph', text: 'A PlayerView is computed from a GameState plus a seat (white, black, or spectator). The computation is small: pick a visibility set from this player\'s pieces, mask the board to that set, strip the opponent\'s last move during play. The opponent\'s pieces on hidden squares simply aren\'t in the object. The opponent\'s move history simply isn\'t in the events list.' },
-          {
-            kind: 'raw-svg',
-            svg: serverFogThreeStepDiagram(),
-            caption: 'PlayerView = visibility set → masked board → opponent\'s last move stripped → your legal moves + clock + status.',
-          },
-          { kind: 'paragraph', text: 'Every state-changing event triggers the server to compute one PlayerView per connected client and send each one out separately. There is no "broadcast then mask later." Two recipients, two distinct messages, two different sets of bytes.' },
+          { kind: 'paragraph', text: 'The client trusts the view. It renders the pieces in `state.board`, paints the squares not in `state.visibleSquares` as fog, draws the move arrow if `state.lastMove` is present, and shows `state.legalMoves` when it\'s the player\'s turn. There is no reconstruction step, no client-side fog-of-war kernel — the server already did that work, and the bytes the client receives are the bytes it renders.' },
+          { kind: 'paragraph', text: 'When the player makes a move, the client sends a single message back:' },
+          { kind: 'code', language: 'typescript', text: SERVER_FOG_MOVE_PAYLOAD, maxHeight: 120 },
+          { kind: 'paragraph', text: 'The server validates the move against the canonical game state (not against any client\'s view), applies it, and triggers the next per-recipient computation for every connected client. The loop closes.' },
         ],
       },
       {
-        heading: 'The load-bearing piece: identity',
+        heading: 'Identity',
         blocks: [
-          { kind: 'paragraph', text: 'The data model above only works if the server knows whose view to compute. If a socket\'s seat is wrong — white\'s frame goes to black, or to a third party — every other rule in this article runs on a lie. Identity is the trust boundary the rest of the system depends on.' },
-          { kind: 'paragraph', text: 'Mistboard\'s v1 identity model: when a player first claims a seat in a room, the server mints a random per-seat token, stores its bcrypt hash, and hands the raw token back to that one client. The client keeps it. Every future WebSocket connection from that client presents the token in the WebSocket subprotocol header. The server verifies the token against the stored hash and binds the socket to a server-assigned seat (white, black, or no-seat). The seat is something the server remembers, not something the client claims.' },
-          {
-            kind: 'raw-svg',
-            svg: serverFogSeatTokenDiagram(),
-            caption: 'Mint → store hash → hand back raw token. On reconnect: present token → verify → seat assignment.',
-          },
-          { kind: 'paragraph', text: 'Three properties make this work. (1) Tokens are minted server-side, not client-claimed — the client cannot ask for white\'s seat without the token white was given. (2) Only the hash is stored — a leaked database wouldn\'t hand an attacker working tokens. (3) Token comparison is constant-time — no timing side channel on verification. The token also doubles as the reconnect mechanism: refresh the page, present the token, get your seat back. The seat assignment is durable across socket churn.' },
-          { kind: 'paragraph', text: 'Identity in v1 is deliberately anonymous: possession of the seat token is possession of the seat. Anyone with the link who got the token can take that seat. This is the tradeoff that makes link-share casual play work. The data model and the rest of the design would be unchanged under stronger (OAuth-bound) identity — only the mint flow would change.' },
+          { kind: 'paragraph', text: 'The view computation only works if the server knows whose view to compute. If a socket\'s seat is wrong — white\'s frame goes to black, or to a third party — every other rule above runs on a lie.' },
+          { kind: 'paragraph', text: 'When a player first claims a seat, the server mints a random per-seat token, stores its bcrypt hash, and hands the raw token back to that one client. Every future WebSocket connection from that client presents the token in the subprotocol header. The server verifies it against the stored hash (constant-time) and binds the socket to a server-assigned seat. The seat is something the server remembers, not something the client claims.' },
+          { kind: 'paragraph', text: 'Three properties matter. Tokens are minted server-side, so a client cannot ask for white\'s seat without the token white was given. Only the hash is stored, so a leaked database doesn\'t hand an attacker working tokens. Comparison is constant-time, so there is no timing side channel. The token doubles as the reconnect mechanism — refresh the page, present the token, get your seat back.' },
         ],
       },
       {
-        heading: 'The connection rule',
+        heading: 'What we gave up',
         blocks: [
-          { kind: 'paragraph', text: 'One more rule, and it runs earliest: who is allowed to open a socket to a live game. The rule is a single line. A live dark chess game is private to its seated players. Anyone else is closed at the connection layer, before any game data is sent. The same rule gates HTTP replay — live games return 403; finished games return the event log.' },
-          {
-            kind: 'raw-svg',
-            svg: serverFogConnectionRuleDiagram(),
-            caption: 'No spectator view of a live game, in any mode (PvP, PvE, EvE). Finished games are public via replay.',
-          },
-          { kind: 'paragraph', text: 'This deliberately collapses what could have been a per-mode access table. The simpler rule means there\'s no cell in a grid to drift out of sync as new modes get added. The cost: no live spectator view, even for friends watching a friend play the bot.' },
-        ],
-      },
-      {
-        heading: 'A real frame from a real game',
-        blocks: [
-          { kind: 'paragraph', text: 'The design above is testable. Here\'s one captured WebSocket message the server sent to white during a live dark chess game. The game went 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6 — three moves each — and this is the frame white\'s browser received when it became white\'s turn again. Names anonymized, bytes verbatim.' },
-          { kind: 'code', language: 'json', text: SERVER_FOG_SNAPSHOT_JSON_TEXT, caption: 'Captured by replaying the production server. Receipts: 18 pieces (not 32), 3 events all color: "white", no lastMove field.', maxHeight: 520 },
-          { kind: 'paragraph', text: 'These properties hold not by careful reading but because a regression suite spawns the production server, opens real WebSockets, and asserts on the bytes. The captured frame above was produced by the same harness those tests use; the tests run on every commit.' },
-          {
-            kind: 'code',
-            language: 'typescript',
-            text: SERVER_FOG_TEST_EXCERPT,
-            caption: 'One of the regression assertions: a third connection to a live PvP room is closed before any frame is sent.',
-            maxHeight: 320,
-          },
-        ],
-      },
-      {
-        heading: 'Tradeoffs the design accepts',
-        blocks: [
-          { kind: 'paragraph', text: 'Honest engineering. Five places where the current design picked simplicity or correctness over something else, and what we gave up.' },
-          { kind: 'sub-heading', text: 'Full snapshot on every event' },
-          { kind: 'paragraph', text: 'Every state-changing event broadcasts a complete PlayerView plus the filtered event history to each connected client. There is no incremental delta wire format. A 60-move dark chess game ships roughly O(n²) bytes per side over its lifetime, when O(n) bytes of delta information would do. This was a deliberate v1 simplification: one wire format, no client-side reconciliation state, trivial recovery from missed messages. The cost is bandwidth growth with game length. Spec for the delta migration: docs/specs/incremental-snapshot-protocol.md.' },
-          { kind: 'sub-heading', text: 'Finished games reveal everything' },
-          { kind: 'paragraph', text: 'When a game ends, the full canonical position and full move history become public via replay. This matches Lichess\'s dark chess model and is what makes share links work. If you don\'t want a specific game shared, don\'t share its link.' },
-          { kind: 'sub-heading', text: 'No live spectator view' },
-          { kind: 'paragraph', text: 'There is no fair, mutually-hidden union view for friends watching a live game. Producing one would require exposing at least one side\'s perspective, and we couldn\'t make it safe without growing the rule set above. The choice is deliberate.' },
           { kind: 'sub-heading', text: 'Anonymous identity' },
-          { kind: 'paragraph', text: 'Possession of the seat token is possession of the seat. There is no OAuth-bound identity for casual play. This is what makes the link-share product loop simple; the design above would still hold under stronger identity if Mistboard adds it later.' },
-          { kind: 'sub-heading', text: 'Threefold repetition uses canonical positions, not views' },
-          { kind: 'paragraph', text: 'In dark chess two players can see the same visible position twice while the underlying canonical position differs. Mistboard counts repetitions over the canonical position. Counting from views would be both incorrect (positions that aren\'t equal would be called equal) and exploitable (a player could construct a draw they don\'t have). The 50-move rule, clock expiration, resignations, and pause/resume are all server-authoritative for the same reason — the canonical state is the only honest source of truth.' },
+          { kind: 'paragraph', text: 'Possession of the seat token is possession of the seat. There is no OAuth-bound account guarding it. Anyone with the link who got the token can take that seat. This is what makes link-share casual play simple; the design above would still hold under stronger identity if Mistboard adds it later.' },
+          { kind: 'sub-heading', text: 'No live spectator view' },
+          { kind: 'paragraph', text: 'A fair, mutually-hidden view for friends watching a live game would require exposing at least one side\'s perspective. We couldn\'t make it safe without growing the rule set above, so the answer is no. Friends can watch after the game ends.' },
         ],
       },
       {
-        heading: 'Where the code lives (and the part of this article that will go stale fastest)',
+        heading: 'Where the code is',
         blocks: [
-          { kind: 'paragraph', text: 'The design above is meant to hold up over time. The file names and function names will drift. A map of where each piece lives in the Mistboard repo at time of writing.' },
           {
             kind: 'code',
             language: 'text',
             text: SERVER_FOG_CODE_MAP,
-            maxHeight: 320,
+            maxHeight: 240,
           },
         ],
       },

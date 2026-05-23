@@ -1,14 +1,24 @@
-// Capture a real WebSocket snapshot frame from a live PvP dark-chess room,
-// for use as a verbatim artifact in the server-enforced-fog article.
+// Capture real WebSocket snapshot frames from a live PvP dark-chess room,
+// for use as verbatim artifacts in the server-enforced-fog article.
 //
 // Spawns the built server with in-memory persistence, opens two seated WS
-// clients, plays a handful of moves, then prints white's latest snapshot
-// frame to stdout as pretty JSON. The capture is intentionally produced by
-// running the same server entrypoint shipped to production, so the wire
-// format is real.
+// clients, plays a handful of moves, then requests fresh snapshot frames
+// from both seats. The capture runs the same server entrypoint shipped to
+// production, so the wire format is real.
 //
-// Run from repo root:
-//   node apps/server/scripts/capture-snapshot.mjs > /tmp/snapshot.json
+// Two output modes:
+//   - Default (stdout): writes white's snapshot as pretty JSON.
+//       node apps/server/scripts/capture-snapshot.mjs > /tmp/snapshot.json
+//   - File mode (both seats): set CAPTURE_OUT_WHITE and CAPTURE_OUT_BLACK
+//     to paths and the script writes both files.
+//       CAPTURE_OUT_WHITE=apps/web/src/article-snapshot-fog.json \
+//       CAPTURE_OUT_BLACK=apps/web/src/article-snapshot-fog-black.json \
+//       node apps/server/scripts/capture-snapshot.mjs
+//
+// Post-Phase-3 (snapshot→delta migration) state-changes arrive as
+// event-appended frames; the script requests explicit snapshots at the end
+// via snapshot:request so the captured artifacts carry the full filtered
+// event log for each recipient.
 //
 // Requires `apps/server/dist/main.js` to exist (run `npm --workspace
 // apps/server run build` first).
@@ -63,17 +73,29 @@ try {
 
   for (const step of sequence) {
     await waitForOwnTurn(step.who);
+    const baseline = step.who.messages.length;
     step.who.socket.send(JSON.stringify({ type: 'move', from: step.from, to: step.to }));
-    await waitForSnapshotAfter(step.who, step.who.messages.length);
+    await waitForMessageAfter(step.who, baseline);
   }
 
-  // Final snapshot for white, after black's response if there is one queued.
+  // Let any trailing broadcasts settle before requesting fresh snapshots.
   await new Promise((resolve) => setTimeout(resolve, 100));
-  const snapshot = lastSnapshot(white);
-  if (!snapshot) throw new Error('no snapshot captured for white');
 
-  process.stdout.write(JSON.stringify(anonymize(snapshot), null, 2));
-  process.stdout.write('\n');
+  const whiteSnapshot = await captureFreshSnapshot(white);
+  const blackSnapshot = await captureFreshSnapshot(black);
+
+  const outWhitePath = process.env.CAPTURE_OUT_WHITE;
+  const outBlackPath = process.env.CAPTURE_OUT_BLACK;
+
+  if (outWhitePath && outBlackPath) {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(outWhitePath, JSON.stringify(anonymize(whiteSnapshot), null, 2) + '\n');
+    writeFileSync(outBlackPath, JSON.stringify(anonymize(blackSnapshot), null, 2) + '\n');
+    process.stderr.write(`wrote ${outWhitePath}\nwrote ${outBlackPath}\n`);
+  } else {
+    process.stdout.write(JSON.stringify(anonymize(whiteSnapshot), null, 2));
+    process.stdout.write('\n');
+  }
 
   white.socket.close();
   black.socket.close();
@@ -124,7 +146,12 @@ function connect(port, query) {
   const messages = [];
   socket.on('message', (raw) => {
     const m = JSON.parse(String(raw));
-    if (m.type === 'hello' || m.type === 'snapshot') messages.push(m);
+    // Accept all framed types so post-Phase-3 event-appended frames can be
+    // observed for sequencing. lastSnapshot/captureFreshSnapshot still
+    // filter to snapshot frames when that's what's wanted.
+    if (m.type === 'hello' || m.type === 'snapshot' || m.type === 'event-appended') {
+      messages.push(m);
+    }
   });
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error(`connect timeout for ${query}`)), 3000);
@@ -151,10 +178,17 @@ function lastSnapshot(client) {
   return undefined;
 }
 
+function lastStateMessage(client) {
+  for (let i = client.messages.length - 1; i >= 0; i -= 1) {
+    if (client.messages[i].state) return client.messages[i];
+  }
+  return undefined;
+}
+
 async function waitForOwnTurn(client) {
   const started = Date.now();
   while (Date.now() - started < 3000) {
-    const m = lastSnapshot(client);
+    const m = lastStateMessage(client);
     if (
       m
       && m.state.status.type === 'playing'
@@ -166,13 +200,26 @@ async function waitForOwnTurn(client) {
   throw new Error(`timed out waiting for own turn (seat=${client.messages[0]?.seat})`);
 }
 
-async function waitForSnapshotAfter(client, baselineCount) {
+async function waitForMessageAfter(client, baselineCount) {
   const started = Date.now();
   while (Date.now() - started < 3000) {
-    if (client.messages.length > baselineCount && lastSnapshot(client)) return;
+    if (client.messages.length > baselineCount) return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  throw new Error('timed out waiting for snapshot after move');
+  throw new Error('timed out waiting for message after move');
+}
+
+async function captureFreshSnapshot(client) {
+  const baseline = client.messages.length;
+  client.socket.send(JSON.stringify({ type: 'snapshot:request' }));
+  const started = Date.now();
+  while (Date.now() - started < 3000) {
+    for (let i = client.messages.length - 1; i >= baseline; i -= 1) {
+      if (client.messages[i].type === 'snapshot') return client.messages[i];
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`timed out waiting for snapshot reply (seat=${client.messages[0]?.seat})`);
 }
 
 // Replace machine-local identifiers and absolute timestamps with stable

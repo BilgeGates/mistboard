@@ -21,104 +21,6 @@
   "devViews": null,
   "resolvedStartId": null,
   "resolvedStartIds": {},
-  "events": [
-    {
-      "type": "room-created",
-      "at": 1700000001000,
-      "roomId": "mb-demo-room-001",
-      "variant": "fog-of-war",
-      "offer": []
-    },
-    {
-      "type": "seat-assigned",
-      "at": 1700000002000,
-      "roomId": "mb-demo-room-001",
-      "clientId": "white-client-0001",
-      "seat": "white"
-    },
-    {
-      "type": "seat-assigned",
-      "at": 1700000003000,
-      "roomId": "mb-demo-room-001",
-      "clientId": "black-client-0001",
-      "seat": "black"
-    },
-    {
-      "type": "clock-started",
-      "at": 1700000004000,
-      "roomId": "mb-demo-room-001",
-      "clock": {
-        "activeColor": "white",
-        "incrementMs": 2000,
-        "initialMs": 180000,
-        "remainingMs": {
-          "black": 180000,
-          "white": 180000
-        },
-        "runningSince": 1700000010000
-      }
-    },
-    {
-      "type": "move-played",
-      "at": 1700000005000,
-      "roomId": "mb-demo-room-001",
-      "clock": {
-        "activeColor": "black",
-        "incrementMs": 2000,
-        "initialMs": 180000,
-        "remainingMs": {
-          "black": 180000,
-          "white": 181988
-        },
-        "runningSince": 1700000010000
-      },
-      "color": "white",
-      "move": {
-        "from": "e2",
-        "to": "e4"
-      }
-    },
-    {
-      "type": "move-played",
-      "at": 1700000006000,
-      "roomId": "mb-demo-room-001",
-      "clock": {
-        "activeColor": "black",
-        "incrementMs": 2000,
-        "initialMs": 180000,
-        "remainingMs": {
-          "black": 181989,
-          "white": 183976
-        },
-        "runningSince": 1700000010000
-      },
-      "color": "white",
-      "move": {
-        "from": "g1",
-        "to": "f3"
-      }
-    },
-    {
-      "type": "move-played",
-      "at": 1700000007000,
-      "roomId": "mb-demo-room-001",
-      "clock": {
-        "activeColor": "black",
-        "incrementMs": 2000,
-        "initialMs": 180000,
-        "remainingMs": {
-          "black": 183979,
-          "white": 185965
-        },
-        "runningSince": 1700000010000
-      },
-      "color": "white",
-      "move": {
-        "from": "f1",
-        "to": "c4"
-      }
-    }
-  ],
   "state": {
     "id": "mb-demo-room-001",
     "variant": "fog-of-war",
@@ -381,7 +283,7 @@
       "initialMs": 180000,
       "remainingMs": {
         "black": 185968,
-        "white": 185965
+        "white": 185968
       },
       "runningSince": 1700000010000
     }
@@ -399,5 +301,103 @@
       "black": false
     },
     "finalizedRoomId": null
-  }
+  },
+  "events": [
+    {
+      "type": "room-created",
+      "at": 1700000001000,
+      "roomId": "mb-demo-room-001",
+      "variant": "fog-of-war",
+      "offer": []
+    },
+    {
+      "type": "seat-assigned",
+      "at": 1700000002000,
+      "roomId": "mb-demo-room-001",
+      "clientId": "white-client-0001",
+      "seat": "white"
+    },
+    {
+      "type": "seat-assigned",
+      "at": 1700000003000,
+      "roomId": "mb-demo-room-001",
+      "clientId": "black-client-0001",
+      "seat": "black"
+    },
+    {
+      "type": "clock-started",
+      "at": 1700000004000,
+      "roomId": "mb-demo-room-001",
+      "clock": {
+        "activeColor": "white",
+        "incrementMs": 2000,
+        "initialMs": 180000,
+        "remainingMs": {
+          "black": 180000,
+          "white": 180000
+        },
+        "runningSince": 1700000010000
+      }
+    },
+    {
+      "type": "move-played",
+      "at": 1700000005000,
+      "roomId": "mb-demo-room-001",
+      "clock": {
+        "activeColor": "black",
+        "incrementMs": 2000,
+        "initialMs": 180000,
+        "remainingMs": {
+          "black": 180000,
+          "white": 181989
+        },
+        "runningSince": 1700000010000
+      },
+      "color": "white",
+      "move": {
+        "from": "e2",
+        "to": "e4"
+      }
+    },
+    {
+      "type": "move-played",
+      "at": 1700000006000,
+      "roomId": "mb-demo-room-001",
+      "clock": {
+        "activeColor": "black",
+        "incrementMs": 2000,
+        "initialMs": 180000,
+        "remainingMs": {
+          "black": 181989,
+          "white": 183979
+        },
+        "runningSince": 1700000010000
+      },
+      "color": "white",
+      "move": {
+        "from": "g1",
+        "to": "f3"
+      }
+    },
+    {
+      "type": "move-played",
+      "at": 1700000007000,
+      "roomId": "mb-demo-room-001",
+      "clock": {
+        "activeColor": "black",
+        "incrementMs": 2000,
+        "initialMs": 180000,
+        "remainingMs": {
+          "black": 183978,
+          "white": 185968
+        },
+        "runningSince": 1700000010000
+      },
+      "color": "white",
+      "move": {
+        "from": "f1",
+        "to": "c4"
+      }
+    }
+  ]
 }
