@@ -457,10 +457,13 @@ test('cannon vision extends through empty squares between screen and enemy targe
   // Screen + target squares
   assert.ok(v.cannonScreens.has('e3'), 'e3 elephant is the screen');
   assert.ok(v.cannonTargets.has('b3'), 'b3 chariot is the captureable target');
-  // Empty squares between screen and target — now visible under the
-  // "vision = field of fire" rule.
-  assert.ok(v.directlyVisible.has('d3'), 'd3 between screen and target should be visible');
-  assert.ok(v.directlyVisible.has('c3'), 'c3 between screen and target should be visible');
+  // Empty squares between screen and target — within the cannon's field of
+  // fire. Tracked in cannonPath (visible in modes A-D, fogged in mode E).
+  assert.ok(v.cannonPath.has('d3'), 'd3 between screen and target should be in the field of fire');
+  assert.ok(v.cannonPath.has('c3'), 'c3 between screen and target should be in the field of fire');
+  // And they surface as visible squares in the default (non-E) view.
+  const visible = getVisibleSquares(state, 'red');
+  assert.ok(visible.includes('d3') && visible.includes('c3'), 'gap squares visible in non-E modes');
 });
 
 test('cannon vision stops at the screen when there is no enemy target past it', () => {
@@ -660,6 +663,26 @@ test('cannon-vision modes A/B/C/D: target square rendering differs', () => {
   assert.equal(viewB.board.b8!.shrouded, true);
   assert.equal(viewC.board.b8!.shrouded, false);
   assert.equal(viewD.board.b8!.shrouded, true, 'D shrouds the screen');
+});
+
+test('cannon-vision mode E: screen + gap fogged, target revealed', () => {
+  const state = createInitialXiangqiState('t');
+  // Red cannon b3, screen b8 (black cannon), gap b9, target b10 (black horse).
+  const viewD = getPlayerView(state, 'red', 'D');
+  const viewE = getPlayerView(state, 'red', 'E');
+
+  // Target b10 is revealed and visible in E (you can still capture it).
+  assert.equal(viewE.board.b10!.shrouded, false, 'E reveals the target');
+  assert.ok(viewE.visibleSquares.includes('b10'), 'E keeps the target square visible');
+
+  // Screen b8: D renders it (as a shrouded ?), E fogs it entirely.
+  assert.ok(viewD.board.b8, 'D renders the screen');
+  assert.equal(viewE.board.b8, undefined, 'E does not render the screen (fogged)');
+  assert.ok(!viewE.visibleSquares.includes('b8'), 'E fogs the screen square');
+
+  // Gap b9: visible under D (field of fire), fogged under E.
+  assert.ok(viewD.visibleSquares.includes('b9'), 'D shows the gap as visible');
+  assert.ok(!viewE.visibleSquares.includes('b9'), 'E fogs the gap');
 });
 
 test('cannon-vision mode D is the inverse of mode C', () => {

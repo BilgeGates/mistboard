@@ -609,7 +609,7 @@ function freshState(): SpikeState {
   return {
     game: createInitialXiangqiState('xq-spike'),
     perspective: 'red',
-    mode: 'C',
+    mode: 'D',
     selection: null,
     history: [],
     cursor: 0,
@@ -729,6 +729,7 @@ function controlsHtml(s: SpikeState): string {
         ${modeBtn('B', 'B · both shrouded')}
         ${modeBtn('C', 'C · screen full, target shrouded')}
         ${modeBtn('D', 'D · screen shrouded, target full')}
+        ${modeBtn('E', 'E · screen+gap fogged, target full')}
       </div>
       <div class="xq-control-row">
         <span class="xq-control-label">Fog style</span>

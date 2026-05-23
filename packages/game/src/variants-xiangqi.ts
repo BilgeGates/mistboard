@@ -57,7 +57,11 @@ export type XiangqiMove = {
 //   C — screen revealed with type, target shrouded
 //   D — screen shrouded with ? marker, target revealed (inverse of C —
 //       "you see what you can land on, not what enables the line")
-export type XiangqiCannonVisionMode = 'A' | 'B' | 'C' | 'D';
+//   E — screen + the gap between screen and target are FOGGED (dropped from
+//       visibleSquares, no ? marker); target revealed. Unlike A-D this changes
+//       the visible SET, not just rendering: you see the piece you can capture
+//       but not where the enabling screen sits.
+export type XiangqiCannonVisionMode = 'A' | 'B' | 'C' | 'D' | 'E';
 
 export type XiangqiVisibleBoardEntry = {
   piece: XiangqiPiece;
@@ -440,6 +444,11 @@ type VisionAccum = {
   directlyVisible: Set<XiangqiSquare>;
   cannonScreens: Set<XiangqiSquare>;
   cannonTargets: Set<XiangqiSquare>;
+  // Empty squares between a cannon's screen and its target — within the
+  // field of fire. Tracked separately from directlyVisible so mode E can
+  // drop them from the visible set without affecting squares another piece
+  // genuinely sees.
+  cannonPath: Set<XiangqiSquare>;
 };
 
 function emptyVision(): VisionAccum {
@@ -447,6 +456,7 @@ function emptyVision(): VisionAccum {
     directlyVisible: new Set(),
     cannonScreens: new Set(),
     cannonTargets: new Set(),
+    cannonPath: new Set(),
   };
 }
 
@@ -633,7 +643,7 @@ function cannonVisionInto(
     const targetSq = squareOf(f, r);
     const targetPiece = board[targetSq];
     if (!targetPiece || targetPiece.color === color) continue;
-    for (const sq of candidates) accum.directlyVisible.add(sq);
+    for (const sq of candidates) accum.cannonPath.add(sq);
     accum.cannonTargets.add(targetSq);
   }
 }
@@ -693,6 +703,7 @@ export function getVisibleSquares(state: XiangqiGameState, color: XiangqiColor):
     ...v.directlyVisible,
     ...v.cannonScreens,
     ...v.cannonTargets,
+    ...v.cannonPath,
   ]);
   return [...all].sort();
 }
@@ -700,7 +711,7 @@ export function getVisibleSquares(state: XiangqiGameState, color: XiangqiColor):
 export function getPlayerView(
   state: XiangqiGameState,
   color: XiangqiColor,
-  mode: XiangqiCannonVisionMode = 'C',
+  mode: XiangqiCannonVisionMode = 'D',
 ): XiangqiPlayerView {
   const vision = computeVision(state, color);
   const playerBoard: XiangqiPlayerBoard = {};
@@ -713,6 +724,10 @@ export function getPlayerView(
   // is shrouded the player sees "something is here, identity unknown," which
   // also serves as the Mode-D "screen has a ? marker" hint that the capture
   // line exists.
+  // Mode E fogs the screen and the gap entirely: they are dropped from the
+  // visible set (rendered as fog, no piece, no ? marker). The other modes keep
+  // screen + gap visible and only vary the shrouded flag.
+  const fogScreenAndGap = mode === 'E';
   const screenShrouded = mode === 'B' || mode === 'D';
   const targetShrouded = mode === 'B' || mode === 'C';
 
@@ -720,10 +735,12 @@ export function getPlayerView(
     const piece = state.board[sq];
     if (piece) playerBoard[sq] = { piece, shrouded: false };
   }
-  for (const sq of vision.cannonScreens) {
-    if (playerBoard[sq]) continue;
-    const piece = state.board[sq];
-    if (piece) playerBoard[sq] = { piece, shrouded: screenShrouded };
+  if (!fogScreenAndGap) {
+    for (const sq of vision.cannonScreens) {
+      if (playerBoard[sq]) continue;
+      const piece = state.board[sq];
+      if (piece) playerBoard[sq] = { piece, shrouded: screenShrouded };
+    }
   }
   for (const sq of vision.cannonTargets) {
     if (playerBoard[sq]) continue;
@@ -731,7 +748,16 @@ export function getPlayerView(
     if (piece) playerBoard[sq] = { piece, shrouded: targetShrouded };
   }
 
-  const visibleSquares = getVisibleSquares(state, color);
+  // Build the visible set from the accum so mode E can exclude the screen and
+  // gap. The target is always visible (you can capture it); a screen/gap square
+  // that another piece genuinely sees stays visible via directlyVisible.
+  const visibleSet = new Set<XiangqiSquare>(vision.directlyVisible);
+  for (const sq of vision.cannonTargets) visibleSet.add(sq);
+  if (!fogScreenAndGap) {
+    for (const sq of vision.cannonScreens) visibleSet.add(sq);
+    for (const sq of vision.cannonPath) visibleSet.add(sq);
+  }
+  const visibleSquares = [...visibleSet].sort();
 
   const legalMoves =
     state.status.type === 'playing' && state.status.turn === color ? getLegalMoves(state) : [];
