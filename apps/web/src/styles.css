@@ -1863,7 +1863,8 @@ button:focus-visible {
   border-color: #bdc8bf;
 }
 
-.move-list button.active {
+.move-list button.active,
+.move-visible.active {
   border-color: #1f6f5b;
   background: #eef8f2;
   box-shadow: inset 3px 0 0 #1f6f5b;
@@ -6267,6 +6268,35 @@ a.landing-announcement-card-inner:focus-visible {
   margin: 0;
   color: #3f4742;
   line-height: 1.6;
+}
+
+.game-export-links {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 18px auto 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #4a544e;
+  max-width: max-content;
+}
+
+.game-export-links-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: #6a7570;
+}
+
+.game-export-links a {
+  color: #2f6b4a;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(47, 107, 74, 0.25);
+}
+
+.game-export-links a:hover {
+  border-bottom-color: #2f6b4a;
 }
 
 @media (max-width: 1180px) {

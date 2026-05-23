@@ -1400,7 +1400,11 @@ function moveListCell(
 
   if (masked) {
     const label = document.createElement('span');
-    label.className = `${color}-ply move-visible`;
+    label.className = [
+      `${color}-ply`,
+      'move-visible',
+      activeEventIndex === entry.eventIndex ? 'active' : '',
+    ].filter(Boolean).join(' ');
     label.textContent = moveLabel(entry, labelsByEventIndex);
     return label;
   }
@@ -1486,22 +1490,26 @@ export function handleReplayKeyboard(event: KeyboardEvent): void {
 }
 
 function maybeSoundForReplayStep(prevIndex: number | null, nextIndex: number | null): void {
-  if (nextIndex === null) return; // returning to live — live sound system handles it
-  const effectivePrev = prevIndex ?? fogLivePos();
-  if (nextIndex <= effectivePrev) return; // backward step or no change — no sound
+  // Both prevIndex and nextIndex use `null` to mean "live position". Map both to the concrete
+  // live snapshot index so a forward step into live (the final ply reveal) still plays a sound —
+  // the WS-driven sound system only fires on new server messages, not on keyboard navigation.
+  const livePos = fogLivePos();
+  const effectiveNext = nextIndex ?? livePos;
+  const effectivePrev = prevIndex ?? livePos;
+  if (effectiveNext <= effectivePrev) return; // backward step or no change — no sound
 
   if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
     // replayIndex is a fog snapshot number, not an events index. Use fog view comparison to
     // determine the sound — the same logic playSanitizedOpponentSound uses for live moves.
-    const prevView = prevIndex !== null ? fogViewHistory.get(prevIndex) : fogViewHistory.get(fogLivePos());
-    const nextView = fogViewHistory.get(nextIndex);
+    const prevView = fogViewHistory.get(effectivePrev);
+    const nextView = fogViewHistory.get(effectiveNext);
     if (!prevView || !nextView) return;
     const seat = isColor(liveState.seat) ? liveState.seat : 'white';
     sound.play(ownPieceCount(nextView, seat) < ownPieceCount(prevView, seat) ? 'captured' : 'move');
     return;
   }
 
-  const eventIndex = nextIndex - 1;
+  const eventIndex = effectiveNext - 1;
   const event = liveState.events[eventIndex];
   if (!event || event.type !== 'move-played') return;
   sound.play(soundForMove(liveState.events.slice(0, eventIndex), event));
@@ -1567,15 +1575,37 @@ function replayHistoryIndexes(): number[] {
   // Events are fog-filtered: opponent moves are excluded from liveState.events, so events-based
   // history only has the current player's moves — each step would span 2 chess ply. fogViewHistory
   // is captured on every snapshot render (including after hidden opponent moves), giving 1-ply
-  // granularity. Filter to keys ≥ firstMoveHistoryIndex so setup-event positions are skipped.
+  // granularity.
+  //
+  // Skip transient pregame snapshots so the chess-viewer convention holds: |< lands on a single
+  // "starting position" (ply 0), not on whichever seat-assigned/clock-started snapshot happened
+  // to fire first. Keep the snapshot immediately before the first move as the ply-0 anchor;
+  // every snapshot from the first move onward is a real ply position.
   if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
-    return Array.from(fogViewHistory.keys()).sort((a, b) => a - b);
+    const allKeys = Array.from(fogViewHistory.keys()).sort((a, b) => a - b);
+    if (fogFirstMoveSnapshotIndex === null) {
+      // No moves played yet — expose only the latest pregame snapshot so |< / > don't walk
+      // through redundant setup states.
+      return allKeys.length > 0 ? [allKeys[allKeys.length - 1]!] : [];
+    }
+    const firstMove = fogFirstMoveSnapshotIndex;
+    const startAnchor = firstMove - 1;
+    return allKeys.filter((k) => k === startAnchor || k >= firstMove);
   }
   const indexes: number[] = [];
   for (const [index, event] of liveState.events.entries()) {
     if (isReplayHistoryEvent(event)) indexes.push(index + 1);
   }
   return indexes;
+}
+
+function snapshotToPly(snapshot: number): number {
+  if (fogFirstMoveSnapshotIndex === null) return 0;
+  return Math.max(0, snapshot - fogFirstMoveSnapshotIndex + 1);
+}
+
+function totalPlies(): number {
+  return snapshotToPly(fogLivePos());
 }
 
 function isReplayHistoryEvent(event: GameEvent): boolean {
@@ -1826,6 +1856,12 @@ function roomMetaHtml(): string {
 
 function replayMetaLabel(): string {
   if (liveState.events.length === 0) return 'No events';
+  const isFog = liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0;
+  if (isFog) {
+    const total = totalPlies();
+    if (isLive()) return `Live · ply ${total} of ${total}`;
+    return `Replay · ply ${snapshotToPly(currentReplayIndex())} of ${total}`;
+  }
   if (isLive()) return `Live · ${liveState.events.length} events`;
   return `Replay · event ${currentReplayIndex()} of ${fogLivePos()}`;
 }
