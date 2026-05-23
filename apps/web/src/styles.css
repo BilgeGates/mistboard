@@ -1597,6 +1597,27 @@ button:focus-visible {
   font-weight: 650;
 }
 
+/* Spec-sheet treatment: muted uppercase labels, right-aligned values.
+   Scoped to .game-info so .clocks and .selection-list keep their layout. */
+.game-info div {
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  min-height: 22px;
+}
+
+.game-info span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: #8a9690;
+}
+
+.game-info strong {
+  text-align: right;
+  font-weight: 600;
+}
+
 .clocks strong {
   overflow-wrap: anywhere;
   color: #1d2522;
@@ -1903,12 +1924,27 @@ button:focus-visible {
   text-align: right;
 }
 
+.clocks .clock-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.clocks .clock-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .clocks .clock-to-move {
   display: none;
+  flex-shrink: 0;
   font-size: 11px;
   color: #1f6f5b;
   font-weight: 600;
-  margin-left: 6px;
+  white-space: nowrap;
 }
 
 .clocks div.active .clock-to-move {

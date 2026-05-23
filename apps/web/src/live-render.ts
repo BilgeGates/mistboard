@@ -710,12 +710,16 @@ function renderActionStatus(view: PlayerView | null): void {
 
 function renderGameInfo(view: PlayerView | null): void {
   const items: HTMLDivElement[] = [];
-  items.push(infoItem('Format', formatLabel(view)));
+  const fmt = formatLabel(view);
   const timeLabel = timeControlLabel(view);
-  if (timeLabel) items.push(infoItem('Time', timeLabel));
-  items.push(infoItem('Mode', modeDetailLabel()));
-  const connLabel = connectionDetailLabel();
-  if (connLabel) items.push(infoItem('Connection', connLabel));
+  items.push(infoItem('Variant', timeLabel ? `${fmt} · ${timeLabel}` : fmt));
+  const [modeKey, modeVal] = modeDetailEntry();
+  items.push(infoItem(modeKey, modeVal));
+  // Connection only surfaces when degraded — green-path "Connected · 1ms" is noise.
+  if (liveState.connectionState !== 'connected') {
+    const connLabel = connectionDetailLabel();
+    if (connLabel) items.push(infoItem('Connection', connLabel));
+  }
   refs.gameInfo.replaceChildren(...items);
 }
 
@@ -762,6 +766,13 @@ function modeDetailLabel(): string {
   if (liveState.roomMode === 'imported') return 'Imported game';
   if (liveState.roomMode === 'manual') return 'Manual setup';
   return liveState.rated ? 'Rated' : 'Casual';
+}
+
+function modeDetailEntry(): [string, string] {
+  if (liveState.roomMode === 'pve') {
+    return ['Opponent', liveState.pveEngineName ?? 'Engine'];
+  }
+  return ['Mode', modeDetailLabel()];
 }
 
 function connectionDetailLabel(): string | null {
@@ -1166,6 +1177,7 @@ export function renderClocks(view: PlayerView | null): void {
     const row = document.createElement('div');
     row.dataset.color = color;
     const label = document.createElement('span');
+    label.className = 'clock-label';
     const time = document.createElement('strong');
     if (isPvp) label.append(presenceDot(liveState.connectedSeats[color]));
     // Prefer server-supplied display name; fall back to "You"/"Bot"/color
@@ -1173,11 +1185,14 @@ export function renderClocks(view: PlayerView | null): void {
     const playerName =
       serverName ??
       (color === humanColor ? 'You' : liveState.roomMode === 'pve' ? 'Bot' : capitalize(color));
-    label.append(document.createTextNode(playerName));
+    const nameEl = document.createElement('span');
+    nameEl.className = 'clock-name';
+    nameEl.textContent = playerName;
+    label.append(nameEl);
     if (isActive) {
       const toMove = document.createElement('span');
       toMove.className = 'clock-to-move';
-      toMove.textContent = ' to move';
+      toMove.textContent = 'to move';
       label.append(toMove);
     }
     const remainingMs = clockRemainingMs(view.clock, color, displayAt);
