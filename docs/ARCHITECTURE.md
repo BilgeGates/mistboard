@@ -1,17 +1,17 @@
 # Architecture
 
-_Last updated: 2026-05-15_
+_Last updated: 2026-05-22_
 
 ## One-line shape
 
-Full-stack hidden-information chess platform — Next.js web client + Node.js WebSocket server + Postgres, deployed to Railway (server) and Vercel (web).
+Full-stack hidden-information chess platform — Vite-bundled TypeScript browser client + Node.js WebSocket server + Postgres. The Node server serves the built static client and the WebSocket on the same port; everything runs on Railway.
 
 ## Package layout
 
 ```text
 packages/game          Pure game logic: types, rules, visibility, variants, tests
 apps/server            WebSocket rooms, session management, clocks, event append, HTTP API
-apps/web               Board UI, game screens, client WebSocket handling (Next.js App Router)
+apps/web               Browser client (Vite + vanilla TypeScript, no framework)
 research/python-fow-lab  Offline Python sidecar for visibility/bot/inference experiments — not shipped
 ```
 
@@ -38,10 +38,11 @@ research/python-fow-lab  Offline Python sidecar for visibility/bot/inference exp
 
 Key files:
 - `types.ts` — `GameState`, `PlayerView`, `GameEvent`, piece and square types
-- `visibility.ts` — Fog of War visibility computation from `GameState`
-- `variants.ts` — `fogOfWarVariant`, `draft960Variant`; each exposes `applyMove` and `createInitialState`
+- `variants.ts` — `fogOfWarVariant`, `draft960Variant`, and the fog visibility kernel (`fogVisibleSquares`, `fogMovesFrom`, `applyFogMove`)
 - `chess960.ts` — `pickDraft960Offer(seed)` — generates a seeded offer of 3 Chess960 back-ranks
-- `events.ts` — event projection logic: turns a sequence of `GameEvent`s into a `GameState`
+- `events.ts` — event projection: `replayGameEvents` reduces a sequence of `GameEvent`s into a `GameProjection`
+- `notation.ts` — algebraic/coordinate move notation
+- `clocks.ts` — clock math (`createClock`, `advanceClock`, `clockRemainingMs`)
 
 Tests live in `packages/game/src/*.test.ts`. Run with `npm test` from root or from the package directory.
 
@@ -64,10 +65,10 @@ See [`docs/persistence.md`](persistence.md) for the full schema and API surface.
 
 ## External dependencies
 
-- Railway (server hosting)
-- Vercel (web hosting)
-- Postgres (Neon / Supabase / Railway Postgres)
+- Railway (Node server + static client + Postgres)
 - Domain: mistboard.com
+
+Provider choice is not load-bearing — the server is plain Node and the client is a static Vite build. Postgres is the only stateful dependency.
 
 ## Notable choices
 

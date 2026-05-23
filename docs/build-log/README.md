@@ -1,31 +1,12 @@
-# Build Log
+# Build Log (archived)
 
-Public engineering notes for shipped or decision-worthy changes.
+This folder holds historical engineering writeups from early Mistboard development (May 2026). It is not the active surface for shipped-change records.
 
-Use this folder for concise, contributor-safe entries that explain:
+Where current records live:
 
-- what changed;
-- why it changed;
-- how it was validated;
-- caveats or follow-up work.
+- **Incidents:** [`docs/incidents/`](../incidents/) — production failures and pipeline-blocking events, with severity and status.
+- **Learnings:** [`docs/learnings/`](../learnings/) — transferable lessons surfaced by an incident, surprise, or calibration.
+- **Roadmap state:** [`docs/ROADMAP.md`](../ROADMAP.md) — milestone status and what's currently in progress.
+- **Architecture & specs:** [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md), [`docs/specs/`](../specs/) — durable design documents.
 
-Keep private operator memory, raw local artifact paths, unpublished strategy,
-credentials, and messy annotation evidence in `docs-private/engine-track/`.
-
-Good build-log entries can include local development commands when they are
-generic and reproducible. Use placeholders for secret-bearing values. Do not
-include API keys, provider tokens, private worktree paths, or raw private notes.
-
-Recommended shape:
-
-```md
-# YYYY-MM-DD - Short title
-
-## Summary
-
-## What Changed
-
-## Validation
-
-## Caveats / Next Steps
-```
+The existing entries here are linked from a few engine docs (e.g. `docs/fog-of-war/engine-experiments.md`) and are kept for that reference. Don't add new files to this folder — use one of the active surfaces above.
