@@ -365,21 +365,28 @@ export async function handleApiRequest(
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const engineId = mode === 'pve' ? parsePlayablePveEngineId(body.engineId) : null;
-    // preferredColor: caller's requested side. 'random' (default) coinflips —
-    // PvE picks engine seat at creation, PvP picks creator's seat on first
-    // connect via randomSeating. 'white'/'black' is honored deterministically:
-    // PvE pre-seats the engine on the opposite side; PvP stores creatorPreference
-    // so the first arrival is assigned that color and the second gets the other.
-    // Body's legacy `engineColor` field is still accepted for PvE direct-API
-    // callers (smoke scripts, bots) but takes lower precedence than preferredColor.
-    const preferredColor: 'white' | 'black' | 'random' =
+    // preferredColor: caller's requested side. Three explicit values
+    // ('white' | 'black' | 'random') OR omitted entirely:
+    //   - 'white' / 'black' → deterministic. PvE pre-seats engine on the
+    //     opposite side; PvP stores creatorPreference so first arrival
+    //     gets the requested color and second arrival gets the other.
+    //   - 'random' → coinflip. PvE picks engine seat at creation; PvP
+    //     uses randomSeating on connect.
+    //   - omitted → backward-compat. Legacy first-come-first-served:
+    //     creator (first arrival) gets white, invitee gets black. PvE
+    //     falls through to the legacy engineColor body field (still
+    //     accepted for smoke scripts/bots).
+    // Distinguishing omitted from explicit 'random' is load-bearing for
+    // the documented backward-compat contract.
+    const preferredColor: 'white' | 'black' | 'random' | undefined =
       body.preferredColor === 'white' || body.preferredColor === 'black' || body.preferredColor === 'random'
         ? body.preferredColor
-        : 'random';
+        : undefined;
     let engineColor: 'white' | 'black';
     if (mode === 'pve') {
       if (preferredColor === 'white') engineColor = 'black';
       else if (preferredColor === 'black') engineColor = 'white';
+      else if (preferredColor === 'random') engineColor = randomBytes(1)[0]! < 128 ? 'white' : 'black';
       else if (body.engineColor === 'white') engineColor = 'white';
       else if (body.engineColor === 'black') engineColor = 'black';
       else engineColor = randomBytes(1)[0]! < 128 ? 'white' : 'black';
