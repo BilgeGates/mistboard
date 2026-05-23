@@ -1372,34 +1372,39 @@ button:focus-visible {
 }
 
 .game-controls {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 8px;
 }
 
-.resign-button {
-  align-self: flex-start;
-  padding: 6px 14px;
-  background: transparent;
-  color: #8b1f1f;
-  border: 1px solid #d7b1b1;
-  border-radius: 4px;
-  font-size: 13px;
+.game-controls button {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #bdc8bf;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2522;
+  padding: 9px 10px;
   cursor: pointer;
+  font: inherit;
+  text-align: center;
 }
 
-.resign-button:hover {
-  background: #fbeded;
+.game-controls button:hover:not(:disabled),
+.game-controls button:focus-visible {
+  border-color: #1f6f5b;
+  outline: 3px solid rgba(31, 111, 91, 0.18);
+}
+
+.game-controls button.danger {
+  border-color: #c79898;
+  color: #7a2f2f;
+}
+
+.game-controls button.danger:hover:not(:disabled),
+.game-controls button.danger:focus-visible {
   border-color: #b94a4a;
-}
-
-.resign-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #5a655f;
-  user-select: none;
+  outline-color: rgba(185, 74, 74, 0.18);
 }
 
 .clocks strong {

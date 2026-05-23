@@ -123,21 +123,23 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   target.innerHTML = `
     ${buildNavHtml()}
     <main class="shell${liveState.debugRequested ? ' debug-shell' : ''}">
+      ${liveState.debugRequested ? `
       <section class="topbar">
         <div>
-          ${liveState.debugRequested ? '<h1>Fog Debug</h1>' : ''}
+          <h1>Fog Debug</h1>
           <p data-room-meta>Connecting</p>
         </div>
-        <a data-new-room href="/">New room</a>
-      </section>
+      </section>` : '<p data-room-meta hidden></p>'}
 
       <section class="play-grid">
         <section class="board-panel">
           <aside class="side-panel meta-panel" aria-label="Game controls">
             <section class="panel-section">
-              <h2>Game</h2>
               <div data-action-status class="action-status"></div>
               <div data-clocks class="clocks"></div>
+            </section>
+            <section class="panel-section">
+              <h2>About</h2>
               <div data-game-info class="game-info"></div>
             </section>
             <section class="panel-section">
@@ -192,15 +194,14 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
     </main>
   `;
 
-  const newRoom = target.querySelector<HTMLAnchorElement>('[data-new-room]');
   const roomMeta = target.querySelector<HTMLParagraphElement>('[data-room-meta]');
+  const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');
   const board = target.querySelector<HTMLDivElement>('[data-board]');
   const boardPaused = target.querySelector<HTMLDivElement>('[data-board-paused]');
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
   const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
   const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
   const captures = target.querySelector<HTMLDivElement>('[data-captures]');
-  const gameInfo = target.querySelector<HTMLDivElement>('[data-game-info]');
   const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
   const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
   const devViewsPanel = target.querySelector<HTMLDivElement>('[data-dev-views]');
@@ -216,11 +217,9 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
   const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!newRoom || !roomMeta || !board || !boardPaused || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList || !gameControls || !gameControlsSection) {
+  if (!roomMeta || !gameInfo || !board || !boardPaused || !boardStatus || !actionStatus || !captures || !clocks || !roomActions || !devViewsSection || !devViewsPanel || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList || !gameControls || !gameControlsSection) {
     throw new Error('missing app region');
   }
-
-  newRoom.href = '/';
 
   return {
     board,
@@ -291,7 +290,7 @@ export function render(): void {
     && view?.status.type === 'pregame'
     && draftOfferForColor(liveState.seat, projection).length > 0;
 
-  refs.roomMeta.innerHTML = roomMetaHtml();
+  if (liveState.debugRequested) refs.roomMeta.innerHTML = roomMetaHtml();
   refs.boardStatus.textContent = boardStatusLabel();
   refs.boardStatus.hidden = view !== null;
   refs.offerSection.hidden = !showDraft || showPickerOverlay;
@@ -546,6 +545,15 @@ function renderActionStatus(view: PlayerView | null): void {
     refs.actionStatus.hidden = true;
     return;
   }
+  if (
+    view?.status.type === 'playing'
+    && isLive()
+    && isColor(liveState.seat)
+    && liveState.connectionState === 'connected'
+  ) {
+    refs.actionStatus.hidden = true;
+    return;
+  }
   refs.actionStatus.hidden = false;
   const notice = document.createElement('div');
   const tone = actionTone(view);
@@ -569,40 +577,82 @@ function renderActionStatus(view: PlayerView | null): void {
 }
 
 function renderGameInfo(view: PlayerView | null): void {
-  const gameSummary = liveState.roomMode === 'pvp'
-    ? `${liveState.rated ? 'Rated' : 'Casual'} · Playing as ${seatLabel(liveState.seat)}`
-    : `${modeLabel()} · Playing as ${seatLabel(liveState.seat)}`;
-  const items = [
-    infoItem('Game', gameSummary),
-    infoItem('Status', turnLabel(view)),
-    infoItem('Connection', connectionLabel()),
-  ];
+  const items: HTMLDivElement[] = [];
+  items.push(infoItem('Format', formatLabel(view)));
+  const timeLabel = timeControlLabel(view);
+  if (timeLabel) items.push(infoItem('Time', timeLabel));
+  items.push(infoItem('Mode', modeDetailLabel()));
+  const connLabel = connectionDetailLabel();
+  if (connLabel) items.push(infoItem('Connection', connLabel));
   refs.gameInfo.replaceChildren(...items);
+}
+
+function formatLabel(view: PlayerView | null): string {
+  const variant = view?.variant ?? liveState.state?.variant ?? liveState.variantRequested;
+  const base = variant === 'fog-of-war' ? 'Dark chess' : capitalize(variant ?? 'dark chess');
+  const isDraft960 = liveState.variantRequested === 'fog-draft960'
+    || Object.values(liveState.offers).some((arr) => arr && arr.length > 0)
+    || Object.keys(liveState.resolvedStartIds).length > 0;
+  return isDraft960 ? `${base} · Draft960` : base;
+}
+
+function timeControlLabel(view: PlayerView | null): string | null {
+  let initialMs: number | null = null;
+  let incrementMs: number | null = null;
+  if (view?.clock) {
+    initialMs = view.clock.initialMs;
+    incrementMs = view.clock.incrementMs;
+  } else {
+    const roomCreated = liveState.events.find(
+      (e): e is Extract<GameEvent, { type: 'room-created' }> => e.type === 'room-created',
+    );
+    if (roomCreated?.timeControl) {
+      initialMs = roomCreated.timeControl.initialMs;
+      incrementMs = roomCreated.timeControl.incrementMs;
+    }
+  }
+  if (initialMs === null || incrementMs === null) return null;
+  const minutes = Math.round(initialMs / 60_000);
+  const incSec = Math.round(incrementMs / 1000);
+  const compact = incSec > 0 ? `${minutes}+${incSec}` : `${minutes}+0`;
+  const klass = classifyTimeControl(initialMs, incrementMs);
+  return klass ? `${compact} · ${capitalize(klass)}` : compact;
+}
+
+function modeDetailLabel(): string {
+  if (liveState.solo) return 'Solo dev';
+  if (liveState.roomMode === 'pve') {
+    const engine = liveState.pveEngineName ?? 'Engine';
+    return `vs ${engine}`;
+  }
+  if (liveState.roomMode === 'eve') return 'Engine vs engine';
+  if (liveState.roomMode === 'imported') return 'Imported game';
+  if (liveState.roomMode === 'manual') return 'Manual setup';
+  return liveState.rated ? 'Rated' : 'Casual';
+}
+
+function connectionDetailLabel(): string | null {
+  switch (liveState.connectionState) {
+    case 'connected':
+      return liveState.latencyMs !== null ? `Connected · ${liveState.latencyMs}ms` : 'Connected';
+    case 'connecting':
+      return 'Connecting';
+    case 'reconnecting':
+      return `Reconnecting · attempt ${liveState.reconnectAttempt}`;
+    case 'disconnected':
+      return 'Disconnected';
+    case 'displaced':
+      return 'Session moved';
+    case 'rejected':
+      return 'Rejected';
+    default:
+      return null;
+  }
 }
 
 // ── Room actions ──────────────────────────────────────────────────────────────
 
 // ── Game controls (resign, etc.) ──────────────────────────────────────────────
-
-const RESIGN_CONFIRM_STORAGE_KEY = 'mistboard.resignConfirm';
-
-function resignConfirmEnabled(): boolean {
-  try {
-    const raw = window.localStorage.getItem(RESIGN_CONFIRM_STORAGE_KEY);
-    if (raw === null) return true; // default: confirm
-    return raw !== 'false';
-  } catch {
-    return true;
-  }
-}
-
-function setResignConfirmEnabled(enabled: boolean): void {
-  try {
-    window.localStorage.setItem(RESIGN_CONFIRM_STORAGE_KEY, String(enabled));
-  } catch {
-    /* localStorage unavailable */
-  }
-}
 
 function renderGameControls(view: PlayerView | null): void {
   const canResign = liveState.roomMode === 'pvp'
@@ -616,26 +666,16 @@ function renderGameControls(view: PlayerView | null): void {
   }
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'resign-button';
+  button.className = 'danger';
   button.textContent = 'Resign';
   button.addEventListener('click', () => { requestResign(); });
 
-  const toggleLabel = document.createElement('label');
-  toggleLabel.className = 'resign-toggle';
-  const toggle = document.createElement('input');
-  toggle.type = 'checkbox';
-  toggle.checked = resignConfirmEnabled();
-  toggle.addEventListener('change', () => { setResignConfirmEnabled(toggle.checked); });
-  toggleLabel.append(toggle, document.createTextNode(' Confirm before resigning'));
-
-  refs.gameControls.replaceChildren(button, toggleLabel);
+  refs.gameControls.replaceChildren(button);
 }
 
 function requestResign(): void {
-  if (resignConfirmEnabled()) {
-    const ok = window.confirm('Resign this game? Your opponent wins.');
-    if (!ok) return;
-  }
+  const ok = window.confirm('Resign this game? Your opponent wins.');
+  if (!ok) return;
   sendSocket({ type: 'resign' });
 }
 
@@ -1852,12 +1892,14 @@ function shouldRequestHiddenDraft960ForPlayAgain(): boolean {
 // ── Labels ────────────────────────────────────────────────────────────────────
 
 function roomMetaHtml(): string {
-  const view = currentView();
-  const status = view?.status.type === 'playing'
-    ? `${capitalize(view.status.turn)} to move`
-    : view?.status.type ?? 'connecting';
+  const mode = escapeHtml(modeLabel());
+  const seat = isColor(liveState.seat)
+    ? ` · Playing as ${escapeHtml(seatLabel(liveState.seat))}`
+    : liveState.seat === 'spectator'
+      ? ' · Spectating'
+      : '';
   const replayLabel = isLive() ? '' : ' · replay';
-  return `${escapeHtml(modeLabel())} · <code>${escapeHtml(liveState.room)}</code> · ${liveState.clientCount} connected · ${seatLabel(liveState.seat)} · ${escapeHtml(status)}${replayLabel}`;
+  return `${mode}${seat}${replayLabel}`;
 }
 
 function replayMetaLabel(): string {
@@ -1981,21 +2023,6 @@ function modeLabel(): string {
   if (liveState.roomMode === 'pvp') return 'Friend challenge';
   if (liveState.roomMode === 'eve') return 'Engine game';
   return capitalize(liveState.roomMode);
-}
-
-function turnLabel(view: PlayerView | null): string {
-  if (!view) return 'Connecting';
-  if (view.status.type === 'playing') return `${capitalize(view.status.turn)} to move`;
-  if (view.status.type === 'finished') return resultTitle(view.status.winner);
-  return 'Pregame';
-}
-
-function connectionLabel(): string {
-  if (liveState.connectionState === 'rejected') return 'Access rejected';
-  if (liveState.connectionState === 'displaced') return 'Session moved';
-  if (liveState.connectionState === 'connected' && liveState.latencyMs !== null) return `Connected · ${liveState.latencyMs}ms`;
-  if (liveState.connectionState === 'reconnecting') return `Reconnecting · attempt ${liveState.reconnectAttempt}`;
-  return capitalize(liveState.connectionState);
 }
 
 function serverTimeLabel(): string {
@@ -2243,6 +2270,7 @@ function infoItem(label: string, value: string): HTMLDivElement {
   item.append(key, val);
   return item;
 }
+
 
 function selectionItem(label: string, value: number | string | null | undefined): HTMLDivElement {
   const item = document.createElement('div');
