@@ -123,20 +123,14 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/auth/me') {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
     const user = await currentAccountUser(request);
     writeJson(response, 200, { user: user ? publicUser(user) : null });
     return;
   }
 
   if (parsedUrl.pathname === '/api/server-status') {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+    if (!requireMethod(request, response, 'GET')) return;
     writeJson(response, 200, {
       restartAt: ctx.drainDeadlineMs(),
       activeGames: ctx.activeGameCount(),
@@ -144,11 +138,8 @@ export async function handleApiRequest(
     return;
   }
 
-  if (url === '/api/engines/playable') {
-    if (method !== 'GET') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
+  if (parsedUrl.pathname === '/api/engines/playable') {
+    if (!requireMethod(request, response, 'GET')) return;
     writeJson(response, 200, {
       engines: playableLiveEngines().map((engine) => ({
         id: engine.id,
@@ -161,14 +152,8 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/auth/email/start') {
-    if (method !== 'POST') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    if (!persistence.isInitialized()) {
-      writeJson(response, 503, { error: 'persistence_disabled' });
-      return;
-    }
+    if (!requireMethod(request, response, 'POST')) return;
+    if (!requirePersistence(response)) return;
     if (!authEmailDeliveryEnabled && !devAuthCodesEnabled) {
       writeJson(response, 503, { error: 'email_delivery_not_configured' });
       return;
@@ -207,14 +192,8 @@ export async function handleApiRequest(
   }
 
   if (parsedUrl.pathname === '/api/auth/email/confirm') {
-    if (method !== 'POST') {
-      writeJson(response, 405, { error: 'method_not_allowed' });
-      return;
-    }
-    if (!persistence.isInitialized()) {
-      writeJson(response, 503, { error: 'persistence_disabled' });
-      return;
-    }
+    if (!requireMethod(request, response, 'POST')) return;
+    if (!requirePersistence(response)) return;
     const body = await readJsonBody(request);
     const loginId = typeof body.loginId === 'string' ? body.loginId.trim() : '';
     const code = typeof body.code === 'string' ? body.code.trim() : '';
@@ -387,7 +366,7 @@ export async function handleApiRequest(
     return;
   }
 
-  if (url === '/api/rooms') {
+  if (parsedUrl.pathname === '/api/rooms') {
     if (method !== 'POST') {
       response.writeHead(405, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'method_not_allowed' }));
@@ -472,7 +451,7 @@ export async function handleApiRequest(
     return;
   }
 
-  if (url === '/api/lobby') {
+  if (parsedUrl.pathname === '/api/lobby') {
     if (method === 'GET') {
       pruneLobbyTickets(ctx);
       writeJson(response, 200, { requests: lobbyOpenRequests(ctx) });
@@ -507,7 +486,7 @@ export async function handleApiRequest(
     return;
   }
 
-  if (url === '/api/live-stats') {
+  if (parsedUrl.pathname === '/api/live-stats') {
     if (method !== 'GET') {
       response.writeHead(405, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'method_not_allowed' }));
@@ -548,7 +527,7 @@ export async function handleApiRequest(
     return;
   }
 
-  if (url === '/api/games/recent') {
+  if (parsedUrl.pathname === '/api/games/recent') {
     if (!persistence.isInitialized()) {
       response.writeHead(503, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
@@ -765,7 +744,7 @@ export async function handleApiRequest(
     return;
   }
 
-  if (url === '/api/eve-games/recent') {
+  if (parsedUrl.pathname === '/api/eve-games/recent') {
     const games = await persistence.listRecentEveGames();
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ games }));
@@ -939,6 +918,26 @@ export function writeJson(
 ): void {
   response.writeHead(status, { 'content-type': 'application/json', ...headers });
   response.end(JSON.stringify(body));
+}
+
+// Guard helpers: collapse the ~25-site `if (method !== 'X') { writeJson(...) }`
+// + `if (!persistence.isInitialized()) { writeJson(...) }` boilerplate.
+// Returns false when the guard fails (caller `return`s); true to continue.
+export function requireMethod(
+  request: IncomingMessage,
+  response: ServerResponse,
+  ...allowed: string[]
+): boolean {
+  const method = request.method ?? 'GET';
+  if (allowed.includes(method)) return true;
+  writeJson(response, 405, { error: 'method_not_allowed' });
+  return false;
+}
+
+export function requirePersistence(response: ServerResponse): boolean {
+  if (persistence.isInitialized()) return true;
+  writeJson(response, 503, { error: 'persistence_disabled' });
+  return false;
 }
 
 async function handleAnnotationsApi(
