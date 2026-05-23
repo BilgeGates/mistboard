@@ -525,19 +525,19 @@ type PageMeta = {
 // without importing the web bundle. Keep in sync when titles/summaries change.
 const ARTICLE_META: Record<string, { title: string; description: string }> = {
   'fog-of-war-rules': {
-    title: 'Fog of War: the canonical reference',
+    title: 'Dark chess: the canonical reference',
     description:
-      'You only see what your pieces can legally see. Captured kings end the game, not checkmate. Everything else is regular chess.',
+      'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
   },
   draft960: {
-    title: 'Draft960: the end of opening theory in Fog of War',
+    title: 'Draft960: dark chess with a hidden draft',
     description:
-      'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
+      "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
   },
   'engine-belief-state': {
     title: 'Building an engine for hidden-information chess',
     description:
-      "Stockfish-class engines don't transfer to Fog of War because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
+      "Stockfish-class engines don't transfer to dark chess because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
   },
 };
 
@@ -588,13 +588,13 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
         : game.result === 'black-wins'
           ? `${black} wins`
           : 'Draw';
-    const title = `${resultLabel} · Fog of War | Mistboard`;
+    const title = `${resultLabel} · Dark chess | Mistboard`;
     const plies = game.plyCount ?? 0;
     const moves = Math.ceil(plies / 2);
     const termination = game.termination
       ? game.termination.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
       : 'Game over';
-    const description = `${white} vs ${black} · ${termination} after ${moves} move${moves !== 1 ? 's' : ''}. Watch the full Fog of War replay on Mistboard.`;
+    const description = `${white} vs ${black} · ${termination} after ${moves} move${moves !== 1 ? 's' : ''}. Watch the full dark chess replay on Mistboard.`;
     const url = `${host}/game/${encodeURIComponent(roomId)}`;
     const imageUrl = `${host}/og/game/${encodeURIComponent(roomId)}.png`;
     html = injectPageMeta(html, { title, description, url, imageUrl });
@@ -627,7 +627,7 @@ async function serveArticlesIndexPage(response: ServerResponse): Promise<void> {
   const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
   html = injectPageMeta(html, {
     title: 'Articles | Mistboard',
-    description: 'Long-form writing on Fog of War chess — rules, Draft960, and engine research.',
+    description: 'Long-form writing on dark chess: rules, Draft960, and engine research.',
     url: `${host}/articles`,
   });
   response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
