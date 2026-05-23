@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { type Color, type GameEvent, normalizeVariantId, TIME_CONTROLS } from '@mistboard/game';
+import { type Color, type GameEvent, TIME_CONTROLS } from '@mistboard/game';
 import pg from 'pg';
 import { computeElo, type EloResult } from './elo.js';
 import { engineVersionDisplayName } from './engine-registry.js';
@@ -988,7 +988,7 @@ export async function getUserProfileByHandle(
     (row): ProfileGameRecord => ({
       roomId: row.room_id,
       playerColor: row.player_color,
-      variant: normalizeVariantId(row.variant),
+      variant: row.variant,
       mode: row.mode,
       result: row.result as GameResult,
       termination: row.termination as GameTermination,
@@ -1151,7 +1151,7 @@ const RECENT_EVE_SELECT_COLUMNS = `games.room_id, games.variant, games.mode, gam
 function gameRecordFromRow(row: GameRow): GameRecord {
   return {
     roomId: row.room_id,
-    variant: normalizeVariantId(row.variant),
+    variant: row.variant,
     mode: row.mode,
     result: row.result,
     termination: row.termination,

@@ -8,7 +8,6 @@ import {
   clockRemainingMs,
   expireClock,
   type GameEvent,
-  normalizeVariantId,
   replayGameEvents,
   type VariantId,
   variantForId,
@@ -547,10 +546,8 @@ async function abortGame(
 
 function variantFromTask(task: EngineGameTask): VariantId {
   const id = task.config.variant;
-  if (typeof id !== 'string') {
-    throw new Error(`engine task variant is not a string: ${JSON.stringify(id)}`);
-  }
-  return normalizeVariantId(id);
+  if (id === 'dark-chess' || id === 'draft960') return id;
+  throw new Error(`unknown engine task variant: ${JSON.stringify(id)}`);
 }
 
 function maxPliesFromTask(task: EngineGameTask): number {

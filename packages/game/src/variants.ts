@@ -13,7 +13,6 @@ import type {
   PlayerView,
   Square,
   Variant,
-  VariantId,
 } from './types.js';
 
 // Navigation index — grep for section name to jump to the right block
@@ -753,16 +752,9 @@ export function capturedRoleFor(state: GameState, move: Move): PieceRole | undef
 
 export function variantForId(id: GameState['variant']): Variant {
   if (id === 'dark-chess') return fogOfWarVariant;
-  return draft960Variant;
-}
-
-// Maps any accepted slug spelling to the canonical VariantId. 'dark-chess' is
-// the canonical slug; the legacy 'fog-of-war' spelling is still accepted on read
-// (persisted event JSON and un-migrated DB rows carry it) and converges here.
-// Apply at every boundary where a persisted or external variant string re-enters
-// the system (event replay, DB row reads).
-export function normalizeVariantId(raw: string): VariantId {
-  if (raw === 'dark-chess' || raw === 'fog-of-war') return 'dark-chess';
-  if (raw === 'draft960') return 'draft960';
-  throw new Error(`unknown variant id: ${JSON.stringify(raw)}`);
+  if (id === 'draft960') return draft960Variant;
+  // Fail loud on an unknown slug. After migrations 022/023 no persisted
+  // 'fog-of-war' remains, so anything else is a real bug, not a legacy spelling —
+  // surfacing it beats silently rendering the wrong variant.
+  throw new Error(`unknown variant id: ${JSON.stringify(id)}`);
 }

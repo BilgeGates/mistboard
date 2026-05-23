@@ -1,10 +1,4 @@
-import {
-  algebraicMoveLabels,
-  type Color,
-  type GameEvent,
-  type Move,
-  normalizeVariantId,
-} from '@mistboard/game';
+import { algebraicMoveLabels, type Color, type GameEvent, type Move } from '@mistboard/game';
 import type { GameParticipant, RecentEveGameRecord } from './persistence.js';
 
 const SCHEMA_VERSION = '1.0';
@@ -155,12 +149,8 @@ function normalizeJsonResult(result: string): string {
 }
 
 function pgnVariantName(variant: string): string {
-  // Reads games.variant straight from the row, which carries the legacy slug for
-  // un-migrated rows during the rename window — normalize before mapping. The
-  // display strings stay "Fog of War" until the Phase 4 copy flip.
-  const id = normalizeVariantId(variant);
-  if (id === 'dark-chess') return 'Fog of War';
-  if (id === 'draft960') return 'Draft960 (Fog of War + Chess960)';
+  if (variant === 'dark-chess') return 'Dark chess';
+  if (variant === 'draft960') return 'Draft960 (Dark chess + Chess960)';
   return variant;
 }
 
@@ -215,6 +205,7 @@ function buildPgnHeaders(summary: RecentEveGameRecord, siteOrigin: string): stri
     ['Black', displayNameForColor(summary, 'black') ?? '?'],
     ['Result', pgnResult(summary.result)],
     ['Variant', pgnVariantName(summary.variant)],
+    ['MistboardVariant', summary.variant],
     ['TimeControl', tc.label],
     ['Termination', pgnStandardTermination(termination)],
     ['MistboardTermination', termination],
