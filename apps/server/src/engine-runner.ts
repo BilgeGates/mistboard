@@ -545,7 +545,9 @@ async function abortGame(
 }
 
 function variantFromTask(task: EngineGameTask): VariantId {
-  return task.config.variant === 'fog-of-war' ? 'fog-of-war' : 'fog-of-war';
+  const id = task.config.variant;
+  if (id === 'fog-of-war' || id === 'draft960') return id;
+  throw new Error(`unknown engine task variant: ${JSON.stringify(id)}`);
 }
 
 function maxPliesFromTask(task: EngineGameTask): number {
