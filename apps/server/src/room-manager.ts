@@ -487,6 +487,7 @@ export function scheduleClockTimeout(ctx: RoomManagerContext, room: Room): void 
         }
       });
   }, delay + 25);
+  room.clockTimer.unref();
 }
 
 export async function expireActiveClock(
@@ -994,4 +995,5 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
         }
       });
   }, 0);
+  room.engineTimer.unref();
 }
