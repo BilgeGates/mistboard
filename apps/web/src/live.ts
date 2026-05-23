@@ -23,8 +23,8 @@ import {
   reconcileInteractionState,
   currentView,
   tickClockTimers,
-  handleReplayKeyboard,
 } from './live-render.js';
+import { handleReplayKeyboard } from './live-replay.js';
 import { maybePlaySnapshotSound } from './live-sound.js';
 
 declare global {
