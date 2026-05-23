@@ -318,22 +318,45 @@ test('live fog replay API returns 403 for every mode', () => {
   });
 });
 
-test('finished Fog of War payload exposes full-truth replay', () => {
+test('finished Fog of War room stays fogged for a seated player (model A: no in-room reveal)', () => {
   const room = fogRoomFixture({
     status: { type: 'finished', winner: 'white', reason: 'king-captured' },
   });
   const payload = JSON.stringify(
     snapshotPayload(room, {
       devViews: false,
-      id: 'spectator-client',
-      seat: 'spectator',
+      id: 'white-client',
+      seat: 'white',
       solo: false,
     }),
   );
 
-  assert.match(payload, /"move-played"/);
-  assert.match(payload, /"h8"/);
-  assert.match(payload, /queen/);
+  // White sees its own piece, never the opponent's hidden queen on h8, and
+  // never black's move-played event — finish does not lift the fog. The public
+  // reveal lives only at /game/:id (eventReplayResponse), never in the room.
+  assert.match(payload, /"a1"/);
+  assert.doesNotMatch(payload, /"h8"/);
+  assert.doesNotMatch(payload, /queen/);
+  assert.doesNotMatch(payload, /move-played/);
+});
+
+test('finished Fog of War room reveals nothing to a spectator (model A: no in-room reveal)', () => {
+  const room = fogRoomFixture({
+    status: { type: 'finished', winner: 'white', reason: 'king-captured' },
+  });
+  const payload = snapshotPayload(room, {
+    devViews: false,
+    id: 'spectator-client',
+    seat: 'spectator',
+    solo: false,
+  });
+
+  assert.deepEqual(payload.state.board, {});
+  assert.deepEqual(payload.state.visibleSquares, []);
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played'),
+    false,
+  );
 });
 
 test('dev Fog of War payload can include player, opponent, and true views', () => {

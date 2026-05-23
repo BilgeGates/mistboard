@@ -176,17 +176,16 @@ function isEventVisibleByMode(
   client: SnapshotClient,
   event: GameEvent,
 ): boolean {
-  // Live fog game: seated player sees only their own move-played events. This
+  // Model A: the room never reveals canonical truth, at ANY status including
+  // finished. A seated player sees only their own move-played events; this
   // uniformly handles PvP (each player sees own moves) and PvE (human seat
   // filters out engine moves automatically — engine doesn't connect as a WS
-  // client). Spectators are rejected at the connection layer
-  // (canObserveLiveRoom); the spectator branch here is defense-in-depth — if
-  // a spectator SnapshotClient ever reaches this function, strip every
-  // move-played event rather than leak any move history.
-  if (
-    room.projection.variant === 'dark-chess' &&
-    room.projection.state.status.type !== 'finished'
-  ) {
+  // client). The public reveal surface is the /game/:id replay endpoint
+  // (eventReplayResponse, finished-gated), NOT the room. Spectators are
+  // rejected at the connection layer for live games (canObserveLiveRoom); the
+  // spectator branch here is defense-in-depth — if a spectator SnapshotClient
+  // ever reaches this function, strip every move-played event.
+  if (room.projection.variant === 'dark-chess') {
     if (client.seat === 'spectator') return event.type !== 'move-played';
     return event.type !== 'move-played' || event.color === client.seat;
   }
@@ -297,17 +296,15 @@ function devViewsForClient(room: SnapshotRoom, client: SnapshotClient) {
 
 export function getClientView(room: SnapshotRoom, client: SnapshotClient): PlayerView {
   const perspective = client.seat === 'black' ? 'black' : 'white';
-  if (
-    room.projection.variant === 'dark-chess' &&
-    room.projection.state.status.type === 'finished'
-  ) {
-    return fullTruthView(room, perspective);
-  }
-  // Live spectator on a fog game: defense-in-depth. Spectators are rejected at
-  // the connection layer (canObserveLiveRoom returns false for unfinished
-  // games), so this branch should be unreachable in practice. If a spectator
-  // SnapshotClient ever reaches here we return an empty view rather than leak
-  // any board state.
+  // Model A: the room never reveals canonical truth, even after the game
+  // finishes. Seated players always get their own fog projection; the public
+  // full-truth view lives only at /game/:id (eventReplayResponse). This keeps
+  // the live surface a single fog stream and gives players confidence that no
+  // hidden information ever leaks through the room they played in.
+  //
+  // Spectators on a fog game: defense-in-depth. Live spectators are rejected at
+  // the connection layer (canObserveLiveRoom); if any spectator SnapshotClient
+  // reaches here we return an empty view rather than leak board state.
   if (room.projection.variant === 'dark-chess' && client.seat === 'spectator') {
     return emptyFogView(room, perspective);
   }
