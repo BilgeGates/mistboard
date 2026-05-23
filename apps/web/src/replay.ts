@@ -1,7 +1,9 @@
 import {
   algebraicMoveLabels as buildAlgebraicMoveLabels,
   clockRemainingMs,
+  coordinateMoveLabel,
   fogOfWarVariant,
+  promotionLetter,
   replayGameEvents,
   type Board,
   type ClockState,
@@ -14,7 +16,7 @@ import {
   type PlayerView,
   type Square,
 } from '@mistboard/game';
-import { fogHiddenClass } from '@mistboard/board-render/interactive';
+import { boardFen, fogHiddenClass, hiddenSquareClasses, pieceFen } from '@mistboard/board-render/interactive';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
@@ -1463,21 +1465,6 @@ function replayMoveEntries(events: GameEvent[]): ReplayMoveEntry[] {
   return entries;
 }
 
-function coordinateMoveLabel(move: Move): string {
-  const promotion = move.promotion ? `=${pieceLetter(move.promotion)}` : '';
-  return `${move.from}${move.to}${promotion}`;
-}
-
-function pieceLetter(role: Exclude<PieceRole, 'king' | 'pawn'>): string {
-  const letters: Record<Exclude<PieceRole, 'king' | 'pawn'>, string> = {
-    bishop: 'B',
-    knight: 'N',
-    queen: 'Q',
-    rook: 'R',
-  };
-  return letters[role];
-}
-
 type EnginePanelDockHandle = {
   el: HTMLElement;
 };
@@ -1893,7 +1880,10 @@ function setBoardFromView(api: Api, view: PlayerView, orientation: Color): void 
   api.set({
     fen: boardFen(view.board),
     lastMove,
-    highlight: { custom: hiddenSquareClasses(view, orientation), lastMove: true },
+    highlight: {
+      custom: hiddenSquareClasses(view, orientation, { preserveFogOnFinished: true }),
+      lastMove: true,
+    },
   });
 }
 
@@ -1906,16 +1896,6 @@ function setBoardFromState(api: Api, state: GameState): void {
     lastMove,
     highlight: { custom: new Map(), lastMove: true },
   });
-}
-
-function hiddenSquareClasses(view: PlayerView, orientation: Color): cg.SquareClasses {
-  const classes = new Map<cg.Key, string>();
-  if (view.variant !== 'fog-of-war') return classes;
-  const visible = new Set(view.visibleSquares);
-  for (const square of allSquares) {
-    if (!visible.has(square)) classes.set(square as cg.Key, fogHiddenClass(square, orientation));
-  }
-  return classes;
 }
 
 function revealKingCaptureForLoser(view: PlayerView, lastMove: Move, attacker: Piece): PlayerView {
@@ -1931,42 +1911,6 @@ function revealKingCaptureForLoser(view: PlayerView, lastMove: Move, attacker: P
     visibleSquares: [...visible].sort() as Square[],
     lastMove,
   };
-}
-
-function boardFen(board: Board): string {
-  const fenRanks = [8, 7, 6, 5, 4, 3, 2, 1];
-  return fenRanks.map((rank) => boardRankFen(board, rank)).join('/');
-}
-
-function boardRankFen(board: Board, rank: number): string {
-  let empty = 0;
-  let fen = '';
-  for (const file of files) {
-    const piece = board[`${file}${rank}` as Square];
-    if (!piece) {
-      empty += 1;
-      continue;
-    }
-    if (empty > 0) {
-      fen += String(empty);
-      empty = 0;
-    }
-    fen += pieceFen(piece.role, piece.color);
-  }
-  return empty > 0 ? `${fen}${empty}` : fen;
-}
-
-function pieceFen(role: PieceRole, color: Color): string {
-  const map: Record<PieceRole, string> = {
-    bishop: 'b',
-    king: 'k',
-    knight: 'n',
-    pawn: 'p',
-    queen: 'q',
-    rook: 'r',
-  };
-  const ch = map[role];
-  return color === 'white' ? ch.toUpperCase() : ch;
 }
 
 type AnnotFormHandle = {
