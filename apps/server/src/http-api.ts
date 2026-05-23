@@ -3,9 +3,11 @@ import { dirname } from 'node:path';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
+  findTimeControl,
   type Color,
   type GameEvent,
   type RoomTimeControl,
+  type TimeControlId,
   type VariantId,
 } from '@mistboard/game';
 import * as persistence from './persistence.js';
@@ -1021,19 +1023,15 @@ function parsePlayablePveEngineId(value: unknown): string | null {
   return playableLiveEngines().some((engine) => engine.id === value) ? value : null;
 }
 
-// PvE time-control allowlist. Keep in sync with LANDING_TIME_PRESETS in
-// apps/web/src/landing.ts. Currently only 3+2 is enabled for PvE because
-// Tier1's per-move compute can exceed the per-move budget on shorter
-// time controls. When 1+1 is engine-ready, add it here and unstub it in
-// the UI in the same change.
-const PVE_ALLOWED_TIME_CONTROLS: ReadonlyArray<RoomTimeControl> = [
-  { initialMs: 180_000, incrementMs: 2_000 },
-];
+// PvE time-control allowlist. References canonical TC ids from
+// packages/game/src/time-controls.ts. Currently only 3+2 is enabled for PvE
+// because Tier1's per-move compute can exceed the per-move budget on shorter
+// time controls. When 1+1 is engine-ready, add '1m1' here.
+const PVE_ALLOWED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['3m2']);
 
 export function isPveAllowedTimeControl(tc: RoomTimeControl): boolean {
-  return PVE_ALLOWED_TIME_CONTROLS.some(
-    (allowed) => allowed.initialMs === tc.initialMs && allowed.incrementMs === tc.incrementMs,
-  );
+  const spec = findTimeControl(tc.initialMs, tc.incrementMs);
+  return spec !== null && PVE_ALLOWED_TIME_CONTROL_IDS.has(spec.id);
 }
 
 export function parseRoomTimeControl(value: unknown): RoomTimeControl | null {

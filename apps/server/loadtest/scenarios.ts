@@ -1,4 +1,4 @@
-import type { Move, RoomTimeControl, VariantId } from '@mistboard/game';
+import { TIME_CONTROLS, type Move, type RoomTimeControl, type VariantId } from '@mistboard/game';
 
 export type Mode = 'pve' | 'pvp';
 
@@ -17,12 +17,14 @@ export interface Scenario {
   engineId?: string;
 }
 
-const BULLET: RoomTimeControl = { initialMs: 60_000, incrementMs: 1_000 };
 // 3+2 is the PvE allowlist (see isPveAllowedTimeControl in http-api.ts).
 // Other PvE scenarios will get rejected at /api/rooms; bullet/casual PvE
 // scenarios only work locally against an unrestricted server or against
 // PvP, not against PvE-on-prod.
-const BLITZ: RoomTimeControl = { initialMs: 180_000, incrementMs: 2_000 };
+const BULLET = TIME_CONTROLS.find((tc) => tc.id === '1m1')!;
+const BLITZ = TIME_CONTROLS.find((tc) => tc.id === '3m2')!;
+// CASUAL is loadtest-only — not an official Mistboard TC; useful for stress
+// scenarios where flagging shouldn't dominate the outcome.
 const CASUAL: RoomTimeControl = { initialMs: 600_000, incrementMs: 0 };
 
 export const scenarios: Record<string, Scenario> = {

@@ -1,7 +1,14 @@
+import { timeClassFromTimeControl } from '@mistboard/game';
+
 export function classifyTimeControl(
   initialMs: number,
   incrementMs: number,
 ): 'bullet' | 'blitz' | 'rapid' | 'classical' {
+  // Official Mistboard TCs always agree with the rating-bucket classifier;
+  // unofficial TCs (loadtest, dev sandboxes) fall back to a chess.com-style
+  // heuristic so analytics still tags them sensibly.
+  const official = timeClassFromTimeControl(initialMs, incrementMs);
+  if (official) return official;
   const estimated = initialMs + 40 * incrementMs;
   if (estimated < 3 * 60 * 1000) return 'bullet';
   if (estimated < 8 * 60 * 1000) return 'blitz';

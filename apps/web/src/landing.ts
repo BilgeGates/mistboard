@@ -1,4 +1,4 @@
-import { replayGameEvents, type Board, type GameEvent, type PlayerView, type Square } from '@mistboard/game';
+import { replayGameEvents, TIME_CONTROLS, type Board, type GameEvent, type PlayerView, type Square, type TimeControlId } from '@mistboard/game';
 import type * as cg from 'chessground/types';
 import type { BeliefRow, TraceRow } from './belief-panel.js';
 import { createReadOnlyBoard, hiddenSquareClasses, setBoardPosition } from '@mistboard/board-render/interactive';
@@ -127,7 +127,7 @@ type LandingPlayChoice = {
   title: string;
 };
 type LandingStartFormat = 'standard' | 'draft960';
-type LandingTimePresetId = '1m1' | '3m2' | '5m3';
+type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
   id: LandingTimePresetId;
   label: string;
@@ -159,11 +159,12 @@ type OpenLobbyRequest = {
 };
 
 const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
-const LANDING_TIME_PRESETS: LandingTimePreset[] = [
-  { id: '1m1', label: '1 + 1', initialMs: 60_000, incrementMs: 1_000 },
-  { id: '3m2', label: '3 + 2', initialMs: 3 * 60_000, incrementMs: 2_000 },
-  { id: '5m3', label: '5 + 3', initialMs: 5 * 60_000, incrementMs: 3_000 },
-];
+const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
+  id: tc.id,
+  label: tc.label,
+  initialMs: tc.initialMs,
+  incrementMs: tc.incrementMs,
+}));
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();

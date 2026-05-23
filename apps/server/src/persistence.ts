@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import pg from 'pg';
-import type { Color, GameEvent } from '@mistboard/game';
+import { TIME_CONTROLS, type Color, type GameEvent } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
 import { computeElo, type EloResult } from './elo.js';
 import {
@@ -9,6 +9,16 @@ import {
   type RatingTimeClass,
   type RatingVariant,
 } from './rating-buckets.js';
+
+// Build a `CASE WHEN ... THEN 'bullet' ... END` fragment from the canonical
+// time-controls list so adding a TC to packages/game/src/time-controls.ts
+// auto-extends the persistence layer's classifier. Values are numeric literals
+// and a closed set of string literals ('bullet' | 'blitz') — no SQL injection
+// surface.
+const TIME_CLASS_CASE_SQL = `CASE\n${TIME_CONTROLS.map(
+  (tc) =>
+    `         WHEN games.initial_ms = ${tc.initialMs} AND games.increment_ms = ${tc.incrementMs} THEN '${tc.timeClass}'`,
+).join('\n')}\n         ELSE NULL\n       END`;
 
 let pool: pg.Pool | null = null;
 
@@ -998,12 +1008,7 @@ export async function getUserProfileByHandle(
     `SELECT
        CASE WHEN COALESCE(games.hidden_draft960, false)
             THEN 'fog_draft960' ELSE 'fog' END AS variant,
-       CASE
-         WHEN games.initial_ms = 60000  AND games.increment_ms = 1000 THEN 'bullet'
-         WHEN games.initial_ms = 180000 AND games.increment_ms = 2000 THEN 'blitz'
-         WHEN games.initial_ms = 300000 AND games.increment_ms = 3000 THEN 'blitz'
-         ELSE NULL
-       END AS time_class,
+       ${TIME_CLASS_CASE_SQL} AS time_class,
        COUNT(*)::text AS games_played
      FROM game_participants
      JOIN games ON games.room_id = game_participants.game_id

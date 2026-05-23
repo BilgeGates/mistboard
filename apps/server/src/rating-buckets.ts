@@ -1,5 +1,7 @@
+import { timeClassFromTimeControl, type TimeClass } from '@mistboard/game';
+
 export type RatingVariant = 'fog' | 'fog_draft960';
-export type RatingTimeClass = 'bullet' | 'blitz';
+export type RatingTimeClass = TimeClass;
 
 export type RatingBucket = {
   variant: RatingVariant;
@@ -22,17 +24,6 @@ export function bucketForGame(input: BucketInput): RatingBucket | null {
   if (!timeClass) return null;
   const variant: RatingVariant = input.hiddenDraft960 ? 'fog_draft960' : 'fog';
   return { variant, timeClass };
-}
-
-function timeClassFromTimeControl(
-  initialMs: number | null | undefined,
-  incrementMs: number | null | undefined,
-): RatingTimeClass | null {
-  if (initialMs == null || incrementMs == null) return null;
-  if (initialMs === 60_000 && incrementMs === 1_000) return 'bullet';
-  if (initialMs === 180_000 && incrementMs === 2_000) return 'blitz';
-  if (initialMs === 300_000 && incrementMs === 3_000) return 'blitz';
-  return null;
 }
 
 export function parseRatingVariant(value: string | null | undefined): RatingVariant | null {
