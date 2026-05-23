@@ -60,7 +60,11 @@ interface GameResult {
 type StateMessage = {
   type: 'snapshot' | 'event-appended';
   state?: {
-    status?: { type: 'pregame' | 'playing' | 'finished'; turn?: 'white' | 'black'; reason?: string };
+    status?: {
+      type: 'pregame' | 'playing' | 'finished';
+      turn?: 'white' | 'black';
+      reason?: string;
+    };
     moveNumber?: number;
     legalMoves?: { from: string; to: string; promotion?: string }[];
   };
@@ -92,7 +96,11 @@ async function createPveRoom(): Promise<string> {
 
 async function playOne(gameIdx: number): Promise<GameResult> {
   const roomId = await createPveRoom();
-  const client = await connectClient({ url: serverInstance.url, room: roomId, variant: 'fog-of-war' });
+  const client = await connectClient({
+    url: serverInstance.url,
+    room: roomId,
+    variant: 'fog-of-war',
+  });
   try {
     return await play(client, gameIdx);
   } finally {
@@ -108,14 +116,25 @@ async function play(client: TestClient, gameIdx: number): Promise<GameResult> {
   let maxLat = 0;
 
   while (true) {
-    if (Date.now() - started > MAX_GAME_MS) return { gameIdx, moves, finished: false, note: 'max-game-ms', maxMoveLatencyMs: maxLat };
-    if (moves >= MAX_MOVES) return { gameIdx, moves, finished: false, note: 'max-moves', maxMoveLatencyMs: maxLat };
+    if (Date.now() - started > MAX_GAME_MS)
+      return { gameIdx, moves, finished: false, note: 'max-game-ms', maxMoveLatencyMs: maxLat };
+    if (moves >= MAX_MOVES)
+      return { gameIdx, moves, finished: false, note: 'max-moves', maxMoveLatencyMs: maxLat };
 
     let snap: StateMessage;
     try {
-      snap = await client.waitFor<StateMessage>((m) => isActionable(m as StateMessage, actedOnMove), { timeoutMs: MOVE_TIMEOUT_MS });
+      snap = await client.waitFor<StateMessage>(
+        (m) => isActionable(m as StateMessage, actedOnMove),
+        { timeoutMs: MOVE_TIMEOUT_MS },
+      );
     } catch (err) {
-      return { gameIdx, moves, finished: false, note: `wait-timeout:${(err as Error).message}`, maxMoveLatencyMs: maxLat };
+      return {
+        gameIdx,
+        moves,
+        finished: false,
+        note: `wait-timeout:${(err as Error).message}`,
+        maxMoveLatencyMs: maxLat,
+      };
     }
     if (lastSentAt !== null) {
       const latency = Date.now() - lastSentAt;
@@ -123,14 +142,21 @@ async function play(client: TestClient, gameIdx: number): Promise<GameResult> {
       lastSentAt = null;
     }
     const status = snap.state?.status;
-    if (status?.type === 'finished') return { gameIdx, moves, finished: true, maxMoveLatencyMs: maxLat };
+    if (status?.type === 'finished')
+      return { gameIdx, moves, finished: true, maxMoveLatencyMs: maxLat };
     if (status?.type !== 'playing' || status.turn !== 'white') continue;
     const legal = snap.state?.legalMoves ?? [];
-    if (legal.length === 0) return { gameIdx, moves, finished: false, note: 'no-legal-moves', maxMoveLatencyMs: maxLat };
+    if (legal.length === 0)
+      return { gameIdx, moves, finished: false, note: 'no-legal-moves', maxMoveLatencyMs: maxLat };
 
     const choice = legal[(gameIdx + moves) % legal.length]!;
     lastSentAt = Date.now();
-    client.send({ type: 'move', from: choice.from, to: choice.to, ...(choice.promotion ? { promotion: choice.promotion } : {}) });
+    client.send({
+      type: 'move',
+      from: choice.from,
+      to: choice.to,
+      ...(choice.promotion ? { promotion: choice.promotion } : {}),
+    });
     actedOnMove = snap.state?.moveNumber ?? actedOnMove;
     moves += 1;
   }
@@ -193,7 +219,11 @@ test(`loadtest smoke: ${CONCURRENCY} concurrent PvE games produce engine moves w
   const movesPlayed = engineCounters.totalMoves - baselineMoves;
   const fallbacks = engineCounters.totalFallbacks - baselineFallbacks;
   assert.ok(movesPlayed > 0, 'expected some engine moves to have been recorded');
-  assert.equal(fallbacks, 0, `unexpected engine fallbacks: ${fallbacks} out of ${movesPlayed} engine moves`);
+  assert.equal(
+    fallbacks,
+    0,
+    `unexpected engine fallbacks: ${fallbacks} out of ${movesPlayed} engine moves`,
+  );
 
   // Every game should drive moves through the WS + engine path. Catching
   // stalls requires distinguishing "ended quickly because someone walked

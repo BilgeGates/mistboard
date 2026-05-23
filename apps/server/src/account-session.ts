@@ -7,21 +7,32 @@ import { isProductionLikeRuntime } from './server-policy.js';
 const accountSessionCookieName = 'mistboard_session';
 export const accountSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
 export const emailLoginCodeTtlMs = 10 * 60 * 1000;
-export const devAuthCodesEnabled = !isProductionLikeRuntime() || process.env.MISTBOARD_DEV_AUTH_CODES === 'true';
+export const devAuthCodesEnabled =
+  !isProductionLikeRuntime() || process.env.MISTBOARD_DEV_AUTH_CODES === 'true';
 const resendApiKey = process.env.RESEND_API_KEY;
 const authEmailFrom = process.env.MISTBOARD_AUTH_EMAIL_FROM ?? process.env.RESEND_FROM_EMAIL;
 export const authEmailDeliveryEnabled = !!resendApiKey && !!authEmailFrom;
 
-export async function currentAccountUser(request: IncomingMessage): Promise<persistence.UserAccount | null> {
+export async function currentAccountUser(
+  request: IncomingMessage,
+): Promise<persistence.UserAccount | null> {
   if (!persistence.isInitialized()) return null;
   const session = accountSessionFromRequest(request);
   if (!session) return null;
-  return persistence.getUserByAccountSession(session.sessionId, hashSecret(session.token), new Date());
+  return persistence.getUserByAccountSession(
+    session.sessionId,
+    hashSecret(session.token),
+    new Date(),
+  );
 }
 
-export async function ensureUserForEmail(email: string, now: Date): Promise<{ user: persistence.UserAccount; isNew: boolean }> {
+export async function ensureUserForEmail(
+  email: string,
+  now: Date,
+): Promise<{ user: persistence.UserAccount; isNew: boolean }> {
   const existing = await persistence.findUserByEmail(email);
-  if (existing) return { user: await persistence.markUserEmailVerified(existing.id, now), isNew: false };
+  if (existing)
+    return { user: await persistence.markUserEmailVerified(existing.id, now), isNew: false };
 
   const baseHandle = handleBaseForEmail(email);
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -39,7 +50,8 @@ export async function ensureUserForEmail(email: string, now: Date): Promise<{ us
     } catch (err) {
       if (!isUniqueViolation(err)) throw err;
       const raced = await persistence.findUserByEmail(email);
-      if (raced) return { user: await persistence.markUserEmailVerified(raced.id, now), isNew: false };
+      if (raced)
+        return { user: await persistence.markUserEmailVerified(raced.id, now), isNew: false };
     }
   }
   throw new Error('failed to allocate user handle');
@@ -63,7 +75,10 @@ export function randomEmailLoginCode(): string {
   return String(randomInt(0, 100_000_000)).padStart(8, '0');
 }
 
-export async function sendEmailLoginCode(email: string, code: string): Promise<{ ok: true } | { ok: false }> {
+export async function sendEmailLoginCode(
+  email: string,
+  code: string,
+): Promise<{ ok: true } | { ok: false }> {
   if (!resendApiKey || !authEmailFrom) return { ok: false };
   const subject = 'Your Mistboard login code';
   const text = [
@@ -95,22 +110,26 @@ export async function sendEmailLoginCode(email: string, code: string): Promise<{
       }),
     });
     if (response.ok) return { ok: true };
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'email_delivery_failure',
-      provider: 'resend',
-      status: response.status,
-      at: Date.now(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'email_delivery_failure',
+        provider: 'resend',
+        status: response.status,
+        at: Date.now(),
+      }),
+    );
     return { ok: false };
   } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'email_delivery_failure',
-      provider: 'resend',
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'email_delivery_failure',
+        provider: 'resend',
+        error: (err as Error).message,
+        at: Date.now(),
+      }),
+    );
     return { ok: false };
   }
 }
@@ -128,7 +147,9 @@ export function hashSecret(secret: string): string {
   return createHash('sha256').update(secret).digest('hex');
 }
 
-export function accountSessionFromRequest(request: IncomingMessage): { sessionId: string; token: string } | null {
+export function accountSessionFromRequest(
+  request: IncomingMessage,
+): { sessionId: string; token: string } | null {
   const value = cookieValue(request, accountSessionCookieName);
   if (!value) return null;
   const [sessionId, token] = value.split('.', 2);
@@ -174,5 +195,10 @@ function cookieWithAttributes(prefix: string, extra: string[]): string {
 }
 
 function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === '23505';
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: string }).code === '23505'
+  );
 }

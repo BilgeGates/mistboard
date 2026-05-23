@@ -64,7 +64,9 @@ test('replays Draft960 pregame events into a resolved starting position', () => 
   assert.equal(projection.resolvedStartId, resolvedStart.id);
   assert.deepEqual(projection.state.status, { type: 'playing', turn: 'white' });
   assert.deepEqual(
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => projection.state.board[`${file}1` as keyof typeof projection.state.board]?.role),
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(
+      (file) => projection.state.board[`${file}1` as keyof typeof projection.state.board]?.role,
+    ),
     resolvedStart.backRank,
   );
 });
@@ -132,11 +134,15 @@ test('replays independent per-side Draft960 offers into independent starting pos
     black: blackStart.id,
   });
   assert.deepEqual(
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => projection.state.board[`${file}1` as keyof typeof projection.state.board]?.role),
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(
+      (file) => projection.state.board[`${file}1` as keyof typeof projection.state.board]?.role,
+    ),
     whiteStart.backRank,
   );
   assert.deepEqual(
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => projection.state.board[`${file}8` as keyof typeof projection.state.board]?.role),
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(
+      (file) => projection.state.board[`${file}8` as keyof typeof projection.state.board]?.role,
+    ),
     blackStart.backRank,
   );
   assert.deepEqual(projection.state.castlingRights, ['f1', 'h1', 'f8', 'h8']);
@@ -410,7 +416,11 @@ test('replays timeout events into a finished game', () => {
 
   const projection = replayGameEvents(events);
 
-  assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'timeout' });
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'timeout',
+  });
   assert.equal(projection.state.clock?.activeColor, null);
   assert.equal(projection.state.clock?.remainingMs.white, 0);
 });
@@ -513,11 +523,21 @@ test('seat-resigned ends the game with opposite color winning', () => {
     { type: 'room-created', at: 1, roomId: 'resign-room', variant: 'fog-of-war', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'resign-room', clientId: 'wc', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'resign-room', clientId: 'bc', seat: 'black' },
-    { type: 'move-played', at: 4, roomId: 'resign-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    {
+      type: 'move-played',
+      at: 4,
+      roomId: 'resign-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
     { type: 'seat-resigned', at: 5, roomId: 'resign-room', color: 'white' },
   ];
   const projection = replayGameEvents(events);
-  assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'resignation' });
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'resignation',
+  });
 });
 
 test('seat-resigned freezes the clock at the resign timestamp', () => {
@@ -531,7 +551,11 @@ test('seat-resigned freezes the clock at the resign timestamp', () => {
     { type: 'seat-resigned', at: 4000, roomId: 'resign-clock-room', color: 'white' },
   ];
   const projection = replayGameEvents(events);
-  assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'resignation' });
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'resignation',
+  });
   // Clock must be frozen: no active color, no runningSince. White's remaining reflects elapsed.
   assert.equal(projection.state.clock?.activeColor, null);
   assert.equal(projection.state.clock?.runningSince, null);
@@ -546,7 +570,11 @@ test('seat-resigned after game already finished is a no-op (only first resignati
     { type: 'seat-resigned', at: 3, roomId: 'r', color: 'black' },
   ];
   const projection = replayGameEvents(events);
-  assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'resignation' });
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'resignation',
+  });
 });
 
 test('pause freezes the clock at the pause timestamp and marks the projection paused', () => {
@@ -555,7 +583,13 @@ test('pause freezes the clock at the pause timestamp and marks the projection pa
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'pause-room', variant: 'draft960', offer },
-    { type: 'draft-start-resolved', at: 1000, roomId: 'pause-room', clock: startedClock, startId: start.id },
+    {
+      type: 'draft-start-resolved',
+      at: 1000,
+      roomId: 'pause-room',
+      clock: startedClock,
+      startId: start.id,
+    },
     { type: 'pause', at: 3500, roomId: 'pause-room', reason: 'shutdown' },
   ];
   const projection = replayGameEvents(events);
@@ -578,7 +612,13 @@ test('resume rearms the clock for the current turn without altering remaining ti
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'resume-room', variant: 'draft960', offer },
-    { type: 'draft-start-resolved', at: 1000, roomId: 'resume-room', clock: startedClock, startId: start.id },
+    {
+      type: 'draft-start-resolved',
+      at: 1000,
+      roomId: 'resume-room',
+      clock: startedClock,
+      startId: start.id,
+    },
     { type: 'pause', at: 3500, roomId: 'resume-room', reason: 'shutdown' },
     // Wall-clock elapsed 10 minutes during server outage; resume at a much later time.
     { type: 'resume', at: 603_500, roomId: 'resume-room', reason: 'both-present' },
@@ -610,14 +650,24 @@ test('pause is a no-op in pregame', () => {
 
 test('pause is a no-op after the game has finished', () => {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'post-finish-pause-room', variant: 'fog-of-war', offer: [] },
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'post-finish-pause-room',
+      variant: 'fog-of-war',
+      offer: [],
+    },
     { type: 'seat-resigned', at: 2, roomId: 'post-finish-pause-room', color: 'white' },
     { type: 'pause', at: 3, roomId: 'post-finish-pause-room', reason: 'shutdown' },
   ];
   const projection = replayGameEvents(events);
 
   assert.equal(projection.paused, false);
-  assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'resignation' });
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'resignation',
+  });
 });
 
 test('a second pause while already paused is a no-op (preserves first pause snapshot)', () => {
@@ -626,7 +676,13 @@ test('a second pause while already paused is a no-op (preserves first pause snap
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'double-pause-room', variant: 'draft960', offer },
-    { type: 'draft-start-resolved', at: 1000, roomId: 'double-pause-room', clock: startedClock, startId: start.id },
+    {
+      type: 'draft-start-resolved',
+      at: 1000,
+      roomId: 'double-pause-room',
+      clock: startedClock,
+      startId: start.id,
+    },
     { type: 'pause', at: 3500, roomId: 'double-pause-room', reason: 'shutdown' },
     { type: 'pause', at: 4000, roomId: 'double-pause-room', reason: 'admin' },
   ];
@@ -644,7 +700,13 @@ test('resume while not paused is a no-op', () => {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'stray-resume-room', variant: 'draft960', offer },
-    { type: 'draft-start-resolved', at: 1000, roomId: 'stray-resume-room', clock: startedClock, startId: start.id },
+    {
+      type: 'draft-start-resolved',
+      at: 1000,
+      roomId: 'stray-resume-room',
+      clock: startedClock,
+      startId: start.id,
+    },
     { type: 'resume', at: 2000, roomId: 'stray-resume-room', reason: 'admin' },
   ];
   const projection = replayGameEvents(events);
@@ -660,11 +722,23 @@ test('move after resume continues the game with the unchanged clock', () => {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'resume-move-room', variant: 'draft960', offer },
-    { type: 'draft-start-resolved', at: 1000, roomId: 'resume-move-room', clock: startedClock, startId: start.id },
+    {
+      type: 'draft-start-resolved',
+      at: 1000,
+      roomId: 'resume-move-room',
+      clock: startedClock,
+      startId: start.id,
+    },
     { type: 'pause', at: 3500, roomId: 'resume-move-room', reason: 'shutdown' },
     { type: 'resume', at: 603_500, roomId: 'resume-move-room', reason: 'both-present' },
     // White moves 500ms after resume.
-    { type: 'move-played', at: 604_000, roomId: 'resume-move-room', color: 'white', move: { from: 'e2', to: 'e4' } },
+    {
+      type: 'move-played',
+      at: 604_000,
+      roomId: 'resume-move-room',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
   ];
   const projection = replayGameEvents(events);
 
@@ -682,7 +756,13 @@ test('multiple pause/resume cycles do not leak wall-clock time into player clock
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'cycle-room', variant: 'draft960', offer },
-    { type: 'draft-start-resolved', at: 1000, roomId: 'cycle-room', clock: startedClock, startId: start.id },
+    {
+      type: 'draft-start-resolved',
+      at: 1000,
+      roomId: 'cycle-room',
+      clock: startedClock,
+      startId: start.id,
+    },
     // First outage: 1 hour.
     { type: 'pause', at: 2000, roomId: 'cycle-room', reason: 'shutdown' },
     { type: 'resume', at: 3_602_000, roomId: 'cycle-room', reason: 'both-present' },

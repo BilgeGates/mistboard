@@ -129,7 +129,11 @@ const KNIGHT = [
   '....111111111111',
 ];
 
-function renderSprite(pixels: readonly string[], colors: readonly string[], scale: number = 1): string {
+function renderSprite(
+  pixels: readonly string[],
+  colors: readonly string[],
+  scale: number = 1,
+): string {
   const w = pixels[0].length;
   const h = pixels.length;
   const rects: string[] = [];
@@ -229,10 +233,22 @@ function styleCard(style: Style): HTMLElement {
   board.style.setProperty('--dark', style.boardDark);
   // 4x4 mini board. Place a few pieces + a fog square.
   const layout: Array<{ piece?: 'wP' | 'wN' | 'bP' | 'bN'; fog?: boolean }> = [
-    { piece: 'bN' }, {}, { piece: 'bP' }, { fog: true },
-    {}, { piece: 'bP' }, { fog: true }, {},
-    {}, { fog: true }, { piece: 'wP' }, {},
-    { piece: 'wN' }, {}, {}, { piece: 'wP' },
+    { piece: 'bN' },
+    {},
+    { piece: 'bP' },
+    { fog: true },
+    {},
+    { piece: 'bP' },
+    { fog: true },
+    {},
+    {},
+    { fog: true },
+    { piece: 'wP' },
+    {},
+    { piece: 'wN' },
+    {},
+    {},
+    { piece: 'wP' },
   ];
   const fogUrl = dataUrl(renderFogTile(style.fogColors[0], style.fogColors[1], 1));
   for (let i = 0; i < 16; i++) {
@@ -333,12 +349,37 @@ function fogVariantsSection(): HTMLElement {
   const grid = document.createElement('div');
   grid.className = 'pixel-lab__fog-grid';
 
-  const variants: Array<{ id: string; label: string; blurb: string; isVideo?: boolean; src?: string }> = [
-    { id: 'fog-mistveil', label: 'Mistveil (static)', blurb: 'Dense rolling cloud cover, atmospheric depth' },
-    { id: 'fog-mistveil-video', label: 'Mistveil (ANIMATED — raw)', blurb: 'Wan 2.2 i2v, 5s, raw — seam visible at loop point', isVideo: true },
-    { id: 'fog-mistveil-loop', label: 'Mistveil (LOOPED — palindrome)', blurb: '10s perfect loop, forward+reverse concat via ffmpeg', isVideo: true, src: '/pixel-lab-assets/video/fog-mistveil-loop.mp4' },
+  const variants: Array<{
+    id: string;
+    label: string;
+    blurb: string;
+    isVideo?: boolean;
+    src?: string;
+  }> = [
+    {
+      id: 'fog-mistveil',
+      label: 'Mistveil (static)',
+      blurb: 'Dense rolling cloud cover, atmospheric depth',
+    },
+    {
+      id: 'fog-mistveil-video',
+      label: 'Mistveil (ANIMATED — raw)',
+      blurb: 'Wan 2.2 i2v, 5s, raw — seam visible at loop point',
+      isVideo: true,
+    },
+    {
+      id: 'fog-mistveil-loop',
+      label: 'Mistveil (LOOPED — palindrome)',
+      blurb: '10s perfect loop, forward+reverse concat via ffmpeg',
+      isVideo: true,
+      src: '/pixel-lab-assets/video/fog-mistveil-loop.mp4',
+    },
     { id: 'fog-lantern', label: 'Lantern-lit night', blurb: 'Dark with warm/cool light pinpricks' },
-    { id: 'fog-wispy', label: 'Wispy sparse drift', blurb: 'Too sparse — reads as calligraphy not fog' },
+    {
+      id: 'fog-wispy',
+      label: 'Wispy sparse drift',
+      blurb: 'Too sparse — reads as calligraphy not fog',
+    },
     { id: 'fog-void', label: 'Deep void', blurb: 'Near-black, extreme "see nothing" mode' },
   ];
 
@@ -388,17 +429,29 @@ function themedKnightsSection(): HTMLElement {
   const h2 = document.createElement('h2');
   h2.textContent = 'Themed knight probes — searching for the Mistboard signature';
   const p = document.createElement('p');
-  p.textContent =
-    '3 directions tested. Pick which (if any) becomes the basis for a full set.';
+  p.textContent = '3 directions tested. Pick which (if any) becomes the basis for a full set.';
   header.append(h2, p);
   section.append(header);
 
   const grid = document.createElement('div');
   grid.className = 'pixel-lab__themed-grid';
   const themes: Array<{ id: string; label: string; blurb: string }> = [
-    { id: 'A-atmospheric', label: 'A. Atmospheric Staunton', blurb: 'Classic silhouette + fog wisps + cool grey-blue. Safe evolution.' },
-    { id: 'B-shrouded', label: 'B. Shrouded / visored', blurb: 'Reads as grungy knight, not fog-themed. Weakest.' },
-    { id: 'C-lantern', label: 'C. Lantern in the dark', blurb: 'Dark horsehead with glowing lantern. Strongest identity — but white/black distinction needs work.' },
+    {
+      id: 'A-atmospheric',
+      label: 'A. Atmospheric Staunton',
+      blurb: 'Classic silhouette + fog wisps + cool grey-blue. Safe evolution.',
+    },
+    {
+      id: 'B-shrouded',
+      label: 'B. Shrouded / visored',
+      blurb: 'Reads as grungy knight, not fog-themed. Weakest.',
+    },
+    {
+      id: 'C-lantern',
+      label: 'C. Lantern in the dark',
+      blurb:
+        'Dark horsehead with glowing lantern. Strongest identity — but white/black distinction needs work.',
+    },
   ];
   for (const t of themes) {
     const card = document.createElement('div');
@@ -438,14 +491,14 @@ function realScaleBoardSection(): HTMLElement {
 
   // FEN-derived starting position. Row 0 = rank 8 (black back), Row 7 = rank 1.
   const startingPosition = [
-    ['bR','bN','bB','bQ','bK','bB','bN','bR'],
-    ['bP','bP','bP','bP','bP','bP','bP','bP'],
-    ['',  '',  '',  '',  '',  '',  '',  ''  ],
-    ['',  '',  '',  '',  '',  '',  '',  ''  ],
-    ['',  '',  '',  '',  '',  '',  '',  ''  ],
-    ['',  '',  '',  '',  '',  '',  '',  ''  ],
-    ['wP','wP','wP','wP','wP','wP','wP','wP'],
-    ['wR','wN','wB','wQ','wK','wB','wN','wR'],
+    ['bR', 'bN', 'bB', 'bQ', 'bK', 'bB', 'bN', 'bR'],
+    ['bP', 'bP', 'bP', 'bP', 'bP', 'bP', 'bP', 'bP'],
+    ['', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', ''],
+    ['wP', 'wP', 'wP', 'wP', 'wP', 'wP', 'wP', 'wP'],
+    ['wR', 'wN', 'wB', 'wQ', 'wK', 'wB', 'wN', 'wR'],
   ];
 
   // Squares to overlay fog on. Coords are [row, col], row=0 is rank 8.
@@ -558,7 +611,9 @@ function fullSetSection(): HTMLElement {
         img.alt = `${provider} ${color}${piece}`;
         img.loading = 'lazy';
         img.style.imageRendering = 'pixelated';
-        img.onerror = () => { img.style.display = 'none'; };
+        img.onerror = () => {
+          img.style.display = 'none';
+        };
         const cap = document.createElement('div');
         cap.className = 'pixel-lab__set-cap';
         cap.textContent = `${color}${piece}`;
@@ -587,18 +642,30 @@ function themedSetsSection(): HTMLElement {
   header.append(h2, p);
   section.append(header);
 
-  for (const style of ['lantern-dark-8bit', 'lantern-dark', 'lantern-dark-v1', 'lantern-8bit', 'atmospheric', 'lantern'] as const) {
+  for (const style of [
+    'lantern-dark-8bit',
+    'lantern-dark',
+    'lantern-dark-v1',
+    'lantern-8bit',
+    'atmospheric',
+    'lantern',
+  ] as const) {
     const block = document.createElement('div');
     block.className = 'pixel-lab__set-block';
 
     const blockLabel = document.createElement('h3');
     blockLabel.textContent =
-      style === 'atmospheric' ? 'Atmospheric Staunton'
-      : style === 'lantern' ? 'Lantern (v3, integrated gems — mixed quality)'
-      : style === 'lantern-8bit' ? 'Lantern 8-bit (simpler — pieces holding lanterns)'
-      : style === 'lantern-dark-v1' ? 'Lantern Dark V1 (gpt-image-1, FAILED — invisible pieces)'
-      : style === 'lantern-dark-8bit' ? 'Lantern Dark — TRUE 8-BIT (gpt-image-2, tight constraints) ★'
-      : 'Lantern Dark V2 (gpt-image-2, illustrated — gorgeous but not 8-bit)';
+      style === 'atmospheric'
+        ? 'Atmospheric Staunton'
+        : style === 'lantern'
+          ? 'Lantern (v3, integrated gems — mixed quality)'
+          : style === 'lantern-8bit'
+            ? 'Lantern 8-bit (simpler — pieces holding lanterns)'
+            : style === 'lantern-dark-v1'
+              ? 'Lantern Dark V1 (gpt-image-1, FAILED — invisible pieces)'
+              : style === 'lantern-dark-8bit'
+                ? 'Lantern Dark — TRUE 8-BIT (gpt-image-2, tight constraints) ★'
+                : 'Lantern Dark V2 (gpt-image-2, illustrated — gorgeous but not 8-bit)';
     blockLabel.className = 'pixel-lab__api-subhead';
     block.append(blockLabel);
 
@@ -617,7 +684,9 @@ function themedSetsSection(): HTMLElement {
         img.alt = `${style} ${color}${piece}`;
         img.loading = 'lazy';
         img.style.imageRendering = 'pixelated';
-        img.onerror = () => { img.style.display = 'none'; };
+        img.onerror = () => {
+          img.style.display = 'none';
+        };
         const cap = document.createElement('div');
         cap.className = 'pixel-lab__set-cap';
         cap.textContent = `${color}${piece}`;

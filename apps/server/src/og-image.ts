@@ -1,10 +1,7 @@
 import type { ServerResponse } from 'node:http';
 import { Resvg } from '@resvg/resvg-js';
 import type { Color, Square } from '@mistboard/game';
-import {
-  type PieceOnBoard,
-  renderBoardComposition,
-} from '@mistboard/board-render';
+import { type PieceOnBoard, renderBoardComposition } from '@mistboard/board-render';
 import * as persistence from './persistence.js';
 
 const OG_WIDTH = 1200;
@@ -70,7 +67,12 @@ function resultLabel(game: persistence.GameRecord): string {
 }
 
 function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 // ── Default OG card: single hero board, mid-game position, fog visible ────────
@@ -102,49 +104,72 @@ function defaultOgPositionPool(): DefaultOgPosition[] {
 function positionMidgameDeveloped(): DefaultOgPosition {
   const pieces: PieceOnBoard[] = [
     // White
-    { color: 'white', role: 'rook',   file: 0, rank: 0 }, // a1
+    { color: 'white', role: 'rook', file: 0, rank: 0 }, // a1
     { color: 'white', role: 'bishop', file: 2, rank: 0 }, // c1
-    { color: 'white', role: 'queen',  file: 3, rank: 1 }, // d2
+    { color: 'white', role: 'queen', file: 3, rank: 1 }, // d2
     { color: 'white', role: 'bishop', file: 4, rank: 1 }, // e2
-    { color: 'white', role: 'rook',   file: 5, rank: 0 }, // f1
-    { color: 'white', role: 'king',   file: 6, rank: 0 }, // g1
+    { color: 'white', role: 'rook', file: 5, rank: 0 }, // f1
+    { color: 'white', role: 'king', file: 6, rank: 0 }, // g1
     { color: 'white', role: 'knight', file: 2, rank: 2 }, // c3
     { color: 'white', role: 'knight', file: 5, rank: 2 }, // f3
-    { color: 'white', role: 'pawn',   file: 0, rank: 1 }, // a2
-    { color: 'white', role: 'pawn',   file: 1, rank: 1 }, // b2
-    { color: 'white', role: 'pawn',   file: 2, rank: 3 }, // c4
-    { color: 'white', role: 'pawn',   file: 3, rank: 3 }, // d4
-    { color: 'white', role: 'pawn',   file: 4, rank: 2 }, // e3
-    { color: 'white', role: 'pawn',   file: 5, rank: 1 }, // f2
-    { color: 'white', role: 'pawn',   file: 6, rank: 1 }, // g2
-    { color: 'white', role: 'pawn',   file: 7, rank: 1 }, // h2
+    { color: 'white', role: 'pawn', file: 0, rank: 1 }, // a2
+    { color: 'white', role: 'pawn', file: 1, rank: 1 }, // b2
+    { color: 'white', role: 'pawn', file: 2, rank: 3 }, // c4
+    { color: 'white', role: 'pawn', file: 3, rank: 3 }, // d4
+    { color: 'white', role: 'pawn', file: 4, rank: 2 }, // e3
+    { color: 'white', role: 'pawn', file: 5, rank: 1 }, // f2
+    { color: 'white', role: 'pawn', file: 6, rank: 1 }, // g2
+    { color: 'white', role: 'pawn', file: 7, rank: 1 }, // h2
     // Black — the renderer skips pieces on fogged squares, so most of these
     // are silent (they're "there" but the viewer doesn't see them).
-    { color: 'black', role: 'rook',   file: 0, rank: 7 }, // a8
+    { color: 'black', role: 'rook', file: 0, rank: 7 }, // a8
     { color: 'black', role: 'bishop', file: 2, rank: 7 }, // c8
-    { color: 'black', role: 'queen',  file: 3, rank: 7 }, // d8
+    { color: 'black', role: 'queen', file: 3, rank: 7 }, // d8
     { color: 'black', role: 'bishop', file: 4, rank: 6 }, // e7
-    { color: 'black', role: 'rook',   file: 5, rank: 7 }, // f8
-    { color: 'black', role: 'king',   file: 6, rank: 7 }, // g8
+    { color: 'black', role: 'rook', file: 5, rank: 7 }, // f8
+    { color: 'black', role: 'king', file: 6, rank: 7 }, // g8
     { color: 'black', role: 'knight', file: 2, rank: 6 }, // c7
     { color: 'black', role: 'knight', file: 4, rank: 4 }, // e5 — visible
-    { color: 'black', role: 'pawn',   file: 0, rank: 6 }, // a7
-    { color: 'black', role: 'pawn',   file: 1, rank: 5 }, // b6
-    { color: 'black', role: 'pawn',   file: 2, rank: 4 }, // c5 — visible
-    { color: 'black', role: 'pawn',   file: 3, rank: 4 }, // d5 — visible
-    { color: 'black', role: 'pawn',   file: 4, rank: 5 }, // e6
-    { color: 'black', role: 'pawn',   file: 5, rank: 6 }, // f7
-    { color: 'black', role: 'pawn',   file: 6, rank: 6 }, // g7
-    { color: 'black', role: 'pawn',   file: 7, rank: 6 }, // h7
+    { color: 'black', role: 'pawn', file: 0, rank: 6 }, // a7
+    { color: 'black', role: 'pawn', file: 1, rank: 5 }, // b6
+    { color: 'black', role: 'pawn', file: 2, rank: 4 }, // c5 — visible
+    { color: 'black', role: 'pawn', file: 3, rank: 4 }, // d5 — visible
+    { color: 'black', role: 'pawn', file: 4, rank: 5 }, // e6
+    { color: 'black', role: 'pawn', file: 5, rank: 6 }, // f7
+    { color: 'black', role: 'pawn', file: 6, rank: 6 }, // g7
+    { color: 'black', role: 'pawn', file: 7, rank: 6 }, // h7
   ];
 
   // White POV: visible rank-5 squares are b5/c5/d5/e5/g5 (knight jumps + pawn
   // captures). Ranks 6-8 fully fogged; a5/f5/h5 also fogged.
   const fogSquares: Square[] = [
-    'a5', 'f5', 'h5',
-    'a6', 'b6', 'c6', 'd6', 'e6', 'f6', 'g6', 'h6',
-    'a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7',
-    'a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8',
+    'a5',
+    'f5',
+    'h5',
+    'a6',
+    'b6',
+    'c6',
+    'd6',
+    'e6',
+    'f6',
+    'g6',
+    'h6',
+    'a7',
+    'b7',
+    'c7',
+    'd7',
+    'e7',
+    'f7',
+    'g7',
+    'h7',
+    'a8',
+    'b8',
+    'c8',
+    'd8',
+    'e8',
+    'f8',
+    'g8',
+    'h8',
   ];
 
   return { pieces, fogSquares, orientation: 'white' };
@@ -157,48 +182,72 @@ function positionMidgameDeveloped(): DefaultOgPosition {
 function positionBlackPovCentralPressure(): DefaultOgPosition {
   const pieces: PieceOnBoard[] = [
     // White
-    { color: 'white', role: 'rook',   file: 0, rank: 0 }, // a1
+    { color: 'white', role: 'rook', file: 0, rank: 0 }, // a1
     { color: 'white', role: 'bishop', file: 2, rank: 0 }, // c1
-    { color: 'white', role: 'queen',  file: 3, rank: 0 }, // d1
-    { color: 'white', role: 'king',   file: 4, rank: 0 }, // e1
+    { color: 'white', role: 'queen', file: 3, rank: 0 }, // d1
+    { color: 'white', role: 'king', file: 4, rank: 0 }, // e1
     { color: 'white', role: 'bishop', file: 4, rank: 2 }, // e3
-    { color: 'white', role: 'rook',   file: 7, rank: 0 }, // h1
+    { color: 'white', role: 'rook', file: 7, rank: 0 }, // h1
     { color: 'white', role: 'knight', file: 2, rank: 2 }, // c3
     { color: 'white', role: 'knight', file: 3, rank: 4 }, // d5 — visible
-    { color: 'white', role: 'pawn',   file: 0, rank: 1 }, // a2
-    { color: 'white', role: 'pawn',   file: 1, rank: 1 }, // b2
-    { color: 'white', role: 'pawn',   file: 2, rank: 1 }, // c2
-    { color: 'white', role: 'pawn',   file: 3, rank: 3 }, // d4 — visible
-    { color: 'white', role: 'pawn',   file: 4, rank: 3 }, // e4 — visible
-    { color: 'white', role: 'pawn',   file: 5, rank: 1 }, // f2
-    { color: 'white', role: 'pawn',   file: 6, rank: 1 }, // g2
-    { color: 'white', role: 'pawn',   file: 7, rank: 1 }, // h2
+    { color: 'white', role: 'pawn', file: 0, rank: 1 }, // a2
+    { color: 'white', role: 'pawn', file: 1, rank: 1 }, // b2
+    { color: 'white', role: 'pawn', file: 2, rank: 1 }, // c2
+    { color: 'white', role: 'pawn', file: 3, rank: 3 }, // d4 — visible
+    { color: 'white', role: 'pawn', file: 4, rank: 3 }, // e4 — visible
+    { color: 'white', role: 'pawn', file: 5, rank: 1 }, // f2
+    { color: 'white', role: 'pawn', file: 6, rank: 1 }, // g2
+    { color: 'white', role: 'pawn', file: 7, rank: 1 }, // h2
     // Black
-    { color: 'black', role: 'rook',   file: 0, rank: 7 }, // a8
+    { color: 'black', role: 'rook', file: 0, rank: 7 }, // a8
     { color: 'black', role: 'bishop', file: 2, rank: 7 }, // c8
-    { color: 'black', role: 'queen',  file: 3, rank: 7 }, // d8
+    { color: 'black', role: 'queen', file: 3, rank: 7 }, // d8
     { color: 'black', role: 'bishop', file: 4, rank: 6 }, // e7
-    { color: 'black', role: 'rook',   file: 5, rank: 7 }, // f8
-    { color: 'black', role: 'king',   file: 6, rank: 7 }, // g8
+    { color: 'black', role: 'rook', file: 5, rank: 7 }, // f8
+    { color: 'black', role: 'king', file: 6, rank: 7 }, // g8
     { color: 'black', role: 'knight', file: 2, rank: 5 }, // c6
     { color: 'black', role: 'knight', file: 5, rank: 5 }, // f6
-    { color: 'black', role: 'pawn',   file: 0, rank: 6 }, // a7
-    { color: 'black', role: 'pawn',   file: 1, rank: 6 }, // b7
-    { color: 'black', role: 'pawn',   file: 2, rank: 6 }, // c7
-    { color: 'black', role: 'pawn',   file: 3, rank: 5 }, // d6
-    { color: 'black', role: 'pawn',   file: 4, rank: 5 }, // e6
-    { color: 'black', role: 'pawn',   file: 5, rank: 6 }, // f7
-    { color: 'black', role: 'pawn',   file: 6, rank: 6 }, // g7
-    { color: 'black', role: 'pawn',   file: 7, rank: 6 }, // h7
+    { color: 'black', role: 'pawn', file: 0, rank: 6 }, // a7
+    { color: 'black', role: 'pawn', file: 1, rank: 6 }, // b7
+    { color: 'black', role: 'pawn', file: 2, rank: 6 }, // c7
+    { color: 'black', role: 'pawn', file: 3, rank: 5 }, // d6
+    { color: 'black', role: 'pawn', file: 4, rank: 5 }, // e6
+    { color: 'black', role: 'pawn', file: 5, rank: 6 }, // f7
+    { color: 'black', role: 'pawn', file: 6, rank: 6 }, // g7
+    { color: 'black', role: 'pawn', file: 7, rank: 6 }, // h7
   ];
 
   // Black POV: visible rank-4 squares are b4/d4/e4/g4 (knight jumps from c6/f6).
   // Rank 5 fully visible. Ranks 1-3 fully fogged; rank-4 squares a4/c4/f4/h4 fogged.
   const fogSquares: Square[] = [
-    'a1', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1',
-    'a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2',
-    'a3', 'b3', 'c3', 'd3', 'e3', 'f3', 'g3', 'h3',
-    'a4', 'c4', 'f4', 'h4',
+    'a1',
+    'b1',
+    'c1',
+    'd1',
+    'e1',
+    'f1',
+    'g1',
+    'h1',
+    'a2',
+    'b2',
+    'c2',
+    'd2',
+    'e2',
+    'f2',
+    'g2',
+    'h2',
+    'a3',
+    'b3',
+    'c3',
+    'd3',
+    'e3',
+    'f3',
+    'g3',
+    'h3',
+    'a4',
+    'c4',
+    'f4',
+    'h4',
   ];
 
   return { pieces, fogSquares, orientation: 'black' };
@@ -210,46 +259,69 @@ function positionBlackPovCentralPressure(): DefaultOgPosition {
 function positionWhitePovQueensidePressure(): DefaultOgPosition {
   const pieces: PieceOnBoard[] = [
     // White
-    { color: 'white', role: 'rook',   file: 0, rank: 0 }, // a1
+    { color: 'white', role: 'rook', file: 0, rank: 0 }, // a1
     { color: 'white', role: 'bishop', file: 2, rank: 0 }, // c1
-    { color: 'white', role: 'queen',  file: 3, rank: 1 }, // d2
+    { color: 'white', role: 'queen', file: 3, rank: 1 }, // d2
     { color: 'white', role: 'bishop', file: 4, rank: 1 }, // e2
-    { color: 'white', role: 'rook',   file: 5, rank: 0 }, // f1
-    { color: 'white', role: 'king',   file: 6, rank: 0 }, // g1
+    { color: 'white', role: 'rook', file: 5, rank: 0 }, // f1
+    { color: 'white', role: 'king', file: 6, rank: 0 }, // g1
     { color: 'white', role: 'knight', file: 2, rank: 2 }, // c3
     { color: 'white', role: 'knight', file: 5, rank: 2 }, // f3
-    { color: 'white', role: 'pawn',   file: 0, rank: 1 }, // a2
-    { color: 'white', role: 'pawn',   file: 1, rank: 1 }, // b2
-    { color: 'white', role: 'pawn',   file: 2, rank: 3 }, // c4
-    { color: 'white', role: 'pawn',   file: 3, rank: 3 }, // d4
-    { color: 'white', role: 'pawn',   file: 4, rank: 2 }, // e3
-    { color: 'white', role: 'pawn',   file: 5, rank: 1 }, // f2
-    { color: 'white', role: 'pawn',   file: 6, rank: 1 }, // g2
-    { color: 'white', role: 'pawn',   file: 7, rank: 1 }, // h2
+    { color: 'white', role: 'pawn', file: 0, rank: 1 }, // a2
+    { color: 'white', role: 'pawn', file: 1, rank: 1 }, // b2
+    { color: 'white', role: 'pawn', file: 2, rank: 3 }, // c4
+    { color: 'white', role: 'pawn', file: 3, rank: 3 }, // d4
+    { color: 'white', role: 'pawn', file: 4, rank: 2 }, // e3
+    { color: 'white', role: 'pawn', file: 5, rank: 1 }, // f2
+    { color: 'white', role: 'pawn', file: 6, rank: 1 }, // g2
+    { color: 'white', role: 'pawn', file: 7, rank: 1 }, // h2
     // Black
-    { color: 'black', role: 'rook',   file: 0, rank: 7 }, // a8
+    { color: 'black', role: 'rook', file: 0, rank: 7 }, // a8
     { color: 'black', role: 'bishop', file: 2, rank: 7 }, // c8
-    { color: 'black', role: 'queen',  file: 3, rank: 7 }, // d8
+    { color: 'black', role: 'queen', file: 3, rank: 7 }, // d8
     { color: 'black', role: 'bishop', file: 1, rank: 4 }, // b5 — visible (queenside intruder)
-    { color: 'black', role: 'rook',   file: 5, rank: 7 }, // f8
-    { color: 'black', role: 'king',   file: 6, rank: 7 }, // g8
+    { color: 'black', role: 'rook', file: 5, rank: 7 }, // f8
+    { color: 'black', role: 'king', file: 6, rank: 7 }, // g8
     { color: 'black', role: 'knight', file: 2, rank: 6 }, // c7
     { color: 'black', role: 'knight', file: 5, rank: 5 }, // f6 — hidden in fog
-    { color: 'black', role: 'pawn',   file: 0, rank: 6 }, // a7
-    { color: 'black', role: 'pawn',   file: 1, rank: 5 }, // b6
-    { color: 'black', role: 'pawn',   file: 2, rank: 4 }, // c5 — visible
-    { color: 'black', role: 'pawn',   file: 3, rank: 4 }, // d5 — visible
-    { color: 'black', role: 'pawn',   file: 4, rank: 5 }, // e6
-    { color: 'black', role: 'pawn',   file: 5, rank: 6 }, // f7
-    { color: 'black', role: 'pawn',   file: 6, rank: 6 }, // g7
-    { color: 'black', role: 'pawn',   file: 7, rank: 6 }, // h7
+    { color: 'black', role: 'pawn', file: 0, rank: 6 }, // a7
+    { color: 'black', role: 'pawn', file: 1, rank: 5 }, // b6
+    { color: 'black', role: 'pawn', file: 2, rank: 4 }, // c5 — visible
+    { color: 'black', role: 'pawn', file: 3, rank: 4 }, // d5 — visible
+    { color: 'black', role: 'pawn', file: 4, rank: 5 }, // e6
+    { color: 'black', role: 'pawn', file: 5, rank: 6 }, // f7
+    { color: 'black', role: 'pawn', file: 6, rank: 6 }, // g7
+    { color: 'black', role: 'pawn', file: 7, rank: 6 }, // h7
   ];
 
   const fogSquares: Square[] = [
-    'a5', 'f5', 'h5',
-    'a6', 'b6', 'c6', 'd6', 'e6', 'f6', 'g6', 'h6',
-    'a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7',
-    'a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8',
+    'a5',
+    'f5',
+    'h5',
+    'a6',
+    'b6',
+    'c6',
+    'd6',
+    'e6',
+    'f6',
+    'g6',
+    'h6',
+    'a7',
+    'b7',
+    'c7',
+    'd7',
+    'e7',
+    'f7',
+    'g7',
+    'h7',
+    'a8',
+    'b8',
+    'c8',
+    'd8',
+    'e8',
+    'f8',
+    'g8',
+    'h8',
   ];
 
   return { pieces, fogSquares, orientation: 'white' };
@@ -262,17 +334,25 @@ export function renderDefaultOgSvg(): string {
   const boardY = 120;
 
   const parts: string[] = [];
-  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`);
+  parts.push(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+  );
   parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
-  parts.push(`<text x="80" y="80" fill="#e5e7eb" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="3">MISTBOARD</text>`);
-  parts.push(renderBoardComposition({
-    layout: 'single',
-    canvasWidth: OG_WIDTH,
-    boardY,
-    boardSize,
-    boards: [{ pieces: pick.pieces, fogSquares: pick.fogSquares, orientation: pick.orientation }],
-  }));
-  parts.push(`<text x="${OG_WIDTH / 2}" y="600" text-anchor="middle" fill="#e5e7eb" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="26" font-weight="500">Chess where you only see what your pieces see.</text>`);
+  parts.push(
+    `<text x="80" y="80" fill="#e5e7eb" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="3">MISTBOARD</text>`,
+  );
+  parts.push(
+    renderBoardComposition({
+      layout: 'single',
+      canvasWidth: OG_WIDTH,
+      boardY,
+      boardSize,
+      boards: [{ pieces: pick.pieces, fogSquares: pick.fogSquares, orientation: pick.orientation }],
+    }),
+  );
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="600" text-anchor="middle" fill="#e5e7eb" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="26" font-weight="500">Chess where you only see what your pieces see.</text>`,
+  );
   parts.push(`</svg>`);
   return parts.join('');
 }
@@ -283,5 +363,7 @@ export function svgToPng(svg: string, background = '#0f1115'): Buffer {
   return new Resvg(svg, {
     background,
     fitTo: { mode: 'zoom', value: 2 },
-  }).render().asPng();
+  })
+    .render()
+    .asPng();
 }

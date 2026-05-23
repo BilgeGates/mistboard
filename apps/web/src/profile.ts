@@ -77,10 +77,30 @@ const LEADERBOARD_BUCKETS: {
   timeClass: string;
   timeLabel: string;
 }[] = [
-  { variantParam: 'fog', variantLabel: 'Dark chess', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
-  { variantParam: 'fog', variantLabel: 'Dark chess', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
-  { variantParam: 'fog-draft960', variantLabel: 'Draft960', timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
-  { variantParam: 'fog-draft960', variantLabel: 'Draft960', timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
+  {
+    variantParam: 'fog',
+    variantLabel: 'Dark chess',
+    timeClass: 'bullet',
+    timeLabel: 'Bullet · 1+1',
+  },
+  {
+    variantParam: 'fog',
+    variantLabel: 'Dark chess',
+    timeClass: 'blitz',
+    timeLabel: 'Blitz · 3+2, 5+3',
+  },
+  {
+    variantParam: 'fog-draft960',
+    variantLabel: 'Draft960',
+    timeClass: 'bullet',
+    timeLabel: 'Bullet · 1+1',
+  },
+  {
+    variantParam: 'fog-draft960',
+    variantLabel: 'Draft960',
+    timeClass: 'blitz',
+    timeLabel: 'Blitz · 3+2, 5+3',
+  },
 ];
 
 const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
@@ -141,7 +161,11 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   const results = await Promise.all(
     LEADERBOARD_BUCKETS.map((b) =>
       fetch(`/api/leaderboard?variant=${b.variantParam}&time=${b.timeClass}&limit=10`)
-        .then((r) => (r.ok ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>) : Promise.reject(r.status)))
+        .then((r) =>
+          r.ok
+            ? (r.json() as Promise<{ leaderboard: LeaderboardEntry[] }>)
+            : Promise.reject(r.status),
+        )
         .catch((err) => {
           console.warn(err);
           return null;
@@ -473,5 +497,7 @@ function formatGameDate(value: string | undefined): string {
   if (!value) return 'Finished game';
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return 'Finished game';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+    date,
+  );
 }

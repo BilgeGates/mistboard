@@ -49,7 +49,9 @@ function run(cmd, args) {
 
 const args = parseArgs(process.argv.slice(2));
 if (!args.in || !args.out) {
-  console.error('Usage: node scripts/loop-video.mjs --in <path.mp4> --out <name> [--mode palindrome|crossfade]');
+  console.error(
+    'Usage: node scripts/loop-video.mjs --in <path.mp4> --out <name> [--mode palindrome|crossfade]',
+  );
   process.exit(1);
 }
 
@@ -66,12 +68,16 @@ if (mode === 'palindrome') {
   // frame of reverse to avoid duplicate-frame pause at the turnaround.
   await run('ffmpeg', [
     '-y',
-    '-i', inPath,
+    '-i',
+    inPath,
     '-filter_complex',
     '[0:v]split[fwd][src];[src]reverse,trim=start_frame=1[rev];[fwd][rev]concat=n=2:v=1:a=0[v]',
-    '-map', '[v]',
-    '-c:v', 'libx264',
-    '-pix_fmt', 'yuv420p',
+    '-map',
+    '[v]',
+    '-c:v',
+    'libx264',
+    '-pix_fmt',
+    'yuv420p',
     '-an',
     outMp4,
   ]);
@@ -79,12 +85,16 @@ if (mode === 'palindrome') {
   // Cross-fade last 1s into first 1s. Requires knowing input duration; use 1s default xfade.
   await run('ffmpeg', [
     '-y',
-    '-i', inPath,
+    '-i',
+    inPath,
     '-filter_complex',
     '[0:v]split[a][b];[b]trim=start=4,setpts=PTS-STARTPTS[bt];[a][bt]xfade=transition=fade:duration=1:offset=4[v]',
-    '-map', '[v]',
-    '-c:v', 'libx264',
-    '-pix_fmt', 'yuv420p',
+    '-map',
+    '[v]',
+    '-c:v',
+    'libx264',
+    '-pix_fmt',
+    'yuv420p',
     '-an',
     outMp4,
   ]);
@@ -98,12 +108,17 @@ if (args.webp) {
   console.log(`[webp] ${outMp4} -> ${outWebp}`);
   await run('ffmpeg', [
     '-y',
-    '-i', outMp4,
-    '-vcodec', 'libwebp',
-    '-loop', '0',
-    '-preset', 'picture',
+    '-i',
+    outMp4,
+    '-vcodec',
+    'libwebp',
+    '-loop',
+    '0',
+    '-preset',
+    'picture',
     '-an',
-    '-vsync', '0',
+    '-vsync',
+    '0',
     outWebp,
   ]);
 }

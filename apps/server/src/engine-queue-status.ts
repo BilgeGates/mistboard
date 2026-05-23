@@ -15,11 +15,17 @@ try {
     jobId,
     recentLimit: Number.isFinite(recentLimit) && recentLimit > 0 ? recentLimit : 5,
   });
-  console.log(JSON.stringify({
-    level: 'info',
-    kind: 'engine_queue_status',
-    ...status,
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        level: 'info',
+        kind: 'engine_queue_status',
+        ...status,
+      },
+      null,
+      2,
+    ),
+  );
 } finally {
   await pool.end();
 }
@@ -29,15 +35,19 @@ type QueueStatusOptions = {
   recentLimit: number;
 };
 
-async function loadQueueStatus(db: pg.Pool, options: QueueStatusOptions): Promise<Record<string, unknown>> {
-  const [taskTotals, artifactTotals, runtimeSummaries, activeWorkers, recentJobs, recentTasks] = await Promise.all([
-    loadTaskTotals(db, options.jobId),
-    loadArtifactTotals(db, options.jobId),
-    loadRuntimeSummaries(db, options.jobId),
-    loadActiveWorkers(db),
-    loadRecentJobs(db, options),
-    loadRecentTasks(db, options),
-  ]);
+async function loadQueueStatus(
+  db: pg.Pool,
+  options: QueueStatusOptions,
+): Promise<Record<string, unknown>> {
+  const [taskTotals, artifactTotals, runtimeSummaries, activeWorkers, recentJobs, recentTasks] =
+    await Promise.all([
+      loadTaskTotals(db, options.jobId),
+      loadArtifactTotals(db, options.jobId),
+      loadRuntimeSummaries(db, options.jobId),
+      loadActiveWorkers(db),
+      loadRecentJobs(db, options),
+      loadRecentTasks(db, options),
+    ]);
 
   return {
     jobId: options.jobId,
@@ -50,7 +60,10 @@ async function loadQueueStatus(db: pg.Pool, options: QueueStatusOptions): Promis
   };
 }
 
-async function loadArtifactTotals(db: pg.Pool, jobId: string | null): Promise<Array<Record<string, unknown>>> {
+async function loadArtifactTotals(
+  db: pg.Pool,
+  jobId: string | null,
+): Promise<Array<Record<string, unknown>>> {
   const { rows } = await db.query<{
     artifact_type: string;
     count: string;
@@ -69,7 +82,10 @@ async function loadArtifactTotals(db: pg.Pool, jobId: string | null): Promise<Ar
   }));
 }
 
-async function loadTaskTotals(db: pg.Pool, jobId: string | null): Promise<Array<Record<string, unknown>>> {
+async function loadTaskTotals(
+  db: pg.Pool,
+  jobId: string | null,
+): Promise<Array<Record<string, unknown>>> {
   const { rows } = await db.query<{
     status: string;
     count: string;
@@ -87,7 +103,10 @@ async function loadTaskTotals(db: pg.Pool, jobId: string | null): Promise<Array<
   }));
 }
 
-async function loadRuntimeSummaries(db: pg.Pool, jobId: string | null): Promise<Array<Record<string, unknown>>> {
+async function loadRuntimeSummaries(
+  db: pg.Pool,
+  jobId: string | null,
+): Promise<Array<Record<string, unknown>>> {
   const { rows } = await db.query<{
     avg_plies_per_second: string | null;
     avg_wall_ms: string | null;

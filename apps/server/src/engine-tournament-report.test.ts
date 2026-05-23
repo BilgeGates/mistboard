@@ -16,25 +16,37 @@ test('builds tournament standings from completed EvE games', () => {
 
   assert.equal(report.completedGames, 3);
   assert.equal(report.incompleteGames, 1);
-  assert.deepEqual(report.standings.map((standing) => ({
-    engineId: standing.engineId,
-    games: standing.games,
-    score: standing.score,
-    wins: standing.wins,
-    losses: standing.losses,
-    draws: standing.draws,
-  })), [
-    { engineId: 'a', games: 3, score: 1.5, wins: 1, losses: 1, draws: 1 },
-    { engineId: 'c', games: 1, score: 1, wins: 1, losses: 0, draws: 0 },
-    { engineId: 'b', games: 2, score: 0.5, wins: 0, losses: 1, draws: 1 },
-  ]);
+  assert.deepEqual(
+    report.standings.map((standing) => ({
+      engineId: standing.engineId,
+      games: standing.games,
+      score: standing.score,
+      wins: standing.wins,
+      losses: standing.losses,
+      draws: standing.draws,
+    })),
+    [
+      { engineId: 'a', games: 3, score: 1.5, wins: 1, losses: 1, draws: 1 },
+      { engineId: 'c', games: 1, score: 1, wins: 1, losses: 0, draws: 0 },
+      { engineId: 'b', games: 2, score: 0.5, wins: 0, losses: 1, draws: 1 },
+    ],
+  );
 });
 
 test('summarizes tournament runtime by runner', () => {
   const report = buildTournamentReport([
-    row({ gameIndex: 0, runtime: { runner: 'typescript-in-process', wall_ms: 1000, plies_per_second: 10 } }),
-    row({ gameIndex: 1, runtime: { runner: 'typescript-in-process', wall_ms: 3000, plies_per_second: 20 } }),
-    row({ gameIndex: 2, runtime: { runner: 'python-subprocess', wall_ms: 9000, plies_per_second: 2 } }),
+    row({
+      gameIndex: 0,
+      runtime: { runner: 'typescript-in-process', wall_ms: 1000, plies_per_second: 10 },
+    }),
+    row({
+      gameIndex: 1,
+      runtime: { runner: 'typescript-in-process', wall_ms: 3000, plies_per_second: 20 },
+    }),
+    row({
+      gameIndex: 2,
+      runtime: { runner: 'python-subprocess', wall_ms: 9000, plies_per_second: 2 },
+    }),
   ]);
 
   assert.deepEqual(report.runtimeSummaries, [

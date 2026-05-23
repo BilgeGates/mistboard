@@ -3,7 +3,11 @@ import type { ClockState, Color, GameStatus } from './types.js';
 export const defaultClockInitialMs = 5 * 60 * 1000;
 export const defaultClockIncrementMs = 0;
 
-export function createClock(at: number, initialMs = defaultClockInitialMs, incrementMs = defaultClockIncrementMs): ClockState {
+export function createClock(
+  at: number,
+  initialMs = defaultClockInitialMs,
+  incrementMs = defaultClockIncrementMs,
+): ClockState {
   return {
     activeColor: 'white',
     incrementMs,
@@ -39,7 +43,11 @@ export function advanceClock(
   };
 }
 
-export function expireClock(clock: ClockState | undefined, at: number, color: Color): ClockState | undefined {
+export function expireClock(
+  clock: ClockState | undefined,
+  at: number,
+  color: Color,
+): ClockState | undefined {
   if (!clock) return clock;
   return {
     ...clock,
@@ -68,7 +76,11 @@ export function freezeClock(clock: ClockState | undefined, at: number): ClockSta
   };
 }
 
-export function unfreezeClock(clock: ClockState | undefined, at: number, turn: Color): ClockState | undefined {
+export function unfreezeClock(
+  clock: ClockState | undefined,
+  at: number,
+  turn: Color,
+): ClockState | undefined {
   if (!clock) return clock;
   return {
     ...clock,

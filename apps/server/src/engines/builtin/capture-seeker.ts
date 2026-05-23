@@ -22,10 +22,12 @@ export const captureSeekerEngine: EngineDefinition = {
   config: { kind: 'builtin', strategy: 'capture-seeker', version: 1 },
   notes: 'Deterministic capture- and center-seeking baseline for EvE data collection.',
   chooseMove(context) {
-    const scores = context.legalMoves.map((move, index) => scoreCaptureSeekingMove(context, move, index));
-    const best = scores.reduce((winner, candidate) => (
-      candidate.score > winner.score ? candidate : winner
-    ));
+    const scores = context.legalMoves.map((move, index) =>
+      scoreCaptureSeekingMove(context, move, index),
+    );
+    const best = scores.reduce((winner, candidate) =>
+      candidate.score > winner.score ? candidate : winner,
+    );
     const captureMoveCount = scores.filter((score) => score.reason.startsWith('capture-')).length;
     return {
       move: best.move,
@@ -35,9 +37,14 @@ export const captureSeekerEngine: EngineDefinition = {
   },
 };
 
-function scoreCaptureSeekingMove(context: EngineMoveContext, move: Move, index: number): EngineMoveScore {
+function scoreCaptureSeekingMove(
+  context: EngineMoveContext,
+  move: Move,
+  index: number,
+): EngineMoveScore {
   const target = context.state.board[move.to];
-  const captureScore = target && target.color !== context.color ? PIECE_VALUES[target.role] * 100 : 0;
+  const captureScore =
+    target && target.color !== context.color ? PIECE_VALUES[target.role] * 100 : 0;
   const promotionScore = move.promotion ? PIECE_VALUES[move.promotion] * 10 : 0;
   const centerScore = 8 - manhattanFromCenter(move.to);
   const tieBreak = Number((context.seed + BigInt(index)) % 97n) / 1000;

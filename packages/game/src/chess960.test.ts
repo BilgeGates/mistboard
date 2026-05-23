@@ -19,13 +19,13 @@ test('generates all 960 Chess960 starts', () => {
 test('each Chess960 start has opposite-color bishops and king between rooks', () => {
   for (const start of generateChess960Starts()) {
     const bishops = start.backRank
-      .map((role, index) => role === 'bishop' ? index : -1)
+      .map((role, index) => (role === 'bishop' ? index : -1))
       .filter((index) => index >= 0);
     assert.equal(bishops.length, 2);
     assert.notEqual(bishops[0] % 2, bishops[1] % 2);
 
     const rooks = start.backRank
-      .map((role, index) => role === 'rook' ? index : -1)
+      .map((role, index) => (role === 'rook' ? index : -1))
       .filter((index) => index >= 0);
     const king = start.backRank.findIndex((role) => role === 'king');
     assert.equal(rooks.length, 2);
@@ -47,11 +47,15 @@ test('creates an initial board from a Chess960 start', () => {
   assert.equal(board.a2?.role, 'pawn');
   assert.equal(board.h7?.role, 'pawn');
   assert.deepEqual(
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => board[`${file}1` as keyof typeof board]?.role),
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(
+      (file) => board[`${file}1` as keyof typeof board]?.role,
+    ),
     start.backRank,
   );
   assert.deepEqual(
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => board[`${file}8` as keyof typeof board]?.role),
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(
+      (file) => board[`${file}8` as keyof typeof board]?.role,
+    ),
     start.backRank,
   );
 });
@@ -63,8 +67,12 @@ test('creates castling rights from Chess960 rook files', () => {
 });
 
 test('creates an initial board from independent per-side Chess960 starts', () => {
-  const whiteStart = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'bbqnnrkr');
-  const blackStart = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'qbbnnrkr');
+  const whiteStart = generateChess960Starts().find(
+    (candidate) => candidate.fenPlacement === 'bbqnnrkr',
+  );
+  const blackStart = generateChess960Starts().find(
+    (candidate) => candidate.fenPlacement === 'qbbnnrkr',
+  );
   assert.ok(whiteStart);
   assert.ok(blackStart);
 
@@ -72,11 +80,15 @@ test('creates an initial board from independent per-side Chess960 starts', () =>
 
   assert.equal(Object.keys(board).length, 32);
   assert.deepEqual(
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => board[`${file}1` as keyof typeof board]?.role),
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(
+      (file) => board[`${file}1` as keyof typeof board]?.role,
+    ),
     whiteStart.backRank,
   );
   assert.deepEqual(
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((file) => board[`${file}8` as keyof typeof board]?.role),
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(
+      (file) => board[`${file}8` as keyof typeof board]?.role,
+    ),
     blackStart.backRank,
   );
   assert.equal(board.a2?.role, 'pawn');
@@ -84,12 +96,21 @@ test('creates an initial board from independent per-side Chess960 starts', () =>
 });
 
 test('creates castling rights from independent per-side Chess960 starts', () => {
-  const whiteStart = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'bbqnnrkr');
-  const blackStart = generateChess960Starts().find((candidate) => candidate.fenPlacement === 'qbbnnrkr');
+  const whiteStart = generateChess960Starts().find(
+    (candidate) => candidate.fenPlacement === 'bbqnnrkr',
+  );
+  const blackStart = generateChess960Starts().find(
+    (candidate) => candidate.fenPlacement === 'qbbnnrkr',
+  );
   assert.ok(whiteStart);
   assert.ok(blackStart);
 
   assert.deepEqual(chess960RookSquares(whiteStart, 'white'), ['f1', 'h1']);
   assert.deepEqual(chess960RookSquares(blackStart, 'black'), ['f8', 'h8']);
-  assert.deepEqual(createChess960CastlingRightsForSides(whiteStart, blackStart), ['f1', 'h1', 'f8', 'h8']);
+  assert.deepEqual(createChess960CastlingRightsForSides(whiteStart, blackStart), [
+    'f1',
+    'h1',
+    'f8',
+    'h8',
+  ]);
 });

@@ -61,7 +61,9 @@ function applyPieceSet(pieceSet: PieceSet): void {
 }
 
 function mountThemeControls(): void {
-  document.querySelectorAll<HTMLElement>('body > [data-theme-control]').forEach((control) => control.remove());
+  document
+    .querySelectorAll<HTMLElement>('body > [data-theme-control]')
+    .forEach((control) => control.remove());
   document.querySelectorAll<HTMLElement>('.site-nav').forEach((nav) => mountThemeControl(nav));
 }
 
@@ -74,7 +76,9 @@ function watchForNavChanges(): void {
 }
 
 function mountThemeControl(nav: HTMLElement): void {
-  const target = nav.querySelector<HTMLElement>('.site-nav-utilities') ?? nav.querySelector<HTMLElement>('.site-nav-links');
+  const target =
+    nav.querySelector<HTMLElement>('.site-nav-utilities') ??
+    nav.querySelector<HTMLElement>('.site-nav-links');
   if (!target) return;
   if (target.querySelector('[data-theme-control]')) return;
 
@@ -94,21 +98,42 @@ function mountThemeControl(nav: HTMLElement): void {
   panel.setAttribute('role', 'group');
   panel.setAttribute('aria-label', 'Display and sound settings');
 
-  const boardField = createTileField('board', 'Board colors', 'Board color scheme', themes, readStoredTheme(), (value) => {
-    applyBoardTheme(value);
-    writeStoredTheme(value);
-    syncThemeControls();
-  });
-  const fogField = createTileField('fog', 'Fog', 'Fog shading style', fogThemes, readStoredFogTheme(), (value) => {
-    applyFogTheme(value);
-    writeStoredFogTheme(value);
-    syncThemeControls();
-  });
-  const pieceField = createTileField('piece', 'Pieces', 'Piece set', pieceSets, readStoredPieceSet(), (value) => {
-    applyPieceSet(value);
-    writeStoredPieceSet(value);
-    syncThemeControls();
-  });
+  const boardField = createTileField(
+    'board',
+    'Board colors',
+    'Board color scheme',
+    themes,
+    readStoredTheme(),
+    (value) => {
+      applyBoardTheme(value);
+      writeStoredTheme(value);
+      syncThemeControls();
+    },
+  );
+  const fogField = createTileField(
+    'fog',
+    'Fog',
+    'Fog shading style',
+    fogThemes,
+    readStoredFogTheme(),
+    (value) => {
+      applyFogTheme(value);
+      writeStoredFogTheme(value);
+      syncThemeControls();
+    },
+  );
+  const pieceField = createTileField(
+    'piece',
+    'Pieces',
+    'Piece set',
+    pieceSets,
+    readStoredPieceSet(),
+    (value) => {
+      applyPieceSet(value);
+      writeStoredPieceSet(value);
+      syncThemeControls();
+    },
+  );
   const volumeField = createVolumeField();
   const muteField = createMuteField();
 
@@ -226,13 +251,17 @@ function createMuteField(): HTMLLabelElement {
 
 function openThemeMenu(control: HTMLElement): void {
   control.classList.add('open');
-  control.querySelector<HTMLButtonElement>('.theme-control-trigger')?.setAttribute('aria-expanded', 'true');
+  control
+    .querySelector<HTMLButtonElement>('.theme-control-trigger')
+    ?.setAttribute('aria-expanded', 'true');
 }
 
 function closeThemeMenus(): void {
   document.querySelectorAll<HTMLElement>('[data-theme-control]').forEach((control) => {
     control.classList.remove('open');
-    control.querySelector<HTMLButtonElement>('.theme-control-trigger')?.setAttribute('aria-expanded', 'false');
+    control
+      .querySelector<HTMLButtonElement>('.theme-control-trigger')
+      ?.setAttribute('aria-expanded', 'false');
   });
 }
 
@@ -259,9 +288,11 @@ function syncThemeControls(): void {
   document.querySelectorAll<HTMLInputElement>('input[data-sound-volume]').forEach((input) => {
     input.value = String(Math.round(effectiveVolume * 100));
   });
-  document.querySelectorAll<HTMLOutputElement>('output[data-sound-volume-value]').forEach((output) => {
-    output.textContent = soundMuted ? 'Muted' : formatVolume(effectiveVolume);
-  });
+  document
+    .querySelectorAll<HTMLOutputElement>('output[data-sound-volume-value]')
+    .forEach((output) => {
+      output.textContent = soundMuted ? 'Muted' : formatVolume(effectiveVolume);
+    });
   document.querySelectorAll<HTMLInputElement>('input[data-sound-muted]').forEach((input) => {
     input.checked = soundMuted;
   });
@@ -271,11 +302,13 @@ function syncThemeControls(): void {
 }
 
 function syncTileRow(kind: 'board' | 'fog' | 'piece', activeId: string): void {
-  document.querySelectorAll<HTMLButtonElement>(`button[data-theme-tile="${kind}"]`).forEach((tile) => {
-    const isActive = tile.dataset.id === activeId;
-    tile.setAttribute('aria-checked', String(isActive));
-    tile.classList.toggle('selected', isActive);
-  });
+  document
+    .querySelectorAll<HTMLButtonElement>(`button[data-theme-tile="${kind}"]`)
+    .forEach((tile) => {
+      const isActive = tile.dataset.id === activeId;
+      tile.setAttribute('aria-checked', String(isActive));
+      tile.classList.toggle('selected', isActive);
+    });
 }
 
 function readStoredTheme(): BoardTheme {

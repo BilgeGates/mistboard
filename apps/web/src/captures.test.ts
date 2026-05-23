@@ -15,7 +15,12 @@ function roomCreated(): GameEvent {
   } as Extract<GameEvent, { type: 'room-created' }>;
 }
 
-function move(color: 'white' | 'black', from: string, to: string, promotion?: 'queen' | 'rook' | 'bishop' | 'knight'): GameEvent {
+function move(
+  color: 'white' | 'black',
+  from: string,
+  to: string,
+  promotion?: 'queen' | 'rook' | 'bishop' | 'knight',
+): GameEvent {
   return {
     type: 'move-played',
     at: 1,

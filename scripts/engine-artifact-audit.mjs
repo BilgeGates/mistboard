@@ -8,12 +8,10 @@ const annotationsPath = path.resolve(
   repoRoot,
   args.annotations ?? 'research/python-fow-lab/feedback/annotations.jsonl',
 );
-const publicRoots = parseListArg(args.publicRoot ?? args.publicRoots ?? 'apps/web/public')
-  .map((root) => path.resolve(repoRoot, root));
-const capturesRoot = path.resolve(
-  repoRoot,
-  args.captures ?? 'docs-private/engine-track/captures',
+const publicRoots = parseListArg(args.publicRoot ?? args.publicRoots ?? 'apps/web/public').map(
+  (root) => path.resolve(repoRoot, root),
 );
+const capturesRoot = path.resolve(repoRoot, args.captures ?? 'docs-private/engine-track/captures');
 const outPath = args.out ? path.resolve(repoRoot, args.out) : null;
 
 const priorityTags = new Set([
@@ -47,7 +45,9 @@ for (const annotation of annotations) {
   let gameLogExists = false;
   if (manifestExists) {
     const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
-    const game = manifest.games?.find((entry) => Number(entry.index) === Number(annotation.game_index));
+    const game = manifest.games?.find(
+      (entry) => Number(entry.index) === Number(annotation.game_index),
+    );
     gameInManifest = Boolean(game);
     if (game?.path) {
       gameLogExists = await exists(path.join(path.dirname(manifestFile), game.path));
@@ -141,31 +141,35 @@ function renderReport(data) {
     '',
     '| Manifest | Game | Ply | Move | Severity | Tags | Annotation |',
     '| --- | ---: | ---: | --- | --- | --- | --- |',
-    ...data.priorityMissingCaptures.map((row) => [
-      `| \`${row.manifest_url}\``,
-      row.game_index,
-      row.ply,
-      `\`${row.move_played_uci ?? ''}\``,
-      row.severity ?? '',
-      `\`${(row.tags ?? []).join(', ') || 'none'}\``,
-      `\`${row.id ?? ''}\` |`,
-    ].join(' | ')),
+    ...data.priorityMissingCaptures.map((row) =>
+      [
+        `| \`${row.manifest_url}\``,
+        row.game_index,
+        row.ply,
+        `\`${row.move_played_uci ?? ''}\``,
+        row.severity ?? '',
+        `\`${(row.tags ?? []).join(', ') || 'none'}\``,
+        `\`${row.id ?? ''}\` |`,
+      ].join(' | '),
+    ),
     ...(data.priorityMissingCaptures.length ? [] : ['|  |  |  |  |  |  | none |']),
     '',
     '## Unresolved Annotation References',
     '',
     '| Manifest | Game | Ply | Move | Manifest | Game Row | Game Log | Annotation |',
     '| --- | ---: | ---: | --- | --- | --- | --- | --- |',
-    ...data.unresolved.map((row) => [
-      `| \`${row.manifest_url}\``,
-      row.game_index,
-      row.ply,
-      `\`${row.move_played_uci ?? ''}\``,
-      yesNo(row.manifestExists),
-      yesNo(row.gameInManifest),
-      yesNo(row.gameLogExists),
-      `\`${row.id ?? ''}\` |`,
-    ].join(' | ')),
+    ...data.unresolved.map((row) =>
+      [
+        `| \`${row.manifest_url}\``,
+        row.game_index,
+        row.ply,
+        `\`${row.move_played_uci ?? ''}\``,
+        yesNo(row.manifestExists),
+        yesNo(row.gameInManifest),
+        yesNo(row.gameLogExists),
+        `\`${row.id ?? ''}\` |`,
+      ].join(' | '),
+    ),
     ...(data.unresolved.length ? [] : ['|  |  |  |  | yes | yes | yes | none |']),
     '',
     '## Unindexed PNGs',
@@ -179,7 +183,9 @@ function renderReport(data) {
 
 function tableFromEntries(entries) {
   const lines = ['| Key | Count |', '| --- | ---: |'];
-  for (const [key, count] of [...entries.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])))) {
+  for (const [key, count] of [...entries.entries()].sort((a, b) =>
+    String(a[0]).localeCompare(String(b[0])),
+  )) {
     lines.push(`| \`${key}\` | ${count} |`);
   }
   return lines;
@@ -195,7 +201,9 @@ function countBy(rows, fn) {
 }
 
 async function loadCaptureIndexes(root) {
-  const files = await listFiles(root, (file) => path.basename(file) === 'index.json').catch(() => []);
+  const files = await listFiles(root, (file) => path.basename(file) === 'index.json').catch(
+    () => [],
+  );
   const captures = [];
   for (const file of files) {
     const data = JSON.parse(await readFile(file, 'utf8'));
@@ -256,15 +264,14 @@ function captureKey(row) {
 
 function inferCaptureKeyFromPng(file) {
   const name = path.basename(file, '.png');
-  const match = name.match(/^(?<manifest>.+)-g(?<game>\d+)-ply(?<ply>\d+)-(?<move>[a-h][1-8][a-h][1-8][qrbn]?)$/);
+  const match = name.match(
+    /^(?<manifest>.+)-g(?<game>\d+)-ply(?<ply>\d+)-(?<move>[a-h][1-8][a-h][1-8][qrbn]?)$/,
+  );
   if (!match?.groups) return null;
   const manifestUrl = `/${match.groups.manifest}/manifest.json`;
-  return [
-    manifestUrl,
-    Number(match.groups.game),
-    Number(match.groups.ply),
-    match.groups.move,
-  ].join('\u0000');
+  return [manifestUrl, Number(match.groups.game), Number(match.groups.ply), match.groups.move].join(
+    '\u0000',
+  );
 }
 
 async function exists(file) {

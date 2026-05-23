@@ -3,19 +3,35 @@ import type { XiangqiColor, XiangqiPieceRole } from '@mistboard/game';
 import { renderXiangqiPiece, xiangqiCharacter } from './xiangqi-pieces.js';
 
 const ROLES: XiangqiPieceRole[] = [
-  'general', 'advisor', 'elephant', 'horse', 'chariot', 'cannon', 'soldier',
+  'general',
+  'advisor',
+  'elephant',
+  'horse',
+  'chariot',
+  'cannon',
+  'soldier',
 ];
 
 describe('xiangqi piece sprites', () => {
   it('returns the traditional red/black character for every piece', () => {
     const expected: Record<XiangqiColor, Record<XiangqiPieceRole, string>> = {
       red: {
-        general: '帥', advisor: '仕', elephant: '相', horse: '傌',
-        chariot: '俥', cannon: '炮', soldier: '兵',
+        general: '帥',
+        advisor: '仕',
+        elephant: '相',
+        horse: '傌',
+        chariot: '俥',
+        cannon: '炮',
+        soldier: '兵',
       },
       black: {
-        general: '將', advisor: '士', elephant: '象', horse: '馬',
-        chariot: '車', cannon: '砲', soldier: '卒',
+        general: '將',
+        advisor: '士',
+        elephant: '象',
+        horse: '馬',
+        chariot: '車',
+        cannon: '砲',
+        soldier: '卒',
       },
     };
     for (const color of ['red', 'black'] as const) {

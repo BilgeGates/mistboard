@@ -190,11 +190,12 @@ async function waitForOwnTurn(client) {
   while (Date.now() - started < 3000) {
     const m = lastStateMessage(client);
     if (
-      m
-      && m.state.status.type === 'playing'
-      && m.state.status.turn === m.seat
-      && (m.state.legalMoves?.length ?? 0) > 0
-    ) return;
+      m &&
+      m.state.status.type === 'playing' &&
+      m.state.status.turn === m.seat &&
+      (m.state.legalMoves?.length ?? 0) > 0
+    )
+      return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error(`timed out waiting for own turn (seat=${client.messages[0]?.seat})`);
@@ -241,15 +242,21 @@ function anonymize(snapshot) {
       const out = {};
       for (const [k, v] of Object.entries(value)) {
         if (k === 'roomId' && typeof v === 'string') out[k] = replacements.get(v) ?? v;
-        else if ((k === 'id') && typeof v === 'string' && replacements.has(v)) out[k] = replacements.get(v);
+        else if (k === 'id' && typeof v === 'string' && replacements.has(v))
+          out[k] = replacements.get(v);
         else if (k === 'clientId' && typeof v === 'string') out[k] = replacements.get(v) ?? v;
-        else if (k === 'at' && typeof v === 'number') { perMoveOffset += 1000; out[k] = baseAt + perMoveOffset; }
-        else if (k === 'serverAt' && typeof v === 'number') out[k] = baseAt + 10_000;
+        else if (k === 'at' && typeof v === 'number') {
+          perMoveOffset += 1000;
+          out[k] = baseAt + perMoveOffset;
+        } else if (k === 'serverAt' && typeof v === 'number') out[k] = baseAt + 10_000;
         else if (k === 'runningSince' && typeof v === 'number') out[k] = baseAt + 10_000;
         else if (k === 'seats' && v && typeof v === 'object') {
-          out[k] = Object.fromEntries(Object.entries(v).map(([seat, cid]) =>
-            [seat, typeof cid === 'string' ? (replacements.get(cid) ?? cid) : cid]
-          ));
+          out[k] = Object.fromEntries(
+            Object.entries(v).map(([seat, cid]) => [
+              seat,
+              typeof cid === 'string' ? (replacements.get(cid) ?? cid) : cid,
+            ]),
+          );
         } else out[k] = walk(v);
       }
       return out;

@@ -12,7 +12,9 @@ void fetch('/api/server-status')
   .then((data: { restartAt: number | null } | null) => {
     if (data && typeof data.restartAt === 'number') setRestartBanner(data.restartAt);
   })
-  .catch(() => { /* banner stays hidden; WS broadcast still covers in-game users */ });
+  .catch(() => {
+    /* banner stays hidden; WS broadcast still covers in-game users */
+  });
 
 const phKey = import.meta.env.VITE_POSTHOG_KEY;
 const phHost = import.meta.env.VITE_POSTHOG_HOST;
@@ -40,11 +42,9 @@ const path = window.location.pathname.replace(/\/+$/, '') || '/';
 const replaySample = params.get('replay');
 const bakeoffParam = params.get('bakeoff');
 const wantsLive =
-  import.meta.env.DEV &&
-  (params.has('room') || params.has('variant') || params.has('dev'));
+  import.meta.env.DEV && (params.has('room') || params.has('variant') || params.has('dev'));
 const page = params.get('page');
-const engineLabEnabled =
-  import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
+const engineLabEnabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
 const wantsEngineLab =
   bakeoffParam !== null ||
   path === '/lab' ||
@@ -77,7 +77,9 @@ const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 
 if (replaySample) {
   setTitle('Replay');
-  void mountOrReport(() => import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)));
+  void mountOrReport(() =>
+    import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)),
+  );
 } else if (wantsEngineLab) {
   setTitle('Lab');
   void mountOrReport(async () => {
@@ -95,60 +97,92 @@ if (replaySample) {
   void mountOrReport(() => import('./live.js').then(() => undefined));
 } else if (gameRoomId) {
   setTitle('Game');
-  void mountOrReport(() => import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)));
+  void mountOrReport(() =>
+    import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)),
+  );
 } else if (wantsLeaderboard) {
   setTitle('Leaderboard');
-  void mountOrReport(() => import('./profile.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)));
+  void mountOrReport(() =>
+    import('./profile.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)),
+  );
 } else if (profileHandle) {
   setTitle(`@${profileHandle}`);
-  void mountOrReport(() => import('./profile.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
+  void mountOrReport(() =>
+    import('./profile.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)),
+  );
 } else if (wantsAccountSettings) {
   setTitle('Settings');
-  void mountOrReport(() => import('./account.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)));
+  void mountOrReport(() =>
+    import('./account.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)),
+  );
 } else if (wantsAccount) {
   setTitle('Account');
-  void mountOrReport(() => import('./account.js').then(({ mountAccount }) => mountAccount(appRoot)));
+  void mountOrReport(() =>
+    import('./account.js').then(({ mountAccount }) => mountAccount(appRoot)),
+  );
 } else if (wantsWatch) {
   setTitle('Watch');
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
 } else if (wantsXiangqiSpike) {
   setTitle('Xiangqi spike');
-  void mountOrReport(() => import('./xiangqi-spike.js').then(({ mountXiangqiSpike }) => mountXiangqiSpike(appRoot)));
+  void mountOrReport(() =>
+    import('./xiangqi-spike.js').then(({ mountXiangqiSpike }) => mountXiangqiSpike(appRoot)),
+  );
 } else if (wantsPixelLab) {
   setTitle('Pixel lab');
-  void mountOrReport(() => import('./pixel-lab.js').then(({ mountPixelLab }) => mountPixelLab(appRoot)));
+  void mountOrReport(() =>
+    import('./pixel-lab.js').then(({ mountPixelLab }) => mountPixelLab(appRoot)),
+  );
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
-  void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
+  void mountOrReport(() =>
+    import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)),
+  );
 } else if (articleSlug) {
   setTitle('Articles');
-  void mountOrReport(() => import('./pages-static.js').then(({ mountArticle }) => mountArticle(appRoot, articleSlug)));
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountArticle }) => mountArticle(appRoot, articleSlug)),
+  );
 } else if (wantsArticlesIndex) {
   setTitle('Articles');
-  void mountOrReport(() => import('./pages-static.js').then(({ mountArticlesIndex }) => mountArticlesIndex(appRoot)));
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountArticlesIndex }) => mountArticlesIndex(appRoot)),
+  );
 } else if (wantsLearn) {
   setTitle('Learn');
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
   setTitle('About');
-  void mountOrReport(() => import('./pages-static.js').then(({ mountAbout }) => mountAbout(appRoot)));
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountAbout }) => mountAbout(appRoot)),
+  );
 } else if (wantsSource) {
   setTitle('Source');
-  void mountOrReport(() => import('./pages-static.js').then(({ mountSource }) => mountSource(appRoot)));
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountSource }) => mountSource(appRoot)),
+  );
 } else if (wantsContact) {
   setTitle('Contact');
-  void mountOrReport(() => import('./landing.js').then(({ mountContact }) => mountContact(appRoot)));
+  void mountOrReport(() =>
+    import('./landing.js').then(({ mountContact }) => mountContact(appRoot)),
+  );
 } else if (wantsFaq) {
   setTitle('FAQ');
   void mountOrReport(() => import('./pages-static.js').then(({ mountFaq }) => mountFaq(appRoot)));
 } else if (wantsTerms) {
   setTitle('Terms');
-  void mountOrReport(() => import('./pages-static.js').then(({ mountTerms }) => mountTerms(appRoot)));
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountTerms }) => mountTerms(appRoot)),
+  );
 } else if (path === '/') {
-  void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
+  void mountOrReport(() =>
+    import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)),
+  );
 } else {
   setTitle('Not found');
-  void mountOrReport(() => import('./pages-static.js').then(({ mountNotFound }) => mountNotFound(appRoot)));
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountNotFound }) => mountNotFound(appRoot)),
+  );
 }
 
 function setTitle(page: string): void {
@@ -179,7 +213,7 @@ async function canOpenLab(): Promise<boolean> {
   try {
     const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
     if (!response.ok) return false;
-    const data = await response.json() as { user?: { accountRole?: string } | null };
+    const data = (await response.json()) as { user?: { accountRole?: string } | null };
     return data.user?.accountRole === 'admin';
   } catch {
     return false;
@@ -218,4 +252,3 @@ function articleSlugFromPath(value: string): string | null {
   const match = value.match(/^\/articles\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
-

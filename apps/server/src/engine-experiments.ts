@@ -6,7 +6,13 @@ type JsonObject = Record<string, unknown>;
 
 export type EngineExperimentPurpose = 'mining' | 'bakeoff' | 'calibration' | 'smoke' | 'regression';
 export type EngineWorkerStatus = 'running' | 'draining' | 'stopped' | 'failed';
-export type EngineGameTaskStatus = 'queued' | 'running' | 'completed' | 'failed' | 'aborted' | 'canceled';
+export type EngineGameTaskStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'aborted'
+  | 'canceled';
 
 export type EngineExperimentJob = {
   id: string;
@@ -127,13 +133,7 @@ export async function createExperimentJob(
        (id, purpose, target_games, config, created_by)
      VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [
-      id,
-      input.purpose,
-      input.targetGames,
-      input.config ?? {},
-      input.createdBy ?? null,
-    ],
+    [id, input.purpose, input.targetGames, input.config ?? {}, input.createdBy ?? null],
   );
   return mapJob(rows[0]!);
 }
@@ -190,7 +190,10 @@ export async function registerWorkerRun(
   return mapWorkerRun(rows[0]!);
 }
 
-export async function heartbeatWorkerRun(db: Queryable, workerRunId: string): Promise<EngineWorkerRun> {
+export async function heartbeatWorkerRun(
+  db: Queryable,
+  workerRunId: string,
+): Promise<EngineWorkerRun> {
   const { rows } = await db.query<EngineWorkerRunRow>(
     `UPDATE engine_worker_runs
      SET heartbeat_at = now()
@@ -309,10 +312,12 @@ export async function cleanupStaleEngineGameTasks(
 
   try {
     await client.query('BEGIN');
-    const { rows: staleTasks } = await client.query<Pick<
-      EngineGameTaskRow,
-      'id' | 'job_id' | 'game_id' | 'worker_run_id' | 'attempt_count' | 'max_attempts'
-    >>(
+    const { rows: staleTasks } = await client.query<
+      Pick<
+        EngineGameTaskRow,
+        'id' | 'job_id' | 'game_id' | 'worker_run_id' | 'attempt_count' | 'max_attempts'
+      >
+    >(
       `SELECT id, job_id, game_id, worker_run_id, attempt_count, max_attempts
        FROM engine_game_tasks
        WHERE status = 'running'
@@ -506,10 +511,7 @@ export async function finishEngineGameTask(
   return task;
 }
 
-export async function reconcileExperimentJob(
-  db: Queryable,
-  jobId: string,
-): Promise<void> {
+export async function reconcileExperimentJob(db: Queryable, jobId: string): Promise<void> {
   await db.query(
     `WITH counts AS (
        SELECT

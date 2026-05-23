@@ -98,9 +98,11 @@ function isReplayHistoryEvent(event: GameEvent): boolean {
   // clock-expired is excluded: it ends the game but doesn't move pieces, so navigating to it
   // always shows the same board as the last move-played. Stepping backward would burn a key press
   // with no visible board change.
-  return event.type === 'room-created'
-    || event.type === 'draft-start-resolved'
-    || event.type === 'move-played';
+  return (
+    event.type === 'room-created' ||
+    event.type === 'draft-start-resolved' ||
+    event.type === 'move-played'
+  );
 }
 
 function firstMoveHistoryIndex(): number | null {
@@ -238,9 +240,11 @@ function replayActionForKey(key: string): string | null {
 function isEditableKeyboardTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
-  return target instanceof HTMLInputElement
-    || target instanceof HTMLTextAreaElement
-    || target instanceof HTMLSelectElement;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  );
 }
 
 export function replayControlDisabled(action: string): boolean {
@@ -282,7 +286,8 @@ export function handleReplayButtonClick(action: string): void {
 }
 
 export function handleReplayKeyboard(event: KeyboardEvent): void {
-  if (event.defaultPrevented || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) return;
+  if (event.defaultPrevented || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey)
+    return;
   if (isEditableKeyboardTarget(event.target)) return;
 
   const action = replayActionForKey(event.key);

@@ -9,9 +9,9 @@ import 'chessground/assets/chessground.cburnett.css';
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 
-export const allBoardSquares: Square[] = ranks.flatMap((rank) => (
-  files.map((file) => `${file}${rank}` as Square)
-));
+export const allBoardSquares: Square[] = ranks.flatMap((rank) =>
+  files.map((file) => `${file}${rank}` as Square),
+);
 
 export function createReadOnlyBoard(el: HTMLElement, orientation: Color = 'white'): Api {
   return Chessground(el, {

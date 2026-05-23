@@ -52,13 +52,25 @@ class EngineCounters {
     if (fallback) this.totalFallbacks += 1;
   }
 
-  snapshot(): { moves: number; fallbacks: number; movesDelta: number; fallbacksDelta: number; rate: number } {
+  snapshot(): {
+    moves: number;
+    fallbacks: number;
+    movesDelta: number;
+    fallbacksDelta: number;
+    rate: number;
+  } {
     const movesDelta = this.totalMoves - this.lastEmittedMoves;
     const fallbacksDelta = this.totalFallbacks - this.lastEmittedFallbacks;
     this.lastEmittedMoves = this.totalMoves;
     this.lastEmittedFallbacks = this.totalFallbacks;
     const rate = movesDelta > 0 ? fallbacksDelta / movesDelta : 0;
-    return { moves: this.totalMoves, fallbacks: this.totalFallbacks, movesDelta, fallbacksDelta, rate };
+    return {
+      moves: this.totalMoves,
+      fallbacks: this.totalFallbacks,
+      movesDelta,
+      fallbacksDelta,
+      rate,
+    };
   }
 }
 
@@ -81,13 +93,23 @@ class WsCounters {
   private lastEmittedUnknownMessages = 0;
   private lastEmittedParseFailures = 0;
 
-  recordSnapshotRequest(): void { this.totalSnapshotRequests += 1; }
-  recordUnknownMessage(): void { this.totalUnknownMessages += 1; }
-  recordParseFailure(): void { this.totalParseFailures += 1; }
+  recordSnapshotRequest(): void {
+    this.totalSnapshotRequests += 1;
+  }
+  recordUnknownMessage(): void {
+    this.totalUnknownMessages += 1;
+  }
+  recordParseFailure(): void {
+    this.totalParseFailures += 1;
+  }
 
   snapshot(): {
-    snapshotRequests: number; unknownMessages: number; parseFailures: number;
-    snapshotRequestsDelta: number; unknownMessagesDelta: number; parseFailuresDelta: number;
+    snapshotRequests: number;
+    unknownMessages: number;
+    parseFailures: number;
+    snapshotRequestsDelta: number;
+    unknownMessagesDelta: number;
+    parseFailuresDelta: number;
   } {
     const snapshotRequestsDelta = this.totalSnapshotRequests - this.lastEmittedSnapshotRequests;
     const unknownMessagesDelta = this.totalUnknownMessages - this.lastEmittedUnknownMessages;

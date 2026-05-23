@@ -48,12 +48,14 @@ export function modeForProjection(projection: GameProjection): GameAccessMode {
 
 export function isServerEngineClient(clientId: string | undefined): boolean {
   if (!clientId) return false;
-  return clientId === 'random-engine'
-    || clientId === 'engine:white'
-    || clientId === 'engine:black'
-    || clientId.startsWith('engine:')
-    || clientId.startsWith('builtin-')
-    || clientId.startsWith('python-');
+  return (
+    clientId === 'random-engine' ||
+    clientId === 'engine:white' ||
+    clientId === 'engine:black' ||
+    clientId.startsWith('engine:') ||
+    clientId.startsWith('builtin-') ||
+    clientId.startsWith('python-')
+  );
 }
 
 export function canObserveLiveRoom(projection: GameProjection): boolean {
@@ -65,45 +67,58 @@ export function canObserveLiveRoom(projection: GameProjection): boolean {
 // sync with main.ts — server-policy.test.ts covers parity.
 export function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
-  return normalized === '/about'
-    || normalized === '/learn'
-    || normalized === '/play'
-    || normalized === '/watch'
-    || normalized === '/source'
-    || normalized === '/contact'
-    || normalized === '/faq'
-    || normalized === '/terms'
-    || normalized === '/account'
-    || normalized === '/account/settings'
-    || normalized === '/leaderboard'
-    || normalized === '/lab'
-    || normalized === '/engine-lab'
-    || normalized === '/arena'
-    || normalized === '/articles'
-    || normalized.startsWith('/articles/')
-    || normalized.startsWith('/game/')
-    || normalized.startsWith('/@/')
-    || normalized.startsWith('/room/');
+  return (
+    normalized === '/about' ||
+    normalized === '/learn' ||
+    normalized === '/play' ||
+    normalized === '/watch' ||
+    normalized === '/source' ||
+    normalized === '/contact' ||
+    normalized === '/faq' ||
+    normalized === '/terms' ||
+    normalized === '/account' ||
+    normalized === '/account/settings' ||
+    normalized === '/leaderboard' ||
+    normalized === '/lab' ||
+    normalized === '/engine-lab' ||
+    normalized === '/arena' ||
+    normalized === '/articles' ||
+    normalized.startsWith('/articles/') ||
+    normalized.startsWith('/game/') ||
+    normalized.startsWith('/@/') ||
+    normalized.startsWith('/room/')
+  );
 }
 
-export function adminDebugTokenFromProtocolHeader(value: string | string[] | undefined): string | undefined {
+export function adminDebugTokenFromProtocolHeader(
+  value: string | string[] | undefined,
+): string | undefined {
   return tokenFromProtocolHeader(value, 'mistboard-admin-debug.');
 }
 
-export function seatTokenFromProtocolHeader(value: string | string[] | undefined): string | undefined {
+export function seatTokenFromProtocolHeader(
+  value: string | string[] | undefined,
+): string | undefined {
   return tokenFromProtocolHeader(value, 'mistboard-seat.');
 }
 
-function tokenFromProtocolHeader(value: string | string[] | undefined, prefix: string): string | undefined {
+function tokenFromProtocolHeader(
+  value: string | string[] | undefined,
+  prefix: string,
+): string | undefined {
   const header = Array.isArray(value) ? value.join(',') : value;
   if (!header) return undefined;
-  return header.split(',')
+  return header
+    .split(',')
     .map((part) => part.trim())
     .find((part) => part.startsWith(prefix))
     ?.slice(prefix.length);
 }
 
-export function isAdminDebugToken(candidate: string | undefined, env: RuntimeEnv = process.env): boolean {
+export function isAdminDebugToken(
+  candidate: string | undefined,
+  env: RuntimeEnv = process.env,
+): boolean {
   const expected = env.MISTBOARD_ADMIN_DEBUG_TOKEN;
   if (!expected || !candidate) return false;
   const left = Buffer.from(candidate);
@@ -114,7 +129,10 @@ export function isAdminDebugToken(candidate: string | undefined, env: RuntimeEnv
 // Drain-token check. Uses a SEPARATE env var from the debug token so a leak in
 // either secret doesn't escalate. Constant-time compare. See
 // docs/server-restart-pause-resume.md (Security & hardening).
-export function isDrainToken(candidate: string | undefined, env: RuntimeEnv = process.env): boolean {
+export function isDrainToken(
+  candidate: string | undefined,
+  env: RuntimeEnv = process.env,
+): boolean {
   const expected = env.MISTBOARD_DRAIN_TOKEN;
   if (!expected || !candidate) return false;
   const left = Buffer.from(candidate);
@@ -129,10 +147,12 @@ export function isDatabaseRequired(env: RuntimeEnv = process.env): boolean {
 }
 
 export function isProductionLikeRuntime(env: RuntimeEnv = process.env): boolean {
-  return env.NODE_ENV === 'production'
-    || env.RAILWAY_ENVIRONMENT === 'production'
-    || env.RAILWAY_ENVIRONMENT_NAME === 'production'
-    || env.RAILWAY_SERVICE_NAME !== undefined;
+  return (
+    env.NODE_ENV === 'production' ||
+    env.RAILWAY_ENVIRONMENT === 'production' ||
+    env.RAILWAY_ENVIRONMENT_NAME === 'production' ||
+    env.RAILWAY_SERVICE_NAME !== undefined
+  );
 }
 
 export function isAllowedWebSocketOrigin(
@@ -145,7 +165,10 @@ export function isAllowedWebSocketOrigin(
   return allowedWebSocketOrigins(host, env).has(origin);
 }
 
-export function allowedWebSocketOrigins(host: string | undefined, env: RuntimeEnv = process.env): Set<string> {
+export function allowedWebSocketOrigins(
+  host: string | undefined,
+  env: RuntimeEnv = process.env,
+): Set<string> {
   const configured = parseCsvEnv(env.MISTBOARD_ALLOWED_ORIGINS);
   if (configured.length > 0) return new Set(configured);
   return host ? new Set([`https://${host}`]) : new Set();
@@ -181,5 +204,8 @@ function parseBooleanEnv(value: string | undefined): boolean {
 
 function parseCsvEnv(value: string | undefined): string[] {
   if (!value) return [];
-  return value.split(',').map((part) => part.trim()).filter(Boolean);
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
 }

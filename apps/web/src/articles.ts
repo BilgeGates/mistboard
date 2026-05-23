@@ -101,7 +101,12 @@ export function buildArticlePage(slug: string): HTMLElement {
     const fmt = (iso: string): string => {
       // YYYY-MM-DD → "Month D, YYYY"
       const d = new Date(`${iso}T00:00:00Z`);
-      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+      return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
     };
     const published = fmt(article.publishedAt);
     dates.textContent = `Published ${published}`;
@@ -155,7 +160,8 @@ export function buildArticlePage(slug: string): HTMLElement {
 }
 
 function uniqueId(text: string, used: Set<string>, fallback: number): string {
-  let base = text.toLowerCase()
+  let base = text
+    .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
@@ -494,7 +500,10 @@ function renderStaticBoardsBlock(block: StaticBoardsBlock): HTMLElement {
   });
 
   const bg = block.background ?? 'transparent';
-  const bgRect = bg === 'transparent' ? '' : `<rect width="${block.canvasWidth}" height="${block.canvasHeight}" fill="${bg}"/>`;
+  const bgRect =
+    bg === 'transparent'
+      ? ''
+      : `<rect width="${block.canvasWidth}" height="${block.canvasHeight}" fill="${bg}"/>`;
   figure.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${block.canvasWidth} ${block.canvasHeight}" width="100%" preserveAspectRatio="xMidYMid meet" role="img">${bgRect}${inner}</svg>`;
 
   if (block.caption) {
@@ -551,10 +560,17 @@ function articleCard(article: Article): HTMLLIElement {
     dates.className = 'articles-index-card-dates';
     const fmt = (iso: string): string => {
       const d = new Date(`${iso}T00:00:00Z`);
-      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+      return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
     };
     const showUpdated = article.updatedAt && article.updatedAt !== article.publishedAt;
-    dates.textContent = showUpdated ? `Updated ${fmt(article.updatedAt!)}` : `Published ${fmt(article.publishedAt)}`;
+    dates.textContent = showUpdated
+      ? `Updated ${fmt(article.updatedAt!)}`
+      : `Published ${fmt(article.publishedAt)}`;
     body.append(dates);
   }
 
@@ -585,11 +601,13 @@ export function mountArticleThumbnails(root: HTMLElement): ThumbnailBoardControl
   hosts.forEach((host) => {
     const thumb = pendingThumbnails.get(host);
     if (!thumb) return;
-    controllers.push(mountThumbnailBoard(host, {
-      board: piecesToBoard(thumb.pieces),
-      fogSquares: thumb.fogSquares,
-      orientation: thumb.orientation ?? 'white',
-    }));
+    controllers.push(
+      mountThumbnailBoard(host, {
+        board: piecesToBoard(thumb.pieces),
+        fogSquares: thumb.fogSquares,
+        orientation: thumb.orientation ?? 'white',
+      }),
+    );
     pendingThumbnails.delete(host);
   });
   return controllers;

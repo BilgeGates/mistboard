@@ -7,13 +7,29 @@ import {
 } from './engine-elo-report.js';
 
 test('builds anchor-relative Elo only from eligible rated games', () => {
-  const report = buildEngineEloReport([
-    game({ whiteEngineId: 'candidate', blackEngineId: 'python-random-legal', result: 'white-wins' }),
-    game({ whiteEngineId: 'python-random-legal', blackEngineId: 'candidate', result: 'black-wins' }),
-    game({ whiteEngineId: 'candidate', blackEngineId: 'python-random-legal', result: 'draw' }),
-    game({ whiteEngineId: 'candidate', blackEngineId: 'other', result: 'white-wins' }),
-    game({ whiteEngineId: 'candidate', blackEngineId: 'python-random-legal', result: 'draw', termination: 'truncated' }),
-  ], { minAnchorGames: 3 });
+  const report = buildEngineEloReport(
+    [
+      game({
+        whiteEngineId: 'candidate',
+        blackEngineId: 'python-random-legal',
+        result: 'white-wins',
+      }),
+      game({
+        whiteEngineId: 'python-random-legal',
+        blackEngineId: 'candidate',
+        result: 'black-wins',
+      }),
+      game({ whiteEngineId: 'candidate', blackEngineId: 'python-random-legal', result: 'draw' }),
+      game({ whiteEngineId: 'candidate', blackEngineId: 'other', result: 'white-wins' }),
+      game({
+        whiteEngineId: 'candidate',
+        blackEngineId: 'python-random-legal',
+        result: 'draw',
+        termination: 'truncated',
+      }),
+    ],
+    { minAnchorGames: 3 },
+  );
 
   assert.equal(report.totalRatedGames, 5);
   assert.equal(report.eligibleGames, 4);
@@ -35,10 +51,21 @@ test('builds anchor-relative Elo only from eligible rated games', () => {
 });
 
 test('suppresses Elo below the anchor-game floor', () => {
-  const report = buildEngineEloReport([
-    game({ whiteEngineId: 'candidate', blackEngineId: 'python-random-legal', result: 'white-wins' }),
-    game({ whiteEngineId: 'python-random-legal', blackEngineId: 'candidate', result: 'black-wins' }),
-  ], { minAnchorGames: 8 });
+  const report = buildEngineEloReport(
+    [
+      game({
+        whiteEngineId: 'candidate',
+        blackEngineId: 'python-random-legal',
+        result: 'white-wins',
+      }),
+      game({
+        whiteEngineId: 'python-random-legal',
+        blackEngineId: 'candidate',
+        result: 'black-wins',
+      }),
+    ],
+    { minAnchorGames: 8 },
+  );
 
   const candidate = report.rows.find((row) => row.engineId === 'candidate');
   assert.equal(candidate?.status, 'below-floor');
@@ -51,10 +78,14 @@ test('suppresses Elo below the anchor-game floor', () => {
 });
 
 test('rejects mixed time-control buckets', () => {
-  assert.throws(() => buildEngineEloReport([
-    game({ timeControl: { kind: 'standard', initial_seconds: 180, increment_seconds: 2 } }),
-    game({ timeControl: { kind: 'standard', initial_seconds: 60, increment_seconds: 1 } }),
-  ]), /cannot mix time-control buckets/);
+  assert.throws(
+    () =>
+      buildEngineEloReport([
+        game({ timeControl: { kind: 'standard', initial_seconds: 180, increment_seconds: 2 } }),
+        game({ timeControl: { kind: 'standard', initial_seconds: 60, increment_seconds: 1 } }),
+      ]),
+    /cannot mix time-control buckets/,
+  );
 });
 
 function game(overrides: Partial<EngineEloGameRow> = {}): EngineEloGameRow {

@@ -10,11 +10,7 @@
 
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
-import {
-  connectClient,
-  startTestServer,
-  type TestServer,
-} from './harness.js';
+import { connectClient, startTestServer, type TestServer } from './harness.js';
 
 let serverInstance: TestServer;
 let httpBase: string;
@@ -35,7 +31,7 @@ async function createRoom(body: Record<string, unknown>): Promise<{ roomId: stri
     body: JSON.stringify(body),
   });
   assert.equal(response.status, 201, `expected 201 from /api/rooms, got ${response.status}`);
-  const data = await response.json() as { roomId: string };
+  const data = (await response.json()) as { roomId: string };
   assert.ok(data.roomId, 'response should include roomId');
   return { roomId: data.roomId };
 }

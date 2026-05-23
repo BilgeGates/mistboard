@@ -1,8 +1,5 @@
 import pg from 'pg';
-import {
-  normalizeEngineTimeControl,
-  timeControlBucket,
-} from './engine-time-policy.js';
+import { normalizeEngineTimeControl, timeControlBucket } from './engine-time-policy.js';
 
 const DEFAULT_ANCHOR_ENGINE_ID = 'python-random-legal';
 const DEFAULT_MIN_ANCHOR_GAMES = 8;
@@ -67,11 +64,19 @@ export function buildEngineEloReport(
 ): EngineEloReport {
   const anchorEngineId = options.anchorEngineId ?? DEFAULT_ANCHOR_ENGINE_ID;
   const minAnchorGames = options.minAnchorGames ?? DEFAULT_MIN_ANCHOR_GAMES;
-  const excludedTerminations = new Set(options.excludedTerminations ?? DEFAULT_EXCLUDED_TERMINATIONS);
+  const excludedTerminations = new Set(
+    options.excludedTerminations ?? DEFAULT_EXCLUDED_TERMINATIONS,
+  );
   const variants = new Set(rows.map((row) => row.variant));
-  const buckets = new Set(rows.map((row) => timeControlBucket(normalizeEngineTimeControl(row.timeControl))));
-  if (variants.size > 1) throw new Error(`rated Elo report cannot mix variants: ${[...variants].sort().join(', ')}`);
-  if (buckets.size > 1) throw new Error(`rated Elo report cannot mix time-control buckets: ${[...buckets].sort().join(', ')}`);
+  const buckets = new Set(
+    rows.map((row) => timeControlBucket(normalizeEngineTimeControl(row.timeControl))),
+  );
+  if (variants.size > 1)
+    throw new Error(`rated Elo report cannot mix variants: ${[...variants].sort().join(', ')}`);
+  if (buckets.size > 1)
+    throw new Error(
+      `rated Elo report cannot mix time-control buckets: ${[...buckets].sort().join(', ')}`,
+    );
 
   const allEngines = new Set<string>();
   const anchor = emptyRecord();
@@ -179,9 +184,9 @@ export function renderEngineEloReportMarkdown(report: EngineEloReport): string {
   ];
   for (const row of report.rows) {
     lines.push(
-      `| \`${row.engineId}\` | ${row.games} | ${row.wins}-${row.losses}-${row.draws} | `
-      + `${row.scoreRate.toFixed(3)} | ${formatElo(row)} | ${formatCi(row.ciWilson)} | `
-      + `${formatCi(row.ciSimple)} | ${row.status} |`,
+      `| \`${row.engineId}\` | ${row.games} | ${row.wins}-${row.losses}-${row.draws} | ` +
+        `${row.scoreRate.toFixed(3)} | ${formatElo(row)} | ${formatCi(row.ciWilson)} | ` +
+        `${formatCi(row.ciSimple)} | ${row.status} |`,
     );
   }
   return `${lines.join('\n')}\n`;
@@ -189,7 +194,11 @@ export function renderEngineEloReportMarkdown(report: EngineEloReport): string {
 
 export async function loadRatedEngineEloRows(
   db: pg.Pool,
-  filters: { jobId?: string | null; tournamentId?: string | null; timeControlBucket?: string | null },
+  filters: {
+    jobId?: string | null;
+    tournamentId?: string | null;
+    timeControlBucket?: string | null;
+  },
 ): Promise<EngineEloGameRow[]> {
   const { rows } = await db.query<{
     black_engine_id: string | null;
@@ -238,7 +247,9 @@ export async function loadRatedEngineEloRows(
     }))
     .filter((row) => {
       if (!filters.timeControlBucket) return true;
-      return timeControlBucket(normalizeEngineTimeControl(row.timeControl)) === filters.timeControlBucket;
+      return (
+        timeControlBucket(normalizeEngineTimeControl(row.timeControl)) === filters.timeControlBucket
+      );
     });
 }
 
@@ -260,11 +271,15 @@ async function main(): Promise<void> {
     const rows = await loadRatedEngineEloRows(pool, {
       jobId: args.jobId ?? process.env.ENGINE_QUEUE_JOB_ID ?? null,
       tournamentId: args.tournamentId ?? process.env.ENGINE_TOURNAMENT_ID ?? null,
-      timeControlBucket: args.timeControlBucket ?? process.env.ENGINE_RATING_TIME_CONTROL_BUCKET ?? null,
+      timeControlBucket:
+        args.timeControlBucket ?? process.env.ENGINE_RATING_TIME_CONTROL_BUCKET ?? null,
     });
     const report = buildEngineEloReport(rows, {
-      anchorEngineId: args.anchorEngineId ?? process.env.ENGINE_RATING_ANCHOR ?? DEFAULT_ANCHOR_ENGINE_ID,
-      minAnchorGames: args.minAnchorGames ?? positiveInteger(process.env.ENGINE_RATING_MIN_ANCHOR_GAMES, DEFAULT_MIN_ANCHOR_GAMES),
+      anchorEngineId:
+        args.anchorEngineId ?? process.env.ENGINE_RATING_ANCHOR ?? DEFAULT_ANCHOR_ENGINE_ID,
+      minAnchorGames:
+        args.minAnchorGames ??
+        positiveInteger(process.env.ENGINE_RATING_MIN_ANCHOR_GAMES, DEFAULT_MIN_ANCHOR_GAMES),
     });
     if ((args.format ?? 'json') === 'markdown') {
       process.stdout.write(renderEngineEloReportMarkdown(report));
@@ -277,13 +292,18 @@ async function main(): Promise<void> {
 }
 
 function isEligibleResult(row: EngineEloGameRow, excludedTerminations: Set<string>): boolean {
-  return row.status === 'completed'
-    && row.result !== null
-    && row.termination !== null
-    && !excludedTerminations.has(row.termination);
+  return (
+    row.status === 'completed' &&
+    row.result !== null &&
+    row.termination !== null &&
+    !excludedTerminations.has(row.termination)
+  );
 }
 
-function scoreForColor(result: NonNullable<EngineEloGameRow['result']>, color: 'white' | 'black'): number {
+function scoreForColor(
+  result: NonNullable<EngineEloGameRow['result']>,
+  color: 'white' | 'black',
+): number {
   if (result === 'draw') return 0.5;
   return result === `${color}-wins` ? 1 : 0;
 }
@@ -308,7 +328,10 @@ function record(target: MutableRecord, score: number): void {
   else target.draws += 1;
 }
 
-function rowFromRecord(engineId: string, record: MutableRecord): Omit<EngineEloRow, 'ciSimple' | 'ciWilson' | 'elo' | 'isAnchor' | 'status'> {
+function rowFromRecord(
+  engineId: string,
+  record: MutableRecord,
+): Omit<EngineEloRow, 'ciSimple' | 'ciWilson' | 'elo' | 'isAnchor' | 'status'> {
   return {
     draws: record.draws,
     engineId,
@@ -367,7 +390,8 @@ function parseArgs(values: string[]): CliArgs {
         parsed.anchorEngineId = value;
         break;
       case 'format':
-        if (value !== 'json' && value !== 'markdown') throw new Error('--format must be json or markdown');
+        if (value !== 'json' && value !== 'markdown')
+          throw new Error('--format must be json or markdown');
         parsed.format = value;
         break;
       case 'job':

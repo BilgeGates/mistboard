@@ -48,7 +48,9 @@ function sha256(value: string): string {
 }
 
 if (!TEST_DATABASE_URL) {
-  test('persistence (skipped — set TEST_DATABASE_URL or DATABASE_URL to enable)', { skip: true }, () => {});
+  test('persistence (skipped — set TEST_DATABASE_URL or DATABASE_URL to enable)', {
+    skip: true,
+  }, () => {});
 } else {
   before(async () => {
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
@@ -152,10 +154,7 @@ if (!TEST_DATABASE_URL) {
       offer: [],
     };
     await appendEvent(roomId, 0, event);
-    await assert.rejects(
-      () => appendEvent(roomId, 0, event),
-      /duplicate key|unique constraint/i,
-    );
+    await assert.rejects(() => appendEvent(roomId, 0, event), /duplicate key|unique constraint/i);
   });
 
   test('rooms are isolated by room_id', async () => {
@@ -190,10 +189,9 @@ if (!TEST_DATABASE_URL) {
       expiresAt: new Date(now.getTime() + 60_000),
     });
 
-    assert.deepEqual(
-      await consumeEmailLoginChallenge('login-valid', codeHash, now),
-      { email: 'alice@example.com' },
-    );
+    assert.deepEqual(await consumeEmailLoginChallenge('login-valid', codeHash, now), {
+      email: 'alice@example.com',
+    });
     assert.equal(await consumeEmailLoginChallenge('login-valid', codeHash, now), null);
 
     await createEmailLoginChallenge({
@@ -250,20 +248,28 @@ if (!TEST_DATABASE_URL) {
       now,
     });
 
-    const first = await updateUserProfile('user_profile_settings', {
-      handle: 'settings-renamed',
-      displayName: 'Renamed Player',
-    }, new Date(now.getTime() + 1_000));
+    const first = await updateUserProfile(
+      'user_profile_settings',
+      {
+        handle: 'settings-renamed',
+        displayName: 'Renamed Player',
+      },
+      new Date(now.getTime() + 1_000),
+    );
 
     assert.equal(first.ok, true);
     assert.equal(first.ok ? first.user.handle : null, 'settings-renamed');
     assert.equal(first.ok ? first.user.displayName : null, 'Renamed Player');
     assert.ok(first.ok ? first.user.handleChangedAt : null);
 
-    const blocked = await updateUserProfile('user_profile_settings', {
-      handle: 'settings-again',
-      displayName: 'Renamed Again',
-    }, new Date(now.getTime() + 2_000));
+    const blocked = await updateUserProfile(
+      'user_profile_settings',
+      {
+        handle: 'settings-again',
+        displayName: 'Renamed Again',
+      },
+      new Date(now.getTime() + 2_000),
+    );
 
     assert.deepEqual(blocked.ok ? null : blocked.error, 'handle_change_cooldown');
   });
@@ -287,16 +293,24 @@ if (!TEST_DATABASE_URL) {
       now,
     });
 
-    const first = await updateUserProfile('user_old_handle_owner', {
-      handle: 'new-owner',
-      displayName: 'Old Owner',
-    }, now);
+    const first = await updateUserProfile(
+      'user_old_handle_owner',
+      {
+        handle: 'new-owner',
+        displayName: 'Old Owner',
+      },
+      now,
+    );
     assert.equal(first.ok, true);
 
-    const conflict = await updateUserProfile('user_handle_taker', {
-      handle: 'old-owner',
-      displayName: 'Handle Taker',
-    }, now);
+    const conflict = await updateUserProfile(
+      'user_handle_taker',
+      {
+        handle: 'old-owner',
+        displayName: 'Handle Taker',
+      },
+      now,
+    );
     assert.deepEqual(conflict.ok ? null : conflict.error, 'handle_taken');
   });
 
@@ -408,7 +422,10 @@ if (!TEST_DATABASE_URL) {
 
     const touchedAt = new Date('2026-05-08T10:05:00.000Z');
     await touchRoomSeatToken('replace-token-room', 'white', 'hash-white', touchedAt);
-    assert.equal((await loadRoomSeatTokens('replace-token-room')).white?.lastSeenAt.getTime(), touchedAt.getTime());
+    assert.equal(
+      (await loadRoomSeatTokens('replace-token-room')).white?.lastSeenAt.getTime(),
+      touchedAt.getTime(),
+    );
 
     await replaceRoomSeatTokens('replace-token-room', {
       black: {
@@ -527,9 +544,10 @@ if (!TEST_DATABASE_URL) {
         termination: string | null;
         ended_at: Date | null;
         visibility: string;
-      }>('SELECT mode, status, result, termination, ended_at, visibility FROM games WHERE room_id = $1', [
-        'started-pve',
-      ]);
+      }>(
+        'SELECT mode, status, result, termination, ended_at, visibility FROM games WHERE room_id = $1',
+        ['started-pve'],
+      );
       assert.deepEqual(rows, [
         {
           mode: 'pve',
@@ -588,13 +606,60 @@ if (!TEST_DATABASE_URL) {
            ('stale-started-move', 0, 'room-created', $6),
            ('stale-started-move', 1, 'move-played', $7)`,
         [
-          { type: 'room-created', at: stale.getTime(), roomId: 'stale-guest-prestart', variant: 'fog-of-war', offer: [] },
-          { type: 'room-created', at: fresh.getTime(), roomId: 'fresh-guest-prestart', variant: 'fog-of-war', offer: [] },
-          { type: 'room-created', at: stale.getTime(), roomId: 'stale-signed-in-prestart', variant: 'fog-of-war', offer: [] },
-          { type: 'room-created', at: stale.getTime(), roomId: 'stale-started-clock', variant: 'fog-of-war', offer: [] },
-          { type: 'clock-started', at: stale.getTime() + 1000, roomId: 'stale-started-clock', clock: { initialMs: 30000, incrementMs: 2000, remainingMs: { white: 30000, black: 30000 }, activeColor: 'white', runningSince: stale.getTime() + 1000 } },
-          { type: 'room-created', at: stale.getTime(), roomId: 'stale-started-move', variant: 'fog-of-war', offer: [] },
-          { type: 'move-played', at: stale.getTime() + 1000, roomId: 'stale-started-move', color: 'white', move: { from: 'e2', to: 'e4' } },
+          {
+            type: 'room-created',
+            at: stale.getTime(),
+            roomId: 'stale-guest-prestart',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'room-created',
+            at: fresh.getTime(),
+            roomId: 'fresh-guest-prestart',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'room-created',
+            at: stale.getTime(),
+            roomId: 'stale-signed-in-prestart',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'room-created',
+            at: stale.getTime(),
+            roomId: 'stale-started-clock',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'clock-started',
+            at: stale.getTime() + 1000,
+            roomId: 'stale-started-clock',
+            clock: {
+              initialMs: 30000,
+              incrementMs: 2000,
+              remainingMs: { white: 30000, black: 30000 },
+              activeColor: 'white',
+              runningSince: stale.getTime() + 1000,
+            },
+          },
+          {
+            type: 'room-created',
+            at: stale.getTime(),
+            roomId: 'stale-started-move',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'move-played',
+            at: stale.getTime() + 1000,
+            roomId: 'stale-started-move',
+            color: 'white',
+            move: { from: 'e2', to: 'e4' },
+          },
         ],
       );
       await client.query(
@@ -640,7 +705,7 @@ if (!TEST_DATABASE_URL) {
     const now = new Date('2026-05-22T12:00:00.000Z');
     const stalePauseMs = 24 * 60 * 60 * 1000;
     const stalePauseAt = now.getTime() - 25 * 60 * 60 * 1000; // older than window
-    const freshPauseAt = now.getTime() - 1 * 60 * 60 * 1000;  // within window
+    const freshPauseAt = now.getTime() - 1 * 60 * 60 * 1000; // within window
     const startedAt = new Date(stalePauseAt - 60 * 60 * 1000);
 
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
@@ -683,19 +748,82 @@ if (!TEST_DATABASE_URL) {
            ('stale-paused-already-completed', 0, 'room-created', $12),
            ('stale-paused-already-completed', 1, 'pause', $13)`,
         [
-          { type: 'room-created', at: startedAt.getTime(), roomId: 'stale-paused-pvp', variant: 'fog-of-war', offer: [] },
-          { type: 'move-played', at: startedAt.getTime() + 1000, roomId: 'stale-paused-pvp', color: 'white', move: { from: 'e2', to: 'e4' } },
-          { type: 'move-played', at: startedAt.getTime() + 2000, roomId: 'stale-paused-pvp', color: 'black', move: { from: 'e7', to: 'e5' } },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'stale-paused-pvp',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'move-played',
+            at: startedAt.getTime() + 1000,
+            roomId: 'stale-paused-pvp',
+            color: 'white',
+            move: { from: 'e2', to: 'e4' },
+          },
+          {
+            type: 'move-played',
+            at: startedAt.getTime() + 2000,
+            roomId: 'stale-paused-pvp',
+            color: 'black',
+            move: { from: 'e7', to: 'e5' },
+          },
           { type: 'pause', at: stalePauseAt, roomId: 'stale-paused-pvp', reason: 'shutdown' },
-          { type: 'room-created', at: startedAt.getTime(), roomId: 'stale-paused-then-resumed', variant: 'fog-of-war', offer: [] },
-          { type: 'pause', at: stalePauseAt, roomId: 'stale-paused-then-resumed', reason: 'shutdown' },
-          { type: 'resume', at: stalePauseAt + 1000, roomId: 'stale-paused-then-resumed', reason: 'both-present' },
-          { type: 'room-created', at: startedAt.getTime(), roomId: 'fresh-paused', variant: 'fog-of-war', offer: [] },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'stale-paused-then-resumed',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'pause',
+            at: stalePauseAt,
+            roomId: 'stale-paused-then-resumed',
+            reason: 'shutdown',
+          },
+          {
+            type: 'resume',
+            at: stalePauseAt + 1000,
+            roomId: 'stale-paused-then-resumed',
+            reason: 'both-present',
+          },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'fresh-paused',
+            variant: 'fog-of-war',
+            offer: [],
+          },
           { type: 'pause', at: freshPauseAt, roomId: 'fresh-paused', reason: 'shutdown' },
-          { type: 'room-created', at: startedAt.getTime(), roomId: 'running-no-pause', variant: 'fog-of-war', offer: [] },
-          { type: 'move-played', at: startedAt.getTime() + 1000, roomId: 'running-no-pause', color: 'white', move: { from: 'e2', to: 'e4' } },
-          { type: 'room-created', at: startedAt.getTime(), roomId: 'stale-paused-already-completed', variant: 'fog-of-war', offer: [] },
-          { type: 'pause', at: stalePauseAt, roomId: 'stale-paused-already-completed', reason: 'shutdown' },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'running-no-pause',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'move-played',
+            at: startedAt.getTime() + 1000,
+            roomId: 'running-no-pause',
+            color: 'white',
+            move: { from: 'e2', to: 'e4' },
+          },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'stale-paused-already-completed',
+            variant: 'fog-of-war',
+            offer: [],
+          },
+          {
+            type: 'pause',
+            at: stalePauseAt,
+            roomId: 'stale-paused-already-completed',
+            reason: 'shutdown',
+          },
         ],
       );
     } finally {
@@ -729,12 +857,42 @@ if (!TEST_DATABASE_URL) {
          ORDER BY room_id`,
       );
       assert.deepEqual(rows, [
-        { room_id: 'fresh-paused', status: 'running', result: null, termination: null, ply_count: 0 },
-        { room_id: 'running-no-pause', status: 'running', result: null, termination: null, ply_count: 0 },
+        {
+          room_id: 'fresh-paused',
+          status: 'running',
+          result: null,
+          termination: null,
+          ply_count: 0,
+        },
+        {
+          room_id: 'running-no-pause',
+          status: 'running',
+          result: null,
+          termination: null,
+          ply_count: 0,
+        },
         // Already-completed row is untouched by the sweep.
-        { room_id: 'stale-paused-already-completed', status: 'completed', result: 'white-wins', termination: 'king-captured', ply_count: 12 },
-        { room_id: 'stale-paused-pvp', status: 'completed', result: 'draw', termination: 'server-restarted', ply_count: 2 },
-        { room_id: 'stale-paused-then-resumed', status: 'running', result: null, termination: null, ply_count: 0 },
+        {
+          room_id: 'stale-paused-already-completed',
+          status: 'completed',
+          result: 'white-wins',
+          termination: 'king-captured',
+          ply_count: 12,
+        },
+        {
+          room_id: 'stale-paused-pvp',
+          status: 'completed',
+          result: 'draw',
+          termination: 'server-restarted',
+          ply_count: 2,
+        },
+        {
+          room_id: 'stale-paused-then-resumed',
+          status: 'running',
+          result: null,
+          termination: null,
+          ply_count: 0,
+        },
       ]);
     } finally {
       await verify.end();
@@ -1019,7 +1177,10 @@ if (!TEST_DATABASE_URL) {
     }
 
     const games = await listRecentEveGames();
-    assert.deepEqual(games.map((game) => game.roomId), ['eve-newer', 'eve-older']);
+    assert.deepEqual(
+      games.map((game) => game.roomId),
+      ['eve-newer', 'eve-older'],
+    );
     assert.equal(games[0]?.jobId, 'job-recent');
     assert.equal(games[0]?.gameIndex, 1);
     assert.equal(games[0]?.mode, 'eve');
@@ -1091,12 +1252,10 @@ if (!TEST_DATABASE_URL) {
     }
 
     const games = await listRecentPublicGames(10);
-    assert.deepEqual(games.map((game) => game.roomId), [
-      'public-pvp',
-      'public-pve',
-      'link-pve',
-      'link-eve',
-    ]);
+    assert.deepEqual(
+      games.map((game) => game.roomId),
+      ['public-pvp', 'public-pve', 'link-pve', 'link-eve'],
+    );
   });
 
   test('listCorpusGames filters timeout games shorter than ten ply', async () => {
@@ -1122,7 +1281,10 @@ if (!TEST_DATABASE_URL) {
     }
 
     const games = await listCorpusGames('featured-corpus');
-    assert.deepEqual(games.map((game) => game.roomId), ['corpus-decisive-short', 'corpus-timeout-ten']);
+    assert.deepEqual(
+      games.map((game) => game.roomId),
+      ['corpus-decisive-short', 'corpus-timeout-ten'],
+    );
   });
 
   test('listCompletedGames returns completed games in date range with participants', async () => {
@@ -1169,7 +1331,10 @@ if (!TEST_DATABASE_URL) {
       endedFrom: new Date('2026-05-08T00:00:00.000Z'),
       endedTo: new Date('2026-05-09T00:00:00.000Z'),
     });
-    assert.deepEqual(games.map((game) => game.roomId), ['range-pve', 'range-eve']);
+    assert.deepEqual(
+      games.map((game) => game.roomId),
+      ['range-pve', 'range-eve'],
+    );
     assert.equal(games[0]?.mode, 'pve');
     assert.deepEqual(games[0]?.participants, [
       {
@@ -1193,7 +1358,10 @@ if (!TEST_DATABASE_URL) {
       endedTo: new Date('2026-05-09T00:00:00.000Z'),
       mode: 'eve',
     });
-    assert.deepEqual(eveGames.map((game) => game.roomId), ['range-eve']);
+    assert.deepEqual(
+      eveGames.map((game) => game.roomId),
+      ['range-eve'],
+    );
   });
 
   test('getGameSummary returns completed game metadata without events', async () => {
@@ -1294,24 +1462,27 @@ if (!TEST_DATABASE_URL) {
       artifactType: 'belief-snapshot',
       engineColors: ['white'],
     });
-    assert.deepEqual(payloads.map((artifact) => ({
-      artifactType: artifact.artifactType,
-      engineColor: artifact.engineColor,
-      ply: artifact.ply,
-      snapshotKind: artifact.payload.snapshot_kind,
-    })), [
-      {
-        artifactType: 'belief-snapshot',
-        engineColor: 'white',
-        ply: 3,
-        snapshotKind: 'decision',
-      },
-      {
-        artifactType: 'belief-snapshot',
-        engineColor: 'white',
-        ply: 4,
-        snapshotKind: 'after-own-move',
-      },
-    ]);
+    assert.deepEqual(
+      payloads.map((artifact) => ({
+        artifactType: artifact.artifactType,
+        engineColor: artifact.engineColor,
+        ply: artifact.ply,
+        snapshotKind: artifact.payload.snapshot_kind,
+      })),
+      [
+        {
+          artifactType: 'belief-snapshot',
+          engineColor: 'white',
+          ply: 3,
+          snapshotKind: 'decision',
+        },
+        {
+          artifactType: 'belief-snapshot',
+          engineColor: 'white',
+          ply: 4,
+          snapshotKind: 'after-own-move',
+        },
+      ],
+    );
   });
 }

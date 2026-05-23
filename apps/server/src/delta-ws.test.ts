@@ -19,9 +19,9 @@ import type { Color, GameEvent, Move, PlayerView } from '@mistboard/game';
 type ServerMessage = {
   type: 'hello' | 'snapshot' | 'event-appended';
   clientId?: string;
-  events?: GameEvent[];   // snapshot/hello only
-  event?: GameEvent;       // event-appended only
-  seq?: number;            // event-appended only
+  events?: GameEvent[]; // snapshot/hello only
+  event?: GameEvent; // event-appended only
+  seq?: number; // event-appended only
   mode?: 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
   seat: Color | 'spectator';
   seatToken?: string;
@@ -102,18 +102,17 @@ test('delta: valid seat token reclaims a seat and displaces the older socket', a
   clients.push(black);
   await waitForMessage(
     white.messages,
-    (message) => message.state.status.type === 'playing'
-      && message.state.status.turn === 'white'
-      && message.state.legalMoves.length > 0,
+    (message) =>
+      message.state.status.type === 'playing' &&
+      message.state.status.turn === 'white' &&
+      message.state.legalMoves.length > 0,
     'initial white turn',
   );
 
   const oldWhiteClosed = waitForSocketClose(white.socket);
-  const replacement = await connectForHello(
-    port,
-    `room=${room}&client=white-replacement-0001`,
-    { seatToken: token },
-  );
+  const replacement = await connectForHello(port, `room=${room}&client=white-replacement-0001`, {
+    seatToken: token,
+  });
   clients.push(replacement);
 
   const closed = await oldWhiteClosed;
@@ -129,8 +128,7 @@ test('delta: valid seat token reclaims a seat and displaces the older socket', a
   // event-appended (not snapshot). State must still transition.
   await waitForMessage(
     black.messages,
-    (message) => message.state.status.type === 'playing'
-      && message.state.status.turn === 'black',
+    (message) => message.state.status.type === 'playing' && message.state.status.turn === 'black',
     'replacement move accepted (delta-path)',
   );
 });
@@ -160,11 +158,9 @@ test('delta: wrong seat token cannot reclaim a private PvP seat', async (t) => {
   clients.push(await connectForHello(port, `room=${room}&client=white-client-0001&reset=1`));
   clients.push(await connectForHello(port, `room=${room}&client=black-client-0001`));
 
-  const rejected = await connectForClose(
-    port,
-    `room=${room}&client=white-replacement-0001`,
-    { seatToken: 'not-the-issued-seat-token' },
-  );
+  const rejected = await connectForClose(port, `room=${room}&client=white-replacement-0001`, {
+    seatToken: 'not-the-issued-seat-token',
+  });
 
   assert.equal(rejected.code, 1008);
   assert.equal(rejected.reason, 'private room');
@@ -183,16 +179,16 @@ test('delta: unknown client cannot take an abandoned active private PvP seat', a
 
   const whiteReady = await waitForMessage(
     white.messages,
-    (message) => message.state.status.type === 'playing'
-      && message.state.status.turn === 'white'
-      && message.state.legalMoves.length > 0,
+    (message) =>
+      message.state.status.type === 'playing' &&
+      message.state.status.turn === 'white' &&
+      message.state.legalMoves.length > 0,
     'initial white turn',
   );
   white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteReady) }));
   await waitForMessage(
     black.messages,
-    (message) => message.state.status.type === 'playing'
-      && message.state.status.turn === 'black',
+    (message) => message.state.status.type === 'playing' && message.state.status.turn === 'black',
     'black turn after first move',
   );
 
@@ -213,7 +209,10 @@ test('delta: live PvE third client is rejected before any frame', async (t) => {
   t.after(async () => closeClients(clients));
 
   const room = uniqueRoomId('ws-delta-pve');
-  const human = await connectForHello(port, `room=${room}&client=pve-human-0001&engine=random&reset=1`);
+  const human = await connectForHello(
+    port,
+    `room=${room}&client=pve-human-0001&engine=random&reset=1`,
+  );
   clients.push(human);
   assert.equal(human.messages[0]?.mode, 'pve');
   assert.equal(human.messages[0]?.seat, 'white');
@@ -254,9 +253,10 @@ test('delta: white move yields event-appended to white (own move visible) and to
 
   const whiteReady = await waitForMessage(
     white.messages,
-    (message) => message.state.status.type === 'playing'
-      && message.state.status.turn === 'white'
-      && message.state.legalMoves.length > 0,
+    (message) =>
+      message.state.status.type === 'playing' &&
+      message.state.status.turn === 'white' &&
+      message.state.legalMoves.length > 0,
     'initial white turn',
   );
 
@@ -281,12 +281,17 @@ test('delta: white move yields event-appended to white (own move visible) and to
   const blackAppended = await waitForMessageAfter(
     black,
     baselineBlack,
-    (m) => m.type === 'event-appended'
-      && m.state.status.type === 'playing'
-      && m.state.status.turn === 'black',
+    (m) =>
+      m.type === 'event-appended' &&
+      m.state.status.type === 'playing' &&
+      m.state.status.turn === 'black',
     'black event-appended after white move',
   );
-  assert.equal(blackAppended.event, undefined, 'opponent move-played must NOT leak into delta frame');
+  assert.equal(
+    blackAppended.event,
+    undefined,
+    'opponent move-played must NOT leak into delta frame',
+  );
   assert.equal(typeof blackAppended.seq, 'number');
 });
 
@@ -300,11 +305,7 @@ test('delta: snapshot:request triggers a full snapshot reply on the same socket'
   const black = await connectForHello(port, `room=${room}&client=black-req-0001`);
   clients.push(white, black);
 
-  await waitForMessage(
-    white.messages,
-    (m) => m.state.status.type === 'playing',
-    'game starts',
-  );
+  await waitForMessage(white.messages, (m) => m.state.status.type === 'playing', 'game starts');
 
   const baseline = white.messages.length;
   white.socket.send(JSON.stringify({ type: 'snapshot:request' }));
@@ -335,16 +336,16 @@ test('delta: game-end transition falls back to snapshot for full reveal', async 
 
   const whiteReady = await waitForMessage(
     white.messages,
-    (message) => message.state.status.type === 'playing'
-      && message.state.status.turn === 'white'
-      && message.state.legalMoves.length > 0,
+    (message) =>
+      message.state.status.type === 'playing' &&
+      message.state.status.turn === 'white' &&
+      message.state.legalMoves.length > 0,
     'initial white turn',
   );
   white.socket.send(JSON.stringify({ type: 'move', ...firstLegalMove(whiteReady) }));
   await waitForMessage(
     black.messages,
-    (message) => message.state.status.type === 'playing'
-      && message.state.status.turn === 'black',
+    (message) => message.state.status.type === 'playing' && message.state.status.turn === 'black',
     'black turn',
   );
 
@@ -357,13 +358,17 @@ test('delta: game-end transition falls back to snapshot for full reveal', async 
     (m) => m.state.status.type === 'finished',
     'black sees finished status',
   );
-  assert.equal(blackEnd.type, 'snapshot', 'game-end broadcast must be snapshot, not event-appended (reveal channel)');
+  assert.equal(
+    blackEnd.type,
+    'snapshot',
+    'game-end broadcast must be snapshot, not event-appended (reveal channel)',
+  );
   assert.ok(Array.isArray(blackEnd.events));
   // The previously-hidden white move-played must be present in the final
   // snapshot. eventsForClient lets all events through once status is
   // finished.
   const movePlayed = blackEnd.events?.find((e) => e.type === 'move-played');
-  assert.ok(movePlayed, 'reveal: white move-played must appear in black\'s finished-game snapshot');
+  assert.ok(movePlayed, "reveal: white move-played must appear in black's finished-game snapshot");
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -371,9 +376,8 @@ test('delta: game-end transition falls back to snapshot for full reveal', async 
 async function startServer(): Promise<{ port: number; child: ServerProcess }> {
   const port = await openPort();
   const testDir = dirname(fileURLToPath(import.meta.url));
-  const entry = basename(testDir) === 'src'
-    ? join(testDir, '..', 'dist', 'main.js')
-    : join(testDir, 'main.js');
+  const entry =
+    basename(testDir) === 'src' ? join(testDir, '..', 'dist', 'main.js') : join(testDir, 'main.js');
   const child = spawn(process.execPath, [entry], {
     env: {
       MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE: 'true',
@@ -410,7 +414,10 @@ function openPort(): Promise<number> {
 function waitForServerReady(child: ServerProcess): Promise<void> {
   return new Promise((resolve, reject) => {
     let output = '';
-    const timeout = setTimeout(() => reject(new Error(`server startup timed out: ${output}`)), 5_000);
+    const timeout = setTimeout(
+      () => reject(new Error(`server startup timed out: ${output}`)),
+      5_000,
+    );
     child.stdout.on('data', (chunk: Buffer) => {
       output += chunk.toString('utf8');
       if (output.includes('mistboard server listening')) {
@@ -446,13 +453,21 @@ function stopServer(child: ServerProcess): Promise<void> {
   });
 }
 
-function connectForHello(port: number, query: string, options: { seatToken?: string } = {}): Promise<TestClient> {
+function connectForHello(
+  port: number,
+  query: string,
+  options: { seatToken?: string } = {},
+): Promise<TestClient> {
   const protocols = options.seatToken ? [`mistboard-seat.${options.seatToken}`] : undefined;
   const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`, protocols);
   const messages: ServerMessage[] = [];
   socket.on('message', (raw) => {
     const message = JSON.parse(String(raw)) as ServerMessage;
-    if (message.type === 'hello' || message.type === 'snapshot' || message.type === 'event-appended') {
+    if (
+      message.type === 'hello' ||
+      message.type === 'snapshot' ||
+      message.type === 'event-appended'
+    ) {
       messages.push(message);
     }
   });
@@ -461,7 +476,9 @@ function connectForHello(port: number, query: string, options: { seatToken?: str
     const timeout = setTimeout(() => reject(new Error(`hello timed out for ${query}`)), 3_000);
     socket.once('error', reject);
     socket.once('close', (code, reason) => {
-      reject(new Error(`socket closed before hello for ${query}: ${code} ${reason.toString('utf8')}`));
+      reject(
+        new Error(`socket closed before hello for ${query}: ${code} ${reason.toString('utf8')}`),
+      );
     });
     const wait = () => {
       if (messages[0]) {
@@ -475,13 +492,21 @@ function connectForHello(port: number, query: string, options: { seatToken?: str
   });
 }
 
-function connectForClose(port: number, query: string, options: { seatToken?: string } = {}): Promise<{ code: number; messages: ServerMessage[]; reason: string }> {
+function connectForClose(
+  port: number,
+  query: string,
+  options: { seatToken?: string } = {},
+): Promise<{ code: number; messages: ServerMessage[]; reason: string }> {
   const protocols = options.seatToken ? [`mistboard-seat.${options.seatToken}`] : undefined;
   const socket = new WebSocket(`ws://127.0.0.1:${port}/?${query}`, protocols);
   const messages: ServerMessage[] = [];
   socket.on('message', (raw) => {
     const message = JSON.parse(String(raw)) as ServerMessage;
-    if (message.type === 'hello' || message.type === 'snapshot' || message.type === 'event-appended') {
+    if (
+      message.type === 'hello' ||
+      message.type === 'snapshot' ||
+      message.type === 'event-appended'
+    ) {
       messages.push(message);
     }
   });
@@ -542,13 +567,18 @@ function firstLegalMove(message: ServerMessage | undefined): Move {
 }
 
 async function closeClients(clients: TestClient[]): Promise<void> {
-  await Promise.all(clients.map((client) => new Promise<void>((resolve) => {
-    if (client.socket.readyState === WebSocket.CLOSED) {
-      resolve();
-      return;
-    }
-    client.socket.once('close', () => resolve());
-    client.socket.close();
-    setTimeout(resolve, 250);
-  })));
+  await Promise.all(
+    clients.map(
+      (client) =>
+        new Promise<void>((resolve) => {
+          if (client.socket.readyState === WebSocket.CLOSED) {
+            resolve();
+            return;
+          }
+          client.socket.once('close', () => resolve());
+          client.socket.close();
+          setTimeout(resolve, 250);
+        }),
+    ),
+  );
 }

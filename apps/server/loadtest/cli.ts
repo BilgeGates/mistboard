@@ -107,7 +107,9 @@ async function main(): Promise<void> {
   const startedAt = Date.now();
 
   if (!args.quiet) {
-    console.log(`[loadtest] scenario=${scenario.name} concurrency=${args.concurrency}${args.durationMs ? ` duration=${args.durationMs}ms` : ' (single-pass)'} server=${args.serverUrl}`);
+    console.log(
+      `[loadtest] scenario=${scenario.name} concurrency=${args.concurrency}${args.durationMs ? ` duration=${args.durationMs}ms` : ' (single-pass)'} server=${args.serverUrl}`,
+    );
   }
 
   await runScenario({
@@ -122,10 +124,13 @@ async function main(): Promise<void> {
       const tag = bucketTag(rawTag);
       completedByNote.set(tag, (completedByNote.get(tag) ?? 0) + 1);
       if (!args.quiet) {
-        const lat = r.moveLatencies.length > 0
-          ? `last=${r.moveLatencies[r.moveLatencies.length - 1]!}ms`
-          : 'no-moves';
-        console.log(`  game ${String(r.gameIdx).padStart(4)} ${tag.padEnd(20)} moves=${r.moveLatencies.length} ${lat}${r.error ? ` err=${r.error}` : ''}`);
+        const lat =
+          r.moveLatencies.length > 0
+            ? `last=${r.moveLatencies[r.moveLatencies.length - 1]!}ms`
+            : 'no-moves';
+        console.log(
+          `  game ${String(r.gameIdx).padStart(4)} ${tag.padEnd(20)} moves=${r.moveLatencies.length} ${lat}${r.error ? ` err=${r.error}` : ''}`,
+        );
       }
     },
   });
@@ -138,7 +143,9 @@ async function main(): Promise<void> {
   console.log('\n[loadtest] summary');
   console.log(`  scenario=${scenario.name} concurrency=${args.concurrency}`);
   console.log(`  wall=${wallMs}ms  games=${out.length}  total_moves=${allLatencies.length}`);
-  console.log(`  outcomes: ${[...completedByNote.entries()].map(([k, v]) => `${k}=${v}`).join('  ')}`);
+  console.log(
+    `  outcomes: ${[...completedByNote.entries()].map(([k, v]) => `${k}=${v}`).join('  ')}`,
+  );
   console.log('  ' + formatSummary('move-rtt', moveSummary));
   console.log('  ' + formatSummary('game-duration', gameSummary));
 

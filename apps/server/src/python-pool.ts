@@ -101,10 +101,16 @@ class PoolWorker {
       if (!text) return;
       // Worker emits structured debug lines on stderr; surface only if not JSON debug noise.
       if (text.startsWith('{') && text.includes('python_live_engine_debug')) return;
-      logger.warn({ kind: 'python_pool_stderr', worker_idx: this.index, engine_id: this.opts.engineId, text }, 'worker stderr');
+      logger.warn(
+        { kind: 'python_pool_stderr', worker_idx: this.index, engine_id: this.opts.engineId, text },
+        'worker stderr',
+      );
     });
     child.on('error', (err) => {
-      logger.error({ kind: 'python_pool_error', worker_idx: this.index, error: err.message }, 'worker error');
+      logger.error(
+        { kind: 'python_pool_error', worker_idx: this.index, error: err.message },
+        'worker error',
+      );
       this.fail(err);
     });
     child.on('close', (code) => {
@@ -136,11 +142,21 @@ class PoolWorker {
   }
 
   private handleLine(line: string): void {
-    let msg: { kind?: string; requestId?: string; ok?: boolean; response?: PythonPoolResponse; error?: string; engineId?: string };
+    let msg: {
+      kind?: string;
+      requestId?: string;
+      ok?: boolean;
+      response?: PythonPoolResponse;
+      error?: string;
+      engineId?: string;
+    };
     try {
       msg = JSON.parse(line);
     } catch {
-      logger.warn({ kind: 'python_pool_parse_error', worker_idx: this.index, line: line.slice(0, 200) }, 'unparseable line');
+      logger.warn(
+        { kind: 'python_pool_parse_error', worker_idx: this.index, line: line.slice(0, 200) },
+        'unparseable line',
+      );
       return;
     }
 
@@ -158,12 +174,20 @@ class PoolWorker {
     }
 
     if (!this.current) {
-      logger.warn({ kind: 'python_pool_orphan_response', worker_idx: this.index, request_id: msg.requestId }, 'orphan response');
+      logger.warn(
+        { kind: 'python_pool_orphan_response', worker_idx: this.index, request_id: msg.requestId },
+        'orphan response',
+      );
       return;
     }
     if (msg.requestId !== this.current.requestId) {
       logger.warn(
-        { kind: 'python_pool_mismatched_response', worker_idx: this.index, expected: this.current.requestId, got: msg.requestId },
+        {
+          kind: 'python_pool_mismatched_response',
+          worker_idx: this.index,
+          expected: this.current.requestId,
+          got: msg.requestId,
+        },
         'mismatched response',
       );
       return;
@@ -260,7 +284,9 @@ export class PythonPool {
     const results = await Promise.allSettled(workers.map((w) => w.start()));
     const failures = results.filter((r) => r.status === 'rejected');
     if (failures.length === workers.length) {
-      throw new Error(`all ${workers.length} python pool workers failed to start: ${(failures[0] as PromiseRejectedResult).reason}`);
+      throw new Error(
+        `all ${workers.length} python pool workers failed to start: ${(failures[0] as PromiseRejectedResult).reason}`,
+      );
     }
     logger.info(
       {
@@ -297,7 +323,12 @@ export class PythonPool {
 
     if (burst > 5) {
       logger.error(
-        { kind: 'python_pool_slot_gave_up', engine_id: this.opts.engineId, worker_idx: slot, error: err.message },
+        {
+          kind: 'python_pool_slot_gave_up',
+          engine_id: this.opts.engineId,
+          worker_idx: slot,
+          error: err.message,
+        },
         'python pool slot gave up after repeated crashes',
       );
       // Replace the dead slot reference with a stub-disposed worker so
@@ -310,7 +341,14 @@ export class PythonPool {
 
     const delay = burst === 1 ? 0 : Math.min(5_000, 250 * 2 ** (burst - 1));
     logger.warn(
-      { kind: 'python_pool_worker_restart', engine_id: this.opts.engineId, worker_idx: slot, burst, delay_ms: delay, error: err.message },
+      {
+        kind: 'python_pool_worker_restart',
+        engine_id: this.opts.engineId,
+        worker_idx: slot,
+        burst,
+        delay_ms: delay,
+        error: err.message,
+      },
       'restarting dead pool worker',
     );
 
@@ -327,7 +365,12 @@ export class PythonPool {
         this.tryDispatch();
       } catch (startErr) {
         logger.error(
-          { kind: 'python_pool_restart_failed', engine_id: this.opts.engineId, worker_idx: slot, error: (startErr as Error).message },
+          {
+            kind: 'python_pool_restart_failed',
+            engine_id: this.opts.engineId,
+            worker_idx: slot,
+            error: (startErr as Error).message,
+          },
           'pool worker restart failed',
         );
         // The new worker's own fail() will fire handleWorkerDeath again,
@@ -400,12 +443,17 @@ export async function getPythonPool(engineId: string): Promise<PythonPool | null
       size,
       pythonBin: process.env.PYTHON_ENGINE_PYTHON ?? defaultPythonBin(repoRoot),
       scriptPath:
-        process.env.PYTHON_ENGINE_LIVE_WORKER
-        ?? resolve(repoRoot, 'research', 'python-fow-lab', 'scripts', 'live_move_worker.py'),
+        process.env.PYTHON_ENGINE_LIVE_WORKER ??
+        resolve(repoRoot, 'research', 'python-fow-lab', 'scripts', 'live_move_worker.py'),
       cwd: repoRoot,
       workerSeed: Date.now(),
-      stockfishPath: process.env.PYTHON_ENGINE_STOCKFISH_PATH ?? process.env.STOCKFISH_PATH ?? defaultStockfishPath(),
-      readyTimeoutMs: Number.parseInt(process.env.MISTBOARD_PYTHON_POOL_READY_TIMEOUT_MS ?? '30000', 10) || 30_000,
+      stockfishPath:
+        process.env.PYTHON_ENGINE_STOCKFISH_PATH ??
+        process.env.STOCKFISH_PATH ??
+        defaultStockfishPath(),
+      readyTimeoutMs:
+        Number.parseInt(process.env.MISTBOARD_PYTHON_POOL_READY_TIMEOUT_MS ?? '30000', 10) ||
+        30_000,
     };
     const pool = new PythonPool(opts);
     try {
@@ -437,7 +485,11 @@ function defaultPythonBin(repoRoot: string): string {
 }
 
 function defaultStockfishPath(): string | undefined {
-  for (const candidate of ['/usr/games/stockfish', '/usr/bin/stockfish', '/opt/homebrew/bin/stockfish']) {
+  for (const candidate of [
+    '/usr/games/stockfish',
+    '/usr/bin/stockfish',
+    '/opt/homebrew/bin/stockfish',
+  ]) {
     if (existsSync(candidate)) return candidate;
   }
   return undefined;

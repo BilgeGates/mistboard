@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
 import pg from 'pg';
-import {
-  connectClient,
-  startTestServer,
-  uniqueRoomId,
-  type TestServer,
-} from './harness.js';
+import { connectClient, startTestServer, uniqueRoomId, type TestServer } from './harness.js';
 
 // Verifies the Postgres path that the in-memory harness cannot reach:
 // when a game ends via resign, recordGameEnd commits a games row (result,
@@ -62,11 +57,14 @@ if (!testDbUrl) {
     await Promise.all([white.waitFor(finished), black.waitFor(finished)]);
 
     const gameRow = await db.query<{
-      result: string; termination: string; ply_count: number; status: string; mode: string;
-    }>(
-      `SELECT result, termination, ply_count, status, mode FROM games WHERE room_id = $1`,
-      [roomId],
-    );
+      result: string;
+      termination: string;
+      ply_count: number;
+      status: string;
+      mode: string;
+    }>(`SELECT result, termination, ply_count, status, mode FROM games WHERE room_id = $1`, [
+      roomId,
+    ]);
     assert.equal(gameRow.rowCount, 1, 'expected one games row');
     const g = gameRow.rows[0]!;
     assert.equal(g.result, 'black-wins');

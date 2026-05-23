@@ -66,11 +66,15 @@ function renderAccountShell(
   user: AuthUser | null,
   tab: 'login' | 'register' = 'login',
 ): void {
-  shell.replaceChildren(user ? buildSignedInAccount(user, shell) : buildLoginForm(shell, undefined, tab));
+  shell.replaceChildren(
+    user ? buildSignedInAccount(user, shell) : buildLoginForm(shell, undefined, tab),
+  );
 }
 
 function renderAccountSettingsShell(shell: HTMLElement, user: AuthUser | null): void {
-  shell.replaceChildren(user ? buildAccountSettings(user, shell) : buildLoginForm(shell, renderAccountSettingsShell));
+  shell.replaceChildren(
+    user ? buildAccountSettings(user, shell) : buildLoginForm(shell, renderAccountSettingsShell),
+  );
 }
 
 // ── Signed-in account card ───────────────────────────────────────────────────
@@ -193,7 +197,7 @@ function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
           handle: handle.input.value,
         }),
       });
-      const data = await resp.json() as { user?: AuthUser; error?: string; availableAt?: string };
+      const data = (await resp.json()) as { user?: AuthUser; error?: string; availableAt?: string };
       if (!resp.ok || !data.user) {
         throw new Error(accountSettingsErrorMessage(data.error, data.availableAt));
       }
@@ -236,7 +240,10 @@ function labeledInput(
   return { help, input, wrap };
 }
 
-function accountSettingsErrorMessage(error: string | undefined, availableAt: string | undefined): string {
+function accountSettingsErrorMessage(
+  error: string | undefined,
+  availableAt: string | undefined,
+): string {
   if (error === 'invalid_handle') return 'Use 3-24 letters, numbers, underscores, or dashes.';
   if (error === 'invalid_display_name') return 'Display name must be 1-40 characters.';
   if (error === 'handle_taken') return 'That handle is not available.';
@@ -254,7 +261,9 @@ function handleHelpText(user: AuthUser): string {
   if (!user.handleChangedAt) {
     return 'Used in your profile URL. Your first handle change is available now.';
   }
-  const nextChangeAt = new Date(new Date(user.handleChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+  const nextChangeAt = new Date(
+    new Date(user.handleChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000,
+  );
   if (!Number.isFinite(nextChangeAt.getTime())) {
     return 'Used in your profile URL. Later handle changes are limited.';
   }
@@ -306,9 +315,10 @@ function buildLoginForm(
 
   const copy = document.createElement('p');
   copy.className = 'account-copy';
-  copy.textContent = tab === 'register'
-    ? 'Enter your email. We’ll send a code—no password needed.'
-    : 'One email code. No password.';
+  copy.textContent =
+    tab === 'register'
+      ? 'Enter your email. We’ll send a code—no password needed.'
+      : 'One email code. No password.';
 
   const form = document.createElement('form');
   form.className = 'account-form';
@@ -348,14 +358,17 @@ function buildLoginForm(
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ email: email.value }),
         });
-        const data = await resp.json() as { loginId?: string; devCode?: string; error?: string };
-        if (!resp.ok || !data.loginId) throw new Error(data.error ?? `start failed: ${resp.status}`);
+        const data = (await resp.json()) as { loginId?: string; devCode?: string; error?: string };
+        if (!resp.ok || !data.loginId)
+          throw new Error(data.error ?? `start failed: ${resp.status}`);
         loginId = data.loginId;
         code.hidden = false;
         code.required = true;
         if (data.devCode) code.value = data.devCode;
         submit.textContent = 'Confirm';
-        status.textContent = data.devCode ? 'Development code filled in.' : 'Check your email for the login code.';
+        status.textContent = data.devCode
+          ? 'Development code filled in.'
+          : 'Check your email for the login code.';
         code.focus();
       } else {
         const resp = await fetch('/api/auth/email/confirm', {
@@ -363,10 +376,18 @@ function buildLoginForm(
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ loginId, code: code.value }),
         });
-        const data = await resp.json() as { user?: AuthUser; isNewUser?: boolean; error?: string };
+        const data = (await resp.json()) as {
+          user?: AuthUser;
+          isNewUser?: boolean;
+          error?: string;
+        };
         if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
         if (data.isNewUser) track('signup_completed');
-        try { window.localStorage.setItem('mb_signed_in', '1'); } catch { /* ignore */ }
+        try {
+          window.localStorage.setItem('mb_signed_in', '1');
+        } catch {
+          /* ignore */
+        }
         onAuth(shell, data.user);
       }
     } catch (err) {
@@ -382,7 +403,8 @@ function buildLoginForm(
 }
 
 function authErrorMessage(value: string): string {
-  if (value === 'email_delivery_not_configured') return 'Email login is not configured in this runtime.';
+  if (value === 'email_delivery_not_configured')
+    return 'Email login is not configured in this runtime.';
   if (value === 'email_delivery_failed') return 'Email delivery failed. Try again in a moment.';
   if (value === 'persistence_disabled') return 'Accounts require the persistent server.';
   if (value === 'invalid_login_code') return 'The login code was invalid or expired.';

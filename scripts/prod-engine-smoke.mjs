@@ -4,13 +4,14 @@ const DEFAULT_BASE_URL = 'https://mistboard.com';
 const DEFAULT_TIMEOUT_MS = 20_000;
 
 const options = parseArgs(process.argv.slice(2));
-const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.MISTBOARD_BASE_URL ?? DEFAULT_BASE_URL);
+const baseUrl = normalizeBaseUrl(
+  options.baseUrl ?? process.env.MISTBOARD_BASE_URL ?? DEFAULT_BASE_URL,
+);
 const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
 const playable = await fetchPlayableEngines(baseUrl);
-const requestedEngineIds = options.engineIds.length > 0
-  ? options.engineIds
-  : playable.map((engine) => engine.id);
+const requestedEngineIds =
+  options.engineIds.length > 0 ? options.engineIds : playable.map((engine) => engine.id);
 const playableIds = new Set(playable.map((engine) => engine.id));
 const unknown = requestedEngineIds.filter((engineId) => !playableIds.has(engineId));
 if (unknown.length > 0) {
@@ -21,14 +22,17 @@ for (const engineId of requestedEngineIds) {
   const result = await smokeEngine(baseUrl, engineId, timeoutMs);
   const abandoned = await abandonRoom(baseUrl, result.roomId, result.seatToken, timeoutMs);
   if (!abandoned.ok) {
-    throw new Error(`abandon failed for ${engineId} room ${result.roomId}: ${JSON.stringify(abandoned)}`);
+    throw new Error(
+      `abandon failed for ${engineId} room ${result.roomId}: ${JSON.stringify(abandoned)}`,
+    );
   }
   console.log(JSON.stringify({ ...result, abandoned }));
 }
 
 async function fetchPlayableEngines(baseUrl) {
   const response = await fetch(new URL('/api/engines/playable', baseUrl));
-  if (!response.ok) throw new Error(`engine list failed: ${response.status} ${await response.text()}`);
+  if (!response.ok)
+    throw new Error(`engine list failed: ${response.status} ${await response.text()}`);
   const body = await response.json();
   if (!Array.isArray(body.engines)) throw new Error('engine list response missing engines');
   return body.engines;
@@ -87,10 +91,10 @@ async function smokeEngine(baseUrl, engineId, timeoutMs) {
       }
 
       if (
-        sentMove
-        && state.status?.type === 'playing'
-        && state.status.turn === 'white'
-        && state.moveNumber >= 2
+        sentMove &&
+        state.status?.type === 'playing' &&
+        state.status.turn === 'white' &&
+        state.moveNumber >= 2
       ) {
         finish({
           ok: true,
@@ -105,7 +109,8 @@ async function smokeEngine(baseUrl, engineId, timeoutMs) {
 
     socket.on('error', fail);
     socket.on('close', (code, reason) => {
-      if (!settled) fail(new Error(`socket closed before ${engineId} replied: ${code} ${reason.toString()}`));
+      if (!settled)
+        fail(new Error(`socket closed before ${engineId} replied: ${code} ${reason.toString()}`));
     });
   });
 }
@@ -124,9 +129,13 @@ async function createRoom(baseUrl, engineId) {
       preferredColor: 'white',
     }),
   });
-  if (!response.ok) throw new Error(`room creation failed for ${engineId}: ${response.status} ${await response.text()}`);
+  if (!response.ok)
+    throw new Error(
+      `room creation failed for ${engineId}: ${response.status} ${await response.text()}`,
+    );
   const body = await response.json();
-  if (typeof body.roomId !== 'string') throw new Error(`room creation response missing roomId for ${engineId}`);
+  if (typeof body.roomId !== 'string')
+    throw new Error(`room creation response missing roomId for ${engineId}`);
   return body;
 }
 
@@ -144,7 +153,11 @@ async function abandonRoom(baseUrl, roomId, seatToken, timeoutMs) {
     });
     const text = await response.text();
     let body = null;
-    try { body = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      /* ignore */
+    }
     return { ok: response.status === 200, status: response.status, body };
   } catch (err) {
     return { ok: false, error: err.message ?? String(err) };
@@ -167,7 +180,10 @@ function parseArgs(args) {
     } else if (arg === '--engine') {
       result.engineIds.push(requiredValue(args, ++index, '--engine'));
     } else if (arg === '--timeout-ms') {
-      result.timeoutMs = parsePositiveInteger(requiredValue(args, ++index, '--timeout-ms'), '--timeout-ms');
+      result.timeoutMs = parsePositiveInteger(
+        requiredValue(args, ++index, '--timeout-ms'),
+        '--timeout-ms',
+      );
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -186,7 +202,8 @@ function requiredValue(args, index, flag) {
 
 function parsePositiveInteger(value, flag) {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${flag} must be a positive integer`);
+  if (!Number.isInteger(parsed) || parsed <= 0)
+    throw new Error(`${flag} must be a positive integer`);
   return parsed;
 }
 

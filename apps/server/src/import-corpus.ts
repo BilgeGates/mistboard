@@ -16,13 +16,7 @@ import { join } from 'node:path';
 import pg from 'pg';
 import { isGameEndReason, replayGameEvents, type GameEvent } from '@mistboard/game';
 import { runMigrations } from './migrate.js';
-import {
-  appendEvent,
-  close,
-  init,
-  recordGameEnd,
-  type GameSummary,
-} from './persistence.js';
+import { appendEvent, close, init, recordGameEnd, type GameSummary } from './persistence.js';
 
 type Args = {
   dir: string;
@@ -36,19 +30,35 @@ function parseArgs(argv: string[]): Args {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = argv[i + 1];
-    if (arg === '--dir' && next) { args.dir = next; i++; }
-    else if (arg === '--corpus' && next) { args.corpus = next; i++; }
-    else if (arg === '--white-name' && next) { args.whiteName = next; i++; }
-    else if (arg === '--black-name' && next) { args.blackName = next; i++; }
+    if (arg === '--dir' && next) {
+      args.dir = next;
+      i++;
+    } else if (arg === '--corpus' && next) {
+      args.corpus = next;
+      i++;
+    } else if (arg === '--white-name' && next) {
+      args.whiteName = next;
+      i++;
+    } else if (arg === '--black-name' && next) {
+      args.blackName = next;
+      i++;
+    }
   }
   if (!args.dir || !args.corpus || !args.whiteName || !args.blackName) {
-    console.error('usage: import-corpus --dir <path> --corpus <id> --white-name <name> --black-name <name>');
+    console.error(
+      'usage: import-corpus --dir <path> --corpus <id> --white-name <name> --black-name <name>',
+    );
     process.exit(1);
   }
   return args as Args;
 }
 
-async function importFile(filePath: string, corpusId: string, whiteName: string, blackName: string): Promise<{ roomId: string; plyCount: number; status: string }> {
+async function importFile(
+  filePath: string,
+  corpusId: string,
+  whiteName: string,
+  blackName: string,
+): Promise<{ roomId: string; plyCount: number; status: string }> {
   const raw = await readFile(filePath, 'utf-8');
   const events: GameEvent[] = raw
     .split('\n')
@@ -57,7 +67,8 @@ async function importFile(filePath: string, corpusId: string, whiteName: string,
 
   if (events.length === 0) throw new Error(`empty file: ${filePath}`);
   const first = events[0]!;
-  if (first.type !== 'room-created') throw new Error(`expected room-created as first event in ${filePath}`);
+  if (first.type !== 'room-created')
+    throw new Error(`expected room-created as first event in ${filePath}`);
   const roomId = first.roomId;
 
   for (let seq = 0; seq < events.length; seq++) {
@@ -72,13 +83,16 @@ async function importFile(filePath: string, corpusId: string, whiteName: string,
   const projection = replayGameEvents(events);
   const status = projection.state.status;
   if (status.type !== 'finished') {
-    return { roomId, plyCount: events.filter((e) => e.type === 'move-played').length, status: 'not-finished (skipped games row)' };
+    return {
+      roomId,
+      plyCount: events.filter((e) => e.type === 'move-played').length,
+      status: 'not-finished (skipped games row)',
+    };
   }
 
   const moveEvents = events.filter((e) => e.type === 'move-played');
-  const result: GameSummary['result'] = status.winner === 'white' ? 'white-wins'
-    : status.winner === 'black' ? 'black-wins'
-    : 'draw';
+  const result: GameSummary['result'] =
+    status.winner === 'white' ? 'white-wins' : status.winner === 'black' ? 'black-wins' : 'draw';
   if (!isGameEndReason(status.reason)) {
     throw new Error(`unknown finished-game reason: ${String(status.reason)}`);
   }
@@ -127,9 +141,16 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`importing ${files.length} file(s) from ${args.dir} as corpus="${args.corpus}", names=("${args.whiteName}" / "${args.blackName}")`);
+  console.log(
+    `importing ${files.length} file(s) from ${args.dir} as corpus="${args.corpus}", names=("${args.whiteName}" / "${args.blackName}")`,
+  );
   for (const file of files) {
-    const result = await importFile(join(args.dir, file), args.corpus, args.whiteName, args.blackName);
+    const result = await importFile(
+      join(args.dir, file),
+      args.corpus,
+      args.whiteName,
+      args.blackName,
+    );
     console.log(`  ${file} → room=${result.roomId} plies=${result.plyCount} ${result.status}`);
   }
 

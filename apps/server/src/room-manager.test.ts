@@ -80,7 +80,9 @@ function makeCtx(): SpyCtx {
   const sent: Array<{ client: Client; payload: unknown }> = [];
   return {
     sent,
-    send(client: Client, payload: unknown) { sent.push({ client, payload }); },
+    send(client: Client, payload: unknown) {
+      sent.push({ client, payload });
+    },
     recordPersistenceError() {},
     pveBuiltinEngineClientId: 'builtin-random-legal',
     pveEngineMoveDelayMs: 0,
@@ -135,7 +137,11 @@ test('playMove: move on wrong turn is rejected', async () => {
 
   await playMove(ctx, room, client, { type: 'move', from: 'e7', to: 'e5' });
 
-  assert.equal(room.events.length, before, 'no event should be appended when canClientAct is false');
+  assert.equal(
+    room.events.length,
+    before,
+    'no event should be appended when canClientAct is false',
+  );
 });
 
 test('playMove: move after game over is rejected', async () => {
@@ -154,7 +160,11 @@ test('playMove: move after game over is rejected', async () => {
 
   await playMove(ctx, room, client, { type: 'move', from: 'e2', to: 'e4' });
 
-  assert.equal(room.events.length, before, 'no event should be appended when the game is already over');
+  assert.equal(
+    room.events.length,
+    before,
+    'no event should be appended when the game is already over',
+  );
 });
 
 // ── appendEvent ────────────────────────────────────────────────────────────────
@@ -189,7 +199,11 @@ test('appendEvent: updates room.projection after the event is applied', async ()
     seat: 'white',
   });
 
-  assert.equal(room.projection.seats.white, 'c1', 'projection should reflect the newly assigned seat');
+  assert.equal(
+    room.projection.seats.white,
+    'c1',
+    'projection should reflect the newly assigned seat',
+  );
 });
 
 // ── broadcastSnapshot ─────────────────────────────────────────────────────────
@@ -220,8 +234,20 @@ test('resolveStartIfReady: appends draft-start-resolved when both seats have sel
     { type: 'room-created', at: 1, roomId: 'room-d', variant: 'draft960', offer },
     { type: 'seat-assigned', at: 2, roomId: 'room-d', clientId: 'white-c', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'room-d', clientId: 'black-c', seat: 'black' },
-    { type: 'draft-start-selected', at: 4, roomId: 'room-d', color: 'white', startId: starts[0].id },
-    { type: 'draft-start-selected', at: 5, roomId: 'room-d', color: 'black', startId: starts[1].id },
+    {
+      type: 'draft-start-selected',
+      at: 4,
+      roomId: 'room-d',
+      color: 'white',
+      startId: starts[0].id,
+    },
+    {
+      type: 'draft-start-selected',
+      at: 5,
+      roomId: 'room-d',
+      color: 'black',
+      startId: starts[1].id,
+    },
   ];
   const room = makeRoom('room-d', 'draft960', events);
   const ctx = makeCtx();
@@ -235,7 +261,10 @@ test('resolveStartIfReady: appends draft-start-resolved when both seats have sel
   assert.equal(room.projection.state.status.type, 'playing');
 
   // Clean up timer set by scheduleClockTimeout inside appendEvent
-  if (room.clockTimer) { clearTimeout(room.clockTimer); room.clockTimer = null; }
+  if (room.clockTimer) {
+    clearTimeout(room.clockTimer);
+    room.clockTimer = null;
+  }
 });
 
 test('resolveStartIfReady: does not resolve when only one seat has selected', async () => {
@@ -245,7 +274,13 @@ test('resolveStartIfReady: does not resolve when only one seat has selected', as
     { type: 'room-created', at: 1, roomId: 'room-e', variant: 'draft960', offer },
     { type: 'seat-assigned', at: 2, roomId: 'room-e', clientId: 'white-c', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'room-e', clientId: 'black-c', seat: 'black' },
-    { type: 'draft-start-selected', at: 4, roomId: 'room-e', color: 'white', startId: starts[0].id },
+    {
+      type: 'draft-start-selected',
+      at: 4,
+      roomId: 'room-e',
+      color: 'white',
+      startId: starts[0].id,
+    },
     // black has NOT selected
   ];
   const room = makeRoom('room-e', 'draft960', events);
@@ -254,7 +289,11 @@ test('resolveStartIfReady: does not resolve when only one seat has selected', as
 
   await resolveStartIfReady(ctx, room);
 
-  assert.equal(room.events.length, before, 'no event should be appended while a selection is missing');
+  assert.equal(
+    room.events.length,
+    before,
+    'no event should be appended while a selection is missing',
+  );
   assert.equal(room.projection.state.status.type, 'pregame');
 });
 
@@ -335,10 +374,18 @@ test('seat assignment: third connection is spectator (no seat left)', async () =
   const ctx = makeCtx();
 
   await appendEvent(ctx, room, {
-    type: 'seat-assigned', at: 1, roomId: 'room-g', clientId: 'c1', seat: 'white',
+    type: 'seat-assigned',
+    at: 1,
+    roomId: 'room-g',
+    clientId: 'c1',
+    seat: 'white',
   });
   await appendEvent(ctx, room, {
-    type: 'seat-assigned', at: 2, roomId: 'room-g', clientId: 'c2', seat: 'black',
+    type: 'seat-assigned',
+    at: 2,
+    roomId: 'room-g',
+    clientId: 'c2',
+    seat: 'black',
   });
 
   // index.ts assignSeat() returns spectator when both seats are filled.
@@ -352,7 +399,13 @@ test('seat assignment: third connection is spectator (no seat left)', async () =
 test('buildGameSummary: engine seat forces rated=false even when room.rated=true', () => {
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'room-pve', variant: 'fog-of-war', offer: [] },
-    { type: 'seat-assigned', at: 2, roomId: 'room-pve', clientId: 'builtin-random-legal', seat: 'white' },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'room-pve',
+      clientId: 'builtin-random-legal',
+      seat: 'white',
+    },
     { type: 'seat-assigned', at: 3, roomId: 'room-pve', clientId: 'human-c', seat: 'black' },
     { type: 'seat-resigned', at: 4, roomId: 'room-pve', color: 'black' },
   ];
@@ -830,7 +883,11 @@ test('resumeRoomIfReady (PvE): resumes when the human reconnects — engine seat
 
   const resumed = await resumeRoomIfReady(ctx, room, 1000);
 
-  assert.equal(resumed, true, 'PvE must resume on lone human reconnect (engine is server-controlled)');
+  assert.equal(
+    resumed,
+    true,
+    'PvE must resume on lone human reconnect (engine is server-controlled)',
+  );
   assert.equal(room.projection.paused, false);
   // White was the side-to-move at pause — clock re-armed for white.
   assert.equal(room.projection.state.clock?.activeColor, 'white');
@@ -855,7 +912,11 @@ test('resumeRoomIfReady (EvE): resumes on any client connection (both engines au
 
   const resumed = await resumeRoomIfReady(ctx, room, 1000);
 
-  assert.equal(resumed, true, 'EvE must resume as soon as the room is touched — engines are always present');
+  assert.equal(
+    resumed,
+    true,
+    'EvE must resume as soon as the room is touched — engines are always present',
+  );
   assert.equal(room.projection.paused, false);
 });
 
@@ -881,7 +942,11 @@ test('resumeRoomIfReady (PvP): still requires both human seats — regression gu
 
   const resumed = await resumeRoomIfReady(ctx, room, 1000);
 
-  assert.equal(resumed, false, 'PvP requires BOTH humans — engine-presence relaxation must not apply here');
+  assert.equal(
+    resumed,
+    false,
+    'PvP requires BOTH humans — engine-presence relaxation must not apply here',
+  );
   assert.equal(room.projection.paused, true);
 });
 
@@ -905,5 +970,9 @@ test('playRandomEngineMoveIfReady: no-op on paused room (defense in depth)', asy
   const { playRandomEngineMoveIfReady } = await import('./room-manager.js');
   await playRandomEngineMoveIfReady(ctx, room);
 
-  assert.equal(room.events.length, before, 'paused room must not record an engine move even if the callback fires');
+  assert.equal(
+    room.events.length,
+    before,
+    'paused room must not record an engine move even if the callback fires',
+  );
 });

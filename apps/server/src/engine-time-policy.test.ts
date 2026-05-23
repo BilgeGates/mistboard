@@ -29,12 +29,17 @@ test('parses engine tournament time controls', () => {
 });
 
 test('normalizes database time control shapes', () => {
-  assert.deepEqual(normalizeEngineTimeControl({ kind: 'standard', initialSeconds: '3', incrementSeconds: '0.5' }), {
-    kind: 'standard',
-    initial_seconds: 3,
-    increment_seconds: 0.5,
+  assert.deepEqual(
+    normalizeEngineTimeControl({ kind: 'standard', initialSeconds: '3', incrementSeconds: '0.5' }),
+    {
+      kind: 'standard',
+      initial_seconds: 3,
+      increment_seconds: 0.5,
+    },
+  );
+  assert.deepEqual(normalizeEngineTimeControl({ kind: 'per-move', milliseconds: 100 }), {
+    kind: 'none',
   });
-  assert.deepEqual(normalizeEngineTimeControl({ kind: 'per-move', milliseconds: 100 }), { kind: 'none' });
 });
 
 test('converts engine time control into room clock events', () => {

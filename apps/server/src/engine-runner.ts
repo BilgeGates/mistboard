@@ -46,12 +46,24 @@ export async function runRandomLegalEngineGame(
   const variant = variantFromTask(task);
   const gameId = task.gameId ?? `eve_${task.id}`;
   const startedAt = new Date();
-  const whiteEngine = loadEngine(task.whiteEngineId ?? engineIdFromConfig(task.config, 'white_engine_id'));
-  const blackEngine = loadEngine(task.blackEngineId ?? engineIdFromConfig(task.config, 'black_engine_id'));
+  const whiteEngine = loadEngine(
+    task.whiteEngineId ?? engineIdFromConfig(task.config, 'white_engine_id'),
+  );
+  const blackEngine = loadEngine(
+    task.blackEngineId ?? engineIdFromConfig(task.config, 'black_engine_id'),
+  );
   await upsertBuiltinEngineVersions(pool, [whiteEngine.id, blackEngine.id]);
 
   if (requiresPythonGameRunner(whiteEngine, blackEngine)) {
-    return runPythonSubprocessEngineGame(pool, task, gameId, variant, startedAt, whiteEngine, blackEngine);
+    return runPythonSubprocessEngineGame(
+      pool,
+      task,
+      gameId,
+      variant,
+      startedAt,
+      whiteEngine,
+      blackEngine,
+    );
   }
 
   await createRunningGame(pool, task, gameId, variant, startedAt, whiteEngine, blackEngine);
@@ -67,8 +79,20 @@ export async function runRandomLegalEngineGame(
       offer: [],
       ...(roomTimeControl ? { timeControl: roomTimeControl } : {}),
     },
-    { type: 'seat-assigned', at: startedAt.getTime(), roomId: gameId, clientId: 'engine:white', seat: 'white' },
-    { type: 'seat-assigned', at: startedAt.getTime(), roomId: gameId, clientId: 'engine:black', seat: 'black' },
+    {
+      type: 'seat-assigned',
+      at: startedAt.getTime(),
+      roomId: gameId,
+      clientId: 'engine:white',
+      seat: 'white',
+    },
+    {
+      type: 'seat-assigned',
+      at: startedAt.getTime(),
+      roomId: gameId,
+      clientId: 'engine:black',
+      seat: 'black',
+    },
   ];
   const clockEvent = clockStartedEvent(gameId, startedAt.getTime(), timeControl);
   if (clockEvent) events.push(clockEvent);
@@ -117,7 +141,8 @@ export async function runRandomLegalEngineGame(
     }
 
     const engine = color === 'white' ? whiteEngine : blackEngine;
-    if (!engine.chooseMove) throw new Error(`engine ${engine.id} does not support in-process move selection`);
+    if (!engine.chooseMove)
+      throw new Error(`engine ${engine.id} does not support in-process move selection`);
     const clock = projection.state.clock;
     const remainingMs = clock ? clockRemainingMs(clock, color, latestEventAt(events)) : undefined;
     const decision = engine.chooseMove({
@@ -196,9 +221,8 @@ export async function runRandomLegalEngineGame(
     return { gameId, plyCount: ply, status: 'completed' };
   }
 
-  const result = status.winner === 'white' ? 'white-wins'
-    : status.winner === 'black' ? 'black-wins'
-    : 'draw';
+  const result =
+    status.winner === 'white' ? 'white-wins' : status.winner === 'black' ? 'black-wins' : 'draw';
   const termination = status.reason;
   const plyCount = events.filter((event) => event.type === 'move-played').length;
 
@@ -252,8 +276,20 @@ async function runPythonSubprocessEngineGame(
       offer: [],
       ...(roomTimeControl ? { timeControl: roomTimeControl } : {}),
     },
-    { type: 'seat-assigned', at: startedAt.getTime(), roomId: gameId, clientId: 'engine:white', seat: 'white' },
-    { type: 'seat-assigned', at: startedAt.getTime(), roomId: gameId, clientId: 'engine:black', seat: 'black' },
+    {
+      type: 'seat-assigned',
+      at: startedAt.getTime(),
+      roomId: gameId,
+      clientId: 'engine:white',
+      seat: 'white',
+    },
+    {
+      type: 'seat-assigned',
+      at: startedAt.getTime(),
+      roomId: gameId,
+      clientId: 'engine:black',
+      seat: 'black',
+    },
   ];
   const clockEvent = clockStartedEvent(gameId, startedAt.getTime(), timeControl);
   if (clockEvent) baseEvents.push(clockEvent);
@@ -283,22 +319,28 @@ async function runPythonSubprocessEngineGame(
   const plyCount = moveEvents.length;
 
   const status = projection.state.status;
-  const resultLabel = status.type === 'finished'
-    ? status.winner === 'white' ? 'white-wins'
-      : status.winner === 'black' ? 'black-wins'
-        : 'draw'
-    : result.winner === 'white' ? 'white-wins'
-      : result.winner === 'black' ? 'black-wins'
-        : 'draw';
-  const termination = result.endReason === 'clock-expired'
-    ? 'timeout'
-    : result.endReason === 'truncated'
-      ? 'truncated'
-      : result.endReason === 'no-legal-moves'
-        ? 'draw'
-      : status.type === 'finished'
-        ? status.reason
-        : result.endReason;
+  const resultLabel =
+    status.type === 'finished'
+      ? status.winner === 'white'
+        ? 'white-wins'
+        : status.winner === 'black'
+          ? 'black-wins'
+          : 'draw'
+      : result.winner === 'white'
+        ? 'white-wins'
+        : result.winner === 'black'
+          ? 'black-wins'
+          : 'draw';
+  const termination =
+    result.endReason === 'clock-expired'
+      ? 'timeout'
+      : result.endReason === 'truncated'
+        ? 'truncated'
+        : result.endReason === 'no-legal-moves'
+          ? 'draw'
+          : status.type === 'finished'
+            ? status.reason
+            : result.endReason;
 
   await pool.query(
     `UPDATE games
@@ -320,9 +362,10 @@ async function runPythonSubprocessEngineGame(
     termination,
     plyCount,
     wallMs: Date.now() - runnerStartedAt,
-    totalThinkTimeMs: moveEvents.reduce((total, event) => (
-      total + (event.type === 'move-played' ? event.thinkTimeMs ?? 0 : 0)
-    ), 0),
+    totalThinkTimeMs: moveEvents.reduce(
+      (total, event) => total + (event.type === 'move-played' ? (event.thinkTimeMs ?? 0) : 0),
+      0,
+    ),
     whiteEngineId: whiteEngine.id,
     blackEngineId: blackEngine.id,
   });
@@ -348,13 +391,7 @@ async function createRunningGame(
         'engine:white', 'engine:black', $4, $5, NULL,
         'eve', 'running', 'unreviewed')
      ON CONFLICT (room_id) DO NOTHING`,
-    [
-      gameId,
-      variant,
-      startedAt,
-      whiteEngine.id,
-      blackEngine.id,
-    ],
+    [gameId, variant, startedAt, whiteEngine.id, blackEngine.id],
   );
 
   await upsertEngineGameParticipants(pool, gameId, whiteEngine, blackEngine);
@@ -429,7 +466,12 @@ async function upsertEngineGameParticipants(
   }
 }
 
-async function appendEvent(pool: pg.Pool, gameId: string, seq: number, event: GameEvent): Promise<void> {
+async function appendEvent(
+  pool: pg.Pool,
+  gameId: string,
+  seq: number,
+  event: GameEvent,
+): Promise<void> {
   await pool.query(
     `INSERT INTO events (room_id, seq, type, payload)
      VALUES ($1, $2, $3, $4)`,
@@ -516,7 +558,10 @@ function engineIdFromConfig(config: Record<string, unknown>, key: string): strin
   return typeof value === 'string' ? value : null;
 }
 
-function requiresPythonGameRunner(whiteEngine: EngineDefinition, blackEngine: EngineDefinition): boolean {
+function requiresPythonGameRunner(
+  whiteEngine: EngineDefinition,
+  blackEngine: EngineDefinition,
+): boolean {
   return isPythonEngine(whiteEngine) || isPythonEngine(blackEngine);
 }
 
@@ -546,9 +591,13 @@ type PythonGameResult = {
 
 async function runPythonGameProcess(request: PythonGameRequest): Promise<PythonGameResult> {
   const python = process.env.PYTHON_ENGINE_PYTHON ?? defaultPythonEngineBinary();
-  const script = process.env.PYTHON_ENGINE_RUNNER
-    ?? resolve(REPO_ROOT, 'research', 'python-fow-lab', 'scripts', 'eve_game_runner.py');
-  const stockfishPath = process.env.PYTHON_ENGINE_STOCKFISH_PATH ?? process.env.STOCKFISH_PATH ?? defaultStockfishPath();
+  const script =
+    process.env.PYTHON_ENGINE_RUNNER ??
+    resolve(REPO_ROOT, 'research', 'python-fow-lab', 'scripts', 'eve_game_runner.py');
+  const stockfishPath =
+    process.env.PYTHON_ENGINE_STOCKFISH_PATH ??
+    process.env.STOCKFISH_PATH ??
+    defaultStockfishPath();
   const payload = stockfishPath ? { ...request, stockfishPath } : request;
 
   return new Promise((resolvePromise, reject) => {
@@ -584,7 +633,11 @@ function defaultPythonEngineBinary(): string {
 }
 
 function defaultStockfishPath(): string | undefined {
-  for (const candidate of ['/usr/games/stockfish', '/usr/bin/stockfish', '/opt/homebrew/bin/stockfish']) {
+  for (const candidate of [
+    '/usr/games/stockfish',
+    '/usr/bin/stockfish',
+    '/opt/homebrew/bin/stockfish',
+  ]) {
     if (existsSync(candidate)) return candidate;
   }
   return undefined;
@@ -594,28 +647,38 @@ function parsePythonGameResult(value: unknown): PythonGameResult {
   if (!isObject(value)) throw new Error('top-level response is not an object');
   if (typeof value.roomId !== 'string') throw new Error('missing roomId');
   if (!Array.isArray(value.events)) throw new Error('missing events');
-  if (!['king-captured', 'truncated', 'draw', 'no-legal-moves', 'clock-expired'].includes(String(value.endReason))) {
+  if (
+    !['king-captured', 'truncated', 'draw', 'no-legal-moves', 'clock-expired'].includes(
+      String(value.endReason),
+    )
+  ) {
     throw new Error(`unsupported endReason ${String(value.endReason)}`);
   }
   return value as PythonGameResult;
 }
 
-function sanitizePythonMoveEvents(events: unknown[], gameId: string, startedAt: number): GameEvent[] {
+function sanitizePythonMoveEvents(
+  events: unknown[],
+  gameId: string,
+  startedAt: number,
+): GameEvent[] {
   const result: GameEvent[] = [];
   let previousEventAt = startedAt;
   for (const event of events) {
     if (!isObject(event) || event.type !== 'move-played') continue;
     const move = event.move;
     if (!isObject(move)) throw new Error('python move-played event is missing move');
-    if (event.color !== 'white' && event.color !== 'black') throw new Error('python move-played event has invalid color');
+    if (event.color !== 'white' && event.color !== 'black')
+      throw new Error('python move-played event has invalid color');
     if (typeof move.from !== 'string' || typeof move.to !== 'string') {
       throw new Error('python move-played event has invalid move squares');
     }
-    const thinkTimeMs = typeof event.thinkTimeMs === 'number' && Number.isFinite(event.thinkTimeMs)
-      ? Math.max(0, Math.round(event.thinkTimeMs))
-      : typeof event.compute_ms === 'number' && Number.isFinite(event.compute_ms)
-        ? Math.max(0, Math.round(event.compute_ms))
-        : 1;
+    const thinkTimeMs =
+      typeof event.thinkTimeMs === 'number' && Number.isFinite(event.thinkTimeMs)
+        ? Math.max(0, Math.round(event.thinkTimeMs))
+        : typeof event.compute_ms === 'number' && Number.isFinite(event.compute_ms)
+          ? Math.max(0, Math.round(event.compute_ms))
+          : 1;
     previousEventAt += Math.max(1, thinkTimeMs);
     result.push({
       type: 'move-played',
@@ -733,8 +796,9 @@ async function recordMoveDecision(
 }
 
 function shouldRecordMoveChoices(task: EngineGameTask): boolean {
-  return task.artifactPolicy.move_choices === 'all'
-    || task.artifactPolicy.engine_move_choices === 'all';
+  return (
+    task.artifactPolicy.move_choices === 'all' || task.artifactPolicy.engine_move_choices === 'all'
+  );
 }
 
 function moveCount(events: GameEvent[]): number {

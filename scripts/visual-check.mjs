@@ -18,11 +18,15 @@ const playPage = await browser.newPage({ viewport: viewports[0] });
 await playPage.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
 await playPage.waitForSelector('.landing-play-panel');
 const playMetrics = await playPage.evaluate(() => ({
-  actions: [...document.querySelectorAll('.landing-play-action')].map((button) => button.textContent?.trim() ?? ''),
+  actions: [...document.querySelectorAll('.landing-play-action')].map(
+    (button) => button.textContent?.trim() ?? '',
+  ),
   horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth,
 }));
 if (playMetrics.actions.join('|') !== 'Find opponent|Challenge a friend|Play against computer') {
-  failures.push(`play page: expected lobby, friend, and computer actions, found ${playMetrics.actions.join(', ')}`);
+  failures.push(
+    `play page: expected lobby, friend, and computer actions, found ${playMetrics.actions.join(', ')}`,
+  );
 }
 if (playMetrics.horizontalOverflow > 1) {
   failures.push(`play page: horizontal overflow is ${playMetrics.horizontalOverflow}px`);
@@ -35,7 +39,9 @@ await playPage.close();
 for (const viewport of viewports) {
   const page = await browser.newPage({ viewport });
   const room = `visual-${viewport.name}-${Date.now()}`;
-  await page.goto(`${baseUrl}/room/${encodeURIComponent(room)}?reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
+  await page.goto(`${baseUrl}/room/${encodeURIComponent(room)}?reset=1&variant=fog-of-war`, {
+    waitUntil: 'networkidle',
+  });
   await page.waitForSelector('.board.cg-wrap');
   await page.waitForSelector('square.fog-hidden');
   await page.waitForSelector('piece');
@@ -63,10 +69,14 @@ for (const viewport of viewports) {
   });
 
   if (Math.abs(metrics.boardWidth - metrics.boardHeight) > 1) {
-    failures.push(`${viewport.name}: board is not square (${metrics.boardWidth}x${metrics.boardHeight})`);
+    failures.push(
+      `${viewport.name}: board is not square (${metrics.boardWidth}x${metrics.boardHeight})`,
+    );
   }
   if (metrics.pieceCount <= 0 || metrics.pieceCount >= 32) {
-    failures.push(`${viewport.name}: expected partial Fog piece render, found ${metrics.pieceCount}`);
+    failures.push(
+      `${viewport.name}: expected partial Fog piece render, found ${metrics.pieceCount}`,
+    );
   }
   if (metrics.fogHiddenCount <= 0) {
     failures.push(`${viewport.name}: expected hidden fog squares`);
@@ -78,16 +88,30 @@ for (const viewport of viewports) {
     failures.push(`${viewport.name}: side panel is not stacked below the board`);
   }
   if (metrics.roomLinks.length !== 1) {
-    failures.push(`${viewport.name}: expected 1 room action link, found ${metrics.roomLinks.length}`);
+    failures.push(
+      `${viewport.name}: expected 1 room action link, found ${metrics.roomLinks.length}`,
+    );
   }
-  if (metrics.roomLinks.some((link) => link.label === 'Draft960' || link.href.includes('variant=draft960'))) {
+  if (
+    metrics.roomLinks.some(
+      (link) => link.label === 'Draft960' || link.href.includes('variant=draft960'),
+    )
+  ) {
     failures.push(`${viewport.name}: Draft960 should be hidden from primary create-room links`);
   }
-  if (!metrics.roomLinks.some((link) => (link.label === 'Back home' || link.label.startsWith('Back to ')) && (link.href === '/' || link.href === '/play'))) {
+  if (
+    !metrics.roomLinks.some(
+      (link) =>
+        (link.label === 'Back home' || link.label.startsWith('Back to ')) &&
+        (link.href === '/' || link.href === '/play'),
+    )
+  ) {
     failures.push(`${viewport.name}: missing back room action`);
   }
   if (metrics.roomLinks.some((link) => link.href.includes('dev=engine'))) {
-    failures.push(`${viewport.name}: random-engine debug link should not be in the normal room picker`);
+    failures.push(
+      `${viewport.name}: random-engine debug link should not be in the normal room picker`,
+    );
   }
   const screenshotPath = `${outputDir}/${viewport.name}.png`;
   await page.screenshot({ path: screenshotPath, fullPage: true });
@@ -96,7 +120,9 @@ for (const viewport of viewports) {
 
   const fogPage = await browser.newPage({ viewport });
   const fogRoom = `visual-fog-${viewport.name}-${Date.now()}`;
-  await fogPage.goto(`${baseUrl}/room/${encodeURIComponent(fogRoom)}?reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
+  await fogPage.goto(`${baseUrl}/room/${encodeURIComponent(fogRoom)}?reset=1&variant=fog-of-war`, {
+    waitUntil: 'networkidle',
+  });
   await fogPage.waitForSelector('.board.cg-wrap');
   await fogPage.waitForSelector('square.fog-hidden');
   await fogPage.waitForSelector('piece');
@@ -120,16 +146,22 @@ for (const viewport of viewports) {
   });
 
   if (Math.abs(fogMetrics.boardWidth - fogMetrics.boardHeight) > 1) {
-    failures.push(`fog ${viewport.name}: board is not square (${fogMetrics.boardWidth}x${fogMetrics.boardHeight})`);
+    failures.push(
+      `fog ${viewport.name}: board is not square (${fogMetrics.boardWidth}x${fogMetrics.boardHeight})`,
+    );
   }
   if (fogMetrics.pieceCount <= 0 || fogMetrics.pieceCount >= 32) {
-    failures.push(`fog ${viewport.name}: expected partial piece render, found ${fogMetrics.pieceCount}`);
+    failures.push(
+      `fog ${viewport.name}: expected partial piece render, found ${fogMetrics.pieceCount}`,
+    );
   }
   if (fogMetrics.fogHiddenCount <= 0) {
     failures.push(`fog ${viewport.name}: expected hidden fog squares`);
   }
   if (fogMetrics.horizontalOverflow > 1) {
-    failures.push(`fog ${viewport.name}: horizontal overflow is ${fogMetrics.horizontalOverflow}px`);
+    failures.push(
+      `fog ${viewport.name}: horizontal overflow is ${fogMetrics.horizontalOverflow}px`,
+    );
   }
   if (!fogMetrics.mobilePanelBelowBoard) {
     failures.push(`fog ${viewport.name}: side panel is not stacked below the board`);
@@ -137,22 +169,29 @@ for (const viewport of viewports) {
 
   const fogScreenshotPath = `${outputDir}/fog-${viewport.name}.png`;
   await fogPage.screenshot({ path: fogScreenshotPath, fullPage: true });
-  console.log(`fog ${viewport.name}: ${JSON.stringify(fogMetrics)} screenshot=${fogScreenshotPath}`);
+  console.log(
+    `fog ${viewport.name}: ${JSON.stringify(fogMetrics)} screenshot=${fogScreenshotPath}`,
+  );
   await fogPage.close();
 }
 
 const engineRoom = `visual-engine-${Date.now()}`;
 const enginePage = await browser.newPage({ viewport: viewports[0] });
-await enginePage.goto(`${baseUrl}/room/${encodeURIComponent(engineRoom)}?reset=1&variant=fog-of-war&dev=engine`, { waitUntil: 'networkidle' });
+await enginePage.goto(
+  `${baseUrl}/room/${encodeURIComponent(engineRoom)}?reset=1&variant=fog-of-war&dev=engine`,
+  { waitUntil: 'networkidle' },
+);
 await enginePage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'white');
 await enginePage.waitForSelector('[data-dev-views-section]:not([hidden])');
 await enginePage.waitForSelector('.dev-board');
 await movePiece(enginePage, 'e2', 'e4');
 await enginePage.waitForFunction(() => {
   const debug = window.__MISTBOARD_DEBUG__?.();
-  return debug?.currentView?.status.type === 'playing'
-    && debug.currentView.status.turn === 'white'
-    && debug.devViews?.truth.board.e4?.color === 'white';
+  return (
+    debug?.currentView?.status.type === 'playing' &&
+    debug.currentView.status.turn === 'white' &&
+    debug.devViews?.truth.board.e4?.color === 'white'
+  );
 });
 await enginePage.waitForTimeout(250);
 
@@ -163,12 +202,16 @@ const engineMetrics = await enginePage.evaluate(() => {
     devBoards: document.querySelectorAll('.dev-board').length,
     e4Truth: debug.devViews.truth.board.e4,
     visibleMoveEvents: debug.events.filter((event) => event.type === 'move-played').length,
-    visibleEngineMoveEvents: debug.events.filter((event) => event.type === 'move-played' && event.color === 'black').length,
+    visibleEngineMoveEvents: debug.events.filter(
+      (event) => event.type === 'move-played' && event.color === 'black',
+    ).length,
     opponent: debug.devViews.opponent,
     scrollOverflow: document.documentElement.scrollHeight - window.innerHeight,
     status: debug.currentView?.status,
     title: document.querySelector('h1')?.textContent,
-    trueHiddenSquares: document.querySelectorAll('.dev-board[aria-label="True view"] .dev-square.hidden').length,
+    trueHiddenSquares: document.querySelectorAll(
+      '.dev-board[aria-label="True view"] .dev-square.hidden',
+    ).length,
   };
 });
 if (engineMetrics.devBoards !== 3) {
@@ -178,19 +221,27 @@ if (engineMetrics.opponent !== 'black') {
   failures.push(`engine harness: expected black random opponent, found ${engineMetrics.opponent}`);
 }
 if (engineMetrics.e4Truth?.color !== 'white' || engineMetrics.e4Truth?.role !== 'pawn') {
-  failures.push(`engine harness: expected white pawn on e4 in true view, found ${JSON.stringify(engineMetrics.e4Truth)}`);
+  failures.push(
+    `engine harness: expected white pawn on e4 in true view, found ${JSON.stringify(engineMetrics.e4Truth)}`,
+  );
 }
 if (engineMetrics.visibleMoveEvents !== 1 || engineMetrics.visibleEngineMoveEvents !== 0) {
-  failures.push(`engine harness: expected only the human live move event visible, found visible=${engineMetrics.visibleMoveEvents} engine=${engineMetrics.visibleEngineMoveEvents}`);
+  failures.push(
+    `engine harness: expected only the human live move event visible, found visible=${engineMetrics.visibleMoveEvents} engine=${engineMetrics.visibleEngineMoveEvents}`,
+  );
 }
 if (engineMetrics.title !== 'Fog Debug') {
   failures.push(`engine harness: expected Fog Debug page title, found ${engineMetrics.title}`);
 }
 if (engineMetrics.trueHiddenSquares !== 0) {
-  failures.push(`engine harness: expected true view to be fully clear, found ${engineMetrics.trueHiddenSquares} hidden squares`);
+  failures.push(
+    `engine harness: expected true view to be fully clear, found ${engineMetrics.trueHiddenSquares} hidden squares`,
+  );
 }
 if (engineMetrics.scrollOverflow > 1) {
-  failures.push(`engine harness: expected no vertical scroll, found ${engineMetrics.scrollOverflow}px overflow`);
+  failures.push(
+    `engine harness: expected no vertical scroll, found ${engineMetrics.scrollOverflow}px overflow`,
+  );
 }
 const enginePath = `${outputDir}/engine-harness.png`;
 await enginePage.screenshot({ path: enginePath, fullPage: true });
@@ -200,26 +251,45 @@ await enginePage.close();
 const fogVisionRoom = `visual-fog-vision-${Date.now()}`;
 const whiteVisionPage = await browser.newPage({ viewport: viewports[0] });
 const blackVisionPage = await browser.newPage({ viewport: viewports[0] });
-await whiteVisionPage.goto(`${baseUrl}/room/${encodeURIComponent(fogVisionRoom)}?reset=1&variant=fog-of-war`, { waitUntil: 'networkidle' });
-await blackVisionPage.goto(`${baseUrl}/room/${encodeURIComponent(fogVisionRoom)}?variant=fog-of-war`, { waitUntil: 'networkidle' });
+await whiteVisionPage.goto(
+  `${baseUrl}/room/${encodeURIComponent(fogVisionRoom)}?reset=1&variant=fog-of-war`,
+  { waitUntil: 'networkidle' },
+);
+await blackVisionPage.goto(
+  `${baseUrl}/room/${encodeURIComponent(fogVisionRoom)}?variant=fog-of-war`,
+  { waitUntil: 'networkidle' },
+);
 await whiteVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'white');
 await blackVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'black');
 await whiteVisionPage.waitForSelector('.board.cg-wrap');
 await blackVisionPage.waitForSelector('.board.cg-wrap');
 
 await movePiece(whiteVisionPage, 'e2', 'e4');
-await whiteVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
+await whiteVisionPage.waitForFunction(
+  () =>
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing' &&
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black',
+);
 await movePiece(blackVisionPage, 'a7', 'a6');
-await blackVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white');
+await blackVisionPage.waitForFunction(
+  () =>
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing' &&
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white',
+);
 await movePiece(whiteVisionPage, 'e4', 'e5');
-await whiteVisionPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
+await whiteVisionPage.waitForFunction(
+  () =>
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing' &&
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black',
+);
 await movePiece(blackVisionPage, 'd7', 'd5');
 await whiteVisionPage.waitForFunction(() => {
   const view = window.__MISTBOARD_DEBUG__?.().currentView;
-  return view?.status.type === 'playing' && view.status.turn === 'white' && view.board.d5?.role === 'pawn';
+  return (
+    view?.status.type === 'playing' &&
+    view.status.turn === 'white' &&
+    view.board.d5?.role === 'pawn'
+  );
 });
 
 const fogVisionMetrics = await whiteVisionPage.evaluate(() => {
@@ -230,59 +300,92 @@ const fogVisionMetrics = await whiteVisionPage.evaluate(() => {
     d5Visible: view.visibleSquares.includes('d5'),
     d6Visible: view.visibleSquares.includes('d6'),
     fogHiddenCount: document.querySelectorAll('square.fog-hidden').length,
-    visibleMoveEvents: window.__MISTBOARD_DEBUG__?.().events.filter((event) => event.type === 'move-played').length ?? 0,
-    visibleOpponentMoveEvents: window.__MISTBOARD_DEBUG__?.().events.filter((event) => event.type === 'move-played' && event.color === 'black').length ?? 0,
+    visibleMoveEvents:
+      window.__MISTBOARD_DEBUG__?.().events.filter((event) => event.type === 'move-played')
+        .length ?? 0,
+    visibleOpponentMoveEvents:
+      window
+        .__MISTBOARD_DEBUG__?.()
+        .events.filter((event) => event.type === 'move-played' && event.color === 'black').length ??
+      0,
     pieceCount: document.querySelectorAll('piece:not(.fading)').length,
   };
 });
 if (fogVisionMetrics.d5Piece?.color !== 'black' || fogVisionMetrics.d5Piece?.role !== 'pawn') {
-  failures.push(`fog vision: expected black pawn visible on d5, found ${JSON.stringify(fogVisionMetrics.d5Piece)}`);
+  failures.push(
+    `fog vision: expected black pawn visible on d5, found ${JSON.stringify(fogVisionMetrics.d5Piece)}`,
+  );
 }
 if (!fogVisionMetrics.d5Visible || !fogVisionMetrics.d6Visible) {
-  failures.push(`fog vision: expected d5 and d6 visible, found d5=${fogVisionMetrics.d5Visible} d6=${fogVisionMetrics.d6Visible}`);
+  failures.push(
+    `fog vision: expected d5 and d6 visible, found d5=${fogVisionMetrics.d5Visible} d6=${fogVisionMetrics.d6Visible}`,
+  );
 }
 if (fogVisionMetrics.visibleMoveEvents !== 2 || fogVisionMetrics.visibleOpponentMoveEvents !== 0) {
-  failures.push(`fog vision: expected only White's live move events visible, found visible=${fogVisionMetrics.visibleMoveEvents} opponent=${fogVisionMetrics.visibleOpponentMoveEvents}`);
+  failures.push(
+    `fog vision: expected only White's live move events visible, found visible=${fogVisionMetrics.visibleMoveEvents} opponent=${fogVisionMetrics.visibleOpponentMoveEvents}`,
+  );
 }
 
 const fogVisionWhitePath = `${outputDir}/fog-vision-white.png`;
 const fogVisionBlackPath = `${outputDir}/fog-vision-black.png`;
 await whiteVisionPage.screenshot({ path: fogVisionWhitePath, fullPage: true });
 await blackVisionPage.screenshot({ path: fogVisionBlackPath, fullPage: true });
-console.log(`fog vision: ${JSON.stringify(fogVisionMetrics)} screenshots=${fogVisionWhitePath},${fogVisionBlackPath}`);
+console.log(
+  `fog vision: ${JSON.stringify(fogVisionMetrics)} screenshots=${fogVisionWhitePath},${fogVisionBlackPath}`,
+);
 await whiteVisionPage.close();
 await blackVisionPage.close();
 
 const fogFlowRoom = `visual-fog-flow-${Date.now()}`;
 const whitePage = await browser.newPage({ viewport: viewports[0] });
 const blackPage = await browser.newPage({ viewport: viewports[0] });
-await whitePage.goto(`${baseUrl}/room/${encodeURIComponent(fogFlowRoom)}?reset=1&variant=fog-of-war&views=all`, { waitUntil: 'networkidle' });
-await blackPage.goto(`${baseUrl}/room/${encodeURIComponent(fogFlowRoom)}?variant=fog-of-war`, { waitUntil: 'networkidle' });
+await whitePage.goto(
+  `${baseUrl}/room/${encodeURIComponent(fogFlowRoom)}?reset=1&variant=fog-of-war&views=all`,
+  { waitUntil: 'networkidle' },
+);
+await blackPage.goto(`${baseUrl}/room/${encodeURIComponent(fogFlowRoom)}?variant=fog-of-war`, {
+  waitUntil: 'networkidle',
+});
 await whitePage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'white');
 await blackPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().seat === 'black');
 await whitePage.waitForSelector('.board.cg-wrap');
 await blackPage.waitForSelector('.board.cg-wrap');
 
 await movePiece(whitePage, 'e2', 'e4');
-await whitePage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
+await whitePage.waitForFunction(
+  () =>
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing' &&
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black',
+);
 await movePiece(blackPage, 'f7', 'f6');
-await blackPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white');
+await blackPage.waitForFunction(
+  () =>
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing' &&
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white',
+);
 await movePiece(whitePage, 'd1', 'h5');
-await whitePage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black');
+await whitePage.waitForFunction(
+  () =>
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing' &&
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'black',
+);
 await movePiece(blackPage, 'e8', 'f7');
-await blackPage.waitForFunction(() => window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing'
-  && window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white');
+await blackPage.waitForFunction(
+  () =>
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.type === 'playing' &&
+    window.__MISTBOARD_DEBUG__?.().currentView?.status.turn === 'white',
+);
 await movePiece(whitePage, 'h5', 'f7');
 await whitePage.waitForFunction(() => {
   const debug = window.__MISTBOARD_DEBUG__?.();
-  return debug?.currentView?.status.type === 'finished'
-    && debug.events.filter((event) => event.type === 'move-played').length === 5
-    && debug.devViews?.player.visibleSquares.length === 64
-    && debug.devViews.opponentView.visibleSquares.length === 64
-    && debug.devViews.truth.visibleSquares.length === 64;
+  return (
+    debug?.currentView?.status.type === 'finished' &&
+    debug.events.filter((event) => event.type === 'move-played').length === 5 &&
+    debug.devViews?.player.visibleSquares.length === 64 &&
+    debug.devViews.opponentView.visibleSquares.length === 64 &&
+    debug.devViews.truth.visibleSquares.length === 64
+  );
 });
 
 const fogTerminalMetrics = await whitePage.evaluate(() => {
@@ -297,31 +400,35 @@ const fogTerminalMetrics = await whitePage.evaluate(() => {
   };
 });
 if (
-  fogTerminalMetrics.mainVisibleSquares !== 64
-  || fogTerminalMetrics.playerVisibleSquares !== 64
-  || fogTerminalMetrics.opponentVisibleSquares !== 64
-  || fogTerminalMetrics.trueVisibleSquares !== 64
-  || fogTerminalMetrics.hiddenSquares !== 0
+  fogTerminalMetrics.mainVisibleSquares !== 64 ||
+  fogTerminalMetrics.playerVisibleSquares !== 64 ||
+  fogTerminalMetrics.opponentVisibleSquares !== 64 ||
+  fogTerminalMetrics.trueVisibleSquares !== 64 ||
+  fogTerminalMetrics.hiddenSquares !== 0
 ) {
-  failures.push(`fog terminal reveal: expected all views clear, found ${JSON.stringify(fogTerminalMetrics)}`);
+  failures.push(
+    `fog terminal reveal: expected all views clear, found ${JSON.stringify(fogTerminalMetrics)}`,
+  );
 }
 
 await whitePage.locator('[data-replay="first"]').click();
 await whitePage.waitForFunction(() => {
   const debug = window.__MISTBOARD_DEBUG__?.();
   const view = debug?.currentView;
-  return view?.status.type === 'playing'
-    && view.board.e2?.color === 'white'
-    && view.board.e8 === undefined
-    && view.board.f7 === undefined
-    && view.board.e4 === undefined
-    && view.board.f6 === undefined
-    && view.board.h5 === undefined
-    && view.visibleSquares.length < 64
-    && debug?.devViews?.truth.board.e8?.color === 'black'
-    && debug.devViews.player.board.e8 === undefined
-    && debug.devViews.player.visibleSquares.length < 64
-    && debug.devViews.truth.visibleSquares.length === 64;
+  return (
+    view?.status.type === 'playing' &&
+    view.board.e2?.color === 'white' &&
+    view.board.e8 === undefined &&
+    view.board.f7 === undefined &&
+    view.board.e4 === undefined &&
+    view.board.f6 === undefined &&
+    view.board.h5 === undefined &&
+    view.visibleSquares.length < 64 &&
+    debug?.devViews?.truth.board.e8?.color === 'black' &&
+    debug.devViews.player.board.e8 === undefined &&
+    debug.devViews.player.visibleSquares.length < 64 &&
+    debug.devViews.truth.visibleSquares.length === 64
+  );
 });
 await whitePage.waitForTimeout(250);
 
@@ -346,22 +453,41 @@ const fogFlowMetrics = await whitePage.evaluate(() => {
   };
 });
 if (fogFlowMetrics.e8Piece !== undefined) {
-  failures.push(`fog flow replay: expected black king hidden on e8, found ${JSON.stringify(fogFlowMetrics.e8Piece)}`);
+  failures.push(
+    `fog flow replay: expected black king hidden on e8, found ${JSON.stringify(fogFlowMetrics.e8Piece)}`,
+  );
 }
 if (fogFlowMetrics.f7Piece !== undefined || fogFlowMetrics.e2Piece?.color !== 'white') {
-  failures.push(`fog flow replay: expected white pawn visible and black pawn hidden, found e2=${JSON.stringify(fogFlowMetrics.e2Piece)} f7=${JSON.stringify(fogFlowMetrics.f7Piece)}`);
+  failures.push(
+    `fog flow replay: expected white pawn visible and black pawn hidden, found e2=${JSON.stringify(fogFlowMetrics.e2Piece)} f7=${JSON.stringify(fogFlowMetrics.f7Piece)}`,
+  );
 }
 if (fogFlowMetrics.e4Piece !== undefined || fogFlowMetrics.f6Piece !== undefined) {
-  failures.push(`fog flow replay: expected moved pawns absent from e4/f6 at first event, found e4=${JSON.stringify(fogFlowMetrics.e4Piece)} f6=${JSON.stringify(fogFlowMetrics.f6Piece)}`);
+  failures.push(
+    `fog flow replay: expected moved pawns absent from e4/f6 at first event, found e4=${JSON.stringify(fogFlowMetrics.e4Piece)} f6=${JSON.stringify(fogFlowMetrics.f6Piece)}`,
+  );
 }
 if (fogFlowMetrics.replayVisibleSquares >= 64 || fogFlowMetrics.fogHiddenCount <= 0) {
-  failures.push(`fog flow replay: expected fogged player replay board, found visible=${fogFlowMetrics.replayVisibleSquares} hidden=${fogFlowMetrics.fogHiddenCount}`);
+  failures.push(
+    `fog flow replay: expected fogged player replay board, found visible=${fogFlowMetrics.replayVisibleSquares} hidden=${fogFlowMetrics.fogHiddenCount}`,
+  );
 }
-if (fogFlowMetrics.debugTruthE8Piece?.color !== 'black' || fogFlowMetrics.debugTruthE8Piece?.role !== 'king' || fogFlowMetrics.debugTruthVisibleSquares !== 64) {
-  failures.push(`fog flow replay: expected debug true view to show full truth, found e8=${JSON.stringify(fogFlowMetrics.debugTruthE8Piece)} visible=${fogFlowMetrics.debugTruthVisibleSquares}`);
+if (
+  fogFlowMetrics.debugTruthE8Piece?.color !== 'black' ||
+  fogFlowMetrics.debugTruthE8Piece?.role !== 'king' ||
+  fogFlowMetrics.debugTruthVisibleSquares !== 64
+) {
+  failures.push(
+    `fog flow replay: expected debug true view to show full truth, found e8=${JSON.stringify(fogFlowMetrics.debugTruthE8Piece)} visible=${fogFlowMetrics.debugTruthVisibleSquares}`,
+  );
 }
-if (fogFlowMetrics.debugPlayerE8Piece !== undefined || (fogFlowMetrics.debugPlayerVisibleSquares ?? 64) >= 64) {
-  failures.push(`fog flow replay: expected debug player view to be fogged, found e8=${JSON.stringify(fogFlowMetrics.debugPlayerE8Piece)} visible=${fogFlowMetrics.debugPlayerVisibleSquares}`);
+if (
+  fogFlowMetrics.debugPlayerE8Piece !== undefined ||
+  (fogFlowMetrics.debugPlayerVisibleSquares ?? 64) >= 64
+) {
+  failures.push(
+    `fog flow replay: expected debug player view to be fogged, found e8=${JSON.stringify(fogFlowMetrics.debugPlayerE8Piece)} visible=${fogFlowMetrics.debugPlayerVisibleSquares}`,
+  );
 }
 if (fogFlowMetrics.moveEvents !== 5) {
   failures.push(`fog flow: expected 5 released move events, found ${fogFlowMetrics.moveEvents}`);
@@ -371,7 +497,9 @@ const fogFlowWhitePath = `${outputDir}/fog-flow-white.png`;
 const fogFlowBlackPath = `${outputDir}/fog-flow-black.png`;
 await whitePage.screenshot({ path: fogFlowWhitePath, fullPage: true });
 await blackPage.screenshot({ path: fogFlowBlackPath, fullPage: true });
-console.log(`fog flow: ${JSON.stringify(fogFlowMetrics)} screenshots=${fogFlowWhitePath},${fogFlowBlackPath}`);
+console.log(
+  `fog flow: ${JSON.stringify(fogFlowMetrics)} screenshots=${fogFlowWhitePath},${fogFlowBlackPath}`,
+);
 await whitePage.close();
 await blackPage.close();
 
@@ -409,7 +537,9 @@ async function clickSquare(page, square) {
   const box = await page.locator('.board.cg-wrap').boundingBox();
   if (!box) throw new Error('missing board box');
 
-  const orientation = await page.evaluate(() => window.__MISTBOARD_DEBUG__?.().currentView?.perspective ?? 'white');
+  const orientation = await page.evaluate(
+    () => window.__MISTBOARD_DEBUG__?.().currentView?.perspective ?? 'white',
+  );
   const fileIndex = files.indexOf(square[0]);
   const rank = Number(square[1]);
   const column = orientation === 'white' ? fileIndex : 7 - fileIndex;

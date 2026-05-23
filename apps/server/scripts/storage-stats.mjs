@@ -17,7 +17,7 @@ const fmt = (n) => (typeof n === 'number' ? n.toLocaleString() : n);
 
 try {
   const [dbSize] = await q(
-    "SELECT pg_size_pretty(pg_database_size(current_database())) AS db_size",
+    'SELECT pg_size_pretty(pg_database_size(current_database())) AS db_size',
   );
   console.log('DB size:', dbSize.db_size);
 
@@ -36,7 +36,9 @@ try {
   `);
   console.log('\nTop tables by size:');
   for (const t of tables) {
-    console.log(`  ${t.table_name.padEnd(32)} ${t.total_size.padStart(10)}  rows≈${fmt(Number(t.live_rows))}`);
+    console.log(
+      `  ${t.table_name.padEnd(32)} ${t.total_size.padStart(10)}  rows≈${fmt(Number(t.live_rows))}`,
+    );
   }
 
   const [games] = await q('SELECT COUNT(*)::int AS n FROM games');
@@ -50,7 +52,9 @@ try {
   );
   console.log('\ngames by mode × status:');
   for (const r of byMode) {
-    console.log(`  ${String(r.mode).padEnd(10)} ${String(r.status).padEnd(12)} ${fmt(r.n).padStart(8)}`);
+    console.log(
+      `  ${String(r.mode).padEnd(10)} ${String(r.status).padEnd(12)} ${fmt(r.n).padStart(8)}`,
+    );
   }
 
   const [events] = await q('SELECT COUNT(*)::int AS n FROM events');
@@ -73,7 +77,7 @@ try {
   }
 
   const [oldest] = await q(
-    "SELECT MIN(started_at) AS earliest, MAX(ended_at) AS latest FROM games",
+    'SELECT MIN(started_at) AS earliest, MAX(ended_at) AS latest FROM games',
   );
   console.log('\nearliest game:', oldest.earliest);
   console.log('latest game:  ', oldest.latest);

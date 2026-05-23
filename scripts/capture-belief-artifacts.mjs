@@ -4,12 +4,20 @@ import { chromium } from '@playwright/test';
 
 const repoRoot = process.cwd();
 const publicRoot = path.join(repoRoot, 'apps', 'web', 'public');
-const annotationsPath = path.join(repoRoot, 'research', 'python-fow-lab', 'feedback', 'annotations.jsonl');
+const annotationsPath = path.join(
+  repoRoot,
+  'research',
+  'python-fow-lab',
+  'feedback',
+  'annotations.jsonl',
+);
 
 const args = parseArgs(process.argv.slice(2));
 const manifestUrl = args.manifest ?? args.m;
 if (!manifestUrl) {
-  console.error('usage: node scripts/capture-belief-artifacts.mjs --manifest /bakeoff-vX/manifest.json [--out docs-private/engine-track/captures] [--limit 12]');
+  console.error(
+    'usage: node scripts/capture-belief-artifacts.mjs --manifest /bakeoff-vX/manifest.json [--out docs-private/engine-track/captures] [--limit 12]',
+  );
   process.exit(2);
 }
 
@@ -31,7 +39,10 @@ const manifestAnnotations = (await readJsonl(annotationsPath))
   .filter((annotation) => manifest.games?.some((game) => game.index === annotation.game_index));
 const annotations = selectAnnotations(manifestAnnotations, manifest, args);
 
-const selected = annotations.slice(0, Number.isFinite(limit) && limit > 0 ? limit : annotations.length);
+const selected = annotations.slice(
+  0,
+  Number.isFinite(limit) && limit > 0 ? limit : annotations.length,
+);
 await mkdir(outputDir, { recursive: true });
 
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -44,8 +55,10 @@ for (const annotation of selected) {
     `g${String(annotation.game_index).padStart(4, '0')}`,
     `ply${String(annotation.ply).padStart(3, '0')}`,
     annotation.move_played_uci,
-    args.beliefKind ?? args.snapshotKind ? safeName(args.beliefKind ?? args.snapshotKind) : null,
-  ].filter(Boolean).join('-');
+    (args.beliefKind ?? args.snapshotKind) ? safeName(args.beliefKind ?? args.snapshotKind) : null,
+  ]
+    .filter(Boolean)
+    .join('-');
   const screenshotPath = path.join(outputDir, `${fileBase}.png`);
   const url = new URL(baseUrl);
   url.searchParams.set('bakeoff', manifestUrl);
@@ -57,7 +70,8 @@ for (const annotation of selected) {
     url.searchParams.set('square', focusSquare);
   }
   if (args.square) url.searchParams.set('square', args.square);
-  if (args.seat ?? args.beliefSeat) url.searchParams.set('beliefSeat', args.seat ?? args.beliefSeat);
+  if (args.seat ?? args.beliefSeat)
+    url.searchParams.set('beliefSeat', args.seat ?? args.beliefSeat);
   if (args.beliefKind ?? args.snapshotKind) {
     url.searchParams.set('beliefKind', args.beliefKind ?? args.snapshotKind);
   }
@@ -67,8 +81,10 @@ for (const annotation of selected) {
   await page.waitForFunction(
     ({ gamePath, ply }) => {
       const replay = document.querySelector('.replay-page');
-      return replay?.getAttribute('data-sample-id') === gamePath
-        && replay?.getAttribute('data-ply') === String(ply);
+      return (
+        replay?.getAttribute('data-sample-id') === gamePath &&
+        replay?.getAttribute('data-ply') === String(ply)
+      );
     },
     { gamePath: annotation.game_path, ply: annotation.ply },
   );
@@ -154,7 +170,12 @@ async function screenshotContent(page, selector, screenshotPath, padding) {
 
       for (const element of container.querySelectorAll('*')) {
         const style = window.getComputedStyle(element);
-        if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
+        if (
+          style.display === 'none' ||
+          style.visibility === 'hidden' ||
+          Number(style.opacity) === 0
+        )
+          continue;
         const rect = element.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) continue;
         if (rect.bottom < containerRect.top || rect.top > containerRect.bottom) continue;
@@ -196,26 +217,32 @@ async function screenshotContent(page, selector, screenshotPath, padding) {
 
 function selectAnnotations(rows, manifest, options) {
   const filtered = rows
-    .filter((annotation) => options.annotationId ? annotation.id === options.annotationId : true)
-    .filter((annotation) => options.game ? Number(annotation.game_index) === Number(options.game) : true)
-    .filter((annotation) => options.ply ? Number(annotation.ply) === Number(options.ply) : true)
-    .filter((annotation) => options.move ? annotation.move_played_uci === options.move : true);
+    .filter((annotation) => (options.annotationId ? annotation.id === options.annotationId : true))
+    .filter((annotation) =>
+      options.game ? Number(annotation.game_index) === Number(options.game) : true,
+    )
+    .filter((annotation) => (options.ply ? Number(annotation.ply) === Number(options.ply) : true))
+    .filter((annotation) => (options.move ? annotation.move_played_uci === options.move : true));
   if (filtered.length > 0) return filtered;
   if (!options.game || !options.ply) return filtered;
 
   const game = manifest.games?.find((entry) => Number(entry.index) === Number(options.game));
   if (!game) return filtered;
-  return [{
-    id: options.id ?? `manual-${safeName(path.basename(path.dirname(manifestUrl)))}-g${options.game}-ply${options.ply}`,
-    manifest_url: manifestUrl,
-    game_index: Number(options.game),
-    game_path: game.path,
-    ply: Number(options.ply),
-    move_played_uci: options.move ?? '',
-    severity: options.severity ?? 'manual',
-    suggested_move_uci: options.suggestedMove ?? null,
-    note: options.note ?? 'Manual capture target from trace/belief artifact backfill.',
-  }];
+  return [
+    {
+      id:
+        options.id ??
+        `manual-${safeName(path.basename(path.dirname(manifestUrl)))}-g${options.game}-ply${options.ply}`,
+      manifest_url: manifestUrl,
+      game_index: Number(options.game),
+      game_path: game.path,
+      ply: Number(options.ply),
+      move_played_uci: options.move ?? '',
+      severity: options.severity ?? 'manual',
+      suggested_move_uci: options.suggestedMove ?? null,
+      note: options.note ?? 'Manual capture target from trace/belief artifact backfill.',
+    },
+  ];
 }
 
 await browser.close();
@@ -280,5 +307,7 @@ function renderMarkdown(manifest, captures) {
 }
 
 function escapeMd(value) {
-  return String(value ?? '').replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+  return String(value ?? '')
+    .replace(/\|/g, '\\|')
+    .replace(/\n/g, '<br>');
 }

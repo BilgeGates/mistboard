@@ -36,31 +36,42 @@ const OUT_BASE = resolve(REPO_ROOT, 'apps/web/public/pixel-lab-assets');
 
 const STYLES = {
   nes: {
-    suffix: 'NES Final Fantasy 1 / Dragon Quest 8-bit style, warm sepia palette (cream, tan, dark brown, black), hard 1-pixel black outlines, NO anti-aliasing, NO gradients, transparent background',
-    fogSuffix: 'NES 8-bit style dark mist texture, warm dark brown and black, large pixel grain, NO anti-aliasing',
+    suffix:
+      'NES Final Fantasy 1 / Dragon Quest 8-bit style, warm sepia palette (cream, tan, dark brown, black), hard 1-pixel black outlines, NO anti-aliasing, NO gradients, transparent background',
+    fogSuffix:
+      'NES 8-bit style dark mist texture, warm dark brown and black, large pixel grain, NO anti-aliasing',
   },
   gameboy: {
-    suffix: 'original GameBoy DMG palette using ONLY these 4 colors: #9bbc0f (lightest green), #8bac0f, #306230, #0f380f (darkest green). 8-bit pixel art, NO anti-aliasing, NO other colors, transparent background',
-    fogSuffix: 'GameBoy DMG 4-shade green dithered mist, ONLY these colors: #9bbc0f, #8bac0f, #306230, #0f380f. Large pixel grain, NO anti-aliasing',
+    suffix:
+      'original GameBoy DMG palette using ONLY these 4 colors: #9bbc0f (lightest green), #8bac0f, #306230, #0f380f (darkest green). 8-bit pixel art, NO anti-aliasing, NO other colors, transparent background',
+    fogSuffix:
+      'GameBoy DMG 4-shade green dithered mist, ONLY these colors: #9bbc0f, #8bac0f, #306230, #0f380f. Large pixel grain, NO anti-aliasing',
   },
   modern: {
-    suffix: 'modern indie pixel art style like Celeste or Stardew Valley, cool palette (lavender, soft purple, deep indigo, off-white), subtle anti-aliased edges using palette colors only, transparent background',
-    fogSuffix: 'modern indie pixel art atmospheric mist, cool palette (lavender, soft purple, deep indigo), subtle dithering, soft horizontal drift suggesting drifting fog',
+    suffix:
+      'modern indie pixel art style like Celeste or Stardew Valley, cool palette (lavender, soft purple, deep indigo, off-white), subtle anti-aliased edges using palette colors only, transparent background',
+    fogSuffix:
+      'modern indie pixel art atmospheric mist, cool palette (lavender, soft purple, deep indigo), subtle dithering, soft horizontal drift suggesting drifting fog',
   },
   // A — Atmospheric Staunton (Mistboard signature, gameplay-focused):
   // classic silhouettes with mist wisps at the base and moonlight rim glow.
   atmospheric: {
-    suffix: 'MISTBOARD ATMOSPHERIC STAUNTON style: the piece silhouette EMERGES FROM DRIFTING FOG — wispy white mist trails curl up around the foot of the piece, and a soft moonlight glow rims the upper silhouette as if backlit by moonlight through mist. Misty cool palette: deep slate-charcoal outlines, pale silver highlights, faint teal-cyan accents, white fog wisps at the base. The body color follows the chess-piece-side instruction above (pale silver-blue for white, deep slate-charcoal for black). Hard pixel edges, no anti-aliasing except palette-color soft glow at the rim. Transparent background.',
-    fogSuffix: 'Mistboard atmospheric mist texture, cool palette (silver-blue, slate, white wisps), subtle drift',
+    suffix:
+      'MISTBOARD ATMOSPHERIC STAUNTON style: the piece silhouette EMERGES FROM DRIFTING FOG — wispy white mist trails curl up around the foot of the piece, and a soft moonlight glow rims the upper silhouette as if backlit by moonlight through mist. Misty cool palette: deep slate-charcoal outlines, pale silver highlights, faint teal-cyan accents, white fog wisps at the base. The body color follows the chess-piece-side instruction above (pale silver-blue for white, deep slate-charcoal for black). Hard pixel edges, no anti-aliasing except palette-color soft glow at the rim. Transparent background.',
+    fogSuffix:
+      'Mistboard atmospheric mist texture, cool palette (silver-blue, slate, white wisps), subtle drift',
   },
   // C — Lantern in the dark (Mistboard distribution/showcase set):
   // dark silhouettes for both sides; side identified by lantern color.
   lantern: {
-    suffix: 'MISTBOARD LANTERN style. The chess piece is rendered like a SOLID FILLED SILHOUETTE LOGO — imagine the chess piece shape STAMPED IN SOLID INK across the canvas. The ENTIRE INTERIOR of the piece is filled with solid opaque color, no outline-only rendering, no hollow body, no transparency inside the piece shape. ONLY the background (outside the piece outline) is transparent. The piece silhouette fills about 75% of the canvas height. Per-piece lantern placement: PAWN — small lantern at the foot/base; KNIGHT — small lantern hanging from the bridle near the mouth; BISHOP — small glow at the tip of the mitre; ROOK — a single lit window in the tower; QUEEN — small glowing orb in the crown\'s center; KING — small glowing gem in the crown\'s center. The lantern is a SMALL accent (~15% of the piece) and casts a small soft pool of light on the immediately adjacent piece body. A subtle 1-pixel pale moonlight rim traces the upper silhouette edges. Subtle grey mist wisps drift at the base (small, secondary). Pixel art aesthetic: visible pixel grid, hard pixel edges. The piece body interior is FILLED, not hollow. Background OUTSIDE the piece is transparent.',
-    colorLine: (color) => color === 'white'
-      ? 'WHITE-SIDE chess piece. The piece body interior is FILLED SOLID with a medium-dark slate-blue color (around #44506b — visibly mid-dark, like a chess piece silhouette stamped in deep slate ink). NOT an outline. NOT pure black. NOT invisible. The integrated lantern glows WARM GOLDEN-AMBER.'
-      : 'BLACK-SIDE chess piece. The piece body interior is FILLED SOLID with a darker charcoal-slate color (around #2a2f3e — visibly dark but still readable as a chess silhouette stamped in dark ink). NOT an outline. NOT pure black. NOT invisible. The integrated lantern glows COOL CYAN-ICE-BLUE.',
-    fogSuffix: 'Mistboard lantern-style night fog texture, dark blue-black with subtle warm and cool light wisps drifting through',
+    suffix:
+      "MISTBOARD LANTERN style. The chess piece is rendered like a SOLID FILLED SILHOUETTE LOGO — imagine the chess piece shape STAMPED IN SOLID INK across the canvas. The ENTIRE INTERIOR of the piece is filled with solid opaque color, no outline-only rendering, no hollow body, no transparency inside the piece shape. ONLY the background (outside the piece outline) is transparent. The piece silhouette fills about 75% of the canvas height. Per-piece lantern placement: PAWN — small lantern at the foot/base; KNIGHT — small lantern hanging from the bridle near the mouth; BISHOP — small glow at the tip of the mitre; ROOK — a single lit window in the tower; QUEEN — small glowing orb in the crown's center; KING — small glowing gem in the crown's center. The lantern is a SMALL accent (~15% of the piece) and casts a small soft pool of light on the immediately adjacent piece body. A subtle 1-pixel pale moonlight rim traces the upper silhouette edges. Subtle grey mist wisps drift at the base (small, secondary). Pixel art aesthetic: visible pixel grid, hard pixel edges. The piece body interior is FILLED, not hollow. Background OUTSIDE the piece is transparent.",
+    colorLine: (color) =>
+      color === 'white'
+        ? 'WHITE-SIDE chess piece. The piece body interior is FILLED SOLID with a medium-dark slate-blue color (around #44506b — visibly mid-dark, like a chess piece silhouette stamped in deep slate ink). NOT an outline. NOT pure black. NOT invisible. The integrated lantern glows WARM GOLDEN-AMBER.'
+        : 'BLACK-SIDE chess piece. The piece body interior is FILLED SOLID with a darker charcoal-slate color (around #2a2f3e — visibly dark but still readable as a chess silhouette stamped in dark ink). NOT an outline. NOT pure black. NOT invisible. The integrated lantern glows COOL CYAN-ICE-BLUE.',
+    fogSuffix:
+      'Mistboard lantern-style night fog texture, dark blue-black with subtle warm and cool light wisps drifting through',
   },
   // Lantern Dark — bespoke per-piece prompts preserving the original probe's
   // "shrouded in deep dark blue-black mist, silhouetted against darkness, single
@@ -88,16 +99,19 @@ const STYLES = {
           throw new Error(`unknown piece key: ${pieceKey}`);
       }
     },
-    fogSuffix: 'Lantern-dark night fog: deep navy and black mist with warm and cool light pinpricks drifting through',
+    fogSuffix:
+      'Lantern-dark night fog: deep navy and black mist with warm and cool light pinpricks drifting through',
   },
   // Simpler 8-bit retry. Strip back to "chess piece + lantern, NES style."
   // Let gpt-image-1 pick natural lantern placement per piece. Visible body
   // colors per side (no "invisible silhouette" trap). Chunky pixels.
   'lantern-8bit': {
-    suffix: 'NES Final Fantasy 1 / Dragon Quest 8-bit pixel art style. Chunky pixels, limited 4-color palette per piece, hard 1-pixel black outlines, NO anti-aliasing, NO gradients. The chess piece has a small glowing lantern attached to or held by the piece (the model picks natural placement for the piece type — e.g. lantern in knight\'s mouth, lantern at foot of pawn, lantern at top of bishop\'s mitre, lantern at the rook\'s window). The lantern is small (15-20% of the piece). Centered, full body visible, small margin. 16x16 pixel art rendered crisp at high resolution. Transparent background.',
-    colorLine: (color) => color === 'white'
-      ? 'WHITE chess piece: solid pale cream-grey body (#e0d8c8) with dark brown outlines (#3a2818). The lantern glows WARM GOLDEN-AMBER (#ffb84a).'
-      : 'BLACK chess piece: solid dark slate body (#3a3a4a) with near-black outlines (#0a0a14). The lantern glows COOL CYAN-ICE (#7adaff).',
+    suffix:
+      "NES Final Fantasy 1 / Dragon Quest 8-bit pixel art style. Chunky pixels, limited 4-color palette per piece, hard 1-pixel black outlines, NO anti-aliasing, NO gradients. The chess piece has a small glowing lantern attached to or held by the piece (the model picks natural placement for the piece type — e.g. lantern in knight's mouth, lantern at foot of pawn, lantern at top of bishop's mitre, lantern at the rook's window). The lantern is small (15-20% of the piece). Centered, full body visible, small margin. 16x16 pixel art rendered crisp at high resolution. Transparent background.",
+    colorLine: (color) =>
+      color === 'white'
+        ? 'WHITE chess piece: solid pale cream-grey body (#e0d8c8) with dark brown outlines (#3a2818). The lantern glows WARM GOLDEN-AMBER (#ffb84a).'
+        : 'BLACK chess piece: solid dark slate body (#3a3a4a) with near-black outlines (#0a0a14). The lantern glows COOL CYAN-ICE (#7adaff).',
     fogSuffix: 'NES 8-bit lantern fog, dark night with warm and cool light pinpricks',
   },
   // Lantern Dark 8-bit — same composition as lantern-dark, but with TIGHT
@@ -126,30 +140,58 @@ const STYLES = {
           throw new Error(`unknown piece key: ${pieceKey}`);
       }
     },
-    fogSuffix: 'NES 8-bit dithered night fog, dark navy with chunky pixel mist, warm and cool light pinpricks',
+    fogSuffix:
+      'NES 8-bit dithered night fog, dark navy with chunky pixel mist, warm and cool light pinpricks',
   },
 };
 
 const PIECES = {
-  P: { code: 'P', label: 'pawn', desc: 'a CHESS PAWN piece: short squat piece with a round ball-head on top of a ringed collar and a wide flared circular base. The classic Staunton pawn silhouette.' },
-  N: { code: 'N', label: 'knight', desc: 'a CHESS KNIGHT piece: a horsehead silhouette facing LEFT, with a flowing mane down the back, a defined muzzle and ear, mounted on a circular base.' },
-  B: { code: 'B', label: 'bishop', desc: 'a CHESS BISHOP piece: tall slim profile with a pointed mitre top split by a single vertical slit, narrow collar, and a wide circular base.' },
-  R: { code: 'R', label: 'rook', desc: 'a CHESS ROOK piece: a short squat castle tower with FOUR rectangular crenellations along the top edge, vertical sides, and a wider stepped base.' },
-  Q: { code: 'Q', label: 'queen', desc: 'a CHESS QUEEN piece: tall stately piece with a crown of NINE rounded points along the top, narrowing collar, and a wide circular base. Slightly taller than the bishop.' },
-  K: { code: 'K', label: 'king', desc: 'a CHESS KING piece: tallest piece with a CROSS on top above a rounded crown, narrowing collar, and a wide circular base.' },
+  P: {
+    code: 'P',
+    label: 'pawn',
+    desc: 'a CHESS PAWN piece: short squat piece with a round ball-head on top of a ringed collar and a wide flared circular base. The classic Staunton pawn silhouette.',
+  },
+  N: {
+    code: 'N',
+    label: 'knight',
+    desc: 'a CHESS KNIGHT piece: a horsehead silhouette facing LEFT, with a flowing mane down the back, a defined muzzle and ear, mounted on a circular base.',
+  },
+  B: {
+    code: 'B',
+    label: 'bishop',
+    desc: 'a CHESS BISHOP piece: tall slim profile with a pointed mitre top split by a single vertical slit, narrow collar, and a wide circular base.',
+  },
+  R: {
+    code: 'R',
+    label: 'rook',
+    desc: 'a CHESS ROOK piece: a short squat castle tower with FOUR rectangular crenellations along the top edge, vertical sides, and a wider stepped base.',
+  },
+  Q: {
+    code: 'Q',
+    label: 'queen',
+    desc: 'a CHESS QUEEN piece: tall stately piece with a crown of NINE rounded points along the top, narrowing collar, and a wide circular base. Slightly taller than the bishop.',
+  },
+  K: {
+    code: 'K',
+    label: 'king',
+    desc: 'a CHESS KING piece: tallest piece with a CROSS on top above a rounded crown, narrowing collar, and a wide circular base.',
+  },
 };
 
-const FOG_BASE = 'A seamless tileable atmospheric fog texture for use as a chess board square overlay, abstract mist, no recognizable objects.';
+const FOG_BASE =
+  'A seamless tileable atmospheric fog texture for use as a chess board square overlay, abstract mist, no recognizable objects.';
 
 function buildPiecePrompt(pieceKey, styleKey, color) {
   const piece = PIECES[pieceKey];
   const style = STYLES[styleKey];
   // Some styles (lantern-dark) provide a fully bespoke builder; honor it.
   if (typeof style.buildPrompt === 'function') return style.buildPrompt(pieceKey, color);
-  const defaultColorLine = color === 'white'
-    ? 'WHITE chess piece (light-colored body, pale fill).'
-    : 'BLACK chess piece (dark-colored body, deep fill).';
-  const colorLine = typeof style.colorLine === 'function' ? style.colorLine(color) : defaultColorLine;
+  const defaultColorLine =
+    color === 'white'
+      ? 'WHITE chess piece (light-colored body, pale fill).'
+      : 'BLACK chess piece (dark-colored body, deep fill).';
+  const colorLine =
+    typeof style.colorLine === 'function' ? style.colorLine(color) : defaultColorLine;
   return `${piece.desc} ${colorLine} Centered, full body visible with small margin. 32x32 pixel art design rendered crisp at high resolution. ${style.suffix}`;
 }
 
@@ -372,7 +414,9 @@ async function runBatchFog(providers) {
 const args = parseArgs(process.argv.slice(2));
 
 const onlyArg = typeof args.only === 'string' ? args.only : null;
-const providerSubset = onlyArg ? onlyArg.split(',').filter((p) => p in PROVIDERS) : Object.keys(PROVIDERS);
+const providerSubset = onlyArg
+  ? onlyArg.split(',').filter((p) => p in PROVIDERS)
+  : Object.keys(PROVIDERS);
 
 const styleFilter = typeof args.style === 'string' ? args.style : null;
 

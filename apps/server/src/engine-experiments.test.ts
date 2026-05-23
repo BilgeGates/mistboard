@@ -23,7 +23,9 @@ const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_
 let pool: pg.Pool | null = null;
 
 if (!TEST_DATABASE_URL) {
-  test('engine experiments (skipped - set TEST_DATABASE_URL or DATABASE_URL to enable)', { skip: true }, () => {});
+  test('engine experiments (skipped - set TEST_DATABASE_URL or DATABASE_URL to enable)', {
+    skip: true,
+  }, () => {});
 } else {
   before(async () => {
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
@@ -269,9 +271,10 @@ if (!TEST_DATABASE_URL) {
       attempt_count: number;
       worker_run_id: string | null;
       claim_token: string | null;
-    }>('SELECT status, attempt_count, worker_run_id, claim_token FROM engine_game_tasks WHERE id = $1', [
-      'task-stale-retry',
-    ]);
+    }>(
+      'SELECT status, attempt_count, worker_run_id, claim_token FROM engine_game_tasks WHERE id = $1',
+      ['task-stale-retry'],
+    );
     assert.deepEqual(rows, [
       {
         status: 'queued',
@@ -333,9 +336,7 @@ if (!TEST_DATABASE_URL) {
     const { rows: tasks } = await getPool().query<{
       status: string;
       failure_reason: string | null;
-    }>('SELECT status, failure_reason FROM engine_game_tasks WHERE id = $1', [
-      'task-stale-abort',
-    ]);
+    }>('SELECT status, failure_reason FROM engine_game_tasks WHERE id = $1', ['task-stale-abort']);
     assert.deepEqual(tasks, [
       {
         status: 'aborted',
@@ -400,9 +401,7 @@ if (!TEST_DATABASE_URL) {
     const { rows: tasks } = await getPool().query<{
       status: string;
       failure_reason: string | null;
-    }>('SELECT status, failure_reason FROM engine_game_tasks WHERE id = $1', [
-      task.id,
-    ]);
+    }>('SELECT status, failure_reason FROM engine_game_tasks WHERE id = $1', [task.id]);
     assert.deepEqual(tasks, [{ status: 'completed', failure_reason: null }]);
 
     const { rows: games } = await getPool().query<{
@@ -426,9 +425,7 @@ if (!TEST_DATABASE_URL) {
       status: string;
       completed_games: number;
       failed_games: number;
-    }>('SELECT status, completed_games, failed_games FROM eve_jobs WHERE id = $1', [
-      job.id,
-    ]);
+    }>('SELECT status, completed_games, failed_games FROM eve_jobs WHERE id = $1', [job.id]);
     assert.deepEqual(jobs, [{ status: 'completed', completed_games: 1, failed_games: 0 }]);
   });
 
@@ -470,7 +467,13 @@ if (!TEST_DATABASE_URL) {
       'failed-linked-game',
     ]);
 
-    await finishEngineGameTask(getPool(), task!.id, task!.claimToken!, 'failed', 'python dependency missing');
+    await finishEngineGameTask(
+      getPool(),
+      task!.id,
+      task!.claimToken!,
+      'failed',
+      'python dependency missing',
+    );
 
     const { rows: games } = await getPool().query<{
       status: string;
@@ -491,7 +494,10 @@ if (!TEST_DATABASE_URL) {
   });
 
   test('runner loads pinned built-in engines and records move-choice artifacts', async () => {
-    await upsertBuiltinEngineVersions(getPool(), ['builtin-capture-seeker', 'builtin-random-legal']);
+    await upsertBuiltinEngineVersions(getPool(), [
+      'builtin-capture-seeker',
+      'builtin-random-legal',
+    ]);
     const job = await createExperimentJob(getPool(), {
       id: 'job-engine-artifact-test',
       purpose: 'smoke',
@@ -528,9 +534,10 @@ if (!TEST_DATABASE_URL) {
       black_engine_id: string | null;
       white_play_signature: string;
       black_play_signature: string;
-    }>('SELECT white_engine_id, black_engine_id, white_play_signature, black_play_signature FROM eve_games WHERE game_id = $1', [
-      result.gameId,
-    ]);
+    }>(
+      'SELECT white_engine_id, black_engine_id, white_play_signature, black_play_signature FROM eve_games WHERE game_id = $1',
+      [result.gameId],
+    );
     assert.deepEqual(eveGames, [
       {
         white_engine_id: 'builtin-capture-seeker',
@@ -611,8 +618,12 @@ if (!TEST_DATABASE_URL) {
        ORDER BY artifact_type, ply`,
       [result.gameId],
     );
-    const moveChoiceArtifacts = artifacts.filter((artifact) => artifact.artifact_type === 'engine-move-choice');
-    const runtimeArtifacts = artifacts.filter((artifact) => artifact.artifact_type === 'engine-runtime-summary');
+    const moveChoiceArtifacts = artifacts.filter(
+      (artifact) => artifact.artifact_type === 'engine-move-choice',
+    );
+    const runtimeArtifacts = artifacts.filter(
+      (artifact) => artifact.artifact_type === 'engine-runtime-summary',
+    );
     assert.equal(moveChoiceArtifacts.length, 2);
     assert.equal(moveChoiceArtifacts[0]?.engine_color, 'white');
     assert.equal(moveChoiceArtifacts[0]?.payload.engine_id, 'builtin-capture-seeker');
@@ -721,9 +732,7 @@ if (!TEST_DATABASE_URL) {
       status: string;
       completed_games: number;
       failed_games: number;
-    }>('SELECT status, completed_games, failed_games FROM eve_jobs WHERE id = $1', [
-      job.id,
-    ]);
+    }>('SELECT status, completed_games, failed_games FROM eve_jobs WHERE id = $1', [job.id]);
     assert.deepEqual(rows, [{ status: 'completed', completed_games: 1, failed_games: 1 }]);
   });
 
@@ -755,9 +764,7 @@ if (!TEST_DATABASE_URL) {
     const { rows } = await getPool().query<{
       status: string;
       failure_reason: string | null;
-    }>('SELECT status, failure_reason FROM engine_worker_runs WHERE id = $1', [
-      worker.id,
-    ]);
+    }>('SELECT status, failure_reason FROM engine_worker_runs WHERE id = $1', [worker.id]);
     assert.deepEqual(rows, [{ status: 'failed', failure_reason: 'stale worker heartbeat' }]);
   });
 }

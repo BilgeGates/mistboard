@@ -10,12 +10,19 @@ export const standardEngineTimeControl: EngineTaskTimeControl = {
   increment_seconds: 2,
 };
 
-export function normalizeEngineTimeControl(value: Record<string, unknown> | undefined | null): EngineTaskTimeControl {
+export function normalizeEngineTimeControl(
+  value: Record<string, unknown> | undefined | null,
+): EngineTaskTimeControl {
   if (!value || value.kind === undefined || value.kind === 'none') return { kind: 'none' };
   if (value.kind === 'standard') {
     const initialSeconds = numericValue(value.initial_seconds ?? value.initialSeconds);
     const incrementSeconds = numericValue(value.increment_seconds ?? value.incrementSeconds ?? 0);
-    if (initialSeconds !== null && initialSeconds > 0 && incrementSeconds !== null && incrementSeconds >= 0) {
+    if (
+      initialSeconds !== null &&
+      initialSeconds > 0 &&
+      incrementSeconds !== null &&
+      incrementSeconds >= 0
+    ) {
       return {
         kind: 'standard',
         initial_seconds: initialSeconds,
@@ -30,7 +37,10 @@ export function parseEngineTimeControl(value: string | undefined): EngineTaskTim
   if (!value || value === 'none') return { kind: 'none' };
   if (value === 'standard') return standardEngineTimeControl;
   const match = value.match(/^(\d+(?:\.\d+)?)(?:\+(\d+(?:\.\d+)?))?$/);
-  if (!match) throw new Error(`invalid time control ${value}; expected "none", "standard", or seconds+increment, e.g. 180+2`);
+  if (!match)
+    throw new Error(
+      `invalid time control ${value}; expected "none", "standard", or seconds+increment, e.g. 180+2`,
+    );
   const initial = Number(match[1]);
   const increment = match[2] === undefined ? 0 : Number(match[2]);
   if (!Number.isFinite(initial) || initial <= 0 || !Number.isFinite(increment) || increment < 0) {
@@ -39,7 +49,9 @@ export function parseEngineTimeControl(value: string | undefined): EngineTaskTim
   return { kind: 'standard', initial_seconds: initial, increment_seconds: increment };
 }
 
-export function roomTimeControlFromEngine(timeControl: EngineTaskTimeControl): RoomTimeControl | undefined {
+export function roomTimeControlFromEngine(
+  timeControl: EngineTaskTimeControl,
+): RoomTimeControl | undefined {
   if (timeControl.kind !== 'standard') return undefined;
   return {
     initialMs: Math.round(timeControl.initial_seconds * 1000),
@@ -47,7 +59,11 @@ export function roomTimeControlFromEngine(timeControl: EngineTaskTimeControl): R
   };
 }
 
-export function clockStartedEvent(roomId: string, at: number, timeControl: EngineTaskTimeControl): GameEvent | null {
+export function clockStartedEvent(
+  roomId: string,
+  at: number,
+  timeControl: EngineTaskTimeControl,
+): GameEvent | null {
   const roomClock = roomTimeControlFromEngine(timeControl);
   if (!roomClock) return null;
   return {

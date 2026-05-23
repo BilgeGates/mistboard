@@ -16,7 +16,10 @@ export interface ContactView {
   applyAuth: (user: AuthUser | null) => void;
 }
 
-export function buildContact(initialUser: AuthUser | null, initialSignedInHint: boolean): ContactView {
+export function buildContact(
+  initialUser: AuthUser | null,
+  initialSignedInHint: boolean,
+): ContactView {
   // Three initial states: confirmed user (cached object → render real banner),
   // hinted signed-in (boolean only → render placeholder banner), or anon.
   const initialSignedIn = initialUser !== null || initialSignedInHint;
@@ -182,7 +185,7 @@ export function buildContact(initialUser: AuthUser | null, initialSignedInHint: 
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             message,
-            email: signedIn ? null : (emailInput.value.trim() || null),
+            email: signedIn ? null : emailInput.value.trim() || null,
             path: window.location.pathname,
             website: honeypotInput.value,
           }),
@@ -195,7 +198,7 @@ export function buildContact(initialUser: AuthUser | null, initialSignedInHint: 
         } else if (response.status === 429) {
           status.textContent = signedIn
             ? 'Too many submissions. Try again in a bit.'
-            : "Daily limit reached — sign in for unlimited replies, or try again tomorrow.";
+            : 'Daily limit reached — sign in for unlimited replies, or try again tomorrow.';
           status.dataset.state = 'error';
         } else {
           status.textContent = "Couldn't send. Try again, or email if it keeps failing.";

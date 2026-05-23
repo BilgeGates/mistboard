@@ -63,7 +63,16 @@ export function renderBoardComposition(opts: CompositionOptions): string {
   }
   for (let i = 0; i < boards.length; i += 1) {
     const b = boards[i]!;
-    parts.push(renderBoardSvg(b.pieces, b.fogSquares ?? [], xs[i]!, boardY, boardSize, b.orientation ?? 'white'));
+    parts.push(
+      renderBoardSvg(
+        b.pieces,
+        b.fogSquares ?? [],
+        xs[i]!,
+        boardY,
+        boardSize,
+        b.orientation ?? 'white',
+      ),
+    );
   }
   return parts.join('');
 }

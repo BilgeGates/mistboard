@@ -8,21 +8,17 @@ const webRoot = new URL('..', import.meta.url);
 const port = Number(process.env.MISTBOARD_LEARN_TEST_PORT ?? 3127);
 const baseUrl = `http://127.0.0.1:${port}`;
 
-const server = spawn(
-  'npm',
-  ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(port)],
-  {
-    cwd: fileURLToPath(webRoot),
-    env: {
-      ...process.env,
-      BROWSER: 'none',
-      FORCE_COLOR: '0',
-      NO_COLOR: '1',
-    },
-    detached: process.platform !== 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
+const server = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(port)], {
+  cwd: fileURLToPath(webRoot),
+  env: {
+    ...process.env,
+    BROWSER: 'none',
+    FORCE_COLOR: '0',
+    NO_COLOR: '1',
   },
-);
+  detached: process.platform !== 'win32',
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
 
 let serverOutput = '';
 server.stdout.on('data', (chunk) => {
@@ -118,7 +114,9 @@ async function assertVisible(page, selector) {
 }
 
 async function clickLesson(page, title) {
-  const label = page.locator('.learn-menu .learn-menu-lesson-label').getByText(title, { exact: true });
+  const label = page
+    .locator('.learn-menu .learn-menu-lesson-label')
+    .getByText(title, { exact: true });
   assert.equal(await label.count(), 1, `${title} lesson should appear once`);
   await label.click();
 }

@@ -54,7 +54,16 @@ type MutableStanding = Omit<TournamentStanding, 'scoreRate'>;
 export function buildTournamentReport(rows: TournamentGameRow[]): TournamentReport {
   const standings = new Map<string, MutableStanding>();
   const pairSummaries = new Map<string, TournamentPairSummary>();
-  const runtimes = new Map<string, { games: number; pliesPerSecondTotal: number; pliesPerSecondCount: number; wallMsTotal: number; wallMsCount: number }>();
+  const runtimes = new Map<
+    string,
+    {
+      games: number;
+      pliesPerSecondTotal: number;
+      pliesPerSecondCount: number;
+      wallMsTotal: number;
+      wallMsCount: number;
+    }
+  >();
   let completedGames = 0;
 
   for (const row of rows) {
@@ -78,25 +87,29 @@ export function buildTournamentReport(rows: TournamentGameRow[]): TournamentRepo
     completedGames,
     games: rows,
     incompleteGames: rows.length - completedGames,
-    pairSummaries: [...pairSummaries.values()].sort((a, b) => a.engines.join('|').localeCompare(b.engines.join('|'))),
-    runtimeSummaries: [...runtimes.entries()].map(([runner, runtime]) => ({
-      runner,
-      games: runtime.games,
-      avgPliesPerSecond: runtime.pliesPerSecondCount > 0
-        ? runtime.pliesPerSecondTotal / runtime.pliesPerSecondCount
-        : null,
-      avgWallMs: runtime.wallMsCount > 0
-        ? runtime.wallMsTotal / runtime.wallMsCount
-        : null,
-    })).sort((a, b) => b.games - a.games || a.runner.localeCompare(b.runner)),
-    standings: [...standings.values()].map((standing) => ({
-      ...standing,
-      scoreRate: standing.games > 0 ? standing.score / standing.games : 0,
-    })).sort((a, b) => (
-      b.score - a.score
-      || b.scoreRate - a.scoreRate
-      || a.engineId.localeCompare(b.engineId)
-    )),
+    pairSummaries: [...pairSummaries.values()].sort((a, b) =>
+      a.engines.join('|').localeCompare(b.engines.join('|')),
+    ),
+    runtimeSummaries: [...runtimes.entries()]
+      .map(([runner, runtime]) => ({
+        runner,
+        games: runtime.games,
+        avgPliesPerSecond:
+          runtime.pliesPerSecondCount > 0
+            ? runtime.pliesPerSecondTotal / runtime.pliesPerSecondCount
+            : null,
+        avgWallMs: runtime.wallMsCount > 0 ? runtime.wallMsTotal / runtime.wallMsCount : null,
+      }))
+      .sort((a, b) => b.games - a.games || a.runner.localeCompare(b.runner)),
+    standings: [...standings.values()]
+      .map((standing) => ({
+        ...standing,
+        scoreRate: standing.games > 0 ? standing.score / standing.games : 0,
+      }))
+      .sort(
+        (a, b) =>
+          b.score - a.score || b.scoreRate - a.scoreRate || a.engineId.localeCompare(b.engineId),
+      ),
     totalGames: rows.length,
   };
 }
@@ -109,12 +122,16 @@ export function renderTournamentReportMarkdown(report: TournamentReport): string
     '|---|---:|---:|---:|---:|',
   ];
   for (const row of report.standings) {
-    lines.push(`| \`${row.engineId}\` | ${row.games} | ${row.wins}-${row.losses}-${row.draws} | ${formatScore(row.score)} | ${row.scoreRate.toFixed(3)} |`);
+    lines.push(
+      `| \`${row.engineId}\` | ${row.games} | ${row.wins}-${row.losses}-${row.draws} | ${formatScore(row.score)} | ${row.scoreRate.toFixed(3)} |`,
+    );
   }
   if (report.runtimeSummaries.length > 0) {
     lines.push('', '| Runner | Games | Avg wall ms | Avg plies/sec |', '|---|---:|---:|---:|');
     for (const runtime of report.runtimeSummaries) {
-      lines.push(`| \`${runtime.runner}\` | ${runtime.games} | ${formatNullable(runtime.avgWallMs, 0)} | ${formatNullable(runtime.avgPliesPerSecond, 3)} |`);
+      lines.push(
+        `| \`${runtime.runner}\` | ${runtime.games} | ${formatNullable(runtime.avgWallMs, 0)} | ${formatNullable(runtime.avgPliesPerSecond, 3)} |`,
+      );
     }
   }
   return `${lines.join('\n')}\n`;
@@ -163,7 +180,16 @@ function recordPair(
 }
 
 function recordRuntime(
-  runtimes: Map<string, { games: number; pliesPerSecondTotal: number; pliesPerSecondCount: number; wallMsTotal: number; wallMsCount: number }>,
+  runtimes: Map<
+    string,
+    {
+      games: number;
+      pliesPerSecondTotal: number;
+      pliesPerSecondCount: number;
+      wallMsTotal: number;
+      wallMsCount: number;
+    }
+  >,
   runtime: TournamentGameRow['runtime'],
 ): void {
   const runner = runtime?.runner ?? null;

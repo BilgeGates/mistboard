@@ -21,11 +21,10 @@ const runName = safeName(path.basename(path.dirname(manifestUrl)));
 const baseUrl = args.baseUrl ?? process.env.MISTBOARD_WEB_URL ?? 'http://127.0.0.1:3000';
 const captureOut = args.out ?? path.join('docs-private', 'engine-track', 'captures', runName);
 const auditOut = args.auditOut ?? path.join('docs-private', 'engine-track', 'artifact-audit.md');
-const archiveRoot = args.archiveRoot ?? path.join('docs-private', 'engine-track', 'artifact-archives');
+const archiveRoot =
+  args.archiveRoot ?? path.join('docs-private', 'engine-track', 'artifact-archives');
 const source = args.source ?? inferSource(manifestUrl);
-const publicRoots = parseListArg(
-  args.publicRoots ?? `apps/web/public,${archiveRoot}`,
-);
+const publicRoots = parseListArg(args.publicRoots ?? `apps/web/public,${archiveRoot}`);
 
 console.log(`engine artifact closeout: ${manifestUrl}`);
 console.log(`capture base URL: ${baseUrl}`);
@@ -45,7 +44,7 @@ await run(process.execPath, [
   args.limit ?? '100',
 ]);
 
-if (args.archive !== 'false' && source && await exists(path.resolve(repoRoot, source))) {
+if (args.archive !== 'false' && source && (await exists(path.resolve(repoRoot, source)))) {
   const archivePath = path.resolve(repoRoot, archiveRoot, safeName(path.basename(source)));
   if (await exists(archivePath)) {
     console.log(`archive already exists, keeping existing copy: ${relative(archivePath)}`);
@@ -111,7 +110,10 @@ function parseArgs(values) {
 }
 
 function parseListArg(value) {
-  return String(value).split(',').map((item) => item.trim()).filter(Boolean);
+  return String(value)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function run(command, commandArgs) {
@@ -142,7 +144,9 @@ async function exists(file) {
 }
 
 function safeName(value) {
-  return String(value).replace(/[^a-zA-Z0-9_.-]+/g, '-').replace(/^-+|-+$/g, '');
+  return String(value)
+    .replace(/[^a-zA-Z0-9_.-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function relative(file) {

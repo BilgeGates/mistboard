@@ -50,7 +50,9 @@ async function pairPvpPlayers(roomId: string): Promise<{ white: TestClient; blac
 }
 
 function finishedStatus(msg: unknown): { winner: 'white' | 'black' | null; reason: string } | null {
-  const m = msg as { state?: { status?: { type: string; winner?: 'white' | 'black' | null; reason?: string } } };
+  const m = msg as {
+    state?: { status?: { type: string; winner?: 'white' | 'black' | null; reason?: string } };
+  };
   if (m.state?.status?.type !== 'finished') return null;
   return { winner: m.state.status.winner ?? null, reason: m.state.status.reason ?? '' };
 }
@@ -64,7 +66,9 @@ test('PvP resign ends the game with opposite color winning, both clients see it'
   // Make sure white can act — server's startLiveClockIfReady fires once both
   // seats are tokenized. A single tiny move is enough to confirm.
   white.send({ type: 'move', from: 'e2', to: 'e4' });
-  await black.waitFor((m) => m.type === 'snapshot' && Array.isArray((m as { events?: unknown[] }).events));
+  await black.waitFor(
+    (m) => m.type === 'snapshot' && Array.isArray((m as { events?: unknown[] }).events),
+  );
 
   white.send({ type: 'resign' });
   const whiteFinal = await white.waitFor((m) => finishedStatus(m) !== null);
@@ -94,10 +98,26 @@ test('Mutual rematch creates a new room with colors swapped and per-client seat 
   white.send({ type: 'rematch:offer' });
   black.send({ type: 'rematch:offer' });
 
-  const whiteRedirect = await white.expectMessage<{ type: string; roomId: string; seat: 'white' | 'black'; seatToken: string; url: string }>('rematch:redirect');
-  const blackRedirect = await black.expectMessage<{ type: string; roomId: string; seat: 'white' | 'black'; seatToken: string; url: string }>('rematch:redirect');
+  const whiteRedirect = await white.expectMessage<{
+    type: string;
+    roomId: string;
+    seat: 'white' | 'black';
+    seatToken: string;
+    url: string;
+  }>('rematch:redirect');
+  const blackRedirect = await black.expectMessage<{
+    type: string;
+    roomId: string;
+    seat: 'white' | 'black';
+    seatToken: string;
+    url: string;
+  }>('rematch:redirect');
 
-  assert.equal(whiteRedirect.roomId, blackRedirect.roomId, 'both redirects target the same new room');
+  assert.equal(
+    whiteRedirect.roomId,
+    blackRedirect.roomId,
+    'both redirects target the same new room',
+  );
   assert.notEqual(whiteRedirect.roomId, roomId, 'redirect targets a new room id');
   assert.equal(whiteRedirect.seat, 'black', 'white seat should flip to black in the rematch');
   assert.equal(blackRedirect.seat, 'white', 'black seat should flip to white in the rematch');
@@ -155,7 +175,10 @@ test('Player offline at finalize gets the rematch redirect on reconnect', async 
     room: roomId,
     seatToken: whiteToken,
   });
-  const replay = await whiteReturn.expectMessage<{ roomId: string; seat: 'white' | 'black' }>('rematch:redirect', { timeoutMs: 2_000 });
+  const replay = await whiteReturn.expectMessage<{ roomId: string; seat: 'white' | 'black' }>(
+    'rematch:redirect',
+    { timeoutMs: 2_000 },
+  );
   assert.equal(replay.roomId, blackRedirect.roomId, 'replay should point at the same new room');
   assert.equal(replay.seat, 'black', 'old white player flips to black on rematch');
 
@@ -174,7 +197,11 @@ test('Pregame disconnect within grace window does NOT vacate the seat', async ()
   // Reconnect within the grace window (200ms in this file).
   await sleep(50);
   const reconnected = await connectClient({ url: serverInstance.url, room: roomId, seatToken });
-  assert.equal(reconnected.seat, 'white', 'seat should be retained when reconnect beats the grace timer');
+  assert.equal(
+    reconnected.seat,
+    'white',
+    'seat should be retained when reconnect beats the grace timer',
+  );
 
   // Confirm event log shows no seat-vacated.
   const room = serverInstance.rooms.get(roomId);
@@ -204,7 +231,11 @@ test('connectedSeats flips false when a seated peer disconnects', async () => {
   const { white, black } = await pairPvpPlayers(roomId);
 
   // Pair establishment already produced snapshots; sanity-check the latest.
-  const latestForWhite = [...white.messages].reverse().find((m) => (m as { type: string }).type === 'snapshot') as { connectedSeats?: { white: boolean; black: boolean } } | undefined;
+  const latestForWhite = [...white.messages]
+    .reverse()
+    .find((m) => (m as { type: string }).type === 'snapshot') as
+    | { connectedSeats?: { white: boolean; black: boolean } }
+    | undefined;
   assert.deepEqual(latestForWhite?.connectedSeats, { white: true, black: true });
 
   await black.disconnect();
@@ -234,7 +265,11 @@ test('Reconnecting with a valid seat token re-seats without minting a new token'
   assert.equal(back.seat, 'white', 'token should resolve back to white');
 
   const seatAssignedAfter = room.events.filter((e) => e.type === 'seat-assigned').length;
-  assert.equal(seatAssignedAfter, seatAssignedBefore, 'no new seat-assigned event on token-based reseat');
+  assert.equal(
+    seatAssignedAfter,
+    seatAssignedBefore,
+    'no new seat-assigned event on token-based reseat',
+  );
 
   await back.disconnect();
 });
@@ -253,15 +288,22 @@ test('Rematch only finalizes when BOTH have offered (one-sided offer is pending)
 
   white.send({ type: 'rematch:offer' });
   const offered = await black.waitFor<{ type: string; offers: { white: boolean; black: boolean } }>(
-    (m) => m.type === 'rematch:state' && (m as unknown as { offers: { white: boolean } }).offers.white === true,
+    (m) =>
+      m.type === 'rematch:state' &&
+      (m as unknown as { offers: { white: boolean } }).offers.white === true,
   );
   assert.equal(offered.offers.white, true);
   assert.equal(offered.offers.black, false);
 
   // White cancels without black ever offering. Match on the post-cancel state.
   white.send({ type: 'rematch:cancel' });
-  const cancelled = await black.waitFor<{ type: string; offers: { white: boolean; black: boolean } }>(
-    (m) => m.type === 'rematch:state' && (m as unknown as { offers: { white: boolean } }).offers.white === false,
+  const cancelled = await black.waitFor<{
+    type: string;
+    offers: { white: boolean; black: boolean };
+  }>(
+    (m) =>
+      m.type === 'rematch:state' &&
+      (m as unknown as { offers: { white: boolean } }).offers.white === false,
   );
   assert.equal(cancelled.offers.white, false);
 
@@ -300,9 +342,15 @@ test('A move appends a move-played event and broadcasts to both seats', async ()
   // include white's move-played event (this is the contract; ensures we
   // don't accidentally regress it via the integration surface).
   const blackSnapshots = black.messages.filter((m) => (m as { type: string }).type === 'snapshot');
-  const latest = blackSnapshots[blackSnapshots.length - 1] as { events: { type: string; color?: string }[] };
+  const latest = blackSnapshots[blackSnapshots.length - 1] as {
+    events: { type: string; color?: string }[];
+  };
   const visibleMovesForBlack = latest.events.filter((e) => e.type === 'move-played');
-  assert.equal(visibleMovesForBlack.length, 0, 'live fog-of-war should redact opponent move-played events');
+  assert.equal(
+    visibleMovesForBlack.length,
+    0,
+    'live fog-of-war should redact opponent move-played events',
+  );
 
   await white.disconnect();
   await black.disconnect();

@@ -41,7 +41,12 @@ export type GameTermination =
   | 'truncated';
 export type GameReviewStatus = 'unreviewed' | 'flagged' | 'reviewed' | 'training' | 'rejected';
 export type GameVisibility = 'private' | 'link' | 'unlisted' | 'public';
-export type GameParticipantSubjectType = 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
+export type GameParticipantSubjectType =
+  | 'guest'
+  | 'user'
+  | 'engine-version'
+  | 'manual'
+  | 'imported';
 export type AccountRole = 'player' | 'test' | 'admin';
 
 export type GameParticipant = {
@@ -298,7 +303,9 @@ export async function recordGameDebugArtifact(artifact: GameDebugArtifactInput):
   );
 }
 
-export async function loadRoomSeatTokens(roomId: string): Promise<Partial<Record<Color, RoomSeatTokenRecord>>> {
+export async function loadRoomSeatTokens(
+  roomId: string,
+): Promise<Partial<Record<Color, RoomSeatTokenRecord>>> {
   const { rows } = await getPool().query<{
     seat: Color;
     client_id: string;
@@ -368,7 +375,12 @@ export async function upsertRoomSeatToken(
   );
 }
 
-export async function touchRoomSeatToken(roomId: string, seat: Color, tokenHash: string, at: Date): Promise<void> {
+export async function touchRoomSeatToken(
+  roomId: string,
+  seat: Color,
+  tokenHash: string,
+  at: Date,
+): Promise<void> {
   await getPool().query(
     `UPDATE room_seat_tokens
      SET last_seen_at = $4
@@ -449,7 +461,9 @@ export async function verifyRoomSeatToken(
   return null;
 }
 
-export async function getGameLifecycleStatus(roomId: string): Promise<{ mode: GameMode; status: 'running' | 'completed' | 'aborted' } | null> {
+export async function getGameLifecycleStatus(
+  roomId: string,
+): Promise<{ mode: GameMode; status: 'running' | 'completed' | 'aborted' } | null> {
   const { rows } = await getPool().query<{
     mode: GameMode;
     status: 'running' | 'completed' | 'aborted';
@@ -468,7 +482,10 @@ export async function abortRunningGame(
   options: {
     abortedReason: string;
     endedAt?: Date;
-    termination: Extract<GameTermination, 'abandoned' | 'engine-failure' | 'server-restarted' | 'worker-aborted'>;
+    termination: Extract<
+      GameTermination,
+      'abandoned' | 'engine-failure' | 'server-restarted' | 'worker-aborted'
+    >;
   },
 ): Promise<boolean> {
   const { rowCount } = await getPool().query(
@@ -668,10 +685,7 @@ export async function insertFeedbackSubmission(input: FeedbackSubmissionInput): 
   await getPool().query(
     `INSERT INTO feedback_submissions (id, message, email, path, user_id, user_agent, ip_hash)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [
-      input.id, input.message, input.email, input.path,
-      input.userId, input.userAgent, input.ipHash,
-    ],
+    [input.id, input.message, input.email, input.path, input.userId, input.userAgent, input.ipHash],
   );
 }
 
@@ -806,7 +820,10 @@ export async function updateUserProfile(
     const displayNameChanged = nextDisplayName !== current.displayName;
 
     if (handleChanged) {
-      if (current.handleChangedAt && at.getTime() - current.handleChangedAt.getTime() < handleCooldownMs) {
+      if (
+        current.handleChangedAt &&
+        at.getTime() - current.handleChangedAt.getTime() < handleCooldownMs
+      ) {
         await client.query('ROLLBACK');
         return {
           ok: false,
@@ -894,7 +911,11 @@ export async function getUserByAccountSession(
   return rows[0] ? userFromRow(rows[0]) : null;
 }
 
-export async function revokeAccountSession(sessionId: string, tokenHash: string, at: Date): Promise<void> {
+export async function revokeAccountSession(
+  sessionId: string,
+  tokenHash: string,
+  at: Date,
+): Promise<void> {
   await getPool().query(
     `UPDATE account_sessions
      SET revoked_at = $3
@@ -961,23 +982,25 @@ export async function getUserProfileByHandle(
      LIMIT $2`,
     [user.id, boundedLimit],
   );
-  const games = gameRows.map((row): ProfileGameRecord => ({
-    roomId: row.room_id,
-    playerColor: row.player_color,
-    variant: row.variant,
-    mode: row.mode,
-    result: row.result as GameResult,
-    termination: row.termination as GameTermination,
-    plyCount: row.ply_count,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    whiteName: row.white_name,
-    blackName: row.black_name,
-    corpusId: row.corpus_id,
-    rated: row.rated,
-    visibility: row.visibility,
-    participants: [],
-  }));
+  const games = gameRows.map(
+    (row): ProfileGameRecord => ({
+      roomId: row.room_id,
+      playerColor: row.player_color,
+      variant: row.variant,
+      mode: row.mode,
+      result: row.result as GameResult,
+      termination: row.termination as GameTermination,
+      plyCount: row.ply_count,
+      startedAt: row.started_at,
+      endedAt: row.ended_at,
+      whiteName: row.white_name,
+      blackName: row.black_name,
+      corpusId: row.corpus_id,
+      rated: row.rated,
+      visibility: row.visibility,
+      participants: [],
+    }),
+  );
 
   const { rows: ratingRows } = await getPool().query<{
     variant: RatingVariant;
@@ -1208,7 +1231,9 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
   return withParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
-export async function listCompletedGames(filters: CompletedGameFilters): Promise<RecentEveGameRecord[]> {
+export async function listCompletedGames(
+  filters: CompletedGameFilters,
+): Promise<RecentEveGameRecord[]> {
   const limit = Math.max(1, Math.min(filters.limit ?? 100, 250));
   const values: unknown[] = [filters.endedFrom, filters.endedTo];
   const modeClause = filters.mode ? 'AND games.mode = $3' : '';
@@ -1247,7 +1272,9 @@ export async function getGameSummary(roomId: string): Promise<RecentEveGameRecor
   return record ?? null;
 }
 
-export async function listGameDebugArtifactSummaries(gameId: string): Promise<GameDebugArtifactSummary[]> {
+export async function listGameDebugArtifactSummaries(
+  gameId: string,
+): Promise<GameDebugArtifactSummary[]> {
   const { rows } = await getPool().query<{
     artifact_type: string;
     count: string;
@@ -1289,9 +1316,8 @@ export async function listGameDebugArtifactPayloads(
   },
 ): Promise<GameDebugArtifactPayload[]> {
   const boundedLimit = Math.max(1, Math.min(filters.limit ?? 500, 2000));
-  const colors = filters.engineColors && filters.engineColors.length > 0
-    ? filters.engineColors
-    : null;
+  const colors =
+    filters.engineColors && filters.engineColors.length > 0 ? filters.engineColors : null;
   const { rows } = await getPool().query<{
     id: string;
     game_id: string;
@@ -1380,7 +1406,8 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
         summary.hiddenDraft960 ?? null,
       ],
     );
-    const participants = summary.participants ?? defaultParticipantsForSummary(summary, mode, visibility);
+    const participants =
+      summary.participants ?? defaultParticipantsForSummary(summary, mode, visibility);
     for (const participant of participants) {
       await client.query(
         `INSERT INTO game_participants
@@ -1411,8 +1438,10 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
       const blackParticipant = participants.find((p) => p.color === 'black');
       if (
         bucket &&
-        whiteParticipant?.subjectType === 'user' && whiteParticipant.subjectId &&
-        blackParticipant?.subjectType === 'user' && blackParticipant.subjectId
+        whiteParticipant?.subjectType === 'user' &&
+        whiteParticipant.subjectId &&
+        blackParticipant?.subjectType === 'user' &&
+        blackParticipant.subjectId
       ) {
         await updateEloInTransaction(
           client,
@@ -1496,9 +1525,10 @@ async function withParticipants<T extends GameRecord>(records: T[]): Promise<T[]
     const recordParticipants = participants.get(record.roomId);
     return {
       ...record,
-      participants: recordParticipants && recordParticipants.length > 0
-        ? recordParticipants
-        : fallbackParticipantsForRecord(record),
+      participants:
+        recordParticipants && recordParticipants.length > 0
+          ? recordParticipants
+          : fallbackParticipantsForRecord(record),
     };
   });
 }
@@ -1546,8 +1576,20 @@ function defaultParticipantsForSummary(
 function fallbackParticipantsForRecord(record: GameRecord): GameParticipant[] {
   const eve = record as Partial<RecentEveGameRecord>;
   return [
-    fallbackParticipantForColor('white', record.whiteName, record.mode, record.visibility, eve.whiteEngineId ?? null),
-    fallbackParticipantForColor('black', record.blackName, record.mode, record.visibility, eve.blackEngineId ?? null),
+    fallbackParticipantForColor(
+      'white',
+      record.whiteName,
+      record.mode,
+      record.visibility,
+      eve.whiteEngineId ?? null,
+    ),
+    fallbackParticipantForColor(
+      'black',
+      record.blackName,
+      record.mode,
+      record.visibility,
+      eve.blackEngineId ?? null,
+    ),
   ];
 }
 
@@ -1621,12 +1663,14 @@ function fallbackParticipantForColor(
 }
 
 function isEngineIdentity(clientId: string): boolean {
-  return clientId === 'random-engine'
-    || clientId === 'engine:white'
-    || clientId === 'engine:black'
-    || clientId.startsWith('engine:')
-    || clientId.startsWith('builtin-')
-    || clientId.startsWith('python-');
+  return (
+    clientId === 'random-engine' ||
+    clientId === 'engine:white' ||
+    clientId === 'engine:black' ||
+    clientId.startsWith('engine:') ||
+    clientId.startsWith('builtin-') ||
+    clientId.startsWith('python-')
+  );
 }
 
 function canonicalEngineVersionId(clientId: string): string {
@@ -1671,7 +1715,12 @@ function userFromRow(row: UserRow): UserAccount {
 }
 
 function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && (err as { code?: string }).code === '23505';
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: string }).code === '23505'
+  );
 }
 
 function getPool(): pg.Pool {

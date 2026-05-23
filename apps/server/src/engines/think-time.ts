@@ -25,11 +25,13 @@ export function engineThinkTimeMs(input: EngineThinkTimeInput): number {
     420,
   );
   const phaseMs = input.context.ply < 8 ? -90 : input.context.ply > 50 ? -70 : 0;
-  const subprocessAdjustmentMs = input.runtime === 'subprocess'
-    ? -Math.round(baseThinkTimeMs * 0.6)
-    : 0;
+  const subprocessAdjustmentMs =
+    input.runtime === 'subprocess' ? -Math.round(baseThinkTimeMs * 0.6) : 0;
   const jitterSpanMs = Math.max(120, Math.round(baseThinkTimeMs * 0.55));
-  const jitterMs = Math.round((seededUnit(input.context.seed + BigInt(input.context.ply) * 0x9e3779b97f4a7c15n) * 2 - 1) * jitterSpanMs);
+  const jitterMs = Math.round(
+    (seededUnit(input.context.seed + BigInt(input.context.ply) * 0x9e3779b97f4a7c15n) * 2 - 1) *
+      jitterSpanMs,
+  );
 
   let thinkTimeMs = baseThinkTimeMs + complexityMs + phaseMs + subprocessAdjustmentMs + jitterMs;
   let maxThinkTimeMs = DEFAULT_MAX_THINK_TIME_MS;
@@ -39,7 +41,10 @@ export function engineThinkTimeMs(input: EngineThinkTimeInput): number {
   if (remainingMs !== undefined) {
     if (remainingMs <= CLOCK_RESERVE_MS) return 0;
 
-    const incrementMs = Math.max(0, input.context.incrementMs ?? input.context.state.clock?.incrementMs ?? 0);
+    const incrementMs = Math.max(
+      0,
+      input.context.incrementMs ?? input.context.state.clock?.incrementMs ?? 0,
+    );
     maxThinkTimeMs = Math.min(
       DEFAULT_MAX_THINK_TIME_MS,
       remainingMs - CLOCK_RESERVE_MS,

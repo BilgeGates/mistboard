@@ -103,7 +103,9 @@ export async function loadGameForReview(roomId: string): Promise<{
           })
         : Promise.resolve([]),
     ]);
-    const beliefRows = beliefArtifacts.map((artifact) => beliefRowFromArtifact(review.game, artifact));
+    const beliefRows = beliefArtifacts.map((artifact) =>
+      beliefRowFromArtifact(review.game, artifact),
+    );
     const traceRows = traceArtifacts.map((artifact) => traceRowFromArtifact(review.game, artifact));
     return {
       beliefRows,
@@ -145,7 +147,7 @@ async function fetchGameReview(roomId: string): Promise<GameReviewPayload | null
   const resp = await fetch(`/api/games/${encodeURIComponent(roomId)}/review`);
   if (resp.status === 404) return null;
   if (!resp.ok) throw new Error(`failed to load review for ${roomId}: ${resp.status}`);
-  return await resp.json() as GameReviewPayload;
+  return (await resp.json()) as GameReviewPayload;
 }
 
 async function fetchGameSummary(roomId: string): Promise<FeaturedGame | null> {
@@ -174,7 +176,7 @@ async function fetchGameArtifacts(
   const resp = await fetch(url.pathname + url.search);
   if (resp.status === 404 || resp.status === 403) return [];
   if (!resp.ok) throw new Error(`failed to load ${type} artifacts for ${roomId}: ${resp.status}`);
-  const data = await resp.json() as { artifacts: GameArtifactPayload[] };
+  const data = (await resp.json()) as { artifacts: GameArtifactPayload[] };
   return data.artifacts;
 }
 
@@ -185,10 +187,11 @@ async function fetchTraceArtifacts(roomId: string): Promise<GameArtifactPayload[
   ]);
   return groups
     .flat()
-    .sort((left, right) => (
-      (left.ply ?? Number.MAX_SAFE_INTEGER) - (right.ply ?? Number.MAX_SAFE_INTEGER)
-      || left.id - right.id
-    ));
+    .sort(
+      (left, right) =>
+        (left.ply ?? Number.MAX_SAFE_INTEGER) - (right.ply ?? Number.MAX_SAFE_INTEGER) ||
+        left.id - right.id,
+    );
 }
 
 function beliefRowFromArtifact(game: FeaturedGame, artifact: GameArtifactPayload): BeliefRow {
@@ -204,11 +207,16 @@ function beliefRowFromArtifact(game: FeaturedGame, artifact: GameArtifactPayload
     snapshot_kind: snapshotKind ?? undefined,
     decision_path: stringValue(payload.decision_path) ?? artifact.artifactType,
     particle_count: numberValue(payload.particle_count) ?? 0,
-    particle_count_unique: numberValue(payload.particle_count_unique) ?? numberValue(payload.particle_count) ?? 0,
-    opp_remaining_counts: recordValue(payload.opp_remaining_counts) as BeliefRow['opp_remaining_counts'],
+    particle_count_unique:
+      numberValue(payload.particle_count_unique) ?? numberValue(payload.particle_count) ?? 0,
+    opp_remaining_counts: recordValue(
+      payload.opp_remaining_counts,
+    ) as BeliefRow['opp_remaining_counts'],
     last_constraint_pruned: numberValue(payload.last_constraint_pruned) ?? 0,
     marginal_field: recordValue(payload.marginal_field) as BeliefRow['marginal_field'],
-    top_k_clusters: Array.isArray(payload.top_k_clusters) ? payload.top_k_clusters as BeliefRow['top_k_clusters'] : [],
+    top_k_clusters: Array.isArray(payload.top_k_clusters)
+      ? (payload.top_k_clusters as BeliefRow['top_k_clusters'])
+      : [],
   };
 }
 
@@ -235,7 +243,8 @@ function gameSummaryFromEvents(roomId: string, events: GameEvent[]): FeaturedGam
     roomId,
     variant: projection.variant,
     mode: modeFromSeats(projection.seats.white, projection.seats.black),
-    result: status.winner === 'white' ? 'white-wins' : status.winner === 'black' ? 'black-wins' : 'draw',
+    result:
+      status.winner === 'white' ? 'white-wins' : status.winner === 'black' ? 'black-wins' : 'draw',
     termination: status.reason,
     plyCount: events.filter((event) => event.type === 'move-played').length,
     whiteName: null,
@@ -248,7 +257,10 @@ function gameSummaryFromEvents(roomId: string, events: GameEvent[]): FeaturedGam
   };
 }
 
-function modeFromSeats(whiteClient: string | undefined, blackClient: string | undefined): FeaturedGame['mode'] {
+function modeFromSeats(
+  whiteClient: string | undefined,
+  blackClient: string | undefined,
+): FeaturedGame['mode'] {
   const whiteEngine = isEngineClient(whiteClient);
   const blackEngine = isEngineClient(blackClient);
   if (whiteEngine && blackEngine) return 'eve';
@@ -281,13 +293,14 @@ function participantFromSeat(
 }
 
 function isEngineClient(clientId: string | undefined): boolean {
-  return !!clientId && (
-    clientId === 'random-engine'
-    || clientId === 'engine:white'
-    || clientId === 'engine:black'
-    || clientId.startsWith('engine:')
-    || clientId.startsWith('builtin-')
-    || clientId.startsWith('python-')
+  return (
+    !!clientId &&
+    (clientId === 'random-engine' ||
+      clientId === 'engine:white' ||
+      clientId === 'engine:black' ||
+      clientId.startsWith('engine:') ||
+      clientId.startsWith('builtin-') ||
+      clientId.startsWith('python-'))
   );
 }
 
@@ -301,7 +314,9 @@ function colorValue(value: unknown): 'white' | 'black' | null {
 }
 
 function snapshotKindValue(value: unknown): BeliefRow['snapshot_kind'] | null {
-  return value === 'decision' || value === 'after-own-move' || value === 'after-opp-move' ? value : null;
+  return value === 'decision' || value === 'after-own-move' || value === 'after-opp-move'
+    ? value
+    : null;
 }
 
 function stringValue(value: unknown): string | null {
@@ -313,7 +328,9 @@ function numberValue(value: unknown): number | null {
 }
 
 function recordValue(value: unknown): Record<string, never> | Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function moveUciFromPayload(payload: Record<string, unknown>): string {

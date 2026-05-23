@@ -41,11 +41,15 @@ const HEIGHT = MARGIN * 2 + (RANKS - 1) * CELL;
 const RIVER_TOP = MARGIN + 4 * CELL;
 const RIVER_BOT = MARGIN + 5 * CELL;
 const FOG_RADIUS = 22;
-const HIT_HALF = 24;       // half-width of the per-intersection click target
+const HIT_HALF = 24; // half-width of the per-intersection click target
 
 type Perspective = XiangqiColor | 'god';
 
-function intersection(file: number, rank: number, perspective: XiangqiColor): { x: number; y: number } {
+function intersection(
+  file: number,
+  rank: number,
+  perspective: XiangqiColor,
+): { x: number; y: number } {
   const rDisplay = perspective === 'red' ? RANKS - rank : rank - 1;
   return {
     x: MARGIN + file * CELL,
@@ -95,24 +99,29 @@ function positionMarks(perspective: XiangqiColor): string {
   const marks: Array<{ file: number; rank: number }> = [];
   for (const r of [3, 8]) for (const f of [1, 7]) marks.push({ file: f, rank: r });
   for (const r of [4, 7]) for (const f of [0, 2, 4, 6, 8]) marks.push({ file: f, rank: r });
-  return marks.map(({ file, rank }) => {
-    const { x, y } = intersection(file, rank, perspective);
-    const off = 9;
-    const len = 5;
-    const bits: string[] = [];
-    const corners = [
-      { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: 1, dy: 1 },
-    ];
-    for (const c of corners) {
-      if (file === 0 && c.dx === -1) continue;
-      if (file === FILES - 1 && c.dx === 1) continue;
-      const px = x + c.dx * off;
-      const py = y + c.dy * off;
-      bits.push(`<line x1="${px}" y1="${py}" x2="${px - c.dx * len}" y2="${py}"/>`);
-      bits.push(`<line x1="${px}" y1="${py}" x2="${px}" y2="${py - c.dy * len}"/>`);
-    }
-    return bits.join('');
-  }).join('');
+  return marks
+    .map(({ file, rank }) => {
+      const { x, y } = intersection(file, rank, perspective);
+      const off = 9;
+      const len = 5;
+      const bits: string[] = [];
+      const corners = [
+        { dx: -1, dy: -1 },
+        { dx: 1, dy: -1 },
+        { dx: -1, dy: 1 },
+        { dx: 1, dy: 1 },
+      ];
+      for (const c of corners) {
+        if (file === 0 && c.dx === -1) continue;
+        if (file === FILES - 1 && c.dx === 1) continue;
+        const px = x + c.dx * off;
+        const py = y + c.dy * off;
+        bits.push(`<line x1="${px}" y1="${py}" x2="${px - c.dx * len}" y2="${py}"/>`);
+        bits.push(`<line x1="${px}" y1="${py}" x2="${px}" y2="${py - c.dy * len}"/>`);
+      }
+      return bits.join('');
+    })
+    .join('');
 }
 
 function riverLabel(perspective: XiangqiColor): string {
@@ -151,18 +160,16 @@ function fogLayer(view: XiangqiPlayerView, perspective: XiangqiColor): string {
 // Cutout shape: square (CELL × CELL) centered on each intersection. Adjacent
 // visible intersections tile into continuous rectangular reveals, which reads
 // as connected vision rather than isolated portholes.
-function fogLayerMask(
-  view: XiangqiPlayerView,
-  perspective: XiangqiColor,
-  maskKey: string,
-): string {
+function fogLayerMask(view: XiangqiPlayerView, perspective: XiangqiColor, maskKey: string): string {
   const half = CELL / 2;
   const cutouts: string[] = [];
   for (const sq of view.visibleSquares) {
     const file = 'abcdefghi'.indexOf(sq[0]);
     const rank = Number(sq.slice(1));
     const { x, y } = intersection(file, rank, perspective);
-    cutouts.push(`<rect x="${x - half}" y="${y - half}" width="${CELL}" height="${CELL}" fill="black"/>`);
+    cutouts.push(
+      `<rect x="${x - half}" y="${y - half}" width="${CELL}" height="${CELL}" fill="black"/>`,
+    );
   }
   return `
     <defs>
@@ -182,10 +189,7 @@ function selectionRing(selection: XiangqiSquare | null, perspective: XiangqiColo
   return `<circle class="xq-selection-ring" cx="${x}" cy="${y}" r="29"/>`;
 }
 
-function lastMoveMarkers(
-  view: XiangqiPlayerView,
-  perspective: XiangqiColor,
-): string {
+function lastMoveMarkers(view: XiangqiPlayerView, perspective: XiangqiColor): string {
   const move = view.lastMove;
   if (!move) return '';
   const parts: string[] = [];
@@ -207,14 +211,16 @@ function moveHints(
 ): string {
   if (!selection || state.status.type !== 'playing') return '';
   const moves = getLegalMovesFrom(state, selection);
-  return moves.map((m) => {
-    const c = coordOf(m.to);
-    const { x, y } = intersection(c.file, c.rank, perspective);
-    const occupied = state.board[m.to] !== undefined;
-    return occupied
-      ? `<circle class="xq-hint-capture" cx="${x}" cy="${y}" r="27"/>`
-      : `<circle class="xq-hint-dot" cx="${x}" cy="${y}" r="7"/>`;
-  }).join('');
+  return moves
+    .map((m) => {
+      const c = coordOf(m.to);
+      const { x, y } = intersection(c.file, c.rank, perspective);
+      const occupied = state.board[m.to] !== undefined;
+      return occupied
+        ? `<circle class="xq-hint-capture" cx="${x}" cy="${y}" r="27"/>`
+        : `<circle class="xq-hint-dot" cx="${x}" cy="${y}" r="7"/>`;
+    })
+    .join('');
 }
 
 function piecesLayer(view: XiangqiPlayerView, perspective: XiangqiColor): string {
@@ -225,13 +231,15 @@ function piecesLayer(view: XiangqiPlayerView, perspective: XiangqiColor): string
     const file = 'abcdefghi'.indexOf(sq[0]);
     const rank = Number(sq.slice(1));
     const { x, y } = intersection(file, rank, perspective);
-    parts.push(renderXiangqiPiece(entry.piece, {
-      x: x - PIECE_SIZE / 2,
-      y: y - PIECE_SIZE / 2,
-      size: PIECE_SIZE,
-      shrouded: entry.shrouded,
-      className: 'xq-piece',
-    }));
+    parts.push(
+      renderXiangqiPiece(entry.piece, {
+        x: x - PIECE_SIZE / 2,
+        y: y - PIECE_SIZE / 2,
+        size: PIECE_SIZE,
+        shrouded: entry.shrouded,
+        className: 'xq-piece',
+      }),
+    );
   }
   return parts.join('');
 }
@@ -242,7 +250,9 @@ function clickLayer(perspective: XiangqiColor): string {
     for (let r = 1; r <= RANKS; r++) {
       const sq = squareOf(f, r);
       const { x, y } = intersection(f, r, perspective);
-      parts.push(`<rect class="xq-hit" data-square="${sq}" x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/>`);
+      parts.push(
+        `<rect class="xq-hit" data-square="${sq}" x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/>`,
+      );
     }
   }
   return parts.join('');
@@ -266,7 +276,11 @@ const CELL_W = (WIDTH - 2 * MARGIN) / FILES;
 const CELL_H = (HEIGHT - 2 * MARGIN) / RANKS;
 const GRID_PIECE_SIZE = Math.min(CELL_W, CELL_H) * 0.85;
 
-function cellCenter(file: number, rank: number, perspective: XiangqiColor): { x: number; y: number } {
+function cellCenter(
+  file: number,
+  rank: number,
+  perspective: XiangqiColor,
+): { x: number; y: number } {
   const rDisplay = perspective === 'red' ? RANKS - rank : rank - 1;
   return {
     x: MARGIN + file * CELL_W + CELL_W / 2,
@@ -274,7 +288,11 @@ function cellCenter(file: number, rank: number, perspective: XiangqiColor): { x:
   };
 }
 
-function cellRect(file: number, rank: number, perspective: XiangqiColor): { x: number; y: number; w: number; h: number } {
+function cellRect(
+  file: number,
+  rank: number,
+  perspective: XiangqiColor,
+): { x: number; y: number; w: number; h: number } {
   const rDisplay = perspective === 'red' ? RANKS - rank : rank - 1;
   return {
     x: MARGIN + file * CELL_W,
@@ -312,8 +330,12 @@ function gridPalaceShading(perspective: XiangqiColor): string {
     const h = Math.max(tl.y + tl.h, br.y + br.h) - y;
     parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" class="xq-grid-palace"/>`);
     // Palace diagonals (just two crossed lines across the 3x3 area)
-    parts.push(`<line x1="${x}" y1="${y}" x2="${x + w}" y2="${y + h}" class="xq-grid-palace-line"/>`);
-    parts.push(`<line x1="${x + w}" y1="${y}" x2="${x}" y2="${y + h}" class="xq-grid-palace-line"/>`);
+    parts.push(
+      `<line x1="${x}" y1="${y}" x2="${x + w}" y2="${y + h}" class="xq-grid-palace-line"/>`,
+    );
+    parts.push(
+      `<line x1="${x + w}" y1="${y}" x2="${x}" y2="${y + h}" class="xq-grid-palace-line"/>`,
+    );
   }
   return parts.join('');
 }
@@ -334,11 +356,7 @@ function gridRiverLabel(perspective: XiangqiColor): string {
   ].join('');
 }
 
-function gridFogMask(
-  view: XiangqiPlayerView,
-  perspective: XiangqiColor,
-  maskKey: string,
-): string {
+function gridFogMask(view: XiangqiPlayerView, perspective: XiangqiColor, maskKey: string): string {
   const cutouts: string[] = [];
   for (const sq of view.visibleSquares) {
     const file = 'abcdefghi'.indexOf(sq[0]);
@@ -365,13 +383,15 @@ function gridPiecesLayer(view: XiangqiPlayerView, perspective: XiangqiColor): st
     const file = 'abcdefghi'.indexOf(sq[0]);
     const rank = Number(sq.slice(1));
     const { x, y } = cellCenter(file, rank, perspective);
-    parts.push(renderXiangqiPiece(entry.piece, {
-      x: x - GRID_PIECE_SIZE / 2,
-      y: y - GRID_PIECE_SIZE / 2,
-      size: GRID_PIECE_SIZE,
-      shrouded: entry.shrouded,
-      className: 'xq-piece',
-    }));
+    parts.push(
+      renderXiangqiPiece(entry.piece, {
+        x: x - GRID_PIECE_SIZE / 2,
+        y: y - GRID_PIECE_SIZE / 2,
+        size: GRID_PIECE_SIZE,
+        shrouded: entry.shrouded,
+        className: 'xq-piece',
+      }),
+    );
   }
   return parts.join('');
 }
@@ -403,15 +423,17 @@ function gridMoveHints(
 ): string {
   if (!selection || state.status.type !== 'playing') return '';
   const moves = getLegalMovesFrom(state, selection);
-  return moves.map((m) => {
-    const c = coordOf(m.to);
-    const { x, y } = cellCenter(c.file, c.rank, perspective);
-    const { w, h } = cellRect(c.file, c.rank, perspective);
-    const occupied = state.board[m.to] !== undefined;
-    return occupied
-      ? `<rect class="xq-grid-hint-capture" x="${x - w / 2 + 3}" y="${y - h / 2 + 3}" width="${w - 6}" height="${h - 6}"/>`
-      : `<circle class="xq-hint-dot" cx="${x}" cy="${y}" r="7"/>`;
-  }).join('');
+  return moves
+    .map((m) => {
+      const c = coordOf(m.to);
+      const { x, y } = cellCenter(c.file, c.rank, perspective);
+      const { w, h } = cellRect(c.file, c.rank, perspective);
+      const occupied = state.board[m.to] !== undefined;
+      return occupied
+        ? `<rect class="xq-grid-hint-capture" x="${x - w / 2 + 3}" y="${y - h / 2 + 3}" width="${w - 6}" height="${h - 6}"/>`
+        : `<circle class="xq-hint-dot" cx="${x}" cy="${y}" r="7"/>`;
+    })
+    .join('');
 }
 
 function gridClickLayer(perspective: XiangqiColor): string {
@@ -420,7 +442,9 @@ function gridClickLayer(perspective: XiangqiColor): string {
     for (let r = 1; r <= RANKS; r++) {
       const sq = squareOf(f, r);
       const { x, y, w, h } = cellRect(f, r, perspective);
-      parts.push(`<rect class="xq-hit" data-square="${sq}" x="${x}" y="${y}" width="${w}" height="${h}"/>`);
+      parts.push(
+        `<rect class="xq-hit" data-square="${sq}" x="${x}" y="${y}" width="${w}" height="${h}"/>`,
+      );
     }
   }
   return parts.join('');
@@ -553,9 +577,8 @@ function buildGodView(state: XiangqiGameState, mode: XiangqiCannonVisionMode): X
   for (const [sq, piece] of Object.entries(state.board)) {
     if (piece) board[sq] = { piece, shrouded: false };
   }
-  const legalMoves = state.status.type === 'playing'
-    ? getPlayerView(state, state.status.turn, mode).legalMoves
-    : [];
+  const legalMoves =
+    state.status.type === 'playing' ? getPlayerView(state, state.status.turn, mode).legalMoves : [];
   return {
     id: state.id,
     perspective: state.status.type === 'playing' ? state.status.turn : 'red',
@@ -873,11 +896,12 @@ function attachHandlers(container: HTMLElement): void {
     container.querySelectorAll<HTMLElement>(`[data-action="${action}"]`).forEach((btn) => {
       btn.addEventListener('click', () => {
         if (!active) return;
-        const target = delta === -Infinity
-          ? 0
-          : delta === Infinity
-            ? active.state.history.length
-            : active.state.cursor + delta;
+        const target =
+          delta === -Infinity
+            ? 0
+            : delta === Infinity
+              ? active.state.history.length
+              : active.state.cursor + delta;
         active.state = setCursor(active.state, target);
         rerender();
       });

@@ -92,8 +92,7 @@ export interface HttpApiContext {
     roomId: string,
     seatToken: string,
   ): Promise<
-    | { ok: true }
-    | { ok: false; error: 'not_found' | 'unauthorized' | 'already_terminal' }
+    { ok: true } | { ok: false; error: 'not_found' | 'unauthorized' | 'already_terminal' }
   >;
   inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null;
   isDraining(): boolean;
@@ -222,9 +221,14 @@ export async function handleApiRequest(
       tokenHash: hashSecret(sessionToken),
       expiresAt,
     });
-    writeJson(response, 200, { user: publicUser(user), isNewUser: isNew }, {
-      'set-cookie': accountSessionCookie(sessionId, sessionToken, expiresAt),
-    });
+    writeJson(
+      response,
+      200,
+      { user: publicUser(user), isNewUser: isNew },
+      {
+        'set-cookie': accountSessionCookie(sessionId, sessionToken, expiresAt),
+      },
+    );
     return;
   }
 
@@ -233,9 +237,10 @@ export async function handleApiRequest(
 
     const user = await currentAccountUser(request);
     const xff = request.headers['x-forwarded-for'];
-    const ip = typeof xff === 'string' && xff.length > 0
-      ? xff.split(',')[0]!.trim()
-      : request.socket.remoteAddress ?? 'unknown';
+    const ip =
+      typeof xff === 'string' && xff.length > 0
+        ? xff.split(',')[0]!.trim()
+        : (request.socket.remoteAddress ?? 'unknown');
     const ipHash = user ? null : hashIp(ip);
 
     if (!user && persistence.isInitialized() && ipHash) {
@@ -247,12 +252,14 @@ export async function handleApiRequest(
           return;
         }
       } catch (err) {
-        console.error(JSON.stringify({
-          level: 'error',
-          kind: 'feedback_throttle_lookup_failure',
-          error: (err as Error).message,
-          at: Date.now(),
-        }));
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            kind: 'feedback_throttle_lookup_failure',
+            error: (err as Error).message,
+            at: Date.now(),
+          }),
+        );
       }
     }
 
@@ -273,30 +280,37 @@ export async function handleApiRequest(
     // Anonymous lane: optional user-supplied reply email. Logged-in lane:
     // reply_to is the verified account email (set in feedback-notify), so
     // ignore any client-supplied email to avoid spoofing the audit trail.
-    const email = user
-      ? null
-      : normalizeEmail(typeof body.email === 'string' ? body.email : null);
+    const email = user ? null : normalizeEmail(typeof body.email === 'string' ? body.email : null);
     const rawPath = typeof body.path === 'string' ? body.path.trim() : '';
     const path = rawPath.length > 0 ? rawPath.slice(0, feedbackMaxPathLength) : null;
     const rawUa = request.headers['user-agent'];
-    const userAgent = typeof rawUa === 'string' && rawUa.length > 0
-      ? rawUa.slice(0, feedbackMaxUserAgentLength)
-      : null;
+    const userAgent =
+      typeof rawUa === 'string' && rawUa.length > 0
+        ? rawUa.slice(0, feedbackMaxUserAgentLength)
+        : null;
     const userId = user?.id ?? null;
     const id = randomUUID();
 
     if (persistence.isInitialized()) {
       try {
         await persistence.insertFeedbackSubmission({
-          id, message, email, path, userId, userAgent, ipHash,
+          id,
+          message,
+          email,
+          path,
+          userId,
+          userAgent,
+          ipHash,
         });
       } catch (err) {
-        console.error(JSON.stringify({
-          level: 'error',
-          kind: 'feedback_persist_failure',
-          error: (err as Error).message,
-          at: Date.now(),
-        }));
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            kind: 'feedback_persist_failure',
+            error: (err as Error).message,
+            at: Date.now(),
+          }),
+        );
       }
     }
 
@@ -319,11 +333,20 @@ export async function handleApiRequest(
     if (!requireMethod(request, response, 'POST')) return;
     const session = accountSessionFromRequest(request);
     if (session && persistence.isInitialized()) {
-      await persistence.revokeAccountSession(session.sessionId, hashSecret(session.token), new Date());
+      await persistence.revokeAccountSession(
+        session.sessionId,
+        hashSecret(session.token),
+        new Date(),
+      );
     }
-    writeJson(response, 200, { ok: true }, {
-      'set-cookie': expiredAccountSessionCookie(),
-    });
+    writeJson(
+      response,
+      200,
+      { ok: true },
+      {
+        'set-cookie': expiredAccountSessionCookie(),
+      },
+    );
     return;
   }
 
@@ -337,7 +360,9 @@ export async function handleApiRequest(
     }
     const body = await readJsonBody(request);
     const handle = normalizeProfileHandle(typeof body.handle === 'string' ? body.handle : null);
-    const displayName = normalizeDisplayName(typeof body.displayName === 'string' ? body.displayName : null);
+    const displayName = normalizeDisplayName(
+      typeof body.displayName === 'string' ? body.displayName : null,
+    );
     if (!handle) {
       writeJson(response, 400, { error: 'invalid_handle' });
       return;
@@ -346,7 +371,11 @@ export async function handleApiRequest(
       writeJson(response, 400, { error: 'invalid_display_name' });
       return;
     }
-    const result = await persistence.updateUserProfile(user.id, { handle, displayName }, new Date());
+    const result = await persistence.updateUserProfile(
+      user.id,
+      { handle, displayName },
+      new Date(),
+    );
     if (!result.ok) {
       writeJson(response, result.error === 'handle_taken' ? 409 : 429, {
         error: result.error,
@@ -379,14 +408,17 @@ export async function handleApiRequest(
     // Distinguishing omitted from explicit 'random' is load-bearing for
     // the documented backward-compat contract.
     const preferredColor: 'white' | 'black' | 'random' | undefined =
-      body.preferredColor === 'white' || body.preferredColor === 'black' || body.preferredColor === 'random'
+      body.preferredColor === 'white' ||
+      body.preferredColor === 'black' ||
+      body.preferredColor === 'random'
         ? body.preferredColor
         : undefined;
     let engineColor: 'white' | 'black';
     if (mode === 'pve') {
       if (preferredColor === 'white') engineColor = 'black';
       else if (preferredColor === 'black') engineColor = 'white';
-      else if (preferredColor === 'random') engineColor = randomBytes(1)[0]! < 128 ? 'white' : 'black';
+      else if (preferredColor === 'random')
+        engineColor = randomBytes(1)[0]! < 128 ? 'white' : 'black';
       else if (body.engineColor === 'white') engineColor = 'white';
       else if (body.engineColor === 'black') engineColor = 'black';
       else engineColor = randomBytes(1)[0]! < 128 ? 'white' : 'black';
@@ -398,9 +430,10 @@ export async function handleApiRequest(
       mode === 'pvp' && (preferredColor === 'white' || preferredColor === 'black')
         ? preferredColor
         : undefined;
-    const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
+    const timeControl =
+      body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     // Engine games are never rated — rated play is human-vs-human only.
-    const rated = mode === 'pve' ? false : (body.rated === false ? false : true);
+    const rated = mode === 'pve' ? false : body.rated === false ? false : true;
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_mode' }));
@@ -436,13 +469,27 @@ export async function handleApiRequest(
       response.end(JSON.stringify({ error: 'server_draining', restartAt: ctx.drainDeadlineMs() }));
       return;
     }
-    const room = await ctx.createRoom(mode, variant, engineId ?? ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl ?? undefined, rated, {
-      engineColor,
-      ...(pvpRandomSeating ? { randomSeating: true } : {}),
-      ...(pvpCreatorPreference ? { creatorPreference: pvpCreatorPreference } : {}),
-    });
+    const room = await ctx.createRoom(
+      mode,
+      variant,
+      engineId ?? ctx.pveBuiltinEngineClientId,
+      hiddenDraft960,
+      timeControl ?? undefined,
+      rated,
+      {
+        engineColor,
+        ...(pvpRandomSeating ? { randomSeating: true } : {}),
+        ...(pvpCreatorPreference ? { creatorPreference: pvpCreatorPreference } : {}),
+      },
+    );
     response.writeHead(201, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ roomId: room.id, url: `/room/${encodeURIComponent(room.id)}`, mode: room.mode }));
+    response.end(
+      JSON.stringify({
+        roomId: room.id,
+        url: `/room/${encodeURIComponent(room.id)}`,
+        mode: room.mode,
+      }),
+    );
     return;
   }
 
@@ -475,7 +522,8 @@ export async function handleApiRequest(
     if (!requireMethod(request, response, 'POST')) return;
     const body = await readJsonBody(request);
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
-    const timeControl = body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
+    const timeControl =
+      body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     const lobbyRated = body.rated === false ? false : true;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
@@ -595,7 +643,10 @@ export async function handleApiRequest(
       return;
     }
     if (summary.variant === 'draft960') {
-      writeJson(response, 501, { error: 'export_not_supported_for_variant', variant: summary.variant });
+      writeJson(response, 501, {
+        error: 'export_not_supported_for_variant',
+        variant: summary.variant,
+      });
       return;
     }
     if (format === 'pgn') {
@@ -668,10 +719,10 @@ export async function handleApiRequest(
 
   if (parsedUrl.pathname === '/api/leaderboard') {
     if (!requireMethod(request, response, 'GET')) return;
-    const variant = parseRatingVariant(parsedUrl.searchParams.get('variant'))
-      ?? DEFAULT_RATING_BUCKET.variant;
-    const timeClass = parseRatingTimeClass(parsedUrl.searchParams.get('time'))
-      ?? DEFAULT_RATING_BUCKET.timeClass;
+    const variant =
+      parseRatingVariant(parsedUrl.searchParams.get('variant')) ?? DEFAULT_RATING_BUCKET.variant;
+    const timeClass =
+      parseRatingTimeClass(parsedUrl.searchParams.get('time')) ?? DEFAULT_RATING_BUCKET.timeClass;
     const limitParam = parseInt(parsedUrl.searchParams.get('limit') ?? '100', 10);
     const limit = isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
     const entries = await persistence.getLeaderboard({ variant, timeClass, limit });
@@ -710,14 +761,16 @@ export async function handleApiRequest(
       ...(mode ? { mode } : {}),
     });
     response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({
-      games,
-      range: {
-        date: parsedUrl.searchParams.get('date'),
-        endedFrom: endedFrom.toISOString(),
-        endedTo: endedTo.toISOString(),
-      },
-    }));
+    response.end(
+      JSON.stringify({
+        games,
+        range: {
+          date: parsedUrl.searchParams.get('date'),
+          endedFrom: endedFrom.toISOString(),
+          endedTo: endedTo.toISOString(),
+        },
+      }),
+    );
     return;
   }
 
@@ -733,17 +786,16 @@ export async function handleApiRequest(
 }
 
 // ── Game data helpers ──────────────────────────────────────────────────────
-async function gameSummaryForApi(ctx: HttpApiContext, roomId: string): Promise<persistence.RecentEveGameRecord | null> {
-  const persisted = persistence.isInitialized()
-    ? await persistence.getGameSummary(roomId)
-    : null;
+async function gameSummaryForApi(
+  ctx: HttpApiContext,
+  roomId: string,
+): Promise<persistence.RecentEveGameRecord | null> {
+  const persisted = persistence.isInitialized() ? await persistence.getGameSummary(roomId) : null;
   return persisted ?? ctx.inMemoryGameSummary(roomId);
 }
 
 async function gameEventsForApi(ctx: HttpApiContext, roomId: string): Promise<GameEvent[] | null> {
-  const persisted = persistence.isInitialized()
-    ? await persistence.loadRoom(roomId)
-    : null;
+  const persisted = persistence.isInitialized() ? await persistence.loadRoom(roomId) : null;
   return persisted ?? ctx.rooms.get(roomId)?.events ?? null;
 }
 
@@ -763,11 +815,13 @@ async function gameReviewForApi(
     : [];
   const engineColors = engineParticipantColors(game);
   const hasEngineParticipant = engineColors.length > 0;
-  const beliefArtifacts = artifactSummaries.filter((artifact) => artifact.artifactType === 'belief-snapshot');
-  const traceArtifacts = artifactSummaries.filter((artifact) => (
-    artifact.artifactType === 'engine-move-choice'
-    || artifact.artifactType === 'trace-row'
-  ));
+  const beliefArtifacts = artifactSummaries.filter(
+    (artifact) => artifact.artifactType === 'belief-snapshot',
+  );
+  const traceArtifacts = artifactSummaries.filter(
+    (artifact) =>
+      artifact.artifactType === 'engine-move-choice' || artifact.artifactType === 'trace-row',
+  );
   const beliefColors = intersectionColors(engineColors, artifactColors(beliefArtifacts));
   const traceColors = intersectionColors(engineColors, artifactColors(traceArtifacts));
 
@@ -781,13 +835,21 @@ async function gameReviewForApi(
     },
     panels: {
       belief: {
-        available: canViewEngineArtifacts && hasEngineParticipant && beliefArtifacts.length > 0 && beliefColors.length > 0,
+        available:
+          canViewEngineArtifacts &&
+          hasEngineParticipant &&
+          beliefArtifacts.length > 0 &&
+          beliefColors.length > 0,
         defaultOpen: false,
         seats: beliefColors,
         snapshotKinds: uniqueStrings(beliefArtifacts.flatMap((artifact) => artifact.snapshotKinds)),
       },
       trace: {
-        available: canViewEngineArtifacts && hasEngineParticipant && traceArtifacts.length > 0 && traceColors.length > 0,
+        available:
+          canViewEngineArtifacts &&
+          hasEngineParticipant &&
+          traceArtifacts.length > 0 &&
+          traceColors.length > 0,
         defaultOpen: false,
         seats: traceColors,
       },
@@ -985,7 +1047,7 @@ export async function readJsonBody(request: IncomingMessage): Promise<Record<str
   if (chunks.length === 0) return {};
   const raw = Buffer.concat(chunks).toString('utf-8');
   const parsed = JSON.parse(raw) as unknown;
-  return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, unknown> : {};
+  return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
 }
 
 // ── Room and lobby helpers ─────────────────────────────────────────────────
@@ -1034,12 +1096,13 @@ async function joinLobby(
 ): Promise<LobbyTicket> {
   pruneLobbyTickets(ctx);
   const timeKey = timeControlKey(timeControl);
-  const matchedTicket = ctx.lobbyQueue.find((ticket) => (
-    ticket.roomId === null
-    && ticket.hiddenDraft960 === hiddenDraft960
-    && ticket.rated === rated
-    && timeControlKey(ticket.timeControl) === timeKey
-  ));
+  const matchedTicket = ctx.lobbyQueue.find(
+    (ticket) =>
+      ticket.roomId === null &&
+      ticket.hiddenDraft960 === hiddenDraft960 &&
+      ticket.rated === rated &&
+      timeControlKey(ticket.timeControl) === timeKey,
+  );
   const ticket: LobbyTicket = {
     id: randomUUID(),
     createdAt: Date.now(),
@@ -1058,7 +1121,15 @@ async function joinLobby(
 
   let room: Room;
   try {
-    room = await ctx.createRoom('pvp', 'fog-of-war', ctx.pveBuiltinEngineClientId, hiddenDraft960, timeControl, rated, { randomSeating: true });
+    room = await ctx.createRoom(
+      'pvp',
+      'fog-of-war',
+      ctx.pveBuiltinEngineClientId,
+      hiddenDraft960,
+      timeControl,
+      rated,
+      { randomSeating: true },
+    );
   } catch (err) {
     ctx.lobbyTickets.delete(ticket.id);
     throw err;
@@ -1100,10 +1171,12 @@ function lobbyTicketResponse(ticket: LobbyTicket): Record<string, unknown> {
     ticketId: ticket.id,
     status: ticket.roomId ? 'matched' : 'waiting',
     pollAfterMs: lobbyPollAfterMs,
-    ...(ticket.roomId ? {
-      roomId: ticket.roomId,
-      url: `/room/${encodeURIComponent(ticket.roomId)}`,
-    } : {}),
+    ...(ticket.roomId
+      ? {
+          roomId: ticket.roomId,
+          url: `/room/${encodeURIComponent(ticket.roomId)}`,
+        }
+      : {}),
   };
 }
 
@@ -1133,18 +1206,20 @@ function isHttpAdminAuthorized(request: IncomingMessage): boolean {
   const authorization = Array.isArray(request.headers.authorization)
     ? request.headers.authorization[0]
     : request.headers.authorization;
-  const token = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
+  const token = authorization?.startsWith('Bearer ')
+    ? authorization.slice('Bearer '.length)
+    : undefined;
   return isAdminDebugToken(token);
 }
 
 // ── Date/mode param parsers (admin API) ────────────────────────────────────
 function parseGameModeParam(value: string | null): persistence.GameMode | null {
   if (
-    value === 'pvp'
-    || value === 'pve'
-    || value === 'eve'
-    || value === 'imported'
-    || value === 'manual'
+    value === 'pvp' ||
+    value === 'pve' ||
+    value === 'eve' ||
+    value === 'imported' ||
+    value === 'manual'
   ) {
     return value;
   }

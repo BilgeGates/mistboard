@@ -11,12 +11,7 @@ import {
   type ConnectionState,
   type DevViews,
 } from './live-state.js';
-import {
-  initSocket,
-  connectSocket,
-  sendSocket,
-  reconnectNow,
-} from './live-socket.js';
+import { initSocket, connectSocket, sendSocket, reconnectNow } from './live-socket.js';
 import {
   initRender,
   render,
@@ -63,7 +58,11 @@ if (pageParams.get('reset') === '1') {
   clearSeatTokenForRoom(room);
   pageParams.delete('reset');
   const nextSearch = pageParams.toString();
-  window.history.replaceState(null, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+  window.history.replaceState(
+    null,
+    '',
+    `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`,
+  );
 }
 
 const socketParams = new URLSearchParams({ room });
@@ -91,12 +90,18 @@ initSocket({ render, reconcileInteractionState, maybePlaySnapshotSound });
 // ── Dev-only: ?conn= override for static visual checks of connection states ──
 
 const CONN_OVERRIDE_STATES: readonly ConnectionState[] = [
-  'connecting', 'connected', 'disconnected', 'reconnecting', 'displaced', 'rejected',
+  'connecting',
+  'connected',
+  'disconnected',
+  'reconnecting',
+  'displaced',
+  'rejected',
 ];
 const connParam = pageParams.get('conn');
-const connOverride = connParam && (CONN_OVERRIDE_STATES as readonly string[]).includes(connParam)
-  ? (connParam as ConnectionState)
-  : null;
+const connOverride =
+  connParam && (CONN_OVERRIDE_STATES as readonly string[]).includes(connParam)
+    ? (connParam as ConnectionState)
+    : null;
 
 if (connOverride) {
   liveState.connectionState = connOverride;

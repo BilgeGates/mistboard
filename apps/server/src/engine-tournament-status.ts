@@ -16,20 +16,30 @@ const format = args.format ?? process.env.ENGINE_TOURNAMENT_STATUS_FORMAT ?? 'js
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 });
 
 try {
-  const jobId = await resolveJobId(pool, args.jobId ?? process.env.ENGINE_QUEUE_JOB_ID ?? null, args.tournamentId ?? process.env.ENGINE_TOURNAMENT_ID ?? null);
+  const jobId = await resolveJobId(
+    pool,
+    args.jobId ?? process.env.ENGINE_QUEUE_JOB_ID ?? null,
+    args.tournamentId ?? process.env.ENGINE_TOURNAMENT_ID ?? null,
+  );
   const tournamentId = args.tournamentId ?? process.env.ENGINE_TOURNAMENT_ID ?? null;
   const rows = await loadTournamentRows(pool, { jobId, tournamentId });
   const report = buildTournamentReport(rows);
   if (format === 'markdown') {
     process.stdout.write(renderTournamentReportMarkdown(report));
   } else {
-    console.log(JSON.stringify({
-      level: 'info',
-      kind: 'engine_tournament_status',
-      jobId,
-      tournamentId,
-      ...report,
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          level: 'info',
+          kind: 'engine_tournament_status',
+          jobId,
+          tournamentId,
+          ...report,
+        },
+        null,
+        2,
+      ),
+    );
   }
 } finally {
   await pool.end();
@@ -46,7 +56,11 @@ type LoadOptions = {
   tournamentId: string | null;
 };
 
-async function resolveJobId(db: pg.Pool, jobId: string | null, tournamentId: string | null): Promise<string | null> {
+async function resolveJobId(
+  db: pg.Pool,
+  jobId: string | null,
+  tournamentId: string | null,
+): Promise<string | null> {
   if (jobId || tournamentId) return jobId;
   const { rows } = await db.query<{ id: string }>(
     `SELECT id
@@ -136,7 +150,8 @@ function parseArgs(values: string[]): StatusArgs {
     if (!value) throw new Error(`missing value for --${rawKey}`);
     switch (rawKey) {
       case 'format':
-        if (value !== 'json' && value !== 'markdown') throw new Error('--format must be json or markdown');
+        if (value !== 'json' && value !== 'markdown')
+          throw new Error('--format must be json or markdown');
         parsed.format = value;
         break;
       case 'job':

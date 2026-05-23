@@ -46,12 +46,15 @@ type DecisionWeightModes = {
     uniform_distinct?: string | null;
   };
   winner_disagreement: boolean;
-  modes: Record<string, Array<{
-    uci: string;
-    score: number;
-    support_mass: number;
-    support_clusters: number;
-  }>>;
+  modes: Record<
+    string,
+    Array<{
+      uci: string;
+      score: number;
+      support_mass: number;
+      support_clusters: number;
+    }>
+  >;
 };
 
 type LatentDangerProbe = {
@@ -238,7 +241,9 @@ export function createBeliefPanel(): BeliefPanelHandle {
   const urlParams = new URLSearchParams(window.location.search);
   const initialSelectedSquare = urlParams.get('square');
   const initialSelectedSeat = urlParams.get('beliefSeat') ?? urlParams.get('seat');
-  const initialSelectedKind = parseSnapshotKind(urlParams.get('beliefKind') ?? urlParams.get('snapshot') ?? urlParams.get('kind'));
+  const initialSelectedKind = parseSnapshotKind(
+    urlParams.get('beliefKind') ?? urlParams.get('snapshot') ?? urlParams.get('kind'),
+  );
   const el = document.createElement('section');
   el.className = 'belief-panel';
 
@@ -283,7 +288,9 @@ export function createBeliefPanel(): BeliefPanelHandle {
   let traceRows: TraceRow[] = [];
   let selectedSeat: string | null = null;
   let selectedKind: SnapshotKind | null = null;
-  let selectedSquare: string | null = isSquareName(initialSelectedSquare) ? initialSelectedSquare : null;
+  let selectedSquare: string | null = isSquareName(initialSelectedSquare)
+    ? initialSelectedSquare
+    : null;
   let lastPly = 0;
 
   kindSelect.addEventListener('change', () => {
@@ -294,12 +301,14 @@ export function createBeliefPanel(): BeliefPanelHandle {
   function setRows(nextRows: BeliefRow[]): void {
     rows = nextRows;
     selectedSquare = isSquareName(initialSelectedSquare) ? initialSelectedSquare : null;
-    selectedSeat = initialSelectedSeat && rows.some((row) => row.tier1_seat === initialSelectedSeat)
-      ? initialSelectedSeat
-      : rows[0]?.tier1_seat ?? null;
-    selectedKind = initialSelectedKind && rows.some((row) => row.snapshot_kind === initialSelectedKind)
-      ? initialSelectedKind
-      : null;
+    selectedSeat =
+      initialSelectedSeat && rows.some((row) => row.tier1_seat === initialSelectedSeat)
+        ? initialSelectedSeat
+        : (rows[0]?.tier1_seat ?? null);
+    selectedKind =
+      initialSelectedKind && rows.some((row) => row.snapshot_kind === initialSelectedKind)
+        ? initialSelectedKind
+        : null;
   }
 
   function setTraceRows(nextRows: TraceRow[]): void {
@@ -321,7 +330,9 @@ export function createBeliefPanel(): BeliefPanelHandle {
     if (!row) {
       status.textContent = `${selectedSeat ?? 'seat'} · no snapshot at ply ${ply}`;
       board.replaceChildren();
-      meta.replaceChildren(emptyLine('Engine did not emit a belief row for the selected seat at this ply.'));
+      meta.replaceChildren(
+        emptyLine('Engine did not emit a belief row for the selected seat at this ply.'),
+      );
       squareDetail.replaceChildren();
       clusters.replaceChildren();
       return;
@@ -350,8 +361,14 @@ export function createBeliefPanel(): BeliefPanelHandle {
       const entries = row.marginal_field[sq] ?? [];
       const isHardOppOccupancy = hardOppOccupancySquares(row).has(sq);
       const squarePieceFacts = hardPieceFacts.get(sq) ?? [];
-      const oppMass = massFor(entries, (entry) => entry.piece !== null && entry.color !== row.tier1_side);
-      const ownMass = massFor(entries, (entry) => entry.piece !== null && entry.color === row.tier1_side);
+      const oppMass = massFor(
+        entries,
+        (entry) => entry.piece !== null && entry.color !== row.tier1_side,
+      );
+      const ownMass = massFor(
+        entries,
+        (entry) => entry.piece !== null && entry.color === row.tier1_side,
+      );
       const emptyMass = massFor(entries, (entry) => entry.piece === null);
       btn.style.setProperty('--opp-alpha', String(Math.min(0.86, oppMass)));
       btn.style.setProperty('--own-alpha', String(Math.min(0.62, ownMass)));
@@ -361,9 +378,7 @@ export function createBeliefPanel(): BeliefPanelHandle {
       btn.classList.toggle('hard-piece-fact', squarePieceFacts.length > 0);
       btn.title = `${sq}: opp ${pct(oppMass)}, own ${pct(ownMass)}, empty ${pct(emptyMass)}${
         isHardOppOccupancy ? ' · hard fact: hidden opponent occupancy' : ''
-      }${
-        squarePieceFacts.length > 0 ? ` · hard fact: ${squarePieceFacts.join(', ')}` : ''
-      }`;
+      }${squarePieceFacts.length > 0 ? ` · hard fact: ${squarePieceFacts.join(', ')}` : ''}`;
 
       const coord = document.createElement('span');
       coord.className = 'belief-square-coord';
@@ -454,7 +469,8 @@ export function createBeliefPanel(): BeliefPanelHandle {
       if (idx === 0) item.open = true;
       const summary = document.createElement('summary');
       summary.textContent = `#${idx + 1} ${pct(cluster.weight)} (${cluster.particle_count})`;
-      const fenText = typeof cluster.fen === 'string' && cluster.fen.length > 0 ? cluster.fen : null;
+      const fenText =
+        typeof cluster.fen === 'string' && cluster.fen.length > 0 ? cluster.fen : null;
       if (!fenText) {
         item.append(summary, emptyLine('No cluster FEN recorded.'));
         clusters.append(item);
@@ -508,7 +524,11 @@ function renderBeliefHealth(row: BeliefRow, trace: TraceRow | null): HTMLElement
     });
   }
 
-  if (trace.chosen_move_piece_capture_risk !== undefined && trace.chosen_piece_value && trace.chosen_piece_value > 1) {
+  if (
+    trace.chosen_move_piece_capture_risk !== undefined &&
+    trace.chosen_piece_value &&
+    trace.chosen_piece_value > 1
+  ) {
     const risk = trace.chosen_move_piece_capture_risk;
     overview.push({
       label: 'Piece risk',
@@ -571,8 +591,11 @@ function stageCardLines(stage: 'A' | 'B', trace: TraceRow): HealthDatum[] {
           trace.stage_a_repair_ms ? `repair ${fmtMs(trace.stage_a_repair_ms)}` : '',
           trace.stage_a_csp_ms ? `csp ${fmtMs(trace.stage_a_csp_ms)}` : '',
           trace.stage_a_resample_ms ? `sample ${fmtMs(trace.stage_a_resample_ms)}` : '',
-        ].filter(Boolean).join(' · '),
-        severity: trace.stage_a_elapsed_ms > 100 ? 'bad' : trace.stage_a_elapsed_ms > 25 ? 'warn' : 'ok',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        severity:
+          trace.stage_a_elapsed_ms > 100 ? 'bad' : trace.stage_a_elapsed_ms > 25 ? 'warn' : 'ok',
       });
     }
     return lines;
@@ -616,8 +639,11 @@ function stageCardLines(stage: 'A' | 'B', trace: TraceRow): HealthDatum[] {
         trace.stage_b_repair_ms ? `repair ${fmtMs(trace.stage_b_repair_ms)}` : '',
         trace.stage_b_csp_ms ? `csp ${fmtMs(trace.stage_b_csp_ms)}` : '',
         trace.stage_b_resample_ms ? `sample ${fmtMs(trace.stage_b_resample_ms)}` : '',
-      ].filter(Boolean).join(' · '),
-      severity: trace.stage_b_elapsed_ms > 750 ? 'bad' : trace.stage_b_elapsed_ms > 50 ? 'warn' : 'ok',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      severity:
+        trace.stage_b_elapsed_ms > 750 ? 'bad' : trace.stage_b_elapsed_ms > 50 ? 'warn' : 'ok',
     });
   }
   return lines;
@@ -637,10 +663,9 @@ function recoveryCardLines(trace: TraceRow): HealthDatum[] {
     });
   }
   if (trace.repair_fired || trace.repair_stage_a || trace.repair_stage_b) {
-    const stages = [
-      trace.repair_stage_a ? 'A' : '',
-      trace.repair_stage_b ? 'B' : '',
-    ].filter(Boolean);
+    const stages = [trace.repair_stage_a ? 'A' : '', trace.repair_stage_b ? 'B' : ''].filter(
+      Boolean,
+    );
     lines.push({
       label: 'Repair',
       value: `${stages.join('+') || 'yes'} · ${trace.repair_count ?? 0} particles`,
@@ -671,7 +696,10 @@ function recoveryCardLines(trace: TraceRow): HealthDatum[] {
     lines.push({
       label: 'Repair cost',
       value: `max ${trace.repair_cost_max ?? 0} · teleports ${trace.repair_teleport_like_count ?? 0} · long ${trace.repair_long_move_count ?? 0}`,
-      severity: (trace.repair_teleport_like_count ?? 0) > 0 || (trace.repair_cost_max ?? 0) >= 80 ? 'bad' : 'warn',
+      severity:
+        (trace.repair_teleport_like_count ?? 0) > 0 || (trace.repair_cost_max ?? 0) >= 80
+          ? 'bad'
+          : 'warn',
     });
   }
   if (trace.repair_worst_piece && trace.repair_worst_from && trace.repair_worst_to) {
@@ -709,15 +737,16 @@ function latentDangerLinesFor(row: BeliefRow, trace: TraceRow | null): HealthDat
       ? `blocks ${actionable.slice(0, 3).join(',')}`
       : probe.blocking_moves?.length
         ? `only ${probe.blocking_moves.slice(0, 3).join(',')}`
-      : probe.blocking_squares?.length
-        ? `squares ${probe.blocking_squares.slice(0, 3).join(',')}`
-        : 'no blocker';
+        : probe.blocking_squares?.length
+          ? `squares ${probe.blocking_squares.slice(0, 3).join(',')}`
+          : 'no blocker';
     const kingTarget = probe.target_piece.toUpperCase() === 'K';
     const queenDanger = probe.danger_piece.toLowerCase() === 'q';
     return {
       label: `${danger} -> ${target}`,
       value: `${pct(probe.belief_mass)} belief · ${blockers}`,
-      severity: kingTarget && queenDanger && actionable.length && probe.belief_mass < 0.05 ? 'bad' : 'warn',
+      severity:
+        kingTarget && queenDanger && actionable.length && probe.belief_mass < 0.05 ? 'bad' : 'warn',
     };
   });
 }
@@ -747,7 +776,12 @@ function decisionWeightModeLines(trace: TraceRow, row: BeliefRow): HealthDatum[]
       lines.push({
         label: 'Sample',
         value: `${selected}/${total} worlds`,
-        severity: selected > 0 && total >= selected * 8 ? 'bad' : selected > 0 && total >= selected * 4 ? 'warn' : 'ok',
+        severity:
+          selected > 0 && total >= selected * 8
+            ? 'bad'
+            : selected > 0 && total >= selected * 4
+              ? 'warn'
+              : 'ok',
       });
     }
 
@@ -756,7 +790,8 @@ function decisionWeightModeLines(trace: TraceRow, row: BeliefRow): HealthDatum[]
       lines.push({
         label: 'Posterior top',
         value: `${posteriorTop.uci} · ${fmtScore(posteriorTop.score)} · ${pct(posteriorTop.support_mass)} · ${posteriorTop.support_clusters} worlds`,
-        severity: posteriorTop.support_mass < 0.25 || posteriorTop.support_clusters <= 2 ? 'warn' : 'ok',
+        severity:
+          posteriorTop.support_mass < 0.25 || posteriorTop.support_clusters <= 2 ? 'warn' : 'ok',
       });
     }
 
@@ -775,7 +810,11 @@ function decisionWeightModeLines(trace: TraceRow, row: BeliefRow): HealthDatum[]
     const posteriorTop1Mass = finiteNumber(summary?.posterior_top1_mass);
     const appearanceTop1Mass = finiteNumber(summary?.appearance_top1_mass);
     const effectiveClusterCount = finiteNumber(summary?.effective_cluster_count);
-    if (posteriorTop1Mass !== null && appearanceTop1Mass !== null && effectiveClusterCount !== null) {
+    if (
+      posteriorTop1Mass !== null &&
+      appearanceTop1Mass !== null &&
+      effectiveClusterCount !== null
+    ) {
       lines.push({
         label: 'Cluster mass',
         value: `top ${pct(posteriorTop1Mass)} P · ${pct(appearanceTop1Mass)} A · eff ${effectiveClusterCount.toFixed(1)}`,
@@ -836,15 +875,20 @@ function renderTopMoveScores(scores: TraceScore[]): HTMLElement {
 
 function traceForBeliefRow(row: BeliefRow, traces: TraceRow[]): TraceRow | null {
   const tracePly =
-    row.snapshot_kind === 'after-own-move' ? row.ply + 2
-    : row.snapshot_kind === 'after-opp-move' ? row.ply + 1
-    : row.ply;
-  return traces.find((trace) =>
-    trace.game_index === row.game_index
-    && trace.ply === tracePly
-    && trace.tier1_side === row.tier1_side
-    && (!trace.tier1_seat || trace.tier1_seat === row.tier1_seat)
-  ) ?? null;
+    row.snapshot_kind === 'after-own-move'
+      ? row.ply + 2
+      : row.snapshot_kind === 'after-opp-move'
+        ? row.ply + 1
+        : row.ply;
+  return (
+    traces.find(
+      (trace) =>
+        trace.game_index === row.game_index &&
+        trace.ply === tracePly &&
+        trace.tier1_side === row.tier1_side &&
+        (!trace.tier1_seat || trace.tier1_seat === row.tier1_seat),
+    ) ?? null
+  );
 }
 
 function healthSeverity(pre: number | undefined, post: number | undefined): 'ok' | 'warn' | 'bad' {
@@ -916,7 +960,9 @@ function renderHardFacts(
   }
   for (const fact of pieceFacts) {
     const sq = fact.split(':', 1)[0];
-    const chip = isSquareName(sq) ? document.createElement('button') : document.createElement('span');
+    const chip = isSquareName(sq)
+      ? document.createElement('button')
+      : document.createElement('span');
     if (chip instanceof HTMLButtonElement) {
       chip.type = 'button';
       chip.addEventListener('click', () => onSelectSquare(sq));
@@ -953,25 +999,23 @@ function rowForPly(
   kind: SnapshotKind | null,
 ): BeliefRow | null {
   const exact = rows.filter((row) => row.ply === ply);
-  const candidates = seat === null
-    ? exact
-    : exact.filter((row) => row.tier1_seat === seat);
+  const candidates = seat === null ? exact : exact.filter((row) => row.tier1_seat === seat);
   if (kind !== null) {
     const selected = candidates.find((row) => row.snapshot_kind === kind);
     if (selected) return selected;
   }
   return (
-    candidates.find((row) => row.snapshot_kind === preferredSnapshotKind(snapshotKinds(candidates)))
-    ?? candidates[0]
-    ?? null
+    candidates.find(
+      (row) => row.snapshot_kind === preferredSnapshotKind(snapshotKinds(candidates)),
+    ) ??
+    candidates[0] ??
+    null
   );
 }
 
 function snapshotKindsFor(rows: BeliefRow[], ply: number, seat: string | null): SnapshotKind[] {
   const exact = rows.filter((row) => row.ply === ply);
-  const candidates = seat === null
-    ? exact
-    : exact.filter((row) => row.tier1_seat === seat);
+  const candidates = seat === null ? exact : exact.filter((row) => row.tier1_seat === seat);
   return snapshotKinds(candidates);
 }
 
@@ -980,16 +1024,17 @@ function snapshotKinds(rows: BeliefRow[]): SnapshotKind[] {
   for (const row of rows) {
     if (row.snapshot_kind) found.add(row.snapshot_kind);
   }
-  return (['after-own-move', 'after-opp-move', 'decision'] as SnapshotKind[])
-    .filter((kind) => found.has(kind));
+  return (['after-own-move', 'after-opp-move', 'decision'] as SnapshotKind[]).filter((kind) =>
+    found.has(kind),
+  );
 }
 
 function preferredSnapshotKind(kinds: SnapshotKind[]): SnapshotKind | null {
   return (
-    kinds.find((kind) => kind === 'after-own-move')
-    ?? kinds.find((kind) => kind === 'after-opp-move')
-    ?? kinds.find((kind) => kind === 'decision')
-    ?? null
+    kinds.find((kind) => kind === 'after-own-move') ??
+    kinds.find((kind) => kind === 'after-opp-move') ??
+    kinds.find((kind) => kind === 'decision') ??
+    null
   );
 }
 
@@ -1027,9 +1072,7 @@ function massFor(entries: BeliefPieceEntry[], pred: (entry: BeliefPieceEntry) =>
 }
 
 function topPiece(entries: BeliefPieceEntry[]): BeliefPieceEntry | null {
-  return entries
-    .filter((entry) => entry.piece !== null)
-    .sort((a, b) => b.prob - a.prob)[0] ?? null;
+  return entries.filter((entry) => entry.piece !== null).sort((a, b) => b.prob - a.prob)[0] ?? null;
 }
 
 function pct(n: number): string {

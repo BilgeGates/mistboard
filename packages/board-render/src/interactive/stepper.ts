@@ -87,7 +87,10 @@ export type StepperController = {
   destroy: () => void;
 };
 
-export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions): StepperController {
+export function mountSteppedBoards(
+  host: HTMLElement,
+  opts: SteppedBoardsOptions,
+): StepperController {
   const expectedBoards = boardsInLayout(opts.layout);
   if (opts.positions.length === 0) {
     throw new Error('Stepper requires at least one position');
@@ -132,7 +135,13 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
       coordinatesOnSquares: false,
       fen: boardFen(visibleBoard(initial.board, initialFog)),
       orientation: initial.orientation ?? 'white',
-      highlight: { custom: fogSquareClasses(initialFog, initial.highlightSquares ?? [], initial.orientation ?? 'white') },
+      highlight: {
+        custom: fogSquareClasses(
+          initialFog,
+          initial.highlightSquares ?? [],
+          initial.orientation ?? 'white',
+        ),
+      },
       movable: { free: false, color: undefined, dests: new Map() },
       draggable: { enabled: false },
       selectable: { enabled: false },
@@ -176,7 +185,9 @@ export function mountSteppedBoards(host: HTMLElement, opts: SteppedBoardsOptions
       cell.api.set({
         fen: boardFen(visibleBoard(spec.board, fog)),
         orientation: spec.orientation ?? 'white',
-        highlight: { custom: fogSquareClasses(fog, spec.highlightSquares ?? [], spec.orientation ?? 'white') },
+        highlight: {
+          custom: fogSquareClasses(fog, spec.highlightSquares ?? [], spec.orientation ?? 'white'),
+        },
         drawable: { enabled: false, shapes: toShapes(spec.arrows) },
       });
     }

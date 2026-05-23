@@ -69,7 +69,11 @@ export function broadcastRematchState(orch: RematchOrchestrator, room: Room): vo
   }
 }
 
-export function offerRematch(orch: RematchOrchestrator, room: Room, client: Client): { ok: boolean; reason?: string } {
+export function offerRematch(
+  orch: RematchOrchestrator,
+  room: Room,
+  client: Client,
+): { ok: boolean; reason?: string } {
   if (!isRematchAllowed(room)) return { ok: false, reason: 'not_allowed' };
   const token = activeSeatTokenForClient(room, client);
   if (!token) return { ok: false, reason: 'not_seated' };
@@ -101,7 +105,10 @@ export function declineRematch(orch: RematchOrchestrator, room: Room, client: Cl
   broadcastRematchState(orch, room);
 }
 
-function identitiesMatch(originalToken: SeatTokenState, offer: { tokenHash: string; userId: string | null }): boolean {
+function identitiesMatch(
+  originalToken: SeatTokenState,
+  offer: { tokenHash: string; userId: string | null },
+): boolean {
   // Token hash must still match (no rotation happened) AND if either side is
   // account-bound, the userId must match the offer's recorded userId.
   if (originalToken.tokenHash !== offer.tokenHash) return false;
@@ -192,7 +199,11 @@ export async function finalizeRematchIfReady(
 // Replays a previously-finalized redirect to a single client. Called on
 // reconnect after a rematch finalize so a player who was offline at finalize
 // time still gets routed to the new room.
-export function maybeReplayRematchRedirect(orch: RematchOrchestrator, room: Room, client: Client): void {
+export function maybeReplayRematchRedirect(
+  orch: RematchOrchestrator,
+  room: Room,
+  client: Client,
+): void {
   if (client.seat !== 'white' && client.seat !== 'black') return;
   const pending = room.rematch.pendingRedirects?.[client.seat];
   if (!pending) return;

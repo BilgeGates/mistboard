@@ -94,13 +94,19 @@ try {
 
   // Output: table + summary.
   process.stdout.write('# Snapshot bandwidth measurement\n');
-  process.stdout.write(`# server: in-memory persistence, fog-of-war PvP, ${perMove.length} plies played\n`);
+  process.stdout.write(
+    `# server: in-memory persistence, fog-of-war PvP, ${perMove.length} plies played\n`,
+  );
   process.stdout.write('# wire format: event-appended (incremental snapshot protocol)\n');
   process.stdout.write('# bytes are raw JSON length of WS frames received per client\n');
   process.stdout.write('#\n');
-  process.stdout.write('ply,mover,white_frame_bytes,black_frame_bytes,white_cumulative,black_cumulative\n');
+  process.stdout.write(
+    'ply,mover,white_frame_bytes,black_frame_bytes,white_cumulative,black_cumulative\n',
+  );
   for (const row of perMove) {
-    process.stdout.write(`${row.ply},${row.mover},${row.whiteBytes},${row.blackBytes},${row.whiteCumulative},${row.blackCumulative}\n`);
+    process.stdout.write(
+      `${row.ply},${row.mover},${row.whiteBytes},${row.blackBytes},${row.whiteCumulative},${row.blackCumulative}\n`,
+    );
   }
   process.stdout.write('\n# Summary\n');
   const totalWhite = white.cumulativeBytes;
@@ -117,9 +123,13 @@ try {
   process.stdout.write(`# total white ingress: ${totalWhite} bytes\n`);
   process.stdout.write(`# total black ingress: ${totalBlack} bytes\n`);
   process.stdout.write(`# combined: ${totalCombined} bytes\n`);
-  process.stdout.write(`# last-frame size (white+black) at ply ${lastRow?.ply}: ${lastRow ? lastRow.whiteBytes + lastRow.blackBytes : 'n/a'} bytes\n`);
+  process.stdout.write(
+    `# last-frame size (white+black) at ply ${lastRow?.ply}: ${lastRow ? lastRow.whiteBytes + lastRow.blackBytes : 'n/a'} bytes\n`,
+  );
   if (avgFrameLastQuarter !== null) {
-    process.stdout.write(`# average frame size (white+black) over last quarter of game: ${avgFrameLastQuarter} bytes\n`);
+    process.stdout.write(
+      `# average frame size (white+black) over last quarter of game: ${avgFrameLastQuarter} bytes\n`,
+    );
   }
 
   white.socket.close();
@@ -212,11 +222,12 @@ async function waitForOwnTurn(client) {
   while (Date.now() - started < 3000) {
     const m = lastFrame(client);
     if (
-      m
-      && m.state.status.type === 'playing'
-      && m.state.status.turn === m.seat
-      && (m.state.legalMoves?.length ?? 0) > 0
-    ) return;
+      m &&
+      m.state.status.type === 'playing' &&
+      m.state.status.turn === m.seat &&
+      (m.state.legalMoves?.length ?? 0) > 0
+    )
+      return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error(`timed out waiting for own turn (seat=${client.seat})`);

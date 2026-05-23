@@ -1,9 +1,4 @@
-import {
-  algebraicMoveLabels,
-  type Color,
-  type GameEvent,
-  type Move,
-} from '@mistboard/game';
+import { algebraicMoveLabels, type Color, type GameEvent, type Move } from '@mistboard/game';
 import type { RecentEveGameRecord } from './persistence.js';
 
 const SCHEMA_VERSION = '1.0';

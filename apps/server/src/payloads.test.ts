@@ -55,7 +55,10 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
   };
   const room: SnapshotRoom = {
     id: 'fog-payload',
-    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
+    clients: new Set([
+      { seat: 'white', displaced: false },
+      { seat: 'black', displaced: false },
+    ]),
     events,
     projection,
   };
@@ -87,7 +90,10 @@ test('live Fog of War spectator payload has no board or move events', () => {
   assert.deepEqual(payload.state.board, {});
   assert.deepEqual(payload.state.visibleSquares, []);
   assert.deepEqual(payload.state.legalMoves, []);
-  assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played'),
+    false,
+  );
 });
 
 test('live Fog of War seated payload exposes own last move and own move event', () => {
@@ -102,13 +108,15 @@ test('live Fog of War seated payload exposes own last move and own move event', 
   assert.deepEqual(payload.state.lastMove, { from: 'e2', to: 'e4' });
   assert.deepEqual(
     payload.events.filter((event) => event.type === 'move-played'),
-    [{
-      type: 'move-played',
-      at: 2,
-      roomId: 'fog-last-move-payload',
-      color: 'white',
-      move: { from: 'e2', to: 'e4' },
-    }],
+    [
+      {
+        type: 'move-played',
+        at: 2,
+        roomId: 'fog-last-move-payload',
+        color: 'white',
+        move: { from: 'e2', to: 'e4' },
+      },
+    ],
   );
 });
 
@@ -123,7 +131,10 @@ test('live Fog of War seated payload does not expose opponent last-move coordina
 
   assert.deepEqual(payload.state.board.e4, { color: 'white', role: 'pawn' });
   assert.equal(payload.state.lastMove, undefined);
-  assert.equal(payload.events.some((event) => event.type === 'move-played'), false);
+  assert.equal(
+    payload.events.some((event) => event.type === 'move-played'),
+    false,
+  );
 });
 
 test('live Fog Draft960 payload hides opponent offer and selection', () => {
@@ -182,7 +193,10 @@ test('live Fog Draft960 payload hides opponent offer and selection', () => {
   ];
   const room: SnapshotRoom = {
     id: 'fog-draft-payload',
-    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
+    clients: new Set([
+      { seat: 'white', displaced: false },
+      { seat: 'black', displaced: false },
+    ]),
     events,
     projection: replayGameEvents(events),
   };
@@ -196,15 +210,26 @@ test('live Fog Draft960 payload hides opponent offer and selection', () => {
   const visibleEventTypes = payload.events.map((event) => event.type);
   const roomCreated = payload.events.find((event) => event.type === 'room-created');
 
-  assert.deepEqual(payload.offer.map((start) => start.id), whiteOffer.map((start) => start.id));
+  assert.deepEqual(
+    payload.offer.map((start) => start.id),
+    whiteOffer.map((start) => start.id),
+  );
   assert.deepEqual(payload.offers, { white: whiteOffer });
   assert.deepEqual(payload.selections, { white: whiteOffer[1]!.id });
   assert.equal(payload.resolvedStartId, null);
   assert.deepEqual(payload.resolvedStartIds, { white: whiteOffer[1]!.id });
-  assert.deepEqual(visibleEventTypes, ['room-created', 'seat-assigned', 'seat-assigned', 'draft-start-selected']);
+  assert.deepEqual(visibleEventTypes, [
+    'room-created',
+    'seat-assigned',
+    'seat-assigned',
+    'draft-start-selected',
+  ]);
   assert.equal(roomCreated?.type, 'room-created');
   if (roomCreated?.type === 'room-created') {
-    assert.deepEqual(roomCreated.offer.map((start) => start.id), whiteOffer.map((start) => start.id));
+    assert.deepEqual(
+      roomCreated.offer.map((start) => start.id),
+      whiteOffer.map((start) => start.id),
+    );
     assert.deepEqual(roomCreated.offers, { white: whiteOffer });
   }
 
@@ -253,7 +278,11 @@ test('live fog spectator payload is empty regardless of mode (PvP, PvE, EvE)', (
     assert.deepEqual(payload.state.board, {}, `${label} board not empty`);
     assert.deepEqual(payload.state.visibleSquares, [], `${label} visibleSquares not empty`);
     assert.deepEqual(payload.state.legalMoves, [], `${label} legalMoves not empty`);
-    assert.equal(payload.events.some((event) => event.type === 'move-played'), false, `${label} leaked move-played`);
+    assert.equal(
+      payload.events.some((event) => event.type === 'move-played'),
+      false,
+      `${label} leaked move-played`,
+    );
   }
 });
 
@@ -263,33 +292,44 @@ test('live fog replay API returns 403 for every mode', () => {
     seats: { white: 'human-white', black: 'random-engine' },
     mode: 'pve',
   });
-  assert.deepEqual(eventReplayResponse(pveRoom.events), { status: 403, body: { error: 'game_not_public' } });
+  assert.deepEqual(eventReplayResponse(pveRoom.events), {
+    status: 403,
+    body: { error: 'game_not_public' },
+  });
 
   const eveRoom = replayRoomFixture({
     roomId: 'eve-policy-alignment',
     seats: { white: 'engine:white', black: 'engine:black' },
     mode: 'eve',
   });
-  assert.deepEqual(eventReplayResponse(eveRoom.events), { status: 403, body: { error: 'game_not_public' } });
+  assert.deepEqual(eventReplayResponse(eveRoom.events), {
+    status: 403,
+    body: { error: 'game_not_public' },
+  });
 
   const pvpRoom = replayRoomFixture({
     roomId: 'pvp-policy-alignment',
     seats: { white: 'human-white', black: 'human-black' },
     mode: 'pvp',
   });
-  assert.deepEqual(eventReplayResponse(pvpRoom.events), { status: 403, body: { error: 'game_not_public' } });
+  assert.deepEqual(eventReplayResponse(pvpRoom.events), {
+    status: 403,
+    body: { error: 'game_not_public' },
+  });
 });
 
 test('finished Fog of War payload exposes full-truth replay', () => {
   const room = fogRoomFixture({
     status: { type: 'finished', winner: 'white', reason: 'king-captured' },
   });
-  const payload = JSON.stringify(snapshotPayload(room, {
-    devViews: false,
-    id: 'spectator-client',
-    seat: 'spectator',
-    solo: false,
-  }));
+  const payload = JSON.stringify(
+    snapshotPayload(room, {
+      devViews: false,
+      id: 'spectator-client',
+      seat: 'spectator',
+      solo: false,
+    }),
+  );
 
   assert.match(payload, /"move-played"/);
   assert.match(payload, /"h8"/);
@@ -324,7 +364,11 @@ test('regular Fog of War payload does not include dev views', () => {
   assert.equal(payload.devViews, null);
 });
 
-function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.createInitialState>['status'] }): SnapshotRoom {
+function fogRoomFixture({
+  status,
+}: {
+  status: ReturnType<typeof fogOfWarVariant.createInitialState>['status'];
+}): SnapshotRoom {
   const state = {
     ...fogOfWarVariant.createInitialState('fog-payload'),
     board: {
@@ -369,7 +413,10 @@ function fogRoomFixture({ status }: { status: ReturnType<typeof fogOfWarVariant.
   };
   return {
     id: 'fog-payload',
-    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
+    clients: new Set([
+      { seat: 'white', displaced: false },
+      { seat: 'black', displaced: false },
+    ]),
     events,
     projection,
   };
@@ -406,7 +453,10 @@ function lastMoveRoomFixture(): SnapshotRoom {
   ];
   return {
     id: 'fog-last-move-payload',
-    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }]),
+    clients: new Set([
+      { seat: 'white', displaced: false },
+      { seat: 'black', displaced: false },
+    ]),
     events,
     projection: {
       roomId: 'fog-last-move-payload',
@@ -418,9 +468,9 @@ function lastMoveRoomFixture(): SnapshotRoom {
       selections: {},
       resolvedStartId: null,
       resolvedStartIds: {},
-    paused: false,
-    pausedAt: null,
-    pauseReason: null,
+      paused: false,
+      pausedAt: null,
+      pauseReason: null,
     },
   };
 }
@@ -445,7 +495,11 @@ function replayRoomFixture({
   ];
   return {
     id: roomId,
-    clients: new Set([{ seat: 'white', displaced: false }, { seat: 'black', displaced: false }, { seat: 'spectator', displaced: false }]),
+    clients: new Set([
+      { seat: 'white', displaced: false },
+      { seat: 'black', displaced: false },
+      { seat: 'spectator', displaced: false },
+    ]),
     events,
     mode,
     projection: replayGameEvents(events),
@@ -461,4 +515,3 @@ function spectatorClient(): SnapshotClient {
     solo: false,
   };
 }
-

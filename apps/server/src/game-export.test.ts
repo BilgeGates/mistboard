@@ -18,8 +18,20 @@ function fixtureGame(): { summary: RecentEveGameRecord; events: GameEvent[] } {
       offer: [],
       timeControl: { initialMs: 60000, incrementMs: 1000 },
     },
-    { type: 'seat-assigned', at: 1, roomId: 'fixture-room', clientId: 'white-client', seat: 'white' },
-    { type: 'seat-assigned', at: 1, roomId: 'fixture-room', clientId: 'black-client', seat: 'black' },
+    {
+      type: 'seat-assigned',
+      at: 1,
+      roomId: 'fixture-room',
+      clientId: 'white-client',
+      seat: 'white',
+    },
+    {
+      type: 'seat-assigned',
+      at: 1,
+      roomId: 'fixture-room',
+      clientId: 'black-client',
+      seat: 'black',
+    },
     {
       type: 'move-played',
       at: 2,
@@ -194,10 +206,7 @@ test('JSON handles null player handles', () => {
 
 test('time control label degrades when missing', () => {
   const { summary, events } = fixtureGame();
-  const payload = buildGamePublicationJson(
-    { ...summary, timeControl: null },
-    events,
-  );
+  const payload = buildGamePublicationJson({ ...summary, timeControl: null }, events);
   assert.equal(payload.time_control.initial_ms, null);
   assert.equal(payload.time_control.increment_ms, null);
   assert.equal(payload.time_control.label, 'untimed');

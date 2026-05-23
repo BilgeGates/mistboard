@@ -16,7 +16,12 @@ import {
   type PlayerView,
   type Square,
 } from '@mistboard/game';
-import { boardFen, fogHiddenClass, hiddenSquareClasses, pieceFen } from '@mistboard/board-render/interactive';
+import {
+  boardFen,
+  fogHiddenClass,
+  hiddenSquareClasses,
+  pieceFen,
+} from '@mistboard/board-render/interactive';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
@@ -110,7 +115,9 @@ export type ReplayOptions = {
    * landing hero, which shows one player's POV instead of the review triptych.
    * Returning 'all' from the resolver shows all three.
    */
-  panes?: 'all' | { resolver: (sampleId: string, meta: GameMeta | undefined) => 'white' | 'black' | 'all' };
+  panes?:
+    | 'all'
+    | { resolver: (sampleId: string, meta: GameMeta | undefined) => 'white' | 'black' | 'all' };
   /** When true, suppress the compact-mode game id pill (room slug). */
   hideGameIdPill?: boolean;
   /**
@@ -223,9 +230,10 @@ export async function mountReplay(
 
   // 'header' mode renders metadata as a horizontal strip above the boards instead
   // of as a side-rail panel, so the boards can use the full content width.
-  const gameMetaPanel = metadataByRoomId && metadataMode !== 'header'
-    ? createGameMetaPanel(metadataMode === 'compact' ? 'compact' : 'full', { hideGameIdPill })
-    : null;
+  const gameMetaPanel =
+    metadataByRoomId && metadataMode !== 'header'
+      ? createGameMetaPanel(metadataMode === 'compact' ? 'compact' : 'full', { hideGameIdPill })
+      : null;
   if (gameMetaPanel) root.append(gameMetaPanel.el);
   if (movesPanel) root.append(movesPanel.el);
   const clockPanel = createClockPanel();
@@ -234,7 +242,10 @@ export async function mountReplay(
   // pane so we can move the clock rows when the visible pane changes across
   // looped games.
   let compactClockHost: { boardEl: HTMLDivElement; clockSlot: HTMLDivElement } | null = null;
-  function relocateCompactClockRows(host: { boardEl: HTMLDivElement; clockSlot: HTMLDivElement }): void {
+  function relocateCompactClockRows(host: {
+    boardEl: HTMLDivElement;
+    clockSlot: HTMLDivElement;
+  }): void {
     if (compactClockHost === host) return;
     clockPanel.blackRow.remove();
     clockPanel.whiteRow.remove();
@@ -242,7 +253,10 @@ export async function mountReplay(
     host.clockSlot.append(clockPanel.whiteRow);
     compactClockHost = host;
   }
-  function paneForChoice(choice: 'white' | 'black' | 'all'): { boardEl: HTMLDivElement; clockSlot: HTMLDivElement } {
+  function paneForChoice(choice: 'white' | 'black' | 'all'): {
+    boardEl: HTMLDivElement;
+    clockSlot: HTMLDivElement;
+  } {
     return choice === 'white' ? whitePane : choice === 'black' ? blackPane : truthPane;
   }
   if (metadataMode === 'compact') {
@@ -389,10 +403,10 @@ export async function mountReplay(
       let whiteView = fogOfWarVariant.getPlayerView(state, 'white');
       let blackView = fogOfWarVariant.getPlayerView(state, 'black');
       if (
-        finished
-        && state.status.type === 'finished'
-        && state.status.reason === 'king-captured'
-        && state.lastMove
+        finished &&
+        state.status.type === 'finished' &&
+        state.status.reason === 'king-captured' &&
+        state.lastMove
       ) {
         // The loser saw their king die — the attacker becomes visible to them
         // on the king-capture square at that moment.
@@ -427,19 +441,20 @@ export async function mountReplay(
       prevBtn.disabled = currentPly === 0;
       nextBtn.disabled = currentPly >= moveCount;
       lastBtn.disabled = currentPly >= moveCount;
-      movesPanel && renderReplayMovesPanel(movesPanel, {
-        activePly: currentPly,
-        eventIndex: currentReplayEventIndex(),
-        events,
-        moveCount,
-        onJump: (ply) => {
-          stopPlay();
-          clearLoopTimer();
-          finishedAck = false;
-          setCurrentPly(ply);
-          render();
-        },
-      });
+      movesPanel &&
+        renderReplayMovesPanel(movesPanel, {
+          activePly: currentPly,
+          eventIndex: currentReplayEventIndex(),
+          events,
+          moveCount,
+          onJump: (ply) => {
+            stopPlay();
+            clearLoopTimer();
+            finishedAck = false;
+            setCurrentPly(ply);
+            render();
+          },
+        });
     }
 
     if (finished) {
@@ -475,15 +490,23 @@ export async function mountReplay(
     if (annotPanel) annotPanel.hidden = !annotationPanelVisible;
     toolsToggleBar?.setPressed('belief', beliefPanelVisible);
     toolsToggleBar?.setPressed('annotation', annotationPanelVisible);
-    const hasVisibleAnalysis = Boolean((beliefPanel && beliefPanelVisible) || (annotPanel && annotationPanelVisible));
+    const hasVisibleAnalysis = Boolean(
+      (beliefPanel && beliefPanelVisible) || (annotPanel && annotationPanelVisible),
+    );
     root.classList.toggle('analysis-tools-open', hasVisibleAnalysis);
     root.classList.toggle('analysis-tools-collapsed', !hasVisibleAnalysis);
     root.classList.toggle('analysis-belief-open', Boolean(beliefPanel && beliefPanelVisible));
-    root.classList.toggle('analysis-annotation-open', Boolean(annotPanel && annotationPanelVisible));
+    root.classList.toggle(
+      'analysis-annotation-open',
+      Boolean(annotPanel && annotationPanelVisible),
+    );
     if (toolsRow) {
       toolsRow.classList.toggle('analysis-tools-collapsed', !hasVisibleAnalysis);
       toolsRow.classList.toggle('analysis-belief-open', Boolean(beliefPanel && beliefPanelVisible));
-      toolsRow.classList.toggle('analysis-annotation-open', Boolean(annotPanel && annotationPanelVisible));
+      toolsRow.classList.toggle(
+        'analysis-annotation-open',
+        Boolean(annotPanel && annotationPanelVisible),
+      );
     }
   }
 
@@ -597,9 +620,7 @@ export async function mountReplay(
         note: formValues.note.trim(),
       };
       await updateAnnotation(updated);
-      annotationsForGame = annotationsForGame.map((a) =>
-        a.id === editing.id ? updated : a,
-      );
+      annotationsForGame = annotationsForGame.map((a) => (a.id === editing.id ? updated : a));
     } else {
       const ctx = currentAnnotContext();
       if (!ctx) return;
@@ -622,9 +643,9 @@ export async function mountReplay(
     const all = await loadAnnotations();
     annotationsForGame = all.filter(
       (a) =>
-        a.game_index === idx
-        && a.game_path === activeSample
-        && a.manifest_url === annotation.manifestUrl,
+        a.game_index === idx &&
+        a.game_path === activeSample &&
+        a.manifest_url === annotation.manifestUrl,
     );
   }
 
@@ -639,14 +660,15 @@ export async function mountReplay(
     return null;
   }
 
-
   function scheduleLoopIfNeeded(): void {
     if (!loopSamples || loopSamples.length === 0) return;
     if (loopTimer !== null) return;
     loopTimer = window.setTimeout(() => {
       loopTimer = null;
       const next = pickNextSample(loopSamples, activeSample);
-      loadGame(next).catch((err) => console.warn('[replay loop] failed to load game, skipping:', next, err));
+      loadGame(next).catch((err) =>
+        console.warn('[replay loop] failed to load game, skipping:', next, err),
+      );
     }, betweenGameDelayMs);
   }
 
@@ -711,9 +733,10 @@ export async function mountReplay(
     if (!clock || state.status.type !== 'playing' || clock.runningSince === null) return;
     const startDisplay = clock.runningSince;
     const nextEvent = moveEventAtPly(nextPly);
-    const endDisplay = nextEvent && typeof nextEvent.at === 'number' && Number.isFinite(nextEvent.at)
-      ? nextEvent.at
-      : startDisplay + delay;
+    const endDisplay =
+      nextEvent && typeof nextEvent.at === 'number' && Number.isFinite(nextEvent.at)
+        ? nextEvent.at
+        : startDisplay + delay;
     const gap = Math.max(0, endDisplay - startDisplay);
     const startWall = performance.now();
     const meta = currentMeta();
@@ -736,10 +759,12 @@ export async function mountReplay(
   }
 
   function delayForPly(ply: number): number {
-    return thinkTimeDelayForPly(ply)
-      ?? recordedDelayForPly(ply)
-      ?? computeDelayForPly(ply)
-      ?? FALLBACK_PLAY_MS;
+    return (
+      thinkTimeDelayForPly(ply) ??
+      recordedDelayForPly(ply) ??
+      computeDelayForPly(ply) ??
+      FALLBACK_PLAY_MS
+    );
   }
 
   function thinkTimeDelayForPly(ply: number): number | null {
@@ -753,9 +778,7 @@ export async function mountReplay(
   function recordedDelayForPly(ply: number): number | null {
     const event = moveEventAtPly(ply);
     if (!event || event.type !== 'move-played') return null;
-    const previousAt = ply > 1
-      ? moveEventAtPly(ply - 1)?.at
-      : replayStartAt();
+    const previousAt = ply > 1 ? moveEventAtPly(ply - 1)?.at : replayStartAt();
     if (typeof previousAt !== 'number') return null;
 
     const elapsed = event.at - previousAt;
@@ -778,9 +801,9 @@ export async function mountReplay(
     for (const event of events) {
       if (event.type === 'move-played') break;
       if (
-        event.type === 'clock-started'
-        || event.type === 'draft-start-resolved'
-        || event.type === 'room-created'
+        event.type === 'clock-started' ||
+        event.type === 'draft-start-resolved' ||
+        event.type === 'room-created'
       ) {
         startedAt = event.at;
       }
@@ -797,9 +820,7 @@ export async function mountReplay(
     clearLoopTimer();
     activeSample = sampleId;
     annotationsForGame = [];
-    events = loaderForId
-      ? await loaderForId(sampleId)
-      : await loadEvents(sampleId, urlForId);
+    events = loaderForId ? await loaderForId(sampleId) : await loadEvents(sampleId, urlForId);
     moveCount = events.filter((e) => e.type === 'move-played').length;
     beliefPanel?.setRows(belief?.rowsForSampleId(sampleId) ?? []);
     beliefPanel?.setTraceRows(belief?.traceRowsForSampleId?.(sampleId) ?? []);
@@ -842,7 +863,6 @@ export async function mountReplay(
     });
   }
 
-
   function applyMetadata(): void {
     const meta = currentMeta();
     whitePane.nameEl.textContent = '';
@@ -856,7 +876,11 @@ export async function mountReplay(
     blackPane.labelEl.textContent = blackBaseLabel;
     if (panesResolver) {
       const choice = panesResolver(activeSample, meta);
-      layout.classList.remove('replay-layout-single-white', 'replay-layout-single-black', 'replay-layout-all');
+      layout.classList.remove(
+        'replay-layout-single-white',
+        'replay-layout-single-black',
+        'replay-layout-all',
+      );
       layout.classList.add(
         choice === 'white'
           ? 'replay-layout-single-white'
@@ -1000,10 +1024,14 @@ export async function mountReplay(
     },
     { signal: abortController.signal },
   );
-  abortController.signal.addEventListener('abort', () => {
-    stopPlay();
-    clearLoopTimer();
-  }, { once: true });
+  abortController.signal.addEventListener(
+    'abort',
+    () => {
+      stopPlay();
+      clearLoopTimer();
+    },
+    { once: true },
+  );
 
   // If the initial sample fails to load (e.g. a DB game with no events endpoint),
   // fall through to the next available loop sample rather than crashing the mount.
@@ -1231,16 +1259,17 @@ function renderGameMetaPanel(
 
   panel.el.hidden = false;
   const timeControl = timeControlLabelFromMeta(meta.timeControl);
-  const items: Array<{ label: string; value: string }> = panel.mode === 'compact'
-    ? []
-    : [
-        { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
-        { label: 'Result', value: resultLabel(meta.result) },
-        { label: 'End', value: terminationLabel(meta.termination) },
-        ...(timeControl ? [{ label: 'Time', value: timeControl }] : []),
-        { label: 'Plies', value: String(meta.plyCount) },
-        { label: 'Game', value: activeSample },
-      ];
+  const items: Array<{ label: string; value: string }> =
+    panel.mode === 'compact'
+      ? []
+      : [
+          { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
+          { label: 'Result', value: resultLabel(meta.result) },
+          { label: 'End', value: terminationLabel(meta.termination) },
+          ...(timeControl ? [{ label: 'Time', value: timeControl }] : []),
+          { label: 'Plies', value: String(meta.plyCount) },
+          { label: 'Game', value: activeSample },
+        ];
 
   panel.details.replaceChildren();
   for (const item of items) {
@@ -1274,7 +1303,12 @@ function infoItem(labelText: string, valueText: string): HTMLDivElement {
 }
 
 type AnalysisToolToggleBarHandle = {
-  addToggle: (id: string, label: string, initialPressed: boolean, onToggle: (visible: boolean) => void) => void;
+  addToggle: (
+    id: string,
+    label: string,
+    initialPressed: boolean,
+    onToggle: (visible: boolean) => void,
+  ) => void;
   el: HTMLElement;
   setPressed: (id: string, pressed: boolean) => void;
 };
@@ -1373,9 +1407,10 @@ function renderReplayMovesPanel(
     onJump: (ply: number) => void;
   },
 ): void {
-  panel.meta.textContent = state.events.length === 0
-    ? 'No moves'
-    : `Move ${Math.ceil(state.activePly / 2)} · ply ${state.activePly} of ${state.moveCount}`;
+  panel.meta.textContent =
+    state.events.length === 0
+      ? 'No moves'
+      : `Move ${Math.ceil(state.activePly / 2)} · ply ${state.activePly} of ${state.moveCount}`;
   panel.controls.first.disabled = state.activePly === 0;
   panel.controls.prev.disabled = state.activePly === 0;
   panel.controls.next.disabled = state.activePly >= state.moveCount;
@@ -1421,7 +1456,8 @@ function scrollActiveMoveIntoView(list: HTMLOListElement): void {
     if (!active) return;
     const listRect = list.getBoundingClientRect();
     const activeRect = active.getBoundingClientRect();
-    const centeredDelta = activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
+    const centeredDelta =
+      activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
     list.scrollTo({ top: Math.max(0, list.scrollTop + centeredDelta), behavior: 'auto' });
   });
 }
@@ -1442,7 +1478,9 @@ function replayMoveCell(
   button.className = [
     color === 'white' ? 'white-ply' : 'black-ply',
     activePly === entry.ply ? 'active' : '',
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
   button.textContent = entry.label;
   button.title = `Event ${entry.eventIndex}`;
   button.addEventListener('click', () => onJump(entry.ply));
@@ -1479,7 +1517,9 @@ type EnginePanelSpec = {
   title: string;
 };
 
-function createEnginePanelDock(panels: EngineReviewPanels | undefined): EnginePanelDockHandle | null {
+function createEnginePanelDock(
+  panels: EngineReviewPanels | undefined,
+): EnginePanelDockHandle | null {
   const panelSpecs = enginePanelSpecs(panels);
   if (panelSpecs.length === 0) return null;
 
@@ -1491,9 +1531,10 @@ function createEnginePanelDock(panels: EngineReviewPanels | undefined): EnginePa
   body.className = 'engine-review-body';
 
   const activeFromUrl = panelIdFromSearch(new URLSearchParams(window.location.search).get('panel'));
-  let active: EnginePanelId | null = panelSpecs.find((spec) => spec.id === activeFromUrl)?.id
-    ?? panelSpecs.find((spec) => spec.defaultOpen)?.id
-    ?? null;
+  let active: EnginePanelId | null =
+    panelSpecs.find((spec) => spec.id === activeFromUrl)?.id ??
+    panelSpecs.find((spec) => spec.defaultOpen)?.id ??
+    null;
 
   const buttons = new Map<EnginePanelId, HTMLButtonElement>();
   for (const spec of panelSpecs) {
@@ -1549,7 +1590,8 @@ function enginePanelSpecs(panels: EngineReviewPanels | undefined): EnginePanelSp
   if (panels?.belief?.available) {
     specs.push({
       defaultOpen: panels.belief.defaultOpen === true,
-      description: 'Belief artifacts exist for this engine game. The next viewer slice will load the stored belief snapshots into the inspector.',
+      description:
+        'Belief artifacts exist for this engine game. The next viewer slice will load the stored belief snapshots into the inspector.',
       id: 'belief',
       label: 'Belief',
       meta: [
@@ -1562,7 +1604,8 @@ function enginePanelSpecs(panels: EngineReviewPanels | undefined): EnginePanelSp
   if (panels?.trace?.available) {
     specs.push({
       defaultOpen: panels.trace.defaultOpen === true,
-      description: 'Engine trace artifacts exist for this game. The next viewer slice will load decision rows and queue reasons here.',
+      description:
+        'Engine trace artifacts exist for this game. The next viewer slice will load decision rows and queue reasons here.',
       id: 'trace',
       label: 'Trace',
       meta: [seatsLabel(panels.trace.seats)].filter(Boolean),
@@ -1625,7 +1668,11 @@ function createClockPanel(): ClockPanelHandle {
   };
 }
 
-function createClockRow(colorLabel: string): { label: HTMLSpanElement; row: HTMLDivElement; time: HTMLSpanElement } {
+function createClockRow(colorLabel: string): {
+  label: HTMLSpanElement;
+  row: HTMLDivElement;
+  time: HTMLSpanElement;
+} {
   const row = document.createElement('div');
   row.className = 'replay-clock-row';
   row.hidden = true;
@@ -1657,7 +1704,9 @@ function renderClockPanel(
   meta: GameMeta | undefined,
   displayAtOverride?: number,
 ): void {
-  const timeControl = clock ? timeControlLabelFromClock(clock) : timeControlLabelFromMeta(meta?.timeControl);
+  const timeControl = clock
+    ? timeControlLabelFromClock(clock)
+    : timeControlLabelFromMeta(meta?.timeControl);
   const hasPlayerLabels = Boolean(meta?.whiteName || meta?.blackName);
   if (!clock && !timeControl && !hasPlayerLabels) {
     panel.el.hidden = true;
@@ -1683,8 +1732,14 @@ function renderClockPanel(
   const displayAt = displayAtOverride ?? clock.runningSince ?? 0;
   panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt), true);
   panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt), true);
-  panel.whiteRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'white');
-  panel.blackRow.classList.toggle('active', state.status.type === 'playing' && clock.activeColor === 'black');
+  panel.whiteRow.classList.toggle(
+    'active',
+    state.status.type === 'playing' && clock.activeColor === 'white',
+  );
+  panel.blackRow.classList.toggle(
+    'active',
+    state.status.type === 'playing' && clock.activeColor === 'black',
+  );
 }
 
 function replayClockDisplayAt(events: GameEvent[], state: GameState): number | null {
@@ -1709,7 +1764,9 @@ function timeControlLabelFromMeta(raw: Record<string, unknown> | null | undefine
   const incrementSeconds = numericValue(raw.increment_seconds);
   if (initialSeconds !== null) {
     const base = formatClock(initialSeconds * 1000);
-    return incrementSeconds && incrementSeconds > 0 ? `${base}+${Math.round(incrementSeconds)}` : base;
+    return incrementSeconds && incrementSeconds > 0
+      ? `${base}+${Math.round(incrementSeconds)}`
+      : base;
   }
 
   const initialMs = numericValue(raw.initialMs) ?? numericValue(raw.initial_ms);
@@ -1733,16 +1790,17 @@ function resultLabel(result: string): string {
 }
 
 function terminationLabel(termination: string): string {
-  return termination
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return termination.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function numericValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function createPane(label: string, kind: 'white' | 'truth' | 'black'): {
+function createPane(
+  label: string,
+  kind: 'white' | 'truth' | 'black',
+): {
   el: HTMLDivElement;
   boardEl: HTMLDivElement;
   clockSlot: HTMLDivElement;
@@ -1822,7 +1880,8 @@ async function loadEvents(
 ): Promise<GameEvent[]> {
   const url = urlForId(sampleId);
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`failed to load replay sample ${sampleId} at ${url}: ${resp.status}`);
+  if (!resp.ok)
+    throw new Error(`failed to load replay sample ${sampleId} at ${url}: ${resp.status}`);
   const text = await resp.text();
   return text
     .split('\n')
@@ -1874,9 +1933,7 @@ function squareFromCgBoardClick(
 }
 
 function setBoardFromView(api: Api, view: PlayerView, orientation: Color): void {
-  const lastMove = view.lastMove
-    ? ([view.lastMove.from, view.lastMove.to] as cg.Key[])
-    : undefined;
+  const lastMove = view.lastMove ? ([view.lastMove.from, view.lastMove.to] as cg.Key[]) : undefined;
   api.set({
     fen: boardFen(view.board),
     lastMove,
@@ -2021,10 +2078,15 @@ function createAnnotForm(opts: {
   }
 
   function severityValue(): 'major' | 'minor' | 'good' | 'neutral' {
-    const checked = el.querySelector('input[name=annot-severity]:checked') as HTMLInputElement | null;
+    const checked = el.querySelector(
+      'input[name=annot-severity]:checked',
+    ) as HTMLInputElement | null;
     const v = checked?.value ?? 'major';
     return (v === 'minor' || v === 'good' || v === 'neutral' ? v : 'major') as
-      | 'major' | 'minor' | 'good' | 'neutral';
+      | 'major'
+      | 'minor'
+      | 'good'
+      | 'neutral';
   }
 
   async function tryToSave(): Promise<void> {

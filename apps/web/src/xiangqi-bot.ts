@@ -76,11 +76,7 @@ function bestOpponentCaptureValue(state: XiangqiGameState): number {
   return best;
 }
 
-function evaluateMove(
-  state: XiangqiGameState,
-  move: XiangqiMove,
-  color: XiangqiColor,
-): number {
+function evaluateMove(state: XiangqiGameState, move: XiangqiMove, color: XiangqiColor): number {
   const next = applyMove(state, move);
   if (next.status.type === 'finished') {
     if (next.status.winner === color) return WIN;

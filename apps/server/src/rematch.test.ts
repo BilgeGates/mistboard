@@ -55,7 +55,11 @@ function makeOngoingRoom(id: string): Room {
   return room;
 }
 
-function seatToken(opts: { seat: 'white' | 'black'; hash: string; userId?: string | null }): SeatTokenState {
+function seatToken(opts: {
+  seat: 'white' | 'black';
+  hash: string;
+  userId?: string | null;
+}): SeatTokenState {
   return {
     clientId: `${opts.seat}-client`,
     seat: opts.seat,
@@ -175,7 +179,9 @@ test('mutual offer finalizes: new room created, colors swapped, per-client redir
   assert.equal(newRoom.seatTokens.white?.userId, 'user-b');
   assert.equal(newRoom.seatTokens.black?.userId, 'user-w');
 
-  const redirects = spy.sent.filter((m) => (m.payload as { type?: string }).type === 'rematch:redirect');
+  const redirects = spy.sent.filter(
+    (m) => (m.payload as { type?: string }).type === 'rematch:redirect',
+  );
   assert.equal(redirects.length, 2);
   const whiteRedirect = redirects.find((r) => r.client === whiteClient);
   const blackRedirect = redirects.find((r) => r.client === blackClient);

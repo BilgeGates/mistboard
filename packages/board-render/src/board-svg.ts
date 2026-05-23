@@ -77,7 +77,9 @@ export function renderBoardSvg(
       const isLight = (f + r) % 2 === 1;
       const sx = x + fileToCol(f) * sq;
       const sy = y + rankToRow(r) * sq;
-      out.push(`<rect x="${sx}" y="${sy}" width="${sq}" height="${sq}" fill="${isLight ? LIGHT_SQUARE : DARK_SQUARE}"/>`);
+      out.push(
+        `<rect x="${sx}" y="${sy}" width="${sq}" height="${sq}" fill="${isLight ? LIGHT_SQUARE : DARK_SQUARE}"/>`,
+      );
     }
   }
   const fogSet = new Set(fogCoords.map((s) => `${s.file},${s.rank}`));
@@ -88,7 +90,9 @@ export function renderBoardSvg(
     const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
     const px = x + fileToCol(piece.file) * sq;
     const py = y + rankToRow(piece.rank) * sq;
-    out.push(`<svg x="${px}" y="${py}" width="${sq}" height="${sq}" viewBox="0 0 45 45">${inner}</svg>`);
+    out.push(
+      `<svg x="${px}" y="${py}" width="${sq}" height="${sq}" viewBox="0 0 45 45">${inner}</svg>`,
+    );
   }
   for (const fog of fogCoords) {
     const fx = x + fileToCol(fog.file) * sq;
@@ -101,9 +105,13 @@ export function renderBoardSvg(
     out.push(`<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="url(#${patternId})"/>`);
     // Inset 1 px cream shadow matching chessground's
     // box-shadow: inset 0 0 0 1px var(--board-fog-shadow).
-    out.push(`<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${FOG_SHADOW}" stroke-width="1"/>`);
+    out.push(
+      `<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${FOG_SHADOW}" stroke-width="1"/>`,
+    );
   }
-  out.push(`<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${BOARD_BORDER}" stroke-width="2"/>`);
+  out.push(
+    `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${BOARD_BORDER}" stroke-width="2"/>`,
+  );
   out.push(`</g>`);
   return out.join('');
 }

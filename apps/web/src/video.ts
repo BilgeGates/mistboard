@@ -2,10 +2,10 @@
 // Promote to a separate data module when entry count justifies it.
 
 export type CuratedVideo = {
-  id: string;            // YouTube video ID
+  id: string; // YouTube video ID
   title: string;
   channel: string;
-  publishedAt: string;   // ISO-ish "YYYY-MM-DD"
+  publishedAt: string; // ISO-ish "YYYY-MM-DD"
   summary: string;
   tags: string[];
 };
@@ -141,10 +141,7 @@ function videoCard(video: CuratedVideo): HTMLElement {
   const card = document.createElement('a');
   card.className = 'video-index-card';
   card.href = `/video/${video.id}`;
-  card.setAttribute(
-    'aria-label',
-    `${video.title}. ${video.channel}, ${video.publishedAt}`,
-  );
+  card.setAttribute('aria-label', `${video.title}. ${video.channel}, ${video.publishedAt}`);
   // Intercept plain left-clicks so we route SPA-style (no full reload).
   // Modifier-clicks (cmd/ctrl/shift) and middle-clicks fall through to the
   // default link behaviour so users can still open in a new tab.

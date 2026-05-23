@@ -244,7 +244,27 @@ const positions: TutorialPosition[] = [
       { from: 'e8', to: 'b5' },
     ],
     expectedFinalSquare: 'b5',
-    visibleAfter: ['a4', 'a5', 'a6', 'b1', 'b2', 'b3', 'b4', 'b6', 'b7', 'b8', 'c4', 'c5', 'c6', 'd3', 'd5', 'd7', 'e2', 'e5', 'e8'],
+    visibleAfter: [
+      'a4',
+      'a5',
+      'a6',
+      'b1',
+      'b2',
+      'b3',
+      'b4',
+      'b6',
+      'b7',
+      'b8',
+      'c4',
+      'c5',
+      'c6',
+      'd3',
+      'd5',
+      'd7',
+      'e2',
+      'e5',
+      'e8',
+    ],
   },
   {
     id: 'king-one-step-up',
@@ -1074,11 +1094,19 @@ test('authored tutorial sequences use legal moves through fog', () => {
     let state = tutorialState(position.id, position.board);
 
     for (const rejected of position.rejected ?? []) {
-      assert.equal(hasLegalMove(state, rejected), false, `${position.id}: expected ${moveLabel(rejected)} to be illegal`);
+      assert.equal(
+        hasLegalMove(state, rejected),
+        false,
+        `${position.id}: expected ${moveLabel(rejected)} to be illegal`,
+      );
     }
 
     for (const move of position.moves) {
-      assert.equal(hasLegalMove(state, move), true, `${position.id}: expected ${moveLabel(move)} to be legal`);
+      assert.equal(
+        hasLegalMove(state, move),
+        true,
+        `${position.id}: expected ${moveLabel(move)} to be legal`,
+      );
       const next = fogOfWarVariant.applyMove(state, move);
       state = {
         ...next,
@@ -1086,22 +1114,33 @@ test('authored tutorial sequences use legal moves through fog', () => {
       };
     }
 
-    assert.deepEqual(state.board[position.expectedFinalSquare], { color: 'white', role: position.pieceRole });
+    assert.deepEqual(state.board[position.expectedFinalSquare], {
+      color: 'white',
+      role: position.pieceRole,
+    });
     const afterView = fogOfWarVariant.getPlayerView(state, 'white');
     const afterVisible = new Set(afterView.visibleSquares);
     for (const square of position.visibleAfter ?? []) {
-      assert.equal(afterVisible.has(square), true, `${position.id}: expected ${square} to be visible`);
+      assert.equal(
+        afterVisible.has(square),
+        true,
+        `${position.id}: expected ${square} to be visible`,
+      );
     }
     for (const square of position.hiddenAfter ?? []) {
-      assert.equal(afterVisible.has(square), false, `${position.id}: expected ${square} to stay hidden`);
+      assert.equal(
+        afterVisible.has(square),
+        false,
+        `${position.id}: expected ${square} to stay hidden`,
+      );
     }
   }
 });
 
 function hasLegalMove(state: GameState, move: Move): boolean {
-  return fogOfWarVariant.getLegalMoves(state, 'white').some((candidate) => (
-    candidate.from === move.from && candidate.to === move.to
-  ));
+  return fogOfWarVariant
+    .getLegalMoves(state, 'white')
+    .some((candidate) => candidate.from === move.from && candidate.to === move.to);
 }
 
 function moveLabel(move: Move): string {

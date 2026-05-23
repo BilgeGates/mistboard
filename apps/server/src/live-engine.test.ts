@@ -69,10 +69,14 @@ test('live engine fallback reports timeout budget', async () => {
       livePolicy: { timeoutMs: 1 },
       chooseMove: (() => {
         return new Promise((resolve) => {
-          setTimeout(() => resolve({
-            move: legalMove,
-            scores: [{ move: legalMove, score: 1, reason: 'slow-test' }],
-          }), 20);
+          setTimeout(
+            () =>
+              resolve({
+                move: legalMove,
+                scores: [{ move: legalMove, score: 1, reason: 'slow-test' }],
+              }),
+            20,
+          );
         });
       }) as unknown as EngineDefinition['chooseMove'],
     },
@@ -119,11 +123,14 @@ test('python live engine falls back when room event context is missing', async (
 });
 
 test('python live watchdog allows Tier-1 clock budget plus subprocess overhead', () => {
-  const timeoutMs = pythonLiveWatchdogTimeoutMs({
-    ...context([legalMove]),
-    clockRemainingMs: 180_000,
-    incrementMs: 2_000,
-  }, 5_000);
+  const timeoutMs = pythonLiveWatchdogTimeoutMs(
+    {
+      ...context([legalMove]),
+      clockRemainingMs: 180_000,
+      incrementMs: 2_000,
+    },
+    5_000,
+  );
 
   assert.ok(timeoutMs >= 14_400);
   assert.ok(timeoutMs <= 14_600);
@@ -133,11 +140,14 @@ test('python live watchdog budget can be tuned by environment', () => {
   const previous = process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE;
   process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = '40';
   try {
-    const timeoutMs = pythonLiveWatchdogTimeoutMs({
-      ...context([legalMove]),
-      clockRemainingMs: 180_000,
-      incrementMs: 2_000,
-    }, 5_000);
+    const timeoutMs = pythonLiveWatchdogTimeoutMs(
+      {
+        ...context([legalMove]),
+        clockRemainingMs: 180_000,
+        incrementMs: 2_000,
+      },
+      5_000,
+    );
 
     assert.ok(timeoutMs >= 8_900);
     assert.ok(timeoutMs <= 9_100);
@@ -148,11 +158,14 @@ test('python live watchdog budget can be tuned by environment', () => {
 });
 
 test('python live watchdog stays bounded under clock pressure', () => {
-  const timeoutMs = pythonLiveWatchdogTimeoutMs({
-    ...context([legalMove]),
-    clockRemainingMs: 900,
-    incrementMs: 0,
-  }, 5_000);
+  const timeoutMs = pythonLiveWatchdogTimeoutMs(
+    {
+      ...context([legalMove]),
+      clockRemainingMs: 900,
+      incrementMs: 0,
+    },
+    5_000,
+  );
 
   assert.equal(timeoutMs, 1_900);
 });
@@ -187,5 +200,9 @@ function context(legalMoves: Move[]): EngineMoveContext {
 }
 
 function sameMove(left: Move, right: Move): boolean {
-  return left.from === right.from && left.to === right.to && (left.promotion ?? null) === (right.promotion ?? null);
+  return (
+    left.from === right.from &&
+    left.to === right.to &&
+    (left.promotion ?? null) === (right.promotion ?? null)
+  );
 }

@@ -37,7 +37,7 @@ export function boardToPieces(board: Board): PieceOnBoard[] {
   const pieces: PieceOnBoard[] = [];
   for (const [sq, piece] of Object.entries(board)) {
     if (!piece) continue;
-    const file = FILE_CHARS.indexOf(sq[0] as typeof FILE_CHARS[number]);
+    const file = FILE_CHARS.indexOf(sq[0] as (typeof FILE_CHARS)[number]);
     const rank = Number(sq[1]) - 1;
     pieces.push({ file, rank, color: piece.color, role: piece.role });
   }

@@ -65,7 +65,7 @@ export function pickDraft960Offer(seed = Date.now()): Chess960Start[] {
 }
 
 function emptyIndexes(rank: Array<BackRankRole | null>): number[] {
-  return rank.flatMap((role, index) => role === null ? [index] : []);
+  return rank.flatMap((role, index) => (role === null ? [index] : []));
 }
 
 function combinations(values: number[], size: number): number[][] {
@@ -137,12 +137,12 @@ export function createChess960CastlingRightsForSides(
   whiteStart: Chess960Start,
   blackStart: Chess960Start,
 ): Square[] {
-  const whiteRights = whiteStart.backRank.flatMap((role, index) => (
-    role === 'rook' ? [`${files[index]}1` as Square] : []
-  ));
-  const blackRights = blackStart.backRank.flatMap((role, index) => (
-    role === 'rook' ? [`${files[index]}8` as Square] : []
-  ));
+  const whiteRights = whiteStart.backRank.flatMap((role, index) =>
+    role === 'rook' ? [`${files[index]}1` as Square] : [],
+  );
+  const blackRights = blackStart.backRank.flatMap((role, index) =>
+    role === 'rook' ? [`${files[index]}8` as Square] : [],
+  );
   return [...whiteRights, ...blackRights];
 }
 

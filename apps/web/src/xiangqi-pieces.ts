@@ -54,15 +54,19 @@ export function xiangqiCharacter(color: XiangqiColor, role: XiangqiPieceRole): s
   return CHARACTERS[color][role];
 }
 
-export function renderXiangqiPiece(piece: XiangqiPiece, opts: XiangqiPieceRenderOptions = {}): string {
+export function renderXiangqiPiece(
+  piece: XiangqiPiece,
+  opts: XiangqiPieceRenderOptions = {},
+): string {
   const colorHex = piece.color === 'red' ? '#b91c1c' : '#1f2937';
   const baseFill = '#f3e6c4';
   const ringWidth = 2.5;
   const glyph = opts.shrouded ? '?' : xiangqiCharacter(piece.color, piece.role);
   const classAttr = opts.className ? ` class="${escapeAttr(opts.className)}"` : '';
-  const posAttrs = opts.size !== undefined || opts.x !== undefined || opts.y !== undefined
-    ? ` x="${opts.x ?? 0}" y="${opts.y ?? 0}" width="${opts.size ?? 100}" height="${opts.size ?? 100}"`
-    : '';
+  const posAttrs =
+    opts.size !== undefined || opts.x !== undefined || opts.y !== undefined
+      ? ` x="${opts.x ?? 0}" y="${opts.y ?? 0}" width="${opts.size ?? 100}" height="${opts.size ?? 100}"`
+      : '';
   return [
     `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${piece.color} ${piece.role}">`,
     // Outer ring shadow (subtle depth)

@@ -93,10 +93,16 @@ const pct = (n) => `${((n / gameCount) * 100).toFixed(0)}%`;
 console.log(`wrote ${gameCount} games to ${relative(repoRoot, outDir)}`);
 console.log(`coverage:`);
 console.log(`  capture:        ${totals.has_capture}/${gameCount} (${pct(totals.has_capture)})`);
-console.log(`  promotion:      ${totals.has_promotion}/${gameCount} (${pct(totals.has_promotion)})`);
-console.log(`  en passant:     ${totals.has_en_passant}/${gameCount} (${pct(totals.has_en_passant)})`);
+console.log(
+  `  promotion:      ${totals.has_promotion}/${gameCount} (${pct(totals.has_promotion)})`,
+);
+console.log(
+  `  en passant:     ${totals.has_en_passant}/${gameCount} (${pct(totals.has_en_passant)})`,
+);
 console.log(`  castling:       ${totals.has_castling}/${gameCount} (${pct(totals.has_castling)})`);
-console.log(`  king-cap end:   ${totals.ended_by_king_capture}/${gameCount} (${pct(totals.ended_by_king_capture)})`);
+console.log(
+  `  king-cap end:   ${totals.ended_by_king_capture}/${gameCount} (${pct(totals.ended_by_king_capture)})`,
+);
 console.log(`  truncated:      ${totals.truncated}/${gameCount} (${pct(totals.truncated)})`);
 
 function playRandomGame(seed, plyCap) {
@@ -104,9 +110,7 @@ function playRandomGame(seed, plyCap) {
   const roomId = `corpus-random-${seed}`;
   let state = fogOfWarVariant.createInitialState(roomId);
 
-  const events = [
-    { type: 'room-created', at: 0, roomId, variant: 'fog-of-war', offer: [] },
-  ];
+  const events = [{ type: 'room-created', at: 0, roomId, variant: 'fog-of-war', offer: [] }];
   const views = [snapshotViews(state, 0)];
   const flags = {
     has_capture: false,
@@ -148,7 +152,8 @@ function playRandomGame(seed, plyCap) {
   }
 
   const winner = state.status.type === 'finished' ? state.status.winner : null;
-  const endReason = state.status.type === 'finished' ? state.status.reason : (truncated ? 'truncated' : 'unfinished');
+  const endReason =
+    state.status.type === 'finished' ? state.status.reason : truncated ? 'truncated' : 'unfinished';
 
   return { events, views, plies, winner, endReason, endedByKingCapture, truncated, flags };
 }
@@ -181,7 +186,7 @@ function pickMove(state, legals, rng) {
   }
   if (epIndices.length === 0) return legals[Math.floor(rng() * legals.length)];
 
-  const totalWeight = (legals.length - epIndices.length) + epIndices.length * EP_BIAS_WEIGHT;
+  const totalWeight = legals.length - epIndices.length + epIndices.length * EP_BIAS_WEIGHT;
   let r = rng() * totalWeight;
   const epSet = new Set(epIndices);
   for (let i = 0; i < legals.length; i++) {
@@ -207,7 +212,12 @@ function classify(state, move, flags) {
   if (move.promotion) flags.has_promotion = true;
   if (target) flags.has_capture = true;
 
-  if (piece?.role === 'pawn' && !target && fileDelta(move.from, move.to) === 1 && state.enPassantSquare === move.to) {
+  if (
+    piece?.role === 'pawn' &&
+    !target &&
+    fileDelta(move.from, move.to) === 1 &&
+    state.enPassantSquare === move.to
+  ) {
     flags.has_en_passant = true;
     flags.has_capture = true;
   }

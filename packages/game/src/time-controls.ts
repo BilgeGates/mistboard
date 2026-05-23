@@ -27,9 +27,9 @@ export function findTimeControl(
   incrementMs: number | null | undefined,
 ): TimeControlSpec | null {
   if (initialMs == null || incrementMs == null) return null;
-  return TIME_CONTROLS.find(
-    (tc) => tc.initialMs === initialMs && tc.incrementMs === incrementMs,
-  ) ?? null;
+  return (
+    TIME_CONTROLS.find((tc) => tc.initialMs === initialMs && tc.incrementMs === incrementMs) ?? null
+  );
 }
 
 export function timeClassFromTimeControl(

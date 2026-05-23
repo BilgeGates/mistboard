@@ -46,7 +46,9 @@ export async function mountArticlesIndex(root: HTMLElement): Promise<void> {
 export async function mountArticle(root: HTMLElement, slug: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
-  const { buildArticlePage, mountPendingWidgets, mountArticleEnhancements } = await import('./articles.js');
+  const { buildArticlePage, mountPendingWidgets, mountArticleEnhancements } = await import(
+    './articles.js'
+  );
   const { findArticle } = await import('./articles-data.js');
   const article = findArticle(slug);
   if (article) document.title = `${article.title} · Mistboard`;
@@ -65,7 +67,9 @@ function buildAbout(): HTMLElement {
   heading.className = 'site-section-heading';
   heading.textContent = 'About Mistboard';
 
-  const lede = aboutParagraph(['Mistboard is a free, open-source site for dark chess (also called Fog of War).']);
+  const lede = aboutParagraph([
+    'Mistboard is a free, open-source site for dark chess (also called Fog of War).',
+  ]);
 
   const rulesHeading = aboutSubheading('What dark chess is');
   const rulesP = aboutParagraph([
@@ -120,14 +124,22 @@ function buildAbout(): HTMLElement {
   section.append(
     heading,
     lede,
-    rulesHeading, rulesP,
-    whyHeading, whyP,
-    featuresHeading, featuresP,
-    fairnessHeading, fairnessP,
-    oss1Heading, oss1P,
-    engineHeading, engineP,
-    statusHeading, statusP,
-    contactHeading, contactP,
+    rulesHeading,
+    rulesP,
+    whyHeading,
+    whyP,
+    featuresHeading,
+    featuresP,
+    fairnessHeading,
+    fairnessP,
+    oss1Heading,
+    oss1P,
+    engineHeading,
+    engineP,
+    statusHeading,
+    statusP,
+    contactHeading,
+    contactP,
   );
   return section;
 }
@@ -182,13 +194,21 @@ function buildSource(): HTMLElement {
   const thirdParty = sourceBlock('Third-party components', [
     textLine('chessground: board interaction and piece rendering, GPL-3.0-or-later.'),
     textLine('chessops: chess rules primitives, GPL-3.0-or-later.'),
-    textLine('Stockfish: optional engine/runtime dependency for research and engine-worker flows, GPL family.'),
+    textLine(
+      'Stockfish: optional engine/runtime dependency for research and engine-worker flows, GPL family.',
+    ),
   ]);
 
   const identity = sourceBlock('Project identity', [
-    textLine('The Mistboard name, logo, mistboard.com domain, hosted service identity, and official events are controlled project assets.'),
-    textLine('Forks are allowed under the AGPL, but should use a distinct name and avoid implying they are the official Mistboard service.'),
-    textLine('Forks and derivatives should present their own public brand, domain, and hosted service identity.'),
+    textLine(
+      'The Mistboard name, logo, mistboard.com domain, hosted service identity, and official events are controlled project assets.',
+    ),
+    textLine(
+      'Forks are allowed under the AGPL, but should use a distinct name and avoid implying they are the official Mistboard service.',
+    ),
+    textLine(
+      'Forks and derivatives should present their own public brand, domain, and hosted service identity.',
+    ),
   ]);
 
   section.append(heading, intro, source, thirdParty, identity);
@@ -219,11 +239,7 @@ function buildFaq(): HTMLElement {
     '. Include the room link if it’s about a specific game.',
   ]);
 
-  section.append(
-    heading,
-    q1, a1,
-    q2, a2,
-  );
+  section.append(heading, q1, a1, q2, a2);
   return section;
 }
 
@@ -270,15 +286,7 @@ function buildTerms(): HTMLElement {
     ' for license and credits.',
   ]);
 
-  section.append(
-    heading,
-    intro,
-    h1, p1,
-    h2, p2,
-    h3, p3,
-    h4, p4,
-    h5, p5,
-  );
+  section.append(heading, intro, h1, p1, h2, p2, h3, p3, h4, p4, h5, p5);
   return section;
 }
 

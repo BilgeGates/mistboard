@@ -1,8 +1,5 @@
 import pg from 'pg';
-import {
-  createEngineGameTask,
-  createExperimentJob,
-} from './engine-experiments.js';
+import { createEngineGameTask, createExperimentJob } from './engine-experiments.js';
 import { upsertBuiltinEngineVersions } from './engine-registry.js';
 import {
   createRoundRobinPairings,
@@ -37,45 +34,53 @@ try {
 
   const tasks = [];
   for (const pairing of pairings) {
-    tasks.push(await createEngineGameTask(pool, {
-      jobId: job.id,
-      gameIndex: pairing.gameIndex,
-      priority: config.priority,
-      whiteEngineId: pairing.whiteEngineId,
-      blackEngineId: pairing.blackEngineId,
-      seed: nextTournamentSeed(config.seed, pairing.gameIndex),
-      timeControl: config.timeControl,
-      openingPolicy: config.openingPolicy,
-      artifactPolicy: config.artifactPolicy,
-      resourcePolicy: { providers: config.providers, concurrency: 1 },
-      config: {
-        variant: 'fog-of-war',
-        max_plies: config.maxPlies,
-        tournament_id: config.tournamentId,
-        pair_id: pairing.pairId,
-        pair_index: pairing.pairIndex,
-        repeat_index: pairing.repeatIndex,
-        white_engine_id: pairing.whiteEngineId,
-        black_engine_id: pairing.blackEngineId,
-      },
-    }));
+    tasks.push(
+      await createEngineGameTask(pool, {
+        jobId: job.id,
+        gameIndex: pairing.gameIndex,
+        priority: config.priority,
+        whiteEngineId: pairing.whiteEngineId,
+        blackEngineId: pairing.blackEngineId,
+        seed: nextTournamentSeed(config.seed, pairing.gameIndex),
+        timeControl: config.timeControl,
+        openingPolicy: config.openingPolicy,
+        artifactPolicy: config.artifactPolicy,
+        resourcePolicy: { providers: config.providers, concurrency: 1 },
+        config: {
+          variant: 'fog-of-war',
+          max_plies: config.maxPlies,
+          tournament_id: config.tournamentId,
+          pair_id: pairing.pairId,
+          pair_index: pairing.pairIndex,
+          repeat_index: pairing.repeatIndex,
+          white_engine_id: pairing.whiteEngineId,
+          black_engine_id: pairing.blackEngineId,
+        },
+      }),
+    );
   }
 
-  console.log(JSON.stringify({
-    level: 'info',
-    kind: 'engine_tournament_enqueued',
-    jobId: job.id,
-    tournamentId: config.tournamentId,
-    taskIds: tasks.map((task) => task.id),
-    engines: config.engines,
-    gamesPerPair: config.gamesPerPair,
-    gameCount: pairings.length,
-    seed: config.seed,
-    maxPlies: config.maxPlies,
-    providers: config.providers,
-    timeControl: config.timeControl,
-    openingPolicy: config.openingPolicy,
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        level: 'info',
+        kind: 'engine_tournament_enqueued',
+        jobId: job.id,
+        tournamentId: config.tournamentId,
+        taskIds: tasks.map((task) => task.id),
+        engines: config.engines,
+        gamesPerPair: config.gamesPerPair,
+        gameCount: pairings.length,
+        seed: config.seed,
+        maxPlies: config.maxPlies,
+        providers: config.providers,
+        timeControl: config.timeControl,
+        openingPolicy: config.openingPolicy,
+      },
+      null,
+      2,
+    ),
+  );
 } finally {
   await pool.end();
 }

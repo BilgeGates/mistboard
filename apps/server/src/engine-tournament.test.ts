@@ -14,35 +14,44 @@ test('creates color-balanced round-robin pairings', () => {
   });
 
   assert.equal(pairings.length, 6);
-  assert.deepEqual(pairings.map((pairing) => [pairing.whiteEngineId, pairing.blackEngineId]), [
-    ['a', 'b'],
-    ['b', 'a'],
-    ['a', 'c'],
-    ['c', 'a'],
-    ['b', 'c'],
-    ['c', 'b'],
-  ]);
-  assert.deepEqual(pairings.map((pairing) => pairing.gameIndex), [0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(
+    pairings.map((pairing) => [pairing.whiteEngineId, pairing.blackEngineId]),
+    [
+      ['a', 'b'],
+      ['b', 'a'],
+      ['a', 'c'],
+      ['c', 'a'],
+      ['b', 'c'],
+      ['c', 'b'],
+    ],
+  );
+  assert.deepEqual(
+    pairings.map((pairing) => pairing.gameIndex),
+    [0, 1, 2, 3, 4, 5],
+  );
 });
 
 test('parses tournament CLI config', () => {
-  const config = parseTournamentArgs([
-    '--engines',
-    'builtin-random-legal,builtin-capture-seeker',
-    '--games-per-pair',
-    '4',
-    '--time-control',
-    '10+2',
-    '--opening',
-    'random-first-4',
-    '--providers',
-    'local',
-    '--rated',
-    '--rating-anchor',
-    'python-random-legal',
-    '--tournament-id',
-    'dev-cup',
-  ], {});
+  const config = parseTournamentArgs(
+    [
+      '--engines',
+      'builtin-random-legal,builtin-capture-seeker',
+      '--games-per-pair',
+      '4',
+      '--time-control',
+      '10+2',
+      '--opening',
+      'random-first-4',
+      '--providers',
+      'local',
+      '--rated',
+      '--rating-anchor',
+      'python-random-legal',
+      '--tournament-id',
+      'dev-cup',
+    ],
+    {},
+  );
 
   assert.equal(config.gamesPerPair, 4);
   assert.deepEqual(config.providers, ['local']);
@@ -58,12 +67,10 @@ test('parses tournament CLI config', () => {
 });
 
 test('defaults tournament CLI time control to standard 3+2', () => {
-  const config = parseTournamentArgs([
-    '--engine',
-    'builtin-random-legal',
-    '--engine',
-    'builtin-capture-seeker',
-  ], {});
+  const config = parseTournamentArgs(
+    ['--engine', 'builtin-random-legal', '--engine', 'builtin-capture-seeker'],
+    {},
+  );
 
   assert.deepEqual(config.timeControl, {
     kind: 'standard',
@@ -73,16 +80,10 @@ test('defaults tournament CLI time control to standard 3+2', () => {
 });
 
 test('builds reproducible tournament job metadata', () => {
-  const config = parseTournamentArgs([
-    '--engine',
-    'a',
-    '--engine',
-    'b',
-    '--seed',
-    '100',
-    '--tournament-id',
-    'server-cup',
-  ], {});
+  const config = parseTournamentArgs(
+    ['--engine', 'a', '--engine', 'b', '--seed', '100', '--tournament-id', 'server-cup'],
+    {},
+  );
   const jobConfig = tournamentJobConfig(config, 2);
 
   assert.equal(nextTournamentSeed(config.seed, 3), '103');

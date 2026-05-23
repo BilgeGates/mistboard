@@ -14,7 +14,13 @@ import { isColor } from './web-utils.js';
 
 export type Seat = Color | 'spectator';
 export type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
-export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'displaced' | 'rejected';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'reconnecting'
+  | 'displaced'
+  | 'rejected';
 export type PlayAgainStatus = 'creating' | 'failed' | 'idle';
 export type DraftOffers = Partial<Record<Color, Chess960Start[]>>;
 export type DraftResolvedStartIds = Partial<Record<Color, number>>;
@@ -72,7 +78,14 @@ export type SoundController = {
   play(kind: SoundKind): void;
 };
 
-export type SoundKind = 'capture' | 'captured' | 'castle' | 'king-capture' | 'lose' | 'move' | 'win';
+export type SoundKind =
+  | 'capture'
+  | 'captured'
+  | 'castle'
+  | 'king-capture'
+  | 'lose'
+  | 'move'
+  | 'win';
 
 // ── Shared mutable state (accessed by both live-socket and live-render) ────────
 
@@ -126,7 +139,10 @@ export function resolveWebSocketBaseUrl(): string {
   return `${protocol}//${window.location.host}`;
 }
 
-export function normalizedOffers(primaryOffer: Chess960Start[], nextOffers: DraftOffers | undefined): DraftOffers {
+export function normalizedOffers(
+  primaryOffer: Chess960Start[],
+  nextOffers: DraftOffers | undefined,
+): DraftOffers {
   if (nextOffers?.white || nextOffers?.black) return nextOffers;
   if (primaryOffer.length === 0) return {};
   return { white: primaryOffer, black: primaryOffer };
@@ -136,7 +152,9 @@ export function clientIdForRoom(roomId: string): string {
   const key = `mistboard.client.${roomId}`;
   const existing = readLocalStorage(key);
   if (existing && /^[a-zA-Z0-9:_-]{8,80}$/.test(existing)) return existing;
-  const next = window.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+  const next =
+    window.crypto?.randomUUID?.() ??
+    `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
   writeLocalStorage(key, next);
   return next;
 }
@@ -152,7 +170,8 @@ export function readSeatTokenForRoom(roomId: string): StoredSeatToken | null {
   try {
     const parsed = JSON.parse(raw) as Partial<StoredSeatToken>;
     if (!isColor(parsed.seat)) return null;
-    if (typeof parsed.token !== 'string' || !/^[a-zA-Z0-9_-]{32,128}$/.test(parsed.token)) return null;
+    if (typeof parsed.token !== 'string' || !/^[a-zA-Z0-9_-]{32,128}$/.test(parsed.token))
+      return null;
     return { seat: parsed.seat, token: parsed.token };
   } catch {
     return null;

@@ -1,4 +1,9 @@
-import { applyGameEvent, initialGameProjection, type GameEvent, type GameProjection } from './events.js';
+import {
+  applyGameEvent,
+  initialGameProjection,
+  type GameEvent,
+  type GameProjection,
+} from './events.js';
 import type { Board, GameState, Move, PieceRole, Square } from './types.js';
 
 type PromotionRole = Exclude<PieceRole, 'king' | 'pawn'>;
@@ -36,7 +41,10 @@ export function moveToAlgebraic(state: GameState, move: Move): string {
   ].join('');
 }
 
-export function algebraicMoveLabels(events: GameEvent[], roomId = events[0]?.roomId ?? 'replay'): Map<number, string> {
+export function algebraicMoveLabels(
+  events: GameEvent[],
+  roomId = events[0]?.roomId ?? 'replay',
+): Map<number, string> {
   const labels = new Map<number, string>();
   let projection = initialGameProjection(roomId);
 
@@ -113,7 +121,11 @@ function castlingMoveSide(state: GameState, move: Move): 'king' | 'queen' | null
   if (!piece || piece.role !== 'king' || rankOf(move.from) !== rankOf(move.to)) return null;
 
   const target = state.board[move.to];
-  if (target?.color === piece.color && target.role === 'rook' && state.castlingRights.includes(move.to)) {
+  if (
+    target?.color === piece.color &&
+    target.role === 'rook' &&
+    state.castlingRights.includes(move.to)
+  ) {
     return fileIndex(move.to) > fileIndex(move.from) ? 'king' : 'queen';
   }
 
@@ -137,12 +149,13 @@ function disambiguation(state: GameState, move: Move): string {
   if (!piece || piece.role === 'pawn') return '';
 
   const alternatives = Object.entries(state.board)
-    .filter(([from, candidate]) => (
-      from !== move.from
-      && candidate?.color === piece.color
-      && candidate.role === piece.role
-      && canPieceReach(state.board, from as Square, move.to)
-    ))
+    .filter(
+      ([from, candidate]) =>
+        from !== move.from &&
+        candidate?.color === piece.color &&
+        candidate.role === piece.role &&
+        canPieceReach(state.board, from as Square, move.to),
+    )
     .map(([from]) => from as Square);
 
   if (alternatives.length === 0) return '';
@@ -162,11 +175,16 @@ function canPieceReach(board: Board, from: Square, to: Square): boolean {
   const absFile = Math.abs(fileDelta);
   const absRank = Math.abs(rankDelta);
 
-  if (piece.role === 'knight') return (absFile === 1 && absRank === 2) || (absFile === 2 && absRank === 1);
+  if (piece.role === 'knight')
+    return (absFile === 1 && absRank === 2) || (absFile === 2 && absRank === 1);
   if (piece.role === 'king') return Math.max(absFile, absRank) === 1;
   if (piece.role === 'bishop') return absFile === absRank && isClearPath(board, from, to);
-  if (piece.role === 'rook') return (fileDelta === 0 || rankDelta === 0) && isClearPath(board, from, to);
-  if (piece.role === 'queen') return (fileDelta === 0 || rankDelta === 0 || absFile === absRank) && isClearPath(board, from, to);
+  if (piece.role === 'rook')
+    return (fileDelta === 0 || rankDelta === 0) && isClearPath(board, from, to);
+  if (piece.role === 'queen')
+    return (
+      (fileDelta === 0 || rankDelta === 0 || absFile === absRank) && isClearPath(board, from, to)
+    );
   if (piece.role === 'pawn') {
     const direction = piece.color === 'white' ? 1 : -1;
     return rankDelta === direction && absFile === 1;
@@ -203,7 +221,7 @@ function fileOf(square: Square): string {
 }
 
 function fileIndex(square: Square): number {
-  return files.indexOf(square[0] as typeof files[number]);
+  return files.indexOf(square[0] as (typeof files)[number]);
 }
 
 function rankOf(square: Square): number {

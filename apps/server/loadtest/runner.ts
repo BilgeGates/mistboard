@@ -44,7 +44,12 @@ type SnapshotMessage = {
   type: 'snapshot' | 'event-appended';
   seat?: 'white' | 'black' | 'spectator';
   state?: {
-    status?: { type: 'pregame' | 'playing' | 'finished'; turn?: Color; winner?: Color | null; reason?: string };
+    status?: {
+      type: 'pregame' | 'playing' | 'finished';
+      turn?: Color;
+      winner?: Color | null;
+      reason?: string;
+    };
     moveNumber?: number;
     legalMoves?: Move[];
   };
@@ -55,7 +60,7 @@ export async function runScenario(opts: RunnerOptions): Promise<GameResult[]> {
   const startedAt = Date.now();
   const wantsDuration = opts.durationMs !== undefined;
   const wallDeadline = wantsDuration ? startedAt + opts.durationMs! : Infinity;
-  const baseSeed = opts.seed ?? 0x9E3779B9;
+  const baseSeed = opts.seed ?? 0x9e3779b9;
 
   // Concurrent workers — each one runs games back-to-back until duration elapses (if set)
   // or until each worker has run one game (if duration not set).
@@ -69,7 +74,7 @@ export async function runScenario(opts: RunnerOptions): Promise<GameResult[]> {
       if (wantsDuration && Date.now() >= wallDeadline) break;
       if (!wantsDuration && gameIdx >= workerCount) break;
 
-      const seed = baseSeed ^ ((workerIdx + 1) * 0x9E3779B1) ^ (gameIdx * 0xCAFE);
+      const seed = baseSeed ^ ((workerIdx + 1) * 0x9e3779b1) ^ (gameIdx * 0xcafe);
       const result = await runOneGame(opts.serverUrl, opts.scenario, gameIdx, seed);
       results.push(result);
       opts.onGameComplete?.(result);
@@ -177,11 +182,22 @@ async function runPvpGame(
     }
     // Run both sides concurrently. White records latency.
     const whitePromise = playLoop(whiteClient, scenario, gameIdx, gameStart, seed ^ 0x1, 'white');
-    const blackPromise = playLoop(blackClient, scenario, gameIdx, gameStart, seed ^ 0x2, 'black', /* recordLatency */ false);
+    const blackPromise = playLoop(
+      blackClient,
+      scenario,
+      gameIdx,
+      gameStart,
+      seed ^ 0x2,
+      'black',
+      /* recordLatency */ false,
+    );
     const [whiteResult] = await Promise.all([whitePromise, blackPromise]);
     return whiteResult;
   } finally {
-    await Promise.all([a.disconnect().catch(() => undefined), b.disconnect().catch(() => undefined)]);
+    await Promise.all([
+      a.disconnect().catch(() => undefined),
+      b.disconnect().catch(() => undefined),
+    ]);
   }
 }
 
@@ -231,12 +247,16 @@ async function playLoop(
       // Diagnostic: dump status/turn/moveNumber of the LAST snapshot received,
       // so we can see why the predicate stopped matching.
       if (process.env.LOADTEST_DEBUG === '1') {
-        const lastSnap = [...client.messages].reverse().find((m) => (m as { type: string }).type === 'snapshot') as SnapshotMessage | undefined;
+        const lastSnap = [...client.messages]
+          .reverse()
+          .find((m) => (m as { type: string }).type === 'snapshot') as SnapshotMessage | undefined;
         const tail = client.messages.slice(-3).map((m) => {
           const s = (m as SnapshotMessage).state;
           return `t=${(m as { type: string }).type} status=${s?.status?.type ?? '?'} turn=${s?.status?.turn ?? '?'} mn=${s?.moveNumber ?? '?'} legal=${s?.legalMoves?.length ?? '?'}`;
         });
-        console.error(`[debug] game=${gameIdx} actedOnMove=${actedOnMove} movesPlayed=${movesPlayed} lastSnapshot=${JSON.stringify(lastSnap?.state?.status)} tail=${JSON.stringify(tail)}`);
+        console.error(
+          `[debug] game=${gameIdx} actedOnMove=${actedOnMove} movesPlayed=${movesPlayed} lastSnapshot=${JSON.stringify(lastSnap?.state?.status)} tail=${JSON.stringify(tail)}`,
+        );
       }
       break;
     }

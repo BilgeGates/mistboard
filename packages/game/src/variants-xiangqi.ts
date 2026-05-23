@@ -12,7 +12,12 @@
 //   - Rank 1 = red back rank, rank 10 = black back rank
 //   - River sits between ranks 5 and 6
 
-import type { Color as EoColor, Role as EoRole, SquareName as EoSquareName, Square as EoSquare } from 'elephantops';
+import type {
+  Color as EoColor,
+  Role as EoRole,
+  SquareName as EoSquareName,
+  Square as EoSquare,
+} from 'elephantops';
 import { Board as EoBoard } from 'elephantops/board';
 import { Xiangqi as EoXiangqi } from 'elephantops/xiangqi';
 import { makeSquare as eoMakeSquare, parseSquare as eoParseSquare } from 'elephantops/util';
@@ -177,7 +182,15 @@ export function hasCrossedRiver(color: XiangqiColor, rank: number): boolean {
 export function createInitialXiangqiBoard(): XiangqiBoard {
   const board: XiangqiBoard = {};
   const backRank: XiangqiPieceRole[] = [
-    'chariot', 'horse', 'elephant', 'advisor', 'general', 'advisor', 'elephant', 'horse', 'chariot',
+    'chariot',
+    'horse',
+    'elephant',
+    'advisor',
+    'general',
+    'advisor',
+    'elephant',
+    'horse',
+    'chariot',
   ];
   for (let f = 0; f < 9; f++) {
     board[squareOf(f, 1)] = { color: 'red', role: backRank[f] };
@@ -366,7 +379,7 @@ export function applyMove(
   }
 
   const nextTurn = position.turn;
-  const newProgressClock = (wasCapture || wasSoldierMove) ? 0 : state.progressClock + 1;
+  const newProgressClock = wasCapture || wasSoldierMove ? 0 : state.progressClock + 1;
   const newMoveNumber = position.fullmoves;
 
   // Bookkeep position counts (use intermediate playing state for the digest).
@@ -446,7 +459,13 @@ function isOccupied(board: XiangqiBoard, file: number, rank: number): boolean {
   return board[squareOf(file, rank)] !== undefined;
 }
 
-function generalVisionInto(set: Set<XiangqiSquare>, color: XiangqiColor, board: XiangqiBoard, file: number, rank: number): void {
+function generalVisionInto(
+  set: Set<XiangqiSquare>,
+  color: XiangqiColor,
+  board: XiangqiBoard,
+  file: number,
+  rank: number,
+): void {
   // 1. The general sees its own square + all 9 palace squares of its side.
   //    (Spec: "Palace squares + enemy general (only when files align ...)".
   //    We include own-side palace; opponent palace is not visible.)
@@ -464,27 +483,53 @@ function generalVisionInto(set: Set<XiangqiSquare>, color: XiangqiColor, board: 
     const maxR = Math.max(rank, enemy.rank);
     let clear = true;
     for (let r = minR + 1; r < maxR; r++) {
-      if (isOccupied(board, file, r)) { clear = false; break; }
+      if (isOccupied(board, file, r)) {
+        clear = false;
+        break;
+      }
     }
     if (clear) set.add(sq as XiangqiSquare);
   }
 }
 
-function advisorVisionInto(set: Set<XiangqiSquare>, color: XiangqiColor, file: number, rank: number): void {
+function advisorVisionInto(
+  set: Set<XiangqiSquare>,
+  color: XiangqiColor,
+  file: number,
+  rank: number,
+): void {
   // 4 diagonal palace squares.
-  for (const [df, dr] of [[-1, -1], [-1, 1], [1, -1], [1, 1]] as const) {
-    const f = file + df, r = rank + dr;
+  for (const [df, dr] of [
+    [-1, -1],
+    [-1, 1],
+    [1, -1],
+    [1, 1],
+  ] as const) {
+    const f = file + df,
+      r = rank + dr;
     if (inPalace(color, f, r)) addIfOnBoard(set, f, r);
   }
 }
 
-function elephantVisionInto(set: Set<XiangqiSquare>, color: XiangqiColor, file: number, rank: number): void {
+function elephantVisionInto(
+  set: Set<XiangqiSquare>,
+  color: XiangqiColor,
+  file: number,
+  rank: number,
+): void {
   // 4 diagonal-2 destinations in own half + the 4 eye (midpoint) squares.
   // Doc spec: eye and destination both visible regardless of whether the
   // eye is blocked (vision != legality).
-  for (const [df, dr] of [[-2, -2], [-2, 2], [2, -2], [2, 2]] as const) {
-    const eyeF = file + df / 2, eyeR = rank + dr / 2;
-    const destF = file + df, destR = rank + dr;
+  for (const [df, dr] of [
+    [-2, -2],
+    [-2, 2],
+    [2, -2],
+    [2, 2],
+  ] as const) {
+    const eyeF = file + df / 2,
+      eyeR = rank + dr / 2;
+    const destF = file + df,
+      destR = rank + dr;
     if (inBounds(eyeF, eyeR)) set.add(squareOf(eyeF, eyeR));
     if (inBounds(destF, destR) && inOwnHalf(color, destR)) {
       set.add(squareOf(destF, destR));
@@ -495,24 +540,47 @@ function elephantVisionInto(set: Set<XiangqiSquare>, color: XiangqiColor, file: 
 function horseVisionInto(set: Set<XiangqiSquare>, file: number, rank: number): void {
   // 8 L-squares + 4 leg (orthogonal-step) squares.
   for (const [df, dr] of [
-    [1, 2], [1, -2], [-1, 2], [-1, -2],
-    [2, 1], [2, -1], [-2, 1], [-2, -1],
+    [1, 2],
+    [1, -2],
+    [-1, 2],
+    [-1, -2],
+    [2, 1],
+    [2, -1],
+    [-2, 1],
+    [-2, -1],
   ] as const) {
     addIfOnBoard(set, file + df, rank + dr);
   }
-  for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+  for (const [df, dr] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
     addIfOnBoard(set, file + df, rank + dr);
   }
 }
 
-function chariotVisionInto(set: Set<XiangqiSquare>, board: XiangqiBoard, file: number, rank: number): void {
+function chariotVisionInto(
+  set: Set<XiangqiSquare>,
+  board: XiangqiBoard,
+  file: number,
+  rank: number,
+): void {
   // Rook-like: walk each ray, include each square, stop after the first piece.
-  for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-    let f = file + df, r = rank + dr;
+  for (const [df, dr] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
+    let f = file + df,
+      r = rank + dr;
     while (inBounds(f, r)) {
       set.add(squareOf(f, r));
       if (isOccupied(board, f, r)) break;
-      f += df; r += dr;
+      f += df;
+      r += dr;
     }
   }
 }
@@ -534,22 +602,31 @@ function cannonVisionInto(
   //   5. If there is no enemy target (only own piece past screen, or off
   //      board), the cannon cannot attack past the screen — vision ends
   //      at the screen.
-  for (const [df, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-    let f = file + df, r = rank + dr;
+  for (const [df, dr] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
+    let f = file + df,
+      r = rank + dr;
     // Phase 1: empty squares up to screen.
     while (inBounds(f, r) && !isOccupied(board, f, r)) {
       accum.directlyVisible.add(squareOf(f, r));
-      f += df; r += dr;
+      f += df;
+      r += dr;
     }
     if (!inBounds(f, r)) continue;
     // Phase 2: screen.
     accum.cannonScreens.add(squareOf(f, r));
-    f += df; r += dr;
+    f += df;
+    r += dr;
     // Phase 3: collect empty squares past screen as candidates.
     const candidates: XiangqiSquare[] = [];
     while (inBounds(f, r) && !isOccupied(board, f, r)) {
       candidates.push(squareOf(f, r));
-      f += df; r += dr;
+      f += df;
+      r += dr;
     }
     if (!inBounds(f, r)) continue;
     // Phase 4: target — only count it (and promote candidates) if enemy.
@@ -561,7 +638,12 @@ function cannonVisionInto(
   }
 }
 
-function soldierVisionInto(set: Set<XiangqiSquare>, color: XiangqiColor, file: number, rank: number): void {
+function soldierVisionInto(
+  set: Set<XiangqiSquare>,
+  color: XiangqiColor,
+  file: number,
+  rank: number,
+): void {
   // 1 fwd in own half, +2 sideways after crossing the river.
   const forward = color === 'red' ? 1 : -1;
   addIfOnBoard(set, file, rank + forward);
@@ -579,13 +661,27 @@ export function computeVision(state: XiangqiGameState, color: XiangqiColor): Vis
     accum.directlyVisible.add(sq as XiangqiSquare);
     const { file, rank } = coordOf(sq as XiangqiSquare);
     switch (piece.role) {
-      case 'general': generalVisionInto(accum.directlyVisible, color, state.board, file, rank); break;
-      case 'advisor': advisorVisionInto(accum.directlyVisible, color, file, rank); break;
-      case 'elephant': elephantVisionInto(accum.directlyVisible, color, file, rank); break;
-      case 'horse': horseVisionInto(accum.directlyVisible, file, rank); break;
-      case 'chariot': chariotVisionInto(accum.directlyVisible, state.board, file, rank); break;
-      case 'cannon': cannonVisionInto(accum, state.board, color, file, rank); break;
-      case 'soldier': soldierVisionInto(accum.directlyVisible, color, file, rank); break;
+      case 'general':
+        generalVisionInto(accum.directlyVisible, color, state.board, file, rank);
+        break;
+      case 'advisor':
+        advisorVisionInto(accum.directlyVisible, color, file, rank);
+        break;
+      case 'elephant':
+        elephantVisionInto(accum.directlyVisible, color, file, rank);
+        break;
+      case 'horse':
+        horseVisionInto(accum.directlyVisible, file, rank);
+        break;
+      case 'chariot':
+        chariotVisionInto(accum.directlyVisible, state.board, file, rank);
+        break;
+      case 'cannon':
+        cannonVisionInto(accum, state.board, color, file, rank);
+        break;
+      case 'soldier':
+        soldierVisionInto(accum.directlyVisible, color, file, rank);
+        break;
     }
   }
   return accum;
@@ -593,7 +689,11 @@ export function computeVision(state: XiangqiGameState, color: XiangqiColor): Vis
 
 export function getVisibleSquares(state: XiangqiGameState, color: XiangqiColor): XiangqiSquare[] {
   const v = computeVision(state, color);
-  const all = new Set<XiangqiSquare>([...v.directlyVisible, ...v.cannonScreens, ...v.cannonTargets]);
+  const all = new Set<XiangqiSquare>([
+    ...v.directlyVisible,
+    ...v.cannonScreens,
+    ...v.cannonTargets,
+  ]);
   return [...all].sort();
 }
 
@@ -633,9 +733,8 @@ export function getPlayerView(
 
   const visibleSquares = getVisibleSquares(state, color);
 
-  const legalMoves = state.status.type === 'playing' && state.status.turn === color
-    ? getLegalMoves(state)
-    : [];
+  const legalMoves =
+    state.status.type === 'playing' && state.status.turn === color ? getLegalMoves(state) : [];
 
   return {
     id: state.id,

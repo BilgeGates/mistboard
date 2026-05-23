@@ -2,9 +2,10 @@ const resendApiKey = process.env.RESEND_API_KEY;
 // MISTBOARD_FEEDBACK_FROM lets feedback use a dedicated sender (e.g.
 // feedback@mistboard.com) without disturbing the auth-email From. Falls back
 // to the auth From so existing deploys keep working with no env change.
-const fromAddress = process.env.MISTBOARD_FEEDBACK_FROM
-  ?? process.env.MISTBOARD_AUTH_EMAIL_FROM
-  ?? process.env.RESEND_FROM_EMAIL;
+const fromAddress =
+  process.env.MISTBOARD_FEEDBACK_FROM ??
+  process.env.MISTBOARD_AUTH_EMAIL_FROM ??
+  process.env.RESEND_FROM_EMAIL;
 const feedbackTo = process.env.MISTBOARD_FEEDBACK_TO;
 
 export const feedbackEmailEnabled = !!resendApiKey && !!fromAddress && !!feedbackTo;
@@ -25,9 +26,7 @@ export async function sendFeedbackNotification(payload: FeedbackEmailPayload): P
 
   const isUserLane = payload.userId !== null;
   const lanePrefix = isUserLane ? '[USER]' : '[ANON]';
-  const handleSuffix = isUserLane && payload.accountHandle
-    ? ` @${payload.accountHandle}`
-    : '';
+  const handleSuffix = isUserLane && payload.accountHandle ? ` @${payload.accountHandle}` : '';
   const subject = `${lanePrefix} Mistboard feedback${handleSuffix} (${payload.id.slice(0, 8)})`;
 
   // Logged-in lane: trust the verified account email for reply_to.
@@ -66,21 +65,25 @@ export async function sendFeedbackNotification(payload: FeedbackEmailPayload): P
       }),
     });
     if (!response.ok) {
-      console.error(JSON.stringify({
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          kind: 'feedback_delivery_failure',
+          provider: 'resend',
+          status: response.status,
+          at: Date.now(),
+        }),
+      );
+    }
+  } catch (err) {
+    console.error(
+      JSON.stringify({
         level: 'error',
         kind: 'feedback_delivery_failure',
         provider: 'resend',
-        status: response.status,
+        error: (err as Error).message,
         at: Date.now(),
-      }));
-    }
-  } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'feedback_delivery_failure',
-      provider: 'resend',
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
+      }),
+    );
   }
 }

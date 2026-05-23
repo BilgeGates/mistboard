@@ -29,7 +29,11 @@ export function normalizeEmail(value: string | null): string | null {
   if (!/^[\x00-\x7F]+$/.test(email)) return null;
   if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(email)) return null;
   const [, domain = ''] = email.split('@');
-  if (domain.split('.').some((label) => label.length === 0 || label.startsWith('-') || label.endsWith('-'))) {
+  if (
+    domain
+      .split('.')
+      .some((label) => label.length === 0 || label.startsWith('-') || label.endsWith('-'))
+  ) {
     return null;
   }
   return email;
@@ -72,5 +76,7 @@ export function normalizeDisplayName(value: string | null): string | null {
 }
 
 function randomHandleSuffix(): string {
-  return randomInt(0, 36 ** 5).toString(36).padStart(5, '0');
+  return randomInt(0, 36 ** 5)
+    .toString(36)
+    .padStart(5, '0');
 }

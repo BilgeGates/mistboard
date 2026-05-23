@@ -20,9 +20,7 @@ import {
 import { runMigrations } from './migrate.js';
 import { serveGameOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
-import {
-  isPlayableLiveEngineClientId,
-} from './engine-registry.js';
+import { isPlayableLiveEngineClientId } from './engine-registry.js';
 import { snapshotPayload } from './payloads.js';
 import { logger, wsCounters } from './obs.js';
 import {
@@ -107,12 +105,16 @@ const lobbyQueue: LobbyTicket[] = [];
 const databaseRequired = isDatabaseRequired();
 const wsMaxPayloadBytes = parsePositiveInteger(process.env.MISTBOARD_WS_MAX_PAYLOAD_BYTES) ?? 8_192;
 const wsMessageLimit = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_LIMIT) ?? 40;
-const wsMessageWindowMs = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_WINDOW_MS) ?? 10_000;
+const wsMessageWindowMs =
+  parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_WINDOW_MS) ?? 10_000;
 const shutdownGraceMs = parsePositiveInteger(process.env.MISTBOARD_SHUTDOWN_GRACE_MS) ?? 10_000;
 const pauseGraceMs = parsePositiveInteger(process.env.MISTBOARD_RESUME_GRACE_MS) ?? 90_000;
-const orphanThresholdMs = parsePositiveInteger(process.env.MISTBOARD_ORPHAN_THRESHOLD_MS) ?? 300_000;
-const drainWindowMaxMs = parsePositiveInteger(process.env.MISTBOARD_DRAIN_WINDOW_MAX_MS) ?? 60 * 60 * 1000;
-const drainWindowDefaultMs = parsePositiveInteger(process.env.MISTBOARD_DRAIN_WINDOW_DEFAULT_MS) ?? 15 * 60 * 1000;
+const orphanThresholdMs =
+  parsePositiveInteger(process.env.MISTBOARD_ORPHAN_THRESHOLD_MS) ?? 300_000;
+const drainWindowMaxMs =
+  parsePositiveInteger(process.env.MISTBOARD_DRAIN_WINDOW_MAX_MS) ?? 60 * 60 * 1000;
+const drainWindowDefaultMs =
+  parsePositiveInteger(process.env.MISTBOARD_DRAIN_WINDOW_DEFAULT_MS) ?? 15 * 60 * 1000;
 
 // Drain state: when active, matchmaking is blocked and a 'server_restart_scheduled'
 // broadcast is sent to every connected client. Idempotent — re-hitting /admin/drain
@@ -156,17 +158,27 @@ function drainRateAllowed(ip: string): boolean {
 const liveClockInitialMs = 180_000;
 const liveClockIncrementMs = 2_000;
 const pveEngineMoveDelayMs = parsePositiveInteger(process.env.MISTBOARD_PVE_ENGINE_DELAY_MS) ?? 650;
-const liveEngineTimeoutMs = parsePositiveInteger(process.env.MISTBOARD_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
-const guestPrestartAbortMs = parseNonNegativeInteger(process.env.MISTBOARD_GUEST_PRESTART_ABORT_MS) ?? 15 * 60 * 1000;
-const abortPolicySweepMs = parsePositiveInteger(process.env.MISTBOARD_ABORT_POLICY_SWEEP_MS) ?? 60_000;
-const stalePauseMs = (parsePositiveInteger(process.env.MISTBOARD_STALE_PAUSE_HOURS) ?? 24) * 60 * 60 * 1000;
-const stalePausedSweepMs = parsePositiveInteger(process.env.MISTBOARD_STALE_PAUSED_SWEEP_MS) ?? 15 * 60 * 1000;
+const liveEngineTimeoutMs =
+  parsePositiveInteger(process.env.MISTBOARD_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
+const guestPrestartAbortMs =
+  parseNonNegativeInteger(process.env.MISTBOARD_GUEST_PRESTART_ABORT_MS) ?? 15 * 60 * 1000;
+const abortPolicySweepMs =
+  parsePositiveInteger(process.env.MISTBOARD_ABORT_POLICY_SWEEP_MS) ?? 60_000;
+const stalePauseMs =
+  (parsePositiveInteger(process.env.MISTBOARD_STALE_PAUSE_HOURS) ?? 24) * 60 * 60 * 1000;
+const stalePausedSweepMs =
+  parsePositiveInteger(process.env.MISTBOARD_STALE_PAUSED_SWEEP_MS) ?? 15 * 60 * 1000;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 
 const staticDir = resolveStaticDir();
-const annotationsFile = resolveRepoPath('research', 'python-fow-lab', 'feedback', 'annotations.jsonl');
+const annotationsFile = resolveRepoPath(
+  'research',
+  'python-fow-lab',
+  'feedback',
+  'annotations.jsonl',
+);
 
 const roomMgrCtx: RoomManagerContext = {
   send,
@@ -182,14 +194,15 @@ const rematchOrch: RematchOrchestrator = {
   ctx: roomMgrCtx,
   send,
   buildRoomUrl: (roomId) => `/?room=${encodeURIComponent(roomId)}`,
-  createRoom: (spec) => createRoom(
-    spec.mode,
-    spec.variant,
-    spec.pveEngineId ?? pveBuiltinEngineClientId,
-    spec.hiddenDraft960,
-    spec.timeControl,
-    spec.rated,
-  ),
+  createRoom: (spec) =>
+    createRoom(
+      spec.mode,
+      spec.variant,
+      spec.pveEngineId ?? pveBuiltinEngineClientId,
+      spec.hiddenDraft960,
+      spec.timeControl,
+      spec.rated,
+    ),
   issueSeatToken: async (room, seat, identity) => {
     const rawToken = randomBytes(32).toString('base64url');
     const tokenHash = hashSeatToken(rawToken);
@@ -259,13 +272,19 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
       return;
     }
     void handleConnection(socket, request).catch((err) => {
-      console.error(JSON.stringify({
-        level: 'error',
-        kind: 'connection_handler_failure',
-        error: (err as Error).message,
-        at: Date.now(),
-      }));
-      try { socket.close(1011, 'internal error'); } catch { /* socket already closed */ }
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          kind: 'connection_handler_failure',
+          error: (err as Error).message,
+          at: Date.now(),
+        }),
+      );
+      try {
+        socket.close(1011, 'internal error');
+      } catch {
+        /* socket already closed */
+      }
     });
   });
 
@@ -319,12 +338,21 @@ export async function stopServer(): Promise<void> {
     stalePausedSweepTimer = null;
   }
   for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
-    try { client.socket.close(1001, 'server shutting down'); } catch { /* socket already closed */ }
+    try {
+      client.socket.close(1001, 'server shutting down');
+    } catch {
+      /* socket already closed */
+    }
   }
   await Promise.allSettled([...rooms.values()].map((room) => room.pendingWrites));
-  await new Promise<void>((resolve) => { wss!.close(() => resolve()); });
+  await new Promise<void>((resolve) => {
+    wss!.close(() => resolve());
+  });
   await new Promise<void>((resolve, reject) => {
-    server!.close((err) => { if (err) reject(err); else resolve(); });
+    server!.close((err) => {
+      if (err) reject(err);
+      else resolve();
+    });
   });
   await persistence.close();
   rooms.clear();
@@ -341,7 +369,9 @@ async function initPersistence(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     if (databaseRequired) {
-      throw new Error('DATABASE_URL is required in this runtime; set MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true only for intentional ephemeral environments');
+      throw new Error(
+        'DATABASE_URL is required in this runtime; set MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true only for intentional ephemeral environments',
+      );
     }
     console.log('persistence: disabled (set DATABASE_URL to enable)');
     return;
@@ -367,30 +397,33 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     void (async () => {
       const cutoff1m = Date.now() - 60_000;
       const recent = persistenceErrors.filter((entry) => entry.at > cutoff1m);
-      const lastAt = persistenceErrors.length > 0
-        ? persistenceErrors[persistenceErrors.length - 1]!.at
-        : null;
+      const lastAt =
+        persistenceErrors.length > 0 ? persistenceErrors[persistenceErrors.length - 1]!.at : null;
       const dbReachable = databaseRequired ? await persistence.probeDb() : true;
       const ok = recent.length === 0 && dbReachable;
       response.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({
-        ok,
-        databaseRequired,
-        persistence: persistence.isInitialized() ? 'enabled' : 'disabled',
-        persistenceErrors: { count1m: recent.length, lastAt },
-      }));
+      response.end(
+        JSON.stringify({
+          ok,
+          databaseRequired,
+          persistence: persistence.isInitialized() ? 'enabled' : 'disabled',
+          persistenceErrors: { count1m: recent.length, lastAt },
+        }),
+      );
     })();
     return;
   }
 
   if (pathname === '/admin/drain' || pathname === '/admin/drain/cancel') {
     void handleDrainRequest(request, response, pathname).catch((err) => {
-      console.error(JSON.stringify({
-        level: 'error',
-        kind: 'drain_handler_failure',
-        error: (err as Error).message,
-        at: Date.now(),
-      }));
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          kind: 'drain_handler_failure',
+          error: (err as Error).message,
+          at: Date.now(),
+        }),
+      );
       if (!response.headersSent) {
         response.writeHead(500, { 'content-type': 'application/json' });
         response.end(JSON.stringify({ error: 'internal_error' }));
@@ -417,13 +450,15 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
       activeGameCount: countActiveGames,
     };
     void handleApiRequest(apiCtx, request, response).catch((err) => {
-      console.error(JSON.stringify({
-        level: 'error',
-        kind: 'api_handler_failure',
-        url,
-        error: (err as Error).message,
-        at: Date.now(),
-      }));
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          kind: 'api_handler_failure',
+          url,
+          error: (err as Error).message,
+          at: Date.now(),
+        }),
+      );
       if (!response.headersSent) {
         response.writeHead(500, { 'content-type': 'application/json' });
         response.end(JSON.stringify({ error: 'internal_error' }));
@@ -494,39 +529,49 @@ type PageMeta = {
 const ARTICLE_META: Record<string, { title: string; description: string }> = {
   'fog-of-war-rules': {
     title: 'Fog of War: the canonical reference',
-    description: 'You only see what your pieces can legally see. Captured kings end the game, not checkmate. Everything else is regular chess.',
+    description:
+      'You only see what your pieces can legally see. Captured kings end the game, not checkmate. Everything else is regular chess.',
   },
-  'draft960': {
+  draft960: {
     title: 'Draft960: the end of opening theory in Fog of War',
-    description: 'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
+    description:
+      'A variant of Fog of War built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information — and a different board every game.',
   },
   'engine-belief-state': {
     title: 'Building an engine for hidden-information chess',
-    description: "Stockfish-class engines don't transfer to Fog of War because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
+    description:
+      "Stockfish-class engines don't transfer to Fog of War because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
   },
 };
 
 function injectPageMeta(html: string, meta: PageMeta): string {
   let out = html
     .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(meta.title)}</title>`)
-    .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.description)}$2`)
-    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.title)}$2`)
-    .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.description)}$2`)
-    .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.url)}$2`)
-    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.title)}$2`)
-    .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.description)}$2`);
+    .replace(
+      /(<meta\s+name="description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`,
+    )
+    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.title)}$2`)
+    .replace(
+      /(<meta\s+property="og:description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`,
+    )
+    .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.url)}$2`)
+    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.title)}$2`)
+    .replace(
+      /(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
+      `$1${escapeHtml(meta.description)}$2`,
+    );
   if (meta.imageUrl) {
     out = out
-      .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(meta.imageUrl)}$2`)
-      .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(meta.imageUrl)}$2`);
+      .replace(
+        /(<meta\s+property="og:image"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(meta.imageUrl)}$2`,
+      )
+      .replace(
+        /(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
+        `$1${escapeHtml(meta.imageUrl)}$2`,
+      );
   }
   return out;
 }
@@ -541,8 +586,11 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
     const white = game.whiteName ?? 'White';
     const black = game.blackName ?? 'Black';
     const resultLabel =
-      game.result === 'white-wins' ? `${white} wins` :
-      game.result === 'black-wins' ? `${black} wins` : 'Draw';
+      game.result === 'white-wins'
+        ? `${white} wins`
+        : game.result === 'black-wins'
+          ? `${black} wins`
+          : 'Draw';
     const title = `${resultLabel} · Fog of War | Mistboard`;
     const plies = game.plyCount ?? 0;
     const moves = Math.ceil(plies / 2);
@@ -590,7 +638,11 @@ async function serveArticlesIndexPage(response: ServerResponse): Promise<void> {
 }
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 function resolveRepoPath(...parts: string[]): string {
@@ -627,7 +679,9 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   if (randomEngine) await enableRandomEngine(room);
   const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
   const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
-  const assignment = solo ? { seat: 'spectator' } satisfies SeatAssignment : await assignSeat(room, clientId, seatToken, accountUser);
+  const assignment = solo
+    ? ({ seat: 'spectator' } satisfies SeatAssignment)
+    : await assignSeat(room, clientId, seatToken, accountUser);
   const seat = assignment.seat;
   if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection)) {
     socket.close(1008, 'private room');
@@ -665,18 +719,23 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
       }
     } catch (err) {
       if (!(err instanceof PersistenceFailure)) {
-        console.error(JSON.stringify({
-          level: 'error',
-          kind: 'resume_on_connect_failure',
-          roomId: room.id,
-          error: (err as Error).message,
-          at: Date.now(),
-        }));
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            kind: 'resume_on_connect_failure',
+            roomId: room.id,
+            error: (err as Error).message,
+            at: Date.now(),
+          }),
+        );
       }
     }
   }
 
-  const snapshot = snapshotPayload({ ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) }, client);
+  const snapshot = snapshotPayload(
+    { ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) },
+    client,
+  );
   send(client, {
     ...snapshot,
     type: 'hello',
@@ -735,7 +794,11 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
   try {
     if (message.type === 'ping') send(client, { type: 'pong', at: Date.now() });
     if (message.type === 'admin-debug-auth') {
-      handleAdminDebugAuth(room, client, typeof message.token === 'string' ? message.token : undefined);
+      handleAdminDebugAuth(
+        room,
+        client,
+        typeof message.token === 'string' ? message.token : undefined,
+      );
       return;
     }
     if (message.type === 'snapshot:request') {
@@ -743,16 +806,23 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
       // this room via the WS connect handshake (canObserveLiveRoom + seat
       // token); we inherit that auth here rather than re-deriving it.
       wsCounters.recordSnapshotRequest();
-      send(client, snapshotPayload(
-        { ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) },
+      send(
         client,
-      ));
+        snapshotPayload(
+          { ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) },
+          client,
+        ),
+      );
       return;
     }
     if (message.type === 'select-start') {
       await selectStart(room, client, message.startId, message.color);
     }
-    if (message.type === 'move' && typeof message.from === 'string' && typeof message.to === 'string') {
+    if (
+      message.type === 'move' &&
+      typeof message.from === 'string' &&
+      typeof message.to === 'string'
+    ) {
       await playMove(roomMgrCtx, room, client, {
         type: 'move',
         from: message.from,
@@ -788,20 +858,22 @@ async function handleClose(room: Room, client: Client): Promise<void> {
     broadcastSnapshot(roomMgrCtx, room);
     return;
   }
-  const beforeFirstMove = room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined;
+  const beforeFirstMove =
+    room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined;
   const clockStarted = room.projection.state.clock !== undefined;
   if (
-    (room.projection.state.status.type === 'pregame' || beforeFirstMove)
-    && !clockStarted
-    && client.seat !== 'spectator'
-    && room.projection.seats[client.seat] === client.id
+    (room.projection.state.status.type === 'pregame' || beforeFirstMove) &&
+    !clockStarted &&
+    client.seat !== 'spectator' &&
+    room.projection.seats[client.seat] === client.id
   ) {
     scheduleSeatVacate(room, client);
   }
   broadcastSnapshot(roomMgrCtx, room);
 }
 
-const SEAT_VACATE_GRACE_MS_DEFAULT = parsePositiveInteger(process.env.MISTBOARD_SEAT_VACATE_GRACE_MS) ?? 20_000;
+const SEAT_VACATE_GRACE_MS_DEFAULT =
+  parsePositiveInteger(process.env.MISTBOARD_SEAT_VACATE_GRACE_MS) ?? 20_000;
 
 function seatVacateGraceMs(): number {
   return seatVacateGraceMsOverride ?? SEAT_VACATE_GRACE_MS_DEFAULT;
@@ -818,8 +890,10 @@ function scheduleSeatVacate(room: Room, client: Client): void {
     // Only vacate if (a) game hasn't started in the meantime and
     // (b) no other client has taken this seat. If a different client has
     // displaced this seat, projection.seats[seat] no longer equals clientId.
-    if (room.projection.state.status.type !== 'pregame'
-        && !(room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined)) {
+    if (
+      room.projection.state.status.type !== 'pregame' &&
+      !(room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined)
+    ) {
       return;
     }
     if (room.projection.state.clock !== undefined) return;
@@ -836,14 +910,16 @@ function scheduleSeatVacate(room: Room, client: Client): void {
       seat,
     }).catch((err) => {
       if (err instanceof PersistenceFailure) return;
-      console.error(JSON.stringify({
-        level: 'error',
-        kind: 'seat_vacate_append_failure',
-        roomId: room.id,
-        seat,
-        error: (err as Error).message,
-        at: Date.now(),
-      }));
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          kind: 'seat_vacate_append_failure',
+          roomId: room.id,
+          seat,
+          error: (err as Error).message,
+          at: Date.now(),
+        }),
+      );
     });
   }, seatVacateGraceMs());
 }
@@ -856,7 +932,11 @@ function clearPendingVacate(room: Room, seat: Client['seat']): void {
   delete room.pendingVacates[seat];
 }
 
-async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft960 = false): Promise<Room> {
+async function getOrCreateRoom(
+  roomId: string,
+  variant: VariantId,
+  hiddenDraft960 = false,
+): Promise<Room> {
   const existing = rooms.get(roomId);
   if (existing) return existing;
 
@@ -866,13 +946,15 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
     try {
       events = await persistence.loadRoom(roomId);
     } catch (err) {
-      console.error(JSON.stringify({
-        level: 'error',
-        kind: 'persistence_load_failure',
-        roomId,
-        error: (err as Error).message,
-        at: Date.now(),
-      }));
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          kind: 'persistence_load_failure',
+          roomId,
+          error: (err as Error).message,
+          at: Date.now(),
+        }),
+      );
       events = null;
     }
   }
@@ -911,14 +993,16 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
         throw new PersistenceFailure();
       }
     }
-    console.log(JSON.stringify({
-      level: 'info',
-      kind: 'orphan_recovery_synth_pause',
-      roomId,
-      lastEventAt: events[events.length - 1]!.at,
-      synthPauseAt: synthPause.at,
-      at: Date.now(),
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        kind: 'orphan_recovery_synth_pause',
+        roomId,
+        lastEventAt: events[events.length - 1]!.at,
+        synthPauseAt: synthPause.at,
+        at: Date.now(),
+      }),
+    );
     events = recoveredEvents;
   }
 
@@ -933,8 +1017,8 @@ async function getOrCreateRoom(roomId: string, variant: VariantId, hiddenDraft96
   const roomCreatedEvent = events.find((e) => e.type === 'room-created') as
     | Extract<GameEvent, { type: 'room-created' }>
     | undefined;
-  const detectedHiddenDraft960 = projection.variant === 'fog-of-war'
-    && roomCreatedEvent?.offers !== undefined;
+  const detectedHiddenDraft960 =
+    projection.variant === 'fog-of-war' && roomCreatedEvent?.offers !== undefined;
   const room: Room = {
     id: roomId,
     clients: new Set(),
@@ -988,7 +1072,9 @@ async function createRoom(
 ): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = randomUUID();
-    const existing = rooms.get(roomId) ?? (persistence.isInitialized() ? await persistence.loadRoom(roomId) : null);
+    const existing =
+      rooms.get(roomId) ??
+      (persistence.isInitialized() ? await persistence.loadRoom(roomId) : null);
     if (existing) continue;
 
     const at = Date.now();
@@ -1041,7 +1127,8 @@ async function createRoom(
       rated,
       randomEngine: mode === 'pve',
       randomSeating: options.randomSeating === true && mode === 'pvp',
-      creatorPreference: mode === 'pvp' && options.creatorPreference ? options.creatorPreference : null,
+      creatorPreference:
+        mode === 'pvp' && options.creatorPreference ? options.creatorPreference : null,
       pveEngineId: mode === 'pve' ? engineId : null,
       pendingWrites: Promise.resolve(),
       gameEndRecorded: false,
@@ -1049,8 +1136,8 @@ async function createRoom(
       hiddenDraft960,
       timeControl,
       rematch: { offers: {} },
-    pendingVacates: {},
-    pauseGraceTimer: null,
+      pendingVacates: {},
+      pauseGraceTimer: null,
     };
     rooms.set(roomId, room);
     scheduleClockTimeout(roomMgrCtx, room);
@@ -1079,13 +1166,15 @@ async function persistGameStart(
       corpusId: null,
     });
   } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'game_start_record_failure',
-      roomId,
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'game_start_record_failure',
+        roomId,
+        error: (err as Error).message,
+        at: Date.now(),
+      }),
+    );
     throw new PersistenceFailure();
   }
 }
@@ -1093,13 +1182,15 @@ async function persistGameStart(
 async function isAbortedRoom(roomId: string): Promise<boolean> {
   if (!persistence.isInitialized()) return false;
   const lifecycle = await persistence.getGameLifecycleStatus(roomId).catch((err) => {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'game_lifecycle_status_failure',
-      roomId,
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'game_lifecycle_status_failure',
+        roomId,
+        error: (err as Error).message,
+        at: Date.now(),
+      }),
+    );
     return null;
   });
   return lifecycle?.status === 'aborted';
@@ -1121,21 +1212,25 @@ async function runAbortPolicySweep(): Promise<void> {
       for (const roomId of result.roomIds) {
         resetRoom(roomId);
       }
-      console.log(JSON.stringify({
-        level: 'info',
-        kind: 'abort_policy_sweep',
-        policy: 'guest-prestart-timeout',
-        aborted: result.aborted,
-        at: Date.now(),
-      }));
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          kind: 'abort_policy_sweep',
+          policy: 'guest-prestart-timeout',
+          aborted: result.aborted,
+          at: Date.now(),
+        }),
+      );
     }
   } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'abort_policy_sweep_failure',
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'abort_policy_sweep_failure',
+        error: (err as Error).message,
+        at: Date.now(),
+      }),
+    );
   }
 }
 
@@ -1158,42 +1253,45 @@ async function runStalePausedSweep(): Promise<void> {
       // Per-room line: every stale-paused finalize is a yellow flag worth
       // investigating, since post-restart the resume path is expected to
       // either bring the game back or forfeit the absent player.
-      console.log(JSON.stringify({
-        level: 'warn',
-        kind: 'stale_paused_finalized',
-        roomId: room.roomId,
-        mode: room.mode,
-        pause_reason: room.pauseReason,
-        paused_at: room.pausedAtMs,
-        paused_duration_ms: now.getTime() - room.pausedAtMs,
-        started_at: room.startedAt.getTime(),
-        ply_count: room.plyCount,
-        at: now.getTime(),
-      }));
+      console.log(
+        JSON.stringify({
+          level: 'warn',
+          kind: 'stale_paused_finalized',
+          roomId: room.roomId,
+          mode: room.mode,
+          pause_reason: room.pauseReason,
+          paused_at: room.pausedAtMs,
+          paused_duration_ms: now.getTime() - room.pausedAtMs,
+          started_at: room.startedAt.getTime(),
+          ply_count: room.plyCount,
+          at: now.getTime(),
+        }),
+      );
     }
-    console.log(JSON.stringify({
-      level: 'info',
-      kind: 'stale_paused_sweep',
-      stale_paused_finalized_total: result.finalized,
-      at: now.getTime(),
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        kind: 'stale_paused_sweep',
+        stale_paused_finalized_total: result.finalized,
+        at: now.getTime(),
+      }),
+    );
   } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'stale_paused_sweep_failure',
-      error: (err as Error).message,
-      at: now.getTime(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'stale_paused_sweep_failure',
+        error: (err as Error).message,
+        at: now.getTime(),
+      }),
+    );
   }
 }
 
 async function abandonRoom(
   roomId: string,
   seatToken: string,
-): Promise<
-  | { ok: true }
-  | { ok: false; error: 'not_found' | 'unauthorized' | 'already_terminal' }
-> {
+): Promise<{ ok: true } | { ok: false; error: 'not_found' | 'unauthorized' | 'already_terminal' }> {
   // Verify against persistence (source of truth across instances) rather than
   // in-memory room state — the abandon HTTP request can land on a different
   // instance from the one that handled room creation (notably during a
@@ -1215,7 +1313,8 @@ async function abandonRoom(
   const room = rooms.get(roomId);
   if (!room) return { ok: false, error: 'not_found' };
   if (!verifySeatToken(room, seatToken)) return { ok: false, error: 'unauthorized' };
-  if (room.projection.state.status.type === 'finished') return { ok: false, error: 'already_terminal' };
+  if (room.projection.state.status.type === 'finished')
+    return { ok: false, error: 'already_terminal' };
   resetRoom(roomId);
   return { ok: true };
 }
@@ -1394,7 +1493,12 @@ async function enableRandomEngine(room: Room): Promise<void> {
   await selectEngineDraftStart(roomMgrCtx, room);
 }
 
-async function selectStart(room: Room, client: Client, startId: number | undefined, color: string | undefined): Promise<void> {
+async function selectStart(
+  room: Room,
+  client: Client,
+  startId: number | undefined,
+  color: string | undefined,
+): Promise<void> {
   if (!canClientAct(room, client)) return;
   const selectionColor = client.solo && isColor(color) ? color : client.seat;
   if (selectionColor === 'spectator') return;
@@ -1464,15 +1568,17 @@ function recordPersistenceError(roomId: string, seq: number, event: GameEvent, e
   while (persistenceErrors.length > 0 && persistenceErrors[0]!.at < cutoff) {
     persistenceErrors.shift();
   }
-  console.error(JSON.stringify({
-    level: 'error',
-    kind: 'persistence_failure',
-    roomId,
-    seq,
-    eventType: event.type,
-    error: err.message,
-    at: entry.at,
-  }));
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      kind: 'persistence_failure',
+      roomId,
+      seq,
+      eventType: event.type,
+      error: err.message,
+      at: entry.at,
+    }),
+  );
 }
 
 function resetRoom(roomId: string): void {
@@ -1488,7 +1594,17 @@ function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
 }
 
-function parseMessage(raw: string): { type: string; startId?: number; color?: string; from?: string; to?: string; promotion?: string; token?: string } | null {
+function parseMessage(
+  raw: string,
+): {
+  type: string;
+  startId?: number;
+  color?: string;
+  from?: string;
+  to?: string;
+  promotion?: string;
+  token?: string;
+} | null {
   try {
     const value = JSON.parse(raw) as unknown;
     if (typeof value === 'object' && value !== null && 'type' in value) {
@@ -1569,7 +1685,9 @@ function handleAdminDebugAuth(room: Room, client: Client, token: string | undefi
 
 function isDebugViewAuthorized(request: IncomingMessage): boolean {
   if (!isProductionLikeRuntime()) return true;
-  return isAdminDebugToken(adminDebugTokenFromProtocolHeader(request.headers['sec-websocket-protocol']));
+  return isAdminDebugToken(
+    adminDebugTokenFromProtocolHeader(request.headers['sec-websocket-protocol']),
+  );
 }
 
 function isHttpAdminAuthorized(request: IncomingMessage): boolean {
@@ -1577,7 +1695,9 @@ function isHttpAdminAuthorized(request: IncomingMessage): boolean {
   const authorization = Array.isArray(request.headers.authorization)
     ? request.headers.authorization[0]
     : request.headers.authorization;
-  const token = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
+  const token = authorization?.startsWith('Bearer ')
+    ? authorization.slice('Bearer '.length)
+    : undefined;
   return isAdminDebugToken(token);
 }
 
@@ -1598,7 +1718,11 @@ function broadcastDrainSchedule(): void {
   const message = JSON.stringify({ type: 'server_restart_scheduled', restartAt });
   for (const room of rooms.values()) {
     for (const client of room.clients) {
-      try { client.socket.send(message); } catch { /* socket closed */ }
+      try {
+        client.socket.send(message);
+      } catch {
+        /* socket closed */
+      }
     }
   }
 }
@@ -1607,7 +1731,11 @@ function broadcastDrainCancel(): void {
   const message = JSON.stringify({ type: 'server_restart_cancelled' });
   for (const room of rooms.values()) {
     for (const client of room.clients) {
-      try { client.socket.send(message); } catch { /* socket closed */ }
+      try {
+        client.socket.send(message);
+      } catch {
+        /* socket closed */
+      }
     }
   }
 }
@@ -1634,7 +1762,9 @@ async function handleDrainRequest(
     const authorization = Array.isArray(request.headers.authorization)
       ? request.headers.authorization[0]
       : request.headers.authorization;
-    const token = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
+    const token = authorization?.startsWith('Bearer ')
+      ? authorization.slice('Bearer '.length)
+      : undefined;
     if (!isDrainToken(token)) {
       response.writeHead(401, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'unauthorized' }));
@@ -1656,16 +1786,24 @@ async function handleDrainRequest(
   // existing deadline rather than extending it.
   if (isDraining()) {
     response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ ok: true, draining: true, restartAt: drainState.restartAt, idempotent: true }));
+    response.end(
+      JSON.stringify({
+        ok: true,
+        draining: true,
+        restartAt: drainState.restartAt,
+        idempotent: true,
+      }),
+    );
     return;
   }
 
   const body = await readJsonBody(request);
-  const requestedWindowMs = typeof body.windowMs === 'number'
-    ? body.windowMs
-    : typeof body.windowMinutes === 'number'
-      ? body.windowMinutes * 60_000
-      : drainWindowDefaultMs;
+  const requestedWindowMs =
+    typeof body.windowMs === 'number'
+      ? body.windowMs
+      : typeof body.windowMinutes === 'number'
+        ? body.windowMinutes * 60_000
+        : drainWindowDefaultMs;
   if (!Number.isFinite(requestedWindowMs) || requestedWindowMs <= 0) {
     response.writeHead(400, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ error: 'invalid_window' }));
@@ -1674,15 +1812,24 @@ async function handleDrainRequest(
   const windowMs = Math.min(requestedWindowMs, drainWindowMaxMs);
   drainState.restartAt = Date.now() + windowMs;
   broadcastDrainSchedule();
-  console.log(JSON.stringify({
-    level: 'info',
-    kind: 'drain_activated',
-    windowMs,
-    restartAt: drainState.restartAt,
-    at: Date.now(),
-  }));
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      kind: 'drain_activated',
+      windowMs,
+      restartAt: drainState.restartAt,
+      at: Date.now(),
+    }),
+  );
   response.writeHead(200, { 'content-type': 'application/json' });
-  response.end(JSON.stringify({ ok: true, draining: true, restartAt: drainState.restartAt, idempotent: false }));
+  response.end(
+    JSON.stringify({
+      ok: true,
+      draining: true,
+      restartAt: drainState.restartAt,
+      idempotent: false,
+    }),
+  );
 }
 
 function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
@@ -1690,7 +1837,12 @@ function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
 }
 
 function recordClientMessage(client: Client): boolean {
-  return recordMessageTimestamp(client.messageTimestamps, Date.now(), wsMessageLimit, wsMessageWindowMs);
+  return recordMessageTimestamp(
+    client.messageTimestamps,
+    Date.now(),
+    wsMessageLimit,
+    wsMessageWindowMs,
+  );
 }
 
 // Arm a one-shot timer that force-resumes a paused room after the grace
@@ -1712,13 +1864,15 @@ function armPauseGraceTimer(room: Room): void {
       })
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {
-          console.error(JSON.stringify({
-            level: 'error',
-            kind: 'pause_grace_resume_failure',
-            roomId: room.id,
-            error: (err as Error).message,
-            at: Date.now(),
-          }));
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              kind: 'pause_grace_resume_failure',
+              roomId: room.id,
+              error: (err as Error).message,
+              at: Date.now(),
+            }),
+          );
         }
       });
   }, pauseGraceMs);
@@ -1736,13 +1890,15 @@ async function pauseActiveRoomsOnShutdown(): Promise<void> {
   for (const [idx, result] of results.entries()) {
     if (result.status === 'rejected') {
       const room = [...rooms.values()][idx];
-      console.error(JSON.stringify({
-        level: 'error',
-        kind: 'pause_on_shutdown_failure',
-        roomId: room?.id,
-        error: (result.reason as Error)?.message,
-        at: Date.now(),
-      }));
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          kind: 'pause_on_shutdown_failure',
+          roomId: room?.id,
+          error: (result.reason as Error)?.message,
+          at: Date.now(),
+        }),
+      );
     }
   }
 }
@@ -1750,10 +1906,14 @@ async function pauseActiveRoomsOnShutdown(): Promise<void> {
 async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(JSON.stringify({ level: 'info', kind: 'server_shutdown_requested', signal, at: Date.now() }));
+  console.log(
+    JSON.stringify({ level: 'info', kind: 'server_shutdown_requested', signal, at: Date.now() }),
+  );
 
   const forceExit = setTimeout(() => {
-    console.error(JSON.stringify({ level: 'error', kind: 'server_shutdown_timeout', signal, at: Date.now() }));
+    console.error(
+      JSON.stringify({ level: 'error', kind: 'server_shutdown_timeout', signal, at: Date.now() }),
+    );
     process.exit(1);
   }, shutdownGraceMs);
   forceExit.unref();
@@ -1767,7 +1927,11 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   }
   if (abortPolicyTimer) clearInterval(abortPolicyTimer);
   for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
-    try { client.socket.close(1001, 'server shutting down'); } catch { /* socket already closed */ }
+    try {
+      client.socket.close(1001, 'server shutting down');
+    } catch {
+      /* socket already closed */
+    }
   }
 
   let exitCode = 0;
@@ -1778,12 +1942,14 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
     await persistence.close();
   } catch (err) {
     exitCode = 1;
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'server_shutdown_failure',
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'server_shutdown_failure',
+        error: (err as Error).message,
+        at: Date.now(),
+      }),
+    );
   } finally {
     clearTimeout(forceExit);
   }
@@ -1792,14 +1958,20 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
 
 function closeWebSocketServer(): Promise<void> {
   return new Promise((resolve) => {
-    if (!wss) { resolve(); return; }
+    if (!wss) {
+      resolve();
+      return;
+    }
     wss.close(() => resolve());
   });
 }
 
 function closeHttpServer(): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (!server) { resolve(); return; }
+    if (!server) {
+      resolve();
+      return;
+    }
     server.close((err) => {
       if (err) reject(err);
       else resolve();

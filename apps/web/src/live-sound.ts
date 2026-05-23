@@ -6,7 +6,15 @@
 // via the exported `sound` instance + `maybePlaySnapshotSound` and
 // `soundForOwnMove` helpers.
 
-import { replayGameEvents, type Board, type Color, type GameEvent, type Move, type PlayerView, type Square } from '@mistboard/game';
+import {
+  replayGameEvents,
+  type Board,
+  type Color,
+  type GameEvent,
+  type Move,
+  type PlayerView,
+  type Square,
+} from '@mistboard/game';
 import { liveState, type SoundController, type SoundKind } from './live-state.js';
 import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
 import { isColor, files } from './web-utils.js';
@@ -72,7 +80,8 @@ export function soundForOwnMove(view: PlayerView | null, move: Move): SoundKind 
   if (target && target.color !== piece.color) {
     return target.role === 'king' ? 'king-capture' : 'capture';
   }
-  if (piece.role === 'pawn' && squareFileIndex(move.from) !== squareFileIndex(move.to)) return 'capture';
+  if (piece.role === 'pawn' && squareFileIndex(move.from) !== squareFileIndex(move.to))
+    return 'capture';
   return 'move';
 }
 
@@ -88,7 +97,9 @@ function createSoundController(): SoundController {
   let volume = readEffectiveSoundVolume();
 
   const ensureContext = (): AudioContext | null => {
-    const AudioCtor = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext);
+    const AudioCtor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioCtor) return null;
     ctx ??= new AudioCtor();
     return ctx;
@@ -127,7 +138,10 @@ function createSoundController(): SoundController {
         osc.type = tone.type;
         osc.frequency.setValueAtTime(tone.frequency, now + tone.delay);
         gain.gain.setValueAtTime(0.0001, now + tone.delay);
-        gain.gain.exponentialRampToValueAtTime(tone.gain * volume * SOUND_MASTER_GAIN, now + tone.delay + 0.012);
+        gain.gain.exponentialRampToValueAtTime(
+          tone.gain * volume * SOUND_MASTER_GAIN,
+          now + tone.delay + 0.012,
+        );
         gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.delay + tone.duration);
         osc.connect(gain).connect(audio.destination);
         osc.start(now + tone.delay);
@@ -144,8 +158,10 @@ function tonesForSound(kind: SoundKind): Array<{
   gain: number;
   type: OscillatorType;
 }> {
-  if (kind === 'capture') return [{ delay: 0, duration: 0.11, frequency: 180, gain: 0.075, type: 'triangle' }];
-  if (kind === 'captured') return [{ delay: 0, duration: 0.085, frequency: 130, gain: 0.04, type: 'sine' }];
+  if (kind === 'capture')
+    return [{ delay: 0, duration: 0.11, frequency: 180, gain: 0.075, type: 'triangle' }];
+  if (kind === 'captured')
+    return [{ delay: 0, duration: 0.085, frequency: 130, gain: 0.04, type: 'sine' }];
   if (kind === 'king-capture') {
     return [
       { delay: 0, duration: 0.1, frequency: 523.25, gain: 0.065, type: 'triangle' },
@@ -198,7 +214,10 @@ function playRevealedEventSound(nextEvents: GameEvent[]): void {
   }
 }
 
-export function soundForMove(beforeEvents: GameEvent[], event: Extract<GameEvent, { type: 'move-played' }>): SoundKind {
+export function soundForMove(
+  beforeEvents: GameEvent[],
+  event: Extract<GameEvent, { type: 'move-played' }>,
+): SoundKind {
   const before = replayGameEvents(beforeEvents).state;
   if (isCastleMoveOnBoard(before.board, event.move, event.color)) return 'castle';
   const captured = before.board[event.move.to];
@@ -209,13 +228,20 @@ export function soundForMove(beforeEvents: GameEvent[], event: Extract<GameEvent
   return 'capture';
 }
 
-function playSanitizedOpponentSound(previousView: PlayerView | null, nextView: PlayerView | null): void {
+function playSanitizedOpponentSound(
+  previousView: PlayerView | null,
+  nextView: PlayerView | null,
+): void {
   if (!isColor(liveState.seat) || !previousView || !nextView) return;
   if (previousView.status.type !== 'playing') return;
   if (previousView.status.turn === liveState.seat) return;
   if (nextView.status.type === 'playing' && nextView.status.turn !== liveState.seat) return;
 
-  sound?.play(ownPieceCount(nextView, liveState.seat) < ownPieceCount(previousView, liveState.seat) ? 'captured' : 'move');
+  sound?.play(
+    ownPieceCount(nextView, liveState.seat) < ownPieceCount(previousView, liveState.seat)
+      ? 'captured'
+      : 'move',
+  );
 }
 
 function isCastleMoveInView(view: PlayerView, move: Move, color: Color): boolean {
@@ -227,19 +253,24 @@ function isCastleMoveOnBoard(board: Board, move: Move, color: Color): boolean {
   if (!piece || piece.role !== 'king' || piece.color !== color) return false;
   const target = board[move.to];
   if (target?.role === 'rook' && target.color === color) return true;
-  return rankOf(move.from) === rankOf(move.to)
-    && Math.abs(squareFileIndex(move.to) - squareFileIndex(move.from)) > 1
-    && (move.to[0] === 'c' || move.to[0] === 'g');
+  return (
+    rankOf(move.from) === rankOf(move.to) &&
+    Math.abs(squareFileIndex(move.to) - squareFileIndex(move.from)) > 1 &&
+    (move.to[0] === 'c' || move.to[0] === 'g')
+  );
 }
 
 function terminalSoundKey(nextEvents: GameEvent[], nextView: PlayerView | null): string | null {
   const status = nextView?.status ?? replayGameEvents(nextEvents).state.status;
-  if (status.type !== 'finished' || liveState.seat === 'spectator' || status.winner === null) return null;
-  return status.winner === liveState.seat ? `win:${nextEvents.length}` : `lose:${nextEvents.length}`;
+  if (status.type !== 'finished' || liveState.seat === 'spectator' || status.winner === null)
+    return null;
+  return status.winner === liveState.seat
+    ? `win:${nextEvents.length}`
+    : `lose:${nextEvents.length}`;
 }
 
 function squareFileIndex(square: Square): number {
-  return files.indexOf(square[0] as typeof files[number]);
+  return files.indexOf(square[0] as (typeof files)[number]);
 }
 
 function rankOf(square: Square): string {

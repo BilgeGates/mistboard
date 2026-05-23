@@ -1,8 +1,5 @@
 import pg from 'pg';
-import {
-  createEngineGameTask,
-  createExperimentJob,
-} from './engine-experiments.js';
+import { createEngineGameTask, createExperimentJob } from './engine-experiments.js';
 import { defaultEngineId, upsertBuiltinEngineVersions } from './engine-registry.js';
 import { parseEngineTimeControl } from './engine-time-policy.js';
 import { runMigrations } from './migrate.js';
@@ -18,7 +15,9 @@ const maxPlies = Number.parseInt(process.env.ENGINE_SMOKE_MAX_PLIES ?? '160', 10
 const gameCount = Number.parseInt(process.env.ENGINE_SMOKE_GAMES ?? '1', 10);
 const whiteEngineId = process.env.ENGINE_SMOKE_WHITE_ENGINE ?? 'builtin-capture-seeker';
 const blackEngineId = process.env.ENGINE_SMOKE_BLACK_ENGINE ?? defaultEngineId();
-const timeControl = parseEngineTimeControl(process.env.ENGINE_TIME_CONTROL ?? process.env.ENGINE_SMOKE_TIME_CONTROL ?? 'none');
+const timeControl = parseEngineTimeControl(
+  process.env.ENGINE_TIME_CONTROL ?? process.env.ENGINE_SMOKE_TIME_CONTROL ?? 'none',
+);
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 });
 
 try {
@@ -43,37 +42,41 @@ try {
 
   const tasks = [];
   for (let gameIndex = 0; gameIndex < gameCount; gameIndex++) {
-    tasks.push(await createEngineGameTask(pool, {
-      jobId: job.id,
-      gameIndex,
-      whiteEngineId,
-      blackEngineId,
-      seed: nextSeed(seed, gameIndex),
-      timeControl,
-      openingPolicy: { kind: 'standard' },
-      artifactPolicy: { move_choices: 'all', runtime_summary: 'all' },
-      resourcePolicy: { providers: ['local', 'railway'], concurrency: 1 },
-      config: {
-        variant: 'fog-of-war',
-        max_plies: maxPlies,
-        white_engine_id: whiteEngineId,
-        black_engine_id: blackEngineId,
-      },
-    }));
+    tasks.push(
+      await createEngineGameTask(pool, {
+        jobId: job.id,
+        gameIndex,
+        whiteEngineId,
+        blackEngineId,
+        seed: nextSeed(seed, gameIndex),
+        timeControl,
+        openingPolicy: { kind: 'standard' },
+        artifactPolicy: { move_choices: 'all', runtime_summary: 'all' },
+        resourcePolicy: { providers: ['local', 'railway'], concurrency: 1 },
+        config: {
+          variant: 'fog-of-war',
+          max_plies: maxPlies,
+          white_engine_id: whiteEngineId,
+          black_engine_id: blackEngineId,
+        },
+      }),
+    );
   }
 
-  console.log(JSON.stringify({
-    level: 'info',
-    kind: 'engine_smoke_tasks_enqueued',
-    jobId: job.id,
-    taskIds: tasks.map((task) => task.id),
-    gameCount,
-    seed,
-    maxPlies,
-    whiteEngineId,
-    blackEngineId,
-    timeControl,
-  }));
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      kind: 'engine_smoke_tasks_enqueued',
+      jobId: job.id,
+      taskIds: tasks.map((task) => task.id),
+      gameCount,
+      seed,
+      maxPlies,
+      whiteEngineId,
+      blackEngineId,
+      timeControl,
+    }),
+  );
 } finally {
   await pool.end();
 }

@@ -26,7 +26,8 @@ const workerId = process.env.WORKER_ID ?? `${hostname()}:${process.pid}`;
 const execute = process.argv.includes('--execute');
 const loop = process.argv.includes('--loop');
 const dryRun = !execute;
-const maxTasks = parsePositiveInteger(process.env.WORKER_MAX_TASKS) ?? (loop ? Number.POSITIVE_INFINITY : 1);
+const maxTasks =
+  parsePositiveInteger(process.env.WORKER_MAX_TASKS) ?? (loop ? Number.POSITIVE_INFINITY : 1);
 const idleSleepMs = parsePositiveInteger(process.env.WORKER_IDLE_SLEEP_MS) ?? 5_000;
 const cleanupIntervalMs = parsePositiveInteger(process.env.WORKER_CLEANUP_INTERVAL_MS) ?? 60_000;
 const workerCapabilities = { engine_games: true };
@@ -180,12 +181,16 @@ async function cleanupStaleTasks(): Promise<void> {
   }
 }
 
-function hasStaleCleanupWork(cleanup: Awaited<ReturnType<typeof cleanupStaleEngineGameTasks>>): boolean {
-  return cleanup.retried > 0
-    || cleanup.failed > 0
-    || cleanup.aborted > 0
-    || cleanup.failedWorkerRuns > 0
-    || cleanup.staleWorkerRuns > 0;
+function hasStaleCleanupWork(
+  cleanup: Awaited<ReturnType<typeof cleanupStaleEngineGameTasks>>,
+): boolean {
+  return (
+    cleanup.retried > 0 ||
+    cleanup.failed > 0 ||
+    cleanup.aborted > 0 ||
+    cleanup.failedWorkerRuns > 0 ||
+    cleanup.staleWorkerRuns > 0
+  );
 }
 
 async function finishFailedTask(task: EngineGameTask, error: string): Promise<void> {

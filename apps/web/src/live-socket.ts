@@ -10,105 +10,102 @@ import { setRestartBanner } from './restart-banner.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-import type {
-  Chess960Start,
-  Color,
-} from '@mistboard/game';
+import type { Chess960Start, Color } from '@mistboard/game';
 import type { DevViews, DraftOffers, DraftResolvedStartIds, RoomMode, Seat } from './live-state.js';
 
 type ServerMessage =
   | {
-    type: 'hello';
-    clientId: string;
-    clients: number;
-    mode?: RoomMode;
-    pveEngineId?: string | null;
-    pveEngineName?: string | null;
-    roomId: string;
-    serverAt?: number;
-    seat: Seat;
-    seatToken?: string;
-    solo: boolean;
-    offer: Chess960Start[];
-    offers?: DraftOffers;
-    selections: Partial<Record<Color, number>>;
-    devViews: DevViews | null;
-    resolvedStartId: number | null;
-    resolvedStartIds?: DraftResolvedStartIds;
-    events: GameEvent[];
-    state: PlayerView;
-    rated?: boolean;
-    paused?: boolean;
-    connectedSeats?: { white: boolean; black: boolean };
-    rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
-    seatDisplayNames?: Partial<Record<Color, string>>;
-  }
+      type: 'hello';
+      clientId: string;
+      clients: number;
+      mode?: RoomMode;
+      pveEngineId?: string | null;
+      pveEngineName?: string | null;
+      roomId: string;
+      serverAt?: number;
+      seat: Seat;
+      seatToken?: string;
+      solo: boolean;
+      offer: Chess960Start[];
+      offers?: DraftOffers;
+      selections: Partial<Record<Color, number>>;
+      devViews: DevViews | null;
+      resolvedStartId: number | null;
+      resolvedStartIds?: DraftResolvedStartIds;
+      events: GameEvent[];
+      state: PlayerView;
+      rated?: boolean;
+      paused?: boolean;
+      connectedSeats?: { white: boolean; black: boolean };
+      rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+      seatDisplayNames?: Partial<Record<Color, string>>;
+    }
   | {
-    type: 'snapshot';
-    roomId: string;
-    clients: number;
-    mode?: RoomMode;
-    pveEngineId?: string | null;
-    pveEngineName?: string | null;
-    serverAt?: number;
-    seat: Seat;
-    solo: boolean;
-    seats: Partial<Record<Color, string>>;
-    offer: Chess960Start[];
-    offers?: DraftOffers;
-    selections: Partial<Record<Color, number>>;
-    devViews: DevViews | null;
-    resolvedStartId: number | null;
-    resolvedStartIds?: DraftResolvedStartIds;
-    events: GameEvent[];
-    state: PlayerView;
-    rated?: boolean;
-    paused?: boolean;
-    connectedSeats?: { white: boolean; black: boolean };
-    rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
-    seatDisplayNames?: Partial<Record<Color, string>>;
-  }
+      type: 'snapshot';
+      roomId: string;
+      clients: number;
+      mode?: RoomMode;
+      pveEngineId?: string | null;
+      pveEngineName?: string | null;
+      serverAt?: number;
+      seat: Seat;
+      solo: boolean;
+      seats: Partial<Record<Color, string>>;
+      offer: Chess960Start[];
+      offers?: DraftOffers;
+      selections: Partial<Record<Color, number>>;
+      devViews: DevViews | null;
+      resolvedStartId: number | null;
+      resolvedStartIds?: DraftResolvedStartIds;
+      events: GameEvent[];
+      state: PlayerView;
+      rated?: boolean;
+      paused?: boolean;
+      connectedSeats?: { white: boolean; black: boolean };
+      rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+      seatDisplayNames?: Partial<Record<Color, string>>;
+    }
   | {
-    // Steady-state delta frame. Mirrors the snapshot shape minus the
-    // events array and plus seq + (optional) event. See
-    // docs/specs/incremental-snapshot-protocol.md.
-    type: 'event-appended';
-    roomId: string;
-    seq: number;
-    event?: GameEvent;
-    clients: number;
-    mode?: RoomMode;
-    pveEngineId?: string | null;
-    pveEngineName?: string | null;
-    serverAt?: number;
-    seat: Seat;
-    solo: boolean;
-    seats: Partial<Record<Color, string>>;
-    offer: Chess960Start[];
-    offers?: DraftOffers;
-    selections: Partial<Record<Color, number>>;
-    devViews: DevViews | null;
-    resolvedStartId: number | null;
-    resolvedStartIds?: DraftResolvedStartIds;
-    state: PlayerView;
-    rated?: boolean;
-    paused?: boolean;
-    connectedSeats?: { white: boolean; black: boolean };
-    rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
-    seatDisplayNames?: Partial<Record<Color, string>>;
-  }
+      // Steady-state delta frame. Mirrors the snapshot shape minus the
+      // events array and plus seq + (optional) event. See
+      // docs/specs/incremental-snapshot-protocol.md.
+      type: 'event-appended';
+      roomId: string;
+      seq: number;
+      event?: GameEvent;
+      clients: number;
+      mode?: RoomMode;
+      pveEngineId?: string | null;
+      pveEngineName?: string | null;
+      serverAt?: number;
+      seat: Seat;
+      solo: boolean;
+      seats: Partial<Record<Color, string>>;
+      offer: Chess960Start[];
+      offers?: DraftOffers;
+      selections: Partial<Record<Color, number>>;
+      devViews: DevViews | null;
+      resolvedStartId: number | null;
+      resolvedStartIds?: DraftResolvedStartIds;
+      state: PlayerView;
+      rated?: boolean;
+      paused?: boolean;
+      connectedSeats?: { white: boolean; black: boolean };
+      rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+      seatDisplayNames?: Partial<Record<Color, string>>;
+    }
   | {
-    type: 'rematch:state';
-    offers: { white: boolean; black: boolean };
-    finalizedRoomId: string | null;
-  }
+      type: 'rematch:state';
+      offers: { white: boolean; black: boolean };
+      finalizedRoomId: string | null;
+    }
   | {
-    type: 'rematch:redirect';
-    url: string;
-    roomId: string;
-    seat: Color;
-    seatToken: string;
-  }
+      type: 'rematch:redirect';
+      url: string;
+      roomId: string;
+      seat: Color;
+      seatToken: string;
+    }
   | { type: 'server_restart_scheduled'; restartAt: number }
   | { type: 'server_restart_cancelled' }
   | { type: 'pong'; at: number };
@@ -312,7 +309,8 @@ export function reconnectNow(): void {
 }
 
 export function sendSocket(payload: unknown): boolean {
-  if (liveState.connectionState === 'displaced' || liveState.connectionState === 'rejected') return false;
+  if (liveState.connectionState === 'displaced' || liveState.connectionState === 'rejected')
+    return false;
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     liveState.connectionState = 'reconnecting';
     scheduleReconnect();

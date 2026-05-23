@@ -4,10 +4,7 @@ import {
   createExperimentJob,
   type EngineExperimentPurpose,
 } from './engine-experiments.js';
-import {
-  latestBuiltinEngineIds,
-  upsertBuiltinEngineVersions,
-} from './engine-registry.js';
+import { latestBuiltinEngineIds, upsertBuiltinEngineVersions } from './engine-registry.js';
 import { parseEngineTimeControl } from './engine-time-policy.js';
 import { runMigrations } from './migrate.js';
 
@@ -27,10 +24,16 @@ const whiteEngineId = args.white ?? process.env.ENGINE_WHITE_ENGINE ?? latest.wh
 const blackEngineId = args.black ?? process.env.ENGINE_BLACK_ENGINE ?? latest.black;
 const priority = integer(args.priority ?? process.env.ENGINE_PRIORITY, 0);
 const providers = csv(args.providers ?? process.env.ENGINE_PROVIDERS ?? 'local,railway');
-const timeControl = parseEngineTimeControl(args.timeControl ?? process.env.ENGINE_TIME_CONTROL ?? 'none');
-const artifactPolicy = args.artifacts === 'none'
-  ? {}
-  : { move_choices: args.artifacts ?? process.env.ENGINE_ARTIFACTS ?? 'all', runtime_summary: 'all' };
+const timeControl = parseEngineTimeControl(
+  args.timeControl ?? process.env.ENGINE_TIME_CONTROL ?? 'none',
+);
+const artifactPolicy =
+  args.artifacts === 'none'
+    ? {}
+    : {
+        move_choices: args.artifacts ?? process.env.ENGINE_ARTIFACTS ?? 'all',
+        runtime_summary: 'all',
+      };
 
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 });
 
@@ -56,41 +59,49 @@ try {
 
   const tasks = [];
   for (let gameIndex = 0; gameIndex < gameCount; gameIndex++) {
-    tasks.push(await createEngineGameTask(pool, {
-      jobId: job.id,
-      gameIndex,
-      priority,
-      whiteEngineId,
-      blackEngineId,
-      seed: nextSeed(seed, gameIndex),
-      timeControl,
-      openingPolicy: { kind: 'standard' },
-      artifactPolicy,
-      resourcePolicy: { providers, concurrency: 1 },
-      config: {
-        variant: 'fog-of-war',
-        max_plies: maxPlies,
-        white_engine_id: whiteEngineId,
-        black_engine_id: blackEngineId,
-      },
-    }));
+    tasks.push(
+      await createEngineGameTask(pool, {
+        jobId: job.id,
+        gameIndex,
+        priority,
+        whiteEngineId,
+        blackEngineId,
+        seed: nextSeed(seed, gameIndex),
+        timeControl,
+        openingPolicy: { kind: 'standard' },
+        artifactPolicy,
+        resourcePolicy: { providers, concurrency: 1 },
+        config: {
+          variant: 'fog-of-war',
+          max_plies: maxPlies,
+          white_engine_id: whiteEngineId,
+          black_engine_id: blackEngineId,
+        },
+      }),
+    );
   }
 
-  console.log(JSON.stringify({
-    level: 'info',
-    kind: 'engine_games_enqueued',
-    jobId: job.id,
-    taskIds: tasks.map((task) => task.id),
-    purpose,
-    gameCount,
-    seed,
-    maxPlies,
-    whiteEngineId,
-    blackEngineId,
-    providers,
-    timeControl,
-    artifactPolicy,
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        level: 'info',
+        kind: 'engine_games_enqueued',
+        jobId: job.id,
+        taskIds: tasks.map((task) => task.id),
+        purpose,
+        gameCount,
+        seed,
+        maxPlies,
+        whiteEngineId,
+        blackEngineId,
+        providers,
+        timeControl,
+        artifactPolicy,
+      },
+      null,
+      2,
+    ),
+  );
 } finally {
   await pool.end();
 }
@@ -169,12 +180,26 @@ function integer(value: string | undefined, fallback: number): number {
 }
 
 function csv(value: string): string[] {
-  return value.split(',').map((item) => item.trim()).filter(Boolean);
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
-function purposeFrom(value: string | undefined, fallback: EngineExperimentPurpose): EngineExperimentPurpose {
-  const allowed = new Set<EngineExperimentPurpose>(['mining', 'bakeoff', 'calibration', 'smoke', 'regression']);
-  return allowed.has(value as EngineExperimentPurpose) ? value as EngineExperimentPurpose : fallback;
+function purposeFrom(
+  value: string | undefined,
+  fallback: EngineExperimentPurpose,
+): EngineExperimentPurpose {
+  const allowed = new Set<EngineExperimentPurpose>([
+    'mining',
+    'bakeoff',
+    'calibration',
+    'smoke',
+    'regression',
+  ]);
+  return allowed.has(value as EngineExperimentPurpose)
+    ? (value as EngineExperimentPurpose)
+    : fallback;
 }
 
 function nextSeed(baseSeed: string, offset: number): string {

@@ -112,5 +112,7 @@ function relative(file) {
 }
 
 function safeName(value) {
-  return String(value).replace(/[^a-zA-Z0-9_.-]+/g, '-').replace(/^-+|-+$/g, '');
+  return String(value)
+    .replace(/[^a-zA-Z0-9_.-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }

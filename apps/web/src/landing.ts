@@ -203,8 +203,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('game');
   const sampleIds = games.map((g) => g.roomId);
-  const currentSample =
-    requested && sampleIds.includes(requested) ? requested : sampleIds[0]!;
+  const currentSample = requested && sampleIds.includes(requested) ? requested : sampleIds[0]!;
 
   await mountReplay(watch.replayRoot, currentSample, {
     autoplay: false,
@@ -230,7 +229,9 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
 
   const loaded = await loadGameForReview(roomId);
   if (!loaded) {
-    replayRoot.append(buildNotice('Game not found', 'This game is not available as a public replay.'));
+    replayRoot.append(
+      buildNotice('Game not found', 'This game is not available as a public replay.'),
+    );
     return;
   }
 
@@ -262,12 +263,13 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
           loaded.beliefRows.length > 0 && loaded.traceRows.length > 0,
         )
       : undefined,
-    belief: loaded.beliefRows.length > 0
-      ? {
-          rowsForSampleId: () => loaded.beliefRows,
-          traceRowsForSampleId: () => loaded.traceRows,
-        }
-      : undefined,
+    belief:
+      loaded.beliefRows.length > 0
+        ? {
+            rowsForSampleId: () => loaded.beliefRows,
+            traceRowsForSampleId: () => loaded.traceRows,
+          }
+        : undefined,
     // Annotation panel is research-only — not shown on the public game viewer
     // (use a dedicated research surface when annotating).
     annotation: undefined,
@@ -287,7 +289,6 @@ async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: Lan
   if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
   return { games: staticSampleGames(), source: 'sample' };
 }
-
 
 async function fetchRecentGames(): Promise<FeaturedGame[]> {
   const resp = await fetch('/api/games/recent');
@@ -318,12 +319,14 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
 }
 
 function fallbackPlayableEngines(): PlayableEngine[] {
-  return [{
-    id: 'builtin-random-legal',
-    name: 'Random Legal v1',
-    familyName: 'Random Legal',
-    kind: 'builtin',
-  }];
+  return [
+    {
+      id: 'builtin-random-legal',
+      name: 'Random Legal v1',
+      familyName: 'Random Legal',
+      kind: 'builtin',
+    },
+  ];
 }
 
 async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
@@ -332,7 +335,6 @@ async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
   const data = (await resp.json()) as { events: GameEvent[] };
   return data.events;
 }
-
 
 async function landingEventLoader(roomId: string): Promise<GameEvent[]> {
   const apiEvents = await apiEventLoader(roomId).catch(() => null);
@@ -408,11 +410,17 @@ function reviewUrlForGame(game: FeaturedGame): string | null {
 
 export function displayParticipantName(game: FeaturedGame, color: 'white' | 'black'): string {
   const participant = participantForColor(game, color);
-  if (participant) return displayParticipant(participant.displayName, color === 'white' ? 'White' : 'Black', participant.subjectId);
+  if (participant)
+    return displayParticipant(
+      participant.displayName,
+      color === 'white' ? 'White' : 'Black',
+      participant.subjectId,
+    );
   const fallback = color === 'white' ? 'White' : 'Black';
-  const legacyName = color === 'white'
-    ? game.whiteEngineId ?? game.whiteName
-    : game.blackEngineId ?? game.blackName;
+  const legacyName =
+    color === 'white'
+      ? (game.whiteEngineId ?? game.whiteName)
+      : (game.blackEngineId ?? game.blackName);
   return displayParticipant(legacyName, fallback);
 }
 
@@ -420,7 +428,11 @@ function participantForColor(game: FeaturedGame, color: 'white' | 'black'): Game
   return game.participants?.find((participant) => participant.color === color) ?? null;
 }
 
-function displayParticipant(name: string | null | undefined, fallback: string, subjectId?: string | null): string {
+function displayParticipant(
+  name: string | null | undefined,
+  fallback: string,
+  subjectId?: string | null,
+): string {
   const detailed = engineDisplayName(subjectId ?? name);
   if (detailed) return detailed;
   if (!name) return fallback;
@@ -543,7 +555,11 @@ function navLink(label: string, href: string): HTMLAnchorElement {
   link.textContent = label;
   link.className = 'site-nav-link';
   const path = currentPath();
-  if (path === href || (href === '/account' && path.startsWith('/account/')) || (href === '/articles' && path.startsWith('/articles/'))) {
+  if (
+    path === href ||
+    (href === '/account' && path.startsWith('/account/')) ||
+    (href === '/articles' && path.startsWith('/articles/'))
+  ) {
     link.classList.add('active');
     link.setAttribute('aria-current', 'page');
   }
@@ -570,7 +586,10 @@ export function buildLoadingState(label: string): HTMLElement {
   return section;
 }
 
-function buildLandingStage(engines: PlayableEngine[]): { el: HTMLElement; replayRoot: HTMLElement } {
+function buildLandingStage(engines: PlayableEngine[]): {
+  el: HTMLElement;
+  replayRoot: HTMLElement;
+} {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
 
@@ -786,7 +805,10 @@ function formatAnnouncementDate(iso: string): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
-function buildLandingPlayPanel(engines: PlayableEngine[], options: { showLobbyRequests?: boolean } = {}): HTMLElement {
+function buildLandingPlayPanel(
+  engines: PlayableEngine[],
+  options: { showLobbyRequests?: boolean } = {},
+): HTMLElement {
   const panel = document.createElement('aside');
   panel.className = 'landing-play-panel';
   panel.setAttribute('aria-label', 'Start playing');
@@ -880,7 +902,10 @@ const LANDING_PLAY_ICON_SVG: Record<'computer' | 'friend' | 'lobby', string> = {
   computer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="3.2" r="1" fill="currentColor" stroke="none"/><path d="M12 4.2v2"/><rect x="2" y="11" width="2" height="4" rx="0.5"/><rect x="20" y="11" width="2" height="4" rx="0.5"/><rect x="4.5" y="6.5" width="15" height="13" rx="2.5"/><circle cx="9.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="14.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><path d="M9.5 16h5"/></svg>`,
 };
 
-function landingPlayAction(label: string, icon: 'computer' | 'friend' | 'lobby'): HTMLButtonElement {
+function landingPlayAction(
+  label: string,
+  icon: 'computer' | 'friend' | 'lobby',
+): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = `landing-play-action landing-play-action-${icon}`;
@@ -992,7 +1017,7 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
 async function fetchOpenLobbyRequests(): Promise<OpenLobbyRequest[]> {
   const response = await fetch('/api/lobby');
   if (!response.ok) throw new Error(`lobby requests failed: ${response.status}`);
-  const data = await response.json() as { requests?: OpenLobbyRequest[] };
+  const data = (await response.json()) as { requests?: OpenLobbyRequest[] };
   return Array.isArray(data.requests) ? data.requests : [];
 }
 
@@ -1014,7 +1039,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   existing?.remove();
 
   let startFormat: LandingStartFormat = 'standard';
-  let rated = (choice.mode === 'pve' || choice.ratedDisabled) ? false : true;
+  let rated = choice.mode === 'pve' || choice.ratedDisabled ? false : true;
   let selectedPreset: LandingTimePresetId = '3m2';
   let selectedEngineId = choice.engineId;
   let preferredColor: LandingColorPreference = loadStoredColorPreference();
@@ -1053,9 +1078,16 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantControl.textContent = 'Dark chess';
   variantSection.append(variantControl);
 
-  const engineSection = choice.mode === 'pve' ? buildEngineSetupSection(choice.engines ?? fallbackPlayableEngines(), selectedEngineId, (engineId) => {
-    selectedEngineId = engineId;
-  }) : null;
+  const engineSection =
+    choice.mode === 'pve'
+      ? buildEngineSetupSection(
+          choice.engines ?? fallbackPlayableEngines(),
+          selectedEngineId,
+          (engineId) => {
+            selectedEngineId = engineId;
+          },
+        )
+      : null;
 
   const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
   const draft960Selectable = draft960Enabled && choice.mode !== 'lobby';
@@ -1102,7 +1134,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
     const enabled = preset.id === '3m2';
-    const button = startOptionButton(enabled ? preset.label : `${preset.label} (soon)`, preset.id === selectedPreset);
+    const button = startOptionButton(
+      enabled ? preset.label : `${preset.label} (soon)`,
+      preset.id === selectedPreset,
+    );
     if (!enabled) {
       button.disabled = true;
       button.classList.add('disabled');
@@ -1138,7 +1173,12 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const startButton = document.createElement('button');
   startButton.type = 'button';
   startButton.className = 'landing-setup-start';
-  startButton.textContent = choice.mode === 'lobby' ? 'Find opponent' : choice.mode === 'pvp' ? 'Create room' : 'Start game';
+  startButton.textContent =
+    choice.mode === 'lobby'
+      ? 'Find opponent'
+      : choice.mode === 'pvp'
+        ? 'Create room'
+        : 'Start game';
   startButton.addEventListener('click', () => {
     const setup = selectedRoomSetup(startFormat, rated, selectedPreset, preferredColor);
     if (choice.mode === 'lobby') {
@@ -1169,18 +1209,29 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   });
   document.addEventListener('keydown', onKeyDown);
 
-  const ratingSection = (choice.mode === 'pvp' || choice.mode === 'lobby')
-    ? buildRatedToggleSection(() => rated, (v) => { rated = v; }, choice.ratedDisabled)
-    : null;
+  const ratingSection =
+    choice.mode === 'pvp' || choice.mode === 'lobby'
+      ? buildRatedToggleSection(
+          () => rated,
+          (v) => {
+            rated = v;
+          },
+          choice.ratedDisabled,
+        )
+      : null;
 
   // Color picker shows for PvE and Challenge-a-friend. Hidden for casual/rated
   // lobby matchmaking — color is server-assigned there so the pool stays unified.
-  const colorSection = (choice.mode === 'pve' || choice.mode === 'pvp')
-    ? buildColorPreferenceSection(() => preferredColor, (value) => {
-      preferredColor = value;
-      storeColorPreference(value);
-    })
-    : null;
+  const colorSection =
+    choice.mode === 'pve' || choice.mode === 'pvp'
+      ? buildColorPreferenceSection(
+          () => preferredColor,
+          (value) => {
+            preferredColor = value;
+            storeColorPreference(value);
+          },
+        )
+      : null;
 
   actions.append(startButton, backButton);
   dialog.append(header, variantSection);
@@ -1216,9 +1267,10 @@ function buildEngineSetupSection(
   }
 
   const fallbackEngineId = availableEngines[0]?.id;
-  select.value = selectedEngineId && availableEngines.some((engine) => engine.id === selectedEngineId)
-    ? selectedEngineId
-    : fallbackEngineId ?? '';
+  select.value =
+    selectedEngineId && availableEngines.some((engine) => engine.id === selectedEngineId)
+      ? selectedEngineId
+      : (fallbackEngineId ?? '');
   if (select.value) onSelect(select.value);
   select.addEventListener('change', () => onSelect(select.value));
 
@@ -1226,7 +1278,11 @@ function buildEngineSetupSection(
   return section;
 }
 
-function buildRatedToggleSection(get: () => boolean, set: (v: boolean) => void, ratedDisabled = false): HTMLElement {
+function buildRatedToggleSection(
+  get: () => boolean,
+  set: (v: boolean) => void,
+  ratedDisabled = false,
+): HTMLElement {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
   section.append(setupSectionLabel('Game type'));
@@ -1252,9 +1308,15 @@ function buildRatedToggleSection(get: () => boolean, set: (v: boolean) => void, 
     casualButton.setAttribute('aria-checked', !isRated || ratedDisabled ? 'true' : 'false');
   };
   if (!ratedDisabled) {
-    ratedButton.addEventListener('click', () => { set(true); sync(); });
+    ratedButton.addEventListener('click', () => {
+      set(true);
+      sync();
+    });
   }
-  casualButton.addEventListener('click', () => { set(false); sync(); });
+  casualButton.addEventListener('click', () => {
+    set(false);
+    sync();
+  });
   sync();
   group.append(ratedButton, casualButton);
   section.append(group);
@@ -1312,9 +1374,18 @@ function buildColorPreferenceSection(
     }
   };
 
-  whiteButton.addEventListener('click', () => { set('white'); sync(); });
-  randomButton.addEventListener('click', () => { set('random'); sync(); });
-  blackButton.addEventListener('click', () => { set('black'); sync(); });
+  whiteButton.addEventListener('click', () => {
+    set('white');
+    sync();
+  });
+  randomButton.addEventListener('click', () => {
+    set('random');
+    sync();
+  });
+  blackButton.addEventListener('click', () => {
+    set('black');
+    sync();
+  });
 
   group.append(whiteButton, randomButton, blackButton);
   section.append(group);
@@ -1368,7 +1439,8 @@ function selectedRoomSetup(
   presetId: LandingTimePresetId,
   preferredColor: LandingColorPreference,
 ): LandingRoomSetup {
-  const preset = LANDING_TIME_PRESETS.find((candidate) => candidate.id === presetId) ?? LANDING_TIME_PRESETS[1];
+  const preset =
+    LANDING_TIME_PRESETS.find((candidate) => candidate.id === presetId) ?? LANDING_TIME_PRESETS[1];
   return {
     startFormat,
     rated,
@@ -1457,9 +1529,15 @@ function renderRecentGames(
 
   const heading = document.createElement('div');
   heading.className = 'landing-games-heading';
-  heading.textContent = headingText ?? (
-    source === 'recent' ? 'Recent games' : source === 'eve' ? 'Recent EvE' : source === 'sample' ? 'Replay samples' : 'Featured games'
-  );
+  heading.textContent =
+    headingText ??
+    (source === 'recent'
+      ? 'Recent games'
+      : source === 'eve'
+        ? 'Recent EvE'
+        : source === 'sample'
+          ? 'Replay samples'
+          : 'Featured games');
   root.append(heading);
 
   if (games.length === 0) {
@@ -1529,8 +1607,11 @@ function buildGamePageTitle(game: FeaturedGame): string {
   const white = game.whiteName ?? 'White';
   const black = game.blackName ?? 'Black';
   const result =
-    game.result === 'white-wins' ? `${white} beats ${black}` :
-    game.result === 'black-wins' ? `${black} beats ${white}` : `${white} vs ${black} · Draw`;
+    game.result === 'white-wins'
+      ? `${white} beats ${black}`
+      : game.result === 'black-wins'
+        ? `${black} beats ${white}`
+        : `${white} vs ${black} · Draw`;
   return `${result} · Mistboard`;
 }
 
@@ -1569,7 +1650,7 @@ async function createRoomFromPlay(
       }),
     });
     if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
-    const data = await response.json() as { url?: string };
+    const data = (await response.json()) as { url?: string };
     if (!data.url) throw new Error('room creation did not return a URL');
     window.location.href = data.url;
   } catch (err) {
@@ -1608,7 +1689,9 @@ function joinLobbyFromPlay(
     controller.abort();
     if (pollTimer !== null) window.clearTimeout(pollTimer);
     if (ticketId) {
-      void fetch(`/api/lobby/${encodeURIComponent(ticketId)}`, { method: 'DELETE' }).catch(() => {});
+      void fetch(`/api/lobby/${encodeURIComponent(ticketId)}`, { method: 'DELETE' }).catch(
+        () => {},
+      );
     }
   };
 
@@ -1634,9 +1717,11 @@ function joinLobbyFromPlay(
 
   const poll = async () => {
     if (!active || !ticketId) return;
-    const response = await fetch(`/api/lobby/${encodeURIComponent(ticketId)}`, { signal: controller.signal });
+    const response = await fetch(`/api/lobby/${encodeURIComponent(ticketId)}`, {
+      signal: controller.signal,
+    });
     if (!response.ok) throw new Error(`lobby poll failed: ${response.status}`);
-    const ticket = await response.json() as LobbyTicketResponse;
+    const ticket = (await response.json()) as LobbyTicketResponse;
     if (!active || redirectIfMatched(ticket)) return;
     pollTimer = window.setTimeout(() => {
       void poll().catch(handleLobbyError);
@@ -1659,7 +1744,7 @@ function joinLobbyFromPlay(
       }),
     });
     if (!response.ok) throw new Error(`lobby join failed: ${response.status}`);
-    const ticket = await response.json() as LobbyTicketResponse;
+    const ticket = (await response.json()) as LobbyTicketResponse;
     track('lobby_queue_joined', bucketProps);
     if (!active || redirectIfMatched(ticket)) return;
     if (!ticket.ticketId) throw new Error('lobby did not return a ticket');

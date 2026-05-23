@@ -6,10 +6,7 @@ import {
   type PlayerView,
   type Square,
 } from '@mistboard/game';
-import {
-  modeForProjection,
-  type GameAccessMode,
-} from './server-policy.js';
+import { modeForProjection, type GameAccessMode } from './server-policy.js';
 import { engineVersionDisplayName } from './engine-registry.js';
 
 export type Seat = Color | 'spectator';
@@ -33,9 +30,10 @@ export type SnapshotRoom = {
   seatDisplayNames?: Partial<Record<Color, string>>;
 };
 
-export function computeConnectedSeats(
-  clients: Iterable<{ seat: Seat; displaced: boolean }>,
-): { white: boolean; black: boolean } {
+export function computeConnectedSeats(clients: Iterable<{ seat: Seat; displaced: boolean }>): {
+  white: boolean;
+  black: boolean;
+} {
   const connected = { white: false, black: false };
   for (const c of clients) {
     if (c.displaced) continue;
@@ -112,7 +110,7 @@ function basePayloadFields(room: SnapshotRoom, client: SnapshotClient) {
   return {
     roomId: room.id,
     mode,
-    pveEngineId: mode === 'pve' ? room.pveEngineId ?? null : null,
+    pveEngineId: mode === 'pve' ? (room.pveEngineId ?? null) : null,
     pveEngineName: pveEngineName(room, mode),
     serverAt: Date.now(),
     clients: room.clients.size,
@@ -132,12 +130,12 @@ function basePayloadFields(room: SnapshotRoom, client: SnapshotClient) {
     seatDisplayNames: room.seatDisplayNames ?? {},
     rematch: room.rematch
       ? {
-        offers: {
-          white: room.rematch.offers.white !== undefined,
-          black: room.rematch.offers.black !== undefined,
-        },
-        finalizedRoomId: room.rematch.finalizedRoomId ?? null,
-      }
+          offers: {
+            white: room.rematch.offers.white !== undefined,
+            black: room.rematch.offers.black !== undefined,
+          },
+          finalizedRoomId: room.rematch.finalizedRoomId ?? null,
+        }
       : { offers: { white: false, black: false }, finalizedRoomId: null },
   };
 }
@@ -173,7 +171,11 @@ export function filterEventForClient(
   return redacted[0] ?? null;
 }
 
-function isEventVisibleByMode(room: SnapshotRoom, client: SnapshotClient, event: GameEvent): boolean {
+function isEventVisibleByMode(
+  room: SnapshotRoom,
+  client: SnapshotClient,
+  event: GameEvent,
+): boolean {
   // Live fog game: seated player sees only their own move-played events. This
   // uniformly handles PvP (each player sees own moves) and PvE (human seat
   // filters out engine moves automatically — engine doesn't connect as a WS
@@ -181,7 +183,10 @@ function isEventVisibleByMode(room: SnapshotRoom, client: SnapshotClient, event:
   // (canObserveLiveRoom); the spectator branch here is defense-in-depth — if
   // a spectator SnapshotClient ever reaches this function, strip every
   // move-played event rather than leak any move history.
-  if (room.projection.variant === 'fog-of-war' && room.projection.state.status.type !== 'finished') {
+  if (
+    room.projection.variant === 'fog-of-war' &&
+    room.projection.state.status.type !== 'finished'
+  ) {
     if (client.seat === 'spectator') return event.type !== 'move-played';
     return event.type !== 'move-played' || event.color === client.seat;
   }
@@ -194,25 +199,37 @@ function offerForClient(projection: GameProjection, client: SnapshotClient) {
   return offerForColor(projection, client.seat);
 }
 
-function offersForClient(projection: GameProjection, client: SnapshotClient): Partial<Record<Color, GameProjection['offer']>> {
+function offersForClient(
+  projection: GameProjection,
+  client: SnapshotClient,
+): Partial<Record<Color, GameProjection['offer']>> {
   if (!shouldRedactHiddenDraft(projection, client)) return projection.offers;
   if (client.seat === 'spectator') return {};
   return { [client.seat]: offerForColor(projection, client.seat) };
 }
 
-function selectionsForClient(projection: GameProjection, client: SnapshotClient): Partial<Record<Color, number>> {
+function selectionsForClient(
+  projection: GameProjection,
+  client: SnapshotClient,
+): Partial<Record<Color, number>> {
   if (!shouldRedactHiddenDraft(projection, client)) return projection.selections;
   if (client.seat === 'spectator') return {};
   const selected = projection.selections[client.seat];
   return selected === undefined ? {} : { [client.seat]: selected };
 }
 
-function resolvedStartIdForClient(projection: GameProjection, client: SnapshotClient): number | null {
+function resolvedStartIdForClient(
+  projection: GameProjection,
+  client: SnapshotClient,
+): number | null {
   if (!shouldRedactHiddenDraft(projection, client)) return projection.resolvedStartId;
   return null;
 }
 
-function resolvedStartIdsForClient(projection: GameProjection, client: SnapshotClient): Partial<Record<Color, number>> {
+function resolvedStartIdsForClient(
+  projection: GameProjection,
+  client: SnapshotClient,
+): Partial<Record<Color, number>> {
   if (!shouldRedactHiddenDraft(projection, client)) return projection.resolvedStartIds;
   if (client.seat === 'spectator') return {};
   const resolved = projection.resolvedStartIds[client.seat];
@@ -226,11 +243,13 @@ function redactHiddenDraftEvent(
 ): GameEvent[] {
   if (event.type === 'room-created') {
     const ownOffer = offerForClient(projection, client);
-    return [{
-      ...event,
-      offer: ownOffer,
-      offers: client.seat === 'spectator' ? {} : { [client.seat]: ownOffer },
-    }];
+    return [
+      {
+        ...event,
+        offer: ownOffer,
+        offers: client.seat === 'spectator' ? {} : { [client.seat]: ownOffer },
+      },
+    ];
   }
   if (event.type === 'draft-start-selected') {
     return event.color === client.seat ? [event] : [];
@@ -243,9 +262,11 @@ function shouldRedactHiddenDraft(projection: GameProjection, client: SnapshotCli
   if (client.solo) return false;
   if (projection.variant !== 'fog-of-war') return false;
   if (projection.state.status.type === 'finished') return false;
-  return projection.offer.length > 0
-    || !!projection.offers.white?.length
-    || !!projection.offers.black?.length;
+  return (
+    projection.offer.length > 0 ||
+    !!projection.offers.white?.length ||
+    !!projection.offers.black?.length
+  );
 }
 
 function offerForColor(projection: GameProjection, color: Color): GameProjection['offer'] {
@@ -258,12 +279,14 @@ function devViewsForClient(room: SnapshotRoom, client: SnapshotClient) {
   const perspective = client.seat === 'black' ? 'black' : 'white';
   const opponent = perspective === 'white' ? 'black' : 'white';
   const variant = variantForId(room.projection.variant);
-  const player = room.projection.state.status.type === 'finished'
-    ? fullTruthView(room, perspective)
-    : variant.getPlayerView(room.projection.state, perspective);
-  const opponentView = room.projection.state.status.type === 'finished'
-    ? fullTruthView(room, opponent)
-    : variant.getPlayerView(room.projection.state, opponent);
+  const player =
+    room.projection.state.status.type === 'finished'
+      ? fullTruthView(room, perspective)
+      : variant.getPlayerView(room.projection.state, perspective);
+  const opponentView =
+    room.projection.state.status.type === 'finished'
+      ? fullTruthView(room, opponent)
+      : variant.getPlayerView(room.projection.state, opponent);
   return {
     opponent,
     player,
@@ -274,7 +297,10 @@ function devViewsForClient(room: SnapshotRoom, client: SnapshotClient) {
 
 export function getClientView(room: SnapshotRoom, client: SnapshotClient): PlayerView {
   const perspective = client.seat === 'black' ? 'black' : 'white';
-  if (room.projection.variant === 'fog-of-war' && room.projection.state.status.type === 'finished') {
+  if (
+    room.projection.variant === 'fog-of-war' &&
+    room.projection.state.status.type === 'finished'
+  ) {
     return fullTruthView(room, perspective);
   }
   // Live spectator on a fog game: defense-in-depth. Spectators are rejected at

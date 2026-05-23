@@ -45,7 +45,9 @@ function watchForNavChanges(): void {
 
 function mountAccountNavs(): void {
   if (cachedUser === undefined || cachedUser === null) return;
-  document.querySelectorAll<HTMLElement>('.site-nav').forEach((nav) => mountAccountNav(nav, cachedUser as AuthUser));
+  document
+    .querySelectorAll<HTMLElement>('.site-nav')
+    .forEach((nav) => mountAccountNav(nav, cachedUser as AuthUser));
 }
 
 function readSignedInHint(): boolean {
@@ -103,18 +105,20 @@ function applyPendingSlots(): void {
 }
 
 function revealSignedOutSlots(): void {
-  document.querySelectorAll<HTMLElement>('[data-account-slot][data-account-pending="1"]').forEach((slot) => {
-    delete slot.dataset.accountPending;
-    const signIn = document.createElement('a');
-    signIn.href = '/account?tab=login';
-    signIn.className = 'site-nav-link site-nav-link-signin';
-    signIn.textContent = 'Sign in';
-    const register = document.createElement('a');
-    register.href = '/account?tab=register';
-    register.className = 'site-nav-link-primary';
-    register.textContent = 'Register';
-    slot.replaceChildren(signIn, register);
-  });
+  document
+    .querySelectorAll<HTMLElement>('[data-account-slot][data-account-pending="1"]')
+    .forEach((slot) => {
+      delete slot.dataset.accountPending;
+      const signIn = document.createElement('a');
+      signIn.href = '/account?tab=login';
+      signIn.className = 'site-nav-link site-nav-link-signin';
+      signIn.textContent = 'Sign in';
+      const register = document.createElement('a');
+      register.href = '/account?tab=register';
+      register.className = 'site-nav-link-primary';
+      register.textContent = 'Register';
+      slot.replaceChildren(signIn, register);
+    });
 }
 
 function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
@@ -197,13 +201,17 @@ async function handleLogout(button: HTMLButtonElement): Promise<void> {
 
 function openAccountMenu(control: HTMLElement): void {
   control.classList.add('open');
-  control.querySelector<HTMLButtonElement>('.account-nav-trigger')?.setAttribute('aria-expanded', 'true');
+  control
+    .querySelector<HTMLButtonElement>('.account-nav-trigger')
+    ?.setAttribute('aria-expanded', 'true');
 }
 
 function closeAccountMenus(): void {
   document.querySelectorAll<HTMLElement>('[data-account-nav]').forEach((control) => {
     control.classList.remove('open');
-    control.querySelector<HTMLButtonElement>('.account-nav-trigger')?.setAttribute('aria-expanded', 'false');
+    control
+      .querySelector<HTMLButtonElement>('.account-nav-trigger')
+      ?.setAttribute('aria-expanded', 'false');
   });
 }
 

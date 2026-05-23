@@ -91,18 +91,7 @@ const chapters: TutorialChapter[] = [
         challenge: 'Move the rook anywhere.',
         targets: [],
         afterTargets: [],
-        accepted: [
-          'd1d2',
-          'd1d3',
-          'd1d4',
-          'd1d5',
-          'd1d6',
-          'd1d7',
-          'd1d8',
-          'd1a1',
-          'd1b1',
-          'd1c1',
-        ],
+        accepted: ['d1d2', 'd1d3', 'd1d4', 'd1d5', 'd1d6', 'd1d7', 'd1d8', 'd1a1', 'd1b1', 'd1c1'],
         softFailures: {},
         success:
           'Vision moves with the piece. Squares your rook can reach are now bright; squares it left behind may be dark.',
@@ -193,12 +182,11 @@ const chapters: TutorialChapter[] = [
         accepted: [],
         softFailures: {},
         success:
-          "Black developed a knight from b8 to c6 — entirely in your fog. No white piece reaches b8 or c6, so you saw nothing change. In dark chess, an opponent move that happens fully in your fog is invisible to you. You only ever see the parts of their moves that touch your vision.",
+          'Black developed a knight from b8 to c6 — entirely in your fog. No white piece reaches b8 or c6, so you saw nothing change. In dark chess, an opponent move that happens fully in your fog is invisible to you. You only ever see the parts of their moves that touch your vision.',
       },
     ],
   },
 ];
-
 
 export function mountLearn(root: HTMLElement): void {
   const state = createTutorialState();
@@ -286,7 +274,9 @@ function buildLearnMenu(state: TutorialState): HTMLElement {
 }
 
 function buildLearnCategory(state: TutorialState, category: TutorialCategory): HTMLElement {
-  const isCurrentCategory = category.lessons.some((lesson) => chapters[state.chapterIndex]?.lesson === lesson.title);
+  const isCurrentCategory = category.lessons.some(
+    (lesson) => chapters[state.chapterIndex]?.lesson === lesson.title,
+  );
   const section = document.createElement('section');
   section.className = `learn-menu-category${isCurrentCategory ? ' is-open' : ' is-collapsed'}`;
 
@@ -301,10 +291,7 @@ function buildLearnCategory(state: TutorialState, category: TutorialCategory): H
   return section;
 }
 
-function buildPieceLessonMenuItem(
-  state: TutorialState,
-  lesson: TutorialLesson,
-): HTMLElement {
+function buildPieceLessonMenuItem(state: TutorialState, lesson: TutorialLesson): HTMLElement {
   const lessonChapters = chapterIndexesForLesson(lesson.title);
   const available = lessonChapters.length > 0;
   const isCurrentLesson = chapters[state.chapterIndex]?.lesson === lesson.title;
@@ -602,7 +589,10 @@ function tutorialSquareClasses(
   if (state.status === 'success') {
     for (const square of step.afterTargets) {
       if (step.targets.includes(square)) continue;
-      classes.set(square as cg.Key, `${classes.get(square as cg.Key) ?? ''} learn-explained`.trim());
+      classes.set(
+        square as cg.Key,
+        `${classes.get(square as cg.Key) ?? ''} learn-explained`.trim(),
+      );
     }
   }
   if (chapter.reveal && state.status === 'success') {
@@ -619,7 +609,10 @@ function currentStep(state: TutorialState, chapter: TutorialChapter): TutorialSt
 
 function lessonProgress(lesson: string): string {
   const lessons = learnCategories[0]?.lessons ?? [];
-  const lessonIndex = Math.max(0, lessons.findIndex((entry) => entry.title === lesson));
+  const lessonIndex = Math.max(
+    0,
+    lessons.findIndex((entry) => entry.title === lesson),
+  );
   return `Step ${lessonIndex + 1} of ${lessons.length}`;
 }
 
@@ -643,9 +636,10 @@ function legalDests(view: PlayerView): cg.Dests {
 }
 
 function resolveUiMove(view: PlayerView, move: Move): Move | null {
-  const castlingAlias = view.legalMoves.find((candidate) => (
-    candidate.from === move.from && castlingKingDestinationFromView(view, candidate) === move.to
-  ));
+  const castlingAlias = view.legalMoves.find(
+    (candidate) =>
+      candidate.from === move.from && castlingKingDestinationFromView(view, candidate) === move.to,
+  );
   if (castlingAlias) return castlingAlias;
   return view.legalMoves.find((candidate) => movesMatch(candidate, move)) ?? null;
 }
@@ -663,13 +657,20 @@ function addCastlingDestinationAliases(view: PlayerView, dests: cg.Dests): void 
 function castlingKingDestinationFromView(view: PlayerView, move: Move): Square | null {
   const piece = view.board[move.from];
   const rook = view.board[move.to];
-  if (!piece || piece.role !== 'king' || !rook || rook.role !== 'rook' || rook.color !== piece.color) return null;
+  if (
+    !piece ||
+    piece.role !== 'king' ||
+    !rook ||
+    rook.role !== 'rook' ||
+    rook.color !== piece.color
+  )
+    return null;
   if (rankOf(move.from) !== rankOf(move.to)) return null;
   return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
 }
 
 function squareFileIndex(square: Square): number {
-  return boardFiles.indexOf(square[0] as typeof boardFiles[number]);
+  return boardFiles.indexOf(square[0] as (typeof boardFiles)[number]);
 }
 
 function rankOf(square: Square): string {

@@ -73,7 +73,10 @@ function liveEngineMoveSeed(room: Room): bigint {
   return (BigInt(roomIdToSeed(room.id) >>> 0) << 16n) + BigInt(ply);
 }
 
-async function sleepEngineThinkTime(startedAt: number, thinkTimeMs: number | undefined): Promise<void> {
+async function sleepEngineThinkTime(
+  startedAt: number,
+  thinkTimeMs: number | undefined,
+): Promise<void> {
   if (thinkTimeMs === undefined) return;
   const remainingMs = Math.max(0, Math.round(thinkTimeMs) - (Date.now() - startedAt));
   if (remainingMs <= 0) return;
@@ -116,14 +119,16 @@ function persistenceRecordForSeatToken(token: SeatTokenState): persistence.RoomS
 }
 
 function recordSeatTokenPersistenceError(roomId: string, seat: Color | null, err: Error): void {
-  console.error(JSON.stringify({
-    level: 'error',
-    kind: 'seat_token_persistence_failure',
-    roomId,
-    seat,
-    error: err.message,
-    at: Date.now(),
-  }));
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      kind: 'seat_token_persistence_failure',
+      roomId,
+      seat,
+      error: err.message,
+      at: Date.now(),
+    }),
+  );
 }
 
 export function seatTokenStatesFromPersistence(
@@ -147,7 +152,11 @@ export function seatTokenStatesFromPersistence(
   return states;
 }
 
-export async function persistSeatToken(ctx: RoomManagerContext, room: Room, token: SeatTokenState): Promise<void> {
+export async function persistSeatToken(
+  ctx: RoomManagerContext,
+  room: Room,
+  token: SeatTokenState,
+): Promise<void> {
   if (!persistence.isInitialized()) return;
   try {
     await persistence.upsertRoomSeatToken(room.id, persistenceRecordForSeatToken(token));
@@ -157,7 +166,11 @@ export async function persistSeatToken(ctx: RoomManagerContext, room: Room, toke
   }
 }
 
-export async function touchSeatToken(ctx: RoomManagerContext, room: Room, token: SeatTokenState): Promise<void> {
+export async function touchSeatToken(
+  ctx: RoomManagerContext,
+  room: Room,
+  token: SeatTokenState,
+): Promise<void> {
   if (!persistence.isInitialized()) return;
   try {
     await persistence.touchRoomSeatToken(room.id, token.seat, token.tokenHash, token.lastSeenAt);
@@ -274,9 +287,8 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
   if (status.type !== 'finished') {
     throw new Error('buildGameSummary called on non-terminal state');
   }
-  const result: GameSummary['result'] = status.winner === 'white' ? 'white-wins'
-    : status.winner === 'black' ? 'black-wins'
-    : 'draw';
+  const result: GameSummary['result'] =
+    status.winner === 'white' ? 'white-wins' : status.winner === 'black' ? 'black-wins' : 'draw';
 
   if (!isGameEndReason(status.reason)) {
     throw new Error(`unknown finished-game reason: ${String(status.reason)}`);
@@ -288,8 +300,20 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
 
   const participants = [
-    participantForSeatToken('white', room.projection.seats.white ?? null, room.seatTokens.white, room.mode, ctx.pveBuiltinEngineClientId),
-    participantForSeatToken('black', room.projection.seats.black ?? null, room.seatTokens.black, room.mode, ctx.pveBuiltinEngineClientId),
+    participantForSeatToken(
+      'white',
+      room.projection.seats.white ?? null,
+      room.seatTokens.white,
+      room.mode,
+      ctx.pveBuiltinEngineClientId,
+    ),
+    participantForSeatToken(
+      'black',
+      room.projection.seats.black ?? null,
+      room.seatTokens.black,
+      room.mode,
+      ctx.pveBuiltinEngineClientId,
+    ),
   ];
   // Rated play is human-vs-human only. Any engine seat forces casual.
   const rated = room.rated && !participants.some((p) => p.subjectType === 'engine-version');
@@ -317,7 +341,10 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
 
 // ── Room event infrastructure ──────────────────────────────────────────────
 
-export function seatDisplayNamesForRoom(room: Room, ctx: RoomManagerContext): Partial<Record<Color, string>> {
+export function seatDisplayNamesForRoom(
+  room: Room,
+  ctx: RoomManagerContext,
+): Partial<Record<Color, string>> {
   const names: Partial<Record<Color, string>> = {};
   for (const color of ['white', 'black'] as Color[]) {
     const clientId = room.projection.seats[color];
@@ -353,11 +380,7 @@ export function broadcastSnapshot(ctx: RoomManagerContext, room: Room): void {
 // previously-hidden opponent moves become visible. The delta path has not
 // delivered those events to recipients, so re-syncing via snapshot is the
 // correct reveal channel.
-export function broadcastEventAppended(
-  ctx: RoomManagerContext,
-  room: Room,
-  fromSeq: number,
-): void {
+export function broadcastEventAppended(ctx: RoomManagerContext, room: Room, fromSeq: number): void {
   const seatDisplayNames = seatDisplayNamesForRoom(room, ctx);
   const enrichedRoom = { ...room, seatDisplayNames };
   const isGameEnd = room.projection.state.status.type === 'finished';
@@ -374,7 +397,11 @@ export function broadcastEventAppended(
   }
 }
 
-export async function appendEvent(ctx: RoomManagerContext, room: Room, event: GameEvent): Promise<void> {
+export async function appendEvent(
+  ctx: RoomManagerContext,
+  room: Room,
+  event: GameEvent,
+): Promise<void> {
   // Serialize per-room writes. Chaining onto pendingWrites guarantees
   // sequence assignment is atomic with the persistence write.
   const myWrite = room.pendingWrites.then(async () => {
@@ -394,18 +421,18 @@ export async function appendEvent(ctx: RoomManagerContext, room: Room, event: Ga
     {
       const engineSeat = engineSeatFor(room);
       if (
-        room.projection.state.status.type !== 'playing'
-        || engineSeat === null
-        || room.projection.state.status.turn !== engineSeat
+        room.projection.state.status.type !== 'playing' ||
+        engineSeat === null ||
+        room.projection.state.status.turn !== engineSeat
       ) {
         clearRandomEngineTimer(room);
       }
     }
 
     if (
-      persistence.isInitialized()
-      && room.projection.state.status.type === 'finished'
-      && !room.gameEndRecorded
+      persistence.isInitialized() &&
+      room.projection.state.status.type === 'finished' &&
+      !room.gameEndRecorded
     ) {
       room.gameEndRecorded = true;
       try {
@@ -413,13 +440,15 @@ export async function appendEvent(ctx: RoomManagerContext, room: Room, event: Ga
       } catch (err) {
         // Events are durable; the games-row aggregate can be backfilled.
         // Log loudly so it's visible.
-        console.error(JSON.stringify({
-          level: 'error',
-          kind: 'game_end_record_failure',
-          roomId: room.id,
-          error: (err as Error).message,
-          at: Date.now(),
-        }));
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            kind: 'game_end_record_failure',
+            roomId: room.id,
+            error: (err as Error).message,
+            at: Date.now(),
+          }),
+        );
       }
     }
   });
@@ -446,19 +475,26 @@ export function scheduleClockTimeout(ctx: RoomManagerContext, room: Room): void 
       .then(() => broadcastEventAppended(ctx, room, fromSeq))
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {
-          console.error(JSON.stringify({
-            level: 'error',
-            kind: 'clock_expire_failure',
-            roomId: room.id,
-            error: (err as Error).message,
-            at: Date.now(),
-          }));
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              kind: 'clock_expire_failure',
+              roomId: room.id,
+              error: (err as Error).message,
+              at: Date.now(),
+            }),
+          );
         }
       });
   }, delay + 25);
 }
 
-export async function expireActiveClock(ctx: RoomManagerContext, room: Room, color: Color, at: number): Promise<void> {
+export async function expireActiveClock(
+  ctx: RoomManagerContext,
+  room: Room,
+  color: Color,
+  at: number,
+): Promise<void> {
   const clock = expireClock(room.projection.state.clock, at, color);
   if (!clock) return;
   await appendEvent(ctx, room, {
@@ -512,7 +548,11 @@ export function applyOrphanRecoveryIfNeeded(
 // Pause a running room before server shutdown. No-op if not playing or
 // already paused. The pause snapshot freezes the active clock so wall-clock
 // time during the outage doesn't count against either player.
-export async function pauseRoomOnShutdown(ctx: RoomManagerContext, room: Room, at: number): Promise<void> {
+export async function pauseRoomOnShutdown(
+  ctx: RoomManagerContext,
+  room: Room,
+  at: number,
+): Promise<void> {
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
   const frozenClock = freezeClock(room.projection.state.clock, at);
@@ -564,7 +604,11 @@ export async function resumeRoom(
 // - PvP: needs both human seats to have valid tokens — same as before.
 // - PvE: resumes the moment the human reconnects (engine is auto-present).
 // - EvE: resumes on the first connection of any kind (both engines auto-present).
-export async function resumeRoomIfReady(ctx: RoomManagerContext, room: Room, at: number): Promise<boolean> {
+export async function resumeRoomIfReady(
+  ctx: RoomManagerContext,
+  room: Room,
+  at: number,
+): Promise<boolean> {
   if (!room.projection.paused) return false;
   if (room.projection.state.status.type !== 'playing') return false;
   if (!room.projection.seats.white || !room.projection.seats.black) return false;
@@ -604,9 +648,10 @@ export async function startLiveClockIfReady(ctx: RoomManagerContext, room: Room)
   // its first move before both seats are filled), the clock must start for
   // the side actually to move — otherwise the wrong clock ticks down and
   // the active-color UI hints are inverted.
-  const clock = room.projection.state.status.turn !== initialClock.activeColor
-    ? { ...initialClock, activeColor: room.projection.state.status.turn }
-    : initialClock;
+  const clock =
+    room.projection.state.status.turn !== initialClock.activeColor
+      ? { ...initialClock, activeColor: room.projection.state.status.turn }
+      : initialClock;
   await appendEvent(ctx, room, {
     type: 'clock-started',
     at: now,
@@ -620,14 +665,23 @@ export async function startLiveClockIfReady(ctx: RoomManagerContext, room: Room)
 }
 
 export async function resolveStartIfReady(ctx: RoomManagerContext, room: Room): Promise<void> {
-  if (room.projection.resolvedStartId !== null || (room.projection.resolvedStartIds.white !== undefined && room.projection.resolvedStartIds.black !== undefined)) return;
+  if (
+    room.projection.resolvedStartId !== null ||
+    (room.projection.resolvedStartIds.white !== undefined &&
+      room.projection.resolvedStartIds.black !== undefined)
+  )
+    return;
 
   const whiteSelection = room.projection.selections.white;
   const blackSelection = room.projection.selections.black;
   if (whiteSelection === undefined || blackSelection === undefined) return;
 
-  const whiteStart = offerForColor(room.projection, 'white').find((start) => start.id === whiteSelection);
-  const blackStart = offerForColor(room.projection, 'black').find((start) => start.id === blackSelection);
+  const whiteStart = offerForColor(room.projection, 'white').find(
+    (start) => start.id === whiteSelection,
+  );
+  const blackStart = offerForColor(room.projection, 'black').find(
+    (start) => start.id === blackSelection,
+  );
   if (!whiteStart || !blackStart) return;
   const now = Date.now();
 
@@ -672,14 +726,22 @@ type ClientMoveMessage = {
   promotion?: string;
 };
 
-export async function playMove(ctx: RoomManagerContext, room: Room, client: Client, move: ClientMoveMessage): Promise<void> {
+export async function playMove(
+  ctx: RoomManagerContext,
+  room: Room,
+  client: Client,
+  move: ClientMoveMessage,
+): Promise<void> {
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
   const now = Date.now();
   const moveColor = room.projection.state.status.turn;
   if (!canClientAct(room, client)) return;
   if (!client.solo && (client.seat === 'spectator' || moveColor !== client.seat)) return;
-  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, moveColor, now) <= 0) {
+  if (
+    room.projection.state.clock &&
+    clockRemainingMs(room.projection.state.clock, moveColor, now) <= 0
+  ) {
     const fromSeq = room.events.length;
     await expireActiveClock(ctx, room, moveColor, now);
     broadcastEventAppended(ctx, room, fromSeq);
@@ -691,7 +753,10 @@ export async function playMove(ctx: RoomManagerContext, room: Room, client: Clie
     to: move.to as Square,
     promotion: isPromotionRole(move.promotion) ? move.promotion : undefined,
   };
-  const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, requestedMove);
+  const nextState = variantForId(room.projection.variant).applyMove(
+    room.projection.state,
+    requestedMove,
+  );
   if (nextState === room.projection.state) return;
   const nextClock = advanceClock(room.projection.state.clock, now, moveColor, nextState.status);
   const captured = capturedRoleFor(room.projection.state, nextState.lastMove ?? requestedMove);
@@ -760,18 +825,23 @@ async function recordLiveEngineDecisionArtifact(
       });
     }
   } catch (err) {
-    console.error(JSON.stringify({
-      level: 'error',
-      kind: 'live_engine_artifact_persistence_failed',
-      roomId: room.id,
-      ply: input.contextPly,
-      error: (err as Error).message,
-      at: Date.now(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'live_engine_artifact_persistence_failed',
+        roomId: room.id,
+        ply: input.contextPly,
+        error: (err as Error).message,
+        at: Date.now(),
+      }),
+    );
   }
 }
 
-export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room: Room): Promise<void> {
+export async function playRandomEngineMoveIfReady(
+  ctx: RoomManagerContext,
+  room: Room,
+): Promise<void> {
   if (!room.randomEngine) return;
   const engine = loadEngine(room.pveEngineId ?? ctx.pveBuiltinEngineClientId);
   if (room.projection.variant !== 'fog-of-war') return;
@@ -782,12 +852,18 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
   if (room.projection.state.status.turn !== engineSeat) return;
 
   const now = Date.now();
-  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, engineSeat, now) <= 0) {
+  if (
+    room.projection.state.clock &&
+    clockRemainingMs(room.projection.state.clock, engineSeat, now) <= 0
+  ) {
     await expireActiveClock(ctx, room, engineSeat, now);
     return;
   }
 
-  const moves = variantForId(room.projection.variant).getLegalMoves(room.projection.state, engineSeat);
+  const moves = variantForId(room.projection.variant).getLegalMoves(
+    room.projection.state,
+    engineSeat,
+  );
   if (moves.length === 0) return;
   const clock = room.projection.state.clock;
   const context = {
@@ -832,7 +908,10 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
   const decisionAt = Date.now();
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.state.status.turn !== engineSeat) return;
-  if (room.projection.state.clock && clockRemainingMs(room.projection.state.clock, engineSeat, decisionAt) <= 0) {
+  if (
+    room.projection.state.clock &&
+    clockRemainingMs(room.projection.state.clock, engineSeat, decisionAt) <= 0
+  ) {
     await expireActiveClock(ctx, room, engineSeat, decisionAt);
     return;
   }
@@ -856,7 +935,12 @@ export async function playRandomEngineMoveIfReady(ctx: RoomManagerContext, room:
   if (!move) return;
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
   if (nextState === room.projection.state) return;
-  const nextClock = advanceClock(room.projection.state.clock, decisionAt, engineSeat, nextState.status);
+  const nextClock = advanceClock(
+    room.projection.state.clock,
+    decisionAt,
+    engineSeat,
+    nextState.status,
+  );
   const captured = capturedRoleFor(room.projection.state, nextState.lastMove ?? move);
   await appendEvent(ctx, room, {
     type: 'move-played',
@@ -898,13 +982,15 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
       .then(() => broadcastEventAppended(ctx, room, fromSeq))
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {
-          console.error(JSON.stringify({
-            level: 'error',
-            kind: 'engine_move_failure',
-            roomId: room.id,
-            error: (err as Error).message,
-            at: Date.now(),
-          }));
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              kind: 'engine_move_failure',
+              roomId: room.id,
+              error: (err as Error).message,
+              at: Date.now(),
+            }),
+          );
         }
       });
   }, 0);

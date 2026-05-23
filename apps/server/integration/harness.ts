@@ -36,7 +36,10 @@ export interface TestClient {
    * first; otherwise waits for an incoming message. Resolves with the matched
    * message. Rejects on timeout (default 2s).
    */
-  waitFor<T = MessageOf>(predicate: (msg: MessageOf) => boolean, opts?: { timeoutMs?: number }): Promise<T>;
+  waitFor<T = MessageOf>(
+    predicate: (msg: MessageOf) => boolean,
+    opts?: { timeoutMs?: number },
+  ): Promise<T>;
   /** Convenience: wait for a message with `type === expected`. */
   expectMessage<T = MessageOf>(type: string, opts?: { timeoutMs?: number }): Promise<T>;
   /** Close the socket cleanly. */
@@ -49,7 +52,9 @@ export interface TestClient {
 
 type MessageOf = { type: string; [key: string]: unknown };
 
-export async function startTestServer(opts: { seatVacateGraceMs?: number } = {}): Promise<TestServer> {
+export async function startTestServer(
+  opts: { seatVacateGraceMs?: number } = {},
+): Promise<TestServer> {
   // Make sure no leaked server from a prior test is still bound.
   await stopServer().catch(() => undefined);
   const started: StartedServer = await startServer({
@@ -95,9 +100,14 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
   const socket = new WebSocket(target, protocols, { origin });
 
   const messages: unknown[] = [];
-  const waiters: Array<{ predicate: (msg: MessageOf) => boolean; resolve: (msg: MessageOf) => void }> = [];
+  const waiters: Array<{
+    predicate: (msg: MessageOf) => boolean;
+    resolve: (msg: MessageOf) => void;
+  }> = [];
   let closedResolve!: () => void;
-  const closed = new Promise<void>((resolve) => { closedResolve = resolve; });
+  const closed = new Promise<void>((resolve) => {
+    closedResolve = resolve;
+  });
   let isClosed = false;
 
   socket.on('message', (raw) => {
@@ -127,8 +137,14 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
   });
 
   await new Promise<void>((resolve, reject) => {
-    const onError = (err: Error) => { socket.off('open', onOpen); reject(err); };
-    const onOpen = () => { socket.off('error', onError); resolve(); };
+    const onError = (err: Error) => {
+      socket.off('open', onOpen);
+      reject(err);
+    };
+    const onOpen = () => {
+      socket.off('error', onError);
+      resolve();
+    };
     socket.once('open', onOpen);
     socket.once('error', onError);
   });
@@ -142,7 +158,10 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
     send(payload: object) {
       socket.send(JSON.stringify(payload));
     },
-    async waitFor<T = MessageOf>(predicate: (msg: MessageOf) => boolean, waitOpts: { timeoutMs?: number } = {}): Promise<T> {
+    async waitFor<T = MessageOf>(
+      predicate: (msg: MessageOf) => boolean,
+      waitOpts: { timeoutMs?: number } = {},
+    ): Promise<T> {
       const existing = messages.find((m) => predicate(m as MessageOf));
       if (existing) return existing as T;
       const timeoutMs = waitOpts.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
@@ -159,7 +178,9 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
           const idx = waiters.indexOf(entry);
           if (idx >= 0) waiters.splice(idx, 1);
           const buffered = messages.map((m) => (m as MessageOf).type).join(',');
-          reject(new Error(`waitFor timed out after ${timeoutMs}ms. Buffered types: [${buffered}]`));
+          reject(
+            new Error(`waitFor timed out after ${timeoutMs}ms. Buffered types: [${buffered}]`),
+          );
         }, timeoutMs);
       });
     },
@@ -176,8 +197,14 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
   };
 
   if (opts.awaitHello !== false) {
-    const hello = await client.expectMessage('hello', { timeoutMs: opts.helloTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS });
-    const h = hello as unknown as { seat: 'white' | 'black' | 'spectator'; seatToken?: string; clientId: string };
+    const hello = await client.expectMessage('hello', {
+      timeoutMs: opts.helloTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
+    });
+    const h = hello as unknown as {
+      seat: 'white' | 'black' | 'spectator';
+      seatToken?: string;
+      clientId: string;
+    };
     client.seat = h.seat;
     client.seatToken = h.seatToken ?? opts.seatToken ?? null;
     client.clientId = h.clientId;

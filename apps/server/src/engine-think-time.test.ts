@@ -20,7 +20,10 @@ const baseContext: EngineMoveContext = {
 
 test('engine think time varies by seeded move context', () => {
   const first = engineThinkTimeMs({ context: baseContext, runtime: 'in-process' });
-  const second = engineThinkTimeMs({ context: { ...baseContext, seed: 2n }, runtime: 'in-process' });
+  const second = engineThinkTimeMs({
+    context: { ...baseContext, seed: 2n },
+    runtime: 'in-process',
+  });
 
   assert.notEqual(first, second);
 });

@@ -39,7 +39,9 @@ try {
     [String(STALE_HOURS)],
   );
 
-  console.log(`Candidates to abort (status='running', stale >${STALE_HOURS}h): ${candidates.length}`);
+  console.log(
+    `Candidates to abort (status='running', stale >${STALE_HOURS}h): ${candidates.length}`,
+  );
   for (const c of candidates) {
     const last = c.last_event_at ? new Date(c.last_event_at).toISOString() : '(no events)';
     console.log(`  ${c.room_id}  mode=${c.mode}  last_event=${last}`);
@@ -48,10 +50,9 @@ try {
   if (!apply) {
     console.log('\nDry run. Pass --apply to perform the update.');
   } else {
-
-  const reason = `backfill: stale running >${STALE_HOURS}h`;
-  const { rowCount } = await pool.query(
-    `UPDATE games
+    const reason = `backfill: stale running >${STALE_HOURS}h`;
+    const { rowCount } = await pool.query(
+      `UPDATE games
      SET status = 'aborted',
          result = NULL,
          termination = 'abandoned',
@@ -70,13 +71,13 @@ try {
          WHERE g.status = 'running'
            AND (le.last_event_at IS NULL OR le.last_event_at < now() - ($2 || ' hours')::interval)
        );`,
-    [reason, String(STALE_HOURS)],
-  );
-  console.log(`\nUpdated ${rowCount} rows.`);
+      [reason, String(STALE_HOURS)],
+    );
+    console.log(`\nUpdated ${rowCount} rows.`);
 
-  const totals = await q(`SELECT status, COUNT(*)::int AS n FROM games GROUP BY 1 ORDER BY 1;`);
-  console.log('\nPost-backfill status counts:');
-  for (const r of totals) console.log(`  ${r.status.padEnd(10)} ${r.n}`);
+    const totals = await q(`SELECT status, COUNT(*)::int AS n FROM games GROUP BY 1 ORDER BY 1;`);
+    console.log('\nPost-backfill status counts:');
+    for (const r of totals) console.log(`  ${r.status.padEnd(10)} ${r.n}`);
   }
 } catch (err) {
   console.error('query failed:', err.message);

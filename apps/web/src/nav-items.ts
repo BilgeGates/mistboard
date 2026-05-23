@@ -1,5 +1,4 @@
-export const SHOW_ENGINE_LAB_LINKS =
-  import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
+export const SHOW_ENGINE_LAB_LINKS = import.meta.env.VITE_SHOW_ENGINE_LAB_NAV === 'true';
 
 export interface NavItem {
   label: string;

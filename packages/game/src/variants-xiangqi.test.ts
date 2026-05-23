@@ -162,7 +162,13 @@ test('initial state: red moves first, plies=0, moveNumber=1, positionCounts seed
 
 test('role translation roundtrips for every xiangqi role', () => {
   const roles: XiangqiPieceRole[] = [
-    'general', 'advisor', 'elephant', 'horse', 'chariot', 'cannon', 'soldier',
+    'general',
+    'advisor',
+    'elephant',
+    'horse',
+    'chariot',
+    'cannon',
+    'soldier',
   ];
   for (const role of roles) {
     assert.equal(eoToRole(roleToEo(role)), role);
@@ -248,8 +254,14 @@ test('horse leg is respected (blocked) and clear leg passes', () => {
     e10: { color: 'black', role: 'general' },
   });
   const clearLeg = getLegalMovesFrom(baseState, 'd5');
-  assert.ok(clearLeg.some((m) => m.to === 'b6'), 'horse d5->b6 legal with c5 empty');
-  assert.ok(clearLeg.some((m) => m.to === 'f6'), 'horse d5->f6 legal with e5 empty');
+  assert.ok(
+    clearLeg.some((m) => m.to === 'b6'),
+    'horse d5->b6 legal with c5 empty',
+  );
+  assert.ok(
+    clearLeg.some((m) => m.to === 'f6'),
+    'horse d5->f6 legal with e5 empty',
+  );
 
   // Block leg c5 with a cannon (cannons have no rank restriction; max 2/side honored).
   const blocked = buildState({
@@ -258,7 +270,10 @@ test('horse leg is respected (blocked) and clear leg passes', () => {
   });
   const blockedMoves = getLegalMovesFrom(blocked, 'd5');
   assert.ok(!blockedMoves.some((m) => m.to === 'b6'), 'horse d5->b6 blocked when leg c5 occupied');
-  assert.ok(blockedMoves.some((m) => m.to === 'f6'), 'horse d5->f6 unaffected');
+  assert.ok(
+    blockedMoves.some((m) => m.to === 'f6'),
+    'horse d5->f6 unaffected',
+  );
 });
 
 test('elephant eye blocker and river constraint', () => {
@@ -412,7 +427,10 @@ test('chariot vision stops at first piece (sees the blocker but not past it)', (
   assert.ok(visible.has('a2'));
   assert.ok(visible.has('a3'));
   assert.ok(visible.has('a4'), 'own soldier blocker is visible');
-  assert.ok(!visible.has('a6' as XiangqiSquare), 'a6 is past the blocker and out of any other red vision');
+  assert.ok(
+    !visible.has('a6' as XiangqiSquare),
+    'a6 is past the blocker and out of any other red vision',
+  );
 });
 
 test('cannon vision extends through empty squares between screen and enemy target', () => {
@@ -423,7 +441,7 @@ test('cannon vision extends through empty squares between screen and enemy targe
     board: {
       e1: { color: 'red', role: 'general' },
       e3: { color: 'red', role: 'elephant' }, // screen
-      h3: { color: 'red', role: 'cannon' },   // cannon
+      h3: { color: 'red', role: 'cannon' }, // cannon
       b3: { color: 'black', role: 'chariot' }, // enemy target
       e10: { color: 'black', role: 'general' },
     },
@@ -490,7 +508,10 @@ test('cannon vision stops at the screen when the piece past it is own (not captu
   const v = computeVision(state, 'red');
   assert.ok(v.cannonScreens.has('e5'));
   assert.ok(v.directlyVisible.has('a5'), 'own soldier always visible');
-  assert.ok(!v.cannonTargets.has('a5' as XiangqiSquare), 'own piece never counts as a cannon target');
+  assert.ok(
+    !v.cannonTargets.has('a5' as XiangqiSquare),
+    'own piece never counts as a cannon target',
+  );
   // d5, c5, b5 must come from the cannon ray to be visible — and they don't,
   // because no enemy target gates them.
   assert.ok(!v.directlyVisible.has('d5' as XiangqiSquare));
@@ -515,7 +536,10 @@ test('cannon sees through screen to enemy target (initial position cannon vs bac
   // No piece behind b8 on file b in the initial position (b9 empty, b10 empty
   // because back rank has horse on b10) — wait b10 has a horse. So cannon
   // b3 -> screen b8 -> target b10 (horse).
-  assert.ok(v.cannonTargets.has('b10'), 'b3 cannon should see b10 as a screened target (black horse)');
+  assert.ok(
+    v.cannonTargets.has('b10'),
+    'b3 cannon should see b10 as a screened target (black horse)',
+  );
 });
 
 test('horse vision includes 8 L-squares + 4 legs', () => {
@@ -578,7 +602,10 @@ test('elephant sees its 4 eye squares + diagonal-2 destinations in own half', ()
   }
   // Across the river — destinations dropped.
   for (const sq of ['a7', 'e7'] as const) {
-    assert.ok(!v.directlyVisible.has(sq), `elephant c5 should NOT see destination ${sq} (across river)`);
+    assert.ok(
+      !v.directlyVisible.has(sq),
+      `elephant c5 should NOT see destination ${sq} (across river)`,
+    );
   }
 });
 
@@ -657,25 +684,41 @@ test('cannon-vision mode D is the inverse of mode C', () => {
   }
 });
 
-test('player view legal-moves: only when it is the player\'s turn', () => {
+test("player view legal-moves: only when it is the player's turn", () => {
   const state = createInitialXiangqiState('t'); // red to move
   const redView = getPlayerView(state, 'red');
   assert.equal(redView.legalMoves.length, 44);
   const blackView = getPlayerView(state, 'black');
-  assert.equal(blackView.legalMoves.length, 0, 'black should have no legal moves when it is red\'s turn');
+  assert.equal(
+    blackView.legalMoves.length,
+    0,
+    "black should have no legal moves when it is red's turn",
+  );
 });
 
 test('player view does not reveal squares the perspective player cannot see', () => {
   const state = createInitialXiangqiState('t');
   const view = getPlayerView(state, 'red');
   // From initial position red cannot see e7 (black soldier) or g8 anywhere etc.
-  assert.equal(view.board['e7' as XiangqiSquare], undefined, 'red should not see e7 (black soldier)');
-  assert.equal(view.board['a10' as XiangqiSquare], undefined, 'red should not see a10 (black chariot)');
+  assert.equal(
+    view.board['e7' as XiangqiSquare],
+    undefined,
+    'red should not see e7 (black soldier)',
+  );
+  assert.equal(
+    view.board['a10' as XiangqiSquare],
+    undefined,
+    'red should not see a10 (black chariot)',
+  );
 });
 
 // ── applyMove: state transitions + end conditions ──────────────────────────
 
-function play(state: XiangqiGameState, moves: Array<[XiangqiSquare, XiangqiSquare]>, opts = {}): XiangqiGameState {
+function play(
+  state: XiangqiGameState,
+  moves: Array<[XiangqiSquare, XiangqiSquare]>,
+  opts = {},
+): XiangqiGameState {
   let s = state;
   for (const [from, to] of moves) {
     s = applyMove(s, { from, to }, opts);
@@ -693,7 +736,7 @@ test('applyMove advances turn, increments moveNumber on black, returns valid pla
 
   const after2 = applyMove(after1, { from: 'b10', to: 'c8' });
   assert.equal((after2.status as { turn: 'red' | 'black' }).turn, 'red');
-  assert.equal(after2.moveNumber, 2, 'moveNumber increments after black\'s move');
+  assert.equal(after2.moveNumber, 2, "moveNumber increments after black's move");
 });
 
 test('applyMove on illegal move returns state unchanged', () => {
@@ -722,7 +765,10 @@ test('progressClock increments on a non-capture non-soldier move', () => {
 test('progressClock resets on a soldier advance', () => {
   const state = createInitialXiangqiState('t');
   // Bump clock with 2 non-soldier moves (red general step, black horse step).
-  const s = play(state, [['e1', 'e2'], ['h10', 'g8']]);
+  const s = play(state, [
+    ['e1', 'e2'],
+    ['h10', 'g8'],
+  ]);
   assert.ok(s.progressClock >= 2, `expected clock > 0 after 2 plies, got ${s.progressClock}`);
   // Red's turn; advance a soldier. Clock must reset to 0.
   const afterSoldier = applyMove(s, { from: 'e4', to: 'e5' });
@@ -732,7 +778,10 @@ test('progressClock resets on a soldier advance', () => {
 test('progressClock resets on a capture', () => {
   const state = createInitialXiangqiState('t');
   // Bump clock; b3 cannon still has b8 as screen and b10 as captureable target.
-  const s = play(state, [['e1', 'e2'], ['h10', 'g8']]);
+  const s = play(state, [
+    ['e1', 'e2'],
+    ['h10', 'g8'],
+  ]);
   assert.ok(s.progressClock >= 2);
   const capture = applyMove(s, { from: 'b3', to: 'b10' });
   assert.equal(capture.progressClock, 0);
@@ -742,10 +791,16 @@ test('progressClock resets on a capture', () => {
 test('progress-clock auto-draw fires at the limit', () => {
   // Use a tight limit (4 plies of non-capture non-soldier moves) and shuffle horses.
   const state = createInitialXiangqiState('t');
-  const s = play(state, [
-    ['b1', 'c3'], ['b10', 'c8'],
-    ['c3', 'b1'], ['c8', 'b10'],
-  ], { progressClockLimit: 4 });
+  const s = play(
+    state,
+    [
+      ['b1', 'c3'],
+      ['b10', 'c8'],
+      ['c3', 'b1'],
+      ['c8', 'b10'],
+    ],
+    { progressClockLimit: 4 },
+  );
   // After 4 horse moves with no captures/soldiers, the 4th move should trip
   // the progress clock.
   assert.equal(s.status.type, 'finished');
@@ -761,12 +816,20 @@ test('3-fold repetition: silent auto-draw on 3rd occurrence of the same true pos
   // firing first.
   const state = createInitialXiangqiState('t');
   // After 4 plies: initial position count = 2; after 8 plies: count = 3.
-  const s = play(state, [
-    ['b1', 'c3'], ['b10', 'c8'],
-    ['c3', 'b1'], ['c8', 'b10'],
-    ['b1', 'c3'], ['b10', 'c8'],
-    ['c3', 'b1'], ['c8', 'b10'],
-  ], { progressClockLimit: 200 });
+  const s = play(
+    state,
+    [
+      ['b1', 'c3'],
+      ['b10', 'c8'],
+      ['c3', 'b1'],
+      ['c8', 'b10'],
+      ['b1', 'c3'],
+      ['b10', 'c8'],
+      ['c3', 'b1'],
+      ['c8', 'b10'],
+    ],
+    { progressClockLimit: 200 },
+  );
   assert.equal(s.status.type, 'finished');
   if (s.status.type === 'finished') {
     assert.equal(s.status.winner, null);

@@ -4,7 +4,16 @@ import { SquareSet } from 'chessops/squareSet';
 import type { Move as ChessopsMove, Role, Square as ChessopsSquare } from 'chessops/types';
 import { makeSquare, parseSquare, squareRank } from 'chessops/util';
 import type { Setup } from 'chessops/setup';
-import type { Board, Color, GameState, Move, PieceRole, PlayerView, Square, Variant } from './types.js';
+import type {
+  Board,
+  Color,
+  GameState,
+  Move,
+  PieceRole,
+  PlayerView,
+  Square,
+  Variant,
+} from './types.js';
 
 // Navigation index — grep for section name to jump to the right block
 // SECTION: Draft960 variant         draft960Variant
@@ -91,14 +100,15 @@ export const draft960Variant: Variant = {
       board: boardFromChessops(setup.board),
       status: outcome
         ? {
-          type: 'finished',
-          winner: outcome.winner ?? null,
-          reason: outcome.winner ? 'checkmate' : 'draw',
-        }
+            type: 'finished',
+            winner: outcome.winner ?? null,
+            reason: outcome.winner ? 'checkmate' : 'draw',
+          }
         : { type: 'playing', turn: setup.turn },
       moveNumber: setup.fullmoves,
       castlingRights: [...setup.castlingRights].map((square) => makeSquare(square) as Square),
-      enPassantSquare: setup.epSquare === undefined ? undefined : makeSquare(setup.epSquare) as Square,
+      enPassantSquare:
+        setup.epSquare === undefined ? undefined : (makeSquare(setup.epSquare) as Square),
       halfmoveClock: setup.halfmoves,
       lastMove: move,
     };
@@ -155,9 +165,10 @@ export const fogOfWarVariant: Variant = {
       variant: state.variant,
       board,
       visibleSquares,
-      legalMoves: state.status.type === 'playing' && state.status.turn === player
-        ? getFogMovesForPlayer(state, player)
-        : [],
+      legalMoves:
+        state.status.type === 'playing' && state.status.turn === player
+          ? getFogMovesForPlayer(state, player)
+          : [],
       status: state.status,
       perspective: player,
       moveNumber: state.moveNumber,
@@ -181,8 +192,8 @@ function fogVisibleSquares(state: GameState, player: Color): Square[] {
 
 function ownPieceSquares(board: Board, player: Color): Square[] {
   return Object.entries(board)
-      .filter(([, piece]) => piece?.color === player)
-      .map(([square]) => square as Square);
+    .filter(([, piece]) => piece?.color === player)
+    .map(([square]) => square as Square);
 }
 
 function boardVisibleTo(board: Board, visibleSquares: Square[]): Board {
@@ -194,7 +205,11 @@ function boardVisibleTo(board: Board, visibleSquares: Square[]): Board {
   return playerBoard;
 }
 
-function visibleLastMoveForPlayer(state: GameState, player: Color, ownSquares: Square[]): Move | undefined {
+function visibleLastMoveForPlayer(
+  state: GameState,
+  player: Color,
+  ownSquares: Square[],
+): Move | undefined {
   const lastMove = state.lastMove;
   if (!lastMove) return undefined;
   if (state.status.type === 'playing') return state.status.turn === player ? undefined : lastMove;
@@ -207,8 +222,9 @@ function applyFogMove(state: GameState, move: Move): GameState {
 
   const player = state.status.turn;
   const requestedMove = normalizeCastlingMove(state, move) ?? move;
-  const legalMove = getFogMovesForPlayer(state, player)
-    .find((candidate) => movesMatch(candidate, requestedMove));
+  const legalMove = getFogMovesForPlayer(state, player).find((candidate) =>
+    movesMatch(candidate, requestedMove),
+  );
   if (!legalMove) return state;
 
   const piece = state.board[legalMove.from];
@@ -216,10 +232,11 @@ function applyFogMove(state: GameState, move: Move): GameState {
 
   const board = { ...state.board };
   const targetPiece = board[legalMove.to];
-  const enPassantCapture = piece.role === 'pawn'
-    && legalMove.to === state.enPassantSquare
-    && targetPiece === undefined
-    && fileOf(legalMove.from) !== fileOf(legalMove.to);
+  const enPassantCapture =
+    piece.role === 'pawn' &&
+    legalMove.to === state.enPassantSquare &&
+    targetPiece === undefined &&
+    fileOf(legalMove.from) !== fileOf(legalMove.to);
   const castlingMove = isFogCastlingMove(state, legalMove);
   const capturedPiece = castlingMove ? undefined : targetPiece;
 
@@ -238,7 +255,8 @@ function applyFogMove(state: GameState, move: Move): GameState {
   const nextMoveNumber = state.moveNumber + (player === 'black' ? 1 : 0);
   const updatedCastlingRights = nextCastlingRights(state, legalMove, piece.role);
   const updatedEnPassantSquare = nextEnPassantSquare(legalMove, piece.role, player);
-  const nextHalfmoveClock = piece.role === 'pawn' || capturedPiece || enPassantCapture ? 0 : state.halfmoveClock + 1;
+  const nextHalfmoveClock =
+    piece.role === 'pawn' || capturedPiece || enPassantCapture ? 0 : state.halfmoveClock + 1;
   const playingStatus = { type: 'playing', turn: oppositeColor(player) } as const;
   const nextPositionState: GameState = {
     ...state,
@@ -251,11 +269,12 @@ function applyFogMove(state: GameState, move: Move): GameState {
     lastMove: legalMove,
   };
   const positionCounts = nextPositionCounts(state, nextPositionState);
-  const nextStatus = capturedPiece?.role === 'king'
-    ? { type: 'finished', winner: player, reason: 'king-captured' } as const
-    : nextHalfmoveClock >= 100 || positionCounts[positionRepetitionKey(nextPositionState)]! >= 3
-      ? { type: 'finished', winner: null, reason: 'draw' } as const
-      : playingStatus;
+  const nextStatus =
+    capturedPiece?.role === 'king'
+      ? ({ type: 'finished', winner: player, reason: 'king-captured' } as const)
+      : nextHalfmoveClock >= 100 || positionCounts[positionRepetitionKey(nextPositionState)]! >= 3
+        ? ({ type: 'finished', winner: null, reason: 'draw' } as const)
+        : playingStatus;
 
   return {
     ...state,
@@ -270,7 +289,10 @@ function applyFogMove(state: GameState, move: Move): GameState {
   };
 }
 
-function nextPositionCounts(previousState: GameState, nextState: GameState): Record<string, number> {
+function nextPositionCounts(
+  previousState: GameState,
+  nextState: GameState,
+): Record<string, number> {
   const currentKey = positionRepetitionKey(previousState);
   const counts = { ...(previousState.positionCounts ?? { [currentKey]: 1 }) };
   counts[currentKey] ??= 1;
@@ -312,11 +334,9 @@ function fogMovesFrom(state: GameState, from: Square): Move[] {
   if (piece.role === 'knight') return fogStepMoves(state, from, knightSteps);
   if (piece.role === 'bishop') return fogSlideMoves(state, from, bishopDirections);
   if (piece.role === 'rook') return fogSlideMoves(state, from, rookDirections);
-  if (piece.role === 'queen') return fogSlideMoves(state, from, [...rookDirections, ...bishopDirections]);
-  return [
-    ...fogStepMoves(state, from, kingSteps),
-    ...fogCastlingMoves(state, from),
-  ];
+  if (piece.role === 'queen')
+    return fogSlideMoves(state, from, [...rookDirections, ...bishopDirections]);
+  return [...fogStepMoves(state, from, kingSteps), ...fogCastlingMoves(state, from)];
 }
 
 // ── SECTION: Fog pawn moves ─────────────────────────────────────────────────
@@ -497,16 +517,37 @@ function isPromotionDestination(square: ChessopsSquare): boolean {
 type Direction = readonly [fileOffset: number, rankOffset: number];
 
 const knightSteps: Direction[] = [
-  [-2, -1], [-2, 1], [-1, -2], [-1, 2],
-  [1, -2], [1, 2], [2, -1], [2, 1],
+  [-2, -1],
+  [-2, 1],
+  [-1, -2],
+  [-1, 2],
+  [1, -2],
+  [1, 2],
+  [2, -1],
+  [2, 1],
 ];
 const kingSteps: Direction[] = [
-  [-1, -1], [-1, 0], [-1, 1],
-  [0, -1], [0, 1],
-  [1, -1], [1, 0], [1, 1],
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, -1],
+  [0, 1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
 ];
-const rookDirections: Direction[] = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-const bishopDirections: Direction[] = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+const rookDirections: Direction[] = [
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+];
+const bishopDirections: Direction[] = [
+  [-1, -1],
+  [-1, 1],
+  [1, -1],
+  [1, 1],
+];
 
 function addMaybePromotion(moves: Move[], from: Square, to: Square): void {
   if (rankOf(to) === 1 || rankOf(to) === 8) {
@@ -523,9 +564,11 @@ function canOccupy(state: GameState, from: Square, to: Square): boolean {
 }
 
 function movesMatch(candidate: Move, move: Move): boolean {
-  return candidate.from === move.from
-    && candidate.to === move.to
-    && (candidate.promotion ?? undefined) === (move.promotion ?? undefined);
+  return (
+    candidate.from === move.from &&
+    candidate.to === move.to &&
+    (candidate.promotion ?? undefined) === (move.promotion ?? undefined)
+  );
 }
 
 function withCastlingAliases(state: GameState, moves: Move[]): Move[] {
@@ -533,7 +576,14 @@ function withCastlingAliases(state: GameState, moves: Move[]): Move[] {
   for (const move of moves) {
     const piece = state.board[move.from];
     const target = state.board[move.to];
-    if (!piece || piece.role !== 'king' || !target || target.role !== 'rook' || target.color !== piece.color) continue;
+    if (
+      !piece ||
+      piece.role !== 'king' ||
+      !target ||
+      target.role !== 'rook' ||
+      target.color !== piece.color
+    )
+      continue;
     if (!state.castlingRights.includes(move.to)) continue;
     const kingDestination = castlingKingDestination(move.from, move.to);
     if (!moves.some((candidate) => movesMatch(candidate, { ...move, to: kingDestination }))) {
@@ -548,7 +598,11 @@ function normalizeCastlingMove(state: GameState, move: Move): Move | null {
   if (!piece || piece.role !== 'king') return null;
   if (rankOf(move.from) !== rankOf(move.to)) return null;
   const target = state.board[move.to];
-  if (target?.color === piece.color && target.role === 'rook' && state.castlingRights.includes(move.to)) {
+  if (
+    target?.color === piece.color &&
+    target.role === 'rook' &&
+    state.castlingRights.includes(move.to)
+  ) {
     return move;
   }
 
@@ -597,21 +651,25 @@ function enPassantCaptureSquare(to: Square, color: Color): Square {
 function isFogCastlingMove(state: GameState, move: Move): boolean {
   const piece = state.board[move.from];
   const target = state.board[move.to];
-  return !!piece
-    && piece.role === 'king'
-    && !!target
-    && target.color === piece.color
-    && target.role === 'rook'
-    && state.castlingRights.includes(move.to);
+  return (
+    !!piece &&
+    piece.role === 'king' &&
+    !!target &&
+    target.color === piece.color &&
+    target.role === 'rook' &&
+    state.castlingRights.includes(move.to)
+  );
 }
 
 function isEnPassantMove(state: GameState, move: Move, color: Color): boolean {
   const piece = state.board[move.from];
-  return piece?.role === 'pawn'
-    && piece.color === color
-    && move.to === state.enPassantSquare
-    && state.board[move.to] === undefined
-    && fileOf(move.from) !== fileOf(move.to);
+  return (
+    piece?.role === 'pawn' &&
+    piece.color === color &&
+    move.to === state.enPassantSquare &&
+    state.board[move.to] === undefined &&
+    fileOf(move.from) !== fileOf(move.to)
+  );
 }
 
 function applyFogCastling(board: Board, move: Move, king: NonNullable<Board[Square]>): void {
@@ -630,10 +688,7 @@ function clearForFogCastling(board: Board, kingFrom: Square, rookFrom: Square): 
   const kingTo = castlingKingDestination(kingFrom, rookFrom);
   const rookTo = castlingRookDestination(kingFrom, rookFrom);
   const allowedOccupied = new Set<Square>([kingFrom, rookFrom]);
-  for (const square of [
-    ...rankPath(kingFrom, kingTo),
-    ...rankPath(rookFrom, rookTo),
-  ]) {
+  for (const square of [...rankPath(kingFrom, kingTo), ...rankPath(rookFrom, rookTo)]) {
     const piece = board[square];
     if (piece && !allowedOccupied.has(square)) return false;
   }
@@ -654,7 +709,7 @@ function offsetSquare(square: Square, fileOffset: number, rankOffset: number): S
   const file = fileIndex(square) + fileOffset;
   const rank = rankOf(square) + rankOffset;
   if (file < 0 || file >= boardFiles.length) return undefined;
-  if (!boardRanks.includes(rank as typeof boardRanks[number])) return undefined;
+  if (!boardRanks.includes(rank as (typeof boardRanks)[number])) return undefined;
   return `${boardFiles[file]}${rank}` as Square;
 }
 
@@ -663,7 +718,7 @@ function fileOf(square: Square): string {
 }
 
 function fileIndex(square: Square): number {
-  return boardFiles.indexOf(fileOf(square) as typeof boardFiles[number]);
+  return boardFiles.indexOf(fileOf(square) as (typeof boardFiles)[number]);
 }
 
 function rankOf(square: Square): number {
@@ -685,10 +740,10 @@ export function capturedRoleFor(state: GameState, move: Move): PieceRole | undef
   const target = state.board[move.to];
   if (target && target.color !== moving.color) return target.role;
   if (
-    moving.role === 'pawn'
-    && !target
-    && move.to === state.enPassantSquare
-    && move.from[0] !== move.to[0]
+    moving.role === 'pawn' &&
+    !target &&
+    move.to === state.enPassantSquare &&
+    move.from[0] !== move.to[0]
   ) {
     return 'pawn';
   }

@@ -100,7 +100,9 @@ function extractOutput(output) {
 async function genWan(imageDataUrl, prompt) {
   return replicateRun('wan-video', 'wan-2.2-i2v-fast', {
     image: imageDataUrl,
-    prompt: prompt || 'seamless drifting atmospheric fog, slow horizontal mist motion, looping seamlessly',
+    prompt:
+      prompt ||
+      'seamless drifting atmospheric fog, slow horizontal mist motion, looping seamlessly',
     num_frames: 81,
     frames_per_second: 16,
     resolution: '480p',
@@ -127,7 +129,10 @@ console.log(`[${modelKey}] ${args.out}: encoding image...`);
 const dataUrl = await imageToDataUrl(imagePath);
 console.log(`[${modelKey}] ${args.out}: calling ${model.label}...`);
 const t0 = Date.now();
-const videoUrl = await model.gen(dataUrl, typeof args.prompt === 'string' ? args.prompt : undefined);
+const videoUrl = await model.gen(
+  dataUrl,
+  typeof args.prompt === 'string' ? args.prompt : undefined,
+);
 const dt = ((Date.now() - t0) / 1000).toFixed(1);
 console.log(`[${modelKey}] ${args.out}: got URL in ${dt}s, downloading...`);
 const r = await fetch(videoUrl);
@@ -135,4 +140,6 @@ if (!r.ok) throw new Error(`download failed: ${r.status}`);
 const bytes = Buffer.from(await r.arrayBuffer());
 const outPath = resolve(OUT_DIR, `${args.out}.${model.ext}`);
 await writeFile(outPath, bytes);
-console.log(`saved -> ${outPath.replace(REPO_ROOT + '/', '')}  (${(bytes.length / 1024).toFixed(0)} KB)`);
+console.log(
+  `saved -> ${outPath.replace(REPO_ROOT + '/', '')}  (${(bytes.length / 1024).toFixed(0)} KB)`,
+);

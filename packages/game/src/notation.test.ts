@@ -58,7 +58,10 @@ test('formats promotion and en passant captures', () => {
     status: { type: 'playing', turn: 'white' },
   } satisfies GameState;
 
-  assert.equal(moveToAlgebraic(promotionState, { from: 'e7', to: 'e8', promotion: 'queen' }), 'e8=Q');
+  assert.equal(
+    moveToAlgebraic(promotionState, { from: 'e7', to: 'e8', promotion: 'queen' }),
+    'e8=Q',
+  );
   assert.equal(moveToAlgebraic(enPassantState, { from: 'e5', to: 'd6' }), 'exd6');
 });
 

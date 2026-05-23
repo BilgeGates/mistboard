@@ -196,26 +196,29 @@ export async function mountBakeoff(
         tier1ColorForSampleId,
         onSaved: () => void refreshAnnotationCounts(),
       },
-      belief: manifest.verbose_belief === true
-        ? {
-            rowsForSampleId(sampleId) {
-              const idx = gameIndexForSampleId(sampleId);
-              if (idx === null) return [];
-              return (beliefRowsByGame.get(idx) ?? [])
-                .filter((row) => requestedBeliefSeat
-                  ? row.tier1_seat === requestedBeliefSeat
-                  : row.tier1_side === game.tier1_color);
-            },
-            traceRowsForSampleId(sampleId) {
-              const idx = gameIndexForSampleId(sampleId);
-              if (idx === null) return [];
-              return (traceRowsByGame.get(idx) ?? [])
-                .filter((row) => requestedBeliefSeat
-                  ? row.tier1_seat === requestedBeliefSeat
-                  : row.tier1_side === game.tier1_color);
-            },
-          }
-        : undefined,
+      belief:
+        manifest.verbose_belief === true
+          ? {
+              rowsForSampleId(sampleId) {
+                const idx = gameIndexForSampleId(sampleId);
+                if (idx === null) return [];
+                return (beliefRowsByGame.get(idx) ?? []).filter((row) =>
+                  requestedBeliefSeat
+                    ? row.tier1_seat === requestedBeliefSeat
+                    : row.tier1_side === game.tier1_color,
+                );
+              },
+              traceRowsForSampleId(sampleId) {
+                const idx = gameIndexForSampleId(sampleId);
+                if (idx === null) return [];
+                return (traceRowsByGame.get(idx) ?? []).filter((row) =>
+                  requestedBeliefSeat
+                    ? row.tier1_seat === requestedBeliefSeat
+                    : row.tier1_side === game.tier1_color,
+                );
+              },
+            }
+          : undefined,
       initialPly,
     });
   }
@@ -245,9 +248,10 @@ export async function mountBakeoff(
 
   if (manifest.games.length > 0) {
     const initialIdx = initialGameIndex ?? manifest.games[0]?.index;
-    const initialGame = manifest.games.find((game) => game.index === initialIdx) ?? manifest.games[0];
+    const initialGame =
+      manifest.games.find((game) => game.index === initialIdx) ?? manifest.games[0];
     const initialBtn = initialGame
-      ? (list.querySelector<HTMLButtonElement>(`[data-game-index="${initialGame.index}"]`))
+      ? list.querySelector<HTMLButtonElement>(`[data-game-index="${initialGame.index}"]`)
       : null;
     if (initialGame && initialBtn) loadGame(initialGame, initialBtn);
   }

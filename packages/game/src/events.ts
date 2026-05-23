@@ -16,87 +16,87 @@ export type RoomTimeControl = {
 
 export type GameEvent =
   | {
-    type: 'room-created';
-    at: number;
-    roomId: string;
-    variant: VariantId;
-    offer: Chess960Start[];
-    offers?: Partial<Record<Color, Chess960Start[]>>;
-    timeControl?: RoomTimeControl;
-  }
+      type: 'room-created';
+      at: number;
+      roomId: string;
+      variant: VariantId;
+      offer: Chess960Start[];
+      offers?: Partial<Record<Color, Chess960Start[]>>;
+      timeControl?: RoomTimeControl;
+    }
   | {
-    type: 'seat-assigned';
-    at: number;
-    roomId: string;
-    clientId: string;
-    seat: Color;
-  }
+      type: 'seat-assigned';
+      at: number;
+      roomId: string;
+      clientId: string;
+      seat: Color;
+    }
   | {
-    type: 'seat-vacated';
-    at: number;
-    roomId: string;
-    clientId: string;
-    seat: Color;
-  }
+      type: 'seat-vacated';
+      at: number;
+      roomId: string;
+      clientId: string;
+      seat: Color;
+    }
   | {
-    type: 'clock-started';
-    at: number;
-    roomId: string;
-    clock: ClockState;
-  }
+      type: 'clock-started';
+      at: number;
+      roomId: string;
+      clock: ClockState;
+    }
   | {
-    type: 'draft-start-selected';
-    at: number;
-    roomId: string;
-    color: Color;
-    startId: number;
-  }
+      type: 'draft-start-selected';
+      at: number;
+      roomId: string;
+      color: Color;
+      startId: number;
+    }
   | {
-    type: 'draft-start-resolved';
-    at: number;
-    roomId: string;
-    startId?: number;
-    startIds?: Record<Color, number>;
-    clock?: ClockState;
-  }
+      type: 'draft-start-resolved';
+      at: number;
+      roomId: string;
+      startId?: number;
+      startIds?: Record<Color, number>;
+      clock?: ClockState;
+    }
   | {
-    type: 'move-played';
-    at: number;
-    roomId: string;
-    color: Color;
-    move: Move;
-    capturedRole?: PieceRole;
-    clock?: ClockState;
-    thinkTimeMs?: number;
-  }
+      type: 'move-played';
+      at: number;
+      roomId: string;
+      color: Color;
+      move: Move;
+      capturedRole?: PieceRole;
+      clock?: ClockState;
+      thinkTimeMs?: number;
+    }
   | {
-    type: 'clock-expired';
-    at: number;
-    roomId: string;
-    color: Color;
-    clock: ClockState;
-  }
+      type: 'clock-expired';
+      at: number;
+      roomId: string;
+      color: Color;
+      clock: ClockState;
+    }
   | {
-    type: 'seat-resigned';
-    at: number;
-    roomId: string;
-    color: Color;
-    clock?: ClockState;
-  }
+      type: 'seat-resigned';
+      at: number;
+      roomId: string;
+      color: Color;
+      clock?: ClockState;
+    }
   | {
-    type: 'pause';
-    at: number;
-    roomId: string;
-    reason: 'shutdown' | 'admin';
-    clock?: ClockState;
-  }
+      type: 'pause';
+      at: number;
+      roomId: string;
+      reason: 'shutdown' | 'admin';
+      clock?: ClockState;
+    }
   | {
-    type: 'resume';
-    at: number;
-    roomId: string;
-    reason: 'both-present' | 'grace-elapsed' | 'admin';
-    clock?: ClockState;
-  };
+      type: 'resume';
+      at: number;
+      roomId: string;
+      reason: 'both-present' | 'grace-elapsed' | 'admin';
+      clock?: ClockState;
+    };
 
 export type GameProjection = {
   roomId: string;
@@ -114,7 +114,10 @@ export type GameProjection = {
   pauseReason: 'shutdown' | 'admin' | null;
 };
 
-export function initialGameProjection(roomId: string, variant: VariantId = 'draft960'): GameProjection {
+export function initialGameProjection(
+  roomId: string,
+  variant: VariantId = 'draft960',
+): GameProjection {
   return {
     roomId,
     variant,
@@ -150,9 +153,10 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       offer: event.offer,
       offers: event.offers ?? { white: event.offer, black: event.offer },
       timeControl: event.timeControl,
-      state: event.variant === 'fog-of-war' && hasDraftOffer(event)
-        ? { ...state, status: { type: 'pregame' } }
-        : state,
+      state:
+        event.variant === 'fog-of-war' && hasDraftOffer(event)
+          ? { ...state, status: { type: 'pregame' } }
+          : state,
     };
   }
 
@@ -167,10 +171,11 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   }
 
   if (event.type === 'seat-vacated') {
-    const beforeFirstMove = projection.state.moveNumber === 1 && projection.state.lastMove === undefined;
+    const beforeFirstMove =
+      projection.state.moveNumber === 1 && projection.state.lastMove === undefined;
     if (
-      (projection.state.status.type !== 'pregame' && !beforeFirstMove)
-      || projection.seats[event.seat] !== event.clientId
+      (projection.state.status.type !== 'pregame' && !beforeFirstMove) ||
+      projection.seats[event.seat] !== event.clientId
     ) {
       return projection;
     }
@@ -200,7 +205,8 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
 
   if (event.type === 'draft-start-selected') {
     if (projection.state.status.type !== 'pregame') return projection;
-    if (!offerForColor(projection, event.color).some((start) => start.id === event.startId)) return projection;
+    if (!offerForColor(projection, event.color).some((start) => start.id === event.startId))
+      return projection;
     return {
       ...projection,
       selections: {
@@ -213,15 +219,17 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
   if (event.type === 'draft-start-resolved') {
     if (projection.state.status.type !== 'pregame') return projection;
 
-    const startIds = event.startIds ?? (
-      event.startId === undefined
-        ? undefined
-        : { white: event.startId, black: event.startId }
-    );
+    const startIds =
+      event.startIds ??
+      (event.startId === undefined ? undefined : { white: event.startId, black: event.startId });
     if (!startIds) return projection;
 
-    const whiteStart = offerForColor(projection, 'white').find((start) => start.id === startIds.white);
-    const blackStart = offerForColor(projection, 'black').find((start) => start.id === startIds.black);
+    const whiteStart = offerForColor(projection, 'white').find(
+      (start) => start.id === startIds.white,
+    );
+    const blackStart = offerForColor(projection, 'black').find(
+      (start) => start.id === startIds.black,
+    );
     if (!whiteStart || !blackStart) return projection;
     const sharedStartId = startIds.white === startIds.black ? startIds.white : null;
 
@@ -257,7 +265,9 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       ...projection,
       state: {
         ...nextState,
-        clock: event.clock ?? advanceClock(projection.state.clock, event.at, event.color, nextState.status),
+        clock:
+          event.clock ??
+          advanceClock(projection.state.clock, event.at, event.color, nextState.status),
       },
     };
   }
@@ -335,8 +345,5 @@ function offerForColor(projection: GameProjection, color: Color): Chess960Start[
 }
 
 function hasDraftOffer(event: Extract<GameEvent, { type: 'room-created' }>): boolean {
-  return event.offer.length > 0
-    || !!event.offers?.white?.length
-    || !!event.offers?.black?.length;
+  return event.offer.length > 0 || !!event.offers?.white?.length || !!event.offers?.black?.length;
 }
-

@@ -69,30 +69,43 @@ export function createRoundRobinPairings(input: TournamentPlanInput): Tournament
   return pairings;
 }
 
-export function parseTournamentArgs(values: string[], env: NodeJS.ProcessEnv = process.env): TournamentCliConfig {
+export function parseTournamentArgs(
+  values: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): TournamentCliConfig {
   const args = parseArgs(values);
   const engines = csv(args.engines ?? env.ENGINE_TOURNAMENT_ENGINES ?? '')
     .concat(args.engine ?? [])
     .filter(Boolean);
-  if (engines.length < 2) throw new Error('provide at least two engines with --engines a,b or repeated --engine');
+  if (engines.length < 2)
+    throw new Error('provide at least two engines with --engines a,b or repeated --engine');
 
-  const gamesPerPair = positiveInteger(args.gamesPerPair ?? env.ENGINE_TOURNAMENT_GAMES_PER_PAIR, 2);
+  const gamesPerPair = positiveInteger(
+    args.gamesPerPair ?? env.ENGINE_TOURNAMENT_GAMES_PER_PAIR,
+    2,
+  );
   const maxPlies = positiveInteger(args.maxPlies ?? env.ENGINE_MAX_PLIES, 160);
   const providers = csv(args.providers ?? env.ENGINE_PROVIDERS ?? 'local,railway');
-  const timeControl = parseEngineTimeControl(args.timeControl ?? env.ENGINE_TIME_CONTROL ?? 'standard');
+  const timeControl = parseEngineTimeControl(
+    args.timeControl ?? env.ENGINE_TIME_CONTROL ?? 'standard',
+  );
   const rated = booleanFlag(args.rated ?? env.ENGINE_RATED, false);
-  const ratingAnchorEngineId = args.ratingAnchor
-    ?? env.ENGINE_RATING_ANCHOR
-    ?? 'python-random-legal';
-  const ratingMinAnchorGames = positiveInteger(args.ratingMinAnchorGames ?? env.ENGINE_RATING_MIN_ANCHOR_GAMES, 8);
-  const tournamentId = args.tournamentId
-    ?? env.ENGINE_TOURNAMENT_ID
-    ?? `tournament-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+  const ratingAnchorEngineId =
+    args.ratingAnchor ?? env.ENGINE_RATING_ANCHOR ?? 'python-random-legal';
+  const ratingMinAnchorGames = positiveInteger(
+    args.ratingMinAnchorGames ?? env.ENGINE_RATING_MIN_ANCHOR_GAMES,
+    8,
+  );
+  const tournamentId =
+    args.tournamentId ??
+    env.ENGINE_TOURNAMENT_ID ??
+    `tournament-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 
   return {
-    artifactPolicy: args.artifacts === 'none'
-      ? {}
-      : { move_choices: args.artifacts ?? env.ENGINE_ARTIFACTS ?? 'all', runtime_summary: 'all' },
+    artifactPolicy:
+      args.artifacts === 'none'
+        ? {}
+        : { move_choices: args.artifacts ?? env.ENGINE_ARTIFACTS ?? 'all', runtime_summary: 'all' },
     createdBy: args.createdBy ?? env.ENGINE_CREATED_BY ?? 'engine-tournament-cli',
     engines: uniqueNonEmpty(engines),
     gamesPerPair,
@@ -117,7 +130,10 @@ export function nextTournamentSeed(baseSeed: string, gameIndex: number): string 
   }
 }
 
-export function tournamentJobConfig(config: TournamentCliConfig, targetGames: number): Record<string, unknown> {
+export function tournamentJobConfig(
+  config: TournamentCliConfig,
+  targetGames: number,
+): Record<string, unknown> {
   return {
     tournament: {
       id: config.tournamentId,
@@ -173,7 +189,11 @@ function parseArgs(values: string[]): RawArgs {
     const arg = values[index]!;
     if (!arg.startsWith('--')) continue;
     const [rawKey, inlineValue] = arg.slice(2).split('=', 2);
-    if (rawKey === 'rated' && inlineValue === undefined && (values[index + 1] === undefined || values[index + 1]!.startsWith('--'))) {
+    if (
+      rawKey === 'rated' &&
+      inlineValue === undefined &&
+      (values[index + 1] === undefined || values[index + 1]!.startsWith('--'))
+    ) {
       parsed.rated = 'true';
       continue;
     }
@@ -248,7 +268,10 @@ function uniqueNonEmpty(values: string[]): string[] {
 }
 
 function csv(value: string): string[] {
-  return value.split(',').map((item) => item.trim()).filter(Boolean);
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function positiveInteger(value: string | undefined, fallback: number): number {
@@ -269,5 +292,10 @@ function booleanFlag(value: string | undefined, fallback: boolean): boolean {
 }
 
 function slugEngineId(engineId: string): string {
-  return engineId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'engine';
+  return (
+    engineId
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'engine'
+  );
 }

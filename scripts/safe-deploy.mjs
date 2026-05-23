@@ -28,7 +28,9 @@ const DEFAULT_WINDOW_MS = 15 * 60 * 1000;
 const DEFAULT_POLL_MS = 30 * 1000;
 
 const options = parseArgs(process.argv.slice(2));
-const baseUrl = normalizeBaseUrl(options.baseUrl ?? process.env.MISTBOARD_BASE_URL ?? DEFAULT_BASE_URL);
+const baseUrl = normalizeBaseUrl(
+  options.baseUrl ?? process.env.MISTBOARD_BASE_URL ?? DEFAULT_BASE_URL,
+);
 const windowMs = options.windowMs ?? DEFAULT_WINDOW_MS;
 const pollMs = options.pollMs ?? DEFAULT_POLL_MS;
 const token = process.env.MISTBOARD_DRAIN_TOKEN;
@@ -45,7 +47,11 @@ let drainActive = false;
 process.on('SIGINT', async () => {
   console.error('\nsignal received: cancelling drain and exiting');
   if (drainActive) {
-    try { await cancelDrain(); } catch (err) { console.error(`cancel failed: ${err.message}`); }
+    try {
+      await cancelDrain();
+    } catch (err) {
+      console.error(`cancel failed: ${err.message}`);
+    }
   }
   process.exit(130);
 });
@@ -55,14 +61,20 @@ try {
 } catch (err) {
   console.error(`safe-deploy failed: ${err.message}`);
   if (drainActive) {
-    try { await cancelDrain(); console.error('drain cancelled'); }
-    catch (e) { console.error(`drain still active — cancel manually: ${e.message}`); }
+    try {
+      await cancelDrain();
+      console.error('drain cancelled');
+    } catch (e) {
+      console.error(`drain still active — cancel manually: ${e.message}`);
+    }
   }
   process.exit(err.exitCode ?? 1);
 }
 
 async function safeDeployFlow() {
-  console.log(`safe-deploy: target=${baseUrl.href} window=${humanMs(windowMs)} poll=${humanMs(pollMs)}`);
+  console.log(
+    `safe-deploy: target=${baseUrl.href} window=${humanMs(windowMs)} poll=${humanMs(pollMs)}`,
+  );
 
   // 1. Health probe.
   const health = await fetchJson(new URL('/health', baseUrl), {});
@@ -76,7 +88,9 @@ async function safeDeployFlow() {
   console.log(`active games before drain: ${before.body.activeGames}`);
 
   if (before.body.restartAt && before.body.restartAt > Date.now()) {
-    console.log(`drain already active (restartAt=${new Date(before.body.restartAt).toISOString()}). Reusing existing window.`);
+    console.log(
+      `drain already active (restartAt=${new Date(before.body.restartAt).toISOString()}). Reusing existing window.`,
+    );
   } else {
     if (!options.force) {
       console.log('\nAbout to begin drain. New games blocked, in-flight games paused at restart.');
@@ -104,17 +118,27 @@ async function safeDeployFlow() {
 
   // 4. Decide outcome.
   if (remainingActive === 0) {
-    console.log(JSON.stringify({ ok: true, activeGames: 0, deployHint: 'railway up --service web' }));
+    console.log(
+      JSON.stringify({ ok: true, activeGames: 0, deployHint: 'railway up --service web' }),
+    );
     console.log('\nDrain complete. Ready to deploy. Next:');
     console.log('  railway up --service web');
     console.log('\nPause/resume will catch any games that started during drain.');
     process.exit(0);
   } else {
-    console.error(JSON.stringify({ ok: false, activeGames: remainingActive, reason: 'window_elapsed' }));
-    console.error(`\nWindow elapsed with ${remainingActive} game${remainingActive === 1 ? '' : 's'} still active.`);
-    console.error('Deploying now will pause those games via the pause/resume system; players reconnect to a resumable state.');
+    console.error(
+      JSON.stringify({ ok: false, activeGames: remainingActive, reason: 'window_elapsed' }),
+    );
+    console.error(
+      `\nWindow elapsed with ${remainingActive} game${remainingActive === 1 ? '' : 's'} still active.`,
+    );
+    console.error(
+      'Deploying now will pause those games via the pause/resume system; players reconnect to a resumable state.',
+    );
     console.error('To proceed: railway up --service web');
-    console.error('To cancel:  node scripts/safe-deploy.mjs --cancel (or POST /admin/drain/cancel)');
+    console.error(
+      'To cancel:  node scripts/safe-deploy.mjs --cancel (or POST /admin/drain/cancel)',
+    );
     process.exit(4);
   }
 }
@@ -122,19 +146,21 @@ async function safeDeployFlow() {
 async function startDrain() {
   const res = await fetchJson(new URL('/admin/drain', baseUrl), {
     method: 'POST',
-    headers: { 'authorization': `Bearer ${token}`, 'content-type': 'application/json' },
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
     body: JSON.stringify({ windowMs }),
   });
   if (res.status !== 200) {
     throw withExit(3, `/admin/drain returned ${res.status}: ${JSON.stringify(res.body)}`);
   }
-  console.log(`drain started. restartAt=${new Date(res.body.restartAt ?? Date.now() + windowMs).toISOString()}`);
+  console.log(
+    `drain started. restartAt=${new Date(res.body.restartAt ?? Date.now() + windowMs).toISOString()}`,
+  );
 }
 
 async function cancelDrain() {
   const res = await fetchJson(new URL('/admin/drain/cancel', baseUrl), {
     method: 'POST',
-    headers: { 'authorization': `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}` },
   });
   if (res.status !== 200) {
     throw new Error(`/admin/drain/cancel returned ${res.status}: ${JSON.stringify(res.body)}`);
@@ -151,7 +177,11 @@ function withExit(code, message) {
 async function fetchJson(url, init) {
   const res = await fetch(url, init);
   let body = null;
-  try { body = await res.json(); } catch { body = null; }
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
   return { status: res.status, body };
 }
 
@@ -192,7 +222,9 @@ function parseArgs(argv) {
     else if (arg === '--poll-ms') out.pollMs = Number(argv[++i]);
     else if (arg === '--force') out.force = true;
     else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: safe-deploy.mjs [--base-url URL] [--window-ms MS] [--poll-ms MS] [--force]');
+      console.log(
+        'Usage: safe-deploy.mjs [--base-url URL] [--window-ms MS] [--poll-ms MS] [--force]',
+      );
       console.log('Requires MISTBOARD_DRAIN_TOKEN in env.');
       process.exit(0);
     } else {

@@ -6,7 +6,10 @@ import pg from 'pg';
 const MIGRATIONS_TABLE = '_migrations';
 const MIGRATIONS_LOCK_KEY = 'mistboard:migrations';
 
-export async function runMigrations(client: pg.Client | pg.PoolClient, migrationsDir?: string): Promise<string[]> {
+export async function runMigrations(
+  client: pg.Client | pg.PoolClient,
+  migrationsDir?: string,
+): Promise<string[]> {
   const dir = migrationsDir ?? defaultMigrationsDir();
   const newlyApplied: string[] = [];
 

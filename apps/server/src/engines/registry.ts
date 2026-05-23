@@ -4,7 +4,12 @@ import type { EngineDefinition } from './types.js';
 
 type Queryable = Pick<pg.Client | pg.Pool | pg.PoolClient, 'query'>;
 
-export type { EngineDefinition, EngineMoveContext, EngineMoveDecision, EngineMoveScore } from './types.js';
+export type {
+  EngineDefinition,
+  EngineMoveContext,
+  EngineMoveDecision,
+  EngineMoveScore,
+} from './types.js';
 
 export function defaultEngineId(): string {
   return 'builtin-random-legal';
@@ -20,10 +25,7 @@ export function playableBuiltinEngines(): EngineDefinition[] {
     .filter((engine) => engine.kind === 'builtin' && engine.chooseMove);
 }
 
-const PROD_PLAYABLE_ENGINE_IDS = new Set([
-  'builtin-random-legal',
-  'python-tier1-v0.9.5',
-]);
+const PROD_PLAYABLE_ENGINE_IDS = new Set(['builtin-random-legal', 'python-tier1-v0.9.5']);
 
 // Opt-in extras for load testing / local experimentation. Set
 // MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-random-legal,foo to enable.
@@ -31,7 +33,12 @@ const PROD_PLAYABLE_ENGINE_IDS = new Set([
 function extraPlayableEngineIds(): Set<string> {
   const raw = process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES;
   if (!raw) return new Set();
-  return new Set(raw.split(',').map((s) => s.trim()).filter(Boolean));
+  return new Set(
+    raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
 }
 
 export function playableLiveEngines(): EngineDefinition[] {
@@ -65,7 +72,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'v0.9.5-tactical-patches@372b4bb6c064',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes: 'Tier-1 v0.9.5: draw-reduction knobs (info-reveal bonus + push-when-ahead from belief material edge), phantom-check guard (stale-belief skip when slider attack ray is blocked), recapture exemption (exempt recaptures from belief bad-capture-trade veto).',
+    notes:
+      'Tier-1 v0.9.5: draw-reduction knobs (info-reveal bonus + push-when-ahead from belief material edge), phantom-check guard (stale-belief skip when slider attack ray is blocked), recapture exemption (exempt recaptures from belief bad-capture-trade veto).',
   },
   // Uses current src/fow_chess/. Skipped by PROD_PLAYABLE_ENGINE_IDS — only
   // available locally via the MISTBOARD_EXTRA_PLAYABLE_ENGINES env var.
@@ -86,7 +94,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       config_hash: 'current',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes: 'Tier-1 backed by current src/fow_chess (no engine_version pin). Local-only; for v0.9.5 strength testing.',
+    notes:
+      'Tier-1 backed by current src/fow_chess (no engine_version pin). Local-only; for v0.9.5 strength testing.',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
@@ -105,7 +114,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'v0.9.1-pawn-shield-diagonal@8918f287499f',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes: 'Tier-1 v0.9.1: king-defense priority reorder + belief-piece-save landing safety + pawn-shield diagonal tier in early development.',
+    notes:
+      'Tier-1 v0.9.1: king-defense priority reorder + belief-piece-save landing safety + pawn-shield diagonal tier in early development.',
   },
   'python-tier1-v0.8.9': {
     id: 'python-tier1-v0.8.9',
@@ -124,7 +134,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'v0.8.9-repair-caps@2c010d792075',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes: 'Owner-only Python Tier-1 v0.8.9 engine with bounded Stage-B supplement and full-recovery repair source selection.',
+    notes:
+      'Owner-only Python Tier-1 v0.8.9 engine with bounded Stage-B supplement and full-recovery repair source selection.',
   },
   'python-tier1-v0.7.22': {
     id: 'python-tier1-v0.7.22',
@@ -143,7 +154,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'v0.7.22-king-risk@5d3ddffa74f6',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes: 'Owner-only Python Tier-1 v0.7.22 engine with profiled particle updates and terminal king-risk veto.',
+    notes:
+      'Owner-only Python Tier-1 v0.7.22 engine with profiled particle updates and terminal king-risk veto.',
   },
   'python-tier1-v0.7.0': {
     id: 'python-tier1-v0.7.0',
@@ -199,7 +211,10 @@ export function engineVersionDisplayName(engineId: string): string {
   return KNOWN_ENGINES[engineId]?.name ?? engineId;
 }
 
-export async function upsertBuiltinEngineVersions(db: Queryable, engineIds: string[]): Promise<void> {
+export async function upsertBuiltinEngineVersions(
+  db: Queryable,
+  engineIds: string[],
+): Promise<void> {
   for (const engineId of new Set(engineIds)) {
     const engine = loadEngine(engineId);
     await db.query(
@@ -245,9 +260,10 @@ export async function upsertBuiltinEngineVersions(db: Queryable, engineIds: stri
         engine.config,
         {
           owner: 'admin',
-          runtime: engine.config.kind === 'python-subprocess'
-            ? 'python-subprocess'
-            : 'in-process-typescript',
+          runtime:
+            engine.config.kind === 'python-subprocess'
+              ? 'python-subprocess'
+              : 'in-process-typescript',
         },
         engine.notes ?? 'Built-in TypeScript worker engine for EvE data collection MVP.',
       ],

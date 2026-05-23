@@ -19,7 +19,10 @@ after(async () => {
   await serverInstance.close();
 });
 
-async function postJson(path: string, body: object = {}): Promise<{ status: number; body: Record<string, unknown> }> {
+async function postJson(
+  path: string,
+  body: object = {},
+): Promise<{ status: number; body: Record<string, unknown> }> {
   const res = await fetch(`${httpBase}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -28,7 +31,11 @@ async function postJson(path: string, body: object = {}): Promise<{ status: numb
   const text = await res.text();
   let parsed: Record<string, unknown> = {};
   if (text.length > 0) {
-    try { parsed = JSON.parse(text) as Record<string, unknown>; } catch { /* leave empty */ }
+    try {
+      parsed = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      /* leave empty */
+    }
   }
   return { status: res.status, body: parsed };
 }

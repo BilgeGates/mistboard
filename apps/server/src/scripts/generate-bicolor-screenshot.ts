@@ -23,7 +23,16 @@ import { svgToPng } from '../og-image.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const sampleName = process.argv[2] ?? 'sample-4';
 const targetPly = Number(process.argv[3] ?? 26);
-const samplePath = resolve(here, '..', '..', '..', 'web', 'public', 'replay-samples', `${sampleName}.jsonl`);
+const samplePath = resolve(
+  here,
+  '..',
+  '..',
+  '..',
+  'web',
+  'public',
+  'replay-samples',
+  `${sampleName}.jsonl`,
+);
 const outPath = resolve(here, '..', '..', '..', 'web', 'public', 'screenshot-bicolor.png');
 
 // Tournament-green + solid-fog tokens, mirrored from
@@ -105,7 +114,9 @@ function renderBoard(
       const isLight = (f + r) % 2 === 1;
       const sx = x + fileToCol(f) * sq;
       const sy = y + rankToRow(r) * sq;
-      out.push(`<rect x="${sx}" y="${sy}" width="${sq}" height="${sq}" fill="${isLight ? LIGHT_SQUARE : DARK_SQUARE}"/>`);
+      out.push(
+        `<rect x="${sx}" y="${sy}" width="${sq}" height="${sq}" fill="${isLight ? LIGHT_SQUARE : DARK_SQUARE}"/>`,
+      );
     }
   }
   const fogSet = new Set(fogCoords.map((c) => `${c.file},${c.rank}`));
@@ -116,16 +127,24 @@ function renderBoard(
     const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
     const px = x + fileToCol(piece.file) * sq;
     const py = y + rankToRow(piece.rank) * sq;
-    out.push(`<svg x="${px}" y="${py}" width="${sq}" height="${sq}" viewBox="0 0 45 45">${inner}</svg>`);
+    out.push(
+      `<svg x="${px}" y="${py}" width="${sq}" height="${sq}" viewBox="0 0 45 45">${inner}</svg>`,
+    );
   }
   for (const fog of fogCoords) {
     const fx = x + fileToCol(fog.file) * sq;
     const fy = y + rankToRow(fog.rank) * sq;
     const isLight = (fog.file + fog.rank) % 2 === 1;
-    out.push(`<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="${isLight ? FOG_LIGHT_FILL : FOG_DARK_FILL}"/>`);
-    out.push(`<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${FOG_SHADOW}" stroke-width="1"/>`);
+    out.push(
+      `<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="${isLight ? FOG_LIGHT_FILL : FOG_DARK_FILL}"/>`,
+    );
+    out.push(
+      `<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${FOG_SHADOW}" stroke-width="1"/>`,
+    );
   }
-  out.push(`<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${BOARD_FRAME}" stroke-width="2"/>`);
+  out.push(
+    `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${BOARD_FRAME}" stroke-width="2"/>`,
+  );
   out.push(`</g>`);
   return out.join('');
 }
@@ -151,17 +170,29 @@ const rightX = startX + boardSize + gap;
 const FONT = 'system-ui, -apple-system, Helvetica, Arial, sans-serif';
 
 const parts: string[] = [];
-parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
+parts.push(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`,
+);
 parts.push(`<rect width="${W}" height="${H}" fill="${CANVAS_BG}"/>`);
-parts.push(`<text x="80" y="100" fill="${WORDMARK_FILL}" font-family="${FONT}" font-size="32" font-weight="700" letter-spacing="3">MISTBOARD</text>`);
-parts.push(`<text x="${leftX + boardSize / 2}" y="${labelY}" text-anchor="middle" fill="${LABEL_FILL}" font-family="${FONT}" font-size="26" letter-spacing="2">WHITE'S VIEW</text>`);
-parts.push(`<text x="${rightX + boardSize / 2}" y="${labelY}" text-anchor="middle" fill="${LABEL_FILL}" font-family="${FONT}" font-size="26" letter-spacing="2">BLACK'S VIEW</text>`);
+parts.push(
+  `<text x="80" y="100" fill="${WORDMARK_FILL}" font-family="${FONT}" font-size="32" font-weight="700" letter-spacing="3">MISTBOARD</text>`,
+);
+parts.push(
+  `<text x="${leftX + boardSize / 2}" y="${labelY}" text-anchor="middle" fill="${LABEL_FILL}" font-family="${FONT}" font-size="26" letter-spacing="2">WHITE'S VIEW</text>`,
+);
+parts.push(
+  `<text x="${rightX + boardSize / 2}" y="${labelY}" text-anchor="middle" fill="${LABEL_FILL}" font-family="${FONT}" font-size="26" letter-spacing="2">BLACK'S VIEW</text>`,
+);
 parts.push(renderBoard(pieces, whiteFog, leftX, boardY, boardSize, 'white'));
 parts.push(renderBoard(pieces, blackFog, rightX, boardY, boardSize, 'black'));
-parts.push(`<text x="${W / 2}" y="850" text-anchor="middle" fill="${CAPTION_FILL}" font-family="${FONT}" font-size="26" font-weight="500">The same position. Two players. Two views.</text>`);
+parts.push(
+  `<text x="${W / 2}" y="850" text-anchor="middle" fill="${CAPTION_FILL}" font-family="${FONT}" font-size="26" font-weight="500">The same position. Two players. Two views.</text>`,
+);
 parts.push(`</svg>`);
 
 const svg = parts.join('');
 const png = svgToPng(svg, CANVAS_BG);
 await fs.writeFile(outPath, png);
-console.log(`wrote ${outPath} (${png.byteLength} bytes), source=${sampleName}, ply=${targetPly}, visible: white=${whiteView.visibleSquares.length}, black=${blackView.visibleSquares.length}`);
+console.log(
+  `wrote ${outPath} (${png.byteLength} bytes), source=${sampleName}, ply=${targetPly}, visible: white=${whiteView.visibleSquares.length}, black=${blackView.visibleSquares.length}`,
+);

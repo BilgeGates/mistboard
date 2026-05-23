@@ -75,8 +75,8 @@ describe('boardFen', () => {
       h1: { color: 'white', role: 'rook' },
     };
     const fen = boardFen(board);
-    expect(fen.startsWith('r')).toBe(true);  // rank 8: black rook on a8
-    expect(fen.endsWith('R')).toBe(true);    // rank 1: white rook on h1
+    expect(fen.startsWith('r')).toBe(true); // rank 8: black rook on a8
+    expect(fen.endsWith('R')).toBe(true); // rank 1: white rook on h1
   });
 });
 

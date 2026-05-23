@@ -20,7 +20,15 @@ import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
 import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
-import { escapeHtml, isColor, formatClock, oppositeColor, files, ranks, allSquares } from './web-utils.js';
+import {
+  escapeHtml,
+  isColor,
+  formatClock,
+  oppositeColor,
+  files,
+  ranks,
+  allSquares,
+} from './web-utils.js';
 import {
   liveState,
   type DevViews,
@@ -78,19 +86,79 @@ let orientation: Color = 'white';
 
 // Fog squares for the Draft960 pick overlay — opponent's half is always hidden.
 const PICKER_FOG_WHITE: Square[] = [
-  'a5','b5','c5','d5','e5','f5','g5','h5',
-  'a6','b6','c6','d6','e6','f6','g6','h6',
-  'a7','b7','c7','d7','e7','f7','g7','h7',
-  'a8','b8','c8','d8','e8','f8','g8','h8',
+  'a5',
+  'b5',
+  'c5',
+  'd5',
+  'e5',
+  'f5',
+  'g5',
+  'h5',
+  'a6',
+  'b6',
+  'c6',
+  'd6',
+  'e6',
+  'f6',
+  'g6',
+  'h6',
+  'a7',
+  'b7',
+  'c7',
+  'd7',
+  'e7',
+  'f7',
+  'g7',
+  'h7',
+  'a8',
+  'b8',
+  'c8',
+  'd8',
+  'e8',
+  'f8',
+  'g8',
+  'h8',
 ];
 const PICKER_FOG_BLACK: Square[] = [
-  'a1','b1','c1','d1','e1','f1','g1','h1',
-  'a2','b2','c2','d2','e2','f2','g2','h2',
-  'a3','b3','c3','d3','e3','f3','g3','h3',
-  'a4','b4','c4','d4','e4','f4','g4','h4',
+  'a1',
+  'b1',
+  'c1',
+  'd1',
+  'e1',
+  'f1',
+  'g1',
+  'h1',
+  'a2',
+  'b2',
+  'c2',
+  'd2',
+  'e2',
+  'f2',
+  'g2',
+  'h2',
+  'a3',
+  'b3',
+  'c3',
+  'd3',
+  'e3',
+  'f3',
+  'g3',
+  'h3',
+  'a4',
+  'b4',
+  'c4',
+  'd4',
+  'e4',
+  'f4',
+  'g4',
+  'h4',
 ];
 const FEN_CHAR_TO_ROLE: Partial<Record<string, PieceRole>> = {
-  r: 'rook', n: 'knight', b: 'bishop', q: 'queen', k: 'king',
+  r: 'rook',
+  n: 'knight',
+  b: 'bishop',
+  q: 'queen',
+  k: 'king',
 };
 
 function fenToPickerPieces(fenPlacement: string, color: Color): PieceOnBoard[] {
@@ -141,13 +209,17 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   target.innerHTML = `
     ${buildNavHtml()}
     <main class="shell${liveState.debugRequested ? ' debug-shell' : ''}">
-      ${liveState.debugRequested ? `
+      ${
+        liveState.debugRequested
+          ? `
       <section class="topbar">
         <div>
           <h1>Fog Debug</h1>
           <p data-room-meta>Connecting</p>
         </div>
-      </section>` : '<p data-room-meta hidden></p>'}
+      </section>`
+          : '<p data-room-meta hidden></p>'
+      }
 
       <section class="play-grid">
         <section class="board-panel">
@@ -240,7 +312,29 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
   const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!roomMeta || !gameInfo || !board || !boardPaused || !boardStatus || !actionStatus || !captures || !clocks || !roomActions || !devViewsSection || !devViewsPanel || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList || !gameControls || !gameControlsSection) {
+  if (
+    !roomMeta ||
+    !gameInfo ||
+    !board ||
+    !boardPaused ||
+    !boardStatus ||
+    !actionStatus ||
+    !captures ||
+    !clocks ||
+    !roomActions ||
+    !devViewsSection ||
+    !devViewsPanel ||
+    !offerSection ||
+    !draftPicker ||
+    !promotion ||
+    !selectionSection ||
+    !starts ||
+    !selectionList ||
+    !replayMeta ||
+    !moveList ||
+    !gameControls ||
+    !gameControlsSection
+  ) {
     throw new Error('missing app region');
   }
 
@@ -279,12 +373,16 @@ function buildNavHtml(): string {
       </a>
       <div class="site-nav-links">
         ${primaryNavItems()
-          .map((item) => `<a class="site-nav-link" href="${item.href}">${escapeHtml(item.label)}</a>`)
+          .map(
+            (item) => `<a class="site-nav-link" href="${item.href}">${escapeHtml(item.label)}</a>`,
+          )
           .join('')}
       </div>
       <div class="site-nav-utilities">
         ${utilityNavItems()
-          .map((item) => `<a class="site-nav-link" href="${item.href}">${escapeHtml(item.label)}</a>`)
+          .map(
+            (item) => `<a class="site-nav-link" href="${item.href}">${escapeHtml(item.label)}</a>`,
+          )
           .join('')}
         <div class="site-nav-auth" data-account-slot>
           <a class="site-nav-link site-nav-link-signin" href="/account?tab=login">Sign in</a>
@@ -309,9 +407,11 @@ export function render(): void {
   const nextOrientation = isColor(liveState.seat) ? liveState.seat : (view?.perspective ?? 'white');
   orientation = nextOrientation;
   const showDraft = shouldShowDraftControls(view, projection);
-  const showPickerOverlay = !liveState.solo && isColor(liveState.seat)
-    && view?.status.type === 'pregame'
-    && draftOfferForColor(liveState.seat, projection).length > 0;
+  const showPickerOverlay =
+    !liveState.solo &&
+    isColor(liveState.seat) &&
+    view?.status.type === 'pregame' &&
+    draftOfferForColor(liveState.seat, projection).length > 0;
 
   if (liveState.debugRequested) refs.roomMeta.innerHTML = roomMetaHtml();
   renderBoardStatus(view);
@@ -345,14 +445,19 @@ function trackGameLifecycle(view: PlayerView | null): void {
     roomMode: liveState.roomMode,
     initialMs: view.clock?.initialMs ?? null,
     incrementMs: view.clock?.incrementMs ?? null,
-    time_class: view.clock != null ? classifyTimeControl(view.clock.initialMs, view.clock.incrementMs) : null,
+    time_class:
+      view.clock != null ? classifyTimeControl(view.clock.initialMs, view.clock.incrementMs) : null,
   };
   if (statusType === 'playing' && lastTrackedStatusType !== 'playing') {
     playingSinceMs = Date.now();
     track('game_started', baseProps);
   }
   if (statusType === 'finished') {
-    const finished = view.status as { type: 'finished'; winner: 'white' | 'black' | null; reason: string };
+    const finished = view.status as {
+      type: 'finished';
+      winner: 'white' | 'black' | null;
+      reason: string;
+    };
     track('game_finished', {
       ...baseProps,
       winner: finished.winner,
@@ -397,10 +502,13 @@ function renderOffer(projection: GameProjection | null): void {
 
     const button = document.createElement('button');
     const selected = selectedStartId(color, projection) === start.id;
-    const resolved = resolvedStartIdForColor(color, projection) === start.id
-      || sharedResolvedStartId(projection) === start.id;
+    const resolved =
+      resolvedStartIdForColor(color, projection) === start.id ||
+      sharedResolvedStartId(projection) === start.id;
     button.type = 'button';
-    button.className = ['start-card', selected ? 'selected' : '', resolved ? 'resolved' : ''].filter(Boolean).join(' ');
+    button.className = ['start-card', selected ? 'selected' : '', resolved ? 'resolved' : '']
+      .filter(Boolean)
+      .join(' ');
     button.disabled = !isLive() || view?.status.type !== 'pregame';
     button.dataset.start = String(start.id);
     button.addEventListener('click', () => {
@@ -454,8 +562,13 @@ function draftPickButton(
   button.className = [
     'start-card',
     selectedStartId(color, projection) === start.id ? 'selected' : '',
-    resolvedStartIdForColor(color, projection) === start.id || sharedResolvedStartId(projection) === start.id ? 'resolved' : '',
-  ].filter(Boolean).join(' ');
+    resolvedStartIdForColor(color, projection) === start.id ||
+    sharedResolvedStartId(projection) === start.id
+      ? 'resolved'
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   button.disabled = !isLive() || currentView()?.status.type !== 'pregame';
   const id = document.createElement('strong');
   id.textContent = `#${start.id}`;
@@ -470,7 +583,12 @@ function draftPickButton(
 
 function renderSelections(projection: GameProjection | null): void {
   const view = currentView();
-  if (!liveState.solo && liveState.seat !== 'spectator' && view?.variant === 'fog-of-war' && hasVisibleDraftData(projection)) {
+  if (
+    !liveState.solo &&
+    liveState.seat !== 'spectator' &&
+    view?.variant === 'fog-of-war' &&
+    hasVisibleDraftData(projection)
+  ) {
     const color = pickColorForSeat();
     refs.selectionList.replaceChildren(
       selectionItem('Your pick', selectedStartId(color, projection)),
@@ -515,7 +633,10 @@ function renderDraftPicker(): void {
 
   if (mySelection !== undefined) {
     const selected = offers.find((o) => o.id === mySelection);
-    if (!selected) { refs.draftPicker.hidden = true; return; }
+    if (!selected) {
+      refs.draftPicker.hidden = true;
+      return;
+    }
     const pieces = fenToPickerPieces(selected.fenPlacement, color);
     const size = 200;
     const svgHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${fogPatternDefs(size)}${renderBoardSvg(pieces, fogSquares, 0, 0, size, color)}</svg>`;
@@ -553,7 +674,9 @@ function renderDraftPicker(): void {
     lbl.className = 'draft-pick-label';
     lbl.textContent = letter;
     btn.append(lbl);
-    btn.addEventListener('click', () => { sendSocket({ type: 'select-start', color, startId: offer.id }); });
+    btn.addEventListener('click', () => {
+      sendSocket({ type: 'select-start', color, startId: offer.id });
+    });
     boardsEl.append(btn);
   });
 
@@ -564,10 +687,10 @@ function renderDraftPicker(): void {
 function renderActionStatus(view: PlayerView | null): void {
   refs.actionStatus.replaceChildren();
   if (
-    view?.status.type === 'playing'
-    && isLive()
-    && isColor(liveState.seat)
-    && liveState.connectionState === 'connected'
+    view?.status.type === 'playing' &&
+    isLive() &&
+    isColor(liveState.seat) &&
+    liveState.connectionState === 'connected'
   ) {
     refs.actionStatus.hidden = true;
     return;
@@ -583,7 +706,10 @@ function renderActionStatus(view: PlayerView | null): void {
   body.textContent = actionBody(view);
   notice.append(title, body);
 
-  if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting') {
+  if (
+    liveState.connectionState === 'disconnected' ||
+    liveState.connectionState === 'reconnecting'
+  ) {
     const reconnect = document.createElement('button');
     reconnect.type = 'button';
     reconnect.textContent = 'Reconnect now';
@@ -608,9 +734,10 @@ function renderGameInfo(view: PlayerView | null): void {
 function formatLabel(view: PlayerView | null): string {
   const variant = view?.variant ?? liveState.state?.variant ?? liveState.variantRequested;
   const base = variant === 'fog-of-war' ? 'Dark chess' : capitalize(variant ?? 'dark chess');
-  const isDraft960 = liveState.variantRequested === 'fog-draft960'
-    || Object.values(liveState.offers).some((arr) => arr && arr.length > 0)
-    || Object.keys(liveState.resolvedStartIds).length > 0;
+  const isDraft960 =
+    liveState.variantRequested === 'fog-draft960' ||
+    Object.values(liveState.offers).some((arr) => arr && arr.length > 0) ||
+    Object.keys(liveState.resolvedStartIds).length > 0;
   return isDraft960 ? `${base} · Draft960` : base;
 }
 
@@ -673,10 +800,11 @@ function connectionDetailLabel(): string | null {
 // ── Game controls (resign, etc.) ──────────────────────────────────────────────
 
 function renderGameControls(view: PlayerView | null): void {
-  const canResign = liveState.roomMode === 'pvp'
-    && isColor(liveState.seat)
-    && view?.status.type === 'playing'
-    && !liveState.solo;
+  const canResign =
+    liveState.roomMode === 'pvp' &&
+    isColor(liveState.seat) &&
+    view?.status.type === 'playing' &&
+    !liveState.solo;
   refs.gameControlsSection.hidden = !canResign;
   if (!canResign) {
     refs.gameControls.replaceChildren();
@@ -686,7 +814,9 @@ function renderGameControls(view: PlayerView | null): void {
   button.type = 'button';
   button.className = 'danger';
   button.textContent = 'Resign';
-  button.addEventListener('click', () => { requestResign(); });
+  button.addEventListener('click', () => {
+    requestResign();
+  });
 
   refs.gameControls.replaceChildren(button);
 }
@@ -697,7 +827,9 @@ function requestResign(): void {
     body: 'Your opponent wins. This cannot be undone.',
     confirmLabel: 'Resign',
     confirmTone: 'danger',
-    onConfirm: () => { sendSocket({ type: 'resign' }); },
+    onConfirm: () => {
+      sendSocket({ type: 'resign' });
+    },
   });
 }
 
@@ -733,15 +865,18 @@ function openConfirmDialog(opts: ConfirmOptions): void {
   cancel.type = 'button';
   cancel.className = 'confirm-dialog-cancel';
   cancel.textContent = opts.cancelLabel ?? 'Cancel';
-  cancel.addEventListener('click', () => { dialog.close('cancel'); });
+  cancel.addEventListener('click', () => {
+    dialog.close('cancel');
+  });
 
   const confirm = document.createElement('button');
   confirm.type = 'button';
-  confirm.className = opts.confirmTone === 'danger'
-    ? 'confirm-dialog-confirm danger'
-    : 'confirm-dialog-confirm';
+  confirm.className =
+    opts.confirmTone === 'danger' ? 'confirm-dialog-confirm danger' : 'confirm-dialog-confirm';
   confirm.textContent = opts.confirmLabel;
-  confirm.addEventListener('click', () => { dialog.close('confirm'); });
+  confirm.addEventListener('click', () => {
+    dialog.close('confirm');
+  });
 
   actions.append(cancel, confirm);
   dialog.append(title, body, actions);
@@ -766,10 +901,15 @@ function copyLinkButton(): HTMLButtonElement {
   btn.className = 'primary';
   btn.textContent = 'Copy invite link';
   btn.addEventListener('click', () => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      btn.textContent = 'Link copied!';
-      setTimeout(() => { btn.textContent = 'Copy invite link'; }, 2000);
-    }).catch(() => {});
+    navigator.clipboard
+      .writeText(window.location.href)
+      .then(() => {
+        btn.textContent = 'Link copied!';
+        setTimeout(() => {
+          btn.textContent = 'Copy invite link';
+        }, 2000);
+      })
+      .catch(() => {});
   });
   return btn;
 }
@@ -783,7 +923,9 @@ function renderRoomActions(): void {
     } else if (liveState.roomMode === 'pve') {
       actions.unshift(playAgainButton());
     }
-    actions.unshift(roomAction('Review game', `/game/${encodeURIComponent(liveState.room)}`, 'primary'));
+    actions.unshift(
+      roomAction('Review game', `/game/${encodeURIComponent(liveState.room)}`, 'primary'),
+    );
     refs.roomActions.replaceChildren(...actions);
     return;
   }
@@ -815,7 +957,9 @@ function rematchButtons(): HTMLElement[] {
     cancel.type = 'button';
     cancel.className = '';
     cancel.textContent = 'Cancel rematch';
-    cancel.addEventListener('click', () => { sendSocket({ type: 'rematch:cancel' }); });
+    cancel.addEventListener('click', () => {
+      sendSocket({ type: 'rematch:cancel' });
+    });
     const waiting = document.createElement('span');
     waiting.className = 'room-actions-note';
     waiting.textContent = 'Waiting for opponent…';
@@ -826,21 +970,31 @@ function rematchButtons(): HTMLElement[] {
     accept.type = 'button';
     accept.className = 'primary';
     accept.textContent = 'Accept rematch';
-    accept.addEventListener('click', () => { sendSocket({ type: 'rematch:offer' }); });
+    accept.addEventListener('click', () => {
+      sendSocket({ type: 'rematch:offer' });
+    });
     const decline = document.createElement('button');
     decline.type = 'button';
     decline.textContent = 'Decline';
-    decline.addEventListener('click', () => { sendSocket({ type: 'rematch:decline' }); });
+    decline.addEventListener('click', () => {
+      sendSocket({ type: 'rematch:decline' });
+    });
     return [decline, accept];
   }
   const offer = document.createElement('button');
   offer.type = 'button';
   offer.textContent = 'Rematch';
-  offer.addEventListener('click', () => { sendSocket({ type: 'rematch:offer' }); });
+  offer.addEventListener('click', () => {
+    sendSocket({ type: 'rematch:offer' });
+  });
   return [offer];
 }
 
-function roomAction(label: string, href: string, toneOrDev?: 'primary' | 'engine'): HTMLAnchorElement {
+function roomAction(
+  label: string,
+  href: string,
+  toneOrDev?: 'primary' | 'engine',
+): HTMLAnchorElement {
   const link = document.createElement('a');
   link.href = toneOrDev === 'engine' ? roomUrl('fog-of-war', 'engine') : href;
   if (toneOrDev === 'primary') link.className = 'primary';
@@ -853,11 +1007,12 @@ function playAgainButton(): HTMLButtonElement {
   button.type = 'button';
   button.className = playAgainStatus === 'failed' ? 'danger' : '';
   button.disabled = playAgainStatus === 'creating';
-  button.textContent = playAgainStatus === 'creating'
-    ? 'Creating'
-    : playAgainStatus === 'failed'
-      ? 'Try play again'
-      : 'Play again';
+  button.textContent =
+    playAgainStatus === 'creating'
+      ? 'Creating'
+      : playAgainStatus === 'failed'
+        ? 'Try play again'
+        : 'Play again';
   button.addEventListener('click', () => {
     void createPlayAgainRoom();
   });
@@ -874,13 +1029,19 @@ async function createPlayAgainRoom(): Promise<void> {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         mode: liveState.roomMode,
-        variant: currentView()?.variant ?? liveState.state?.variant ?? liveState.variantRequested ?? 'fog-of-war',
+        variant:
+          currentView()?.variant ??
+          liveState.state?.variant ??
+          liveState.variantRequested ??
+          'fog-of-war',
         hiddenDraft960: shouldRequestHiddenDraft960ForPlayAgain(),
-        ...(liveState.roomMode === 'pve' && liveState.pveEngineId ? { engineId: liveState.pveEngineId } : {}),
+        ...(liveState.roomMode === 'pve' && liveState.pveEngineId
+          ? { engineId: liveState.pveEngineId }
+          : {}),
       }),
     });
     if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
-    const data = await response.json() as { url?: string };
+    const data = (await response.json()) as { url?: string };
     if (!data.url) throw new Error('room creation response missing url');
     window.location.assign(data.url);
   } catch (err) {
@@ -937,7 +1098,9 @@ function devViewCard(
         'dev-square',
         (fileOrdinal(file) + rank) % 2 === 0 ? 'dark' : 'light',
         hidden ? 'hidden' : '',
-      ].filter(Boolean).join(' ');
+      ]
+        .filter(Boolean)
+        .join(' ');
       const piece = view.board[square];
       cell.textContent = piece && !hidden ? pieceGlyphForRole(piece.role, piece.color) : '';
       board.append(cell);
@@ -966,11 +1129,16 @@ export function renderClocks(view: PlayerView | null): void {
   refs.clocks.replaceChildren();
   if (!view?.clock) {
     lastActiveClockColor = null;
-    const roomCreated = liveState.events.find((e): e is Extract<GameEvent, { type: 'room-created' }> => e.type === 'room-created');
+    const roomCreated = liveState.events.find(
+      (e): e is Extract<GameEvent, { type: 'room-created' }> => e.type === 'room-created',
+    );
     const tc = roomCreated?.timeControl;
     if (tc) {
       const incrementSec = Math.round(tc.incrementMs / 1000);
-      const tcLabel = incrementSec > 0 ? `${formatClock(tc.initialMs)}+${incrementSec}` : formatClock(tc.initialMs);
+      const tcLabel =
+        incrementSec > 0
+          ? `${formatClock(tc.initialMs)}+${incrementSec}`
+          : formatClock(tc.initialMs);
       const colors: Color[] = ['black', 'white'];
       for (const color of colors) {
         const row = document.createElement('div');
@@ -990,7 +1158,7 @@ export function renderClocks(view: PlayerView | null): void {
     return;
   }
 
-  const displayAt = isLive() ? Date.now() : view.clock.runningSince ?? Date.now();
+  const displayAt = isLive() ? Date.now() : (view.clock.runningSince ?? Date.now());
   const colors: Color[] = view.perspective === 'white' ? ['black', 'white'] : ['white', 'black'];
   const isPvp = liveState.roomMode === 'pvp';
   const humanColor = isColor(liveState.seat) ? liveState.seat : null;
@@ -1000,11 +1168,11 @@ export function renderClocks(view: PlayerView | null): void {
   // color (or none), and the new active is the seated player's. Skips the very
   // first render of a game so we don't flash on initial pregame→playing flip.
   const flashThisRender =
-    playing
-    && humanColor !== null
-    && nextActiveColor === humanColor
-    && lastActiveClockColor !== null
-    && lastActiveClockColor !== humanColor;
+    playing &&
+    humanColor !== null &&
+    nextActiveColor === humanColor &&
+    lastActiveClockColor !== null &&
+    lastActiveClockColor !== humanColor;
   for (const color of colors) {
     const isActive = nextActiveColor === color;
     const row = document.createElement('div');
@@ -1014,8 +1182,9 @@ export function renderClocks(view: PlayerView | null): void {
     if (isPvp) label.append(presenceDot(liveState.connectedSeats[color]));
     // Prefer server-supplied display name; fall back to "You"/"Bot"/color
     const serverName = liveState.seatDisplayNames[color];
-    const playerName = serverName
-      ?? (color === humanColor ? 'You' : (liveState.roomMode === 'pve' ? 'Bot' : capitalize(color)));
+    const playerName =
+      serverName ??
+      (color === humanColor ? 'You' : liveState.roomMode === 'pve' ? 'Bot' : capitalize(color));
     label.append(document.createTextNode(playerName));
     if (isActive) {
       const toMove = document.createElement('span');
@@ -1044,7 +1213,7 @@ export function tickClockTimers(view: PlayerView | null): void {
     renderClocks(view);
     return;
   }
-  const displayAt = isLive() ? Date.now() : view.clock.runningSince ?? Date.now();
+  const displayAt = isLive() ? Date.now() : (view.clock.runningSince ?? Date.now());
   for (const row of Array.from(refs.clocks.children) as HTMLDivElement[]) {
     const color = row.dataset.color;
     if (color !== 'white' && color !== 'black') continue;
@@ -1127,11 +1296,12 @@ function renderBoard(view: PlayerView | null): void {
   const moveColor = activeMoveColor();
   const ownSeat = isColor(liveState.seat) ? liveState.seat : null;
   const paused = liveState.paused === true && view?.status.type === 'playing';
-  const canInteractWithOwnPieces = isLive()
-    && view?.status.type === 'playing'
-    && !paused
-    && (liveState.solo || ownSeat !== null)
-    && pendingPromotion === null;
+  const canInteractWithOwnPieces =
+    isLive() &&
+    view?.status.type === 'playing' &&
+    !paused &&
+    (liveState.solo || ownSeat !== null) &&
+    pendingPromotion === null;
   const boardIsLive = canInteractWithOwnPieces && moveColor !== null;
   const movableColor = boardIsLive ? moveColor : ownSeat;
   refs.board.classList.toggle('finished-board', view?.status.type === 'finished');
@@ -1250,7 +1420,14 @@ function addCastlingDestinationAliases(view: PlayerView, dests: cg.Dests): void 
 function castlingKingDestinationFromView(view: PlayerView, move: Move): Square | null {
   const piece = view.board[move.from];
   const rook = view.board[move.to];
-  if (!piece || piece.role !== 'king' || !rook || rook.role !== 'rook' || rook.color !== piece.color) return null;
+  if (
+    !piece ||
+    piece.role !== 'king' ||
+    !rook ||
+    rook.role !== 'rook' ||
+    rook.color !== piece.color
+  )
+    return null;
   if (rankOf(move.from) !== rankOf(move.to)) return null;
   return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
 }
@@ -1310,9 +1487,9 @@ function promotionMovesFor(from: Square, to: Square): Move[] {
 function movesFor(from: Square, to: Square): Move[] {
   const view = currentView();
   if (!view) return [];
-  const castlingAlias = view.legalMoves.filter((move) => (
-    move.from === from && castlingKingDestinationFromView(view, move) === to
-  ));
+  const castlingAlias = view.legalMoves.filter(
+    (move) => move.from === from && castlingKingDestinationFromView(view, move) === to,
+  );
   if (castlingAlias.length > 0) return castlingAlias;
   return view.legalMoves.filter((move) => move.from === from && move.to === to);
 }
@@ -1400,8 +1577,30 @@ function renderReplay(): void {
 
     const whitePly = row * 2 + 1;
     const blackPly = row * 2 + 2;
-    item.append(moveListCell(whitePly, 'white', entriesByPly.get(whitePly), masked, visibleColor, plyCount, labelsByEventIndex, activePly));
-    item.append(moveListCell(blackPly, 'black', entriesByPly.get(blackPly), masked, visibleColor, plyCount, labelsByEventIndex, activePly));
+    item.append(
+      moveListCell(
+        whitePly,
+        'white',
+        entriesByPly.get(whitePly),
+        masked,
+        visibleColor,
+        plyCount,
+        labelsByEventIndex,
+        activePly,
+      ),
+    );
+    item.append(
+      moveListCell(
+        blackPly,
+        'black',
+        entriesByPly.get(blackPly),
+        masked,
+        visibleColor,
+        plyCount,
+        labelsByEventIndex,
+        activePly,
+      ),
+    );
     rows.push(item);
   }
   refs.moveList.append(...rows);
@@ -1422,7 +1621,11 @@ function revealedMoveListEntries(): MoveListEntry[] {
   const entries: MoveListEntry[] = [];
   for (const [index, event] of liveState.events.entries()) {
     if (event.type !== 'move-played') continue;
-    entries.push({ event: event as MovePlayedEvent, eventIndex: index + 1, ply: entries.length + 1 });
+    entries.push({
+      event: event as MovePlayedEvent,
+      eventIndex: index + 1,
+      ply: entries.length + 1,
+    });
   }
   return entries;
 }
@@ -1455,7 +1658,7 @@ function moveListPlyCount(masked: boolean, entries: MoveListEntry[]): number {
 function moveListVisibleColor(masked: boolean): Color | null {
   if (!masked) return null;
   if (isColor(liveState.seat)) return liveState.seat;
-  return currentView()?.status.type === 'finished' ? currentView()?.perspective ?? 'white' : null;
+  return currentView()?.status.type === 'finished' ? (currentView()?.perspective ?? 'white') : null;
 }
 
 function computeActivePly(): number | null {
@@ -1494,22 +1697,18 @@ function moveListCell(
   const hidden = masked && color !== visibleColor;
   if (!entry || hidden) {
     const placeholder = document.createElement('span');
-    placeholder.className = [
-      `${color}-ply`,
-      'move-placeholder',
-      isActive ? 'active' : '',
-    ].filter(Boolean).join(' ');
+    placeholder.className = [`${color}-ply`, 'move-placeholder', isActive ? 'active' : '']
+      .filter(Boolean)
+      .join(' ');
     placeholder.textContent = '..';
     return placeholder;
   }
 
   if (masked) {
     const label = document.createElement('span');
-    label.className = [
-      `${color}-ply`,
-      'move-visible',
-      isActive ? 'active' : '',
-    ].filter(Boolean).join(' ');
+    label.className = [`${color}-ply`, 'move-visible', isActive ? 'active' : '']
+      .filter(Boolean)
+      .join(' ');
     label.textContent = moveLabel(entry, labelsByEventIndex);
     return label;
   }
@@ -1517,10 +1716,9 @@ function moveListCell(
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = moveLabel(entry, labelsByEventIndex);
-  button.className = [
-    color === 'white' ? 'white-ply' : 'black-ply',
-    isActive ? 'active' : '',
-  ].filter(Boolean).join(' ');
+  button.className = [color === 'white' ? 'white-ply' : 'black-ply', isActive ? 'active' : '']
+    .filter(Boolean)
+    .join(' ');
   button.addEventListener('click', () => handleMoveListClick(entry.eventIndex));
   return button;
 }
@@ -1552,16 +1750,25 @@ function currentEventsSlice(): GameEvent[] | null {
   // Fog replay uses fogSnapshotSeq as replayIndex — not an events index. Map through
   // fogSnapshotToEventsLen in fog mode; otherwise use the replay index directly.
   const fogHistory = getFogViewHistory();
-  const sliceAt = (fogHistory.size > 0 && liveState.state?.variant === 'fog-of-war')
-    ? (isLive() ? events.length : (getFogSnapshotToEventsLen().get(currentReplayIndex()) ?? events.length))
-    : currentReplayIndex();
+  const sliceAt =
+    fogHistory.size > 0 && liveState.state?.variant === 'fog-of-war'
+      ? isLive()
+        ? events.length
+        : (getFogSnapshotToEventsLen().get(currentReplayIndex()) ?? events.length)
+      : currentReplayIndex();
   return events.slice(0, sliceAt);
 }
 
 export function currentView(): PlayerView | null {
   const projection = currentProjection();
   const perspective = liveState.seat === 'black' ? 'black' : 'white';
-  if (isLive() && (!projection || projection.state.variant !== 'fog-of-war' || projection.state.status.type !== 'finished')) return liveState.state;
+  if (
+    isLive() &&
+    (!projection ||
+      projection.state.variant !== 'fog-of-war' ||
+      projection.state.status.type !== 'finished')
+  )
+    return liveState.state;
   // Historical fog position: use the server-provided snapshot captured at that event count.
   // viewForProjection cannot reconstruct accurate historical fog views — events from WebSocket
   // snapshots are fog-filtered and structured differently from what replayGameEvents expects,
@@ -1593,12 +1800,14 @@ export function currentDevViews(): DevViews | null {
 
   const perspective = liveState.seat === 'black' ? 'black' : 'white';
   const opponent = oppositeColor(perspective);
-  const player = projection.state.status.type === 'finished'
-    ? fullTruthViewForProjection(projection, perspective)
-    : viewForProjection(projection, perspective);
-  const opponentView = projection.state.status.type === 'finished'
-    ? fullTruthViewForProjection(projection, opponent)
-    : viewForProjection(projection, opponent);
+  const player =
+    projection.state.status.type === 'finished'
+      ? fullTruthViewForProjection(projection, perspective)
+      : viewForProjection(projection, perspective);
+  const opponentView =
+    projection.state.status.type === 'finished'
+      ? fullTruthViewForProjection(projection, opponent)
+      : viewForProjection(projection, opponent);
   return {
     opponent,
     opponentView,
@@ -1651,9 +1860,8 @@ function terminalFogViewForProjection(projection: GameProjection, perspective: C
   // was the viewer's move. Opponent moves stay hidden — their pieces aren't
   // revealed in the fog room, and a stale highlight on hidden squares is confusing.
   const lastMove = projection.state.lastMove;
-  const ownedLastMove = lastMove && projection.state.board[lastMove.to]?.color === perspective
-    ? lastMove
-    : undefined;
+  const ownedLastMove =
+    lastMove && projection.state.board[lastMove.to]?.color === perspective ? lastMove : undefined;
   return {
     ...view,
     legalMoves: [],
@@ -1665,10 +1873,15 @@ function terminalFogViewForProjection(projection: GameProjection, perspective: C
 
 // ── Draft data helpers ────────────────────────────────────────────────────────
 
-function draftOfferForColor(color: Color, projection: GameProjection | null): { id: number; fenPlacement: string }[] {
-  return projection?.offers[color]
-    ?? liveState.offers[color]
-    ?? (projection?.offer.length ? projection.offer : liveState.offer);
+function draftOfferForColor(
+  color: Color,
+  projection: GameProjection | null,
+): { id: number; fenPlacement: string }[] {
+  return (
+    projection?.offers[color] ??
+    liveState.offers[color] ??
+    (projection?.offer.length ? projection.offer : liveState.offer)
+  );
 }
 
 function selectedStartId(color: Color, projection: GameProjection | null): number | undefined {
@@ -1679,11 +1892,17 @@ function sharedResolvedStartId(projection: GameProjection | null): number | null
   return projection?.resolvedStartId ?? liveState.resolvedStartId;
 }
 
-function resolvedStartIdForColor(color: Color, projection: GameProjection | null): number | undefined {
+function resolvedStartIdForColor(
+  color: Color,
+  projection: GameProjection | null,
+): number | undefined {
   return projection?.resolvedStartIds[color] ?? liveState.resolvedStartIds[color];
 }
 
-function shouldShowDraftControls(view: PlayerView | null, projection: GameProjection | null): boolean {
+function shouldShowDraftControls(
+  view: PlayerView | null,
+  projection: GameProjection | null,
+): boolean {
   // Only show Draft960 UI for actual draft960 games — never for fog-of-war,
   // regardless of what hasVisibleDraftData returns (avoids spurious "Draft960
   // Offer" section on fog-of-war spectator views).
@@ -1695,18 +1914,23 @@ function shouldShowDraftControls(view: PlayerView | null, projection: GameProjec
 
 function hasVisibleDraftData(projection: GameProjection | null): boolean {
   if (liveState.solo) {
-    return draftOfferForColor('white', projection).length > 0
-      || draftOfferForColor('black', projection).length > 0
-      || selectedStartId('white', projection) !== undefined
-      || selectedStartId('black', projection) !== undefined
-      || resolvedStartIdForColor('white', projection) !== undefined
-      || resolvedStartIdForColor('black', projection) !== undefined
-      || sharedResolvedStartId(projection) !== null;
+    return (
+      draftOfferForColor('white', projection).length > 0 ||
+      draftOfferForColor('black', projection).length > 0 ||
+      selectedStartId('white', projection) !== undefined ||
+      selectedStartId('black', projection) !== undefined ||
+      resolvedStartIdForColor('white', projection) !== undefined ||
+      resolvedStartIdForColor('black', projection) !== undefined ||
+      sharedResolvedStartId(projection) !== null
+    );
   }
-  if (liveState.seat === 'spectator') return liveState.offer.length > 0 || Object.keys(liveState.offers).length > 0;
-  return draftOfferForColor(pickColorForSeat(), projection).length > 0
-    || selectedStartId(pickColorForSeat(), projection) !== undefined
-    || resolvedStartIdForColor(pickColorForSeat(), projection) !== undefined;
+  if (liveState.seat === 'spectator')
+    return liveState.offer.length > 0 || Object.keys(liveState.offers).length > 0;
+  return (
+    draftOfferForColor(pickColorForSeat(), projection).length > 0 ||
+    selectedStartId(pickColorForSeat(), projection) !== undefined ||
+    resolvedStartIdForColor(pickColorForSeat(), projection) !== undefined
+  );
 }
 
 function shouldRequestHiddenDraft960ForPlayAgain(): boolean {
@@ -1742,7 +1966,12 @@ function actionTone(view: PlayerView | null): InfoTone {
   if (liveState.connectionState === 'rejected') return 'danger';
   if (liveState.connectionState === 'displaced') return 'danger';
   if (liveState.connectionState === 'disconnected') return 'danger';
-  if (!view || liveState.connectionState === 'connecting' || liveState.connectionState === 'reconnecting') return 'pending';
+  if (
+    !view ||
+    liveState.connectionState === 'connecting' ||
+    liveState.connectionState === 'reconnecting'
+  )
+    return 'pending';
   if (view.status.type === 'finished') {
     const seat = liveState.seat;
     if (seat === 'white' || seat === 'black') {
@@ -1760,7 +1989,8 @@ function actionTone(view: PlayerView | null): InfoTone {
 function actionTitle(view: PlayerView | null): string {
   if (liveState.connectionState === 'rejected') return 'Access rejected';
   if (liveState.connectionState === 'displaced') return 'Session moved';
-  if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting') return 'Reconnecting';
+  if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting')
+    return 'Reconnecting';
   if (!view || liveState.connectionState === 'connecting') return 'Connecting';
   if (view.status.type === 'finished') return finishedTitle(view.status.winner);
   if (liveState.seat === 'spectator') return 'Watching';
@@ -1771,7 +2001,8 @@ function actionTitle(view: PlayerView | null): string {
     }
     return liveState.roomMode === 'pvp' ? 'Waiting for opponent' : 'Preparing game';
   }
-  if (view.status.type === 'playing' && view.status.turn === pveEngineSeat()) return 'Engine thinking';
+  if (view.status.type === 'playing' && view.status.turn === pveEngineSeat())
+    return 'Engine thinking';
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) return 'Your move';
   return 'Opponent move';
 }
@@ -1779,9 +2010,12 @@ function actionTitle(view: PlayerView | null): string {
 function actionBody(view: PlayerView | null): string {
   if (liveState.connectionState === 'rejected') return rejectedBody();
   if (liveState.connectionState === 'displaced') return 'A newer tab is now controlling this seat.';
-  if (liveState.connectionState === 'disconnected') return 'The socket closed. Mistboard will retry automatically.';
-  if (liveState.connectionState === 'reconnecting') return 'Trying to restore your room state and seat.';
-  if (!view || liveState.connectionState === 'connecting') return 'Opening the room and loading the current server state.';
+  if (liveState.connectionState === 'disconnected')
+    return 'The socket closed. Mistboard will retry automatically.';
+  if (liveState.connectionState === 'reconnecting')
+    return 'Trying to restore your room state and seat.';
+  if (!view || liveState.connectionState === 'connecting')
+    return 'Opening the room and loading the current server state.';
   if (view.status.type === 'finished') {
     return finishedBody(view.status.winner, view.status.reason);
   }
@@ -1809,7 +2043,8 @@ function actionBody(view: PlayerView | null): string {
 
 function spectatorBody(view: PlayerView): string {
   if (view.status.type === 'finished') return 'Open Review game to see the full board.';
-  if (liveState.clientCount < 3 && liveState.roomMode === 'pvp') return 'Waiting for both player seats to be filled.';
+  if (liveState.clientCount < 3 && liveState.roomMode === 'pvp')
+    return 'Waiting for both player seats to be filled.';
   return 'Spectators receive a public Fog view while the game is live.';
 }
 
@@ -1855,7 +2090,8 @@ function resultReasonLabel(reason: string): string {
 function boardStatusLabel(): string {
   if (liveState.connectionState === 'rejected') return 'Access rejected';
   if (liveState.connectionState === 'displaced') return 'Session moved';
-  if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting') return 'Reconnecting';
+  if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting')
+    return 'Reconnecting';
   return liveState.clientId ? 'Waiting for board' : 'Connecting';
 }
 
@@ -1873,17 +2109,21 @@ function renderBoardStatus(view: PlayerView | null): void {
   if (label) label.textContent = boardStatusLabel();
   const spinner = refs.boardStatus.querySelector<HTMLSpanElement>('[data-board-status-spinner]');
   if (spinner) {
-    const showSpinner = liveState.connectionState === 'connecting'
-      || liveState.connectionState === 'reconnecting'
-      || liveState.connectionState === 'disconnected';
+    const showSpinner =
+      liveState.connectionState === 'connecting' ||
+      liveState.connectionState === 'reconnecting' ||
+      liveState.connectionState === 'disconnected';
     spinner.hidden = !showSpinner;
   }
 }
 
 function rejectedBody(): string {
-  if (liveState.closeReason === 'private room') return 'This game is in progress. Mistboard never shares live game state with anyone but the seated players. The full replay will be here once the game finishes.';
-  if (liveState.closeReason === 'origin not allowed') return 'This browser origin is not allowed to open the room.';
-  if (liveState.closeReason === 'rate limit') return 'The room connection was closed after too many messages.';
+  if (liveState.closeReason === 'private room')
+    return 'This game is in progress. Mistboard never shares live game state with anyone but the seated players. The full replay will be here once the game finishes.';
+  if (liveState.closeReason === 'origin not allowed')
+    return 'This browser origin is not allowed to open the room.';
+  if (liveState.closeReason === 'rate limit')
+    return 'The room connection was closed after too many messages.';
   return 'The server rejected this room connection.';
 }
 
@@ -1912,18 +2152,17 @@ function selectionLabel(startId: number | null | undefined): string {
   return startId === null || startId === undefined ? 'none' : `#${startId}`;
 }
 
-
 // ── Small utilities ───────────────────────────────────────────────────────────
 
 function squareFileIndex(square: Square): number {
-  return files.indexOf(square[0] as typeof files[number]);
+  return files.indexOf(square[0] as (typeof files)[number]);
 }
 
 function rankOf(square: Square): string {
   return square[1] ?? '';
 }
 
-function fileOrdinal(file: typeof files[number]): number {
+function fileOrdinal(file: (typeof files)[number]): number {
   return files.indexOf(file);
 }
 
@@ -1948,13 +2187,12 @@ function infoItem(label: string, value: string): HTMLDivElement {
   return item;
 }
 
-
 function selectionItem(label: string, value: number | string | null | undefined): HTMLDivElement {
   const item = document.createElement('div');
   const key = document.createElement('span');
   const val = document.createElement('strong');
   key.textContent = label;
-  val.textContent = typeof value === 'number' ? selectionLabel(value) : value ?? 'none';
+  val.textContent = typeof value === 'number' ? selectionLabel(value) : (value ?? 'none');
   item.append(key, val);
   return item;
 }
@@ -1962,10 +2200,20 @@ function selectionItem(label: string, value: number | string | null | undefined)
 function pieceGlyphForRole(role: PieceRole, color: Color): string {
   const labels = {
     white: {
-      bishop: '♗', king: '♔', knight: '♘', pawn: '♙', queen: '♕', rook: '♖',
+      bishop: '♗',
+      king: '♔',
+      knight: '♘',
+      pawn: '♙',
+      queen: '♕',
+      rook: '♖',
     },
     black: {
-      bishop: '♝', king: '♚', knight: '♞', pawn: '♟', queen: '♛', rook: '♜',
+      bishop: '♝',
+      king: '♚',
+      knight: '♞',
+      pawn: '♟',
+      queen: '♛',
+      rook: '♜',
     },
   } satisfies Record<Color, Record<PieceRole, string>>;
   return labels[color][role];

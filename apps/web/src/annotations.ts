@@ -13,16 +13,56 @@ export const CURATED_TAGS: Array<{
   kind: 'negative' | 'positive' | 'meta';
   hint: string;
 }> = [
-  { tag: 'aggregation-dilution', kind: 'negative', hint: 'Truth particle was likely present but its move got drowned out by other particles.' },
-  { tag: 'belief-collapse', kind: 'negative', hint: 'Truth particle missing from the belief set entirely.' },
-  { tag: 'visibility-threat-undershot', kind: 'negative', hint: 'P2.1 visibility-threat metric should have penalized this but did not.' },
-  { tag: 'missed-hanging-capture', kind: 'negative', hint: "Tier-1 had a visible piece attacking opponent's queen/rook and didn't capture." },
-  { tag: 'missed-hanging-save', kind: 'negative', hint: 'Tier-1 had a piece visibly under attack and failed to defend or move it.' },
-  { tag: 'missed-info-gain', kind: 'negative', hint: 'Skipped a move that would have captured material AND increased visibility.' },
-  { tag: 'repetition', kind: 'negative', hint: 'Played the same wrong idea twice; missing diversification when belief unchanged.' },
-  { tag: 'fog-aware-good', kind: 'positive', hint: 'Move only makes sense given correct fog-inferred belief — validates the belief filter.' },
-  { tag: 'prior-soundness', kind: 'positive', hint: 'Stockfish-shallow prior produced principled chess — validates the evaluator choice.' },
-  { tag: 'opponent-blunder', kind: 'meta', hint: 'Move was opponent (random); not a Tier-1 strength signal.' },
+  {
+    tag: 'aggregation-dilution',
+    kind: 'negative',
+    hint: 'Truth particle was likely present but its move got drowned out by other particles.',
+  },
+  {
+    tag: 'belief-collapse',
+    kind: 'negative',
+    hint: 'Truth particle missing from the belief set entirely.',
+  },
+  {
+    tag: 'visibility-threat-undershot',
+    kind: 'negative',
+    hint: 'P2.1 visibility-threat metric should have penalized this but did not.',
+  },
+  {
+    tag: 'missed-hanging-capture',
+    kind: 'negative',
+    hint: "Tier-1 had a visible piece attacking opponent's queen/rook and didn't capture.",
+  },
+  {
+    tag: 'missed-hanging-save',
+    kind: 'negative',
+    hint: 'Tier-1 had a piece visibly under attack and failed to defend or move it.',
+  },
+  {
+    tag: 'missed-info-gain',
+    kind: 'negative',
+    hint: 'Skipped a move that would have captured material AND increased visibility.',
+  },
+  {
+    tag: 'repetition',
+    kind: 'negative',
+    hint: 'Played the same wrong idea twice; missing diversification when belief unchanged.',
+  },
+  {
+    tag: 'fog-aware-good',
+    kind: 'positive',
+    hint: 'Move only makes sense given correct fog-inferred belief — validates the belief filter.',
+  },
+  {
+    tag: 'prior-soundness',
+    kind: 'positive',
+    hint: 'Stockfish-shallow prior produced principled chess — validates the evaluator choice.',
+  },
+  {
+    tag: 'opponent-blunder',
+    kind: 'meta',
+    hint: 'Move was opponent (random); not a Tier-1 strength signal.',
+  },
 ];
 
 export type Annotation = {
@@ -116,10 +156,13 @@ export function buildAnnotationFromForm(
 
 export function formatAnnotationLine(a: Annotation): string {
   const sev =
-    a.severity === 'major' ? '●'
-    : a.severity === 'good' ? '★'
-    : a.severity === 'neutral' ? '◇'
-    : '○';
+    a.severity === 'major'
+      ? '●'
+      : a.severity === 'good'
+        ? '★'
+        : a.severity === 'neutral'
+          ? '◇'
+          : '○';
   const better = a.suggested_move_uci ? ` → ${a.suggested_move_uci}` : '';
   const tags = a.tags.length ? ` [${a.tags.join(', ')}]` : '';
   const note = a.note ? ` ${a.note}` : '';
