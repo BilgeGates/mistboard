@@ -3,7 +3,7 @@
 Fast orientation for agents. One line per file. Read this before opening any source file.
 Edit task → find file → open only that file.
 
-> **Refactor in progress (2026-05-22 → 2026-05-23):** The god files are being split into focused modules. So far: `live-sound.ts`, `time-controls.ts`, `review.ts`, `contact.ts`, `account.ts` extracted. Still pending: `profile.ts`, `pages-static.ts`, `live-replay.ts`. `http-api.ts` was hardened in-place (querystring bug fix + `requireMethod`/`requirePersistence` helpers) but not yet split into `routes/*`.
+> **Refactor in progress (2026-05-22 → 2026-05-23):** The god files are being split into focused modules. So far: `live-sound.ts`, `time-controls.ts`, `review.ts`, `contact.ts`, `account.ts`, `profile.ts` extracted. Still pending: `pages-static.ts`, `live-replay.ts`. `http-api.ts` was hardened in-place (querystring bug fix + `requireMethod`/`requirePersistence` helpers) but not yet split into `routes/*`.
 
 ## packages/game/src/ — Pure game logic (no server/browser deps)
 
@@ -113,8 +113,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live-socket.ts` | WebSocket connect / reconnect / send for live games |
 | `live-render.ts` | Live-game render: board, clocks, captures, controls, draft picker, replay-of-live. Sound subsystem extracted to `live-sound.ts`. Still ~2,100 LOC — replay-of-live extraction (`live-replay.ts`) still pending |
 | `live-sound.ts` | SoundController + `maybePlaySnapshotSound` + per-move sound policy. Owns the audio context, volume tracking, win/lose/capture/castle tone generation. Wired by live-render's render flow + live.ts's snapshot handler |
-| `landing.ts` | Mounts for landing / watch / game / leaderboard / profile / about / source / learn / articles / 404. Lobby + create-room flows, recent-games render, landing widgets, setup dialog. Exports the shared shell helpers (`buildNav`, `buildFooter`, `buildLoadingState`, `fetchCurrentUser`) consumed by the split-out modules. Still a god file (~2,600 LOC) — `profile.ts` and `pages-static.ts` still pending |
+| `landing.ts` | Mounts for landing / watch / game / about / source / learn / articles / 404. Lobby + create-room flows, recent-games render, landing widgets, setup dialog. Exports the shared shell helpers (`buildNav`, `buildFooter`, `buildLoadingState`, `buildNotice`, `fetchCurrentUser`) and game-row formatters (`displayParticipantName`, `sourceLabel`) consumed by the split-out modules. Still a god file (~2,200 LOC) — `pages-static.ts` still pending |
 | `account.ts` | `/account` + `/account/settings` mounts. Sign-in/registration form (email + magic code), signed-in account card, settings form (display name / handle / email), auth-tabs |
+| `profile.ts` | `/@/:handle` + `/leaderboard` mounts. `mountProfile`, `mountLeaderboard`, profile header/ratings/games builders, leaderboard panel + table. Imports shell helpers + game-row formatters back from `landing.ts` |
 | `contact.ts` | `buildContact` — `/contact` form builder (anon vs signed-in lanes, honeypot, submit/error states). Mounted by `landing.ts` (mountContact is 15 lines, uses buildNav/Footer) |
 | `review.ts` | Game-review data plumbing for `/game/:id`: `loadGameForReview`, `fetchGameReview`, `fetchGameArtifacts`, `fetchTraceArtifacts`, belief/trace row converters, `enginePanelsForReview`. Owns the engine-artifact panel hydration |
 | `replay.ts` | Replay viewer: `mountReplay` (~880-line closure — extraction candidate for a future session), board adapter, panels, annotation form |
