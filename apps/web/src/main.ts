@@ -65,8 +65,6 @@ const articleSlug = articleSlugFromPath(path);
 const wantsArticlesIndex = path === '/articles' || page === 'articles';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
-const wantsVideo = path === '/video' || page === 'video';
-const videoPlayerId = videoIdFromPath(path);
 const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 const profileHandle = profileHandleFromPath(path);
 // Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
@@ -111,12 +109,6 @@ if (replaySample) {
 } else if (wantsWatch) {
   setTitle('Watch');
   void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
-} else if (videoPlayerId) {
-  setTitle('Video');
-  void mountOrReport(() => import('./landing.js').then(({ mountVideoPlayer }) => mountVideoPlayer(appRoot, videoPlayerId)));
-} else if (wantsVideo) {
-  setTitle('Video');
-  void mountOrReport(() => import('./landing.js').then(({ mountVideo }) => mountVideo(appRoot)));
 } else if (wantsXiangqiSpike) {
   setTitle('Xiangqi spike');
   void mountOrReport(() => import('./xiangqi-spike.js').then(({ mountXiangqiSpike }) => mountXiangqiSpike(appRoot)));
@@ -219,7 +211,3 @@ function articleSlugFromPath(value: string): string | null {
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
-function videoIdFromPath(value: string): string | null {
-  const match = value.match(/^\/video\/([^/]+)$/);
-  return match ? decodeURIComponent(match[1]!) : null;
-}

@@ -181,7 +181,6 @@ test('websocket message rate window rejects over-limit bursts and recovers after
 // route is wired client-side but the server still 404s direct hits.
 // Intentionally-parked or DEV-only client routes that should NOT 200 in prod.
 const PARKED_CLIENT_ROUTES = new Set<string>([
-  '/video', // see memory: video_page_parked
   '/xiangqi-spike', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/pixel-lab', // DEV-only; gated by import.meta.env.DEV in main.ts
 ]);

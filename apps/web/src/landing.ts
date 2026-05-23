@@ -1563,22 +1563,6 @@ export async function mountArticlesIndex(root: HTMLElement): Promise<void> {
   mountArticleThumbnails(index);
 }
 
-export async function mountVideo(root: HTMLElement): Promise<void> {
-  root.replaceChildren();
-  root.classList.add('landing-page', 'video-route');
-  const { buildVideoIndex, attachVideoRouter } = await import('./video.js');
-  root.append(buildNav(), buildVideoIndex(), buildFooter());
-  attachVideoRouter(root);
-}
-
-export async function mountVideoPlayer(root: HTMLElement, id: string): Promise<void> {
-  root.replaceChildren();
-  root.classList.add('landing-page', 'video-route');
-  const { buildVideoPlayer, attachVideoRouter } = await import('./video.js');
-  root.append(buildNav(), buildVideoPlayer(id), buildFooter());
-  attachVideoRouter(root);
-}
-
 export async function mountArticle(root: HTMLElement, slug: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
