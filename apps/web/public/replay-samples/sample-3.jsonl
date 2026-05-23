@@ -1,4 +1,4 @@
-{"type": "room-created", "at": 0, "roomId": "corpus-tier1-0006", "variant": "fog-of-war", "offer": []}
+{"type": "room-created", "at": 0, "roomId": "corpus-tier1-0006", "variant": "dark-chess", "offer": []}
 {"type": "move-played", "at": 1, "roomId": "corpus-tier1-0006", "color": "white", "move": {"from": "b2", "to": "b4"}, "compute_ms": 1}
 {"type": "move-played", "at": 2, "roomId": "corpus-tier1-0006", "color": "black", "move": {"from": "b8", "to": "a6"}, "compute_ms": 7}
 {"type": "move-played", "at": 3, "roomId": "corpus-tier1-0006", "color": "white", "move": {"from": "c1", "to": "b2"}, "compute_ms": 8}

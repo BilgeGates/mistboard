@@ -1,4 +1,4 @@
-{"at": 0, "type": "room-created", "offer": [], "roomId": "b-learned-v0-vs-uniform-g0047-bwhite", "variant": "fog-of-war"}
+{"at": 0, "type": "room-created", "offer": [], "roomId": "b-learned-v0-vs-uniform-g0047-bwhite", "variant": "dark-chess"}
 {"at": 1, "move": {"to": "e3", "from": "e2"}, "type": "move-played", "color": "white", "roomId": "b-learned-v0-vs-uniform-g0047-bwhite", "compute_ms": 1, "thinkTimeMs": 1}
 {"at": 2, "move": {"to": "e6", "from": "e7"}, "type": "move-played", "color": "black", "roomId": "b-learned-v0-vs-uniform-g0047-bwhite", "compute_ms": 43, "thinkTimeMs": 43}
 {"at": 3, "move": {"to": "e2", "from": "f1"}, "type": "move-played", "color": "white", "roomId": "b-learned-v0-vs-uniform-g0047-bwhite", "compute_ms": 9, "thinkTimeMs": 9}

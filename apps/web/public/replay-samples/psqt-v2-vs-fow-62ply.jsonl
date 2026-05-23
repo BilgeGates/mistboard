@@ -1,4 +1,4 @@
-{"type": "room-created", "at": 0, "roomId": "psqt-v2-vs-fow-g0042-awhite", "variant": "fog-of-war", "offer": []}
+{"type": "room-created", "at": 0, "roomId": "psqt-v2-vs-fow-g0042-awhite", "variant": "dark-chess", "offer": []}
 {"type": "move-played", "at": 1, "roomId": "psqt-v2-vs-fow-g0042-awhite", "color": "white", "move": {"from": "h2", "to": "h3"}, "opening_random": true, "thinkTimeMs": 0}
 {"type": "move-played", "at": 2, "roomId": "psqt-v2-vs-fow-g0042-awhite", "color": "black", "move": {"from": "h7", "to": "h5"}, "opening_random": true, "thinkTimeMs": 0}
 {"type": "move-played", "at": 3, "roomId": "psqt-v2-vs-fow-g0042-awhite", "color": "white", "move": {"from": "h1", "to": "h2"}, "opening_random": true, "thinkTimeMs": 0}
