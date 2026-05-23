@@ -12,10 +12,20 @@ directly — any "node" supporting the following duck-typed interface works:
     node.depth -> int
 
 This generality is intentional: the Kuhn poker correctness gate
-(``tests/test_cfr_tabular_kuhn.py``) supplies a non-chess node type. The FoW
+(``tests/test_cfr_kuhn.py``) supplies a non-chess node type. The FoW
 ``SubgameNode`` satisfies the interface for production solves.
 
-Per-iteration algorithm:
+Two solver variants share this module:
+
+* **Vanilla CFR** (``solve_subgame``): standard regret matching, returns
+  the AVERAGE strategy at the root (Nash-convergent in the limit).
+* **PCFR+** (``solve_subgame`` with ``predictive=True``): Predictive
+  Regret Matching+ (Farina, Kroer, Sandholm AAAI-21). Adds a "predicted
+  next regret" term to the strategy computation and returns the LAST
+  iterate (which has last-iterate Nash convergence under PCFR+). This
+  is the inner solver Obscuro uses inside KLUSS.
+
+Per-iteration algorithm (both variants):
 
   For each iteration t in [0, iterations):
     For each player T in [WHITE, BLACK]:
@@ -26,8 +36,15 @@ Per-iteration algorithm:
           strategy; recurse.
         At terminals or depth bound: return leaf value from T's POV.
       Update average-strategy accumulators with T's current strategy.
-  Return: average strategy at root + Monte-Carlo estimate of equilibrium
-  value at root under the accumulated average strategy.
+  Return:
+    - Vanilla: average strategy at root.
+    - PCFR+: last-iterate strategy at root.
+
+PCFR+ deviation from vanilla: at each infoset visit, strategy =
+[z + previous_regret]^+ / ||·||_1 where z is the thresholded cumulative
+regret and previous_regret is the regret vector observed at the most
+recent visit to this infoset. Predicts next loss equals previous loss
+(simplest and Obscuro's choice).
 
 Pragmatic relaxations (see ``engine-deep-cfr-feasibility.md``):
 
@@ -79,8 +96,15 @@ class _CFRState:
     regrets: dict = field(default_factory=lambda: defaultdict(lambda: defaultdict(float)))
     # info_set_id -> {action -> cumulative strategy probability}
     strategy_sum: dict = field(default_factory=lambda: defaultdict(lambda: defaultdict(float)))
+    # info_set_id -> {action -> regret observed at last visit} (PCFR+ only)
+    last_regret: dict = field(default_factory=lambda: defaultdict(lambda: defaultdict(float)))
+    # info_set_id -> {action -> probability} of the last strategy played
+    # at this infoset (PCFR+ last-iterate output)
+    last_strategy: dict = field(default_factory=lambda: defaultdict(lambda: defaultdict(float)))
     # set during traversal
     traversing_player: Player | None = None
+    # If True: use PCFR+ predictive update + return last iterate at root.
+    predictive: bool = False
 
 
 def _current_strategy(
@@ -90,10 +114,23 @@ def _current_strategy(
 ) -> list[float]:
     """Regret-matching: action probabilities ∝ positive regret.
 
-    Falls back to uniform when no action has positive regret.
+    For PCFR+ (``state.predictive=True``), uses the predictive variant:
+    ``θ = [z + previous_regret]^+`` where ``z`` is cumulative thresholded
+    regret and ``previous_regret`` is the regret vector observed at the
+    most recent visit to this infoset. Falls back to plain ``[z]^+`` on
+    the first visit (no prediction available).
+
+    Both variants fall back to uniform when no action has positive
+    (predicted) cumulative regret.
     """
     regrets = state.regrets[info_set_id]
-    positive = [max(0.0, regrets.get(a, 0.0)) for a in actions]
+    if state.predictive:
+        prev = state.last_regret.get(info_set_id, {})
+        positive = [
+            max(0.0, regrets.get(a, 0.0) + prev.get(a, 0.0)) for a in actions
+        ]
+    else:
+        positive = [max(0.0, regrets.get(a, 0.0)) for a in actions]
     total = sum(positive)
     if total > 0.0:
         return [r / total for r in positive]
@@ -146,9 +183,23 @@ def _cfr_traverse(node, state: _CFRState) -> float:
             action_values[i] = _cfr_traverse(child, state)
         node_value = sum(s * v for s, v in zip(strategy, action_values))
         # Accumulate regrets + strategy
-        for i, action in enumerate(actions):
-            state.regrets[info_set_id][action] += action_values[i] - node_value
-            state.strategy_sum[info_set_id][action] += strategy[i]
+        if state.predictive:
+            # RM+ thresholded update: z := [z + r]^+. Also stash the
+            # raw regret vector for the NEXT visit's prediction term.
+            for i, action in enumerate(actions):
+                r = action_values[i] - node_value
+                cur = state.regrets[info_set_id].get(action, 0.0)
+                state.regrets[info_set_id][action] = max(0.0, cur + r)
+                state.last_regret[info_set_id][action] = r
+                state.last_strategy[info_set_id][action] = strategy[i]
+            # PCFR+ uses last-iterate, but we still accumulate
+            # strategy_sum for diagnostics + parity with vanilla.
+            for i, action in enumerate(actions):
+                state.strategy_sum[info_set_id][action] += strategy[i]
+        else:
+            for i, action in enumerate(actions):
+                state.regrets[info_set_id][action] += action_values[i] - node_value
+                state.strategy_sum[info_set_id][action] += strategy[i]
         return node_value
 
     # Opp node: sample one action according to opp's current strategy
@@ -176,7 +227,11 @@ def _rollout_with_avg_strategy(
     state: _CFRState,
     perspective: Player,
 ) -> float:
-    """One rollout sampling from accumulated average strategies.
+    """One rollout sampling from accumulated strategies.
+
+    Vanilla CFR samples from the *average* strategy (Nash convergent in
+    the limit). PCFR+ samples from the *last iterate* (which itself has
+    last-iterate convergence under PCFR+).
 
     Chance nodes sample one outcome weighted by its probability.
     """
@@ -193,7 +248,19 @@ def _rollout_with_avg_strategy(
     actions = node.legal_moves()
     if not actions:
         return 0.0
-    probs = _average_strategy(node.info_set_id(), actions, state)
+    info_set_id = node.info_set_id()
+    if state.predictive:
+        last = state.last_strategy.get(info_set_id, {})
+        if last:
+            raw = [last.get(a, 0.0) for a in actions]
+            total = sum(raw)
+            probs = [r / total for r in raw] if total > 0 else _current_strategy(
+                info_set_id, actions, state
+            )
+        else:
+            probs = _current_strategy(info_set_id, actions, state)
+    else:
+        probs = _average_strategy(info_set_id, actions, state)
     chosen_idx = _sample(probs, state.rng)
     return _rollout_with_avg_strategy(node.apply(actions[chosen_idx]), state, perspective)
 
@@ -207,6 +274,7 @@ def solve_subgame(
     value_estimate_samples: int = 200,
     players: tuple[Player, Player] | None = None,
     rng: random.Random | None = None,
+    predictive: bool = False,
 ) -> SubgameSolution:
     """Solve a subgame rooted at ``root`` with tabular CFR + external sampling.
 
@@ -224,13 +292,16 @@ def solve_subgame(
         regrets haven't settled.
     value_estimate_samples : int
         Monte-Carlo rollouts used to estimate ``value_at_root`` under the
-        accumulated average strategy.
+        accumulated average strategy (vanilla) or last iterate (PCFR+).
     players : (player_a, player_b)
         The two players in the game. Defaults to ``(root.to_move,
         not root.to_move)``; override for game types where ``not`` isn't
         the right inversion.
     rng : random.Random
         RNG for sampling. Defaults to a fresh ``random.Random(0)``.
+    predictive : bool
+        If True, use PCFR+ (predictive regret-matching+, last-iterate
+        output). If False (default), use vanilla CFR (average iterate).
     """
     rng = rng or random.Random(0)
     root_is_chance = getattr(root, "is_chance", False)
@@ -241,21 +312,43 @@ def solve_subgame(
             )
         players = (root.to_move, not root.to_move)
 
-    state = _CFRState(depth_bound=depth, leaf_eval=leaf_eval, rng=rng)
+    state = _CFRState(
+        depth_bound=depth,
+        leaf_eval=leaf_eval,
+        rng=rng,
+        predictive=predictive,
+    )
 
     for _ in range(iterations):
         for traversing_player in players:
             state.traversing_player = traversing_player
             _cfr_traverse(root, state)
 
-    # Extract average strategy at root (only meaningful for decision-node roots)
+    # Extract strategy at root (only meaningful for decision-node roots).
+    # PCFR+ uses last-iterate (Farina et al. 2021); vanilla uses average.
     if root_is_chance:
         strategy_at_root: dict = {}
     else:
         root_info_set = root.info_set_id()
         root_actions = root.legal_moves()
-        avg_strat = _average_strategy(root_info_set, root_actions, state)
-        strategy_at_root = dict(zip(root_actions, avg_strat))
+        if predictive:
+            # Last iterate: use the most-recent strategy at the root
+            # infoset. Fall back to current regret-matching read if
+            # the root was somehow never visited.
+            last = state.last_strategy.get(root_info_set, {})
+            if last:
+                root_strat = [last.get(a, 0.0) for a in root_actions]
+                total = sum(root_strat)
+                if total > 0:
+                    root_strat = [s / total for s in root_strat]
+                else:
+                    root_strat = _current_strategy(root_info_set, root_actions, state)
+            else:
+                root_strat = _current_strategy(root_info_set, root_actions, state)
+            strategy_at_root = dict(zip(root_actions, root_strat))
+        else:
+            avg_strat = _average_strategy(root_info_set, root_actions, state)
+            strategy_at_root = dict(zip(root_actions, avg_strat))
 
     # Estimate root value via Monte-Carlo rollouts under avg strategies.
     # When root is a chance node, value is estimated from players[0]'s POV
