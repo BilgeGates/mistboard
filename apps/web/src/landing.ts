@@ -1747,48 +1747,15 @@ function buildFaq(): HTMLElement {
   heading.className = 'site-section-heading';
   heading.textContent = 'FAQ';
 
-  const intro = aboutParagraph([
-    'For anything not answered here, ping ',
-    aboutLink('Contact', '/contact'),
-    '.',
-  ]);
-
   const q1 = aboutSubheading('What is dark chess?');
   const a1 = aboutParagraph([
-    'Hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark. The game ends when a king is captured. ',
-    aboutLink('Learn', '/learn'),
-    ' walks through it.',
+    'Hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark, so an opponent’s pieces and moves stay hidden until your pieces can see them. The game ends when a king is captured. The ',
+    aboutLink('canonical reference', '/articles/fog-of-war-rules'),
+    ' has the full rules.',
   ]);
 
-  const q2 = aboutSubheading('How do I start a game?');
+  const q2 = aboutSubheading('How do I report a bug or get in touch?');
   const a2 = aboutParagraph([
-    'From the home page, create a room and share the link, join a lobby for a random opponent, or play the engine. No account needed.',
-  ]);
-
-  const q3 = aboutSubheading('Why can’t I see my opponent’s pieces or moves?');
-  const a3 = aboutParagraph([
-    'That’s the game. You only see squares your own pieces can reach. The filtering happens on the server, so an opponent’s hidden pieces and moves never reach your browser until your pieces can see them.',
-  ]);
-
-  const q4 = aboutSubheading('Are games rated?');
-  const a4 = aboutParagraph([
-    'Not yet. Mistboard is casual-only while account UX and anti-abuse work catch up. The rating system exists in code but is dormant until then.',
-  ]);
-
-  const q5 = aboutSubheading('What is Draft960?');
-  const a5 = aboutParagraph([
-    'A pregame variant where each side drafts their own back rank before the game starts. The ',
-    aboutLink('Draft960 article', '/articles/draft960'),
-    ' has the details.',
-  ]);
-
-  const q6 = aboutSubheading('Can I play against the engine?');
-  const a6 = aboutParagraph([
-    'Yes, at 3+2. The dark-chess engine is in active development and open source. It will get stronger over time.',
-  ]);
-
-  const q7 = aboutSubheading('How do I report a bug?');
-  const a7 = aboutParagraph([
     'File an issue on ',
     aboutExternalLink('GitHub', GITHUB_URL),
     ' or send a note via ',
@@ -1798,14 +1765,8 @@ function buildFaq(): HTMLElement {
 
   section.append(
     heading,
-    intro,
     q1, a1,
     q2, a2,
-    q3, a3,
-    q4, a4,
-    q5, a5,
-    q6, a6,
-    q7, a7,
   );
   return section;
 }
