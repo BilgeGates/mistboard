@@ -73,6 +73,24 @@ export function advanceClock(
   };
 }
 
+// Single source of truth for the clock transition a move produces. Arms the
+// clock on the first full move (frozen-pregame), otherwise advances the active
+// clock. Both the live move handlers (room-manager) and the event reducer
+// (events) MUST go through this — computing the clock in only one of them lets
+// the two diverge (a live handler that just advanceClock()'d never armed the
+// clock, so it stayed frozen for the whole game).
+export function nextClockForMove(
+  clock: ClockState | undefined,
+  at: number,
+  movedColor: Color,
+  prevMoveNumber: number,
+  nextStatus: GameStatus,
+): ClockState | undefined {
+  return isClockFrozenPregame(clock)
+    ? armClockOnFirstMoves(clock, at, movedColor, prevMoveNumber, nextStatus)
+    : advanceClock(clock, at, movedColor, nextStatus);
+}
+
 export function expireClock(
   clock: ClockState | undefined,
   at: number,

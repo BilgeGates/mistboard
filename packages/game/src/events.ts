@@ -6,12 +6,10 @@ import {
   createChess960InitialBoardForSides,
 } from './chess960.js';
 import {
-  advanceClock,
-  armClockOnFirstMoves,
   createClock,
   expireClock,
   freezeClock,
-  isClockFrozenPregame,
+  nextClockForMove,
   unfreezeClock,
 } from './clocks.js';
 import type {
@@ -292,15 +290,13 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
     const nextState = variantForId(projection.variant).applyMove(projection.state, event.move);
     if (nextState === projection.state) return projection;
 
-    const nextClock = isClockFrozenPregame(projection.state.clock)
-      ? armClockOnFirstMoves(
-          projection.state.clock,
-          event.at,
-          event.color,
-          prevMoveNumber,
-          nextState.status,
-        )
-      : advanceClock(projection.state.clock, event.at, event.color, nextState.status);
+    const nextClock = nextClockForMove(
+      projection.state.clock,
+      event.at,
+      event.color,
+      prevMoveNumber,
+      nextState.status,
+    );
 
     return {
       ...projection,

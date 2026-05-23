@@ -1,5 +1,4 @@
 import {
-  advanceClock,
   type Chess960Start,
   type Color,
   capturedRoleFor,
@@ -11,6 +10,7 @@ import {
   type GameProjection,
   isGameEndReason,
   type Move,
+  nextClockForMove,
   type PieceRole,
   replayGameEvents,
   type Square,
@@ -926,7 +926,13 @@ export async function playMove(
     requestedMove,
   );
   if (nextState === room.projection.state) return;
-  const nextClock = advanceClock(room.projection.state.clock, now, moveColor, nextState.status);
+  const nextClock = nextClockForMove(
+    room.projection.state.clock,
+    now,
+    moveColor,
+    room.projection.state.moveNumber,
+    nextState.status,
+  );
   const captured = capturedRoleFor(room.projection.state, nextState.lastMove ?? requestedMove);
 
   const fromSeq = room.events.length;
@@ -1103,10 +1109,11 @@ export async function playRandomEngineMoveIfReady(
   if (!move) return;
   const nextState = variantForId(room.projection.variant).applyMove(room.projection.state, move);
   if (nextState === room.projection.state) return;
-  const nextClock = advanceClock(
+  const nextClock = nextClockForMove(
     room.projection.state.clock,
     decisionAt,
     engineSeat,
+    room.projection.state.moveNumber,
     nextState.status,
   );
   const captured = capturedRoleFor(room.projection.state, nextState.lastMove ?? move);

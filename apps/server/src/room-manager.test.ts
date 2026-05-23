@@ -189,6 +189,33 @@ test('playMove: move after game over is rejected', async () => {
   );
 });
 
+test('playMove: clock arms (white ticking) after both first moves, via the live handler', async () => {
+  // Regression: the live move handler must arm the clock on the first full move,
+  // not just advanceClock(). Prior coverage only replayed reconstructed events
+  // (the reducer path, which armed correctly) — the handler attached its own
+  // advanceClock() result, which never arms, so the clock stayed frozen for the
+  // whole live game. Drive playMove directly (solo client moves both colors).
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'clk-arm', variant: 'dark-chess', offer: [] },
+    { type: 'clock-started', at: 4, roomId: 'clk-arm', clock: createClock(4, 180_000, 2_000) },
+  ];
+  const room = makeRoom('clk-arm', 'dark-chess', events);
+  const client = makeClient('solo-c', 'white', /* solo= */ true, 'clk-arm');
+  room.clients.add(client);
+  const ctx = makeCtx();
+
+  // Ply 1 (white's first move): clock stays frozen (abort window), white gets increment.
+  await playMove(ctx, room, client, { type: 'move', from: 'e2', to: 'e4' });
+  assert.equal(room.projection.state.clock?.activeColor, null, 'frozen through ply 1');
+  assert.equal(room.projection.state.clock?.remainingMs.white, 182_000, 'white increment on first move');
+
+  // Ply 2 (black's first move): clock arms, white to move begins ticking.
+  await playMove(ctx, room, client, { type: 'move', from: 'e7', to: 'e5' });
+  assert.equal(room.projection.state.clock?.activeColor, 'white', 'armed for white after ply 2');
+  assert.notEqual(room.projection.state.clock?.runningSince, null, 'runningSince set on arm');
+  assert.equal(room.projection.state.clock?.remainingMs.black, 182_000, 'black increment on first move');
+});
+
 // ── appendEvent ────────────────────────────────────────────────────────────────
 
 test('appendEvent: pushes event to room.events', async () => {
