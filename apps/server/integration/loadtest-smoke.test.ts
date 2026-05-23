@@ -137,6 +137,12 @@ function isActionable(msg: StateMessage, actedOnMove: number): boolean {
   if (status.type === 'finished') return true;
   if (status.type !== 'playing') return false;
   if (status.turn !== 'white') return false;
+  // Under the Phase 3 delta protocol, multi-event broadcasts (e.g. own
+  // move followed immediately by engine move) emit one event-appended per
+  // event, all carrying the same projected state. We can also see transient
+  // frames whose state.legalMoves is empty (game-start hand-off, mid-batch
+  // states). Skip those — we want a frame where white can actually move.
+  if ((msg.state?.legalMoves?.length ?? 0) === 0) return false;
   const mn = msg.state?.moveNumber ?? -1;
   return mn > actedOnMove;
 }
