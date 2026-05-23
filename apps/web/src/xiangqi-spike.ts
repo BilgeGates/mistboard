@@ -143,6 +143,38 @@ function fogLayer(view: XiangqiPlayerView, perspective: XiangqiColor): string {
   return parts.join('');
 }
 
+// Inverse fog: cover the whole board with a continuous fog overlay, then cut
+// portholes of clarity at every visible intersection via SVG mask. Reads as
+// "flashlight beams through mist" — visually heavier than the dot-per-cell
+// approach and closer to how chess tile fog feels.
+//
+// Cutout shape: square (CELL × CELL) centered on each intersection. Adjacent
+// visible intersections tile into continuous rectangular reveals, which reads
+// as connected vision rather than isolated portholes.
+function fogLayerMask(
+  view: XiangqiPlayerView,
+  perspective: XiangqiColor,
+  maskKey: string,
+): string {
+  const half = CELL / 2;
+  const cutouts: string[] = [];
+  for (const sq of view.visibleSquares) {
+    const file = 'abcdefghi'.indexOf(sq[0]);
+    const rank = Number(sq.slice(1));
+    const { x, y } = intersection(file, rank, perspective);
+    cutouts.push(`<rect x="${x - half}" y="${y - half}" width="${CELL}" height="${CELL}" fill="black"/>`);
+  }
+  return `
+    <defs>
+      <mask id="xq-fog-mask-${maskKey}">
+        <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="white"/>
+        ${cutouts.join('')}
+      </mask>
+    </defs>
+    <rect class="xq-fog-mask" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" mask="url(#xq-fog-mask-${maskKey})"/>
+  `;
+}
+
 function selectionRing(selection: XiangqiSquare | null, perspective: XiangqiColor): string {
   if (!selection) return '';
   const { file, rank } = coordOf(selection);
@@ -216,11 +248,232 @@ function clickLayer(perspective: XiangqiColor): string {
   return parts.join('');
 }
 
+type FogStyle = 'dots' | 'mask';
+type BoardStyle = 'intersection' | 'grid';
+
+function fogLayerFor(
+  style: FogStyle,
+  view: XiangqiPlayerView,
+  perspective: XiangqiColor,
+  maskKey: string,
+): string {
+  return style === 'mask' ? fogLayerMask(view, perspective, maskKey) : fogLayer(view, perspective);
+}
+
+// ── Grid-mode geometry (chess-like cells, pieces in cell centers) ──────────
+
+const CELL_W = (WIDTH - 2 * MARGIN) / FILES;
+const CELL_H = (HEIGHT - 2 * MARGIN) / RANKS;
+const GRID_PIECE_SIZE = Math.min(CELL_W, CELL_H) * 0.85;
+
+function cellCenter(file: number, rank: number, perspective: XiangqiColor): { x: number; y: number } {
+  const rDisplay = perspective === 'red' ? RANKS - rank : rank - 1;
+  return {
+    x: MARGIN + file * CELL_W + CELL_W / 2,
+    y: MARGIN + rDisplay * CELL_H + CELL_H / 2,
+  };
+}
+
+function cellRect(file: number, rank: number, perspective: XiangqiColor): { x: number; y: number; w: number; h: number } {
+  const rDisplay = perspective === 'red' ? RANKS - rank : rank - 1;
+  return {
+    x: MARGIN + file * CELL_W,
+    y: MARGIN + rDisplay * CELL_H,
+    w: CELL_W,
+    h: CELL_H,
+  };
+}
+
+function gridCellGrid(perspective: XiangqiColor): string {
+  const parts: string[] = [];
+  // Cell borders
+  for (let f = 0; f < FILES; f++) {
+    for (let r = 1; r <= RANKS; r++) {
+      const { x, y, w, h } = cellRect(f, r, perspective);
+      parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" class="xq-grid-cell"/>`);
+    }
+  }
+  return parts.join('');
+}
+
+function gridPalaceShading(perspective: XiangqiColor): string {
+  // Both palaces: files 3-5 (d-f), ranks 1-3 (red) and 8-10 (black)
+  const palaces = [
+    { fileMin: 3, fileMax: 5, rankMin: 1, rankMax: 3 },
+    { fileMin: 3, fileMax: 5, rankMin: 8, rankMax: 10 },
+  ];
+  const parts: string[] = [];
+  for (const p of palaces) {
+    const tl = cellRect(p.fileMin, p.rankMax, perspective);
+    const br = cellRect(p.fileMax, p.rankMin, perspective);
+    const x = Math.min(tl.x, br.x);
+    const y = Math.min(tl.y, br.y);
+    const w = Math.max(tl.x + tl.w, br.x + br.w) - x;
+    const h = Math.max(tl.y + tl.h, br.y + br.h) - y;
+    parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" class="xq-grid-palace"/>`);
+    // Palace diagonals (just two crossed lines across the 3x3 area)
+    parts.push(`<line x1="${x}" y1="${y}" x2="${x + w}" y2="${y + h}" class="xq-grid-palace-line"/>`);
+    parts.push(`<line x1="${x + w}" y1="${y}" x2="${x}" y2="${y + h}" class="xq-grid-palace-line"/>`);
+  }
+  return parts.join('');
+}
+
+function gridRiverLabel(perspective: XiangqiColor): string {
+  // River is the boundary between rank 5 and rank 6 cells. Labels sit on
+  // the middle two rows of cells (ranks 5 and 6).
+  const r5 = cellCenter(4, 5, perspective);
+  const r6 = cellCenter(4, 6, perspective);
+  const midY = (r5.y + r6.y) / 2;
+  const leftX = cellCenter(2, perspective === 'red' ? 5 : 6, perspective).x;
+  const rightX = cellCenter(6, perspective === 'red' ? 5 : 6, perspective).x;
+  const left = perspective === 'red' ? '楚 河' : '漢 界';
+  const right = perspective === 'red' ? '漢 界' : '楚 河';
+  return [
+    `<text x="${leftX}" y="${midY}" class="xq-river-label">${left}</text>`,
+    `<text x="${rightX}" y="${midY}" class="xq-river-label">${right}</text>`,
+  ].join('');
+}
+
+function gridFogMask(
+  view: XiangqiPlayerView,
+  perspective: XiangqiColor,
+  maskKey: string,
+): string {
+  const cutouts: string[] = [];
+  for (const sq of view.visibleSquares) {
+    const file = 'abcdefghi'.indexOf(sq[0]);
+    const rank = Number(sq.slice(1));
+    const { x, y, w, h } = cellRect(file, rank, perspective);
+    cutouts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black"/>`);
+  }
+  return `
+    <defs>
+      <mask id="xq-grid-fog-${maskKey}">
+        <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="white"/>
+        ${cutouts.join('')}
+      </mask>
+    </defs>
+    <rect class="xq-fog-mask" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" mask="url(#xq-grid-fog-${maskKey})"/>
+  `;
+}
+
+function gridPiecesLayer(view: XiangqiPlayerView, perspective: XiangqiColor): string {
+  const parts: string[] = [];
+  for (const sq in view.board) {
+    const entry = view.board[sq as XiangqiSquare];
+    if (!entry) continue;
+    const file = 'abcdefghi'.indexOf(sq[0]);
+    const rank = Number(sq.slice(1));
+    const { x, y } = cellCenter(file, rank, perspective);
+    parts.push(renderXiangqiPiece(entry.piece, {
+      x: x - GRID_PIECE_SIZE / 2,
+      y: y - GRID_PIECE_SIZE / 2,
+      size: GRID_PIECE_SIZE,
+      shrouded: entry.shrouded,
+      className: 'xq-piece',
+    }));
+  }
+  return parts.join('');
+}
+
+function gridLastMoveMarkers(view: XiangqiPlayerView, perspective: XiangqiColor): string {
+  const move = view.lastMove;
+  if (!move) return '';
+  const parts: string[] = [];
+  for (const sq of [move.from, move.to]) {
+    if (!view.visibleSquares.includes(sq)) continue;
+    const { file, rank } = coordOf(sq);
+    const { x, y, w, h } = cellRect(file, rank, perspective);
+    parts.push(`<rect class="xq-grid-lastmove" x="${x}" y="${y}" width="${w}" height="${h}"/>`);
+  }
+  return parts.join('');
+}
+
+function gridSelectionRing(selection: XiangqiSquare | null, perspective: XiangqiColor): string {
+  if (!selection) return '';
+  const { file, rank } = coordOf(selection);
+  const { x, y, w, h } = cellRect(file, rank, perspective);
+  return `<rect class="xq-grid-selection" x="${x + 2}" y="${y + 2}" width="${w - 4}" height="${h - 4}"/>`;
+}
+
+function gridMoveHints(
+  selection: XiangqiSquare | null,
+  state: XiangqiGameState,
+  perspective: XiangqiColor,
+): string {
+  if (!selection || state.status.type !== 'playing') return '';
+  const moves = getLegalMovesFrom(state, selection);
+  return moves.map((m) => {
+    const c = coordOf(m.to);
+    const { x, y } = cellCenter(c.file, c.rank, perspective);
+    const { w, h } = cellRect(c.file, c.rank, perspective);
+    const occupied = state.board[m.to] !== undefined;
+    return occupied
+      ? `<rect class="xq-grid-hint-capture" x="${x - w / 2 + 3}" y="${y - h / 2 + 3}" width="${w - 6}" height="${h - 6}"/>`
+      : `<circle class="xq-hint-dot" cx="${x}" cy="${y}" r="7"/>`;
+  }).join('');
+}
+
+function gridClickLayer(perspective: XiangqiColor): string {
+  const parts: string[] = [];
+  for (let f = 0; f < FILES; f++) {
+    for (let r = 1; r <= RANKS; r++) {
+      const sq = squareOf(f, r);
+      const { x, y, w, h } = cellRect(f, r, perspective);
+      parts.push(`<rect class="xq-hit" data-square="${sq}" x="${x}" y="${y}" width="${w}" height="${h}"/>`);
+    }
+  }
+  return parts.join('');
+}
+
+function renderBoardSvgGrid(
+  view: XiangqiPlayerView,
+  perspective: XiangqiColor,
+  state: XiangqiGameState,
+  selection: XiangqiSquare | null,
+  maskKey: string,
+): string {
+  return [
+    `<svg class="xq-board-svg xq-board-grid" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">`,
+    `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" class="xq-board-bg"/>`,
+    `<g class="xq-grid-cells">${gridCellGrid(perspective)}</g>`,
+    `<g class="xq-grid-palace-g">${gridPalaceShading(perspective)}</g>`,
+    `<g class="xq-river-text">${gridRiverLabel(perspective)}</g>`,
+    `<g class="xq-fog-layer">${gridFogMask(view, perspective, maskKey)}</g>`,
+    `<g class="xq-lastmove-layer">${gridLastMoveMarkers(view, perspective)}</g>`,
+    `<g class="xq-selection">${gridSelectionRing(selection, perspective)}</g>`,
+    `<g class="xq-hints">${gridMoveHints(selection, state, perspective)}</g>`,
+    `<g class="xq-pieces">${gridPiecesLayer(view, perspective)}</g>`,
+    `<g class="xq-clicks">${gridClickLayer(perspective)}</g>`,
+    `</svg>`,
+  ].join('');
+}
+
+function renderBoardSvgGridReadOnly(
+  view: XiangqiPlayerView,
+  perspective: XiangqiColor,
+  maskKey: string,
+): string {
+  return [
+    `<svg class="xq-board-svg xq-board-grid xq-board-readonly" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">`,
+    `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" class="xq-board-bg"/>`,
+    `<g class="xq-grid-cells">${gridCellGrid(perspective)}</g>`,
+    `<g class="xq-grid-palace-g">${gridPalaceShading(perspective)}</g>`,
+    `<g class="xq-river-text">${gridRiverLabel(perspective)}</g>`,
+    `<g class="xq-fog-layer">${gridFogMask(view, perspective, maskKey)}</g>`,
+    `<g class="xq-lastmove-layer">${gridLastMoveMarkers(view, perspective)}</g>`,
+    `<g class="xq-pieces">${gridPiecesLayer(view, perspective)}</g>`,
+    `</svg>`,
+  ].join('');
+}
+
 function renderBoardSvg(
   view: XiangqiPlayerView,
   perspective: XiangqiColor,
   state: XiangqiGameState,
   selection: XiangqiSquare | null,
+  fogStyle: FogStyle,
+  maskKey: string,
 ): string {
   return [
     `<svg class="xq-board-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">`,
@@ -229,7 +482,7 @@ function renderBoardSvg(
     `<g class="xq-palace">${palaceCrosses(perspective)}</g>`,
     `<g class="xq-marks">${positionMarks(perspective)}</g>`,
     `<g class="xq-river-text">${riverLabel(perspective)}</g>`,
-    `<g class="xq-fog-layer">${fogLayer(view, perspective)}</g>`,
+    `<g class="xq-fog-layer">${fogLayerFor(fogStyle, view, perspective, maskKey)}</g>`,
     `<g class="xq-lastmove-layer">${lastMoveMarkers(view, perspective)}</g>`,
     `<g class="xq-selection">${selectionRing(selection, perspective)}</g>`,
     `<g class="xq-hints">${moveHints(selection, state, perspective)}</g>`,
@@ -237,6 +490,54 @@ function renderBoardSvg(
     `<g class="xq-clicks">${clickLayer(perspective)}</g>`,
     `</svg>`,
   ].join('');
+}
+
+// Read-only renderer for the triptych dev view. Drops selection, hints, and
+// the click layer — these boards are observers, not playable surfaces.
+function renderBoardSvgReadOnly(
+  view: XiangqiPlayerView,
+  perspective: XiangqiColor,
+  fogStyle: FogStyle,
+  maskKey: string,
+): string {
+  return [
+    `<svg class="xq-board-svg xq-board-readonly" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">`,
+    `<rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" class="xq-board-bg"/>`,
+    `<g class="xq-grid">${gridLines()}</g>`,
+    `<g class="xq-palace">${palaceCrosses(perspective)}</g>`,
+    `<g class="xq-marks">${positionMarks(perspective)}</g>`,
+    `<g class="xq-river-text">${riverLabel(perspective)}</g>`,
+    `<g class="xq-fog-layer">${fogLayerFor(fogStyle, view, perspective, maskKey)}</g>`,
+    `<g class="xq-lastmove-layer">${lastMoveMarkers(view, perspective)}</g>`,
+    `<g class="xq-pieces">${piecesLayer(view, perspective)}</g>`,
+    `</svg>`,
+  ].join('');
+}
+
+function triptychHtml(s: SpikeState): string {
+  const redView = getPlayerView(s.game, 'red', s.mode);
+  const godView = buildGodView(s.game, s.mode);
+  const blackView = getPlayerView(s.game, 'black', s.mode);
+  const render = (view: XiangqiPlayerView, perspective: XiangqiColor, key: string) =>
+    s.boardStyle === 'grid'
+      ? renderBoardSvgGridReadOnly(view, perspective, key)
+      : renderBoardSvgReadOnly(view, perspective, s.fogStyle, key);
+  return `
+    <div class="xq-triptych">
+      <div class="xq-triptych-cell">
+        <div class="xq-triptych-label">Red view</div>
+        ${render(redView, 'red', 'tri-red')}
+      </div>
+      <div class="xq-triptych-cell">
+        <div class="xq-triptych-label">Server truth</div>
+        ${render(godView, 'red', 'tri-god')}
+      </div>
+      <div class="xq-triptych-cell">
+        <div class="xq-triptych-label">Black view</div>
+        ${render(blackView, 'black', 'tri-black')}
+      </div>
+    </div>
+  `;
 }
 
 // ── God view: bypass FoW filter ────────────────────────────────────────────
@@ -278,6 +579,8 @@ interface SpikeState {
   // a ply 0..history.length; `game` is always the state at `cursor`.
   history: XiangqiMove[];
   cursor: number;
+  fogStyle: FogStyle;
+  boardStyle: BoardStyle;
 }
 
 function freshState(): SpikeState {
@@ -288,6 +591,8 @@ function freshState(): SpikeState {
     selection: null,
     history: [],
     cursor: 0,
+    fogStyle: 'mask',
+    boardStyle: 'intersection',
   };
 }
 
@@ -404,6 +709,16 @@ function controlsHtml(s: SpikeState): string {
         ${modeBtn('D', 'D · screen shrouded, target full')}
       </div>
       <div class="xq-control-row">
+        <span class="xq-control-label">Fog style</span>
+        <button data-fog="dots" class="xq-btn${s.fogStyle === 'dots' ? ' on' : ''}">Dots (current)</button>
+        <button data-fog="mask" class="xq-btn${s.fogStyle === 'mask' ? ' on' : ''}">Mask (inverse)</button>
+      </div>
+      <div class="xq-control-row">
+        <span class="xq-control-label">Board style</span>
+        <button data-board="intersection" class="xq-btn${s.boardStyle === 'intersection' ? ' on' : ''}">Intersection (traditional)</button>
+        <button data-board="grid" class="xq-btn${s.boardStyle === 'grid' ? ' on' : ''}">Grid (chess-style)</button>
+      </div>
+      <div class="xq-control-row">
         <span class="xq-control-label">Bot game</span>
         <button data-bots="random,random" class="xq-btn">Random vs Random</button>
         <button data-bots="hand-tuned,hand-tuned" class="xq-btn">Tuned vs Tuned</button>
@@ -464,7 +779,15 @@ function rerender(): void {
     <p class="xq-spike-sub">Phase A · interactive · ${state.perspective} POV · cannon-vision mode ${state.mode}</p>
     ${controlsHtml(state)}
     ${statusHtml(state)}
-    <div class="xq-board-wrap">${renderBoardSvg(view, orient, state.game, state.selection)}</div>
+    <div class="xq-board-wrap">${
+      state.boardStyle === 'grid'
+        ? renderBoardSvgGrid(view, orient, state.game, state.selection, 'main')
+        : renderBoardSvg(view, orient, state.game, state.selection, state.fogStyle, 'main')
+    }</div>
+    <div class="xq-triptych-section">
+      <div class="xq-triptych-heading">All POVs</div>
+      ${triptychHtml(state)}
+    </div>
   `;
   root.append(container);
   attachHandlers(container);
@@ -494,6 +817,22 @@ function attachHandlers(container: HTMLElement): void {
       if (!active) return;
       const mode = btn.dataset.mode as XiangqiCannonVisionMode;
       active.state = { ...active.state, mode };
+      rerender();
+    });
+  });
+  container.querySelectorAll<HTMLElement>('[data-fog]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!active) return;
+      const fogStyle = btn.dataset.fog as FogStyle;
+      active.state = { ...active.state, fogStyle };
+      rerender();
+    });
+  });
+  container.querySelectorAll<HTMLElement>('[data-board]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!active) return;
+      const boardStyle = btn.dataset.board as BoardStyle;
+      active.state = { ...active.state, boardStyle };
       rerender();
     });
   });
@@ -619,6 +958,43 @@ const STYLE = `
     height: auto;
     background: transparent;
   }
+  .xq-triptych-section {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #d1d1d1;
+  }
+  .xq-triptych-heading {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b6b6b;
+    margin-bottom: 0.75rem;
+  }
+  .xq-triptych {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+  }
+  .xq-triptych-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .xq-triptych-label {
+    font-size: 0.8rem;
+    color: #6b6b6b;
+    font-weight: 500;
+  }
+  .xq-triptych .xq-board-readonly {
+    width: 100%;
+    height: auto;
+  }
+  @media (max-width: 720px) {
+    .xq-triptych { grid-template-columns: 1fr; gap: 1rem; }
+    .xq-triptych-cell { max-width: 360px; margin: 0 auto; }
+  }
   .xq-board-bg { fill: #f5dca8; }
   .xq-grid line, .xq-palace line, .xq-marks line { stroke: #5a3a14; }
   .xq-grid line, .xq-palace line { stroke-width: 1.2; }
@@ -632,6 +1008,13 @@ const STYLE = `
     letter-spacing: 4px;
   }
   .xq-fog { fill: #2a2218; opacity: 0.55; }
+  .xq-fog-mask { fill: #2a2218; opacity: 0.7; }
+  .xq-grid-cell { fill: #f5dca8; stroke: #5a3a14; stroke-width: 0.8; }
+  .xq-grid-palace { fill: #ecc888; opacity: 0.55; }
+  .xq-grid-palace-line { stroke: #5a3a14; stroke-width: 0.8; opacity: 0.7; }
+  .xq-grid-lastmove { fill: #f59e0b; opacity: 0.28; }
+  .xq-grid-selection { fill: none; stroke: #f59e0b; stroke-width: 3; }
+  .xq-grid-hint-capture { fill: none; stroke: #b91c1c; stroke-width: 3; opacity: 0.85; stroke-dasharray: 5 4; }
   .xq-lastmove { fill: #f59e0b; opacity: 0.22; }
   .xq-selection-ring { fill: none; stroke: #f59e0b; stroke-width: 3; }
   .xq-hint-dot { fill: #15803d; opacity: 0.85; }
@@ -640,7 +1023,10 @@ const STYLE = `
 `;
 
 export function mountXiangqiSpike(root: HTMLElement): void {
-  active = { root, state: freshState() };
+  // Auto-load a tuned-vs-tuned game so the triptych lands on real positions
+  // immediately. Cursor at 0 = initial position; step forward to walk through.
+  const history = runBotGame('hand-tuned', 'hand-tuned');
+  active = { root, state: { ...freshState(), history, cursor: 0 } };
   rerender();
 }
 
