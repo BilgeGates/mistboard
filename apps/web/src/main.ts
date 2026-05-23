@@ -58,6 +58,8 @@ const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsSource = path === '/source' || page === 'source';
 const wantsContact = path === '/contact' || page === 'contact';
+const wantsFaq = path === '/faq' || page === 'faq';
+const wantsTerms = path === '/terms' || page === 'terms';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
@@ -136,6 +138,12 @@ if (replaySample) {
 } else if (wantsContact) {
   setTitle('Contact');
   void mountOrReport(() => import('./landing.js').then(({ mountContact }) => mountContact(appRoot)));
+} else if (wantsFaq) {
+  setTitle('FAQ');
+  void mountOrReport(() => import('./landing.js').then(({ mountFaq }) => mountFaq(appRoot)));
+} else if (wantsTerms) {
+  setTitle('Terms');
+  void mountOrReport(() => import('./landing.js').then(({ mountTerms }) => mountTerms(appRoot)));
 } else if (path === '/') {
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
 } else {
