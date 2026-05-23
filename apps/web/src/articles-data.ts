@@ -147,12 +147,19 @@ export type Article = {
   sections: ArticleSection[];
 };
 
-// Three distinct Chess960 starting back ranks for the Draft960 pick-screen
-// hero. Each is valid (bishops on opposite-colored squares, king between
-// rooks) and visually distinct from the others.
-const DRAFT960_OFFER_A: PieceRole[] = ['bishop', 'bishop', 'queen', 'knight', 'knight', 'rook', 'king', 'rook'];
+// Three distinct Chess960 back ranks per side for the Draft960 draft section.
+// Each is valid (bishops on opposite-colored squares, king between rooks) and
+// visually distinct. OFFER_A for both sides matches the actual D960 sample
+// game's starting position (NNRKBQRB / RNQKBBRN) so the offer the reader sees
+// in "The draft" is the same one that hits the board in "The starting
+// position".
+const DRAFT960_OFFER_A: PieceRole[] = ['knight', 'knight', 'rook', 'king', 'bishop', 'queen', 'rook', 'bishop'];
 const DRAFT960_OFFER_B: PieceRole[] = ['rook', 'knight', 'bishop', 'bishop', 'king', 'queen', 'knight', 'rook'];
 const DRAFT960_OFFER_C: PieceRole[] = ['queen', 'rook', 'bishop', 'knight', 'knight', 'bishop', 'king', 'rook'];
+
+const DRAFT960_BLACK_OFFER_A: PieceRole[] = ['rook', 'knight', 'queen', 'king', 'bishop', 'bishop', 'rook', 'knight'];
+const DRAFT960_BLACK_OFFER_B: PieceRole[] = ['bishop', 'bishop', 'queen', 'knight', 'knight', 'rook', 'king', 'rook'];
+const DRAFT960_BLACK_OFFER_C: PieceRole[] = ['knight', 'bishop', 'bishop', 'queen', 'rook', 'king', 'knight', 'rook'];
 
 // Starting-position triptych for the Fog of War rules article. Visibility is
 // derived from the canonical fog-of-war variant kernel so the diagram exactly
@@ -624,12 +631,20 @@ const D960_FULL_POSITIONS = D960_FULL_STATES.map((state, i) => {
   };
 });
 
-// Fog for the pick-screen boards — opponent's half of the board is always hidden
+// Fog for the draft-section offer boards. White's offers fog the top half;
+// black's offers fog the bottom half so each side's view mirrors the other.
 const PICK_SCREEN_FOG: Square[] = [
   'a5', 'b5', 'c5', 'd5', 'e5', 'f5', 'g5', 'h5',
   'a6', 'b6', 'c6', 'd6', 'e6', 'f6', 'g6', 'h6',
   'a7', 'b7', 'c7', 'd7', 'e7', 'f7', 'g7', 'h7',
   'a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8',
+];
+
+const BLACK_PICK_SCREEN_FOG: Square[] = [
+  'a1', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1',
+  'a2', 'b2', 'c2', 'd2', 'e2', 'f2', 'g2', 'h2',
+  'a3', 'b3', 'c3', 'd3', 'e3', 'f3', 'g3', 'h3',
+  'a4', 'b4', 'c4', 'd4', 'e4', 'f4', 'g4', 'h4',
 ];
 
 // ── Win-condition demo: vs-brian-game-3 final plies ──────────────────────────
@@ -1423,9 +1438,9 @@ export const articles: Article[] = [
   },
   {
     slug: 'draft960',
-    title: 'Draft960: the end of opening theory in dark chess',
+    title: 'Draft960: dark chess with a hidden draft',
     summary:
-      'A variant of dark chess built on Chess960. Each player picks secretly from their own independent set of three starting positions. Two layers of hidden information, and a different board every game.',
+      "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
     status: 'outline',
     audience:
       'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
@@ -1435,11 +1450,11 @@ export const articles: Article[] = [
     },
     sections: [
       {
-        heading: 'The pick',
+        heading: 'The draft',
         blocks: [
           {
             kind: 'paragraph',
-            text: "Each player picks one of three Chess960 back ranks. The picks are independent and sealed — neither side sees the other's offers or choice.",
+            text: "The server deals each player three random Chess960 back ranks. You pick one. Your opponent independently picks one of theirs. The drafts are sealed. Neither side sees the other's offers or choice.",
           },
           {
             kind: 'live-boards',
@@ -1451,17 +1466,25 @@ export const articles: Article[] = [
                 { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_OFFER_C).filter((p) => p.color === 'white')), fogSquares: PICK_SCREEN_FOG, orientation: 'white', label: 'C' },
               ],
             },
-            caption: "Your three offers. Your opponent gets an independent set of three and never sees yours.",
+            caption: 'Your three offers.',
+          } as ArticleBlock,
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'triptych',
+              boards: [
+                { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_BLACK_OFFER_A).filter((p) => p.color === 'black')), fogSquares: BLACK_PICK_SCREEN_FOG, orientation: 'black', label: 'A' },
+                { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_BLACK_OFFER_B).filter((p) => p.color === 'black')), fogSquares: BLACK_PICK_SCREEN_FOG, orientation: 'black', label: 'B' },
+                { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_BLACK_OFFER_C).filter((p) => p.color === 'black')), fogSquares: BLACK_PICK_SCREEN_FOG, orientation: 'black', label: 'C' },
+              ],
+            },
+            caption: "Your opponent gets an independent set of three. Neither side sees the other's.",
           } as ArticleBlock,
         ],
       },
       {
         heading: 'The starting position',
         blocks: [
-          {
-            kind: 'paragraph',
-            text: "Once both players pick, the board fills in: each side's back rank on its first rank, pawns in front. The opponent's back rank stays hidden by fog.",
-          },
           {
             kind: 'live-boards',
             spec: {
@@ -1472,28 +1495,12 @@ export const articles: Article[] = [
                 { board: D960_FULL_STATES[0]!.board, fogSquares: fogFor(D960_FULL_STATES[0]!, 'black'), orientation: 'white', label: "BLACK'S VIEW" },
               ],
             },
+            caption: "Both players picked offer A. Each sees their own back rank. The opponent's stays in fog.",
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: "960 valid Chess960 back ranks × 960 = **921,600** unique Draft960 starts. Standard chess (`RNBQKBNR`, SP518 in the Chess960 numbering) is one of them; the odds of drawing it are 1 in 921,600.",
+            text: "960 × 960 = **921,600** possible starts. Standard chess is one of them.",
           },
-        ],
-      },
-      {
-        heading: 'The reveal',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text: "Each piece moving off the back rank tells you what it was. Knights jump in L-shapes, bishops travel diagonals, rooks slide files and ranks. The reveal happens one move at a time, through fog.",
-          },
-          {
-            kind: 'interactive',
-            widget: 'stepper',
-            spec: {
-              layout: 'triptych',
-              positions: D960_FULL_POSITIONS,
-            },
-          } as ArticleBlock,
         ],
       },
       {
@@ -1501,18 +1508,17 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: "Draft960 is available as a pregame option when creating a private room. Pick your setup, share the link, play.",
+            text: "Open a board, pick Draft960, share the link. No account required.",
           },
           {
             kind: 'cta',
             buttons: [
-              { label: 'Play a friend', href: '/', emphasis: 'primary' },
-              { label: 'Find an opponent', href: '/', emphasis: 'secondary' },
+              { label: 'Play Draft960', href: '/', emphasis: 'primary' },
             ],
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: "New to dark chess? The [rules article](/articles/fog-of-war-rules) covers visibility, king capture, and the edge cases. Start there before your first Draft960 game.",
+            text: "The full source is AGPL-3.0. The variant runs on the same dark chess code path used everywhere on Mistboard.",
           },
         ],
       },
