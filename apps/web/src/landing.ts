@@ -295,6 +295,8 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
 
   const { game, events } = loaded;
   document.title = buildGamePageTitle(game);
+  const exportLinks = buildGameExportLinks(game.roomId, game.variant);
+  if (exportLinks) shell.append(exportLinks);
   await mountReplay(replayRoot, game.roomId, {
     autoplay: false,
     initialPly: initialGamePly(),
@@ -2408,6 +2410,33 @@ function buildNotice(titleText: string, bodyText: string): HTMLElement {
   body.textContent = bodyText;
   notice.append(heading, body);
   return notice;
+}
+
+function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
+  // Draft960 export is deferred until the schema can encode post-draft starting
+  // positions. Hide the section entirely for now to avoid shipping broken PGN.
+  if (variant === 'draft960') return null;
+
+  const section = document.createElement('section');
+  section.className = 'game-export-links';
+
+  const heading = document.createElement('span');
+  heading.className = 'game-export-links-label';
+  heading.textContent = 'Download';
+
+  const encoded = encodeURIComponent(roomId);
+  const pgnLink = document.createElement('a');
+  pgnLink.href = `/api/games/${encoded}/export.pgn`;
+  pgnLink.textContent = 'PGN';
+  pgnLink.setAttribute('download', `mistboard-${roomId}.pgn`);
+
+  const jsonLink = document.createElement('a');
+  jsonLink.href = `/api/games/${encoded}/export.json`;
+  jsonLink.textContent = 'JSON';
+  jsonLink.setAttribute('download', `mistboard-${roomId}.json`);
+
+  section.append(heading, pgnLink, jsonLink);
+  return section;
 }
 
 function renderRecentGames(

@@ -9,6 +9,7 @@ import {
   type VariantId,
 } from '@mistboard/game';
 import * as persistence from './persistence.js';
+import { buildGamePgn, buildGamePublicationJson } from './game-export.js';
 import {
   DEFAULT_RATING_BUCKET,
   parseRatingTimeClass,
@@ -600,6 +601,43 @@ export async function handleApiRequest(
       return;
     }
     writeJson(response, 200, artifactResponse.body);
+    return;
+  }
+
+  const exportMatch = parsedUrl.pathname.match(/^\/api\/games\/([^/]+)\/export\.(pgn|json)$/);
+  if (exportMatch) {
+    if (method !== 'GET') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    const roomId = decodeURIComponent(exportMatch[1]!);
+    const format = exportMatch[2]!;
+    const summary = await gameSummaryForApi(ctx, roomId);
+    const events = await gameEventsForApi(ctx, roomId);
+    const replayResponse = eventReplayResponse(events);
+    if (replayResponse.status !== 200 || !summary || !events) {
+      writeJson(response, replayResponse.status, replayResponse.body);
+      return;
+    }
+    if (summary.variant === 'draft960') {
+      writeJson(response, 501, { error: 'export_not_supported_for_variant', variant: summary.variant });
+      return;
+    }
+    if (format === 'pgn') {
+      const pgn = buildGamePgn(summary, events);
+      response.writeHead(200, {
+        'content-type': 'application/x-chess-pgn; charset=utf-8',
+        'content-disposition': `inline; filename="mistboard-${roomId}.pgn"`,
+      });
+      response.end(pgn);
+      return;
+    }
+    const payload = buildGamePublicationJson(summary, events);
+    response.writeHead(200, {
+      'content-type': 'application/json; charset=utf-8',
+      'content-disposition': `inline; filename="mistboard-${roomId}.json"`,
+    });
+    response.end(JSON.stringify(payload));
     return;
   }
 
