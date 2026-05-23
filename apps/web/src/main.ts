@@ -98,10 +98,10 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)));
 } else if (wantsLeaderboard) {
   setTitle('Leaderboard');
-  void mountOrReport(() => import('./landing.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)));
+  void mountOrReport(() => import('./profile.js').then(({ mountLeaderboard }) => mountLeaderboard(appRoot)));
 } else if (profileHandle) {
   setTitle(`@${profileHandle}`);
-  void mountOrReport(() => import('./landing.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
+  void mountOrReport(() => import('./profile.js').then(({ mountProfile }) => mountProfile(appRoot, profileHandle)));
 } else if (wantsAccountSettings) {
   setTitle('Settings');
   void mountOrReport(() => import('./account.js').then(({ mountAccountSettings }) => mountAccountSettings(appRoot)));
