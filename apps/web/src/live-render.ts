@@ -80,7 +80,6 @@ function fenToPickerPieces(fenPlacement: string, color: Color): PieceOnBoard[] {
   }
   return pieces;
 }
-let postgameFogEnabled = false;
 let playAgainStatus: PlayAgainStatus = 'idle';
 let replayIndex: number | null = null;
 let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | null = null;
@@ -98,9 +97,6 @@ let fogSnapshotToEventsLen: Map<number, number> = new Map();
 let fogSnapshotSeq = 0;
 let lastCapturedFogState: PlayerView | null = null;
 let fogFirstMoveSnapshotIndex: number | null = null;
-// Canonical events fetched from the API after the game ends, used for full-truth postgame replay.
-let canonicalEvents: GameEvent[] | null = null;
-let canonicalEventsFetching = false;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -115,8 +111,6 @@ export function initRender(
   fogSnapshotSeq = 0;
   lastCapturedFogState = null;
   fogFirstMoveSnapshotIndex = null;
-  canonicalEvents = null;
-  canonicalEventsFetching = false;
   lastTrackedStatusType = null;
   playingSinceMs = null;
   refs = createLayout(target);
@@ -183,7 +177,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
                 <button type="button" data-replay="next" title="Next event">&gt;</button>
                 <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
               </div>
-              <button type="button" data-fog-toggle class="fog-toggle" hidden>Fog on</button>
               <p data-replay-meta class="replay-meta">Live</p>
               <ol data-move-list class="move-list"></ol>
             </section>
@@ -219,12 +212,11 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const selectionList = target.querySelector<HTMLDivElement>('[data-selections]');
   const replayMeta = target.querySelector<HTMLParagraphElement>('[data-replay-meta]');
   const replayControls = target.querySelectorAll<HTMLButtonElement>('[data-replay]');
-  const fogToggle = target.querySelector<HTMLButtonElement>('[data-fog-toggle]');
   const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
   const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
   const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
 
-  if (!newRoom || !roomMeta || !board || !boardPaused || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !fogToggle || !moveList || !gameControls || !gameControlsSection) {
+  if (!newRoom || !roomMeta || !board || !boardPaused || !boardStatus || !actionStatus || !captures || !clocks || !gameInfo || !roomActions || !devViewsSection || !devViewsPanel || !offerSection || !draftPicker || !promotion || !selectionSection || !starts || !selectionList || !replayMeta || !moveList || !gameControls || !gameControlsSection) {
     throw new Error('missing app region');
   }
 
@@ -240,7 +232,6 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
     clocks,
     devViews: devViewsPanel,
     devViewsSection,
-    fogToggle,
     gameInfo,
     moveList,
     offerSection,
@@ -286,7 +277,6 @@ function buildNavHtml(): string {
 
 export function render(): void {
   captureFogView();
-  maybeStartCanonicalEventsFetch();
   const view = currentView();
   const projection = currentProjection();
   trackGameLifecycle(view);
@@ -912,8 +902,7 @@ export function renderClocks(view: PlayerView | null): void {
 // Renders pieces the viewer has personally captured. For a seated player, that's
 // their own color only — fog-filtered events naturally exclude the opponent's
 // captures, and the rule (see rulesets.md) is that no other material is revealed.
-// Spectators with access to the canonical event stream (postgame reveal) see both
-// sides, grouped by capturing color.
+// EVE spectators see both sides (no fog filtering applied server-side).
 function renderCaptures(view: PlayerView | null): void {
   refs.captures.replaceChildren();
   refs.captures.classList.toggle('has-captures', false);
@@ -933,7 +922,7 @@ function renderCaptures(view: PlayerView | null): void {
   };
 
   // Seated player: show only their own captures (the opponent pieces they took).
-  // Spectator/canonical view: show both sides.
+  // EVE spectator: show both sides.
   let any = false;
   if (isColor(seat)) {
     const row = renderRow(tally[seat], oppositeColor(seat));
@@ -1271,13 +1260,6 @@ function pieceFen(role: PieceRole, color: Color): string {
 
 function renderReplay(): void {
   refs.replayMeta.textContent = replayMetaLabel();
-  refs.fogToggle.hidden = !canTogglePostgameFog();
-  refs.fogToggle.textContent = 'Fog';
-  refs.fogToggle.setAttribute('aria-pressed', postgameFogEnabled ? 'true' : 'false');
-  refs.fogToggle.onclick = () => {
-    postgameFogEnabled = !postgameFogEnabled;
-    render();
-  };
 
   for (const control of refs.replayControls) {
     control.disabled = replayControlDisabled(control.dataset.replay ?? '');
@@ -1324,7 +1306,8 @@ function shouldMaskMoveList(): boolean {
   // engine's moves are filtered server-side, so the human's moves are not
   // secret. Show the move list so spectators can follow along.
   if (liveState.roomMode === 'pve' && liveState.seat === 'spectator') return false;
-  if (liveState.state.status.type === 'finished') return postgameFogEnabled && canTogglePostgameFog();
+  // Rooms never reveal — even after finish, fog stays on. Players who want the
+  // full board click through to /game/:id.
   return true;
 }
 
@@ -1439,12 +1422,6 @@ function moveListCell(
     render();
   });
   return button;
-}
-
-function canTogglePostgameFog(): boolean {
-  return liveState.state?.variant === 'fog-of-war'
-    && liveState.state.status.type === 'finished'
-    && liveState.events.some((event) => event.type === 'move-played');
 }
 
 function algebraicMoveLabels(): Map<number, string> {
@@ -1585,21 +1562,6 @@ function captureFogView(): void {
   lastCapturedFogState = liveState.state;
 }
 
-function maybeStartCanonicalEventsFetch(): void {
-  if (!canTogglePostgameFog()) return;
-  if (canonicalEvents !== null || canonicalEventsFetching) return;
-  canonicalEventsFetching = true;
-  void fetch(`/api/games/${encodeURIComponent(liveState.room)}/events`)
-    .then((r) => r.ok ? r.json() : null)
-    .then((data: { events: GameEvent[] } | null) => {
-      if (data?.events) {
-        canonicalEvents = data.events;
-        render();
-      }
-    })
-    .catch(() => { canonicalEventsFetching = false; });
-}
-
 function replayHistoryIndexes(): number[] {
   // For fog-of-war games, navigate through fogViewHistory keys rather than the events list.
   // Events are fog-filtered: opponent moves are excluded from liveState.events, so events-based
@@ -1687,13 +1649,10 @@ export function currentCaptures(): CaptureTally {
 }
 
 function currentEventsSlice(): GameEvent[] | null {
-  // For revealed postgame (fog off), use canonical events fetched from the API so the full
-  // board state is available. Fog-filtered liveState.events omit opponent moves and produce
-  // broken projections (moveNumber stays 1, wrong board positions).
-  const events = (canonicalEvents && !postgameFogEnabled) ? canonicalEvents : liveState.events;
+  const events = liveState.events;
   if (events.length === 0) return null;
-  // Fog replay uses fogSnapshotSeq as replayIndex — not an events index. For the canonical
-  // projection slice, map through fogSnapshotToEventsLen when in fog mode; otherwise use directly.
+  // Fog replay uses fogSnapshotSeq as replayIndex — not an events index. Map through
+  // fogSnapshotToEventsLen in fog mode; otherwise use the replay index directly.
   const sliceAt = (fogViewHistory.size > 0 && liveState.state?.variant === 'fog-of-war')
     ? (isLive() ? events.length : (fogSnapshotToEventsLen.get(currentReplayIndex()) ?? events.length))
     : currentReplayIndex();
@@ -1709,16 +1668,11 @@ export function currentView(): PlayerView | null {
   // snapshots are fog-filtered and structured differently from what replayGameEvents expects,
   // so the projection's moveNumber stays wrong. Walking back through fogViewHistory is correct
   // for both PvP and PvE fog games.
-  // Skip this path when the game is finished and fog is OFF — the reveal path below uses
-  // canonical events fetched from the API to show the full board.
   const gameFinished = liveState.state?.status.type === 'finished';
-  if (!isLive() && replayIndex !== null && liveState.state?.variant === 'fog-of-war' && (!gameFinished || postgameFogEnabled)) {
+  if (!isLive() && replayIndex !== null && liveState.state?.variant === 'fog-of-war') {
     return fogViewHistory.get(replayIndex) ?? liveState.state;
   }
   if (!projection) return liveState.state;
-  if (projection.state.variant === 'fog-of-war' && gameFinished && !postgameFogEnabled) {
-    return fullTruthViewForProjection(projection, perspective);
-  }
   if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished') {
     return terminalFogViewForProjection(projection, perspective);
   }

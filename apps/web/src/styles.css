@@ -1765,7 +1765,6 @@ button:focus-visible {
 }
 
 .replay-controls button,
-.fog-toggle,
 .move-list button {
   border: 1px solid #bdc8bf;
   border-radius: 6px;
@@ -1776,21 +1775,6 @@ button:focus-visible {
 
 .replay-controls button {
   height: 36px;
-}
-
-.fog-toggle {
-  min-height: 34px;
-  padding: 6px 10px;
-  text-align: center;
-  font-weight: 400;
-  color: #5f6b66;
-}
-
-.fog-toggle[aria-pressed="true"] {
-  border-color: #1f6f5b;
-  background: #eef8f2;
-  color: #123f32;
-  font-weight: 700;
 }
 
 .replay-controls button:disabled {
@@ -3316,6 +3300,33 @@ body:has(.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(
 
 .article-figure-interactive {
   margin: 28px 0;
+}
+
+.article-figure-code {
+  align-items: stretch;
+  width: 100%;
+}
+
+.article-code-block {
+  margin: 0;
+  padding: 16px 18px;
+  background: #0f1419;
+  color: #e6edf3;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow: auto;
+  max-height: 480px;
+  border: 1px solid #1f242b;
+  white-space: pre;
+}
+
+.article-code-block code {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  padding: 0;
 }
 
 .article-cta-row {

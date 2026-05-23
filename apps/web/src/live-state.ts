@@ -53,7 +53,6 @@ export type LiveRefs = {
   clocks: HTMLDivElement;
   devViews: HTMLDivElement;
   devViewsSection: HTMLElement;
-  fogToggle: HTMLButtonElement;
   gameInfo: HTMLDivElement;
   moveList: HTMLOListElement;
   offerSection: HTMLElement;
