@@ -88,6 +88,20 @@ export type RawSvgBlock = {
   caption?: string;
 };
 
+// Code/data block — for inline source snippets, captured payloads, or any
+// monospace content. `text` is rendered verbatim inside <pre><code>; the
+// renderer escapes it. Use `language` for syntax-highlighting hints (the
+// current renderer just sets a data attribute; styling does the rest).
+// `maxHeight` caps the visible region so very long payloads scroll
+// instead of dominating the page.
+export type CodeBlock = {
+  kind: 'code';
+  text: string;
+  language?: string;
+  caption?: string;
+  maxHeight?: number;
+};
+
 export type ArticleBlock =
   | ParagraphBlock
   | SubHeadingBlock
@@ -95,7 +109,8 @@ export type ArticleBlock =
   | InteractiveBlock
   | LiveBoardsBlock
   | CtaBlock
-  | RawSvgBlock;
+  | RawSvgBlock
+  | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body
 // that still carries `[VISUAL: ...]` markers — sections are migrated to
@@ -919,6 +934,193 @@ const DEDUCE_RECAP_NB_POSITIONS = [DEDUCE_RECAP_NB_BEFORE, DEDUCE_RECAP_NB_AFTER
   };
 });
 
+// Pre-stringified captured WS frame for the server-enforced-fog article.
+// Re-stringifying at module load keeps this in sync with the JSON file.
+const SERVER_FOG_SNAPSHOT_JSON_TEXT = JSON.stringify(articleSnapshotFog, null, 2);
+
+// ---------------------------------------------------------------------------
+// server-enforced-fog article: diagrams + small code excerpts.
+// All diagrams are minimal hand-rolled SVGs (one shared style) so the article
+// stays diagram-heavy without depending on the board renderer pipeline. Boxes
+// + arrows + short labels. Width 720; height varies per diagram.
+// ---------------------------------------------------------------------------
+
+const SF_DIAGRAM_WIDTH = 720;
+const SF_FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+const SF_INK = '#1f2937';
+const SF_MUTED = '#6b7280';
+const SF_BG = '#f9fafb';
+const SF_LINE = '#9ca3af';
+const SF_ACCENT = '#b91c1c';
+const SF_OK = '#15803d';
+
+function sfBox(x: number, y: number, w: number, h: number, label: string, opts: { sub?: string; tone?: 'ink' | 'accent' | 'ok' | 'muted' } = {}): string {
+  const stroke = opts.tone === 'accent' ? SF_ACCENT : opts.tone === 'ok' ? SF_OK : SF_LINE;
+  const titleColor = opts.tone === 'accent' ? SF_ACCENT : opts.tone === 'ok' ? SF_OK : SF_INK;
+  const sub = opts.sub
+    ? `<text x="${x + w / 2}" y="${y + h - 14}" font-family="${SF_FONT}" font-size="12" fill="${SF_MUTED}" text-anchor="middle">${opts.sub}</text>`
+    : '';
+  return `
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" ry="6" fill="${SF_BG}" stroke="${stroke}" stroke-width="1.5"/>
+    <text x="${x + w / 2}" y="${y + (opts.sub ? h / 2 - 2 : h / 2 + 5)}" font-family="${SF_FONT}" font-size="14" font-weight="600" fill="${titleColor}" text-anchor="middle">${label}</text>
+    ${sub}
+  `;
+}
+
+function sfArrow(x1: number, y1: number, x2: number, y2: number, label?: string, opts: { tone?: 'ink' | 'accent' | 'ok' | 'muted' } = {}): string {
+  const stroke = opts.tone === 'accent' ? SF_ACCENT : opts.tone === 'ok' ? SF_OK : opts.tone === 'muted' ? SF_MUTED : SF_INK;
+  const id = `sfHead-${Math.round(x1 + y1 + x2 + y2)}-${opts.tone ?? 'ink'}`;
+  const labelNode = label
+    ? `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 8}" font-family="${SF_FONT}" font-size="12" fill="${SF_MUTED}" text-anchor="middle">${label}</text>`
+    : '';
+  return `
+    <defs>
+      <marker id="${id}" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,6 L9,3 z" fill="${stroke}"/>
+      </marker>
+    </defs>
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="1.5" marker-end="url(#${id})"/>
+    ${labelNode}
+  `;
+}
+
+function sfWrap(height: number, body: string, title?: string): string {
+  const heading = title
+    ? `<text x="${SF_DIAGRAM_WIDTH / 2}" y="22" font-family="${SF_FONT}" font-size="13" fill="${SF_MUTED}" text-anchor="middle" font-weight="500">${title}</text>`
+    : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SF_DIAGRAM_WIDTH} ${height}" role="img">${heading}${body}</svg>`;
+}
+
+function serverFogReceiptsDiagram(): string {
+  // Two columns. Left: canonical (32 / 6 / yes). Right: white's frame (18 / 3 / no).
+  const cells: Array<{ label: string; left: string; right: string }> = [
+    { label: 'pieces on the board', left: '32', right: '18' },
+    { label: 'move-played events', left: '6 (3 white + 3 black)', right: '3 (all white)' },
+    { label: 'lastMove field', left: 'present', right: 'absent' },
+    { label: 'visibleSquares', left: 'n/a', right: '37 of 64' },
+  ];
+  const rowY = (i: number) => 80 + i * 56;
+  const rows = cells.map((c, i) => `
+    <text x="40" y="${rowY(i) + 22}" font-family="${SF_FONT}" font-size="13" fill="${SF_INK}">${c.label}</text>
+    ${sfBox(260, rowY(i), 200, 40, c.left, { tone: 'muted' })}
+    ${sfBox(490, rowY(i), 200, 40, c.right, { tone: 'ok' })}
+  `).join('');
+  const headers = `
+    <text x="360" y="58" font-family="${SF_FONT}" font-size="13" fill="${SF_MUTED}" text-anchor="middle" font-weight="600">canonical (server only)</text>
+    <text x="590" y="58" font-family="${SF_FONT}" font-size="13" fill="${SF_INK}" text-anchor="middle" font-weight="600">white's frame (the bytes above)</text>
+  `;
+  return sfWrap(rowY(cells.length) + 24, headers + rows);
+}
+
+function serverFogTwoArchitecturesDiagram(): string {
+  // Two side-by-side flows.
+  const leftX = 24;
+  const rightX = 384;
+  const colW = 312;
+  const body = `
+    <text x="${leftX + colW / 2}" y="22" font-family="${SF_FONT}" font-size="13" fill="${SF_ACCENT}" text-anchor="middle" font-weight="600">client-side fog (others)</text>
+    <text x="${rightX + colW / 2}" y="22" font-family="${SF_FONT}" font-size="13" fill="${SF_OK}" text-anchor="middle" font-weight="600">server-side fog (Mistboard)</text>
+
+    ${sfBox(leftX + 70, 44, 172, 44, 'server', { sub: 'canonical state' })}
+    ${sfArrow(leftX + 156, 92, leftX + 80, 152, 'full state', { tone: 'accent' })}
+    ${sfArrow(leftX + 156, 92, leftX + 232, 152, 'full state', { tone: 'accent' })}
+    ${sfBox(leftX + 8, 156, 144, 56, 'white\'s browser', { sub: 'fog applied in CSS', tone: 'accent' })}
+    ${sfBox(leftX + 160, 156, 144, 56, 'black\'s browser', { sub: 'fog applied in CSS', tone: 'accent' })}
+    <text x="${leftX + colW / 2}" y="240" font-family="${SF_FONT}" font-size="12" fill="${SF_ACCENT}" text-anchor="middle">opponent pieces sit in browser memory — extension can strip the fog</text>
+
+    ${sfBox(rightX + 70, 44, 172, 44, 'server', { sub: 'canonical state' })}
+    ${sfArrow(rightX + 156, 92, rightX + 80, 152, 'white\'s view', { tone: 'ok' })}
+    ${sfArrow(rightX + 156, 92, rightX + 232, 152, 'black\'s view', { tone: 'ok' })}
+    ${sfBox(rightX + 8, 156, 144, 56, 'white\'s browser', { sub: 'only what white can see', tone: 'ok' })}
+    ${sfBox(rightX + 160, 156, 144, 56, 'black\'s browser', { sub: 'only what black can see', tone: 'ok' })}
+    <text x="${rightX + colW / 2}" y="240" font-family="${SF_FONT}" font-size="12" fill="${SF_OK}" text-anchor="middle">opponent pieces never reach the browser — nothing to strip</text>
+  `;
+  return sfWrap(264, body);
+}
+
+function serverFogSeatTokenDiagram(): string {
+  const body = `
+    ${sfBox(40, 40, 180, 80, 'browser', { sub: 'claims a seat' })}
+    ${sfBox(270, 40, 180, 80, 'server', { sub: 'mints token, stores hash' })}
+    ${sfBox(500, 40, 180, 80, 'database', { sub: 'token_hash per seat' })}
+    ${sfArrow(220, 80, 270, 80, 'join', { tone: 'muted' })}
+    ${sfArrow(450, 80, 500, 80, '', { tone: 'muted' })}
+    ${sfArrow(450, 100, 270, 100, '', { tone: 'muted' })}
+
+    ${sfBox(40, 156, 180, 80, 'browser', { sub: 'reconnects with token' })}
+    ${sfBox(270, 156, 180, 80, 'server', { sub: 'verifies against hash' })}
+    ${sfArrow(220, 196, 270, 196, 'token in WS header', { tone: 'ok' })}
+    ${sfArrow(450, 196, 580, 196, 'seat = white', { tone: 'ok' })}
+    ${sfBox(580, 156, 100, 80, 'view\nfor white', { tone: 'ok' })}
+  `;
+  return sfWrap(272, body);
+}
+
+function serverFogThreeStepDiagram(): string {
+  const body = `
+    ${sfBox(40, 50, 184, 92, 'visibility set', { sub: 'squares this seat can see' })}
+    ${sfBox(268, 50, 184, 92, 'masked board', { sub: 'pieces standing on those squares' })}
+    ${sfBox(496, 50, 184, 92, 'no opponent lastMove', { sub: 'stripped during play' })}
+    ${sfArrow(224, 96, 268, 96)}
+    ${sfArrow(452, 96, 496, 96)}
+    <text x="${SF_DIAGRAM_WIDTH / 2}" y="180" font-family="${SF_FONT}" font-size="13" fill="${SF_INK}" text-anchor="middle">player view = board + visibility set + your legal moves + clock + status</text>
+  `;
+  return sfWrap(204, body);
+}
+
+function serverFogFanOutDiagram(): string {
+  const body = `
+    ${sfBox(280, 40, 160, 56, 'move applied', { sub: 'canonical state' })}
+    ${sfArrow(360, 96, 180, 156, 'view for white', { tone: 'ok' })}
+    ${sfArrow(360, 96, 540, 156, 'view for black', { tone: 'ok' })}
+    ${sfBox(80, 160, 200, 64, 'frame for white\'s socket', { sub: 'white\'s bytes only', tone: 'ok' })}
+    ${sfBox(440, 160, 200, 64, 'frame for black\'s socket', { sub: 'black\'s bytes only', tone: 'ok' })}
+    <text x="${SF_DIAGRAM_WIDTH / 2}" y="252" font-family="${SF_FONT}" font-size="12" fill="${SF_MUTED}" text-anchor="middle">no shared "broadcast" with masking later — two distinct messages from the start</text>
+  `;
+  return sfWrap(276, body);
+}
+
+function serverFogConnectionRuleDiagram(): string {
+  const body = `
+    ${sfBox(40, 40, 180, 64, 'incoming socket', { sub: 'WS connect to /room/...' })}
+    ${sfBox(280, 40, 200, 64, 'is the game finished?', { sub: 'or do you hold a seat token?' })}
+    ${sfArrow(220, 72, 280, 72)}
+    ${sfBox(540, 8, 140, 56, 'yes → accept', { tone: 'ok' })}
+    ${sfBox(540, 96, 140, 56, 'no → 1008 close', { sub: '"private room"', tone: 'accent' })}
+    ${sfArrow(480, 60, 540, 36, '', { tone: 'ok' })}
+    ${sfArrow(480, 84, 540, 124, '', { tone: 'accent' })}
+    <text x="${SF_DIAGRAM_WIDTH / 2}" y="200" font-family="${SF_FONT}" font-size="12" fill="${SF_MUTED}" text-anchor="middle">same rule gates HTTP replay — live games return 403, finished games return the event log</text>
+  `;
+  return sfWrap(224, body);
+}
+
+const SERVER_FOG_TEST_EXCERPT = `test('live PvP third client is rejected before any snapshot', async (t) => {
+  const room = uniqueRoomId('ws-pvp');
+  await connectForHello(port, \`room=\${room}&client=white-client-0001&reset=1\`);
+  await connectForHello(port, \`room=\${room}&client=black-client-0001\`);
+
+  const rejected = await connectForClose(port, \`room=\${room}&client=third-client-0001\`);
+
+  assert.equal(rejected.code, 1008);
+  assert.equal(rejected.reason, 'private room');
+  assert.deepEqual(rejected.messages, []);
+});`;
+
+const SERVER_FOG_CODE_MAP = `visibility set, masked board, player view
+  packages/game/src/variants.ts
+
+per-recipient outbound layer
+  apps/server/src/payloads.ts
+
+connection rule + HTTP replay rule
+  apps/server/src/server-policy.ts
+
+seat token mint + verify
+  apps/server/src/index.ts
+
+regression tests pinning the wire format
+  apps/server/src/privacy-ws.test.ts`;
+
 export const articles: Article[] = [
   {
     slug: 'fog-of-war-rules',
@@ -1395,96 +1597,123 @@ export const articles: Article[] = [
   },
   {
     slug: 'server-enforced-fog',
-    title: 'How Mistboard enforces dark chess',
+    title: 'Designing a dark chess server',
     summary:
-      'Server-authoritative state, applied to dark chess. The bytes for what you can\'t see never leave the server. Identity, the visibility kernel, the outbound gateway, the connection-layer guard, a real captured WebSocket frame, and the regression tests that pin the contract.',
+      'A system-design walkthrough: what "correct" means when half the game is hidden, why the obvious approach is structurally broken, and the small set of design choices that produce a fair server.',
     status: 'outline',
     audience:
-      'Chess developers, security-minded readers, and multiplayer-game developers who already know the server-authoritative pattern from FPS/RTS work and want to see it applied to chess.',
+      'Engineers reading a system-design walkthrough — what the data model is, where identity sits, what tradeoffs the design accepts, and where the bytes go.',
     thumbnail: {
       pieces: boardToPieces(CONE_QUEEN.board),
       fogSquares: CONE_QUEEN_FOG,
       orientation: 'white',
     },
     tldr: [
-      'Mistboard\'s server holds the canonical game state. Clients never receive it — they receive a derived PlayerView, computed per recipient, with hidden pieces and hidden moves stripped before the bytes leave the server. This is the standard server-authoritative pattern from FPS/RTS games, applied to chess.',
-      'A snapshot\'s journey: server-assigned identity (seat token) → per-recipient view (visibility kernel) → per-recipient outbound frame (gateway) → a connection-layer guard that lets only seated players observe a live game. The same rule also gates HTTP replay.',
-      'The same source-of-truth principle decides threefold repetition (counted over canonical positions, not visible ones), the 50-move rule, and clock expiration. The server is authoritative; the client renders.',
+      'Designing a hidden-information multiplayer game on the web — what correct, fair, and unexploitable look like.',
+      'The obvious approach is structurally broken. The right approach is small. The interesting engineering is in identity.',
     ],
     sections: [
       {
-        heading: 'The pattern: server-authoritative state',
-        paragraphs: [
-          'Section TBD. Frame the article as applied engineering, not invented theory. If you\'ve shipped a multiplayer FPS or RTS, this won\'t surprise you: the server holds true state; the client holds a derived view; identity is server-assigned. Counter-Strike does it for players behind walls. Starcraft does it for fog of war. League does it for jungler ganks. The pattern has been the right answer in real-time games for decades.',
-          'Chess is unusual in two ways. (1) Most chess servers don\'t need this discipline because there\'s no hidden state to leak — the position is public by definition. (2) Among servers that DO host hidden-information variants, the dominant pattern has been client-side enforcement: the canonical position is broadcast to both clients and the fog is applied in CSS. That\'s a leak by construction. Browser extensions exist that strip the fog — see chesscom_client_side_fog_confirmed in the FoW library.',
-          'Mistboard treats dark chess the way Counter-Strike treats walls: the bytes for what you can\'t see never leave the server. The rest of this article is what that takes.',
-          '[VISUAL: small comparison — left panel: client-side fog architecture (server sends full GameState, client masks). Right panel: server-side fog architecture (server sends per-recipient PlayerView). Arrow from left panel to a "stripped by browser extension" leak; arrow from right panel to nothing.]',
+        heading: 'The problem',
+        blocks: [
+          { kind: 'paragraph', text: 'Dark chess (also called Fog of War chess) is regular chess with one change: each side sees only the squares its pieces can reach. The opponent\'s pieces are hidden until you can see them.' },
+          { kind: 'paragraph', text: 'A correct dark chess server has to satisfy three properties at once. (1) Each player should be able to play their game without leaking information they don\'t have. (2) The two players\' views of the same game should be consistent — same moves applied to the same canonical position. (3) The rules of chess that depend on the canonical position (threefold repetition, 50-move rule, clock expiration) should still apply, even though neither player can see the canonical position.' },
+          { kind: 'paragraph', text: 'The bar is higher than for normal chess. In normal chess, the position is public and the server has no secrets to protect. In dark chess, every byte that leaves the server is potentially a leak.' },
         ],
       },
       {
-        heading: 'The journey of a snapshot',
-        paragraphs: [
-          'Section TBD. Walk one frame end-to-end. A move happens. The server applies it to the canonical state. Now four things need to happen before bytes reach a client: confirm identity, derive a view, shape the outbound frame, and (for any new connection) check observation rights.',
-          '[VISUAL: four-beat flow diagram. Identity → Kernel → Gateway → Observation guard. Each beat labeled with its file: index.ts (assignSeat / verifySeatToken) → variants.ts (getPlayerView) → payloads.ts (snapshotPayload) → server-policy.ts (canObserveLiveRoom).]',
-          'BEAT 1 — Identity. When a player claims a seat, the server mints a per-seat token (index.ts:1140 assignSeat), stores its bcrypt hash in Postgres (room_seat_tokens.token_hash), and hands the raw token back to that client. Future WS connections present the token via the Sec-WebSocket-Protocol header (server-policy.ts seatTokenFromProtocolHeader, around line 91). The server verifies the token against the stored hash (verifyRoomSeatToken) and binds the socket to a server-assigned Seat: \'white\' | \'black\' | \'spectator\'. The seat is server-assigned, never client-claimed. This is the trust boundary the rest of the system depends on.',
-          'BEAT 2 — Visibility kernel. With a trusted seat in hand, the server derives a PlayerView. packages/game/src/variants.ts fogVisibleSquares (around line 171) computes the set of squares this player can see; boardVisibleTo (around line 188) returns a new board object containing only pieces on those squares; visibleLastMoveForPlayer (around line 197) decides whether to surface the opponent\'s last move arrow (it doesn\'t, during play). The framing: "the opponent\'s piece on e5 isn\'t hidden by CSS — it\'s not in this object."',
-          'BEAT 3 — Outbound gateway. apps/server/src/payloads.ts snapshotPayload (around line 52) is called once per recipient in broadcastSnapshot. Three fields matter for fog: state (the per-seat PlayerView from beat 2), events (move-played events filtered to own color in live fog games, see eventsVisibleByMode around line 101), and devViews (admin-gated truth view; never reachable from a query param in production). A defense-in-depth detail worth noting: eventsVisibleByMode strips move-played events for spectators even though spectators are rejected at the connection layer in beat 4 — belt and suspenders, in case a spectator client ever reaches the gateway.',
-          'BEAT 4 — Connection-layer guard. For any NEW connection (not just snapshots flowing on an existing one), server-policy.ts canObserveLiveRoom (line 59) decides if a non-seated client can join. It returns true only when the game is finished. Non-seated WS connections to a live room are rejected with a 1008 \'private room\' close — before any snapshot is computed or sent. The same rule gates HTTP replay: eventReplayResponse (server-policy.ts:31) returns 403 game_not_public on any unfinished game, and re-derives finished-ness by replaying the event log (replayGameEvents) rather than trusting a stored flag.',
-          '[VISUAL: a single broadcastSnapshot call expanded into two distinct WS frames, one per recipient, with the differing state.board contents shown side by side.]',
-          '[VISUAL: annotated code snippet of fogVisibleSquares + boardVisibleTo side-by-side with a board diagram showing the visibility set as highlighted squares.]',
+        heading: 'The wrong way',
+        blocks: [
+          { kind: 'paragraph', text: 'The obvious approach: send the canonical game state to both clients. Have each client hide the parts that player isn\'t supposed to see. The fog is CSS. The opponent\'s pieces are in the browser; they just aren\'t painted on the screen.' },
+          { kind: 'paragraph', text: 'This is structurally broken. The data is on the player\'s computer. Anyone who can open the dev tools can read it. Browser extensions that strip the fog already exist for the dominant chess platform\'s dark chess offering. There is nothing the server can do at runtime to recover from "we already sent the secret."' },
+          {
+            kind: 'raw-svg',
+            svg: serverFogTwoArchitecturesDiagram(),
+            caption: 'Left: the broken approach (server truth in every browser, fog applied in CSS). Right: per-recipient views computed server-side.',
+          },
+          { kind: 'paragraph', text: 'The right approach is to never let the secret leave the server. The rest of this article is what that takes.' },
         ],
       },
       {
-        heading: 'One rule, all modes',
-        paragraphs: [
-          'Section TBD. canObserveLiveRoom is one line: return projection.state.status.type === \'finished\'. Live games are visible only to seated players, regardless of mode (PvP, PvE, EvE). A naive implementation would enumerate a per-mode table — does PvP allow spectators? PvE? EvE? Live vs finished vs aborted? — and a careless cell in that table would be a leak. The single rule sidesteps the whole grid.',
-          'Tradeoff acknowledged: no live spectator view for engine games or for friends watching you play the bot. The simplification is worth it. Every future variant or mode inherits the rule for free, and there are zero cells in a table that can drift out of sync.',
-          '[VISUAL: small comparison — left: a 4×3 per-mode table (PvP/PvE/EvE × live/finished/aborted) with question marks in some cells. Right: a single rule. Visual collapse from many cells to one.]',
+        heading: 'The data model',
+        blocks: [
+          { kind: 'paragraph', text: 'Two types. The server holds a GameState — the full position, full move history, both clocks, all status. Clients never see this type. Clients receive a PlayerView — a board containing only the pieces this player can see, the set of squares this player\'s pieces light up, this player\'s legal moves, this player\'s view of the clock, and the game\'s status. That\'s it.' },
+          { kind: 'paragraph', text: 'A PlayerView is computed from a GameState plus a seat (white, black, or spectator). The computation is small: pick a visibility set from this player\'s pieces, mask the board to that set, strip the opponent\'s last move during play. The opponent\'s pieces on hidden squares simply aren\'t in the object. The opponent\'s move history simply isn\'t in the events list.' },
+          {
+            kind: 'raw-svg',
+            svg: serverFogThreeStepDiagram(),
+            caption: 'PlayerView = visibility set → masked board → opponent\'s last move stripped → your legal moves + clock + status.',
+          },
+          { kind: 'paragraph', text: 'Every state-changing event triggers the server to compute one PlayerView per connected client and send each one out separately. There is no "broadcast then mask later." Two recipients, two distinct messages, two different sets of bytes.' },
         ],
       },
       {
-        heading: 'See it: a captured WebSocket frame + the triptych',
-        paragraphs: [
-          'Section TBD. Two artifacts in one section, each doing different work.',
-          'ARTIFACT 1 — a real captured snapshot frame, exported as SERVER_FOG_SNAPSHOT_ARTIFACT from articles-data.ts and stored verbatim at apps/web/src/article-snapshot-fog.json. Captured via apps/server/scripts/capture-snapshot.mjs from a live PvP fog room after the sequence 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6, recorded from white\'s socket on white\'s next turn. roomId and clientId anonymized; epochs replaced with a fixed base time; everything else is the real wire format. Receipts to highlight in the prose: state.board has 18 entries (white\'s 16 + black\'s e5 pawn + black\'s f7 pawn — note: the black knight on c6 is NOT in white\'s board even though it canonically exists, because c6 is not in state.visibleSquares); state.visibleSquares is a sorted list of 37 squares; events contains 3 move-played records, all color: "white", with black\'s 3 move-played events completely absent; state.lastMove is absent (visibleLastMoveForPlayer returns undefined for the opponent\'s last move during play). Re-run the capture script after any wire-format change.',
-          '[VISUAL: JSON snippet of the captured snapshot frame.]',
-          '[VISUAL: side-by-side — canonical state (server-only, 32 pieces, full history) on the left; white\'s PlayerView (~16 pieces, white\'s moves only) on the right. Same position, two boxes, different bytes.]',
-          'ARTIFACT 2 — an interactive triptych. Truth / White\'s view / Black\'s view tab strip over a single mid-game position. Reuses the triptych pattern from the dark chess rules article. The "feel it, don\'t just read it" moment for chess players who skipped past the JSON.',
-          '[INTERACTIVE PLACEHOLDER: triptych stepper with Truth / White / Black tabs over one position.]',
+        heading: 'The load-bearing piece: identity',
+        blocks: [
+          { kind: 'paragraph', text: 'The data model above only works if the server knows whose view to compute. If a socket\'s seat is wrong — white\'s frame goes to black, or to a third party — every other rule in this article runs on a lie. Identity is the trust boundary the rest of the system depends on.' },
+          { kind: 'paragraph', text: 'Mistboard\'s v1 identity model: when a player first claims a seat in a room, the server mints a random per-seat token, stores its bcrypt hash, and hands the raw token back to that one client. The client keeps it. Every future WebSocket connection from that client presents the token in the WebSocket subprotocol header. The server verifies the token against the stored hash and binds the socket to a server-assigned seat (white, black, or no-seat). The seat is something the server remembers, not something the client claims.' },
+          {
+            kind: 'raw-svg',
+            svg: serverFogSeatTokenDiagram(),
+            caption: 'Mint → store hash → hand back raw token. On reconnect: present token → verify → seat assignment.',
+          },
+          { kind: 'paragraph', text: 'Three properties make this work. (1) Tokens are minted server-side, not client-claimed — the client cannot ask for white\'s seat without the token white was given. (2) Only the hash is stored — a leaked database wouldn\'t hand an attacker working tokens. (3) Token comparison is constant-time — no timing side channel on verification. The token also doubles as the reconnect mechanism: refresh the page, present the token, get your seat back. The seat assignment is durable across socket churn.' },
+          { kind: 'paragraph', text: 'Identity in v1 is deliberately anonymous: possession of the seat token is possession of the seat. Anyone with the link who got the token can take that seat. This is the tradeoff that makes link-share casual play work. The data model and the rest of the design would be unchanged under stronger (OAuth-bound) identity — only the mint flow would change.' },
         ],
       },
       {
-        heading: 'Prove it: the regression tests',
-        paragraphs: [
-          'Section TBD. apps/server/src/privacy-ws.test.ts spawns a real built server, opens real WebSockets, and asserts on the wire bytes — not on mocked internals. The fog-specific assertions: PvP/PvE/EvE third-party WS connection is rejected with 1008 \'private room\' before any snapshot is sent (lines 41, 195, 216); a copied client id without a seat token cannot reclaim a private PvP seat (line 123); a wrong seat token cannot reclaim either (line 139); seated players in PvP don\'t see opponent move-played events; finished games reveal everything.',
-          'These run in CI on every commit. The article links the file and invites clone + npm test.',
-          '[VISUAL: code excerpt from privacy-ws.test.ts showing the 1008 rejection assertion. Caption: "clone the repo and run npm test — these run in CI on every commit."]',
+        heading: 'The connection rule',
+        blocks: [
+          { kind: 'paragraph', text: 'One more rule, and it runs earliest: who is allowed to open a socket to a live game. The rule is a single line. A live dark chess game is private to its seated players. Anyone else is closed at the connection layer, before any game data is sent. The same rule gates HTTP replay — live games return 403; finished games return the event log.' },
+          {
+            kind: 'raw-svg',
+            svg: serverFogConnectionRuleDiagram(),
+            caption: 'No spectator view of a live game, in any mode (PvP, PvE, EvE). Finished games are public via replay.',
+          },
+          { kind: 'paragraph', text: 'This deliberately collapses what could have been a per-mode access table. The simpler rule means there\'s no cell in a grid to drift out of sync as new modes get added. The cost: no live spectator view, even for friends watching a friend play the bot.' },
         ],
       },
       {
-        heading: 'More than fog: the server is the source of truth',
-        paragraphs: [
-          'Section TBD. The same principle that makes fog enforcement work decides the rest of the game state. Threefold repetition is the most interesting case in fog: two players can see the same visible position twice while the underlying canonical position differs (a phantom piece moved off-screen). The server counts repetitions over the canonical board (variants.ts positionRepetitionKey around line 282), not over either player\'s view. Counting from views would be both wrong and exploitable.',
-          'Also enforced server-side: king capture as the win condition (variants.ts around line 254), the 50-move rule via halfmoveClock, clock expiration, resignation, draw-by-agreement, pause/resume across server restart. The client renders; the server decides.',
-          '[VISUAL: code excerpt of positionRepetitionKey showing the full board enumeration. Caption noting why view-based repetition would be both incorrect and exploitable in a fog setting.]',
+        heading: 'A real frame from a real game',
+        blocks: [
+          { kind: 'paragraph', text: 'The design above is testable. Here\'s one captured WebSocket message the server sent to white during a live dark chess game. The game went 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6 — three moves each — and this is the frame white\'s browser received when it became white\'s turn again. Names anonymized, bytes verbatim.' },
+          { kind: 'code', language: 'json', text: SERVER_FOG_SNAPSHOT_JSON_TEXT, caption: 'Captured by replaying the production server. Receipts: 18 pieces (not 32), 3 events all color: "white", no lastMove field.', maxHeight: 520 },
+          { kind: 'paragraph', text: 'These properties hold not by careful reading but because a regression suite spawns the production server, opens real WebSockets, and asserts on the bytes. The captured frame above was produced by the same harness those tests use; the tests run on every commit.' },
+          {
+            kind: 'code',
+            language: 'typescript',
+            text: SERVER_FOG_TEST_EXCERPT,
+            caption: 'One of the regression assertions: a third connection to a live PvP room is closed before any frame is sent.',
+            maxHeight: 320,
+          },
         ],
       },
       {
-        heading: 'Honest limits',
-        paragraphs: [
-          'Section TBD. Four caveats to be explicit about. (1) Finished games reveal full truth — same as Lichess\'s FoW model; replay/share need it. (2) Live spectator view in PvP is "nothing" by design — we don\'t render a fair-fog-union view for friends watching, because we couldn\'t do it without exposing one side\'s perspective. (3) Identity in v1 is "possession of the seat token shared via the room link" — anonymous, not OAuth, not email-bound for casual play; this is a deliberate v1 choice that supports the link-share product loop. (4) The devViews admin path exists for debugging and is gated on a constant-time-compared admin token (server-policy.ts isDebugViewAuthorized + index.ts handleAdminDebugAuth, around line 1487). Query params alone cannot flip it in production.',
+        heading: 'Tradeoffs the design accepts',
+        blocks: [
+          { kind: 'paragraph', text: 'Honest engineering. Five places where the current design picked simplicity or correctness over something else, and what we gave up.' },
+          { kind: 'sub-heading', text: 'Full snapshot on every event' },
+          { kind: 'paragraph', text: 'Every state-changing event broadcasts a complete PlayerView plus the filtered event history to each connected client. There is no incremental delta wire format. A 60-move dark chess game ships roughly O(n²) bytes per side over its lifetime, when O(n) bytes of delta information would do. This was a deliberate v1 simplification: one wire format, no client-side reconciliation state, trivial recovery from missed messages. The cost is bandwidth growth with game length. Spec for the delta migration: docs/specs/incremental-snapshot-protocol.md.' },
+          { kind: 'sub-heading', text: 'Finished games reveal everything' },
+          { kind: 'paragraph', text: 'When a game ends, the full canonical position and full move history become public via replay. This matches Lichess\'s dark chess model and is what makes share links work. If you don\'t want a specific game shared, don\'t share its link.' },
+          { kind: 'sub-heading', text: 'No live spectator view' },
+          { kind: 'paragraph', text: 'There is no fair, mutually-hidden union view for friends watching a live game. Producing one would require exposing at least one side\'s perspective, and we couldn\'t make it safe without growing the rule set above. The choice is deliberate.' },
+          { kind: 'sub-heading', text: 'Anonymous identity' },
+          { kind: 'paragraph', text: 'Possession of the seat token is possession of the seat. There is no OAuth-bound identity for casual play. This is what makes the link-share product loop simple; the design above would still hold under stronger identity if Mistboard adds it later.' },
+          { kind: 'sub-heading', text: 'Threefold repetition uses canonical positions, not views' },
+          { kind: 'paragraph', text: 'In dark chess two players can see the same visible position twice while the underlying canonical position differs. Mistboard counts repetitions over the canonical position. Counting from views would be both incorrect (positions that aren\'t equal would be called equal) and exploitable (a player could construct a draw they don\'t have). The 50-move rule, clock expiration, resignations, and pause/resume are all server-authoritative for the same reason — the canonical state is the only honest source of truth.' },
         ],
       },
       {
-        heading: 'Where the code lives',
-        paragraphs: [
-          'Section TBD. Repo map: packages/game/src/variants.ts (the kernel), apps/server/src/payloads.ts (the gateway), apps/server/src/server-policy.ts (the observation rule + HTTP replay rule), apps/server/src/index.ts (seat-token mint + verify), apps/server/src/privacy-ws.test.ts (the regression tests). Link to the repo.',
-        ],
-      },
-      {
-        heading: 'Contribute',
-        paragraphs: [
-          'CTA: GitHub repo, file an issue if you spot a leak, run the test suite locally, link to the related dark chess rules article.',
+        heading: 'Where the code lives (and the part of this article that will go stale fastest)',
+        blocks: [
+          { kind: 'paragraph', text: 'The design above is meant to hold up over time. The file names and function names will drift. A map of where each piece lives in the Mistboard repo at time of writing.' },
+          {
+            kind: 'code',
+            language: 'text',
+            text: SERVER_FOG_CODE_MAP,
+            maxHeight: 320,
+          },
         ],
       },
     ],
@@ -1500,3 +1729,4 @@ export function findArticle(slug: string): Article | undefined {
 // a verbatim artifact for the server-enforced-fog article. Re-run the
 // capture script after wire-format changes.
 export const SERVER_FOG_SNAPSHOT_ARTIFACT = articleSnapshotFog as unknown as Record<string, unknown>;
+export const SERVER_FOG_SNAPSHOT_JSON = SERVER_FOG_SNAPSHOT_JSON_TEXT;

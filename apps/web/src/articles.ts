@@ -17,6 +17,7 @@ import {
   type CtaBlock,
   type InteractiveBlock,
   type LiveBoardsBlock,
+  type CodeBlock,
   type RawSvgBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,
@@ -314,6 +315,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
   if (block.kind === 'cta') return renderCtaBlock(block);
   if (block.kind === 'raw-svg') return renderRawSvgBlock(block);
+  if (block.kind === 'code') return renderCodeBlock(block);
   if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
   return renderInteractiveBlock(block);
 }
@@ -342,6 +344,26 @@ function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-static';
   figure.innerHTML = block.svg;
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+  return figure;
+}
+
+function renderCodeBlock(block: CodeBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-code';
+  const pre = document.createElement('pre');
+  pre.className = 'article-code-block';
+  if (block.language) pre.dataset.language = block.language;
+  if (typeof block.maxHeight === 'number') pre.style.maxHeight = `${block.maxHeight}px`;
+  const code = document.createElement('code');
+  code.textContent = block.text;
+  pre.append(code);
+  figure.append(pre);
   if (block.caption) {
     const cap = document.createElement('figcaption');
     cap.className = 'article-figure-caption';
