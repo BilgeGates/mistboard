@@ -118,6 +118,10 @@ async function createRoom(baseUrl, engineId) {
       mode: 'pve',
       variant: 'fog-of-war',
       engineId,
+      // Smoke plays e2→e4 (white's opening), so the human seat must be white.
+      // Pin explicitly so deployed servers with a 'random' default for
+      // preferredColor don't coin-flip us onto black.
+      preferredColor: 'white',
     }),
   });
   if (!response.ok) throw new Error(`room creation failed for ${engineId}: ${response.status} ${await response.text()}`);

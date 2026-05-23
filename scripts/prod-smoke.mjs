@@ -45,7 +45,10 @@ async function createRoom(baseUrl, timeoutMs) {
       init: {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ mode: 'pvp', variant: 'fog-of-war' }),
+        // Pin preferredColor so the smoke's seat assertions are deterministic
+        // regardless of the deployed server's preferredColor default. See
+        // commit abfd18e for the underlying fix on master.
+        body: JSON.stringify({ mode: 'pvp', variant: 'fog-of-war', preferredColor: 'white' }),
       },
     });
     if (response.status === 201) {
