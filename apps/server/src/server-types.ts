@@ -33,6 +33,10 @@ export type Client = {
   roomId: string;
   seat: Seat;
   seatTokenHash?: string;
+  // Authenticated account id for this connection, or null when anonymous. Used
+  // to displace another live connection from the same account across devices
+  // (see seatsShareAuthority), independent of the bearer seat token.
+  userId?: string | null;
   displaced: boolean;
   solo: boolean;
 };

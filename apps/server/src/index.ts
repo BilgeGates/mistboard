@@ -79,6 +79,7 @@ import {
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
+import { authorizeExistingSeat, seatsShareAuthority } from './seat-auth.js';
 import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
 
 // Navigation index — grep for section name to jump to the right block
@@ -693,6 +694,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
     roomId,
     seat,
     seatTokenHash: assignment.seatTokenHash,
+    userId: accountUser?.id ?? null,
     displaced: false,
     solo,
   };
@@ -1323,15 +1325,24 @@ async function assignSeat(
   suppliedSeatToken: string | undefined,
   accountUser: persistence.UserAccount | null,
 ): Promise<SeatAssignment> {
+  // Credential gate for claiming an EXISTING seat. authorizeExistingSeat owns
+  // the policy (token vs account identity); see seat-auth.ts. A denial means a
+  // valid token was presented for an account-bound seat by the wrong (or no)
+  // identity — that connection becomes a spectator, never the seat-holder, so
+  // it can neither move nor cancel a forfeit countdown.
   const tokenSeat = verifySeatToken(room, suppliedSeatToken);
-  if (tokenSeat) {
-    tokenSeat.lastSeenAt = new Date();
-    await touchSeatToken(roomMgrCtx, room, tokenSeat);
+  const decision = authorizeExistingSeat(room.seatTokens, tokenSeat, accountUser?.id ?? null);
+  if (decision.kind === 'deny') return { seat: 'spectator' };
+  if (decision.kind === 'grant') {
+    const state = room.seatTokens[decision.seat];
+    if (state) {
+      state.lastSeenAt = new Date();
+      await touchSeatToken(roomMgrCtx, room, state);
+    }
     await startLiveClockIfReady(roomMgrCtx, room);
-    return {
-      seat: tokenSeat.seat,
-      seatTokenHash: tokenSeat.tokenHash,
-    };
+    // Identity reclaim issues no new raw token (the holder re-authenticates by
+    // session each connect); the hash still flows so displacement can match.
+    return { seat: decision.seat, seatTokenHash: decision.tokenHash };
   }
   if (room.projection.seats.white === clientId) {
     await startLiveClockIfReady(roomMgrCtx, room);
@@ -1467,10 +1478,7 @@ function displaceOlderSeatClients(room: Room, replacement: Client): void {
 }
 
 function sameSeatAuthority(left: Client, right: Client): boolean {
-  if (left.seat !== right.seat) return false;
-  if (left.seat === 'spectator') return false;
-  if (left.seatTokenHash && right.seatTokenHash) return left.seatTokenHash === right.seatTokenHash;
-  return isServerEngineClient(left.id) && left.id === right.id;
+  return seatsShareAuthority(left, right, isServerEngineClient);
 }
 
 // ── SECTION: Game flow ─────────────────────────────────────────────────────
