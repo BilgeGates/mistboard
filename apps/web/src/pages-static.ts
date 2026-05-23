@@ -203,15 +203,9 @@ function buildFaq(): HTMLElement {
   heading.className = 'site-section-heading';
   heading.textContent = 'FAQ';
 
-  const intro = aboutParagraph([
-    'For anything not answered here, ping ',
-    aboutLink('Contact', '/contact'),
-    '.',
-  ]);
-
   const q1 = aboutSubheading('What is dark chess?');
   const a1 = aboutParagraph([
-    'Hidden-information chess. You see your own pieces and the squares they could legally move to — everything else is dark, so an opponent’s pieces and moves stay hidden until your pieces can see them. The game ends when a king is captured. The ',
+    'Hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark, so an opponent’s pieces and moves stay hidden until your pieces can see them. The game ends when a king is captured. The ',
     aboutLink('canonical reference', '/articles/fog-of-war-rules'),
     ' has the full rules.',
   ]);
@@ -227,7 +221,6 @@ function buildFaq(): HTMLElement {
 
   section.append(
     heading,
-    intro,
     q1, a1,
     q2, a2,
   );
