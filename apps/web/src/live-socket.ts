@@ -69,6 +69,35 @@ type ServerMessage =
     seatDisplayNames?: Partial<Record<Color, string>>;
   }
   | {
+    // Steady-state delta frame. Mirrors the snapshot shape minus the
+    // events array and plus seq + (optional) event. See
+    // docs/specs/incremental-snapshot-protocol.md.
+    type: 'event-appended';
+    roomId: string;
+    seq: number;
+    event?: GameEvent;
+    clients: number;
+    mode?: RoomMode;
+    pveEngineId?: string | null;
+    pveEngineName?: string | null;
+    serverAt?: number;
+    seat: Seat;
+    solo: boolean;
+    seats: Partial<Record<Color, string>>;
+    offer: Chess960Start[];
+    offers?: DraftOffers;
+    selections: Partial<Record<Color, number>>;
+    devViews: DevViews | null;
+    resolvedStartId: number | null;
+    resolvedStartIds?: DraftResolvedStartIds;
+    state: PlayerView;
+    rated?: boolean;
+    paused?: boolean;
+    connectedSeats?: { white: boolean; black: boolean };
+    rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+    seatDisplayNames?: Partial<Record<Color, string>>;
+  }
+  | {
     type: 'rematch:state';
     offers: { white: boolean; black: boolean };
     finalizedRoomId: string | null;
@@ -88,6 +117,12 @@ type ServerMessage =
 
 let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
+// Last server-side event index this socket has processed. Used to detect
+// gaps in the event-appended stream and trigger snapshot:request recovery.
+// Reset to null on every snapshot/hello — the snapshot is the new baseline,
+// and the next event-appended re-anchors. Phase 2 of the snapshot→delta
+// migration; see docs/specs/incremental-snapshot-protocol.md.
+let lastSeenServerSeq: number | null = null;
 
 // ── Injected callbacks (set by initSocket) ────────────────────────────────────
 
@@ -192,54 +227,72 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     if (message.seatToken && isColor(message.seat)) {
       writeSeatTokenForRoom(liveState.room, { seat: message.seat, token: message.seatToken });
     }
-    liveState.clientCount = message.clients;
-    liveState.connectionState = 'connected';
-    liveState.roomMode = message.mode ?? liveState.roomMode;
-    liveState.pveEngineId = message.pveEngineId ?? null;
-    liveState.pveEngineName = message.pveEngineName ?? null;
-    liveState.lastServerAt = message.serverAt ?? null;
-    liveState.seat = message.seat;
-    liveState.solo = message.solo;
-    liveState.offer = message.offer;
-    liveState.offers = normalizedOffers(message.offer, message.offers);
-    liveState.selections = message.selections;
-    liveState.devViews = message.devViews;
-    liveState.resolvedStartId = message.resolvedStartId;
-    liveState.resolvedStartIds = message.resolvedStartIds ?? {};
-    liveState.rated = message.rated ?? true;
-    liveState.paused = message.paused ?? false;
+    applyFullFrame(message);
     liveState.events = message.events;
-    liveState.state = message.state;
-    if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
-    if (message.rematch) liveState.rematch = message.rematch;
-    if (message.seatDisplayNames) liveState.seatDisplayNames = message.seatDisplayNames;
-  }
-  if (message.type === 'snapshot') {
-    liveState.clientCount = message.clients;
-    liveState.connectionState = 'connected';
-    liveState.roomMode = message.mode ?? liveState.roomMode;
-    liveState.pveEngineId = message.pveEngineId ?? null;
-    liveState.pveEngineName = message.pveEngineName ?? null;
-    liveState.lastServerAt = message.serverAt ?? null;
-    liveState.seat = message.seat;
-    liveState.solo = message.solo;
-    liveState.offer = message.offer;
-    liveState.offers = normalizedOffers(message.offer, message.offers);
-    liveState.selections = message.selections;
-    liveState.devViews = message.devViews;
-    liveState.resolvedStartId = message.resolvedStartId;
-    liveState.resolvedStartIds = message.resolvedStartIds ?? {};
-    liveState.rated = message.rated ?? true;
-    liveState.paused = message.paused ?? false;
+    // Snapshot/hello reset the seq baseline. The events array we just
+    // received was already filtered server-side, so the client cannot
+    // derive the server's max-seq from `events.length`. Wait for the
+    // next event-appended to re-anchor.
+    lastSeenServerSeq = null;
+  } else if (message.type === 'snapshot') {
+    applyFullFrame(message);
     liveState.events = message.events;
-    liveState.state = message.state;
-    if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
-    if (message.rematch) liveState.rematch = message.rematch;
-    if (message.seatDisplayNames) liveState.seatDisplayNames = message.seatDisplayNames;
+    lastSeenServerSeq = null;
+  } else if (message.type === 'event-appended') {
+    if (!applyEventAppended(message)) return;
   }
   _maybePlaySnapshotSound(liveState.events, liveState.state);
   _reconcileInteractionState();
   _render();
+}
+
+type FullFrameSource = Extract<ServerMessage, { type: 'hello' | 'snapshot' | 'event-appended' }>;
+
+// Fields shared by every state-bearing frame (hello, snapshot, event-
+// appended). Keeping this in one helper prevents the three handlers from
+// drifting — same code wrote the snapshot for years, now event-appended
+// uses the same projection.
+function applyFullFrame(message: FullFrameSource): void {
+  liveState.clientCount = message.clients;
+  liveState.connectionState = 'connected';
+  liveState.roomMode = message.mode ?? liveState.roomMode;
+  liveState.pveEngineId = message.pveEngineId ?? null;
+  liveState.pveEngineName = message.pveEngineName ?? null;
+  liveState.lastServerAt = message.serverAt ?? null;
+  liveState.seat = message.seat;
+  liveState.solo = message.solo;
+  liveState.offer = message.offer;
+  liveState.offers = normalizedOffers(message.offer, message.offers);
+  liveState.selections = message.selections;
+  liveState.devViews = message.devViews;
+  liveState.resolvedStartId = message.resolvedStartId;
+  liveState.resolvedStartIds = message.resolvedStartIds ?? {};
+  liveState.rated = message.rated ?? true;
+  liveState.paused = message.paused ?? false;
+  liveState.state = message.state;
+  if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
+  if (message.rematch) liveState.rematch = message.rematch;
+  if (message.seatDisplayNames) liveState.seatDisplayNames = message.seatDisplayNames;
+}
+
+// Apply an event-appended frame. Returns true if the frame was applied;
+// false if it was discarded (gap detected and a snapshot:request was
+// queued — caller should NOT fire sound/render hooks for a dropped frame).
+function applyEventAppended(message: Extract<ServerMessage, { type: 'event-appended' }>): boolean {
+  if (lastSeenServerSeq !== null && message.seq !== lastSeenServerSeq + 1) {
+    // Gap. Discard this frame and ask the server for a fresh snapshot.
+    // The snapshot will reset lastSeenServerSeq to null, and the next
+    // event-appended re-anchors. TCP guarantees frames don't get
+    // reordered on the open socket, so a gap means the socket was
+    // briefly closed/reopened or the server made a wire-protocol
+    // mistake — both are recoverable via full resync.
+    sendSocket({ type: 'snapshot:request' });
+    return false;
+  }
+  applyFullFrame(message);
+  if (message.event) liveState.events = [...liveState.events, message.event];
+  lastSeenServerSeq = message.seq;
+  return true;
 }
 
 function scheduleReconnect(): void {
