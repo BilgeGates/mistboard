@@ -119,6 +119,8 @@ export type RecentEveGameRecord = GameRecord & {
   whiteEngineId: string | null;
   blackEngineId: string | null;
   timeControl: Record<string, unknown> | null;
+  initialMs: number | null;
+  incrementMs: number | null;
 };
 
 export type GameDebugArtifactSummary = {
@@ -1132,12 +1134,15 @@ type RecentEveGameRow = GameRow & {
   white_engine_id: string | null;
   black_engine_id: string | null;
   time_control: Record<string, unknown> | null;
+  initial_ms: number | null;
+  increment_ms: number | null;
 };
 
 // `games.` prefix because every recent-eve query LEFT JOINs eve_games.
 const RECENT_EVE_SELECT_COLUMNS = `games.room_id, games.variant, games.mode, games.result, games.termination,
             games.ply_count, games.started_at, games.ended_at,
             games.white_name, games.black_name, games.corpus_id,
+            games.initial_ms, games.increment_ms,
             eve_games.job_id, eve_games.game_index,
             eve_games.white_engine_id, eve_games.black_engine_id,
             eve_games.time_control,
@@ -1170,6 +1175,8 @@ function recentEveGameRecordFromRow(row: RecentEveGameRow): RecentEveGameRecord 
     whiteEngineId: row.white_engine_id,
     blackEngineId: row.black_engine_id,
     timeControl: row.time_control,
+    initialMs: row.initial_ms,
+    incrementMs: row.increment_ms,
   };
 }
 

@@ -1553,6 +1553,8 @@ function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | 
     whiteEngineId: null,
     blackEngineId: null,
     timeControl: null,
+    initialMs: summary.initialMs ?? null,
+    incrementMs: summary.incrementMs ?? null,
     visibility: summary.visibility ?? 'public',
     participants: summary.participants ?? [],
   };

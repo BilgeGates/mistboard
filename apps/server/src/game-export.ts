@@ -1,5 +1,5 @@
 import { algebraicMoveLabels, type Color, type GameEvent, type Move } from '@mistboard/game';
-import type { RecentEveGameRecord } from './persistence.js';
+import type { GameParticipant, RecentEveGameRecord } from './persistence.js';
 
 const SCHEMA_VERSION = '1.0';
 const LICENSE = 'CC BY 4.0';
@@ -37,6 +37,22 @@ export type GamePublication = {
   plies: PublicationPly[];
 };
 
+function participantByColor(
+  summary: RecentEveGameRecord,
+  color: Color,
+): GameParticipant | undefined {
+  return summary.participants.find((p) => p.color === color);
+}
+
+// games.white_name / games.black_name are written as null at room creation and
+// never backfilled for live games; the actual display name lives in
+// game_participants.display_name. Prefer that, then fall back.
+function displayNameForColor(summary: RecentEveGameRecord, color: Color): string | null {
+  const participantName = participantByColor(summary, color)?.displayName ?? null;
+  if (participantName) return participantName;
+  return color === 'white' ? summary.whiteName : summary.blackName;
+}
+
 function moveToUci(move: Move): string {
   const promo = move.promotion
     ? ({ queen: 'q', rook: 'r', bishop: 'b', knight: 'n' }[move.promotion] ?? '')
@@ -49,11 +65,18 @@ function timeControlFromSummary(summary: RecentEveGameRecord): {
   increment_ms: number | null;
   label: string;
 } {
-  const raw = summary.timeControl ?? {};
-  const initialMsValue = (raw as Record<string, unknown>).initialMs;
-  const incrementMsValue = (raw as Record<string, unknown>).incrementMs;
-  const initial = typeof initialMsValue === 'number' ? initialMsValue : null;
-  const increment = typeof incrementMsValue === 'number' ? incrementMsValue : null;
+  // PvP/PvE games store time control in games.initial_ms / games.increment_ms.
+  // EvE games carry an additional eve_games.time_control JSON. Prefer the
+  // games-table values when present, fall back to the EvE JSON otherwise.
+  let initial = summary.initialMs ?? null;
+  let increment = summary.incrementMs ?? null;
+  if (initial == null) {
+    const raw = summary.timeControl ?? {};
+    const initialMsValue = (raw as Record<string, unknown>).initialMs;
+    const incrementMsValue = (raw as Record<string, unknown>).incrementMs;
+    if (typeof initialMsValue === 'number') initial = initialMsValue;
+    if (typeof incrementMsValue === 'number') increment = incrementMsValue;
+  }
   return {
     initial_ms: initial,
     increment_ms: increment,
@@ -98,8 +121,8 @@ export function buildGamePublicationJson(
     mode: summary.mode,
     time_control: timeControlFromSummary(summary),
     players: {
-      white: { handle: summary.whiteName },
-      black: { handle: summary.blackName },
+      white: { handle: displayNameForColor(summary, 'white') },
+      black: { handle: displayNameForColor(summary, 'black') },
     },
     started_at: summary.startedAt.toISOString(),
     ended_at: summary.endedAt.toISOString(),
@@ -178,8 +201,8 @@ function buildPgnHeaders(summary: RecentEveGameRecord, siteOrigin: string): stri
     ['Site', `${siteOrigin}/game/${summary.roomId}`],
     ['Date', date],
     ['Round', '-'],
-    ['White', summary.whiteName ?? '?'],
-    ['Black', summary.blackName ?? '?'],
+    ['White', displayNameForColor(summary, 'white') ?? '?'],
+    ['Black', displayNameForColor(summary, 'black') ?? '?'],
     ['Result', pgnResult(summary.result)],
     ['Variant', pgnVariantName(summary.variant)],
     ['TimeControl', tc.label],

@@ -78,6 +78,8 @@ function fixtureGame(): { summary: RecentEveGameRecord; events: GameEvent[] } {
     whiteEngineId: null,
     blackEngineId: null,
     timeControl: { initialMs: 60000, incrementMs: 1000 },
+    initialMs: 60000,
+    incrementMs: 1000,
   };
 
   return { summary, events };
@@ -206,8 +208,69 @@ test('JSON handles null player handles', () => {
 
 test('time control label degrades when missing', () => {
   const { summary, events } = fixtureGame();
-  const payload = buildGamePublicationJson({ ...summary, timeControl: null }, events);
+  const payload = buildGamePublicationJson(
+    { ...summary, timeControl: null, initialMs: null, incrementMs: null },
+    events,
+  );
   assert.equal(payload.time_control.initial_ms, null);
   assert.equal(payload.time_control.increment_ms, null);
   assert.equal(payload.time_control.label, 'untimed');
+});
+
+// PvE games (and most PvP games) store time control on the games table itself,
+// not in eve_games.time_control. Export must prefer the games-table values.
+test('time control reads games.initial_ms / increment_ms when eve_games JSON is null', () => {
+  const { summary, events } = fixtureGame();
+  const pveSummary: RecentEveGameRecord = {
+    ...summary,
+    mode: 'pve',
+    whiteName: null,
+    blackName: null,
+    timeControl: null,
+    initialMs: 180000,
+    incrementMs: 2000,
+  };
+
+  const json = buildGamePublicationJson(pveSummary, events);
+  assert.equal(json.time_control.initial_ms, 180000);
+  assert.equal(json.time_control.increment_ms, 2000);
+  assert.equal(json.time_control.label, '180+2');
+
+  const pgn = buildGamePgn(pveSummary, events);
+  assert.ok(pgn.includes('[TimeControl "180+2"]'));
+});
+
+// games.white_name / black_name are null in production; the display name lives
+// on game_participants. PGN/JSON must read from participants first.
+test('player names come from participants when whiteName/blackName are null', () => {
+  const { summary, events } = fixtureGame();
+  const withParticipants: RecentEveGameRecord = {
+    ...summary,
+    whiteName: null,
+    blackName: null,
+    participants: [
+      {
+        color: 'white',
+        displayName: '@alice-handle',
+        subjectType: 'user',
+        subjectId: 'user-1',
+        visibility: 'public',
+      },
+      {
+        color: 'black',
+        displayName: 'Mistboard Engine v3.2',
+        subjectType: 'engine-version',
+        subjectId: 'engine-v3-2',
+        visibility: 'public',
+      },
+    ],
+  };
+
+  const pgn = buildGamePgn(withParticipants, events);
+  assert.ok(pgn.includes('[White "@alice-handle"]'));
+  assert.ok(pgn.includes('[Black "Mistboard Engine v3.2"]'));
+
+  const json = buildGamePublicationJson(withParticipants, events);
+  assert.equal(json.players.white.handle, '@alice-handle');
+  assert.equal(json.players.black.handle, 'Mistboard Engine v3.2');
 });
