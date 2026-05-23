@@ -520,6 +520,25 @@ test('seat-resigned ends the game with opposite color winning', () => {
   assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'resignation' });
 });
 
+test('seat-resigned freezes the clock at the resign timestamp', () => {
+  const startedClock = createClock(1000, 60_000, 0);
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'resign-clock-room', variant: 'fog-of-war', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: 'resign-clock-room', clientId: 'wc', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: 'resign-clock-room', clientId: 'bc', seat: 'black' },
+    { type: 'clock-started', at: 1000, roomId: 'resign-clock-room', clock: startedClock },
+    // White's clock ticks from 1000ms to 4000ms (3s elapsed) before resigning.
+    { type: 'seat-resigned', at: 4000, roomId: 'resign-clock-room', color: 'white' },
+  ];
+  const projection = replayGameEvents(events);
+  assert.deepEqual(projection.state.status, { type: 'finished', winner: 'black', reason: 'resignation' });
+  // Clock must be frozen: no active color, no runningSince. White's remaining reflects elapsed.
+  assert.equal(projection.state.clock?.activeColor, null);
+  assert.equal(projection.state.clock?.runningSince, null);
+  assert.equal(projection.state.clock?.remainingMs.white, 57_000);
+  assert.equal(projection.state.clock?.remainingMs.black, 60_000);
+});
+
 test('seat-resigned after game already finished is a no-op (only first resignation counts)', () => {
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'r', variant: 'fog-of-war', offer: [] },

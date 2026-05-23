@@ -81,6 +81,7 @@ export type GameEvent =
     at: number;
     roomId: string;
     color: Color;
+    clock?: ClockState;
   }
   | {
     type: 'pause';
@@ -290,6 +291,7 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
           winner: event.color === 'white' ? 'black' : 'white',
           reason: 'resignation',
         },
+        clock: event.clock ?? freezeClock(projection.state.clock, event.at),
       },
     };
   }

@@ -6,6 +6,7 @@ import {
   replayGameEvents,
   variantForId,
   type Color,
+  type GameEndReason,
   type GameEvent,
   type GameProjection,
   type Move,
@@ -555,10 +556,6 @@ function renderDraftPicker(): void {
 
 function renderActionStatus(view: PlayerView | null): void {
   refs.actionStatus.replaceChildren();
-  if (view?.status.type === 'finished' && isLive()) {
-    refs.actionStatus.hidden = true;
-    return;
-  }
   if (
     view?.status.type === 'playing'
     && isLive()
@@ -688,9 +685,72 @@ function renderGameControls(view: PlayerView | null): void {
 }
 
 function requestResign(): void {
-  const ok = window.confirm('Resign this game? Your opponent wins.');
-  if (!ok) return;
-  sendSocket({ type: 'resign' });
+  openConfirmDialog({
+    title: 'Resign this game?',
+    body: 'Your opponent wins. This cannot be undone.',
+    confirmLabel: 'Resign',
+    confirmTone: 'danger',
+    onConfirm: () => { sendSocket({ type: 'resign' }); },
+  });
+}
+
+type ConfirmOptions = {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  confirmTone?: 'danger' | 'default';
+  onConfirm: () => void;
+};
+
+function openConfirmDialog(opts: ConfirmOptions): void {
+  const existing = document.querySelector<HTMLDialogElement>('dialog[data-confirm-dialog]');
+  existing?.remove();
+
+  const dialog = document.createElement('dialog');
+  dialog.dataset.confirmDialog = '';
+  dialog.className = 'confirm-dialog';
+
+  const title = document.createElement('h2');
+  title.className = 'confirm-dialog-title';
+  title.textContent = opts.title;
+
+  const body = document.createElement('p');
+  body.className = 'confirm-dialog-body';
+  body.textContent = opts.body;
+
+  const actions = document.createElement('div');
+  actions.className = 'confirm-dialog-actions';
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'confirm-dialog-cancel';
+  cancel.textContent = opts.cancelLabel ?? 'Cancel';
+  cancel.addEventListener('click', () => { dialog.close('cancel'); });
+
+  const confirm = document.createElement('button');
+  confirm.type = 'button';
+  confirm.className = opts.confirmTone === 'danger'
+    ? 'confirm-dialog-confirm danger'
+    : 'confirm-dialog-confirm';
+  confirm.textContent = opts.confirmLabel;
+  confirm.addEventListener('click', () => { dialog.close('confirm'); });
+
+  actions.append(cancel, confirm);
+  dialog.append(title, body, actions);
+
+  // Close on backdrop click (clicks that land on the dialog element itself, not its children).
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close('cancel');
+  });
+  dialog.addEventListener('close', () => {
+    if (dialog.returnValue === 'confirm') opts.onConfirm();
+    dialog.remove();
+  });
+
+  document.body.append(dialog);
+  dialog.showModal();
+  cancel.focus();
 }
 
 function copyLinkButton(): HTMLButtonElement {
@@ -1820,11 +1880,19 @@ function terminalFogViewForProjection(projection: GameProjection, perspective: C
     status: { type: 'playing', turn: perspective } as const,
   };
   const view = variant.getPlayerView(reviewState, perspective);
+  // Only show lastMove highlight if the move was made by the viewer. The to-square
+  // holds the moving side's piece, so a perspective-colored piece there means it
+  // was the viewer's move. Opponent moves stay hidden — their pieces aren't
+  // revealed in the fog room, and a stale highlight on hidden squares is confusing.
+  const lastMove = projection.state.lastMove;
+  const ownedLastMove = lastMove && projection.state.board[lastMove.to]?.color === perspective
+    ? lastMove
+    : undefined;
   return {
     ...view,
     legalMoves: [],
     status: projection.state.status,
-    lastMove: projection.state.lastMove,
+    lastMove: ownedLastMove,
     clock: projection.state.clock,
   };
 }
@@ -1921,7 +1989,14 @@ function actionTone(view: PlayerView | null): InfoTone {
   if (liveState.connectionState === 'displaced') return 'danger';
   if (liveState.connectionState === 'disconnected') return 'danger';
   if (!view || liveState.connectionState === 'connecting' || liveState.connectionState === 'reconnecting') return 'pending';
-  if (view.status.type === 'finished') return 'success';
+  if (view.status.type === 'finished') {
+    const seat = liveState.seat;
+    if (seat === 'white' || seat === 'black') {
+      if (view.status.winner === null) return 'default';
+      return view.status.winner === seat ? 'success' : 'danger';
+    }
+    return 'default';
+  }
   if (liveState.seat === 'spectator') return 'default';
   if (view.status.type === 'playing' && view.status.turn === pveEngineSeat()) return 'pending';
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) return 'success';
@@ -1933,7 +2008,7 @@ function actionTitle(view: PlayerView | null): string {
   if (liveState.connectionState === 'displaced') return 'Session moved';
   if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting') return 'Reconnecting';
   if (!view || liveState.connectionState === 'connecting') return 'Connecting';
-  if (view.status.type === 'finished') return resultTitle(view.status.winner);
+  if (view.status.type === 'finished') return finishedTitle(view.status.winner);
   if (liveState.seat === 'spectator') return 'Watching';
   if (view.status.type === 'pregame') {
     if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
@@ -1954,7 +2029,7 @@ function actionBody(view: PlayerView | null): string {
   if (liveState.connectionState === 'reconnecting') return 'Trying to restore your room state and seat.';
   if (!view || liveState.connectionState === 'connecting') return 'Opening the room and loading the current server state.';
   if (view.status.type === 'finished') {
-    return `Board is fully revealed. ${resultReasonLabel(view.status.reason)}.`;
+    return finishedBody(view.status.winner, view.status.reason);
   }
   if (liveState.seat === 'spectator') return spectatorBody(view);
   if (view.status.type === 'pregame') {
@@ -1979,7 +2054,7 @@ function actionBody(view: PlayerView | null): string {
 }
 
 function spectatorBody(view: PlayerView): string {
-  if (view.status.type === 'finished') return 'Review the fully revealed final position.';
+  if (view.status.type === 'finished') return 'Open Review game to see the full board.';
   if (liveState.clientCount < 3 && liveState.roomMode === 'pvp') return 'Waiting for both player seats to be filled.';
   return 'Spectators receive a public Fog view while the game is live.';
 }
@@ -1988,6 +2063,35 @@ function resultTitle(winner: Color | null): string {
   if (winner === 'white') return 'White wins';
   if (winner === 'black') return 'Black wins';
   return 'Draw';
+}
+
+function finishedTitle(winner: Color | null): string {
+  const seat = liveState.seat;
+  if (seat === 'white' || seat === 'black') {
+    if (winner === null) return 'Draw';
+    return winner === seat ? 'You won' : 'You lost';
+  }
+  return resultTitle(winner);
+}
+
+function finishedBody(winner: Color | null, reason: GameEndReason): string {
+  const reasonPhrase = reasonPhraseLabel(reason);
+  const seat = liveState.seat;
+  if (seat === 'white' || seat === 'black') {
+    if (winner === null) return `${capitalize(reasonPhrase)}.`;
+    const youWon = winner === seat;
+    if (reason === 'resignation') return youWon ? 'Opponent resigned.' : 'You resigned.';
+    if (reason === 'timeout') return youWon ? 'Opponent ran out of time.' : 'You ran out of time.';
+    return `${youWon ? 'You won' : 'Opponent won'} by ${reasonPhrase}.`;
+  }
+  if (winner === null) return `${capitalize(reasonPhrase)}.`;
+  return `${capitalize(winner)} wins by ${reasonPhrase}.`;
+}
+
+function reasonPhraseLabel(reason: GameEndReason): string {
+  if (reason === 'king-captured') return 'king capture';
+  if (reason === 'draw') return 'draw';
+  return reason; // checkmate, resignation, timeout
 }
 
 function resultReasonLabel(reason: string): string {
