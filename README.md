@@ -1,74 +1,58 @@
-# Mistboard
+# [Mistboard](https://mistboard.com)
 
-> **Live at [mistboard.com](https://mistboard.com)** — Play Fog of War chess.
+[![CI](https://github.com/brianhliou/mistboard/actions/workflows/ci.yml/badge.svg)](https://github.com/brianhliou/mistboard/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-Mistboard is an open-source site for **Fog of War chess**: a hidden-information chess variant where each player sees only what their pieces can legally see, enforced by the server.
+<img src="apps/web/public/screenshot-bicolor.png" alt="Mistboard — the same game position seen from White and Black under fog of war" title="The same game position seen from White (left) and Black (right) under fog of war." />
 
-Players create a room, share a link, and play. The full board exists only on the server; clients receive only their own legal view.
+Mistboard is a free online site for **Fog of War chess** — a hidden-information variant where each player only sees what their own pieces can legally see, [enforced by the server](https://mistboard.com/articles/server-enforced-fog).
+
+It features link-based [PvP rooms](https://mistboard.com), private [Draft960](https://mistboard.com/articles/draft960) back-rank drafting, post-game replay from either player's perspective or full truth, per-game Open Graph share images, PGN/JSON export, [per-bucket Elo](https://mistboard.com/leaderboard), and an in-house [engine track](https://mistboard.com/articles/engine-belief-state) targeting a competitive Fog of War bot.
+
+Mistboard is written in [TypeScript](https://www.typescriptlang.org/) across a small npm workspace. The browser client is a no-framework [Vite](https://vitejs.dev/) build that uses [chessground](https://github.com/lichess-org/chessground) for board rendering and [chessops](https://github.com/niklasf/chessops) for chess primitives. The server is a [Node](https://nodejs.org/) WebSocket process that owns canonical game state, with [Postgres](https://www.postgresql.org/) for the event log and game history and [pino](https://github.com/pinojs/pino) for structured logs. A pure-game `packages/game` module holds the variant rules, visibility kernel, and the `getPlayerView()` boundary — the central abstraction that ensures no hidden truth ever reaches the wrong client. An offline [Python research lab](research/python-fow-lab) is used for visibility, belief, and bot experiments and is not part of the product. Hosted on [Railway](https://railway.com/). Analytics via [PostHog](https://posthog.com/).
 
 Mistboard is an independent open-source project. It is not affiliated with lichess, chess.com, or any other chess platform.
+
+Use [GitHub issues](https://github.com/brianhliou/mistboard/issues) for bug reports and feature requests.
 
 ## Status
 
 Live PvP Fog of War is playable at [mistboard.com](https://mistboard.com). The project is working toward [M1 pre-distribution gates](docs/ROADMAP.md) before wider outreach.
 
-## How It Works
+## Installation
 
-Two players open a room link and play a hidden-information chess game. Optionally, each player privately drafts their own Chess960 back-rank before play begins (Draft960). The server enforces visibility — hidden pieces and hidden opponent moves are never sent to the wrong client. After the game ends, the full board is revealed and replayable from either player's perspective or full truth.
+```bash
+npm install
+npm run dev   # in-memory server, fastest for UI work
+npm test
+```
 
-See [`docs/rules.md`](docs/rules.md) for the complete rule baseline and edge cases.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for dev rooms, local Postgres setup, and integration tests.
 
 ## Architecture
 
 ```text
-packages/game   Pure game logic: types, rules, visibility, variants
-apps/server     WebSocket rooms, clocks, event log, HTTP API
-apps/web        Board UI, game screens, client WebSocket handling
+packages/game           Pure game logic: types, rules, visibility, variants
+packages/board-render   Shared SVG board renderer (server + browser)
+apps/server             WebSocket rooms, clocks, event log, HTTP API
+apps/web                Board UI, game screens, client WebSocket handling
+research/python-fow-lab Offline Python research lab (not shipped)
 ```
 
-The central abstraction is `getPlayerView(state, color)` — the security boundary that ensures no hidden truth reaches the wrong client. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full data flow and state model.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full data flow and state model, and [`docs/rules.md`](docs/rules.md) for the Fog of War rule baseline.
 
-## Development
+## Contributing
 
-```bash
-npm install
-npm run dev              # in-memory server, fastest for UI work
-npm run dev:persistent   # Postgres-backed server
-npm test
-```
-
-Fog of War dev room:
-
-```text
-http://localhost:3000/?room=fog-dev&reset=1&variant=fog-of-war
-```
-
-Engine dev room (human as White, random-move engine as Black):
-
-```text
-http://localhost:3000/?room=fog-engine-dev&reset=1&variant=fog-of-war&dev=engine
-```
-
-Local Postgres (required for reconnect, replay, and postgame review):
-
-```bash
-npm run db:up            # local Postgres on host port 5435
-npm run db:migrate
-npm run test:persistent
-```
-
-See [`docs/persistence.md`](docs/persistence.md) for the full schema, env vars, and failure semantics.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), and [`SECURITY.md`](SECURITY.md).
 
 ## License
 
-AGPL-3.0-or-later. See [`LICENSE`](LICENSE). Mistboard uses GPL-family chess libraries (`chessops`, `chessground`), which are AGPL-compatible.
+AGPL-3.0-or-later. See [`LICENSE`](LICENSE).
 
 For uses that require terms other than AGPL (e.g. closed-source distribution), reach out via [mistboard.com/contact](https://mistboard.com/contact).
-
-The npm packages are marked `"private": true` to prevent accidental package publishing — this is intentional and does not affect the repository's public/open-source status.
 
 ## Governance
 
 Mistboard is founder-led. The code is open source, but the official project identity, `mistboard.com`, hosted service, roadmap, and production infrastructure remain controlled project assets.
 
-See [`GOVERNANCE.md`](GOVERNANCE.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), [`docs/project-direction.md`](docs/project-direction.md).
+See [`GOVERNANCE.md`](GOVERNANCE.md), [`TRADEMARK.md`](TRADEMARK.md), and [`docs/project-direction.md`](docs/project-direction.md).
