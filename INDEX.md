@@ -3,7 +3,7 @@
 Fast orientation for agents. One line per file. Read this before opening any source file.
 Edit task → find file → open only that file.
 
-> **Refactor in progress (2026-05-22 → 2026-05-23):** The god files are being split into focused modules. So far: `live-sound.ts`, `time-controls.ts`, `review.ts`, `contact.ts`, `account.ts`, `profile.ts`, `pages-static.ts`, `live-replay.ts` extracted. `http-api.ts` was hardened in-place (querystring bug fix + `requireMethod`/`requirePersistence` helpers) but not yet split into `routes/*`.
+> **Sprint 2 god-file work complete (2026-05-22 → 2026-05-23):** all major splits shipped — web side: `live-sound.ts`, `time-controls.ts`, `review.ts`, `contact.ts`, `account.ts`, `profile.ts`, `pages-static.ts`, `live-replay.ts`. Server side: `http-api.ts` decomposed into `routes/{lib,annotations,auth,account,engines,feedback,meta,rooms,lobby,games,users,leaderboard}.ts` (Tier-4 in audit). Biome format + lint:fix passes also landed.
 
 ## packages/game/src/ — Pure game logic (no server/browser deps)
 
@@ -49,7 +49,19 @@ Edit task → find file → open only that file.
 | `index.ts` | Server library: exports `startServer`, `installShutdownHandlers`, `stopServer`. Module-load side-effect-free so the integration harness can boot a test instance on a random port. Has `// ── SECTION:` markers; SSR/page-meta and drain orchestration are candidates for extraction. |
 | `rematch.ts` | Mutual-confirm rematch state machine + finalize. `offerRematch`, `cancelRematch`, `declineRematch`, `finalizeRematchIfReady`, `maybeReplayRematchRedirect`. |
 | `room-manager.ts` | Core game loop: `playMove`, `appendEvent`, `broadcastSnapshot`, `scheduleClockTimeout`, `expireActiveClock`, `scheduleRandomEngineMove`, `playRandomEngineMoveIfReady`, seat token persistence, bid/draft resolution. Context: `RoomManagerContext`. |
-| `http-api.ts` | HTTP routing: `handleApiRequest` (single big dispatcher, ~1100 LOC). Hardened with `requireMethod()` and `requirePersistence()` helpers; all 16 routes normalized on `parsedUrl.pathname` matching (querystring-bug fix). Full file split into `routes/*` still pending. Exported: `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `HttpApiContext`, `writeJson`, `requireMethod`, `requirePersistence` |
+| `http-api.ts` | Thin HTTP dispatcher (79 LOC). Walks `routes/*` modules in declared order; each `tryHandle()` returns true to claim the request or false to fall through. Re-exports `HttpApiContext`, `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `isPveAllowedTimeControl`, `readJsonBody`, `writeJson`, `requireMethod`, `requirePersistence` from `routes/lib.ts` so external consumers (`index.ts`, loadtest) don't need to know things moved |
+| `routes/lib.ts` | Shared HTTP utilities: `HttpApiContext` interface, `writeJson`, `requireMethod`, `requirePersistence`, `readJsonBody`, the parse helpers, `hashIp`, `isHttpAdminAuthorized`. Imported by every route module |
+| `routes/auth.ts` | `/api/auth/{me,logout,email/start,email/confirm}` |
+| `routes/account.ts` | `/api/account/profile` (PATCH) |
+| `routes/users.ts` | `/api/users/:handle/profile` |
+| `routes/rooms.ts` | POST `/api/rooms`, `/api/rooms/:id/abandon`, plus `parseRoomMode` / `parsePlayablePveEngineId` |
+| `routes/lobby.ts` | `/api/lobby`, `/api/lobby/:ticketId`, plus `joinLobby` / `cancelLobbyTicket` / `pruneLobbyTickets` / `lobbyTicketResponse` / `lobbyOpenRequests` |
+| `routes/games.ts` | All `/api/games/*` + `/api/eve-games/recent` (8 routes) + game-data helpers (`gameSummaryForApi`, `gameEventsForApi`, `gameReviewForApi`, `gameArtifactsForApi`, engine-color helpers) |
+| `routes/leaderboard.ts` | `/api/leaderboard` |
+| `routes/feedback.ts` | `/api/feedback` + honeypot + anon rate-limit + email-and-persist fan-out |
+| `routes/annotations.ts` | `/api/annotations` (admin GET/POST/PUT, JSON-lines file backed) |
+| `routes/meta.ts` | `/api/server-status`, `/api/live-stats` |
+| `routes/engines.ts` | `/api/engines/playable` |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
 | `server-types.ts` | Shared server types: `Client`, `Room`, `SeatTokenState`, `SeatAssignment`, `LobbyTicket` |
@@ -94,7 +106,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 
 **Change move validation or game flow** → `room-manager.ts`
 **Change WebSocket message handling** → `index.ts` §WebSocket connection handling
-**Change HTTP API routing** → `http-api.ts`
+**Change HTTP API routing** → relevant `routes/*.ts` module (dispatcher in `http-api.ts` rarely needs touching unless adding a new route module)
+**Add a new HTTP route** → either add to an existing `routes/*.ts` module or create a new one with `tryHandle()` + register it in `http-api.ts`'s `routes` array (order matters for overlapping patterns)
 **Change account/session/email auth** → `account-session.ts`
 **Change seat token auth** → `index.ts` §Seat management
 **Change persistence queries** → `persistence.ts`
