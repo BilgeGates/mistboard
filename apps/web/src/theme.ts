@@ -61,10 +61,12 @@ function applyPieceSet(pieceSet: PieceSet): void {
 }
 
 function mountThemeControls(): void {
-  document
-    .querySelectorAll<HTMLElement>('body > [data-theme-control]')
-    .forEach((control) => control.remove());
-  document.querySelectorAll<HTMLElement>('.site-nav').forEach((nav) => mountThemeControl(nav));
+  for (const control of document.querySelectorAll<HTMLElement>('body > [data-theme-control]')) {
+    control.remove();
+  }
+  for (const nav of document.querySelectorAll<HTMLElement>('.site-nav')) {
+    mountThemeControl(nav);
+  }
 }
 
 function watchForNavChanges(): void {

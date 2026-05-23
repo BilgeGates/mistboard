@@ -26,6 +26,7 @@ export function normalizeEmail(value: string | null): string | null {
   if (!value) return null;
   const email = value.trim().toLowerCase();
   if (email.length === 0 || email.length > maxEmailLength) return null;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting non-ASCII / control chars in emails is the rule's intent
   if (!/^[\x00-\x7F]+$/.test(email)) return null;
   if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(email)) return null;
   const [, domain = ''] = email.split('@');
@@ -71,6 +72,7 @@ export function normalizeDisplayName(value: string | null): string | null {
   if (!value) return null;
   const name = value.trim().replace(/\s+/g, ' ');
   if (name.length < 1 || name.length > 40) return null;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control chars in display names is the rule's intent
   if (/[\u0000-\u001F\u007F]/.test(name)) return null;
   return name;
 }

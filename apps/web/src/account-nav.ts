@@ -45,9 +45,9 @@ function watchForNavChanges(): void {
 
 function mountAccountNavs(): void {
   if (cachedUser === undefined || cachedUser === null) return;
-  document
-    .querySelectorAll<HTMLElement>('.site-nav')
-    .forEach((nav) => mountAccountNav(nav, cachedUser as AuthUser));
+  for (const nav of document.querySelectorAll<HTMLElement>('.site-nav')) {
+    mountAccountNav(nav, cachedUser as AuthUser);
+  }
 }
 
 function readSignedInHint(): boolean {

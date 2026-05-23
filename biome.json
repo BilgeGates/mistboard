@@ -49,14 +49,16 @@
       "style": {
         "noNonNullAssertion": "off",
         "useImportType": "warn",
-        "useNodejsImportProtocol": "warn"
+        "useNodejsImportProtocol": "warn",
+        "noDescendingSpecificity": "off"
       },
       "complexity": {
         "noForEach": "off"
       },
       "correctness": {
         "noUnusedImports": "error",
-        "noUnusedVariables": "warn"
+        "noUnusedVariables": "warn",
+        "noUnknownTypeSelector": "off"
       }
     }
   },
