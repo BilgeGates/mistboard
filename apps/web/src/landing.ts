@@ -363,7 +363,7 @@ async function fetchStaticSample(sampleId: string): Promise<GameEvent[]> {
 function staticSampleGames(): FeaturedGame[] {
   return Array.from({ length: 7 }, (_, index) => ({
     roomId: `sample-${index + 1}`,
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     mode: 'manual',
     result: index % 3 === 0 ? 'white-wins' : index % 3 === 1 ? 'black-wins' : 'draw',
     termination: index % 3 === 2 ? 'draw' : 'king-captured',
@@ -514,8 +514,53 @@ export function buildNav(): HTMLElement {
     utilities.append(navLink(item.label, item.href));
   }
   utilities.append(buildSignedOutAccountLinks());
-  nav.append(brand, links, utilities);
+
+  // Mobile menu toggle. On desktop `.site-nav-collapse` is `display: contents`,
+  // so links + utilities lay out exactly as before; on mobile the toggle reveals
+  // them as a dropdown panel. theme.ts / account-nav.ts still find
+  // `.site-nav-utilities` via descendant query, so injection is unaffected.
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'site-nav-toggle';
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-label', 'Menu');
+  for (let i = 0; i < 3; i++) toggle.append(document.createElement('span'));
+  toggle.addEventListener('click', () => {
+    const open = nav.classList.toggle('nav-open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  const collapse = document.createElement('div');
+  collapse.className = 'site-nav-collapse';
+  collapse.append(links, utilities);
+
+  ensureNavDismiss();
+  nav.append(brand, toggle, collapse);
   return nav;
+}
+
+let navDismissBound = false;
+function ensureNavDismiss(): void {
+  if (navDismissBound) return;
+  navDismissBound = true;
+  const closeAll = () => {
+    for (const nav of document.querySelectorAll<HTMLElement>('.site-nav.nav-open')) {
+      nav.classList.remove('nav-open');
+      nav.querySelector('.site-nav-toggle')?.setAttribute('aria-expanded', 'false');
+    }
+  };
+  document.addEventListener('click', (event) => {
+    const target = event.target as Node;
+    for (const nav of document.querySelectorAll<HTMLElement>('.site-nav.nav-open')) {
+      if (!nav.contains(target)) {
+        nav.classList.remove('nav-open');
+        nav.querySelector('.site-nav-toggle')?.setAttribute('aria-expanded', 'false');
+      }
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeAll();
+  });
 }
 
 function buildSignedOutAccountLinks(): HTMLElement {
@@ -1641,7 +1686,7 @@ async function createRoomFromPlay(
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         mode,
-        variant: 'fog-of-war',
+        variant: 'dark-chess',
         hiddenDraft960: setup.startFormat === 'draft960',
         timeControl: setup.timeControl,
         rated: setup.rated,

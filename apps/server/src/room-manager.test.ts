@@ -28,7 +28,7 @@ import type { Client, Room } from './server-types.js';
 
 function makeRoom(
   id: string,
-  variant: 'fog-of-war' | 'draft960' = 'fog-of-war',
+  variant: 'dark-chess' | 'draft960' = 'dark-chess',
   events?: GameEvent[],
 ): Room {
   const roomEvents: GameEvent[] = events ?? [
@@ -398,7 +398,7 @@ test('seat assignment: third connection is spectator (no seat left)', async () =
 
 test('buildGameSummary: engine seat forces rated=false even when room.rated=true', () => {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'room-pve', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'room-pve', variant: 'dark-chess', offer: [] },
     {
       type: 'seat-assigned',
       at: 2,
@@ -409,7 +409,7 @@ test('buildGameSummary: engine seat forces rated=false even when room.rated=true
     { type: 'seat-assigned', at: 3, roomId: 'room-pve', clientId: 'human-c', seat: 'black' },
     { type: 'seat-resigned', at: 4, roomId: 'room-pve', color: 'black' },
   ];
-  const room = makeRoom('room-pve', 'fog-of-war', events);
+  const room = makeRoom('room-pve', 'dark-chess', events);
   room.mode = 'pve';
   room.rated = true;
   const ctx = makeCtx();
@@ -423,12 +423,12 @@ test('buildGameSummary: engine seat forces rated=false even when room.rated=true
 
 test('buildGameSummary: two human seats preserve rated=true', () => {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'room-pvp', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'room-pvp', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'room-pvp', clientId: 'human-w', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'room-pvp', clientId: 'human-b', seat: 'black' },
     { type: 'seat-resigned', at: 4, roomId: 'room-pvp', color: 'white' },
   ];
-  const room = makeRoom('room-pvp', 'fog-of-war', events);
+  const room = makeRoom('room-pvp', 'dark-chess', events);
   room.rated = true;
   const ctx = makeCtx();
 
@@ -444,12 +444,12 @@ test('buildGameSummary: two human seats preserve rated=true', () => {
 test('pauseRoomOnShutdown: appends a pause event and freezes the active clock', async () => {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'room-pause', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'room-pause', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'room-pause', clientId: 'w', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'room-pause', clientId: 'b', seat: 'black' },
     { type: 'clock-started', at: 1000, roomId: 'room-pause', clock: startedClock },
   ];
-  const room = makeRoom('room-pause', 'fog-of-war', events);
+  const room = makeRoom('room-pause', 'dark-chess', events);
   const ctx = makeCtx();
 
   await pauseRoomOnShutdown(ctx, room, 3500);
@@ -467,10 +467,10 @@ test('pauseRoomOnShutdown: appends a pause event and freezes the active clock', 
 
 test('pauseRoomOnShutdown: no-op when game already finished', async () => {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'room-done', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'room-done', variant: 'dark-chess', offer: [] },
     { type: 'seat-resigned', at: 2, roomId: 'room-done', color: 'white' },
   ];
-  const room = makeRoom('room-done', 'fog-of-war', events);
+  const room = makeRoom('room-done', 'dark-chess', events);
   const ctx = makeCtx();
   const before = room.events.length;
 
@@ -483,10 +483,10 @@ test('pauseRoomOnShutdown: no-op when game already finished', async () => {
 test('pauseRoomOnShutdown: no-op when already paused (idempotent)', async () => {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'room-twice', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'room-twice', variant: 'dark-chess', offer: [] },
     { type: 'clock-started', at: 1000, roomId: 'room-twice', clock: startedClock },
   ];
-  const room = makeRoom('room-twice', 'fog-of-war', events);
+  const room = makeRoom('room-twice', 'dark-chess', events);
   const ctx = makeCtx();
 
   await pauseRoomOnShutdown(ctx, room, 2000);
@@ -542,7 +542,7 @@ test('replay: hydrating a room from a pause event reconstructs the paused projec
   // replayGameEvents reconstructs the projection. Same code path as getOrCreateRoom uses.
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'room-hydrate', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'room-hydrate', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'room-hydrate', clientId: 'w', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'room-hydrate', clientId: 'b', seat: 'black' },
     { type: 'clock-started', at: 1000, roomId: 'room-hydrate', clock: startedClock },
@@ -567,13 +567,13 @@ test('replay: hydrating a room from a pause event reconstructs the paused projec
 function makePausedSeatedRoom(id: string): Room {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: id, variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: id, variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: id, clientId: 'white-client', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: id, clientId: 'black-client', seat: 'black' },
     { type: 'clock-started', at: 1000, roomId: id, clock: startedClock },
     { type: 'pause', at: 3500, roomId: id, reason: 'shutdown' },
   ];
-  const room = makeRoom(id, 'fog-of-war', events);
+  const room = makeRoom(id, 'dark-chess', events);
   const now = new Date();
   room.seatTokens = {
     white: {
@@ -733,7 +733,7 @@ test('playMove: accepted after resume reactivates the room', async () => {
 test('applyOrphanRecoveryIfNeeded: synthesises a pause for a stale playing room', () => {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'orphan-stale', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'orphan-stale', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'orphan-stale', clientId: 'w', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'orphan-stale', clientId: 'b', seat: 'black' },
     { type: 'clock-started', at: 1000, roomId: 'orphan-stale', clock: startedClock },
@@ -770,7 +770,7 @@ test('applyOrphanRecoveryIfNeeded: leaves a recent playing room alone', () => {
   const startedClock = createClock(1000, 60_000, 0);
   const recentMoveAt = 2000;
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'orphan-fresh', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'orphan-fresh', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'orphan-fresh', clientId: 'w', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'orphan-fresh', clientId: 'b', seat: 'black' },
     { type: 'clock-started', at: 1000, roomId: 'orphan-fresh', clock: startedClock },
@@ -793,7 +793,7 @@ test('applyOrphanRecoveryIfNeeded: leaves a recent playing room alone', () => {
 test('applyOrphanRecoveryIfNeeded: leaves an already-paused room alone (no double-pause)', () => {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'orphan-paused', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'orphan-paused', variant: 'dark-chess', offer: [] },
     { type: 'clock-started', at: 1000, roomId: 'orphan-paused', clock: startedClock },
     { type: 'pause', at: 2000, roomId: 'orphan-paused', reason: 'shutdown' },
   ];
@@ -805,7 +805,7 @@ test('applyOrphanRecoveryIfNeeded: leaves an already-paused room alone (no doubl
 
 test('applyOrphanRecoveryIfNeeded: leaves a finished room alone', () => {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'orphan-finished', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'orphan-finished', variant: 'dark-chess', offer: [] },
     { type: 'seat-resigned', at: 2, roomId: 'orphan-finished', color: 'white' },
   ];
   const now = 2 + 24 * 60 * 60_000; // a day later
@@ -817,7 +817,7 @@ test('applyOrphanRecoveryIfNeeded: leaves a finished room alone', () => {
 test('applyOrphanRecoveryIfNeeded: leaves a pregame room alone', () => {
   const offer = generateChess960Starts().slice(0, 3);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'orphan-pregame', variant: 'fog-of-war', offer },
+    { type: 'room-created', at: 1, roomId: 'orphan-pregame', variant: 'dark-chess', offer },
   ];
   const now = 1 + 60 * 60_000;
   const out = applyOrphanRecoveryIfNeeded(events, now, 300_000);
@@ -835,14 +835,14 @@ test('applyOrphanRecoveryIfNeeded: empty events array is a no-op', () => {
 function makePausedPveRoom(id: string, engineClientId = 'builtin-random-legal'): Room {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: id, variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: id, variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: id, clientId: 'human-w', seat: 'white' },
     // Engine seat held by a server-engine client (recognised by prefix).
     { type: 'seat-assigned', at: 3, roomId: id, clientId: engineClientId, seat: 'black' },
     { type: 'clock-started', at: 1000, roomId: id, clock: startedClock },
     { type: 'pause', at: 3500, roomId: id, reason: 'shutdown' },
   ];
-  const room = makeRoom(id, 'fog-of-war', events);
+  const room = makeRoom(id, 'dark-chess', events);
   const now = new Date();
   // Only the human seat has a seat-token record. Engines don't use seat tokens.
   room.seatTokens = {
@@ -864,14 +864,14 @@ function makePausedPveRoom(id: string, engineClientId = 'builtin-random-legal'):
 function makePausedEveRoom(id: string): Room {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: id, variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: id, variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: id, clientId: 'engine:white', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: id, clientId: 'engine:black', seat: 'black' },
     { type: 'clock-started', at: 1000, roomId: id, clock: startedClock },
     { type: 'pause', at: 3500, roomId: id, reason: 'shutdown' },
   ];
   // No seat tokens — engines don't use them.
-  return makeRoom(id, 'fog-of-war', events);
+  return makeRoom(id, 'dark-chess', events);
 }
 
 test('resumeRoomIfReady (PvE): resumes when the human reconnects — engine seat is auto-present', async () => {

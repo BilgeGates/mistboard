@@ -1015,7 +1015,7 @@ async function getOrCreateRoom(
     | Extract<GameEvent, { type: 'room-created' }>
     | undefined;
   const detectedHiddenDraft960 =
-    projection.variant === 'fog-of-war' && roomCreatedEvent?.offers !== undefined;
+    projection.variant === 'dark-chess' && roomCreatedEvent?.offers !== undefined;
   const room: Room = {
     id: roomId,
     clients: new Set(),
@@ -1477,7 +1477,7 @@ function sameSeatAuthority(left: Client, right: Client): boolean {
 async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
   room.pveEngineId = pveBuiltinEngineClientId;
-  if (room.projection.variant !== 'fog-of-war') return;
+  if (room.projection.variant !== 'dark-chess') return;
   if (!room.projection.seats.black) {
     await appendEvent(roomMgrCtx, room, {
       type: 'seat-assigned',
@@ -1631,7 +1631,7 @@ function roomCreatedDraftOfferFields(
   variant: VariantId,
   hiddenDraft960 = false,
 ): Pick<Extract<GameEvent, { type: 'room-created' }>, 'offer' | 'offers'> {
-  if (variant !== 'draft960' && !(variant === 'fog-of-war' && hiddenDraft960)) return { offer: [] };
+  if (variant !== 'draft960' && !(variant === 'dark-chess' && hiddenDraft960)) return { offer: [] };
 
   const seed = roomIdToSeed(roomId);
   const offers: Record<Color, Chess960Start[]> = {

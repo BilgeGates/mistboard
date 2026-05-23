@@ -155,7 +155,7 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       offers: event.offers ?? { white: event.offer, black: event.offer },
       timeControl: event.timeControl,
       state:
-        variant === 'fog-of-war' && hasDraftOffer(event)
+        variant === 'dark-chess' && hasDraftOffer(event)
           ? { ...state, status: { type: 'pregame' } }
           : state,
     };

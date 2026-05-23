@@ -76,7 +76,7 @@ async function createPveRoom(): Promise<string> {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       mode: 'pve',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       // 3+2 is currently the only allowed PvE time control (see
       // isPveAllowedTimeControl in http-api.ts). Keep this synced.
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
@@ -99,7 +99,7 @@ async function playOne(gameIdx: number): Promise<GameResult> {
   const client = await connectClient({
     url: serverInstance.url,
     room: roomId,
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
   });
   try {
     return await play(client, gameIdx);
@@ -189,7 +189,7 @@ test('POST /api/rooms rejects PvE rooms with non-3+2 time controls', async () =>
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       mode: 'pve',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       timeControl: { initialMs: 60_000, incrementMs: 1_000 },
     }),
   });
@@ -203,7 +203,7 @@ test('POST /api/rooms rejects PvE rooms with non-3+2 time controls', async () =>
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       mode: 'pvp',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       timeControl: { initialMs: 60_000, incrementMs: 1_000 },
     }),
   });

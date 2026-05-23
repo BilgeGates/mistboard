@@ -41,7 +41,7 @@ async function createRoom(body: Record<string, unknown>): Promise<{ roomId: stri
 test('PvE preferredColor=white seats the human as white', async () => {
   const { roomId } = await createRoom({
     mode: 'pve',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     preferredColor: 'white',
   });
@@ -52,7 +52,7 @@ test('PvE preferredColor=white seats the human as white', async () => {
 test('PvE preferredColor=black seats the human as black', async () => {
   const { roomId } = await createRoom({
     mode: 'pve',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     preferredColor: 'black',
   });
@@ -65,7 +65,7 @@ test('PvE preferredColor=black seats the human as black', async () => {
 test('PvP preferredColor=white assigns creator white, invitee black', async () => {
   const { roomId } = await createRoom({
     mode: 'pvp',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     preferredColor: 'white',
     rated: false,
   });
@@ -78,7 +78,7 @@ test('PvP preferredColor=white assigns creator white, invitee black', async () =
 test('PvP preferredColor=black assigns creator black, invitee white', async () => {
   const { roomId } = await createRoom({
     mode: 'pvp',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     preferredColor: 'black',
     rated: false,
   });
@@ -93,7 +93,7 @@ test('PvP preferredColor=black assigns creator black, invitee white', async () =
 test('PvP without preferredColor falls back to first-come-first-served (creator=white)', async () => {
   const { roomId } = await createRoom({
     mode: 'pvp',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     rated: false,
   });
   const creator = await connectClient({ url: serverInstance.url, room: roomId });

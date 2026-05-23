@@ -4,8 +4,8 @@ import type { GameState, Move } from './types.js';
 import { draft960Variant, fogOfWarVariant, normalizeVariantId } from './variants.js';
 
 test('normalizeVariantId accepts both fog slugs and maps to the canonical id', () => {
-  assert.equal(normalizeVariantId('fog-of-war'), 'fog-of-war');
-  assert.equal(normalizeVariantId('dark-chess'), 'fog-of-war');
+  assert.equal(normalizeVariantId('dark-chess'), 'dark-chess');
+  assert.equal(normalizeVariantId('fog-of-war'), 'dark-chess');
   assert.equal(normalizeVariantId('draft960'), 'draft960');
 });
 

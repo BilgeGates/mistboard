@@ -8,7 +8,7 @@ import { legalDests } from './live-render.js';
 function makeView(overrides: Partial<PlayerView> = {}): PlayerView {
   return {
     id: 'test-room',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     board: {},
     visibleSquares: [],
     legalMoves: [],
@@ -90,7 +90,7 @@ describe('hiddenSquareClasses', () => {
 
   it('returns an empty map on finished status by default (reveal)', () => {
     const view = makeView({
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       visibleSquares: [],
       status: { type: 'finished', winner: 'white', reason: 'checkmate' },
     });
@@ -99,7 +99,7 @@ describe('hiddenSquareClasses', () => {
 
   it('preserves fog on finished when preserveFogOnFinished is true', () => {
     const view = makeView({
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       visibleSquares: [],
       status: { type: 'finished', winner: 'white', reason: 'checkmate' },
     });
@@ -108,7 +108,7 @@ describe('hiddenSquareClasses', () => {
   });
 
   it('marks all 64 squares as fog-hidden when nothing is visible', () => {
-    const view = makeView({ variant: 'fog-of-war', visibleSquares: [] });
+    const view = makeView({ variant: 'dark-chess', visibleSquares: [] });
     const classes = hiddenSquareClasses(view);
     expect(classes.size).toBe(64);
     // The class string also encodes visual file/rank for per-tile fog rendering.
@@ -120,7 +120,7 @@ describe('hiddenSquareClasses', () => {
 
   it('does not mark visible squares as fog-hidden', () => {
     const visible: Square[] = ['e1', 'e2', 'd2'];
-    const view = makeView({ variant: 'fog-of-war', visibleSquares: visible });
+    const view = makeView({ variant: 'dark-chess', visibleSquares: visible });
     const classes = hiddenSquareClasses(view);
     expect(classes.has('e1')).toBe(false);
     expect(classes.has('e2')).toBe(false);
@@ -131,7 +131,7 @@ describe('hiddenSquareClasses', () => {
   });
 
   it('encodes visual position from black POV (mirror)', () => {
-    const view = makeView({ variant: 'fog-of-war', visibleSquares: [] });
+    const view = makeView({ variant: 'dark-chess', visibleSquares: [] });
     const classes = hiddenSquareClasses(view, 'black');
     // a1 from black POV: visual file = 7 - 0 = 7, visual rank = 0.
     expect(classes.get('a1')).toBe('fog-hidden fog-tile-f7r0');

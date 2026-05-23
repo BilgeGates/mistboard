@@ -23,7 +23,7 @@
   "resolvedStartIds": {},
   "state": {
     "id": "mb-demo-room-001",
-    "variant": "fog-of-war",
+    "variant": "dark-chess",
     "board": {
       "a7": {
         "color": "black",
@@ -172,7 +172,7 @@
       "type": "room-created",
       "at": 1700000001000,
       "roomId": "mb-demo-room-001",
-      "variant": "fog-of-war",
+      "variant": "dark-chess",
       "offer": []
     },
     {

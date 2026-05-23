@@ -101,7 +101,7 @@ test('builds reproducible tournament job metadata', () => {
     min_anchor_games: 8,
     excluded_terminations: ['truncated'],
     pool: {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       time_control_bucket: 'tc-180+2',
     },
   });

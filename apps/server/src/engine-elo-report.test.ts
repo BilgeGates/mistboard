@@ -35,7 +35,7 @@ test('builds anchor-relative Elo only from eligible rated games', () => {
   assert.equal(report.eligibleGames, 4);
   assert.equal(report.excludedGames, 1);
   assert.equal(report.timeControlBucket, 'tc-180+2');
-  assert.equal(report.variant, 'fog-of-war');
+  assert.equal(report.variant, 'dark-chess');
 
   const candidate = report.rows.find((row) => row.engineId === 'candidate');
   assert.equal(candidate?.status, 'rated');
@@ -98,7 +98,7 @@ function game(overrides: Partial<EngineEloGameRow> = {}): EngineEloGameRow {
     termination: 'king-captured',
     timeControl: { kind: 'standard', initial_seconds: 180, increment_seconds: 2 },
     tournamentId: 'cup',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     whiteEngineId: 'candidate',
     ...overrides,
   };

@@ -42,7 +42,7 @@ async function postJson(
 
 test('drain: cleared baseline (server starts not draining)', async () => {
   // /api/rooms POST should succeed before any drain is requested.
-  const res = await postJson('/api/rooms', { mode: 'pvp', variant: 'fog-of-war' });
+  const res = await postJson('/api/rooms', { mode: 'pvp', variant: 'dark-chess' });
   assert.equal(res.status, 201);
   assert.equal(typeof res.body.roomId, 'string');
 });
@@ -64,7 +64,7 @@ test('drain: activation sets a deadline and is idempotent', async () => {
 });
 
 test('drain: matchmaking blocked while drain is active', async () => {
-  const rooms = await postJson('/api/rooms', { mode: 'pvp', variant: 'fog-of-war' });
+  const rooms = await postJson('/api/rooms', { mode: 'pvp', variant: 'dark-chess' });
   assert.equal(rooms.status, 503);
   assert.equal(rooms.body.error, 'server_draining');
   assert.equal(typeof rooms.body.restartAt, 'number');
@@ -79,7 +79,7 @@ test('drain: cancel clears state and unblocks matchmaking', async () => {
   assert.equal(cancel.status, 200);
   assert.equal(cancel.body.draining, false);
 
-  const rooms = await postJson('/api/rooms', { mode: 'pvp', variant: 'fog-of-war' });
+  const rooms = await postJson('/api/rooms', { mode: 'pvp', variant: 'dark-chess' });
   assert.equal(rooms.status, 201, 'matchmaking must be unblocked after cancel');
 });
 

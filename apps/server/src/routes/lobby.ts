@@ -116,7 +116,7 @@ async function joinLobby(
   try {
     room = await ctx.createRoom(
       'pvp',
-      'fog-of-war',
+      'dark-chess',
       ctx.pveBuiltinEngineClientId,
       hiddenDraft960,
       timeControl,

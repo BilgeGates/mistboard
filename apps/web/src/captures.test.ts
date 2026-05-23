@@ -9,7 +9,7 @@ function roomCreated(): GameEvent {
     type: 'room-created',
     at: 0,
     roomId: ROOM,
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     offer: [],
     timeControl: { initialMs: 60_000, incrementMs: 0 },
   } as Extract<GameEvent, { type: 'room-created' }>;

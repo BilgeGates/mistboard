@@ -31,7 +31,7 @@ export const scenarios: Record<string, Scenario> = {
   'pve-bullet': {
     name: 'pve-bullet',
     mode: 'pve',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     timeControl: BULLET,
     maxMoves: 250,
     maxGameMs: 90_000,
@@ -40,7 +40,7 @@ export const scenarios: Record<string, Scenario> = {
   'pve-blitz': {
     name: 'pve-blitz',
     mode: 'pve',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     timeControl: BLITZ,
     maxMoves: 250,
     maxGameMs: 240_000,
@@ -49,7 +49,7 @@ export const scenarios: Record<string, Scenario> = {
   'pve-casual': {
     name: 'pve-casual',
     mode: 'pve',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     timeControl: CASUAL,
     maxMoves: 200,
     maxGameMs: 300_000,
@@ -58,7 +58,7 @@ export const scenarios: Record<string, Scenario> = {
   'pvp-blitz': {
     name: 'pvp-blitz',
     mode: 'pvp',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     timeControl: BLITZ,
     maxMoves: 250,
     maxGameMs: 240_000,

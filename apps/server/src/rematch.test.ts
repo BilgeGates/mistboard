@@ -19,7 +19,7 @@ function makeFinishedRoom(id: string): Room {
   // and synthesise the events for a fool's-mate-like resignation outcome via
   // status mutation after construction (room.projection is mutable in tests).
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: id, variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: id, variant: 'dark-chess', offer: [] },
   ];
   const projection = replayGameEvents(events);
   projection.state.status = { type: 'finished', winner: 'white', reason: 'resignation' };
@@ -40,7 +40,7 @@ function makeFinishedRoom(id: string): Room {
     pveEngineId: null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: true,
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     hiddenDraft960: false,
     timeControl: undefined,
     rematch: { offers: {} },

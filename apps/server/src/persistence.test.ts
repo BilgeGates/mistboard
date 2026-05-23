@@ -105,7 +105,7 @@ if (!TEST_DATABASE_URL) {
   test('appendEvent + loadRoom round-trips events in seq order', async () => {
     const roomId = 'test-round-trip';
     const events: GameEvent[] = [
-      { type: 'room-created', at: 1000, roomId, variant: 'fog-of-war', offer: [] },
+      { type: 'room-created', at: 1000, roomId, variant: 'dark-chess', offer: [] },
       {
         type: 'seat-assigned',
         at: 1001,
@@ -150,7 +150,7 @@ if (!TEST_DATABASE_URL) {
       type: 'room-created',
       at: 1,
       roomId,
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     };
     await appendEvent(roomId, 0, event);
@@ -162,14 +162,14 @@ if (!TEST_DATABASE_URL) {
       type: 'room-created',
       at: 1,
       roomId: 'room-a',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     };
     const eventB: GameEvent = {
       type: 'room-created',
       at: 2,
       roomId: 'room-b',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     };
     await appendEvent('room-a', 0, eventA);
@@ -464,18 +464,18 @@ if (!TEST_DATABASE_URL) {
       type: 'room-created',
       at: now.getTime(),
       roomId: 'active-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     });
     await appendEvent('finished-room', 0, {
       type: 'room-created',
       at: now.getTime(),
       roomId: 'finished-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     });
     await recordGameEnd('finished-room', {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       result: 'white-wins',
       termination: 'king-captured',
       plyCount: 12,
@@ -500,7 +500,7 @@ if (!TEST_DATABASE_URL) {
       type: 'room-created',
       at: now.getTime(),
       roomId: 'running-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     });
 
@@ -510,7 +510,7 @@ if (!TEST_DATABASE_URL) {
       await client.query(
         `INSERT INTO games
            (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
-         VALUES ($1, 'fog-of-war', NULL, NULL, 0, $2, NULL, 'eve', 'running')`,
+         VALUES ($1, 'dark-chess', NULL, NULL, 0, $2, NULL, 'eve', 'running')`,
         ['running-room', now],
       );
     } finally {
@@ -524,7 +524,7 @@ if (!TEST_DATABASE_URL) {
   test('recordGameStart creates a durable running game row', async () => {
     const now = new Date('2026-05-09T12:00:00.000Z');
     await recordGameStart('started-pve', {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       mode: 'pve',
       startedAt: now,
       whiteClient: null,
@@ -583,15 +583,15 @@ if (!TEST_DATABASE_URL) {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_client, black_client, white_name, black_name, mode, status)
          VALUES
-           ('stale-guest-prestart', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('stale-guest-prestart', 'dark-chess', NULL, NULL, 0, $1, NULL,
             NULL, NULL, NULL, NULL, 'pvp', 'running'),
-           ('fresh-guest-prestart', 'fog-of-war', NULL, NULL, 0, $2, NULL,
+           ('fresh-guest-prestart', 'dark-chess', NULL, NULL, 0, $2, NULL,
             NULL, NULL, NULL, NULL, 'pvp', 'running'),
-           ('stale-signed-in-prestart', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('stale-signed-in-prestart', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'signed-client', NULL, NULL, NULL, 'pvp', 'running'),
-           ('stale-started-clock', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('stale-started-clock', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'clock-white', 'clock-black', NULL, NULL, 'pvp', 'running'),
-           ('stale-started-move', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('stale-started-move', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'move-white', 'move-black', NULL, NULL, 'pvp', 'running')`,
         [stale, fresh],
       );
@@ -610,28 +610,28 @@ if (!TEST_DATABASE_URL) {
             type: 'room-created',
             at: stale.getTime(),
             roomId: 'stale-guest-prestart',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
             type: 'room-created',
             at: fresh.getTime(),
             roomId: 'fresh-guest-prestart',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
             type: 'room-created',
             at: stale.getTime(),
             roomId: 'stale-signed-in-prestart',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
             type: 'room-created',
             at: stale.getTime(),
             roomId: 'stale-started-clock',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
@@ -650,7 +650,7 @@ if (!TEST_DATABASE_URL) {
             type: 'room-created',
             at: stale.getTime(),
             roomId: 'stale-started-move',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
@@ -716,15 +716,15 @@ if (!TEST_DATABASE_URL) {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_client, black_client, white_name, black_name, mode, status)
          VALUES
-           ('stale-paused-pvp', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('stale-paused-pvp', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
-           ('stale-paused-then-resumed', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('stale-paused-then-resumed', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
-           ('fresh-paused', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('fresh-paused', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
-           ('running-no-pause', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('running-no-pause', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
-           ('stale-paused-already-completed', 'fog-of-war', 'white-wins', 'king-captured', 12, $1, $2,
+           ('stale-paused-already-completed', 'dark-chess', 'white-wins', 'king-captured', 12, $1, $2,
             'cw', 'cb', 'Alice', 'Bob', 'pvp', 'completed')`,
         [startedAt, now],
       );
@@ -752,7 +752,7 @@ if (!TEST_DATABASE_URL) {
             type: 'room-created',
             at: startedAt.getTime(),
             roomId: 'stale-paused-pvp',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
@@ -774,7 +774,7 @@ if (!TEST_DATABASE_URL) {
             type: 'room-created',
             at: startedAt.getTime(),
             roomId: 'stale-paused-then-resumed',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
@@ -793,7 +793,7 @@ if (!TEST_DATABASE_URL) {
             type: 'room-created',
             at: startedAt.getTime(),
             roomId: 'fresh-paused',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           { type: 'pause', at: freshPauseAt, roomId: 'fresh-paused', reason: 'shutdown' },
@@ -801,7 +801,7 @@ if (!TEST_DATABASE_URL) {
             type: 'room-created',
             at: startedAt.getTime(),
             roomId: 'running-no-pause',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
@@ -815,7 +815,7 @@ if (!TEST_DATABASE_URL) {
             type: 'room-created',
             at: startedAt.getTime(),
             roomId: 'stale-paused-already-completed',
-            variant: 'fog-of-war',
+            variant: 'dark-chess',
             offer: [],
           },
           {
@@ -906,7 +906,7 @@ if (!TEST_DATABASE_URL) {
   test('recordGameEnd is idempotent', async () => {
     const now = new Date();
     const summary = {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       result: 'white-wins' as const,
       termination: 'king-captured' as const,
       plyCount: 12,
@@ -931,7 +931,7 @@ if (!TEST_DATABASE_URL) {
       await client.query(
         `INSERT INTO games
            (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
-         VALUES ($1, 'fog-of-war', NULL, NULL, 0, $2, NULL, 'eve', 'running')`,
+         VALUES ($1, 'dark-chess', NULL, NULL, 0, $2, NULL, 'eve', 'running')`,
         ['running-to-finished', now],
       );
     } finally {
@@ -939,7 +939,7 @@ if (!TEST_DATABASE_URL) {
     }
 
     await recordGameEnd('running-to-finished', {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       mode: 'eve',
       result: 'black-wins',
       termination: 'timeout',
@@ -980,7 +980,7 @@ if (!TEST_DATABASE_URL) {
   test('recordGameEnd writes durable participant attribution', async () => {
     const now = new Date();
     await recordGameEnd('pve-attribution', {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       mode: 'pve',
       result: 'white-wins',
       termination: 'king-captured',
@@ -1016,7 +1016,7 @@ if (!TEST_DATABASE_URL) {
   test('recordGameEnd accepts explicit signed-in user participant attribution', async () => {
     const now = new Date();
     await recordGameEnd('signed-in-pve-attribution', {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       mode: 'pve',
       result: 'black-wins',
       termination: 'timeout',
@@ -1079,7 +1079,7 @@ if (!TEST_DATABASE_URL) {
       now,
     });
     await recordGameEnd('profile-game', {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       mode: 'pvp',
       result: 'white-wins',
       termination: 'king-captured',
@@ -1146,13 +1146,13 @@ if (!TEST_DATABASE_URL) {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_name, black_name, mode, status)
          VALUES
-           ('eve-older', 'fog-of-war', 'draw', 'truncated', 32, $1, $1,
+           ('eve-older', 'dark-chess', 'draw', 'truncated', 32, $1, $1,
             'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
-           ('eve-newer', 'fog-of-war', 'white-wins', 'king-captured', 15, $2, $2,
+           ('eve-newer', 'dark-chess', 'white-wins', 'king-captured', 15, $2, $2,
             'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
-           ('eve-short-timeout', 'fog-of-war', 'black-wins', 'timeout', 4, $3, $3,
+           ('eve-short-timeout', 'dark-chess', 'black-wins', 'timeout', 4, $3, $3,
             'engine-white-v1', 'engine-black-v1', 'eve', 'completed'),
-           ('pvp-newer', 'fog-of-war', 'black-wins', 'king-captured', 10, $2, $2,
+           ('pvp-newer', 'dark-chess', 'black-wins', 'king-captured', 10, $2, $2,
             'white', 'black', 'pvp', 'completed')`,
         [older, now, shortTimeout],
       );
@@ -1201,23 +1201,23 @@ if (!TEST_DATABASE_URL) {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_client, black_client, white_name, black_name, mode, status, visibility)
          VALUES
-           ('public-pvp', 'fog-of-war', 'white-wins', 'king-captured', 31, $1, $1,
+           ('public-pvp', 'dark-chess', 'white-wins', 'king-captured', 31, $1, $1,
             'public-white', 'public-black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('public-pve', 'fog-of-war', 'black-wins', 'timeout', 23, $1, $1,
+           ('public-pve', 'dark-chess', 'black-wins', 'timeout', 23, $1, $1,
             'human-client-public', 'random-engine', NULL, NULL, 'pve', 'completed', 'public'),
-           ('link-pve', 'fog-of-war', 'black-wins', 'timeout', 22, $1, $1,
+           ('link-pve', 'dark-chess', 'black-wins', 'timeout', 22, $1, $1,
             'human-client', 'random-engine', NULL, NULL, 'pve', 'completed', 'link'),
-           ('short-capture', 'fog-of-war', 'white-wins', 'king-captured', 6, $2, $2,
+           ('short-capture', 'dark-chess', 'white-wins', 'king-captured', 6, $2, $2,
             'short-white', 'short-black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('one-move-public', 'fog-of-war', 'white-wins', 'king-captured', 1, $5, $5,
+           ('one-move-public', 'dark-chess', 'white-wins', 'king-captured', 1, $5, $5,
             'one-white', 'one-black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('link-eve', 'fog-of-war', 'draw', 'truncated', 28, $4, $4,
+           ('link-eve', 'dark-chess', 'draw', 'truncated', 28, $4, $4,
             'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed', 'link'),
-           ('short-timeout', 'fog-of-war', 'black-wins', 'timeout', 4, $3, $3,
+           ('short-timeout', 'dark-chess', 'black-wins', 'timeout', 4, $3, $3,
             'timeout-white', 'timeout-black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('private-pve', 'fog-of-war', 'black-wins', 'timeout', 24, $4, $4,
+           ('private-pve', 'dark-chess', 'black-wins', 'timeout', 24, $4, $4,
             'human-client-private', 'random-engine', NULL, NULL, 'pve', 'completed', 'private'),
-           ('private-pvp', 'fog-of-war', 'draw', 'truncated', 6, $4, $4,
+           ('private-pvp', 'dark-chess', 'draw', 'truncated', 6, $4, $4,
             'private-white', 'private-black', NULL, NULL, 'pvp', 'completed', 'private')`,
         [now, shortDecisive, shortTimeout, older, oneMove],
       );
@@ -1241,7 +1241,7 @@ if (!TEST_DATABASE_URL) {
               type: 'room-created',
               at: now.getTime(),
               roomId,
-              variant: 'fog-of-war',
+              variant: 'dark-chess',
               offer: [],
             },
           ],
@@ -1268,11 +1268,11 @@ if (!TEST_DATABASE_URL) {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_name, black_name, corpus_id, mode, status)
          VALUES
-           ('corpus-decisive-short', 'fog-of-war', 'white-wins', 'king-captured', 6, $1, $1,
+           ('corpus-decisive-short', 'dark-chess', 'white-wins', 'king-captured', 6, $1, $1,
             'white', 'black', 'featured-corpus', 'imported', 'completed'),
-           ('corpus-timeout-short', 'fog-of-war', 'black-wins', 'timeout', 4, $1, $1,
+           ('corpus-timeout-short', 'dark-chess', 'black-wins', 'timeout', 4, $1, $1,
             'white', 'black', 'featured-corpus', 'imported', 'completed'),
-           ('corpus-timeout-ten', 'fog-of-war', 'black-wins', 'timeout', 10, $1, $1,
+           ('corpus-timeout-ten', 'dark-chess', 'black-wins', 'timeout', 10, $1, $1,
             'white', 'black', 'featured-corpus', 'imported', 'completed')`,
         [now],
       );
@@ -1299,13 +1299,13 @@ if (!TEST_DATABASE_URL) {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_client, black_client, white_name, black_name, mode, status)
          VALUES
-           ('range-older', 'fog-of-war', 'draw', 'truncated', 4, $1, $1,
+           ('range-older', 'dark-chess', 'draw', 'truncated', 4, $1, $1,
             'old-white', 'old-black', NULL, NULL, 'pvp', 'completed'),
-           ('range-eve', 'fog-of-war', 'black-wins', 'timeout', 12, $2, $2,
+           ('range-eve', 'dark-chess', 'black-wins', 'timeout', 12, $2, $2,
             'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed'),
-           ('range-newer', 'fog-of-war', 'draw', 'truncated', 5, $3, $3,
+           ('range-newer', 'dark-chess', 'draw', 'truncated', 5, $3, $3,
             'new-white', 'new-black', NULL, NULL, 'pvp', 'completed'),
-           ('range-running', 'fog-of-war', NULL, NULL, 0, $2, NULL,
+           ('range-running', 'dark-chess', NULL, NULL, 0, $2, NULL,
             NULL, NULL, NULL, NULL, 'pvp', 'running')`,
         [older, day, newer],
       );
@@ -1313,7 +1313,7 @@ if (!TEST_DATABASE_URL) {
       await client.end();
     }
     await recordGameEnd('range-pve', {
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       mode: 'pve',
       result: 'white-wins',
       termination: 'king-captured',
@@ -1374,9 +1374,9 @@ if (!TEST_DATABASE_URL) {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_name, black_name, mode, status)
          VALUES
-           ('summary-pve', 'fog-of-war', 'white-wins', 'king-captured', 17, $1, $1,
+           ('summary-pve', 'dark-chess', 'white-wins', 'king-captured', 17, $1, $1,
             'human', 'engine', 'pve', 'completed'),
-           ('summary-running', 'fog-of-war', NULL, NULL, 0, $1, NULL,
+           ('summary-running', 'dark-chess', NULL, NULL, 0, $1, NULL,
             NULL, NULL, 'pvp', 'running')`,
         [now],
       );
@@ -1418,7 +1418,7 @@ if (!TEST_DATABASE_URL) {
       await client.query(
         `INSERT INTO games
            (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
-         VALUES ('artifact-summary-game', 'fog-of-war', 'white-wins', 'king-captured', 17, $1, $1, 'eve', 'completed')`,
+         VALUES ('artifact-summary-game', 'dark-chess', 'white-wins', 'king-captured', 17, $1, $1, 'eve', 'completed')`,
         [now],
       );
       await client.query(

@@ -90,7 +90,7 @@ test('replays independent per-side Draft960 offers into independent starting pos
       type: 'room-created',
       at: 1,
       roomId: 'independent-draft-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
       offers: {
         white: whiteOffer,
@@ -156,7 +156,7 @@ test('replays a redacted Fog Draft960 offer as pregame', () => {
       type: 'room-created',
       at: 1,
       roomId: 'redacted-fog-draft-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer,
       offers: {
         white: offer,
@@ -222,7 +222,7 @@ test('vacates Fog of War seats before the first move', () => {
       type: 'room-created',
       at: 1,
       roomId: 'fresh-fog-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     },
     {
@@ -252,7 +252,7 @@ test('keeps Fog of War seats after play starts', () => {
       type: 'room-created',
       at: 1,
       roomId: 'active-fog-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     },
     {
@@ -290,7 +290,7 @@ test('starts a live Fog of War clock after seats are ready', () => {
       type: 'room-created',
       at: 1,
       roomId: 'clocked-fog-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     },
     {
@@ -329,7 +329,7 @@ test('replays room-created time control metadata', () => {
       type: 'room-created',
       at: 1,
       roomId: 'custom-clock-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
       timeControl: {
         initialMs: 180_000,
@@ -431,7 +431,7 @@ test('replays Fog of War room and move events through the Fog rules adapter', ()
       type: 'room-created',
       at: 1,
       roomId: 'fog-event-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     },
     {
@@ -445,7 +445,7 @@ test('replays Fog of War room and move events through the Fog rules adapter', ()
 
   const projection = replayGameEvents(events);
 
-  assert.equal(projection.variant, 'fog-of-war');
+  assert.equal(projection.variant, 'dark-chess');
   assert.deepEqual(projection.state.board.e4, { color: 'white', role: 'pawn' });
   assert.deepEqual(projection.state.status, { type: 'playing', turn: 'black' });
 });
@@ -520,7 +520,7 @@ test('replays bounded event slices for timeline traversal', () => {
 
 test('seat-resigned ends the game with opposite color winning', () => {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'resign-room', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'resign-room', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'resign-room', clientId: 'wc', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'resign-room', clientId: 'bc', seat: 'black' },
     {
@@ -543,7 +543,7 @@ test('seat-resigned ends the game with opposite color winning', () => {
 test('seat-resigned freezes the clock at the resign timestamp', () => {
   const startedClock = createClock(1000, 60_000, 0);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'resign-clock-room', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'resign-clock-room', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'resign-clock-room', clientId: 'wc', seat: 'white' },
     { type: 'seat-assigned', at: 3, roomId: 'resign-clock-room', clientId: 'bc', seat: 'black' },
     { type: 'clock-started', at: 1000, roomId: 'resign-clock-room', clock: startedClock },
@@ -565,7 +565,7 @@ test('seat-resigned freezes the clock at the resign timestamp', () => {
 
 test('seat-resigned after game already finished is a no-op (only first resignation counts)', () => {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'r', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'r', variant: 'dark-chess', offer: [] },
     { type: 'seat-resigned', at: 2, roomId: 'r', color: 'white' },
     { type: 'seat-resigned', at: 3, roomId: 'r', color: 'black' },
   ];
@@ -638,7 +638,7 @@ test('resume rearms the clock for the current turn without altering remaining ti
 test('pause is a no-op in pregame', () => {
   const offer = pickDraft960Offer(52);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'pregame-pause-room', variant: 'fog-of-war', offer },
+    { type: 'room-created', at: 1, roomId: 'pregame-pause-room', variant: 'dark-chess', offer },
     { type: 'pause', at: 2, roomId: 'pregame-pause-room', reason: 'shutdown' },
   ];
   const projection = replayGameEvents(events);
@@ -654,7 +654,7 @@ test('pause is a no-op after the game has finished', () => {
       type: 'room-created',
       at: 1,
       roomId: 'post-finish-pause-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     },
     { type: 'seat-resigned', at: 2, roomId: 'post-finish-pause-room', color: 'white' },
@@ -779,9 +779,9 @@ test('multiple pause/resume cycles do not leak wall-clock time into player clock
   assert.equal(projection.state.clock?.activeColor, 'white');
 });
 
-test('replay normalizes a dark-chess room-created event to the fog-of-war projection', () => {
-  // Simulates a persisted event stream that carries the future canonical slug.
-  // The slug is cast in because it is not yet a member of the VariantId union;
+test('replay normalizes a legacy fog-of-war room-created event to the dark-chess projection', () => {
+  // Simulates a persisted event stream carrying the legacy slug. The slug is
+  // cast in because 'fog-of-war' is no longer a member of the VariantId union;
   // at rest in the DB it is just JSON, which is exactly the boundary the alias
   // defends. Replaying either spelling must yield an identical projection.
   const stream = (slug: string): GameEvent[] =>
@@ -797,9 +797,9 @@ test('replay normalizes a dark-chess room-created event to the fog-of-war projec
       },
     ] as GameEvent[];
 
-  const fog = replayGameEvents(stream('fog-of-war'));
-  const dark = replayGameEvents(stream('dark-chess'));
+  const legacy = replayGameEvents(stream('fog-of-war'));
+  const canonical = replayGameEvents(stream('dark-chess'));
 
-  assert.deepEqual(dark, fog);
-  assert.equal(dark.variant, 'fog-of-war');
+  assert.deepEqual(legacy, canonical);
+  assert.equal(legacy.variant, 'dark-chess');
 });

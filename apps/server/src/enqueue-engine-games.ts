@@ -72,7 +72,7 @@ try {
         artifactPolicy,
         resourcePolicy: { providers, concurrency: 1 },
         config: {
-          variant: 'fog-of-war',
+          variant: 'dark-chess',
           max_plies: maxPlies,
           white_engine_id: whiteEngineId,
           black_engine_id: blackEngineId,

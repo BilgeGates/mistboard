@@ -27,7 +27,7 @@ export function bucketForGame(input: BucketInput): RatingBucket | null {
 }
 
 export function parseRatingVariant(value: string | null | undefined): RatingVariant | null {
-  if (value === 'fog' || value === 'fog-of-war') return 'fog';
+  if (value === 'fog' || value === 'dark-chess' || value === 'fog-of-war') return 'fog';
   if (value === 'fog_draft960' || value === 'fog-draft960') return 'fog_draft960';
   return null;
 }

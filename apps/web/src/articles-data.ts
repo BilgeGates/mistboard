@@ -200,7 +200,7 @@ function replayMoves(
 function coneState(id: string, board: Board): GameState {
   return {
     id,
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     board,
     status: { type: 'playing', turn: 'white' },
     moveNumber: 30,
@@ -268,7 +268,7 @@ const ENPASSANT_INITIAL_BOARD: Board = {
 };
 const ENPASSANT_INITIAL: GameState = {
   id: 'fow-rules-enpassant',
-  variant: 'fog-of-war',
+  variant: 'dark-chess',
   board: ENPASSANT_INITIAL_BOARD,
   status: { type: 'playing', turn: 'black' },
   moveNumber: 30,
@@ -339,7 +339,7 @@ const DISCOVERY_BOARD: Board = {
 };
 const DISCOVERY_BEFORE: GameState = {
   id: 'fow-rules-discovery',
-  variant: 'fog-of-war',
+  variant: 'dark-chess',
   board: DISCOVERY_BOARD,
   status: { type: 'playing', turn: 'white' },
   moveNumber: 15,
@@ -467,7 +467,7 @@ const D960_B: Chess960Start = {
 };
 const D960_REVEAL_S0: GameState = {
   id: 'draft960-reveal',
-  variant: 'fog-of-war',
+  variant: 'dark-chess',
   board: createChess960InitialBoardForSides(D960_W, D960_B),
   status: { type: 'playing', turn: 'white' },
   moveNumber: 1,
@@ -818,7 +818,7 @@ const CASTLE_TRIPLE_PRE_BOARD: Board = {
 };
 const CASTLE_TRIPLE_PRE: GameState = {
   id: 'fow-rules-castle-triple',
-  variant: 'fog-of-war',
+  variant: 'dark-chess',
   board: CASTLE_TRIPLE_PRE_BOARD,
   status: { type: 'playing', turn: 'white' },
   moveNumber: 20,
@@ -891,7 +891,7 @@ const DEDUCE_BB4_POSITIONS = DEDUCE_BB4_STATES.map((state, i) => {
 // to fog and either candidate could have taken.
 const DEDUCE_RECAP_BEFORE: GameState = {
   id: 'deduction-capturer',
-  variant: 'fog-of-war',
+  variant: 'dark-chess',
   board: {
     g1: { color: 'white', role: 'king' },
     d5: { color: 'white', role: 'pawn' },
@@ -924,7 +924,7 @@ const DEDUCE_RECAP_POSITIONS = [DEDUCE_RECAP_BEFORE, DEDUCE_RECAP_AFTER].map((st
 // but can't tell which Black pawn took.
 const DEDUCE_RECAP_NB_BEFORE: GameState = {
   id: 'deduction-capturer-no-bishop',
-  variant: 'fog-of-war',
+  variant: 'dark-chess',
   board: {
     g1: { color: 'white', role: 'king' },
     d5: { color: 'white', role: 'pawn' },

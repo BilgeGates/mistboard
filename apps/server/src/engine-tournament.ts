@@ -157,7 +157,7 @@ export function tournamentJobConfig(
       min_anchor_games: config.ratingMinAnchorGames,
       excluded_terminations: ['truncated'],
       pool: {
-        variant: 'fog-of-war',
+        variant: 'dark-chess',
         time_control_bucket: timeControlBucket(config.timeControl),
       },
     },

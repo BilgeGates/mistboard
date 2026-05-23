@@ -54,7 +54,7 @@ try {
         artifactPolicy: { move_choices: 'all', runtime_summary: 'all' },
         resourcePolicy: { providers: ['local', 'railway'], concurrency: 1 },
         config: {
-          variant: 'fog-of-war',
+          variant: 'dark-chess',
           max_plies: maxPlies,
           white_engine_id: whiteEngineId,
           black_engine_id: blackEngineId,

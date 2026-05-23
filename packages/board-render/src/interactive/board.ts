@@ -59,7 +59,7 @@ export function hiddenSquareClasses(
   options: { preserveFogOnFinished?: boolean } = {},
 ): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
-  if (view.variant !== 'fog-of-war') return classes;
+  if (view.variant !== 'dark-chess') return classes;
   // Triptychs and thumbnails reveal at game-end (no fog overlay on finished
   // games). The live-room and the game-review viewer preserve the fog to
   // match what the player saw — pass preserveFogOnFinished: true for that.

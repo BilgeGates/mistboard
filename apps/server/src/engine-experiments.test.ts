@@ -316,7 +316,7 @@ if (!TEST_DATABASE_URL) {
     await getPool().query(
       `INSERT INTO games
          (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
-       VALUES ('stale-game', 'fog-of-war', NULL, NULL, 0, $1, NULL, 'eve', 'running')`,
+       VALUES ('stale-game', 'dark-chess', NULL, NULL, 0, $1, NULL, 'eve', 'running')`,
       [now],
     );
     await getPool().query('UPDATE engine_game_tasks SET game_id = $2 WHERE id = $1', [
@@ -380,7 +380,7 @@ if (!TEST_DATABASE_URL) {
       gameIndex: 0,
       seed: 300,
       timeControl: { kind: 'none' },
-      config: { variant: 'fog-of-war', max_plies: 1 },
+      config: { variant: 'dark-chess', max_plies: 1 },
     });
     const worker = await registerWorkerRun(getPool(), {
       id: 'worker-truncated-draw-test',
@@ -442,7 +442,7 @@ if (!TEST_DATABASE_URL) {
       gameIndex: 0,
       seed: 124,
       timeControl: { kind: 'none' },
-      config: { variant: 'fog-of-war', max_plies: 2 },
+      config: { variant: 'dark-chess', max_plies: 2 },
     });
     const worker = await registerWorkerRun(getPool(), {
       id: 'worker-failed-linked-game-test',
@@ -459,7 +459,7 @@ if (!TEST_DATABASE_URL) {
     await getPool().query(
       `INSERT INTO games
          (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
-       VALUES ('failed-linked-game', 'fog-of-war', NULL, NULL, 0, $1, NULL, 'eve', 'running')`,
+       VALUES ('failed-linked-game', 'dark-chess', NULL, NULL, 0, $1, NULL, 'eve', 'running')`,
       [now],
     );
     await getPool().query('UPDATE engine_game_tasks SET game_id = $2 WHERE id = $1', [
@@ -512,7 +512,7 @@ if (!TEST_DATABASE_URL) {
       seed: 500,
       timeControl: { kind: 'none' },
       artifactPolicy: { move_choices: 'all' },
-      config: { variant: 'fog-of-war', max_plies: 2 },
+      config: { variant: 'dark-chess', max_plies: 2 },
     });
     const worker = await registerWorkerRun(getPool(), {
       id: 'worker-engine-artifact-test',

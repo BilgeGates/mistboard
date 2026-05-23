@@ -21,7 +21,7 @@ import {
 
 test('live persisted events are not public replay data', () => {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'live-room', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'live-room', variant: 'dark-chess', offer: [] },
     {
       type: 'move-played',
       at: 2,
@@ -42,7 +42,7 @@ test('live replay API returns 403 for every mode (PvP, PvE, EvE)', () => {
   // Uniform rule: live games are private to the seated players regardless of
   // mode. The replay endpoint only exposes finished games.
   const pvp: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'pvp-live', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'pvp-live', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 1, roomId: 'pvp-live', clientId: 'human-white', seat: 'white' },
     { type: 'seat-assigned', at: 1, roomId: 'pvp-live', clientId: 'human-black', seat: 'black' },
     {
@@ -54,7 +54,7 @@ test('live replay API returns 403 for every mode (PvP, PvE, EvE)', () => {
     },
   ];
   const pve: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'pve-live', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'pve-live', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 1, roomId: 'pve-live', clientId: 'human-white', seat: 'white' },
     { type: 'seat-assigned', at: 1, roomId: 'pve-live', clientId: 'random-engine', seat: 'black' },
     {
@@ -73,7 +73,7 @@ test('live replay API returns 403 for every mode (PvP, PvE, EvE)', () => {
     },
   ];
   const eve: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'eve-live', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'eve-live', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 1, roomId: 'eve-live', clientId: 'engine:white', seat: 'white' },
     { type: 'seat-assigned', at: 1, roomId: 'eve-live', clientId: 'engine:black', seat: 'black' },
     {
@@ -99,7 +99,7 @@ test('canObserveLiveRoom returns false for every live mode and true only when fi
     type: 'room-created',
     at: 1,
     roomId: 'policy-room',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     offer: [],
   };
 
@@ -169,7 +169,7 @@ test('finished persisted events are public replay data', () => {
   const clock = expireClock(createClock(1, 1, 0), 2, 'white');
   assert.ok(clock);
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId: 'finished-room', variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId: 'finished-room', variant: 'dark-chess', offer: [] },
     { type: 'clock-expired', at: 2, roomId: 'finished-room', color: 'white', clock },
   ];
 

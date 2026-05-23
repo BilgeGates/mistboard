@@ -75,7 +75,7 @@ export async function startTestServer(
 export interface ConnectOptions {
   url: string;
   room: string;
-  variant?: 'fog-of-war' | 'draft960';
+  variant?: 'dark-chess' | 'draft960';
   hiddenDraft960?: boolean;
   seatToken?: string;
   /** Wait for the initial `hello` message before resolving. Default: true. */
@@ -85,7 +85,7 @@ export interface ConnectOptions {
 }
 
 export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
-  const variant = opts.variant ?? 'fog-of-war';
+  const variant = opts.variant ?? 'dark-chess';
   const hidden = opts.hiddenDraft960 ? '&hiddenDraft960=true' : '';
   const target = `${opts.url}/?room=${encodeURIComponent(opts.room)}&variant=${variant}${hidden}`;
 

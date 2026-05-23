@@ -184,7 +184,7 @@ function isEventVisibleByMode(
   // a spectator SnapshotClient ever reaches this function, strip every
   // move-played event rather than leak any move history.
   if (
-    room.projection.variant === 'fog-of-war' &&
+    room.projection.variant === 'dark-chess' &&
     room.projection.state.status.type !== 'finished'
   ) {
     if (client.seat === 'spectator') return event.type !== 'move-played';
@@ -260,7 +260,7 @@ function redactHiddenDraftEvent(
 
 function shouldRedactHiddenDraft(projection: GameProjection, client: SnapshotClient): boolean {
   if (client.solo) return false;
-  if (projection.variant !== 'fog-of-war') return false;
+  if (projection.variant !== 'dark-chess') return false;
   if (projection.state.status.type === 'finished') return false;
   return (
     projection.offer.length > 0 ||
@@ -274,7 +274,7 @@ function offerForColor(projection: GameProjection, color: Color): GameProjection
 }
 
 function devViewsForClient(room: SnapshotRoom, client: SnapshotClient) {
-  if (!client.devViews || room.projection.variant !== 'fog-of-war') return null;
+  if (!client.devViews || room.projection.variant !== 'dark-chess') return null;
 
   const perspective = client.seat === 'black' ? 'black' : 'white';
   const opponent = perspective === 'white' ? 'black' : 'white';
@@ -298,7 +298,7 @@ function devViewsForClient(room: SnapshotRoom, client: SnapshotClient) {
 export function getClientView(room: SnapshotRoom, client: SnapshotClient): PlayerView {
   const perspective = client.seat === 'black' ? 'black' : 'white';
   if (
-    room.projection.variant === 'fog-of-war' &&
+    room.projection.variant === 'dark-chess' &&
     room.projection.state.status.type === 'finished'
   ) {
     return fullTruthView(room, perspective);
@@ -308,7 +308,7 @@ export function getClientView(room: SnapshotRoom, client: SnapshotClient): Playe
   // games), so this branch should be unreachable in practice. If a spectator
   // SnapshotClient ever reaches here we return an empty view rather than leak
   // any board state.
-  if (room.projection.variant === 'fog-of-war' && client.seat === 'spectator') {
+  if (room.projection.variant === 'dark-chess' && client.seat === 'spectator') {
     return emptyFogView(room, perspective);
   }
 

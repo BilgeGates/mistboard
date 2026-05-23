@@ -574,7 +574,7 @@ function renderSelections(projection: GameProjection | null): void {
   if (
     !liveState.solo &&
     liveState.seat !== 'spectator' &&
-    view?.variant === 'fog-of-war' &&
+    view?.variant === 'dark-chess' &&
     hasVisibleDraftData(projection)
   ) {
     const color = pickColorForSeat();
@@ -725,7 +725,7 @@ function renderGameInfo(view: PlayerView | null): void {
 
 function formatLabel(view: PlayerView | null): string {
   const variant = view?.variant ?? liveState.state?.variant ?? liveState.variantRequested;
-  const base = variant === 'fog-of-war' ? 'Dark chess' : capitalize(variant ?? 'dark chess');
+  const base = variant === 'dark-chess' ? 'Dark chess' : capitalize(variant ?? 'dark chess');
   const isDraft960 =
     liveState.variantRequested === 'fog-draft960' ||
     Object.values(liveState.offers).some((arr) => arr && arr.length > 0) ||
@@ -931,7 +931,7 @@ function renderRoomActions(): void {
   if (liveState.roomMode === 'pvp' && view?.status.type === 'pregame' && isColor(liveState.seat)) {
     actions.unshift(copyLinkButton());
   }
-  if (liveState.engineRequested) actions.push(roomAction('New Debug Room', 'fog-of-war', 'engine'));
+  if (liveState.engineRequested) actions.push(roomAction('New Debug Room', 'dark-chess', 'engine'));
   refs.roomActions.replaceChildren(...actions);
 }
 
@@ -995,7 +995,7 @@ function roomAction(
   toneOrDev?: 'primary' | 'engine',
 ): HTMLAnchorElement {
   const link = document.createElement('a');
-  link.href = toneOrDev === 'engine' ? roomUrl('fog-of-war', 'engine') : href;
+  link.href = toneOrDev === 'engine' ? roomUrl('dark-chess', 'engine') : href;
   if (toneOrDev === 'primary') link.className = 'primary';
   link.textContent = label;
   return link;
@@ -1032,7 +1032,7 @@ async function createPlayAgainRoom(): Promise<void> {
           currentView()?.variant ??
           liveState.state?.variant ??
           liveState.variantRequested ??
-          'fog-of-war',
+          'dark-chess',
         hiddenDraft960: shouldRequestHiddenDraft960ForPlayAgain(),
         ...(liveState.roomMode === 'pve' && liveState.pveEngineId
           ? { engineId: liveState.pveEngineId }
@@ -1299,7 +1299,13 @@ function renderBoard(view: PlayerView | null): void {
   const moveColor = activeMoveColor();
   const ownSeat = isColor(liveState.seat) ? liveState.seat : null;
   const paused = liveState.paused === true && view?.status.type === 'playing';
+  // Displaced/rejected are terminal: the socket is closed and will not
+  // reconnect, so any move the board accepts can never be sent or reconciled
+  // against the true game. Lock the board to view-only in these states.
+  const connectionLost =
+    liveState.connectionState === 'displaced' || liveState.connectionState === 'rejected';
   const canInteractWithOwnPieces =
+    !connectionLost &&
     isLive() &&
     view?.status.type === 'playing' &&
     !paused &&
@@ -1610,7 +1616,7 @@ function renderReplay(): void {
 }
 
 function shouldMaskMoveList(): boolean {
-  if (liveState.state?.variant !== 'fog-of-war' || liveState.roomMode === 'eve') return false;
+  if (liveState.state?.variant !== 'dark-chess' || liveState.roomMode === 'eve') return false;
   // PvE spectators already receive only the human player's fog view — the
   // engine's moves are filtered server-side, so the human's moves are not
   // secret. Show the move list so spectators can follow along.
@@ -1669,7 +1675,7 @@ function computeActivePly(): number | null {
   if (idx === null) return null;
   // Fog: replayIndex is a fog-snapshot number; snapshotToPly converts to a chess ply (1-based,
   // odd = white, even = black, 0 = pre-first-move).
-  if (liveState.state?.variant === 'fog-of-war' && getFogViewHistory().size > 0) {
+  if (liveState.state?.variant === 'dark-chess' && getFogViewHistory().size > 0) {
     return snapshotToPly(idx);
   }
   // Non-fog: replayIndex is an events-list index; count move-played events up to it.
@@ -1754,7 +1760,7 @@ function currentEventsSlice(): GameEvent[] | null {
   // fogSnapshotToEventsLen in fog mode; otherwise use the replay index directly.
   const fogHistory = getFogViewHistory();
   const sliceAt =
-    fogHistory.size > 0 && liveState.state?.variant === 'fog-of-war'
+    fogHistory.size > 0 && liveState.state?.variant === 'dark-chess'
       ? isLive()
         ? events.length
         : (getFogSnapshotToEventsLen().get(currentReplayIndex()) ?? events.length)
@@ -1768,7 +1774,7 @@ export function currentView(): PlayerView | null {
   if (
     isLive() &&
     (!projection ||
-      projection.state.variant !== 'fog-of-war' ||
+      projection.state.variant !== 'dark-chess' ||
       projection.state.status.type !== 'finished')
   )
     return liveState.state;
@@ -1780,14 +1786,14 @@ export function currentView(): PlayerView | null {
   const gameFinished = liveState.state?.status.type === 'finished';
   const idx = getReplayIndex();
   const fogHistory = getFogViewHistory();
-  if (!isLive() && idx !== null && liveState.state?.variant === 'fog-of-war') {
+  if (!isLive() && idx !== null && liveState.state?.variant === 'dark-chess') {
     return fogHistory.get(idx) ?? liveState.state;
   }
   if (!projection) return liveState.state;
-  if (projection.state.variant === 'fog-of-war' && projection.state.status.type === 'finished') {
+  if (projection.state.variant === 'dark-chess' && projection.state.status.type === 'finished') {
     return terminalFogViewForProjection(projection, perspective);
   }
-  if (projection.state.variant === 'fog-of-war' && gameFinished && idx !== null) {
+  if (projection.state.variant === 'dark-chess' && gameFinished && idx !== null) {
     const captured = fogHistory.get(idx);
     if (captured) return captured;
   }
@@ -1799,7 +1805,7 @@ export function currentDevViews(): DevViews | null {
   if (isLive()) return liveState.devViews;
 
   const projection = currentProjection();
-  if (!projection || projection.state.variant !== 'fog-of-war') return liveState.devViews;
+  if (!projection || projection.state.variant !== 'dark-chess') return liveState.devViews;
 
   const perspective = liveState.seat === 'black' ? 'black' : 'white';
   const opponent = oppositeColor(perspective);
@@ -1938,7 +1944,7 @@ function hasVisibleDraftData(projection: GameProjection | null): boolean {
 
 function shouldRequestHiddenDraft960ForPlayAgain(): boolean {
   const variant = currentView()?.variant ?? liveState.state?.variant ?? liveState.variantRequested;
-  return variant === 'fog-of-war' && hasVisibleDraftData(currentProjection());
+  return variant === 'dark-chess' && hasVisibleDraftData(currentProjection());
 }
 
 // ── Labels ────────────────────────────────────────────────────────────────────

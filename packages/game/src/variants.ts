@@ -136,11 +136,11 @@ export const draft960Variant: Variant = {
 // ── SECTION: Fog of War variant ────────────────────────────────────────────
 export const fogOfWarVariant: Variant = {
   ...draft960Variant,
-  id: 'fog-of-war',
+  id: 'dark-chess',
   createInitialState(gameId: string): GameState {
     const state: GameState = {
       ...draft960Variant.createInitialState(gameId),
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       status: { type: 'playing', turn: 'white' },
     };
     return {
@@ -418,7 +418,7 @@ function getVisibilityMoves(state: GameState, player: Color): Move[] {
   // defined for finished states too — otherwise the captured side's view
   // collapses to its own piece squares the instant the game ends, and any
   // post-finish render (replay, articles, postgame fog) "loses" all vision.
-  if (state.variant === 'fog-of-war') return getFogMovesForPlayer(state, player);
+  if (state.variant === 'dark-chess') return getFogMovesForPlayer(state, player);
   if (state.status.type !== 'playing') return [];
   return getMovesForPlayer(state, player);
 }
@@ -752,17 +752,17 @@ export function capturedRoleFor(state: GameState, move: Move): PieceRole | undef
 }
 
 export function variantForId(id: GameState['variant']): Variant {
-  if (id === 'fog-of-war') return fogOfWarVariant;
+  if (id === 'dark-chess') return fogOfWarVariant;
   return draft960Variant;
 }
 
 // Maps any accepted slug spelling to the canonical VariantId. 'dark-chess' is
-// the eventual canonical slug; during the rename it is accepted on read but the
-// canonical return value flips in lockstep with the VariantId union. Apply at
-// every boundary where a persisted or external variant string re-enters the
-// system (event replay, DB row reads) so old and new spellings converge.
+// the canonical slug; the legacy 'fog-of-war' spelling is still accepted on read
+// (persisted event JSON and un-migrated DB rows carry it) and converges here.
+// Apply at every boundary where a persisted or external variant string re-enters
+// the system (event replay, DB row reads).
 export function normalizeVariantId(raw: string): VariantId {
-  if (raw === 'fog-of-war' || raw === 'dark-chess') return 'fog-of-war';
+  if (raw === 'dark-chess' || raw === 'fog-of-war') return 'dark-chess';
   if (raw === 'draft960') return 'draft960';
   throw new Error(`unknown variant id: ${JSON.stringify(raw)}`);
 }

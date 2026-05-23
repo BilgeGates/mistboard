@@ -54,7 +54,7 @@ export function getFogSnapshotToEventsLen(): Map<number, number> {
 }
 
 export function captureFogView(): void {
-  if (!liveState.state || liveState.state.variant !== 'fog-of-war') return;
+  if (!liveState.state || liveState.state.variant !== 'dark-chess') return;
   // Capture on every server state change, not just when eventsLen increases. Opponent moves
   // don't appear in liveState.events (fog-filtered), so eventsLen stays constant after them —
   // using it as the key would collapse own-move and opponent-move positions into one entry.
@@ -80,7 +80,7 @@ export function fogLivePos(): number {
   // For fog games, the live position IS the last captured snapshot (fogSnapshotSeq - 1), not
   // one past it. This eliminates the redundant extra right-press from "last snapshot" to "live"
   // since both show the same board.
-  return liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0
+  return liveState.state?.variant === 'dark-chess' && fogViewHistory.size > 0
     ? fogSnapshotSeq - 1
     : liveState.events.length;
 }
@@ -106,7 +106,7 @@ function isReplayHistoryEvent(event: GameEvent): boolean {
 }
 
 function firstMoveHistoryIndex(): number | null {
-  if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
+  if (liveState.state?.variant === 'dark-chess' && fogViewHistory.size > 0) {
     return fogFirstMoveSnapshotIndex;
   }
   for (const [index, event] of liveState.events.entries()) {
@@ -126,7 +126,7 @@ function replayHistoryIndexes(): number[] {
   // "starting position" (ply 0), not on whichever seat-assigned/clock-started snapshot happened
   // to fire first. Keep the snapshot immediately before the first move as the ply-0 anchor;
   // every snapshot from the first move onward is a real ply position.
-  if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
+  if (liveState.state?.variant === 'dark-chess' && fogViewHistory.size > 0) {
     const allKeys = Array.from(fogViewHistory.keys()).sort((a, b) => a - b);
     if (fogFirstMoveSnapshotIndex === null) {
       // No moves played yet — expose only the latest pregame snapshot so |< / > don't walk
@@ -212,7 +212,7 @@ function maybeSoundForReplayStep(prevIndex: number | null, nextIndex: number | n
   const effectivePrev = prevIndex ?? livePos;
   if (effectiveNext <= effectivePrev) return; // backward step or no change — no sound
 
-  if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
+  if (liveState.state?.variant === 'dark-chess' && fogViewHistory.size > 0) {
     // replayIndex is a fog snapshot number, not an events index. Use fog view comparison to
     // determine the sound — the same logic playSanitizedOpponentSound uses for live moves.
     const prevView = fogViewHistory.get(effectivePrev);
@@ -266,7 +266,7 @@ export function replayControlDisabled(action: string): boolean {
 
 export function replayMetaLabel(): string {
   if (liveState.events.length === 0) return 'No events';
-  const isFog = liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0;
+  const isFog = liveState.state?.variant === 'dark-chess' && fogViewHistory.size > 0;
   if (isFog) {
     const total = totalPlies();
     if (isLive()) return `Live · ply ${total} of ${total}`;
@@ -301,7 +301,7 @@ export function handleReplayKeyboard(event: KeyboardEvent): void {
 }
 
 export function handleMoveListClick(eventIndex: number): void {
-  if (liveState.state?.variant === 'fog-of-war' && fogViewHistory.size > 0) {
+  if (liveState.state?.variant === 'dark-chess' && fogViewHistory.size > 0) {
     replayIndex = fogSnapshotForEventIndex(eventIndex);
   } else {
     replayIndex = eventIndex;

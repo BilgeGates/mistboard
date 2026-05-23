@@ -14,7 +14,7 @@ function fixtureGame(): { summary: RecentEveGameRecord; events: GameEvent[] } {
       type: 'room-created',
       at: 0,
       roomId: 'fixture-room',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
       timeControl: { initialMs: 60000, incrementMs: 1000 },
     },
@@ -60,7 +60,7 @@ function fixtureGame(): { summary: RecentEveGameRecord; events: GameEvent[] } {
 
   const summary: RecentEveGameRecord = {
     roomId: 'fixture-room',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     mode: 'pvp',
     result: 'white-wins',
     termination: 'king-captured',
@@ -91,7 +91,7 @@ test('JSON publication has expected shape and v1.0 schema', () => {
 
   assert.equal(payload.schema_version, '1.0');
   assert.equal(payload.game_id, 'fixture-room');
-  assert.equal(payload.variant, 'fog-of-war');
+  assert.equal(payload.variant, 'dark-chess');
   assert.equal(payload.mode, 'pvp');
   assert.equal(payload.result, 'white');
   assert.equal(payload.termination, 'king-captured');

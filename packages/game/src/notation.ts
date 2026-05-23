@@ -213,7 +213,7 @@ function isCapture(state: GameState, move: Move): boolean {
   if (target && target.color !== piece.color) return true;
   if (piece.role !== 'pawn' || fileOf(move.from) === fileOf(move.to)) return false;
   if (target?.color === piece.color) return false;
-  return state.variant === 'fog-of-war' || move.to === state.enPassantSquare;
+  return state.variant === 'dark-chess' || move.to === state.enPassantSquare;
 }
 
 function fileOf(square: Square): string {

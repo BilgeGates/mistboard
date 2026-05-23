@@ -47,7 +47,7 @@ try {
         artifactPolicy: config.artifactPolicy,
         resourcePolicy: { providers: config.providers, concurrency: 1 },
         config: {
-          variant: 'fog-of-war',
+          variant: 'dark-chess',
           max_plies: config.maxPlies,
           tournament_id: config.tournamentId,
           pair_id: pairing.pairId,

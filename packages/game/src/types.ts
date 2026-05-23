@@ -1,6 +1,6 @@
 export type Color = 'white' | 'black';
 
-export type VariantId = 'draft960' | 'fog-of-war';
+export type VariantId = 'dark-chess' | 'draft960';
 
 export type Square =
   | 'a1'

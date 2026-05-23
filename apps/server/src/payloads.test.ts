@@ -28,7 +28,7 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
       type: 'room-created',
       at: 1,
       roomId: 'fog-payload',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     },
     {
@@ -41,7 +41,7 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
   ];
   const projection: GameProjection = {
     roomId: 'fog-payload',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     offer: [],
     offers: {},
     state,
@@ -146,7 +146,7 @@ test('live Fog Draft960 payload hides opponent offer and selection', () => {
       type: 'room-created',
       at: 1,
       roomId: 'fog-draft-payload',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: whiteOffer,
       offers: {
         white: whiteOffer,
@@ -386,7 +386,7 @@ function fogRoomFixture({
       type: 'room-created',
       at: 1,
       roomId: 'fog-payload',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     },
     {
@@ -399,7 +399,7 @@ function fogRoomFixture({
   ];
   const projection: GameProjection = {
     roomId: 'fog-payload',
-    variant: 'fog-of-war',
+    variant: 'dark-chess',
     offer: [],
     offers: {},
     state,
@@ -440,7 +440,7 @@ function lastMoveRoomFixture(): SnapshotRoom {
       type: 'room-created',
       at: 1,
       roomId: 'fog-last-move-payload',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
     },
     {
@@ -460,7 +460,7 @@ function lastMoveRoomFixture(): SnapshotRoom {
     events,
     projection: {
       roomId: 'fog-last-move-payload',
-      variant: 'fog-of-war',
+      variant: 'dark-chess',
       offer: [],
       offers: {},
       state,
@@ -487,7 +487,7 @@ function replayRoomFixture({
   seats: { white: string; black: string };
 }): SnapshotRoom {
   const events: GameEvent[] = [
-    { type: 'room-created', at: 1, roomId, variant: 'fog-of-war', offer: [] },
+    { type: 'room-created', at: 1, roomId, variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 1, roomId, clientId: seats.white, seat: 'white' },
     { type: 'seat-assigned', at: 1, roomId, clientId: seats.black, seat: 'black' },
     { type: 'move-played', at: 2, roomId, color: 'white', move: { from: 'e2', to: 'e4' } },

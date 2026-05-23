@@ -634,7 +634,7 @@ export async function resumeRoomIfReady(
 // ── Game flow ──────────────────────────────────────────────────────────────
 
 export async function startLiveClockIfReady(ctx: RoomManagerContext, room: Room): Promise<void> {
-  if (room.projection.variant !== 'fog-of-war') return;
+  if (room.projection.variant !== 'dark-chess') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.state.clock) return;
   if (!room.projection.seats.white || !room.projection.seats.black) return;
@@ -845,7 +845,7 @@ export async function playRandomEngineMoveIfReady(
 ): Promise<void> {
   if (!room.randomEngine) return;
   const engine = loadEngine(room.pveEngineId ?? ctx.pveBuiltinEngineClientId);
-  if (room.projection.variant !== 'fog-of-war') return;
+  if (room.projection.variant !== 'dark-chess') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
   const engineSeat = engineSeatFor(room);
@@ -969,7 +969,7 @@ export async function playRandomEngineMoveIfReady(
 export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): void {
   if (room.engineTimer) return;
   if (!room.randomEngine) return;
-  if (room.projection.variant !== 'fog-of-war') return;
+  if (room.projection.variant !== 'dark-chess') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
   const engineSeat = engineSeatFor(room);
