@@ -24,6 +24,7 @@ import {
   isPlayableLiveEngineClientId,
 } from './engine-registry.js';
 import { snapshotPayload } from './payloads.js';
+import { logger, wsCounters } from './obs.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
@@ -699,9 +700,38 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   });
 }
 
+// Known client→server message types. Anything outside this set increments
+// ws_unknown_messages in the metrics tick and emits a `kind:
+// 'ws_unknown_message'` log. The snapshot→delta migration introduced
+// `snapshot:request`; future wire-format additions should land here too.
+const KNOWN_CLIENT_MESSAGE_TYPES = new Set([
+  'ping',
+  'admin-debug-auth',
+  'snapshot:request',
+  'select-start',
+  'move',
+  'resign',
+  'rematch:offer',
+  'rematch:cancel',
+  'rematch:decline',
+]);
+
 async function handleMessage(room: Room, client: Client, raw: string): Promise<void> {
   const message = parseMessage(raw);
   if (!message) return;
+  if (!KNOWN_CLIENT_MESSAGE_TYPES.has(message.type)) {
+    wsCounters.recordUnknownMessage();
+    logger.warn(
+      {
+        kind: 'ws_unknown_message',
+        room_id: room.id,
+        client_id: client.id,
+        message_type: message.type,
+      },
+      'ws unknown message',
+    );
+    return;
+  }
   try {
     if (message.type === 'ping') send(client, { type: 'pong', at: Date.now() });
     if (message.type === 'admin-debug-auth') {
@@ -712,6 +742,7 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
       // Delta-mode recovery channel. The client is already authenticated to
       // this room via the WS connect handshake (canObserveLiveRoom + seat
       // token); we inherit that auth here rather than re-deriving it.
+      wsCounters.recordSnapshotRequest();
       send(client, snapshotPayload(
         { ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) },
         client,
@@ -1441,10 +1472,14 @@ function parseMessage(raw: string): { type: string; startId?: number; color?: st
     if (typeof value === 'object' && value !== null && 'type' in value) {
       return value as { type: string; startId?: number };
     }
+    // Parse succeeded but the shape is wrong (e.g. JSON array, scalar, or
+    // object missing `type`). Still a failure from the dispatcher's view.
+    wsCounters.recordParseFailure();
+    return null;
   } catch {
+    wsCounters.recordParseFailure();
     return null;
   }
-  return null;
 }
 
 function isColor(value: string | undefined): value is Color {

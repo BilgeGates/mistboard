@@ -64,6 +64,50 @@ class EngineCounters {
 
 export const engineCounters = new EngineCounters();
 
+// Wire-format counters for the snapshot→delta protocol. Watching:
+// - `snapshot_requests`: rate of clients asking for a fresh snapshot.
+//   Should be near-zero in steady state. A sustained nonzero rate
+//   indicates a gap-detection loop on some client (seq skip → request →
+//   reconcile → next event also skipped → repeat). Added 2026-05-22 as
+//   the readback signal for the snapshot→delta migration (Phase 3).
+// - `unknown_messages`: rate of WS frames with no matching handler.
+// - `parse_failures`: rate of WS frames that failed JSON.parse or
+//   shape validation.
+class WsCounters {
+  totalSnapshotRequests = 0;
+  totalUnknownMessages = 0;
+  totalParseFailures = 0;
+  private lastEmittedSnapshotRequests = 0;
+  private lastEmittedUnknownMessages = 0;
+  private lastEmittedParseFailures = 0;
+
+  recordSnapshotRequest(): void { this.totalSnapshotRequests += 1; }
+  recordUnknownMessage(): void { this.totalUnknownMessages += 1; }
+  recordParseFailure(): void { this.totalParseFailures += 1; }
+
+  snapshot(): {
+    snapshotRequests: number; unknownMessages: number; parseFailures: number;
+    snapshotRequestsDelta: number; unknownMessagesDelta: number; parseFailuresDelta: number;
+  } {
+    const snapshotRequestsDelta = this.totalSnapshotRequests - this.lastEmittedSnapshotRequests;
+    const unknownMessagesDelta = this.totalUnknownMessages - this.lastEmittedUnknownMessages;
+    const parseFailuresDelta = this.totalParseFailures - this.lastEmittedParseFailures;
+    this.lastEmittedSnapshotRequests = this.totalSnapshotRequests;
+    this.lastEmittedUnknownMessages = this.totalUnknownMessages;
+    this.lastEmittedParseFailures = this.totalParseFailures;
+    return {
+      snapshotRequests: this.totalSnapshotRequests,
+      unknownMessages: this.totalUnknownMessages,
+      parseFailures: this.totalParseFailures,
+      snapshotRequestsDelta,
+      unknownMessagesDelta,
+      parseFailuresDelta,
+    };
+  }
+}
+
+export const wsCounters = new WsCounters();
+
 export function startObservability(sources: ObsSources, intervalMs = 5_000): () => void {
   const histogram = monitorEventLoopDelay({ resolution: 20 });
   histogram.enable();
@@ -75,6 +119,7 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
     lastTickAt = now;
     const mem = process.memoryUsage();
     const engine = engineCounters.snapshot();
+    const ws = wsCounters.snapshot();
     logger.info(
       {
         kind: 'metrics',
@@ -91,6 +136,12 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
         engine_moves_tick: engine.movesDelta,
         engine_fallbacks_tick: engine.fallbacksDelta,
         engine_fallback_rate: Number(engine.rate.toFixed(4)),
+        ws_snapshot_requests_total: ws.snapshotRequests,
+        ws_snapshot_requests_tick: ws.snapshotRequestsDelta,
+        ws_unknown_messages_total: ws.unknownMessages,
+        ws_unknown_messages_tick: ws.unknownMessagesDelta,
+        ws_parse_failures_total: ws.parseFailures,
+        ws_parse_failures_tick: ws.parseFailuresDelta,
       },
       'metrics',
     );
