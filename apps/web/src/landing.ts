@@ -8,6 +8,7 @@ import { buildContact } from './contact.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
+import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
 
 type FeaturedGame = {
   roomId: string;
@@ -866,6 +867,7 @@ function buildLandingPlayPanel(
 
   lobbyButton.addEventListener('click', () => {
     openLandingSetupDialog({
+      engineId: defaultEngineId,
       mode: 'lobby',
       title: 'Find opponent',
       ratedDisabled: true,
@@ -1228,7 +1230,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     const setup = selectedRoomSetup(startFormat, rated, selectedPreset, preferredColor);
     if (choice.mode === 'lobby') {
       cancelLobbyWait?.();
-      cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status);
+      cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status, selectedEngineId);
       return;
     }
     void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup);
@@ -1714,6 +1716,7 @@ function joinLobbyFromPlay(
   button: HTMLButtonElement,
   setup: LandingRoomSetup,
   status: HTMLElement,
+  engineId?: string,
 ): () => void {
   const controller = new AbortController();
   const originalText = button.textContent ?? '';
@@ -1728,16 +1731,96 @@ function joinLobbyFromPlay(
   let active = true;
   let ticketId: string | null = null;
   let pollTimer: number | null = null;
+  let offerTimer: number | null = null;
+  let offerEl: HTMLElement | null = null;
+
+  const clearOfferTimer = () => {
+    if (offerTimer !== null) {
+      window.clearTimeout(offerTimer);
+      offerTimer = null;
+    }
+  };
+
+  const removeOffer = () => {
+    offerEl?.remove();
+    offerEl = null;
+    status.hidden = false;
+  };
 
   const cancel = () => {
     active = false;
     controller.abort();
     if (pollTimer !== null) window.clearTimeout(pollTimer);
+    clearOfferTimer();
     if (ticketId) {
       void fetch(`/api/lobby/${encodeURIComponent(ticketId)}`, { method: 'DELETE' }).catch(
         () => {},
       );
     }
+  };
+
+  const acceptEngineOffer = (playButton: HTMLButtonElement) => {
+    if (!engineId) return;
+    track('lobby_engine_offer_accepted', { ...bucketProps, waitMs: Date.now() - queueJoinedAt });
+    cancel();
+    void createRoomFromPlay(playButton, 'pve', engineId, setup);
+  };
+
+  const dismissEngineOffer = () => {
+    track('lobby_engine_offer_dismissed', { ...bucketProps, waitMs: Date.now() - queueJoinedAt });
+    removeOffer();
+    scheduleEngineOffer();
+  };
+
+  const showEngineOffer = () => {
+    if (!engineId || offerEl !== null || !status.isConnected) return;
+    status.hidden = true;
+    track('lobby_engine_offer_shown', { ...bucketProps, waitMs: Date.now() - queueJoinedAt });
+
+    const block = document.createElement('div');
+    block.className = 'landing-engine-offer';
+
+    const prompt = document.createElement('p');
+    prompt.className = 'landing-engine-offer-prompt';
+    prompt.textContent = 'No opponents right now. Play the engine instead?';
+
+    const actions = document.createElement('div');
+    actions.className = 'landing-engine-offer-actions';
+
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'landing-setup-start';
+    play.textContent = 'Play the engine';
+    play.addEventListener('click', () => acceptEngineOffer(play));
+
+    const keep = document.createElement('button');
+    keep.type = 'button';
+    keep.className = 'landing-setup-back';
+    keep.textContent = 'Keep waiting';
+    keep.addEventListener('click', dismissEngineOffer);
+
+    actions.append(play, keep);
+    block.append(prompt, actions);
+    status.insertAdjacentElement('afterend', block);
+    offerEl = block;
+  };
+
+  const scheduleEngineOffer = () => {
+    if (!engineId) return;
+    clearOfferTimer();
+    offerTimer = window.setTimeout(() => {
+      offerTimer = null;
+      if (
+        shouldOfferEngine({
+          elapsedMs: Date.now() - queueJoinedAt,
+          thresholdMs: ENGINE_OFFER_AFTER_MS,
+          stillWaiting: active && offerEl === null,
+          hasEngine: Boolean(engineId),
+        })
+      ) {
+        showEngineOffer();
+      }
+    }, ENGINE_OFFER_AFTER_MS);
   };
 
   const redirectIfMatched = (ticket: LobbyTicketResponse): boolean => {
@@ -1750,6 +1833,8 @@ function joinLobbyFromPlay(
   const handleLobbyError = (err: unknown) => {
     if (!active) return;
     console.warn(err);
+    clearOfferTimer();
+    removeOffer();
     button.disabled = false;
     button.removeAttribute('aria-busy');
     setButtonLabel(button, 'Try again');
@@ -1797,6 +1882,7 @@ function joinLobbyFromPlay(
     pollTimer = window.setTimeout(() => {
       void poll().catch(handleLobbyError);
     }, ticket.pollAfterMs ?? 1_000);
+    scheduleEngineOffer();
   };
 
   void start().catch(handleLobbyError);

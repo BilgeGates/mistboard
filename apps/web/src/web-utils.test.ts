@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { escapeHtml, formatClock, isColor, oppositeColor } from './web-utils.js';
+import {
+  ENGINE_OFFER_AFTER_MS,
+  escapeHtml,
+  formatClock,
+  isColor,
+  oppositeColor,
+  shouldOfferEngine,
+} from './web-utils.js';
 
 describe('formatClock', () => {
   it('formats zero ms as 0:00', () => {
@@ -83,5 +90,30 @@ describe('oppositeColor', () => {
 
   it('returns white for black', () => {
     expect(oppositeColor('black')).toBe('white');
+  });
+});
+
+describe('shouldOfferEngine', () => {
+  const base = {
+    elapsedMs: ENGINE_OFFER_AFTER_MS,
+    thresholdMs: ENGINE_OFFER_AFTER_MS,
+    stillWaiting: true,
+    hasEngine: true,
+  };
+
+  it('offers once the threshold is reached while still waiting', () => {
+    expect(shouldOfferEngine(base)).toBe(true);
+  });
+
+  it('does not offer before the threshold', () => {
+    expect(shouldOfferEngine({ ...base, elapsedMs: ENGINE_OFFER_AFTER_MS - 1 })).toBe(false);
+  });
+
+  it('does not offer once a match arrives (no longer waiting)', () => {
+    expect(shouldOfferEngine({ ...base, stillWaiting: false })).toBe(false);
+  });
+
+  it('does not offer when no engine is available', () => {
+    expect(shouldOfferEngine({ ...base, hasEngine: false })).toBe(false);
   });
 });

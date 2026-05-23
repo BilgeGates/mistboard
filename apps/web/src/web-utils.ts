@@ -34,3 +34,16 @@ export function formatClock(ms: number, showTenths = false): string {
 export function oppositeColor(color: Color): Color {
   return color === 'white' ? 'black' : 'white';
 }
+
+// How long a player waits in the lobby before we surface the play-the-engine
+// offer. Empty-lobby backstop so a cold site is never a dead end.
+export const ENGINE_OFFER_AFTER_MS = 15_000;
+
+export function shouldOfferEngine(params: {
+  elapsedMs: number;
+  thresholdMs: number;
+  stillWaiting: boolean;
+  hasEngine: boolean;
+}): boolean {
+  return params.stillWaiting && params.hasEngine && params.elapsedMs >= params.thresholdMs;
+}

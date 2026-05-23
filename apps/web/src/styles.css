@@ -5042,6 +5042,30 @@ a.landing-announcement-card-inner:focus-visible {
   display: none;
 }
 
+.landing-engine-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--site-border);
+  border-radius: 6px;
+  background: var(--site-accent-soft);
+}
+
+.landing-engine-offer-prompt {
+  margin: 0;
+  color: var(--site-text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.landing-engine-offer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .landing-setup-start {
   border-color: #629924;
   background: #629924;
