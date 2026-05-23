@@ -1745,11 +1745,30 @@ function buildLandingAnnouncements(): HTMLElement {
     return b.date.localeCompare(a.date);
   });
 
-  for (const entry of ordered) {
+  const MAX_VISIBLE = 3;
+  const visible = ordered.slice(0, MAX_VISIBLE);
+  const overflow = ordered.length - visible.length;
+
+  for (const entry of visible) {
     list.append(renderAnnouncementCard(entry));
   }
 
   panel.append(list);
+
+  if (overflow > 0) {
+    const more = document.createElement('a');
+    more.className = 'landing-announcements-more';
+    more.href = '/articles';
+    const label = document.createElement('span');
+    label.textContent = 'View all announcements';
+    const arrow = document.createElement('span');
+    arrow.className = 'landing-announcements-more-arrow';
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = '→';
+    more.append(label, arrow);
+    panel.append(more);
+  }
+
   return panel;
 }
 
@@ -1772,20 +1791,16 @@ function renderAnnouncementCard(entry: Announcement): HTMLElement {
     item.classList.add('is-clickable');
   }
 
-  // Article announcements pull their thumbnail from the linked article.
+  let thumbEl: HTMLElement | null = null;
   if (entry.kind === 'article' && entry.href) {
     const match = entry.href.match(/^\/articles\/([^/?#]+)/);
     const article = match ? findArticle(match[1]!) : undefined;
     if (article?.thumbnail) {
-      const thumb = renderArticleThumbnail(article.thumbnail);
-      thumb.classList.add('landing-announcement-thumb');
-      container.append(thumb);
+      thumbEl = renderArticleThumbnail(article.thumbnail);
+      thumbEl.classList.add('landing-announcement-thumb');
       container.classList.add('has-thumb');
     }
   }
-
-  const text = document.createElement('div');
-  text.className = 'landing-announcement-text';
 
   const header = document.createElement('div');
   header.className = 'landing-announcement-meta';
@@ -1809,18 +1824,27 @@ function renderAnnouncementCard(entry: Announcement): HTMLElement {
     header.append(date);
   }
 
-  text.append(header);
-
   const headline = document.createElement('p');
   headline.className = 'landing-announcement-headline';
   headline.textContent = entry.headline;
-  text.append(headline);
+
+  if (thumbEl) {
+    const top = document.createElement('div');
+    top.className = 'landing-announcement-top';
+    const topText = document.createElement('div');
+    topText.className = 'landing-announcement-top-text';
+    topText.append(header, headline);
+    top.append(thumbEl, topText);
+    container.append(top);
+  } else {
+    container.append(header, headline);
+  }
 
   if (entry.body) {
     const body = document.createElement('p');
     body.className = 'landing-announcement-body';
     body.textContent = entry.body;
-    text.append(body);
+    container.append(body);
   }
 
   if (entry.href) {
@@ -1834,10 +1858,9 @@ function renderAnnouncementCard(entry: Announcement): HTMLElement {
     arrow.setAttribute('aria-hidden', 'true');
     arrow.textContent = isExternal ? '↗' : '→';
     cta.append(label, arrow);
-    text.append(cta);
+    container.append(cta);
   }
 
-  container.append(text);
   item.append(container);
   return item;
 }
