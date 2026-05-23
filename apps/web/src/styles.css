@@ -678,6 +678,12 @@ button:focus-visible {
   padding: 18px clamp(14px, 2.5vw, 30px);
 }
 
+.shell:not(.debug-shell) {
+  min-height: calc(100svh - 56px);
+  display: grid;
+  align-content: center;
+}
+
 .topbar {
   display: flex;
   align-items: center;
