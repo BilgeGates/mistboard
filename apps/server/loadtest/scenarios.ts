@@ -1,4 +1,4 @@
-import { TIME_CONTROLS, type Move, type RoomTimeControl, type VariantId } from '@mistboard/game';
+import { type Move, type RoomTimeControl, TIME_CONTROLS, type VariantId } from '@mistboard/game';
 
 export type Mode = 'pve' | 'pvp';
 

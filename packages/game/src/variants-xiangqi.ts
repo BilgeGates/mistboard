@@ -15,12 +15,12 @@
 import type {
   Color as EoColor,
   Role as EoRole,
-  SquareName as EoSquareName,
   Square as EoSquare,
+  SquareName as EoSquareName,
 } from 'elephantops';
 import { Board as EoBoard } from 'elephantops/board';
-import { Xiangqi as EoXiangqi } from 'elephantops/xiangqi';
 import { makeSquare as eoMakeSquare, parseSquare as eoParseSquare } from 'elephantops/util';
+import { Xiangqi as EoXiangqi } from 'elephantops/xiangqi';
 
 export type XiangqiColor = EoColor; // 'red' | 'black'
 

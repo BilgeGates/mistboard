@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import type { Board, PlayerView, Square } from '@mistboard/game';
 import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
+import type { Board, PlayerView, Square } from '@mistboard/game';
+import { describe, expect, it } from 'vitest';
 import { legalDests } from './live-render.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────

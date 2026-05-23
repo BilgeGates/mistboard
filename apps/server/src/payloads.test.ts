@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   fogOfWarVariant,
-  generateChess960Starts,
-  replayGameEvents,
   type GameEvent,
   type GameProjection,
+  generateChess960Starts,
+  replayGameEvents,
 } from '@mistboard/game';
-import { snapshotPayload, type SnapshotClient, type SnapshotRoom } from './payloads.js';
+import { type SnapshotClient, type SnapshotRoom, snapshotPayload } from './payloads.js';
 import { eventReplayResponse } from './server-policy.js';
 
 test('Fog of War snapshot payload does not include hidden opponent pieces or move events', () => {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { generateChess960Starts, pickDraft960Offer } from './chess960.js';
 import { advanceClock, createClock, expireClock } from './clocks.js';
-import { replayGameEvents, type GameEvent } from './events.js';
+import { type GameEvent, replayGameEvents } from './events.js';
 
 test('replays Draft960 pregame events into a resolved starting position', () => {
   const offer = pickDraft960Offer(42);

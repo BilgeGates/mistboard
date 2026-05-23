@@ -1,7 +1,7 @@
 import type { ServerResponse } from 'node:http';
-import { Resvg } from '@resvg/resvg-js';
-import type { Color, Square } from '@mistboard/game';
 import { type PieceOnBoard, renderBoardComposition } from '@mistboard/board-render';
+import type { Color, Square } from '@mistboard/game';
+import { Resvg } from '@resvg/resvg-js';
 import * as persistence from './persistence.js';
 
 const OG_WIDTH = 1200;

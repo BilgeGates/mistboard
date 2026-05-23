@@ -12,7 +12,7 @@
 // That's the rollout knob — flip it on after the loadtest baseline confirms
 // the win.
 
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

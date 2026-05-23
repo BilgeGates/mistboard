@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { after, before, beforeEach } from 'node:test';
 import pg from 'pg';
-import { runMigrations } from './migrate.js';
 import {
   claimNextEngineGameTask,
   cleanupStaleEngineGameTasks,
@@ -17,6 +16,7 @@ import {
 } from './engine-experiments.js';
 import { loadEngine, upsertBuiltinEngineVersions } from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
+import { runMigrations } from './migrate.js';
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
 

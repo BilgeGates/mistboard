@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { makeSquare as eoMakeSquare, parseSquare as eoParseSquare } from 'elephantops/util';
 import {
   applyMove,

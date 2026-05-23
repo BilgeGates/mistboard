@@ -1,8 +1,8 @@
 import './styles.css';
-import { initializeThemeSettings } from './theme.js';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
+import { initializeThemeSettings } from './theme.js';
 
 initializeThemeSettings();
 initializeAccountNav();

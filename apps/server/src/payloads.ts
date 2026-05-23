@@ -1,13 +1,13 @@
 import {
-  variantForId,
   type Color,
   type GameEvent,
   type GameProjection,
   type PlayerView,
   type Square,
+  variantForId,
 } from '@mistboard/game';
-import { modeForProjection, type GameAccessMode } from './server-policy.js';
 import { engineVersionDisplayName } from './engine-registry.js';
+import { type GameAccessMode, modeForProjection } from './server-policy.js';
 
 export type Seat = Color | 'spectator';
 

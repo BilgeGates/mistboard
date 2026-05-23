@@ -3,7 +3,7 @@
 // Owns the fetchers + row-converters that hydrate the engine-review panels
 // on /game/:id. Consumed by mountGame in landing.ts.
 
-import { replayGameEvents, type GameEvent } from '@mistboard/game';
+import { type GameEvent, replayGameEvents } from '@mistboard/game';
 import type { BeliefRow, TraceRow } from './belief-panel.js';
 import type { EngineReviewPanels } from './replay.js';
 

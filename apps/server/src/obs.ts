@@ -9,8 +9,8 @@
 // gauges that matter for capacity decisions: room count, ws client count,
 // event-loop lag percentiles, heap/rss.
 
-import pino, { type Logger } from 'pino';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
+import pino, { type Logger } from 'pino';
 
 const isProd = process.env.NODE_ENV === 'production' || !process.stdout.isTTY;
 const level = process.env.LOG_LEVEL ?? 'info';

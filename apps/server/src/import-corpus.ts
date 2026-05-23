@@ -11,12 +11,12 @@
 // inserts events + a games row per file. Idempotent: ON CONFLICT DO NOTHING
 // at both the events PK (room_id, seq) and games PK (room_id).
 
-import { readFile, readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { type GameEvent, isGameEndReason, replayGameEvents } from '@mistboard/game';
 import pg from 'pg';
-import { isGameEndReason, replayGameEvents, type GameEvent } from '@mistboard/game';
 import { runMigrations } from './migrate.js';
-import { appendEvent, close, init, recordGameEnd, type GameSummary } from './persistence.js';
+import { appendEvent, close, type GameSummary, init, recordGameEnd } from './persistence.js';
 
 type Args = {
   dir: string;

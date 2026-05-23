@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { algebraicMoveLabels, moveToAlgebraic } from './notation.js';
 import type { GameEvent } from './events.js';
+import { algebraicMoveLabels, moveToAlgebraic } from './notation.js';
 import type { GameState, Move } from './types.js';
 import { fogOfWarVariant } from './variants.js';
 

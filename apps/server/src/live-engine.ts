@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { clockRemainingMs, type Move } from '@mistboard/game';
 import {
   defaultEngineId,
-  loadEngine,
   type EngineDefinition,
   type EngineMoveContext,
   type EngineMoveDecision,
+  loadEngine,
 } from './engine-registry.js';
 import { getPythonPool } from './python-pool.js';
 

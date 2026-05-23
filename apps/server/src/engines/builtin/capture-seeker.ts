@@ -1,6 +1,6 @@
 import type { Move, PieceRole } from '@mistboard/game';
-import type { EngineDefinition, EngineMoveContext, EngineMoveScore } from '../types.js';
 import { engineThinkTimeMs } from '../think-time.js';
+import type { EngineDefinition, EngineMoveContext, EngineMoveScore } from '../types.js';
 
 const PIECE_VALUES: Record<PieceRole, number> = {
   king: 1000,

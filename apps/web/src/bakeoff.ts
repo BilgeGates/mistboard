@@ -1,6 +1,6 @@
+import { type Annotation, loadAnnotations } from './annotations.js';
+import { type BeliefRow, loadBeliefRows, loadTraceRows, type TraceRow } from './belief-panel.js';
 import { mountReplay } from './replay.js';
-import { loadAnnotations, type Annotation } from './annotations.js';
-import { loadBeliefRows, loadTraceRows, type BeliefRow, type TraceRow } from './belief-panel.js';
 
 type ManifestGame = {
   index: number;

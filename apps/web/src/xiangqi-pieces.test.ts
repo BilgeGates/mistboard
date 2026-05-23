@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { XiangqiColor, XiangqiPieceRole } from '@mistboard/game';
+import { describe, expect, it } from 'vitest';
 import { renderXiangqiPiece, xiangqiCharacter } from './xiangqi-pieces.js';
 
 const ROLES: XiangqiPieceRole[] = [

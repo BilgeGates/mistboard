@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { createClock, expireClock, replayGameEvents, type GameEvent } from '@mistboard/game';
+import { createClock, expireClock, type GameEvent, replayGameEvents } from '@mistboard/game';
 import {
   adminDebugTokenFromProtocolHeader,
   canExposeFullEventReplay,
@@ -14,9 +14,9 @@ import {
   isClientRoute,
   isDatabaseRequired,
   isDrainToken,
+  type RuntimeEnv,
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
-  type RuntimeEnv,
 } from './server-policy.js';
 
 test('live persisted events are not public replay data', () => {

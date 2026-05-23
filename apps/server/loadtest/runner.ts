@@ -5,9 +5,9 @@
 // creation) + WebSocket (gameplay) — designed to point at either a local dev
 // server or a deployed Railway service.
 
+import type { Color, Move, RoomTimeControl } from '@mistboard/game';
 import { connectClient, type TestClient } from '../integration/harness.js';
 import { makeRng, pickRandomMove, type Scenario } from './scenarios.js';
-import type { Color, Move, RoomTimeControl } from '@mistboard/game';
 
 export interface GameResult {
   scenario: string;

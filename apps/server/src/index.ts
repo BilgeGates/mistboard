@@ -1,79 +1,37 @@
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { promises as fs } from 'node:fs';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { promises as fs } from 'node:fs';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
-import serveHandler from 'serve-handler';
-import { WebSocketServer, WebSocket } from 'ws';
 import {
   type Chess960Start,
-  defaultClockInitialMs,
-  pickDraft960Offer,
-  replayGameEvents,
   type Color,
+  defaultClockInitialMs,
   type GameEvent,
   type GameProjection,
+  pickDraft960Offer,
   type RoomTimeControl,
+  replayGameEvents,
   type VariantId,
 } from '@mistboard/game';
-import { runMigrations } from './migrate.js';
-import { serveGameOgImage } from './og-image.js';
-import * as persistence from './persistence.js';
-import { isPlayableLiveEngineClientId } from './engine-registry.js';
-import { snapshotPayload } from './payloads.js';
-import { logger, wsCounters } from './obs.js';
-import {
-  adminDebugTokenFromProtocolHeader,
-  canObserveLiveRoom,
-  isAdminDebugToken,
-  isClientRoute,
-  isDrainToken,
-  isServerEngineClient,
-  isAllowedWebSocketOrigin,
-  isDatabaseRequired,
-  isProductionLikeRuntime,
-  modeForProjection,
-  parseNonNegativeInteger,
-  parsePositiveInteger,
-  recordMessageTimestamp,
-  seatTokenFromProtocolHeader,
-} from './server-policy.js';
-import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
+import pg from 'pg';
+import serveHandler from 'serve-handler';
+import { type WebSocket, WebSocketServer } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import { isPlayableLiveEngineClientId } from './engine-registry.js';
 import {
+  type HttpApiContext,
   handleApiRequest,
   parseHiddenDraft960,
   parseRoomTimeControl,
   parseVariantId,
   readJsonBody,
-  type HttpApiContext,
 } from './http-api.js';
-import {
-  appendEvent,
-  applyOrphanRecoveryIfNeeded,
-  broadcastEventAppended,
-  broadcastSnapshot,
-  buildGameSummary,
-  canClientAct,
-  offerForColor,
-  pauseRoomOnShutdown,
-  PersistenceFailure,
-  persistSeatToken,
-  playMove,
-  resolveStartIfReady,
-  resumeRoom,
-  resumeRoomIfReady,
-  roomIdToSeed,
-  seatDisplayNamesForRoom,
-  seatTokenStatesFromPersistence,
-  scheduleClockTimeout,
-  scheduleRandomEngineMove,
-  selectEngineDraftStart,
-  startLiveClockIfReady,
-  touchSeatToken,
-  type RoomManagerContext,
-} from './room-manager.js';
+import { runMigrations } from './migrate.js';
+import { logger, wsCounters } from './obs.js';
+import { serveGameOgImage } from './og-image.js';
+import { snapshotPayload } from './payloads.js';
+import * as persistence from './persistence.js';
 import {
   broadcastRematchState,
   cancelRematch,
@@ -83,6 +41,48 @@ import {
   offerRematch,
   type RematchOrchestrator,
 } from './rematch.js';
+import {
+  appendEvent,
+  applyOrphanRecoveryIfNeeded,
+  broadcastEventAppended,
+  broadcastSnapshot,
+  buildGameSummary,
+  canClientAct,
+  offerForColor,
+  PersistenceFailure,
+  pauseRoomOnShutdown,
+  persistSeatToken,
+  playMove,
+  type RoomManagerContext,
+  resolveStartIfReady,
+  resumeRoom,
+  resumeRoomIfReady,
+  roomIdToSeed,
+  scheduleClockTimeout,
+  scheduleRandomEngineMove,
+  seatDisplayNamesForRoom,
+  seatTokenStatesFromPersistence,
+  selectEngineDraftStart,
+  startLiveClockIfReady,
+  touchSeatToken,
+} from './room-manager.js';
+import {
+  adminDebugTokenFromProtocolHeader,
+  canObserveLiveRoom,
+  isAdminDebugToken,
+  isAllowedWebSocketOrigin,
+  isClientRoute,
+  isDatabaseRequired,
+  isDrainToken,
+  isProductionLikeRuntime,
+  isServerEngineClient,
+  modeForProjection,
+  parseNonNegativeInteger,
+  parsePositiveInteger,
+  recordMessageTimestamp,
+  seatTokenFromProtocolHeader,
+} from './server-policy.js';
+import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -1594,9 +1594,7 @@ function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
 }
 
-function parseMessage(
-  raw: string,
-): {
+function parseMessage(raw: string): {
   type: string;
   startId?: number;
   color?: string;

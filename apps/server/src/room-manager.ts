@@ -1,30 +1,30 @@
 import {
   advanceClock,
   type Chess960Start,
+  type Color,
   capturedRoleFor,
   clockRemainingMs,
   createClock,
   expireClock,
   freezeClock,
-  isGameEndReason,
-  replayGameEvents,
-  unfreezeClock,
-  variantForId,
-  type Color,
   type GameEvent,
   type GameProjection,
+  isGameEndReason,
   type Move,
   type PieceRole,
+  replayGameEvents,
   type Square,
+  unfreezeClock,
+  variantForId,
 } from '@mistboard/game';
-import * as persistence from './persistence.js';
-import type { GameSummary } from './persistence.js';
-import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
-import { eventAppendedPayload, snapshotPayload } from './payloads.js';
 import { engineVersionDisplayName, loadEngine } from './engine-registry.js';
+import { chooseLiveEngineMove, type LiveEngineFallbackEvent } from './live-engine.js';
+import { engineCounters, logger } from './obs.js';
+import { eventAppendedPayload, snapshotPayload } from './payloads.js';
+import type { GameSummary } from './persistence.js';
+import * as persistence from './persistence.js';
 import { isServerEngineClient, modeForProjection } from './server-policy.js';
 import type { Client, Room, SeatTokenState } from './server-types.js';
-import { engineCounters, logger } from './obs.js';
 
 export interface RoomManagerContext {
   send: (client: Client, payload: unknown) => void;

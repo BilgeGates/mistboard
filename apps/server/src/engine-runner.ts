@@ -2,36 +2,36 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
 import {
+  type Color,
   capturedRoleFor,
   clockRemainingMs,
   expireClock,
-  replayGameEvents,
-  variantForId,
-  type Color,
   type GameEvent,
+  replayGameEvents,
   type VariantId,
+  variantForId,
 } from '@mistboard/game';
+import type pg from 'pg';
+import {
+  type EngineGameTask,
+  finishEngineGameTask,
+  heartbeatEngineGameTask,
+  reconcileExperimentJob,
+} from './engine-experiments.js';
+import {
+  type EngineDefinition,
+  type EngineMoveDecision,
+  engineVersionDisplayName,
+  loadEngine,
+  upsertBuiltinEngineVersions,
+} from './engine-registry.js';
 import {
   clockStartedEvent,
   normalizeEngineTimeControl,
   roomTimeControlFromEngine,
   timeoutResult,
 } from './engine-time-policy.js';
-import {
-  finishEngineGameTask,
-  heartbeatEngineGameTask,
-  reconcileExperimentJob,
-  type EngineGameTask,
-} from './engine-experiments.js';
-import {
-  engineVersionDisplayName,
-  loadEngine,
-  type EngineDefinition,
-  type EngineMoveDecision,
-  upsertBuiltinEngineVersions,
-} from './engine-registry.js';
 
 const HEARTBEAT_EVERY_PLIES = 8;
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');

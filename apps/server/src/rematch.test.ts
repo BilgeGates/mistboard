@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { type GameEvent, replayGameEvents } from '@mistboard/game';
 import type { WebSocket } from 'ws';
-import { replayGameEvents, type GameEvent } from '@mistboard/game';
 import {
   broadcastRematchState,
   cancelRematch,
@@ -11,8 +11,8 @@ import {
   offerRematch,
   type RematchOrchestrator,
 } from './rematch.js';
-import type { Client, Room, SeatTokenState } from './server-types.js';
 import type { RoomManagerContext } from './room-manager.js';
+import type { Client, Room, SeatTokenState } from './server-types.js';
 
 function makeFinishedRoom(id: string): Room {
   // Forge a minimal finished projection. Easiest path: start a fog-of-war room

@@ -1,5 +1,5 @@
-import type { EngineDefinition } from '../types.js';
 import { engineThinkTimeMs } from '../think-time.js';
+import type { EngineDefinition } from '../types.js';
 
 export const randomLegalEngine: EngineDefinition = {
   id: 'builtin-random-legal',

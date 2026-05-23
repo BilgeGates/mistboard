@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import { type ChildProcessByStdio, spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { basename, dirname, join } from 'node:path';
 import type { Readable } from 'node:stream';
-import { fileURLToPath } from 'node:url';
 import test, { after, before } from 'node:test';
-import WebSocket from 'ws';
+import { fileURLToPath } from 'node:url';
 import type { Color, GameEvent, Move, PlayerView } from '@mistboard/game';
+import WebSocket from 'ws';
 
 // End-to-end wire-format regression suite. All paired broadcasts arrive as
 // `event-appended` frames per the snapshot→delta migration (Phase 3,

@@ -1,10 +1,10 @@
 import {
   applyGameEvent,
-  capturedRoleFor,
-  initialGameProjection,
   type Color,
+  capturedRoleFor,
   type GameEvent,
   type GameProjection,
+  initialGameProjection,
   type PieceRole,
 } from '@mistboard/game';
 

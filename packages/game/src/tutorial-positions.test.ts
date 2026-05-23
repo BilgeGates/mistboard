@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fogOfWarVariant } from './variants.js';
 import type { Board, GameState, Move, PieceRole, Square } from './types.js';
+import { fogOfWarVariant } from './variants.js';
 
 type TutorialPosition = {
   board: Board;

@@ -1,8 +1,8 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { type Color, type GameEvent, TIME_CONTROLS } from '@mistboard/game';
 import pg from 'pg';
-import { TIME_CONTROLS, type Color, type GameEvent } from '@mistboard/game';
-import { engineVersionDisplayName } from './engine-registry.js';
 import { computeElo, type EloResult } from './elo.js';
+import { engineVersionDisplayName } from './engine-registry.js';
 import {
   bucketForGame,
   type RatingBucket,

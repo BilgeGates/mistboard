@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { GameEvent } from '@mistboard/game';
+import { describe, expect, it } from 'vitest';
 import { computeCaptures } from './captures.js';
 
 const ROOM = 'room';

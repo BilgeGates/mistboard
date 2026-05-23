@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { WebSocket } from 'ws';
 import {
   createClock,
+  type GameEvent,
   generateChess960Starts,
   replayGameEvents,
-  type GameEvent,
 } from '@mistboard/game';
+import type { WebSocket } from 'ws';
+import type { Seat } from './payloads.js';
 import {
   appendEvent,
   applyOrphanRecoveryIfNeeded,
@@ -15,14 +16,13 @@ import {
   expireActiveClock,
   pauseRoomOnShutdown,
   playMove,
+  type RoomManagerContext,
   resolveStartIfReady,
   resumeRoom,
   resumeRoomIfReady,
   scheduleRandomEngineMove,
-  type RoomManagerContext,
 } from './room-manager.js';
 import type { Client, Room } from './server-types.js';
-import type { Seat } from './payloads.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

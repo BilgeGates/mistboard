@@ -1,4 +1,3 @@
-import type { Api } from 'chessground/api';
 import type {
   Chess960Start,
   Color,
@@ -8,6 +7,7 @@ import type {
   PlayerView,
   Square,
 } from '@mistboard/game';
+import type { Api } from 'chessground/api';
 import { isColor } from './web-utils.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────

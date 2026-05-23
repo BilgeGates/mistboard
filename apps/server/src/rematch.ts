@@ -10,8 +10,8 @@
 // match in `canOfferRematch`.
 
 import type { Color } from '@mistboard/game';
-import type { Client, Room, SeatTokenState } from './server-types.js';
 import type { RoomManagerContext } from './room-manager.js';
+import type { Client, Room, SeatTokenState } from './server-types.js';
 
 export type RematchCreateRoom = (spec: {
   variant: Room['variant'];

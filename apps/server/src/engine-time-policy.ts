@@ -1,4 +1,4 @@
-import { createClock, type Color, type GameEvent, type RoomTimeControl } from '@mistboard/game';
+import { type Color, createClock, type GameEvent, type RoomTimeControl } from '@mistboard/game';
 
 export type EngineTaskTimeControl =
   | { kind: 'none' }

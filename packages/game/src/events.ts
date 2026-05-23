@@ -1,9 +1,9 @@
 import {
+  type Chess960Start,
   createChess960CastlingRights,
   createChess960CastlingRightsForSides,
   createChess960InitialBoard,
   createChess960InitialBoardForSides,
-  type Chess960Start,
 } from './chess960.js';
 import { advanceClock, createClock, expireClock, freezeClock, unfreezeClock } from './clocks.js';
 import type { ClockState, Color, GameState, Move, PieceRole, VariantId } from './types.js';

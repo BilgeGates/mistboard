@@ -7,17 +7,17 @@
 // `soundForOwnMove` helpers.
 
 import {
-  replayGameEvents,
   type Board,
   type Color,
   type GameEvent,
   type Move,
   type PlayerView,
+  replayGameEvents,
   type Square,
 } from '@mistboard/game';
 import { liveState, type SoundController, type SoundKind } from './live-state.js';
 import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
-import { isColor, files } from './web-utils.js';
+import { files, isColor } from './web-utils.js';
 
 const SOUND_MASTER_GAIN = 4;
 

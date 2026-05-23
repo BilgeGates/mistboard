@@ -1,59 +1,26 @@
+import { fogPatternDefs, type PieceOnBoard, renderBoardSvg } from '@mistboard/board-render';
+import { boardFen, fogHiddenClass, hiddenSquareClasses } from '@mistboard/board-render/interactive';
 import {
   algebraicMoveLabels as buildAlgebraicMoveLabels,
+  type Color,
   clockRemainingMs,
   coordinateMoveLabel,
-  promotionLetter,
-  replayGameEvents,
-  variantForId,
-  type Color,
   type GameEndReason,
   type GameEvent,
   type GameProjection,
   type Move,
   type PieceRole,
   type PlayerView,
+  promotionLetter,
+  replayGameEvents,
   type Square,
+  variantForId,
 } from '@mistboard/game';
-import { fogPatternDefs, renderBoardSvg, type PieceOnBoard } from '@mistboard/board-render';
-import { boardFen, fogHiddenClass, hiddenSquareClasses } from '@mistboard/board-render/interactive';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
-import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
-import {
-  escapeHtml,
-  isColor,
-  formatClock,
-  oppositeColor,
-  files,
-  ranks,
-  allSquares,
-} from './web-utils.js';
-import {
-  liveState,
-  type DevViews,
-  type DraftOffers,
-  type InfoTone,
-  type LiveRefs,
-  type MoveListEntry,
-  type MovePlayedEvent,
-  type PendingPromotion,
-  type PlayAgainStatus,
-  type PromotionRole,
-  type Seat,
-} from './live-state.js';
-import {
-  initLiveSound,
-  maybePlaySnapshotSound,
-  ownPieceCount,
-  playSound,
-  resetLiveSoundState,
-  soundForMove,
-  soundForOwnMove,
-} from './live-sound.js';
-import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { classifyTimeControl, track } from './analytics.js';
-import { computeCaptures, sortCaptureRoles, type CaptureTally } from './captures.js';
+import { type CaptureTally, computeCaptures, sortCaptureRoles } from './captures.js';
 import {
   captureFogView,
   currentReplayIndex,
@@ -70,6 +37,39 @@ import {
   resetReplayState,
   snapshotToPly,
 } from './live-replay.js';
+import {
+  initLiveSound,
+  maybePlaySnapshotSound,
+  ownPieceCount,
+  playSound,
+  resetLiveSoundState,
+  soundForMove,
+  soundForOwnMove,
+} from './live-sound.js';
+import {
+  type DevViews,
+  type DraftOffers,
+  type InfoTone,
+  type LiveRefs,
+  liveState,
+  type MoveListEntry,
+  type MovePlayedEvent,
+  type PendingPromotion,
+  type PlayAgainStatus,
+  type PromotionRole,
+  type Seat,
+} from './live-state.js';
+import { primaryNavItems, utilityNavItems } from './nav-items.js';
+import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
+import {
+  allSquares,
+  escapeHtml,
+  files,
+  formatClock,
+  isColor,
+  oppositeColor,
+  ranks,
+} from './web-utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

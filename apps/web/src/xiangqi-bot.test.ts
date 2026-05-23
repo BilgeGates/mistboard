@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
 import {
   applyMove,
   createInitialXiangqiState,
   getLegalMoves,
   type XiangqiMove,
 } from '@mistboard/game';
+import { describe, expect, it } from 'vitest';
 import { chooseHandTunedMove, evaluatePosition } from './xiangqi-bot.js';
 
 describe('xiangqi hand-tuned bot', () => {

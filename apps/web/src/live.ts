@@ -4,23 +4,23 @@ import 'chessground/assets/chessground.cburnett.css';
 import './styles.css';
 import type { GameEvent, PlayerView } from '@mistboard/game';
 import {
-  liveState,
-  clientIdForRoom,
-  clearSeatTokenForRoom,
-  resolveWebSocketBaseUrl,
-  type ConnectionState,
-  type DevViews,
-} from './live-state.js';
-import { initSocket, connectSocket, sendSocket, reconnectNow } from './live-socket.js';
-import {
-  initRender,
-  render,
-  reconcileInteractionState,
   currentView,
+  initRender,
+  reconcileInteractionState,
+  render,
   tickClockTimers,
 } from './live-render.js';
 import { handleReplayKeyboard } from './live-replay.js';
+import { connectSocket, initSocket, reconnectNow, sendSocket } from './live-socket.js';
 import { maybePlaySnapshotSound } from './live-sound.js';
+import {
+  type ConnectionState,
+  clearSeatTokenForRoom,
+  clientIdForRoom,
+  type DevViews,
+  liveState,
+  resolveWebSocketBaseUrl,
+} from './live-state.js';
 
 declare global {
   interface Window {

@@ -7,7 +7,7 @@ export function computeElo(
   blackRating: number,
   result: EloResult,
 ): { newWhite: number; newBlack: number } {
-  const expectedWhite = 1 / (1 + Math.pow(10, (blackRating - whiteRating) / 400));
+  const expectedWhite = 1 / (1 + 10 ** ((blackRating - whiteRating) / 400));
   const expectedBlack = 1 - expectedWhite;
 
   const scoreWhite = result === 'white-wins' ? 1 : result === 'draw' ? 0.5 : 0;

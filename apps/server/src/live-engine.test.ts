@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GameState, Move } from '@mistboard/game';
+import type { EngineDefinition, EngineMoveContext } from './engine-registry.js';
 import {
   chooseLiveEngineMove,
-  pythonLiveWatchdogTimeoutMs,
   type LiveEngineFallbackEvent,
+  pythonLiveWatchdogTimeoutMs,
 } from './live-engine.js';
-import type { EngineDefinition, EngineMoveContext } from './engine-registry.js';
 
 const legalMove: Move = { from: 'e2', to: 'e4' };
 const alternateLegalMove: Move = { from: 'd2', to: 'd4' };

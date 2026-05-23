@@ -4,10 +4,10 @@ import {
   connectClient,
   sleep,
   startTestServer,
-  uniqueRoomId,
-  waitUntil,
   type TestClient,
   type TestServer,
+  uniqueRoomId,
+  waitUntil,
 } from './harness.js';
 
 // ── Shared server (single port for the file; rooms map is shared but every

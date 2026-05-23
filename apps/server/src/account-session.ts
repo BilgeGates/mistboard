@@ -1,7 +1,7 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import * as persistence from './persistence.js';
 import { displayNameForEmail, handleBaseForEmail } from './account-identity.js';
+import * as persistence from './persistence.js';
 import { isProductionLikeRuntime } from './server-policy.js';
 
 const accountSessionCookieName = 'mistboard_session';

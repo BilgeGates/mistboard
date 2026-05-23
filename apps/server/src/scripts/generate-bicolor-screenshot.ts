@@ -1,15 +1,15 @@
 import { promises as fs } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PIECE_SVGS } from '@mistboard/board-render';
 import {
-  fogOfWarVariant,
-  replayGameEvents,
   type Board,
   type Color,
+  fogOfWarVariant,
   type GameEvent,
+  replayGameEvents,
   type Square,
 } from '@mistboard/game';
-import { PIECE_SVGS } from '@mistboard/board-render';
 import { svgToPng } from '../og-image.js';
 
 // CLI: tsx generate-bicolor-screenshot.ts [sampleName] [targetPly]

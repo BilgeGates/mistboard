@@ -1,7 +1,7 @@
-import { defineConfig, type Plugin } from 'vitest/config';
+import { promises as fs } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promises as fs } from 'node:fs';
+import { defineConfig, type Plugin } from 'vitest/config';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FEEDBACK_FILE = resolve(

@@ -11,8 +11,8 @@
 // can post-hoc analyze.
 
 import { writeFileSync } from 'node:fs';
+import { type GameResult, runScenario } from './runner.js';
 import { scenarios } from './scenarios.js';
-import { runScenario, type GameResult } from './runner.js';
 import { formatSummary, summarize } from './stats.js';
 
 interface Args {

@@ -9,8 +9,8 @@
 // but value-only and safe at module load (per the review.ts / contact.ts
 // pattern).
 
-import { buildFooter, buildLoadingState, buildNav, fetchCurrentUser } from './landing.js';
 import { track } from './analytics.js';
+import { buildFooter, buildLoadingState, buildNav, fetchCurrentUser } from './landing.js';
 
 // Minimal subset of AuthUser — must stay in sync with landing.ts. Promote
 // to a shared types module if a third caller appears.

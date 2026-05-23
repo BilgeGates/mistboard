@@ -1,27 +1,27 @@
 import {
+  boardFen,
+  fogHiddenClass,
+  hiddenSquareClasses,
+  pieceFen,
+} from '@mistboard/board-render/interactive';
+import {
+  type Board,
   algebraicMoveLabels as buildAlgebraicMoveLabels,
+  type ClockState,
+  type Color,
   clockRemainingMs,
   coordinateMoveLabel,
   fogOfWarVariant,
-  promotionLetter,
-  replayGameEvents,
-  type Board,
-  type ClockState,
-  type Color,
   type GameEvent,
   type GameState,
   type Move,
   type Piece,
   type PieceRole,
   type PlayerView,
+  promotionLetter,
+  replayGameEvents,
   type Square,
 } from '@mistboard/game';
-import {
-  boardFen,
-  fogHiddenClass,
-  hiddenSquareClasses,
-  pieceFen,
-} from '@mistboard/board-render/interactive';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
@@ -29,16 +29,16 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import {
+  type Annotation,
+  type AnnotationContext,
   buildAnnotationFromForm,
   formatAnnotationLine,
   loadAnnotations,
   saveAnnotation,
   updateAnnotation,
-  type Annotation,
-  type AnnotationContext,
 } from './annotations.js';
-import { files, ranks, allSquares, formatClock } from './web-utils.js';
-import { createBeliefPanel, type BeliefConfig, type BeliefPanelHandle } from './belief-panel.js';
+import { type BeliefConfig, type BeliefPanelHandle, createBeliefPanel } from './belief-panel.js';
+import { allSquares, files, formatClock, ranks } from './web-utils.js';
 
 const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;

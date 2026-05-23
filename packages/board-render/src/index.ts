@@ -1,4 +1,16 @@
+export type { PieceOnBoard } from './board-svg.js';
+export { fogPatternDefs, renderBoardSvg } from './board-svg.js';
+export type { BoardSpec, CompositionOptions } from './composition.js';
+export { renderBoardComposition } from './composition.js';
+export type { CompositionLayout } from './layouts.js';
+export { boardsInLayout, layoutPlacements } from './layouts.js';
 export { PIECE_SVGS } from './pieces.js';
+export {
+  boardToPieces,
+  fogSquaresFromVisible,
+  piecesToBoard,
+  startingPositionFromBackRank,
+} from './positions.js';
 export {
   BOARD_BORDER,
   DARK_SQUARE,
@@ -6,15 +18,3 @@ export {
   FOG_OPACITY,
   LIGHT_SQUARE,
 } from './tokens.js';
-export { fogPatternDefs, renderBoardSvg } from './board-svg.js';
-export type { PieceOnBoard } from './board-svg.js';
-export { boardsInLayout, layoutPlacements } from './layouts.js';
-export type { CompositionLayout } from './layouts.js';
-export { renderBoardComposition } from './composition.js';
-export type { BoardSpec, CompositionOptions } from './composition.js';
-export {
-  boardToPieces,
-  fogSquaresFromVisible,
-  piecesToBoard,
-  startingPositionFromBackRank,
-} from './positions.js';

@@ -1,7 +1,7 @@
-import { WebSocket } from 'ws';
 import type { Color, GameEvent, GameProjection, RoomTimeControl, VariantId } from '@mistboard/game';
-import type { GameMode } from './persistence.js';
+import type { WebSocket } from 'ws';
 import type { Seat } from './payloads.js';
+import type { GameMode } from './persistence.js';
 
 export type RematchOffer = {
   tokenHash: string;

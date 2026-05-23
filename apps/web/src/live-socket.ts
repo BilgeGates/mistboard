@@ -1,12 +1,12 @@
 import type { GameEvent, PlayerView } from '@mistboard/game';
-import { isColor } from './web-utils.js';
 import {
   liveState,
   normalizedOffers,
-  writeSeatTokenForRoom,
   seatTokenForRoom,
+  writeSeatTokenForRoom,
 } from './live-state.js';
 import { setRestartBanner } from './restart-banner.js';
+import { isColor } from './web-utils.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

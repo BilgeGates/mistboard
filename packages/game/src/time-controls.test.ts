@@ -1,11 +1,11 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
 import {
-  TIME_CONTROLS,
   findTimeControl,
-  timeClassFromTimeControl,
   isOfficialTimeControl,
+  TIME_CONTROLS,
+  timeClassFromTimeControl,
 } from './time-controls.js';
 
 test('TIME_CONTROLS lists the three official Mistboard time controls', () => {

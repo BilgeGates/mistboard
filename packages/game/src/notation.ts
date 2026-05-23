@@ -1,8 +1,8 @@
 import {
   applyGameEvent,
-  initialGameProjection,
   type GameEvent,
   type GameProjection,
+  initialGameProjection,
 } from './events.js';
 import type { Board, GameState, Move, PieceRole, Square } from './types.js';
 

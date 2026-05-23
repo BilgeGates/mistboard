@@ -1,10 +1,10 @@
 import type { Board, Color, Square } from '@mistboard/game';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
-import type * as cg from 'chessground/types';
 import type { DrawShape } from 'chessground/draw';
-import { boardFen, fogHiddenClass } from './board.js';
+import type * as cg from 'chessground/types';
 import { boardsInLayout, type CompositionLayout } from '../layouts.js';
+import { boardFen, fogHiddenClass } from './board.js';
 
 export type StepperArrow = {
   orig: Square;

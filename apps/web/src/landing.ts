@@ -1,13 +1,13 @@
-import { TIME_CONTROLS, type GameEvent, type TimeControlId } from '@mistboard/game';
-import { mountReplay, type GameMeta } from './replay.js';
-import { loadGameForReview, enginePanelsForReview } from './review.js';
+import { type GameEvent, TIME_CONTROLS, type TimeControlId } from '@mistboard/game';
+import { isLikelySignedIn, loadCachedCurrentUser, readCachedUser } from './account-nav.js';
+import { classifyTimeControl, track } from './analytics.js';
+import { type Announcement, announcements } from './announcements.js';
+import { mountArticleThumbnails, renderArticleThumbnail } from './articles.js';
+import { findArticle } from './articles-data.js';
 import { buildContact } from './contact.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
-import { classifyTimeControl, track } from './analytics.js';
-import { announcements, type Announcement } from './announcements.js';
-import { findArticle } from './articles-data.js';
-import { renderArticleThumbnail, mountArticleThumbnails } from './articles.js';
-import { isLikelySignedIn, loadCachedCurrentUser, readCachedUser } from './account-nav.js';
+import { type GameMeta, mountReplay } from './replay.js';
+import { enginePanelsForReview, loadGameForReview } from './review.js';
 
 type FeaturedGame = {
   roomId: string;

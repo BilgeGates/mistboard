@@ -1,8 +1,8 @@
 import {
+  type EngineTaskTimeControl,
   parseEngineTimeControl,
   timeControlBucket,
   timeControlLabel,
-  type EngineTaskTimeControl,
 } from './engine-time-policy.js';
 
 export type TournamentPairing = {

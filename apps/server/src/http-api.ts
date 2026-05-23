@@ -1,30 +1,20 @@
-import { promises as fs } from 'node:fs';
-import { dirname } from 'node:path';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { promises as fs } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { dirname } from 'node:path';
 import {
-  findTimeControl,
   type Color,
+  findTimeControl,
   type GameEvent,
   type RoomTimeControl,
   type TimeControlId,
   type VariantId,
 } from '@mistboard/game';
-import * as persistence from './persistence.js';
-import { buildGamePgn, buildGamePublicationJson } from './game-export.js';
 import {
-  DEFAULT_RATING_BUCKET,
-  parseRatingTimeClass,
-  parseRatingVariant,
-} from './rating-buckets.js';
-import { playableLiveEngines } from './engine-registry.js';
-import {
-  adminDebugTokenFromProtocolHeader,
-  eventReplayResponse,
-  isAdminDebugToken,
-  isProductionLikeRuntime,
-  parsePositiveInteger,
-} from './server-policy.js';
+  normalizeDisplayName,
+  normalizeEmail,
+  normalizeProfileHandle,
+} from './account-identity.js';
 import {
   accountSessionCookie,
   accountSessionFromRequest,
@@ -40,12 +30,22 @@ import {
   randomEmailLoginCode,
   sendEmailLoginCode,
 } from './account-session.js';
+import { playableLiveEngines } from './engine-registry.js';
 import { sendFeedbackNotification } from './feedback-notify.js';
+import { buildGamePgn, buildGamePublicationJson } from './game-export.js';
+import * as persistence from './persistence.js';
 import {
-  normalizeDisplayName,
-  normalizeEmail,
-  normalizeProfileHandle,
-} from './account-identity.js';
+  DEFAULT_RATING_BUCKET,
+  parseRatingTimeClass,
+  parseRatingVariant,
+} from './rating-buckets.js';
+import {
+  adminDebugTokenFromProtocolHeader,
+  eventReplayResponse,
+  isAdminDebugToken,
+  isProductionLikeRuntime,
+  parsePositiveInteger,
+} from './server-policy.js';
 import type { LobbyTicket, Room } from './server-types.js';
 
 // ── Private constants ──────────────────────────────────────────────────────

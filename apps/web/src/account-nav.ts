@@ -13,7 +13,7 @@ type AuthUser = {
 const SIGNED_IN_HINT_KEY = 'mb_signed_in';
 const CACHED_USER_KEY = 'mb_cached_user';
 
-let cachedUser: AuthUser | null | undefined = undefined;
+let cachedUser: AuthUser | null | undefined;
 let userPromise: Promise<AuthUser | null> | null = null;
 let navObserver: MutationObserver | null = null;
 

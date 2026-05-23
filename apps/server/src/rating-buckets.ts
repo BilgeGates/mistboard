@@ -1,4 +1,4 @@
-import { timeClassFromTimeControl, type TimeClass } from '@mistboard/game';
+import { type TimeClass, timeClassFromTimeControl } from '@mistboard/game';
 
 export type RatingVariant = 'fog' | 'fog_draft960';
 export type RatingTimeClass = TimeClass;

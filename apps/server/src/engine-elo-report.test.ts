@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildEngineEloReport,
-  renderEngineEloReportMarkdown,
   type EngineEloGameRow,
+  renderEngineEloReportMarkdown,
 } from './engine-elo-report.js';
 
 test('builds anchor-relative Elo only from eligible rated games', () => {

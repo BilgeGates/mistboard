@@ -26,8 +26,8 @@ import {
   type XiangqiPlayerView,
   type XiangqiSquare,
 } from '@mistboard/game';
-import { renderXiangqiPiece } from './xiangqi-pieces.js';
 import { chooseHandTunedMove } from './xiangqi-bot.js';
+import { renderXiangqiPiece } from './xiangqi-pieces.js';
 
 // ── Geometry ───────────────────────────────────────────────────────────────
 

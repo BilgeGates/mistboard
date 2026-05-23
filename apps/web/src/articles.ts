@@ -1,23 +1,23 @@
 import { piecesToBoard, renderBoardComposition } from '@mistboard/board-render';
 import {
+  type LiveBoardsController,
   mountLiveBoards,
   mountSteppedBoards,
   mountThumbnailBoard,
-  type LiveBoardsController,
   type StepperController,
   type ThumbnailBoardController,
 } from '@mistboard/board-render/interactive';
 import {
-  articles,
-  findArticle,
   type Article,
   type ArticleBlock,
   type ArticleSection,
   type ArticleThumbnail,
+  articles,
+  type CodeBlock,
   type CtaBlock,
+  findArticle,
   type InteractiveBlock,
   type LiveBoardsBlock,
-  type CodeBlock,
   type RawSvgBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,

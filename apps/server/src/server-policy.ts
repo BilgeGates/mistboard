@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { replayGameEvents, type GameEvent, type GameProjection } from '@mistboard/game';
+import { type GameEvent, type GameProjection, replayGameEvents } from '@mistboard/game';
 
 // Visibility rule: live games are visible only to seated players; finished
 // games are public via replay endpoints. This is enforced at two layers —

@@ -8,8 +8,8 @@
 // a value-circular import.
 
 import type { GameEvent, PlayerView } from '@mistboard/game';
-import { liveState } from './live-state.js';
 import { ownPieceCount, playSound, soundForMove } from './live-sound.js';
+import { liveState } from './live-state.js';
 import { isColor } from './web-utils.js';
 
 let onStateChange: () => void = () => {};

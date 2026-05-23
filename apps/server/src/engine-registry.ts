@@ -1,6 +1,10 @@
 export {
   builtinEngineIds,
   defaultEngineId,
+  type EngineDefinition,
+  type EngineMoveContext,
+  type EngineMoveDecision,
+  type EngineMoveScore,
   engineVersionDisplayName,
   isPlayableLiveEngineClientId,
   latestBuiltinEngineIds,
@@ -8,8 +12,4 @@ export {
   playableBuiltinEngines,
   playableLiveEngines,
   upsertBuiltinEngineVersions,
-  type EngineDefinition,
-  type EngineMoveContext,
-  type EngineMoveDecision,
-  type EngineMoveScore,
 } from './engines/registry.js';

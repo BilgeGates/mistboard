@@ -8,7 +8,7 @@
 // later, separate variant.
 
 import { WebSocket } from 'ws';
-import { startServer, stopServer, type StartedServer } from '../src/index.js';
+import { type StartedServer, startServer, stopServer } from '../src/index.js';
 import type { Room } from '../src/server-types.js';
 
 const DEFAULT_WAIT_TIMEOUT_MS = 2_000;

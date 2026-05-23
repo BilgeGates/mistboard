@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import pg from 'pg';
+import type pg from 'pg';
 
 type Queryable = Pick<pg.Client | pg.Pool | pg.PoolClient, 'query'>;
 type JsonObject = Record<string, unknown>;

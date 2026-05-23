@@ -14,9 +14,9 @@
 // Outputs both .mp4 (looped) and .webp (animated, ~50% the size, browser-friendly)
 // into apps/web/public/pixel-lab-assets/video/<out>-loop.{mp4,webp}.
 
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');

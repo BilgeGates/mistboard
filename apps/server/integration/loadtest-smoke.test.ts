@@ -15,8 +15,8 @@
 
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
-import { connectClient, startTestServer, type TestClient, type TestServer } from './harness.js';
 import { engineCounters } from '../src/obs.js';
+import { connectClient, startTestServer, type TestClient, type TestServer } from './harness.js';
 
 const CONCURRENCY = 3;
 // Random-legal vs random-legal in fog-of-war can drag well past 200 plies

@@ -1,9 +1,9 @@
 import { Board as ChessopsBoard } from 'chessops/board';
 import { Chess } from 'chessops/chess';
-import { SquareSet } from 'chessops/squareSet';
-import type { Move as ChessopsMove, Role, Square as ChessopsSquare } from 'chessops/types';
-import { makeSquare, parseSquare, squareRank } from 'chessops/util';
 import type { Setup } from 'chessops/setup';
+import { SquareSet } from 'chessops/squareSet';
+import type { Move as ChessopsMove, Square as ChessopsSquare, Role } from 'chessops/types';
+import { makeSquare, parseSquare, squareRank } from 'chessops/util';
 import type {
   Board,
   Color,
