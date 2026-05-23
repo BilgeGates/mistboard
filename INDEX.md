@@ -3,7 +3,7 @@
 Fast orientation for agents. One line per file. Read this before opening any source file.
 Edit task → find file → open only that file.
 
-> **Active refactor (2026-05-22 session):** `landing.ts`, `live-render.ts`, `http-api.ts` are being split this session. If you see a sibling file like `account.ts` or `routes/games.ts`, that's the split landing — fall back to grep if a function moved.
+> **Refactor in progress (2026-05-22 → 2026-05-23):** The god files are being split into focused modules. So far: `live-sound.ts`, `time-controls.ts`, `review.ts`, `contact.ts`, `account.ts` extracted. Still pending: `profile.ts`, `pages-static.ts`, `live-replay.ts`. `http-api.ts` was hardened in-place (querystring bug fix + `requireMethod`/`requirePersistence` helpers) but not yet split into `routes/*`.
 
 ## packages/game/src/ — Pure game logic (no server/browser deps)
 
@@ -16,7 +16,7 @@ Edit task → find file → open only that file.
 | `notation.ts` | `algebraicMoveLabels` — algebraic/coordinate notation for move lists and replay |
 | `clocks.ts` | `createClock`, `advanceClock`, `clockRemainingMs`, `expireClock` |
 | `chess960.ts` | Chess960 start generation, `pickDraft960Offer` |
-| `time-controls.ts` | `TIME_CONTROLS` list + `timeClassFromTimeControl()` — single source for time-control defs (added this session) |
+| `time-controls.ts` | `TIME_CONTROLS` list + `timeClassFromTimeControl()` + `findTimeControl()` + `isOfficialTimeControl()` — single source for time-control defs. All callers (rating-buckets, landing picker, http-api PvE allowlist, persistence SQL, loadtest scenarios, analytics) derive from this list |
 | `index.ts` | Barrel re-export — everything the game package exposes publicly |
 
 **Change fog visibility or move rules** → `variants.ts`
@@ -49,7 +49,7 @@ Edit task → find file → open only that file.
 | `index.ts` | Server library: exports `startServer`, `installShutdownHandlers`, `stopServer`. Module-load side-effect-free so the integration harness can boot a test instance on a random port. Has `// ── SECTION:` markers; SSR/page-meta and drain orchestration are candidates for extraction. |
 | `rematch.ts` | Mutual-confirm rematch state machine + finalize. `offerRematch`, `cancelRematch`, `declineRematch`, `finalizeRematchIfReady`, `maybeReplayRematchRedirect`. |
 | `room-manager.ts` | Core game loop: `playMove`, `appendEvent`, `broadcastSnapshot`, `scheduleClockTimeout`, `expireActiveClock`, `scheduleRandomEngineMove`, `playRandomEngineMoveIfReady`, seat token persistence, bid/draft resolution. Context: `RoomManagerContext`. |
-| `http-api.ts` | HTTP routing: `handleApiRequest` (single big dispatcher — being split this session), lobby helpers, game data helpers. Exported: `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `HttpApiContext` |
+| `http-api.ts` | HTTP routing: `handleApiRequest` (single big dispatcher, ~1100 LOC). Hardened with `requireMethod()` and `requirePersistence()` helpers; all 16 routes normalized on `parsedUrl.pathname` matching (querystring-bug fix). Full file split into `routes/*` still pending. Exported: `parseVariantId`, `parseHiddenDraft960`, `parseRoomTimeControl`, `HttpApiContext`, `writeJson`, `requireMethod`, `requirePersistence` |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
 | `server-types.ts` | Shared server types: `Client`, `Room`, `SeatTokenState`, `SeatAssignment`, `LobbyTicket` |
@@ -111,9 +111,13 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live.ts` | Live-game page bootstrap — wires `live-state`, `live-socket`, `live-render` for `/room/:id` |
 | `live-state.ts` | Live-game module state (`liveState`, seat-token storage, WS base URL resolver) |
 | `live-socket.ts` | WebSocket connect / reconnect / send for live games |
-| `live-render.ts` | Live-game render: board, clocks, captures, controls, draft picker, replay-of-live, sound. **God file** — sound + replay-of-live + draft picker are candidates for extraction this session |
-| `landing.ts` | Mounts for landing / watch / game / account / settings / profile / leaderboard / about / source / contact / learn / articles / video / 404. **God file (3,195 LOC)** — being split this session into landing + account + profile + review + pages-static |
-| `replay.ts` | Replay viewer: `mountReplay` (880-line closure — extraction candidate), board adapter, panels, annotation form |
+| `live-render.ts` | Live-game render: board, clocks, captures, controls, draft picker, replay-of-live. Sound subsystem extracted to `live-sound.ts`. Still ~2,100 LOC — replay-of-live extraction (`live-replay.ts`) still pending |
+| `live-sound.ts` | SoundController + `maybePlaySnapshotSound` + per-move sound policy. Owns the audio context, volume tracking, win/lose/capture/castle tone generation. Wired by live-render's render flow + live.ts's snapshot handler |
+| `landing.ts` | Mounts for landing / watch / game / leaderboard / profile / about / source / learn / articles / 404. Lobby + create-room flows, recent-games render, landing widgets, setup dialog. Exports the shared shell helpers (`buildNav`, `buildFooter`, `buildLoadingState`, `fetchCurrentUser`) consumed by the split-out modules. Still a god file (~2,600 LOC) — `profile.ts` and `pages-static.ts` still pending |
+| `account.ts` | `/account` + `/account/settings` mounts. Sign-in/registration form (email + magic code), signed-in account card, settings form (display name / handle / email), auth-tabs |
+| `contact.ts` | `buildContact` — `/contact` form builder (anon vs signed-in lanes, honeypot, submit/error states). Mounted by `landing.ts` (mountContact is 15 lines, uses buildNav/Footer) |
+| `review.ts` | Game-review data plumbing for `/game/:id`: `loadGameForReview`, `fetchGameReview`, `fetchGameArtifacts`, `fetchTraceArtifacts`, belief/trace row converters, `enginePanelsForReview`. Owns the engine-artifact panel hydration |
+| `replay.ts` | Replay viewer: `mountReplay` (~880-line closure — extraction candidate for a future session), board adapter, panels, annotation form |
 | `belief-panel.ts` | Engine belief/probability display panels for the replay lab |
 | `learn.ts` | `/learn` tutorial (Steps 1-3 shipped, 4-5 parked) |
 | `articles.ts` | Articles page renderer |
