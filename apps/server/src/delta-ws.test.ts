@@ -12,7 +12,8 @@ import WebSocket from 'ws';
 // `event-appended` frames per the snapshot→delta migration (Phase 3,
 // 2026-05-22 — capability gate removed). Snapshot frames remain for the
 // recovery channels: hello/first-connect, snapshot:request, and the
-// game-end reveal. Any new fog-leak rule must land in the shared
+// game-end boundary (a clean final-frame resync — NOT a reveal; model A keeps
+// the room fogged on finish). Any new fog-leak rule must land in the shared
 // filterEventForClient helper in payloads.ts so both wire paths stay in
 // lock-step.
 
@@ -320,11 +321,12 @@ test('delta: snapshot:request triggers a full snapshot reply on the same socket'
   assert.ok(Array.isArray(reply.events));
 });
 
-test('delta: game-end transition falls back to snapshot for full reveal', async (t) => {
-  // Resignation transitions status to 'finished'. The delta path relaxes
-  // redaction on game-end (previously hidden opponent moves become public
-  // by the rulebook), so the post-resign broadcast must be a snapshot —
-  // event-appended alone cannot deliver previously-filtered events.
+test('delta: game-end transition broadcasts a snapshot but stays fogged (model A)', async (t) => {
+  // Resignation transitions status to 'finished'. The game-end broadcast is a
+  // full snapshot to every recipient (a clean final-frame resync at the
+  // boundary). Under model A the room NEVER reveals on finish, so that
+  // snapshot stays per-seat fogged: black still sees only its own moves, never
+  // white's previously-hidden move. The public reveal lives only at /game/:id.
   const port = serverPort;
   const clients: TestClient[] = [];
   t.after(async () => closeClients(clients));
@@ -361,14 +363,17 @@ test('delta: game-end transition falls back to snapshot for full reveal', async 
   assert.equal(
     blackEnd.type,
     'snapshot',
-    'game-end broadcast must be snapshot, not event-appended (reveal channel)',
+    'game-end broadcast must be a full-frame snapshot at the boundary',
   );
   assert.ok(Array.isArray(blackEnd.events));
-  // The previously-hidden white move-played must be present in the final
-  // snapshot. eventsForClient lets all events through once status is
-  // finished.
-  const movePlayed = blackEnd.events?.find((e) => e.type === 'move-played');
-  assert.ok(movePlayed, "reveal: white move-played must appear in black's finished-game snapshot");
+  // Model A: the room never reveals on finish. Black sees only its own
+  // move-played events, so white's hidden move must NOT leak into black's
+  // finished-game snapshot, even though the game is over.
+  const whiteMove = blackEnd.events?.find((e) => e.type === 'move-played');
+  assert.ok(
+    !whiteMove,
+    "model A: white's hidden move-played must NOT appear in black's finished-game snapshot",
+  );
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────

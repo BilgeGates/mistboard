@@ -376,10 +376,11 @@ export function broadcastSnapshot(ctx: RoomManagerContext, room: Room): void {
 // requiring helpers to thread seq through their signatures.
 //
 // Game-end transition (status flips to 'finished') falls back to a full
-// snapshot for every recipient. Reason: redaction relaxes on game-end —
-// previously-hidden opponent moves become visible. The delta path has not
-// delivered those events to recipients, so re-syncing via snapshot is the
-// correct reveal channel.
+// snapshot for every recipient: a clean final-frame resync at the game
+// boundary. Under model A the room stays fogged on finish (no reveal — the
+// per-seat filter in payloads.ts applies at every status), so this snapshot
+// is a robustness resync, not a reveal channel. The public reveal lives only
+// at the /game/:id replay endpoint.
 export function broadcastEventAppended(ctx: RoomManagerContext, room: Room, fromSeq: number): void {
   const seatDisplayNames = seatDisplayNamesForRoom(room, ctx);
   const enrichedRoom = { ...room, seatDisplayNames };
