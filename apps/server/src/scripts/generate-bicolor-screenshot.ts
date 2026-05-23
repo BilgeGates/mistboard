@@ -21,8 +21,8 @@ import { svgToPng } from '../og-image.js';
 // not the brown/striped tokens that drive the OG card.
 
 const here = dirname(fileURLToPath(import.meta.url));
-const sampleName = process.argv[2] ?? 'sample-5';
-const targetPly = Number(process.argv[3] ?? 18);
+const sampleName = process.argv[2] ?? 'sample-4';
+const targetPly = Number(process.argv[3] ?? 26);
 const samplePath = resolve(here, '..', '..', '..', 'web', 'public', 'replay-samples', `${sampleName}.jsonl`);
 const outPath = resolve(here, '..', '..', '..', 'web', 'public', 'screenshot-bicolor.png');
 
