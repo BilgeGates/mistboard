@@ -127,20 +127,20 @@ test('initial board has exactly 32 pieces with the expected distribution', () =>
 test('initial board has correct pieces at specific landmark squares', () => {
   const board = createInitialXiangqiBoard();
   // Red back rank
-  assert.deepEqual(board['a1'], { color: 'red', role: 'chariot' });
-  assert.deepEqual(board['e1'], { color: 'red', role: 'general' });
-  assert.deepEqual(board['i1'], { color: 'red', role: 'chariot' });
+  assert.deepEqual(board.a1, { color: 'red', role: 'chariot' });
+  assert.deepEqual(board.e1, { color: 'red', role: 'general' });
+  assert.deepEqual(board.i1, { color: 'red', role: 'chariot' });
   // Red cannons on rank 3, files b and h
-  assert.deepEqual(board['b3'], { color: 'red', role: 'cannon' });
-  assert.deepEqual(board['h3'], { color: 'red', role: 'cannon' });
+  assert.deepEqual(board.b3, { color: 'red', role: 'cannon' });
+  assert.deepEqual(board.h3, { color: 'red', role: 'cannon' });
   // Red soldiers on rank 4, files a c e g i
-  assert.deepEqual(board['a4'], { color: 'red', role: 'soldier' });
-  assert.deepEqual(board['e4'], { color: 'red', role: 'soldier' });
-  assert.equal(board['b4'], undefined);
+  assert.deepEqual(board.a4, { color: 'red', role: 'soldier' });
+  assert.deepEqual(board.e4, { color: 'red', role: 'soldier' });
+  assert.equal(board.b4, undefined);
   // Black mirror
-  assert.deepEqual(board['e10'], { color: 'black', role: 'general' });
-  assert.deepEqual(board['b8'], { color: 'black', role: 'cannon' });
-  assert.deepEqual(board['c7'], { color: 'black', role: 'soldier' });
+  assert.deepEqual(board.e10, { color: 'black', role: 'general' });
+  assert.deepEqual(board.b8, { color: 'black', role: 'cannon' });
+  assert.deepEqual(board.c7, { color: 'black', role: 'soldier' });
   // River zone (ranks 5 and 6) is empty
   for (const sq of ['a5', 'e5', 'i5', 'a6', 'e6', 'i6']) {
     assert.equal(board[sq as XiangqiSquare], undefined);
@@ -644,22 +644,22 @@ test('cannon-vision modes A/B/C/D: target square rendering differs', () => {
   const viewD = getPlayerView(state, 'red', 'D');
 
   // b10 (black horse, behind screen b8) — entry exists in all four modes.
-  assert.ok(viewA.board['b10']);
-  assert.ok(viewB.board['b10']);
-  assert.ok(viewC.board['b10']);
-  assert.ok(viewD.board['b10']);
+  assert.ok(viewA.board.b10);
+  assert.ok(viewB.board.b10);
+  assert.ok(viewC.board.b10);
+  assert.ok(viewD.board.b10);
   // Target: A and D reveal; B and C shroud.
-  assert.equal(viewA.board['b10']!.shrouded, false);
-  assert.equal(viewB.board['b10']!.shrouded, true);
-  assert.equal(viewC.board['b10']!.shrouded, true);
-  assert.equal(viewD.board['b10']!.shrouded, false, 'D reveals the target');
+  assert.equal(viewA.board.b10!.shrouded, false);
+  assert.equal(viewB.board.b10!.shrouded, true);
+  assert.equal(viewC.board.b10!.shrouded, true);
+  assert.equal(viewD.board.b10!.shrouded, false, 'D reveals the target');
 
   // b8 (black cannon — the screen) — entry exists in all four.
   // Screen: A and C reveal; B and D shroud.
-  assert.equal(viewA.board['b8']!.shrouded, false);
-  assert.equal(viewB.board['b8']!.shrouded, true);
-  assert.equal(viewC.board['b8']!.shrouded, false);
-  assert.equal(viewD.board['b8']!.shrouded, true, 'D shrouds the screen');
+  assert.equal(viewA.board.b8!.shrouded, false);
+  assert.equal(viewB.board.b8!.shrouded, true);
+  assert.equal(viewC.board.b8!.shrouded, false);
+  assert.equal(viewD.board.b8!.shrouded, true, 'D shrouds the screen');
 });
 
 test('cannon-vision mode D is the inverse of mode C', () => {
@@ -785,7 +785,7 @@ test('progressClock resets on a capture', () => {
   assert.ok(s.progressClock >= 2);
   const capture = applyMove(s, { from: 'b3', to: 'b10' });
   assert.equal(capture.progressClock, 0);
-  assert.deepEqual(capture.board['b10'], { color: 'red', role: 'cannon' });
+  assert.deepEqual(capture.board.b10, { color: 'red', role: 'cannon' });
 });
 
 test('progress-clock auto-draw fires at the limit', () => {

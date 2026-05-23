@@ -249,7 +249,7 @@ await browser.close();
 
 await writeFile(
   path.join(outputDir, 'index.json'),
-  JSON.stringify({ manifest_url: manifestUrl, base_url: baseUrl, captures }, null, 2) + '\n',
+  `${JSON.stringify({ manifest_url: manifestUrl, base_url: baseUrl, captures }, null, 2)}\n`,
 );
 await writeFile(path.join(outputDir, 'index.md'), renderMarkdown(manifestUrl, captures));
 console.log(`capture index: ${path.join(outputDir, 'index.md')}`);

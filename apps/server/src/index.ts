@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import {
   type Chess960Start,
   type Color,
-  defaultClockInitialMs,
   type GameEvent,
   type GameProjection,
   pickDraft960Offer,
@@ -23,7 +22,6 @@ import {
   type HttpApiContext,
   handleApiRequest,
   parseHiddenDraft960,
-  parseRoomTimeControl,
   parseVariantId,
   readJsonBody,
 } from './http-api.js';
@@ -33,7 +31,6 @@ import { serveGameOgImage } from './og-image.js';
 import { snapshotPayload } from './payloads.js';
 import * as persistence from './persistence.js';
 import {
-  broadcastRematchState,
   cancelRematch,
   declineRematch,
   finalizeRematchIfReady,
@@ -1688,7 +1685,7 @@ function isDebugViewAuthorized(request: IncomingMessage): boolean {
   );
 }
 
-function isHttpAdminAuthorized(request: IncomingMessage): boolean {
+function _isHttpAdminAuthorized(request: IncomingMessage): boolean {
   if (!isProductionLikeRuntime()) return true;
   const authorization = Array.isArray(request.headers.authorization)
     ? request.headers.authorization[0]

@@ -79,8 +79,8 @@ if (!testDbUrl) {
     );
     assert.equal(participantRows.rowCount, 2, 'expected two game_participants rows');
     const byColor = Object.fromEntries(participantRows.rows.map((r) => [r.color, r]));
-    assert.equal(byColor['white']!.subject_type, 'guest');
-    assert.equal(byColor['black']!.subject_type, 'guest');
+    assert.equal(byColor.white!.subject_type, 'guest');
+    assert.equal(byColor.black!.subject_type, 'guest');
 
     await white.disconnect();
     await black.disconnect();

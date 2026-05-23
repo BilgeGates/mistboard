@@ -50,10 +50,10 @@ for (let i = 0; i < gameCount; i++) {
   const result = playRandomGame(seed, maxPlies);
   const fileName = `game-${String(seed).padStart(6, '0')}.jsonl`;
   const filePath = join(gamesDir, fileName);
-  await writeFile(filePath, result.events.map((e) => JSON.stringify(e)).join('\n') + '\n');
+  await writeFile(filePath, `${result.events.map((e) => JSON.stringify(e)).join('\n')}\n`);
 
   const viewsPath = join(viewsDir, fileName);
-  await writeFile(viewsPath, result.views.map((v) => JSON.stringify(v)).join('\n') + '\n');
+  await writeFile(viewsPath, `${result.views.map((v) => JSON.stringify(v)).join('\n')}\n`);
 
   const entry = {
     path: relative(outDir, filePath),
@@ -87,7 +87,7 @@ const manifest = {
   games: manifestEntries,
 };
 
-await writeFile(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+await writeFile(join(outDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
 const pct = (n) => `${((n / gameCount) * 100).toFixed(0)}%`;
 console.log(`wrote ${gameCount} games to ${relative(repoRoot, outDir)}`);

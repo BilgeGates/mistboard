@@ -206,8 +206,8 @@ export type BeliefPanelHandle = {
 };
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
-const pieceOrder = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
+const _ranks = [1, 2, 3, 4, 5, 6, 7, 8];
+const _pieceOrder = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
 const roleByFen: Record<string, string> = {
   b: 'bishop',
   k: 'king',
@@ -559,7 +559,7 @@ type HealthDatum = {
   severity: HealthSeverity;
 };
 
-function stageCardLines(stage: 'A' | 'B', trace: TraceRow): HealthDatum[] {
+function _stageCardLines(stage: 'A' | 'B', trace: TraceRow): HealthDatum[] {
   if (stage === 'A') {
     const lines: HealthDatum[] = [];
     const pre = trace.belief_pre_stage_a_unique;
@@ -649,7 +649,7 @@ function stageCardLines(stage: 'A' | 'B', trace: TraceRow): HealthDatum[] {
   return lines;
 }
 
-function recoveryCardLines(trace: TraceRow): HealthDatum[] {
+function _recoveryCardLines(trace: TraceRow): HealthDatum[] {
   const lines: HealthDatum[] = [];
   const cspStages = [
     trace.csp_reseed_stage_a ? 'A' : '',
@@ -751,7 +751,7 @@ function latentDangerLinesFor(row: BeliefRow, trace: TraceRow | null): HealthDat
   });
 }
 
-function decisionWeightModeLines(trace: TraceRow, row: BeliefRow): HealthDatum[] {
+function _decisionWeightModeLines(trace: TraceRow, row: BeliefRow): HealthDatum[] {
   const modes = trace.decision_weight_modes ?? row.decision_weight_modes ?? null;
   const profile = trace.particle_weight_profile ?? row.particle_weight_profile ?? null;
   if (!modes && !profile) return [];

@@ -1,5 +1,5 @@
 import { fogPatternDefs, type PieceOnBoard, renderBoardSvg } from '@mistboard/board-render';
-import { boardFen, fogHiddenClass, hiddenSquareClasses } from '@mistboard/board-render/interactive';
+import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
 import {
   algebraicMoveLabels as buildAlgebraicMoveLabels,
   type Color,
@@ -11,7 +11,6 @@ import {
   type Move,
   type PieceRole,
   type PlayerView,
-  promotionLetter,
   replayGameEvents,
   type Square,
   variantForId,
@@ -24,7 +23,6 @@ import { type CaptureTally, computeCaptures, sortCaptureRoles } from './captures
 import {
   captureFogView,
   currentReplayIndex,
-  fogLivePos,
   getFogSnapshotToEventsLen,
   getFogViewHistory,
   getReplayIndex,
@@ -37,18 +35,9 @@ import {
   resetReplayState,
   snapshotToPly,
 } from './live-replay.js';
-import {
-  initLiveSound,
-  maybePlaySnapshotSound,
-  ownPieceCount,
-  playSound,
-  resetLiveSoundState,
-  soundForMove,
-  soundForOwnMove,
-} from './live-sound.js';
+import { initLiveSound, playSound, resetLiveSoundState, soundForOwnMove } from './live-sound.js';
 import {
   type DevViews,
-  type DraftOffers,
   type InfoTone,
   type LiveRefs,
   liveState,
@@ -60,7 +49,6 @@ import {
   type Seat,
 } from './live-state.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
-import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
 import {
   allSquares,
   escapeHtml,
@@ -2083,7 +2071,7 @@ function reasonPhraseLabel(reason: GameEndReason): string {
   return reason; // checkmate, resignation, timeout
 }
 
-function resultReasonLabel(reason: string): string {
+function _resultReasonLabel(reason: string): string {
   return reason.replace(/-/g, ' ');
 }
 
@@ -2135,7 +2123,7 @@ function modeLabel(): string {
   return capitalize(liveState.roomMode);
 }
 
-function serverTimeLabel(): string {
+function _serverTimeLabel(): string {
   if (!liveState.lastServerAt || !liveState.lastSnapshotAt) return 'Waiting';
   const ageSeconds = Math.max(0, Math.round((Date.now() - liveState.lastSnapshotAt) / 1000));
   const label = ageSeconds <= 1 ? 'just now' : `${ageSeconds}s ago`;

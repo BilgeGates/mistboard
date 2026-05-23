@@ -113,7 +113,7 @@ async function assertVisible(page, selector) {
   assert.equal(await locator.first().isVisible(), true, `${selector} should be visible`);
 }
 
-async function clickLesson(page, title) {
+async function _clickLesson(page, title) {
   const label = page
     .locator('.learn-menu .learn-menu-lesson-label')
     .getByText(title, { exact: true });

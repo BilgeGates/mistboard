@@ -348,7 +348,7 @@ async function generate(provider, prompt, name) {
     const bytes = await fn(prompt);
     const path = await saveBytes(provider, name, bytes);
     const dt = ((Date.now() - t0) / 1000).toFixed(1);
-    console.log(`ok (${dt}s) -> ${path.replace(REPO_ROOT + '/', '')}`);
+    console.log(`ok (${dt}s) -> ${path.replace(`${REPO_ROOT}/`, '')}`);
     return { ok: true, path };
   } catch (err) {
     console.log(`FAIL ${err.message}`);

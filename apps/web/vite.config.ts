@@ -36,7 +36,7 @@ function annotationsApiPlugin(): Plugin {
             const body = Buffer.concat(chunks).toString('utf-8');
             const data = JSON.parse(body);
             await fs.mkdir(dirname(FEEDBACK_FILE), { recursive: true });
-            await fs.appendFile(FEEDBACK_FILE, JSON.stringify(data) + '\n', 'utf-8');
+            await fs.appendFile(FEEDBACK_FILE, `${JSON.stringify(data)}\n`, 'utf-8');
             res.setHeader('content-type', 'application/json');
             res.end(JSON.stringify({ ok: true }));
             return;
@@ -66,7 +66,7 @@ function annotationsApiPlugin(): Plugin {
             });
             if (!replaced) nextLines.push(JSON.stringify(updated));
             await fs.mkdir(dirname(FEEDBACK_FILE), { recursive: true });
-            await fs.writeFile(FEEDBACK_FILE, nextLines.join('\n') + '\n', 'utf-8');
+            await fs.writeFile(FEEDBACK_FILE, `${nextLines.join('\n')}\n`, 'utf-8');
             res.setHeader('content-type', 'application/json');
             res.end(JSON.stringify({ ok: true, updated: replaced, appended: !replaced }));
             return;

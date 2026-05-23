@@ -153,7 +153,7 @@ export function seatTokenStatesFromPersistence(
 }
 
 export async function persistSeatToken(
-  ctx: RoomManagerContext,
+  _ctx: RoomManagerContext,
   room: Room,
   token: SeatTokenState,
 ): Promise<void> {
@@ -167,7 +167,7 @@ export async function persistSeatToken(
 }
 
 export async function touchSeatToken(
-  ctx: RoomManagerContext,
+  _ctx: RoomManagerContext,
   room: Room,
   token: SeatTokenState,
 ): Promise<void> {
@@ -181,7 +181,7 @@ export async function touchSeatToken(
 }
 
 export async function replaceSeatTokens(
-  ctx: RoomManagerContext,
+  _ctx: RoomManagerContext,
   room: Room,
   seatTokens: Partial<Record<Color, SeatTokenState>>,
 ): Promise<void> {

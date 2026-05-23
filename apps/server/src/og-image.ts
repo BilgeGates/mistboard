@@ -17,7 +17,7 @@ export async function serveGameOgImage(roomId: string, response: ServerResponse)
   }
 
   const game = await persistence.getGameSummary(roomId);
-  if (!game || !game.result) {
+  if (!game?.result) {
     redirectToDefault(response);
     return;
   }

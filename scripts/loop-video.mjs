@@ -123,4 +123,4 @@ if (args.webp) {
   ]);
 }
 
-console.log(`done -> ${outMp4.replace(REPO_ROOT + '/', '')}`);
+console.log(`done -> ${outMp4.replace(`${REPO_ROOT}/`, '')}`);

@@ -245,7 +245,7 @@ async function readJsonl(file) {
 }
 
 async function resolveManifestFile(url) {
-  if (!url || !url.startsWith('/')) return path.join(publicRoots[0], '__invalid__');
+  if (!url?.startsWith('/')) return path.join(publicRoots[0], '__invalid__');
   for (const root of publicRoots) {
     const candidate = path.resolve(root, `.${url}`);
     if (await exists(candidate)) return candidate;

@@ -40,7 +40,6 @@ import {
   parseRatingVariant,
 } from './rating-buckets.js';
 import {
-  adminDebugTokenFromProtocolHeader,
   eventReplayResponse,
   isAdminDebugToken,
   isProductionLikeRuntime,
@@ -433,7 +432,7 @@ export async function handleApiRequest(
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     // Engine games are never rated — rated play is human-vs-human only.
-    const rated = mode === 'pve' ? false : body.rated === false ? false : true;
+    const rated = mode === 'pve' ? false : body.rated !== false;
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_mode' }));
@@ -524,7 +523,7 @@ export async function handleApiRequest(
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-    const lobbyRated = body.rated === false ? false : true;
+    const lobbyRated = body.rated !== false;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
@@ -724,7 +723,7 @@ export async function handleApiRequest(
     const timeClass =
       parseRatingTimeClass(parsedUrl.searchParams.get('time')) ?? DEFAULT_RATING_BUCKET.timeClass;
     const limitParam = parseInt(parsedUrl.searchParams.get('limit') ?? '100', 10);
-    const limit = isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
+    const limit = Number.isNaN(limitParam) ? 100 : Math.max(1, Math.min(limitParam, 500));
     const entries = await persistence.getLeaderboard({ variant, timeClass, limit });
     writeJson(response, 200, { leaderboard: entries, bucket: { variant, timeClass } });
     return;
@@ -1003,7 +1002,7 @@ async function handleAnnotationsApi(
   if (method === 'POST') {
     const body = await readJsonBody(request);
     await fs.mkdir(dirname(ctx.annotationsFile), { recursive: true });
-    await fs.appendFile(ctx.annotationsFile, JSON.stringify(body) + '\n', 'utf-8');
+    await fs.appendFile(ctx.annotationsFile, `${JSON.stringify(body)}\n`, 'utf-8');
     writeJson(response, 200, { ok: true });
     return;
   }
@@ -1027,7 +1026,7 @@ async function handleAnnotationsApi(
     });
     if (!updated) nextLines.push(JSON.stringify(body));
     await fs.mkdir(dirname(ctx.annotationsFile), { recursive: true });
-    await fs.writeFile(ctx.annotationsFile, nextLines.join('\n') + '\n', 'utf-8');
+    await fs.writeFile(ctx.annotationsFile, `${nextLines.join('\n')}\n`, 'utf-8');
     writeJson(response, 200, { ok: true, updated, appended: !updated });
     return;
   }

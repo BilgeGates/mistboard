@@ -1,11 +1,5 @@
+import { boardFen, hiddenSquareClasses, pieceFen } from '@mistboard/board-render/interactive';
 import {
-  boardFen,
-  fogHiddenClass,
-  hiddenSquareClasses,
-  pieceFen,
-} from '@mistboard/board-render/interactive';
-import {
-  type Board,
   algebraicMoveLabels as buildAlgebraicMoveLabels,
   type ClockState,
   type Color,
@@ -18,7 +12,6 @@ import {
   type Piece,
   type PieceRole,
   type PlayerView,
-  promotionLetter,
   replayGameEvents,
   type Square,
 } from '@mistboard/game';
@@ -38,7 +31,7 @@ import {
   updateAnnotation,
 } from './annotations.js';
 import { type BeliefConfig, type BeliefPanelHandle, createBeliefPanel } from './belief-panel.js';
-import { allSquares, files, formatClock, ranks } from './web-utils.js';
+import { formatClock } from './web-utils.js';
 
 const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;

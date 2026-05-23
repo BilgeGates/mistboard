@@ -89,8 +89,8 @@ try {
 
   if (outWhitePath && outBlackPath) {
     const { writeFileSync } = await import('node:fs');
-    writeFileSync(outWhitePath, JSON.stringify(anonymize(whiteSnapshot), null, 2) + '\n');
-    writeFileSync(outBlackPath, JSON.stringify(anonymize(blackSnapshot), null, 2) + '\n');
+    writeFileSync(outWhitePath, `${JSON.stringify(anonymize(whiteSnapshot), null, 2)}\n`);
+    writeFileSync(outBlackPath, `${JSON.stringify(anonymize(blackSnapshot), null, 2)}\n`);
     process.stderr.write(`wrote ${outWhitePath}\nwrote ${outBlackPath}\n`);
   } else {
     process.stdout.write(JSON.stringify(anonymize(whiteSnapshot), null, 2));
@@ -171,7 +171,7 @@ function connect(port, query) {
   });
 }
 
-function lastSnapshot(client) {
+function _lastSnapshot(client) {
   for (let i = client.messages.length - 1; i >= 0; i -= 1) {
     if (client.messages[i].type === 'snapshot') return client.messages[i];
   }

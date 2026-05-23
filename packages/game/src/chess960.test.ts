@@ -27,7 +27,7 @@ test('each Chess960 start has opposite-color bishops and king between rooks', ()
     const rooks = start.backRank
       .map((role, index) => (role === 'rook' ? index : -1))
       .filter((index) => index >= 0);
-    const king = start.backRank.findIndex((role) => role === 'king');
+    const king = start.backRank.indexOf('king');
     assert.equal(rooks.length, 2);
     assert.equal(rooks[0] < king && king < rooks[1], true);
   }

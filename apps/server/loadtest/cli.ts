@@ -146,12 +146,12 @@ async function main(): Promise<void> {
   console.log(
     `  outcomes: ${[...completedByNote.entries()].map(([k, v]) => `${k}=${v}`).join('  ')}`,
   );
-  console.log('  ' + formatSummary('move-rtt', moveSummary));
-  console.log('  ' + formatSummary('game-duration', gameSummary));
+  console.log(`  ${formatSummary('move-rtt', moveSummary)}`);
+  console.log(`  ${formatSummary('game-duration', gameSummary)}`);
 
   if (args.outFile) {
     const lines = out.map((r) => JSON.stringify(r)).join('\n');
-    writeFileSync(args.outFile, lines + '\n');
+    writeFileSync(args.outFile, `${lines}\n`);
     console.log(`  wrote ${out.length} records to ${args.outFile}`);
   }
 }

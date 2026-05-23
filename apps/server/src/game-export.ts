@@ -50,8 +50,8 @@ function timeControlFromSummary(summary: RecentEveGameRecord): {
   label: string;
 } {
   const raw = summary.timeControl ?? {};
-  const initialMsValue = (raw as Record<string, unknown>)['initialMs'];
-  const incrementMsValue = (raw as Record<string, unknown>)['incrementMs'];
+  const initialMsValue = (raw as Record<string, unknown>).initialMs;
+  const incrementMsValue = (raw as Record<string, unknown>).incrementMs;
   const initial = typeof initialMsValue === 'number' ? initialMsValue : null;
   const increment = typeof incrementMsValue === 'number' ? incrementMsValue : null;
   return {

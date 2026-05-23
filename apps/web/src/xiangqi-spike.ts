@@ -17,7 +17,6 @@ import {
   getLegalMovesFrom,
   getPlayerView,
   squareOf,
-  type XiangqiBoard,
   type XiangqiCannonVisionMode,
   type XiangqiColor,
   type XiangqiGameState,

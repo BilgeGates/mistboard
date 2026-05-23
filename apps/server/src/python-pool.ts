@@ -247,7 +247,7 @@ class PoolWorker {
       if (this.current !== req) return;
       this.fail(new Error(`pool request timeout ${req.timeoutMs}ms`));
     }, req.timeoutMs);
-    const line = JSON.stringify({ ...req.payload, requestId: req.requestId }) + '\n';
+    const line = `${JSON.stringify({ ...req.payload, requestId: req.requestId })}\n`;
     this.process!.stdin.write(line, (err) => {
       if (err) this.fail(err);
     });

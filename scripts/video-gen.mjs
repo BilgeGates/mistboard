@@ -141,5 +141,5 @@ const bytes = Buffer.from(await r.arrayBuffer());
 const outPath = resolve(OUT_DIR, `${args.out}.${model.ext}`);
 await writeFile(outPath, bytes);
 console.log(
-  `saved -> ${outPath.replace(REPO_ROOT + '/', '')}  (${(bytes.length / 1024).toFixed(0)} KB)`,
+  `saved -> ${outPath.replace(`${REPO_ROOT}/`, '')}  (${(bytes.length / 1024).toFixed(0)} KB)`,
 );

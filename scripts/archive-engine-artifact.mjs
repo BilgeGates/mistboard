@@ -68,7 +68,7 @@ const metadata = {
 
 await writeFile(
   path.join(archivePath, 'ARCHIVE-METADATA.json'),
-  JSON.stringify(metadata, null, 2) + '\n',
+  `${JSON.stringify(metadata, null, 2)}\n`,
 );
 
 console.log(`archived ${sourceRealPath}`);

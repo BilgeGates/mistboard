@@ -1039,7 +1039,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   existing?.remove();
 
   let startFormat: LandingStartFormat = 'standard';
-  let rated = choice.mode === 'pve' || choice.ratedDisabled ? false : true;
+  let rated = !(choice.mode === 'pve' || choice.ratedDisabled);
   let selectedPreset: LandingTimePresetId = '3m2';
   let selectedEngineId = choice.engineId;
   let preferredColor: LandingColorPreference = loadStoredColorPreference();
