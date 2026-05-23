@@ -122,33 +122,33 @@ if (replaySample) {
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
 } else if (articleSlug) {
   setTitle('Articles');
-  void mountOrReport(() => import('./landing.js').then(({ mountArticle }) => mountArticle(appRoot, articleSlug)));
+  void mountOrReport(() => import('./pages-static.js').then(({ mountArticle }) => mountArticle(appRoot, articleSlug)));
 } else if (wantsArticlesIndex) {
   setTitle('Articles');
-  void mountOrReport(() => import('./landing.js').then(({ mountArticlesIndex }) => mountArticlesIndex(appRoot)));
+  void mountOrReport(() => import('./pages-static.js').then(({ mountArticlesIndex }) => mountArticlesIndex(appRoot)));
 } else if (wantsLearn) {
   setTitle('Learn');
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
 } else if (wantsAbout) {
   setTitle('About');
-  void mountOrReport(() => import('./landing.js').then(({ mountAbout }) => mountAbout(appRoot)));
+  void mountOrReport(() => import('./pages-static.js').then(({ mountAbout }) => mountAbout(appRoot)));
 } else if (wantsSource) {
   setTitle('Source');
-  void mountOrReport(() => import('./landing.js').then(({ mountSource }) => mountSource(appRoot)));
+  void mountOrReport(() => import('./pages-static.js').then(({ mountSource }) => mountSource(appRoot)));
 } else if (wantsContact) {
   setTitle('Contact');
   void mountOrReport(() => import('./landing.js').then(({ mountContact }) => mountContact(appRoot)));
 } else if (wantsFaq) {
   setTitle('FAQ');
-  void mountOrReport(() => import('./landing.js').then(({ mountFaq }) => mountFaq(appRoot)));
+  void mountOrReport(() => import('./pages-static.js').then(({ mountFaq }) => mountFaq(appRoot)));
 } else if (wantsTerms) {
   setTitle('Terms');
-  void mountOrReport(() => import('./landing.js').then(({ mountTerms }) => mountTerms(appRoot)));
+  void mountOrReport(() => import('./pages-static.js').then(({ mountTerms }) => mountTerms(appRoot)));
 } else if (path === '/') {
   void mountOrReport(() => import('./landing.js').then(({ mountLanding }) => mountLanding(appRoot)));
 } else {
   setTitle('Not found');
-  void mountOrReport(() => import('./landing.js').then(({ mountNotFound }) => mountNotFound(appRoot)));
+  void mountOrReport(() => import('./pages-static.js').then(({ mountNotFound }) => mountNotFound(appRoot)));
 }
 
 function setTitle(page: string): void {
