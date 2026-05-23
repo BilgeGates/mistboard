@@ -251,7 +251,7 @@ function buildTerms(): HTMLElement {
 
   const h3 = aboutSubheading('Acceptable use');
   const p3 = aboutParagraph([
-    'Don’t harass other players, spam, abuse the service, try to break the fog filter, or hammer the site with scrapers. Don’t use external engine help during rated play once rated mode launches. Handles, rooms, and accounts may be revoked for abuse.',
+    'Don’t harass other players, spam, abuse the service, try to break the fog filter, or hammer the site with scrapers. Don’t use external engine help in rated games. Handles, rooms, and accounts may be revoked for abuse.',
   ]);
 
   const h4 = aboutSubheading('Finished games are public by default');
@@ -260,7 +260,7 @@ function buildTerms(): HTMLElement {
     aboutExternalLink('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
     '. Anyone can share or reuse the game record as long as they credit Mistboard. To take down a specific game, use ',
     aboutLink('Contact', '/contact'),
-    '. A self-serve opt-out is on the roadmap.',
+    '.',
   ]);
 
   const h5 = aboutSubheading('Open source and brand');
@@ -268,13 +268,6 @@ function buildTerms(): HTMLElement {
     'The source is AGPL-3.0-or-later. The Mistboard name, logo, domain, and hosted service identity are project assets. Forks are welcome but should pick their own name. See ',
     aboutLink('Source', '/source'),
     ' for license and credits.',
-  ]);
-
-  const h6 = aboutSubheading('Contact');
-  const p6 = aboutParagraph([
-    'Questions, takedown requests, anything else: ',
-    aboutLink('Contact', '/contact'),
-    '.',
   ]);
 
   section.append(
@@ -285,7 +278,6 @@ function buildTerms(): HTMLElement {
     h3, p3,
     h4, p4,
     h5, p5,
-    h6, p6,
   );
   return section;
 }
