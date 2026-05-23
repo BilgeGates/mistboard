@@ -1082,21 +1082,76 @@ export async function getLeaderboard(query: LeaderboardQuery): Promise<Leaderboa
   }));
 }
 
+// ── Game row types + mappers ──────────────────────────────────────────────
+// Five list-style queries (listCorpusGames, listRecentEveGames,
+// listRecentPublicGames, listCompletedGames, getGameSummary) all return rows
+// that map 1:1 into GameRecord/RecentEveGameRecord. Define the row shape and
+// the mapper once.
+
+type GameRow = {
+  room_id: string;
+  variant: string;
+  mode: GameMode;
+  result: string;
+  termination: string;
+  ply_count: number;
+  started_at: Date;
+  ended_at: Date;
+  white_name: string | null;
+  black_name: string | null;
+  corpus_id: string | null;
+  visibility: GameVisibility;
+};
+
+type RecentEveGameRow = GameRow & {
+  job_id: string | null;
+  game_index: number | null;
+  white_engine_id: string | null;
+  black_engine_id: string | null;
+  time_control: Record<string, unknown> | null;
+};
+
+// `games.` prefix because every recent-eve query LEFT JOINs eve_games.
+const RECENT_EVE_SELECT_COLUMNS = `games.room_id, games.variant, games.mode, games.result, games.termination,
+            games.ply_count, games.started_at, games.ended_at,
+            games.white_name, games.black_name, games.corpus_id,
+            eve_games.job_id, eve_games.game_index,
+            eve_games.white_engine_id, eve_games.black_engine_id,
+            eve_games.time_control,
+            games.visibility`;
+
+function gameRecordFromRow(row: GameRow): GameRecord {
+  return {
+    roomId: row.room_id,
+    variant: row.variant,
+    mode: row.mode,
+    result: row.result,
+    termination: row.termination,
+    plyCount: row.ply_count,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    whiteName: row.white_name,
+    blackName: row.black_name,
+    corpusId: row.corpus_id,
+    rated: true,
+    visibility: row.visibility,
+    participants: [],
+  };
+}
+
+function recentEveGameRecordFromRow(row: RecentEveGameRow): RecentEveGameRecord {
+  return {
+    ...gameRecordFromRow(row),
+    jobId: row.job_id,
+    gameIndex: row.game_index,
+    whiteEngineId: row.white_engine_id,
+    blackEngineId: row.black_engine_id,
+    timeControl: row.time_control,
+  };
+}
+
 export async function listCorpusGames(corpusId: string, limit = 100): Promise<GameRecord[]> {
-  const { rows } = await getPool().query<{
-    room_id: string;
-    variant: string;
-    mode: GameMode;
-    result: string;
-    termination: string;
-    ply_count: number;
-    started_at: Date;
-    ended_at: Date;
-    white_name: string | null;
-    black_name: string | null;
-    corpus_id: string | null;
-    visibility: GameVisibility;
-  }>(
+  const { rows } = await getPool().query<GameRow>(
     `SELECT room_id, variant, mode, result, termination, ply_count, started_at, ended_at,
             white_name, black_name, corpus_id, visibility
      FROM games
@@ -1107,52 +1162,12 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
      LIMIT $3`,
     [corpusId, MIN_TIMEOUT_SOURCE_PLY_COUNT, limit],
   );
-  const records = rows.map((row): GameRecord => ({
-    roomId: row.room_id,
-    variant: row.variant,
-    mode: row.mode,
-    result: row.result,
-    termination: row.termination,
-    plyCount: row.ply_count,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    whiteName: row.white_name,
-    blackName: row.black_name,
-    corpusId: row.corpus_id,
-    rated: true,
-    visibility: row.visibility,
-    participants: [],
-  }));
-  return withParticipants(records);
+  return withParticipants(rows.map(gameRecordFromRow));
 }
 
 export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecord[]> {
-  const { rows } = await getPool().query<{
-    room_id: string;
-    variant: string;
-    mode: GameMode;
-    result: string;
-    termination: string;
-    ply_count: number;
-    started_at: Date;
-    ended_at: Date;
-    white_name: string | null;
-    black_name: string | null;
-    corpus_id: string | null;
-    job_id: string | null;
-    game_index: number | null;
-    white_engine_id: string | null;
-    black_engine_id: string | null;
-    time_control: Record<string, unknown> | null;
-    visibility: GameVisibility;
-  }>(
-    `SELECT games.room_id, games.variant, games.mode, games.result, games.termination,
-            games.ply_count, games.started_at, games.ended_at,
-            games.white_name, games.black_name, games.corpus_id,
-            eve_games.job_id, eve_games.game_index,
-            eve_games.white_engine_id, eve_games.black_engine_id,
-            eve_games.time_control,
-            games.visibility
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.mode = 'eve'
@@ -1162,58 +1177,13 @@ export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecor
     LIMIT $2`,
     [MIN_TIMEOUT_SOURCE_PLY_COUNT, limit],
   );
-  const records = rows.map((row): RecentEveGameRecord => ({
-    roomId: row.room_id,
-    variant: row.variant,
-    mode: row.mode,
-    result: row.result,
-    termination: row.termination,
-    plyCount: row.ply_count,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    whiteName: row.white_name,
-    blackName: row.black_name,
-    corpusId: row.corpus_id,
-    jobId: row.job_id,
-    gameIndex: row.game_index,
-    whiteEngineId: row.white_engine_id,
-    blackEngineId: row.black_engine_id,
-    timeControl: row.time_control,
-    rated: true,
-    visibility: row.visibility,
-    participants: [],
-  }));
-  return withParticipants(records);
+  return withParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
 export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRecord[]> {
   const boundedLimit = Math.max(1, Math.min(limit, 50));
-  const { rows } = await getPool().query<{
-    room_id: string;
-    variant: string;
-    mode: GameMode;
-    result: string;
-    termination: string;
-    ply_count: number;
-    started_at: Date;
-    ended_at: Date;
-    white_name: string | null;
-    black_name: string | null;
-    corpus_id: string | null;
-    job_id: string | null;
-    game_index: number | null;
-    white_engine_id: string | null;
-    black_engine_id: string | null;
-    time_control: Record<string, unknown> | null;
-    visibility: GameVisibility;
-  }>(
-    `SELECT games.room_id, games.variant, games.mode, games.result, games.termination,
-            games.ply_count, games.started_at, games.ended_at,
-            games.white_name, games.black_name, games.corpus_id,
-            eve_games.job_id, eve_games.game_index,
-            eve_games.white_engine_id, eve_games.black_engine_id,
-            eve_games.time_control,
-            games.visibility
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
@@ -1235,29 +1205,7 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
      LIMIT $2`,
     [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit, MIN_TV_PVP_PLY_COUNT],
   );
-
-  const records = rows.map((row): RecentEveGameRecord => ({
-    roomId: row.room_id,
-    variant: row.variant,
-    mode: row.mode,
-    result: row.result,
-    termination: row.termination,
-    plyCount: row.ply_count,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    whiteName: row.white_name,
-    blackName: row.black_name,
-    corpusId: row.corpus_id,
-    jobId: row.job_id,
-    gameIndex: row.game_index,
-    whiteEngineId: row.white_engine_id,
-    blackEngineId: row.black_engine_id,
-    timeControl: row.time_control,
-    rated: true,
-    visibility: row.visibility,
-    participants: [],
-  }));
-  return withParticipants(records);
+  return withParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
 export async function listCompletedGames(filters: CompletedGameFilters): Promise<RecentEveGameRecord[]> {
@@ -1268,32 +1216,8 @@ export async function listCompletedGames(filters: CompletedGameFilters): Promise
   values.push(limit);
   const limitParam = values.length;
 
-  const { rows } = await getPool().query<{
-    room_id: string;
-    variant: string;
-    mode: GameMode;
-    result: string;
-    termination: string;
-    ply_count: number;
-    started_at: Date;
-    ended_at: Date;
-    white_name: string | null;
-    black_name: string | null;
-    corpus_id: string | null;
-    job_id: string | null;
-    game_index: number | null;
-    white_engine_id: string | null;
-    black_engine_id: string | null;
-    time_control: Record<string, unknown> | null;
-    visibility: GameVisibility;
-  }>(
-    `SELECT games.room_id, games.variant, games.mode, games.result, games.termination,
-            games.ply_count, games.started_at, games.ended_at,
-            games.white_name, games.black_name, games.corpus_id,
-            eve_games.job_id, eve_games.game_index,
-            eve_games.white_engine_id, eve_games.black_engine_id,
-            eve_games.time_control,
-            games.visibility
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
@@ -1304,58 +1228,12 @@ export async function listCompletedGames(filters: CompletedGameFilters): Promise
      LIMIT $${limitParam}`,
     values,
   );
-
-  const records = rows.map((row): RecentEveGameRecord => ({
-    roomId: row.room_id,
-    variant: row.variant,
-    mode: row.mode,
-    result: row.result,
-    termination: row.termination,
-    plyCount: row.ply_count,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    whiteName: row.white_name,
-    blackName: row.black_name,
-    corpusId: row.corpus_id,
-    jobId: row.job_id,
-    gameIndex: row.game_index,
-    whiteEngineId: row.white_engine_id,
-    blackEngineId: row.black_engine_id,
-    timeControl: row.time_control,
-    rated: true,
-    visibility: row.visibility,
-    participants: [],
-  }));
-  return withParticipants(records);
+  return withParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
 export async function getGameSummary(roomId: string): Promise<RecentEveGameRecord | null> {
-  const { rows } = await getPool().query<{
-    room_id: string;
-    variant: string;
-    mode: GameMode;
-    result: string;
-    termination: string;
-    ply_count: number;
-    started_at: Date;
-    ended_at: Date;
-    white_name: string | null;
-    black_name: string | null;
-    corpus_id: string | null;
-    job_id: string | null;
-    game_index: number | null;
-    white_engine_id: string | null;
-    black_engine_id: string | null;
-    time_control: Record<string, unknown> | null;
-    visibility: GameVisibility;
-  }>(
-    `SELECT games.room_id, games.variant, games.mode, games.result, games.termination,
-            games.ply_count, games.started_at, games.ended_at,
-            games.white_name, games.black_name, games.corpus_id,
-            eve_games.job_id, eve_games.game_index,
-            eve_games.white_engine_id, eve_games.black_engine_id,
-            eve_games.time_control,
-            games.visibility
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.room_id = $1
@@ -1365,27 +1243,7 @@ export async function getGameSummary(roomId: string): Promise<RecentEveGameRecor
   );
   const row = rows[0];
   if (!row) return null;
-  const [record] = await withParticipants([{
-    roomId: row.room_id,
-    variant: row.variant,
-    mode: row.mode,
-    result: row.result,
-    termination: row.termination,
-    plyCount: row.ply_count,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    whiteName: row.white_name,
-    blackName: row.black_name,
-    corpusId: row.corpus_id,
-    rated: true,
-    jobId: row.job_id,
-    gameIndex: row.game_index,
-    whiteEngineId: row.white_engine_id,
-    blackEngineId: row.black_engine_id,
-    timeControl: row.time_control,
-    visibility: row.visibility,
-    participants: [],
-  }]);
+  const [record] = await withParticipants([recentEveGameRecordFromRow(row)]);
   return record ?? null;
 }
 
