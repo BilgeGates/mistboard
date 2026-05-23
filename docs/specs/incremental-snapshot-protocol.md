@@ -1,7 +1,7 @@
 # Incremental snapshot protocol
 
-**Status:** proposal — not implemented
-**Author:** initial draft 2026-05-22
+**Status:** approved 2026-05-22 — implementation pending. Two open design questions resolved in the review (see "Decisions locked in review" below); one wording fix to "Server changes" applied.
+**Author:** initial draft 2026-05-22; review pass + lock-ins 2026-05-22
 **Owner:** unassigned
 
 ## TL;DR
@@ -20,14 +20,23 @@ The current design was a deliberate v1 simplification: one wire format to implem
 
 ## The problem
 
-Bandwidth and frame size grow linearly with game length. Concretely:
+Bandwidth and frame size grow linearly with game length, so cumulative ingress per side grows quadratically. Measured numbers (see "Verification" below; raw CSV at `docs/specs/measurements/snapshot-bandwidth-2026-05-22.csv`):
 
-- An average `move-played` event is ~180 bytes JSON.
-- A 60-move dark chess game has 60 such events plus ~6 lifecycle events (`room-created`, `seat-assigned` × 2, `clock-started`, finalization).
-- Each post-move snapshot contains all of them, sent to each connected client.
-- Total client ingress per game: roughly `O(n²)` bytes where `n` is the number of moves. ~1-3MB per side for typical games; potentially >10MB for very long games or games with frequent presence churn (each reconnect triggers a fresh snapshot).
+| Game length (plies) | Per-side ingress | Combined ingress | Last-frame size (per side) |
+|---|---|---|---|
+| 20 (~10 moves)       | ~82 KB  | ~165 KB | ~5 KB  |
+| 60 (~30 moves)       | ~400 KB | ~800 KB | ~11 KB |
+| 100 (projected)      | ~940 KB | ~1.9 MB | ~17 KB |
 
-This is not currently breaking anything. It is wasteful, will get worse with engine analysis features (which fan out additional snapshot triggers), and constrains future mobile/low-bandwidth play.
+Per-ply frame size grows ~150 bytes per ply (linear), driven by the re-sent event log.
+
+This is **not currently breaking anything.** Even on the high end, a 60-ply dark chess game costs ~400KB per side — a fraction of a single image asset. The migration is justified by three forward-looking pressures, not present pain:
+
+1. **Engine analysis broadcasts.** Adding engine-move overlays, belief-state pushes, or post-game annotation traces will fan out additional snapshot triggers. The quadratic cost compounds with the number of broadcast triggers, not just game length.
+2. **Mobile / low-bandwidth play.** Per-side ingress of 400KB+ per game is tolerable on broadband but starts to matter on metered mobile data, especially with multiple games per session.
+3. **Architectural ceiling.** The "snapshot on every event" model is correct but doesn't scale to features that add broadcast triggers. Better to migrate the wire format before the surface area widens, not after.
+
+The original draft of this spec projected "1-3MB per side for typical games; potentially >10MB for very long games." The measurement showed those numbers were 3-5× too high. The shape (quadratic) is confirmed; the urgency is lower than the draft implied. **Read the rest of this spec with that recalibration in mind: this is a deliberate-pace architectural improvement, not a fire to put out.**
 
 ## Goals
 
@@ -83,9 +92,9 @@ For all other state changes — moves, clock ticks, offers, presence — `event-
 
 ## Server changes
 
-1. New helper alongside `broadcastSnapshot`: `broadcastEventAppended(ctx, room, event, seq)`. Computes the per-recipient filtered event and `PlayerView`, sends one `event-appended` per client.
-2. `appendEvent` calls `broadcastEventAppended` instead of `broadcastSnapshot` for the common case. The few sites that need to push a full snapshot (e.g. presence/state hydration not tied to a single event) keep calling `broadcastSnapshot` directly.
-3. Handle the new `snapshot:request` message in the WS message handler.
+1. New helper alongside `broadcastSnapshot`: `broadcastEventAppended(ctx, room, event, seq)`. Computes the per-recipient filtered event and `PlayerView`, sends one `event-appended` per client. **Must reuse `eventsForClient` / `getClientView` from `payloads.ts`** — do not reimplement filtering. The new payload is a thin projection of the same per-recipient logic the snapshot path uses. (See "Privacy safety" below.)
+2. **Wording fix vs original draft.** `appendEvent` does *not* broadcast today — its callers (`playMove`, `expireActiveClock` timer callback, presence/offer handlers, etc.) call `broadcastSnapshot(ctx, room)` themselves after the event is appended. The migration pattern is therefore: **wherever a caller follows `appendEvent` with `broadcastSnapshot`, switch the latter to `broadcastEventAppended(ctx, room, event, seq)`.** Sites that broadcast snapshots without a paired event-append (rare, but they exist — e.g. presence-only state hydration) keep calling `broadcastSnapshot` directly. Grep `broadcastSnapshot` and categorize each call site as "paired with appendEvent" or "standalone."
+3. Handle the new `snapshot:request` message in the WS message handler. **Inherit the existing per-room auth from the WS connect path** — do not write a fresh auth check. A malicious client must not be able to request snapshots for rooms it isn't authorized to observe.
 
 ## Client changes
 
@@ -106,15 +115,55 @@ Two-phase:
 
 A protocol version field on the hello message is the more disciplined alternative; capability flags are lighter weight for a single feature.
 
-## Open questions
+## Decisions locked in review (2026-05-22)
 
-- Should clock ticks ship as `event-appended` or as a smaller `clock-tick` message? Today the clock is computed from `clock-started`/`move-played` events plus server time; ticks are not events. A `clock-tick` message that's not part of the event log might be cleaner.
-- How often should periodic snapshots fire? Bandwidth math suggests every ~30-60 minutes of game time, or never if `event-appended` is reliable enough. Cost of one wasted full snapshot is low; benefit is bounded recovery time on bug.
-- Does `event-appended` need to carry `roomId` if the socket is already bound to one room? Probably belt-and-suspenders yes.
+The original draft listed three open questions; two are now decided. Implementer should not relitigate without surfacing a specific objection.
+
+- **Clock ticks: sibling `clock-tick` message, NOT part of `event-appended`.**
+  Rationale: clock ticks are not in the event log today; the server derives the clock from `clock-started` + `move-played` events plus server time. Forcing them into `event-appended` would either pollute the `seq` stream with non-events (now `seq !== events.length - 1`) or require `event` to be optional (now every client handler has to branch). A separate `clock-tick` message keeps the invariant "one `event-appended` = one canonical event-log entry" intact.
+- **Capability flag, not protocol version — for THIS rollout.**
+  A `clientCapabilities: ['delta']` field on hello is right for a single-feature migration. **But the next wire-format change (engine-analysis broadcasts is the likely candidate) should add a `protocolVersion: number` to the hello handshake to avoid capability-flag soup.** Open an issue for that follow-up when this PR ships; don't bundle it into this migration.
+- **`event-appended` carries `roomId`: yes, belt-and-suspenders.** Sockets are bound to one room today, but the field is cheap, makes message logs self-describing, and protects against future multi-room socket designs.
+
+## Open questions (still open)
+
+- How often should periodic snapshots fire? Bandwidth math suggests every ~30-60 minutes of game time, or never if `event-appended` is reliable enough. Cost of one wasted full snapshot is low; benefit is bounded recovery time on bug. **Implementer recommendation: skip the periodic snapshot in v1.** Reconnect already triggers a snapshot, and TCP guarantees in-order delivery on the open socket — there's no concrete bug class the periodic fallback protects against beyond client implementation errors. Add it later if a real drift bug appears.
+
+## Privacy safety
+
+This migration creates a second wire path that carries fog-filtered data. Any drift between the snapshot path and the delta path is a privacy bug.
+
+**Required:**
+
+1. **Shared filter functions.** `broadcastEventAppended` must call the existing `eventsForClient` / `getClientView` from `payloads.ts`. Do not reimplement per-recipient filtering for the delta path. The single source of truth for "what does seat X see" is shared between snapshot and delta payload builders.
+2. **Sibling test suite.** Add `apps/server/src/delta-ws.test.ts` mirroring every assertion in `privacy-ws.test.ts`, run against the delta path. The two suites should be the same assertions over two payload generators. Keep `privacy-ws.test.ts` unchanged so the snapshot recovery path stays under contract.
+3. **No tempo regression.** Today's snapshot system broadcasts on every event, so a delta migration does not widen the existing "opponent moved" tempo signal. Verify this by checking that delta frame timing for a given recipient matches snapshot frame timing on the same trace. If a recipient receives a delta when they wouldn't have received a snapshot (or vice versa), that's a new signal and a bug.
+4. **`snapshot:request` auth.** Inherit room-access checks from the existing WS connect path. Do not write a new auth path.
+
+## Parallel cleanups (out of scope, but worth tracking)
+
+Identified during the spec review. These are independent of the delta migration; if shipped first, they shrink the steady-state frame meaningfully and exercise the surrounding code paths before the harder migration lands. None of them are blockers.
+
+- **Target `legalMoves` to the player-to-move.** Today every snapshot ships `legalMoves` to both players. The off-turn player never consumes them, and `legalMoves` is computed against the recipient's fog visibility — so sending it to the off-turn player is also a slightly larger fog-leak surface than needed. Ship `legalMoves: []` (or omit the field) to the off-turn player.
+- **Encode `visibleSquares` as a 64-bit bitmask.** ~30× compression over the current array form. Cost: client has to translate to a `Set<Square>` on receipt. Probably not worth doing standalone; reconsider if frame size after delta migration is still uncomfortable.
+- **Drop default-valued lobby fields from the payload.** `offers: { white: [], black: [] }`, `seatDisplayNames: {}`, `rematch: { offers: { white: false, black: false }, finalizedRoomId: null }` — when these are at their default, omit them rather than serialize them. Client treats absence as default.
+
+## Verification
+
+The pre-flight measurement script is at `apps/server/scripts/measure-snapshot-bandwidth.mjs`. It spawns the production server entrypoint with in-memory persistence, opens two seated WS clients to a fog-of-war PvP room, plays N plies of legal moves (deterministic first-legal-move per ply, so the run is reproducible), and records the raw JSON byte size of every WS frame received per client.
+
+Baseline result captured 2026-05-22 (commit on `main` at the time):
+
+- 20-ply game: 82 KB / 80 KB per side, 165 KB combined.
+- 60-ply game: 407 KB / 393 KB per side, 800 KB combined.
+- Per-ply frame growth: ~150 bytes per ply per side (linear).
+- Last-frame size at ply 60: ~11 KB per side, ~21 KB combined.
+
+Re-run the script after Phase 1 ships to confirm steady-state frames are now `O(1)` in ply count (the acceptance criteria below). Diff the new CSV against the baseline.
 
 ## Acceptance criteria
 
-1. After implementation, a 60-move PvP game sends approximately `60 × (event + view + room delta)` bytes per client over the full game, not `O(n²)` bytes.
+1. After implementation, a 60-move PvP game sends approximately `60 × (event + view + room delta)` bytes per client over the full game, not `O(n²)` bytes. Concretely: steady-state per-ply `event-appended` frame size should be roughly constant in ply count (probably ~3-5 KB, dominated by the full `PlayerView` payload), so a 60-move game's per-side ingress should drop from ~400 KB to ~50-100 KB combined-direction including reconnects.
 2. `privacy-ws.test.ts` continues to pass with no relaxations. New tests cover: delta filtering matches snapshot filtering for fog games, `snapshot:request` recovery from synthetic seq skip, capability-flag handshake.
 3. The captured artifact in `apps/web/src/article-snapshot-fog.json` and the `server-enforced-fog` article are updated to reflect whichever wire format is canonical post-migration (or to show both, with a note that one is the hydration path and the other is the steady-state path).
 4. No reduction in reconnect/resume correctness. The pause/resume harness in `room-manager.ts` continues to drive clean rehydration on server restart.
@@ -187,20 +236,11 @@ flip the default. Specifically:
     legacy capability flag). Legacy snapshot-per-event becomes the
     recovery path only.
 
-**Tradeoffs to actively decide, not just inherit from the spec:**
+**Tradeoffs already decided in spec review (don't relitigate without a specific objection):**
 
-- The spec proposes shipping a full `PlayerView` with every
-  `event-appended`. This is the explicit non-optimization. If you find a
-  clean way to ship a diff against the prior view that doesn't blow up
-  the surface area, that's a legitimate win — but only if the diff
-  computation is cheaper and not more bug-prone than recomputing the
-  view. Default to the spec's choice; don't rebuild the world to save
-  ~1KB per move.
-- The "clock ticks as event-appended vs as their own message" question
-  in Open Questions matters. Pick one before you start; don't punt.
-- Capability flag vs protocol version field. Pick one. Lean toward
-  capability flag for now (lighter weight, single-feature) but explain
-  the choice in the PR.
+- Clock ticks: sibling `clock-tick` message, not part of `event-appended`. See "Decisions locked in review" in the main spec.
+- Capability flag (not protocol version) for this rollout, with a follow-up issue to add `protocolVersion` for the next wire change.
+- `event-appended` carries full `PlayerView`, not a diff. The spec calls this an explicit non-optimization; the privacy-bug risk of a clever diff is not worth ~1KB per move. **Don't try to be clever here.** If you genuinely find a clean diff with no new surface area, raise it as a separate proposal — don't bundle it into this migration.
 
 **When you're done:**
 
