@@ -54,8 +54,11 @@ interface GameResult {
   maxMoveLatencyMs: number;
 }
 
-type SnapshotMessage = {
-  type: 'snapshot';
+// Accepts both legacy `snapshot` (recovery / first frame) and the Phase 3
+// default `event-appended` (steady-state delta). Both carry the same `state`
+// shape via apps/server/src/payloads.ts → basePayloadFields.
+type StateMessage = {
+  type: 'snapshot' | 'event-appended';
   state?: {
     status?: { type: 'pregame' | 'playing' | 'finished'; turn?: 'white' | 'black'; reason?: string };
     moveNumber?: number;
@@ -102,9 +105,9 @@ async function play(client: TestClient, gameIdx: number): Promise<GameResult> {
     if (Date.now() - started > MAX_GAME_MS) return { gameIdx, moves, finished: false, note: 'max-game-ms', maxMoveLatencyMs: maxLat };
     if (moves >= MAX_MOVES) return { gameIdx, moves, finished: false, note: 'max-moves', maxMoveLatencyMs: maxLat };
 
-    let snap: SnapshotMessage;
+    let snap: StateMessage;
     try {
-      snap = await client.waitFor<SnapshotMessage>((m) => isActionable(m as SnapshotMessage, actedOnMove), { timeoutMs: MOVE_TIMEOUT_MS });
+      snap = await client.waitFor<StateMessage>((m) => isActionable(m as StateMessage, actedOnMove), { timeoutMs: MOVE_TIMEOUT_MS });
     } catch (err) {
       return { gameIdx, moves, finished: false, note: `wait-timeout:${(err as Error).message}`, maxMoveLatencyMs: maxLat };
     }
@@ -127,8 +130,8 @@ async function play(client: TestClient, gameIdx: number): Promise<GameResult> {
   }
 }
 
-function isActionable(msg: SnapshotMessage, actedOnMove: number): boolean {
-  if (msg.type !== 'snapshot') return false;
+function isActionable(msg: StateMessage, actedOnMove: number): boolean {
+  if (msg.type !== 'snapshot' && msg.type !== 'event-appended') return false;
   const status = msg.state?.status;
   if (!status) return false;
   if (status.type === 'finished') return true;

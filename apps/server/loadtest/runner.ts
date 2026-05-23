@@ -41,7 +41,7 @@ export interface RunnerOptions {
 const HTTP_TIMEOUT_MS = 10_000;
 
 type SnapshotMessage = {
-  type: 'snapshot';
+  type: 'snapshot' | 'event-appended';
   seat?: 'white' | 'black' | 'spectator';
   state?: {
     status?: { type: 'pregame' | 'playing' | 'finished'; turn?: Color; winner?: Color | null; reason?: string };
@@ -290,7 +290,9 @@ function isActionableSnapshot(
   mySeat: 'white' | 'black',
   actedOnMove: number,
 ): boolean {
-  if (msg.type !== 'snapshot') return false;
+  // Accepts both legacy `snapshot` and the Phase 3 default `event-appended`.
+  // Both carry the same `state` shape via apps/server/src/payloads.ts.
+  if (msg.type !== 'snapshot' && msg.type !== 'event-appended') return false;
   const status = msg.state?.status;
   if (!status) return false;
   // Finished snapshot also counts — we want to break out of the loop on it.
