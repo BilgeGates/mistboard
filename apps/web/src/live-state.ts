@@ -72,7 +72,7 @@ export type SoundController = {
   play(kind: SoundKind): void;
 };
 
-export type SoundKind = 'capture' | 'captured' | 'castle' | 'lose' | 'move' | 'win';
+export type SoundKind = 'capture' | 'captured' | 'castle' | 'king-capture' | 'lose' | 'move' | 'win';
 
 // ── Shared mutable state (accessed by both live-socket and live-render) ────────
 

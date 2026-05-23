@@ -2109,7 +2109,15 @@ function tonesForSound(kind: SoundKind): Array<{
   type: OscillatorType;
 }> {
   if (kind === 'capture') return [{ delay: 0, duration: 0.11, frequency: 180, gain: 0.075, type: 'triangle' }];
-  if (kind === 'captured') return [{ delay: 0, duration: 0.16, frequency: 120, gain: 0.08, type: 'sawtooth' }];
+  if (kind === 'captured') return [{ delay: 0, duration: 0.085, frequency: 130, gain: 0.04, type: 'sine' }];
+  if (kind === 'king-capture') {
+    return [
+      { delay: 0, duration: 0.1, frequency: 523.25, gain: 0.065, type: 'triangle' },
+      { delay: 0.07, duration: 0.12, frequency: 659.25, gain: 0.065, type: 'triangle' },
+      { delay: 0.15, duration: 0.14, frequency: 783.99, gain: 0.065, type: 'triangle' },
+      { delay: 0.24, duration: 0.28, frequency: 1046.5, gain: 0.075, type: 'triangle' },
+    ];
+  }
   if (kind === 'castle') {
     return [
       { delay: 0, duration: 0.1, frequency: 260, gain: 0.055, type: 'square' },
@@ -2188,6 +2196,7 @@ function soundForMove(beforeEvents: GameEvent[], event: Extract<GameEvent, { typ
   if (!captured) return 'move';
   if (captured.color === event.color) return 'move';
   if (liveState.seat !== 'spectator' && captured.color === liveState.seat) return 'captured';
+  if (captured.role === 'king') return 'king-capture';
   return 'capture';
 }
 
@@ -2207,7 +2216,9 @@ function soundForOwnMove(view: PlayerView | null, move: Move): SoundKind {
   if (isCastleMoveInView(view, move, piece.color)) return 'castle';
 
   const target = view.board[move.to];
-  if (target && target.color !== piece.color) return 'capture';
+  if (target && target.color !== piece.color) {
+    return target.role === 'king' ? 'king-capture' : 'capture';
+  }
   if (piece.role === 'pawn' && squareFileIndex(move.from) !== squareFileIndex(move.to)) return 'capture';
   return 'move';
 }
