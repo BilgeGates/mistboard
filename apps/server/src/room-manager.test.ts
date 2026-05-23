@@ -10,10 +10,12 @@ import {
 import type { WebSocket } from 'ws';
 import type { Seat } from './payloads.js';
 import {
+  ABORT_WINDOW_MS,
   appendEvent,
   applyOrphanRecoveryIfNeeded,
   broadcastSnapshot,
   buildGameSummary,
+  clearAbortTimer,
   expireActiveClock,
   pauseRoomOnShutdown,
   playMove,
@@ -21,6 +23,7 @@ import {
   resolveStartIfReady,
   resumeRoom,
   resumeRoomIfReady,
+  scheduleAbortTimeout,
   scheduleRandomEngineMove,
 } from './room-manager.js';
 import type { Client, Room } from './server-types.js';
@@ -52,6 +55,9 @@ function makeRoom(
     seatTokens: {},
     clockTimer: null,
     engineTimer: null,
+    abortTimer: null,
+    abortDeadline: null,
+    abortPhase: null,
     mode: 'pvp',
     rated: true,
     randomEngine: false,
@@ -983,4 +989,78 @@ test('playRandomEngineMoveIfReady: no-op on paused room (defense in depth)', asy
     before,
     'paused room must not record an engine move even if the callback fires',
   );
+});
+
+// ── scheduleAbortTimeout ──────────────────────────────────────────────────────
+
+function clockStartedEvents(id: string): GameEvent[] {
+  return [
+    { type: 'room-created', at: 1, roomId: id, variant: 'dark-chess', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: id, clientId: 'w', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: id, clientId: 'b', seat: 'black' },
+    { type: 'clock-started', at: 4, roomId: id, clock: createClock(4, 60_000, 0) },
+  ];
+}
+
+test('scheduleAbortTimeout: arms the white-1 window for a clocked pre-move-1 game', () => {
+  const room = makeRoom('abort-w1', 'dark-chess', clockStartedEvents('abort-w1'));
+  const ctx = makeCtx();
+  const before = Date.now();
+  scheduleAbortTimeout(ctx, room);
+  assert.equal(room.abortPhase, 'white-1');
+  assert.ok(room.abortTimer !== null, 'timer armed');
+  assert.ok(
+    room.abortDeadline !== null && room.abortDeadline >= before + ABORT_WINDOW_MS - 50,
+    'deadline ~30s out',
+  );
+  clearAbortTimer(room);
+});
+
+test('scheduleAbortTimeout: flips to black-1 after white completes move 1', () => {
+  const id = 'abort-b1';
+  const room = makeRoom(id, 'dark-chess', [
+    ...clockStartedEvents(id),
+    { type: 'move-played', at: 1000, roomId: id, color: 'white', move: { from: 'e2', to: 'e4' } },
+  ]);
+  const ctx = makeCtx();
+  scheduleAbortTimeout(ctx, room);
+  assert.equal(room.abortPhase, 'black-1');
+  assert.ok(room.abortTimer !== null);
+  clearAbortTimer(room);
+});
+
+test('scheduleAbortTimeout: clears the window once both players have moved', () => {
+  const id = 'abort-closed';
+  const room = makeRoom(id, 'dark-chess', [
+    ...clockStartedEvents(id),
+    { type: 'move-played', at: 1000, roomId: id, color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: 2000, roomId: id, color: 'black', move: { from: 'e7', to: 'e5' } },
+  ]);
+  const ctx = makeCtx();
+  scheduleAbortTimeout(ctx, room);
+  assert.equal(room.abortPhase, null);
+  assert.equal(room.abortDeadline, null);
+  assert.equal(room.abortTimer, null);
+});
+
+test('scheduleAbortTimeout: no window while the room is paused', () => {
+  const id = 'abort-paused';
+  const room = makeRoom(id, 'dark-chess', [
+    ...clockStartedEvents(id),
+    { type: 'pause', at: 1000, roomId: id, reason: 'shutdown' },
+  ]);
+  const ctx = makeCtx();
+  scheduleAbortTimeout(ctx, room);
+  assert.equal(room.abortPhase, null);
+  assert.equal(room.abortTimer, null);
+});
+
+test('scheduleAbortTimeout: re-running within the same phase preserves the deadline', () => {
+  const room = makeRoom('abort-stable', 'dark-chess', clockStartedEvents('abort-stable'));
+  const ctx = makeCtx();
+  scheduleAbortTimeout(ctx, room);
+  const firstDeadline = room.abortDeadline;
+  scheduleAbortTimeout(ctx, room);
+  assert.equal(room.abortDeadline, firstDeadline, 're-broadcast must not extend the window');
+  clearAbortTimer(room);
 });

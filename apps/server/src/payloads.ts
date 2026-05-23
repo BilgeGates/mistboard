@@ -28,6 +28,10 @@ export type SnapshotRoom = {
   rated?: boolean;
   rematch?: { offers: Partial<Record<Color, unknown>>; finalizedRoomId?: string };
   seatDisplayNames?: Partial<Record<Color, string>>;
+  // Absolute ms deadline for the current pre-move abort window, or null when no
+  // window is live. Sent to clients to render the abort countdown; survives
+  // reconnect since it's an absolute timestamp.
+  abortDeadline?: number | null;
 };
 
 export function computeConnectedSeats(clients: Iterable<{ seat: Seat; displaced: boolean }>): {
@@ -126,6 +130,7 @@ function basePayloadFields(room: SnapshotRoom, client: SnapshotClient) {
     state: getClientView(room, client),
     rated: room.rated ?? true,
     paused: room.projection.paused,
+    abortDeadline: room.abortDeadline ?? null,
     connectedSeats: computeConnectedSeats(room.clients),
     seatDisplayNames: room.seatDisplayNames ?? {},
     rematch: room.rematch

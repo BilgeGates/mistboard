@@ -45,6 +45,7 @@ import {
   broadcastSnapshot,
   buildGameSummary,
   canClientAct,
+  clearAbortTimer,
   offerForColor,
   PersistenceFailure,
   pauseRoomOnShutdown,
@@ -55,6 +56,7 @@ import {
   resumeRoom,
   resumeRoomIfReady,
   roomIdToSeed,
+  scheduleAbortTimeout,
   scheduleClockTimeout,
   scheduleRandomEngineMove,
   seatDisplayNamesForRoom,
@@ -322,6 +324,7 @@ export async function stopServer(): Promise<void> {
   for (const room of rooms.values()) {
     if (room.clockTimer) clearTimeout(room.clockTimer);
     if (room.engineTimer) clearTimeout(room.engineTimer);
+    clearAbortTimer(room);
     if (room.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
     for (const timer of Object.values(room.pendingVacates)) {
       if (timer) clearTimeout(timer);
@@ -714,6 +717,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
       const resumed = await resumeRoomIfReady(roomMgrCtx, room, Date.now());
       if (resumed) {
         scheduleClockTimeout(roomMgrCtx, room);
+        scheduleAbortTimeout(roomMgrCtx, room);
         scheduleRandomEngineMove(roomMgrCtx, room);
       }
     } catch (err) {
@@ -769,6 +773,7 @@ const KNOWN_CLIENT_MESSAGE_TYPES = new Set([
   'select-start',
   'move',
   'resign',
+  'abort',
   'rematch:offer',
   'rematch:cancel',
   'rematch:decline',
@@ -831,6 +836,9 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
     }
     if (message.type === 'resign') {
       await handleResign(room, client);
+    }
+    if (message.type === 'abort') {
+      await handleAbort(room, client);
     }
     if (message.type === 'rematch:offer') {
       offerRematch(rematchOrch, room, client);
@@ -1026,6 +1034,9 @@ async function getOrCreateRoom(
     seatTokens,
     clockTimer: null,
     engineTimer: null,
+    abortTimer: null,
+    abortDeadline: null,
+    abortPhase: null,
     mode,
     rated: true,
     randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
@@ -1045,6 +1056,7 @@ async function getOrCreateRoom(
   };
   rooms.set(roomId, room);
   scheduleClockTimeout(roomMgrCtx, room);
+  scheduleAbortTimeout(roomMgrCtx, room);
   scheduleRandomEngineMove(roomMgrCtx, room);
   // Hydrated room came back paused (last event was 'pause'). Arm the grace
   // timer so the game resumes even if both players don't reconnect in time.
@@ -1122,6 +1134,9 @@ async function createRoom(
       seatTokens: {},
       clockTimer: null,
       engineTimer: null,
+      abortTimer: null,
+      abortDeadline: null,
+      abortPhase: null,
       mode,
       rated,
       randomEngine: mode === 'pve',
@@ -1140,6 +1155,7 @@ async function createRoom(
     };
     rooms.set(roomId, room);
     scheduleClockTimeout(roomMgrCtx, room);
+    scheduleAbortTimeout(roomMgrCtx, room);
     scheduleRandomEngineMove(roomMgrCtx, room);
     return room;
   }
@@ -1537,6 +1553,26 @@ async function handleResign(room: Room, client: Client): Promise<void> {
   broadcastEventAppended(roomMgrCtx, room, fromSeq);
 }
 
+async function handleAbort(room: Room, client: Client): Promise<void> {
+  if (!canClientAct(room, client)) return;
+  if (client.seat !== 'white' && client.seat !== 'black') return;
+  if (room.projection.state.status.type !== 'playing') return;
+  // Abort is available only before both players have completed their first move,
+  // and only to the side whose move is pending (the same side that sees the
+  // Abort button in place of Resign). The reducer enforces the moveNumber guard
+  // too; this is the server-authority check on the inbound message.
+  if (room.projection.state.moveNumber >= 2) return;
+  if (room.projection.state.status.turn !== client.seat) return;
+  const fromSeq = room.events.length;
+  await appendEvent(roomMgrCtx, room, {
+    type: 'game-aborted',
+    at: Date.now(),
+    roomId: room.id,
+    reason: 'user-abort',
+  });
+  broadcastEventAppended(roomMgrCtx, room, fromSeq);
+}
+
 // ── SECTION: Room event infrastructure ─────────────────────────────────────
 function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null {
   const room = rooms.get(roomId);
@@ -1592,6 +1628,7 @@ function resetRoom(roomId: string): void {
   const room = rooms.get(roomId);
   if (room?.clockTimer) clearTimeout(room.clockTimer);
   if (room?.engineTimer) clearTimeout(room.engineTimer);
+  if (room) clearAbortTimer(room);
   if (room?.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
   rooms.delete(roomId);
 }
@@ -1863,6 +1900,7 @@ function armPauseGraceTimer(room: Room): void {
       .then(() => {
         if (room.projection.state.status.type === 'playing' && !room.projection.paused) {
           scheduleClockTimeout(roomMgrCtx, room);
+          scheduleAbortTimeout(roomMgrCtx, room);
           scheduleRandomEngineMove(roomMgrCtx, room);
         }
         broadcastEventAppended(roomMgrCtx, room, fromSeq);
@@ -1928,6 +1966,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   for (const room of rooms.values()) {
     if (room.clockTimer) clearTimeout(room.clockTimer);
     if (room.engineTimer) clearTimeout(room.engineTimer);
+    clearAbortTimer(room);
     if (room.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
   }
   if (abortPolicyTimer) clearInterval(abortPolicyTimer);

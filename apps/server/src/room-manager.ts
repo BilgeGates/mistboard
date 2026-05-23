@@ -384,7 +384,8 @@ export function broadcastSnapshot(ctx: RoomManagerContext, room: Room): void {
 export function broadcastEventAppended(ctx: RoomManagerContext, room: Room, fromSeq: number): void {
   const seatDisplayNames = seatDisplayNamesForRoom(room, ctx);
   const enrichedRoom = { ...room, seatDisplayNames };
-  const isGameEnd = room.projection.state.status.type === 'finished';
+  const statusType = room.projection.state.status.type;
+  const isGameEnd = statusType === 'finished' || statusType === 'aborted';
   for (const client of room.clients) {
     if (isGameEnd) {
       ctx.send(client, snapshotPayload(enrichedRoom, client));
@@ -419,6 +420,7 @@ export async function appendEvent(
     room.projection = replayGameEvents(room.events);
     room.mode = modeForProjection(room.projection);
     scheduleClockTimeout(ctx, room);
+    scheduleAbortTimeout(ctx, room);
     {
       const engineSeat = engineSeatFor(room);
       if (
@@ -445,6 +447,36 @@ export async function appendEvent(
           JSON.stringify({
             level: 'error',
             kind: 'game_end_record_failure',
+            roomId: room.id,
+            error: (err as Error).message,
+            at: Date.now(),
+          }),
+        );
+      }
+    }
+
+    // Pre-move abort: flip the games row to status='aborted' (no result). The
+    // precise reason lives in aborted_reason; termination reuses 'abandoned'
+    // (the canonical no-result terminal already in the DB constraint). Aborted
+    // games are excluded from every history/recent query (all filter
+    // status='completed'), so this never surfaces in profiles or feeds.
+    if (
+      persistence.isInitialized() &&
+      room.projection.state.status.type === 'aborted' &&
+      !room.gameEndRecorded
+    ) {
+      room.gameEndRecorded = true;
+      const reason = room.projection.state.status.reason;
+      try {
+        await persistence.abortRunningGame(room.id, {
+          termination: 'abandoned',
+          abortedReason: reason,
+        });
+      } catch (err) {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            kind: 'game_abort_record_failure',
             roomId: room.id,
             error: (err as Error).message,
             at: Date.now(),
@@ -506,6 +538,71 @@ export async function expireActiveClock(
     color,
     clock,
   });
+}
+
+// How long the side to move has to play their first move before the game is
+// auto-aborted. One window for white's move 1, then a fresh one for black's.
+export const ABORT_WINDOW_MS = 30_000;
+
+// Which pre-move abort window (if any) is live for the current state. Returns
+// null once both players have completed their first move (moveNumber >= 2),
+// when not playing. The clock is frozen throughout this phase, so this timer
+// is the only thing that resolves a game where a player never moves.
+function abortPhaseFor(state: GameProjection['state']): 'white-1' | 'black-1' | null {
+  if (state.status.type !== 'playing') return null;
+  if (state.moveNumber >= 2) return null;
+  return state.lastMove === undefined ? 'white-1' : 'black-1';
+}
+
+export function clearAbortTimer(room: Room): void {
+  if (room.abortTimer) clearTimeout(room.abortTimer);
+  room.abortTimer = null;
+}
+
+export function scheduleAbortTimeout(ctx: RoomManagerContext, room: Room): void {
+  clearAbortTimer(room);
+  const phase = abortPhaseFor(room.projection.state);
+  // No window once both first moves are in, while paused, or on an untimed
+  // room (no clock → no pre-move timing pressure).
+  if (phase === null || room.projection.paused || !room.projection.state.clock) {
+    room.abortDeadline = null;
+    room.abortPhase = null;
+    return;
+  }
+  // Only (re)start the deadline when the phase changes. Re-broadcasts and
+  // reconnects re-run this, but must not extend a window already counting down;
+  // white completing move 1 flips the phase and starts black a fresh window.
+  if (room.abortPhase !== phase || room.abortDeadline === null) {
+    room.abortPhase = phase;
+    room.abortDeadline = Date.now() + ABORT_WINDOW_MS;
+  }
+  const delay = Math.max(0, room.abortDeadline - Date.now());
+  room.abortTimer = setTimeout(() => {
+    if (abortPhaseFor(room.projection.state) === null) return;
+    if (room.projection.paused) return;
+    const fromSeq = room.events.length;
+    void appendEvent(ctx, room, {
+      type: 'game-aborted',
+      at: Date.now(),
+      roomId: room.id,
+      reason: 'pregame-timeout',
+    })
+      .then(() => broadcastEventAppended(ctx, room, fromSeq))
+      .catch((err) => {
+        if (!(err instanceof PersistenceFailure)) {
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              kind: 'abort_window_failure',
+              roomId: room.id,
+              error: (err as Error).message,
+              at: Date.now(),
+            }),
+          );
+        }
+      });
+  }, delay + 25);
+  room.abortTimer.unref();
 }
 
 // On hydrating a room post-restart, detect the case where a SIGKILL (or a
