@@ -1067,6 +1067,85 @@ if (!TEST_DATABASE_URL) {
     ]);
   });
 
+  test('rated PvP game updates both players Glicko ratings', async () => {
+    const now = new Date();
+    await createUser({
+      id: 'user_white',
+      email: 'w@example.com',
+      emailVerifiedAt: now,
+      handle: 'whiteplayer',
+      displayName: 'White',
+      now,
+    });
+    await createUser({
+      id: 'user_black',
+      email: 'b@example.com',
+      emailVerifiedAt: now,
+      handle: 'blackplayer',
+      displayName: 'Black',
+      now,
+    });
+
+    await recordGameEnd('rated-pvp-1', {
+      variant: 'dark-chess',
+      mode: 'pvp',
+      rated: true,
+      result: 'white-wins',
+      termination: 'king-captured',
+      plyCount: 30,
+      startedAt: now,
+      endedAt: now,
+      initialMs: 180000, // 3+2 → blitz bucket
+      incrementMs: 2000,
+      whiteClient: 'browser',
+      blackClient: 'browser',
+      whiteName: 'White',
+      blackName: 'Black',
+      corpusId: null,
+      participants: [
+        { color: 'white', displayName: 'White', subjectType: 'user', subjectId: 'user_white', visibility: 'public' },
+        { color: 'black', displayName: 'Black', subjectType: 'user', subjectId: 'user_black', visibility: 'public' },
+      ],
+      visibility: 'public',
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query<{
+        user_id: string;
+        elo_rating: number;
+        rating_deviation: number;
+        volatility: string;
+        games_played: number;
+      }>(
+        `SELECT user_id, elo_rating, rating_deviation, volatility, games_played
+         FROM user_ratings WHERE variant = 'fog' AND time_class = 'blitz'`,
+      );
+      assert.equal(rows.length, 2, 'both players got a rating row');
+      const white = rows.find((r) => r.user_id === 'user_white')!;
+      const black = rows.find((r) => r.user_id === 'user_black')!;
+      // Winner rises above the 1500 base, loser falls below it.
+      assert.ok(white.elo_rating > 1500, `white rating ${white.elo_rating}`);
+      assert.ok(black.elo_rating < 1500, `black rating ${black.elo_rating}`);
+      // RD tightened from the 350 default; volatility persisted.
+      assert.ok(white.rating_deviation < 350, `white RD ${white.rating_deviation}`);
+      assert.ok(Number(white.volatility) > 0, 'volatility stored');
+      assert.equal(white.games_played, 1);
+
+      // The per-game rating-event log (game_participants) recorded before/after.
+      const { rows: parts } = await client.query<{ elo_before: number; elo_after: number; rd_after: number }>(
+        `SELECT elo_before, elo_after, rd_after FROM game_participants
+         WHERE game_id = 'rated-pvp-1' AND color = 'white'`,
+      );
+      assert.equal(parts[0]!.elo_before, 1500);
+      assert.ok(parts[0]!.elo_after > 1500);
+      assert.ok(parts[0]!.rd_after < 350);
+    } finally {
+      await client.end();
+    }
+  });
+
   test('getUserProfileByHandle lists completed account-attributed games', async () => {
     const now = new Date('2026-05-08T10:00:00.000Z');
     await createUser({
