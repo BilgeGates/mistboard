@@ -37,6 +37,8 @@ type GameParticipant = {
   subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
   subjectId: string | null;
   visibility: 'private' | 'link' | 'unlisted' | 'public';
+  ratingBefore?: number | null;
+  ratingAfter?: number | null;
 };
 
 type PlayableEngine = {
@@ -395,8 +397,8 @@ function staticSampleGames(): FeaturedGame[] {
 
 function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
-    whiteName: displayParticipantName(game, 'white'),
-    blackName: displayParticipantName(game, 'black'),
+    whiteName: withRatingDelta(displayParticipantName(game, 'white'), participantForColor(game, 'white')),
+    blackName: withRatingDelta(displayParticipantName(game, 'black'), participantForColor(game, 'black')),
     gameUrl: reviewUrlForGame(game),
     modeLabel: sourceLabel(game.mode),
     result: game.result,
@@ -404,6 +406,18 @@ function gameMetaForGame(game: FeaturedGame): GameMeta {
     termination: game.termination,
     plyCount: game.plyCount,
   };
+}
+
+// Append the post-game rating change to a player's name on the game page, e.g.
+// "alice · 1662 (+162)". Only for rated games (both ratings present); casual
+// games and engines have no ratingBefore/After, so the name is returned as-is.
+function withRatingDelta(name: string, participant: GameParticipant | null): string {
+  if (!participant || participant.ratingBefore == null || participant.ratingAfter == null) {
+    return name;
+  }
+  const delta = participant.ratingAfter - participant.ratingBefore;
+  const sign = delta >= 0 ? '+' : '';
+  return `${name} · ${participant.ratingAfter} (${sign}${delta})`;
 }
 
 function reviewUrlForGame(game: FeaturedGame): string | null {

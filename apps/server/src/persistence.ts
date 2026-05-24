@@ -52,6 +52,11 @@ export type GameParticipant = {
   subjectType: GameParticipantSubjectType;
   subjectId: string | null;
   visibility: GameVisibility;
+  // Rating before/after this game, for rated games only (null otherwise). Lets
+  // the game page show the +/- delta. Optional so the many non-DB participant
+  // constructors don't need to supply it.
+  ratingBefore?: number | null;
+  ratingAfter?: number | null;
 };
 
 export type GameSummary = {
@@ -1553,8 +1558,11 @@ async function loadGameParticipants(roomIds: string[]): Promise<Map<string, Game
     subject_id: string | null;
     display_name: string;
     visibility: GameVisibility;
+    elo_before: number | null;
+    elo_after: number | null;
   }>(
-    `SELECT game_id, color, subject_type, subject_id, display_name, visibility
+    `SELECT game_id, color, subject_type, subject_id, display_name, visibility,
+            elo_before, elo_after
      FROM game_participants
      WHERE game_id = ANY($1)
      ORDER BY game_id, CASE color WHEN 'white' THEN 0 ELSE 1 END`,
@@ -1568,6 +1576,10 @@ async function loadGameParticipants(roomIds: string[]): Promise<Map<string, Game
       subjectType: row.subject_type,
       subjectId: row.subject_id,
       visibility: row.visibility,
+      // Only present for rated games; omitted (not null) for unrated so callers
+      // and tests that don't care see the original participant shape.
+      ...(row.elo_before != null ? { ratingBefore: row.elo_before } : {}),
+      ...(row.elo_after != null ? { ratingAfter: row.elo_after } : {}),
     };
     byGame.set(row.game_id, [...(byGame.get(row.game_id) ?? []), participant]);
   }

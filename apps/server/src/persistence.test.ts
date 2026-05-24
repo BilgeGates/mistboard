@@ -1146,6 +1146,12 @@ if (!TEST_DATABASE_URL) {
     } finally {
       await client.end();
     }
+
+    // The game summary exposes the rating delta so the game page can show +/-.
+    const summary = await getGameSummary('rated-pvp-1');
+    const wp = summary?.participants?.find((p) => p.color === 'white');
+    assert.equal(wp?.ratingBefore, 1500, 'summary exposes ratingBefore');
+    assert.ok((wp?.ratingAfter ?? 0) > 1500, 'summary exposes ratingAfter');
   });
 
   test('rated game rates on a forfeit (abandonment) termination', async () => {
