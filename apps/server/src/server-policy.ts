@@ -84,6 +84,8 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/arena' ||
     normalized === '/articles' ||
     normalized.startsWith('/articles/') ||
+    normalized.startsWith('/zh-hans/articles/') ||
+    normalized.startsWith('/zh-hant/articles/') ||
     normalized.startsWith('/game/') ||
     normalized.startsWith('/@/') ||
     normalized.startsWith('/room/')

@@ -76,6 +76,15 @@ const server = await createServer({
 try {
   const { buildArticlePage } = await server.ssrLoadModule('/src/articles.ts');
   const { articles } = await server.ssrLoadModule('/src/articles-data.ts');
+  const { translateArticle } = await server.ssrLoadModule('/src/article-i18n.ts');
+
+  // en + the two zh scripts. urlPrefix feeds canonical/hreflang URLs and output
+  // dir; htmlLang sets <html lang> and JSON-LD inLanguage.
+  const variants = [
+    { lang: null, urlPrefix: '', htmlLang: 'en', outDir: ['articles'] },
+    { lang: 'zh-Hans', urlPrefix: '/zh-hans', htmlLang: 'zh-Hans', outDir: ['zh-hans', 'articles'] },
+    { lang: 'zh-Hant', urlPrefix: '/zh-hant', htmlLang: 'zh-Hant', outDir: ['zh-hant', 'articles'] },
+  ];
 
   const shell = await fs.readFile(resolve(distDir, 'index.html'), 'utf-8');
   if (!shell.includes('<div id="app"></div>')) {
@@ -83,40 +92,58 @@ try {
   }
 
   const published = articles.filter((a) => a.status === 'published');
-  await fs.mkdir(resolve(distDir, 'articles'), { recursive: true });
+  let count = 0;
 
   for (const article of published) {
-    const main = buildArticlePage(article.slug);
-    const url = `${host}/articles/${encodeURIComponent(article.slug)}`;
-    const imageUrl = `${host}/og/article/${encodeURIComponent(article.slug)}.png`;
-    let html = shell.replace('<div id="app"></div>', `<div id="app">${main.outerHTML}</div>`);
-    html = injectPageMeta(html, {
-      title: `${article.title} | Mistboard`,
-      description: article.summary,
-      url,
-      imageUrl,
-    });
-    // schema.org Article: makes the page eligible for rich results and gives
-    // crawlers/LLMs an explicit, machine-readable summary of the canonical content.
-    const jsonLd = {
-      '@context': 'https://schema.org',
-      '@type': 'Article',
-      headline: article.title,
-      description: article.summary,
-      image: imageUrl,
-      author: { '@type': 'Organization', name: 'Mistboard' },
-      publisher: { '@type': 'Organization', name: 'Mistboard' },
-      mainEntityOfPage: { '@type': 'WebPage', '@id': url },
-      ...(article.publishedAt ? { datePublished: article.publishedAt } : {}),
-      ...(article.updatedAt ? { dateModified: article.updatedAt } : {}),
-    };
-    const ldScript = `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`;
-    html = html.replace('</head>', `${ldScript}</head>`);
-    const outPath = resolve(distDir, 'articles', `${article.slug}.html`);
-    await fs.writeFile(outPath, html, 'utf-8');
-    console.log(`prerendered /articles/${article.slug} (${html.length} bytes, body+${main.outerHTML.length})`);
+    const slug = encodeURIComponent(article.slug);
+    // OG card stays English for all variants for now (the card renderer has no
+    // CJK font; baking zh titles would render tofu). hreflang is identical on
+    // every variant: all three point at each other + x-default → English.
+    const imageUrl = `${host}/og/article/${slug}.png`;
+    const hreflang = [
+      `<link rel="alternate" hreflang="en" href="${host}/articles/${slug}" />`,
+      `<link rel="alternate" hreflang="zh-Hans" href="${host}/zh-hans/articles/${slug}" />`,
+      `<link rel="alternate" hreflang="zh-Hant" href="${host}/zh-hant/articles/${slug}" />`,
+      `<link rel="alternate" hreflang="x-default" href="${host}/articles/${slug}" />`,
+    ].join('');
+
+    for (const v of variants) {
+      const localized = v.lang ? translateArticle(article, v.lang) : article;
+      const main = buildArticlePage(article.slug, v.lang ?? undefined);
+      const url = `${host}${v.urlPrefix}/articles/${slug}`;
+      let html = shell
+        .replace('<html lang="en">', `<html lang="${v.htmlLang}">`)
+        .replace('<div id="app"></div>', `<div id="app">${main.outerHTML}</div>`);
+      html = injectPageMeta(html, {
+        title: `${localized.title} | Mistboard`,
+        description: localized.summary,
+        url,
+        imageUrl,
+      });
+      const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        inLanguage: v.htmlLang,
+        headline: localized.title,
+        description: localized.summary,
+        image: imageUrl,
+        author: { '@type': 'Organization', name: 'Mistboard' },
+        publisher: { '@type': 'Organization', name: 'Mistboard' },
+        mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+        ...(article.publishedAt ? { datePublished: article.publishedAt } : {}),
+        ...(article.updatedAt ? { dateModified: article.updatedAt } : {}),
+      };
+      const ldScript = `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`;
+      html = html.replace('</head>', `${hreflang}${ldScript}</head>`);
+
+      const dir = resolve(distDir, ...v.outDir);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(resolve(dir, `${article.slug}.html`), html, 'utf-8');
+      count += 1;
+      console.log(`prerendered ${v.urlPrefix}/articles/${article.slug} (lang=${v.htmlLang})`);
+    }
   }
-  console.log(`done: ${published.length} article(s)`);
+  console.log(`done: ${count} page(s) across ${published.length} article(s) × ${variants.length} langs`);
 } catch (err) {
   console.error('prerender failed:', err);
   process.exitCode = 1;

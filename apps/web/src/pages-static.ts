@@ -43,16 +43,22 @@ export async function mountArticlesIndex(root: HTMLElement): Promise<void> {
   mountArticleThumbnails(index);
 }
 
-export async function mountArticle(root: HTMLElement, slug: string): Promise<void> {
+export async function mountArticle(
+  root: HTMLElement,
+  slug: string,
+  lang?: import('./article-i18n.js').ArticleLang | null,
+): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
   const { buildArticlePage, mountPendingWidgets, mountArticleEnhancements } = await import(
     './articles.js'
   );
   const { findArticle } = await import('./articles-data.js');
-  const article = findArticle(slug);
+  const { translateArticle } = await import('./article-i18n.js');
+  const base = findArticle(slug);
+  const article = base && lang ? translateArticle(base, lang) : base;
   if (article) document.title = `${article.title} · Mistboard`;
-  const articlePage = buildArticlePage(slug);
+  const articlePage = buildArticlePage(slug, lang ?? undefined);
   root.append(buildNav(), articlePage, buildFooter());
   mountPendingWidgets(articlePage);
   mountArticleEnhancements(articlePage);

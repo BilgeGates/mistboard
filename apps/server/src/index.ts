@@ -530,10 +530,12 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
-  const articleRouteMatch = pathname.match(/^\/articles\/([^/]+)$/);
+  // Optional language prefix: /zh-hans/articles/<slug>, /zh-hant/articles/<slug>.
+  const articleRouteMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/articles\/([^/]+)$/);
   if (articleRouteMatch) {
-    const slug = decodeURIComponent(articleRouteMatch[1]!);
-    void serveArticlePage(slug, response).catch(() => {
+    const langPrefix = articleRouteMatch[1]; // 'zh-hans' | 'zh-hant' | undefined
+    const slug = decodeURIComponent(articleRouteMatch[2]!);
+    void serveArticlePage(slug, response, langPrefix).catch(() => {
       request.url = '/';
       void serveHandler(request, response, { public: staticDir });
     });
@@ -653,29 +655,50 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
 async function serveSitemap(response: ServerResponse): Promise<void> {
   const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
   const staticRoutes = ['/', '/articles', '/about', '/learn', '/leaderboard', '/source', '/faq'];
-  const articleSlugs = await fs
-    .readdir(resolve(staticDir, 'articles'))
-    .then((files) => files.filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -'.html'.length)))
-    .catch(() => [] as string[]);
-  const urls = [
-    ...staticRoutes,
-    ...articleSlugs.map((slug) => `/articles/${encodeURIComponent(slug)}`),
+  // Each article is listed once per pre-rendered language variant (dist/articles,
+  // dist/zh-hans/articles, dist/zh-hant/articles), so the published+translated set
+  // stays single-sourced in the prerender output.
+  const readSlugs = (dir: string): Promise<string[]> =>
+    fs
+      .readdir(resolve(staticDir, dir))
+      .then((files) =>
+        files.filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -'.html'.length)),
+      )
+      .catch(() => [] as string[]);
+  const langDirs: Array<[string, string]> = [
+    ['articles', '/articles'],
+    ['zh-hans/articles', '/zh-hans/articles'],
+    ['zh-hant/articles', '/zh-hant/articles'],
   ];
+  const articleUrls: string[] = [];
+  for (const [dir, urlBase] of langDirs) {
+    for (const slug of await readSlugs(dir)) {
+      articleUrls.push(`${urlBase}/${encodeURIComponent(slug)}`);
+    }
+  }
+  const urls = [...staticRoutes, ...articleUrls];
   const body = urls.map((path) => `  <url><loc>${host}${path}</loc></url>`).join('\n');
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
   response.writeHead(200, { 'content-type': 'application/xml; charset=utf-8' });
   response.end(xml);
 }
 
-async function serveArticlePage(slug: string, response: ServerResponse): Promise<void> {
+async function serveArticlePage(
+  slug: string,
+  response: ServerResponse,
+  langPrefix?: string,
+): Promise<void> {
   // Published articles are pre-rendered at build time (apps/web/scripts/
   // prerender-articles.mjs): prose + meta baked into the document so crawlers
-  // and LLMs see real content, not an empty #app. Serve that file when present;
-  // the client SPA still boots and rebuilds #app on takeover. Slug is validated
-  // to the slug charset so a decoded path can't escape the dist root.
-  if (/^[a-z0-9-]+$/.test(slug)) {
-    const prerenderedPath = resolve(staticDir, 'articles', `${slug}.html`);
-    const prerendered = await fs.readFile(prerenderedPath, 'utf-8').catch(() => null);
+  // and LLMs see real content, not an empty #app. Translated variants live under
+  // dist/<lang>/articles/<slug>.html. Serve the file when present; the client SPA
+  // still boots and rebuilds #app on takeover. Slug + lang are charset-validated
+  // so a decoded path can't escape the dist root.
+  if (/^[a-z0-9-]+$/.test(slug) && (langPrefix === undefined || /^zh-han[st]$/.test(langPrefix))) {
+    const segments = langPrefix
+      ? [staticDir, langPrefix, 'articles', `${slug}.html`]
+      : [staticDir, 'articles', `${slug}.html`];
+    const prerendered = await fs.readFile(resolve(...segments), 'utf-8').catch(() => null);
     if (prerendered !== null) {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       response.end(prerendered);
@@ -684,6 +707,8 @@ async function serveArticlePage(slug: string, response: ServerResponse): Promise
   }
 
   // Fallback for draft/outline articles (not pre-rendered): shell + meta only.
+  // Language-prefixed routes only ever serve pre-rendered files; a missing zh
+  // file falls through here to the English shell rather than 404, which is fine.
   const indexPath = resolve(staticDir, 'index.html');
   let html = await fs.readFile(indexPath, 'utf-8');
   const article = ARTICLE_META[slug];

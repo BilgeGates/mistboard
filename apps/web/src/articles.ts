@@ -22,6 +22,7 @@ import {
   type StaticBoardsBlock,
   type SubHeadingBlock,
 } from './articles-data.js';
+import { type ArticleLang, translateArticle } from './article-i18n.js';
 
 // Nav + footer come from landing.ts. We avoid re-implementing them by accepting
 // pre-built nodes from the caller — keeps this module standalone and testable.
@@ -64,10 +65,11 @@ export function buildArticlesIndex(): HTMLElement {
   return main;
 }
 
-export function buildArticlePage(slug: string): HTMLElement {
-  const article = findArticle(slug);
-  if (!article) return buildArticleNotFound();
-  if (!isArticleVisibleInThisEnv(article)) return buildArticleNotFound();
+export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement {
+  const base = findArticle(slug);
+  if (!base) return buildArticleNotFound();
+  if (!isArticleVisibleInThisEnv(base)) return buildArticleNotFound();
+  const article = lang ? translateArticle(base, lang) : base;
 
   const main = document.createElement('main');
   main.className = 'site-section article-page';

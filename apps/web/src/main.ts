@@ -1,5 +1,6 @@
 import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
+import type { ArticleLang } from './article-i18n.js';
 import { setPostHogInstance } from './analytics.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
@@ -64,6 +65,7 @@ const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
 const articleSlug = articleSlugFromPath(path);
+const articleLang = articleLangFromPath(path);
 const wantsArticlesIndex = path === '/articles' || page === 'articles';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
@@ -141,7 +143,9 @@ if (replaySample) {
 } else if (articleSlug) {
   setTitle('Articles');
   void mountOrReport(() =>
-    import('./pages-static.js').then(({ mountArticle }) => mountArticle(appRoot, articleSlug)),
+    import('./pages-static.js').then(({ mountArticle }) =>
+      mountArticle(appRoot, articleSlug, articleLang),
+    ),
   );
 } else if (wantsArticlesIndex) {
   setTitle('Articles');
@@ -248,7 +252,15 @@ function profileHandleFromPath(value: string): string | null {
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
+// Article routes accept an optional language prefix: /zh-hans/articles/<slug>,
+// /zh-hant/articles/<slug>. The slug parser strips it; the lang parser reports it.
 function articleSlugFromPath(value: string): string | null {
-  const match = value.match(/^\/articles\/([^/]+)$/);
+  const match = value.replace(/^\/zh-han[st]/, '').match(/^\/articles\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function articleLangFromPath(value: string): ArticleLang | null {
+  if (value.startsWith('/zh-hans/articles/')) return 'zh-Hans';
+  if (value.startsWith('/zh-hant/articles/')) return 'zh-Hant';
+  return null;
 }

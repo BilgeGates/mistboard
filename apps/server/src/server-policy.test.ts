@@ -299,6 +299,8 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/room/abc123'), true);
   assert.equal(isClientRoute('/@/brianhliou'), true);
   assert.equal(isClientRoute('/articles/draft960'), true);
+  assert.equal(isClientRoute('/zh-hans/articles/dark-chess-rules'), true);
+  assert.equal(isClientRoute('/zh-hant/articles/dark-chess-rules'), true);
 });
 
 test('isClientRoute rejects unknown paths', () => {
