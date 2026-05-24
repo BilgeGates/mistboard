@@ -20,6 +20,37 @@ from fow_chess.p_enum import PEnumerator, assert_truth_in_P
 # ---------------------------------------------------------------------------
 
 
+def test_max_size_cap_keeps_P_bounded():
+    """_maybe_downsample fires when input exceeds max_size."""
+    import random as _random
+    e = PEnumerator(chess.WHITE, max_size=5, rng=_random.Random(42))
+    # Build 20 distinct FEN strings as a fake P. They don't need to be
+    # valid chess positions — _maybe_downsample is data-agnostic.
+    oversized = {f"fake-fen-{i}" for i in range(20)}
+    result = e._maybe_downsample(oversized)
+    assert len(result) == 5
+    assert e.downsample_count == 1
+    # All kept items came from the input.
+    assert result.issubset(oversized)
+
+
+def test_max_size_no_op_when_under_cap():
+    """No downsample fires when input is already at/below max_size."""
+    import random as _random
+    e = PEnumerator(chess.WHITE, max_size=5, rng=_random.Random(42))
+    small = {f"f{i}" for i in range(3)}
+    result = e._maybe_downsample(small)
+    assert result == small  # unchanged
+    assert e.downsample_count == 0
+
+
+def test_max_size_none_preserves_exact_enumeration():
+    """Default max_size=None keeps the strict A3 guarantee."""
+    e = PEnumerator(chess.WHITE)
+    assert e.max_size is None
+    assert e.downsample_count == 0
+
+
 def test_iter_positions_streams_without_copy():
     """`iter_positions()` and `__iter__` should yield FENs directly from
     the internal set — no snapshot copy. This is the downstream-streaming

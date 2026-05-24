@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from typing import Iterator
 
 import chess
@@ -38,6 +39,18 @@ class PEnumerator:
             observation.
         starting_board: the canonical game-start board (defaults to
             standard chess starting position).
+        max_size: optional cap on |P|. When the post-update set exceeds
+            this, we downsample to ``max_size`` uniformly at random
+            (reservoir-style — every element has equal probability of
+            being kept). When set, the truth-in-P guarantee is no
+            longer strict: if the truth happens to be among the dropped
+            positions, downstream search reasons over a P that doesn't
+            include reality. Trade-off for tractability when |P|
+            explodes (per A3 benchmark, real games can hit |P|>200K).
+            ``None`` (default) keeps the exact-enumeration guarantee
+            from A3.
+        rng: deterministic RNG for downsampling. Only used when
+            ``max_size`` is set. Defaults to a fresh ``random.Random()``.
     """
 
     def __init__(
@@ -45,11 +58,17 @@ class PEnumerator:
         perspective: chess.Color,
         *,
         starting_board: chess.Board | None = None,
+        max_size: int | None = None,
+        rng: random.Random | None = None,
     ) -> None:
         self.perspective = perspective
         if starting_board is None:
             starting_board = chess.Board()
         self._positions: set[str] = {starting_board.fen()}
+        self.max_size = max_size
+        self._rng = rng if rng is not None else random.Random()
+        # Counter — incremented each time downsampling fires.
+        self.downsample_count = 0
 
     @property
     def positions(self) -> frozenset[str]:
@@ -112,7 +131,7 @@ class PEnumerator:
                 f"P became empty after own move {move.uci()}; no candidate "
                 f"position admitted it. This is a soundness violation."
             )
-        self._positions = new_positions
+        self._positions = self._maybe_downsample(new_positions)
 
     def update_opp_move(self, observation: Observation) -> None:
         """Apply an opponent move: for each p in P, enumerate opp's
@@ -141,7 +160,18 @@ class PEnumerator:
                 "produced an observation-consistent position. This is a "
                 "soundness violation."
             )
-        self._positions = new_positions
+        self._positions = self._maybe_downsample(new_positions)
+
+    def _maybe_downsample(self, positions: set[str]) -> set[str]:
+        """If max_size is set and |positions| > max_size, uniformly
+        downsample. Otherwise return positions unchanged."""
+        if self.max_size is None or len(positions) <= self.max_size:
+            return positions
+        # random.sample on a set converts to list internally; we do the
+        # same explicitly so the conversion is visible.
+        kept = self._rng.sample(list(positions), self.max_size)
+        self.downsample_count += 1
+        return set(kept)
 
     def __len__(self) -> int:
         return self.size

@@ -45,6 +45,12 @@ from .p_enum import PEnumerator
 _DEFAULT_I_SAMPLE_SIZE = 16
 _DEFAULT_ITERATIONS = 500
 _DEFAULT_MAX_ACTIONS = 1
+# Cap on |P| inside the EngineV2's PEnumerator. Per-move PEnumerator
+# update cost is O(|P| × branching) so this bounds per-move latency on
+# pathological long games where |P| would otherwise explode into the
+# 100K-1M range. Set to None to use the unbounded exact-enumeration
+# guarantee from A3 (slow but truth-in-P always holds).
+_DEFAULT_P_MAX_SIZE = 10_000
 
 
 class EngineV2:
@@ -67,12 +73,18 @@ class EngineV2:
         starting_board: chess.Board | None = None,
         stockfish: StockfishLeafEval | None = None,
         rng: random.Random | None = None,
+        p_max_size: int | None = _DEFAULT_P_MAX_SIZE,
     ) -> None:
         self.perspective = perspective
-        self.enumerator = PEnumerator(perspective, starting_board=starting_board)
+        self.rng = rng if rng is not None else random.Random()
+        self.enumerator = PEnumerator(
+            perspective,
+            starting_board=starting_board,
+            max_size=p_max_size,
+            rng=self.rng,
+        )
         self._stockfish = stockfish if stockfish is not None else StockfishLeafEval()
         self._owns_stockfish = stockfish is None
-        self.rng = rng if rng is not None else random.Random()
         # Diagnostic counters
         self.moves_chosen = 0
         self.last_solution = None  # MultiRootGTCFRSolution
