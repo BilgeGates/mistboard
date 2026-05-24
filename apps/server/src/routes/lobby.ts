@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RoomTimeControl } from '@mistboard/game';
+import { currentAccountUser } from './../account-session.js';
 import * as persistence from './../persistence.js';
 import type { LobbyTicket, Room } from './../server-types.js';
 import {
@@ -14,6 +15,11 @@ import {
 
 const lobbyTicketTtlMs = 5 * 60 * 1000;
 const lobbyPollAfterMs = 1_000;
+
+// Rated on-switch (Track 3). Off by default — flipping this to 'true' in prod is
+// the launch decision that makes rated games creatable. Even when on, rated
+// requires a signed-in requester (and the game-end account-gate still applies).
+const ratedEnabled = process.env.MISTBOARD_RATED_ENABLED === 'true';
 
 export async function tryHandle(
   ctx: HttpApiContext,
@@ -34,7 +40,11 @@ export async function tryHandle(
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-    const lobbyRated = body.rated === true;
+    // Rated requires the flag on AND a signed-in requester. A guest (or anyone
+    // when the flag is off) silently gets a casual ticket. Both sides of a match
+    // are rated tickets, and the game-end account-gate is the final backstop.
+    const lobbyRated =
+      ratedEnabled && body.rated === true && (await currentAccountUser(request)) !== null;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
