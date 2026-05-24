@@ -27,7 +27,7 @@ import {
 } from './http-api.js';
 import { runMigrations } from './migrate.js';
 import { logger, wsCounters } from './obs.js';
-import { serveGameOgImage } from './og-image.js';
+import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import { snapshotPayload } from './payloads.js';
 import * as persistence from './persistence.js';
 import {
@@ -484,6 +484,27 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
+  const articleOgMatch = pathname.match(/^\/og\/article\/([^/]+)\.png$/);
+  if (articleOgMatch) {
+    const slug = decodeURIComponent(articleOgMatch[1]!);
+    const meta = ARTICLE_META[slug];
+    try {
+      if (meta) {
+        serveArticleOgImage(slug, meta.title, response);
+      } else {
+        response.writeHead(302, { location: '/og-image.png' });
+        response.end();
+      }
+    } catch (err) {
+      console.warn('article og render failed', (err as Error).message);
+      if (!response.headersSent) {
+        response.writeHead(302, { location: '/og-image.png' });
+        response.end();
+      }
+    }
+    return;
+  }
+
   const gameRouteMatch = pathname.match(/^\/game\/([^/]+)$/);
   if (gameRouteMatch && persistence.isInitialized()) {
     const roomId = decodeURIComponent(gameRouteMatch[1]!);
@@ -622,6 +643,7 @@ async function serveArticlePage(slug: string, response: ServerResponse): Promise
       title: `${article.title} | Mistboard`,
       description: article.description,
       url,
+      imageUrl: `${host}/og/article/${encodeURIComponent(slug)}.png`,
     });
   }
   response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });

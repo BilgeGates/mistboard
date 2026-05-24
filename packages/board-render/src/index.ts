@@ -1,3 +1,10 @@
+export type { ArticleOgPosition } from './article-positions.js';
+export {
+  ARTICLE_OG_POSITIONS,
+  CONE_QUEEN_BOARD,
+  DISCOVERY_BOARD,
+  DRAFT960_OFFER_A,
+} from './article-positions.js';
 export type { PieceOnBoard } from './board-svg.js';
 export { fogPatternDefs, renderBoardSvg } from './board-svg.js';
 export type { BoardSpec, CompositionOptions } from './composition.js';

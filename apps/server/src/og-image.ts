@@ -1,5 +1,7 @@
 import type { ServerResponse } from 'node:http';
 import {
+  ARTICLE_OG_POSITIONS,
+  type ArticleOgPosition,
   boardToPieces,
   fogSquaresFromVisible,
   GREEN_PALETTE,
@@ -175,6 +177,63 @@ function writePng(response: ServerResponse, png: Buffer, cacheStatus: 'HIT' | 'M
 function redirectToDefault(response: ServerResponse): void {
   response.writeHead(302, { location: '/og-image.png' });
   response.end();
+}
+
+// Per-article share card: the article's thumbnail position (the same one the
+// /articles list shows, via ARTICLE_OG_POSITIONS) rendered green/solid, with
+// the article title below. Title is passed in by the route handler, which owns
+// the slug→title map. Falls back to the default card if the slug has no
+// thumbnail position.
+export function serveArticleOgImage(slug: string, title: string, response: ServerResponse): void {
+  const key = `article:${slug}`;
+  const cached = cacheGet(key);
+  if (cached) {
+    writePng(response, cached, 'HIT');
+    return;
+  }
+  const position = ARTICLE_OG_POSITIONS[slug];
+  if (!position) {
+    redirectToDefault(response);
+    return;
+  }
+  const png = svgToPng(renderArticleOgSvg(title, position));
+  cacheSet(key, png);
+  writePng(response, png, 'MISS');
+}
+
+function renderArticleOgSvg(title: string, position: ArticleOgPosition): string {
+  const boardSize = 360;
+  const boardY = 130;
+  const parts: string[] = [];
+  parts.push(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+  );
+  parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="80" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="24" font-weight="600" letter-spacing="3">MISTBOARD · DARK CHESS</text>`,
+  );
+  parts.push(
+    renderBoardComposition({
+      layout: 'single',
+      canvasWidth: OG_WIDTH,
+      boardY,
+      boardSize,
+      palette: GREEN_PALETTE,
+      fogStyle: 'solid',
+      boards: [
+        {
+          pieces: position.pieces,
+          fogSquares: position.fogSquares,
+          orientation: position.orientation ?? 'white',
+        },
+      ],
+    }),
+  );
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="${boardY + boardSize + 56}" text-anchor="middle" fill="#f3f4f6" font-family="${FONT}" font-size="34" font-weight="700">${escapeXml(title)}</text>`,
+  );
+  parts.push(`</svg>`);
+  return parts.join('');
 }
 
 function renderStubSvg(game: persistence.GameRecord): string {

@@ -6,7 +6,11 @@
 import {
   type BoardSpec,
   type CompositionLayout,
+  ARTICLE_OG_POSITIONS,
   boardToPieces,
+  CONE_QUEEN_BOARD,
+  DISCOVERY_BOARD,
+  DRAFT960_OFFER_A,
   fogSquaresFromVisible,
   piecesToBoard,
   startingPositionFromBackRank,
@@ -153,7 +157,7 @@ export type Article = {
 // game's starting position (NNRKBQRB / RNQKBBRN) so the offer the reader sees
 // in "The draft" is the same one that hits the board in "The starting
 // position".
-const DRAFT960_OFFER_A: PieceRole[] = ['knight', 'knight', 'rook', 'king', 'bishop', 'queen', 'rook', 'bishop'];
+// DRAFT960_OFFER_A is shared with the article OG card (article-positions.ts).
 const DRAFT960_OFFER_B: PieceRole[] = ['rook', 'knight', 'bishop', 'bishop', 'king', 'queen', 'knight', 'rook'];
 const DRAFT960_OFFER_C: PieceRole[] = ['queen', 'rook', 'bishop', 'knight', 'knight', 'bishop', 'king', 'rook'];
 
@@ -220,9 +224,7 @@ const CONE_ROOK = coneState('cone-rook', {
   e4: { color: 'white', role: 'rook' },
   c6: { color: 'white', role: 'rook' },
 });
-const CONE_QUEEN = coneState('cone-queen', {
-  e4: { color: 'white', role: 'queen' },
-});
+const CONE_QUEEN = coneState('cone-queen', CONE_QUEEN_BOARD);
 const CONE_PAWN = coneState('cone-pawn', {
   a2: { color: 'white', role: 'pawn' },
   b3: { color: 'white', role: 'pawn' },
@@ -330,13 +332,7 @@ const ENPASSANT_POSITIONS = ENPASSANT_STATES.map((state, i) => {
 // and both black pieces appear in white's view at once. The d1 rook keeps
 // the d-file in sight throughout. Demonstrates "moving a piece moves its
 // sight": new squares enter visibility on the next half-move.
-const DISCOVERY_BOARD: Board = {
-  g1: { color: 'white', role: 'king' },
-  d1: { color: 'white', role: 'rook' },
-  d2: { color: 'white', role: 'rook' },
-  h7: { color: 'black', role: 'king' },
-  b7: { color: 'black', role: 'queen' },
-};
+// DISCOVERY_BOARD is shared with the article OG card (article-positions.ts).
 const DISCOVERY_BEFORE: GameState = {
   id: 'dark-chess-rules-discovery',
   variant: 'dark-chess',
@@ -1153,11 +1149,7 @@ export const articles: Article[] = [
     updatedAt: '2026-05-22',
     audience:
       'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
-    thumbnail: {
-      pieces: boardToPieces(DARK_CHESS_START_STATE.board),
-      fogSquares: DARK_CHESS_START_FOG_W,
-      orientation: 'white',
-    },
+    thumbnail: ARTICLE_OG_POSITIONS['dark-chess-rules'],
     sections: [
       {
         heading: 'The starting position',
@@ -1444,10 +1436,7 @@ export const articles: Article[] = [
     status: 'outline',
     audience:
       'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
-    thumbnail: {
-      pieces: startingPositionFromBackRank(DRAFT960_OFFER_A),
-      orientation: 'white',
-    },
+    thumbnail: ARTICLE_OG_POSITIONS.draft960,
     sections: [
       {
         heading: 'The draft',
@@ -1532,11 +1521,7 @@ export const articles: Article[] = [
     status: 'outline',
     audience:
       'Chess engine developers, AI/ML researchers, software engineers curious about belief-state methods.',
-    thumbnail: {
-      pieces: boardToPieces(DISCOVERY_BEFORE.board),
-      fogSquares: DISCOVERY_BEFORE_FOG_W,
-      orientation: 'white',
-    },
+    thumbnail: ARTICLE_OG_POSITIONS['engine-belief-state'],
     tldr: [
       'Standard chess engines assume one ground-truth board. Dark chess requires reasoning over a distribution of possible truths.',
       'Particle filters are the tractable approximation: keep N candidate positions consistent with observations, simulate moves on each, aggregate.',
@@ -1629,11 +1614,7 @@ export const articles: Article[] = [
     status: 'outline',
     audience:
       'Engineers curious how a hidden-information game enforces visibility server-side.',
-    thumbnail: {
-      pieces: boardToPieces(CONE_QUEEN.board),
-      fogSquares: CONE_QUEEN_FOG,
-      orientation: 'white',
-    },
+    thumbnail: ARTICLE_OG_POSITIONS['server-enforced-fog'],
     tldr: [
       'Dark chess server-side: one PlayerView per recipient, hidden state never leaves the box.',
       'Captured wire payload + the identity layer the views rest on.',
