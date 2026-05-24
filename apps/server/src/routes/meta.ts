@@ -1,5 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { type HttpApiContext, requireMethod, writeJson } from './lib.js';
+import * as persistence from '../persistence.js';
+import {
+  type HttpApiContext,
+  isHttpAdminAuthorized,
+  requireMethod,
+  requirePersistence,
+  writeJson,
+} from './lib.js';
 
 export async function tryHandle(
   ctx: HttpApiContext,
@@ -27,6 +34,20 @@ export async function tryHandle(
       }
     }
     writeJson(response, 200, { playing, online: uniqueClientIds.size });
+    return true;
+  }
+
+  if (pathname === '/api/stats') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    // Canonical durable totals (accounts/games), unlike the in-memory
+    // /api/live-stats. Admin-gated: in prod requires the admin debug token;
+    // open in dev. Keep it unlinked from the UI so it isn't a scrape target.
+    if (!isHttpAdminAuthorized(request)) {
+      writeJson(response, 401, { error: 'unauthorized' });
+      return true;
+    }
+    if (!requirePersistence(response)) return true;
+    writeJson(response, 200, await persistence.getSiteStats());
     return true;
   }
 
