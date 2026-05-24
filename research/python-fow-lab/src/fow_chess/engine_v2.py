@@ -221,6 +221,7 @@ class EngineV2Strategy:
         time_budget_seconds: float | None = None,
         p_max_size: int | None = _DEFAULT_P_MAX_SIZE,
         max_actions: int = _DEFAULT_MAX_ACTIONS,
+        capture_telemetry: bool = False,
     ) -> None:
         self._seed = seed
         self._iterations = iterations
@@ -230,6 +231,12 @@ class EngineV2Strategy:
         self._max_actions = max_actions
         self._engine: EngineV2 | None = None
         self.perspective: chess.Color | None = None
+        # Per-ply telemetry. Append one row per observe_* / pick_move call.
+        # Off by default — long offline runs (200+ games) want it on so
+        # post-mortem analysis on |P| trajectory + per-ply wall is possible.
+        self._capture_telemetry = capture_telemetry
+        self.telemetry: list[dict] = []
+        self._ply_seen = 0
 
     def reset(self, perspective: chess.Color) -> None:
         # Close any prior engine to release Stockfish + reset state.
@@ -244,28 +251,67 @@ class EngineV2Strategy:
             rng=random.Random(self._seed),
             p_max_size=self._p_max_size,
         )
+        self.telemetry = []
+        self._ply_seen = 0
 
     def observe_own_move(self, move: chess.Move, observation) -> None:
         # selfplay.Strategy passes both move and observation; EngineV2
         # only needs the move (own moves are deterministic in P).
         if self._engine is None:
             raise RuntimeError("reset() must be called before observe_own_move")
-        self._engine.observe_own_move(move)
+        self._record(
+            "observe_own_move",
+            lambda: self._engine.observe_own_move(move),  # type: ignore[union-attr]
+        )
 
     def observe_opp_move(self, observation) -> None:
         if self._engine is None:
             raise RuntimeError("reset() must be called before observe_opp_move")
-        self._engine.observe_opp_move(observation)
+        self._record(
+            "observe_opp_move",
+            lambda: self._engine.observe_opp_move(observation),  # type: ignore[union-attr]
+        )
 
     def pick_move(self, view) -> chess.Move:
         if self._engine is None:
             raise RuntimeError("reset() must be called before pick_move")
-        return self._engine.choose_move(
-            iterations=self._iterations,
-            i_sample_size=self._i_sample_size,
-            time_budget_seconds=self._time_budget,
-            max_actions=self._max_actions,
-        )
+        chosen: list[chess.Move] = []
+
+        def _do() -> None:
+            chosen.append(
+                self._engine.choose_move(  # type: ignore[union-attr]
+                    iterations=self._iterations,
+                    i_sample_size=self._i_sample_size,
+                    time_budget_seconds=self._time_budget,
+                    max_actions=self._max_actions,
+                )
+            )
+
+        self._record("pick_move", _do)
+        return chosen[0]
+
+    def _record(self, kind: str, fn) -> None:
+        """Run ``fn`` with timing + |P| capture; append a telemetry row.
+        No-op timing path when capture is off (still calls ``fn``)."""
+        if not self._capture_telemetry:
+            fn()
+            return
+        import time as _time
+
+        eng = self._engine
+        p_pre = eng.enumerator.size if eng is not None else 0
+        t0 = _time.monotonic()
+        fn()
+        wall_ms = (_time.monotonic() - t0) * 1000.0
+        p_post = eng.enumerator.size if eng is not None else 0
+        self._ply_seen += 1
+        self.telemetry.append({
+            "ply": self._ply_seen,
+            "kind": kind,
+            "p_pre": p_pre,
+            "p_post": p_post,
+            "wall_ms": round(wall_ms, 2),
+        })
 
     def close(self) -> None:
         if self._engine is not None:

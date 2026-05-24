@@ -141,6 +141,7 @@ def _play_one_in_process(args: argparse.Namespace) -> int:
         i_sample_size=args.v2_i,
         time_budget_seconds=args.v2_time_budget if args.v2_time_budget > 0 else None,
         p_max_size=args.v2_p_max if args.v2_p_max > 0 else None,
+        capture_telemetry=True,
     )
     config = load_config(_TIER1_CONFIG)
     runtime_cm = bot_runtime(config, stockfish_path=args.stockfish)
@@ -166,6 +167,24 @@ def _play_one_in_process(args: argparse.Namespace) -> int:
         game_path = games_dir / game_filename
         game_path.write_text(_events_to_jsonl(result.events, room_id, "dark-chess"))
 
+        # Dump per-ply telemetry alongside the game events. One row per
+        # observe_*/pick_move call captured by EngineV2Strategy. Makes
+        # post-mortem on |P| trajectory + per-ply wall possible without
+        # re-running the game.
+        perply_filename = f"game-{game_idx:04d}-perply.jsonl"
+        perply_path = games_dir / perply_filename
+        with perply_path.open("w") as pf:
+            for row in v2.telemetry:
+                pf.write(json.dumps(row, separators=(",", ":")) + "\n")
+
+        # |P| explosion early-warning: surface the peak |P| seen this
+        # game. Easier than greping the perply jsonl after the fact.
+        p_peak = max((row.get("p_post", 0) for row in v2.telemetry), default=0)
+        p_pick_max = max(
+            (row.get("p_pre", 0) for row in v2.telemetry if row.get("kind") == "pick_move"),
+            default=0,
+        )
+
         record = {
             "game_idx": game_idx,
             "game_id": room_id,
@@ -177,9 +196,12 @@ def _play_one_in_process(args: argparse.Namespace) -> int:
             "truncated": result.truncated,
             "wall_seconds": round(wall, 2),
             "peak_rss_mb": round(_peak_rss_mb(), 1),
+            "p_peak": p_peak,
+            "p_peak_at_pick": p_pick_max,
             "seed_v2": seed + 7,
             "seed_v095": seed,
             "game_path": f"games/{game_filename}",
+            "perply_path": f"games/{perply_filename}",
         }
         # Single-line JSON on the LAST stdout line is the parent's contract.
         sys.stdout.write(json.dumps(record) + "\n")
@@ -420,7 +442,8 @@ def _run_orchestrator(args: argparse.Namespace) -> int:
                     f"  g{game_idx:04d} {row['outcome']} "
                     f"{row['end_reason']:18s} plies={row['plies']:3d} "
                     f"wall={row['wall_seconds']:6.1f}s "
-                    f"rss={row['peak_rss_mb']:6.0f}MB",
+                    f"rss={row['peak_rss_mb']:6.0f}MB "
+                    f"|P|peak={row.get('p_peak', 0):>7d}",
                     flush=True,
                 )
 
