@@ -9,6 +9,12 @@ import chess
 
 from ..observation import Observation, consistent_with
 
+try:
+    import fow_rust as _fow_rust
+    _HAS_RUST = True
+except ImportError:
+    _HAS_RUST = False
+
 
 class PEnumerator:
     """Maintains the set P of positions consistent with observation history.
@@ -144,16 +150,41 @@ class PEnumerator:
                 (soundness violation).
         """
         opp = not self.perspective
-        new_positions: set[str] = set()
-        for fen in self._positions:
-            prev = chess.Board(fen)
-            if prev.turn != opp:
-                continue
-            for move in prev.pseudo_legal_moves:
-                nxt = prev.copy()
-                nxt.push(move)
-                if consistent_with(nxt, prev, observation, self.perspective):
-                    new_positions.add(nxt.fen())
+        perspective_white = self.perspective == chess.WHITE
+
+        if _HAS_RUST:
+            obs_w, obs_b = _obs_piece_bitmasks(observation)
+            obs_visibility = int(observation.visibility_mask)
+            obs_own_idx = (
+                -1 if observation.own_capture_square is None
+                else int(observation.own_capture_square)
+            )
+            obs_opp_idx = (
+                -1 if observation.opp_capture_landing_square is None
+                else int(observation.opp_capture_landing_square)
+            )
+            kept = _fow_rust.update_opp_move_rust(
+                list(self._positions),
+                opp == chess.WHITE,
+                perspective_white,
+                obs_visibility,
+                obs_w[0], obs_w[1], obs_w[2], obs_w[3], obs_w[4], obs_w[5],
+                obs_b[0], obs_b[1], obs_b[2], obs_b[3], obs_b[4], obs_b[5],
+                obs_own_idx, obs_opp_idx,
+            )
+            new_positions: set[str] = set(kept)
+        else:
+            new_positions = set()
+            for fen in self._positions:
+                prev = chess.Board(fen)
+                if prev.turn != opp:
+                    continue
+                for move in prev.pseudo_legal_moves:
+                    nxt = prev.copy()
+                    nxt.push(move)
+                    if consistent_with(nxt, prev, observation, self.perspective):
+                        new_positions.add(nxt.fen())
+
         if not new_positions:
             raise RuntimeError(
                 "P became empty after opp move; no (predecessor, move) pair "
@@ -178,3 +209,19 @@ class PEnumerator:
 
     def __contains__(self, fen: str) -> bool:
         return fen in self._positions
+
+
+def _obs_piece_bitmasks(observation: Observation) -> tuple[list[int], list[int]]:
+    """Extract observation.visible_pieces into two 6-element bitmask lists
+    indexed by (piece_type - 1): [pawn, knight, bishop, rook, queen, king].
+    Returned as (white_masks, black_masks). One-time cost per
+    update_opp_move call — avoids per-(prev, move) dict iteration."""
+    obs_w = [0] * 6
+    obs_b = [0] * 6
+    for sq, piece in observation.visible_pieces.items():
+        bb = 1 << sq
+        if piece.color:
+            obs_w[piece.piece_type - 1] |= bb
+        else:
+            obs_b[piece.piece_type - 1] |= bb
+    return obs_w, obs_b

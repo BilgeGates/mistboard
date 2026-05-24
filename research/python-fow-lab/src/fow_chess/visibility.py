@@ -6,15 +6,48 @@ under the current board state, regardless of whose turn it is. Castling moves
 contribute the rook's original square (matching the mistboard fog castling
 representation). En passant moves additionally contribute the captured pawn's
 square.
+
+Hot-path acceleration: when the optional ``fow_rust`` extension is built
+(see fow_rust/), ``visible_squares`` delegates to a native Rust implementation
+that's ~60x faster per call. Identical semantics — verified via
+tests/test_rust_visible_squares_diff.py over 84 real games + every ply.
 """
 
 from __future__ import annotations
 
 import chess
 
+try:
+    import fow_rust as _fow_rust
+    _HAS_RUST = True
+except ImportError:
+    _HAS_RUST = False
+
 
 def visible_squares(board: chess.Board, color: chess.Color) -> chess.SquareSet:
     """Return squares visible to `color` under fog of war."""
+    if _HAS_RUST:
+        ep = board.ep_square
+        mask = _fow_rust.visible_squares_bb(
+            board.pawns,
+            board.knights,
+            board.bishops,
+            board.rooks,
+            board.queens,
+            board.kings,
+            board.occupied_co[chess.WHITE],
+            board.occupied_co[chess.BLACK],
+            board.castling_rights,
+            64 if ep is None else ep,
+            color == chess.WHITE,
+        )
+        return chess.SquareSet(mask)
+    return _visible_squares_py(board, color)
+
+
+def _visible_squares_py(board: chess.Board, color: chess.Color) -> chess.SquareSet:
+    """Pure-Python implementation. Kept as a fallback when fow_rust isn't built,
+    and as the differential-testing reference."""
     visible = chess.SquareSet(board.occupied_co[color])
     work = board if board.turn == color else _with_turn(board, color)
 
