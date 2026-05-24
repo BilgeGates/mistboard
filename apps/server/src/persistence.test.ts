@@ -5,6 +5,7 @@ import type { GameEvent } from '@mistboard/game';
 import pg from 'pg';
 import { runMigrations } from './migrate.js';
 import {
+  abortRunningGame,
   abortStaleGuestPrestartGames,
   appendEvent,
   close,
@@ -1142,6 +1143,83 @@ if (!TEST_DATABASE_URL) {
       assert.equal(parts[0]!.elo_before, 1500);
       assert.ok(parts[0]!.elo_after > 1500);
       assert.ok(parts[0]!.rd_after < 350);
+    } finally {
+      await client.end();
+    }
+  });
+
+  test('rated game rates on a forfeit (abandonment) termination', async () => {
+    // Rating is termination-independent: any completed rated PvP game rates.
+    // Forfeit (abandonment) is a real win, so it must move ratings like any other.
+    const now = new Date();
+    await createUser({ id: 'ff_w', email: 'ffw@e.com', emailVerifiedAt: now, handle: 'ffwhite', displayName: 'FFW', now });
+    await createUser({ id: 'ff_b', email: 'ffb@e.com', emailVerifiedAt: now, handle: 'ffblack', displayName: 'FFB', now });
+    await recordGameEnd('rated-forfeit', {
+      variant: 'dark-chess',
+      mode: 'pvp',
+      rated: true,
+      result: 'white-wins',
+      termination: 'abandonment',
+      plyCount: 12,
+      startedAt: now,
+      endedAt: now,
+      initialMs: 180000,
+      incrementMs: 2000,
+      whiteClient: 'b',
+      blackClient: 'b',
+      whiteName: 'FFW',
+      blackName: 'FFB',
+      corpusId: null,
+      participants: [
+        { color: 'white', displayName: 'FFW', subjectType: 'user', subjectId: 'ff_w', visibility: 'public' },
+        { color: 'black', displayName: 'FFB', subjectType: 'user', subjectId: 'ff_b', visibility: 'public' },
+      ],
+      visibility: 'public',
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query<{ user_id: string; elo_rating: number }>(
+        `SELECT user_id, elo_rating FROM user_ratings WHERE variant = 'fog' AND time_class = 'blitz'`,
+      );
+      assert.equal(rows.length, 2, 'forfeit rated both players');
+      assert.ok(rows.find((r) => r.user_id === 'ff_w')!.elo_rating > 1500, 'forfeit winner gained');
+      assert.ok(rows.find((r) => r.user_id === 'ff_b')!.elo_rating < 1500, 'forfeit loser lost');
+    } finally {
+      await client.end();
+    }
+  });
+
+  test('aborted game does not affect ratings', async () => {
+    // Aborts go through abortRunningGame (status='aborted'), never recordGameEnd,
+    // so they must never touch ratings — even for a rated PvP room of two accounts.
+    const now = new Date();
+    await createUser({ id: 'ab_w', email: 'abw@e.com', emailVerifiedAt: now, handle: 'abwhite', displayName: 'ABW', now });
+    await createUser({ id: 'ab_b', email: 'abb@e.com', emailVerifiedAt: now, handle: 'abblack', displayName: 'ABB', now });
+    await recordGameStart('rated-aborted', {
+      variant: 'dark-chess',
+      mode: 'pvp',
+      startedAt: now,
+      whiteClient: 'b',
+      blackClient: 'b',
+      whiteName: 'ABW',
+      blackName: 'ABB',
+      corpusId: null,
+    });
+    const aborted = await abortRunningGame('rated-aborted', {
+      abortedReason: 'user-abort',
+      termination: 'abandoned',
+    });
+    assert.equal(aborted, true, 'running game was aborted');
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query(`SELECT 1 FROM user_ratings WHERE user_id = ANY($1)`, [
+        ['ab_w', 'ab_b'],
+      ]);
+      assert.equal(rows.length, 0, 'aborted game created no rating rows');
     } finally {
       await client.end();
     }
