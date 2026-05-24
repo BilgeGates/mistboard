@@ -23,3 +23,49 @@ export const FOG_TILE_SIZE = 14;
 // Legacy flat-fog values, kept for any caller that hasn't migrated.
 export const FOG_FILL = '#1a1a1a';
 export const FOG_OPACITY = 0.78;
+
+// ── Palettes ──────────────────────────────────────────────────────────────
+// A palette bundles every color the static renderer needs so a single board
+// can be drawn in a theme other than the module-level default. Mirror values
+// from the matching `[data-board-theme="…"]` block in apps/web/src/styles.css.
+export type BoardPalette = {
+  light: string;
+  dark: string;
+  frame: string;
+  fogLightFill: string;
+  fogDarkFill: string;
+  fogLine: string;
+  fogLineSoft: string;
+  fogShadow: string;
+};
+
+// Default (brown) — matches the module constants above; this is what every
+// caller gets when no palette is passed.
+export const BROWN_PALETTE: BoardPalette = {
+  light: LIGHT_SQUARE,
+  dark: DARK_SQUARE,
+  frame: BOARD_FRAME,
+  fogLightFill: FOG_LIGHT_FILL,
+  fogDarkFill: FOG_DARK_FILL,
+  fogLine: FOG_LINE,
+  fogLineSoft: FOG_LINE_SOFT,
+  fogShadow: FOG_SHADOW,
+};
+
+// Tournament green — the product's *default* in-app theme
+// (apps/web/src/theme.ts), mirrored from the green block in styles.css.
+export const GREEN_PALETTE: BoardPalette = {
+  light: '#eeeed2',
+  dark: '#769656',
+  frame: '#2a3a2a',
+  fogLightFill: 'rgba(14, 22, 14, 0.74)',
+  fogDarkFill: 'rgba(8, 16, 10, 0.8)',
+  fogLine: 'rgba(8, 24, 12, 0.36)',
+  fogLineSoft: 'rgba(255, 255, 255, 0.08)',
+  fogShadow: 'rgba(238, 238, 210, 0.14)',
+};
+
+// Fog rendering style. 'striped' is the live-board diagonal texture; 'solid'
+// fills each fogged square with a flat frosted overlay (cleaner at share-card
+// scale, where fine stripes turn to noise after scraper recompression).
+export type FogStyle = 'striped' | 'solid';

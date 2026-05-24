@@ -1,16 +1,55 @@
 import type { ServerResponse } from 'node:http';
-import { type PieceOnBoard, renderBoardComposition } from '@mistboard/board-render';
-import type { Color, Square } from '@mistboard/game';
+import {
+  boardToPieces,
+  fogSquaresFromVisible,
+  GREEN_PALETTE,
+  type PieceOnBoard,
+  renderBoardComposition,
+} from '@mistboard/board-render';
+import {
+  applyGameEvent,
+  darkChessVariant,
+  type GameEvent,
+  initialGameProjection,
+  type Square,
+  variantForId,
+} from '@mistboard/game';
 import { Resvg } from '@resvg/resvg-js';
 import * as persistence from './persistence.js';
 
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
 
+// Bounded LRU of rendered per-game PNGs. Each card is rendered once on first
+// scraper fetch, then served from here (and from the scraper/CDN cache, via the
+// immutable Cache-Control header) — so this rarely sees repeat traffic per
+// game. The cap keeps memory bounded regardless of how many distinct games get
+// shared: at ~100-150 KB per PNG, 1000 entries is ~100-150 MB worst case.
+// Eviction is simplest-possible LRU: a Map keeps insertion order, so reads
+// re-insert (mark as recent) and writes drop the oldest key when over cap.
+const MAX_CACHE_ENTRIES = 1000;
 const cache = new Map<string, Buffer>();
 
+function cacheGet(roomId: string): Buffer | undefined {
+  const hit = cache.get(roomId);
+  if (hit) {
+    cache.delete(roomId);
+    cache.set(roomId, hit); // move to most-recently-used end
+  }
+  return hit;
+}
+
+function cacheSet(roomId: string, png: Buffer): void {
+  cache.set(roomId, png);
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
 export async function serveGameOgImage(roomId: string, response: ServerResponse): Promise<void> {
-  const cached = cache.get(roomId);
+  const cached = cacheGet(roomId);
   if (cached) {
     writePng(response, cached, 'HIT');
     return;
@@ -22,10 +61,106 @@ export async function serveGameOgImage(roomId: string, response: ServerResponse)
     return;
   }
 
-  const svg = renderStubSvg(game);
+  // Prefer the rich two-board card built from a real mid-game position. If the
+  // event log is missing or the replay throws, fall back to the text stub so a
+  // shared link always resolves to *some* card.
+  let svg: string;
+  try {
+    const position = await reconstructOgPosition(roomId, game.plyCount ?? 0);
+    svg = position ? renderGameOgSvg(game, position) : renderStubSvg(game);
+  } catch {
+    svg = renderStubSvg(game);
+  }
   const png = svgToPng(svg);
-  cache.set(roomId, png);
+  cacheSet(roomId, png);
   writePng(response, png, 'MISS');
+}
+
+type OgPosition = { pieces: PieceOnBoard[]; whiteFog: Square[]; blackFog: Square[] };
+
+// Replay the event log to a position 40-70% through the game, then compute each
+// side's fog there. The ply is randomized per render but the result is cached
+// immutably, so a given game link freezes on one position after its first
+// fetch (a share card shouldn't change every refresh). Returns null when there
+// are no moves to show, so the caller falls back to the text stub.
+async function reconstructOgPosition(roomId: string, plyCount: number): Promise<OgPosition | null> {
+  if (plyCount < 1) return null;
+  const events = await persistence.loadRoom(roomId);
+  if (!events || events.length === 0) return null;
+
+  const fraction = 0.4 + Math.random() * 0.3; // [0.4, 0.7]
+  const targetPly = Math.max(1, Math.round(plyCount * fraction));
+
+  let projection = initialGameProjection(events[0]?.roomId ?? roomId);
+  let pliesApplied = 0;
+  for (const event of events as GameEvent[]) {
+    projection = applyGameEvent(projection, event);
+    if (event.type === 'move-played') {
+      pliesApplied += 1;
+      if (pliesApplied >= targetPly) break;
+    }
+  }
+  if (pliesApplied === 0) return null;
+
+  const variant = variantForId(projection.variant);
+  const state = projection.state;
+  const pieces = boardToPieces(state.board);
+  const whiteFog = fogSquaresFromVisible(variant.getPlayerView(state, 'white').visibleSquares);
+  const blackFog = fogSquaresFromVisible(variant.getPlayerView(state, 'black').visibleSquares);
+  return { pieces, whiteFog, blackFog };
+}
+
+// Two boards of the same mid-game position — White's POV left, Black's POV
+// right — with each player's name under their board and the result below.
+function renderGameOgSvg(game: persistence.GameRecord, position: OgPosition): string {
+  const boardSize = 360;
+  const boardY = 140;
+  const labelY = boardY + boardSize + 40;
+  const white = escapeXml(truncateName(game.whiteName ?? 'White'));
+  const black = escapeXml(truncateName(game.blackName ?? 'Black'));
+  const plies = game.plyCount ?? 0;
+  const moves = Math.ceil(plies / 2);
+  const resultLine = `${escapeXml(resultLabel(game))} · ${moves} move${moves === 1 ? '' : 's'}`;
+
+  const xs = [OG_WIDTH / 2 - boardSize / 2 - 48, OG_WIDTH / 2 + boardSize / 2 + 48];
+  const parts: string[] = [];
+  parts.push(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+  );
+  parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="86" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="24" font-weight="600" letter-spacing="3">MISTBOARD · DARK CHESS</text>`,
+  );
+  parts.push(
+    renderBoardComposition({
+      layout: 'pair',
+      canvasWidth: OG_WIDTH,
+      boardY,
+      boardSize,
+      gap: 96,
+      palette: GREEN_PALETTE,
+      fogStyle: 'solid',
+      boards: [
+        { pieces: position.pieces, fogSquares: position.whiteFog, orientation: 'white' },
+        { pieces: position.pieces, fogSquares: position.blackFog, orientation: 'black' },
+      ],
+    }),
+  );
+  parts.push(
+    `<text x="${xs[0]}" y="${labelY}" text-anchor="middle" fill="#e5e7eb" font-family="${FONT}" font-size="26" font-weight="600">${white}</text>`,
+  );
+  parts.push(
+    `<text x="${xs[1]}" y="${labelY}" text-anchor="middle" fill="#e5e7eb" font-family="${FONT}" font-size="26" font-weight="600">${black}</text>`,
+  );
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="600" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="26">${resultLine}</text>`,
+  );
+  parts.push(`</svg>`);
+  return parts.join('');
+}
+
+function truncateName(name: string): string {
+  return name.length > 18 ? `${name.slice(0, 17)}…` : name;
 }
 
 function writePng(response: ServerResponse, png: Buffer, cacheStatus: 'HIT' | 'MISS'): void {
@@ -75,283 +210,72 @@ function escapeXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-// ── Default OG card: single hero board, mid-game position, fog visible ────────
+// ── Default OG card: two starting-position boards, one per POV ────────────────
 //
-// Architecture: a small curated pool of mid-game positions. `renderDefaultOgSvg`
-// picks one randomly per invocation. Re-run `npm run og:default --workspace
-// @mistboard/server` to bake a fresh pick into `apps/web/public/og-image.png`.
-// (Scrapers cache OG images aggressively, so request-time randomization gives
-// you exactly one variant per shared URL — bake-time is the right grain.)
+// The card shows the same opening position twice, side by side: the left board
+// is White's POV (Black's half fogged), the right is Black's POV (White's half
+// fogged). Fog is computed from the engine's real opening visibility, never
+// hand-faked, so the card always matches the game's rules. Green palette +
+// solid fog mirror the in-app default theme (apps/web/src/theme.ts). Re-run
+// `npm run og:default --workspace @mistboard/server` to re-bake
+// `apps/web/public/og-image.png`.
 
-type DefaultOgPosition = {
-  pieces: PieceOnBoard[];
-  fogSquares: Square[];
-  orientation: Color;
-};
+const FONT = 'system-ui, -apple-system, Helvetica, Arial, sans-serif';
 
-function defaultOgPositionPool(): DefaultOgPosition[] {
-  return [
-    positionMidgameDeveloped(),
-    positionBlackPovCentralPressure(),
-    positionWhitePovQueensidePressure(),
-  ];
-}
-
-// Hand-crafted believable mid-game position, white POV. White has castled
-// kingside and developed minor pieces; black has castled kingside, advanced a
-// pair of central pawns to c5/d5, and parked a knight on e5. Everything in
-// black's half except those three pieces is fogged.
-function positionMidgameDeveloped(): DefaultOgPosition {
-  const pieces: PieceOnBoard[] = [
-    // White
-    { color: 'white', role: 'rook', file: 0, rank: 0 }, // a1
-    { color: 'white', role: 'bishop', file: 2, rank: 0 }, // c1
-    { color: 'white', role: 'queen', file: 3, rank: 1 }, // d2
-    { color: 'white', role: 'bishop', file: 4, rank: 1 }, // e2
-    { color: 'white', role: 'rook', file: 5, rank: 0 }, // f1
-    { color: 'white', role: 'king', file: 6, rank: 0 }, // g1
-    { color: 'white', role: 'knight', file: 2, rank: 2 }, // c3
-    { color: 'white', role: 'knight', file: 5, rank: 2 }, // f3
-    { color: 'white', role: 'pawn', file: 0, rank: 1 }, // a2
-    { color: 'white', role: 'pawn', file: 1, rank: 1 }, // b2
-    { color: 'white', role: 'pawn', file: 2, rank: 3 }, // c4
-    { color: 'white', role: 'pawn', file: 3, rank: 3 }, // d4
-    { color: 'white', role: 'pawn', file: 4, rank: 2 }, // e3
-    { color: 'white', role: 'pawn', file: 5, rank: 1 }, // f2
-    { color: 'white', role: 'pawn', file: 6, rank: 1 }, // g2
-    { color: 'white', role: 'pawn', file: 7, rank: 1 }, // h2
-    // Black — the renderer skips pieces on fogged squares, so most of these
-    // are silent (they're "there" but the viewer doesn't see them).
-    { color: 'black', role: 'rook', file: 0, rank: 7 }, // a8
-    { color: 'black', role: 'bishop', file: 2, rank: 7 }, // c8
-    { color: 'black', role: 'queen', file: 3, rank: 7 }, // d8
-    { color: 'black', role: 'bishop', file: 4, rank: 6 }, // e7
-    { color: 'black', role: 'rook', file: 5, rank: 7 }, // f8
-    { color: 'black', role: 'king', file: 6, rank: 7 }, // g8
-    { color: 'black', role: 'knight', file: 2, rank: 6 }, // c7
-    { color: 'black', role: 'knight', file: 4, rank: 4 }, // e5 — visible
-    { color: 'black', role: 'pawn', file: 0, rank: 6 }, // a7
-    { color: 'black', role: 'pawn', file: 1, rank: 5 }, // b6
-    { color: 'black', role: 'pawn', file: 2, rank: 4 }, // c5 — visible
-    { color: 'black', role: 'pawn', file: 3, rank: 4 }, // d5 — visible
-    { color: 'black', role: 'pawn', file: 4, rank: 5 }, // e6
-    { color: 'black', role: 'pawn', file: 5, rank: 6 }, // f7
-    { color: 'black', role: 'pawn', file: 6, rank: 6 }, // g7
-    { color: 'black', role: 'pawn', file: 7, rank: 6 }, // h7
-  ];
-
-  // White POV: visible rank-5 squares are b5/c5/d5/e5/g5 (knight jumps + pawn
-  // captures). Ranks 6-8 fully fogged; a5/f5/h5 also fogged.
-  const fogSquares: Square[] = [
-    'a5',
-    'f5',
-    'h5',
-    'a6',
-    'b6',
-    'c6',
-    'd6',
-    'e6',
-    'f6',
-    'g6',
-    'h6',
-    'a7',
-    'b7',
-    'c7',
-    'd7',
-    'e7',
-    'f7',
-    'g7',
-    'h7',
-    'a8',
-    'b8',
-    'c8',
-    'd8',
-    'e8',
-    'f8',
-    'g8',
-    'h8',
-  ];
-
-  return { pieces, fogSquares, orientation: 'white' };
-}
-
-// Black POV: mirror of the central-pressure scenario from the other side.
-// White has parked a knight on d5 and pushed central pawns; black's developed
-// pieces sit below in the rendered orientation while ranks 1-3 (white's
-// territory) are fully fogged.
-function positionBlackPovCentralPressure(): DefaultOgPosition {
-  const pieces: PieceOnBoard[] = [
-    // White
-    { color: 'white', role: 'rook', file: 0, rank: 0 }, // a1
-    { color: 'white', role: 'bishop', file: 2, rank: 0 }, // c1
-    { color: 'white', role: 'queen', file: 3, rank: 0 }, // d1
-    { color: 'white', role: 'king', file: 4, rank: 0 }, // e1
-    { color: 'white', role: 'bishop', file: 4, rank: 2 }, // e3
-    { color: 'white', role: 'rook', file: 7, rank: 0 }, // h1
-    { color: 'white', role: 'knight', file: 2, rank: 2 }, // c3
-    { color: 'white', role: 'knight', file: 3, rank: 4 }, // d5 — visible
-    { color: 'white', role: 'pawn', file: 0, rank: 1 }, // a2
-    { color: 'white', role: 'pawn', file: 1, rank: 1 }, // b2
-    { color: 'white', role: 'pawn', file: 2, rank: 1 }, // c2
-    { color: 'white', role: 'pawn', file: 3, rank: 3 }, // d4 — visible
-    { color: 'white', role: 'pawn', file: 4, rank: 3 }, // e4 — visible
-    { color: 'white', role: 'pawn', file: 5, rank: 1 }, // f2
-    { color: 'white', role: 'pawn', file: 6, rank: 1 }, // g2
-    { color: 'white', role: 'pawn', file: 7, rank: 1 }, // h2
-    // Black
-    { color: 'black', role: 'rook', file: 0, rank: 7 }, // a8
-    { color: 'black', role: 'bishop', file: 2, rank: 7 }, // c8
-    { color: 'black', role: 'queen', file: 3, rank: 7 }, // d8
-    { color: 'black', role: 'bishop', file: 4, rank: 6 }, // e7
-    { color: 'black', role: 'rook', file: 5, rank: 7 }, // f8
-    { color: 'black', role: 'king', file: 6, rank: 7 }, // g8
-    { color: 'black', role: 'knight', file: 2, rank: 5 }, // c6
-    { color: 'black', role: 'knight', file: 5, rank: 5 }, // f6
-    { color: 'black', role: 'pawn', file: 0, rank: 6 }, // a7
-    { color: 'black', role: 'pawn', file: 1, rank: 6 }, // b7
-    { color: 'black', role: 'pawn', file: 2, rank: 6 }, // c7
-    { color: 'black', role: 'pawn', file: 3, rank: 5 }, // d6
-    { color: 'black', role: 'pawn', file: 4, rank: 5 }, // e6
-    { color: 'black', role: 'pawn', file: 5, rank: 6 }, // f7
-    { color: 'black', role: 'pawn', file: 6, rank: 6 }, // g7
-    { color: 'black', role: 'pawn', file: 7, rank: 6 }, // h7
-  ];
-
-  // Black POV: visible rank-4 squares are b4/d4/e4/g4 (knight jumps from c6/f6).
-  // Rank 5 fully visible. Ranks 1-3 fully fogged; rank-4 squares a4/c4/f4/h4 fogged.
-  const fogSquares: Square[] = [
-    'a1',
-    'b1',
-    'c1',
-    'd1',
-    'e1',
-    'f1',
-    'g1',
-    'h1',
-    'a2',
-    'b2',
-    'c2',
-    'd2',
-    'e2',
-    'f2',
-    'g2',
-    'h2',
-    'a3',
-    'b3',
-    'c3',
-    'd3',
-    'e3',
-    'f3',
-    'g3',
-    'h3',
-    'a4',
-    'c4',
-    'f4',
-    'h4',
-  ];
-
-  return { pieces, fogSquares, orientation: 'black' };
-}
-
-// White POV variant: similar mid-game stage as positionMidgameDeveloped, but
-// black's pressure is on the queenside (bishop landed on b5, c-pawn pushed).
-// Different visible intruders so re-rolling the bake gives meaningful variety.
-function positionWhitePovQueensidePressure(): DefaultOgPosition {
-  const pieces: PieceOnBoard[] = [
-    // White
-    { color: 'white', role: 'rook', file: 0, rank: 0 }, // a1
-    { color: 'white', role: 'bishop', file: 2, rank: 0 }, // c1
-    { color: 'white', role: 'queen', file: 3, rank: 1 }, // d2
-    { color: 'white', role: 'bishop', file: 4, rank: 1 }, // e2
-    { color: 'white', role: 'rook', file: 5, rank: 0 }, // f1
-    { color: 'white', role: 'king', file: 6, rank: 0 }, // g1
-    { color: 'white', role: 'knight', file: 2, rank: 2 }, // c3
-    { color: 'white', role: 'knight', file: 5, rank: 2 }, // f3
-    { color: 'white', role: 'pawn', file: 0, rank: 1 }, // a2
-    { color: 'white', role: 'pawn', file: 1, rank: 1 }, // b2
-    { color: 'white', role: 'pawn', file: 2, rank: 3 }, // c4
-    { color: 'white', role: 'pawn', file: 3, rank: 3 }, // d4
-    { color: 'white', role: 'pawn', file: 4, rank: 2 }, // e3
-    { color: 'white', role: 'pawn', file: 5, rank: 1 }, // f2
-    { color: 'white', role: 'pawn', file: 6, rank: 1 }, // g2
-    { color: 'white', role: 'pawn', file: 7, rank: 1 }, // h2
-    // Black
-    { color: 'black', role: 'rook', file: 0, rank: 7 }, // a8
-    { color: 'black', role: 'bishop', file: 2, rank: 7 }, // c8
-    { color: 'black', role: 'queen', file: 3, rank: 7 }, // d8
-    { color: 'black', role: 'bishop', file: 1, rank: 4 }, // b5 — visible (queenside intruder)
-    { color: 'black', role: 'rook', file: 5, rank: 7 }, // f8
-    { color: 'black', role: 'king', file: 6, rank: 7 }, // g8
-    { color: 'black', role: 'knight', file: 2, rank: 6 }, // c7
-    { color: 'black', role: 'knight', file: 5, rank: 5 }, // f6 — hidden in fog
-    { color: 'black', role: 'pawn', file: 0, rank: 6 }, // a7
-    { color: 'black', role: 'pawn', file: 1, rank: 5 }, // b6
-    { color: 'black', role: 'pawn', file: 2, rank: 4 }, // c5 — visible
-    { color: 'black', role: 'pawn', file: 3, rank: 4 }, // d5 — visible
-    { color: 'black', role: 'pawn', file: 4, rank: 5 }, // e6
-    { color: 'black', role: 'pawn', file: 5, rank: 6 }, // f7
-    { color: 'black', role: 'pawn', file: 6, rank: 6 }, // g7
-    { color: 'black', role: 'pawn', file: 7, rank: 6 }, // h7
-  ];
-
-  const fogSquares: Square[] = [
-    'a5',
-    'f5',
-    'h5',
-    'a6',
-    'b6',
-    'c6',
-    'd6',
-    'e6',
-    'f6',
-    'g6',
-    'h6',
-    'a7',
-    'b7',
-    'c7',
-    'd7',
-    'e7',
-    'f7',
-    'g7',
-    'h7',
-    'a8',
-    'b8',
-    'c8',
-    'd8',
-    'e8',
-    'f8',
-    'g8',
-    'h8',
-  ];
-
-  return { pieces, fogSquares, orientation: 'white' };
+// Standard starting position plus each side's real opening fog.
+function openingBoards(): { pieces: PieceOnBoard[]; whiteFog: Square[]; blackFog: Square[] } {
+  const state = darkChessVariant.createInitialState('og-default');
+  const pieces = boardToPieces(state.board);
+  const whiteFog = fogSquaresFromVisible(
+    darkChessVariant.getPlayerView(state, 'white').visibleSquares,
+  );
+  const blackFog = fogSquaresFromVisible(
+    darkChessVariant.getPlayerView(state, 'black').visibleSquares,
+  );
+  return { pieces, whiteFog, blackFog };
 }
 
 export function renderDefaultOgSvg(): string {
-  const pool = defaultOgPositionPool();
-  const pick = pool[Math.floor(Math.random() * pool.length)]!;
-  const boardSize = 440;
-  const boardY = 120;
+  const { pieces, whiteFog, blackFog } = openingBoards();
+  const boardSize = 360;
+  const boardY = 150;
+  const labelY = boardY + boardSize + 40;
 
   const parts: string[] = [];
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
   );
   parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
+  // Brand wordmark — large, centered.
   parts.push(
-    `<text x="80" y="80" fill="#e5e7eb" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="3">MISTBOARD</text>`,
+    `<text x="${OG_WIDTH / 2}" y="92" text-anchor="middle" fill="#f3f4f6" font-family="${FONT}" font-size="56" font-weight="800" letter-spacing="6">MISTBOARD</text>`,
   );
   parts.push(
     renderBoardComposition({
-      layout: 'single',
+      layout: 'pair',
       canvasWidth: OG_WIDTH,
       boardY,
       boardSize,
-      boards: [{ pieces: pick.pieces, fogSquares: pick.fogSquares, orientation: pick.orientation }],
+      gap: 96,
+      palette: GREEN_PALETTE,
+      fogStyle: 'solid',
+      boards: [
+        { pieces, fogSquares: whiteFog, orientation: 'white' },
+        { pieces, fogSquares: blackFog, orientation: 'black' },
+      ],
     }),
   );
+  // Per-board POV captions, just under each board.
+  const xs = [OG_WIDTH / 2 - boardSize / 2 - 48, OG_WIDTH / 2 + boardSize / 2 + 48];
   parts.push(
-    `<text x="${OG_WIDTH / 2}" y="600" text-anchor="middle" fill="#e5e7eb" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="26" font-weight="500">Chess where you only see what your pieces see.</text>`,
+    `<text x="${xs[0]}" y="${labelY}" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="22" letter-spacing="1">White's view</text>`,
+  );
+  parts.push(
+    `<text x="${xs[1]}" y="${labelY}" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="22" letter-spacing="1">Black's view</text>`,
+  );
+  // Tagline — slightly larger than before.
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="600" text-anchor="middle" fill="#e5e7eb" font-family="${FONT}" font-size="30" font-weight="500">Chess where you only see what your pieces see.</text>`,
   );
   parts.push(`</svg>`);
   return parts.join('');

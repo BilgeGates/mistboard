@@ -11,10 +11,13 @@ export {
   piecesToBoard,
   startingPositionFromBackRank,
 } from './positions.js';
+export type { BoardPalette, FogStyle } from './tokens.js';
 export {
   BOARD_BORDER,
+  BROWN_PALETTE,
   DARK_SQUARE,
   FOG_FILL,
   FOG_OPACITY,
+  GREEN_PALETTE,
   LIGHT_SQUARE,
 } from './tokens.js';

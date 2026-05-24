@@ -1,6 +1,7 @@
 import type { Color, Square } from '@mistboard/game';
 import { fogPatternDefs, type PieceOnBoard, renderBoardSvg } from './board-svg.js';
 import { boardsInLayout, type CompositionLayout, layoutPlacements } from './layouts.js';
+import type { BoardPalette, FogStyle } from './tokens.js';
 
 export type BoardSpec = {
   pieces: PieceOnBoard[];
@@ -20,6 +21,8 @@ export type CompositionOptions = {
   labelFill?: string;
   labelFontSize?: number;
   labelLetterSpacing?: number;
+  palette?: BoardPalette;
+  fogStyle?: FogStyle;
 };
 
 const DEFAULT_GAP = 144;
@@ -43,6 +46,8 @@ export function renderBoardComposition(opts: CompositionOptions): string {
     labelFill = DEFAULT_LABEL_FILL,
     labelFontSize = DEFAULT_LABEL_FONT_SIZE,
     labelLetterSpacing = DEFAULT_LABEL_LETTER_SPACING,
+    palette,
+    fogStyle,
   } = opts;
 
   const expected = boardsInLayout(layout);
@@ -51,7 +56,7 @@ export function renderBoardComposition(opts: CompositionOptions): string {
   }
 
   const xs = layoutPlacements(layout, canvasWidth, boardSize, gap);
-  const parts: string[] = [fogPatternDefs(boardSize)];
+  const parts: string[] = [fogPatternDefs(boardSize, palette)];
 
   for (let i = 0; i < boards.length; i += 1) {
     const label = boards[i]!.label;
@@ -71,6 +76,7 @@ export function renderBoardComposition(opts: CompositionOptions): string {
         boardY,
         boardSize,
         b.orientation ?? 'white',
+        { palette, fogStyle },
       ),
     );
   }

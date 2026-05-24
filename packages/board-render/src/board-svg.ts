@@ -1,15 +1,10 @@
 import type { Color, PieceRole, Square } from '@mistboard/game';
 import { PIECE_SVGS } from './pieces.js';
 import {
-  BOARD_BORDER,
-  DARK_SQUARE,
-  FOG_DARK_FILL,
-  FOG_LIGHT_FILL,
-  FOG_LINE,
-  FOG_LINE_SOFT,
-  FOG_SHADOW,
+  type BoardPalette,
+  BROWN_PALETTE,
   FOG_TILE_SIZE,
-  LIGHT_SQUARE,
+  type FogStyle,
 } from './tokens.js';
 
 export type PieceOnBoard = { file: number; rank: number; color: Color; role: PieceRole };
@@ -32,7 +27,7 @@ function squareToFileRank(square: Square): { file: number; rank: number } {
 // to userSpaceOnUse, the stripes inside the pattern stay in pixel coords
 // (3 px wide, 14 px tile), so the stripe density matches the CSS pattern
 // regardless of board size.
-export function fogPatternDefs(boardSize: number): string {
+export function fogPatternDefs(boardSize: number, palette: BoardPalette = BROWN_PALETTE): string {
   const t = FOG_TILE_SIZE;
   const sq = boardSize / 8;
   // Tile as a fraction of the filled square's bounding box. For a 25 px
@@ -43,14 +38,14 @@ export function fogPatternDefs(boardSize: number): string {
   return [
     `<defs>`,
     `<pattern id="${FOG_LIGHT_PATTERN_ID}" patternUnits="objectBoundingBox" patternContentUnits="userSpaceOnUse" width="${tileOBB}" height="${tileOBB}" patternTransform="rotate(45)">`,
-    `<rect width="${t}" height="${t}" fill="${FOG_LIGHT_FILL}"/>`,
-    `<rect width="3" height="${t}" fill="${FOG_LINE}"/>`,
-    `<rect x="7" width="3" height="${t}" fill="${FOG_LINE_SOFT}"/>`,
+    `<rect width="${t}" height="${t}" fill="${palette.fogLightFill}"/>`,
+    `<rect width="3" height="${t}" fill="${palette.fogLine}"/>`,
+    `<rect x="7" width="3" height="${t}" fill="${palette.fogLineSoft}"/>`,
     `</pattern>`,
     `<pattern id="${FOG_DARK_PATTERN_ID}" patternUnits="objectBoundingBox" patternContentUnits="userSpaceOnUse" width="${tileOBB}" height="${tileOBB}" patternTransform="rotate(45)">`,
-    `<rect width="${t}" height="${t}" fill="${FOG_DARK_FILL}"/>`,
-    `<rect width="3" height="${t}" fill="${FOG_LINE_SOFT}"/>`,
-    `<rect x="7" width="3" height="${t}" fill="${FOG_LINE}"/>`,
+    `<rect width="${t}" height="${t}" fill="${palette.fogDarkFill}"/>`,
+    `<rect width="3" height="${t}" fill="${palette.fogLineSoft}"/>`,
+    `<rect x="7" width="3" height="${t}" fill="${palette.fogLine}"/>`,
     `</pattern>`,
     `</defs>`,
   ].join('');
@@ -63,7 +58,10 @@ export function renderBoardSvg(
   y: number,
   size: number,
   orientation: Color = 'white',
+  opts: { palette?: BoardPalette; fogStyle?: FogStyle } = {},
 ): string {
+  const palette = opts.palette ?? BROWN_PALETTE;
+  const fogStyle = opts.fogStyle ?? 'striped';
   const sq = size / 8;
   const out: string[] = [];
   const fogCoords = fogSquares.map(squareToFileRank);
@@ -78,7 +76,7 @@ export function renderBoardSvg(
       const sx = x + fileToCol(f) * sq;
       const sy = y + rankToRow(r) * sq;
       out.push(
-        `<rect x="${sx}" y="${sy}" width="${sq}" height="${sq}" fill="${isLight ? LIGHT_SQUARE : DARK_SQUARE}"/>`,
+        `<rect x="${sx}" y="${sy}" width="${sq}" height="${sq}" fill="${isLight ? palette.light : palette.dark}"/>`,
       );
     }
   }
@@ -101,16 +99,21 @@ export function renderBoardSvg(
     // .fog-hidden.black: light squares get the lighter base + dark-then-soft
     // stripe order, dark squares get the inverse. Matches (file+rank)%2.
     const isLight = (fog.file + fog.rank) % 2 === 1;
-    const patternId = isLight ? FOG_LIGHT_PATTERN_ID : FOG_DARK_PATTERN_ID;
-    out.push(`<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="url(#${patternId})"/>`);
+    const fill =
+      fogStyle === 'solid'
+        ? isLight
+          ? palette.fogLightFill
+          : palette.fogDarkFill
+        : `url(#${isLight ? FOG_LIGHT_PATTERN_ID : FOG_DARK_PATTERN_ID})`;
+    out.push(`<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="${fill}"/>`);
     // Inset 1 px cream shadow matching chessground's
     // box-shadow: inset 0 0 0 1px var(--board-fog-shadow).
     out.push(
-      `<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${FOG_SHADOW}" stroke-width="1"/>`,
+      `<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${palette.fogShadow}" stroke-width="1"/>`,
     );
   }
   out.push(
-    `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${BOARD_BORDER}" stroke-width="2"/>`,
+    `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${palette.frame}" stroke-width="2"/>`,
   );
   out.push(`</g>`);
   return out.join('');
