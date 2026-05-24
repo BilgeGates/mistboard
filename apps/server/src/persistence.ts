@@ -236,6 +236,9 @@ export type ProfileBucketRating = {
   // Count of all completed games (rated + casual). Used to decide whether
   // a row should appear for a variant; not surfaced as a number in the UI.
   totalGamesPlayed: number;
+  // Rating not yet settled (RD above threshold). Client shows a "?"; RD itself
+  // is intentionally not exposed (confusing to players).
+  provisional: boolean;
 };
 
 export type UserProfile = {
@@ -1052,18 +1055,23 @@ export async function getUserProfileByHandle(
     variant: RatingVariant;
     time_class: RatingTimeClass;
     elo_rating: number;
+    rating_deviation: number;
     games_played: number;
   }>(
-    `SELECT variant, time_class, elo_rating, games_played
+    `SELECT variant, time_class, elo_rating, rating_deviation, games_played
      FROM user_ratings
      WHERE user_id = $1`,
     [user.id],
   );
-  const ratingByBucket = new Map<string, { eloRating: number; gamesPlayed: number }>();
+  const ratingByBucket = new Map<
+    string,
+    { eloRating: number; gamesPlayed: number; ratingDeviation: number }
+  >();
   for (const row of ratingRows) {
     ratingByBucket.set(`${row.variant}:${row.time_class}`, {
       eloRating: row.elo_rating,
       gamesPlayed: row.games_played,
+      ratingDeviation: row.rating_deviation,
     });
   }
 
@@ -1107,6 +1115,7 @@ export async function getUserProfileByHandle(
       eloRating: rating?.eloRating ?? null,
       ratedGamesPlayed: rating?.gamesPlayed ?? 0,
       totalGamesPlayed: totalGames,
+      provisional: rating ? rating.ratingDeviation > PROVISIONAL_RD : false,
     });
   }
 

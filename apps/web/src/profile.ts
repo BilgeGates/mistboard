@@ -48,6 +48,7 @@ type ProfileBucketRating = {
   eloRating: number | null;
   ratedGamesPlayed: number;
   totalGamesPlayed: number;
+  provisional: boolean;
 };
 
 type UserProfile = {
@@ -422,7 +423,9 @@ function buildRatingCell(
     return cell;
   }
 
-  value.textContent = String(bucket.eloRating);
+  // "?" marks a provisional rating (still settling). RD itself is not shown.
+  value.textContent = bucket.provisional ? `${bucket.eloRating}?` : String(bucket.eloRating);
+  if (bucket.provisional) value.classList.add('profile-rating-value-provisional');
   cell.append(value);
 
   if (bucket.ratedGamesPlayed > 0) {
