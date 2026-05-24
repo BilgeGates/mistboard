@@ -20,8 +20,8 @@ npm run dev:persistent   # Postgres-backed rooms (required for reconnect/replay 
 Dev room URLs:
 
 ```text
-http://localhost:3000/?room=fog-dev&reset=1&variant=fog-of-war
-http://localhost:3000/?room=fog-engine-dev&reset=1&variant=fog-of-war&dev=engine
+http://localhost:3000/?room=fog-dev&reset=1&variant=dark-chess
+http://localhost:3000/?room=fog-engine-dev&reset=1&variant=dark-chess&dev=engine
 ```
 
 ## Tests

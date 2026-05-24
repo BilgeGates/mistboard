@@ -51,11 +51,11 @@ npm run db:up      # start Docker Postgres on port 5435
 npm run db:migrate # apply migrations
 ```
 
-Good entry points for Fog of War testing:
+Good entry points for dark chess testing:
 
 ```text
-http://localhost:3000/?room=fog-dev&reset=1&variant=fog-of-war
-http://localhost:3000/?room=fog-engine-dev&reset=1&variant=fog-of-war&dev=engine
+http://localhost:3000/?room=fog-dev&reset=1&variant=dark-chess
+http://localhost:3000/?room=fog-engine-dev&reset=1&variant=dark-chess&dev=engine
 ```
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's currently being worked on.
