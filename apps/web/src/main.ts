@@ -79,6 +79,8 @@ const profileHandle = profileHandleFromPath(path);
 const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
 // Hidden DEV-only spike: pixel-art piece + fog style probes. No nav entry.
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
+// Hidden DEV-only identity lab for candidate variant marks. No nav entry.
+const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 
 if (replaySample) {
   setTitle('Replay');
@@ -137,6 +139,13 @@ if (replaySample) {
   setTitle('Pixel lab');
   void mountOrReport(() =>
     import('./pixel-lab.js').then(({ mountPixelLab }) => mountPixelLab(appRoot)),
+  );
+} else if (wantsVariantMarksLab) {
+  setTitle('Variant marks');
+  void mountOrReport(() =>
+    import('./variant-marks-lab.js').then(({ mountVariantMarksLab }) =>
+      mountVariantMarksLab(appRoot),
+    ),
   );
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
