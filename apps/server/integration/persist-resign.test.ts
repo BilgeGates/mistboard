@@ -48,8 +48,18 @@ if (!testDbUrl) {
     const white = a.seat === 'white' ? a : b;
     const black = a.seat === 'black' ? a : b;
 
+    // Resign is valid only from move 2 on (before that, leaving is an abort),
+    // so both sides play their first move before white resigns.
+    const turnIs = (color: string) => (m: unknown) => {
+      const s = (m as { state?: { status?: { type: string; turn?: string } } }).state?.status;
+      return s?.type === 'playing' && s.turn === color;
+    };
+    const atMove2 = (m: unknown) =>
+      ((m as { state?: { moveNumber?: number } }).state?.moveNumber ?? 0) >= 2;
     white.send({ type: 'move', from: 'e2', to: 'e4' });
-    await black.waitFor((m) => m.type === 'snapshot');
+    await black.waitFor(turnIs('black'));
+    black.send({ type: 'move', from: 'e7', to: 'e5' });
+    await Promise.all([white.waitFor(atMove2), black.waitFor(atMove2)]);
 
     white.send({ type: 'resign' });
     const finished = (m: unknown) =>
@@ -69,7 +79,7 @@ if (!testDbUrl) {
     const g = gameRow.rows[0]!;
     assert.equal(g.result, 'black-wins');
     assert.equal(g.termination, 'resignation');
-    assert.equal(g.ply_count, 1);
+    assert.equal(g.ply_count, 2);
     assert.equal(g.status, 'completed');
     assert.equal(g.mode, 'pvp');
 

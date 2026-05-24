@@ -49,6 +49,28 @@ async function pairPvpPlayers(roomId: string): Promise<{ white: TestClient; blac
   return { white, black };
 }
 
+function moveNumberOf(msg: unknown): number {
+  return (msg as { state?: { moveNumber?: number } }).state?.moveNumber ?? 0;
+}
+
+// Resign is only legal once both players have completed their first move
+// (moveNumber >= 2); before that, leaving is an abort (no result), not a
+// resignation (server-enforced at index.ts — moveNumber < 2 makes resign a
+// no-op). Play e4/e5 and wait until both clients observe move 2, so a
+// subsequent resign is accepted.
+async function playBothFirstMoves(white: TestClient, black: TestClient): Promise<void> {
+  white.send({ type: 'move', from: 'e2', to: 'e4' });
+  await black.waitFor((m) => {
+    const s = (m as { state?: { status?: { type: string; turn?: string } } }).state?.status;
+    return s?.type === 'playing' && s.turn === 'black';
+  });
+  black.send({ type: 'move', from: 'e7', to: 'e5' });
+  await Promise.all([
+    white.waitFor((m) => moveNumberOf(m) >= 2),
+    black.waitFor((m) => moveNumberOf(m) >= 2),
+  ]);
+}
+
 function finishedStatus(msg: unknown): { winner: 'white' | 'black' | null; reason: string } | null {
   const m = msg as {
     state?: { status?: { type: string; winner?: 'white' | 'black' | null; reason?: string } };
@@ -63,12 +85,9 @@ test('PvP resign ends the game with opposite color winning, both clients see it'
   const roomId = uniqueRoomId('resign');
   const { white, black } = await pairPvpPlayers(roomId);
 
-  // Make sure white can act — server's startLiveClockIfReady fires once both
-  // seats are tokenized. A single tiny move is enough to confirm.
-  white.send({ type: 'move', from: 'e2', to: 'e4' });
-  await black.waitFor(
-    (m) => m.type === 'snapshot' && Array.isArray((m as { events?: unknown[] }).events),
-  );
+  // Resign is only valid from move 2 on (before that it'd be an abort), so both
+  // sides play their first move before white resigns.
+  await playBothFirstMoves(white, black);
 
   white.send({ type: 'resign' });
   const whiteFinal = await white.waitFor((m) => finishedStatus(m) !== null);
@@ -88,6 +107,7 @@ test('Mutual rematch creates a new room with colors swapped and per-client seat 
   const roomId = uniqueRoomId('rematch');
   const { white, black } = await pairPvpPlayers(roomId);
 
+  await playBothFirstMoves(white, black);
   white.send({ type: 'resign' });
   await Promise.all([
     white.waitFor((m) => finishedStatus(m) !== null),
@@ -153,6 +173,7 @@ test('Player offline at finalize gets the rematch redirect on reconnect', async 
   const blackToken = black.seatToken!;
   assert.ok(whiteToken && blackToken, 'both seats should have been issued tokens');
 
+  await playBothFirstMoves(white, black);
   white.send({ type: 'resign' });
   await Promise.all([
     white.waitFor((m) => finishedStatus(m) !== null),
@@ -280,6 +301,7 @@ test('Rematch only finalizes when BOTH have offered (one-sided offer is pending)
   const roomId = uniqueRoomId('rematch-pending');
   const { white, black } = await pairPvpPlayers(roomId);
 
+  await playBothFirstMoves(white, black);
   white.send({ type: 'resign' });
   await Promise.all([
     white.waitFor((m) => finishedStatus(m) !== null),
