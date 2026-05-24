@@ -4,6 +4,7 @@ import type { GameParticipant, RecentEveGameRecord } from './persistence.js';
 const SCHEMA_VERSION = '1.0';
 const LICENSE = 'CC BY 4.0';
 const DEFAULT_SITE_HOST = 'https://mistboard.com';
+const SITE_NAME = 'Mistboard';
 
 export type PublicationPly = {
   ply: number;
@@ -17,6 +18,11 @@ export type PublicationPly = {
 export type GamePublication = {
   schema_version: string;
   game_id: string;
+  source: {
+    name: string;
+    url: string;
+    game_url: string;
+  };
   variant: string;
   mode: string;
   time_control: {
@@ -117,6 +123,11 @@ export function buildGamePublicationJson(
   return {
     schema_version: SCHEMA_VERSION,
     game_id: summary.roomId,
+    source: {
+      name: SITE_NAME,
+      url: DEFAULT_SITE_HOST,
+      game_url: `${DEFAULT_SITE_HOST}/game/${summary.roomId}`,
+    },
     variant: summary.variant,
     mode: summary.mode,
     time_control: timeControlFromSummary(summary),

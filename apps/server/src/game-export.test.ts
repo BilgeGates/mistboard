@@ -91,6 +91,9 @@ test('JSON publication has expected shape and v1.0 schema', () => {
 
   assert.equal(payload.schema_version, '1.0');
   assert.equal(payload.game_id, 'fixture-room');
+  assert.equal(payload.source.name, 'Mistboard');
+  assert.equal(payload.source.url, 'https://mistboard.com');
+  assert.equal(payload.source.game_url, 'https://mistboard.com/game/fixture-room');
   assert.equal(payload.variant, 'dark-chess');
   assert.equal(payload.mode, 'pvp');
   assert.equal(payload.result, 'white');
