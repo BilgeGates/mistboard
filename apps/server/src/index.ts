@@ -1077,10 +1077,10 @@ async function getOrCreateRoom(
     forfeitDeadline: null,
     forfeitSeat: null,
     mode,
-    // Default casual. The rated flag is not yet persisted through events, so a
-    // hydrated room can't recover a rated request; defaulting casual is the safe
-    // floor (the room-manager account-gate is the authoritative rated decision).
-    rated: false,
+    // Rated request is persisted on the room-created event, so hydration after a
+    // restart preserves it. Defaults casual if absent. The room-manager
+    // account-gate is still the authoritative rated decision at game end.
+    rated: roomCreatedEvent?.rated ?? false,
     randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
     randomSeating: false,
     creatorPreference: null,
@@ -1138,6 +1138,7 @@ async function createRoom(
       variant,
       ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
       ...(timeControl ? { timeControl } : {}),
+      ...(rated ? { rated: true } : {}),
     };
     const events: GameEvent[] = [roomCreated];
     if (mode === 'pve') {

@@ -37,6 +37,10 @@ export type GameEvent =
       offer: Chess960Start[];
       offers?: Partial<Record<Color, Chess960Start[]>>;
       timeControl?: RoomTimeControl;
+      // Whether this room was created as a rated request. Persisted so hydration
+      // after a restart preserves it; the actual rated outcome is still
+      // account-gated at game end (see room-manager buildGameSummary).
+      rated?: boolean;
     }
   | {
       type: 'seat-assigned';
