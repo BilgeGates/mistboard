@@ -505,6 +505,21 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
     return;
   }
 
+  if (pathname === '/robots.txt') {
+    const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+    response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+    response.end(`User-agent: *\nAllow: /\nSitemap: ${host}/sitemap.xml\n`);
+    return;
+  }
+
+  if (pathname === '/sitemap.xml') {
+    void serveSitemap(response).catch(() => {
+      response.writeHead(500);
+      response.end();
+    });
+    return;
+  }
+
   const gameRouteMatch = pathname.match(/^\/game\/([^/]+)$/);
   if (gameRouteMatch && persistence.isInitialized()) {
     const roomId = decodeURIComponent(gameRouteMatch[1]!);
@@ -632,7 +647,43 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
   response.end(html);
 }
 
+// Sitemap of public, indexable surfaces: static content routes plus every
+// pre-rendered article (discovered from dist/articles/*.html, so the published
+// set stays the single source of truth in articles-data → prerender output).
+async function serveSitemap(response: ServerResponse): Promise<void> {
+  const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+  const staticRoutes = ['/', '/articles', '/about', '/learn', '/leaderboard', '/source', '/faq'];
+  const articleSlugs = await fs
+    .readdir(resolve(staticDir, 'articles'))
+    .then((files) => files.filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -'.html'.length)))
+    .catch(() => [] as string[]);
+  const urls = [
+    ...staticRoutes,
+    ...articleSlugs.map((slug) => `/articles/${encodeURIComponent(slug)}`),
+  ];
+  const body = urls.map((path) => `  <url><loc>${host}${path}</loc></url>`).join('\n');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
+  response.writeHead(200, { 'content-type': 'application/xml; charset=utf-8' });
+  response.end(xml);
+}
+
 async function serveArticlePage(slug: string, response: ServerResponse): Promise<void> {
+  // Published articles are pre-rendered at build time (apps/web/scripts/
+  // prerender-articles.mjs): prose + meta baked into the document so crawlers
+  // and LLMs see real content, not an empty #app. Serve that file when present;
+  // the client SPA still boots and rebuilds #app on takeover. Slug is validated
+  // to the slug charset so a decoded path can't escape the dist root.
+  if (/^[a-z0-9-]+$/.test(slug)) {
+    const prerenderedPath = resolve(staticDir, 'articles', `${slug}.html`);
+    const prerendered = await fs.readFile(prerenderedPath, 'utf-8').catch(() => null);
+    if (prerendered !== null) {
+      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      response.end(prerendered);
+      return;
+    }
+  }
+
+  // Fallback for draft/outline articles (not pre-rendered): shell + meta only.
   const indexPath = resolve(staticDir, 'index.html');
   let html = await fs.readFile(indexPath, 'utf-8');
   const article = ARTICLE_META[slug];
