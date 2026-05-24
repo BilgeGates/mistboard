@@ -5190,6 +5190,23 @@ a.landing-announcement-card-inner:focus-visible {
   color: var(--site-muted);
 }
 
+.landing-rated-helper {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.landing-rated-helper a {
+  color: var(--site-accent);
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.landing-rated-helper a:hover {
+  text-decoration: underline;
+}
+
 .landing-start-option:hover:not(:disabled),
 .landing-start-option:focus-visible:not(:disabled),
 .landing-setup-start:hover:not(:disabled),
@@ -6968,6 +6985,22 @@ a.landing-announcement-card-inner:focus-visible {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
+.replay-meta-header .replay-board.cg-wrap {
+  background-color: var(--board-light);
+  background-image: conic-gradient(
+    var(--board-dark) 25%,
+    var(--board-light) 0 50%,
+    var(--board-dark) 0 75%,
+    var(--board-light) 0
+  );
+  background-size: 25% 25%;
+}
+
+.replay-meta-header .replay-board.cg-wrap cg-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* Winner / loser pane treatment — refined from the legacy golden ring to
  * a soft green accent (winner) and gentle desaturation (loser). */
 .replay-meta-header .replay-pane.winner .replay-board {
@@ -8586,6 +8619,40 @@ a.landing-announcement-card-inner:focus-visible {
   margin: 0 0 20px;
   font-size: clamp(24px, 4vw, 36px);
   color: #1f2521;
+}
+
+.leaderboard-beta-banner {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  background: #f6f4ef;
+}
+
+.leaderboard-beta-banner strong {
+  color: #1f2521;
+  font-size: 14px;
+}
+
+.leaderboard-beta-banner p {
+  margin: 0;
+  color: #5a6960;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.leaderboard-beta-banner a {
+  width: fit-content;
+  color: #1f6f5b;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.leaderboard-beta-banner a:hover {
+  text-decoration: underline;
 }
 
 .leaderboard-table {

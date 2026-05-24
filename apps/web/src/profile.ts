@@ -146,10 +146,12 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   heading.className = 'site-section-heading';
   heading.textContent = 'Leaderboard';
 
+  const banner = buildLeaderboardBanner();
+
   const grid = document.createElement('div');
   grid.className = 'leaderboard-grid';
 
-  shell.append(heading, grid);
+  shell.append(heading, banner, grid);
 
   const results = await Promise.all(
     LEADERBOARD_BUCKETS.map((b) =>
@@ -170,6 +172,26 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
     const b = LEADERBOARD_BUCKETS[i];
     grid.append(buildLeaderboardPanel(b.variantLabel, b.timeLabel, results[i]));
   }
+}
+
+function buildLeaderboardBanner(): HTMLElement {
+  const banner = document.createElement('section');
+  banner.className = 'leaderboard-beta-banner';
+  banner.setAttribute('aria-label', 'Rated beta status');
+
+  const title = document.createElement('strong');
+  title.textContent = 'Rated beta is coming.';
+
+  const body = document.createElement('p');
+  body.textContent =
+    'The first ladder will open in scheduled windows so players can find opponents and ratings can calibrate on real games.';
+
+  const link = document.createElement('a');
+  link.href = '/faq';
+  link.textContent = 'How rated works';
+
+  banner.append(title, body, link);
+  return banner;
 }
 
 function buildLeaderboardPanel(

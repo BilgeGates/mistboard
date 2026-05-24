@@ -1436,7 +1436,20 @@ function buildRatedToggleSection(
   });
   sync();
   group.append(ratedButton, casualButton);
-  section.append(group);
+
+  const helper = document.createElement('p');
+  helper.className = 'landing-rated-helper';
+  helper.append(
+    ratedDisabled
+      ? 'Rated beta is closed right now. Casual games are open anytime. '
+      : 'Rated games require an account and count toward the dark chess ladder. During beta, rated may open only in scheduled windows. ',
+  );
+  const link = document.createElement('a');
+  link.href = '/faq';
+  link.textContent = 'How rated works';
+  helper.append(link);
+
+  section.append(group, helper);
   return section;
 }
 
