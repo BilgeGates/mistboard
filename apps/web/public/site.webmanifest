@@ -1,7 +1,7 @@
 {
   "name": "Mistboard",
   "short_name": "Mistboard",
-  "description": "Fog of War chess with server-enforced hidden information.",
+  "description": "Dark chess with server-enforced hidden information.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f1ea",

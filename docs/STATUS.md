@@ -1,9 +1,16 @@
 # Status
 
-_Last updated: 2026-05-22_
+_Last updated: 2026-05-24_
 
 **State:** active
 **Launched:** https://mistboard.com
+
+## Thesis
+
+Mistboard is an open-source, trustworthy platform foundation for
+hidden-information games, starting with dark chess. The intended loop is: play
+the strongest open-source dark-chess engine, learn why the game is compelling,
+then climb a serious ranked ladder against other players.
 
 ## What's Active
 

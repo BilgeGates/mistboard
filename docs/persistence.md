@@ -18,7 +18,8 @@ In priority order:
 - Multi-instance WS scale-out. Single Node process is the assumption.
 - Multi-region replication. v1 assumes a single-region Postgres deployment.
 - Real-time analytics / OLAP. Standard transactional Postgres only.
-- User accounts, registered identities. v1 stays anonymous + link-based.
+- User accounts or registered identities as a hard requirement. v1 stays
+  account-optional and low-friction.
 
 ## Storage model
 

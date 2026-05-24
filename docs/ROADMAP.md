@@ -1,10 +1,23 @@
 # Roadmap
 
-_Last updated: 2026-05-23_
+_Last updated: 2026-05-24_
+
+## Product Pillars
+
+Mistboard has two public product pillars:
+
+- **Human ladder:** server-enforced dark chess, calibrated rated games, and a
+  serious ranked ladder.
+- **Open-source engine:** the strongest reproducible open-source dark-chess
+  engine people can play, inspect, and benchmark.
+
+The landing-page promise should stay simple: play dark chess online. The second
+layer explains why Mistboard is different: server-enforced hidden information,
+ranked integrity, and an open-source engine.
 
 ## Done
 
-- [x] **M0 — Core loop + Sprint 2 distribution prep.** PvP Fog of War playable end-to-end from a link. Resign, rematch, presence, reconnect, casual leaderboard infra (hidden), bucket-collapsed lobby, engine fallback, per-game OG Phase 1 stub, articles scaffolding, WS integration test harness, CI safeguards.
+- [x] **M0 — Core loop + Sprint 2 distribution prep.** Server-enforced PvP dark chess playable end-to-end with low-friction room sharing. Resign, rematch, presence, reconnect, casual leaderboard infra (hidden), bucket-collapsed lobby, engine fallback, per-game OG Phase 1 stub, articles scaffolding, WS integration test harness, CI safeguards.
 
 ## In Progress
 
@@ -12,10 +25,10 @@ _Last updated: 2026-05-23_
 
 ## Planned
 
-- [ ] **M2 — Soft launch + Elo calibration.** Discord, friend network, small subreddits. Target: 200 casual standard 3+2 games persisted. Run offline Elo simulation against the `games` table; tune K-factor; scan for anomalous endings.
+- [ ] **M2 — Soft launch + Elo calibration.** Discord, friend network, small subreddits. Target: 200 casual standard 3+2 games persisted. Run offline Elo simulation against the `games` table; tune K-factor; scan for anomalous endings. Keep the playable engine visible as the no-opponent fallback and learning opponent.
 - [ ] **M3 — Standard rated flip + hard launch.** Unhide leaderboard, turn on rated standard 3+2. Then r/chess, HN, streamer DMs.
 - [ ] **M4 — Draft960 enable + rated flip.** Draft960 is deliberately cut from the M1–M3 launch surface (standard-only, to avoid splitting the matchmaking pool and to keep first-touch legible). M4 enables it: flip `VITE_DRAFT960_ENABLED=true` to expose the format selector (casual-only first), accumulate ~200 Draft960 casual games, then repeat the calibration cycle for Draft960's own rating pool. Today's default build shows a static "Dark chess" variant label with no format dropdown.
-- [ ] **M5+ — Engine track (post-distribution).** FUCI spec → Tier-1 engine → public engine leaderboard → open-source engine release + Article #3.
+- [ ] **M5+ — Engine track.** Push from playable engine to strongest-open-source claim: pinned versions, reproducible games, public benchmarks, FUCI spec, public engine leaderboard, open-source engine release, and Article #3.
 
 ## Deferred / Parked
 
@@ -49,7 +62,7 @@ Outreach is one-shot for HN reputation and streamer credibility. Every item is p
 
 - [ ] Per-game OG Phase 2 shipped (loser-view + truth boards rendered, not the Phase 1 stub). _Open question since 2026-05-18: keep the Phase 1 stub, redesign, or drop from M1. This is a decision, not a build — settle it._
 - [ ] OG scraper sanity: Discord, iMessage, Twitter, Slack all render the right card. _Deferred; manual, not yet run._
-- [x] FoW rules article published and linked from landing. _`dark-chess-rules` in `articles-data.ts`; surfaced via landing thumbnails + `/articles`._
+- [x] Dark chess rules article published and linked from landing. _`dark-chess-rules` in `articles-data.ts`; surfaced via landing thumbnails + `/articles`._
 - [x] Draft960 article published and linked from landing. _`draft960` in `articles-data.ts`; same surface._
 - [ ] Article mobile pass (TOC sidebar, stepper, board composition all readable on phone). _Deferred pending article content/polish._
 
@@ -61,7 +74,7 @@ Outreach is one-shot for HN reputation and streamer credibility. Every item is p
 
 ### Tier D — First-touch UX
 
-- [x] <5 seconds to "this is Fog of War chess" on landing. _Cleared in the 2026-05-18 landing reshape: tagline paired directly above single-POV hero board._
+- [x] <5 seconds to "this is dark chess" on landing. _Current first-screen copy leads with "Dark chess" and one-sentence server-enforced hidden information._
 - [x] ≤3 clicks from cold load to in-game. _Cleared: each play action is 2 clicks (button + confirm) via `openLandingSetupDialog`._
 - [x] Anonymity model legible. _Cleared: Register demoted to text link, "No account needed." microcopy under the play CTAs._
 

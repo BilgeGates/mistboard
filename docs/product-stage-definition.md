@@ -15,7 +15,7 @@ Current posture: public watch/replay surface with live-play foundations.
 
 User-visible promise:
 
-- visitors can understand that Mistboard is Fog of War chess
+- visitors can understand that Mistboard is dark chess
 - visitors can watch or open public finished games
 - visitors can see perspective replay and truth reveal
 - testers can find the Play surface, but live play is still hardening
@@ -47,7 +47,7 @@ Exit criteria:
 
 User-visible promise:
 
-- invited testers can create or open a Fog room link
+- invited testers can create or open a dark chess room link
 - two players can join as White and Black
 - hidden information is protected during live play
 - ordinary reconnects recover the correct seat
@@ -157,7 +157,7 @@ Candidate surfaces:
 - contributor/research profiles
 - public game collections
 - visibility-history review
-- Fog-specific learning exercises
+- dark-chess learning exercises
 - Draft960-as-Fog-pregame
 
 Still not automatic:
@@ -171,7 +171,7 @@ Still not automatic:
 Exit criteria:
 
 - profile and identity primitives serve real Fog, engine, or research workflows
-- new platform features do not weaken the link-based play loop
+- new platform features do not weaken the low-friction play loop
 - moderation/fairness obligations are understood before adding public scale
 
 ## Decision-Leverage Order

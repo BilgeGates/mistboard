@@ -2,9 +2,14 @@
 
 Thanks for considering a contribution to Mistboard.
 
-Mistboard is a focused Fog of War chess project. Before opening a pull request, check whether the change helps the product rule:
+Mistboard is an open-source platform foundation for hidden-information games,
+starting with dark chess. "Fog of War chess" is useful secondary wording for SEO
+and rules explanation. Before opening a pull request, check whether the change
+helps the product rule:
 
-> Does this help two people play, finish, review, or understand Fog of War from a link?
+> Does this make Mistboard a more trustworthy, serious place to play, study,
+> rank, or build engines for dark chess and future hidden-information
+> games?
 
 If the answer is no, open an issue or discussion first.
 
@@ -23,10 +28,10 @@ Good contributions:
 - engine research tooling in `research/python-fow-lab`
 - documentation for rules, protocols, tournaments, and engine integration
 
-Usually out of scope for v1:
+Usually out of scope for v1 unless explicitly gate-cleared:
 
-- ratings
-- public matchmaking
+- ungated ratings
+- broad public matchmaking
 - chat
 - moderation tooling
 - OAuth

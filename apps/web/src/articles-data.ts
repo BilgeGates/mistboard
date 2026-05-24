@@ -1658,16 +1658,16 @@ export const articles: Article[] = [
   },
   {
     slug: 'server-enforced-fog',
-    title: 'Designing a dark chess server',
+    title: 'Why Mistboard dark chess is trustworthy',
     summary:
-      'How the server keeps half the game hidden: one view per recipient, the rules that compute it, and the bytes of a real frame.',
+      'How server-enforced hidden information, seat tokens, replay policy, and rated-game gates make dark chess fair enough to play seriously.',
     status: 'outline',
     audience:
-      'Engineers curious how a hidden-information game enforces visibility server-side.',
+      'Players and engineers who want to know why Mistboard can host serious dark chess and rated games.',
     thumbnail: ARTICLE_OG_POSITIONS['server-enforced-fog'],
     tldr: [
       'Dark chess server-side: one PlayerView per recipient, hidden state never leaves the box.',
-      'Captured wire payload + the identity layer the views rest on.',
+      'Rated play builds on that boundary: accounts, calibration, reviewable records, and engine separation.',
     ],
     sections: [
       {
@@ -1735,6 +1735,15 @@ export const articles: Article[] = [
           { kind: 'paragraph', text: 'The view computation only works if the server knows whose view to compute. If a socket\'s seat is wrong — white\'s frame goes to black, or to a third party — every other rule above runs on a lie.' },
           { kind: 'paragraph', text: 'When a player first claims a seat, the server mints a random per-seat token, stores its bcrypt hash, and hands the raw token back to that one client. Every future WebSocket connection from that client presents the token in the subprotocol header. The server verifies it against the stored hash (constant-time) and binds the socket to a server-assigned seat. The seat is something the server remembers, not something the client claims.' },
           { kind: 'paragraph', text: 'Three properties matter. Tokens are minted server-side, so a client cannot ask for white\'s seat without the token white was given. Only the hash is stored, so a leaked database doesn\'t hand an attacker working tokens. Comparison is constant-time, so there is no timing side channel. The token doubles as the reconnect mechanism — refresh the page, present the token, get your seat back.' },
+        ],
+      },
+      {
+        heading: 'What changes for ranked play',
+        blocks: [
+          { kind: 'paragraph', text: 'Casual dark chess can stay low-friction: open a room, share a link, play. Ranked games need a stricter contract because a rating should attach to a durable player, not a browser tab or throwaway seat token.' },
+          { kind: 'paragraph', text: 'Mistboard treats server-enforced hidden information as the first trust layer, not the whole ladder policy. A rated game requires account-backed human seats, excludes engine games from the human ladder, records a finished game row, and updates ratings only from eligible completed PvP games.' },
+          { kind: 'paragraph', text: 'Restarts, abandons, and engine failures are explicit outcomes rather than vague losses. A server restart can pause or abort without rating impact; engine games are training and benchmark material, not human ladder results; calibration runs happen before rated pools are publicly promoted.' },
+          { kind: 'paragraph', text: 'The goal is not to pretend cheating is impossible. The goal is a serious baseline: the server never gives your opponent hidden truth, rated identities are durable, games are reviewable after completion, and rating rules are narrow enough to audit.' },
         ],
       },
       {

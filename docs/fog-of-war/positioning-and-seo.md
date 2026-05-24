@@ -8,15 +8,17 @@ Internal publishing and distribution plans belong outside the public repository.
 
 Mistboard is:
 
-- a Fog of War chess site
+- a dark chess site, with Fog of War chess as secondary SEO/explainer wording
 - server-authoritative about hidden information
 - open source
 - independent from lichess, chess.com, and other platforms
-- focused on play, replay, reveal, and Fog-specific correctness
+- focused on play, ranked integrity, replay, reveal, and dark-chess engine work
 
 Mistboard is the durable public brand for the hosted service and repository.
-Public copy should emphasize Fog of War correctness, play, replay, reveal, and
-learning rather than similarity to other chess services.
+Public copy should lead with dark chess, then mention Fog of War chess where it
+helps search or recognition. The five-second promise stays simple: play dark
+chess online. The second layer explains server-enforced hidden information,
+ranked games, and the open-source engine.
 
 ## Useful Public Topics
 

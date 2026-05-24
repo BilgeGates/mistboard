@@ -1,29 +1,43 @@
 # Project Direction
 
-Mistboard is an open-source Fog of War chess project.
+Mistboard is an open-source platform foundation for hidden-information games,
+starting with dark chess.
 
-The project goal is narrow:
+Use **dark chess** as the primary public name. Use **Fog of War chess** as
+secondary SEO and explainer language because many players know the mainstream
+site branding first.
 
-> Help people play, finish, review, and understand Fog of War chess from a link.
+The project goal is focused:
+
+> Build the trustworthy open-source place to play, study, rank, and build
+> engines for hidden-information games, starting with dark chess.
 
 This document defines the public product, licensing, branding, and reference
 boundaries for contributors.
 
 ## Product Focus
 
-Mistboard is not a general chess platform.
+Mistboard is not a general chess platform. It starts with dark chess
+because it is the clearest hidden-information chess format and a strong first
+test of the platform.
 
 The primary work is:
 
 - server-authoritative hidden information
-- link-based Fog of War games
+- low-friction dark chess games
 - clear player views
 - postgame reveal and replay
-- Fog-specific learning and review tools
-- engine and research work for hidden-information play
+- ranked ladder integrity and calibration
+- dark-chess learning and review tools
+- the strongest open-source engine track for dark chess and related
+  hidden-information games
 
 Other chess features are useful only when they strengthen the Fog of War
 experience.
+
+The intended product loop is simple: people can play the strongest open-source
+dark-chess engine, learn why hidden information is compelling, and then climb a
+serious ranked ladder against other players.
 
 ## License And Source
 
@@ -77,21 +91,23 @@ confusing users about affiliation is not.
 
 ## Roadmap Boundaries
 
-The v1 product is link-based Fog of War play and review.
+The v1 product is server-enforced dark chess play, review, engine challenge, and
+a gated ranked ladder.
 
-Usually deferred until the Fog product is stable:
+Usually deferred until the dark-chess product is stable:
 
-- ratings
-- public matchmaking
+- ungated ratings
+- broad public matchmaking
 - tournaments
 - chat
 - broad social profiles
 - billing
 - non-Fog variants as primary product surfaces
 
-These features are not permanently forbidden. They should be added only when
-they serve the Fog of War product and when the project is ready for the trust,
-integrity, moderation, and support obligations they create.
+These features are not permanently forbidden. The ranked ladder and engine track
+are part of the core vision, but they should be surfaced only when the project is
+ready for the trust, integrity, calibration, moderation, and support obligations
+they create.
 
 ## Monetization
 
@@ -114,7 +130,7 @@ authority.
 
 Before proposing a change, ask:
 
-1. Does this improve Fog of War play, review, learning, research, or integrity?
+1. Does this improve dark chess play, review, learning, research, or integrity?
 2. Is the implementation original or clearly license-compatible?
 3. Does it avoid confusing affiliation with another chess platform?
 4. Does it avoid adding social, rating, matchmaking, billing, or moderation

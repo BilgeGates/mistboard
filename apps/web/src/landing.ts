@@ -655,7 +655,8 @@ function buildLandingStage(engines: PlayableEngine[]): {
 
   const subtagline = document.createElement('p');
   subtagline.className = 'landing-hero-subtagline';
-  subtagline.textContent = 'You only see what your pieces see.';
+  subtagline.textContent =
+    'Server-enforced hidden information. Play people or the open-source engine.';
 
   heroHeader.append(tagline, subtagline);
 
@@ -864,7 +865,7 @@ function buildLandingPlayPanel(
   const defaultEngineId = availableEngines[0]?.id;
   const lobbyButton = landingPlayAction('Find opponent', 'lobby');
   const challengeButton = landingPlayAction('Challenge a friend', 'friend');
-  const engineButton = landingPlayAction('Play against computer', 'computer');
+  const engineButton = landingPlayAction('Play the engine', 'computer');
 
   lobbyButton.addEventListener('click', () => {
     openLandingSetupDialog({
@@ -886,7 +887,7 @@ function buildLandingPlayPanel(
       engineId: defaultEngineId,
       engines: availableEngines,
       mode: 'pve',
-      title: 'Play against computer',
+      title: 'Play the engine',
     });
   });
 
@@ -1115,7 +1116,7 @@ function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         engineId: defaultEngineId,
         engines: availableEngines,
         mode: 'pve',
-        title: 'Play against computer',
+        title: 'Play the engine',
       });
       break;
     default:

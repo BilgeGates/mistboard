@@ -2,15 +2,22 @@
 
 Public agent guidance for Mistboard.
 
-Mistboard is an open-source site for **Fog of War chess**. Keep public-facing work focused on implementation, correctness, and contributor experience.
+Mistboard is an open-source platform foundation for hidden-information games,
+starting with **dark chess**. "Fog of War chess" is useful secondary wording for
+SEO and rules explanation. Keep public-facing work focused on
+implementation, correctness, and contributor experience.
 
 ## Product Rule
 
 Before adding any feature, ask:
 
-> Does this help two people play, finish, review, or understand Fog of War from a link?
+> Does this make Mistboard a more trustworthy, serious place to play, study,
+> rank, or build engines for dark chess and future hidden-information
+> games?
 
-If no, defer it. Draft960 is a pregame feature inside Fog of War, not a separate product surface.
+If no, defer it. Link-based play is a low-friction UX promise, not the whole
+project thesis. Draft960 is a pregame feature inside Fog of War, not a separate
+product surface.
 
 ## Architecture Rules
 
@@ -18,7 +25,7 @@ If no, defer it. Draft960 is a pregame feature inside Fog of War, not a separate
 - Clients render `PlayerView`, never canonical truth.
 - Fog of War must never send hidden pieces or hidden opponent moves to the wrong client.
 - Event history should become the replay and reconnect source of truth.
-- Keep v1 anonymous and link-based.
+- Keep v1 low-friction and account-optional.
 
 ## Documentation Rules
 
@@ -32,10 +39,10 @@ When the user says "card this" (or equivalent) after a user-facing change ships,
 
 ## Hard Deferrals
 
-Do not build in v1:
+Do not build or surface in v1 unless explicitly gate-cleared:
 
-- ratings
-- public matchmaking
+- ungated ratings
+- broad public matchmaking
 - tournaments
 - chat
 - moderation tooling
@@ -44,6 +51,10 @@ Do not build in v1:
 - engine analysis
 - full lichess/lila fork
 - standalone non-Fog game modes as primary product surface
+
+The ranked ladder and strongest-open-source-engine track are core to the public
+vision, but they should ship deliberately behind integrity, calibration, and
+quality gates.
 
 ## Package Ownership
 

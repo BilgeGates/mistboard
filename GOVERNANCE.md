@@ -56,7 +56,9 @@ The maintainer may consider:
 
 The default product rule remains:
 
-> Does this help two people play, finish, review, or understand Fog of War from a link?
+> Does this make Mistboard a more trustworthy, serious place to play, study,
+> rank, or build engines for dark chess and future hidden-information
+> games?
 
 If not, the work is deferred unless it clearly advances one of the documented strategic tracks.
 
