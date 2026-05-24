@@ -1,3 +1,5 @@
+import { clearSeatTokenForRoom, liveState } from './live-state.js';
+
 type AuthUser = {
   id: string;
   email: string;
@@ -187,7 +189,25 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
 }
 
 async function handleLogout(button: HTMLButtonElement): Promise<void> {
+  // Seats are account-bound, so signing out abandons any live game this account
+  // is seated in: after sign-out the server treats this client as an
+  // unauthorized spectator (can't view or rejoin the room), and the dropped
+  // socket starts the opponent's forfeit countdown. Confirm first so a player
+  // doesn't forfeit by accident.
+  const inLiveGame =
+    liveState.state?.status.type === 'playing' &&
+    (liveState.seat === 'white' || liveState.seat === 'black');
+  if (
+    inLiveGame &&
+    !window.confirm('You have a game in progress. Are you sure you want to sign out?')
+  ) {
+    return;
+  }
   button.disabled = true;
+  // Drop the seat token so the reconnect after reload can't reclaim the
+  // account-bound seat. Defense-in-depth: the server gate already denies it
+  // once the session is gone. The reload below closes the live socket.
+  if (liveState.room) clearSeatTokenForRoom(liveState.room);
   try {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
   } catch {
