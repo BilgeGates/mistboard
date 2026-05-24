@@ -1147,7 +1147,7 @@ if (!TEST_DATABASE_URL) {
     }
   });
 
-  test('leaderboard ranks by conservative rating and hides provisional players', async () => {
+  test('leaderboard shows provisional players (marked) ranked low by conservative rating', async () => {
     const now = new Date();
     await createUser({ id: 'u_hi', email: 'hi@e.com', emailVerifiedAt: now, handle: 'settledhi', displayName: 'Hi', profileVisibility: 'public', now });
     await createUser({ id: 'u_lo', email: 'lo@e.com', emailVerifiedAt: now, handle: 'settledlo', displayName: 'Lo', profileVisibility: 'public', now });
@@ -1156,8 +1156,9 @@ if (!TEST_DATABASE_URL) {
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
-      // hi: conservative 1600-120=1480; lo: 1550-120=1430;
-      // pv: raw 1900 but RD 300 (provisional) → excluded despite highest rating.
+      // Conservative (rating - 2*RD): hi=1480, lo=1430, pv=1300.
+      // pv has the highest RAW rating (1900) but RD 300 (provisional) → it sorts
+      // LAST by conservative rating and is marked provisional, not hidden.
       await client.query(
         `INSERT INTO user_ratings (user_id, variant, time_class, elo_rating, rating_deviation, volatility, games_played)
          VALUES
@@ -1170,11 +1171,14 @@ if (!TEST_DATABASE_URL) {
     }
 
     const board = await getLeaderboard({ variant: 'fog', timeClass: 'blitz', limit: 100 });
-    assert.equal(board.length, 2, 'provisional player excluded from leaderboard');
-    assert.equal(board[0]!.handle, 'settledhi', 'higher conservative rating ranks first');
-    assert.equal(board[0]!.rank, 1);
+    assert.equal(board.length, 3, 'provisional player is shown, not hidden');
+    assert.equal(board[0]!.handle, 'settledhi', 'highest conservative rating ranks first');
+    assert.equal(board[0]!.provisional, false);
     assert.equal(board[1]!.handle, 'settledlo');
-    assert.equal(board[0]!.eloRating, 1600, 'displays actual rating, not conservative');
+    assert.equal(board[2]!.handle, 'provis', 'provisional sorts last despite highest raw rating');
+    assert.equal(board[2]!.provisional, true);
+    assert.equal(board[2]!.eloRating, 1900, 'displays actual rating (with "?" client-side), not conservative');
+    assert.equal(board[0]!.rank, 1);
   });
 
   test('getUserProfileByHandle lists completed account-attributed games', async () => {

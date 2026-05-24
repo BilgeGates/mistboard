@@ -69,6 +69,7 @@ type LeaderboardEntry = {
   displayName: string;
   eloRating: number;
   gamesPlayed: number;
+  provisional: boolean;
 };
 
 const LEADERBOARD_BUCKETS: {
@@ -256,7 +257,10 @@ function renderLeaderboardTable(entries: LeaderboardEntry[]): HTMLTableElement {
 
     const ratingTd = document.createElement('td');
     ratingTd.className = 'leaderboard-rating';
-    ratingTd.textContent = String(entry.eloRating);
+    // "?" marks a provisional rating (RD still high) — shown so the board isn't
+    // empty at low liquidity, but flagged as not yet settled.
+    ratingTd.textContent = entry.provisional ? `${entry.eloRating}?` : String(entry.eloRating);
+    if (entry.provisional) ratingTd.classList.add('leaderboard-rating-provisional');
 
     tr.append(rankTd, nameTd, gamesTd, ratingTd);
     tbody.append(tr);

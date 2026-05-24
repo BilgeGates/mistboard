@@ -175,6 +175,10 @@ export type LeaderboardEntry = {
   displayName: string;
   eloRating: number;
   gamesPlayed: number;
+  // RD still above the provisional threshold — rating not yet settled. Shown on
+  // the leaderboard with a "?" marker; ranked by conservative rating so it sorts
+  // low until it settles.
+  provisional: boolean;
 };
 
 export type LeaderboardQuery = {
@@ -1126,22 +1130,24 @@ export async function getLeaderboard(query: LeaderboardQuery): Promise<Leaderboa
     handle: string;
     display_name: string;
     elo_rating: number;
+    rating_deviation: number;
     games_played: number;
   }>(
     // Rank by conservative rating (rating - 2*RD): a high-uncertainty player
-    // can't top the board on noise. Provisional players (RD above threshold) and
-    // never-played rows are hidden until the system is confident in them.
+    // can't top the board on noise, so a one-game fluke sorts low. Provisional
+    // players (RD above threshold) are shown — marked with "?" client-side — so
+    // the board isn't barren at low liquidity; their low conservative rating
+    // keeps them out of the top until they settle. Only never-played rows hide.
     `SELECT RANK() OVER (ORDER BY (r.elo_rating - 2 * r.rating_deviation) DESC) AS rank,
-            u.handle, u.display_name, r.elo_rating, r.games_played
+            u.handle, u.display_name, r.elo_rating, r.rating_deviation, r.games_played
      FROM user_ratings r
      JOIN users u ON u.id = r.user_id
      WHERE r.variant = $1 AND r.time_class = $2
        AND u.profile_visibility IN ('public', 'unlisted')
-       AND r.rating_deviation <= $4
        AND r.games_played > 0
      ORDER BY (r.elo_rating - 2 * r.rating_deviation) DESC
      LIMIT $3`,
-    [query.variant, query.timeClass, bounded, PROVISIONAL_RD],
+    [query.variant, query.timeClass, bounded],
   );
   return rows.map((row) => ({
     rank: Number(row.rank),
@@ -1149,6 +1155,7 @@ export async function getLeaderboard(query: LeaderboardQuery): Promise<Leaderboa
     displayName: row.display_name,
     eloRating: row.elo_rating,
     gamesPlayed: row.games_played,
+    provisional: row.rating_deviation > PROVISIONAL_RD,
   }));
 }
 
