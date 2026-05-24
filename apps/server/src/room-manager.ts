@@ -315,8 +315,12 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
       ctx.pveBuiltinEngineClientId,
     ),
   ];
-  // Rated play is human-vs-human only. Any engine seat forces casual.
-  const rated = room.rated && !participants.some((p) => p.subjectType === 'engine-version');
+  // Rated play is human-vs-human between two signed-in accounts. A guest seat or
+  // an engine seat forces casual — rating integrity requires durable identity
+  // (you can't rate, or hold accountable, an anonymous token). This is the
+  // authoritative gate: regardless of what room.rated was requested as, a game
+  // only counts as rated if both seats resolved to real users.
+  const rated = room.rated && participants.every((p) => p.subjectType === 'user');
 
   return {
     variant: room.projection.variant,

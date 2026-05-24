@@ -34,7 +34,7 @@ export async function tryHandle(
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-    const lobbyRated = body.rated !== false;
+    const lobbyRated = body.rated === true;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
@@ -85,7 +85,7 @@ async function joinLobby(
   ctx: HttpApiContext,
   hiddenDraft960: boolean,
   timeControl: RoomTimeControl | undefined,
-  rated = true,
+  rated = false,
 ): Promise<LobbyTicket> {
   pruneLobbyTickets(ctx);
   const timeKey = timeControlKey(timeControl);

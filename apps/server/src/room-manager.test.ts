@@ -470,7 +470,9 @@ test('buildGameSummary: engine seat forces rated=false even when room.rated=true
   assert.equal(summary.participants?.[0]?.subjectType, 'engine-version');
 });
 
-test('buildGameSummary: two human seats preserve rated=true', () => {
+test('buildGameSummary: guest seats force rated=false even when room.rated=true', () => {
+  // Account-gate: rated requires durable identity on BOTH seats. Two anonymous
+  // guests playing a rated-requested room are recorded casual.
   const events: GameEvent[] = [
     { type: 'room-created', at: 1, roomId: 'room-pvp', variant: 'dark-chess', offer: [] },
     { type: 'seat-assigned', at: 2, roomId: 'room-pvp', clientId: 'human-w', seat: 'white' },
@@ -483,9 +485,82 @@ test('buildGameSummary: two human seats preserve rated=true', () => {
 
   const summary = buildGameSummary(ctx, room);
 
-  assert.equal(summary.rated, true);
+  assert.equal(summary.rated, false, 'guest seats must force casual');
   assert.equal(summary.participants?.[0]?.subjectType, 'guest');
   assert.equal(summary.participants?.[1]?.subjectType, 'guest');
+});
+
+test('buildGameSummary: two signed-in account seats preserve rated=true', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'room-acct', variant: 'dark-chess', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: 'room-acct', clientId: 'client-w', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: 'room-acct', clientId: 'client-b', seat: 'black' },
+    { type: 'seat-resigned', at: 4, roomId: 'room-acct', color: 'white' },
+  ];
+  const room = makeRoom('room-acct', 'dark-chess', events);
+  room.rated = true;
+  const now = new Date();
+  room.seatTokens = {
+    white: {
+      clientId: 'client-w',
+      seat: 'white',
+      tokenHash: 'hash-w',
+      userId: 'user_w',
+      userHandle: 'whiteplayer',
+      userDisplayName: 'White',
+      issuedAt: now,
+      lastSeenAt: now,
+      revokedAt: null,
+    },
+    black: {
+      clientId: 'client-b',
+      seat: 'black',
+      tokenHash: 'hash-b',
+      userId: 'user_b',
+      userHandle: 'blackplayer',
+      userDisplayName: 'Black',
+      issuedAt: now,
+      lastSeenAt: now,
+      revokedAt: null,
+    },
+  };
+  const ctx = makeCtx();
+
+  const summary = buildGameSummary(ctx, room);
+
+  assert.equal(summary.rated, true, 'two account seats keep rated');
+  assert.equal(summary.participants?.[0]?.subjectType, 'user');
+  assert.equal(summary.participants?.[1]?.subjectType, 'user');
+});
+
+test('buildGameSummary: one guest + one account seat forces rated=false', () => {
+  const events: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'room-mixed', variant: 'dark-chess', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId: 'room-mixed', clientId: 'client-w', seat: 'white' },
+    { type: 'seat-assigned', at: 3, roomId: 'room-mixed', clientId: 'guest-b', seat: 'black' },
+    { type: 'seat-resigned', at: 4, roomId: 'room-mixed', color: 'white' },
+  ];
+  const room = makeRoom('room-mixed', 'dark-chess', events);
+  room.rated = true;
+  const now = new Date();
+  room.seatTokens = {
+    white: {
+      clientId: 'client-w',
+      seat: 'white',
+      tokenHash: 'hash-w',
+      userId: 'user_w',
+      userHandle: 'whiteplayer',
+      userDisplayName: 'White',
+      issuedAt: now,
+      lastSeenAt: now,
+      revokedAt: null,
+    },
+  };
+  const ctx = makeCtx();
+
+  const summary = buildGameSummary(ctx, room);
+
+  assert.equal(summary.rated, false, 'a single guest seat forces casual');
 });
 
 // ── pauseRoomOnShutdown ────────────────────────────────────────────────────────

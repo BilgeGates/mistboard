@@ -1077,7 +1077,10 @@ async function getOrCreateRoom(
     forfeitDeadline: null,
     forfeitSeat: null,
     mode,
-    rated: true,
+    // Default casual. The rated flag is not yet persisted through events, so a
+    // hydrated room can't recover a rated request; defaulting casual is the safe
+    // floor (the room-manager account-gate is the authoritative rated decision).
+    rated: false,
     randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
     randomSeating: false,
     creatorPreference: null,
@@ -1109,7 +1112,7 @@ async function createRoom(
   engineId: string,
   hiddenDraft960 = false,
   timeControl?: RoomTimeControl,
-  rated = true,
+  rated = false,
   options: {
     randomSeating?: boolean;
     engineColor?: 'white' | 'black';
@@ -1637,7 +1640,7 @@ function inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | 
     whiteName: summary.whiteName,
     blackName: summary.blackName,
     corpusId: summary.corpusId,
-    rated: summary.rated ?? true,
+    rated: summary.rated ?? false,
     jobId: null,
     gameIndex: null,
     whiteEngineId: null,
