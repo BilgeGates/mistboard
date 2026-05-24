@@ -8,7 +8,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { fogOfWarVariant } from '@mistboard/game';
+import { darkChessVariant } from '@mistboard/game';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -108,7 +108,7 @@ console.log(`  truncated:      ${totals.truncated}/${gameCount} (${pct(totals.tr
 function playRandomGame(seed, plyCap) {
   const rng = mulberry32(seed);
   const roomId = `corpus-random-${seed}`;
-  let state = fogOfWarVariant.createInitialState(roomId);
+  let state = darkChessVariant.createInitialState(roomId);
 
   const events = [{ type: 'room-created', at: 0, roomId, variant: 'fog-of-war', offer: [] }];
   const views = [snapshotViews(state, 0)];
@@ -128,14 +128,14 @@ function playRandomGame(seed, plyCap) {
       break;
     }
     const turn = state.status.turn;
-    const legals = fogOfWarVariant.getLegalMoves(state, turn);
+    const legals = darkChessVariant.getLegalMoves(state, turn);
     if (legals.length === 0) break; // defensive — variant should mark finished
 
     const move = pickMove(state, legals, rng);
     classify(state, move, flags);
 
     const targetBefore = state.board[move.to];
-    state = fogOfWarVariant.applyMove(state, move);
+    state = darkChessVariant.applyMove(state, move);
     plies += 1;
     events.push({
       type: 'move-played',
@@ -164,8 +164,8 @@ function snapshotViews(state, ply) {
   // `final: true` marks post-game-end snapshots — TS short-circuits visibility
   // to own-pieces-only on finished states; the lab doesn't replicate that, so
   // parity comparisons skip these by design.
-  const whiteView = fogOfWarVariant.getPlayerView(state, 'white');
-  const blackView = fogOfWarVariant.getPlayerView(state, 'black');
+  const whiteView = darkChessVariant.getPlayerView(state, 'white');
+  const blackView = darkChessVariant.getPlayerView(state, 'black');
   const out = {
     ply,
     white: [...whiteView.visibleSquares].sort(),

@@ -15,7 +15,7 @@ import type { LiveBoardsOptions, SteppedBoardsOptions } from '@mistboard/board-r
 import {
   createChess960CastlingRightsForSides,
   createChess960InitialBoardForSides,
-  fogOfWarVariant,
+  darkChessVariant,
   type BackRankRole,
   type Board,
   type Chess960Start,
@@ -164,15 +164,15 @@ const DRAFT960_BLACK_OFFER_C: PieceRole[] = ['knight', 'bishop', 'bishop', 'quee
 // Starting-position triptych for the Fog of War rules article. Visibility is
 // derived from the canonical fog-of-war variant kernel so the diagram exactly
 // matches what players see in a live game.
-const FOW_START_STATE = fogOfWarVariant.createInitialState('fow-rules-start');
-const FOW_START_VIEW_W = fogOfWarVariant.getPlayerView(FOW_START_STATE, 'white');
-const FOW_START_VIEW_B = fogOfWarVariant.getPlayerView(FOW_START_STATE, 'black');
-const FOW_START_FOG_W = fogSquaresFromVisible(FOW_START_VIEW_W.visibleSquares);
-const FOW_START_FOG_B = fogSquaresFromVisible(FOW_START_VIEW_B.visibleSquares);
+const DARK_CHESS_START_STATE = darkChessVariant.createInitialState('dark-chess-rules-start');
+const DARK_CHESS_START_VIEW_W = darkChessVariant.getPlayerView(DARK_CHESS_START_STATE, 'white');
+const DARK_CHESS_START_VIEW_B = darkChessVariant.getPlayerView(DARK_CHESS_START_STATE, 'black');
+const DARK_CHESS_START_FOG_W = fogSquaresFromVisible(DARK_CHESS_START_VIEW_W.visibleSquares);
+const DARK_CHESS_START_FOG_B = fogSquaresFromVisible(DARK_CHESS_START_VIEW_B.visibleSquares);
 
 // Helper: derive the visibility complement for a player on a state.
 function fogFor(state: GameState, player: 'white' | 'black'): Square[] {
-  return fogSquaresFromVisible(fogOfWarVariant.getPlayerView(state, player).visibleSquares);
+  return fogSquaresFromVisible(darkChessVariant.getPlayerView(state, player).visibleSquares);
 }
 
 // Helper: apply a sequence of moves from a start state; returns all states
@@ -183,7 +183,7 @@ function replayMoves(
 ): GameState[] {
   const states: GameState[] = [start];
   for (const move of moves) {
-    states.push(fogOfWarVariant.applyMove(states[states.length - 1]!, move));
+    states.push(darkChessVariant.applyMove(states[states.length - 1]!, move));
   }
   return states;
 }
@@ -267,7 +267,7 @@ const ENPASSANT_INITIAL_BOARD: Board = {
   h7: { color: 'black', role: 'pawn' },
 };
 const ENPASSANT_INITIAL: GameState = {
-  id: 'fow-rules-enpassant',
+  id: 'dark-chess-rules-enpassant',
   variant: 'dark-chess',
   board: ENPASSANT_INITIAL_BOARD,
   status: { type: 'playing', turn: 'black' },
@@ -338,7 +338,7 @@ const DISCOVERY_BOARD: Board = {
   b7: { color: 'black', role: 'queen' },
 };
 const DISCOVERY_BEFORE: GameState = {
-  id: 'fow-rules-discovery',
+  id: 'dark-chess-rules-discovery',
   variant: 'dark-chess',
   board: DISCOVERY_BOARD,
   status: { type: 'playing', turn: 'white' },
@@ -346,7 +346,7 @@ const DISCOVERY_BEFORE: GameState = {
   castlingRights: [],
   halfmoveClock: 0,
 };
-const DISCOVERY_FINAL = fogOfWarVariant.applyMove(DISCOVERY_BEFORE, { from: 'd2', to: 'd7' });
+const DISCOVERY_FINAL = darkChessVariant.applyMove(DISCOVERY_BEFORE, { from: 'd2', to: 'd7' });
 const DISCOVERY_BEFORE_FOG_W = fogFor(DISCOVERY_BEFORE, 'white');
 const DISCOVERY_FINAL_FOG_W = fogFor(DISCOVERY_FINAL, 'white');
 
@@ -355,7 +355,7 @@ const DISCOVERY_FINAL_FOG_W = fogFor(DISCOVERY_FINAL, 'white');
 // A 41-move game. The Black pawn lands on c5 on move 12 and stays there for
 // 70 ply. White's king never once sees it — until it walks to b4 on move 41
 // and the pawn captures it immediately.
-const PVP_START = fogOfWarVariant.createInitialState('pvp-t2t1-82ply');
+const PVP_START = darkChessVariant.createInitialState('pvp-t2t1-82ply');
 const PVP_STATES = replayMoves(PVP_START, [
   { from: 'e2', to: 'e4' },  // 1.e4
   { from: 'e7', to: 'e6' },  // 1...e6
@@ -653,7 +653,7 @@ const BLACK_PICK_SCREEN_FOG: Square[] = [
 // captured there four moves earlier); Qxe1 ends the game. Real game
 // illustrating the canonical FoW failure mode: a king walking onto a file
 // occupied by an opposing slider that sat outside the king's vision.
-const VS_BRIAN_3_START = fogOfWarVariant.createInitialState('vs-brian-game-3');
+const VS_BRIAN_3_START = darkChessVariant.createInitialState('vs-brian-game-3');
 const VS_BRIAN_3_STATES = replayMoves(VS_BRIAN_3_START, [
   { from: 'e2', to: 'e3' },
   { from: 'e7', to: 'e6' },
@@ -726,7 +726,7 @@ const VS_BRIAN_3_STATES = replayMoves(VS_BRIAN_3_START, [
 // and plays Bxe8, taking the king on its starting square. Rendered as a
 // triptych stepper (BLACK + SERVER + WHITE) so the reader can compare what
 // each side saw at each of the three key moves.
-const WHITE_BISHOP_WIN_START = fogOfWarVariant.createInitialState('white-bishop-win');
+const WHITE_BISHOP_WIN_START = darkChessVariant.createInitialState('white-bishop-win');
 const WHITE_BISHOP_WIN_STATES = replayMoves(WHITE_BISHOP_WIN_START, [
   { from: 'e2', to: 'e4' },
   { from: 'b7', to: 'b6' },
@@ -817,7 +817,7 @@ const CASTLE_TRIPLE_PRE_BOARD: Board = {
   e4: { color: 'white', role: 'knight' },
 };
 const CASTLE_TRIPLE_PRE: GameState = {
-  id: 'fow-rules-castle-triple',
+  id: 'dark-chess-rules-castle-triple',
   variant: 'dark-chess',
   board: CASTLE_TRIPLE_PRE_BOARD,
   status: { type: 'playing', turn: 'white' },
@@ -827,9 +827,9 @@ const CASTLE_TRIPLE_PRE: GameState = {
 };
 // White plays Ne4-f6, landing the threat on e8/f8/g8. Then Black castles
 // kingside; then White's knight captures the king on g8.
-const CASTLE_TRIPLE_BEFORE = fogOfWarVariant.applyMove(CASTLE_TRIPLE_PRE, { from: 'e4', to: 'f6' });
-const CASTLE_TRIPLE_AFTER = fogOfWarVariant.applyMove(CASTLE_TRIPLE_BEFORE, { from: 'e8', to: 'h8' });
-const CASTLE_TRIPLE_FINAL = fogOfWarVariant.applyMove(CASTLE_TRIPLE_AFTER, { from: 'f6', to: 'g8' });
+const CASTLE_TRIPLE_BEFORE = darkChessVariant.applyMove(CASTLE_TRIPLE_PRE, { from: 'e4', to: 'f6' });
+const CASTLE_TRIPLE_AFTER = darkChessVariant.applyMove(CASTLE_TRIPLE_BEFORE, { from: 'e8', to: 'h8' });
+const CASTLE_TRIPLE_FINAL = darkChessVariant.applyMove(CASTLE_TRIPLE_AFTER, { from: 'f6', to: 'g8' });
 const CASTLE_TRIPLE_PRE_FOG_W = fogFor(CASTLE_TRIPLE_PRE, 'white');
 const CASTLE_TRIPLE_PRE_FOG_B = fogFor(CASTLE_TRIPLE_PRE, 'black');
 const CASTLE_TRIPLE_BEFORE_FOG_W = fogFor(CASTLE_TRIPLE_BEFORE, 'white');
@@ -857,7 +857,7 @@ const DEDUCE_PAWN_BLOCKED_FOG = fogFor(DEDUCE_PAWN_BLOCKED, 'white');
 // After 2...Bb4, square b4 — previously visible to White via b2's two-square
 // push — falls to fog. With c3 and d2 both visible empty, the b4-e1 diagonal
 // is open and the king is one move from capture.
-const DEDUCE_BB4_START = fogOfWarVariant.createInitialState('deduction-bb4');
+const DEDUCE_BB4_START = darkChessVariant.createInitialState('deduction-bb4');
 const DEDUCE_BB4_STATES = replayMoves(DEDUCE_BB4_START, [
   { from: 'd2', to: 'd4' },
   { from: 'e7', to: 'e6' },
@@ -907,7 +907,7 @@ const DEDUCE_RECAP_BEFORE: GameState = {
   castlingRights: [],
   halfmoveClock: 0,
 };
-const DEDUCE_RECAP_AFTER = fogOfWarVariant.applyMove(DEDUCE_RECAP_BEFORE, { from: 'e6', to: 'd5' });
+const DEDUCE_RECAP_AFTER = darkChessVariant.applyMove(DEDUCE_RECAP_BEFORE, { from: 'e6', to: 'd5' });
 const DEDUCE_RECAP_POSITIONS = [DEDUCE_RECAP_BEFORE, DEDUCE_RECAP_AFTER].map((state) => {
   const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
   return {
@@ -939,7 +939,7 @@ const DEDUCE_RECAP_NB_BEFORE: GameState = {
   castlingRights: [],
   halfmoveClock: 0,
 };
-const DEDUCE_RECAP_NB_AFTER = fogOfWarVariant.applyMove(DEDUCE_RECAP_NB_BEFORE, { from: 'e6', to: 'd5' });
+const DEDUCE_RECAP_NB_AFTER = darkChessVariant.applyMove(DEDUCE_RECAP_NB_BEFORE, { from: 'e6', to: 'd5' });
 const DEDUCE_RECAP_NB_POSITIONS = [DEDUCE_RECAP_NB_BEFORE, DEDUCE_RECAP_NB_AFTER].map((state) => {
   const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
   return {
@@ -1154,8 +1154,8 @@ export const articles: Article[] = [
     audience:
       'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
     thumbnail: {
-      pieces: boardToPieces(FOW_START_STATE.board),
-      fogSquares: FOW_START_FOG_W,
+      pieces: boardToPieces(DARK_CHESS_START_STATE.board),
+      fogSquares: DARK_CHESS_START_FOG_W,
       orientation: 'white',
     },
     sections: [
@@ -1177,9 +1177,9 @@ export const articles: Article[] = [
             spec: {
               layout: 'triptych',
               boards: [
-                { board: FOW_START_STATE.board, fogSquares: FOW_START_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
-                { board: FOW_START_STATE.board, orientation: 'white', label: 'SERVER TRUTH' },
-                { board: FOW_START_STATE.board, fogSquares: FOW_START_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
+                { board: DARK_CHESS_START_STATE.board, fogSquares: DARK_CHESS_START_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                { board: DARK_CHESS_START_STATE.board, orientation: 'white', label: 'SERVER TRUTH' },
+                { board: DARK_CHESS_START_STATE.board, fogSquares: DARK_CHESS_START_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
               ],
             },
           } as ArticleBlock,

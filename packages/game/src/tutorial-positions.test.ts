@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Board, GameState, Move, PieceRole, Square } from './types.js';
-import { fogOfWarVariant } from './variants.js';
+import { darkChessVariant } from './variants.js';
 
 type TutorialPosition = {
   board: Board;
@@ -1107,7 +1107,7 @@ test('authored tutorial sequences use legal moves through fog', () => {
         true,
         `${position.id}: expected ${moveLabel(move)} to be legal`,
       );
-      const next = fogOfWarVariant.applyMove(state, move);
+      const next = darkChessVariant.applyMove(state, move);
       state = {
         ...next,
         status: { type: 'playing', turn: 'white' } as const,
@@ -1118,7 +1118,7 @@ test('authored tutorial sequences use legal moves through fog', () => {
       color: 'white',
       role: position.pieceRole,
     });
-    const afterView = fogOfWarVariant.getPlayerView(state, 'white');
+    const afterView = darkChessVariant.getPlayerView(state, 'white');
     const afterVisible = new Set(afterView.visibleSquares);
     for (const square of position.visibleAfter ?? []) {
       assert.equal(
@@ -1138,7 +1138,7 @@ test('authored tutorial sequences use legal moves through fog', () => {
 });
 
 function hasLegalMove(state: GameState, move: Move): boolean {
-  return fogOfWarVariant
+  return darkChessVariant
     .getLegalMoves(state, 'white')
     .some((candidate) => candidate.from === move.from && candidate.to === move.to);
 }
@@ -1150,7 +1150,7 @@ function moveLabel(move: Move): string {
 function tutorialState(id: string, board: Board): GameState {
   const position = positions.find((candidate) => candidate.id === id);
   return {
-    ...fogOfWarVariant.createInitialState(`tutorial-${id}`),
+    ...darkChessVariant.createInitialState(`tutorial-${id}`),
     board,
     status: { type: 'playing', turn: 'white' },
     castlingRights: position?.castlingRights ?? [],

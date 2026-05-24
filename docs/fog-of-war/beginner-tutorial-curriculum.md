@@ -412,7 +412,7 @@ legal jumps. Pawns reveal empty forward moves and diagonal captures, but not
 empty diagonal attack squares.
 
 The target squares below were sanity-checked against the current
-`fogOfWarVariant.getPlayerView` visibility behavior.
+`darkChessVariant.getPlayerView` visibility behavior.
 
 Notation:
 

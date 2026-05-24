@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GameState, Move } from './types.js';
-import { draft960Variant, fogOfWarVariant, variantForId } from './variants.js';
+import { draft960Variant, darkChessVariant, variantForId } from './variants.js';
 
 test('variantForId resolves known slugs and throws on anything else', () => {
-  assert.equal(variantForId('dark-chess'), fogOfWarVariant);
+  assert.equal(variantForId('dark-chess'), darkChessVariant);
   assert.equal(variantForId('draft960'), draft960Variant);
   assert.throws(() => variantForId('fog-of-war' as never), /unknown variant id/);
 });
@@ -117,7 +117,7 @@ test('Draft960 applies castling moves represented as king two squares', () => {
 
 test('Fog of War view includes own pieces and legal destination squares', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-visibility'),
+    ...darkChessVariant.createInitialState('fog-visibility'),
     board: {
       a1: { color: 'white', role: 'rook' },
       e1: { color: 'white', role: 'king' },
@@ -131,7 +131,7 @@ test('Fog of War view includes own pieces and legal destination squares', () => 
     lastMove: { from: 'h8', to: 'h7' },
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'white');
+  const view = darkChessVariant.getPlayerView(state, 'white');
 
   assert.deepEqual(view.board.a1, { color: 'white', role: 'rook' });
   assert.deepEqual(view.board.e1, { color: 'white', role: 'king' });
@@ -146,7 +146,7 @@ test('Fog of War view includes own pieces and legal destination squares', () => 
 
 test('Fog of War visibility is computed for a player even off-turn', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-off-turn'),
+    ...darkChessVariant.createInitialState('fog-off-turn'),
     board: {
       a1: { color: 'white', role: 'rook' },
       e1: { color: 'white', role: 'king' },
@@ -157,7 +157,7 @@ test('Fog of War visibility is computed for a player even off-turn', () => {
     castlingRights: [],
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'black');
+  const view = darkChessVariant.getPlayerView(state, 'black');
 
   assert.equal(view.legalMoves.length, 0);
   assert.deepEqual(view.board.a4, { color: 'black', role: 'rook' });
@@ -168,7 +168,7 @@ test('Fog of War visibility is computed for a player even off-turn', () => {
 
 test('Fog of War pawn visibility includes forward moves but not empty diagonals', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-pawn-empty-diagonals'),
+    ...darkChessVariant.createInitialState('fog-pawn-empty-diagonals'),
     board: {
       e1: { color: 'white', role: 'king' },
       e4: { color: 'white', role: 'pawn' },
@@ -178,7 +178,7 @@ test('Fog of War pawn visibility includes forward moves but not empty diagonals'
     castlingRights: [],
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'white');
+  const view = darkChessVariant.getPlayerView(state, 'white');
 
   assert.ok(view.visibleSquares.includes('e5'));
   assert.equal(view.visibleSquares.includes('d5'), false);
@@ -187,7 +187,7 @@ test('Fog of War pawn visibility includes forward moves but not empty diagonals'
 
 test('Fog of War pawn visibility reveals diagonal captures but not direct blockers', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-pawn-captures-blockers'),
+    ...darkChessVariant.createInitialState('fog-pawn-captures-blockers'),
     board: {
       e1: { color: 'white', role: 'king' },
       e4: { color: 'white', role: 'pawn' },
@@ -199,7 +199,7 @@ test('Fog of War pawn visibility reveals diagonal captures but not direct blocke
     castlingRights: [],
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'white');
+  const view = darkChessVariant.getPlayerView(state, 'white');
 
   assert.ok(view.visibleSquares.includes('d5'));
   assert.deepEqual(view.board.d5, { color: 'black', role: 'knight' });
@@ -210,7 +210,7 @@ test('Fog of War pawn visibility reveals diagonal captures but not direct blocke
 
 test('Fog of War player view exposes own last move after the piece leaves its origin', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-own-last-move'),
+    ...darkChessVariant.createInitialState('fog-own-last-move'),
     board: {
       e1: { color: 'white', role: 'king' },
       e4: { color: 'white', role: 'pawn' },
@@ -221,14 +221,14 @@ test('Fog of War player view exposes own last move after the piece leaves its or
     lastMove: { from: 'e2', to: 'e4' },
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'white');
+  const view = darkChessVariant.getPlayerView(state, 'white');
 
   assert.deepEqual(view.lastMove, { from: 'e2', to: 'e4' });
 });
 
 test('Fog of War player view exposes own castling last move', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-own-castle-last-move'),
+    ...darkChessVariant.createInitialState('fog-own-castle-last-move'),
     board: {
       f1: { color: 'white', role: 'rook' },
       g1: { color: 'white', role: 'king' },
@@ -239,14 +239,14 @@ test('Fog of War player view exposes own castling last move', () => {
     lastMove: { from: 'e1', to: 'h1' },
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'white');
+  const view = darkChessVariant.getPlayerView(state, 'white');
 
   assert.deepEqual(view.lastMove, { from: 'e1', to: 'h1' });
 });
 
 test('Fog of War player view does not expose opponent last-move coordinates', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-hidden-opponent-last-move'),
+    ...darkChessVariant.createInitialState('fog-hidden-opponent-last-move'),
     board: {
       e1: { color: 'white', role: 'king' },
       e4: { color: 'white', role: 'pawn' },
@@ -258,7 +258,7 @@ test('Fog of War player view does not expose opponent last-move coordinates', ()
     lastMove: { from: 'e2', to: 'e4' },
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'black');
+  const view = darkChessVariant.getPlayerView(state, 'black');
 
   assert.deepEqual(view.board.e4, { color: 'white', role: 'pawn' });
   assert.equal(view.lastMove, undefined);
@@ -270,7 +270,7 @@ test('Fog of War en passant does not leak visibility to the pushing side', () =>
   // rank is 6). White pawns at c2/a2 must NOT treat b3 as a capture target.
   // Regression for the bug surfaced by cross-language visibility parity.
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-ep-no-pushing-side-leak'),
+    ...darkChessVariant.createInitialState('fog-ep-no-pushing-side-leak'),
     board: {
       a2: { color: 'white', role: 'pawn' },
       b4: { color: 'white', role: 'pawn' },
@@ -283,14 +283,14 @@ test('Fog of War en passant does not leak visibility to the pushing side', () =>
     enPassantSquare: 'b3',
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'white');
+  const view = darkChessVariant.getPlayerView(state, 'white');
 
   assert.ok(!view.visibleSquares.includes('b3'));
 });
 
 test('Fog of War en passant visibility includes the captured pawn square', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-en-passant-visibility'),
+    ...darkChessVariant.createInitialState('fog-en-passant-visibility'),
     board: {
       e1: { color: 'white', role: 'king' },
       e5: { color: 'white', role: 'pawn' },
@@ -302,7 +302,7 @@ test('Fog of War en passant visibility includes the captured pawn square', () =>
     enPassantSquare: 'd6',
   };
 
-  const view = fogOfWarVariant.getPlayerView(state, 'white');
+  const view = darkChessVariant.getPlayerView(state, 'white');
 
   assert.ok(view.visibleSquares.includes('d6'));
   assert.ok(view.visibleSquares.includes('d5'));
@@ -311,7 +311,7 @@ test('Fog of War en passant visibility includes the captured pawn square', () =>
 
 test('Fog of War player view serialization does not contain hidden opponent pieces', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-serialization'),
+    ...darkChessVariant.createInitialState('fog-serialization'),
     board: {
       a1: { color: 'white', role: 'rook' },
       e1: { color: 'white', role: 'king' },
@@ -323,7 +323,7 @@ test('Fog of War player view serialization does not contain hidden opponent piec
     castlingRights: [],
   };
 
-  const payload = JSON.stringify(fogOfWarVariant.getPlayerView(state, 'white'));
+  const payload = JSON.stringify(darkChessVariant.getPlayerView(state, 'white'));
 
   assert.match(payload, /"a4"/);
   assert.doesNotMatch(payload, /"h8"/);
@@ -332,7 +332,7 @@ test('Fog of War player view serialization does not contain hidden opponent piec
 
 test('Fog of War legal moves ignore check constraints', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-no-check'),
+    ...darkChessVariant.createInitialState('fog-no-check'),
     board: {
       e1: { color: 'white', role: 'king' },
       e8: { color: 'black', role: 'rook' },
@@ -342,22 +342,22 @@ test('Fog of War legal moves ignore check constraints', () => {
     castlingRights: [],
   };
 
-  const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+  const moves = darkChessVariant.getLegalMoves(state, 'white');
   assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'e2'));
   assert.ok(
-    fogOfWarVariant
+    darkChessVariant
       .getPlayerView(state, 'white')
       .legalMoves.some((move) => move.from === 'e1' && move.to === 'e2'),
   );
 
-  const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'e2' });
+  const next = darkChessVariant.applyMove(state, { from: 'e1', to: 'e2' });
   assert.deepEqual(next.board.e2, { color: 'white', role: 'king' });
   assert.deepEqual(next.status, { type: 'playing', turn: 'black' });
 });
 
 test('Fog of War ends when a king is captured', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-king-capture'),
+    ...darkChessVariant.createInitialState('fog-king-capture'),
     board: {
       e1: { color: 'white', role: 'king' },
       e2: { color: 'black', role: 'king' },
@@ -366,10 +366,10 @@ test('Fog of War ends when a king is captured', () => {
     castlingRights: [],
   };
 
-  const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+  const moves = darkChessVariant.getLegalMoves(state, 'white');
   assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'e2'));
 
-  const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'e2' });
+  const next = darkChessVariant.applyMove(state, { from: 'e1', to: 'e2' });
   assert.deepEqual(next.board.e2, { color: 'white', role: 'king' });
   assert.deepEqual(next.status, { type: 'finished', winner: 'white', reason: 'king-captured' });
 });
@@ -380,7 +380,7 @@ test('Fog of War vision survives king capture (finished status)', () => {
   // captured side's view collapses to its own piece squares (a single square
   // here) and any postgame render — replays, articles — would "lose" sight.
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-vision-after-capture'),
+    ...darkChessVariant.createInitialState('fog-vision-after-capture'),
     board: {
       e1: { color: 'white', role: 'king' },
       e2: { color: 'black', role: 'king' },
@@ -390,17 +390,17 @@ test('Fog of War vision survives king capture (finished status)', () => {
     castlingRights: [],
   };
 
-  const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'e2' });
+  const next = darkChessVariant.applyMove(state, { from: 'e1', to: 'e2' });
   assert.equal(next.status.type, 'finished');
 
   // The losing side (black) lost its only piece — visibility is empty,
   // which is correct (nothing left to see from).
-  const blackView = fogOfWarVariant.getPlayerView(next, 'black');
+  const blackView = darkChessVariant.getPlayerView(next, 'black');
   assert.deepEqual(blackView.visibleSquares, []);
 
   // The winning side (white) still has pieces. Vision must include rook
   // sight lines, not just own-piece squares.
-  const whiteView = fogOfWarVariant.getPlayerView(next, 'white');
+  const whiteView = darkChessVariant.getPlayerView(next, 'white');
   assert.ok(whiteView.visibleSquares.includes('a8'), 'rook should still see up the a-file');
   assert.ok(whiteView.visibleSquares.includes('h1'), 'rook should still see along rank 1');
   assert.ok(whiteView.visibleSquares.includes('e2'), 'king should still see e2');
@@ -408,7 +408,7 @@ test('Fog of War vision survives king capture (finished status)', () => {
 
 test('Fog of War draws on the 50-move rule', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-fifty-move'),
+    ...darkChessVariant.createInitialState('fog-fifty-move'),
     board: {
       e1: { color: 'white', role: 'king' },
       b1: { color: 'white', role: 'knight' },
@@ -419,14 +419,14 @@ test('Fog of War draws on the 50-move rule', () => {
     halfmoveClock: 99,
   };
 
-  const next = fogOfWarVariant.applyMove(state, { from: 'b1', to: 'c3' });
+  const next = darkChessVariant.applyMove(state, { from: 'b1', to: 'c3' });
   assert.deepEqual(next.status, { type: 'finished', winner: null, reason: 'draw' });
   assert.equal(next.halfmoveClock, 100);
 });
 
 test('Fog of War draws on threefold repetition', () => {
   let state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-threefold'),
+    ...darkChessVariant.createInitialState('fog-threefold'),
     board: {
       e1: { color: 'white', role: 'king' },
       g1: { color: 'white', role: 'knight' },
@@ -446,17 +446,17 @@ test('Fog of War draws on threefold repetition', () => {
     { from: 'g8', to: 'f6' },
     { from: 'f3', to: 'g1' },
   ] satisfies Move[]) {
-    state = fogOfWarVariant.applyMove(state, move);
+    state = darkChessVariant.applyMove(state, move);
     assert.equal(state.status.type, 'playing');
   }
 
-  const repeated = fogOfWarVariant.applyMove(state, { from: 'f6', to: 'g8' });
+  const repeated = darkChessVariant.applyMove(state, { from: 'f6', to: 'g8' });
   assert.deepEqual(repeated.status, { type: 'finished', winner: null, reason: 'draw' });
 });
 
 test('Fog of War castling ignores attacked transit and destination squares', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-castle-through-check'),
+    ...darkChessVariant.createInitialState('fog-castle-through-check'),
     board: {
       e1: { color: 'white', role: 'king' },
       h1: { color: 'white', role: 'rook' },
@@ -468,14 +468,14 @@ test('Fog of War castling ignores attacked transit and destination squares', () 
     castlingRights: ['h1'],
   };
 
-  const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+  const moves = darkChessVariant.getLegalMoves(state, 'white');
   assert.ok(moves.some((move) => move.from === 'e1' && move.to === 'h1'));
   assert.equal(
     moves.some((move) => move.from === 'e1' && move.to === 'g1'),
     false,
   );
 
-  const next = fogOfWarVariant.applyMove(state, { from: 'e1', to: 'g1' });
+  const next = darkChessVariant.applyMove(state, { from: 'e1', to: 'g1' });
   assert.equal(next.board.e1, undefined);
   assert.equal(next.board.h1, undefined);
   assert.deepEqual(next.board.g1, { color: 'white', role: 'king' });
@@ -485,7 +485,7 @@ test('Fog of War castling ignores attacked transit and destination squares', () 
 
 test('Fog of War castling supports Chess960-shaped king and rook starts', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-chess960-castle'),
+    ...darkChessVariant.createInitialState('fog-chess960-castle'),
     board: {
       b1: { color: 'white', role: 'king' },
       c1: { color: 'white', role: 'rook' },
@@ -495,14 +495,14 @@ test('Fog of War castling supports Chess960-shaped king and rook starts', () => 
     castlingRights: ['c1'],
   };
 
-  const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+  const moves = darkChessVariant.getLegalMoves(state, 'white');
   assert.ok(moves.some((move) => move.from === 'b1' && move.to === 'c1'));
   assert.equal(
     moves.some((move) => move.from === 'b1' && move.to === 'g1'),
     false,
   );
 
-  const next = fogOfWarVariant.applyMove(state, { from: 'b1', to: 'g1' });
+  const next = darkChessVariant.applyMove(state, { from: 'b1', to: 'g1' });
   assert.equal(next.board.b1, undefined);
   assert.equal(next.board.c1, undefined);
   assert.deepEqual(next.board.g1, { color: 'white', role: 'king' });
@@ -512,7 +512,7 @@ test('Fog of War castling supports Chess960-shaped king and rook starts', () => 
 
 test('Fog of War castling rejects occupied Chess960 final squares', () => {
   const kingDestinationBlocked: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-chess960-castle-king-blocked'),
+    ...darkChessVariant.createInitialState('fog-chess960-castle-king-blocked'),
     board: {
       b1: { color: 'white', role: 'king' },
       c1: { color: 'white', role: 'rook' },
@@ -534,7 +534,7 @@ test('Fog of War castling rejects occupied Chess960 final squares', () => {
   };
 
   for (const state of [kingDestinationBlocked, rookDestinationBlocked]) {
-    const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+    const moves = darkChessVariant.getLegalMoves(state, 'white');
     assert.equal(
       moves.some((move) => move.from === 'b1' && move.to === 'c1'),
       false,
@@ -543,17 +543,17 @@ test('Fog of War castling rejects occupied Chess960 final squares', () => {
       moves.some((move) => move.from === 'b1' && move.to === 'g1'),
       false,
     );
-    assert.equal(fogOfWarVariant.applyMove(state, { from: 'b1', to: 'g1' }), state);
+    assert.equal(darkChessVariant.applyMove(state, { from: 'b1', to: 'g1' }), state);
   }
   assert.equal(
-    fogOfWarVariant.getPlayerView(rookDestinationBlocked, 'white').visibleSquares.includes('g1'),
+    darkChessVariant.getPlayerView(rookDestinationBlocked, 'white').visibleSquares.includes('g1'),
     false,
   );
 });
 
 test('Fog of War applies en passant captures', () => {
   const state: GameState = {
-    ...fogOfWarVariant.createInitialState('fog-en-passant-apply'),
+    ...darkChessVariant.createInitialState('fog-en-passant-apply'),
     board: {
       e1: { color: 'white', role: 'king' },
       e5: { color: 'white', role: 'pawn' },
@@ -565,10 +565,10 @@ test('Fog of War applies en passant captures', () => {
     enPassantSquare: 'd6',
   };
 
-  const moves = fogOfWarVariant.getLegalMoves(state, 'white');
+  const moves = darkChessVariant.getLegalMoves(state, 'white');
   assert.ok(moves.some((move) => move.from === 'e5' && move.to === 'd6'));
 
-  const next = fogOfWarVariant.applyMove(state, { from: 'e5', to: 'd6' });
+  const next = darkChessVariant.applyMove(state, { from: 'e5', to: 'd6' });
   assert.equal(next.board.e5, undefined);
   assert.equal(next.board.d5, undefined);
   assert.deepEqual(next.board.d6, { color: 'white', role: 'pawn' });

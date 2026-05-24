@@ -1,7 +1,7 @@
 import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-render/interactive';
 import {
   type Board,
-  fogOfWarVariant,
+  darkChessVariant,
   type GameState,
   type Move,
   type PlayerView,
@@ -232,7 +232,7 @@ function render(state: TutorialState): void {
   if (!shell) return;
 
   const chapter = chapters[state.chapterIndex]!;
-  const view = fogOfWarVariant.getPlayerView(state.activeState, 'white');
+  const view = darkChessVariant.getPlayerView(state.activeState, 'white');
   const menu = buildLearnMenu(state);
   const boardPanel = document.createElement('section');
   boardPanel.className = 'learn-board-panel';
@@ -470,7 +470,7 @@ function handleMove(state: TutorialState, uci: Uci): void {
   const step = currentStep(state, chapter);
   if (state.status !== 'ready') return;
 
-  const view = fogOfWarVariant.getPlayerView(state.activeState, 'white');
+  const view = darkChessVariant.getPlayerView(state.activeState, 'white');
   const move = moveFromUci(uci);
   const resolvedMove = resolveUiMove(view, move);
   if (!resolvedMove) {
@@ -482,7 +482,7 @@ function handleMove(state: TutorialState, uci: Uci): void {
   const resolvedUci = moveToUci(resolvedMove);
   const isAccepted = step.accepted.includes(uci) || step.accepted.includes(resolvedUci);
 
-  const nextState = fogOfWarVariant.applyMove(state.activeState, resolvedMove);
+  const nextState = darkChessVariant.applyMove(state.activeState, resolvedMove);
 
   if (isAccepted && step.opponentReply) {
     // Two-phase reveal: render the truth board with white's move applied and the
@@ -497,7 +497,7 @@ function handleMove(state: TutorialState, uci: Uci): void {
     setTimeout(() => {
       if (state.chapterIndex !== chapters.indexOf(chapter)) return;
       const oppMove = moveFromUci(oppReply);
-      const captured = fogOfWarVariant.applyMove(state.activeState, oppMove);
+      const captured = darkChessVariant.applyMove(state.activeState, oppMove);
       state.activeState = { ...captured, lastMove: oppMove };
       render(state);
     }, 1500);
@@ -679,7 +679,7 @@ function rankOf(square: Square): string {
 function gameStateFromBoard(id: string, board: Board): GameState {
   const chapter = chapters.find((candidate) => candidate.id === id);
   return {
-    ...fogOfWarVariant.createInitialState(`learn-${id}`),
+    ...darkChessVariant.createInitialState(`learn-${id}`),
     board,
     status: { type: 'playing', turn: 'white' },
     castlingRights: chapter?.castlingRights ?? [],

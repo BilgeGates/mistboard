@@ -38,7 +38,7 @@ research/python-fow-lab  Offline Python sidecar for visibility/bot/inference exp
 
 Key files:
 - `types.ts` — `GameState`, `PlayerView`, `GameEvent`, piece and square types
-- `variants.ts` — `fogOfWarVariant`, `draft960Variant`, and the fog visibility kernel (`fogVisibleSquares`, `fogMovesFrom`, `applyFogMove`)
+- `variants.ts` — `darkChessVariant`, `draft960Variant`, and the fog visibility kernel (`fogVisibleSquares`, `fogMovesFrom`, `applyFogMove`)
 - `chess960.ts` — `pickDraft960Offer(seed)` — generates a seeded offer of 3 Chess960 back-ranks
 - `events.ts` — event projection: `replayGameEvents` reduces a sequence of `GameEvent`s into a `GameProjection`
 - `notation.ts` — algebraic/coordinate move notation

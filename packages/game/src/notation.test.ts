@@ -3,11 +3,11 @@ import test from 'node:test';
 import type { GameEvent } from './events.js';
 import { algebraicMoveLabels, moveToAlgebraic } from './notation.js';
 import type { GameState, Move } from './types.js';
-import { fogOfWarVariant } from './variants.js';
+import { darkChessVariant } from './variants.js';
 
 test('formats quiet pawn moves without coordinate notation', () => {
   const state = {
-    ...fogOfWarVariant.createInitialState('notation-pawn'),
+    ...darkChessVariant.createInitialState('notation-pawn'),
     status: { type: 'playing', turn: 'white' },
   } satisfies GameState;
 
@@ -16,7 +16,7 @@ test('formats quiet pawn moves without coordinate notation', () => {
 
 test('formats piece moves and captures in algebraic notation', () => {
   const state = {
-    ...fogOfWarVariant.createInitialState('notation-piece'),
+    ...darkChessVariant.createInitialState('notation-piece'),
     board: {
       e4: { color: 'white', role: 'knight' },
       f6: { color: 'black', role: 'bishop' },
@@ -29,7 +29,7 @@ test('formats piece moves and captures in algebraic notation', () => {
 
 test('adds disambiguation when two same-color pieces can reach the destination', () => {
   const state = {
-    ...fogOfWarVariant.createInitialState('notation-disambiguation'),
+    ...darkChessVariant.createInitialState('notation-disambiguation'),
     board: {
       b1: { color: 'white', role: 'knight' },
       d1: { color: 'white', role: 'knight' },
@@ -42,14 +42,14 @@ test('adds disambiguation when two same-color pieces can reach the destination',
 
 test('formats promotion and en passant captures', () => {
   const promotionState = {
-    ...fogOfWarVariant.createInitialState('notation-promotion'),
+    ...darkChessVariant.createInitialState('notation-promotion'),
     board: {
       e7: { color: 'white', role: 'pawn' },
     },
     status: { type: 'playing', turn: 'white' },
   } satisfies GameState;
   const enPassantState = {
-    ...fogOfWarVariant.createInitialState('notation-en-passant'),
+    ...darkChessVariant.createInitialState('notation-en-passant'),
     board: {
       e5: { color: 'white', role: 'pawn' },
       d5: { color: 'black', role: 'pawn' },
@@ -67,7 +67,7 @@ test('formats promotion and en passant captures', () => {
 
 test('formats castling algebraically', () => {
   const state = {
-    ...fogOfWarVariant.createInitialState('notation-castling'),
+    ...darkChessVariant.createInitialState('notation-castling'),
     board: {
       e1: { color: 'white', role: 'king' },
       h1: { color: 'white', role: 'rook' },
@@ -83,7 +83,7 @@ test('formats castling algebraically', () => {
 
 test('does not format ordinary king moves to c-file or g-file as castling', () => {
   const state = {
-    ...fogOfWarVariant.createInitialState('notation-king-move'),
+    ...darkChessVariant.createInitialState('notation-king-move'),
     board: {
       b1: { color: 'white', role: 'king' },
     },

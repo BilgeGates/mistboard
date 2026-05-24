@@ -17,7 +17,7 @@ import type {
 
 // Navigation index — grep for section name to jump to the right block
 // SECTION: Draft960 variant         draft960Variant
-// SECTION: Fog of War variant        fogOfWarVariant
+// SECTION: Fog of War variant        darkChessVariant
 // SECTION: Fog visibility kernel     fogVisibleSquares, applyFogMove
 // SECTION: Fog move generation       fogMovesFrom, getFogMovesForPlayer
 // SECTION: Fog pawn moves            fogPawnMoves
@@ -133,7 +133,7 @@ export const draft960Variant: Variant = {
 };
 
 // ── SECTION: Fog of War variant ────────────────────────────────────────────
-export const fogOfWarVariant: Variant = {
+export const darkChessVariant: Variant = {
   ...draft960Variant,
   id: 'dark-chess',
   createInitialState(gameId: string): GameState {
@@ -751,7 +751,7 @@ export function capturedRoleFor(state: GameState, move: Move): PieceRole | undef
 }
 
 export function variantForId(id: GameState['variant']): Variant {
-  if (id === 'dark-chess') return fogOfWarVariant;
+  if (id === 'dark-chess') return darkChessVariant;
   if (id === 'draft960') return draft960Variant;
   // Fail loud on an unknown slug. After migrations 022/023 no persisted
   // 'fog-of-war' remains, so anything else is a real bug, not a legacy spelling —

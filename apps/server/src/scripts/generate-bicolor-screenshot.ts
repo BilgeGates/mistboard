@@ -5,7 +5,7 @@ import { PIECE_SVGS } from '@mistboard/board-render';
 import {
   type Board,
   type Color,
-  fogOfWarVariant,
+  darkChessVariant,
   type GameEvent,
   replayGameEvents,
   type Square,
@@ -150,8 +150,8 @@ function renderBoard(
 }
 
 const pieces = boardToPieces(state.board);
-const whiteView = fogOfWarVariant.getPlayerView(state, 'white');
-const blackView = fogOfWarVariant.getPlayerView(state, 'black');
+const whiteView = darkChessVariant.getPlayerView(state, 'white');
+const blackView = darkChessVariant.getPlayerView(state, 'black');
 const whiteVisible = new Set(whiteView.visibleSquares);
 const blackVisible = new Set(blackView.visibleSquares);
 const whiteFog = ALL_SQUARES.filter((s) => !whiteVisible.has(s));

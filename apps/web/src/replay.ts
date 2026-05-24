@@ -10,7 +10,7 @@ import {
   type Color,
   clockRemainingMs,
   coordinateMoveLabel,
-  fogOfWarVariant,
+  darkChessVariant,
   type GameEvent,
   type GameState,
   type Move,
@@ -397,8 +397,8 @@ export async function mountReplay(
       setBoardFromState(whiteCg, state);
       setBoardFromState(blackCg, state);
     } else {
-      let whiteView = fogOfWarVariant.getPlayerView(state, 'white');
-      let blackView = fogOfWarVariant.getPlayerView(state, 'black');
+      let whiteView = darkChessVariant.getPlayerView(state, 'white');
+      let blackView = darkChessVariant.getPlayerView(state, 'black');
       if (
         finished &&
         state.status.type === 'finished' &&

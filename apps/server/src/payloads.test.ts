@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  fogOfWarVariant,
+  darkChessVariant,
   type GameEvent,
   type GameProjection,
   generateChess960Starts,
@@ -12,7 +12,7 @@ import { eventReplayResponse } from './server-policy.js';
 
 test('Fog of War snapshot payload does not include hidden opponent pieces or move events', () => {
   const state = {
-    ...fogOfWarVariant.createInitialState('fog-payload'),
+    ...darkChessVariant.createInitialState('fog-payload'),
     board: {
       a1: { color: 'white', role: 'rook' },
       e1: { color: 'white', role: 'king' },
@@ -22,7 +22,7 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
     },
     status: { type: 'playing', turn: 'white' } as const,
     castlingRights: [],
-  } satisfies ReturnType<typeof fogOfWarVariant.createInitialState>;
+  } satisfies ReturnType<typeof darkChessVariant.createInitialState>;
   const events: GameEvent[] = [
     {
       type: 'room-created',
@@ -390,10 +390,10 @@ test('regular Fog of War payload does not include dev views', () => {
 function fogRoomFixture({
   status,
 }: {
-  status: ReturnType<typeof fogOfWarVariant.createInitialState>['status'];
+  status: ReturnType<typeof darkChessVariant.createInitialState>['status'];
 }): SnapshotRoom {
   const state = {
-    ...fogOfWarVariant.createInitialState('fog-payload'),
+    ...darkChessVariant.createInitialState('fog-payload'),
     board: {
       a1: { color: 'white', role: 'rook' },
       e1: { color: 'white', role: 'king' },
@@ -403,7 +403,7 @@ function fogRoomFixture({
     },
     status,
     castlingRights: [],
-  } satisfies ReturnType<typeof fogOfWarVariant.createInitialState>;
+  } satisfies ReturnType<typeof darkChessVariant.createInitialState>;
   const events: GameEvent[] = [
     {
       type: 'room-created',
@@ -447,7 +447,7 @@ function fogRoomFixture({
 
 function lastMoveRoomFixture(): SnapshotRoom {
   const state = {
-    ...fogOfWarVariant.createInitialState('fog-last-move-payload'),
+    ...darkChessVariant.createInitialState('fog-last-move-payload'),
     board: {
       e1: { color: 'white', role: 'king' },
       e4: { color: 'white', role: 'pawn' },
@@ -457,7 +457,7 @@ function lastMoveRoomFixture(): SnapshotRoom {
     status: { type: 'playing', turn: 'black' } as const,
     castlingRights: [],
     lastMove: { from: 'e2', to: 'e4' },
-  } satisfies ReturnType<typeof fogOfWarVariant.createInitialState>;
+  } satisfies ReturnType<typeof darkChessVariant.createInitialState>;
   const events: GameEvent[] = [
     {
       type: 'room-created',

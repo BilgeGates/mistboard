@@ -10,7 +10,7 @@ Edit task → find file → open only that file.
 | File | Owns |
 |------|------|
 | `types.ts` | Shared types: `Color`, `Square`, `Board`, `Move`, `GameState`, `PlayerView`, `Variant` |
-| `variants.ts` | Variants (`draft960Variant`, `fogOfWarVariant`); fog kernel: `fogVisibleSquares`, `fogMovesFrom`, `fogPawnMoves`, `fogSlideMoves`, `fogCastlingMoves`, `applyFogMove` |
+| `variants.ts` | Variants (`draft960Variant`, `darkChessVariant`); fog kernel: `fogVisibleSquares`, `fogMovesFrom`, `fogPawnMoves`, `fogSlideMoves`, `fogCastlingMoves`, `applyFogMove` |
 | `variants-xiangqi.ts` | FoW Xiangqi variant (DEV `/xiangqi-spike` only); cannon vision = field of fire |
 | `events.ts` | `GameEvent` union type, `replayGameEvents` reducer, `GameProjection` |
 | `notation.ts` | `algebraicMoveLabels` — algebraic/coordinate notation for move lists and replay |
