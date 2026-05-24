@@ -22,7 +22,7 @@ export async function tryHandle(
       activeGames: ctx.activeGameCount(),
       // Drives the client's rated toggle: one env var (MISTBOARD_RATED_ENABLED)
       // gates both server creation and client selectability, so they can't drift.
-      ratedEnabled,
+      ratedEnabled: ratedEnabled(),
     });
     return true;
   }

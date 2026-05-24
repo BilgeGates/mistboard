@@ -78,6 +78,12 @@ export interface ConnectOptions {
   variant?: 'dark-chess' | 'draft960';
   hiddenDraft960?: boolean;
   seatToken?: string;
+  /**
+   * Account-session cookie to send on the WS upgrade. Makes the connection
+   * authenticated, so the server resolves a userId and the claimed seat binds
+   * to that account (subjectType 'user') — required to exercise rated play.
+   */
+  cookie?: string;
   /** Wait for the initial `hello` message before resolving. Default: true. */
   awaitHello?: boolean;
   /** Timeout for the hello message. */
@@ -97,7 +103,10 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
   const parsedUrl = new URL(opts.url);
   const originScheme = parsedUrl.protocol === 'wss:' ? 'https:' : 'http:';
   const origin = `${originScheme}//${parsedUrl.host}`;
-  const socket = new WebSocket(target, protocols, { origin });
+  const socket = new WebSocket(target, protocols, {
+    origin,
+    headers: opts.cookie ? { Cookie: opts.cookie } : undefined,
+  });
 
   const messages: unknown[] = [];
   const waiters: Array<{

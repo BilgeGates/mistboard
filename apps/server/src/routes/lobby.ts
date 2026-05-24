@@ -40,7 +40,7 @@ export async function tryHandle(
     // when the flag is off) silently gets a casual ticket. Both sides of a match
     // are rated tickets, and the game-end account-gate is the final backstop.
     const lobbyRated =
-      ratedEnabled && body.rated === true && (await currentAccountUser(request)) !== null;
+      ratedEnabled() && body.rated === true && (await currentAccountUser(request)) !== null;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
