@@ -31,9 +31,10 @@ from __future__ import annotations
 
 import math
 import random
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Hashable
+from typing import Hashable, Iterable
 
 import chess
 
@@ -506,6 +507,26 @@ class GTCFRSolution:
     tree_node_count: int
 
 
+@dataclass
+class MultiRootGTCFRSolution:
+    """Output of solve_multiroot_growing_subgame.
+
+    Strategy is computed at the SHARED root infoset (all roots have the
+    same to_move + empty observation history, so they share infoset
+    keys; the multi-root architecture is what gives KLUSS its
+    cross-truth reasoning).
+    """
+
+    strategy_at_root: dict[chess.Move, float]
+    value_at_root: float
+    iterations: int
+    info_set_count: int
+    total_tree_nodes: int
+    n_roots: int
+    elapsed_seconds: float
+    """Wall-time consumed (matters when time_budget_seconds is set)."""
+
+
 def _count_nodes(root: GTCFRTreeNode) -> int:
     n = 1
     for child in root.children.values():
@@ -614,4 +635,188 @@ def solve_growing_subgame(
         iterations=iterations,
         info_set_count=len(state.regrets),
         tree_node_count=_count_nodes(root),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Multi-root KLUSS-flavored coordinator (Phase A5)
+# ---------------------------------------------------------------------------
+
+
+def sample_roots_from_P(
+    iter_positions: Iterable[str],
+    *,
+    to_move: chess.Color,
+    n: int,
+    rng: random.Random,
+) -> list[GTCFRTreeNode]:
+    """Reservoir-sample ``n`` board FENs from a streaming `P` iterator and
+    build ``GTCFRTreeNode`` roots from them.
+
+    Each root has empty observation history (fresh subgame); they share
+    the root infoset key ``(to_move, (), ())`` so PCFR+ regret tables
+    at the root are shared automatically across truths.
+
+    Returns ``min(n, |P|)`` roots — if ``P`` is smaller than ``n``,
+    sample without replacement gives every position.
+    """
+    reservoir: list[str] = []
+    seen = 0
+    for fen in iter_positions:
+        seen += 1
+        if len(reservoir) < n:
+            reservoir.append(fen)
+            continue
+        i = rng.randint(0, seen - 1)
+        if i < n:
+            reservoir[i] = fen
+    roots: list[GTCFRTreeNode] = []
+    for fen in reservoir:
+        board = chess.Board(fen)
+        roots.append(root_node(board, to_move=to_move))
+    return roots
+
+
+def _multi_count_nodes(roots: list[GTCFRTreeNode]) -> int:
+    return sum(_count_nodes(r) for r in roots)
+
+
+def solve_multiroot_growing_subgame(
+    roots: list[GTCFRTreeNode],
+    *,
+    stockfish_eval,
+    perspective: chess.Color,
+    iterations: int,
+    expansion_budget: int | None = None,
+    rng: random.Random | None = None,
+    time_budget_seconds: float | None = None,
+) -> MultiRootGTCFRSolution:
+    """Multi-root one-sided GT-CFR with shared regret tables — KLUSS-flavored.
+
+    Each root in ``roots`` represents a sampled truth from the player's
+    belief P. All roots share regret tables via the per-infoset
+    ``GTCFRState``, so two roots that hit the same observation-history
+    infoset at any depth contribute to the same regret table. This is
+    the cross-truth reasoning that KLUSS provides — no per-truth
+    aggregation step is needed.
+
+    Each iteration:
+    1. Equilibrium pass — walk EVERY root with the current alternating
+       traverser. Regrets accumulate at shared infosets.
+    2. Expansion pass — across all roots, find one non-terminal leaf
+       via PUCT-mixture walk (alternating exploring player) and expand
+       it via Stockfish MultiPV.
+
+    Args:
+        roots: list of fresh GTCFRTreeNode roots (typically from
+            sample_roots_from_P).
+        stockfish_eval: StockfishLeafEval instance (or compatible).
+        perspective: the player's POV. Leaf evals stored in this POV;
+            traversals from the other player sign-flip leaf reads.
+        iterations: target number of equilibrium passes.
+        expansion_budget: max expansions across all roots. Defaults to
+            iterations × len(roots).
+        rng: deterministic RNG. Defaults to random.Random(0).
+        time_budget_seconds: if set, stops as soon as cumulative wall
+            time exceeds this — anytime algorithm.
+
+    Returns:
+        MultiRootGTCFRSolution. ``strategy_at_root`` is the last-iterate
+        strategy at the shared root infoset.
+    """
+    if not roots:
+        raise ValueError("at least one root required")
+    if rng is None:
+        rng = random.Random(0)
+    if expansion_budget is None:
+        expansion_budget = iterations * len(roots)
+    state = GTCFRState()
+    t_start = time.monotonic()
+
+    # Bootstrap: expand each non-terminal root so the equilibrium pass
+    # has something to walk.
+    expansions_done = 0
+    for r in roots:
+        if not r.is_terminal and not r.is_expanded:
+            expand_leaf(r, state, stockfish_eval=stockfish_eval, perspective=perspective)
+            expansions_done += 1
+
+    iters_completed = 0
+    for t in range(iterations):
+        # Time-budget check at iteration boundary.
+        if time_budget_seconds is not None and (time.monotonic() - t_start) >= time_budget_seconds:
+            break
+
+        # Equilibrium pass: alternate traverser, walk all roots.
+        for traversing_player in (perspective, not perspective):
+            for r in roots:
+                _equilibrium_traverse(r, state, traversing_player, perspective, rng)
+
+        # Expansion pass: pick one root × leaf via PUCT-mixture walk.
+        if expansions_done < expansion_budget:
+            exploring = chess.WHITE if t % 2 == 0 else chess.BLACK
+            # Pick the root with fewest expansions so far (round-robin-ish);
+            # ties broken by random choice.
+            best_root = min(
+                roots,
+                key=lambda r: (_count_nodes(r), rng.random()),
+            )
+            leaf = _select_leaf_for_expansion(best_root, state, exploring, rng)
+            if leaf is not None:
+                expand_leaf(
+                    leaf, state,
+                    stockfish_eval=stockfish_eval,
+                    perspective=perspective,
+                )
+                expansions_done += 1
+        iters_completed += 1
+
+    # Last-iterate strategy at the SHARED root infoset.
+    # All roots share info_set_id == (to_move, (), ()) since their
+    # observation histories are empty.
+    root_info_set = roots[0].info_set_id()
+    # Union of all legal actions across roots (different truths admit
+    # different move sets; the regret table is keyed by action and
+    # only contains actions visited by SOME root).
+    all_actions = set()
+    for r in roots:
+        all_actions.update(r.children.keys())
+    actions_at_root = list(all_actions)
+    if not actions_at_root:
+        return MultiRootGTCFRSolution(
+            strategy_at_root={},
+            value_at_root=0.0,
+            iterations=iters_completed,
+            info_set_count=len(state.regrets),
+            total_tree_nodes=_multi_count_nodes(roots),
+            n_roots=len(roots),
+            elapsed_seconds=time.monotonic() - t_start,
+        )
+    last = state.last_strategy.get(root_info_set, {})
+    if last:
+        raw = [last.get(a, 0.0) for a in actions_at_root]
+        total = sum(raw)
+        if total > 0:
+            strat = {a: r / total for a, r in zip(actions_at_root, raw)}
+        else:
+            strat_list = _current_strategy(root_info_set, actions_at_root, state)
+            strat = dict(zip(actions_at_root, strat_list))
+    else:
+        strat_list = _current_strategy(root_info_set, actions_at_root, state)
+        strat = dict(zip(actions_at_root, strat_list))
+
+    value = 0.0
+    for a in actions_at_root:
+        n = state.visit_counts[root_info_set][a]
+        if n > 0:
+            value += strat[a] * (state.value_sum[root_info_set][a] / n)
+
+    return MultiRootGTCFRSolution(
+        strategy_at_root=strat,
+        value_at_root=value,
+        iterations=iters_completed,
+        info_set_count=len(state.regrets),
+        total_tree_nodes=_multi_count_nodes(roots),
+        n_roots=len(roots),
+        elapsed_seconds=time.monotonic() - t_start,
     )
