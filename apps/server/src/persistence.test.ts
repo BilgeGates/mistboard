@@ -17,6 +17,7 @@ import {
   findUserByEmail,
   type GameSummary,
   getGameSummary,
+  getLeaderboard,
   getUserByAccountSession,
   getUserProfileByHandle,
   init,
@@ -1144,6 +1145,36 @@ if (!TEST_DATABASE_URL) {
     } finally {
       await client.end();
     }
+  });
+
+  test('leaderboard ranks by conservative rating and hides provisional players', async () => {
+    const now = new Date();
+    await createUser({ id: 'u_hi', email: 'hi@e.com', emailVerifiedAt: now, handle: 'settledhi', displayName: 'Hi', profileVisibility: 'public', now });
+    await createUser({ id: 'u_lo', email: 'lo@e.com', emailVerifiedAt: now, handle: 'settledlo', displayName: 'Lo', profileVisibility: 'public', now });
+    await createUser({ id: 'u_pv', email: 'pv@e.com', emailVerifiedAt: now, handle: 'provis', displayName: 'Pv', profileVisibility: 'public', now });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      // hi: conservative 1600-120=1480; lo: 1550-120=1430;
+      // pv: raw 1900 but RD 300 (provisional) → excluded despite highest rating.
+      await client.query(
+        `INSERT INTO user_ratings (user_id, variant, time_class, elo_rating, rating_deviation, volatility, games_played)
+         VALUES
+          ('u_hi','fog','blitz',1600,60,0.06,20),
+          ('u_lo','fog','blitz',1550,60,0.06,20),
+          ('u_pv','fog','blitz',1900,300,0.06,3)`,
+      );
+    } finally {
+      await client.end();
+    }
+
+    const board = await getLeaderboard({ variant: 'fog', timeClass: 'blitz', limit: 100 });
+    assert.equal(board.length, 2, 'provisional player excluded from leaderboard');
+    assert.equal(board[0]!.handle, 'settledhi', 'higher conservative rating ranks first');
+    assert.equal(board[0]!.rank, 1);
+    assert.equal(board[1]!.handle, 'settledlo');
+    assert.equal(board[0]!.eloRating, 1600, 'displays actual rating, not conservative');
   });
 
   test('getUserProfileByHandle lists completed account-attributed games', async () => {

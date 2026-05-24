@@ -3,6 +3,7 @@ import { type Color, type GameEvent, TIME_CONTROLS } from '@mistboard/game';
 import pg from 'pg';
 import { engineVersionDisplayName } from './engine-registry.js';
 import { bucketForGame, type RatingTimeClass, type RatingVariant } from './rating-buckets.js';
+import { PROVISIONAL_RD } from './glicko.js';
 import { applyRatedGameResult, type RatedResult } from './rating-store.js';
 
 // Build a `CASE WHEN ... THEN 'bullet' ... END` fragment from the canonical
@@ -1127,15 +1128,20 @@ export async function getLeaderboard(query: LeaderboardQuery): Promise<Leaderboa
     elo_rating: number;
     games_played: number;
   }>(
-    `SELECT RANK() OVER (ORDER BY r.elo_rating DESC) AS rank,
+    // Rank by conservative rating (rating - 2*RD): a high-uncertainty player
+    // can't top the board on noise. Provisional players (RD above threshold) and
+    // never-played rows are hidden until the system is confident in them.
+    `SELECT RANK() OVER (ORDER BY (r.elo_rating - 2 * r.rating_deviation) DESC) AS rank,
             u.handle, u.display_name, r.elo_rating, r.games_played
      FROM user_ratings r
      JOIN users u ON u.id = r.user_id
      WHERE r.variant = $1 AND r.time_class = $2
        AND u.profile_visibility IN ('public', 'unlisted')
-     ORDER BY r.elo_rating DESC
+       AND r.rating_deviation <= $4
+       AND r.games_played > 0
+     ORDER BY (r.elo_rating - 2 * r.rating_deviation) DESC
      LIMIT $3`,
-    [query.variant, query.timeClass, bounded],
+    [query.variant, query.timeClass, bounded, PROVISIONAL_RD],
   );
   return rows.map((row) => ({
     rank: Number(row.rank),
