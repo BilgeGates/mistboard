@@ -53,10 +53,13 @@ export type LiveRefs = {
   board: HTMLDivElement;
   boardPaused: HTMLDivElement;
   boardStatus: HTMLDivElement;
+  clockBottom: HTMLDivElement;
+  clockNote: HTMLParagraphElement;
+  clockTop: HTMLDivElement;
   draftPicker: HTMLDivElement;
   actionStatus: HTMLDivElement;
+  actionSection: HTMLElement;
   captures: HTMLDivElement;
-  clocks: HTMLDivElement;
   devViews: HTMLDivElement;
   devViewsSection: HTMLElement;
   gameInfo: HTMLDivElement;

@@ -213,15 +213,14 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
         <section class="board-panel">
           <aside class="side-panel meta-panel" aria-label="Game controls">
             <section class="panel-section">
-              <div data-action-status class="action-status"></div>
-              <div data-clocks class="clocks"></div>
-            </section>
-            <section class="panel-section">
               <h2>About</h2>
               <div data-game-info class="game-info"></div>
             </section>
             <section class="panel-section">
               <div data-room-actions class="room-actions"></div>
+            </section>
+            <section data-action-section class="panel-section" hidden>
+              <div data-action-status class="action-status"></div>
             </section>
             <section data-game-controls-section class="panel-section" hidden>
               <div data-game-controls class="game-controls"></div>
@@ -254,16 +253,21 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
             <div data-promotion class="promotion-picker" hidden></div>
           </div>
           <aside class="side-panel moves-panel" aria-label="Replay and move list">
-            <section class="panel-section">
-              <h2>Replay</h2>
-              <div class="replay-controls">
-                <button type="button" data-replay="first" title="First position">|&lt;</button>
-                <button type="button" data-replay="prev" title="Previous event">&lt;</button>
-                <button type="button" data-replay="next" title="Next event">&gt;</button>
-                <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
+            <section class="panel-section game-console">
+              <div data-clock-top class="clocks clock-slot"></div>
+              <div class="replay-console">
+                <h2>Replay</h2>
+                <div class="replay-controls">
+                  <button type="button" data-replay="first" title="First position">|&lt;</button>
+                  <button type="button" data-replay="prev" title="Previous event">&lt;</button>
+                  <button type="button" data-replay="next" title="Next event">&gt;</button>
+                  <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
+                </div>
+                <p data-replay-meta class="replay-meta">Live</p>
+                <ol data-move-list class="move-list"></ol>
               </div>
-              <p data-replay-meta class="replay-meta">Live</p>
-              <ol data-move-list class="move-list"></ol>
+              <div data-clock-bottom class="clocks clock-slot"></div>
+              <p data-clocks-note class="clocks-pregame-note" hidden></p>
             </section>
           </aside>
         </section>
@@ -282,8 +286,11 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
   const board = target.querySelector<HTMLDivElement>('[data-board]');
   const boardPaused = target.querySelector<HTMLDivElement>('[data-board-paused]');
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
+  const actionSection = target.querySelector<HTMLElement>('[data-action-section]');
   const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
-  const clocks = target.querySelector<HTMLDivElement>('[data-clocks]');
+  const clockTop = target.querySelector<HTMLDivElement>('[data-clock-top]');
+  const clockBottom = target.querySelector<HTMLDivElement>('[data-clock-bottom]');
+  const clockNote = target.querySelector<HTMLParagraphElement>('[data-clocks-note]');
   const captures = target.querySelector<HTMLDivElement>('[data-captures]');
   const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
   const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
@@ -306,9 +313,12 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
     !board ||
     !boardPaused ||
     !boardStatus ||
+    !actionSection ||
     !actionStatus ||
     !captures ||
-    !clocks ||
+    !clockTop ||
+    !clockBottom ||
+    !clockNote ||
     !roomActions ||
     !devViewsSection ||
     !devViewsPanel ||
@@ -330,10 +340,13 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
     board,
     boardPaused,
     boardStatus,
+    clockBottom,
+    clockNote,
+    clockTop,
     draftPicker,
+    actionSection,
     actionStatus,
     captures,
-    clocks,
     devViews: devViewsPanel,
     devViewsSection,
     gameInfo,
@@ -674,16 +687,16 @@ function renderDraftPicker(): void {
 
 function renderActionStatus(view: PlayerView | null): void {
   refs.actionStatus.replaceChildren();
+  refs.actionSection.hidden = false;
   if (
     view?.status.type === 'playing' &&
     isLive() &&
     isColor(liveState.seat) &&
     liveState.connectionState === 'connected'
   ) {
-    refs.actionStatus.hidden = true;
+    refs.actionSection.hidden = true;
     return;
   }
-  refs.actionStatus.hidden = false;
   const notice = document.createElement('div');
   const tone = actionTone(view);
   notice.className = `action-notice ${tone}`;
@@ -713,8 +726,11 @@ function renderGameInfo(view: PlayerView | null): void {
   const fmt = formatLabel(view);
   const timeLabel = timeControlLabel(view);
   items.push(infoItem('Variant', timeLabel ? `${fmt} · ${timeLabel}` : fmt));
-  const [modeKey, modeVal] = modeDetailEntry();
-  items.push(infoItem(modeKey, modeVal));
+  const modeEntry = modeDetailEntry();
+  if (modeEntry) {
+    const [modeKey, modeVal] = modeEntry;
+    items.push(infoItem(modeKey, modeVal));
+  }
   // Connection only surfaces when degraded — green-path "Connected · 1ms" is noise.
   if (liveState.connectionState !== 'connected') {
     const connLabel = connectionDetailLabel();
@@ -768,10 +784,8 @@ function modeDetailLabel(): string {
   return liveState.rated ? 'Rated' : 'Casual';
 }
 
-function modeDetailEntry(): [string, string] {
-  if (liveState.roomMode === 'pve') {
-    return ['Opponent', liveState.pveEngineName ?? 'Engine'];
-  }
+function modeDetailEntry(): [string, string] | null {
+  if (liveState.roomMode === 'pve') return null;
   return ['Mode', modeDetailLabel()];
 }
 
@@ -1208,7 +1222,10 @@ function devViewCard(
 // ── Clocks ────────────────────────────────────────────────────────────────────
 
 export function renderClocks(view: PlayerView | null): void {
-  refs.clocks.replaceChildren();
+  refs.clockTop.replaceChildren();
+  refs.clockBottom.replaceChildren();
+  refs.clockNote.hidden = true;
+  refs.clockNote.textContent = '';
   if (!view?.clock) {
     lastActiveClockColor = null;
     const roomCreated = liveState.events.find(
@@ -1222,7 +1239,7 @@ export function renderClocks(view: PlayerView | null): void {
           ? `${formatClock(tc.initialMs)}+${incrementSec}`
           : formatClock(tc.initialMs);
       const colors: Color[] = ['black', 'white'];
-      for (const color of colors) {
+      colors.forEach((color, index) => {
         const row = document.createElement('div');
         row.className = 'pregame';
         const label = document.createElement('span');
@@ -1230,17 +1247,16 @@ export function renderClocks(view: PlayerView | null): void {
         const time = document.createElement('strong');
         time.textContent = formatClock(tc.initialMs);
         row.append(label, time);
-        refs.clocks.append(row);
-      }
-      const note = document.createElement('p');
-      note.className = 'clocks-pregame-note';
-      note.textContent = `${tcLabel} · clock starts when both players are ready`;
-      refs.clocks.append(note);
+        (index === 0 ? refs.clockTop : refs.clockBottom).append(row);
+      });
+      refs.clockNote.textContent = `${tcLabel} · clock starts when both players are ready`;
+      refs.clockNote.hidden = false;
     }
     return;
   }
 
-  const displayAt = isLive() ? Date.now() : (view.clock.runningSince ?? Date.now());
+  const clock = view.clock;
+  const displayAt = isLive() ? Date.now() : (clock.runningSince ?? Date.now());
   const colors: Color[] = view.perspective === 'white' ? ['black', 'white'] : ['white', 'black'];
   const isPvp = liveState.roomMode === 'pvp';
   const humanColor = isColor(liveState.seat) ? liveState.seat : null;
@@ -1255,7 +1271,7 @@ export function renderClocks(view: PlayerView | null): void {
     nextActiveColor === humanColor &&
     lastActiveClockColor !== null &&
     lastActiveClockColor !== humanColor;
-  for (const color of colors) {
+  colors.forEach((color, index) => {
     const isActive = nextActiveColor === color;
     const row = document.createElement('div');
     row.dataset.color = color;
@@ -1278,15 +1294,15 @@ export function renderClocks(view: PlayerView | null): void {
       toMove.textContent = 'to move';
       label.append(toMove);
     }
-    const remainingMs = clockRemainingMs(view.clock, color, displayAt);
+    const remainingMs = clockRemainingMs(clock, color, displayAt);
     time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
     const classes: string[] = [];
     if (isActive) classes.push('active');
     if (isActive && flashThisRender) classes.push('just-activated');
     row.className = classes.join(' ');
     row.append(label, time);
-    refs.clocks.append(row);
-  }
+    (index === 0 ? refs.clockTop : refs.clockBottom).append(row);
+  });
   lastActiveClockColor = nextActiveColor;
 }
 
@@ -1295,12 +1311,13 @@ export function renderClocks(view: PlayerView | null): void {
 // applied to the active row by renderClocks() isn't restarted each tick.
 export function tickClockTimers(view: PlayerView | null): void {
   if (!view?.clock || view.status.type !== 'playing') return;
-  if (refs.clocks.children.length === 0) {
+  if (refs.clockTop.children.length === 0 || refs.clockBottom.children.length === 0) {
     renderClocks(view);
     return;
   }
   const displayAt = isLive() ? Date.now() : (view.clock.runningSince ?? Date.now());
-  for (const row of Array.from(refs.clocks.children) as HTMLDivElement[]) {
+  const rows = [...Array.from(refs.clockTop.children), ...Array.from(refs.clockBottom.children)];
+  for (const row of rows as HTMLDivElement[]) {
     const color = row.dataset.color;
     if (color !== 'white' && color !== 'black') continue;
     const isActive = view.clock.activeColor === color;

@@ -1216,9 +1216,9 @@ button:focus-visible {
 .captures-strip {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-height: 26px;
-  padding: 4px 2px 0;
+  gap: 3px;
+  min-height: 38px;
+  padding: 5px 2px 0;
 }
 
 .captures-row {
@@ -1231,12 +1231,12 @@ button:focus-visible {
 
 /* Reuse chessground's cburnett piece sprites by wrapping each glyph in a
    .cg-wrap container, then override chessground's absolute board-square layout
-   so the piece fills our 22px inline cell instead. */
+   so the piece fills our inline capture cell instead. */
 .captures-piece {
   display: inline-block;
-  width: 22px;
-  height: 22px;
-  margin-left: -6px;
+  width: 32px;
+  height: 32px;
+  margin-left: -8px;
   position: relative;
   vertical-align: middle;
 }
@@ -1498,6 +1498,19 @@ button:focus-visible {
   padding-left: clamp(12px, 1.5vw, 18px);
 }
 
+.game-console {
+  gap: 8px;
+}
+
+.replay-console {
+  display: grid;
+  gap: 10px;
+}
+
+.clock-slot {
+  margin-bottom: 0;
+}
+
 .panel-section {
   display: grid;
   gap: 10px;
@@ -1528,15 +1541,22 @@ button:focus-visible {
   gap: 6px;
 }
 
+.action-status {
+  min-height: 112px;
+}
+
 .action-notice {
   display: grid;
   gap: 4px;
-  min-height: 64px;
+  align-content: start;
+  height: 112px;
+  overflow: auto;
   border: 1px solid #d3d9d2;
   border-radius: 8px;
   background: #ffffff;
   color: #3f4a44;
   padding: 10px 12px;
+  scrollbar-width: thin;
 }
 
 .action-notice strong {
@@ -2344,7 +2364,7 @@ button:focus-visible {
 .move-list {
   display: grid;
   gap: 2px;
-  max-height: min(52vh, 540px);
+  height: 96px;
   margin: 0;
   padding: 0;
   overflow: auto;
@@ -2463,11 +2483,30 @@ button:focus-visible {
 
   .moves-panel {
     border-left: 0;
+    order: 0;
     padding-left: 0;
+  }
+
+  .meta-panel {
+    order: 1;
   }
 
   .side-panel {
     gap: 16px;
+  }
+
+  .move-list {
+    height: 72px;
+  }
+
+  .captures-strip {
+    min-height: 34px;
+  }
+
+  .captures-piece {
+    width: 28px;
+    height: 28px;
+    margin-left: -7px;
   }
 
   .debug-views {
@@ -2516,13 +2555,17 @@ button:focus-visible {
     gap: 12px;
   }
 
+  .debug-shell .action-status {
+    min-height: 64px;
+  }
+
   .debug-shell .panel-section {
     gap: 8px;
     padding-top: 10px;
   }
 
   .debug-shell .action-notice {
-    min-height: 48px;
+    height: 64px;
     padding: 8px 10px;
   }
 
