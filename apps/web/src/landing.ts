@@ -1552,7 +1552,20 @@ function startOptionButton(label: string, selected: boolean): HTMLButtonElement 
   button.className = `landing-start-option${selected ? ' selected' : ''}`;
   button.setAttribute('role', 'radio');
   button.setAttribute('aria-checked', selected ? 'true' : 'false');
-  button.textContent = label;
+  // Split a trailing parenthetical ("3 + 2 (soon)") into a muted hint badge so
+  // the live label stays prominent and the not-yet-available note de-emphasizes.
+  const hintMatch = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (hintMatch) {
+    const main = document.createElement('span');
+    main.className = 'landing-start-option-text';
+    main.textContent = hintMatch[1];
+    const hint = document.createElement('span');
+    hint.className = 'landing-start-option-hint';
+    hint.textContent = hintMatch[2];
+    button.append(main, hint);
+  } else {
+    button.textContent = label;
+  }
   return button;
 }
 
