@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vitest/config';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const DEV_API_URL = process.env.MISTBOARD_DEV_API_URL ?? 'http://127.0.0.1:3001';
 const FEEDBACK_FILE = resolve(
   __dirname,
   '..',
@@ -92,7 +93,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3001',
+        target: DEV_API_URL,
         changeOrigin: true,
       },
     },

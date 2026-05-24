@@ -193,13 +193,15 @@ function createSoundController(): SoundController {
   return controller;
 }
 
-function tonesForSound(kind: SoundKind): Array<{
+export type SoundTone = {
   delay: number;
   duration: number;
   frequency: number;
   gain: number;
   type: OscillatorType;
-}> {
+};
+
+export function tonesForSound(kind: SoundKind): SoundTone[] {
   if (kind === 'capture')
     return [{ delay: 0, duration: 0.11, frequency: 180, gain: 0.075, type: 'triangle' }];
   if (kind === 'captured')
@@ -220,15 +222,15 @@ function tonesForSound(kind: SoundKind): Array<{
   }
   if (kind === 'win') {
     return [
-      { delay: 0, duration: 0.12, frequency: 440, gain: 0.06, type: 'sine' },
-      { delay: 0.1, duration: 0.16, frequency: 660, gain: 0.06, type: 'sine' },
-      { delay: 0.22, duration: 0.2, frequency: 880, gain: 0.055, type: 'sine' },
+      { delay: 0, duration: 0.11, frequency: 392, gain: 0.045, type: 'sine' },
+      { delay: 0.1, duration: 0.15, frequency: 493.88, gain: 0.045, type: 'sine' },
+      { delay: 0.22, duration: 0.24, frequency: 659.25, gain: 0.042, type: 'sine' },
     ];
   }
   if (kind === 'lose') {
     return [
-      { delay: 0, duration: 0.16, frequency: 220, gain: 0.06, type: 'triangle' },
-      { delay: 0.14, duration: 0.24, frequency: 146.8, gain: 0.055, type: 'triangle' },
+      { delay: 0, duration: 0.14, frequency: 246.94, gain: 0.038, type: 'triangle' },
+      { delay: 0.13, duration: 0.22, frequency: 196, gain: 0.034, type: 'triangle' },
     ];
   }
   return [{ delay: 0, duration: 0.09, frequency: 320, gain: 0.055, type: 'sine' }];

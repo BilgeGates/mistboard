@@ -1,7 +1,8 @@
 import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
 import type { Board, PlayerView, Square } from '@mistboard/game';
-import { describe, expect, it } from 'vitest';
-import { legalDests } from './live-render.js';
+import { afterEach, describe, expect, it } from 'vitest';
+import { boardHighlightClasses, boardResultClass, legalDests } from './live-render.js';
+import { liveState } from './live-state.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,10 @@ const initialBoard: Board = {
   g8: { color: 'black', role: 'knight' },
   h8: { color: 'black', role: 'rook' },
 };
+
+afterEach(() => {
+  liveState.seat = 'spectator';
+});
 
 // ── boardFen ──────────────────────────────────────────────────────────────────
 
@@ -137,6 +142,64 @@ describe('hiddenSquareClasses', () => {
     expect(classes.get('a1')).toBe('fog-hidden fog-tile-f7r0');
     // h8 from black POV: visual file = 7 - 7 = 0, visual rank = 7.
     expect(classes.get('h8')).toBe('fog-hidden fog-tile-f0r7');
+  });
+});
+
+// ── boardResultClass ─────────────────────────────────────────────────────────
+
+describe('boardResultClass', () => {
+  it('marks the winner for spectators', () => {
+    liveState.seat = 'spectator';
+    const view = makeView({ status: { type: 'finished', winner: 'black', reason: 'resignation' } });
+    expect(boardResultClass(view)).toBe('king-celebrating-black');
+  });
+
+  it('marks the seated player only when they won', () => {
+    liveState.seat = 'white';
+    const won = makeView({ status: { type: 'finished', winner: 'white', reason: 'checkmate' } });
+    const lost = makeView({ status: { type: 'finished', winner: 'black', reason: 'checkmate' } });
+    expect(boardResultClass(won)).toBe('king-celebrating-white');
+    expect(boardResultClass(lost)).toBeNull();
+  });
+
+  it('does not mark draws or unfinished games', () => {
+    liveState.seat = 'spectator';
+    const draw = makeView({ status: { type: 'finished', winner: null, reason: 'draw' } });
+    expect(boardResultClass(draw)).toBeNull();
+    expect(boardResultClass(makeView())).toBeNull();
+  });
+});
+
+// ── boardHighlightClasses ────────────────────────────────────────────────────
+
+describe('boardHighlightClasses', () => {
+  it('marks the final destination square on king capture', () => {
+    const view = makeView({
+      lastMove: { from: 'e4', to: 'e8' },
+      status: { type: 'finished', winner: 'white', reason: 'king-captured' },
+      visibleSquares: ['e8'],
+    });
+    expect(boardHighlightClasses(view, 'white').get('e8')).toBe('game-finish-square');
+  });
+
+  it('composes the final destination class with fog classes', () => {
+    const view = makeView({
+      lastMove: { from: 'e4', to: 'e8' },
+      status: { type: 'finished', winner: 'white', reason: 'king-captured' },
+      visibleSquares: [],
+    });
+    expect(boardHighlightClasses(view, 'white').get('e8')).toBe(
+      'fog-hidden fog-tile-f4r0 game-finish-square',
+    );
+  });
+
+  it('does not mark non-king-capture finishes', () => {
+    const view = makeView({
+      lastMove: { from: 'e2', to: 'e4' },
+      status: { type: 'finished', winner: 'black', reason: 'resignation' },
+      visibleSquares: ['e4'],
+    });
+    expect(boardHighlightClasses(view, 'white').get('e4')).toBeUndefined();
   });
 });
 

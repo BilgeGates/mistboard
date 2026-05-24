@@ -1423,9 +1423,7 @@ function renderBoard(view: PlayerView | null): void {
     coordinatesOnSquares: false,
     fen: view ? boardFen(view.board) : '8/8/8/8/8/8/8/8',
     highlight: {
-      custom: view
-        ? hiddenSquareClasses(view, orientation, { preserveFogOnFinished: true })
-        : new Map(),
+      custom: view ? boardHighlightClasses(view, orientation) : new Map(),
       lastMove: true,
     },
     lastMove: view?.lastMove ? ([view.lastMove.from, view.lastMove.to] as cg.Key[]) : undefined,
@@ -1462,6 +1460,24 @@ function renderBoard(view: PlayerView | null): void {
   maybePlayPremove();
 }
 
+export function boardHighlightClasses(view: PlayerView, orientation: Color): cg.SquareClasses {
+  const classes = hiddenSquareClasses(view, orientation, { preserveFogOnFinished: true });
+  const finishSquare = finalMovePulseSquare(view);
+  if (finishSquare) appendSquareClass(classes, finishSquare, 'game-finish-square');
+  return classes;
+}
+
+function finalMovePulseSquare(view: PlayerView): Square | null {
+  if (view.status.type !== 'finished' || view.status.reason !== 'king-captured') return null;
+  return view.lastMove?.to ?? null;
+}
+
+function appendSquareClass(classes: cg.SquareClasses, square: Square, className: string): void {
+  const key = square as cg.Key;
+  const existing = classes.get(key);
+  classes.set(key, existing ? `${existing} ${className}` : className);
+}
+
 function maybePlayPremove(): void {
   if (!ground || activeMoveColor() === null || pendingPromotion !== null) return;
   ground.playPremove();
@@ -1472,17 +1488,22 @@ function renderPausedOverlay(paused: boolean): void {
 }
 
 function renderBoardResult(view: PlayerView | null): void {
-  refs.board.classList.remove('king-celebrating-white', 'king-celebrating-black');
+  const nextClass = boardResultClass(view);
+  for (const className of ['king-celebrating-white', 'king-celebrating-black']) {
+    refs.board.classList.toggle(className, className === nextClass);
+  }
+}
 
-  if (view?.status.type !== 'finished' || !isLive()) return;
+export function boardResultClass(view: PlayerView | null): string | null {
+  if (view?.status.type !== 'finished' || !isLive()) return null;
 
   const winner = view.status.winner;
-  if (!winner) return;
+  if (!winner) return null;
 
   const seat = liveState.seat;
-  if ((seat === 'white' || seat === 'black') && winner !== seat) return;
+  if ((seat === 'white' || seat === 'black') && winner !== seat) return null;
 
-  refs.board.classList.add(`king-celebrating-${winner}`);
+  return `king-celebrating-${winner}`;
 }
 
 // ── Interaction state ─────────────────────────────────────────────────────────
