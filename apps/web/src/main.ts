@@ -1,7 +1,8 @@
 import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
-import type { ArticleLang } from './article-i18n.js';
 import { setPostHogInstance } from './analytics.js';
+import type { ArticleLang } from './article-i18n.js';
+import { setRatedModeEnabled } from './rated-flag.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
 
@@ -10,8 +11,9 @@ initializeAccountNav();
 mountRestartBanner();
 void fetch('/api/server-status')
   .then((r) => (r.ok ? r.json() : null))
-  .then((data: { restartAt: number | null } | null) => {
+  .then((data: { restartAt: number | null; ratedEnabled?: boolean } | null) => {
     if (data && typeof data.restartAt === 'number') setRestartBanner(data.restartAt);
+    if (data) setRatedModeEnabled(data.ratedEnabled === true);
   })
   .catch(() => {
     /* banner stays hidden; WS broadcast still covers in-game users */

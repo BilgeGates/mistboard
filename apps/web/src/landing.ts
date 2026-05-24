@@ -6,6 +6,7 @@ import { mountArticleThumbnails, renderArticleThumbnail } from './articles.js';
 import { findArticle } from './articles-data.js';
 import { buildContact } from './contact.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
+import { isRatedModeEnabled } from './rated-flag.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
@@ -872,7 +873,7 @@ function buildLandingPlayPanel(
       engineId: defaultEngineId,
       mode: 'lobby',
       title: 'Find opponent',
-      ratedDisabled: true,
+      ratedDisabled: !isRatedModeEnabled(),
     });
   });
   challengeButton.addEventListener('click', () => {
@@ -1101,7 +1102,7 @@ function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         engineId: defaultEngineId,
         mode: 'lobby',
         title: 'Find opponent',
-        ratedDisabled: true,
+        ratedDisabled: !isRatedModeEnabled(),
       });
       break;
     case 'friend':

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RoomTimeControl } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
+import { ratedEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
 import type { LobbyTicket, Room } from './../server-types.js';
 import {
@@ -15,11 +16,6 @@ import {
 
 const lobbyTicketTtlMs = 5 * 60 * 1000;
 const lobbyPollAfterMs = 1_000;
-
-// Rated on-switch (Track 3). Off by default — flipping this to 'true' in prod is
-// the launch decision that makes rated games creatable. Even when on, rated
-// requires a signed-in requester (and the game-end account-gate still applies).
-const ratedEnabled = process.env.MISTBOARD_RATED_ENABLED === 'true';
 
 export async function tryHandle(
   ctx: HttpApiContext,
