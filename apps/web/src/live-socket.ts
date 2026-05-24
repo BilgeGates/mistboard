@@ -152,6 +152,17 @@ export function connectSocket(): void {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+  // Tear down any prior socket before opening a new one. Without this, a
+  // reconnect fired while the previous socket is still CONNECTING (e.g. via
+  // sendSocket → scheduleReconnect) orphans a live socket that never closes.
+  // Dropping the message listener stops a late buffered frame from being
+  // applied; the close/open/error handlers self-neutralize via their
+  // `socket !== nextSocket` identity guard once we reassign `socket` below.
+  if (socket) {
+    socket.removeEventListener('message', handleSocketMessage);
+    socket.close();
+    socket = null;
+  }
   liveState.connectionState = liveState.clientId ? 'reconnecting' : 'connecting';
   _render();
 
@@ -200,7 +211,10 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   const message = JSON.parse(event.data) as ServerMessage;
   if (message.type === 'pong') {
     liveState.latencyMs = Math.max(0, Date.now() - message.at);
-    _render();
+    // No re-render: latency is only surfaced in the degraded-connection path
+    // (see connectionDetailLabel), and a pong only arrives while connected, so
+    // the value is never on screen here. Rendering on every 5s ping is pure
+    // churn — thousands of no-op renders on a tab left open overnight.
     return;
   }
   if (message.type === 'server_restart_scheduled') {
