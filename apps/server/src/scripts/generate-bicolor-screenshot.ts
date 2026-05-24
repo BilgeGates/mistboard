@@ -17,7 +17,7 @@ import { svgToPng } from '../og-image.js';
 //   targetPly   defaults to 18 (half-moves played)
 //
 // Renders both POVs of the same fog-of-war position from a real corpus game
-// using the user's default theme — tournament green board + veil fog.
+// using the user's default theme — tournament green board + solid fog.
 
 const here = dirname(fileURLToPath(import.meta.url));
 const sampleName = process.argv[2] ?? 'sample-4';
@@ -34,15 +34,15 @@ const samplePath = resolve(
 );
 const outPath = resolve(here, '..', '..', '..', 'web', 'public', 'screenshot-bicolor.png');
 
-// Tournament-green + veil-fog tokens, mirrored from
+// Tournament-green + solid-fog tokens, mirrored from
 // apps/web/src/styles.css :root[data-board-theme="green"] and
-// :root[data-fog-theme="veil"].
+// :root[data-fog-theme="solid"].
 const LIGHT_SQUARE = '#eeeed2';
 const DARK_SQUARE = '#769656';
 const BOARD_FRAME = '#2a3a2a';
-const FOG_LIGHT_FILL = 'rgba(6, 10, 8, 0.56)';
-const FOG_DARK_FILL = 'rgba(6, 10, 8, 0.62)';
-const FOG_SHADOW = 'rgba(0, 0, 0, 0)';
+const FOG_LIGHT_FILL = '#101810';
+const FOG_DARK_FILL = '#101810';
+const FOG_SHADOW = '#1a261a';
 const CANVAS_BG = '#0f1115';
 const WORDMARK_FILL = '#e5e7eb';
 const LABEL_FILL = '#9ca3af';

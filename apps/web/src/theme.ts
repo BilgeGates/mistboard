@@ -9,7 +9,7 @@ const soundVolumeStorageKey = 'mistboard.soundVolume';
 const soundMutedStorageKey = 'mistboard.soundMuted';
 export const soundSettingsChangedEvent = 'mistboard:sound-settings-changed';
 const defaultTheme: BoardTheme = 'green';
-const defaultFogTheme: FogTheme = 'veil';
+const defaultFogTheme: FogTheme = 'solid';
 const defaultPieceSet: PieceSet = 'cburnett';
 const defaultSoundVolume = 0.7;
 let cachedSoundVolume = defaultSoundVolume;
@@ -23,10 +23,10 @@ const themes: Array<{ id: BoardTheme; label: string }> = [
   { id: 'colorblind', label: 'Colorblind' },
 ];
 const fogThemes: Array<{ id: FogTheme; label: string }> = [
-  { id: 'veil', label: 'Veil' },
   { id: 'solid', label: 'Solid' },
-  { id: 'drift', label: 'Drift' },
+  { id: 'veil', label: 'Veil' },
   { id: 'mistveil', label: 'Mistveil' },
+  { id: 'drift', label: 'Puff' },
   { id: 'void', label: 'Void' },
   { id: 'invisible', label: 'None' },
 ];
@@ -409,7 +409,7 @@ function normalizeTheme(value: string | null): BoardTheme {
 }
 
 function normalizeFogTheme(value: string | null): FogTheme {
-  if (value === 'soft' || value === 'hatched') return 'veil';
+  if (value === 'soft' || value === 'hatched') return 'solid';
   return fogThemes.some((theme) => theme.id === value) ? (value as FogTheme) : defaultFogTheme;
 }
 

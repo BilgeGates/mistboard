@@ -183,8 +183,8 @@
 
 :root[data-fog-theme="veil"] {
   --board-fog-shadow: rgba(0, 0, 0, 0);
-  --board-fog-light-fill: rgba(6, 10, 8, 0.56);
-  --board-fog-dark-fill: rgba(6, 10, 8, 0.62);
+  --board-fog-light-fill: rgba(6, 10, 8, 0.66);
+  --board-fog-dark-fill: rgba(6, 10, 8, 0.72);
   --board-fog-light-background:
     linear-gradient(
       var(--board-fog-light-fill),
@@ -200,9 +200,9 @@
 }
 
 :root[data-fog-theme="solid"] {
-  --board-fog-shadow: rgba(255, 244, 224, 0.08);
-  --board-fog-light-background: color-mix(in srgb, var(--board-frame) 84%, black);
-  --board-fog-dark-background: color-mix(in srgb, var(--board-frame) 72%, black);
+  --board-fog-shadow: #1a261a;
+  --board-fog-light-background: #101810;
+  --board-fog-dark-background: #101810;
 }
 
 :root[data-fog-theme="drift"] {
@@ -217,8 +217,8 @@
   --board-fog-shadow: rgba(180, 200, 220, 0.08);
   --board-fog-light-fill: rgba(28, 32, 44, 0.55);
   --board-fog-dark-fill: rgba(18, 22, 32, 0.65);
-  /* Per-square background-image is set by .fog-tile-fXrY rules below, not via
-     these vars. Keep the fill as a fallback tint behind the tile. */
+  /* Per-square tile URLs are set by .fog-tile-fXrY rules below, then applied
+     on the square itself so the tile var resolves after the class is present. */
   --board-fog-light-background: var(--board-fog-light-fill);
   --board-fog-dark-background: var(--board-fog-dark-fill);
 }
@@ -230,200 +230,220 @@
    tile URL. No JS post-processing — the URL resolves synchronously at
    render time, so squares never paint with a wrong image. */
 :root[data-fog-theme="mistveil"] .fog-tile-f0r0 {
-  background-image: url("/fog/mistveil/f0r0.webp");
+  --board-fog-tile: url("/fog/mistveil/f0r0.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f0r1 {
-  background-image: url("/fog/mistveil/f0r1.webp");
+  --board-fog-tile: url("/fog/mistveil/f0r1.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f0r2 {
-  background-image: url("/fog/mistveil/f0r2.webp");
+  --board-fog-tile: url("/fog/mistveil/f0r2.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f0r3 {
-  background-image: url("/fog/mistveil/f0r3.webp");
+  --board-fog-tile: url("/fog/mistveil/f0r3.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f0r4 {
-  background-image: url("/fog/mistveil/f0r4.webp");
+  --board-fog-tile: url("/fog/mistveil/f0r4.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f0r5 {
-  background-image: url("/fog/mistveil/f0r5.webp");
+  --board-fog-tile: url("/fog/mistveil/f0r5.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f0r6 {
-  background-image: url("/fog/mistveil/f0r6.webp");
+  --board-fog-tile: url("/fog/mistveil/f0r6.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f0r7 {
-  background-image: url("/fog/mistveil/f0r7.webp");
+  --board-fog-tile: url("/fog/mistveil/f0r7.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f1r0 {
-  background-image: url("/fog/mistveil/f1r0.webp");
+  --board-fog-tile: url("/fog/mistveil/f1r0.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f1r1 {
-  background-image: url("/fog/mistveil/f1r1.webp");
+  --board-fog-tile: url("/fog/mistveil/f1r1.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f1r2 {
-  background-image: url("/fog/mistveil/f1r2.webp");
+  --board-fog-tile: url("/fog/mistveil/f1r2.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f1r3 {
-  background-image: url("/fog/mistveil/f1r3.webp");
+  --board-fog-tile: url("/fog/mistveil/f1r3.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f1r4 {
-  background-image: url("/fog/mistveil/f1r4.webp");
+  --board-fog-tile: url("/fog/mistveil/f1r4.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f1r5 {
-  background-image: url("/fog/mistveil/f1r5.webp");
+  --board-fog-tile: url("/fog/mistveil/f1r5.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f1r6 {
-  background-image: url("/fog/mistveil/f1r6.webp");
+  --board-fog-tile: url("/fog/mistveil/f1r6.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f1r7 {
-  background-image: url("/fog/mistveil/f1r7.webp");
+  --board-fog-tile: url("/fog/mistveil/f1r7.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f2r0 {
-  background-image: url("/fog/mistveil/f2r0.webp");
+  --board-fog-tile: url("/fog/mistveil/f2r0.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f2r1 {
-  background-image: url("/fog/mistveil/f2r1.webp");
+  --board-fog-tile: url("/fog/mistveil/f2r1.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f2r2 {
-  background-image: url("/fog/mistveil/f2r2.webp");
+  --board-fog-tile: url("/fog/mistveil/f2r2.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f2r3 {
-  background-image: url("/fog/mistveil/f2r3.webp");
+  --board-fog-tile: url("/fog/mistveil/f2r3.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f2r4 {
-  background-image: url("/fog/mistveil/f2r4.webp");
+  --board-fog-tile: url("/fog/mistveil/f2r4.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f2r5 {
-  background-image: url("/fog/mistveil/f2r5.webp");
+  --board-fog-tile: url("/fog/mistveil/f2r5.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f2r6 {
-  background-image: url("/fog/mistveil/f2r6.webp");
+  --board-fog-tile: url("/fog/mistveil/f2r6.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f2r7 {
-  background-image: url("/fog/mistveil/f2r7.webp");
+  --board-fog-tile: url("/fog/mistveil/f2r7.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f3r0 {
-  background-image: url("/fog/mistveil/f3r0.webp");
+  --board-fog-tile: url("/fog/mistveil/f3r0.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f3r1 {
-  background-image: url("/fog/mistveil/f3r1.webp");
+  --board-fog-tile: url("/fog/mistveil/f3r1.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f3r2 {
-  background-image: url("/fog/mistveil/f3r2.webp");
+  --board-fog-tile: url("/fog/mistveil/f3r2.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f3r3 {
-  background-image: url("/fog/mistveil/f3r3.webp");
+  --board-fog-tile: url("/fog/mistveil/f3r3.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f3r4 {
-  background-image: url("/fog/mistveil/f3r4.webp");
+  --board-fog-tile: url("/fog/mistveil/f3r4.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f3r5 {
-  background-image: url("/fog/mistveil/f3r5.webp");
+  --board-fog-tile: url("/fog/mistveil/f3r5.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f3r6 {
-  background-image: url("/fog/mistveil/f3r6.webp");
+  --board-fog-tile: url("/fog/mistveil/f3r6.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f3r7 {
-  background-image: url("/fog/mistveil/f3r7.webp");
+  --board-fog-tile: url("/fog/mistveil/f3r7.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f4r0 {
-  background-image: url("/fog/mistveil/f4r0.webp");
+  --board-fog-tile: url("/fog/mistveil/f4r0.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f4r1 {
-  background-image: url("/fog/mistveil/f4r1.webp");
+  --board-fog-tile: url("/fog/mistveil/f4r1.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f4r2 {
-  background-image: url("/fog/mistveil/f4r2.webp");
+  --board-fog-tile: url("/fog/mistveil/f4r2.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f4r3 {
-  background-image: url("/fog/mistveil/f4r3.webp");
+  --board-fog-tile: url("/fog/mistveil/f4r3.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f4r4 {
-  background-image: url("/fog/mistveil/f4r4.webp");
+  --board-fog-tile: url("/fog/mistveil/f4r4.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f4r5 {
-  background-image: url("/fog/mistveil/f4r5.webp");
+  --board-fog-tile: url("/fog/mistveil/f4r5.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f4r6 {
-  background-image: url("/fog/mistveil/f4r6.webp");
+  --board-fog-tile: url("/fog/mistveil/f4r6.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f4r7 {
-  background-image: url("/fog/mistveil/f4r7.webp");
+  --board-fog-tile: url("/fog/mistveil/f4r7.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f5r0 {
-  background-image: url("/fog/mistveil/f5r0.webp");
+  --board-fog-tile: url("/fog/mistveil/f5r0.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f5r1 {
-  background-image: url("/fog/mistveil/f5r1.webp");
+  --board-fog-tile: url("/fog/mistveil/f5r1.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f5r2 {
-  background-image: url("/fog/mistveil/f5r2.webp");
+  --board-fog-tile: url("/fog/mistveil/f5r2.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f5r3 {
-  background-image: url("/fog/mistveil/f5r3.webp");
+  --board-fog-tile: url("/fog/mistveil/f5r3.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f5r4 {
-  background-image: url("/fog/mistveil/f5r4.webp");
+  --board-fog-tile: url("/fog/mistveil/f5r4.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f5r5 {
-  background-image: url("/fog/mistveil/f5r5.webp");
+  --board-fog-tile: url("/fog/mistveil/f5r5.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f5r6 {
-  background-image: url("/fog/mistveil/f5r6.webp");
+  --board-fog-tile: url("/fog/mistveil/f5r6.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f5r7 {
-  background-image: url("/fog/mistveil/f5r7.webp");
+  --board-fog-tile: url("/fog/mistveil/f5r7.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f6r0 {
-  background-image: url("/fog/mistveil/f6r0.webp");
+  --board-fog-tile: url("/fog/mistveil/f6r0.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f6r1 {
-  background-image: url("/fog/mistveil/f6r1.webp");
+  --board-fog-tile: url("/fog/mistveil/f6r1.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f6r2 {
-  background-image: url("/fog/mistveil/f6r2.webp");
+  --board-fog-tile: url("/fog/mistveil/f6r2.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f6r3 {
-  background-image: url("/fog/mistveil/f6r3.webp");
+  --board-fog-tile: url("/fog/mistveil/f6r3.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f6r4 {
-  background-image: url("/fog/mistveil/f6r4.webp");
+  --board-fog-tile: url("/fog/mistveil/f6r4.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f6r5 {
-  background-image: url("/fog/mistveil/f6r5.webp");
+  --board-fog-tile: url("/fog/mistveil/f6r5.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f6r6 {
-  background-image: url("/fog/mistveil/f6r6.webp");
+  --board-fog-tile: url("/fog/mistveil/f6r6.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f6r7 {
-  background-image: url("/fog/mistveil/f6r7.webp");
+  --board-fog-tile: url("/fog/mistveil/f6r7.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f7r0 {
-  background-image: url("/fog/mistveil/f7r0.webp");
+  --board-fog-tile: url("/fog/mistveil/f7r0.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f7r1 {
-  background-image: url("/fog/mistveil/f7r1.webp");
+  --board-fog-tile: url("/fog/mistveil/f7r1.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f7r2 {
-  background-image: url("/fog/mistveil/f7r2.webp");
+  --board-fog-tile: url("/fog/mistveil/f7r2.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f7r3 {
-  background-image: url("/fog/mistveil/f7r3.webp");
+  --board-fog-tile: url("/fog/mistveil/f7r3.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f7r4 {
-  background-image: url("/fog/mistveil/f7r4.webp");
+  --board-fog-tile: url("/fog/mistveil/f7r4.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f7r5 {
-  background-image: url("/fog/mistveil/f7r5.webp");
+  --board-fog-tile: url("/fog/mistveil/f7r5.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f7r6 {
-  background-image: url("/fog/mistveil/f7r6.webp");
+  --board-fog-tile: url("/fog/mistveil/f7r6.webp");
 }
 :root[data-fog-theme="mistveil"] .fog-tile-f7r7 {
-  background-image: url("/fog/mistveil/f7r7.webp");
+  --board-fog-tile: url("/fog/mistveil/f7r7.webp");
+}
+
+:root[data-fog-theme="mistveil"] .board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .replay-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .stepper-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .live-boards-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden.white {
+  background: var(--board-fog-tile), var(--board-fog-light-fill);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+:root[data-fog-theme="mistveil"] .board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .replay-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .stepper-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .live-boards-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden.black {
+  background: var(--board-fog-tile), var(--board-fog-dark-fill);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 :root[data-fog-theme="void"] {
-  --board-fog-shadow: rgba(0, 0, 0, 0);
+  --board-fog-shadow: #080808;
   --board-fog-light-fill: #000;
   --board-fog-dark-fill: #000;
   --board-fog-light-background: #000;
@@ -710,11 +730,11 @@ body {
 }
 
 .theme-tile-preview-fog[data-id="veil"]::after {
-  background: rgba(6, 10, 8, 0.59);
+  background: rgba(6, 10, 8, 0.69);
 }
 
 .theme-tile-preview-fog[data-id="solid"]::after {
-  background: #2a2a2a;
+  background: #101810;
 }
 
 .theme-tile-preview-fog[data-id="drift"]::after {
@@ -732,6 +752,7 @@ body {
 
 .theme-tile-preview-fog[data-id="void"]::after {
   background: #000;
+  box-shadow: inset 0 0 0 1px #080808;
 }
 
 .theme-tile-preview-fog[data-id="invisible"]::after {

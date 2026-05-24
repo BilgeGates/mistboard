@@ -14,10 +14,10 @@ export const BOARD_BORDER = BOARD_FRAME;
 // Fog veil tokens — matched to the live-game CSS variables
 // (--board-fog-* in apps/web/src/styles.css). Fog is drawn as a translucent
 // overlay so the underlying light/dark square color still shows through.
-export const FOG_LIGHT_FILL = 'rgba(6, 10, 8, 0.56)';
-export const FOG_DARK_FILL = 'rgba(6, 10, 8, 0.62)';
-export const FOG_SOLID_LIGHT_FILL = '#503725';
-export const FOG_SOLID_DARK_FILL = '#442f20';
+export const FOG_LIGHT_FILL = 'rgba(6, 10, 8, 0.66)';
+export const FOG_DARK_FILL = 'rgba(6, 10, 8, 0.72)';
+export const FOG_SOLID_LIGHT_FILL = '#17110c';
+export const FOG_SOLID_DARK_FILL = FOG_SOLID_LIGHT_FILL;
 export const FOG_LINE = 'rgba(0, 0, 0, 0.36)';
 export const FOG_LINE_SOFT = 'rgba(255, 255, 255, 0.06)';
 export const FOG_SHADOW = 'rgba(255, 244, 224, 0.07)';
@@ -66,13 +66,13 @@ export const GREEN_PALETTE: BoardPalette = {
   frame: '#2a3a2a',
   fogLightFill: FOG_LIGHT_FILL,
   fogDarkFill: FOG_DARK_FILL,
-  fogSolidLightFill: '#233123',
-  fogSolidDarkFill: '#1e2a1e',
+  fogSolidLightFill: '#101810',
+  fogSolidDarkFill: '#101810',
   fogLine: 'rgba(8, 24, 12, 0.36)',
   fogLineSoft: 'rgba(255, 255, 255, 0.08)',
   fogShadow: FOG_SHADOW,
 };
 
-// Fog rendering style. 'veil' is the default translucent overlay; 'solid' keeps
-// the older opaque block style available.
+// Fog rendering style. 'solid' is the default opaque block style; 'veil' is a
+// translucent overlay that preserves board colors.
 export type FogStyle = 'striped' | 'solid' | 'veil';

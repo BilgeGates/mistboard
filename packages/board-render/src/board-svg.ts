@@ -61,7 +61,7 @@ export function renderBoardSvg(
   opts: { palette?: BoardPalette; fogStyle?: FogStyle } = {},
 ): string {
   const palette = opts.palette ?? BROWN_PALETTE;
-  const fogStyle = opts.fogStyle ?? 'veil';
+  const fogStyle = opts.fogStyle ?? 'solid';
   const sq = size / 8;
   const out: string[] = [];
   const fogCoords = fogSquares.map(squareToFileRank);
