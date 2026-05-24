@@ -25,12 +25,22 @@ Recent shipped work:
 - WS integration harness + Postgres-backed integration test for `recordGameEnd`
 
 Still open against M1:
-- Mobile gameplay end-to-end on iPhone Safari + Android Chrome
-- Per-game OG Phase 2 (loser-view + truth boards rendered)
-- Draft960 lobby surfaced and Draft960 article wired from landing
-- Engine strength sufficient for "not embarrassing" against beginners
-- PostHog funnel verified live with real traffic
-- Article mobile pass (TOC, stepper, board composition)
+- Record mobile gameplay end-to-end evidence for iPhone Safari + Android Chrome
+- Record empty-lobby engine fallback verification in production
+- Decide whether per-game OG Phase 2 stays in M1; if it stays, ship loser-view
+  + truth boards and run scraper sanity checks
+- Record PostHog funnel verification from real traffic
+- Record article mobile pass evidence (TOC, stepper, board composition)
+- Confirm the current playable engine clears the M1 beginner bar
+
+Moved out of M1:
+- Draft960 lobby and Draft960 rated work are M4. The Draft960 article exists,
+  but the launch surface stays standard Fog of War to avoid splitting the pool.
+
+Release confidence work now active:
+- Local production-like release smoke: build, local Postgres, migrations, server
+  boot, PvP WebSocket smoke, and builtin-engine PvE smoke.
+- Public artifact identity through `/api/server-status` build metadata.
 
 ## What's Next
 

@@ -8,10 +8,24 @@ const baseUrl = normalizeBaseUrl(
   options.baseUrl ?? process.env.MISTBOARD_BASE_URL ?? DEFAULT_BASE_URL,
 );
 const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+const expectedRevision = options.expectedRevision ?? process.env.MISTBOARD_EXPECT_REVISION ?? null;
 
 const health = await fetchJson(new URL('/health', baseUrl), { timeoutMs });
 if (health.status !== 200 || health.body?.ok !== true) {
   throw new Error(`/health failed: ${health.status} ${JSON.stringify(health.body)}`);
+}
+
+const serverStatus = await fetchJson(new URL('/api/server-status', baseUrl), { timeoutMs });
+if (serverStatus.status !== 200) {
+  throw new Error(`/api/server-status failed: ${serverStatus.status}`);
+}
+if (expectedRevision) {
+  const actualRevision = serverStatus.body?.build?.revision;
+  if (typeof actualRevision !== 'string' || !revisionMatches(actualRevision, expectedRevision)) {
+    throw new Error(
+      `revision mismatch: expected ${expectedRevision}, got ${actualRevision ?? 'missing'}`,
+    );
+  }
 }
 
 const index = await fetchText(new URL('/', baseUrl), { timeoutMs });
@@ -36,6 +50,7 @@ console.log(
     ok: true,
     baseUrl: baseUrl.href,
     health: health.body,
+    serverStatus: serverStatus.body,
     roomId: room.roomId,
     seats: [white.hello.seat, black.hello.seat],
     abandoned,
@@ -168,6 +183,7 @@ function parseArgs(args) {
   const result = {
     baseUrl: null,
     timeoutMs: null,
+    expectedRevision: null,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -179,6 +195,8 @@ function parseArgs(args) {
         requiredValue(args, ++index, '--timeout-ms'),
         '--timeout-ms',
       );
+    } else if (arg === '--expect-revision') {
+      result.expectedRevision = requiredValue(args, ++index, '--expect-revision');
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -187,6 +205,10 @@ function parseArgs(args) {
     }
   }
   return result;
+}
+
+function revisionMatches(actual, expected) {
+  return actual === expected || actual.startsWith(expected) || expected.startsWith(actual);
 }
 
 function requiredValue(args, index, flag) {
@@ -216,5 +238,7 @@ function printHelp() {
 Options:
   --base <url>       Base URL to smoke, default ${DEFAULT_BASE_URL}
   --timeout-ms <ms>  Timeout per network step, default ${DEFAULT_TIMEOUT_MS}
+  --expect-revision <sha>
+                     Fail unless /api/server-status reports this revision.
 `);
 }

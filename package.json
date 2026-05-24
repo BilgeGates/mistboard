@@ -43,6 +43,8 @@
     "hooks:install": "git config core.hooksPath .githooks",
     "visual:check": "node scripts/visual-check.mjs",
     "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs",
+    "release:local-smoke": "node scripts/release-local-smoke.mjs",
+    "prod:smoke:lite": "node scripts/prod-lite-smoke.mjs",
     "prod:smoke": "node scripts/prod-smoke.mjs",
     "prod:smoke:engines": "node scripts/prod-engine-smoke.mjs"
   },

@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { ratedEnabled } from '../feature-flags.js';
+import { getBuildInfo } from '../build-info.js';
 import * as persistence from '../persistence.js';
 import {
   type HttpApiContext,
@@ -20,9 +20,7 @@ export async function tryHandle(
     writeJson(response, 200, {
       restartAt: ctx.drainDeadlineMs(),
       activeGames: ctx.activeGameCount(),
-      // Drives the client's rated toggle: one env var (MISTBOARD_RATED_ENABLED)
-      // gates both server creation and client selectability, so they can't drift.
-      ratedEnabled: ratedEnabled(),
+      build: getBuildInfo(),
     });
     return true;
   }

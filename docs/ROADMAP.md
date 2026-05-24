@@ -51,10 +51,15 @@ Outreach is one-shot for HN reputation and streamer credibility. Every item is p
 
 **Legend:** `[x]` done/verified · `[~]` code shipped, needs a runtime/manual check before it counts · `[ ]` open. Reconciled against the tree 2026-05-23.
 
+Manual gates should not be closed from memory. When a gate is verified, record
+the evidence in the item text: date, target environment, device/browser when
+relevant, and the room/game URL or smoke command. If a gate is intentionally cut
+from M1, say that explicitly instead of leaving it as stale open work.
+
 ### Tier A — Reliability
 
-- [ ] Mobile gameplay end-to-end on iPhone Safari + Android Chrome (cold load → join → play → finish). _Nav + landing + pair-board mobile pass shipped (3b7a53d); the **live game screen has never been tested on mobile** — that's the open part._
-- [~] Empty-lobby engine fallback (30s queue → engine offer → playable game). _Code shipped (Path A: single-click PvE 3+2 at 15s). Still needs the "verified in prod" pass._
+- [ ] Mobile gameplay end-to-end on iPhone Safari + Android Chrome (cold load → join → play → finish). _Do not close until the actual device/browser pass is recorded here._
+- [~] Empty-lobby engine fallback (30s queue → engine offer → playable game). _Code shipped (Path A: single-click PvE 3+2 at 15s). Still needs the "verified in prod" record._
 - [x] Persistence smoke for resign: real Postgres, verify `games` row + `game_participants` rows written correctly. **Done** — CI (`ci.yml`) runs an isolated `postgres:16-alpine` service with `TEST_DATABASE_URL` set, and `apps/server/integration/persist-resign.test.ts` asserts the `games` row (termination=`resignation`, plyCount, status, mode) + two `game_participants` rows on every push. The `recordGameEnd` parameter-index bug class is covered.
 - [ ] Manual sleep/reconnect test per role (half-open TCP isn't covered by the harness). _Manual; not yet run._
 
