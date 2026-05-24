@@ -219,25 +219,31 @@ def _play_one_in_process(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _load_completed_game_ids(shard_log: Path) -> set[str]:
-    """Resume support: read shard log and return the set of game_ids
-    whose lines parse cleanly. Partial / errored entries are also counted
-    as "done" — we won't auto-retry them; the operator decides."""
-    if not shard_log.exists():
-        return set()
+def _load_completed_game_ids(out_dir: Path) -> set[str]:
+    """Resume support: scan ALL shard-*.jsonl files in ``out_dir`` and
+    return the set of game_ids whose lines parse cleanly. Partial /
+    errored entries are also counted as "done" — we won't auto-retry
+    them; the operator decides.
+
+    Global (across all shards), not per-shard: a ladder rung can
+    re-assign game indices to different shards (rung 1 → 4 shards × 1
+    game each; rung 2 → 4 shards × 2 games each shifts shard
+    membership). Per-shard resume would re-run games already completed
+    by a different shard. Global resume skips correctly across rungs."""
     done: set[str] = set()
-    with shard_log.open() as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            gid = row.get("game_id")
-            if gid:
-                done.add(gid)
+    for shard_log in sorted(out_dir.glob("shard-*.jsonl")):
+        with shard_log.open() as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                gid = row.get("game_id")
+                if gid:
+                    done.add(gid)
     return done
 
 
@@ -334,9 +340,13 @@ def _write_spec(out_dir: Path, args: argparse.Namespace) -> None:
 def _write_manifest(out_dir: Path, args: argparse.Namespace) -> None:
     """Rebuild manifest.json from all shard logs. Idempotent — call at
     end of each shard; the last finisher wins and includes everyone's
-    games. Compatible with apps/web bakeoff viewer."""
-    games_for_manifest: list[dict] = []
-    record = {"wins": 0, "losses": 0, "draws": 0}
+    games. Compatible with apps/web bakeoff viewer.
+
+    Cross-shard dedup by game_idx: if the same game ran in multiple
+    shards (e.g., from a pre-fix ladder rung re-assignment), the LAST
+    entry across the sorted-shard-log scan wins. Higher-shard-id
+    overrides lower for a given game_idx — a deterministic tie-break."""
+    by_idx: dict[int, dict] = {}
     for shard_log in sorted(out_dir.glob("shard-*.jsonl")):
         with shard_log.open() as f:
             for line in f:
@@ -349,25 +359,30 @@ def _write_manifest(out_dir: Path, args: argparse.Namespace) -> None:
                     continue
                 if "error" in row:
                     continue
-                outcome = row.get("outcome", "D")
-                if outcome == "W":
-                    record["wins"] += 1
-                elif outcome == "L":
-                    record["losses"] += 1
-                else:
-                    record["draws"] += 1
-                games_for_manifest.append({
-                    "index": row["game_idx"],
-                    "tier1_color": row["v2_color"],
-                    "outcome": outcome,
-                    "plies": row.get("plies", 0),
-                    "end_reason": row.get("end_reason", "unknown"),
-                    "truncated": row.get("truncated", False),
-                    "tier1_seed": row.get("seed_v2"),
-                    "random_seed": row.get("seed_v095"),
-                    "path": row["game_path"],
-                })
-    games_for_manifest.sort(key=lambda g: g["index"])
+                by_idx[row["game_idx"]] = row
+
+    games_for_manifest: list[dict] = []
+    record = {"wins": 0, "losses": 0, "draws": 0}
+    for idx in sorted(by_idx):
+        row = by_idx[idx]
+        outcome = row.get("outcome", "D")
+        if outcome == "W":
+            record["wins"] += 1
+        elif outcome == "L":
+            record["losses"] += 1
+        else:
+            record["draws"] += 1
+        games_for_manifest.append({
+            "index": row["game_idx"],
+            "tier1_color": row["v2_color"],
+            "outcome": outcome,
+            "plies": row.get("plies", 0),
+            "end_reason": row.get("end_reason", "unknown"),
+            "truncated": row.get("truncated", False),
+            "tier1_seed": row.get("seed_v2"),
+            "random_seed": row.get("seed_v095"),
+            "path": row["game_path"],
+        })
 
     manifest = {
         "tier1_version": "engine-v2 (rust-port 551cbaf)",
@@ -400,7 +415,7 @@ def _run_orchestrator(args: argparse.Namespace) -> int:
     _write_spec(out_dir, args)
 
     shard_log = out_dir / f"shard-{args.shard_id:02d}.jsonl"
-    completed = _load_completed_game_ids(shard_log)
+    completed = _load_completed_game_ids(out_dir)
 
     start = args.start_index
     target = start + args.games

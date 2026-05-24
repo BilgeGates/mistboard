@@ -33,6 +33,13 @@ MAX_PLIES="${MAX_PLIES:-160}"
 BASE_SEED="${BASE_SEED:-12345}"
 PER_GAME_TIMEOUT="${PER_GAME_TIMEOUT:-1800}"
 STOCKFISH="${STOCKFISH:-stockfish}"
+# Global offset for the first game index this launch covers. Use to add
+# a rung without re-assigning already-done games to different shards:
+#   rung 1: START_INDEX=0 GAMES_PER_SHARD=1   →  games [0, 4)
+#   rung 2: START_INDEX=4 GAMES_PER_SHARD=1   →  games [4, 8)
+#   rung 3: START_INDEX=8 GAMES_PER_SHARD=2   →  games [8, 16)
+# Default 0 = behave like before (start fresh).
+START_INDEX="${START_INDEX:-0}"
 
 if [[ -z "$OUT_DIR" ]]; then
   echo "OUT_DIR= is required" >&2
@@ -49,7 +56,7 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 2
 fi
 
-echo "v2 bakeoff: $((N_SHARDS * GAMES_PER_SHARD)) games across $N_SHARDS shards"
+echo "v2 bakeoff: $((N_SHARDS * GAMES_PER_SHARD)) games across $N_SHARDS shards (game indices [$START_INDEX, $((START_INDEX + N_SHARDS * GAMES_PER_SHARD))))"
 echo "  out=$OUT_DIR"
 echo "  v2-iters=$V2_ITERS |I|=$V2_I time=$V2_TIME_BUDGET p_max=$V2_P_MAX max_plies=$MAX_PLIES"
 echo "  per-game-timeout=${PER_GAME_TIMEOUT}s base-seed=$BASE_SEED"
@@ -57,7 +64,7 @@ echo
 
 pids=()
 for shard in $(seq 0 $((N_SHARDS - 1))); do
-  start=$((shard * GAMES_PER_SHARD))
+  start=$((START_INDEX + shard * GAMES_PER_SHARD))
   stdout_log="$OUT_DIR/shard-$(printf %02d "$shard").stdout"
   PYTHONPATH=src "$PYTHON" -u scripts/run_v2_bakeoff.py \
     --out-dir "$OUT_DIR" \
