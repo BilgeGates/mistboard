@@ -526,6 +526,16 @@ class MultiRootGTCFRSolution:
     elapsed_seconds: float
     """Wall-time consumed (matters when time_budget_seconds is set)."""
 
+    strategy_history_at_root: list[dict] = field(default_factory=list)
+    """Per-iteration snapshots of the root-infoset strategy. Used by
+    A6 purification (stable-actions filter checks support continuously
+    for t > T_{1/2})."""
+
+    t_half: int = 0
+    """Iteration index at which half the wall budget had elapsed (when
+    time_budget_seconds is set) or iterations // 2 otherwise. The
+    stable-actions filter checks support continuously for t > t_half."""
+
 
 def _count_nodes(root: GTCFRTreeNode) -> int:
     n = 1
@@ -742,15 +752,38 @@ def solve_multiroot_growing_subgame(
             expansions_done += 1
 
     iters_completed = 0
+    strategy_history: list[dict] = []
+    half_budget_reached_at: int | None = None
     for t in range(iterations):
         # Time-budget check at iteration boundary.
-        if time_budget_seconds is not None and (time.monotonic() - t_start) >= time_budget_seconds:
+        elapsed = time.monotonic() - t_start
+        if time_budget_seconds is not None and elapsed >= time_budget_seconds:
             break
+
+        # Record when we cross the half-time-budget mark (for A6 purification
+        # stable-actions filter).
+        if (time_budget_seconds is not None
+                and half_budget_reached_at is None
+                and elapsed >= time_budget_seconds / 2.0):
+            half_budget_reached_at = t
 
         # Equilibrium pass: alternate traverser, walk all roots.
         for traversing_player in (perspective, not perspective):
             for r in roots:
                 _equilibrium_traverse(r, state, traversing_player, perspective, rng)
+
+        # Snapshot root-infoset strategy for purification's stable-actions
+        # filter. Cheap (one dict copy per iteration).
+        if roots:
+            root_info_set = roots[0].info_set_id()
+            all_actions = set()
+            for r in roots:
+                all_actions.update(r.children.keys())
+            if all_actions:
+                strat_now = _current_strategy(
+                    root_info_set, list(all_actions), state,
+                )
+                strategy_history.append(dict(zip(all_actions, strat_now)))
 
         # Expansion pass: pick one root × leaf via PUCT-mixture walk.
         if expansions_done < expansion_budget:
@@ -770,6 +803,14 @@ def solve_multiroot_growing_subgame(
                 )
                 expansions_done += 1
         iters_completed += 1
+
+    # Resolve t_half for purification. If we had a time budget, use the
+    # iteration index where wall time crossed budget/2. Otherwise use
+    # the conventional iters_completed // 2.
+    if half_budget_reached_at is not None:
+        t_half = half_budget_reached_at
+    else:
+        t_half = iters_completed // 2
 
     # Last-iterate strategy at the SHARED root infoset.
     # All roots share info_set_id == (to_move, (), ()) since their
@@ -791,6 +832,8 @@ def solve_multiroot_growing_subgame(
             total_tree_nodes=_multi_count_nodes(roots),
             n_roots=len(roots),
             elapsed_seconds=time.monotonic() - t_start,
+            strategy_history_at_root=strategy_history,
+            t_half=t_half,
         )
     last = state.last_strategy.get(root_info_set, {})
     if last:
@@ -819,4 +862,6 @@ def solve_multiroot_growing_subgame(
         total_tree_nodes=_multi_count_nodes(roots),
         n_roots=len(roots),
         elapsed_seconds=time.monotonic() - t_start,
+        strategy_history_at_root=strategy_history,
+        t_half=t_half,
     )
