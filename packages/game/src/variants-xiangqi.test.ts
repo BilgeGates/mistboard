@@ -545,6 +545,55 @@ test('cannon sees through screen to enemy target (initial position cannon vs bac
   );
 });
 
+test('general vision is legal palace destinations, not the whole palace', () => {
+  const state: XiangqiGameState = {
+    id: 't',
+    board: {
+      e1: { color: 'red', role: 'general' },
+    },
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  const v = computeVision(state, 'red');
+  for (const sq of ['d1', 'f1', 'e2'] as const) {
+    assert.ok(v.directlyVisible.has(sq), `general e1 should see legal destination ${sq}`);
+  }
+  for (const sq of ['d2', 'f2', 'd3', 'e3', 'f3'] as const) {
+    assert.ok(
+      !v.directlyVisible.has(sq),
+      `general e1 should not see non-destination palace square ${sq}`,
+    );
+  }
+});
+
+test('general vision sees facing enemy general only on a clear file', () => {
+  const clear: XiangqiGameState = {
+    id: 't',
+    board: {
+      e1: { color: 'red', role: 'general' },
+      e10: { color: 'black', role: 'general' },
+    },
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  assert.ok(computeVision(clear, 'red').directlyVisible.has('e10'));
+
+  const blocked: XiangqiGameState = {
+    ...clear,
+    board: {
+      ...clear.board,
+      e5: { color: 'black', role: 'soldier' },
+    },
+  };
+  const v = computeVision(blocked, 'red');
+  assert.ok(!v.directlyVisible.has('e10'), 'screened opposing general should not be visible');
+  assert.ok(!v.directlyVisible.has('e5'), 'general vision should not reveal the blocker');
+});
+
 test('horse vision includes legal L-destinations but not leg squares', () => {
   // Red horse on e2. Vision follows legal destinations only; adjacent leg
   // squares are not revealed just to explain why a move works or fails.

@@ -1377,7 +1377,7 @@ const XQ_START_TRIPTYCH = xqSvg(
       x: (XQ_BOARD_W + 28) * 2,
       y: 0,
       label: "BLACK'S VIEW",
-      perspective: 'black',
+      perspective: 'red',
     }),
   ].join(''),
 );
@@ -1395,99 +1395,228 @@ function xqVisionDemoState(id: string, board: Partial<Record<XiangqiSquare, Xian
 
 const XQ_VISION_STATES = [
   {
-    label: 'GENERAL',
-    state: xqVisionDemoState('xq-vision-general', {
-      e1: { color: 'red', role: 'general' },
-      e10: { color: 'black', role: 'general' },
+    label: 'SOLDIER',
+    state: xqVisionDemoState('xq-vision-soldier', {
+      a4: { color: 'red', role: 'soldier' },
+      c4: { color: 'red', role: 'soldier' },
+      e4: { color: 'red', role: 'soldier' },
+      g6: { color: 'red', role: 'soldier' },
+      i6: { color: 'red', role: 'soldier' },
+      e5: { color: 'black', role: 'soldier' },
+      e6: { color: 'black', role: 'horse' },
+      h6: { color: 'black', role: 'advisor' },
     }),
   },
   {
     label: 'ADVISOR',
     state: xqVisionDemoState('xq-vision-advisor', {
-      e2: { color: 'red', role: 'advisor' },
-      d3: { color: 'black', role: 'soldier' },
-    }),
-  },
-  {
-    label: 'HORSE',
-    state: xqVisionDemoState('xq-vision-horse', {
-      e5: { color: 'red', role: 'horse' },
-      e6: { color: 'black', role: 'soldier' },
+      d1: { color: 'red', role: 'advisor' },
+      f1: { color: 'red', role: 'advisor' },
+      e2: { color: 'black', role: 'soldier' },
     }),
   },
   {
     label: 'ELEPHANT',
     state: xqVisionDemoState('xq-vision-elephant', {
-      c5: { color: 'red', role: 'elephant' },
+      c1: { color: 'red', role: 'elephant' },
+      g1: { color: 'red', role: 'elephant' },
       a3: { color: 'black', role: 'soldier' },
-      d4: { color: 'black', role: 'soldier' },
+      d2: { color: 'black', role: 'soldier' },
+      i3: { color: 'black', role: 'horse' },
+    }),
+  },
+  {
+    label: 'HORSE',
+    state: xqVisionDemoState('xq-vision-horse', {
+      b1: { color: 'red', role: 'horse' },
+      h1: { color: 'red', role: 'horse' },
+      a3: { color: 'black', role: 'soldier' },
+      c3: { color: 'black', role: 'advisor' },
+      g3: { color: 'black', role: 'elephant' },
+      i3: { color: 'black', role: 'soldier' },
+    }),
+  },
+  {
+    label: 'CANNON',
+    state: xqVisionDemoState('xq-vision-cannon', {
+      b3: { color: 'red', role: 'cannon' },
+      h3: { color: 'red', role: 'cannon' },
+      b8: { color: 'black', role: 'cannon' },
+      h8: { color: 'black', role: 'cannon' },
+      b10: { color: 'black', role: 'horse' },
+      h10: { color: 'black', role: 'horse' },
     }),
   },
   {
     label: 'CHARIOT',
     state: xqVisionDemoState('xq-vision-chariot', {
       a1: { color: 'red', role: 'chariot' },
+      i1: { color: 'red', role: 'chariot' },
       a7: { color: 'black', role: 'soldier' },
+      i7: { color: 'black', role: 'soldier' },
     }),
   },
   {
-    label: 'CANNON',
-    state: xqVisionDemoState('xq-vision-cannon', {
-      h3: { color: 'red', role: 'cannon' },
-      e3: { color: 'black', role: 'soldier' },
-      b3: { color: 'black', role: 'chariot' },
+    label: 'GENERAL',
+    state: xqVisionDemoState('xq-vision-general', {
+      e1: { color: 'red', role: 'general' },
+      e10: { color: 'black', role: 'general' },
     }),
   },
 ];
 
+const XQ_VISIBILITY_GRID_COLUMNS = 3;
+const XQ_VISIBILITY_GRID_GAP = 28;
+const XQ_VISIBILITY_GRID_ROW_H = XQ_BOARD_H + 52;
 const XQ_VISIBILITY_GRID = xqSvg(
-  XQ_BOARD_W * 2 + 28,
-  (XQ_BOARD_H + 52) * 3,
+  XQ_BOARD_W * XQ_VISIBILITY_GRID_COLUMNS + XQ_VISIBILITY_GRID_GAP * (XQ_VISIBILITY_GRID_COLUMNS - 1),
+  XQ_VISIBILITY_GRID_ROW_H * Math.ceil(XQ_VISION_STATES.length / XQ_VISIBILITY_GRID_COLUMNS),
   XQ_VISION_STATES.map(({ state, label }, index) =>
     xqBoardSvg({
       state,
       view: getXiangqiPlayerView(state, 'red', 'E'),
-      x: (index % 2) * (XQ_BOARD_W + 28),
-      y: Math.floor(index / 2) * (XQ_BOARD_H + 52),
+      x: (index % XQ_VISIBILITY_GRID_COLUMNS) * (XQ_BOARD_W + XQ_VISIBILITY_GRID_GAP),
+      y: Math.floor(index / XQ_VISIBILITY_GRID_COLUMNS) * XQ_VISIBILITY_GRID_ROW_H,
       label,
       perspective: 'red',
     }),
   ).join(''),
 );
 
-const XQ_GENERAL_CAPTURE_BEFORE: XiangqiGameState = {
-  id: 'xq-general-capture-before',
+const XQ_VISION_MOVE_BEFORE = xqVisionDemoState('xq-vision-move-before', {
+  a1: { color: 'red', role: 'chariot' },
+  a6: { color: 'black', role: 'soldier' },
+  e4: { color: 'black', role: 'advisor' },
+  i1: { color: 'black', role: 'chariot' },
+});
+const XQ_VISION_MOVE_AFTER: XiangqiGameState = {
+  ...XQ_VISION_MOVE_BEFORE,
+  id: 'xq-vision-move-after',
+  board: {
+    a4: { color: 'red', role: 'chariot' },
+    a6: { color: 'black', role: 'soldier' },
+    e4: { color: 'black', role: 'advisor' },
+    i1: { color: 'black', role: 'chariot' },
+  },
+  lastMove: { from: 'a1' as XiangqiSquare, to: 'a4' as XiangqiSquare },
+};
+const XQ_VISION_MOVE_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_VISION_MOVE_BEFORE,
+      view: getXiangqiPlayerView(XQ_VISION_MOVE_BEFORE, 'red', 'E'),
+      x: 0,
+      y: 0,
+      label: 'BEFORE',
+      perspective: 'red',
+    }),
+    xqBoardSvg({
+      state: XQ_VISION_MOVE_AFTER,
+      view: getXiangqiPlayerView(XQ_VISION_MOVE_AFTER, 'red', 'E'),
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'AFTER',
+      perspective: 'red',
+    }),
+  ].join(''),
+);
+
+const XQ_CANNON_RULE_STATE: XiangqiGameState = {
+  id: 'xq-cannon-rule',
   board: {
     e1: { color: 'red', role: 'general' },
-    a1: { color: 'red', role: 'chariot' },
-    a10: { color: 'black', role: 'general' },
-    i10: { color: 'black', role: 'chariot' },
+    h3: { color: 'red', role: 'cannon' },
+    e3: { color: 'black', role: 'soldier' },
+    b3: { color: 'black', role: 'chariot' },
+    e10: { color: 'black', role: 'general' },
   },
   status: { type: 'playing', turn: 'red' },
-  moveNumber: 18,
+  moveNumber: 12,
   progressClock: 0,
   positionCounts: {},
 };
+const XQ_CANNON_RULE_RED = getXiangqiPlayerView(XQ_CANNON_RULE_STATE, 'red', 'E');
+const XQ_CANNON_RULE_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_CANNON_RULE_STATE,
+      view: XQ_CANNON_RULE_RED,
+      x: 0,
+      y: 0,
+      label: "RED'S VIEW",
+      perspective: 'red',
+    }),
+    xqBoardSvg({
+      state: XQ_CANNON_RULE_STATE,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'SERVER TRUTH',
+      perspective: 'red',
+    }),
+  ].join(''),
+);
+
+// Fixed from a random-vs-random Xiangqi bot game: seed 2, red's 141st-ply
+// chariot move d2xd8 captures the black general.
+const XQ_GENERAL_CAPTURE_BEFORE: XiangqiGameState = {
+  id: 'xq-general-capture-before-bot-seed-2',
+  board: {
+    d1: { color: 'red', role: 'advisor' },
+    h1: { color: 'red', role: 'horse' },
+    d2: { color: 'red', role: 'chariot' },
+    e2: { color: 'red', role: 'advisor' },
+    f2: { color: 'black', role: 'cannon' },
+    e3: { color: 'red', role: 'general' },
+    i3: { color: 'red', role: 'elephant' },
+    a4: { color: 'black', role: 'soldier' },
+    c4: { color: 'red', role: 'soldier' },
+    a5: { color: 'black', role: 'chariot' },
+    c5: { color: 'red', role: 'elephant' },
+    i6: { color: 'red', role: 'soldier' },
+    h7: { color: 'red', role: 'horse' },
+    i7: { color: 'black', role: 'cannon' },
+    d8: { color: 'black', role: 'general' },
+    f8: { color: 'black', role: 'chariot' },
+    e9: { color: 'black', role: 'advisor' },
+    f9: { color: 'black', role: 'horse' },
+    b10: { color: 'black', role: 'horse' },
+    c10: { color: 'red', role: 'chariot' },
+    d10: { color: 'black', role: 'advisor' },
+    g10: { color: 'black', role: 'elephant' },
+  },
+  status: { type: 'playing', turn: 'red' },
+  moveNumber: 71,
+  progressClock: 12,
+  positionCounts: {},
+};
 const XQ_GENERAL_CAPTURE_AFTER = applyXiangqiMove(XQ_GENERAL_CAPTURE_BEFORE, {
-  from: 'a1' as XiangqiSquare,
-  to: 'a10' as XiangqiSquare,
+  from: 'd2' as XiangqiSquare,
+  to: 'd8' as XiangqiSquare,
 });
+const XQ_GENERAL_CAPTURE_BEFORE_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_BEFORE, 'red', 'E');
+const XQ_GENERAL_CAPTURE_AFTER_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_AFTER, 'red', 'E');
 const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
     xqBoardSvg({
       state: XQ_GENERAL_CAPTURE_BEFORE,
+      view: XQ_GENERAL_CAPTURE_BEFORE_RED,
       x: 0,
       y: 0,
-      label: 'BEFORE: GENERAL EXPOSED',
+      label: "RED'S VIEW BEFORE",
       perspective: 'red',
     }),
     xqBoardSvg({
       state: XQ_GENERAL_CAPTURE_AFTER,
+      view: XQ_GENERAL_CAPTURE_AFTER_RED,
       x: XQ_BOARD_W + 28,
       y: 0,
-      label: 'AFTER: GENERAL CAPTURED',
+      label: "RED'S VIEW AFTER",
       perspective: 'red',
     }),
   ].join(''),
@@ -1872,40 +2001,63 @@ export const articles: Article[] = [
     slug: 'dark-xiangqi-rules',
     title: 'Dark Xiangqi',
     summary:
-      'Xiangqi under fog: no check warnings, general capture wins, and cannons reveal what they can take without revealing the screen.',
+      'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.',
     status: 'draft',
     audience:
-      'Xiangqi players, dark chess players, engine builders, and people following the early Dark Xiangqi rules track.',
-    tldr: [
-      'Dark Xiangqi takes the hidden-information model from dark chess and applies it to standard xiangqi movement.',
-      'There is no check, no checkmate, and no warning. A player may walk into danger; the game ends when a general is captured.',
-      'Cannons are the signature rule: the screen and gap stay hidden, while the target is visible and marked as cannon-capturable.',
-    ],
+      'Xiangqi players, dark chess players, and anyone who wants a clean first explanation of xiangqi under fog.',
     sections: [
       {
-        heading: 'Start from dark chess',
+        heading: 'The starting position',
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Dark Xiangqi starts from the same contract as [Mistboard dark chess](/articles/dark-chess-rules): the server owns the full position, each player receives only their own view, and hidden information is enforced by the rules engine rather than by a browser overlay.',
+            text: 'If you know xiangqi, the board is familiar: the same river, palaces, generals, advisors, elephants, horses, chariots, cannons, and soldiers. Dark Xiangqi is the modern Fog of War version of the ancient game.',
           },
           {
             kind: 'paragraph',
-            text: 'The change is the game underneath the fog. Instead of chess pieces on an 8x8 board, Dark Xiangqi uses the standard xiangqi board: nine files, ten ranks, palaces, river, generals, advisors, elephants, horses, chariots, cannons, and soldiers.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'A player sees their own pieces, the squares those pieces can see, and opponent pieces standing on visible squares. A hidden square does not tell you whether it is empty or occupied.',
+            text: 'Red moves first. You see your own army and the enemy pieces your army can legally see. Everything else stays in fog.',
           },
           {
             kind: 'raw-svg',
             svg: XQ_START_TRIPTYCH,
-            caption: 'The starting position in the same triptych shape as the dark chess rules article: player view, server truth, opponent view.',
+            caption: 'Red view, server truth, and Black view. The side boards are what each player is allowed to know.',
           } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text: 'The center board is the true position. The side boards are player views, not cosmetic overlays.',
+          },
         ],
       },
       {
-        heading: 'No check, only capture',
+        heading: 'What you see',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: "Here's the same rule, piece by piece.",
+          },
+          {
+            kind: 'raw-svg',
+            svg: XQ_VISIBILITY_GRID,
+            caption: 'Visibility examples, ordered roughly least to most valuable.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text: 'A piece reveals the squares it can legally reach from the true position. Blocked horse legs and elephant eyes do not reveal the blocker. Cannons are the special case; see edge cases below.',
+          },
+          { kind: 'sub-heading', text: 'Vision changes as your pieces move' },
+          {
+            kind: 'raw-svg',
+            svg: XQ_VISION_MOVE_PAIR,
+            caption: "Red's chariot moves from a1 to a4. The old line goes dark; the new rank and file light up.",
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text: 'When a piece moves, its old vision can disappear and its new vision appears immediately. In fog, a move changes both position and information.',
+          },
+        ],
+      },
+      {
+        heading: 'Win condition: general capture',
         blocks: [
           {
             kind: 'paragraph',
@@ -1913,72 +2065,16 @@ export const articles: Article[] = [
           },
           {
             kind: 'paragraph',
-            text: 'The consequence is simple: if your opponent can capture your general next move, you may lose next move. The game does not warn you first.',
+            text: 'The consequence is simple: if your opponent can capture your general next move, you can lose next move. The game does not warn you first.',
           },
           {
             kind: 'raw-svg',
             svg: XQ_GENERAL_CAPTURE_PAIR,
-            caption: 'A general capture ends the game. There is no checkmate state in between.',
+            caption: 'From a random bot game: Red sees the black general on d8 and wins by playing d2xd8. Both boards are Red\'s fogged view.',
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: 'That matches the dark chess rule in spirit. Check is information. In a hidden-information game, the server should not announce danger that your position has not otherwise revealed.',
-          },
-        ],
-      },
-      {
-        heading: 'What pieces see',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text: 'Visibility follows legal xiangqi destinations, not explanatory blocker squares. If a horse leg or elephant eye is blocked by a hidden piece, the blocked destination stays fogged.',
-          },
-          {
-            kind: 'raw-svg',
-            svg: XQ_VISIBILITY_GRID,
-            caption: 'Six visibility examples. The general sees its palace and a facing general on a clear file; the advisor sees diagonal palace destinations; horse and elephant blockers suppress destinations without revealing the blocker.',
-          } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text: 'The general sees its own palace, and it can see the opposing general if the file is clear. An advisor sees diagonal palace destinations. A horse sees unblocked L-shaped destinations. An elephant sees unblocked same-side river destinations. A chariot sees along a file or rank until the first piece. A cannon marks a capturable target while keeping the screen and gap fogged. A soldier sees forward, and after crossing the river also sees sideways.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'Those visibility rules are not just decoration. They are the information boundary a future engine, replay viewer, and live room must all respect.',
-          },
-        ],
-      },
-      {
-        heading: 'The cannon problem',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text: 'Cannons are why Dark Xiangqi is not just dark chess on a different board.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'In xiangqi, a cannon moves like a chariot when it is not capturing. To capture, it must jump over exactly one screen and land on the first enemy piece beyond it. Under fog, that creates a rules question chess does not have: if your cannon can take a piece, what should the game reveal about the screen that makes the capture legal?',
-          },
-          {
-            kind: 'paragraph',
-            text: 'Our current answer is: reveal the consequence, hide the cause.',
-          },
-        ],
-      },
-      {
-        heading: 'Current cannon rule',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text: 'When a cannon has a capture, the screen and the empty gap beyond the screen remain fogged. The target piece is visible, and the UI marks it as cannon-capturable.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'The marker means: "one of your cannons can take this piece." It does not tell you where the screen is. It does not tell you what the screen is. If another piece sees the screen by ordinary vision, then you may know it; otherwise the enabling cause remains hidden.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'That rule keeps cannons legible without turning them into scanners. You can act on the target, but you do not get a free map of the line behind it.',
+            text: 'Check is information. Dark Xiangqi does not announce danger for free; you survive by seeing, remembering, and deducing where attacks may be.',
           },
         ],
       },
@@ -1987,41 +2083,68 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Draws are adjudicated from the true position, not either player\'s view.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'Threefold repetition is an automatic draw when the same true position, with the same side to move, occurs three times.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'The no-capture limit is 60 plies with no capture. Soldier moves do not reset the counter. That is different from western chess\'s pawn-move reset and better matches xiangqi\'s no-capture draw shape.',
+            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. Soldier moves do not reset the no-capture counter. No stalemate draw: if a side somehow has no legal move, that side loses by immobilization.',
           },
         ],
       },
       {
-        heading: 'No stalemate draws',
+        heading: 'Edge cases',
+        blocks: [
+          { kind: 'sub-heading', text: 'Facing generals' },
+          {
+            kind: 'paragraph',
+            text: 'Orthodox xiangqi prevents the two generals from facing each other across an empty file. Dark Xiangqi allows that position to exist because the server does not enforce check safety. If the clear file lets one general see the other, general capture is the punishment.',
+          },
+          { kind: 'sub-heading', text: 'Blocked legs and eyes' },
+          {
+            kind: 'paragraph',
+            text: 'A horse leg or elephant eye can be blocked by a hidden piece. The destination disappears from your visible set, but the blocking square is not revealed by that fact alone. This keeps blocker geometry from becoming a free scan action.',
+          },
+          { kind: 'sub-heading', text: 'Cannons' },
+          {
+            kind: 'paragraph',
+            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, but the screen and the gap stay hidden unless another piece sees them.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: XQ_CANNON_RULE_PAIR,
+            caption: 'Red can capture the black chariot on b3. The screen and gap are visible only in server truth.',
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'Basic deduction',
         blocks: [
           {
             kind: 'paragraph',
-            text: 'There are no stalemate draws. Because check constraints are removed, a general can usually be forced to step into danger rather than claim a draw by having no safe move.',
+            text: 'As in dark chess, the fog is information. A square going dark, a destination disappearing, or a cannon mark appearing can all say something about the true board without directly revealing the cause.',
+          },
+          { kind: 'sub-heading', text: 'Cannon marks' },
+          {
+            kind: 'paragraph',
+            text: 'When a cannon target appears, you know there is exactly one occupied screen somewhere on that line and an enemy piece beyond it. You do not know which square holds the screen, what piece it is, or whether the gap squares are empty unless some other piece sees them.',
+          },
+          { kind: 'sub-heading', text: 'Missing destinations' },
+          {
+            kind: 'paragraph',
+            text: 'When a horse or elephant destination stays fogged, the blocker may be the important fact, but Dark Xiangqi does not annotate it. You have to infer from move history, visible pieces, and the destinations that appear or vanish after each move.',
           },
           {
             kind: 'paragraph',
-            text: 'The defensive rule is still defined: if a side somehow has no legal move, the side to move loses by immobilization. That keeps the rules total without making stalemate a strategic escape hatch.',
+            text: 'That is the design target: enough information to play tactically, not enough automatic explanation to erase the hidden-information game.',
           },
         ],
       },
       {
-        heading: 'Current status',
+        heading: 'The shape of the game',
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Dark Xiangqi is a development spike, not a public Mistboard game mode yet. The pure rules kernel exists, the local /xiangqi-spike lab exists, and the current working cannon rule is implemented there for playtesting.',
+            text: 'Dark Xiangqi keeps the dignity of the ancient game and adds a modern question: what can you prove from the pieces you are allowed to see?',
           },
           {
             kind: 'paragraph',
-            text: 'The next step is platform integration: live rooms, seat-scoped payload tests, replay, persistence, and eventually an engine track. The important invariant is the same one described in the dark chess reference: the server owns truth, and every player receives only their own view.',
+            text: 'You still build pressure with chariots, fork with horses, aim cannons through screens, and shepherd soldiers across the river. The difference is that every threat has an information cost. A strong move may win material; a beautiful move may also make the enemy guess wrong.',
           },
           {
             kind: 'cta',

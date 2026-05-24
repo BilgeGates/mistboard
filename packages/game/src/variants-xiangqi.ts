@@ -474,15 +474,19 @@ function generalVisionInto(
   file: number,
   rank: number,
 ): void {
-  // 1. The general sees its own square + all 9 palace squares of its side.
-  //    (Spec: "Palace squares + enemy general (only when files align ...)".
-  //    We include own-side palace; opponent palace is not visible.)
-  for (let f = 3; f <= 5; f++) {
-    for (let r = color === 'red' ? 1 : 8; r <= (color === 'red' ? 3 : 10); r++) {
-      addIfOnBoard(set, f, r);
-    }
+  // Legal one-step orthogonal palace destinations. The own square is added by
+  // computeVision before piece-specific vision runs.
+  for (const [df, dr] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
+    const f = file + df;
+    const r = rank + dr;
+    if (inPalace(color, f, r)) addIfOnBoard(set, f, r);
   }
-  // 2. The enemy general, if files align with nothing between.
+  // The enemy general is also a legal capture target when the file is clear.
   for (const [sq, piece] of Object.entries(board)) {
     if (!piece || piece.role !== 'general' || piece.color === color) continue;
     const enemy = coordOf(sq as XiangqiSquare);

@@ -60,8 +60,8 @@ A player does not see:
 
 Visibility is piece-specific and follows legal destinations:
 
-- The general sees its own palace and a facing enemy general if the file is
-  clear.
+- The general sees legal one-step orthogonal destinations inside its own
+  palace, plus a facing enemy general if the file is clear.
 - Advisors see their diagonal palace destinations.
 - Elephants see legal same-side river destinations. A blocked eye does not
   become visible merely because it blocks a move.
