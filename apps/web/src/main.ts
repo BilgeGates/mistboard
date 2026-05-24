@@ -61,6 +61,7 @@ const wantsSource = path === '/source' || page === 'source';
 const wantsContact = path === '/contact' || page === 'contact';
 const wantsFaq = path === '/faq' || page === 'faq';
 const wantsTerms = path === '/terms' || page === 'terms';
+const wantsPrivacy = path === '/privacy' || page === 'privacy';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
@@ -177,6 +178,11 @@ if (replaySample) {
   setTitle('Terms');
   void mountOrReport(() =>
     import('./pages-static.js').then(({ mountTerms }) => mountTerms(appRoot)),
+  );
+} else if (wantsPrivacy) {
+  setTitle('Privacy');
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountPrivacy }) => mountPrivacy(appRoot)),
   );
 } else if (path === '/') {
   void mountOrReport(() =>

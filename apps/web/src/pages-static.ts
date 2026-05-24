@@ -28,6 +28,12 @@ export function mountTerms(root: HTMLElement): void {
   root.append(buildNav(), buildTerms(), buildFooter());
 }
 
+export function mountPrivacy(root: HTMLElement): void {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'privacy-route');
+  root.append(buildNav(), buildPrivacy(), buildFooter());
+}
+
 export function mountNotFound(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'not-found-route');
@@ -276,6 +282,28 @@ function buildTerms(): HTMLElement {
     'Don’t harass other players, spam, abuse the service, try to break the fog filter, or hammer the site with scrapers. Don’t use external engine help in rated games. Handles, rooms, and accounts may be revoked for abuse.',
   ]);
 
+  const hr1 = aboutSubheading('Rated play needs an account');
+  const pr1 = aboutParagraph([
+    'Casual and link-based games stay anonymous and free. Rated play needs an account, so a rating belongs to a person. One person, one account.',
+  ]);
+
+  const hr2 = aboutSubheading('Ratings belong to the system');
+  const pr2 = aboutParagraph([
+    'We decide how ratings are calculated and what they mean. We may set, adjust, recompute, void, or reset any rating or the ladder itself, and change how the system works, at any time. A rating is a measurement we publish, not something you own.',
+  ]);
+
+  const hr3 = aboutSubheading('Fair play');
+  const pr3 = aboutParagraph([
+    'Rated play only works if results are honest. We don’t tolerate outside assistance, manipulating your own or others’ ratings, or any attempt to game the ladder. We decide what crosses the line, and we may remove ratings or accounts when it does.',
+  ]);
+
+  const hr4 = aboutSubheading('Integrity data');
+  const pr4 = aboutParagraph([
+    'We collect and analyze game and account data to protect the integrity of rated play. How we investigate, and what we do about it, is our call. See ',
+    aboutLink('Privacy', '/privacy'),
+    ' for what we collect.',
+  ]);
+
   const h4 = aboutSubheading('Finished games are public by default');
   const p4 = aboutParagraph([
     'Completed games are published under ',
@@ -292,7 +320,68 @@ function buildTerms(): HTMLElement {
     ' for license and credits.',
   ]);
 
-  section.append(heading, intro, h1, p1, h2, p2, h3, p3, h4, p4, h5, p5);
+  section.append(
+    heading,
+    intro,
+    h1,
+    p1,
+    h2,
+    p2,
+    h3,
+    p3,
+    hr1,
+    pr1,
+    hr2,
+    pr2,
+    hr3,
+    pr3,
+    hr4,
+    pr4,
+    h4,
+    p4,
+    h5,
+    p5,
+  );
+  return section;
+}
+
+function buildPrivacy(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'site-section terms-section';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Privacy';
+
+  const intro = aboutParagraph([
+    'Mistboard is a free, open-source hobby project. This page describes what we collect on the hosted site at mistboard.com. It will change as the project grows; this page is always the current version.',
+  ]);
+
+  const h1 = aboutSubheading('What we collect');
+  const p1 = aboutParagraph([
+    'Aggregate analytics, the games you play, and, if you make an account, your handle and email. We collect more around rated play to keep it honest.',
+  ]);
+
+  const h2 = aboutSubheading('What we don’t do');
+  const p2 = aboutParagraph([
+    'No ads. We don’t sell your data. No recordings of your screen. We respect Do Not Track. Casual play needs no account.',
+  ]);
+
+  const h3 = aboutSubheading('Your games are public');
+  const p3 = aboutParagraph([
+    'Finished games are published under ',
+    aboutExternalLink('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
+    '. To take down a specific game, use ',
+    aboutLink('Contact', '/contact'),
+    '.',
+  ]);
+
+  const h4 = aboutSubheading('What we promise, and don’t');
+  const p4 = aboutParagraph([
+    'We promise to keep hidden information hidden on the server and to tell you what we collect. We don’t promise your data, account, or rating survives development. It can change or disappear without notice. Don’t put anything on Mistboard you can’t afford to lose.',
+  ]);
+
+  section.append(heading, intro, h1, p1, h2, p2, h3, p3, h4, p4);
   return section;
 }
 

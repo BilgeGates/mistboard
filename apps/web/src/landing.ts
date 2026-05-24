@@ -1985,6 +1985,10 @@ export function buildFooter(): HTMLElement {
   terms.href = '/terms';
   terms.textContent = 'Terms';
 
+  const privacy = document.createElement('a');
+  privacy.href = '/privacy';
+  privacy.textContent = 'Privacy';
+
   const gh = document.createElement('a');
   gh.href = GITHUB_URL;
   gh.target = '_blank';
@@ -1995,7 +1999,7 @@ export function buildFooter(): HTMLElement {
   identity.className = 'site-footer-identity';
   identity.textContent = '© 2026 Mistboard · AGPL-3.0';
 
-  links.append(about, contact, source, faq, terms, gh, identity);
+  links.append(about, contact, source, faq, terms, privacy, gh, identity);
   footer.append(links);
   return footer;
 }
