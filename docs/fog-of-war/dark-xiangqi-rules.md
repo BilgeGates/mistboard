@@ -58,13 +58,15 @@ A player does not see:
 - Whether a hidden square is empty or occupied.
 - The screen that enables a cannon capture, unless another piece sees it.
 
-Visibility is piece-specific and intentionally explains move geometry:
+Visibility is piece-specific and follows legal destinations:
 
 - The general sees its own palace and a facing enemy general if the file is
   clear.
 - Advisors see their diagonal palace destinations.
-- Elephants see their eyes and legal same-side river destinations.
-- Horses see their leg squares and L-shaped destinations.
+- Elephants see legal same-side river destinations. A blocked eye does not
+  become visible merely because it blocks a move.
+- Horses see legal L-shaped destinations. A blocked leg does not become visible
+  merely because it blocks a move.
 - Chariots see along orthogonal rays through empty squares and stop at the
   first piece.
 - Soldiers see forward, and after crossing the river also see sideways.

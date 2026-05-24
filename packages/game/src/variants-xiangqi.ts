@@ -434,9 +434,9 @@ export function applyMove(
 
 // ── Fog-of-war visibility kernel ───────────────────────────────────────────
 // Vision is computed geometrically per the design doc, NOT via elephantops's
-// attack functions — vision is broader (e.g. horse sees its leg, elephant
-// sees its eye) so that a player can always see why their own piece's moves
-// are legal or blocked.
+// attack functions. For pieces with blockers (horse legs, elephant eyes), the
+// visibility rule follows legal destinations only; blocker squares do not
+// become visible merely because they explain an unavailable move.
 
 type VisionAccum = {
   directlyVisible: Set<XiangqiSquare>;
@@ -522,12 +522,12 @@ function advisorVisionInto(
 function elephantVisionInto(
   set: Set<XiangqiSquare>,
   color: XiangqiColor,
+  board: XiangqiBoard,
   file: number,
   rank: number,
 ): void {
-  // 4 diagonal-2 destinations in own half + the 4 eye (midpoint) squares.
-  // Doc spec: eye and destination both visible regardless of whether the
-  // eye is blocked (vision != legality).
+  // Legal diagonal-2 destinations in own half. A blocked eye hides the
+  // destination and does not reveal the eye square by itself.
   for (const [df, dr] of [
     [-2, -2],
     [-2, 2],
@@ -538,34 +538,42 @@ function elephantVisionInto(
       eyeR = rank + dr / 2;
     const destF = file + df,
       destR = rank + dr;
-    if (inBounds(eyeF, eyeR)) set.add(squareOf(eyeF, eyeR));
-    if (inBounds(destF, destR) && inOwnHalf(color, destR)) {
+    if (
+      inBounds(destF, destR) &&
+      inOwnHalf(color, destR) &&
+      inBounds(eyeF, eyeR) &&
+      !isOccupied(board, eyeF, eyeR)
+    ) {
       set.add(squareOf(destF, destR));
     }
   }
 }
 
-function horseVisionInto(set: Set<XiangqiSquare>, file: number, rank: number): void {
-  // 8 L-squares + 4 leg (orthogonal-step) squares.
-  for (const [df, dr] of [
-    [1, 2],
-    [1, -2],
-    [-1, 2],
-    [-1, -2],
-    [2, 1],
-    [2, -1],
-    [-2, 1],
-    [-2, -1],
+function horseVisionInto(
+  set: Set<XiangqiSquare>,
+  board: XiangqiBoard,
+  file: number,
+  rank: number,
+): void {
+  // Legal L-shaped destinations only. The adjacent leg square does not become
+  // visible merely because a hidden blocker suppresses a move.
+  for (const [df, dr, legDf, legDr] of [
+    [1, 2, 0, 1],
+    [1, -2, 0, -1],
+    [-1, 2, 0, 1],
+    [-1, -2, 0, -1],
+    [2, 1, 1, 0],
+    [2, -1, 1, 0],
+    [-2, 1, -1, 0],
+    [-2, -1, -1, 0],
   ] as const) {
-    addIfOnBoard(set, file + df, rank + dr);
-  }
-  for (const [df, dr] of [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-  ] as const) {
-    addIfOnBoard(set, file + df, rank + dr);
+    const legF = file + legDf;
+    const legR = rank + legDr;
+    const destF = file + df;
+    const destR = rank + dr;
+    if (inBounds(destF, destR) && inBounds(legF, legR) && !isOccupied(board, legF, legR)) {
+      set.add(squareOf(destF, destR));
+    }
   }
 }
 
@@ -676,10 +684,10 @@ export function computeVision(state: XiangqiGameState, color: XiangqiColor): Vis
         advisorVisionInto(accum.directlyVisible, color, file, rank);
         break;
       case 'elephant':
-        elephantVisionInto(accum.directlyVisible, color, file, rank);
+        elephantVisionInto(accum.directlyVisible, color, state.board, file, rank);
         break;
       case 'horse':
-        horseVisionInto(accum.directlyVisible, file, rank);
+        horseVisionInto(accum.directlyVisible, state.board, file, rank);
         break;
       case 'chariot':
         chariotVisionInto(accum.directlyVisible, state.board, file, rank);

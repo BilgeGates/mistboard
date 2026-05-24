@@ -545,18 +545,13 @@ test('cannon sees through screen to enemy target (initial position cannon vs bac
   );
 });
 
-test('horse vision includes 8 L-squares + 4 legs', () => {
-  // Red horse alone on e3 (palace area), no other pieces interfering.
-  // Geometric vision from e3: L-squares c2, c4, d1, d5, f1, f5, g2, g4;
-  // legs e2, e4, d3, f3.
+test('horse vision includes legal L-destinations but not leg squares', () => {
+  // Red horse on e2. Vision follows legal destinations only; adjacent leg
+  // squares are not revealed just to explain why a move works or fails.
   const state: XiangqiGameState = {
     id: 't',
     board: {
-      e1: { color: 'red', role: 'general' },
-      // We need a screen on file e and a non-checking position.
       e2: { color: 'red', role: 'horse' }, // test subject moved to palace
-      e6: { color: 'red', role: 'cannon' }, // static screen
-      e10: { color: 'black', role: 'general' },
     },
     status: { type: 'playing', turn: 'red' },
     moveNumber: 1,
@@ -573,20 +568,16 @@ test('horse vision includes 8 L-squares + 4 legs', () => {
   }
   // Legs around e2: e1, e3, d2, f2
   for (const sq of ['e1', 'e3', 'd2', 'f2'] as const) {
-    assert.ok(v.directlyVisible.has(sq), `horse e2 leg-vision should include ${sq}`);
+    assert.ok(!v.directlyVisible.has(sq), `horse e2 leg square ${sq} should stay hidden`);
   }
 });
 
-test('elephant sees its 4 eye squares + diagonal-2 destinations in own half', () => {
-  // Use a horse as the king-screen so it doesn't have long-range vision
-  // that would obscure whether the elephant alone reaches across the river.
+test('horse vision hides destinations behind blocked legs', () => {
   const state: XiangqiGameState = {
     id: 't',
     board: {
-      e1: { color: 'red', role: 'general' },
-      c5: { color: 'red', role: 'elephant' }, // at the river edge
-      e3: { color: 'red', role: 'horse' }, // screen, short-range vision
-      e10: { color: 'black', role: 'general' },
+      e2: { color: 'red', role: 'horse' },
+      e3: { color: 'black', role: 'soldier' }, // blocks d4/f4 via the e3 leg
     },
     status: { type: 'playing', turn: 'red' },
     moveNumber: 1,
@@ -594,10 +585,30 @@ test('elephant sees its 4 eye squares + diagonal-2 destinations in own half', ()
     positionCounts: {},
   };
   const v = computeVision(state, 'red');
-  // Elephant on c5 (file=2, rank=5). 4 eyes: b4, b6, d4, d6 (all on-board, all
-  // visible regardless of river — spec says eyes always visible).
+  assert.ok(!v.directlyVisible.has('e3'), 'blocked leg is not revealed by horse vision');
+  assert.ok(!v.directlyVisible.has('d4'), 'blocked destination d4 stays hidden');
+  assert.ok(!v.directlyVisible.has('f4'), 'blocked destination f4 stays hidden');
+  assert.ok(v.directlyVisible.has('c1'), 'unblocked destination c1 remains visible');
+  assert.ok(v.directlyVisible.has('g1'), 'unblocked destination g1 remains visible');
+});
+
+test('elephant sees legal diagonal-2 destinations but not eye squares', () => {
+  const state: XiangqiGameState = {
+    id: 't',
+    board: {
+      c5: { color: 'red', role: 'elephant' }, // at the river edge
+      e3: { color: 'red', role: 'horse' }, // screen, short-range vision
+    },
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  const v = computeVision(state, 'red');
+  // Elephant on c5 (file=2, rank=5). Eyes are b4, b6, d4, d6, but those
+  // squares are not visible merely because they are eyes.
   for (const sq of ['b4', 'b6', 'd4', 'd6'] as const) {
-    assert.ok(v.directlyVisible.has(sq), `elephant c5 should see eye ${sq}`);
+    assert.ok(!v.directlyVisible.has(sq), `elephant c5 eye ${sq} should stay hidden`);
   }
   // Diagonal-2 destinations: a3, a7, e3, e7. Own half only: a3, e3.
   for (const sq of ['a3', 'e3'] as const) {
@@ -610,6 +621,24 @@ test('elephant sees its 4 eye squares + diagonal-2 destinations in own half', ()
       `elephant c5 should NOT see destination ${sq} (across river)`,
     );
   }
+});
+
+test('elephant vision hides destinations behind blocked eyes', () => {
+  const state: XiangqiGameState = {
+    id: 't',
+    board: {
+      c1: { color: 'red', role: 'elephant' },
+      d2: { color: 'black', role: 'soldier' }, // blocks e3 via the d2 eye
+    },
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  const v = computeVision(state, 'red');
+  assert.ok(!v.directlyVisible.has('d2'), 'blocked eye is not revealed by elephant vision');
+  assert.ok(!v.directlyVisible.has('e3'), 'blocked elephant destination stays hidden');
+  assert.ok(v.directlyVisible.has('a3'), 'unblocked elephant destination remains visible');
 });
 
 test('soldier vision: 1 fwd in own half, 1 fwd + 2 sideways after crossing river', () => {
