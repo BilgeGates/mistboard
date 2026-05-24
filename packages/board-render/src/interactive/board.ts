@@ -59,13 +59,15 @@ export function setBoardPosition(
 // Mistveil fog theme's CSS can pick the right pre-sliced tile per square
 // without any JS post-processing. The "fog-tile-f<file>r<rank>" suffix runs
 // 0..7 in both file (visual columns, 0 = leftmost) and rank (visual rows,
-// 0 = top).
+// 0 = top). The square color class is stamped explicitly because chessground's
+// custom square classes do not preserve the default white/black square class.
 export function fogHiddenClass(square: Square, orientation: Color): string {
   const fileIdx = square.charCodeAt(0) - 'a'.charCodeAt(0);
   const rankIdx = parseInt(square[1], 10) - 1;
   const vf = orientation === 'white' ? fileIdx : 7 - fileIdx;
   const vr = orientation === 'white' ? 7 - rankIdx : rankIdx;
-  return `fog-hidden fog-tile-f${vf}r${vr}`;
+  const squareColor = (fileIdx + rankIdx) % 2 === 1 ? 'white' : 'black';
+  return `fog-hidden ${squareColor} fog-tile-f${vf}r${vr}`;
 }
 
 export function hiddenSquareClasses(

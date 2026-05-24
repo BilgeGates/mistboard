@@ -141,7 +141,7 @@ function renderGameOgSvg(game: persistence.GameRecord, position: OgPosition): st
       boardSize,
       gap: 96,
       palette: GREEN_PALETTE,
-      fogStyle: 'solid',
+      fogStyle: 'veil',
       boards: [
         { pieces: position.pieces, fogSquares: position.whiteFog, orientation: 'white' },
         { pieces: position.pieces, fogSquares: position.blackFog, orientation: 'black' },
@@ -219,7 +219,7 @@ function renderArticleOgSvg(title: string, position: ArticleOgPosition): string 
       boardY,
       boardSize,
       palette: GREEN_PALETTE,
-      fogStyle: 'solid',
+      fogStyle: 'veil',
       boards: [
         {
           pieces: position.pieces,
@@ -275,7 +275,7 @@ function escapeXml(s: string): string {
 // is White's POV (Black's half fogged), the right is Black's POV (White's half
 // fogged). Fog is computed from the engine's real opening visibility, never
 // hand-faked, so the card always matches the game's rules. Green palette +
-// solid fog mirror the in-app default theme (apps/web/src/theme.ts). Re-run
+// veil fog mirror the in-app default theme (apps/web/src/theme.ts). Re-run
 // `npm run og:default --workspace @mistboard/server` to re-bake
 // `apps/web/public/og-image.png`.
 
@@ -317,7 +317,7 @@ export function renderDefaultOgSvg(): string {
       boardSize,
       gap: 96,
       palette: GREEN_PALETTE,
-      fogStyle: 'solid',
+      fogStyle: 'veil',
       boards: [
         { pieces, fogSquares: whiteFog, orientation: 'white' },
         { pieces, fogSquares: blackFog, orientation: 'black' },

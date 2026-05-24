@@ -61,7 +61,7 @@ export function renderBoardSvg(
   opts: { palette?: BoardPalette; fogStyle?: FogStyle } = {},
 ): string {
   const palette = opts.palette ?? BROWN_PALETTE;
-  const fogStyle = opts.fogStyle ?? 'striped';
+  const fogStyle = opts.fogStyle ?? 'veil';
   const sq = size / 8;
   const out: string[] = [];
   const fogCoords = fogSquares.map(squareToFileRank);
@@ -96,21 +96,26 @@ export function renderBoardSvg(
     const fx = x + fileToCol(fog.file) * sq;
     const fy = y + rankToRow(fog.rank) * sq;
     // Square color polarity mirrors chessground's .fog-hidden.white /
-    // .fog-hidden.black: light squares get the lighter base + dark-then-soft
-    // stripe order, dark squares get the inverse. Matches (file+rank)%2.
+    // .fog-hidden.black: light squares get the lighter fog treatment and dark
+    // squares get the darker one.
     const isLight = (fog.file + fog.rank) % 2 === 1;
     const fill =
       fogStyle === 'solid'
         ? isLight
-          ? palette.fogLightFill
-          : palette.fogDarkFill
+          ? palette.fogSolidLightFill
+          : palette.fogSolidDarkFill
+        : fogStyle === 'veil'
+          ? isLight
+            ? palette.fogLightFill
+            : palette.fogDarkFill
         : `url(#${isLight ? FOG_LIGHT_PATTERN_ID : FOG_DARK_PATTERN_ID})`;
     out.push(`<rect x="${fx}" y="${fy}" width="${sq}" height="${sq}" fill="${fill}"/>`);
-    // Inset 1 px cream shadow matching chessground's
-    // box-shadow: inset 0 0 0 1px var(--board-fog-shadow).
-    out.push(
-      `<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${palette.fogShadow}" stroke-width="1"/>`,
-    );
+    if (fogStyle !== 'veil') {
+      // Inset 1 px cream shadow matching chessground's non-veil fog styles.
+      out.push(
+        `<rect x="${fx + 0.5}" y="${fy + 0.5}" width="${sq - 1}" height="${sq - 1}" fill="none" stroke="${palette.fogShadow}" stroke-width="1"/>`,
+      );
+    }
   }
   out.push(
     `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="none" stroke="${palette.frame}" stroke-width="2"/>`,

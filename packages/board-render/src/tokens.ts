@@ -11,14 +11,16 @@ export const DARK_SQUARE = '#b58863';
 export const BOARD_FRAME = '#5f412c';
 export const BOARD_BORDER = BOARD_FRAME;
 
-// Fog stripe tokens — matched to the live-game CSS variables
-// (--board-fog-* in apps/web/src/styles.css). The textured fog gives the
-// same diagonal-stripe look chessground uses on the live board.
-export const FOG_LIGHT_FILL = 'rgba(17, 14, 11, 0.74)';
-export const FOG_DARK_FILL = 'rgba(12, 10, 8, 0.78)';
+// Fog veil tokens — matched to the live-game CSS variables
+// (--board-fog-* in apps/web/src/styles.css). Fog is drawn as a translucent
+// overlay so the underlying light/dark square color still shows through.
+export const FOG_LIGHT_FILL = 'rgba(6, 10, 8, 0.56)';
+export const FOG_DARK_FILL = 'rgba(6, 10, 8, 0.62)';
+export const FOG_SOLID_LIGHT_FILL = '#503725';
+export const FOG_SOLID_DARK_FILL = '#442f20';
 export const FOG_LINE = 'rgba(0, 0, 0, 0.36)';
 export const FOG_LINE_SOFT = 'rgba(255, 255, 255, 0.06)';
-export const FOG_SHADOW = 'rgba(255, 244, 224, 0.1)';
+export const FOG_SHADOW = 'rgba(255, 244, 224, 0.07)';
 export const FOG_TILE_SIZE = 14;
 // Legacy flat-fog values, kept for any caller that hasn't migrated.
 export const FOG_FILL = '#1a1a1a';
@@ -34,6 +36,8 @@ export type BoardPalette = {
   frame: string;
   fogLightFill: string;
   fogDarkFill: string;
+  fogSolidLightFill: string;
+  fogSolidDarkFill: string;
   fogLine: string;
   fogLineSoft: string;
   fogShadow: string;
@@ -47,6 +51,8 @@ export const BROWN_PALETTE: BoardPalette = {
   frame: BOARD_FRAME,
   fogLightFill: FOG_LIGHT_FILL,
   fogDarkFill: FOG_DARK_FILL,
+  fogSolidLightFill: FOG_SOLID_LIGHT_FILL,
+  fogSolidDarkFill: FOG_SOLID_DARK_FILL,
   fogLine: FOG_LINE,
   fogLineSoft: FOG_LINE_SOFT,
   fogShadow: FOG_SHADOW,
@@ -58,14 +64,15 @@ export const GREEN_PALETTE: BoardPalette = {
   light: '#eeeed2',
   dark: '#769656',
   frame: '#2a3a2a',
-  fogLightFill: 'rgba(14, 22, 14, 0.74)',
-  fogDarkFill: 'rgba(8, 16, 10, 0.8)',
+  fogLightFill: FOG_LIGHT_FILL,
+  fogDarkFill: FOG_DARK_FILL,
+  fogSolidLightFill: '#233123',
+  fogSolidDarkFill: '#1e2a1e',
   fogLine: 'rgba(8, 24, 12, 0.36)',
   fogLineSoft: 'rgba(255, 255, 255, 0.08)',
-  fogShadow: 'rgba(238, 238, 210, 0.14)',
+  fogShadow: FOG_SHADOW,
 };
 
-// Fog rendering style. 'striped' is the live-board diagonal texture; 'solid'
-// fills each fogged square with a flat frosted overlay (cleaner at share-card
-// scale, where fine stripes turn to noise after scraper recompression).
-export type FogStyle = 'striped' | 'solid';
+// Fog rendering style. 'veil' is the default translucent overlay; 'solid' keeps
+// the older opaque block style available.
+export type FogStyle = 'striped' | 'solid' | 'veil';
