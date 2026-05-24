@@ -22,7 +22,7 @@ export const announcements: Announcement[] = [
     pinned: true,
     kind: 'status',
     headline: 'Mistboard is in alpha.',
-    body: 'Anonymous, link-share, no rated yet. Bug reports and feedback welcome.',
+    body: 'Casual dark chess is open. Rated beta windows are coming.',
     href: '/contact',
     cta: 'Send feedback',
   },
