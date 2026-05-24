@@ -128,6 +128,18 @@ export async function updateAnnotation(a: Annotation): Promise<void> {
   }
 }
 
+export async function deleteAnnotation(id: string): Promise<void> {
+  const resp = await fetch('/api/annotations', {
+    method: 'DELETE',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(`delete failed (${resp.status}): ${text}`);
+  }
+}
+
 export function buildAnnotationFromForm(
   ctx: AnnotationContext,
   form: {

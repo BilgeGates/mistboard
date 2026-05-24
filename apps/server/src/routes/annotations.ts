@@ -59,6 +59,32 @@ export async function tryHandle(
     return true;
   }
 
+  if (method === 'DELETE') {
+    const body = await readJsonBody(request);
+    if (typeof body.id !== 'string' || body.id.length === 0) {
+      writeJson(response, 400, { error: 'missing_id' });
+      return true;
+    }
+    const existing = await fs.readFile(ctx.annotationsFile, 'utf-8').catch(() => '');
+    const lines = existing.split('\n').filter((line) => line.trim().length > 0);
+    let removed = 0;
+    const nextLines = lines.filter((line) => {
+      const row = JSON.parse(line) as Record<string, unknown>;
+      if (row.id === body.id) {
+        removed += 1;
+        return false;
+      }
+      return true;
+    });
+    if (removed > 0) {
+      await fs.mkdir(dirname(ctx.annotationsFile), { recursive: true });
+      const content = nextLines.length > 0 ? `${nextLines.join('\n')}\n` : '';
+      await fs.writeFile(ctx.annotationsFile, content, 'utf-8');
+    }
+    writeJson(response, 200, { ok: true, removed });
+    return true;
+  }
+
   writeJson(response, 405, { error: 'method_not_allowed' });
   return true;
 }

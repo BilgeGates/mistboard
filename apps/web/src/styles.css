@@ -8554,6 +8554,22 @@ a.landing-announcement-card-inner:focus-visible {
   color: #d3d8d2;
 }
 
+.annot-panel-item-del {
+  background: transparent;
+  border: none;
+  border-left: 1px solid #2a3329;
+  color: #7d877c;
+  cursor: pointer;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.annot-panel-item-del:hover {
+  background: #3a2424;
+  color: #e08a8a;
+}
+
 .annot-panel-item.active {
   background: #232924;
   border-color: #4a8a4a;

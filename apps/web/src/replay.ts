@@ -29,6 +29,7 @@ import {
   type Annotation,
   type AnnotationContext,
   buildAnnotationFromForm,
+  deleteAnnotation,
   formatAnnotationLine,
   loadAnnotations,
   saveAnnotation,
@@ -591,11 +592,36 @@ export async function mountReplay(
         clearLoopTimer();
         finishedAck = false;
         setCurrentPly(a.ply);
-        render();
+        // Enter edit mode BEFORE render() so the form's edit state is set
+        // when renderAnnotPanel's setContext call runs (which now respects
+        // editingAnnotation when re-applying header).
         annotForm?.loadForEdit(a);
+        render();
       });
 
-      row.append(jumpBtn, editBtn);
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'annot-panel-item-del';
+      delBtn.textContent = '🗑';
+      delBtn.title = 'Delete this note';
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const summary = `ply ${a.ply} ${a.move_played_uci}${
+          a.note ? ` — ${a.note.slice(0, 60)}` : ''
+        }`;
+        if (!window.confirm(`Delete annotation?\n\n${summary}`)) return;
+        try {
+          await deleteAnnotation(a.id);
+        } catch (err) {
+          window.alert(`Delete failed: ${(err as Error).message}`);
+          return;
+        }
+        annotationsForGame = annotationsForGame.filter((x) => x.id !== a.id);
+        render();
+        annotation?.onSaved?.();
+      });
+
+      row.append(jumpBtn, editBtn, delBtn);
       list.append(row);
     }
     annotListEl.append(list);
@@ -2135,13 +2161,20 @@ function createAnnotForm(opts: {
     },
     loadForEdit(a) {
       editingAnnotation = a;
+      // Defensive: explicitly uncheck all radios before setting the
+      // target. Auto-uncheck-via-radio-group can fail if the inputs are
+      // outside a <form> ancestor in some browsers, causing a stale
+      // "major" checked state to override the loaded annotation's sev.
+      el.querySelectorAll('input[name=annot-severity]').forEach((r) => {
+        (r as HTMLInputElement).checked = false;
+      });
       const sevInput = el.querySelector(
         `input[name=annot-severity][value="${a.severity}"]`,
       ) as HTMLInputElement | null;
       if (sevInput) sevInput.checked = true;
       betterEl.value = a.suggested_move_uci ?? '';
       noteEl.value = a.note;
-      titleEl.textContent = 'Edit note';
+      titleEl.textContent = `Editing note (${a.severity})`;
       saveBtn.textContent = 'Update';
       cancelEditBtn.hidden = false;
       el.classList.add('annot-form-editing');
