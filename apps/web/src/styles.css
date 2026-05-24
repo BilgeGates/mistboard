@@ -1645,9 +1645,10 @@ button:focus-visible {
 }
 
 .clocks div {
-  min-height: 52px;
-  padding: 8px 10px;
-  border: 1px solid #d3d9d2;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid #dde2dc;
+  border-radius: 8px;
   background: #ffffff;
 }
 
@@ -1664,9 +1665,9 @@ button:focus-visible {
 }
 
 .clocks div.active {
-  border-color: #1f6f5b;
-  box-shadow: inset 8px 0 0 #1f6f5b;
-  background: #e3f3ea;
+  border-color: #b6d6c8;
+  box-shadow: inset 3px 0 0 #1f6f5b;
+  background: #eef7f1;
 }
 
 /* Brief one-shot flash when the active clock flips to the seated player. The
@@ -1678,20 +1679,20 @@ button:focus-visible {
 
 @keyframes clock-flip-flash {
   0% {
-    background: #b6e9cd;
+    background: #d9f0e3;
     box-shadow:
-      inset 8px 0 0 #1f6f5b,
-      0 0 0 3px rgba(31, 111, 91, 0.35);
+      inset 3px 0 0 #1f6f5b,
+      0 0 0 3px rgba(31, 111, 91, 0.3);
   }
   60% {
-    background: #cfeedc;
+    background: #e6f5ed;
     box-shadow:
-      inset 8px 0 0 #1f6f5b,
-      0 0 0 2px rgba(31, 111, 91, 0.18);
+      inset 3px 0 0 #1f6f5b,
+      0 0 0 2px rgba(31, 111, 91, 0.15);
   }
   100% {
-    background: #e3f3ea;
-    box-shadow: inset 8px 0 0 #1f6f5b;
+    background: #eef7f1;
+    box-shadow: inset 3px 0 0 #1f6f5b;
   }
 }
 
@@ -1941,8 +1942,8 @@ button:focus-visible {
 
 .clocks .clock-label {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  align-items: center;
+  gap: 7px;
   min-width: 0;
 }
 
@@ -1956,14 +1957,21 @@ button:focus-visible {
 .clocks .clock-to-move {
   display: none;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: #1f6f5b;
-  font-weight: 600;
+  background: rgba(31, 111, 91, 0.1);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .clocks div.active .clock-to-move {
-  display: inline;
+  display: inline-flex;
+  align-items: center;
 }
 
 .starts {
@@ -2820,8 +2828,9 @@ a.replay-game-id:focus-visible {
 }
 
 .replay-clock-row.active {
-  border-color: #1f6f5b;
+  border-color: #b6d6c8;
   box-shadow: inset 3px 0 0 #1f6f5b;
+  background: #eef7f1;
 }
 
 .replay-clock-side {
@@ -5735,13 +5744,19 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 .landing-page #landing-replay .replay-clock-row {
-  border-color: #cfd4cc;
+  border-color: #dde2dc;
   background: #ffffff;
   color: #24302a;
 }
 
 .landing-page #landing-replay .replay-clock-side {
   color: #5d6861;
+}
+
+/* Restore the active tint over the ID-specificity resting rule above. */
+.landing-page #landing-replay .replay-clock-row.active {
+  border-color: #b6d6c8;
+  background: #eef7f1;
 }
 
 .landing-games {
@@ -6714,6 +6729,11 @@ a.landing-announcement-card-inner:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   border-color: #e2e0d6;
   background: #faf8f1;
+}
+
+.replay-game-header-cell .replay-clock-row.active {
+  border-color: #b6d6c8;
+  background: #eef7f1;
 }
 
 .replay-game-header-cell .replay-clock-side {
