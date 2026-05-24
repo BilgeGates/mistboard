@@ -100,7 +100,7 @@ export type XiangqiGameState = {
   board: XiangqiBoard;
   status: XiangqiGameStatus;
   moveNumber: number;
-  // Plies since last capture or soldier advance. Powers the progress-clock draw.
+  // Plies since last capture. Powers the progress-clock draw.
   progressClock: number;
   lastMove?: XiangqiMove;
   // True-position repetition counts. Keyed by a canonical position digest.
@@ -322,9 +322,8 @@ function hasPseudoLegalMove(position: EoXiangqi): boolean {
 }
 
 // ── Apply move + end-condition detection ───────────────────────────────────
-// progressClock = plies since last capture or soldier advance — the xiangqi
-// analog of chess's 50-move rule. elephantops tracks this as `halfmoves` and
-// we adopt it directly.
+// progressClock = plies since last capture. This follows the common xiangqi
+// no-capture move limit rather than the western-chess pawn-move reset.
 //
 // 3-fold true-position repetition is silent and server-adjudicated (see doc
 // §4). No indicator is surfaced to players.
@@ -362,13 +361,12 @@ export function applyMove(
   if (!movingPieceEo || movingPieceEo.color !== position.turn) return state;
   if (!position.pseudoDests(movingPieceEo, fromEo).has(toEo)) return state;
 
-  // Capture / soldier-advance detection — needed for the progress clock, and
+  // Capture detection — needed for the progress clock, and
   // must be read BEFORE position.play() mutates the board. (elephantops's
   // own `halfmoves` is just a plain ply counter, not a clock.)
   const movingPiece = state.board[move.from];
   const capturedPiece = state.board[move.to];
   const wasCapture = capturedPiece !== undefined;
-  const wasSoldierMove = movingPiece?.role === 'soldier';
   const capturedGeneral = capturedPiece?.role === 'general';
 
   position.play({ from: fromEo, to: toEo });
@@ -383,7 +381,7 @@ export function applyMove(
   }
 
   const nextTurn = position.turn;
-  const newProgressClock = wasCapture || wasSoldierMove ? 0 : state.progressClock + 1;
+  const newProgressClock = wasCapture ? 0 : state.progressClock + 1;
   const newMoveNumber = position.fullmoves;
 
   // Bookkeep position counts (use intermediate playing state for the digest).

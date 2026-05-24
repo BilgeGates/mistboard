@@ -777,7 +777,7 @@ test('applyMove on finished state is a no-op', () => {
   assert.strictEqual(result, finished);
 });
 
-test('progressClock increments on a non-capture non-soldier move', () => {
+test('progressClock increments on a non-capture move', () => {
   const state = createInitialXiangqiState('t');
   const after1 = applyMove(state, { from: 'b1', to: 'c3' }); // horse move
   assert.equal(after1.progressClock, 1);
@@ -785,7 +785,7 @@ test('progressClock increments on a non-capture non-soldier move', () => {
   assert.equal(after2.progressClock, 2);
 });
 
-test('progressClock resets on a soldier advance', () => {
+test('progressClock does not reset on a soldier advance', () => {
   const state = createInitialXiangqiState('t');
   // Bump clock with 2 non-soldier moves (red general step, black horse step).
   const s = play(state, [
@@ -793,9 +793,9 @@ test('progressClock resets on a soldier advance', () => {
     ['h10', 'g8'],
   ]);
   assert.ok(s.progressClock >= 2, `expected clock > 0 after 2 plies, got ${s.progressClock}`);
-  // Red's turn; advance a soldier. Clock must reset to 0.
+  // Red's turn; advance a soldier. Xiangqi no-capture limit keeps counting.
   const afterSoldier = applyMove(s, { from: 'e4', to: 'e5' });
-  assert.equal(afterSoldier.progressClock, 0);
+  assert.equal(afterSoldier.progressClock, s.progressClock + 1);
 });
 
 test('progressClock resets on a capture', () => {
@@ -812,7 +812,7 @@ test('progressClock resets on a capture', () => {
 });
 
 test('progress-clock auto-draw fires at the limit', () => {
-  // Use a tight limit (4 plies of non-capture non-soldier moves) and shuffle horses.
+  // Use a tight limit (4 plies of non-capture moves) and shuffle horses.
   const state = createInitialXiangqiState('t');
   const s = play(
     state,

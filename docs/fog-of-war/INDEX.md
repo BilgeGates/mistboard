@@ -9,6 +9,7 @@ reflects current implemented behavior or future planning.
 |------|----------|
 | [`rulesets.md`](rulesets.md) | The Mistboard Fog of War ruleset contract. Treat as authoritative when changing move generation, visibility, replay, payloads, or engine harnesses. |
 | [`rules-edge-cases.md`](rules-edge-cases.md) | Subtle rule-risk areas: hidden occupancy inference, pawn diagonals, en passant visibility, castling under fog, no-check king semantics, terminal reveal boundaries. Regression target list is here. |
+| [`dark-xiangqi-rules.md`](dark-xiangqi-rules.md) | Working ruleset for the Dark Xiangqi development spike: no-check xiangqi geometry, general capture, cannon target visibility, no-capture draw. |
 
 ## Planning — engine and research track
 

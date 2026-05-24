@@ -66,3 +66,20 @@ When this configuration is active, the canonical starting position is replaced w
 
 - On game end, the server reveals both players' chosen back-ranks alongside the standard postgame reveal.
 - Replay supports both per-side perspectives (preserving each player's initial back-rank uncertainty) and a full-truth mode that shows both back-ranks from t=0.
+
+## Variant Track: Dark Xiangqi
+
+Status: working ruleset for the development spike. Not a public game mode yet.
+
+Dark Xiangqi applies the same server-owned hidden-information model to xiangqi.
+The current candidate rule is documented in
+[`dark-xiangqi-rules.md`](./dark-xiangqi-rules.md).
+
+Key differences from dark chess:
+
+- Xiangqi movement geometry replaces chess movement geometry.
+- Check constraints are removed; general capture is the win condition.
+- Cannon vision uses the current working rule: screen and gap fogged, target
+  revealed and marked as cannon-capturable.
+- The no-capture draw is 60 plies with no capture. Soldier moves do not reset
+  the counter.

@@ -1564,6 +1564,74 @@ export const articles: Article[] = [
     ],
   },
   {
+    slug: 'dark-xiangqi-rules',
+    title: 'Dark Xiangqi: cannons in the fog',
+    summary:
+      'A working rules reference for the Dark Xiangqi spike: hidden screens, visible cannon targets, and general capture instead of checkmate.',
+    status: 'outline',
+    audience:
+      'Xiangqi players, dark chess players, and engine builders following the early Dark Xiangqi rules track.',
+    tldr: [
+      'Dark Xiangqi uses xiangqi movement on a hidden-information board: the server owns the full position and each player receives only their own view.',
+      'There is no check or checkmate. A player may step into danger, and the game ends when a general is captured.',
+      'The current cannon rule hides the screen and gap, reveals the target, and marks that target as cannon-capturable.',
+    ],
+    sections: [
+      {
+        heading: 'What is fixed',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: 'Dark Xiangqi keeps the standard xiangqi board and pieces, but applies Mistboard hidden information: you see your own pieces, the squares they can see, and opponent pieces that occupy those squares.',
+          },
+          {
+            kind: 'paragraph',
+            text: 'Legal moves use xiangqi geometry from the true board. Check constraints are removed. Facing generals are allowed, a general may walk into danger, and the game ends only when a general is actually captured.',
+          },
+        ],
+      },
+      {
+        heading: 'The cannon rule',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: 'The working rule is: screen and gap fogged, target revealed. If a cannon has a capture, the player sees the piece they can capture, but not the screen that makes the capture possible unless another piece sees that square.',
+          },
+          {
+            kind: 'paragraph',
+            text: 'The UI marks cannon-capturable targets. That marker means "your cannon can take this piece"; it does not reveal where the screen is.',
+          },
+        ],
+      },
+      {
+        heading: 'Draws and no stalemate',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: 'There are no stalemate draws. If a side somehow has no legal move, the defensive rule is that the side to move loses by immobilization.',
+          },
+          {
+            kind: 'paragraph',
+            text: 'Threefold repetition is an automatic draw from the true position. The no-capture limit is 60 plies with no capture; soldier moves do not reset the counter.',
+          },
+        ],
+      },
+      {
+        heading: 'Current status',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: 'This is a rules draft for the development spike, not a public Mistboard game mode yet. The pure rules kernel and local /xiangqi-spike lab exist; live room integration, replay, persistence, payload tests, and engine compatibility still need platform work.',
+          },
+          {
+            kind: 'paragraph',
+            text: 'Contributor-facing rules notes live in docs/fog-of-war/dark-xiangqi-rules.md.',
+          },
+        ],
+      },
+    ],
+  },
+  {
     slug: 'engine-belief-state',
     title: 'Building an engine for hidden-information chess',
     summary:
