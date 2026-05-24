@@ -9,6 +9,7 @@ import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
+import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
 
 type FeaturedGame = {
@@ -397,8 +398,14 @@ function staticSampleGames(): FeaturedGame[] {
 
 function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
-    whiteName: withRatingDelta(displayParticipantName(game, 'white'), participantForColor(game, 'white')),
-    blackName: withRatingDelta(displayParticipantName(game, 'black'), participantForColor(game, 'black')),
+    whiteName: withRatingDelta(
+      displayParticipantName(game, 'white'),
+      participantForColor(game, 'white'),
+    ),
+    blackName: withRatingDelta(
+      displayParticipantName(game, 'black'),
+      participantForColor(game, 'black'),
+    ),
     gameUrl: reviewUrlForGame(game),
     modeLabel: sourceLabel(game.mode),
     result: game.result,
@@ -1199,7 +1206,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
         )
       : null;
 
-  const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
+  const draft960Enabled = isVariantEnabled('fog_draft960');
   const draft960Selectable = draft960Enabled && choice.mode !== 'lobby';
   const standardButton = startOptionButton('Standard', true);
   const draftButton = startOptionButton(draft960Selectable ? 'Draft960' : 'Draft960 (soon)', false);

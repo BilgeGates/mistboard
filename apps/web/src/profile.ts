@@ -11,6 +11,7 @@ import {
   displayParticipantName,
   sourceLabel,
 } from './landing.js';
+import { leaderboardVariants } from './variants.js';
 
 type GameParticipant = {
   color: 'white' | 'black';
@@ -73,44 +74,34 @@ type LeaderboardEntry = {
   provisional: boolean;
 };
 
+// One panel per (leaderboard variant × time class), generated from the variant
+// registry so disabling a variant (e.g. Draft960) removes its panels in one edit.
+const LEADERBOARD_TIME_CLASSES: { timeClass: string; timeLabel: string }[] = [
+  { timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
+  { timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
+];
 const LEADERBOARD_BUCKETS: {
   variantParam: string;
   variantLabel: string;
   timeClass: string;
   timeLabel: string;
-}[] = [
-  {
-    variantParam: 'fog',
-    variantLabel: 'Dark chess',
-    timeClass: 'bullet',
-    timeLabel: 'Bullet · 1+1',
-  },
-  {
-    variantParam: 'fog',
-    variantLabel: 'Dark chess',
-    timeClass: 'blitz',
-    timeLabel: 'Blitz · 3+2, 5+3',
-  },
-  {
-    variantParam: 'fog-draft960',
-    variantLabel: 'Draft960',
-    timeClass: 'bullet',
-    timeLabel: 'Bullet · 1+1',
-  },
-  {
-    variantParam: 'fog-draft960',
-    variantLabel: 'Draft960',
-    timeClass: 'blitz',
-    timeLabel: 'Blitz · 3+2, 5+3',
-  },
-];
+}[] = leaderboardVariants.flatMap((v) =>
+  LEADERBOARD_TIME_CLASSES.map((tc) => ({
+    variantParam: v.apiParam,
+    variantLabel: v.label,
+    timeClass: tc.timeClass,
+    timeLabel: tc.timeLabel,
+  })),
+);
 
 const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   fog: 'Dark Chess',
   fog_draft960: 'Draft960',
 };
 
-const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = ['fog', 'fog_draft960'];
+// Profile rating grid shows the same variants as the leaderboard (registry-driven),
+// so a disabled variant doesn't surface a dead row on profiles either.
+const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = leaderboardVariants.map((v) => v.id);
 const PROFILE_TIME_CLASS_ORDER: ProfileRatingTimeClass[] = ['bullet', 'blitz'];
 const PROFILE_TIME_CLASS_LABEL: Record<ProfileRatingTimeClass, string> = {
   bullet: 'Bullet',
