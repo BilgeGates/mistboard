@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { currentAccountUser } from './../account-session.js';
 import { playableLiveEngines } from './../engine-registry.js';
+import { ratedEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
 import {
   type HttpApiContext,
@@ -64,13 +66,18 @@ export async function tryHandle(
         : undefined;
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
-    // Engine games are never rated — rated play is human-vs-human only.
-    const rated = mode === 'pve' ? false : body.rated !== false;
     if (!mode) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_mode' }));
       return true;
     }
+    // Engine games are never rated. Direct PvP room creation follows the same
+    // launch + account gate as lobby matchmaking; game-end account binding is
+    // still the authoritative final backstop.
+    const rated =
+      mode === 'pve'
+        ? false
+        : ratedEnabled() && body.rated !== false && (await currentAccountUser(request)) !== null;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));

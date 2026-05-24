@@ -253,7 +253,7 @@ function buildFaq(): HTMLElement {
 
   const q3 = aboutSubheading('How does rated play work?');
   const a3 = aboutParagraph([
-    'Rated dark chess is account-backed human-vs-human play. During beta, rated may open in recurring windows so players can actually find opponents and the first ladder has enough games to calibrate. Engine games and casual games do not count. See ',
+    'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count. See ',
     aboutLink('why Mistboard dark chess is trustworthy', '/articles/server-enforced-fog'),
     ' for the trust model.',
   ]);
@@ -292,11 +292,6 @@ function buildTerms(): HTMLElement {
   const hr1 = aboutSubheading('Rated play needs an account');
   const pr1 = aboutParagraph([
     'Casual and link-based games stay anonymous and free. Rated play needs an account, so a rating belongs to a person. One person, one account.',
-  ]);
-
-  const hrWindow = aboutSubheading('Rated beta may run in scheduled windows');
-  const prWindow = aboutParagraph([
-    'During beta, rated play may open only during recurring announced windows. This helps players find real opponents, gives the ladder enough games to calibrate, and avoids a first leaderboard shaped by empty queues or one-off timing.',
   ]);
 
   const hr2 = aboutSubheading('Ratings belong to the system');
@@ -343,8 +338,6 @@ function buildTerms(): HTMLElement {
     p3,
     hr1,
     pr1,
-    hrWindow,
-    prWindow,
     hr2,
     pr2,
     hr3,

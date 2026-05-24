@@ -184,7 +184,7 @@ function buildLeaderboardBanner(): HTMLElement {
 
   const body = document.createElement('p');
   body.textContent =
-    'The first ladder will open in scheduled windows so players can find opponents and ratings can calibrate on real games.';
+    'The first ladder will be account-backed and may be provisional while ratings calibrate on real games.';
 
   const link = document.createElement('a');
   link.href = '/faq';

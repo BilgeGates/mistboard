@@ -1441,8 +1441,8 @@ function buildRatedToggleSection(
   helper.className = 'landing-rated-helper';
   helper.append(
     ratedDisabled
-      ? 'Rated beta is closed right now. Casual games are open anytime. '
-      : 'Rated games require an account and count toward the dark chess ladder. During beta, rated may open only in scheduled windows. ',
+      ? 'Rated beta is not launched yet. Casual games are open anytime. '
+      : 'Rated games require an account and count toward the dark chess ladder. During beta, ratings may be recalibrated. ',
   );
   const link = document.createElement('a');
   link.href = '/faq';
