@@ -9,7 +9,7 @@
 // but value-only and safe at module load (per the review.ts / contact.ts
 // pattern).
 
-import { track } from './analytics.js';
+import { identify, resetIdentity, track } from './analytics.js';
 import { buildFooter, buildLoadingState, buildNav, fetchCurrentUser } from './landing.js';
 
 // Minimal subset of AuthUser — must stay in sync with landing.ts. Promote
@@ -115,6 +115,7 @@ function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
   logout.addEventListener('click', async () => {
     logout.disabled = true;
     await fetch('/api/auth/logout', { method: 'POST' });
+    resetIdentity();
     const next = await fetchCurrentUser().catch(() => null);
     renderAccountShell(shell, next);
   });
@@ -382,6 +383,13 @@ function buildLoginForm(
           error?: string;
         };
         if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
+        // No reload on fresh sign-in, so the boot-path identify in
+        // account-nav.ts won't fire until next load — identify here too.
+        identify(data.user.id, {
+          handle: data.user.handle,
+          account_role: data.user.accountRole,
+          email_verified: data.user.emailVerified,
+        });
         if (data.isNewUser) track('signup_completed');
         try {
           window.localStorage.setItem('mb_signed_in', '1');

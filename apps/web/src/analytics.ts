@@ -18,16 +18,27 @@ export function classifyTimeControl(
 
 type PostHogLike = {
   capture: (name: string, props?: Record<string, unknown>) => void;
+  identify: (distinctId: string, props?: Record<string, unknown>) => void;
+  reset: () => void;
 };
 
 let posthogInstance: PostHogLike | null = null;
-const pending: Array<{ name: string; props?: Record<string, unknown> }> = [];
+// Actions queued before posthog-js finishes its async import (see main.ts).
+// Closures keep capture/identify/reset uniform so ordering is preserved.
+const pending: Array<(ph: PostHogLike) => void> = [];
+
+function enqueue(action: (ph: PostHogLike) => void): void {
+  if (posthogInstance) {
+    action(posthogInstance);
+  } else if (import.meta.env.PROD) {
+    pending.push(action);
+  }
+}
 
 export function setPostHogInstance(instance: PostHogLike): void {
   posthogInstance = instance;
   while (pending.length > 0) {
-    const event = pending.shift()!;
-    instance.capture(event.name, event.props);
+    pending.shift()!(instance);
   }
 }
 
@@ -35,9 +46,24 @@ export function track(name: string, props?: Record<string, unknown>): void {
   if (import.meta.env.DEV) {
     console.log('[track]', name, props ?? {});
   }
-  if (posthogInstance) {
-    posthogInstance.capture(name, props);
-  } else if (import.meta.env.PROD) {
-    pending.push({ name, props });
+  enqueue((ph) => ph.capture(name, props));
+}
+
+// Tie subsequent events to a known account. Idempotent: safe to call on every
+// signed-in page load. The distinctId is the canonical users.id so PostHog
+// persons line up with DB accounts.
+export function identify(distinctId: string, props?: Record<string, unknown>): void {
+  if (import.meta.env.DEV) {
+    console.log('[identify]', distinctId, props ?? {});
   }
+  enqueue((ph) => ph.identify(distinctId, props));
+}
+
+// Clear the identified person on logout so the next anonymous session isn't
+// merged into the prior account.
+export function resetIdentity(): void {
+  if (import.meta.env.DEV) {
+    console.log('[reset]');
+  }
+  enqueue((ph) => ph.reset());
 }

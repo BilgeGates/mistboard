@@ -1,3 +1,4 @@
+import { identify, resetIdentity } from './analytics.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 
 type AuthUser = {
@@ -214,6 +215,7 @@ async function handleLogout(button: HTMLButtonElement): Promise<void> {
     // Reload anyway so the page reflects the attempted sign-out.
   }
   invalidateAccountCache();
+  resetIdentity();
   writeSignedInHint(false);
   writeCachedUser(null);
   window.location.reload();
@@ -252,6 +254,15 @@ async function loadCurrentUser(): Promise<AuthUser | null> {
   userPromise = fetchCurrentUser()
     .then((user) => {
       cachedUser = user;
+      // Canonical per-load auth resolution: identify so PostHog persons map to
+      // DB accounts. Idempotent for returning users.
+      if (user) {
+        identify(user.id, {
+          handle: user.handle,
+          account_role: user.accountRole,
+          email_verified: user.emailVerified,
+        });
+      }
       return user;
     })
     .catch(() => {
