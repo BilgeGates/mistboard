@@ -1,0 +1,44 @@
+{
+  "settings": {
+    "n_games": 3,
+    "max_plies": 40,
+    "iterations": 50,
+    "i_sample_size": 4,
+    "time_budget": 0.0
+  },
+  "summary": {
+    "n_games": 3,
+    "n_valid": 3,
+    "n_errors": 0,
+    "v2_wins": 2,
+    "random_wins": 0,
+    "draws": 1,
+    "v2_win_rate": 0.6666666666666666,
+    "avg_plies": 31.0,
+    "avg_wall_seconds": 162.5177556806399,
+    "total_wall_seconds": 471.17604670790024
+  },
+  "results": [
+    {
+      "game_id": 1,
+      "v2_color": "black",
+      "result": "v2_win",
+      "n_plies": 24,
+      "wall_seconds": 5.112896000035107
+    },
+    {
+      "game_id": 2,
+      "v2_color": "white",
+      "result": "v2_win",
+      "n_plies": 29,
+      "wall_seconds": 11.56203137501143
+    },
+    {
+      "game_id": 0,
+      "v2_color": "white",
+      "result": "draw_max_plies",
+      "n_plies": 40,
+      "wall_seconds": 470.8783396668732
+    }
+  ]
+}
