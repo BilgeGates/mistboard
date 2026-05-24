@@ -951,7 +951,19 @@ const DEDUCE_RECAP_NB_POSITIONS = [DEDUCE_RECAP_NB_BEFORE, DEDUCE_RECAP_NB_AFTER
 // White's payload is rendered as a code block; black's snapshot is consumed
 // only by the live-boards pair (board + visibleSquares), so only one JSON
 // text constant is needed.
-const SERVER_FOG_SNAPSHOT_JSON_TEXT = JSON.stringify(articleSnapshotFog, null, 2);
+// Compact a pretty-printed JSON string so the wire-payload blocks stay
+// verbatim but take far less vertical space: collapse two-field leaf objects
+// ({color,role}, {from,to}, {black,white}) onto one line, and fold the long
+// square list and move list into a single line each.
+function compactJsonLeaves(json: string): string {
+  return json
+    .replace(/\{\s*"color": ("[^"]*"),\s*"role": ("[^"]*")\s*\}/g, '{ "color": $1, "role": $2 }')
+    .replace(/\{\s*"from": ("[^"]*"),\s*"to": ("[^"]*")\s*\}/g, '{ "from": $1, "to": $2 }')
+    .replace(/\{\s*"black": (\d+),\s*"white": (\d+)\s*\}/g, '{ "black": $1, "white": $2 }')
+    .replace(/\[\s*(?:"[^"]*",?\s*)+\]/g, (m) => m.replace(/\s+/g, ' ').replace(/\[ /, '[').replace(/ \]/, ']'))
+    .replace(/\[\s*(?:\{ "from":[^\n]*\},?\s*)+\]/g, (m) => m.replace(/\s*\n\s*/g, ' '));
+}
+const SERVER_FOG_SNAPSHOT_JSON_TEXT = compactJsonLeaves(JSON.stringify(articleSnapshotFog, null, 2));
 
 // Board + fog projections for the live-boards pair in the article. Sourced
 // from the captured snapshots so the rendered position is exactly what was
@@ -966,6 +978,41 @@ const SERVER_FOG_FOG_B = fogSquaresFromVisible(SERVER_FOG_FRAME_B.state.visibleS
 // the loop closes here.
 const SERVER_FOG_MOVE_PAYLOAD = `// client → server, sent on player's move
 { type: 'move', from: 'e2', to: 'e4' }`;
+
+// The view computation, condensed from packages/game/src/variants.ts for the
+// walkthrough. Real names kept; inline conditions named (yourTurn) for reading.
+const SERVER_FOG_VIEW_KERNEL = `// packages/game/src/variants.ts (condensed)
+
+// 1. Which squares can this player see?
+function fogVisibleSquares(state, player) {
+  // every square one of your own pieces stands on...
+  const visible = new Set(ownPieceSquares(state.board, player));
+  // ...plus every square one of your pieces could move to or capture on
+  for (const move of getVisibilityMoves(state, player)) visible.add(move.to);
+  return [...visible].sort();
+}
+
+// 2. Keep only the pieces standing on those squares.
+function boardVisibleTo(board, visibleSquares) {
+  const visible = new Set(visibleSquares);
+  const playerBoard = {};
+  for (const [square, piece] of Object.entries(board))
+    if (piece && visible.has(square)) playerBoard[square] = piece;
+  return playerBoard;
+}
+
+// 3. Assemble the view that gets sent.
+getPlayerView(state, player) {
+  const visibleSquares = fogVisibleSquares(state, player);
+  const board = boardVisibleTo(state.board, visibleSquares);
+  return {
+    board,            // only the pieces kept by step 2
+    visibleSquares,   // step 1: which squares render clear vs. fogged
+    legalMoves: yourTurn(state, player) ? getFogMovesForPlayer(state, player) : [],
+    status, perspective: player, moveNumber, clock,
+    lastMove,         // your own last move; the opponent's is stripped
+  };
+}`;
 
 // ---------------------------------------------------------------------------
 // server-enforced-fog article: diagrams + small code excerpts.
@@ -1134,6 +1181,9 @@ connection rule + HTTP replay rule
 
 seat token mint + verify
   apps/server/src/index.ts
+
+server-side engine move (PvE only; gets canonical state, never a browser)
+  apps/server/src/live-engine.ts
 
 regression tests pinning the wire format
   apps/server/src/delta-ws.test.ts`;
@@ -1621,25 +1671,29 @@ export const articles: Article[] = [
     ],
     sections: [
       {
-        heading: 'The obvious approach doesn\'t work',
+        heading: 'The guarantees',
         blocks: [
-          { kind: 'paragraph', text: 'Dark chess is regular chess with one change: each side sees only the squares its pieces can reach. The opponent\'s pieces are hidden until you can see them.' },
-          { kind: 'paragraph', text: 'The obvious way to build it on the web is to send the canonical position to both clients and paint fog over the squares each player isn\'t supposed to see. The opponent\'s pieces are still in the browser; they just aren\'t on the screen. Anyone with dev tools can read them, and browser extensions that strip the fog already exist for the dominant chess platform\'s dark chess offering.' },
-          { kind: 'paragraph', text: 'The fix is structural: the server has to compute one view per recipient and never let the hidden state leave the box.' },
+          { kind: 'paragraph', text: 'Dark chess is regular chess with one change: each side sees only the squares its own pieces reach, and the opponent\'s pieces stay hidden until one of yours can see them. The fairness comes from where that rule runs. The obvious build, sending both browsers the full board and painting fog over it in CSS, leaks: the hidden pieces sit in browser memory, and fog-stripping extensions already exist for the dominant platform\'s dark chess. Mistboard runs the rule on the server, and four guarantees hold for every game.' },
+          { kind: 'paragraph', text: '**One source of truth.** Only the server holds the full position. No client ever receives it.' },
+          { kind: 'paragraph', text: '**One view per player.** The server computes each player\'s view from their own pieces\' sightlines and sends only that. Two recipients, two different sets of bytes, never a shared board masked after the fact.' },
+          { kind: 'paragraph', text: '**Authenticated delivery.** A view reaches only the socket that proved it holds that seat.' },
+          { kind: 'paragraph', text: '**Reveal only when the game is over.** The full position becomes public through a separate /game link, and only after the game has reached a terminal state.' },
+          { kind: 'paragraph', text: 'Draws and the flag are judged on the canonical position too. Threefold repetition, the 50-move rule, and clock expiry run against the true board, not against what either player can see: counting from a view would call unequal positions equal and let a player manufacture a draw they don\'t hold.' },
         ],
       },
       {
-        heading: 'What the server enforces',
+        heading: 'Access, and the end-game reveal',
         blocks: [
-          { kind: 'paragraph', text: 'The server holds the full game state — board, both clocks, both move histories. Clients never see it. They receive a PlayerView, computed per recipient: take this player\'s pieces, derive a visibility set, mask the board to that set, strip the opponent\'s last move, attach this player\'s legal moves and clock.' },
-          { kind: 'paragraph', text: 'Every state-changing event triggers one PlayerView per connected client. Two recipients, two distinct messages, two different sets of bytes. There is no "broadcast then mask later."' },
-          { kind: 'paragraph', text: 'Three rules layer on top of the per-recipient computation.' },
-          { kind: 'sub-heading', text: 'Connection gate' },
-          { kind: 'paragraph', text: 'A live dark chess game is private to its seated players. Anyone else is closed at the WebSocket layer before any game data is sent. The same rule gates HTTP replay: live games return 403, finished games return the event log. One rule covers PvP, PvE, and EvE — no per-mode access table to drift out of sync.' },
-          { kind: 'sub-heading', text: 'Game-end reveal' },
-          { kind: 'paragraph', text: 'When a game ends, the canonical position becomes public. Hidden moves show up in replay; the replay endpoint opens. This is the rulebook, not a leak — finished games are how share links work.' },
-          { kind: 'sub-heading', text: 'Canonical position decides draws and clocks' },
-          { kind: 'paragraph', text: 'Threefold repetition, the 50-move rule, and clock expiration run against the canonical position, not what either player can see. Counting from views would be both incorrect (positions that aren\'t equal would be called equal) and exploitable (a player could construct a draw they don\'t have).' },
+          { kind: 'paragraph', text: 'A live game is private to its two seated players. Any other socket is closed at the WebSocket layer before a single byte of game data is sent, and the HTTP replay endpoint returns 403 for a game still in progress. One rule covers PvP, PvE, and engine-versus-engine, so there is no per-mode access table to drift out of sync.' },
+          { kind: 'paragraph', text: 'The reveal is not a separate artifact the server builds at the end. The full event log is the same one recorded move by move during play; the replay endpoint just refuses to hand it over until the game is finished. It decides by replaying the events and checking the result: if the position is terminal (checkmate, resignation, flag, or an agreed draw) it returns the full log, otherwise 403. The timing is read off the game state itself, not a flag set by hand or a timer. That is also how share links work: a finished game is a public game.' },
+        ],
+      },
+      {
+        heading: 'How a view is computed',
+        blocks: [
+          { kind: 'paragraph', text: 'Three steps, all on the server. The reach in step 1 (squares your pieces could move to or capture on) is why an enemy piece appears the moment one of yours bears on its square.' },
+          { kind: 'code', language: 'typescript', text: SERVER_FOG_VIEW_KERNEL },
+          { kind: 'paragraph', text: 'Only visible pieces, the player\'s own reach, the player\'s own moves. There is no opponent array to unmask.' },
         ],
       },
       {
@@ -1660,7 +1714,7 @@ export const articles: Article[] = [
           { kind: 'paragraph', text: 'White sees two of black\'s pieces — black\'s e-pawn and f6-knight have wandered into the squares white\'s pieces light up. Black sees one of white\'s — only the e-pawn. The bishop on c4 sits aimed at f7, completely invisible to black.' },
           { kind: 'sub-heading', text: 'On the wire' },
           { kind: 'paragraph', text: 'Here\'s the WebSocket payload behind white\'s board above. Real bytes, anonymized.' },
-          { kind: 'code', language: 'json', text: SERVER_FOG_SNAPSHOT_JSON_TEXT, caption: 'White\'s snapshot frame. The `state.board` and `state.visibleSquares` fields are what render the board.', maxHeight: 340 },
+          { kind: 'code', language: 'json', text: SERVER_FOG_SNAPSHOT_JSON_TEXT, caption: 'White\'s snapshot frame, verbatim (leaf objects and the square / move lists folded onto single lines to save space). The `state.board` and `state.visibleSquares` fields are what render the board.' },
           { kind: 'paragraph', text: 'Black\'s payload is the same shape projected the other way: `state.board` has black\'s 16 pieces plus the one visible white pawn; `state.visibleSquares` is black\'s lit set; `events` carries three move-played entries all `color: "black"`; `state.lastMove` is present and equals their own `g8-f6` (a player always keeps their own last move; only the opponent\'s gets stripped during play). One field both payloads agree on: `state.status.turn` is `"white"` in both — turn is canonical state, it has to agree across recipients.' },
           { kind: 'paragraph', text: 'This is the hydration shape — what a browser gets on first connect or when it explicitly asks via snapshot:request. Steady-state moves ship as smaller event-appended deltas (one filtered event per frame, same per-recipient projection); snapshots stay for first connect, gap recovery, and the game-end reveal.' },
           { kind: 'paragraph', text: 'The same harness that captured these — spawning the production server, opening real WebSockets, asserting on bytes — runs on every commit.' },
@@ -1669,9 +1723,9 @@ export const articles: Article[] = [
       {
         heading: 'What the client does with it',
         blocks: [
-          { kind: 'paragraph', text: 'The client trusts the view. It renders the pieces in `state.board`, paints the squares not in `state.visibleSquares` as fog, draws the move arrow if `state.lastMove` is present, and shows `state.legalMoves` when it\'s the player\'s turn. There is no reconstruction step, no client-side fog-of-war kernel — the server already did that work, and the bytes the client receives are the bytes it renders.' },
-          { kind: 'paragraph', text: 'When the player makes a move, the client sends a single message back:' },
-          { kind: 'code', language: 'typescript', text: SERVER_FOG_MOVE_PAYLOAD, maxHeight: 120 },
+          { kind: 'paragraph', text: 'The client trusts the view: render `state.board`, fog the squares not in `state.visibleSquares`, draw `state.lastMove` if present, offer `state.legalMoves` on the player\'s turn. No reconstruction step, no client-side fog kernel. The bytes it receives are the bytes it renders.' },
+          { kind: 'paragraph', text: 'When the player moves, the client sends one message back:' },
+          { kind: 'code', language: 'typescript', text: SERVER_FOG_MOVE_PAYLOAD },
           { kind: 'paragraph', text: 'The server validates the move against the canonical game state (not against any client\'s view), applies it, and triggers the next per-recipient computation for every connected client. The loop closes.' },
         ],
       },
@@ -1681,6 +1735,14 @@ export const articles: Article[] = [
           { kind: 'paragraph', text: 'The view computation only works if the server knows whose view to compute. If a socket\'s seat is wrong — white\'s frame goes to black, or to a third party — every other rule above runs on a lie.' },
           { kind: 'paragraph', text: 'When a player first claims a seat, the server mints a random per-seat token, stores its bcrypt hash, and hands the raw token back to that one client. Every future WebSocket connection from that client presents the token in the subprotocol header. The server verifies it against the stored hash (constant-time) and binds the socket to a server-assigned seat. The seat is something the server remembers, not something the client claims.' },
           { kind: 'paragraph', text: 'Three properties matter. Tokens are minted server-side, so a client cannot ask for white\'s seat without the token white was given. Only the hash is stored, so a leaked database doesn\'t hand an attacker working tokens. Comparison is constant-time, so there is no timing side channel. The token doubles as the reconnect mechanism — refresh the page, present the token, get your seat back.' },
+        ],
+      },
+      {
+        heading: 'The engine is the house',
+        blocks: [
+          { kind: 'paragraph', text: 'When you play the bot, you\'re playing the server itself. The engine runs in the same process that owns the canonical state, picks a move, and hands it back through the same per-recipient projection as every other move. It\'s never code running in a browser, and in human-versus-human games it\'s not in the loop at all.' },
+          { kind: 'paragraph', text: 'The engine does see the full position. It has to: choosing a move under fog means reasoning about the whole board and what each side can observe, the same work the rules code does. What decides fairness is who the engine can talk to. A bot game is you against the server, so there\'s no third party to leak your pieces to and no human opponent receiving the engine\'s view. The bot is the dealer who can see the deck, not the player across the table.' },
+          { kind: 'paragraph', text: 'The piece that isn\'t built yet is untrusted engines. A third-party bot connecting over an external protocol would get a PlayerView, the same masked frame a browser gets, sandboxed from canonical state. That protocol (FUCI) is planned, not shipped. Until it lands, the only engines that run are ones we operate.' },
         ],
       },
       {

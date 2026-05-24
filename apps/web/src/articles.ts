@@ -361,15 +361,46 @@ function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
   return figure;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Minimal dark-theme tokenizer for the article's JSON and TypeScript blocks.
+// One left-to-right pass: whichever token starts first wins, so words inside
+// strings or comments are never re-tokenized. Run on already-escaped text.
+const CODE_TOKEN =
+  /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:[^"\\]|\\.)*"(?=\s*:))|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d[\d_.eE+-]*\b)|\b(true|false|null|undefined)\b|\b(function|return|const|let|new|for|of|if|else|in|typeof|void)\b/g;
+
+function highlightCode(text: string): string {
+  return escapeHtml(text).replace(
+    CODE_TOKEN,
+    (m, comment, key, str, num, bool, kw) => {
+      const cls = comment
+        ? 'tok-comment'
+        : key
+          ? 'tok-key'
+          : str
+            ? 'tok-string'
+            : num
+              ? 'tok-number'
+              : bool
+                ? 'tok-bool'
+                : kw
+                  ? 'tok-keyword'
+                  : '';
+      return cls ? `<span class="${cls}">${m}</span>` : m;
+    },
+  );
+}
+
 function renderCodeBlock(block: CodeBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-code';
   const pre = document.createElement('pre');
   pre.className = 'article-code-block';
   if (block.language) pre.dataset.language = block.language;
-  if (typeof block.maxHeight === 'number') pre.style.maxHeight = `${block.maxHeight}px`;
   const code = document.createElement('code');
-  code.textContent = block.text;
+  code.innerHTML = highlightCode(block.text);
   pre.append(code);
   figure.append(pre);
   if (block.caption) {
