@@ -187,3 +187,90 @@ class EngineV2:
 
     def __exit__(self, *args) -> None:
         self.close()
+
+
+# ---------------------------------------------------------------------------
+# Strategy-protocol adapter (selfplay.Strategy compatible)
+# ---------------------------------------------------------------------------
+
+
+class EngineV2Strategy:
+    """Adapter making EngineV2 conform to ``selfplay.Strategy`` protocol.
+
+    Lets v2 play through the existing ``selfplay.play_game`` harness
+    against any other Strategy (Tier-1 v0.9.5 baseline, random, etc.).
+    Constructs the EngineV2 lazily on reset() so the same instance can
+    be reused across games (close() between resets).
+
+    Args:
+        seed: RNG seed (separate from Stockfish PRNG).
+        iterations: GT-CFR equilibrium passes per move (upper bound
+            when time_budget_seconds is set).
+        i_sample_size: |I| roots sampled from P per move.
+        time_budget_seconds: optional per-move wall budget.
+        p_max_size: cap on PEnumerator |P| (None for unbounded).
+        max_actions: purification regime (1 = Resolve, ≤3 = Maxmargin).
+    """
+
+    def __init__(
+        self,
+        *,
+        seed: int = 0,
+        iterations: int = 200,
+        i_sample_size: int = 8,
+        time_budget_seconds: float | None = None,
+        p_max_size: int | None = _DEFAULT_P_MAX_SIZE,
+        max_actions: int = _DEFAULT_MAX_ACTIONS,
+    ) -> None:
+        self._seed = seed
+        self._iterations = iterations
+        self._i_sample_size = i_sample_size
+        self._time_budget = time_budget_seconds
+        self._p_max_size = p_max_size
+        self._max_actions = max_actions
+        self._engine: EngineV2 | None = None
+        self.perspective: chess.Color | None = None
+
+    def reset(self, perspective: chess.Color) -> None:
+        # Close any prior engine to release Stockfish + reset state.
+        if self._engine is not None:
+            try:
+                self._engine.close()
+            except Exception:
+                pass
+        self.perspective = perspective
+        self._engine = EngineV2(
+            perspective,
+            rng=random.Random(self._seed),
+            p_max_size=self._p_max_size,
+        )
+
+    def observe_own_move(self, move: chess.Move, observation) -> None:
+        # selfplay.Strategy passes both move and observation; EngineV2
+        # only needs the move (own moves are deterministic in P).
+        if self._engine is None:
+            raise RuntimeError("reset() must be called before observe_own_move")
+        self._engine.observe_own_move(move)
+
+    def observe_opp_move(self, observation) -> None:
+        if self._engine is None:
+            raise RuntimeError("reset() must be called before observe_opp_move")
+        self._engine.observe_opp_move(observation)
+
+    def pick_move(self, view) -> chess.Move:
+        if self._engine is None:
+            raise RuntimeError("reset() must be called before pick_move")
+        return self._engine.choose_move(
+            iterations=self._iterations,
+            i_sample_size=self._i_sample_size,
+            time_budget_seconds=self._time_budget,
+            max_actions=self._max_actions,
+        )
+
+    def close(self) -> None:
+        if self._engine is not None:
+            try:
+                self._engine.close()
+            except Exception:
+                pass
+            self._engine = None
