@@ -1416,7 +1416,7 @@ export const articles: Article[] = [
           {
             kind: 'cta',
             buttons: [
-              { label: 'Play dark chess', href: '/', emphasis: 'primary' },
+              { label: 'Play dark chess', href: '/?play=lobby', emphasis: 'primary' },
             ],
           } as ArticleBlock,
           {

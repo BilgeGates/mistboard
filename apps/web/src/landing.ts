@@ -123,6 +123,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());
   mountArticleThumbnails(stage.el);
+  maybeOpenPlayDeepLink(engines);
   if (games.length === 0) {
     stage.replayRoot.textContent = 'No games available yet.';
     return;
@@ -1079,6 +1080,52 @@ function formatWaitAge(waitingMs: number): string {
   const seconds = Math.max(0, Math.floor(waitingMs / 1000));
   if (seconds < 60) return `${seconds}s`;
   return `${Math.floor(seconds / 60)}m`;
+}
+
+// Deep link: `/?play=lobby` (also `friend` / `computer`) auto-opens the
+// matching play-setup modal on landing load, so article CTAs can drop a
+// visitor straight into "Find opponent". The param is cleared from the URL
+// once consumed so a refresh doesn't reopen it.
+function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
+  const params = new URLSearchParams(window.location.search);
+  const play = params.get('play');
+  if (!play) return;
+
+  const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
+  const defaultEngineId = availableEngines[0]?.id;
+
+  switch (play) {
+    case 'lobby':
+      openLandingSetupDialog({
+        engineId: defaultEngineId,
+        mode: 'lobby',
+        title: 'Find opponent',
+        ratedDisabled: true,
+      });
+      break;
+    case 'friend':
+      openLandingSetupDialog({
+        mode: 'pvp',
+        title: 'Challenge a friend',
+        ratedDisabled: true,
+      });
+      break;
+    case 'computer':
+      openLandingSetupDialog({
+        engineId: defaultEngineId,
+        engines: availableEngines,
+        mode: 'pve',
+        title: 'Play against computer',
+      });
+      break;
+    default:
+      return;
+  }
+
+  params.delete('play');
+  const query = params.toString();
+  const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+  window.history.replaceState(null, '', url);
 }
 
 function openLandingSetupDialog(choice: LandingPlayChoice): void {
