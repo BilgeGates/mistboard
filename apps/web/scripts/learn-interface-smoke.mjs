@@ -45,13 +45,22 @@ async function smokeLearnInterface() {
     await assertVisible(page, '.site-nav-brand img.site-nav-logo[src="/logo.svg"]');
     assert.equal(await page.locator('.site-nav-brand span').textContent(), 'MISTBOARD');
 
-    // Tutorial shell: 5 steps with Steps 1-3 shipped — the other 2 are locked.
-    assert.equal(await page.locator('.learn-progress').textContent(), 'Step 1 of 5');
+    // Tutorial shell: 3 shipped steps, no locked placeholders.
+    assert.equal(await page.locator('.learn-progress').textContent(), 'Step 1 of 3');
     assert.equal(await page.locator('.learn-heading').textContent(), 'Vision');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Move and watch');
     assert.equal(await page.locator('.learn-menu-category h2').first().textContent(), 'Tutorial');
-    assert.equal(await page.locator('.learn-menu-lesson').count(), 5);
-    assert.equal(await page.locator('.learn-menu-lesson.is-locked').count(), 2);
+    // Tutorial (3) + Endgames (1) = 4 lesson rows, none locked.
+    assert.equal(await page.locator('.learn-menu-lesson').count(), 4);
+    assert.equal(await page.locator('.learn-menu-lesson.is-locked').count(), 0);
+    // The Endgames category renders with the Two Kings Standoff lesson.
+    const categoryTitles = await page.locator('.learn-menu-category h2').allTextContents();
+    assert.ok(categoryTitles.includes('Endgames'), 'Endgames category should render');
+    const menuText = (await page.locator('.learn-menu').textContent()) ?? '';
+    assert.ok(
+      menuText.includes('The Two Kings Standoff'),
+      'Two Kings Standoff lesson should render in the menu',
+    );
 
     // Step 1: any legal rook move counts.
     await dragSquare(page, 'd1', 'd4');
@@ -65,7 +74,7 @@ async function smokeLearnInterface() {
     // Advance to Step 2 via the Next button.
     await nextButton.click();
     await page.waitForFunction(
-      () => document.querySelector('.learn-progress')?.textContent === 'Step 2 of 5',
+      () => document.querySelector('.learn-progress')?.textContent === 'Step 2 of 3',
     );
     assert.equal(await page.locator('.learn-heading').textContent(), 'King Capture');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Take the king');
@@ -82,7 +91,7 @@ async function smokeLearnInterface() {
     // Advance to Step 3.
     await step2Next.click();
     await page.waitForFunction(
-      () => document.querySelector('.learn-progress')?.textContent === 'Step 3 of 5',
+      () => document.querySelector('.learn-progress')?.textContent === 'Step 3 of 3',
     );
     assert.equal(await page.locator('.learn-heading').textContent(), 'Hidden Moves');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'What just happened?');
@@ -97,11 +106,16 @@ async function smokeLearnInterface() {
     await page.waitForSelector('.learn-tutorial-message.success');
     const step3Text = await page.locator('.learn-tutorial-message.success').textContent();
     assert.match(step3Text ?? '', /knight from b8 to c6/);
-    // Step 3 is the last shipped chapter — Restart CTA.
-    assert.equal(
-      await page.locator('.learn-actions').getByRole('button', { name: 'Restart' }).count(),
-      1,
+    // Step 3 now chains into the Endgames track via Next.
+    const step3Next = page.locator('.learn-actions').getByRole('button', { name: 'Next' });
+    assert.equal(await step3Next.count(), 1);
+    await step3Next.click();
+    await page.waitForFunction(
+      () => document.querySelector('.learn-heading')?.textContent === 'The Two Kings Standoff',
     );
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'The chase');
+    const playHint = (await page.locator('.learn-hint').textContent()) ?? '';
+    assert.match(playHint, /Move your king/);
   } finally {
     await browser.close();
   }

@@ -27,6 +27,16 @@ type TutorialStep = {
   opponentReply?: Uci;
 };
 
+type DemoMove = {
+  by: 'white' | 'black';
+  uci: Uci;
+  say: string;
+};
+
+// Node kinds for the research-derived lessons (Endgames). 'legacy' chapters keep
+// the original step-based tutorial behavior and leave `mode` unset.
+type ChapterMode = 'play' | 'demo' | 'teach';
+
 type TutorialChapter = {
   id: string;
   title: string;
@@ -45,6 +55,23 @@ type TutorialChapter = {
   };
   revealTruthOnSuccess?: boolean;
   interaction?: 'reveal';
+
+  // --- Endgames node model (only set on non-legacy chapters) ---
+  mode?: ChapterMode;
+  // play: free-play vs a heuristic defender, fog on, player is White.
+  playMoveCap?: number;
+  playCoachCap?: string;
+  // demo: a scripted line walked on the truth board with narration.
+  demoIntro?: string;
+  demoMoves?: DemoMove[];
+  demoConclusion?: string;
+  // teach: static position + copy.
+  teachText?: string;
+  // overlays (shown on the final demo beat / teach node)
+  safePair?: Square[];
+  unsafeSquares?: Square[];
+  // CTA label for advancing past this chapter.
+  nextLabel?: string;
 };
 
 type ChapterStatus = 'ready' | 'success' | 'soft-failure';
@@ -66,9 +93,11 @@ const learnCategories: TutorialCategory[] = [
       { title: 'Vision', icon: '1' },
       { title: 'King Capture', icon: '2' },
       { title: 'Hidden Moves', icon: '3' },
-      { title: 'Mini-game', icon: '4' },
-      { title: 'Replay', icon: '5' },
     ],
+  },
+  {
+    title: 'Endgames',
+    lessons: [{ title: 'The Two Kings Standoff', icon: '♚' }],
   },
 ];
 
@@ -185,6 +214,124 @@ const chapters: TutorialChapter[] = [
       },
     ],
   },
+
+  // --- Endgames: The Two Kings Standoff (K vs K) ---
+  // Source: Zhang & Sandholm, Obscuro (2025), Appendix E.8. Framing from
+  // Gehnen & Stannat, Fog of War Chess (2026).
+  {
+    id: 'kvk-chase',
+    lesson: 'The Two Kings Standoff',
+    title: 'The chase',
+    goal: 'You are a lone king. So is your opponent, hidden in the fog. Try to catch it.',
+    mode: 'play',
+    playMoveCap: 12,
+    playCoachCap:
+      'Twelve moves, and no capture. You can glimpse it when you get close, but it always slips back into the fog before you can arrive. Let us see why.',
+    nextLabel: 'Why?',
+    board: {
+      d2: { color: 'white', role: 'king' },
+      d6: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kvk-attack-a',
+    lesson: 'The Two Kings Standoff',
+    title: 'Why you cannot attack',
+    goal: 'Now in full view. The hidden king sits on one of two touching squares, e5 or e6, and you cannot tell which.',
+    mode: 'demo',
+    demoIntro: 'Suppose it is on e5. Watch what happens when you step in to attack.',
+    demoMoves: [
+      { by: 'white', uci: 'e3e4', say: 'You step next to it.' },
+      {
+        by: 'black',
+        uci: 'e5e4',
+        say: 'There is no check in dark chess. It is the hidden king to move, and it simply takes you. You lose.',
+      },
+    ],
+    demoConclusion:
+      'That is one of the two possible worlds. The king was on e5, and attacking cost you the game.',
+    safePair: ['e5', 'e6'],
+    nextLabel: 'The other world',
+    board: {
+      e3: { color: 'white', role: 'king' },
+      e5: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kvk-attack-b',
+    lesson: 'The Two Kings Standoff',
+    title: 'The other world',
+    goal: 'Same position, but suppose the king was really on the other square, e6.',
+    mode: 'demo',
+    demoIntro: 'You make the exact same move, because you cannot tell where it is.',
+    demoMoves: [
+      { by: 'white', uci: 'e3e4', say: 'You step in, just like before.' },
+      {
+        by: 'black',
+        uci: 'e6e7',
+        say: 'This time it was on e6, out of reach. Your move did nothing. It just drifts away.',
+      },
+    ],
+    demoConclusion:
+      'Two worlds, the same move from you, and no way to tell them apart. In one you are captured. In the other you gain nothing.',
+    safePair: ['e5', 'e6'],
+    nextLabel: 'So what?',
+    board: {
+      e3: { color: 'white', role: 'king' },
+      e6: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kvk-draw',
+    lesson: 'The Two Kings Standoff',
+    title: 'A losing coin flip',
+    goal: 'Put the two worlds together.',
+    mode: 'teach',
+    teachText:
+      'The king hides between two touching squares and you cannot see which one. Step next to it and, half the time, it is there and takes you. The other half, you gain nothing. Attacking is a coin flip you lose, so you never dare. Two lone kings just drift around each other forever. In the open, it is a draw.',
+    safePair: ['e5', 'e6'],
+    nextLabel: 'The corner',
+    board: {
+      e3: { color: 'white', role: 'king' },
+      e5: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kvk-corner',
+    lesson: 'The Two Kings Standoff',
+    title: 'The corner',
+    goal: 'The draw works because the king always has two safe touching squares to hide between. In the corner, it does not.',
+    mode: 'teach',
+    teachText:
+      'From the corner a8, the king has only three moves, and two of them, a7 and b7, step right next to you. Only b8 is safe. The safe pair is gone. With nowhere safe to dodge, the king can no longer survive your coin-flip attack, so a cornered king can be hunted down and caught. The corner is the only place a lone king can lose.',
+    unsafeSquares: ['a7', 'b7'],
+    safePair: ['b8'],
+    nextLabel: 'The limit',
+    board: {
+      b6: { color: 'white', role: 'king' },
+      a8: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kvk-close',
+    lesson: 'The Two Kings Standoff',
+    title: 'The limit',
+    goal: 'The lesson is the limit of a lone king.',
+    mode: 'teach',
+    teachText:
+      'Two kings in the open is a draw you cannot break. Only a cornered king can lose, and even then you win by guessing right, not by force. The real limit: a lone king reaches nothing across the board, so it can never trap what it cannot see. Add one piece that does reach across the board, a queen, and the guessing disappears. That is next.',
+    nextLabel: 'Restart',
+    board: {
+      d4: { color: 'white', role: 'king' },
+      e6: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
 ];
 
 export function mountLearn(root: HTMLElement): void {
@@ -204,6 +351,11 @@ type TutorialState = {
   activeState: GameState;
   message: string;
   shell: HTMLElement | null;
+  // Endgames node state.
+  demoIndex: number; // moves applied so far in a demo chapter
+  whiteMoves: number; // white moves played in a play chapter
+  playDone: boolean; // play chapter reached its cap / ended
+  busy: boolean; // ignore input while the defender reply is pending
 };
 
 function createTutorialState(): TutorialState {
@@ -217,6 +369,10 @@ function createTutorialState(): TutorialState {
     activeState: gameStateFromBoard(first.id, first.board),
     message: first.steps[0]!.teach,
     shell: null,
+    demoIndex: 0,
+    whiteMoves: 0,
+    playDone: false,
+    busy: false,
   };
 }
 
@@ -360,6 +516,7 @@ function buildCollapsedCategory(title: string): HTMLElement {
 }
 
 function buildPanel(state: TutorialState, chapter: TutorialChapter): HTMLElement {
+  if (chapter.mode) return buildEndgamePanel(state, chapter);
   const step = currentStep(state, chapter);
   const panel = document.createElement('section');
   panel.className = 'learn-panel learn-tutorial-panel';
@@ -440,7 +597,9 @@ function createTutorialBoard(
   chapter: TutorialChapter,
   state: TutorialState,
 ): Api {
-  const interactive = chapter.interaction !== 'reveal';
+  const interactive = chapter.mode
+    ? chapter.mode === 'play' && !state.playDone && !state.busy
+    : chapter.interaction !== 'reveal';
   const api = mountBoard(el, {
     animation: { enabled: false, duration: 0 },
     coordinates: true,
@@ -466,6 +625,11 @@ function createTutorialBoard(
 
 function handleMove(state: TutorialState, uci: Uci): void {
   const chapter = chapters[state.chapterIndex]!;
+  if (chapter.mode === 'play') {
+    handlePlayMove(state, uci);
+    return;
+  }
+  if (chapter.mode) return;
   if (chapter.interaction === 'reveal') return;
   const step = currentStep(state, chapter);
   if (state.status !== 'ready') return;
@@ -528,6 +692,7 @@ function handleMove(state: TutorialState, uci: Uci): void {
 }
 
 function showTruthBoard(chapter: TutorialChapter, state: TutorialState): boolean {
+  if (chapter.mode === 'demo' || chapter.mode === 'teach') return true;
   return state.status === 'success' && (chapter.revealTruthOnSuccess ?? false);
 }
 
@@ -540,7 +705,14 @@ function resetChapter(state: TutorialState): void {
   state.activeState = gameStateFromBoard(chapter.id, chapter.board);
   state.stepIndex = 0;
   state.status = 'ready';
-  state.message = chapter.steps[0]!.teach;
+  state.demoIndex = 0;
+  state.whiteMoves = 0;
+  state.playDone = false;
+  state.busy = false;
+  if (chapter.mode === 'demo') state.message = chapter.demoIntro ?? '';
+  else if (chapter.mode === 'teach') state.message = chapter.teachText ?? '';
+  else if (chapter.mode === 'play') state.message = '';
+  else state.message = chapter.steps[0]!.teach;
   render(state);
 }
 
@@ -551,7 +723,9 @@ function goToChapter(state: TutorialState, chapterIndex: number): void {
 }
 
 function updateBoard(state: TutorialState, chapter: TutorialChapter, view: PlayerView): void {
-  const interactive = chapter.interaction !== 'reveal' && state.status === 'ready';
+  const interactive = chapter.mode
+    ? chapter.mode === 'play' && !state.playDone && !state.busy
+    : chapter.interaction !== 'reveal' && state.status === 'ready';
   state.api?.set({
     fen: boardFen(renderBoardFor(chapter, state, view)),
     movable: {
@@ -577,6 +751,7 @@ function tutorialSquareClasses(
   chapter: TutorialChapter,
   state: TutorialState,
 ): cg.SquareClasses {
+  if (chapter.mode) return endgameSquareClasses(view, chapter, state);
   const classes: cg.SquareClasses = showTruthBoard(chapter, state)
     ? new Map()
     : hiddenSquareClasses(view, 'white');
@@ -607,12 +782,11 @@ function currentStep(state: TutorialState, chapter: TutorialChapter): TutorialSt
 }
 
 function lessonProgress(lesson: string): string {
-  const lessons = learnCategories[0]?.lessons ?? [];
-  const lessonIndex = Math.max(
-    0,
-    lessons.findIndex((entry) => entry.title === lesson),
-  );
-  return `Step ${lessonIndex + 1} of ${lessons.length}`;
+  for (const category of learnCategories) {
+    const idx = category.lessons.findIndex((entry) => entry.title === lesson);
+    if (idx >= 0) return `Step ${idx + 1} of ${category.lessons.length}`;
+  }
+  return '';
 }
 
 function chapterIndexesForLesson(lesson: string): number[] {
@@ -702,6 +876,218 @@ function moveToUci(move: Move): Uci {
 
 function movesMatch(left: Move, right: Move): boolean {
   return left.from === right.from && left.to === right.to;
+}
+
+// --- Endgames node runtime ---
+
+const CENTER_SQUARES: Square[] = ['d4', 'd5', 'e4', 'e5'];
+
+function findKing(board: Board, color: 'white' | 'black'): Square | null {
+  for (const [square, piece] of Object.entries(board)) {
+    if (piece && piece.role === 'king' && piece.color === color) return square as Square;
+  }
+  return null;
+}
+
+function kingNeighbors(square: Square): Square[] {
+  const fileIndex = squareFileIndex(square);
+  const rank = Number.parseInt(rankOf(square), 10);
+  const out: Square[] = [];
+  for (let df = -1; df <= 1; df += 1) {
+    for (let dr = -1; dr <= 1; dr += 1) {
+      if (df === 0 && dr === 0) continue;
+      const nf = fileIndex + df;
+      const nr = rank + dr;
+      if (nf < 0 || nf > 7 || nr < 1 || nr > 8) continue;
+      out.push(`${boardFiles[nf]}${nr}` as Square);
+    }
+  }
+  return out;
+}
+
+function chebyshev(a: Square, b: Square): number {
+  return Math.max(
+    Math.abs(squareFileIndex(a) - squareFileIndex(b)),
+    Math.abs(Number.parseInt(rankOf(a), 10) - Number.parseInt(rankOf(b), 10)),
+  );
+}
+
+function centerDistance(square: Square): number {
+  return Math.min(...CENTER_SQUARES.map((c) => chebyshev(square, c)));
+}
+
+// Open-board lone-king defender. Keeps Chebyshev distance >= 2 from the white
+// king (so White can never reach its square next move), otherwise maximizes
+// distance and drifts toward the center to stay off the edge. Provably drawing
+// in the open, which is the only place the play chapter uses it.
+function evaderReply(gs: GameState): Move | null {
+  const board = gs.board;
+  const black = findKing(board, 'black');
+  const white = findKing(board, 'white');
+  if (!black || !white) return null;
+  const empty = kingNeighbors(black).filter((sq) => !board[sq]);
+  if (empty.length === 0) return null;
+  const safe = empty.filter((sq) => chebyshev(sq, white) >= 2);
+  const pool = safe.length > 0 ? safe : empty;
+  pool.sort((a, b) => {
+    const byDistance = chebyshev(b, white) - chebyshev(a, white);
+    if (byDistance !== 0) return byDistance;
+    return centerDistance(a) - centerDistance(b);
+  });
+  return { from: black, to: pool[0]! };
+}
+
+function handlePlayMove(state: TutorialState, uci: Uci): void {
+  const chapter = chapters[state.chapterIndex]!;
+  if (state.busy || state.playDone) return;
+
+  const view = darkChessVariant.getPlayerView(state.activeState, 'white');
+  const resolved = resolveUiMove(view, moveFromUci(uci));
+  if (!resolved) {
+    state.message = 'That move is not legal from this position.';
+    render(state);
+    return;
+  }
+
+  const afterWhite = darkChessVariant.applyMove(state.activeState, resolved);
+  state.activeState = { ...afterWhite, lastMove: resolved };
+  state.whiteMoves += 1;
+
+  // White should never actually catch the evader on an open board, but guard.
+  if (afterWhite.status.type !== 'playing') {
+    state.playDone = true;
+    state.message =
+      'You caught it. On an open board that takes luck, not force. Try again and watch how it slips away.';
+    render(state);
+    return;
+  }
+
+  const cap = chapter.playMoveCap ?? 12;
+  // Render the glimpse (the black king may now sit on a square White can see),
+  // then let the defender slip back into the fog.
+  state.busy = true;
+  render(state);
+  const chapterAtMove = chapter;
+  setTimeout(() => {
+    if (chapters[state.chapterIndex] !== chapterAtMove) return;
+    if (state.whiteMoves >= cap) {
+      state.playDone = true;
+      state.busy = false;
+      state.message = chapter.playCoachCap ?? 'No capture. It always slips away.';
+      render(state);
+      return;
+    }
+    const reply = evaderReply(state.activeState);
+    if (reply) {
+      const afterBlack = darkChessVariant.applyMove(state.activeState, reply);
+      state.activeState = {
+        ...afterBlack,
+        status: { type: 'playing', turn: 'white' },
+        lastMove: reply,
+      };
+    }
+    state.busy = false;
+    render(state);
+  }, 700);
+}
+
+function advanceDemo(state: TutorialState): void {
+  const chapter = chapters[state.chapterIndex]!;
+  const moves = chapter.demoMoves ?? [];
+  const beat = state.demoIndex;
+  if (beat < moves.length) {
+    const move = moveFromUci(moves[beat]!.uci);
+    const applied = darkChessVariant.applyMove(state.activeState, move);
+    state.activeState = { ...applied, lastMove: move };
+    state.demoIndex = beat + 1;
+  } else if (beat === moves.length) {
+    // Conclusion beat: reset to the start position so the overlay sits on the
+    // original kings.
+    state.activeState = gameStateFromBoard(chapter.id, chapter.board);
+    state.demoIndex = beat + 1;
+  } else {
+    goNextChapter(state);
+    return;
+  }
+  render(state);
+}
+
+function goNextChapter(state: TutorialState): void {
+  state.chapterIndex = state.chapterIndex === chapters.length - 1 ? 0 : state.chapterIndex + 1;
+  resetChapter(state);
+}
+
+function endgameSquareClasses(
+  view: PlayerView,
+  chapter: TutorialChapter,
+  state: TutorialState,
+): cg.SquareClasses {
+  const classes: cg.SquareClasses =
+    chapter.mode === 'play' ? hiddenSquareClasses(view, 'white') : new Map();
+  const showOverlays = chapter.mode === 'teach' || chapter.mode === 'demo';
+  if (showOverlays) {
+    for (const sq of chapter.safePair ?? []) {
+      classes.set(sq as cg.Key, `${classes.get(sq as cg.Key) ?? ''} learn-highlight`.trim());
+    }
+    for (const sq of chapter.unsafeSquares ?? []) {
+      classes.set(sq as cg.Key, `${classes.get(sq as cg.Key) ?? ''} learn-reveal`.trim());
+    }
+  }
+  return classes;
+}
+
+function buildEndgamePanel(state: TutorialState, chapter: TutorialChapter): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'learn-panel learn-tutorial-panel';
+
+  const progress = document.createElement('div');
+  progress.className = 'learn-progress';
+  progress.textContent = lessonProgress(chapter.lesson);
+
+  const heading = document.createElement('h1');
+  heading.className = 'learn-heading';
+  heading.textContent = chapter.lesson;
+
+  const chapterTitle = document.createElement('h2');
+  chapterTitle.className = 'learn-chapter-title';
+  chapterTitle.textContent = chapter.title;
+
+  const goal = document.createElement('p');
+  goal.className = 'learn-copy';
+  goal.textContent = chapter.goal;
+
+  const prompt = document.createElement('div');
+  prompt.className = 'learn-tutorial-message ready';
+  prompt.textContent = state.message;
+
+  const actions = document.createElement('div');
+  actions.className = 'learn-actions';
+
+  const moves = chapter.demoMoves ?? [];
+  if (chapter.mode === 'play' && !state.playDone) {
+    const hint = document.createElement('p');
+    hint.className = 'learn-hint';
+    const cap = chapter.playMoveCap ?? 12;
+    hint.textContent = `Move your king. ${state.whiteMoves} of ${cap} moves used.`;
+    actions.append(hint);
+  } else if (chapter.mode === 'demo' && state.demoIndex <= moves.length) {
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'landing-cta-primary';
+    next.textContent = state.demoIndex === 0 ? 'Begin' : 'Next';
+    next.addEventListener('click', () => advanceDemo(state));
+    actions.append(next);
+  } else {
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'landing-cta-primary';
+    next.textContent = chapter.nextLabel ?? 'Next';
+    next.addEventListener('click', () => goNextChapter(state));
+    actions.append(next);
+  }
+
+  panel.append(progress, heading, chapterTitle, goal, prompt, actions);
+  return panel;
 }
 
 function buildNav(): HTMLElement {
