@@ -76,6 +76,11 @@ export type LiveRefs = {
 
 export type SoundController = {
   play(kind: SoundKind): void;
+  // Play once the audio context is unlocked. If already unlocked, plays
+  // immediately; otherwise defers a single pending sound until the first user
+  // gesture. Used for the engine's opening move, which can arrive before the
+  // player has interacted with the room page (so the context is still locked).
+  playWhenUnlocked(kind: SoundKind): void;
 };
 
 export type SoundKind =

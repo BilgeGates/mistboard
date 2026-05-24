@@ -48,6 +48,7 @@ export function maybePlaySnapshotSound(nextEvents: GameEvent[], nextView: Player
     lastSoundEventCount = nextEvents.length;
     lastTerminalSound = terminalSoundKey(nextEvents, nextView);
     lastSoundView = nextView;
+    maybePlayInitialOpponentMove(nextEvents, nextView);
     return;
   }
 
@@ -68,6 +69,32 @@ export function maybePlaySnapshotSound(nextEvents: GameEvent[], nextView: Player
 
   lastSoundEventCount = nextEvents.length;
   lastSoundView = nextView;
+}
+
+// The engine's opening move (PvE with the engine on White) is baked into the
+// initial `hello` snapshot: it fires on setTimeout(0) at room creation, before
+// the player's fresh socket connects. The delta path therefore never sees it,
+// and the first-snapshot guard above would swallow it. When we load straight
+// into a game where the opponent has played exactly the opening move and it's
+// now our turn, sound that one move (deferred until the audio context unlocks,
+// since the player hasn't gestured on the room page yet). Bounding it to a
+// single move-played event keeps mid-game reconnects — whose snapshot carries
+// the full history — silent.
+function maybePlayInitialOpponentMove(events: GameEvent[], view: PlayerView | null): void {
+  if (!isColor(liveState.seat) || !view) return;
+  if (view.status.type !== 'playing' || view.status.turn !== liveState.seat) return;
+
+  let moveIndex = -1;
+  for (let index = 0; index < events.length; index += 1) {
+    if (events[index]?.type !== 'move-played') continue;
+    if (moveIndex >= 0) return; // more than one move → not a fresh opening
+    moveIndex = index;
+  }
+  if (moveIndex < 0) return;
+
+  const moveEvent = events[moveIndex]!;
+  if (moveEvent.type !== 'move-played' || moveEvent.color === liveState.seat) return;
+  sound?.playWhenUnlocked(soundForMove(events.slice(0, moveIndex), moveEvent));
 }
 
 export function soundForOwnMove(view: PlayerView | null, move: Move): SoundKind {
@@ -105,6 +132,8 @@ function createSoundController(): SoundController {
     return ctx;
   };
 
+  let pendingKind: SoundKind | null = null;
+
   const unlock = () => {
     const audio = ensureContext();
     if (!audio) return;
@@ -112,6 +141,11 @@ function createSoundController(): SoundController {
     void audio.resume();
     window.removeEventListener('pointerdown', unlock);
     window.removeEventListener('keydown', unlock);
+    if (pendingKind) {
+      const kind = pendingKind;
+      pendingKind = null;
+      controller.play(kind);
+    }
   };
 
   window.addEventListener('pointerdown', unlock, { once: true });
@@ -125,7 +159,7 @@ function createSoundController(): SoundController {
     }
   });
 
-  return {
+  const controller: SoundController = {
     play(kind) {
       const audio = ensureContext();
       if (!audio || !unlocked) return;
@@ -148,7 +182,15 @@ function createSoundController(): SoundController {
         osc.stop(now + tone.delay + tone.duration + 0.03);
       }
     },
+    playWhenUnlocked(kind) {
+      if (unlocked) {
+        controller.play(kind);
+        return;
+      }
+      pendingKind = kind;
+    },
   };
+  return controller;
 }
 
 function tonesForSound(kind: SoundKind): Array<{
