@@ -5,14 +5,27 @@
 # upgrade on $PORT. Postgres is required in prod (DATABASE_URL injected
 # by the Railway Postgres plugin); without it, apps/server falls back
 # to in-memory rooms.
+#
+# The engine implementation lives in the private mistboard-engine repo,
+# cloned during build via the MISTBOARD_ENGINE_DEPLOY_KEY env var (set
+# in each Railway service). MISTBOARD_ENGINE_DIR controls the clone
+# target and the path the server uses at runtime — both must agree.
+# Defaults to /mistboard-engine if unset.
 
 providers = ["...", "python"]
 
 [phases.setup]
-nixPkgs = ["...", "nodejs_22", "stockfish"]
+nixPkgs = ["...", "nodejs_22", "stockfish", "openssh", "git"]
 
 [phases.install]
-cmds = ["npm ci", "python -m pip install './research/python-fow-lab[postgres]'"]
+cmds = [
+  'mkdir -p ~/.ssh && chmod 700 ~/.ssh',
+  'printf "%s\n" "$MISTBOARD_ENGINE_DEPLOY_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519',
+  'ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null',
+  'git clone --depth 1 git@github.com:brianhliou/mistboard-engine.git "${MISTBOARD_ENGINE_DIR:-/mistboard-engine}"',
+  'npm ci',
+  'python -m pip install "${MISTBOARD_ENGINE_DIR:-/mistboard-engine}[postgres]"',
+]
 
 [phases.build]
 cmds = ["npm run build"]
