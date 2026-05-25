@@ -1446,7 +1446,7 @@ const XQ_VISION_STATES = [
     label: 'ADVISOR',
     state: xqVisionDemoState('xq-vision-advisor', {
       d1: { color: 'red', role: 'advisor' },
-      f1: { color: 'red', role: 'advisor' },
+      e2: { color: 'red', role: 'advisor' },
     }),
   },
   {
@@ -1460,21 +1460,21 @@ const XQ_VISION_STATES = [
     label: 'HORSE',
     state: xqVisionDemoState('xq-vision-horse', {
       d7: { color: 'red', role: 'horse' },
-      e7: { color: 'red', role: 'horse' },
+      f6: { color: 'red', role: 'horse' },
     }),
   },
   {
     label: 'CANNON',
     state: xqVisionDemoState('xq-vision-cannon', {
-      b3: { color: 'red', role: 'cannon' },
-      h3: { color: 'red', role: 'cannon' },
+      b7: { color: 'red', role: 'cannon' },
+      f3: { color: 'red', role: 'cannon' },
     }),
   },
   {
     label: 'CHARIOT',
     state: xqVisionDemoState('xq-vision-chariot', {
-      a1: { color: 'red', role: 'chariot' },
-      i1: { color: 'red', role: 'chariot' },
+      d2: { color: 'red', role: 'chariot' },
+      f7: { color: 'red', role: 'chariot' },
     }),
   },
   {
