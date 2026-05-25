@@ -121,17 +121,39 @@ class PEnumerator:
                 (soundness violation — the move couldn't have been
                 played from any candidate truth).
         """
-        new_positions: set[str] = set()
-        for fen in self._positions:
-            board = chess.Board(fen)
-            if board.turn != self.perspective:
-                # Shouldn't happen if caller alternates correctly, but
-                # be explicit about the invariant.
-                continue
-            if move not in board.pseudo_legal_moves:
-                continue
-            board.push(move)
-            new_positions.add(board.fen())
+        if _HAS_RUST:
+            # Canonicalize castling encoding before crossing into Rust.
+            # python-chess's `move in board.pseudo_legal_moves` is fuzzy:
+            # it accepts BOTH standard (e1g1) and Chess960/Shredder
+            # (e1h1) castling encodings via `is_pseudo_legal`. Our Rust
+            # check is direct tuple equality and only matches the
+            # standard encoding that gen_pseudo_legal_moves emits.
+            # Without this normalization, replaying historical game
+            # files (which use e1h1) crashes with "P empty" at the
+            # first castle. Live bakeoff isn't affected (strategies
+            # emit standard encoding) but offline diff infra is.
+            if self._positions:
+                sample = chess.Board(next(iter(self._positions)))
+                move = _canonicalize_castling(move, sample)
+            kept = _fow_rust.update_own_move_rust(
+                list(self._positions),
+                self.perspective == chess.WHITE,
+                move.from_square,
+                move.to_square,
+                move.promotion or 0,
+            )
+            new_positions: set[str] = set(kept)
+        else:
+            new_positions = set()
+            for fen in self._positions:
+                board = chess.Board(fen)
+                if board.turn != self.perspective:
+                    continue
+                if move not in board.pseudo_legal_moves:
+                    continue
+                board.push(move)
+                new_positions.add(board.fen())
+
         if not new_positions:
             raise RuntimeError(
                 f"P became empty after own move {move.uci()}; no candidate "
@@ -209,6 +231,30 @@ class PEnumerator:
 
     def __contains__(self, fen: str) -> bool:
         return fen in self._positions
+
+
+def _canonicalize_castling(move: chess.Move, sample_board: chess.Board) -> chess.Move:
+    """Normalize king→rook castling encoding (e.g., e1h1) into the
+    king→destination encoding (e.g., e1g1) that python-chess's standard
+    pseudo_legal_moves emits. Only rewrites when the king is actually
+    on its starting square in the sample board (which means it's on
+    that square in EVERY P entry at this ply, since own piece positions
+    are deterministic). Pass-through for all other moves."""
+    if move.promotion or move.drop:
+        return move
+    fs, ts = move.from_square, move.to_square
+    king_mask = sample_board.kings & sample_board.occupied_co[sample_board.turn]
+    if fs == chess.E1 and king_mask & (1 << fs):
+        if ts == chess.H1:
+            return chess.Move(fs, chess.G1)
+        if ts == chess.A1:
+            return chess.Move(fs, chess.C1)
+    elif fs == chess.E8 and king_mask & (1 << fs):
+        if ts == chess.H8:
+            return chess.Move(fs, chess.G8)
+        if ts == chess.A8:
+            return chess.Move(fs, chess.C8)
+    return move
 
 
 def _obs_piece_bitmasks(observation: Observation) -> tuple[list[int], list[int]]:

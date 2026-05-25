@@ -564,6 +564,67 @@ fn setup_from_bb(
     setup
 }
 
+/// Drives the full `update_own_move` inner loop in Rust.
+///
+/// For each FEN in `prev_fens` where the side-to-move is the perspective
+/// player:
+///   1. Check that `(from, to, promo)` is pseudo-legal from this prev
+///   2. If legal, apply the move to get the next position
+///   3. Serialize the next position back to FEN
+///
+/// Returns the union of resulting next-FENs across all consistent prev
+/// positions. The caller dedups via `set()`. 1-to-1 mapping per prev
+/// (no move branching, no observation filter) — much simpler than
+/// `update_opp_move_rust` but with the same parallel structure.
+///
+/// Drops prevs where:
+///   - Turn ≠ perspective (defensive; shouldn't happen if caller alternates)
+///   - The given move isn't pseudo-legal from this prev (the truth must
+///     have admitted this move, so any prev that doesn't is dropped)
+#[pyfunction]
+fn update_own_move_rust(
+    prev_fens: Vec<String>,
+    perspective_white: bool,
+    from_idx: u8,
+    to_idx: u8,
+    promo: u8,
+) -> PyResult<Vec<String>> {
+    let perspective = if perspective_white { Color::White } else { Color::Black };
+    let from = unsafe { Square::new_unchecked(from_idx as u32) };
+    let to = unsafe { Square::new_unchecked(to_idx as u32) };
+    let promo_role = role_from_int(promo);
+
+    let per_prev: Result<Vec<Option<String>>, PyErr> = prev_fens
+        .par_iter()
+        .map(|prev_fen| -> Result<Option<String>, PyErr> {
+            let prev_setup = parse_fen_lenient(prev_fen)?;
+            if prev_setup.turn != perspective {
+                return Ok(None);
+            }
+            // Pseudo-legality check: regenerate moves and search.
+            // ~30 moves per position is cheap relative to apply + serialize.
+            let moves = gen_pseudo_legal_moves(&prev_setup, perspective);
+            let move_admitted = moves
+                .iter()
+                .any(|(f, t, p)| *f == from_idx && *t == to_idx && *p == promo);
+            if !move_admitted {
+                return Ok(None);
+            }
+            let next_setup = apply_move_to_setup(&prev_setup, from, to, promo_role);
+            Ok(Some(Fen(next_setup).to_string()))
+        })
+        .collect();
+
+    let nested = per_prev?;
+    let mut result: Vec<String> = Vec::with_capacity(nested.len());
+    for opt in nested {
+        if let Some(s) = opt {
+            result.push(s);
+        }
+    }
+    Ok(result)
+}
+
 /// Drives the full `update_opp_move` inner loop in Rust.
 ///
 /// For each FEN in `prev_fens` where the side-to-move is the opponent:
@@ -1086,6 +1147,7 @@ fn fow_rust(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pseudo_legal_moves, m)?)?;
     m.add_function(wrap_pyfunction!(apply_move, m)?)?;
     m.add_function(wrap_pyfunction!(update_opp_move_rust, m)?)?;
+    m.add_function(wrap_pyfunction!(update_own_move_rust, m)?)?;
     m.add_function(wrap_pyfunction!(visible_squares, m)?)?;
     m.add_function(wrap_pyfunction!(visible_squares_bb, m)?)?;
     m.add_function(wrap_pyfunction!(consistent_with_bb, m)?)?;
