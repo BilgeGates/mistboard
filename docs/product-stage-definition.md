@@ -23,7 +23,7 @@ User-visible promise:
 Required surfaces:
 
 - landing page
-- watch page
+- watch page (see [Watch Track](watch-track.md))
 - public finished-game pages
 - about/learn explanation
 - GitHub and public project docs
