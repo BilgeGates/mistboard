@@ -1,9 +1,0 @@
-{
-  "type": "gate",
-  "candidate": "nets/psqt/v4_proof",
-  "champion_arch": "psqt",
-  "elo_lower": 0,
-  "elo_upper": 30,
-  "max_games": 40,
-  "notes": "Foundations v1 proof: SPRT gate the candidate vs the current champion (PSQT-v2). Exercises the gate job type and tests the atomic champion update."
-}

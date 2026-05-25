@@ -1,8 +1,0 @@
-{
-  "type": "train",
-  "arch": "psqt",
-  "corpus": "corpora/c6_merged",
-  "out_id": "v6",
-  "hyperparams": { "scale": 1.0, "ridge": 1.0 },
-  "notes": "PSQT on merged corpus c6 (c2 + c3 + c5 = 10,073 positions). Tests corpus accumulation as a lever — same architecture, ~2.2x data."
-}

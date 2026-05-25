@@ -22,7 +22,7 @@ and an in-house [engine track](https://mistboard.com/articles/engine-belief-stat
 targeting a public engine protocol, reproducible benchmarks, and a first-party
 benchmark opponent.
 
-Mistboard is written in [TypeScript](https://www.typescriptlang.org/) across a small npm workspace. The browser client is a no-framework [Vite](https://vitejs.dev/) build that uses [chessground](https://github.com/lichess-org/chessground) for board rendering and [chessops](https://github.com/niklasf/chessops) for chess primitives. The server is a [Node](https://nodejs.org/) WebSocket process that owns canonical game state, with [Postgres](https://www.postgresql.org/) for the event log and game history and [pino](https://github.com/pinojs/pino) for structured logs. A pure-game `packages/game` module holds the variant rules, visibility kernel, and the `getPlayerView()` boundary — the central abstraction that ensures no hidden truth ever reaches the wrong client. The current offline [Python research lab](research/python-fow-lab) is used for visibility, belief, and bot experiments during extraction and is not part of the product; see the [engine extraction plan](docs/fog-of-war/engine-extraction-plan.md). Hosted on [Railway](https://railway.com/). Analytics via [PostHog](https://posthog.com/).
+Mistboard is written in [TypeScript](https://www.typescriptlang.org/) across a small npm workspace. The browser client is a no-framework [Vite](https://vitejs.dev/) build that uses [chessground](https://github.com/lichess-org/chessground) for board rendering and [chessops](https://github.com/niklasf/chessops) for chess primitives. The server is a [Node](https://nodejs.org/) WebSocket process that owns canonical game state, with [Postgres](https://www.postgresql.org/) for the event log and game history and [pino](https://github.com/pinojs/pino) for structured logs. A pure-game `packages/game` module holds the variant rules, visibility kernel, and the `getPlayerView()` boundary — the central abstraction that ensures no hidden truth ever reaches the wrong client. The first-party engine lives in a private sibling repo and is fetched at deploy time; it speaks the same redacted `EngineTurnRequest` protocol any third-party engine would (see [`docs/engine-protocol.md`](docs/engine-protocol.md)). Hosted on [Railway](https://railway.com/). Analytics via [PostHog](https://posthog.com/).
 
 Mistboard is an independent open-source project. It is not affiliated with lichess, chess.com, or any other chess platform.
 
@@ -49,7 +49,6 @@ packages/game           Pure game logic: types, rules, visibility, variants
 packages/board-render   Shared SVG board renderer (server + browser)
 apps/server             WebSocket rooms, clocks, event log, HTTP API
 apps/web                Board UI, game screens, client WebSocket handling
-research/python-fow-lab Offline Python research lab during extraction (not shipped)
 ```
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full data flow and state model, and [`docs/rules.md`](docs/rules.md) for the dark chess / Fog of War rule baseline.

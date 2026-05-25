@@ -4,9 +4,11 @@ import path from 'node:path';
 const repoRoot = process.cwd();
 const args = parseArgs(process.argv.slice(2));
 
+// Default to the private mistboard-engine sibling repo's feedback dir
+// (post-Phase-5d). Override with --annotations=<path> for non-default layouts.
 const annotationsPath = path.resolve(
   repoRoot,
-  args.annotations ?? 'research/python-fow-lab/feedback/annotations.jsonl',
+  args.annotations ?? '../mistboard-engine/feedback/annotations.jsonl',
 );
 const publicRoots = parseListArg(args.publicRoot ?? args.publicRoots ?? 'apps/web/public').map(
   (root) => path.resolve(repoRoot, root),

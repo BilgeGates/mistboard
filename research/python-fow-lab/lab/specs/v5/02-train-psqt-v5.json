@@ -1,8 +1,0 @@
-{
-  "type": "train",
-  "arch": "psqt",
-  "corpus": "corpora/c5",
-  "out_id": "v5",
-  "hyperparams": { "scale": 1.0, "ridge": 1.0 },
-  "notes": "PSQT on c5 (deep-teacher labels). Linear arch, same as v2 — pure label-quality test."
-}

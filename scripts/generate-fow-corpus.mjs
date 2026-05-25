@@ -17,7 +17,9 @@ const { values } = parseArgs({
     games: { type: 'string', default: '1000' },
     seed: { type: 'string', default: '1' },
     'max-plies': { type: 'string', default: '300' },
-    out: { type: 'string', default: 'research/python-fow-lab/corpora/random-ep-bias-v2' },
+    // Default targets the private mistboard-engine sibling repo (post-Phase-5d);
+    // override with --out=<path> for non-default layouts.
+    out: { type: 'string', default: '../mistboard-engine/corpora/random-ep-bias-v2' },
     bias: { type: 'string', default: 'ep-mild' },
   },
 });

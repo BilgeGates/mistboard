@@ -57,7 +57,7 @@ a low-friction UX promise, not the whole project thesis.
 - `packages/board-render`: shared SVG board renderer for server/build/browser surfaces.
 - `apps/server`: Node WebSocket server, room lifecycle, clocks, HTTP API, persistence, ratings infra, engine queue.
 - `apps/web`: no-framework Vite client, live game, replay, account/profile/leaderboard/articles/learn pages.
-- `research/python-fow-lab`: offline Python research sidecar. Do not import it from `apps/` or `packages/`.
+- Engine code lives in the **private `mistboard-engine` sibling repo** (cloned at build time via Railway deploy key). The server reaches it via `apps/server/src/engine-paths.ts`. Do not reach for engine internals from `apps/` or `packages/`; the contract is the `EngineTurnRequest` protocol in `packages/game/src/engine-protocol.ts`.
 
 Use `INDEX.md` for the detailed ownership map. It is intentionally the fastest
 entry point for locating source files.

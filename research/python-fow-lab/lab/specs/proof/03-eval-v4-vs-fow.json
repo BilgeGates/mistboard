@@ -1,7 +1,0 @@
-{
-  "type": "eval",
-  "bot_a": "fow",
-  "bot_b": "nets/psqt/v4_proof",
-  "games": 20,
-  "notes": "Foundations v1 proof: bake-off the candidate vs fow. Exercises the eval job type."
-}

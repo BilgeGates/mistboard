@@ -1,6 +1,0 @@
-{
-  "name": "legal-greedy",
-  "family": "baseline",
-  "kind": "legal_greedy",
-  "notes": "Capture-if-can-else-random-legal. No belief, no Stockfish. Permanent ladder floor — every bot above this is provably doing belief work."
-}

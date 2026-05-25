@@ -12,7 +12,6 @@ Full-stack hidden-information chess platform — Vite-bundled TypeScript browser
 packages/game          Pure game logic: types, rules, visibility, variants, tests
 apps/server            WebSocket rooms, session management, clocks, event append, HTTP API
 apps/web               Browser client (Vite + vanilla TypeScript, no framework)
-research/python-fow-lab  Offline Python sidecar for visibility/bot/inference experiments — not shipped
 ```
 
 ## Key abstraction

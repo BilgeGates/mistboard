@@ -12,7 +12,6 @@
       "!**/.next",
       "!**/node_modules",
       "!**/coverage",
-      "!research/python-fow-lab",
       "!docs",
       "!docs-private",
       "!**/*.sql",

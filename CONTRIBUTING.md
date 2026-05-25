@@ -25,7 +25,7 @@ Good contributions:
 - `PlayerView` tests
 - replay and postgame reveal improvements
 - board interaction polish
-- engine research tooling in `research/python-fow-lab`
+- engine protocol surfaces in `packages/game/src/engine-protocol.ts` and `apps/server/src/engine-protocol/` (the private `mistboard-engine` repo holds the actual engine; it is not open for contributions)
 - documentation for rules, protocols, tournaments, and engine integration
 
 Usually out of scope for v1 unless explicitly gate-cleared:

@@ -205,13 +205,9 @@ The protocol supports both. The server doesn't care which the engine is.
 
 ## Where the spec evolves
 
-The canonical type definitions live in TypeScript; the Python mirror
-(`research/python-fow-lab/src/fow_chess/engine_protocol.py`) tracks the TS
-file 1:1. Future moves:
-
-- The first-party engine is moving to a private sibling repo
-  (`mistboard-engine`). The protocol lives in the public repo so any
-  engine — first-party private or third-party — can implement it.
-- A reference engine adapter that calls a subprocess speaking the protocol
-  over stdin/stdout JSON lines is planned (Phase 4).
+The canonical type definitions live in TypeScript; a Python mirror tracks
+the TS file 1:1 inside the private `mistboard-engine` sibling repo
+(`src/fow_chess/engine_protocol.py`). The first-party engine lives there,
+cloned at deploy time. The protocol stays in the public repo so any
+engine — first-party private or third-party — can implement it.
 - A network-transport adapter (HTTP/WebSocket) is a possible later layer.
