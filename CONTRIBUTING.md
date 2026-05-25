@@ -44,6 +44,7 @@ Usually out of scope for v1 unless explicitly gate-cleared:
 ```bash
 npm install
 npm run agent:scan        # live dirty-state, worktree, hotspot, and test map
+npm run worktree:prepare  # fresh-worktree deps, dist declarations, drift guard
 npm run verify -- --changed
 npm run check:drift       # public-doc links, SQL enum drift, fog payload guards
 npm run ci:quick

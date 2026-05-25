@@ -34,7 +34,13 @@ For long-running work, create an isolated task tree:
 
 ```bash
 npm run worktree:new -- <slug>
+npm run worktree:prepare
 ```
+
+`worktree:prepare` installs dependencies when missing, builds the internal
+package declarations that downstream workspaces read from `dist/`, and runs the
+drift guard. Use `npm run worktree:new -- <slug> --prepare` when the new tree
+should be commit-ready immediately.
 
 Before handoff, let the changed paths pick the narrow checks:
 

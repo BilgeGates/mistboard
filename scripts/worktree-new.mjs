@@ -41,12 +41,25 @@ if (scan.status !== 0) {
   );
 }
 
+if (options.prepare) {
+  console.log('\nprepare worktree');
+  const prepare = spawnSync('npm', ['run', 'worktree:prepare'], {
+    cwd: worktreePath,
+    stdio: 'inherit',
+  });
+  if (prepare.error) throw prepare.error;
+  if (prepare.status !== 0) process.exit(prepare.status ?? 1);
+} else {
+  console.log('\nnext: npm run worktree:prepare');
+}
+
 function parseArgs(args) {
   const result = {
     slug: null,
     branch: null,
     base: null,
     path: null,
+    prepare: false,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -57,6 +70,8 @@ function parseArgs(args) {
       result.base = requiredValue(args, ++index, '--base');
     } else if (arg === '--path') {
       result.path = path.resolve(requiredValue(args, ++index, '--path'));
+    } else if (arg === '--prepare') {
+      result.prepare = true;
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -112,8 +127,10 @@ function requiredValue(args, index, flag) {
 
 function printHelp() {
   console.log(`Usage:
-  npm run worktree:new -- <slug> [--base <ref>] [--branch <name>] [--path <path>]
+  npm run worktree:new -- <slug> [--base <ref>] [--branch <name>] [--path <path>] [--prepare]
 
 Creates a sibling task worktree from origin/main when available, using branch
-agent/<slug> by default, then runs npm run agent:scan in the new worktree.`);
+agent/<slug> by default, then runs npm run agent:scan in the new worktree.
+
+Use --prepare to also run npm run worktree:prepare in the new worktree.`);
 }

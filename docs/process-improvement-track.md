@@ -46,6 +46,7 @@ Add a small worktree helper for new implementation tracks:
 
 ```bash
 npm run worktree:new -- <slug>
+npm run worktree:prepare
 ```
 
 Expected behavior:
@@ -53,6 +54,8 @@ Expected behavior:
 - creates a task branch and sibling worktree;
 - prints the branch, worktree path, and starting commit;
 - runs or points to `npm run agent:scan`;
+- prepares fresh worktrees for typecheck/commit by building local package
+  declarations;
 - refuses ambiguous names and avoids overwriting existing worktrees.
 
 This formalizes the current rule from `docs/agent-velocity.md`: long-running
