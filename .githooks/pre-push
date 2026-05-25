@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# Reproduces the CI cold-build path locally before allowing a push to main.
+# Runs a path-aware local gate before allowing a push to main.
 # Catches the failure modes that bit us on 2026-05-13: a new internal
 # workspace missing from scripts/build.mjs' order (board-render), and an
 # entrypoint refactor that broke a spawn-based test (privacy-ws).
@@ -17,9 +17,15 @@ fi
 # git feeds pre-push hooks one line per ref on stdin:
 #   <local-ref> <local-sha> <remote-ref> <remote-sha>
 pushing_main=0
+main_local_sha=
+main_remote_sha=
 while read -r _local_ref _local_sha remote_ref _remote_sha; do
   case "$remote_ref" in
-    refs/heads/main) pushing_main=1 ;;
+    refs/heads/main)
+      pushing_main=1
+      main_local_sha="$_local_sha"
+      main_remote_sha="$_remote_sha"
+      ;;
   esac
 done
 
@@ -27,20 +33,4 @@ if [ "$pushing_main" != "1" ]; then
   exit 0
 fi
 
-echo "pre-push: cleaning dist/ to reproduce CI's cold-build path"
-rm -rf \
-  packages/board-render/dist \
-  packages/game/dist \
-  apps/server/dist \
-  apps/web/dist
-
-echo "pre-push: npm run build"
-npm run build
-
-echo "pre-push: npm run typecheck"
-npm run typecheck
-
-echo "pre-push: game unit tests"
-npm test --workspace @mistboard/game
-
-echo "pre-push: ok"
+node scripts/pre-push-check.mjs "$main_local_sha" "$main_remote_sha"

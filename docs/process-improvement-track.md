@@ -95,12 +95,18 @@ npm run ci:local
 
 Suggested split:
 
-- `ci:quick`: typecheck, unit tests, cycle check;
+- `ci:quick`: build, typecheck, unit tests, cycle check;
 - `ci:local`: build, typecheck, unit tests, Postgres-backed server tests, server
   integration tests, production dependency audit when network is available.
 
 The pre-push hook can then call one of these names, or clearly print which CI
 steps remain CI-only.
+
+Current implementation routes pushes to `main` through a path-aware pre-push
+planner. Docs/meta-only pushes run `npm run check:drift` instead of a cold
+build, app-level deploy-affecting pushes run `npm run verify -- --since
+<remote-main-sha>`, and broad repo-tooling/package/shared-package changes clean
+`dist/` before running `npm run ci:quick`.
 
 CI production smoke now waits for `/api/server-status` to report the pushed
 revision before running the smoke suite. A healthy old container is not enough

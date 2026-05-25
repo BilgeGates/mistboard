@@ -60,6 +60,11 @@ npm run ci:local
 read stale workspace `dist` types, and server unit tests have the dist entrypoint
 they spawn.
 
+The installed pre-push hook is path-aware for pushes to `main`: docs/meta-only
+pushes run the drift guard, app-level deploy-affecting pushes run the changed
+path verifier against the remote main SHA, and broad repo-tooling or shared
+package changes clean `dist/` before running `ci:quick`.
+
 For manual M1 gates, record public-safe evidence instead of relying on memory:
 
 ```bash
