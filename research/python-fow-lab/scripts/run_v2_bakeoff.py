@@ -501,8 +501,8 @@ def main() -> int:
     ap.add_argument("--v2-time-budget", type=float, default=5.0,
                     help="per-move wall budget for v2 (seconds); 0 = unlimited")
     ap.add_argument("--v2-p-max", type=int, default=5_000_000,
-                    help="cap on PEnumerator |P| (0 = truly uncapped — OOM risk). "
-                    "Default 5M: cap-probe (2026-05-24) showed 1M caused 3.1% crash "
+                    help="cap on PEnumerator |P| (0 = truly uncapped, OOM risk). "
+                    "Default 5M: cap-probe 2026-05-24 showed 1M had 3.1%% crash "
                     "rate from soundness violations; 5M had 0 crashes, 0 downsample "
                     "events, max 1.3 GB RSS across 3 cap-hitting seeds.")
     ap.add_argument("--v2-kluss-k", type=int, default=0,
