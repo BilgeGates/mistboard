@@ -1,0 +1,13 @@
+{
+  "name": "tier1-fog-l01",
+  "family": "tier1",
+  "kind": "tier1",
+  "evaluator": "stockfish",
+  "evaluator_depth": 4,
+  "prior": "uniform",
+  "fog_lambda": 0.1,
+  "target_n": 256,
+  "max_particles": 16,
+  "risk_aversion": 0.0,
+  "notes": "P2.3 fog-discount evaluator at lambda=0.1 wrapped around Stockfish. Track A regressed -4.6 pp under random opp; Track B head-to-head vs anchor is the actual test."
+}

@@ -1,0 +1,17 @@
+{
+  "name": "tier1-mcts-v0-mlp-v2",
+  "family": "tier1",
+  "kind": "tier1",
+  "evaluator": "mlp",
+  "mlp_weights_path": "distill/v2/mlp.pt",
+  "prior": "uniform",
+  "fog_lambda": 0.0,
+  "target_n": 256,
+  "max_particles": 16,
+  "risk_aversion": 0.0,
+  "mcts_rollouts": 200,
+  "mcts_rollout_depth": 8,
+  "mcts_selection_depth": 3,
+  "mcts_risk_lambda": 0.25,
+  "notes": "Phase 1 γ: MLP (768→256→64→1, ~205k params) trained on the v2 q-labeled corpus. Same labels as PSQT-v2, more capacity. Tests architecture as a lever."
+}

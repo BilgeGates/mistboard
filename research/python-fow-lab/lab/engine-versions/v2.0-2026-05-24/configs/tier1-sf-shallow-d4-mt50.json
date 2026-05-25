@@ -1,0 +1,18 @@
+{
+  "name": "tier1-sf-shallow-d4-mt50",
+  "family": "tier1",
+  "kind": "tier1",
+  "evaluator": "stockfish",
+  "evaluator_depth": 4,
+  "prior": "stockfish_shallow",
+  "prior_depth": 4,
+  "prior_movetime_ms": 50,
+  "prior_top_k": 8,
+  "prior_temperature_cp": 100.0,
+  "prior_uniform_blend": 0.3,
+  "fog_lambda": 0.0,
+  "target_n": 256,
+  "max_particles": 16,
+  "risk_aversion": 0.0,
+  "notes": "P4.1 Stockfish-shallow opp-move prior. Track A regressed -8.7 pp under random opp (random isn't well-modeled as a strong-move opp); Track B head-to-head vs anchor — where both sides are Tier-1 — is the real test."
+}
