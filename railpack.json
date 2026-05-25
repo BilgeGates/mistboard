@@ -1,6 +1,7 @@
 {
   "$schema": "https://schema.railpack.com",
   "provider": "node",
+  "buildAptPackages": ["cargo", "rustc"],
   "packages": {
     "node": "22",
     "python": "3.11"
@@ -12,8 +13,10 @@
         "echo \"$MISTBOARD_ENGINE_DEPLOY_KEY\" | base64 -di > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519",
         "ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null",
         "git clone git@github.com:brianhliou/mistboard-engine.git /app/mistboard-engine && git -C /app/mistboard-engine checkout ${MISTBOARD_ENGINE_REF:-main} && echo \"engine SHA: $(git -C /app/mistboard-engine rev-parse HEAD)\"",
+        "pip install maturin",
+        "maturin build --release -m /app/mistboard-engine/fow_rust/Cargo.toml && ls /app/mistboard-engine/fow_rust/target/wheels/",
         "...",
-        "python -m pip install --target /app/mistboard-engine/vendor '/app/mistboard-engine[postgres]'"
+        "python -m pip install --target /app/mistboard-engine/vendor /app/mistboard-engine/fow_rust/target/wheels/*.whl '/app/mistboard-engine[postgres]'"
       ]
     }
   },
