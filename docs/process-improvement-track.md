@@ -110,6 +110,29 @@ deploy the commit, and then have the post-deploy smoke verify that exact
 revision. The revision wait window is 15 minutes because current production
 builds include the private engine checkout and Rust/PyO3 wheel build.
 
+#### Deploy-Time Follow-Up
+
+The next process/tooling pass should measure and reduce production deploy
+latency separately from CI latency. On 2026-05-25, a small TypeScript
+persistence refactor reached green GitHub CI in about two minutes, while the
+post-deploy smoke spent more than six minutes waiting for Railway to build and
+promote the exact revision. The product value of the revision wait is clear: it
+prevents a healthy old container from masking a failed deploy. The cost is that
+every deploy-affecting commit now exposes the full production build path.
+
+Track these optimizations after the engine extraction settles:
+
+- compare Railway build/promotion time before and after the engine extraction;
+- keep the engine build out of ordinary web/server deploys when the engine is
+  not part of the changed artifact;
+- prebuild or cache private engine/Rust/PyO3 wheel artifacts if they must remain
+  in the deploy image;
+- make CI and prod-smoke path filters match Railway deploy watch patterns, so
+  non-deploy commits do not wait for a revision that production will never
+  serve;
+- publish deploy duration in handoffs alongside CI duration so slow build paths
+  are visible instead of felt only as waiting time.
+
 ### 4. Manual Gate Evidence
 
 Add a tiny evidence workflow for M1 manual checks:
