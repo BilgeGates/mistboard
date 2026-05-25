@@ -105,7 +105,8 @@ type OpenLobbyRequest = {
 
 export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 const HOMEPAGE_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
-const HOMEPAGE_ENGINE_SNAPSHOT_NAME = 'Engine v2 · 2026-05-24';
+const HOMEPAGE_ENGINE_SNAPSHOT_NAME = 'Mistboard Engine · 2026-05-24';
+const HOMEPAGE_ENGINE_BASELINE_NAME = 'Previous Mistboard Engine';
 const HOMEPAGE_ENGINE_TIME_CONTROL = {
   kind: 'increment-budget',
   label: '5s increment budget',
@@ -439,8 +440,8 @@ function homepageShowcaseGames(): FeaturedGame[] {
       result: engineOutcomeResult(spec.outcome, spec.v2Color),
       termination: spec.termination,
       plyCount: spec.plyCount,
-      whiteName: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_NAME : 'Tier-1 v0.9.5',
-      blackName: whiteIsV2 ? 'Tier-1 v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_NAME,
+      whiteName: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_NAME : HOMEPAGE_ENGINE_BASELINE_NAME,
+      blackName: whiteIsV2 ? HOMEPAGE_ENGINE_BASELINE_NAME : HOMEPAGE_ENGINE_SNAPSHOT_NAME,
       corpusId: 'replay-samples',
       gameIndex: spec.index,
       whiteEngineId: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
@@ -449,14 +450,14 @@ function homepageShowcaseGames(): FeaturedGame[] {
       participants: [
         {
           color: 'white',
-          displayName: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_NAME : 'Tier-1 v0.9.5',
+          displayName: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_NAME : HOMEPAGE_ENGINE_BASELINE_NAME,
           subjectType: 'engine-version',
           subjectId: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
           visibility: 'public',
         },
         {
           color: 'black',
-          displayName: whiteIsV2 ? 'Tier-1 v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_NAME,
+          displayName: whiteIsV2 ? HOMEPAGE_ENGINE_BASELINE_NAME : HOMEPAGE_ENGINE_SNAPSHOT_NAME,
           subjectType: 'engine-version',
           subjectId: whiteIsV2 ? 'python-tier1-v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_ID,
           visibility: 'public',
@@ -758,7 +759,7 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const subtagline = document.createElement('p');
   subtagline.className = 'landing-hero-subtagline';
   subtagline.textContent =
-    'Server-enforced hidden information. Play people or the open-source engine.';
+    'Server-enforced hidden information. Play people or the Mistboard engine.';
 
   heroHeader.append(tagline, subtagline);
 
@@ -1815,12 +1816,12 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'builtin-random-legal': 'Random Legal v1',
     [HOMEPAGE_ENGINE_SNAPSHOT_ID]: HOMEPAGE_ENGINE_SNAPSHOT_NAME,
     'python-random-legal': 'Random Legal Python v1',
-    'python-tier1-v0.7.0': 'Tier-1 v0.7.0',
-    'python-tier1-v0.7.22': 'Tier-1 v0.7.22',
-    'python-tier1-v0.8.9': 'Tier-1 v0.8.9',
-    'python-tier1-v0.9.1': 'Tier-1 v0.9.1',
-    'python-tier1-v0.9.5': 'Tier-1 v0.9.5',
-    'python-tier1-current': 'Tier-1 current src',
+    'python-tier1-v0.7.0': 'Mistboard Engine preview',
+    'python-tier1-v0.7.22': 'Mistboard Engine preview',
+    'python-tier1-v0.8.9': 'Mistboard Engine preview',
+    'python-tier1-v0.9.1': 'Mistboard Engine preview',
+    'python-tier1-v0.9.5': 'Mistboard Engine',
+    'python-tier1-current': 'Mistboard Engine dev build',
   };
   return known[name] ?? null;
 }

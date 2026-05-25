@@ -118,7 +118,7 @@ function buildAbout(): HTMLElement {
 
   const engineHeading = aboutSubheading('Engines for hidden-information chess');
   const engineP = aboutParagraph([
-    'Standard chess engines need to see the full board. The techniques that work for dark chess (belief-state search, particle filters, Monte Carlo tree search over determinized positions) come from the Reconnaissance Blind Chess literature. Mistboard’s engine is in active development and open source. A protocol for third-party engines (FUCI) is in design. Engine tournaments and calibration runs follow once it stabilizes.',
+    'Standard chess engines need to see the full board. The techniques that work for dark chess (belief-state search, particle filters, Monte Carlo tree search over determinized positions) come from the Reconnaissance Blind Chess literature. Mistboard’s first-party engine is in active development and plays through the same auditable information boundary as every other engine. A protocol for third-party engines (FUCI) is in design. Engine tournaments and calibration runs follow once it stabilizes.',
   ]);
 
   const statusHeading = aboutSubheading('Project status');

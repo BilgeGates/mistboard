@@ -234,7 +234,7 @@ export type AnnotationConfig = {
   manifestUrl: string;
   /** Maps a sampleId (e.g. "games/game-0011-W-tier1-black.jsonl") to its game index in the manifest. */
   gameIndexForSampleId: (sampleId: string) => number | null;
-  /** Maps a sampleId to the tier1 color in that game. */
+  /** Maps a sampleId to the reviewed engine color in that game. */
   tier1ColorForSampleId: (sampleId: string) => 'white' | 'black' | null;
   /** Called after a save so the caller can refresh sidebar badges. */
   onSaved?: () => void;
@@ -1372,8 +1372,8 @@ function playerViewLabel(name: string | null | undefined, side: 'white' | 'black
   const fallback = side === 'white' ? "White's view" : "Black's view";
   const trimmed = name?.trim();
   if (!trimmed) return fallback;
-  // Use the name verbatim so casing the user chose ("Tier-1 v0.9.1") is preserved.
-  // Possessive form is fine for plain names; engine version strings ("v0.9.1")
+  // Use the name verbatim so casing the user chose is preserved.
+  // Possessive form is fine for plain names; engine version strings
   // tolerate it too.
   const apostrophe = trimmed.endsWith('s') || trimmed.endsWith('S') ? "'" : "'s";
   return `${trimmed}${apostrophe} view`;

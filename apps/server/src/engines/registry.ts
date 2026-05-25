@@ -58,8 +58,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.9.5': {
     id: 'python-tier1-v0.9.5',
     engineId: 'tier1',
-    engineName: 'Tier-1',
-    name: 'Tier-1 v0.9.5',
+    engineName: 'Mistboard Engine',
+    name: 'Mistboard Engine',
     kind: 'container',
     configHash: 'tier1-v0.9.5-372b4bb6c064',
     playSignature: '372b4bb6c064',
@@ -73,7 +73,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 5_000 },
     notes:
-      'Tier-1 v0.9.5: draw-reduction knobs (info-reveal bonus + push-when-ahead from belief material edge), phantom-check guard (stale-belief skip when slider attack ray is blocked), recapture exemption (exempt recaptures from belief bad-capture-trade veto).',
+      'Current first-party engine: draw-reduction knobs, phantom-check guard, and recapture exemption.',
   },
   // Uses current src/fow_chess/. Skipped by PROD_PLAYABLE_ENGINE_IDS — only
   // available locally via the MISTBOARD_EXTRA_PLAYABLE_ENGINES env var.
@@ -81,8 +81,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-current': {
     id: 'python-tier1-current',
     engineId: 'tier1',
-    engineName: 'Tier-1',
-    name: 'Tier-1 current src',
+    engineName: 'Mistboard Engine',
+    name: 'Mistboard Engine dev build',
     kind: 'container',
     configHash: 'tier1-current',
     playSignature: 'current',
@@ -95,13 +95,13 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 5_000 },
     notes:
-      'Tier-1 backed by current src/fow_chess (no engine_version pin). Local-only; for v0.9.5 strength testing.',
+      'Current first-party engine source checkout. Local-only; for strength testing.',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
     engineId: 'tier1',
-    engineName: 'Tier-1',
-    name: 'Tier-1 v0.9.1',
+    engineName: 'Mistboard Engine',
+    name: 'Mistboard Engine preview',
     kind: 'container',
     configHash: 'tier1-v0.9.1-8918f287499f',
     playSignature: '8918f287499f',
@@ -115,13 +115,13 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 5_000 },
     notes:
-      'Tier-1 v0.9.1: king-defense priority reorder + belief-piece-save landing safety + pawn-shield diagonal tier in early development.',
+      'First-party engine preview with king-defense and belief-piece-save tuning.',
   },
   'python-tier1-v0.8.9': {
     id: 'python-tier1-v0.8.9',
     engineId: 'tier1',
-    engineName: 'Tier-1',
-    name: 'Tier-1 v0.8.9',
+    engineName: 'Mistboard Engine',
+    name: 'Mistboard Engine preview',
     kind: 'container',
     configHash: 'tier1-v0.8.9-b22f29dd73f5',
     playSignature: '2c010d792075',
@@ -135,13 +135,13 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 5_000 },
     notes:
-      'Owner-only Python Tier-1 v0.8.9 engine with bounded Stage-B supplement and full-recovery repair source selection.',
+      'Owner-operated first-party engine preview with repair-source tuning.',
   },
   'python-tier1-v0.7.22': {
     id: 'python-tier1-v0.7.22',
     engineId: 'tier1',
-    engineName: 'Tier-1',
-    name: 'Tier-1 v0.7.22',
+    engineName: 'Mistboard Engine',
+    name: 'Mistboard Engine preview',
     kind: 'container',
     configHash: 'tier1-v0.7.22-b22f29dd73f5',
     playSignature: '5d3ddffa74f6',
@@ -155,13 +155,13 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 5_000 },
     notes:
-      'Owner-only Python Tier-1 v0.7.22 engine with profiled particle updates and terminal king-risk veto.',
+      'Owner-operated first-party engine preview with profiled particle updates.',
   },
   'python-tier1-v0.7.0': {
     id: 'python-tier1-v0.7.0',
     engineId: 'tier1',
-    engineName: 'Tier-1',
-    name: 'Tier-1 v0.7.0',
+    engineName: 'Mistboard Engine',
+    name: 'Mistboard Engine preview',
     kind: 'container',
     configHash: 'tier1-v0.7.0-b22f29dd73f5',
     playSignature: 'tier1-v0.7.0-b22f29dd73f5',
@@ -173,7 +173,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       config_hash: 'b22f29dd73f5',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes: 'Owner-only Python Tier-1 v0.7.0 engine executed through the worker subprocess adapter.',
+    notes: 'Owner-operated first-party engine preview executed through the worker adapter.',
   },
   'python-random-legal': {
     id: 'python-random-legal',

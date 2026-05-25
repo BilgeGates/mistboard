@@ -7384,7 +7384,7 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 /* Board labels in the meta-header surface use title case so player-supplied
- * names ("Tier-1 v0.9.1") and possessives don't get shouted in all-caps. */
+ * names and possessives don't get shouted in all-caps. */
 .replay-meta-header .replay-pane-label {
   text-transform: none;
   letter-spacing: 0;

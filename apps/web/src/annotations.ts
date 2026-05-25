@@ -6,7 +6,7 @@
  * Categories:
  *  - negative: a flaw the engine should fix
  *  - positive: behaviour the engine got right (reinforces an architectural choice)
- *  - meta:     not a Tier-1 strength signal (e.g., opponent move)
+ *  - meta:     not an engine-strength signal (e.g., opponent move)
  */
 export const CURATED_TAGS: Array<{
   tag: string;
@@ -31,12 +31,12 @@ export const CURATED_TAGS: Array<{
   {
     tag: 'missed-hanging-capture',
     kind: 'negative',
-    hint: "Tier-1 had a visible piece attacking opponent's queen/rook and didn't capture.",
+    hint: "The engine had a visible piece attacking opponent's queen/rook and didn't capture.",
   },
   {
     tag: 'missed-hanging-save',
     kind: 'negative',
-    hint: 'Tier-1 had a piece visibly under attack and failed to defend or move it.',
+    hint: 'The engine had a piece visibly under attack and failed to defend or move it.',
   },
   {
     tag: 'missed-info-gain',
@@ -61,7 +61,7 @@ export const CURATED_TAGS: Array<{
   {
     tag: 'opponent-blunder',
     kind: 'meta',
-    hint: 'Move was opponent (random); not a Tier-1 strength signal.',
+    hint: 'Move was opponent (random); not an engine-strength signal.',
   },
 ];
 

@@ -29,15 +29,16 @@ The primary work is:
 - postgame reveal and replay
 - ranked ladder integrity and calibration
 - dark-chess learning and review tools
-- the strongest open-source engine track for dark chess and related
-  hidden-information games
+- a public engine protocol, public baselines, and a serious first-party engine
+  track for dark chess and related hidden-information games
 
 Other chess features are useful only when they strengthen the Fog of War
 experience.
 
-The intended product loop is simple: people can play the strongest open-source
-dark-chess engine, learn why hidden information is compelling, and then climb a
-serious ranked ladder against other players.
+The intended product loop is simple: people can play a serious first-party
+dark-chess engine through a public information boundary, learn why hidden
+information is compelling, and then climb a serious ranked ladder against other
+players.
 
 ## License And Source
 

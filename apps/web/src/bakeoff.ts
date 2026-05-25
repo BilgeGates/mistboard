@@ -34,6 +34,7 @@ type Manifest = {
 };
 
 const DEFAULT_MANIFEST_URL = '/bakeoff-v0.7.12-rung2-transition-fast/manifest.json';
+const BAKEOFF_ENGINE_LABEL = 'Mistboard Engine';
 
 export async function mountBakeoff(
   root: HTMLElement,
@@ -121,12 +122,12 @@ export async function mountBakeoff(
   const header = document.createElement('div');
   header.className = 'bakeoff-header';
   const versionLine = manifest.tier1_version
-    ? `<div class="bakeoff-header-version">Tier-1 v${manifest.tier1_version}${manifest.tier1_commit ? ` · ${manifest.tier1_commit}` : ''}</div>`
+    ? `<div class="bakeoff-header-version">${BAKEOFF_ENGINE_LABEL} ${manifest.tier1_version}${manifest.tier1_commit ? ` · ${manifest.tier1_commit}` : ''}</div>`
     : '';
   header.innerHTML = `
     ${versionLine}
     <div class="bakeoff-header-line">${manifest.games.length} games saved</div>
-    <div class="bakeoff-header-line">Tier-1 ${r.wins}W ${r.losses}L ${r.draws}D</div>
+    <div class="bakeoff-header-line">${BAKEOFF_ENGINE_LABEL} ${r.wins}W ${r.losses}L ${r.draws}D</div>
     <div class="bakeoff-header-meta">eval=${manifest.evaluator} mp=${manifest.max_particles} target_n=${manifest.target_n}</div>
   `;
   sidebar.append(header);
@@ -183,7 +184,7 @@ export async function mountBakeoff(
     activeMeta.innerHTML = `
       <div class="bakeoff-active-title">queue game ${game.index} · sidebar #${game.index + 1}</div>
       <div>${game.path}</div>
-      <div>outcome=${game.outcome} tier1=${game.tier1_color} plies=${game.plies} end=${game.end_reason}</div>
+      <div>outcome=${game.outcome} engine=${game.tier1_color} plies=${game.plies} end=${game.end_reason}</div>
       <div>belief=${requestedBeliefSeat ? `seat ${requestedBeliefSeat}` : `reviewed side ${game.tier1_color}`}</div>
       <div>seed=${game.tier1_seed}${game.truncated ? ' truncated' : ''}</div>
     `;
@@ -233,7 +234,7 @@ export async function mountBakeoff(
       <span class="bakeoff-game-id">#${game.index + 1}</span>
       <span class="bakeoff-game-qid">q${game.index}</span>
       <span class="bakeoff-game-outcome">${game.outcome}</span>
-      <span class="bakeoff-game-color">tier1=${game.tier1_color[0]}</span>
+      <span class="bakeoff-game-color">engine=${game.tier1_color[0]}</span>
       <span class="bakeoff-game-plies">${game.plies}p${truncMark}</span>
       <span class="bakeoff-game-notes"></span>
     `;
