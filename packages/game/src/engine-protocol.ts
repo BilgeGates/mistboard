@@ -48,11 +48,22 @@
  * unknown future-version request fields.
  */
 
-import type { Color, Move, Square } from './types.js';
+import type { Color, Move } from './types.js';
 
 export type EngineProtocolVersion = '1';
 
 export type PieceLetter = 'P' | 'N' | 'B' | 'R' | 'Q' | 'K';
+
+/**
+ * Square index 0..63. a1=0, b1=1, ..., h1=7, a2=8, ..., h8=63.
+ * Matches python-chess square indexing. Engines that prefer string
+ * names (`Square` from `./types`) convert at their boundary.
+ *
+ * The protocol uses indices (not name strings) for wire compactness
+ * and uniform consumption across languages — JSON-readable as plain
+ * numbers and trivially round-tripped through python-chess `SQUARES`.
+ */
+export type SquareIndex = number;
 
 /**
  * One ply's worth of observation, from the engine's perspective player.
@@ -86,14 +97,14 @@ export type EngineObservation = {
    * are absent (NOT included as `null`/`'empty'`). The engine reconstructs
    * the rest of its belief from this delta plus prior observations.
    */
-  visible_pieces: Array<[Square, { type: PieceLetter; color: Color }]>;
+  visible_pieces: Array<[SquareIndex, { type: PieceLetter; color: Color }]>;
 
   /**
    * Square index where ONE of the engine's own pieces was captured this
    * ply (because the engine sees its own pieces deterministically). `null`
    * if no own-piece capture occurred.
    */
-  own_capture_square: Square | null;
+  own_capture_square: SquareIndex | null;
 
   /**
    * Square index where an OPP piece arrived after capturing a visible
@@ -101,7 +112,7 @@ export type EngineObservation = {
    * `null` if the opp's landing square is not in the visibility mask
    * (engine knows ONE piece is gone but can't see where the capturer went).
    */
-  opp_capture_landing_square: Square | null;
+  opp_capture_landing_square: SquareIndex | null;
 
   /**
    * Terminal indicator if the game ended at this ply. Engines reading
