@@ -968,6 +968,7 @@ button:focus-visible {
 }
 
 .board-shell {
+  container-type: inline-size;
   position: relative;
   width: min(100%, 66vh, 640px);
 }
@@ -1234,18 +1235,27 @@ button:focus-visible {
 }
 
 .captures-strip {
+  --capture-piece-size: clamp(30px, calc((100cqw - 20px) / 8), 38px);
+  --capture-row-gap: 1px;
+
   display: flex;
   flex-direction: column;
   gap: 3px;
-  min-height: 38px;
-  padding: 5px 2px 0;
+  height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 8px);
+  min-height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 8px);
+  padding: 6px 2px 0;
+}
+
+.board-shell > .captures-strip {
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 .captures-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0;
+  gap: var(--capture-row-gap);
   line-height: 0;
 }
 
@@ -1254,25 +1264,20 @@ button:focus-visible {
    so the piece fills our inline capture cell instead. */
 .captures-piece {
   display: inline-block;
-  width: 32px;
-  height: 32px;
-  margin-left: -8px;
+  width: var(--capture-piece-size);
+  height: var(--capture-piece-size);
   position: relative;
   vertical-align: middle;
 }
 
-.captures-piece:first-child {
-  margin-left: 0;
-}
-
-.captures-piece piece {
+.captures-strip .captures-piece > piece {
   display: block;
   position: static;
   top: auto;
   left: auto;
   width: 100%;
   height: 100%;
-  background-size: contain;
+  background-size: 100% 100%;
   background-repeat: no-repeat;
   background-position: center;
   will-change: auto;
@@ -1595,14 +1600,12 @@ button:focus-visible {
   display: grid;
   gap: 4px;
   align-content: start;
-  height: 112px;
-  overflow: auto;
+  min-height: 112px;
   border: 1px solid #d3d9d2;
   border-radius: 8px;
   background: #ffffff;
   color: #3f4a44;
   padding: 10px 12px;
-  scrollbar-width: thin;
 }
 
 .action-notice strong {
@@ -2545,16 +2548,6 @@ button:focus-visible {
     height: 72px;
   }
 
-  .captures-strip {
-    min-height: 34px;
-  }
-
-  .captures-piece {
-    width: 28px;
-    height: 28px;
-    margin-left: -7px;
-  }
-
   .debug-views {
     grid-template-columns: 1fr;
   }
@@ -2611,7 +2604,7 @@ button:focus-visible {
   }
 
   .debug-shell .action-notice {
-    height: 64px;
+    min-height: 64px;
     padding: 8px 10px;
   }
 
