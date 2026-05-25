@@ -1,0 +1,217 @@
+# Engine protocol
+
+Mistboard speaks to engines through a single redacted protocol. This document
+specifies what the server sends, what an engine returns, and the redaction
+guarantees that make the protocol auditable.
+
+The canonical machine-readable types live in
+[`packages/game/src/engine-protocol.ts`](../packages/game/src/engine-protocol.ts).
+This document is the human-readable contract.
+
+## Why this protocol exists
+
+Mistboard's trust story is that no player — including first-party engines —
+can see hidden information under Fog of War rules. The same protocol applies
+to:
+
+- Built-in engines that ship in the public Mistboard repo
+- First-party engines that ship as separate binaries
+- Third-party engines that anyone is free to write
+
+There is no "trusted exception." If an engine claims to have made a legal
+move from this protocol's inputs alone, the server believes it. If the move
+turns out to use information the engine shouldn't have had, that's a bug in
+the engine, not a privileged data channel from the server.
+
+## Lifecycle
+
+1. **Game start.** The server creates a per-engine session keyed by
+   `(gameId, engineId, color)`. The engine MAY pre-allocate state.
+
+2. **Engine's turn.** The server constructs an `EngineTurnRequest` and
+   sends it to the engine. The first request in a session carries a full
+   `observationTranscript`. Subsequent requests in the same session may
+   instead carry a `latestObservationDelta`, letting stateful engines
+   apply incremental updates.
+
+3. **Engine response.** The engine returns an `EngineTurnResponse` with a
+   `move` chosen from the request's `legalMoves`. The server validates and
+   applies. An illegal/missing/timeout response triggers the engine's
+   live-policy fallback (typically: play a random legal move and log).
+
+4. **Game end.** When the server observes a terminal state, the final
+   observation has a non-null `game_over` field. No further `EngineTurnRequest`
+   is sent. The engine MAY tear down session state.
+
+## What the engine receives
+
+```ts
+type EngineTurnRequest = {
+  protocolVersion: '1';
+  gameId: string;
+  engineId: string;
+  sessionId: string;
+  color: 'white' | 'black';
+  ply: number;
+  engineSeed: number;
+  clock: { remaining_ms: number | null; increment_ms: number };
+  legalMoves: Move[];
+  observationTranscript?: EngineObservation[];   // cold-start
+  latestObservationDelta?: EngineObservation;     // steady-state
+};
+```
+
+| Field | What | Why the engine needs it |
+|---|---|---|
+| `protocolVersion` | Schema version | Reject unknown major versions |
+| `gameId` | Opaque game identifier | Correlate logs/diagnostics |
+| `engineId` | Which engine is being asked | Engines that serve multiple identities |
+| `sessionId` | Stable across all turns of one game | Key for stateful per-game state |
+| `color` | The engine's side | Move generation, eval sign |
+| `ply` | 0-indexed ply count | Bookkeeping, clock decisions |
+| `engineSeed` | Deterministic RNG for this turn | Reproducibility |
+| `clock` | Engine's own clock state | Time budget for search |
+| `legalMoves` | Engine's pseudo-legal moves | Server-validated; response must pick from this list |
+| `observationTranscript` | Full history from ply 0 | Cold-start: engine recomputes belief from scratch |
+| `latestObservationDelta` | Latest observation since prior turn | Steady-state: stateful engine applies one delta |
+
+Exactly one of `observationTranscript` / `latestObservationDelta` is present.
+
+## What an `EngineObservation` is
+
+```ts
+type EngineObservation = {
+  ply: number;
+  kind: 'initial' | 'own_move' | 'opp_move';
+  visibility_mask: string;   // "0x..." 64-bit hex
+  visible_pieces: Array<[Square, { type: PieceLetter; color: Color }]>;
+  own_capture_square: Square | null;
+  opp_capture_landing_square: Square | null;
+  game_over: { winner: Color | null; reason: string } | null;
+};
+```
+
+The observation captures everything the engine's perspective player learns
+at one ply. Reconstructed cumulatively, the transcript is the engine's
+complete information about the game.
+
+- `visibility_mask` — which squares the engine can see, as a 64-bit board
+  bitmask in hex. Bit `i` set iff square index `i` is visible.
+- `visible_pieces` — pieces on visible squares. Squares outside the mask
+  are absent (NOT included as null). Squares in the mask but with no
+  piece are absent (the engine infers empty from "visible but no piece
+  reported").
+- `own_capture_square` — set when one of the engine's own pieces was
+  captured this ply. The engine sees its own pieces deterministically, so
+  this is always knowable when a capture of own happens.
+- `opp_capture_landing_square` — set when the engine SAW an opp piece
+  arrive at a square it could see. Null when the opp's landing is invisible.
+- `game_over` — terminal indicator if the game ended at this ply.
+
+## Redaction guarantees (what the engine MUST NOT receive)
+
+The server's `EngineTurnRequest` builder is the security boundary. Tests
+enforce:
+
+1. **No canonical game state.** No field references the truth board, the
+   full `GameState`, or any internal server data structure.
+2. **No hidden pieces.** Every square index appearing in any field
+   (visible_pieces, capture squares) lies within the engine's visibility
+   mask at the corresponding ply.
+3. **No hidden opp moves.** When the opp moves entirely off-visibility, the
+   resulting observation contains no reference to opp's from-square or
+   to-square. The engine learns only that a turn elapsed (`ply` increments)
+   and any captures/visibility changes that happen to be visible.
+4. **No opp clock.** Only the engine's own clock is sent.
+5. **No master seed.** The room's master seed is never sent; `engineSeed`
+   is derived per-engine-per-turn from secrets the engine doesn't share.
+6. **No raw events.** The legacy `GameEvent[]` history is not sent. Engines
+   reconstruct from observations.
+
+These invariants are tested in
+`apps/server/src/engine-protocol/build.test.ts` (Phase 2). The build
+function is the only code path that produces an `EngineTurnRequest` from
+internal state; all other paths route through it.
+
+## What the engine returns
+
+```ts
+type EngineTurnResponse = {
+  protocolVersion: '1';
+  gameId: string;
+  sessionId: string;
+  move: Move;
+  diagnostics?: Record<string, unknown>;
+};
+```
+
+- `move` MUST be in the request's `legalMoves`. The server validates by
+  set membership; equality is structural on `(from, to, promotion)`.
+- `diagnostics` is free-form and treated as opaque. Engines SHOULD avoid
+  including hidden truth here (server logs may filter in dev mode).
+
+## Versioning
+
+- `protocolVersion: '1'` — current.
+- Adding optional fields stays at version 1. The server MAY add new
+  optional fields the engine doesn't recognize; engines MUST ignore
+  unknown fields rather than reject.
+- Removing or changing the semantics of a field is a major bump.
+- The server MAY return its supported versions during session
+  initialization (not yet specified).
+
+## Implementing an engine
+
+Minimal flow:
+
+```
+on session start:
+    initialize belief state B = {standard starting position}
+
+on each EngineTurnRequest:
+    if observationTranscript is present:
+        B = replay full observationTranscript from ply 0
+    else if latestObservationDelta is present:
+        B = apply latestObservationDelta to B
+
+    move = decide_move(
+        belief = B,
+        legal = request.legalMoves,
+        color = request.color,
+        clock = request.clock,
+        rng = seeded(request.engineSeed),
+    )
+
+    return EngineTurnResponse(
+        protocolVersion = '1',
+        gameId = request.gameId,
+        sessionId = request.sessionId,
+        move = move,
+    )
+```
+
+`decide_move` is your engine. Everything else is plumbing the protocol
+handles for you.
+
+## Stateful vs stateless engines
+
+- **Stateful:** keep belief + per-game search state across requests, apply
+  `latestObservationDelta` per turn. Necessary for any non-trivial engine
+  (recomputing belief from a full transcript every turn is wasteful).
+- **Stateless:** ignore session-scoped optimizations, recompute from
+  `observationTranscript` every turn. Simpler but slower.
+
+The protocol supports both. The server doesn't care which the engine is.
+
+## Where the spec evolves
+
+The canonical type definitions live in TypeScript; the Python mirror
+(`research/python-fow-lab/src/fow_chess/engine_protocol.py`) tracks the TS
+file 1:1. Future moves:
+
+- The first-party engine is moving to a private sibling repo
+  (`mistboard-engine`). The protocol lives in the public repo so any
+  engine — first-party private or third-party — can implement it.
+- A reference engine adapter that calls a subprocess speaking the protocol
+  over stdin/stdout JSON lines is planned (Phase 4).
+- A network-transport adapter (HTTP/WebSocket) is a possible later layer.
