@@ -8,8 +8,12 @@
   "steps": {
     "build": {
       "commands": [
+        "mkdir -p ~/.ssh && chmod 700 ~/.ssh",
+        "printf '%s\\n' \"$MISTBOARD_ENGINE_DEPLOY_KEY\" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519",
+        "ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null",
+        "git clone --depth 1 git@github.com:brianhliou/mistboard-engine.git /app/mistboard-engine",
         "...",
-        "python -m pip install --target research/python-fow-lab/vendor './research/python-fow-lab[postgres]'"
+        "python -m pip install --target /app/mistboard-engine/vendor '/app/mistboard-engine[postgres]'"
       ]
     }
   },
