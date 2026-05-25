@@ -18,6 +18,7 @@ import pg from 'pg';
 import serveHandler from 'serve-handler';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import { engineFeedbackPath } from './engine-paths.js';
 import { isPlayableLiveEngineClientId } from './engine-registry.js';
 import {
   type HttpApiContext,
@@ -176,12 +177,12 @@ const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 
 const staticDir = resolveStaticDir();
-const annotationsFile = resolveRepoPath(
-  'research',
-  'python-fow-lab',
-  'feedback',
-  'annotations.jsonl',
-);
+// annotations.jsonl lives in the private mistboard-engine's feedback/ dir
+// (local-only research data). If the engine repo isn't reachable, the
+// /annotations debug routes degrade to empty reads — engine spawn fails
+// loud when a PvE request actually arrives, which is the right place
+// to surface the missing-engine error.
+const annotationsFile = resolveAnnotationsFile();
 
 const roomMgrCtx: RoomManagerContext = {
   send,
@@ -762,6 +763,21 @@ function resolveStaticDir(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   // dist/index.js → ../../web/dist; src/index.ts (tsx dev) → same path
   return resolve(here, '..', '..', 'web', 'dist');
+}
+
+function resolveAnnotationsFile(): string {
+  try {
+    return engineFeedbackPath('annotations.jsonl');
+  } catch (err) {
+    // Engine repo not reachable. Keep the server up; annotations routes
+    // will read/write a path that doesn't resolve to a real file (the
+    // /annotations debug routes are tolerant of missing-file reads).
+    // Real engine spawn errors surface on first PvE request.
+    console.warn(
+      `[engine-paths] annotations file unavailable: ${(err as Error).message}`,
+    );
+    return resolveRepoPath('research', 'python-fow-lab', 'feedback', 'annotations.jsonl');
+  }
 }
 
 // ── SECTION: WebSocket connection handling ─────────────────────────────────

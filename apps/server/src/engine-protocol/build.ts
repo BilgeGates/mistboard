@@ -9,9 +9,9 @@
  * player is legally entitled to know.
  *
  * Tests in `build.test.ts` assert the redaction invariants. They are the
- * gate that blocks Phase 5 (extracting `research/python-fow-lab` to the
- * private engine sibling repo). Until those tests are green, do not
- * extract.
+ * gate that lets the engine live in a separate (private) repo while the
+ * public Mistboard server stays auditable — see `engine-paths.ts` for
+ * how the server resolves the private repo at runtime.
  *
  * What this file does NOT do:
  *  - Send the request anywhere. Caller routes to the engine adapter.

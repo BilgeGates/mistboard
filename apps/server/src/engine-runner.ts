@@ -1,7 +1,5 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   type Color,
   capturedRoleFor,
@@ -32,9 +30,9 @@ import {
   roomTimeControlFromEngine,
   timeoutResult,
 } from './engine-time-policy.js';
+import { engineDir, enginePython, engineScript } from './engine-paths.js';
 
 const HEARTBEAT_EVERY_PLIES = 8;
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 export async function runRandomLegalEngineGame(
   pool: pg.Pool,
@@ -592,10 +590,8 @@ type PythonGameResult = {
 };
 
 async function runPythonGameProcess(request: PythonGameRequest): Promise<PythonGameResult> {
-  const python = process.env.PYTHON_ENGINE_PYTHON ?? defaultPythonEngineBinary();
-  const script =
-    process.env.PYTHON_ENGINE_RUNNER ??
-    resolve(REPO_ROOT, 'research', 'python-fow-lab', 'scripts', 'eve_game_runner.py');
+  const python = enginePython();
+  const script = process.env.PYTHON_ENGINE_RUNNER ?? engineScript('eve_game_runner.py');
   const stockfishPath =
     process.env.PYTHON_ENGINE_STOCKFISH_PATH ??
     process.env.STOCKFISH_PATH ??
@@ -604,7 +600,7 @@ async function runPythonGameProcess(request: PythonGameRequest): Promise<PythonG
 
   return new Promise((resolvePromise, reject) => {
     const child = spawn(python, [script], {
-      cwd: REPO_ROOT,
+      cwd: engineDir(),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     const stdout: Buffer[] = [];
@@ -627,11 +623,6 @@ async function runPythonGameProcess(request: PythonGameRequest): Promise<PythonG
     });
     child.stdin.end(JSON.stringify(payload));
   });
-}
-
-function defaultPythonEngineBinary(): string {
-  const venvPython = resolve(REPO_ROOT, 'research', 'python-fow-lab', '.venv', 'bin', 'python');
-  return existsSync(venvPython) ? venvPython : 'python3';
 }
 
 function defaultStockfishPath(): string | undefined {

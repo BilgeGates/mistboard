@@ -1,10 +1,11 @@
 // Persistent Python worker pool for live engine moves.
 //
-// Each PoolWorker holds one long-lived Python interpreter open with
-// research/python-fow-lab/scripts/live_move_worker.py. The expensive part of
-// engine play (importing torch, loading Tier-1 weights, building the
-// evaluator) happens once per worker at boot, not once per move. Subsequent
-// requests pay only `strategy.reset() + observe(events) + pick_move()`.
+// Each PoolWorker holds one long-lived Python interpreter open with the
+// private mistboard-engine's scripts/live_move_worker.py (resolved via
+// engine-paths.ts; see MISTBOARD_ENGINE_DIR). The expensive part of engine
+// play (importing torch, loading Tier-1 weights, building the evaluator)
+// happens once per worker at boot, not once per move. Subsequent requests
+// pay only the per-turn protocol round-trip (EngineTurnRequest → response).
 //
 // Activation: env var MISTBOARD_PYTHON_POOL_SIZE = N (per engine_id).
 // With the var unset or <=0, this module returns null from getPythonPool()
@@ -15,8 +16,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { engineDir, enginePython, engineScript } from './engine-paths.js';
 import { logger } from './obs.js';
 
 export interface PythonPoolOptions {
@@ -437,15 +437,13 @@ export async function getPythonPool(engineId: string): Promise<PythonPool | null
   if (existing) return existing;
 
   const promise = (async () => {
-    const repoRoot = defaultRepoRoot();
     const opts: PythonPoolOptions = {
       engineId,
       size,
-      pythonBin: process.env.PYTHON_ENGINE_PYTHON ?? defaultPythonBin(repoRoot),
+      pythonBin: enginePython(),
       scriptPath:
-        process.env.PYTHON_ENGINE_LIVE_WORKER ??
-        resolve(repoRoot, 'research', 'python-fow-lab', 'scripts', 'live_move_worker.py'),
-      cwd: repoRoot,
+        process.env.PYTHON_ENGINE_LIVE_WORKER ?? engineScript('live_move_worker.py'),
+      cwd: engineDir(),
       workerSeed: Date.now(),
       stockfishPath:
         process.env.PYTHON_ENGINE_STOCKFISH_PATH ??
@@ -473,15 +471,6 @@ export function disposeAllPythonPools(): void {
     promise.then((p) => p.dispose()).catch(() => undefined);
   }
   POOLS.clear();
-}
-
-function defaultRepoRoot(): string {
-  return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-}
-
-function defaultPythonBin(repoRoot: string): string {
-  const venvPython = resolve(repoRoot, 'research', 'python-fow-lab', '.venv', 'bin', 'python');
-  return existsSync(venvPython) ? venvPython : 'python3';
 }
 
 function defaultStockfishPath(): string | undefined {

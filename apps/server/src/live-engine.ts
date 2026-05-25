@@ -1,7 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { engineDir, enginePython, engineScript } from './engine-paths.js';
 import { clockRemainingMs, type EngineTurnRequest, type Move } from '@mistboard/game';
 import { buildEngineTurnRequest } from './engine-protocol/build.js';
 import {
@@ -56,7 +55,6 @@ type ChooseLiveEngineMoveOptions = {
 };
 
 const DEFAULT_LIVE_ENGINE_TIMEOUT_MS = 3_000;
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const DIAGNOSTIC_TAIL_BYTES = 4_000;
 const PYTHON_LIVE_PROCESS_OVERHEAD_MS = 2_500;
 const PYTHON_LIVE_CLOCK_GRACE_MS = 1_000;
@@ -292,10 +290,8 @@ async function runPythonLiveMoveProcess(
   request: PythonLiveMoveRequest,
   timeoutMs: number,
 ): Promise<PythonLiveMoveResult> {
-  const python = process.env.PYTHON_ENGINE_PYTHON ?? defaultPythonEngineBinary();
-  const script =
-    process.env.PYTHON_ENGINE_LIVE_RUNNER ??
-    resolve(REPO_ROOT, 'research', 'python-fow-lab', 'scripts', 'live_move_runner.py');
+  const python = enginePython();
+  const script = process.env.PYTHON_ENGINE_LIVE_RUNNER ?? engineScript('live_move_runner.py');
   const stockfishPath =
     process.env.PYTHON_ENGINE_STOCKFISH_PATH ??
     process.env.STOCKFISH_PATH ??
@@ -304,7 +300,7 @@ async function runPythonLiveMoveProcess(
 
   return new Promise((resolvePromise, reject) => {
     const child = spawn(python, [script], {
-      cwd: REPO_ROOT,
+      cwd: engineDir(),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     const stdout: Buffer[] = [];
@@ -364,11 +360,6 @@ async function runPythonLiveMoveProcess(
     });
     child.stdin.end(JSON.stringify(payload));
   });
-}
-
-function defaultPythonEngineBinary(): string {
-  const venvPython = resolve(REPO_ROOT, 'research', 'python-fow-lab', '.venv', 'bin', 'python');
-  return existsSync(venvPython) ? venvPython : 'python3';
 }
 
 function defaultStockfishPath(): string | undefined {
