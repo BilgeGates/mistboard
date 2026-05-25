@@ -6004,11 +6004,6 @@ a.landing-announcement-card-inner:focus-visible {
     .account-route
   ):not(.profile-route):not(.source-route)
   #landing-replay
-  .replay-captures,
-.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
-    .account-route
-  ):not(.profile-route):not(.source-route)
-  #landing-replay
   .replay-game-meta-card-compact {
   display: none;
 }
@@ -6099,10 +6094,12 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 .landing-page #landing-replay .replay-captures {
-  --capture-piece-size: 35px;
+  --capture-piece-size: clamp(24px, calc((100% - 14px) / 8), 35px);
+  --capture-row-gap: 2px;
 
   max-width: min(100%, 600px);
-  min-height: calc(var(--capture-piece-size) + 4px);
+  height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 6px);
+  min-height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 6px);
   padding-top: 3px;
 }
 
