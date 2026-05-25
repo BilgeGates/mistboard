@@ -6000,6 +6000,19 @@ a.landing-announcement-card-inner:focus-visible {
   padding: clamp(6px, 0.9vw, 12px);
 }
 
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
+    .account-route
+  ):not(.profile-route):not(.source-route)
+  #landing-replay
+  .replay-captures,
+.landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
+    .account-route
+  ):not(.profile-route):not(.source-route)
+  #landing-replay
+  .replay-game-meta-card-compact {
+  display: none;
+}
+
 .landing-page #landing-replay .replay-game-id {
   color: #66706a;
 }
