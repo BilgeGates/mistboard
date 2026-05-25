@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { compactReplayClockSidesForOrientation, resolveWallClockReplayPosition } from './replay.js';
+import {
+  compactReplayClockSidesForOrientation,
+  resolveWallClockReplayPosition,
+  resolveWallClockThinkingElapsedMs,
+} from './replay.js';
 
 describe('compactReplayClockSidesForOrientation', () => {
   it('puts the side facing the top of a white-oriented board above the board', () => {
@@ -77,5 +81,16 @@ describe('resolveWallClockReplayPosition', () => {
 
   it('returns null for an empty corpus', () => {
     expect(resolveWallClockReplayPosition([], 100, timing)).toBeNull();
+  });
+});
+
+describe('resolveWallClockThinkingElapsedMs', () => {
+  it('advances homepage clock text at real elapsed time, not compressed replay speed', () => {
+    expect(resolveWallClockThinkingElapsedMs(450, 5_000)).toBe(450);
+    expect(resolveWallClockThinkingElapsedMs(900, 5_000)).toBe(900);
+  });
+
+  it('caps elapsed time at the recorded think time', () => {
+    expect(resolveWallClockThinkingElapsedMs(1_200, 750)).toBe(750);
   });
 });

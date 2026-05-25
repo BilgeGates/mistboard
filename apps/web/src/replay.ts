@@ -140,6 +140,10 @@ export function resolveWallClockReplayPosition(
   };
 }
 
+export function resolveWallClockThinkingElapsedMs(plyElapsedMs: number, thinkMs: number): number {
+  return Math.min(nonNegativeMs(plyElapsedMs, 0), nonNegativeMs(thinkMs, 0));
+}
+
 export type GameMeta = {
   whiteName: string | null;
   blackName: string | null;
@@ -909,10 +913,7 @@ export async function mountReplay(
     const plyMs = positiveMs(wallClockLoop.plyMs, FALLBACK_PLAY_MS);
     const nextPly = currentPly + 1;
     const thinkMs = thinkingDurationForPly(nextPly) ?? plyMs;
-    const elapsedMs = Math.min(
-      Math.max(0, thinkMs),
-      Math.max(0, (wallClockPosition.plyElapsedMs / plyMs) * thinkMs),
-    );
+    const elapsedMs = resolveWallClockThinkingElapsedMs(wallClockPosition.plyElapsedMs, thinkMs);
     return {
       activeColor: state.status.turn,
       budgetMs,
