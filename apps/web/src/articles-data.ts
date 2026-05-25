@@ -158,6 +158,7 @@ export type Article = {
   publishedAt?: string;
   updatedAt?: string;
   tldr?: string[];
+  intro?: ArticleBlock[];
   thumbnail?: ArticleThumbnail;
   sections: ArticleSection[];
 };
@@ -1630,19 +1631,21 @@ export const articles: Article[] = [
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
     status: 'published',
     publishedAt: '2026-05-22',
-    updatedAt: '2026-05-22',
+    updatedAt: '2026-05-24',
     audience:
       'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
     thumbnail: ARTICLE_OG_POSITIONS['dark-chess-rules'],
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          "[Dark chess](https://en.wikipedia.org/wiki/Dark_chess) (also called Fog of War) was invented by Jens Bæk Nielsen and Torben Osted in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.",
+      },
+    ],
     sections: [
       {
         heading: 'The starting position',
         blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              "[Dark chess](https://en.wikipedia.org/wiki/Dark_chess) (also called Fog of War) was invented by Jens Bæk Nielsen and Torben Osted in 1989. It is the implicit-fog version of the idea: no umpire, no scan action. Each side's visibility is derived from where its pieces can legally move.",
-          },
           {
             kind: 'paragraph',
             text:

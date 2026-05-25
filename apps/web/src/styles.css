@@ -3845,6 +3845,17 @@ body:has(
   margin: 0 0 28px;
 }
 
+.article-intro {
+  margin: 14px 0 10px;
+}
+
+.article-intro .article-paragraph {
+  color: #27312b;
+  font-size: 17px;
+  line-height: 1.75;
+  margin: 0;
+}
+
 .article-section-heading {
   font-size: 20px;
   color: #1f2521;

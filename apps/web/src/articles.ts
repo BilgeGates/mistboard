@@ -118,6 +118,13 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     main.append(dates);
   }
 
+  if (article.intro && article.intro.length > 0) {
+    const intro = document.createElement('div');
+    intro.className = 'article-intro';
+    for (const block of article.intro) intro.append(renderBlock(block));
+    main.append(intro);
+  }
+
   if (article.tldr && article.tldr.length > 0) {
     const tldr = document.createElement('aside');
     tldr.className = 'article-tldr';
