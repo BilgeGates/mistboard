@@ -3392,7 +3392,12 @@ body:has(
     clamp(280px, 24vw, 340px)
     minmax(0, 1fr)
     clamp(280px, 24vw, 340px);
-  gap: clamp(20px, 3vw, 40px);
+  grid-template-areas:
+    "hero board play"
+    "announcements board play";
+  grid-template-rows: auto auto;
+  column-gap: clamp(20px, 3vw, 40px);
+  row-gap: clamp(10px, 1.4vw, 16px);
   align-items: stretch;
   justify-content: center;
   width: 100%;
@@ -3408,14 +3413,17 @@ body:has(
     .account-route
   ):not(.profile-route):not(.source-route)
   .landing-demo {
-  gap: clamp(20px, 3vw, 40px);
+  column-gap: clamp(20px, 3vw, 40px);
+  row-gap: clamp(10px, 1.4vw, 16px);
   padding: 0;
 }
 
 .landing-board-column {
+  grid-area: board;
   display: flex;
   flex-direction: column;
   align-items: center;
+  align-self: center;
   gap: clamp(10px, 1.4vw, 16px);
   min-width: 0;
 }
@@ -3443,38 +3451,44 @@ body:has(
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
     .account-route
   ):not(.profile-route):not(.source-route)
-  .landing-play-panel,
+  .landing-play-panel {
+  align-self: center;
+}
+
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
     .account-route
   ):not(.profile-route):not(.source-route)
   .landing-announcements {
-  align-self: center;
+  align-self: start;
 }
 
 .landing-hero-header {
+  grid-area: hero;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  align-self: end;
+  gap: 4px;
   width: 100%;
 }
 
 .landing-hero-tagline {
   margin: 0;
-  text-align: center;
-  font-size: clamp(28px, 3.2vw, 40px);
+  text-align: left;
+  font-size: clamp(27px, 2vw, 31px);
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.1;
   color: #1f2521;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .landing-hero-subtagline {
   margin: 0;
-  text-align: center;
-  font-size: clamp(15px, 1.5vw, 18px);
+  max-width: 30ch;
+  text-align: left;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.35;
   color: #5a625d;
   letter-spacing: 0;
 }
@@ -4542,6 +4556,7 @@ body:has(
 }
 
 .landing-play-panel {
+  grid-area: play;
   display: flex;
   flex-direction: column;
   align-self: stretch;
@@ -4557,6 +4572,7 @@ body:has(
 }
 
 .landing-announcements {
+  grid-area: announcements;
   display: flex;
   flex-direction: column;
   align-self: stretch;
@@ -6094,17 +6110,6 @@ a.landing-announcement-card-inner:focus-visible {
     0 12px 26px rgba(43, 49, 45, 0.14);
 }
 
-.landing-page #landing-replay .replay-captures {
-  --capture-piece-size: clamp(24px, calc((100cqw - 14px) / 8), 35px);
-  --capture-row-gap: 2px;
-
-  container-type: inline-size;
-  max-width: min(100%, 600px);
-  height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 6px);
-  min-height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 6px);
-  padding-top: 3px;
-}
-
 /* Chessground floors the inner container width to a multiple of 8 physical
    pixels for crisp squares (render.js updateBounds). With its default
    top:0;left:0 positioning, the leftover always lands on bottom/right. The
@@ -7518,9 +7523,15 @@ a.landing-announcement-card-inner:focus-visible {
   }
 
   .landing-demo {
+    grid-template-areas:
+      "hero"
+      "board"
+      "play"
+      "announcements";
     max-width: 720px;
   }
 
+  .landing-hero-header,
   .landing-board-column,
   .landing-demo .landing-play-panel,
   .landing-demo .landing-announcements,
@@ -7529,20 +7540,35 @@ a.landing-announcement-card-inner:focus-visible {
     grid-column: auto;
   }
 
-  .landing-board-column {
+  .landing-hero-header {
     order: 0;
+    align-items: center;
+    align-self: center;
   }
 
-  .landing-play-panel {
+  .landing-hero-tagline,
+  .landing-hero-subtagline {
+    text-align: center;
+  }
+
+  .landing-hero-subtagline {
+    max-width: 34ch;
+  }
+
+  .landing-board-column {
     order: 1;
   }
 
-  .landing-announcements {
+  .landing-play-panel {
     order: 2;
   }
 
   .landing-games {
     order: 3;
+  }
+
+  .landing-announcements {
+    order: 4;
   }
 
   .watch-games {

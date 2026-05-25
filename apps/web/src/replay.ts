@@ -206,6 +206,8 @@ export type ReplayOptions = {
     | { resolver: (sampleId: string, meta: GameMeta | undefined) => 'white' | 'black' | 'all' };
   /** When true, suppress the compact-mode game id pill (room slug). */
   hideGameIdPill?: boolean;
+  /** When false, do not render captured-piece strips under replay boards. */
+  showCaptures?: boolean;
   /**
    * When set, enables the annotation tooling. Press `a` at any ply to open
    * the modal pre-filled with the move just played. Annotations persist via
@@ -262,6 +264,7 @@ export async function mountReplay(
   const metadataMode = options.metadataMode ?? 'full';
   const panesResolver = typeof options.panes === 'object' ? options.panes.resolver : null;
   const hideGameIdPill = options.hideGameIdPill === true;
+  const showCaptures = options.showCaptures !== false;
   const onPlyChange = options.onPlyChange;
   const initialMeta = metadataByRoomId?.[initialReplaySampleId];
   const initialOrientation = orientationForId?.(initialReplaySampleId, initialMeta);
@@ -301,9 +304,9 @@ export async function mountReplay(
   let whiteBaseLabel = "White's view";
   let blackBaseLabel = "Black's view";
 
-  const whitePane = createPane(whiteBaseLabel, 'white');
-  const truthPane = createPane('Truth', 'truth');
-  const blackPane = createPane(blackBaseLabel, 'black');
+  const whitePane = createPane(whiteBaseLabel, 'white', showCaptures);
+  const truthPane = createPane('Truth', 'truth', showCaptures);
+  const blackPane = createPane(blackBaseLabel, 'black', showCaptures);
   layout.append(whitePane.el, truthPane.el, blackPane.el);
   // Apply the pane choice synchronously so the triptych doesn't flash before
   // loadGame() finishes its async fetch and calls applyMetadata().
@@ -499,7 +502,7 @@ export async function mountReplay(
     const sliced = sliceToPly(events, currentPly);
     const projection = replayGameEvents(sliced);
     const state = projection.state;
-    const captures = computeCaptures(sliced);
+    const captures = showCaptures ? computeCaptures(sliced) : null;
     const finished = state.status.type === 'finished';
     renderClockState(state, sliced);
 
@@ -544,9 +547,11 @@ export async function mountReplay(
       : blackBaseLabel;
     whitePane.el.classList.toggle('revealed', showRevealLabels);
     blackPane.el.classList.toggle('revealed', showRevealLabels);
-    renderPaneCaptures(whitePane.capturesEl, captures.white, 'black');
-    renderPaneCaptures(blackPane.capturesEl, captures.black, 'white');
-    renderTruthCaptures(truthPane.capturesEl, captures);
+    if (captures) {
+      renderPaneCaptures(whitePane.capturesEl, captures.white, 'black');
+      renderPaneCaptures(blackPane.capturesEl, captures.black, 'white');
+      renderTruthCaptures(truthPane.capturesEl, captures);
+    }
 
     if (showControls) {
       const annotMark = annotation && annotationsAtPly(currentPly).length > 0 ? ' ★' : '';
@@ -2164,6 +2169,7 @@ function numericValue(value: unknown): number | null {
 function createPane(
   label: string,
   kind: 'white' | 'truth' | 'black',
+  showCaptures = true,
 ): {
   el: HTMLDivElement;
   boardEl: HTMLDivElement;
@@ -2189,7 +2195,11 @@ function createPane(
   clockSlot.className = 'replay-pane-clock-slot';
   const statusEl = document.createElement('div');
   statusEl.className = 'replay-pane-status';
-  el.append(labelEl, nameEl, boardEl, capturesEl, clockSlot, statusEl);
+  if (showCaptures) {
+    el.append(labelEl, nameEl, boardEl, capturesEl, clockSlot, statusEl);
+  } else {
+    el.append(labelEl, nameEl, boardEl, clockSlot, statusEl);
+  }
   return { el, boardEl, capturesEl, clockSlot, labelEl, nameEl, statusEl };
 }
 

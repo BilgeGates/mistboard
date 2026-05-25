@@ -169,6 +169,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     metadataMode: 'compact',
     metadataByRoomId,
     hideGameIdPill: true,
+    showCaptures: false,
     panes: { resolver: (sampleId) => povByRoomId[sampleId] ?? 'white' },
   });
 }
@@ -766,12 +767,12 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
 
-  boardColumn.append(heroHeader, replayRoot);
+  boardColumn.append(replayRoot);
 
   const announcements = buildLandingAnnouncements();
   const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
-  section.append(announcements, boardColumn, playPanel);
+  section.append(heroHeader, announcements, boardColumn, playPanel);
   stage.append(section);
   return { el: stage, replayRoot };
 }
