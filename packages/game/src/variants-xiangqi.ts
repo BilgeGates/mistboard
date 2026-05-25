@@ -57,10 +57,9 @@ export type XiangqiMove = {
 //   C — screen revealed with type, target shrouded
 //   D — screen shrouded with ? marker, target revealed (inverse of C —
 //       "you see what you can land on, not what enables the line")
-//   E — screen + the gap between screen and target are FOGGED (dropped from
-//       visibleSquares, no ? marker); target revealed. Unlike A-D this changes
-//       the visible SET, not just rendering: you see the piece you can capture
-//       but not where the enabling screen sits.
+//   E — screen is FOGGED (dropped from visibleSquares, no ? marker); target
+//       revealed. Empty gap squares between screen and target stay fogged in
+//       every mode because the cannon cannot legally land there.
 export type XiangqiCannonVisionMode = 'A' | 'B' | 'C' | 'D' | 'E';
 
 export type XiangqiVisibleBoardEntry = {
@@ -502,10 +501,9 @@ type VisionAccum = {
   shroudedBlockers: Set<XiangqiSquare>;
   cannonScreens: Set<XiangqiSquare>;
   cannonTargets: Set<XiangqiSquare>;
-  // Empty squares between a cannon's screen and its target — within the
-  // field of fire. Tracked separately from directlyVisible so mode E can
-  // drop them from the visible set without affecting squares another piece
-  // genuinely sees.
+  // Empty squares between a cannon's screen and its target. These are tracked
+  // for diagnostics and marker experiments, but player views keep them fogged
+  // because the cannon cannot legally land there.
   cannonPath: Set<XiangqiSquare>;
 };
 
@@ -676,12 +674,13 @@ function cannonVisionInto(
   file: number,
   rank: number,
 ): void {
-  // Vision = squares the cannon can attack. Along each rook ray:
+  // Vision = squares the cannon can legally reach plus cannon-specific
+  // occupancy needed to explain screened captures. Along each rook ray:
   //   1. Empty squares up to the first piece → quiet-move targets, visible.
   //   2. First piece encountered = the SCREEN, always visible.
   //   3. If there is an ENEMY piece past the screen, the cannon can capture
-  //      it; the empty squares between screen and target are within the
-  //      cannon's field of fire, so they become visible too.
+  //      it; the empty squares between screen and target are tracked as
+  //      cannonPath but not surfaced as visible squares.
   //   4. The enemy target is rendered per A/B/C mode (cannonTargets).
   //   5. If there is no enemy target (only own piece past screen, or off
   //      board), the cannon cannot attack past the screen — vision ends
@@ -778,7 +777,6 @@ export function getVisibleSquares(state: XiangqiGameState, color: XiangqiColor):
     ...v.shroudedBlockers,
     ...v.cannonScreens,
     ...v.cannonTargets,
-    ...v.cannonPath,
   ]);
   return [...all].sort();
 }
@@ -799,10 +797,9 @@ export function getPlayerView(
   // is shrouded the player sees "something is here, identity unknown," which
   // also serves as the Mode-D "screen has a ? marker" hint that the capture
   // line exists.
-  // Mode E fogs the screen and the gap entirely: they are dropped from the
-  // visible set (rendered as fog, no piece, no ? marker). The other modes keep
-  // screen + gap visible and only vary the shrouded flag.
-  const fogScreenAndGap = mode === 'E';
+  // The gap between screen and target is always fogged: those empty squares
+  // are not legal cannon destinations. Mode E additionally fogs the screen.
+  const fogScreen = mode === 'E';
   const screenShrouded = mode === 'B' || mode === 'D';
   const targetShrouded = mode === 'B' || mode === 'C';
 
@@ -815,7 +812,7 @@ export function getPlayerView(
     const piece = state.board[sq];
     if (piece) playerBoard[sq] = { piece, shrouded: true };
   }
-  if (!fogScreenAndGap) {
+  if (!fogScreen) {
     for (const sq of vision.cannonScreens) {
       if (playerBoard[sq]) continue;
       const piece = state.board[sq];
@@ -828,15 +825,14 @@ export function getPlayerView(
     if (piece) playerBoard[sq] = { piece, shrouded: targetShrouded };
   }
 
-  // Build the visible set from the accum so mode E can exclude the screen and
-  // gap. The target is always visible (you can capture it); a screen/gap square
+  // Build the visible set from the accum so mode E can exclude the screen.
+  // The target is always visible because it can be captured; a screen square
   // that another piece genuinely sees stays visible via directlyVisible.
   const visibleSet = new Set<XiangqiSquare>(vision.directlyVisible);
   for (const sq of vision.shroudedBlockers) visibleSet.add(sq);
   for (const sq of vision.cannonTargets) visibleSet.add(sq);
-  if (!fogScreenAndGap) {
+  if (!fogScreen) {
     for (const sq of vision.cannonScreens) visibleSet.add(sq);
-    for (const sq of vision.cannonPath) visibleSet.add(sq);
   }
   const visibleSquares = [...visibleSet].sort();
 

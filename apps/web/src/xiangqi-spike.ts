@@ -863,7 +863,7 @@ function controlsHtml(s: SpikeState): string {
         <span class="xq-control-label">Cannon vision</span>
         ${modeBtn('A', 'A · full reveal')}
         ${modeBtn('D', 'D · screen shrouded, target full')}
-        ${modeBtn('E', 'E · screen+gap fogged, target full')}
+        ${modeBtn('E', 'E · screen fogged, target full')}
       </div>
       <div class="xq-control-row">
         <span class="xq-control-label">Fog style</span>

@@ -458,9 +458,10 @@ test('chariot vision stops at first piece (sees the blocker but not past it)', (
   );
 });
 
-test('cannon vision extends through empty squares between screen and enemy target', () => {
+test('cannon vision tracks but does not reveal empty gap squares behind the screen', () => {
   // Red cannon at h3 with red elephant screen at e3, black chariot target at b3.
-  // Empty squares between screen and target (d3, c3) should be visible.
+  // Empty squares between screen and target (d3, c3) are not legal cannon
+  // destinations, so they stay fogged in player views.
   const state: XiangqiGameState = {
     id: 't',
     board: {
@@ -482,13 +483,13 @@ test('cannon vision extends through empty squares between screen and enemy targe
   // Screen + target squares
   assert.ok(v.cannonScreens.has('e3'), 'e3 elephant is the screen');
   assert.ok(v.cannonTargets.has('b3'), 'b3 chariot is the captureable target');
-  // Empty squares between screen and target — within the cannon's field of
-  // fire. Tracked in cannonPath (visible in modes A-D, fogged in mode E).
-  assert.ok(v.cannonPath.has('d3'), 'd3 between screen and target should be in the field of fire');
-  assert.ok(v.cannonPath.has('c3'), 'c3 between screen and target should be in the field of fire');
-  // And they surface as visible squares in the default (non-E) view.
+  // Empty squares between screen and target are tracked for diagnostics and
+  // marker experiments, but do not surface as visible squares.
+  assert.ok(v.cannonPath.has('d3'), 'd3 between screen and target should be tracked');
+  assert.ok(v.cannonPath.has('c3'), 'c3 between screen and target should be tracked');
   const visible = getVisibleSquares(state, 'red');
-  assert.ok(visible.includes('d3') && visible.includes('c3'), 'gap squares visible in non-E modes');
+  assert.ok(!visible.includes('d3'), 'gap square d3 should stay fogged');
+  assert.ok(!visible.includes('c3'), 'gap square c3 should stay fogged');
 });
 
 test('cannon vision stops at the screen when there is no enemy target past it', () => {
@@ -776,7 +777,7 @@ test('cannon-vision modes A/B/C/D: target square rendering differs', () => {
   assert.equal(viewD.board.b8!.shrouded, true, 'D shrouds the screen');
 });
 
-test('cannon-vision mode E: screen + gap fogged, target revealed', () => {
+test('cannon-vision mode E: screen fogged, target revealed', () => {
   const state = createInitialXiangqiState('t');
   // Red cannon b3, screen b8 (black cannon), gap b9, target b10 (black horse).
   const viewD = getPlayerView(state, 'red', 'D');
@@ -791,8 +792,8 @@ test('cannon-vision mode E: screen + gap fogged, target revealed', () => {
   assert.equal(viewE.board.b8, undefined, 'E does not render the screen (fogged)');
   assert.ok(!viewE.visibleSquares.includes('b8'), 'E fogs the screen square');
 
-  // Gap b9: visible under D (field of fire), fogged under E.
-  assert.ok(viewD.visibleSquares.includes('b9'), 'D shows the gap as visible');
+  // Gap b9: fogged in every mode because the cannon cannot land there.
+  assert.ok(!viewD.visibleSquares.includes('b9'), 'D fogs the gap');
   assert.ok(!viewE.visibleSquares.includes('b9'), 'E fogs the gap');
 });
 

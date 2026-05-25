@@ -1165,8 +1165,8 @@ function formatWaitAge(waitingMs: number): string {
 
 // Deep link: `/?play=lobby` (also `friend` / `computer`) auto-opens the
 // matching play-setup modal on landing load, so article CTAs can drop a
-// visitor straight into "Find opponent". The param is cleared from the URL
-// once consumed so a refresh doesn't reopen it.
+// visitor straight into "Find opponent". Consumed params are cleared from the
+// URL so a refresh doesn't reopen the modal or trigger the dev live shortcut.
 function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
   const params = new URLSearchParams(window.location.search);
   const play = params.get('play');
@@ -1204,6 +1204,7 @@ function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
   }
 
   params.delete('play');
+  params.delete('variant');
   const query = params.toString();
   const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
   window.history.replaceState(null, '', url);

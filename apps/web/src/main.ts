@@ -44,8 +44,11 @@ const params = new URLSearchParams(window.location.search);
 const path = window.location.pathname.replace(/\/+$/, '') || '/';
 const replaySample = params.get('replay');
 const bakeoffParam = params.get('bakeoff');
+const playDeepLink = params.get('play');
 const wantsLive =
-  import.meta.env.DEV && (params.has('room') || params.has('variant') || params.has('dev'));
+  import.meta.env.DEV &&
+  !playDeepLink &&
+  (params.has('room') || params.has('variant') || params.has('dev'));
 const page = params.get('page');
 const engineLabEnabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
 const wantsEngineLab =

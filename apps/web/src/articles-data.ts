@@ -1407,6 +1407,16 @@ function xqSvg(width: number, height: number, body: string): string {
   return `<svg viewBox="0 0 ${paddedWidth} ${paddedHeight}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
 
+function xqViewWithExtraVisibleSquares(
+  view: XiangqiPlayerView,
+  squares: XiangqiSquare[],
+): XiangqiPlayerView {
+  return {
+    ...view,
+    visibleSquares: [...new Set([...view.visibleSquares, ...squares])].sort(),
+  };
+}
+
 const XQ_START_RED = getXiangqiPlayerView(XQ_START, 'red', 'D');
 const XQ_START_BLACK = getXiangqiPlayerView(XQ_START, 'black', 'D');
 const XQ_START_TRIPTYCH = xqSvg(
@@ -1557,9 +1567,9 @@ const XQ_VISION_MOVE_PAIR = xqSvg(
 const XQ_CANNON_RULE_STATE: XiangqiGameState = {
   id: 'xq-cannon-rule',
   board: {
-    f7: { color: 'red', role: 'cannon' },
+    e7: { color: 'red', role: 'cannon' },
     c7: { color: 'black', role: 'soldier' },
-    f10: { color: 'black', role: 'advisor' },
+    e10: { color: 'black', role: 'general' },
     g7: { color: 'black', role: 'soldier' },
     i7: { color: 'black', role: 'soldier' },
   },
@@ -1610,10 +1620,14 @@ const XQ_FACING_GENERAL_CAPTURED = applyXiangqiMove(XQ_FACING_GENERAL_EXPOSED, {
   from: 'e1' as XiangqiSquare,
   to: 'e10' as XiangqiSquare,
 });
+const XQ_FACING_GENERAL_CAPTURED_RED = xqViewWithExtraVisibleSquares(
+  getXiangqiPlayerView(XQ_FACING_GENERAL_CAPTURED, 'red', 'D'),
+  ['d10', 'e9', 'f10'] as XiangqiSquare[],
+);
 const XQ_FACING_GENERAL_STEPS = [
   {
     svg: xqSvg(
-      XQ_BOARD_W * 3 + 56,
+      XQ_BOARD_W * 2 + 28,
       XQ_BOARD_H + 52,
       [
         xqBoardSvg({
@@ -1631,20 +1645,12 @@ const XQ_FACING_GENERAL_STEPS = [
           label: 'SERVER TRUTH',
           perspective: 'red',
         }),
-        xqBoardSvg({
-          state: XQ_FACING_GENERAL_BEFORE,
-          view: getXiangqiPlayerView(XQ_FACING_GENERAL_BEFORE, 'black', 'D'),
-          x: (XQ_BOARD_W + 28) * 2,
-          y: 0,
-          label: "BLACK'S VIEW",
-          perspective: 'red',
-        }),
       ].join(''),
     ),
   },
   {
     svg: xqSvg(
-      XQ_BOARD_W * 3 + 56,
+      XQ_BOARD_W * 2 + 28,
       XQ_BOARD_H + 52,
       [
         xqBoardSvg({
@@ -1663,25 +1669,17 @@ const XQ_FACING_GENERAL_STEPS = [
           perspective: 'red',
           arrows: [{ from: 'd10' as XiangqiSquare, to: 'e10' as XiangqiSquare }],
         }),
-        xqBoardSvg({
-          state: XQ_FACING_GENERAL_EXPOSED,
-          view: getXiangqiPlayerView(XQ_FACING_GENERAL_EXPOSED, 'black', 'D'),
-          x: (XQ_BOARD_W + 28) * 2,
-          y: 0,
-          label: "BLACK'S VIEW",
-          perspective: 'red',
-        }),
       ].join(''),
     ),
   },
   {
     svg: xqSvg(
-      XQ_BOARD_W * 3 + 56,
+      XQ_BOARD_W * 2 + 28,
       XQ_BOARD_H + 52,
       [
         xqBoardSvg({
           state: XQ_FACING_GENERAL_CAPTURED,
-          view: getXiangqiPlayerView(XQ_FACING_GENERAL_CAPTURED, 'red', 'D'),
+          view: XQ_FACING_GENERAL_CAPTURED_RED,
           x: 0,
           y: 0,
           label: "RED'S VIEW",
@@ -1694,14 +1692,6 @@ const XQ_FACING_GENERAL_STEPS = [
           label: 'SERVER TRUTH',
           perspective: 'red',
           arrows: [{ from: 'e1' as XiangqiSquare, to: 'e10' as XiangqiSquare }],
-        }),
-        xqBoardSvg({
-          state: XQ_FACING_GENERAL_CAPTURED,
-          view: getXiangqiPlayerView(XQ_FACING_GENERAL_CAPTURED, 'black', 'D'),
-          x: (XQ_BOARD_W + 28) * 2,
-          y: 0,
-          label: "BLACK'S VIEW",
-          perspective: 'red',
         }),
       ].join(''),
     ),
@@ -2384,7 +2374,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Dark Xiangqi is not a public Mistboard room yet. The live game today is Mistboard dark chess: open a board, share the link, play. No account required.',
+            text: 'Use the Dark Xiangqi lobby link below to find an opponent. Casual play stays account-optional.',
           },
           {
             kind: 'paragraph',
@@ -2393,7 +2383,7 @@ export const articles: Article[] = [
           {
             kind: 'cta',
             buttons: [
-              { label: 'Play dark chess', href: '/?play=lobby', emphasis: 'primary' },
+              { label: 'Find a Dark Xiangqi opponent', href: '/?play=lobby&variant=dark-xiangqi', emphasis: 'primary' },
             ],
           } as ArticleBlock,
         ],
