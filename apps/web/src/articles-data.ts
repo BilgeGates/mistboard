@@ -1220,6 +1220,8 @@ const XQ_MARGIN = 24;
 const XQ_BOARD_W = XQ_MARGIN * 2 + 8 * XQ_CELL;
 const XQ_BOARD_H = XQ_MARGIN * 2 + 9 * XQ_CELL;
 const XQ_PIECE_SIZE = 26;
+const XQ_FOG_OVERLAP = 0.75;
+const XQ_VIEWBOX_PAD = 4;
 
 const XQ_START = createInitialXiangqiState('article-xiangqi-start');
 
@@ -1292,12 +1294,14 @@ function xqFogLayer(view: XiangqiPlayerView | null, x0: number, y0: number, pers
       const sq = xiangqiSquareOf(file, rank);
       if (visible.has(sq)) continue;
       const { x, y } = xqPoint(file, rank, perspective, x0, y0);
-      parts.push(
-        `<rect x="${x - XQ_CELL / 2}" y="${y - XQ_CELL / 2}" width="${XQ_CELL}" height="${XQ_CELL}" fill="#24190f" opacity="0.55"/>`,
-      );
+      const left = x - XQ_CELL / 2 - XQ_FOG_OVERLAP;
+      const top = y - XQ_CELL / 2 - XQ_FOG_OVERLAP;
+      const size = XQ_CELL + XQ_FOG_OVERLAP * 2;
+      parts.push(`M ${left} ${top} h ${size} v ${size} h ${-size} Z`);
     }
   }
-  return parts.join('');
+  if (parts.length === 0) return '';
+  return `<path d="${parts.join(' ')}" fill="#24190f" opacity="0.55"/>`;
 }
 
 function xqCannonTargets(
@@ -1398,7 +1402,9 @@ function xqBoardSvg(opts: {
 }
 
 function xqSvg(width: number, height: number, body: string): string {
-  return `<svg viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+  const paddedWidth = width + XQ_VIEWBOX_PAD * 2;
+  const paddedHeight = height + XQ_VIEWBOX_PAD * 2;
+  return `<svg viewBox="0 0 ${paddedWidth} ${paddedHeight}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
 
 const XQ_START_RED = getXiangqiPlayerView(XQ_START, 'red', 'D');
@@ -1551,11 +1557,11 @@ const XQ_VISION_MOVE_PAIR = xqSvg(
 const XQ_CANNON_RULE_STATE: XiangqiGameState = {
   id: 'xq-cannon-rule',
   board: {
-    e1: { color: 'red', role: 'general' },
-    h3: { color: 'red', role: 'cannon' },
-    e3: { color: 'black', role: 'soldier' },
-    b3: { color: 'black', role: 'chariot' },
-    e10: { color: 'black', role: 'general' },
+    f7: { color: 'red', role: 'cannon' },
+    c7: { color: 'black', role: 'soldier' },
+    f10: { color: 'black', role: 'advisor' },
+    g7: { color: 'black', role: 'soldier' },
+    i7: { color: 'black', role: 'soldier' },
   },
   status: { type: 'playing', turn: 'red' },
   moveNumber: 12,
@@ -1635,8 +1641,6 @@ const XQ_FACING_GENERAL_STEPS = [
         }),
       ].join(''),
     ),
-    narrative:
-      "Before Black steps onto the e-file, each player sees only their own general's local palace moves.",
   },
   {
     svg: xqSvg(
@@ -1669,8 +1673,6 @@ const XQ_FACING_GENERAL_STEPS = [
         }),
       ].join(''),
     ),
-    narrative:
-      'Black steps onto the open e-file. Facing generals are allowed, and now both players can see the danger.',
   },
   {
     svg: xqSvg(
@@ -1703,35 +1705,59 @@ const XQ_FACING_GENERAL_STEPS = [
         }),
       ].join(''),
     ),
-    narrative:
-      'Red captures straight up the clear file. The black general is removed and Red wins.',
   },
 ];
 
-const XQ_BLOCKED_LEGS_EYES_STATE = xqVisionDemoState('xq-blocked-legs-eyes', {
-  c5: { color: 'red', role: 'elephant' },
-  e3: { color: 'red', role: 'elephant' },
+const XQ_BLOCKED_HORSE_LEGS_STATE = xqVisionDemoState('xq-blocked-horse-legs', {
   c8: { color: 'red', role: 'horse' },
   g9: { color: 'red', role: 'horse' },
-  b4: { color: 'black', role: 'soldier' },
-  f4: { color: 'black', role: 'soldier' },
   c7: { color: 'black', role: 'soldier' },
-  d8: { color: 'black', role: 'soldier' },
+  d8: { color: 'black', role: 'advisor' },
+  f9: { color: 'black', role: 'general' },
+  g8: { color: 'black', role: 'horse' },
 });
-const XQ_BLOCKED_LEGS_EYES_PAIR = xqSvg(
+const XQ_BLOCKED_HORSE_LEGS_PAIR = xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
     xqBoardSvg({
-      state: XQ_BLOCKED_LEGS_EYES_STATE,
-      view: getXiangqiPlayerView(XQ_BLOCKED_LEGS_EYES_STATE, 'red', 'D'),
+      state: XQ_BLOCKED_HORSE_LEGS_STATE,
+      view: getXiangqiPlayerView(XQ_BLOCKED_HORSE_LEGS_STATE, 'red', 'D'),
       x: 0,
       y: 0,
       label: "RED'S VIEW",
       perspective: 'red',
     }),
     xqBoardSvg({
-      state: XQ_BLOCKED_LEGS_EYES_STATE,
+      state: XQ_BLOCKED_HORSE_LEGS_STATE,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'SERVER TRUTH',
+      perspective: 'red',
+    }),
+  ].join(''),
+);
+
+const XQ_BLOCKED_ELEPHANT_EYES_STATE = xqVisionDemoState('xq-blocked-elephant-eyes', {
+  c5: { color: 'red', role: 'elephant' },
+  e3: { color: 'red', role: 'elephant' },
+  b4: { color: 'black', role: 'soldier' },
+  f4: { color: 'black', role: 'soldier' },
+});
+const XQ_BLOCKED_ELEPHANT_EYES_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_BLOCKED_ELEPHANT_EYES_STATE,
+      view: getXiangqiPlayerView(XQ_BLOCKED_ELEPHANT_EYES_STATE, 'red', 'D'),
+      x: 0,
+      y: 0,
+      label: "RED'S VIEW",
+      perspective: 'red',
+    }),
+    xqBoardSvg({
+      state: XQ_BLOCKED_ELEPHANT_EYES_STATE,
       x: XQ_BOARD_W + 28,
       y: 0,
       label: 'SERVER TRUTH',
@@ -1742,6 +1768,8 @@ const XQ_BLOCKED_LEGS_EYES_PAIR = xqSvg(
 
 // Fixed from a random-vs-random Xiangqi bot game: seed 2, red's 141st-ply
 // chariot move d2xd8 captures the black general.
+// TODO: Replace this article diagram with a more natural xiangqi position
+// before publication; the random-bot origin makes the current layout feel arbitrary.
 const XQ_GENERAL_CAPTURE_BEFORE: XiangqiGameState = {
   id: 'xq-general-capture-before-bot-seed-2',
   board: {
@@ -2279,14 +2307,13 @@ export const articles: Article[] = [
           },
           { kind: 'sub-heading', text: 'Vision changes as your pieces move' },
           {
-            kind: 'raw-svg',
-            svg: XQ_VISION_MOVE_PAIR,
-            caption: "Red's chariot moves from b2 to b9. Its new rank reveals the black chariot on a9 and the black general on e9.",
-          } as ArticleBlock,
-          {
             kind: 'paragraph',
             text: 'When a piece moves, its old vision can disappear and its new vision appears immediately. In fog, a move changes both position and information.',
           },
+          {
+            kind: 'raw-svg',
+            svg: XQ_VISION_MOVE_PAIR,
+          } as ArticleBlock,
         ],
       },
       {
@@ -2307,66 +2334,66 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. A non-capturing soldier move does not reset the no-capture counter; a soldier capture still does. No stalemate draws.',
+            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture (non-capture moves do not reset this counter). Both are judged from the true position, not either player\'s view. No stalemate draws.',
           },
         ],
       },
       {
         heading: 'Edge cases',
         blocks: [
-          {
-            kind: 'paragraph',
-            text: 'Blocked horse legs, elephant eyes, and cannon screens appear as unknown occupied squares so you can see why the line is blocked without learning the piece identity.',
-          },
           { kind: 'sub-heading', text: 'Facing generals' },
           {
             kind: 'paragraph',
-            text: 'Orthodox xiangqi prevents the two generals from facing each other across an empty file. Dark Xiangqi allows that position to exist because the server does not enforce check safety. If the clear file lets one general see the other, general capture is the punishment.',
+            text: 'Orthodox xiangqi forbids facing generals. Dark Xiangqi allows the position; if one general sees the other on a clear file, it can capture.',
           },
           {
             kind: 'raw-svg-stepper',
             steps: XQ_FACING_GENERAL_STEPS,
-            caption:
-              "From Red's view, Black is hidden until the black general steps onto the open e-file. Red can then capture straight up the file and the game ends.",
           } as ArticleBlock,
-          { kind: 'sub-heading', text: 'Blocked legs and eyes' },
+          { kind: 'sub-heading', text: 'Horse legs' },
           {
             kind: 'paragraph',
-            text: 'A horse leg or elephant eye can be blocked by a hidden piece. The destination disappears from your visible set, and the blocking square appears as a ? marker. You learn that something blocks the geometry, not what the piece is.',
+            text: 'A horse can move only when the adjacent leg square is clear. If a hidden piece blocks that leg, the destination disappears from your visible set and the leg square appears as a ? marker.',
           },
           {
             kind: 'raw-svg',
-            svg: XQ_BLOCKED_LEGS_EYES_PAIR,
-            caption:
-              'The horse on c8 has two blocked leg directions. The elephants on c5 and e3 each have one blocked eye. Red sees the hidden blockers as ? markers.',
+            svg: XQ_BLOCKED_HORSE_LEGS_PAIR,
+          } as ArticleBlock,
+          { kind: 'sub-heading', text: 'Elephant eyes' },
+          {
+            kind: 'paragraph',
+            text: 'An elephant moves two points diagonally and cannot cross the river. If a hidden piece sits on the midpoint eye, the diagonal destination disappears and the eye square appears as a ? marker.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: XQ_BLOCKED_ELEPHANT_EYES_PAIR,
           } as ArticleBlock,
           { kind: 'sub-heading', text: 'Cannons' },
           {
             kind: 'paragraph',
-            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as an unknown occupied square.',
+            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as unknown occupancy.',
           },
           {
             kind: 'raw-svg',
             svg: XQ_CANNON_RULE_PAIR,
-            caption: 'Red can capture the black chariot on b3. The screen appears as ?, while the target is fully visible.',
           } as ArticleBlock,
         ],
       },
       {
-        heading: 'The new frontier',
+        heading: 'Try it',
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Dark Xiangqi is the modern dark variant of xiangqi: the ancient game\'s tactics and geometry, played through hidden information.',
+            text: 'Dark Xiangqi is not a public Mistboard room yet. The live game today is Mistboard dark chess: open a board, share the link, play. No account required.',
           },
           {
             kind: 'paragraph',
-            text: 'It is for players who love xiangqi lines, cannon screens, horse forks, and the hidden-information pressure of great games like mahjong and poker. We invite everyone to play it.',
+            text: 'Dark Xiangqi is for players who love xiangqi lines, cannon screens, horse forks, and the hidden-information pressure of great games like mahjong and poker.',
           },
           {
             kind: 'cta',
             buttons: [
-              { label: 'Read dark chess rules', href: '/articles/dark-chess-rules', emphasis: 'secondary' },
+              { label: 'Play dark chess', href: '/?play=lobby', emphasis: 'primary' },
             ],
           } as ArticleBlock,
         ],

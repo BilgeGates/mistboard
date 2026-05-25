@@ -44,6 +44,7 @@ const FOG_RADIUS = 22;
 const HIT_HALF = 24; // half-width of the per-intersection click target
 
 type Perspective = XiangqiColor | 'god';
+type CannonTargetMarker = 'corners' | 'ring' | 'badge' | 'line';
 
 function intersection(
   file: number,
@@ -231,10 +232,39 @@ function cannonTargetSquares(view: XiangqiPlayerView, state: XiangqiGameState): 
     .sort();
 }
 
+function cannonSourceForTarget(
+  state: XiangqiGameState,
+  color: XiangqiColor,
+  target: XiangqiSquare,
+): XiangqiSquare | null {
+  const targetCoord = coordOf(target);
+  for (const [sq, piece] of Object.entries(state.board)) {
+    if (!piece || piece.color !== color || piece.role !== 'cannon') continue;
+    const sourceCoord = coordOf(sq as XiangqiSquare);
+    const sameFile = sourceCoord.file === targetCoord.file;
+    const sameRank = sourceCoord.rank === targetCoord.rank;
+    if (!sameFile && !sameRank) continue;
+
+    const df = Math.sign(targetCoord.file - sourceCoord.file);
+    const dr = Math.sign(targetCoord.rank - sourceCoord.rank);
+    let blockers = 0;
+    let file = sourceCoord.file + df;
+    let rank = sourceCoord.rank + dr;
+    while (file !== targetCoord.file || rank !== targetCoord.rank) {
+      if (state.board[squareOf(file, rank)]) blockers += 1;
+      file += df;
+      rank += dr;
+    }
+    if (blockers === 1) return sq as XiangqiSquare;
+  }
+  return null;
+}
+
 function cannonTargetMarkers(
   view: XiangqiPlayerView,
   state: XiangqiGameState,
   perspective: XiangqiColor,
+  marker: CannonTargetMarker,
 ): string {
   return cannonTargetSquares(view, state)
     .map((sq) => {
@@ -242,12 +272,31 @@ function cannonTargetMarkers(
       const { x, y } = intersection(file, rank, perspective);
       const outer = 30;
       const inner = 20;
+      if (marker === 'ring') {
+        return `<circle class="xq-cannon-target-ring" cx="${x}" cy="${y}" r="28"/>`;
+      }
+      if (marker === 'badge') {
+        return `
+          <circle class="xq-cannon-target-badge" cx="${x + 22}" cy="${y - 22}" r="10"/>
+          <text class="xq-cannon-target-badge-text" x="${x + 22}" y="${y - 21.5}">炮</text>
+        `;
+      }
+      if (marker === 'line') {
+        const source = cannonSourceForTarget(state, view.perspective, sq);
+        const line = source
+          ? (() => {
+              const from = coordOf(source);
+              const start = intersection(from.file, from.rank, perspective);
+              return `<line class="xq-cannon-target-line" x1="${start.x}" y1="${start.y}" x2="${x}" y2="${y}"/>`;
+            })()
+          : '';
+        return `${line}<circle class="xq-cannon-target-ring" cx="${x}" cy="${y}" r="28"/>`;
+      }
       return `
         <path class="xq-cannon-target-mark" d="M ${x - outer} ${y - inner} L ${x - outer} ${y - outer} L ${x - inner} ${y - outer}"/>
         <path class="xq-cannon-target-mark" d="M ${x + inner} ${y - outer} L ${x + outer} ${y - outer} L ${x + outer} ${y - inner}"/>
         <path class="xq-cannon-target-mark" d="M ${x - outer} ${y + inner} L ${x - outer} ${y + outer} L ${x - inner} ${y + outer}"/>
         <path class="xq-cannon-target-mark" d="M ${x + inner} ${y + outer} L ${x + outer} ${y + outer} L ${x + outer} ${y + inner}"/>
-        <circle class="xq-cannon-target-dot" cx="${x + 22}" cy="${y - 22}" r="4"/>
       `;
     })
     .join('');
@@ -470,17 +519,39 @@ function gridCannonTargetMarkers(
   view: XiangqiPlayerView,
   state: XiangqiGameState,
   perspective: XiangqiColor,
+  marker: CannonTargetMarker,
 ): string {
   return cannonTargetSquares(view, state)
     .map((sq) => {
       const { file, rank } = coordOf(sq);
       const { x, y, w, h } = cellRect(file, rank, perspective);
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      if (marker === 'ring') {
+        return `<rect class="xq-cannon-target-ring" x="${x + 5}" y="${y + 5}" width="${w - 10}" height="${h - 10}" rx="8"/>`;
+      }
+      if (marker === 'badge') {
+        return `
+          <circle class="xq-cannon-target-badge" cx="${x + w - 12}" cy="${y + 12}" r="10"/>
+          <text class="xq-cannon-target-badge-text" x="${x + w - 12}" y="${y + 12.5}">炮</text>
+        `;
+      }
+      if (marker === 'line') {
+        const source = cannonSourceForTarget(state, view.perspective, sq);
+        const line = source
+          ? (() => {
+              const from = coordOf(source);
+              const start = cellCenter(from.file, from.rank, perspective);
+              return `<line class="xq-cannon-target-line" x1="${start.x}" y1="${start.y}" x2="${cx}" y2="${cy}"/>`;
+            })()
+          : '';
+        return `${line}<rect class="xq-cannon-target-ring" x="${x + 5}" y="${y + 5}" width="${w - 10}" height="${h - 10}" rx="8"/>`;
+      }
       return `
         <path class="xq-cannon-target-mark" d="M ${x + 6} ${y + 18} L ${x + 6} ${y + 6} L ${x + 18} ${y + 6}"/>
         <path class="xq-cannon-target-mark" d="M ${x + w - 18} ${y + 6} L ${x + w - 6} ${y + 6} L ${x + w - 6} ${y + 18}"/>
         <path class="xq-cannon-target-mark" d="M ${x + 6} ${y + h - 18} L ${x + 6} ${y + h - 6} L ${x + 18} ${y + h - 6}"/>
         <path class="xq-cannon-target-mark" d="M ${x + w - 18} ${y + h - 6} L ${x + w - 6} ${y + h - 6} L ${x + w - 6} ${y + h - 18}"/>
-        <circle class="xq-cannon-target-dot" cx="${x + w - 12}" cy="${y + 12}" r="4"/>
       `;
     })
     .join('');
@@ -506,6 +577,7 @@ function renderBoardSvgGrid(
   state: XiangqiGameState,
   selection: XiangqiSquare | null,
   maskKey: string,
+  cannonMarker: CannonTargetMarker,
 ): string {
   return [
     `<svg class="xq-board-svg xq-board-grid" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">`,
@@ -517,7 +589,7 @@ function renderBoardSvgGrid(
     `<g class="xq-lastmove-layer">${gridLastMoveMarkers(view, perspective)}</g>`,
     `<g class="xq-selection">${gridSelectionRing(selection, perspective)}</g>`,
     `<g class="xq-hints">${gridMoveHints(selection, state, perspective)}</g>`,
-    `<g class="xq-cannon-targets">${gridCannonTargetMarkers(view, state, perspective)}</g>`,
+    `<g class="xq-cannon-targets">${gridCannonTargetMarkers(view, state, perspective, cannonMarker)}</g>`,
     `<g class="xq-pieces">${gridPiecesLayer(view, perspective)}</g>`,
     `<g class="xq-clicks">${gridClickLayer(perspective)}</g>`,
     `</svg>`,
@@ -529,6 +601,7 @@ function renderBoardSvgGridReadOnly(
   perspective: XiangqiColor,
   state: XiangqiGameState,
   maskKey: string,
+  cannonMarker: CannonTargetMarker,
 ): string {
   return [
     `<svg class="xq-board-svg xq-board-grid xq-board-readonly" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">`,
@@ -538,7 +611,7 @@ function renderBoardSvgGridReadOnly(
     `<g class="xq-river-text">${gridRiverLabel(perspective)}</g>`,
     `<g class="xq-fog-layer">${gridFogMask(view, perspective, maskKey)}</g>`,
     `<g class="xq-lastmove-layer">${gridLastMoveMarkers(view, perspective)}</g>`,
-    `<g class="xq-cannon-targets">${gridCannonTargetMarkers(view, state, perspective)}</g>`,
+    `<g class="xq-cannon-targets">${gridCannonTargetMarkers(view, state, perspective, cannonMarker)}</g>`,
     `<g class="xq-pieces">${gridPiecesLayer(view, perspective)}</g>`,
     `</svg>`,
   ].join('');
@@ -551,6 +624,7 @@ function renderBoardSvg(
   selection: XiangqiSquare | null,
   fogStyle: FogStyle,
   maskKey: string,
+  cannonMarker: CannonTargetMarker = 'corners',
 ): string {
   return [
     `<svg class="xq-board-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">`,
@@ -563,7 +637,7 @@ function renderBoardSvg(
     `<g class="xq-lastmove-layer">${lastMoveMarkers(view, perspective)}</g>`,
     `<g class="xq-selection">${selectionRing(selection, perspective)}</g>`,
     `<g class="xq-hints">${moveHints(selection, state, perspective)}</g>`,
-    `<g class="xq-cannon-targets">${cannonTargetMarkers(view, state, perspective)}</g>`,
+    `<g class="xq-cannon-targets">${cannonTargetMarkers(view, state, perspective, cannonMarker)}</g>`,
     `<g class="xq-pieces">${piecesLayer(view, perspective)}</g>`,
     `<g class="xq-clicks">${clickLayer(perspective)}</g>`,
     `</svg>`,
@@ -578,6 +652,7 @@ function renderBoardSvgReadOnly(
   state: XiangqiGameState,
   fogStyle: FogStyle,
   maskKey: string,
+  cannonMarker: CannonTargetMarker,
 ): string {
   return [
     `<svg class="xq-board-svg xq-board-readonly" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">`,
@@ -588,7 +663,7 @@ function renderBoardSvgReadOnly(
     `<g class="xq-river-text">${riverLabel(perspective)}</g>`,
     `<g class="xq-fog-layer">${fogLayerFor(fogStyle, view, perspective, maskKey)}</g>`,
     `<g class="xq-lastmove-layer">${lastMoveMarkers(view, perspective)}</g>`,
-    `<g class="xq-cannon-targets">${cannonTargetMarkers(view, state, perspective)}</g>`,
+    `<g class="xq-cannon-targets">${cannonTargetMarkers(view, state, perspective, cannonMarker)}</g>`,
     `<g class="xq-pieces">${piecesLayer(view, perspective)}</g>`,
     `</svg>`,
   ].join('');
@@ -600,8 +675,8 @@ function triptychHtml(s: SpikeState): string {
   const blackView = getPlayerView(s.game, 'black', s.mode);
   const render = (view: XiangqiPlayerView, perspective: XiangqiColor, key: string) =>
     s.boardStyle === 'grid'
-      ? renderBoardSvgGridReadOnly(view, perspective, s.game, key)
-      : renderBoardSvgReadOnly(view, perspective, s.game, s.fogStyle, key);
+      ? renderBoardSvgGridReadOnly(view, perspective, s.game, key, s.cannonMarker)
+      : renderBoardSvgReadOnly(view, perspective, s.game, s.fogStyle, key, s.cannonMarker);
   return `
     <div class="xq-triptych">
       <div class="xq-triptych-cell">
@@ -660,6 +735,7 @@ interface SpikeState {
   cursor: number;
   fogStyle: FogStyle;
   boardStyle: BoardStyle;
+  cannonMarker: CannonTargetMarker;
 }
 
 function freshState(): SpikeState {
@@ -672,6 +748,7 @@ function freshState(): SpikeState {
     cursor: 0,
     fogStyle: 'mask',
     boardStyle: 'intersection',
+    cannonMarker: 'corners',
   };
 }
 
@@ -772,6 +849,8 @@ function controlsHtml(s: SpikeState): string {
     `<button data-pov="${pov}" class="xq-btn${s.perspective === pov ? ' on' : ''}">${label}</button>`;
   const modeBtn = (mode: XiangqiCannonVisionMode, label: string) =>
     `<button data-mode="${mode}" class="xq-btn${s.mode === mode ? ' on' : ''}">${label}</button>`;
+  const markerBtn = (marker: CannonTargetMarker, label: string) =>
+    `<button data-cannon-marker="${marker}" class="xq-btn${s.cannonMarker === marker ? ' on' : ''}">${label}</button>`;
   return `
     <div class="xq-controls">
       <div class="xq-control-row">
@@ -795,6 +874,13 @@ function controlsHtml(s: SpikeState): string {
         <span class="xq-control-label">Board style</span>
         <button data-board="intersection" class="xq-btn${s.boardStyle === 'intersection' ? ' on' : ''}">Intersection (traditional)</button>
         <button data-board="grid" class="xq-btn${s.boardStyle === 'grid' ? ' on' : ''}">Grid (chess-style)</button>
+      </div>
+      <div class="xq-control-row">
+        <span class="xq-control-label">Target marker</span>
+        ${markerBtn('corners', 'Corners')}
+        ${markerBtn('ring', 'Ring')}
+        ${markerBtn('badge', 'Badge')}
+        ${markerBtn('line', 'Line')}
       </div>
       <div class="xq-control-row">
         <span class="xq-control-label">Bot game</span>
@@ -859,8 +945,8 @@ function rerender(): void {
     ${statusHtml(state)}
     <div class="xq-board-wrap">${
       state.boardStyle === 'grid'
-        ? renderBoardSvgGrid(view, orient, state.game, state.selection, 'main')
-        : renderBoardSvg(view, orient, state.game, state.selection, state.fogStyle, 'main')
+        ? renderBoardSvgGrid(view, orient, state.game, state.selection, 'main', state.cannonMarker)
+        : renderBoardSvg(view, orient, state.game, state.selection, state.fogStyle, 'main', state.cannonMarker)
     }</div>
     <div class="xq-triptych-section">
       <div class="xq-triptych-heading">All POVs</div>
@@ -911,6 +997,14 @@ function attachHandlers(container: HTMLElement): void {
       if (!active) return;
       const boardStyle = btn.dataset.board as BoardStyle;
       active.state = { ...active.state, boardStyle };
+      rerender();
+    });
+  });
+  container.querySelectorAll<HTMLElement>('[data-cannon-marker]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!active) return;
+      const cannonMarker = btn.dataset.cannonMarker as CannonTargetMarker;
+      active.state = { ...active.state, cannonMarker };
       rerender();
     });
   });
@@ -1106,7 +1200,28 @@ const STYLE = `
     stroke-linejoin: round;
     opacity: 0.88;
   }
-  .xq-cannon-target-dot { fill: #2563eb; stroke: #f5dca8; stroke-width: 1.5; }
+  .xq-cannon-target-ring {
+    fill: none;
+    stroke: #2563eb;
+    stroke-width: 3;
+    opacity: 0.9;
+  }
+  .xq-cannon-target-line {
+    stroke: #2563eb;
+    stroke-width: 7;
+    stroke-linecap: round;
+    opacity: 0.26;
+  }
+  .xq-cannon-target-badge { fill: #2563eb; stroke: #f5dca8; stroke-width: 1.5; }
+  .xq-cannon-target-badge-text {
+    fill: #fff;
+    font-family: serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
   .xq-hit { fill: transparent; cursor: pointer; }
 `;
 
