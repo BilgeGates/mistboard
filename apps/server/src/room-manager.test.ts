@@ -7,7 +7,6 @@ import {
   generateChess960Starts,
   replayGameEvents,
 } from '@mistboard/game';
-import type { WebSocket } from 'ws';
 import type { Seat } from './payloads.js';
 import {
   ABORT_WINDOW_MS,
@@ -30,6 +29,7 @@ import {
   scheduleRandomEngineMove,
 } from './room-manager.js';
 import type { Client, Room } from './server-types.js';
+import { clientFixture, roomFixture } from './test-builders.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -50,52 +50,21 @@ function makeRoom(
   const roomEvents: GameEvent[] = events ?? [
     { type: 'room-created', at: 1, roomId: id, variant, offer: [] },
   ];
-  const projection = replayGameEvents(roomEvents);
-  return {
+  return roomFixture({
     id,
-    clients: new Set(),
-    events: [...roomEvents],
-    projection,
-    seatTokens: {},
-    clockTimer: null,
-    engineTimer: null,
-    abortTimer: null,
-    abortDeadline: null,
-    abortPhase: null,
-    forfeitTimer: null,
-    forfeitDeadline: null,
-    forfeitSeat: null,
-    mode: 'pvp',
-    gameSpecId: projection.gameSpecId,
+    events: roomEvents,
     rated: true,
-    randomEngine: false,
-    randomSeating: false,
-    creatorPreference: null,
-    pveEngineId: null,
-    pendingWrites: Promise.resolve(),
-    gameEndRecorded: false,
     variant,
-    hiddenDraft960: false,
-    timeControl: undefined,
-    rematch: { offers: {} },
-    pendingVacates: {},
-    pauseGraceTimer: null,
-  };
+  });
 }
 
 function makeClient(id: string, seat: Seat = 'white', solo = false, roomId = 'room-a'): Client {
-  return {
+  return clientFixture({
     id,
+    roomId,
     seat,
     solo,
-    displaced: false,
-    seatTokenHash: undefined,
-    messageTimestamps: [],
-    devViews: false,
-    debugRequested: false,
-    roomId,
-    socket: { send: () => {} } as unknown as WebSocket,
-  };
+  });
 }
 
 type SpyCtx = RoomManagerContext & { sent: Array<{ client: Client; payload: unknown }> };
@@ -209,13 +178,21 @@ test('playMove: clock arms (white ticking) after both first moves, via the live 
   // Ply 1 (white's first move): clock stays frozen (abort window), white gets increment.
   await playMove(ctx, room, client, { type: 'move', from: 'e2', to: 'e4' });
   assert.equal(room.projection.state.clock?.activeColor, null, 'frozen through ply 1');
-  assert.equal(room.projection.state.clock?.remainingMs.white, 182_000, 'white increment on first move');
+  assert.equal(
+    room.projection.state.clock?.remainingMs.white,
+    182_000,
+    'white increment on first move',
+  );
 
   // Ply 2 (black's first move): clock arms, white to move begins ticking.
   await playMove(ctx, room, client, { type: 'move', from: 'e7', to: 'e5' });
   assert.equal(room.projection.state.clock?.activeColor, 'white', 'armed for white after ply 2');
   assert.notEqual(room.projection.state.clock?.runningSince, null, 'runningSince set on arm');
-  assert.equal(room.projection.state.clock?.remainingMs.black, 182_000, 'black increment on first move');
+  assert.equal(
+    room.projection.state.clock?.remainingMs.black,
+    182_000,
+    'black increment on first move',
+  );
 });
 
 // ── appendEvent ────────────────────────────────────────────────────────────────
@@ -867,8 +844,20 @@ test('applyOrphanRecoveryIfNeeded: synthesises a pause for a stale playing room'
     { type: 'seat-assigned', at: 3, roomId: 'orphan-stale', clientId: 'b', seat: 'black' },
     { type: 'clock-started', at: 4, roomId: 'orphan-stale', clock: createClock(4, 60_000, 0) },
     // Both first moves complete; black's reply at t=2000 arms the clock for white.
-    { type: 'move-played', at: 1500, roomId: 'orphan-stale', color: 'white', move: { from: 'e2', to: 'e4' } },
-    { type: 'move-played', at: 2000, roomId: 'orphan-stale', color: 'black', move: { from: 'e7', to: 'e5' } },
+    {
+      type: 'move-played',
+      at: 1500,
+      roomId: 'orphan-stale',
+      color: 'white',
+      move: { from: 'e2', to: 'e4' },
+    },
+    {
+      type: 'move-played',
+      at: 2000,
+      roomId: 'orphan-stale',
+      color: 'black',
+      move: { from: 'e7', to: 'e5' },
+    },
   ];
   // 10 minutes later, the server "comes back" — far past the 5-minute threshold.
   const now = 2000 + 10 * 60_000;

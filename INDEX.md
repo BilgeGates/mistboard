@@ -70,6 +70,7 @@ Edit task → find file → open only that file.
 | `server-policy.ts` | Access control: `canObserveLiveRoom`, `eventReplayResponse`, `visibleEventsForLiveSnapshot`, `modeForProjection`, `isAdminDebugToken`, `isAllowedWebSocketOrigin`, `isClientRoute`, `PARKED_CLIENT_ROUTES` |
 | `persistence.ts` | All Postgres SQL (god file — 5 near-clone game-row mappers; planned split into `persistence/{games,events,rooms,accounts,feedback,pool}.ts`) |
 | `payloads.ts` | `snapshotPayload` — builds WebSocket snapshot message; applies fog redaction and seat-scoped view logic |
+| `test-builders.ts` | Shared server test builders for `GameProjection`, `PlayerView`, `SnapshotRoom`, `Room`, clients, and seat tokens |
 | `rating-buckets.ts` | Variant × time-class → bucket-id mapping for per-bucket Elo |
 | `elo.ts` | Elo update math |
 | `migrate.ts` | Schema migrations — run once on startup |

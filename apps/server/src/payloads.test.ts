@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  DARK_CHESS_SPEC_ID,
   darkChessVariant,
   type GameEvent,
-  type GameProjection,
   generateChess960Starts,
   replayGameEvents,
 } from '@mistboard/game';
 import { type SnapshotClient, type SnapshotRoom, snapshotPayload } from './payloads.js';
 import { eventReplayResponse } from './server-policy.js';
+import {
+  gameProjectionFixture,
+  snapshotClientFixture,
+  snapshotRoomFixture,
+} from './test-builders.js';
 
 test('Fog of War snapshot payload does not include hidden opponent pieces or move events', () => {
   const state = {
@@ -40,22 +43,13 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
       move: { from: 'h8', to: 'h7' },
     },
   ];
-  const projection: GameProjection = {
+  const projection = gameProjectionFixture({
     roomId: 'fog-payload',
     variant: 'dark-chess',
-    gameSpecId: DARK_CHESS_SPEC_ID,
-    offer: [],
-    offers: {},
-    state,
     seats: { white: 'white-client', black: 'black-client' },
-    selections: {},
-    resolvedStartId: null,
-    resolvedStartIds: {},
-    paused: false,
-    pausedAt: null,
-    pauseReason: null,
-  };
-  const room: SnapshotRoom = {
+    state,
+  });
+  const room = snapshotRoomFixture({
     id: 'fog-payload',
     clients: new Set([
       { seat: 'white', displaced: false },
@@ -63,13 +57,11 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
     ]),
     events,
     projection,
-  };
-  const client: SnapshotClient = {
-    devViews: false,
+  });
+  const client = snapshotClientFixture({
     id: 'white-client',
     seat: 'white',
-    solo: false,
-  };
+  });
 
   const payload = JSON.stringify(snapshotPayload(room, client));
 
@@ -423,22 +415,13 @@ function fogRoomFixture({
       move: { from: 'h8', to: 'h7' },
     },
   ];
-  const projection: GameProjection = {
+  const projection = gameProjectionFixture({
     roomId: 'fog-payload',
     variant: 'dark-chess',
-    gameSpecId: DARK_CHESS_SPEC_ID,
-    offer: [],
-    offers: {},
-    state,
     seats: { white: 'white-client', black: 'black-client' },
-    selections: {},
-    resolvedStartId: null,
-    resolvedStartIds: {},
-    paused: false,
-    pausedAt: null,
-    pauseReason: null,
-  };
-  return {
+    state,
+  });
+  return snapshotRoomFixture({
     id: 'fog-payload',
     clients: new Set([
       { seat: 'white', displaced: false },
@@ -446,7 +429,7 @@ function fogRoomFixture({
     ]),
     events,
     projection,
-  };
+  });
 }
 
 function lastMoveRoomFixture(): SnapshotRoom {
@@ -478,29 +461,20 @@ function lastMoveRoomFixture(): SnapshotRoom {
       move: { from: 'e2', to: 'e4' },
     },
   ];
-  return {
+  return snapshotRoomFixture({
     id: 'fog-last-move-payload',
     clients: new Set([
       { seat: 'white', displaced: false },
       { seat: 'black', displaced: false },
     ]),
     events,
-    projection: {
+    projection: gameProjectionFixture({
       roomId: 'fog-last-move-payload',
       variant: 'dark-chess',
-      gameSpecId: DARK_CHESS_SPEC_ID,
-      offer: [],
-      offers: {},
-      state,
       seats: { white: 'white-client', black: 'black-client' },
-      selections: {},
-      resolvedStartId: null,
-      resolvedStartIds: {},
-      paused: false,
-      pausedAt: null,
-      pauseReason: null,
-    },
-  };
+      state,
+    }),
+  });
 }
 
 function replayRoomFixture({

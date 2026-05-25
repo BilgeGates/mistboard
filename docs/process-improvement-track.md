@@ -176,7 +176,8 @@ responses on `PlayerView` and per-recipient event filters.
 
 ### Codebase Velocity And Tech Debt
 
-_Status: planned after current tree cleanup._
+_Status: initial server contract fixture builders started after current tree
+cleanup._
 
 This push is the codebase-structure companion to the first process/tooling push.
 The goal is to reduce the amount of source an agent or contributor must hold in
@@ -207,6 +208,8 @@ ownership surfaces:
    `GameProjection`, `PlayerView`, `SnapshotRoom`, and `Room` in the packages
    that own those contracts. This reduces breakage when fields such as
    `gameSpecId`, region metadata, or seat state evolve.
+   Initial server-side builders now live in `apps/server/src/test-builders.ts`
+   and are used by payload and room-manager tests.
 3. **Extract web shell helpers from `landing.ts`.** Move nav/footer/loading
    helpers into a shell module and game-row naming/formatting into a small game
    card/list module. This removes the homepage as a dependency hub for account,
