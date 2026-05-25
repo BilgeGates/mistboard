@@ -1013,7 +1013,7 @@ function copyLinkButton(): HTMLButtonElement {
 function renderRoomActions(): void {
   const view = currentView();
   const actions: HTMLElement[] = [roomAction('Back home', '/')];
-  if (view?.status.type === 'finished') {
+  if (shouldShowPostGameRoomActions(view)) {
     if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
       for (const el of rematchButtons()) actions.unshift(el);
     } else if (liveState.roomMode === 'pve') {
@@ -1030,6 +1030,10 @@ function renderRoomActions(): void {
   }
   if (liveState.engineRequested) actions.push(roomAction('New Debug Room', 'dark-chess', 'engine'));
   refs.roomActions.replaceChildren(...actions);
+}
+
+export function shouldShowPostGameRoomActions(view: PlayerView | null): boolean {
+  return view?.status.type === 'finished' || liveState.state?.status.type === 'finished';
 }
 
 function rematchButtons(): HTMLElement[] {

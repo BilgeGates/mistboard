@@ -1,7 +1,12 @@
 import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
 import type { Board, PlayerView, Square } from '@mistboard/game';
 import { afterEach, describe, expect, it } from 'vitest';
-import { boardHighlightClasses, boardResultClass, legalDests } from './live-render.js';
+import {
+  boardHighlightClasses,
+  boardResultClass,
+  legalDests,
+  shouldShowPostGameRoomActions,
+} from './live-render.js';
 import { liveState } from './live-state.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -57,6 +62,7 @@ const initialBoard: Board = {
 
 afterEach(() => {
   liveState.seat = 'spectator';
+  liveState.state = null;
 });
 
 // ── boardFen ──────────────────────────────────────────────────────────────────
@@ -167,6 +173,24 @@ describe('boardResultClass', () => {
     const draw = makeView({ status: { type: 'finished', winner: null, reason: 'draw' } });
     expect(boardResultClass(draw)).toBeNull();
     expect(boardResultClass(makeView())).toBeNull();
+  });
+});
+
+// ── shouldShowPostGameRoomActions ────────────────────────────────────────────
+
+describe('shouldShowPostGameRoomActions', () => {
+  it('keeps post-game actions while replaying a historical playing position', () => {
+    liveState.state = makeView({
+      status: { type: 'finished', winner: 'white', reason: 'king-captured' },
+    });
+
+    expect(shouldShowPostGameRoomActions(makeView())).toBe(true);
+  });
+
+  it('does not show post-game actions before the live room has finished', () => {
+    liveState.state = makeView();
+
+    expect(shouldShowPostGameRoomActions(makeView())).toBe(false);
   });
 });
 
