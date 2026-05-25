@@ -79,7 +79,7 @@ Key differences from dark chess:
 
 - Xiangqi movement geometry replaces chess movement geometry.
 - Check constraints are removed; general capture is the win condition.
-- Cannon vision uses the current working rule: screen and gap fogged, target
-  revealed and marked as cannon-capturable.
+- Cannon vision uses the current working rule: screen shrouded as unknown
+  occupancy, target revealed and marked as cannon-capturable.
 - The no-capture draw is 60 plies with no capture. Soldier moves do not reset
   the counter.

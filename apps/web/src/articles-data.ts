@@ -105,6 +105,17 @@ export type RawSvgBlock = {
   caption?: string;
 };
 
+export type RawSvgStepperStep = {
+  svg: string;
+  narrative?: string;
+};
+
+export type RawSvgStepperBlock = {
+  kind: 'raw-svg-stepper';
+  steps: RawSvgStepperStep[];
+  caption?: string;
+};
+
 // Code/data block — for inline source snippets, captured payloads, or any
 // monospace content. `text` is rendered verbatim inside <pre><code>; the
 // renderer escapes it. Use `language` for syntax-highlighting hints (the
@@ -127,6 +138,7 @@ export type ArticleBlock =
   | LiveBoardsBlock
   | CtaBlock
   | RawSvgBlock
+  | RawSvgStepperBlock
   | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body
@@ -1389,8 +1401,8 @@ function xqSvg(width: number, height: number, body: string): string {
   return `<svg viewBox="0 0 ${width} ${height}" role="img" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
 }
 
-const XQ_START_RED = getXiangqiPlayerView(XQ_START, 'red', 'E');
-const XQ_START_BLACK = getXiangqiPlayerView(XQ_START, 'black', 'E');
+const XQ_START_RED = getXiangqiPlayerView(XQ_START, 'red', 'D');
+const XQ_START_BLACK = getXiangqiPlayerView(XQ_START, 'black', 'D');
 const XQ_START_TRIPTYCH = xqSvg(
   XQ_BOARD_W * 3 + 56,
   XQ_BOARD_H + 52,
@@ -1486,7 +1498,7 @@ const XQ_VISIBILITY_GRID = xqSvg(
     const centeredRowOffset = ((XQ_VISIBILITY_GRID_COLUMNS - rowCount) * (XQ_BOARD_W + XQ_VISIBILITY_GRID_GAP)) / 2;
     return xqBoardSvg({
       state,
-      view: getXiangqiPlayerView(state, 'red', 'E'),
+      view: getXiangqiPlayerView(state, 'red', 'D'),
       x: centeredRowOffset + col * (XQ_BOARD_W + XQ_VISIBILITY_GRID_GAP),
       y: row * XQ_VISIBILITY_GRID_ROW_H,
       label,
@@ -1518,7 +1530,7 @@ const XQ_VISION_MOVE_PAIR = xqSvg(
   [
     xqBoardSvg({
       state: XQ_VISION_MOVE_BEFORE,
-      view: getXiangqiPlayerView(XQ_VISION_MOVE_BEFORE, 'red', 'E'),
+      view: getXiangqiPlayerView(XQ_VISION_MOVE_BEFORE, 'red', 'D'),
       x: 0,
       y: 0,
       label: 'BEFORE',
@@ -1526,7 +1538,7 @@ const XQ_VISION_MOVE_PAIR = xqSvg(
     }),
     xqBoardSvg({
       state: XQ_VISION_MOVE_AFTER,
-      view: getXiangqiPlayerView(XQ_VISION_MOVE_AFTER, 'red', 'E'),
+      view: getXiangqiPlayerView(XQ_VISION_MOVE_AFTER, 'red', 'D'),
       x: XQ_BOARD_W + 28,
       y: 0,
       label: 'AFTER',
@@ -1550,7 +1562,7 @@ const XQ_CANNON_RULE_STATE: XiangqiGameState = {
   progressClock: 0,
   positionCounts: {},
 };
-const XQ_CANNON_RULE_RED = getXiangqiPlayerView(XQ_CANNON_RULE_STATE, 'red', 'E');
+const XQ_CANNON_RULE_RED = getXiangqiPlayerView(XQ_CANNON_RULE_STATE, 'red', 'D');
 const XQ_CANNON_RULE_PAIR = xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
@@ -1565,6 +1577,161 @@ const XQ_CANNON_RULE_PAIR = xqSvg(
     }),
     xqBoardSvg({
       state: XQ_CANNON_RULE_STATE,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'SERVER TRUTH',
+      perspective: 'red',
+    }),
+  ].join(''),
+);
+
+const XQ_FACING_GENERAL_BEFORE: XiangqiGameState = {
+  id: 'xq-facing-general-before',
+  board: {
+    e1: { color: 'red', role: 'general' },
+    d10: { color: 'black', role: 'general' },
+  },
+  status: { type: 'playing', turn: 'black' },
+  moveNumber: 12,
+  progressClock: 0,
+  positionCounts: {},
+};
+const XQ_FACING_GENERAL_EXPOSED = applyXiangqiMove(XQ_FACING_GENERAL_BEFORE, {
+  from: 'd10' as XiangqiSquare,
+  to: 'e10' as XiangqiSquare,
+});
+const XQ_FACING_GENERAL_CAPTURED = applyXiangqiMove(XQ_FACING_GENERAL_EXPOSED, {
+  from: 'e1' as XiangqiSquare,
+  to: 'e10' as XiangqiSquare,
+});
+const XQ_FACING_GENERAL_STEPS = [
+  {
+    svg: xqSvg(
+      XQ_BOARD_W * 3 + 56,
+      XQ_BOARD_H + 52,
+      [
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_BEFORE,
+          view: getXiangqiPlayerView(XQ_FACING_GENERAL_BEFORE, 'red', 'D'),
+          x: 0,
+          y: 0,
+          label: "RED'S VIEW",
+          perspective: 'red',
+        }),
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_BEFORE,
+          x: XQ_BOARD_W + 28,
+          y: 0,
+          label: 'SERVER TRUTH',
+          perspective: 'red',
+        }),
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_BEFORE,
+          view: getXiangqiPlayerView(XQ_FACING_GENERAL_BEFORE, 'black', 'D'),
+          x: (XQ_BOARD_W + 28) * 2,
+          y: 0,
+          label: "BLACK'S VIEW",
+          perspective: 'red',
+        }),
+      ].join(''),
+    ),
+    narrative:
+      "Before Black steps onto the e-file, each player sees only their own general's local palace moves.",
+  },
+  {
+    svg: xqSvg(
+      XQ_BOARD_W * 3 + 56,
+      XQ_BOARD_H + 52,
+      [
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_EXPOSED,
+          view: getXiangqiPlayerView(XQ_FACING_GENERAL_EXPOSED, 'red', 'D'),
+          x: 0,
+          y: 0,
+          label: "RED'S VIEW",
+          perspective: 'red',
+        }),
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_EXPOSED,
+          x: XQ_BOARD_W + 28,
+          y: 0,
+          label: 'SERVER TRUTH',
+          perspective: 'red',
+          arrows: [{ from: 'd10' as XiangqiSquare, to: 'e10' as XiangqiSquare }],
+        }),
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_EXPOSED,
+          view: getXiangqiPlayerView(XQ_FACING_GENERAL_EXPOSED, 'black', 'D'),
+          x: (XQ_BOARD_W + 28) * 2,
+          y: 0,
+          label: "BLACK'S VIEW",
+          perspective: 'red',
+        }),
+      ].join(''),
+    ),
+    narrative:
+      'Black steps onto the open e-file. Facing generals are allowed, and now both players can see the danger.',
+  },
+  {
+    svg: xqSvg(
+      XQ_BOARD_W * 3 + 56,
+      XQ_BOARD_H + 52,
+      [
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_CAPTURED,
+          view: getXiangqiPlayerView(XQ_FACING_GENERAL_CAPTURED, 'red', 'D'),
+          x: 0,
+          y: 0,
+          label: "RED'S VIEW",
+          perspective: 'red',
+        }),
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_CAPTURED,
+          x: XQ_BOARD_W + 28,
+          y: 0,
+          label: 'SERVER TRUTH',
+          perspective: 'red',
+          arrows: [{ from: 'e1' as XiangqiSquare, to: 'e10' as XiangqiSquare }],
+        }),
+        xqBoardSvg({
+          state: XQ_FACING_GENERAL_CAPTURED,
+          view: getXiangqiPlayerView(XQ_FACING_GENERAL_CAPTURED, 'black', 'D'),
+          x: (XQ_BOARD_W + 28) * 2,
+          y: 0,
+          label: "BLACK'S VIEW",
+          perspective: 'red',
+        }),
+      ].join(''),
+    ),
+    narrative:
+      'Red captures straight up the clear file. The black general is removed and Red wins.',
+  },
+];
+
+const XQ_BLOCKED_LEGS_EYES_STATE = xqVisionDemoState('xq-blocked-legs-eyes', {
+  c5: { color: 'red', role: 'elephant' },
+  e3: { color: 'red', role: 'elephant' },
+  c8: { color: 'red', role: 'horse' },
+  g9: { color: 'red', role: 'horse' },
+  b4: { color: 'black', role: 'soldier' },
+  f4: { color: 'black', role: 'soldier' },
+  c7: { color: 'black', role: 'soldier' },
+  d8: { color: 'black', role: 'soldier' },
+});
+const XQ_BLOCKED_LEGS_EYES_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_BLOCKED_LEGS_EYES_STATE,
+      view: getXiangqiPlayerView(XQ_BLOCKED_LEGS_EYES_STATE, 'red', 'D'),
+      x: 0,
+      y: 0,
+      label: "RED'S VIEW",
+      perspective: 'red',
+    }),
+    xqBoardSvg({
+      state: XQ_BLOCKED_LEGS_EYES_STATE,
       x: XQ_BOARD_W + 28,
       y: 0,
       label: 'SERVER TRUTH',
@@ -1610,8 +1777,8 @@ const XQ_GENERAL_CAPTURE_AFTER = applyXiangqiMove(XQ_GENERAL_CAPTURE_BEFORE, {
   from: 'd2' as XiangqiSquare,
   to: 'd8' as XiangqiSquare,
 });
-const XQ_GENERAL_CAPTURE_BEFORE_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_BEFORE, 'red', 'E');
-const XQ_GENERAL_CAPTURE_AFTER_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_AFTER, 'red', 'E');
+const XQ_GENERAL_CAPTURE_BEFORE_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_BEFORE, 'red', 'D');
+const XQ_GENERAL_CAPTURE_AFTER_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_AFTER, 'red', 'D');
 const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
@@ -2108,7 +2275,7 @@ export const articles: Article[] = [
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: 'A piece reveals the squares it can legally reach from the true position. Blocked horse legs and elephant eyes do not reveal the blocker. Cannons are the special case; see edge cases below.',
+            text: 'A piece reveals the squares it can legally reach from the true position. Blocked horse legs, elephant eyes, and cannon screens appear as unknown occupied squares so you can see why the line is blocked without learning the piece identity.',
           },
           { kind: 'sub-heading', text: 'Vision changes as your pieces move' },
           {
@@ -2152,20 +2319,32 @@ export const articles: Article[] = [
             kind: 'paragraph',
             text: 'Orthodox xiangqi prevents the two generals from facing each other across an empty file. Dark Xiangqi allows that position to exist because the server does not enforce check safety. If the clear file lets one general see the other, general capture is the punishment.',
           },
+          {
+            kind: 'raw-svg-stepper',
+            steps: XQ_FACING_GENERAL_STEPS,
+            caption:
+              "From Red's view, Black is hidden until the black general steps onto the open e-file. Red can then capture straight up the file and the game ends.",
+          } as ArticleBlock,
           { kind: 'sub-heading', text: 'Blocked legs and eyes' },
           {
             kind: 'paragraph',
-            text: 'A horse leg or elephant eye can be blocked by a hidden piece. The destination disappears from your visible set, but the blocking square is not revealed by that fact alone. This keeps blocker geometry from becoming a free scan action.',
+            text: 'A horse leg or elephant eye can be blocked by a hidden piece. The destination disappears from your visible set, and the blocking square appears as a ? marker. You learn that something blocks the geometry, not what the piece is.',
           },
+          {
+            kind: 'raw-svg',
+            svg: XQ_BLOCKED_LEGS_EYES_PAIR,
+            caption:
+              'The horse on c8 has two blocked leg directions. The elephants on c5 and e3 each have one blocked eye. Red sees the hidden blockers as ? markers.',
+          } as ArticleBlock,
           { kind: 'sub-heading', text: 'Cannons' },
           {
             kind: 'paragraph',
-            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, but the screen and the gap stay hidden unless another piece sees them.',
+            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as an unknown occupied square.',
           },
           {
             kind: 'raw-svg',
             svg: XQ_CANNON_RULE_PAIR,
-            caption: 'Red can capture the black chariot on b3. The screen and gap are visible only in server truth.',
+            caption: 'Red can capture the black chariot on b3. The screen appears as ?, while the target is fully visible.',
           } as ArticleBlock,
         ],
       },

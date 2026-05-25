@@ -264,6 +264,42 @@ function positionFromState(state: XiangqiGameState): EoXiangqi {
   return pos;
 }
 
+function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
+  return color === 'red' ? 'black' : 'red';
+}
+
+function facingGeneralCaptureTarget(
+  board: XiangqiBoard,
+  from: XiangqiSquare,
+  piece: XiangqiPiece,
+): XiangqiSquare | null {
+  if (piece.role !== 'general') return null;
+  const origin = coordOf(from);
+  for (const [sq, target] of Object.entries(board)) {
+    if (!target || target.role !== 'general' || target.color === piece.color) continue;
+    const enemy = coordOf(sq as XiangqiSquare);
+    if (enemy.file !== origin.file) continue;
+    const minR = Math.min(origin.rank, enemy.rank);
+    const maxR = Math.max(origin.rank, enemy.rank);
+    let clear = true;
+    for (let rank = minR + 1; rank < maxR; rank += 1) {
+      if (isOccupied(board, origin.file, rank)) {
+        clear = false;
+        break;
+      }
+    }
+    if (clear) return sq as XiangqiSquare;
+  }
+  return null;
+}
+
+function isFacingGeneralCapture(state: XiangqiGameState, move: XiangqiMove): boolean {
+  const piece = state.board[move.from];
+  return (
+    piece !== undefined && facingGeneralCaptureTarget(state.board, move.from, piece) === move.to
+  );
+}
+
 // ── Move generation ────────────────────────────────────────────────────────
 
 // FoW xiangqi uses pseudo-legal moves (geometry only — no check / flying-
@@ -283,6 +319,11 @@ export function getLegalMoves(state: XiangqiGameState): XiangqiMove[] {
     for (const toEo of dests) {
       moves.push({ from, to: eoMakeSquare(toEo) });
     }
+    const ownPiece = state.board[from];
+    const facingGeneral = ownPiece ? facingGeneralCaptureTarget(state.board, from, ownPiece) : null;
+    if (facingGeneral && !dests.has(eoParseSquare(facingGeneral)!)) {
+      moves.push({ from, to: facingGeneral });
+    }
   }
   return moves;
 }
@@ -299,6 +340,11 @@ export function getLegalMovesFrom(state: XiangqiGameState, from: XiangqiSquare):
   for (const toEo of dests) {
     moves.push({ from, to: eoMakeSquare(toEo) });
   }
+  const ownPiece = state.board[from];
+  const facingGeneral = ownPiece ? facingGeneralCaptureTarget(state.board, from, ownPiece) : null;
+  if (facingGeneral && !dests.has(eoParseSquare(facingGeneral)!)) {
+    moves.push({ from, to: facingGeneral });
+  }
   return moves;
 }
 
@@ -310,7 +356,7 @@ export function isLegalMove(state: XiangqiGameState, move: XiangqiMove): boolean
   if (fromEo === undefined || toEo === undefined) return false;
   const piece = position.board.get(fromEo);
   if (!piece || piece.color !== state.status.turn) return false;
-  return position.pseudoDests(piece, fromEo).has(toEo);
+  return position.pseudoDests(piece, fromEo).has(toEo) || isFacingGeneralCapture(state, move);
 }
 
 function hasPseudoLegalMove(position: EoXiangqi): boolean {
@@ -359,7 +405,8 @@ export function applyMove(
   // FoW: pseudo-legality only — geometry, no check / flying-general filter.
   const movingPieceEo = position.board.get(fromEo);
   if (!movingPieceEo || movingPieceEo.color !== position.turn) return state;
-  if (!position.pseudoDests(movingPieceEo, fromEo).has(toEo)) return state;
+  const flyingGeneralCapture = isFacingGeneralCapture(state, move);
+  if (!position.pseudoDests(movingPieceEo, fromEo).has(toEo) && !flyingGeneralCapture) return state;
 
   // Capture detection — needed for the progress clock, and
   // must be read BEFORE position.play() mutates the board. (elephantops's
@@ -369,20 +416,32 @@ export function applyMove(
   const wasCapture = capturedPiece !== undefined;
   const capturedGeneral = capturedPiece?.role === 'general';
 
-  position.play({ from: fromEo, to: toEo });
+  let newBoard: XiangqiBoard;
+  let nextTurn: XiangqiColor;
+  let newMoveNumber: number;
 
-  // Translate new board back to our types.
-  const newBoard: XiangqiBoard = {};
-  for (const [sqEo, piece] of position.board) {
-    newBoard[eoMakeSquare(sqEo as EoSquare)] = {
-      color: piece.color,
-      role: eoToRole(piece.role),
-    };
+  if (flyingGeneralCapture) {
+    newBoard = { ...state.board };
+    delete newBoard[move.from];
+    newBoard[move.to] = movingPiece;
+    nextTurn = oppositeXiangqiColor(state.status.turn);
+    newMoveNumber = state.status.turn === 'black' ? state.moveNumber + 1 : state.moveNumber;
+  } else {
+    position.play({ from: fromEo, to: toEo });
+
+    // Translate new board back to our types.
+    newBoard = {};
+    for (const [sqEo, piece] of position.board) {
+      newBoard[eoMakeSquare(sqEo as EoSquare)] = {
+        color: piece.color,
+        role: eoToRole(piece.role),
+      };
+    }
+    nextTurn = position.turn;
+    newMoveNumber = position.fullmoves;
   }
 
-  const nextTurn = position.turn;
   const newProgressClock = wasCapture ? 0 : state.progressClock + 1;
-  const newMoveNumber = position.fullmoves;
 
   // Bookkeep position counts (use intermediate playing state for the digest).
   const nextStateForKey: XiangqiGameState = {
@@ -434,12 +493,13 @@ export function applyMove(
 
 // ── Fog-of-war visibility kernel ───────────────────────────────────────────
 // Vision is computed geometrically per the design doc, NOT via elephantops's
-// attack functions. For pieces with blockers (horse legs, elephant eyes), the
-// visibility rule follows legal destinations only; blocker squares do not
-// become visible merely because they explain an unavailable move.
+// attack functions. For pieces with blockers (horse legs, elephant eyes,
+// cannon screens), the player sees blocked occupancy as a shrouded "?" rather
+// than learning the piece identity.
 
 type VisionAccum = {
   directlyVisible: Set<XiangqiSquare>;
+  shroudedBlockers: Set<XiangqiSquare>;
   cannonScreens: Set<XiangqiSquare>;
   cannonTargets: Set<XiangqiSquare>;
   // Empty squares between a cannon's screen and its target — within the
@@ -452,6 +512,7 @@ type VisionAccum = {
 function emptyVision(): VisionAccum {
   return {
     directlyVisible: new Set(),
+    shroudedBlockers: new Set(),
     cannonScreens: new Set(),
     cannonTargets: new Set(),
     cannonPath: new Set(),
@@ -524,14 +585,14 @@ function advisorVisionInto(
 }
 
 function elephantVisionInto(
-  set: Set<XiangqiSquare>,
+  accum: VisionAccum,
   color: XiangqiColor,
   board: XiangqiBoard,
   file: number,
   rank: number,
 ): void {
   // Legal diagonal-2 destinations in own half. A blocked eye hides the
-  // destination and does not reveal the eye square by itself.
+  // destination and reveals the eye as occupied-but-unknown.
   for (const [df, dr] of [
     [-2, -2],
     [-2, 2],
@@ -542,25 +603,25 @@ function elephantVisionInto(
       eyeR = rank + dr / 2;
     const destF = file + df,
       destR = rank + dr;
-    if (
-      inBounds(destF, destR) &&
-      inOwnHalf(color, destR) &&
-      inBounds(eyeF, eyeR) &&
-      !isOccupied(board, eyeF, eyeR)
-    ) {
-      set.add(squareOf(destF, destR));
+    if (!inBounds(destF, destR) || !inOwnHalf(color, destR) || !inBounds(eyeF, eyeR)) {
+      continue;
+    }
+    if (isOccupied(board, eyeF, eyeR)) {
+      accum.shroudedBlockers.add(squareOf(eyeF, eyeR));
+    } else {
+      accum.directlyVisible.add(squareOf(destF, destR));
     }
   }
 }
 
 function horseVisionInto(
-  set: Set<XiangqiSquare>,
+  accum: VisionAccum,
   board: XiangqiBoard,
   file: number,
   rank: number,
 ): void {
-  // Legal L-shaped destinations only. The adjacent leg square does not become
-  // visible merely because a hidden blocker suppresses a move.
+  // Legal L-shaped destinations only. A blocked leg hides the destinations it
+  // controls and reveals the leg as occupied-but-unknown.
   for (const [df, dr, legDf, legDr] of [
     [1, 2, 0, 1],
     [1, -2, 0, -1],
@@ -575,8 +636,11 @@ function horseVisionInto(
     const legR = rank + legDr;
     const destF = file + df;
     const destR = rank + dr;
-    if (inBounds(destF, destR) && inBounds(legF, legR) && !isOccupied(board, legF, legR)) {
-      set.add(squareOf(destF, destR));
+    if (!inBounds(destF, destR) || !inBounds(legF, legR)) continue;
+    if (isOccupied(board, legF, legR)) {
+      accum.shroudedBlockers.add(squareOf(legF, legR));
+    } else {
+      accum.directlyVisible.add(squareOf(destF, destR));
     }
   }
 }
@@ -688,10 +752,10 @@ export function computeVision(state: XiangqiGameState, color: XiangqiColor): Vis
         advisorVisionInto(accum.directlyVisible, color, file, rank);
         break;
       case 'elephant':
-        elephantVisionInto(accum.directlyVisible, color, state.board, file, rank);
+        elephantVisionInto(accum, color, state.board, file, rank);
         break;
       case 'horse':
-        horseVisionInto(accum.directlyVisible, state.board, file, rank);
+        horseVisionInto(accum, state.board, file, rank);
         break;
       case 'chariot':
         chariotVisionInto(accum.directlyVisible, state.board, file, rank);
@@ -711,6 +775,7 @@ export function getVisibleSquares(state: XiangqiGameState, color: XiangqiColor):
   const v = computeVision(state, color);
   const all = new Set<XiangqiSquare>([
     ...v.directlyVisible,
+    ...v.shroudedBlockers,
     ...v.cannonScreens,
     ...v.cannonTargets,
     ...v.cannonPath,
@@ -745,6 +810,11 @@ export function getPlayerView(
     const piece = state.board[sq];
     if (piece) playerBoard[sq] = { piece, shrouded: false };
   }
+  for (const sq of vision.shroudedBlockers) {
+    if (playerBoard[sq]) continue;
+    const piece = state.board[sq];
+    if (piece) playerBoard[sq] = { piece, shrouded: true };
+  }
   if (!fogScreenAndGap) {
     for (const sq of vision.cannonScreens) {
       if (playerBoard[sq]) continue;
@@ -762,6 +832,7 @@ export function getPlayerView(
   // gap. The target is always visible (you can capture it); a screen/gap square
   // that another piece genuinely sees stays visible via directlyVisible.
   const visibleSet = new Set<XiangqiSquare>(vision.directlyVisible);
+  for (const sq of vision.shroudedBlockers) visibleSet.add(sq);
   for (const sq of vision.cannonTargets) visibleSet.add(sq);
   if (!fogScreenAndGap) {
     for (const sq of vision.cannonScreens) visibleSet.add(sq);

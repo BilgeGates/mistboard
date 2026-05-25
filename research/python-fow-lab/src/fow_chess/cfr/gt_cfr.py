@@ -461,17 +461,30 @@ def _select_leaf_for_expansion(
     state: GTCFRState,
     exploring_player: chess.Color,
     rng: random.Random,
+    *,
+    keep_ids: set[int] | None = None,
 ) -> GTCFRTreeNode | None:
     """Walk from root using exploring-player = PUCT-mixture, non-exploring
     = current strategy. Return the first non-terminal leaf encountered,
-    or None if the entire reachable subtree is terminal/exhausted."""
+    or None if the entire reachable subtree is terminal/exhausted.
+
+    When ``keep_ids`` is provided (Python ``id()`` of allowed nodes —
+    typically from KLUSS k=2 keep-mask), restrict descent to children
+    in that set. If all children at any node are outside the keep set,
+    the walk halts and returns None (no expansion this iter for this
+    root). Returned leaf must itself be in the keep set; if the walk
+    arrives at a leaf outside the keep set, also returns None."""
     node = root
     while True:
         if node.is_terminal:
             return None
         if not node.is_expanded:
+            if keep_ids is not None and id(node) not in keep_ids:
+                return None
             return node
         actions = list(node.children.keys())
+        if keep_ids is not None:
+            actions = [a for a in actions if id(node.children[a]) in keep_ids]
         if not actions:
             return None
         info_set_id = node.info_set_id()
@@ -700,6 +713,7 @@ def solve_multiroot_growing_subgame(
     expansion_budget: int | None = None,
     rng: random.Random | None = None,
     time_budget_seconds: float | None = None,
+    kluss_k: int | None = None,
 ) -> MultiRootGTCFRSolution:
     """Multi-root one-sided GT-CFR with shared regret tables — KLUSS-flavored.
 
@@ -794,7 +808,21 @@ def solve_multiroot_growing_subgame(
                 roots,
                 key=lambda r: (_count_nodes(r), rng.random()),
             )
-            leaf = _select_leaf_for_expansion(best_root, state, exploring, rng)
+            # KLUSS k=2: compute keep-set from the connectivity graph of
+            # the current Γ̃ and restrict leaf-selection to nodes within
+            # I^(k+1). Recomputed each iteration as the tree grows.
+            # Disabled when kluss_k is None — preserves prior behavior.
+            keep_ids: set[int] | None = None
+            if kluss_k is not None:
+                from .kluss import kluss_keep_mask
+                source_infosets = {roots[0].info_set_id()}
+                nodes, keep_indices = kluss_keep_mask(
+                    roots, source_infosets, k=kluss_k,
+                )
+                keep_ids = {id(nodes[i]) for i in keep_indices}
+            leaf = _select_leaf_for_expansion(
+                best_root, state, exploring, rng, keep_ids=keep_ids,
+            )
             if leaf is not None:
                 expand_leaf(
                     leaf, state,

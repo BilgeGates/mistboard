@@ -56,37 +56,38 @@ A player does not see:
 
 - Opponent pieces outside visible squares.
 - Whether a hidden square is empty or occupied.
-- The screen that enables a cannon capture, unless another piece sees it.
+- The identity of a hidden blocker or cannon screen unless another piece sees
+  it normally.
 
 Visibility is piece-specific and follows legal destinations:
 
 - The general sees legal one-step orthogonal destinations inside its own
   palace, plus a facing enemy general if the file is clear.
 - Advisors see their diagonal palace destinations.
-- Elephants see legal same-side river destinations. A blocked eye does not
-  become visible merely because it blocks a move.
-- Horses see legal L-shaped destinations. A blocked leg does not become visible
-  merely because it blocks a move.
+- Elephants see legal same-side river destinations. A blocked eye appears as
+  occupied but unidentified.
+- Horses see legal L-shaped destinations. A blocked leg appears as occupied but
+  unidentified.
 - Chariots see along orthogonal rays through empty squares and stop at the
   first piece.
 - Soldiers see forward, and after crossing the river also see sideways.
 
 ## Cannon Vision
 
-Current working rule: **screen and gap fogged, target revealed**.
+Current working rule: **screen shrouded, target revealed**.
 
 When a cannon has a capture along a ray:
 
 - Empty squares before the screen are visible.
-- The screen remains hidden unless another piece sees it.
-- Empty squares between the screen and target remain hidden unless another
-  piece sees them.
+- The screen appears as occupied but unidentified unless another piece sees it.
+- Empty squares between the screen and target are visible as part of the cannon
+  line.
 - The capturable target is visible.
 - The UI marks the target as cannon-capturable.
 
 This means a player learns the actionable fact: "my cannon can capture that
-piece." They do not automatically learn what piece is serving as the screen or
-where the enabling screen sits.
+piece." They also learn where the enabling screen sits, but not what the screen
+piece is.
 
 The development spike keeps alternate cannon modes for comparison, but this is
 the current candidate for the canonical rule.

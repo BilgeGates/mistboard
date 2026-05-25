@@ -7,6 +7,7 @@ import {
   type StepperController,
   type ThumbnailBoardController,
 } from '@mistboard/board-render/interactive';
+import { type ArticleLang, translateArticle } from './article-i18n.js';
 import {
   type Article,
   type ArticleBlock,
@@ -19,10 +20,10 @@ import {
   type InteractiveBlock,
   type LiveBoardsBlock,
   type RawSvgBlock,
+  type RawSvgStepperBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,
 } from './articles-data.js';
-import { type ArticleLang, translateArticle } from './article-i18n.js';
 
 // Nav + footer come from landing.ts. We avoid re-implementing them by accepting
 // pre-built nodes from the caller — keeps this module standalone and testable.
@@ -330,6 +331,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
   if (block.kind === 'cta') return renderCtaBlock(block);
   if (block.kind === 'raw-svg') return renderRawSvgBlock(block);
+  if (block.kind === 'raw-svg-stepper') return renderRawSvgStepperBlock(block);
   if (block.kind === 'code') return renderCodeBlock(block);
   if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
   return renderInteractiveBlock(block);
@@ -368,6 +370,106 @@ function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
   return figure;
 }
 
+function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-raw-svg-stepper';
+
+  const host = document.createElement('div');
+  host.className = 'raw-svg-stepper stepper';
+  host.tabIndex = 0;
+
+  const frame = document.createElement('div');
+  frame.className = 'raw-svg-stepper-frame';
+
+  const controls = document.createElement('div');
+  controls.className = 'stepper-controls';
+
+  const prev = document.createElement('button');
+  prev.type = 'button';
+  prev.className = 'stepper-button stepper-button-prev';
+  prev.setAttribute('aria-label', 'Previous step');
+  prev.textContent = '←';
+
+  const counter = document.createElement('span');
+  counter.className = 'stepper-counter';
+
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'stepper-button stepper-button-next';
+  next.setAttribute('aria-label', 'Next step');
+  next.textContent = '→';
+
+  const narrative = document.createElement('div');
+  narrative.className = 'stepper-narrative';
+
+  controls.append(prev, counter, next);
+  host.append(frame, controls, narrative);
+  figure.append(host);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  let stepIdx = 0;
+
+  function render(): void {
+    const step = block.steps[stepIdx];
+    if (!step) return;
+    frame.innerHTML = step.svg;
+    narrative.textContent = step.narrative ?? '';
+    counter.textContent = `${stepIdx + 1} / ${block.steps.length}`;
+
+    const willDisablePrev = stepIdx === 0;
+    const willDisableNext = stepIdx === block.steps.length - 1;
+    const focused = document.activeElement;
+    if ((focused === prev && willDisablePrev) || (focused === next && willDisableNext)) {
+      host.focus();
+    }
+    prev.disabled = willDisablePrev;
+    next.disabled = willDisableNext;
+  }
+
+  function onPrev(): void {
+    if (stepIdx <= 0) return;
+    stepIdx -= 1;
+    render();
+  }
+
+  function onNext(): void {
+    if (stepIdx >= block.steps.length - 1) return;
+    stepIdx += 1;
+    render();
+  }
+
+  function onKeyDown(event: KeyboardEvent): void {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'q':
+      case 'Q':
+        event.preventDefault();
+        onPrev();
+        return;
+      case 'ArrowRight':
+      case 'e':
+      case 'E':
+        event.preventDefault();
+        onNext();
+        return;
+    }
+  }
+
+  prev.addEventListener('click', onPrev);
+  next.addEventListener('click', onNext);
+  host.addEventListener('keydown', onKeyDown);
+  render();
+
+  return figure;
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -379,25 +481,22 @@ const CODE_TOKEN =
   /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:[^"\\]|\\.)*"(?=\s*:))|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d[\d_.eE+-]*\b)|\b(true|false|null|undefined)\b|\b(function|return|const|let|new|for|of|if|else|in|typeof|void)\b/g;
 
 function highlightCode(text: string): string {
-  return escapeHtml(text).replace(
-    CODE_TOKEN,
-    (m, comment, key, str, num, bool, kw) => {
-      const cls = comment
-        ? 'tok-comment'
-        : key
-          ? 'tok-key'
-          : str
-            ? 'tok-string'
-            : num
-              ? 'tok-number'
-              : bool
-                ? 'tok-bool'
-                : kw
-                  ? 'tok-keyword'
-                  : '';
-      return cls ? `<span class="${cls}">${m}</span>` : m;
-    },
-  );
+  return escapeHtml(text).replace(CODE_TOKEN, (m, comment, key, str, num, bool, kw) => {
+    const cls = comment
+      ? 'tok-comment'
+      : key
+        ? 'tok-key'
+        : str
+          ? 'tok-string'
+          : num
+            ? 'tok-number'
+            : bool
+              ? 'tok-bool'
+              : kw
+                ? 'tok-keyword'
+                : '';
+    return cls ? `<span class="${cls}">${m}</span>` : m;
+  });
 }
 
 function renderCodeBlock(block: CodeBlock): HTMLElement {

@@ -336,6 +336,31 @@ test('FoW: flying-general is allowed (no check filter)', () => {
   assert.ok(!cannonMoves.some((m) => m.to === 'e10'));
 });
 
+test('facing general can capture across a clear file', () => {
+  const state = buildState(
+    {
+      e1: { color: 'red', role: 'general' },
+      e10: { color: 'black', role: 'general' },
+    },
+    'black',
+  );
+  const generalMoves = getLegalMovesFrom(state, 'e10');
+  assert.ok(findMove(generalMoves, 'e10', 'e1'));
+  assert.ok(isLegalMove(state, { from: 'e10', to: 'e1' }));
+
+  const after = applyMove(state, { from: 'e10', to: 'e1' });
+  assert.deepEqual(after.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'general-captured',
+  });
+  assert.deepEqual(after.board.e1, { color: 'black', role: 'general' });
+  assert.equal(
+    Object.values(after.board).some((p) => p?.color === 'red' && p.role === 'general'),
+    false,
+  );
+});
+
 test('FoW: capturing the general ends the game (winner = mover, general removed)', () => {
   // Red chariot on a1 with a clear file up to the black general on a10.
   // Capture should remove the general and finish the game.
@@ -639,6 +664,10 @@ test('horse vision hides destinations behind blocked legs', () => {
   assert.ok(!v.directlyVisible.has('f4'), 'blocked destination f4 stays hidden');
   assert.ok(v.directlyVisible.has('c1'), 'unblocked destination c1 remains visible');
   assert.ok(v.directlyVisible.has('g1'), 'unblocked destination g1 remains visible');
+
+  const view = getPlayerView(state, 'red');
+  assert.equal(view.board.e3?.shrouded, true, 'blocked leg renders as a ? marker');
+  assert.ok(view.visibleSquares.includes('e3'), 'blocked leg square is visible as occupancy');
 });
 
 test('elephant sees legal diagonal-2 destinations but not eye squares', () => {
@@ -688,6 +717,10 @@ test('elephant vision hides destinations behind blocked eyes', () => {
   assert.ok(!v.directlyVisible.has('d2'), 'blocked eye is not revealed by elephant vision');
   assert.ok(!v.directlyVisible.has('e3'), 'blocked elephant destination stays hidden');
   assert.ok(v.directlyVisible.has('a3'), 'unblocked elephant destination remains visible');
+
+  const view = getPlayerView(state, 'red');
+  assert.equal(view.board.d2?.shrouded, true, 'blocked eye renders as a ? marker');
+  assert.ok(view.visibleSquares.includes('d2'), 'blocked eye square is visible as occupancy');
 });
 
 test('soldier vision: 1 fwd in own half, 1 fwd + 2 sideways after crossing river', () => {
