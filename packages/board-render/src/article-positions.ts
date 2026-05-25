@@ -62,15 +62,32 @@ export const DISCOVERY_BOARD: Board = {
   b7: { color: 'black', role: 'queen' },
 };
 
+const DARK_CHESS_CONCEPTS_BOARD: Board = {
+  g1: { color: 'white', role: 'king' },
+  d5: { color: 'white', role: 'pawn' },
+  h3: { color: 'white', role: 'bishop' },
+  g8: { color: 'black', role: 'king' },
+  c6: { color: 'black', role: 'pawn' },
+  e6: { color: 'black', role: 'pawn' },
+  c7: { color: 'black', role: 'knight' },
+  d7: { color: 'black', role: 'rook' },
+};
+
 // ── Per-slug OG / thumbnail positions ─────────────────────────────────────────
 const DARK_CHESS_START = darkChessVariant.createInitialState('dark-chess-rules-start');
 const CONE_QUEEN = demoState('cone-queen', CONE_QUEEN_BOARD);
 const DISCOVERY_BEFORE = demoState('dark-chess-rules-discovery', DISCOVERY_BOARD);
+const DARK_CHESS_CONCEPTS = demoState('dark-chess-concepts-deduction', DARK_CHESS_CONCEPTS_BOARD);
 
 export const ARTICLE_OG_POSITIONS: Record<string, ArticleOgPosition> = {
   'dark-chess-rules': {
     pieces: boardToPieces(DARK_CHESS_START.board),
     fogSquares: fogFor(DARK_CHESS_START, 'white'),
+    orientation: 'white',
+  },
+  'dark-chess-concepts': {
+    pieces: boardToPieces(DARK_CHESS_CONCEPTS.board),
+    fogSquares: fogFor(DARK_CHESS_CONCEPTS, 'white'),
     orientation: 'white',
   },
   draft960: {

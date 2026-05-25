@@ -570,9 +570,14 @@ type PageMeta = {
 // without importing the web bundle. Keep in sync when titles/summaries change.
 const ARTICLE_META: Record<string, { title: string; description: string }> = {
   'dark-chess-rules': {
-    title: 'Dark chess: the canonical reference',
+    title: 'Dark Chess Rules',
     description:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
+  },
+  'dark-chess-concepts': {
+    title: 'Dark Chess Concepts',
+    description:
+      'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
   },
   draft960: {
     title: 'Draft960: dark chess with a hidden draft',

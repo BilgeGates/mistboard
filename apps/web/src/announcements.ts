@@ -29,7 +29,7 @@ export const announcements: Announcement[] = [
   {
     date: '2026-05-21',
     kind: 'article',
-    headline: 'Dark chess: the canonical reference.',
+    headline: 'Dark Chess Rules.',
     body: 'How visibility works, what counts as a win, and the rule quirks (castling, en passant) you will actually run into.',
     href: '/articles/dark-chess-rules',
   },

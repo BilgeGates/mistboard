@@ -1639,12 +1639,12 @@ const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
 export const articles: Article[] = [
   {
     slug: 'dark-chess-rules',
-    title: 'Dark chess: the canonical reference',
+    title: 'Dark Chess Rules',
     summary:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
     status: 'published',
     publishedAt: '2026-05-22',
-    updatedAt: '2026-05-24',
+    updatedAt: '2026-05-25',
     audience:
       'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
     thumbnail: ARTICLE_OG_POSITIONS['dark-chess-rules'],
@@ -1822,72 +1822,6 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'Basic deduction',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              "You can read the darkness to deduce what's happening on the board.",
-          },
-          { kind: 'sub-heading', text: 'Pawn moves' },
-          {
-            kind: 'paragraph',
-            text:
-              "A pawn sees where it can push. Fog on a push square means an opponent piece or pawn is blocking it.",
-          },
-          {
-            kind: 'live-boards',
-            spec: {
-              layout: 'pair',
-              boards: [
-                { board: DEDUCE_PAWN_OPEN.board, fogSquares: DEDUCE_PAWN_OPEN_FOG, orientation: 'white', label: 'EMPTY AHEAD' },
-                { board: DEDUCE_PAWN_BLOCKED.board, fogSquares: DEDUCE_PAWN_BLOCKED_FOG, orientation: 'white', label: 'BLOCKED AHEAD' },
-              ],
-            },
-          } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text:
-              "Same signal in opening play. After 1.d4 e6 2.Nf3 Bb4, b4 leaves White's view: the b2-pawn no longer pushes there. A Black piece just landed on b4. Pawn, knight, or bishop, and White can't tell which. But c3 and d2 are visible empty, so a bishop would capture the king next move. White has to defend on that assumption.",
-          },
-          {
-            kind: 'interactive',
-            widget: 'stepper',
-            spec: {
-              layout: 'triptych',
-              positions: DEDUCE_BB4_POSITIONS,
-            },
-          } as ArticleBlock,
-          { kind: 'sub-heading', text: 'Captures' },
-          {
-            kind: 'paragraph',
-            text:
-              "When the opponent takes one of your pieces, the capture square falls to fog. You can't see what took. Here: White pawn on d5, with four Black attackers around it (c6 pawn, e6 pawn, c7 knight, d7 rook). After 1...exd5, the d5 pawn vanishes. Which Black piece took it?",
-          },
-          {
-            kind: 'interactive',
-            widget: 'stepper',
-            spec: {
-              layout: 'triptych',
-              positions: DEDUCE_RECAP_NB_POSITIONS,
-            },
-          } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text:
-              "Add a White bishop on h3. Its diagonal keeps e6 in view. After the same 1...exd5, White loses d5 and the bishop sees e6 fall empty. So the e-pawn took.",
-          },
-          {
-            kind: 'interactive',
-            widget: 'stepper',
-            spec: {
-              layout: 'triptych',
-              positions: DEDUCE_RECAP_POSITIONS,
-            },
-          } as ArticleBlock,
-        ],
-      },
-      {
         heading: 'A sample game',
         blocks: [
           {
@@ -1924,6 +1858,126 @@ export const articles: Article[] = [
             text:
               "The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard's servers run in production.",
           },
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'dark-chess-concepts',
+    title: 'Dark Chess Concepts',
+    summary:
+      'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
+    status: 'draft',
+    audience:
+      'Players who know the dark chess rules and want to start making better decisions under fog.',
+    thumbnail: ARTICLE_OG_POSITIONS['dark-chess-concepts'],
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          'Dark chess is not only about the pieces you see. Fogged squares, missing destinations, and vanished pieces are information too. This concepts series starts with the most useful habit: reading what the fog is telling you.',
+      },
+    ],
+    sections: [
+      {
+        heading: 'Reading the fog',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "You can read the darkness to deduce what's happening on the board.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'The goal is not perfect certainty. A good dark chess player learns which hidden worlds are dangerous enough to respect, then chooses moves that survive those worlds.',
+          },
+        ],
+      },
+      {
+        heading: 'Pawn moves',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "A pawn sees where it can push. Fog on a push square means an opponent piece or pawn is blocking it.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'pair',
+              boards: [
+                { board: DEDUCE_PAWN_OPEN.board, fogSquares: DEDUCE_PAWN_OPEN_FOG, orientation: 'white', label: 'EMPTY AHEAD' },
+                { board: DEDUCE_PAWN_BLOCKED.board, fogSquares: DEDUCE_PAWN_BLOCKED_FOG, orientation: 'white', label: 'BLOCKED AHEAD' },
+              ],
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "Same signal in opening play. After 1.d4 e6 2.Nf3 Bb4, b4 leaves White's view: the b2-pawn no longer pushes there. A Black piece just landed on b4. Pawn, knight, or bishop, and White can't tell which. But c3 and d2 are visible empty, so a bishop would capture the king next move. White has to defend on that assumption.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'triptych',
+              positions: DEDUCE_BB4_POSITIONS,
+            },
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'Captures',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "When the opponent takes one of your pieces, the capture square falls to fog. You can't see what took. Here: White pawn on d5, with four Black attackers around it (c6 pawn, e6 pawn, c7 knight, d7 rook). After 1...exd5, the d5 pawn vanishes. Which Black piece took it?",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'triptych',
+              positions: DEDUCE_RECAP_NB_POSITIONS,
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "Add a White bishop on h3. Its diagonal keeps e6 in view. After the same 1...exd5, White loses d5 and the bishop sees e6 fall empty. So the e-pawn took.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'triptych',
+              positions: DEDUCE_RECAP_POSITIONS,
+            },
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'What to do with partial proof',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Dark chess deduction usually narrows the problem instead of solving it outright. Once a hidden bishop, rook, queen, or pawn capture is plausible, the practical question is whether your next move still works if that possibility is true.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'That habit is the bridge from rules to strategy: read the fog, name the dangerous possibilities, and defend against the ones that can end the game.',
+          },
+          {
+            kind: 'cta',
+            buttons: [
+              { label: 'Read the rules', href: '/articles/dark-chess-rules', emphasis: 'secondary' },
+              { label: 'Play dark chess', href: '/?play=lobby', emphasis: 'primary' },
+            ],
+          } as ArticleBlock,
         ],
       },
     ],
