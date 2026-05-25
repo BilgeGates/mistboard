@@ -36,8 +36,9 @@ that are easy for humans and agents to run consistently.
 
 ## First Major Push
 
-_Implementation status: initial scan, worktree, verification, local CI, and
-visual/mobile command names started in May 2026._
+_Implementation status: initial scan, worktree, verification, local CI,
+manual-gate evidence, drift checks, and visual/mobile command names started in
+May 2026._
 
 ### 1. Worktree-First Task Setup
 
@@ -115,6 +116,9 @@ Expected output:
 This should support mobile gameplay, article mobile pass, empty-lobby engine
 fallback, OG scraper sanity, and analytics verification.
 
+Current implementation writes entries under `docs/gate-evidence/` and supports
+`--dry-run` for script verification without creating a record.
+
 ### 5. First-Class Visual And Mobile Smoke
 
 Promote the existing visual and mobile scripts into a clearer test surface:
@@ -140,6 +144,16 @@ Add small checks for the classes of bugs that have already hurt the project:
 
 These should start as narrow, comprehensible checks. False positives that train
 people to ignore the command are worse than a smaller useful guard.
+
+Current implementation:
+
+```bash
+npm run check:drift
+```
+
+It checks public Markdown links, selected SQL constraint values against
+TypeScript unions, and the live snapshot/event payload guard rails that keep fog
+responses on `PlayerView` and per-recipient event filters.
 
 ## Definition Of Done For The First Push
 

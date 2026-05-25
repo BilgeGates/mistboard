@@ -54,6 +54,21 @@ npm run ci:local
 read stale workspace `dist` types, and server unit tests have the dist entrypoint
 they spawn.
 
+For manual M1 gates, record public-safe evidence instead of relying on memory:
+
+```bash
+npm run gate:evidence -- --gate mobile-gameplay --result pass
+```
+
+Before broad handoff, run the narrow drift guard:
+
+```bash
+npm run check:drift
+```
+
+It catches stale public documentation links, selected SQL enum/constraint drift,
+and accidental bypasses of the live fog payload redaction path.
+
 ## Current velocity losses
 
 - Shared worktrees are the highest-cost failure mode. Existing dirty files

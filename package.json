@@ -41,6 +41,8 @@
     "format:check": "biome format",
     "check:cycles": "madge --circular --extensions ts apps packages",
     "agent:scan": "node scripts/agent-scan.mjs",
+    "gate:evidence": "node scripts/gate-evidence.mjs",
+    "check:drift": "node scripts/drift-check.mjs",
     "worktree:new": "node scripts/worktree-new.mjs",
     "verify": "node scripts/verify.mjs",
     "ci:quick": "node scripts/ci-checks.mjs quick",

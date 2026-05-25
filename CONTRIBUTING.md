@@ -45,6 +45,7 @@ Usually out of scope for v1 unless explicitly gate-cleared:
 npm install
 npm run agent:scan        # live dirty-state, worktree, hotspot, and test map
 npm run verify -- --changed
+npm run check:drift       # public-doc links, SQL enum drift, fog payload guards
 npm run ci:quick
 npm run dev              # in-memory server, fastest for UI work
 npm run dev:persistent   # Postgres-backed server (required for reconnect/replay testing)
@@ -70,6 +71,12 @@ For mobile/article layout iteration after the dev server is running:
 
 ```bash
 npm run test:mobile:shots
+```
+
+For manual launch gates, write a public-safe evidence entry:
+
+```bash
+npm run gate:evidence -- --gate mobile-gameplay --result pass
 ```
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's currently being worked on.
