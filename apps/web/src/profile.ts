@@ -76,14 +76,14 @@ type LeaderboardEntry = {
 
 // One panel per (leaderboard variant × time class), generated from the variant
 // registry so disabling a variant (e.g. Draft960) removes its panels in one edit.
-const LEADERBOARD_TIME_CLASSES: { timeClass: string; timeLabel: string }[] = [
-  { timeClass: 'bullet', timeLabel: 'Bullet · 1+1' },
-  { timeClass: 'blitz', timeLabel: 'Blitz · 3+2, 5+3' },
+const LEADERBOARD_TIME_CLASSES: { timeClass: ProfileRatingTimeClass; timeLabel: string }[] = [
+  { timeClass: 'bullet', timeLabel: 'Bullet' },
+  { timeClass: 'blitz', timeLabel: 'Blitz' },
 ];
 const LEADERBOARD_BUCKETS: {
   variantParam: string;
   variantLabel: string;
-  timeClass: string;
+  timeClass: ProfileRatingTimeClass;
   timeLabel: string;
 }[] = leaderboardVariants.flatMap((v) =>
   LEADERBOARD_TIME_CLASSES.map((tc) => ({
@@ -170,7 +170,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
 
   for (let i = 0; i < LEADERBOARD_BUCKETS.length; i++) {
     const b = LEADERBOARD_BUCKETS[i];
-    grid.append(buildLeaderboardPanel(b.variantLabel, b.timeLabel, results[i]));
+    grid.append(buildLeaderboardPanel(b.variantLabel, b.timeClass, b.timeLabel, results[i]));
   }
 }
 
@@ -196,24 +196,26 @@ function buildLeaderboardBanner(): HTMLElement {
 
 function buildLeaderboardPanel(
   variantLabel: string,
+  timeClass: ProfileRatingTimeClass,
   timeLabel: string,
   data: { leaderboard: LeaderboardEntry[] } | null,
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'leaderboard-panel';
+  panel.dataset.timeClass = timeClass;
 
   const header = document.createElement('div');
   header.className = 'leaderboard-panel-header';
 
-  const title = document.createElement('span');
-  title.className = 'leaderboard-panel-title';
-  title.textContent = variantLabel;
-
   const subtitle = document.createElement('span');
   subtitle.className = 'leaderboard-panel-subtitle';
-  subtitle.textContent = timeLabel;
+  subtitle.textContent = variantLabel;
 
-  header.append(title, subtitle);
+  const title = document.createElement('h2');
+  title.className = 'leaderboard-panel-title';
+  title.textContent = timeLabel;
+
+  header.append(subtitle, title);
   panel.append(header);
 
   if (!data) {
