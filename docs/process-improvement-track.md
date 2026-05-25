@@ -233,7 +233,9 @@ ownership surfaces:
    games, and ratings into focused modules.
    Initial extraction moved Postgres pool lifecycle into
    `apps/server/src/persistence-db.ts`; `persistence.ts` still re-exports the
-   public lifecycle API while query ownership is split incrementally.
+   public lifecycle API while query ownership is split incrementally. The next
+   slice moved room seat token persistence into
+   `apps/server/src/persistence-seat-tokens.ts` behind the same facade.
 6. **Split `live-render.ts` incrementally.** Extract stable live-game UI domains:
    board adapter, controls, clocks, captures, Draft960 picker, move list, and
    status panels. Keep the orchestrator thin and keep tests green after each

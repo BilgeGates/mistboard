@@ -69,7 +69,8 @@ Edit task → find file → open only that file.
 | `server-types.ts` | Shared server types: `Client`, `Room`, `SeatTokenState`, `SeatAssignment`, `LobbyTicket` |
 | `server-policy.ts` | Access control: `canObserveLiveRoom`, `eventReplayResponse`, `visibleEventsForLiveSnapshot`, `modeForProjection`, `isAdminDebugToken`, `isAllowedWebSocketOrigin`, `isClientRoute`, `PARKED_CLIENT_ROUTES` |
 | `persistence-db.ts` | Postgres pool lifecycle: `init`, `probeDb`, `close`, `isInitialized`, `getPool` |
-| `persistence.ts` | Public persistence facade + remaining Postgres SQL (god file — 5 near-clone game-row mappers; planned split into events, rooms, seat tokens, accounts, feedback, games, and ratings modules) |
+| `persistence-seat-tokens.ts` | Room seat token persistence, including token load/upsert/touch/replace/verify helpers |
+| `persistence.ts` | Public persistence facade + remaining Postgres SQL (god file — 5 near-clone game-row mappers; planned split into events, rooms, accounts, feedback, games, and ratings modules) |
 | `payloads.ts` | `snapshotPayload` — builds WebSocket snapshot message; applies fog redaction and seat-scoped view logic |
 | `test-builders.ts` | Shared server test builders for `GameProjection`, `PlayerView`, `SnapshotRoom`, `Room`, clients, and seat tokens |
 | `rating-buckets.ts` | Variant × time-class → bucket-id mapping for per-bucket Elo |
@@ -115,7 +116,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 **Change account/session/email auth** → `account-session.ts`
 **Change seat token auth** → `index.ts` §Seat management
 **Change persistence pool lifecycle** → `persistence-db.ts`
-**Change persistence queries** → `persistence.ts`
+**Change room seat token persistence** → `persistence-seat-tokens.ts`
+**Change persistence queries** → focused `persistence-*.ts` module first, otherwise `persistence.ts`
 **Change clock logic** → `clocks.ts` (game pkg) + `room-manager.ts` (`scheduleClockTimeout`, `expireActiveClock`)
 **Change snapshot/fog payload** → `payloads.ts`
 **Change access control** → `server-policy.ts`
