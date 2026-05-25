@@ -45,6 +45,7 @@ const LEGACY_RECORDED_TIME_SCALE = 0.12;
 const MIN_RECORDED_DELTA_MS = 150;
 const MIN_PLAY_MS = 700;
 const MAX_PLAY_MS = 2500;
+const MIN_THINKING_BUDGET_PLAY_MS = 700;
 const DEFAULT_BETWEEN_GAME_DELAY_MS = 8000;
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
@@ -828,7 +829,11 @@ export async function mountReplay(
     if (!event || event.type !== 'move-played') return null;
     const ext = event as MovePlayedExt;
     if (typeof ext.thinkTimeMs !== 'number' || ext.thinkTimeMs < 0) return null;
-    return Math.max(0, ext.thinkTimeMs);
+    const thinkMs = Math.max(0, ext.thinkTimeMs);
+    if (thinkingBudgetMsFromMeta(currentMeta()?.timeControl) !== null) {
+      return Math.max(MIN_THINKING_BUDGET_PLAY_MS, thinkMs);
+    }
+    return thinkMs;
   }
 
   function thinkingDurationForPly(ply: number): number | null {
@@ -1881,6 +1886,7 @@ function clocklessReplayTimeLabel(
 }
 
 function formatThinkingElapsed(ms: number): string {
+  if (ms < 100) return '<0.1s';
   const seconds = Math.max(0, ms) / 1000;
   if (seconds < 10) return `${seconds.toFixed(1)}s`;
   return `${Math.round(seconds)}s`;
