@@ -40,27 +40,107 @@ async function smokeLearnInterface() {
   const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
   try {
     await page.goto(`${baseUrl}/learn`, { waitUntil: 'networkidle' });
-    await page.waitForSelector('.learn-tutorial-shell');
+    await page.waitForSelector('.learn-home-shell');
 
     await assertVisible(page, '.site-nav-brand img.site-nav-logo[src="/logo.svg"]');
     assert.equal(await page.locator('.site-nav-brand span').textContent(), 'MISTBOARD');
 
-    // Tutorial shell: 3 shipped steps, no locked placeholders.
-    assert.equal(await page.locator('.learn-progress').textContent(), 'Step 1 of 3');
+    assert.equal(
+      await page.locator('.learn-home .learn-heading').textContent(),
+      'Learn dark chess',
+    );
+    assert.ok((await page.locator('.learn-module-card').count()) >= 24);
+
+    const firstSection = page.locator('.learn-module-section').first();
+    assert.equal(await firstSection.locator('.learn-module-section-header h2').textContent(), 'WIP');
+    assert.equal(await firstSection.locator('.learn-module-card').count(), 3);
+    assert.equal(await firstSection.locator('.learn-module-card h2').first().textContent(), 'K+Q vs K');
+    assert.equal(
+      await firstSection.locator('.learn-module-card h2').nth(1).textContent(),
+      'K+R vs K',
+    );
+    await firstSection.getByRole('button', { name: 'Open queen endgame' }).click();
+    await page.waitForSelector('.learn-tutorial-shell');
+    await page.waitForFunction(() => window.location.hash === '#/queen-vs-king/kqk-free-queen-vision');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'K+Q vs K');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Free queen vision');
+    assert.equal(await page.locator('.learn-menu-header h2').textContent(), 'K+Q vs K');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 5);
+    await assertVisible(page, '.learn-board');
+    await assertOnlyWhitePracticePieces(page);
+    await dragSquare(page, 'd4', 'h4');
+    await page.waitForFunction(() =>
+      document.querySelector('.learn-tutorial-message')?.textContent?.includes('no Black move'),
+    );
+    await assertOnlyWhitePracticePieces(page);
+    await dragSquare(page, 'h4', 'h8');
+    await page.waitForFunction(() =>
+      document.querySelector('.learn-tutorial-message')?.textContent?.includes('no Black move'),
+    );
+    await assertOnlyWhitePracticePieces(page);
+    await page.locator('.learn-menu-back').click();
+    await page.waitForSelector('.learn-home-shell');
+
+    await page.goto(`${baseUrl}/learn#/rook-vs-king/krk-free-rook-vision`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.learn-tutorial-shell');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'K+R vs K');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Free rook vision');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 5);
+    await assertOnlyWhitePracticePieces(page);
+    await page.locator('.learn-menu-back').click();
+    await page.waitForSelector('.learn-home-shell');
+
+    const exploratorySection = page
+      .locator('.learn-module-section')
+      .filter({ hasText: 'Exploratory' });
+    assert.equal(
+      await page.locator('.learn-module-section-header h2', { hasText: 'Research track' }).count(),
+      0,
+    );
+    assert.equal(
+      await exploratorySection.locator('.learn-module-card h2').first().textContent(),
+      'Dark Chess Basics',
+    );
+
+    await page.goto(`${baseUrl}/learn#/queen-vs-king/kqk-superposition-corner`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('.learn-tutorial-shell');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'K+Q vs K');
+    assert.equal(
+      await page.locator('.learn-chapter-title').textContent(),
+      'Corner the superpositions',
+    );
+    const superpositionText = (await page.locator('.learn-tutorial-message').textContent()) ?? '';
+    assert.match(superpositionText, /superposition across all legal belief-state candidates/);
+    await page.locator('.learn-menu-back').click();
+    await page.waitForSelector('.learn-home-shell');
+
+    await page.goto(`${baseUrl}/learn#/unknown-is-not-empty`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('.learn-tutorial-shell');
+    assert.equal(
+      await page.locator('.learn-heading').textContent(),
+      'Unknown Is Not Empty',
+    );
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Planned module');
+    await assertVisible(page, '.learn-board');
+    assert.equal(await page.locator('.learn-menu-header h2').textContent(), 'Unknown Is Not Empty');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+    await page.locator('.learn-menu-back').click();
+    await page.waitForSelector('.learn-home-shell');
+    assert.ok((await page.locator('.learn-module-card').count()) >= 24);
+
+    await page.goto(`${baseUrl}/learn`, { waitUntil: 'networkidle' });
+    await page.locator('.learn-module-card').getByRole('button', { name: 'Start basics' }).click();
+    await page.waitForSelector('.learn-tutorial-shell');
+    await page.waitForFunction(() => window.location.hash === '#/basics/tutorial-vision');
+
+    // Tutorial module: 3 shipped steps in the cleaner chapter rail.
+    assert.equal(await page.locator('.learn-progress').textContent(), 'Chapter 1 of 3');
     assert.equal(await page.locator('.learn-heading').textContent(), 'Vision');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Move and watch');
-    assert.equal(await page.locator('.learn-menu-category h2').first().textContent(), 'Tutorial');
-    // Tutorial (3) + Endgames (1) = 4 lesson rows, none locked.
-    assert.equal(await page.locator('.learn-menu-lesson').count(), 4);
-    assert.equal(await page.locator('.learn-menu-lesson.is-locked').count(), 0);
-    // The Endgames category renders with the Two Kings Standoff lesson.
-    const categoryTitles = await page.locator('.learn-menu-category h2').allTextContents();
-    assert.ok(categoryTitles.includes('Endgames'), 'Endgames category should render');
-    const menuText = (await page.locator('.learn-menu').textContent()) ?? '';
-    assert.ok(
-      menuText.includes('The Two Kings Standoff'),
-      'Two Kings Standoff lesson should render in the menu',
-    );
+    assert.equal(await page.locator('.learn-menu-header h2').textContent(), 'Dark Chess Basics');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 3);
 
     // Step 1: any legal rook move counts.
     await dragSquare(page, 'd1', 'd4');
@@ -74,7 +154,7 @@ async function smokeLearnInterface() {
     // Advance to Step 2 via the Next button.
     await nextButton.click();
     await page.waitForFunction(
-      () => document.querySelector('.learn-progress')?.textContent === 'Step 2 of 3',
+      () => document.querySelector('.learn-progress')?.textContent === 'Chapter 2 of 3',
     );
     assert.equal(await page.locator('.learn-heading').textContent(), 'King Capture');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Take the king');
@@ -91,7 +171,7 @@ async function smokeLearnInterface() {
     // Advance to Step 3.
     await step2Next.click();
     await page.waitForFunction(
-      () => document.querySelector('.learn-progress')?.textContent === 'Step 3 of 3',
+      () => document.querySelector('.learn-progress')?.textContent === 'Chapter 3 of 3',
     );
     assert.equal(await page.locator('.learn-heading').textContent(), 'Hidden Moves');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'What just happened?');
@@ -106,16 +186,26 @@ async function smokeLearnInterface() {
     await page.waitForSelector('.learn-tutorial-message.success');
     const step3Text = await page.locator('.learn-tutorial-message.success').textContent();
     assert.match(step3Text ?? '', /knight from b8 to c6/);
-    // Step 3 now chains into the Endgames track via Next.
-    const step3Next = page.locator('.learn-actions').getByRole('button', { name: 'Next' });
+    // Step 3 now chains into the Endgames module.
+    const step3Next = page.locator('.learn-actions').getByRole('button', { name: 'Next module' });
     assert.equal(await step3Next.count(), 1);
     await step3Next.click();
     await page.waitForFunction(
       () => document.querySelector('.learn-heading')?.textContent === 'The Two Kings Standoff',
     );
+    await page.waitForFunction(() => window.location.hash === '#/endgames/kvk-chase');
+    assert.equal(
+      await page.locator('.learn-menu-header h2').textContent(),
+      'The Two Kings Standoff',
+    );
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'The chase');
     const playHint = (await page.locator('.learn-hint').textContent()) ?? '';
     assert.match(playHint, /Move your king/);
+
+    await page.locator('.learn-menu-back').click();
+    await page.waitForSelector('.learn-home-shell');
+    assert.ok((await page.locator('.learn-module-card').count()) >= 24);
   } finally {
     await browser.close();
   }
@@ -125,6 +215,22 @@ async function assertVisible(page, selector) {
   const locator = page.locator(selector);
   assert.equal(await locator.count(), 1, `${selector} should appear once`);
   assert.equal(await locator.first().isVisible(), true, `${selector} should be visible`);
+}
+
+async function assertOnlyWhitePracticePieces(page) {
+  const pieces = await page.locator('.learn-board piece').evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute('class') ?? ''),
+  );
+  assert.equal(
+    pieces.filter((className) => className.includes('black') && !className.includes('ghost'))
+      .length,
+    0,
+  );
+  assert.equal(
+    pieces.filter((className) => className.includes('white') && !className.includes('ghost'))
+      .length,
+    2,
+  );
 }
 
 async function _clickLesson(page, title) {

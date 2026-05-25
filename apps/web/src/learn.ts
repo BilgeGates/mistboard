@@ -35,7 +35,7 @@ type DemoMove = {
 
 // Node kinds for the research-derived lessons (Endgames). 'legacy' chapters keep
 // the original step-based tutorial behavior and leave `mode` unset.
-type ChapterMode = 'play' | 'demo' | 'teach';
+type ChapterMode = 'practice' | 'play' | 'demo' | 'teach';
 
 type TutorialChapter = {
   id: string;
@@ -58,7 +58,7 @@ type TutorialChapter = {
 
   // --- Endgames node model (only set on non-legacy chapters) ---
   mode?: ChapterMode;
-  // play: free-play vs a heuristic defender, fog on, player is White.
+  // practice: free White moves with no Black reply. play: vs a heuristic defender.
   playMoveCap?: number;
   playCoachCap?: string;
   // demo: a scripted line walked on the truth board with narration.
@@ -70,34 +70,437 @@ type TutorialChapter = {
   // overlays (shown on the final demo beat / teach node)
   safePair?: Square[];
   unsafeSquares?: Square[];
+  // teach/demo chapters normally show the truth board. Some scaffold chapters
+  // intentionally keep fog on to preview the eventual interaction.
+  fogPreview?: boolean;
   // CTA label for advancing past this chapter.
   nextLabel?: string;
 };
 
 type ChapterStatus = 'ready' | 'success' | 'soft-failure';
 
-type TutorialLesson = {
+type LearnModuleStatus = 'available' | 'wip' | 'planned';
+
+type LearnModuleGroup = 'WIP' | 'Exploratory';
+
+type LearnModule = {
+  id: string;
+  group: LearnModuleGroup;
+  status: LearnModuleStatus;
   title: string;
-  icon: string;
+  summary: string;
+  chapterIds?: string[];
+  outlineChapters?: string[];
+  cta: string;
+  source: string;
 };
 
-type TutorialCategory = {
-  title: string;
-  lessons: TutorialLesson[];
-};
-
-const learnCategories: TutorialCategory[] = [
+const learnModules: LearnModule[] = [
   {
-    title: 'Tutorial',
-    lessons: [
-      { title: 'Vision', icon: '1' },
-      { title: 'King Capture', icon: '2' },
-      { title: 'Hidden Moves', icon: '3' },
+    id: 'queen-vs-king',
+    group: 'WIP',
+    status: 'wip',
+    title: 'K+Q vs K',
+    summary:
+      'Starting outline for turning the drawn lone-king chase into a forced queen hunt under fog.',
+    chapterIds: [
+      'kqk-free-queen-vision',
+      'kqk-random-king',
+      'kqk-punish-scouting',
+      'kqk-perfect-defender',
+      'kqk-superposition-corner',
     ],
+    cta: 'Open queen endgame',
+    source: 'Endgame continuation from K vs K scaffold',
   },
   {
-    title: 'Endgames',
-    lessons: [{ title: 'The Two Kings Standoff', icon: '♚' }],
+    id: 'rook-vs-king',
+    group: 'WIP',
+    status: 'wip',
+    title: 'K+R vs K',
+    summary:
+      'Starting outline for the harder rook hunt: build rook walls, protect the rook, and drive belief states to the edge.',
+    chapterIds: [
+      'krk-free-rook-vision',
+      'krk-random-king',
+      'krk-punish-rook',
+      'krk-perfect-defender',
+      'krk-superposition-edge',
+    ],
+    cta: 'Open rook endgame',
+    source: 'Endgame continuation from K vs K scaffold',
+  },
+  {
+    id: 'basics',
+    group: 'Exploratory',
+    status: 'available',
+    title: 'Dark Chess Basics',
+    summary:
+      'Learn how vision moves, why king capture replaces checkmate, and how a move can happen entirely in your fog.',
+    chapterIds: ['tutorial-vision', 'tutorial-king-capture', 'tutorial-hidden-move'],
+    cta: 'Start basics',
+    source: 'Current interactive tutorial',
+  },
+  {
+    id: 'endgames',
+    group: 'WIP',
+    status: 'wip',
+    title: 'The Two Kings Standoff',
+    summary:
+      'Try to catch a lone hidden king, then walk through why two kings draw in the open and only corners change the story.',
+    chapterIds: [
+      'kvk-chase',
+      'kvk-attack-a',
+      'kvk-attack-b',
+      'kvk-draw',
+      'kvk-corner',
+      'kvk-close',
+    ],
+    cta: 'Open endgame',
+    source: 'Research endgame scaffold',
+  },
+  {
+    id: 'fog-pieces',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Fog Pieces',
+    summary:
+      'Practice each piece as a vision shape before danger, tactics, or hidden enemy moves enter the course.',
+    outlineChapters: [
+      'Rook lantern',
+      'Bishop beam',
+      'Queen floodlight',
+      'King bubble',
+      'Knight jump',
+      'Pawn eyes',
+      'First reveal',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'unknown-is-not-empty',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Unknown Is Not Empty',
+    summary:
+      'Correct the beginner mistake of treating fogged squares as safe by revealing traps, safe squares, and truth replay.',
+    outlineChapters: [
+      'Friendly vision recap',
+      'First enemy reveal',
+      'The tempting empty square',
+      'Safe square, unsafe square',
+      'Unknown capture',
+      'Truth reveal',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'no-check-capture-king',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'No Check, Capture The King',
+    summary:
+      'Replace normal checkmate intuition with Fog rules: there may be no warning, and king capture ends the game.',
+    outlineChapters: [
+      'Check is not the signal',
+      'Find the king',
+      'Capture to win',
+      'Your king can be captured too',
+      'Race condition',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'scout-before-you-grab',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Scout Before You Grab',
+    summary:
+      'Teach the Fog habit of valuing information, king safety, and relevant vision before obvious material.',
+    outlineChapters: [
+      'Two good-looking moves',
+      'The bait piece',
+      'Vision before value',
+      'Safe capture test',
+      'Review label',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'last-seen-is-a-clue',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Last Seen Is A Clue',
+    summary:
+      'Introduce memory markers as stale clues, not facts, so players can reason after pieces disappear into fog.',
+    outlineChapters: [
+      'See it, lose it',
+      'Faded marker',
+      'Could it still be there?',
+      'Cover likely squares',
+      'Bad memory trap',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'opponent-moved-but-where',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Opponent Moved, But Where?',
+    summary:
+      'Make hidden opponent moves legible: a move can happen, consume a turn, and still change nothing visible.',
+    outlineChapters: [
+      'Hidden move placeholder',
+      'What changed?',
+      'Legal movement narrows it',
+      'No visible change matters too',
+      'Respond under uncertainty',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'hide-your-king',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Hide Your King',
+    summary:
+      'Show that your own visibility is a resource: scout without opening lines, relocate, and deny useful vision.',
+    outlineChapters: [
+      'What can they see?',
+      'Do not reveal the king',
+      'Screening piece',
+      'King relocation',
+      'Tradeoff',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'why-did-that-piece-appear',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Why Did That Piece Appear?',
+    summary:
+      'Teach reveal attribution: which friendly piece, blocker change, or opponent move caused new information.',
+    outlineChapters: [
+      'Reveal by movement',
+      'Identify the scout',
+      'Reveal by blocker removal',
+      'Reveal by enemy movement',
+      'Reveal log',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'pawn-vision-is-strange',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Pawn Vision Is Strange',
+    summary:
+      'Handle the Fog-specific pawn confusion: forward moves, diagonal captures, empty diagonals, en passant, and promotion.',
+    outlineChapters: [
+      'Forward move, diagonal sight',
+      'Empty diagonal stays hidden',
+      'Double move changes vision',
+      'En passant edge case',
+      'Promotion reveal',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'hunt-the-king',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Hunt The King',
+    summary:
+      'Turn winning into a search exercise: shrink the possible king region, use the right scout, and capture once found.',
+    outlineChapters: [
+      'Small search zone',
+      'Use the right scout',
+      'Cut off escape squares',
+      'Capture once found',
+      'Fewest moves challenge',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'fog-forks',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Fog Forks',
+    summary:
+      'Translate a familiar chess tactic into hidden information: forks can target vision, safety, and likely king zones.',
+    outlineChapters: [
+      'Classical fork refresher',
+      'Information fork',
+      'King plus material',
+      'Wrong fork',
+      'Choose the Fog fork',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'edge-of-vision',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Edge Of Vision',
+    summary:
+      'Make the boundary between known and unknown space actionable: expand toward the right frontier without overextending.',
+    outlineChapters: [
+      'Find the frontier',
+      'Expand toward danger',
+      'Expand without overextending',
+      'Bad expansion',
+      'Good frontier move',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'what-can-they-see',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'What Can They See?',
+    summary:
+      'Teach perspective asymmetry by comparing White view, Black view, truth, and moves that deny useful information.',
+    outlineChapters: [
+      'White view',
+      'Black view',
+      'Same square, different meaning',
+      'Move with empathy',
+      'Replay comparison',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'postgame-truth-reveal',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Postgame Truth Reveal',
+    summary:
+      'Use perspective replay to explain a tiny Fog line from each player view and then the canonical truth view.',
+    outlineChapters: [
+      'Play a tiny line',
+      'White view replay',
+      'Black view replay',
+      'Truth view',
+      'Find the missed fact',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'first-real-fog-decision',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'First Real Fog Decision',
+    summary:
+      'Bridge tutorial boards into a normal game position where the player weighs vision, safety, and tempo.',
+    outlineChapters: [
+      'Opening information',
+      'Choose a developing scout',
+      'Spot the unsafe plan',
+      'Commit under uncertainty',
+      'Play handoff',
+    ],
+    cta: 'Open preview',
+    source: 'Beginner tutorial curriculum',
+  },
+  {
+    id: 'belief-state-basics',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Belief State Basics',
+    summary:
+      'Explain why hidden-information chess is not one position, but a distribution of possible true boards.',
+    outlineChapters: [
+      'Why Stockfish does not transfer',
+      'The belief state',
+      'Observation constraints',
+      'Belief collapse',
+      'Player-facing intuition',
+    ],
+    cta: 'Open preview',
+    source: 'Engine belief-state article outline',
+  },
+  {
+    id: 'particle-filters',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Particle Filters',
+    summary:
+      'Turn the engine article into an interactive explanation of sampling, weighting, resampling, and particle count tradeoffs.',
+    outlineChapters: [
+      'Sample candidate worlds',
+      'Weight by observation',
+      'Resample and drift',
+      'Particle count tradeoff',
+      'Degeneracy late game',
+    ],
+    cta: 'Open preview',
+    source: 'Engine belief-state article outline',
+  },
+  {
+    id: 'move-selection-under-uncertainty',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Move Selection Under Uncertainty',
+    summary:
+      'Show how candidate moves are judged across many plausible worlds, including risk, information gain, and terminal vetoes.',
+    outlineChapters: [
+      'Evaluate across particles',
+      'Least valuable attacker',
+      'Hidden defender risk',
+      'Terminal king safety',
+      'Information gain',
+    ],
+    cta: 'Open preview',
+    source: 'Engine roadmap and belief bug notes',
+  },
+  {
+    id: 'latent-slider-danger',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Latent Slider Danger',
+    summary:
+      'Teach the research lesson behind unseen queen, rook, and bishop rays that matter even when belief mass is low.',
+    outlineChapters: [
+      'Absent dangerous worlds',
+      'King-target rays',
+      'Low-belief probes',
+      'Blocking moves',
+      'Danger-probe particles',
+    ],
+    cta: 'Open preview',
+    source: 'Belief Particle Engine rung-3 notes',
+  },
+  {
+    id: 'engine-lab-loop',
+    group: 'Exploratory',
+    status: 'planned',
+    title: 'Engine Lab Loop',
+    summary:
+      'Expose the research workflow: saved games, belief artifacts, annotation queues, replay gates, and named failure classes.',
+    outlineChapters: [
+      'Saved bake-off artifacts',
+      'Belief snapshots',
+      'Annotation queue',
+      'Replay target',
+      'Failure class becomes a test',
+    ],
+    cta: 'Open preview',
+    source: 'Engine architecture roadmap',
   },
 ];
 
@@ -325,10 +728,194 @@ const chapters: TutorialChapter[] = [
     mode: 'teach',
     teachText:
       'Two kings in the open is a draw you cannot break. Only a cornered king can lose, and even then you win by guessing right, not by force. The real limit: a lone king reaches nothing across the board, so it can never trap what it cannot see. Add one piece that does reach across the board, a queen, and the guessing disappears. That is next.',
-    nextLabel: 'Restart',
+    nextLabel: 'Queen endgame',
     board: {
       d4: { color: 'white', role: 'king' },
       e6: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+
+  // --- Endgames: King and queen versus lone king (K+Q vs K) ---
+  {
+    id: 'kqk-free-queen-vision',
+    lesson: 'K+Q vs K',
+    title: 'Free queen vision',
+    goal: 'Only the White king and queen are on the board. Fog is on, and White practices moving them.',
+    mode: 'practice',
+    teachText:
+      'Starting interaction: no Black pieces yet. Let White move the king and queen freely with fog enabled, so the player can feel how queen vision blooms, collapses, and differs from king vision before any defender is added.',
+    fogPreview: true,
+    safePair: ['d8', 'h4', 'a4'],
+    nextLabel: 'Random king',
+    board: {
+      d3: { color: 'white', role: 'king' },
+      d4: { color: 'white', role: 'queen' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kqk-random-king',
+    lesson: 'K+Q vs K',
+    title: 'Random hidden king',
+    goal: 'Add a Black king that makes random moves while White practices hunting it.',
+    mode: 'teach',
+    teachText:
+      'Starting interaction: after each White move, the Black king chooses a random legal king move. White sees only what the king and queen reveal. This should teach search and containment before the defender becomes adversarial.',
+    fogPreview: true,
+    safePair: ['h7'],
+    nextLabel: 'Punish mistakes',
+    board: {
+      e3: { color: 'white', role: 'king' },
+      d4: { color: 'white', role: 'queen' },
+      h7: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kqk-punish-scouting',
+    lesson: 'K+Q vs K',
+    title: 'Punish loose scouting',
+    goal: 'The Black king punishes poor White moves, especially unprotected queen scouting or exposed kings.',
+    mode: 'teach',
+    teachText:
+      "Starting interaction: the defender is still simple, but tactical. If White sends the queen where the king cannot protect it, Black should take it when possible. If White exposes the king, Black should capture the king. This chapter teaches that queen reach is not permission to scout carelessly.",
+    fogPreview: true,
+    safePair: ['g7', 'h7'],
+    unsafeSquares: ['h6'],
+    nextLabel: 'Optimal defence',
+    board: {
+      e2: { color: 'white', role: 'king' },
+      h6: { color: 'white', role: 'queen' },
+      g8: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kqk-perfect-defender',
+    lesson: 'K+Q vs K',
+    title: 'Perfect defender',
+    goal: 'The Black king now defends optimally while knowing exactly where White is.',
+    mode: 'teach',
+    teachText:
+      'Starting interaction: Black gets the full truth board and chooses the best defensive move, not a random move. It should preserve distance, avoid corners, punish loose pieces, and use perfect information about White king and queen placement.',
+    fogPreview: true,
+    safePair: ['h8', 'h7', 'g8'],
+    nextLabel: 'Superpositions',
+    board: {
+      f4: { color: 'white', role: 'king' },
+      e5: { color: 'white', role: 'queen' },
+      h8: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kqk-superposition-corner',
+    lesson: 'K+Q vs K',
+    title: 'Corner the superpositions',
+    goal: 'Show every possible Black king square at once, then make White demonstrate the cornering and capture plan.',
+    mode: 'teach',
+    teachText:
+      'Starting interaction: render the Black king as a superposition across all legal belief-state candidates. White must use queen walls and king support to shrink the possible set into the corner, then choose a move that captures every remaining world.',
+    fogPreview: true,
+    safePair: ['h8', 'h7', 'g8', 'g7'],
+    nextLabel: 'Rook endgame',
+    board: {
+      f6: { color: 'white', role: 'king' },
+      g4: { color: 'white', role: 'queen' },
+      h8: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+
+  // --- Endgames: King and rook versus lone king (K+R vs K) ---
+  {
+    id: 'krk-free-rook-vision',
+    lesson: 'K+R vs K',
+    title: 'Free rook vision',
+    goal: 'Only the White king and rook are on the board. Fog is on, and White practices moving them.',
+    mode: 'practice',
+    teachText:
+      'Starting interaction: no Black pieces yet. Let White move the king and rook freely with fog enabled, so the player can feel the rook as a rank-and-file wall before any defender is added.',
+    fogPreview: true,
+    safePair: ['d8', 'a4', 'h4'],
+    nextLabel: 'Random king',
+    board: {
+      d3: { color: 'white', role: 'king' },
+      d4: { color: 'white', role: 'rook' },
+    },
+    steps: [],
+  },
+  {
+    id: 'krk-random-king',
+    lesson: 'K+R vs K',
+    title: 'Random hidden king',
+    goal: 'Add a Black king that makes random moves while White practices building rook walls.',
+    mode: 'teach',
+    teachText:
+      'Starting interaction: after each White move, the Black king chooses a random legal king move. White sees only what the king and rook reveal. This should teach how rook lines cut files and ranks but do not cover diagonals.',
+    fogPreview: true,
+    safePair: ['h7'],
+    nextLabel: 'Punish mistakes',
+    board: {
+      e3: { color: 'white', role: 'king' },
+      d4: { color: 'white', role: 'rook' },
+      h7: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'krk-punish-rook',
+    lesson: 'K+R vs K',
+    title: 'Punish loose rooks',
+    goal: 'The Black king punishes poor White moves, especially unprotected rook scouting or exposed kings.',
+    mode: 'teach',
+    teachText:
+      "Starting interaction: the defender is still simple, but tactical. If White sends the rook beyond king support, Black should take it when possible. If White exposes the king, Black should capture the king. This chapter teaches that the rook's wall only matters while the rook survives.",
+    fogPreview: true,
+    safePair: ['g7', 'h7'],
+    unsafeSquares: ['h6'],
+    nextLabel: 'Optimal defence',
+    board: {
+      e2: { color: 'white', role: 'king' },
+      h6: { color: 'white', role: 'rook' },
+      g8: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'krk-perfect-defender',
+    lesson: 'K+R vs K',
+    title: 'Perfect defender',
+    goal: 'The Black king now defends optimally while knowing exactly where White is.',
+    mode: 'teach',
+    teachText:
+      'Starting interaction: Black gets the full truth board and chooses the best defensive move. It should avoid the edge, stay near diagonal escape routes, punish loose rooks, and use perfect information about White king and rook placement.',
+    fogPreview: true,
+    safePair: ['h8', 'h7', 'g8'],
+    nextLabel: 'Superpositions',
+    board: {
+      f4: { color: 'white', role: 'king' },
+      e5: { color: 'white', role: 'rook' },
+      h8: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'krk-superposition-edge',
+    lesson: 'K+R vs K',
+    title: 'Edge the superpositions',
+    goal: 'Show every possible Black king square at once, then make White demonstrate the edge-and-capture plan.',
+    mode: 'teach',
+    teachText:
+      'Starting interaction: render the Black king as a superposition across all legal belief-state candidates. White must use rook walls and king support to compress the possible set against an edge, then find the capture once every remaining world is covered.',
+    fogPreview: true,
+    safePair: ['h8', 'h7', 'g8', 'g7'],
+    nextLabel: 'Modules',
+    board: {
+      f6: { color: 'white', role: 'king' },
+      g4: { color: 'white', role: 'rook' },
+      h8: { color: 'black', role: 'king' },
     },
     steps: [],
   },
@@ -339,12 +926,17 @@ export function mountLearn(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'learn-route');
   root.append(buildNav(), buildShell(state), buildFooter());
-  render(state);
+  applyLearnRoute(state);
+  window.addEventListener('hashchange', () => applyLearnRoute(state));
 }
+
+type LearnView = 'home' | 'chapter' | 'module';
 
 type TutorialState = {
   api: Api | null;
   boardEl: HTMLElement | null;
+  view: LearnView;
+  activeModuleId: string | null;
   chapterIndex: number;
   stepIndex: number;
   status: ChapterStatus;
@@ -363,6 +955,8 @@ function createTutorialState(): TutorialState {
   return {
     api: null,
     boardEl: null,
+    view: 'home',
+    activeModuleId: null,
     chapterIndex: 0,
     stepIndex: 0,
     status: 'ready',
@@ -378,7 +972,7 @@ function createTutorialState(): TutorialState {
 
 function buildShell(state: TutorialState): HTMLElement {
   const shell = document.createElement('main');
-  shell.className = 'learn-shell learn-tutorial-shell';
+  shell.className = 'learn-shell';
   state.shell = shell;
   return shell;
 }
@@ -387,6 +981,20 @@ function render(state: TutorialState): void {
   const shell = state.shell;
   if (!shell) return;
 
+  if (state.view === 'home') {
+    shell.className = 'learn-shell learn-home-shell';
+    shell.replaceChildren(buildLearnHome(state));
+    state.api = null;
+    state.boardEl = null;
+    return;
+  }
+
+  if (state.view === 'module') {
+    renderPlannedModule(state);
+    return;
+  }
+
+  shell.className = 'learn-shell learn-tutorial-shell';
   const chapter = chapters[state.chapterIndex]!;
   const view = darkChessVariant.getPlayerView(state.activeState, 'white');
   const menu = buildLearnMenu(state);
@@ -404,115 +1012,273 @@ function render(state: TutorialState): void {
   updateBoard(state, chapter, view);
 }
 
+function buildLearnHome(state: TutorialState): HTMLElement {
+  const page = document.createElement('section');
+  page.className = 'learn-home';
+  page.setAttribute('aria-labelledby', 'learn-home-title');
+
+  const intro = document.createElement('div');
+  intro.className = 'learn-home-intro';
+
+  const eyebrow = document.createElement('div');
+  eyebrow.className = 'learn-progress';
+  eyebrow.textContent = 'Learning modules';
+
+  const title = document.createElement('h1');
+  title.id = 'learn-home-title';
+  title.className = 'learn-heading';
+  title.textContent = 'Learn dark chess';
+
+  const copy = document.createElement('p');
+  copy.className = 'learn-copy';
+  copy.textContent =
+    'Short interactive modules for the parts of dark chess that normal chess does not teach: vision, hidden moves, king capture, and information mistakes.';
+
+  intro.append(eyebrow, title, copy);
+
+  const grid = document.createElement('div');
+  grid.className = 'learn-module-grid';
+  for (const group of moduleGroups()) {
+    grid.append(buildLearnModuleSection(state, group));
+  }
+
+  page.append(intro, grid);
+  return page;
+}
+
+function buildLearnModuleSection(state: TutorialState, group: LearnModuleGroup): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'learn-module-section';
+
+  const header = document.createElement('div');
+  header.className = 'learn-module-section-header';
+
+  const title = document.createElement('h2');
+  title.textContent = group;
+
+  const count = document.createElement('span');
+  const modules = modulesForGroup(group);
+  count.textContent = `${modules.length} ${modules.length === 1 ? 'module' : 'modules'}`;
+
+  header.append(title, count);
+
+  const list = document.createElement('div');
+  list.className = 'learn-module-section-list';
+  for (const module of modules) {
+    list.append(buildLearnModuleCard(state, module));
+  }
+
+  section.append(header, list);
+  return section;
+}
+
+function buildLearnModuleCard(state: TutorialState, module: LearnModule): HTMLElement {
+  const card = document.createElement('article');
+  card.className = `learn-module-card is-${module.status}`;
+
+  const number = document.createElement('div');
+  number.className = 'learn-module-number';
+  number.textContent = moduleNumberLabel(module);
+
+  const body = document.createElement('div');
+  body.className = 'learn-module-body';
+
+  const top = document.createElement('div');
+  top.className = 'learn-module-top';
+
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'learn-module-eyebrow';
+  eyebrow.textContent = moduleEyebrow(module);
+
+  const meta = document.createElement('span');
+  meta.className = 'learn-module-meta';
+  meta.textContent = `${moduleChapterCount(module)} chapters · ${moduleStatusLabel(module)}`;
+
+  top.append(eyebrow, meta);
+
+  const title = document.createElement('h2');
+  title.textContent = module.title;
+
+  const copy = document.createElement('p');
+  copy.textContent = module.summary;
+
+  const action = document.createElement('button');
+  action.type = 'button';
+  action.className =
+    module.status === 'available' ? 'landing-cta-primary' : 'landing-cta-secondary';
+  action.textContent = module.status === 'planned' ? 'Open preview' : module.cta;
+  action.addEventListener('click', () => openModule(state, module.id));
+
+  body.append(top, title, copy, action);
+  card.append(number, body);
+  return card;
+}
+
+function renderPlannedModule(state: TutorialState): void {
+  const shell = state.shell;
+  if (!shell) return;
+
+  const module =
+    learnModules.find((candidate) => candidate.id === state.activeModuleId) ?? learnModules[0]!;
+  const moduleState = plannedModuleState(module);
+  const view = darkChessVariant.getPlayerView(moduleState, 'white');
+
+  shell.className = 'learn-shell learn-tutorial-shell';
+  const menu = buildPlannedModuleMenu(state, module);
+  const boardPanel = document.createElement('section');
+  boardPanel.className = 'learn-board-panel';
+
+  const boardEl = document.createElement('div');
+  boardEl.className = 'board learn-board';
+  boardEl.setAttribute('aria-label', `${module.title} preview board`);
+  boardPanel.append(boardEl);
+
+  const panel = buildPlannedModulePanel(module);
+  shell.replaceChildren(menu, boardPanel, panel);
+  state.boardEl = boardEl;
+  state.activeState = moduleState;
+  state.api = createStaticLearnBoard(boardEl, view);
+}
+
+function buildPlannedModuleMenu(state: TutorialState, module: LearnModule): HTMLElement {
+  const menu = document.createElement('aside');
+  menu.className = 'learn-menu';
+  menu.setAttribute('aria-label', 'Module outline');
+
+  const back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'learn-menu-back';
+  back.textContent = 'All modules';
+  back.addEventListener('click', () => showLearnHome(state));
+
+  const header = document.createElement('header');
+  header.className = 'learn-menu-header';
+
+  const eyebrow = document.createElement('div');
+  eyebrow.className = 'learn-menu-eyebrow';
+  eyebrow.textContent = moduleEyebrow(module);
+
+  const title = document.createElement('h2');
+  title.textContent = module.title;
+
+  const meta = document.createElement('p');
+  meta.textContent = `${moduleChapterCount(module)} planned chapters`;
+
+  header.append(eyebrow, title, meta);
+
+  const chaptersList = document.createElement('ol');
+  chaptersList.className = 'learn-menu-chapters';
+  const chapterTitles = moduleChapterTitles(module);
+  for (let localIndex = 0; localIndex < chapterTitles.length; localIndex += 1) {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `learn-menu-chapter${localIndex === 0 ? ' is-current' : ''}`;
+    button.disabled = true;
+
+    const index = document.createElement('span');
+    index.className = 'learn-menu-chapter-index';
+    index.textContent = String(localIndex + 1);
+
+    const text = document.createElement('span');
+    text.className = 'learn-menu-chapter-text';
+
+    const chapterTitle = document.createElement('span');
+    chapterTitle.className = 'learn-menu-chapter-title';
+    chapterTitle.textContent = chapterTitles[localIndex]!;
+
+    const subtitle = document.createElement('span');
+    subtitle.className = 'learn-menu-chapter-subtitle';
+    subtitle.textContent = 'Planned';
+
+    text.append(chapterTitle, subtitle);
+    button.append(index, text);
+    item.append(button);
+    chaptersList.append(item);
+  }
+
+  menu.append(back, header, chaptersList);
+  return menu;
+}
+
+function buildPlannedModulePanel(module: LearnModule): HTMLElement {
+  const panel = document.createElement('section');
+  panel.className = 'learn-panel learn-tutorial-panel';
+
+  const eyebrow = document.createElement('div');
+  eyebrow.className = 'learn-progress';
+  eyebrow.textContent = `${moduleEyebrow(module)} · ${moduleStatusLabel(module)}`;
+
+  const title = document.createElement('h1');
+  title.className = 'learn-heading';
+  title.textContent = module.title;
+
+  const chapterTitle = document.createElement('h2');
+  chapterTitle.className = 'learn-chapter-title';
+  chapterTitle.textContent = 'Planned module';
+
+  const copy = document.createElement('p');
+  copy.className = 'learn-copy';
+  copy.textContent = module.summary;
+
+  const source = document.createElement('p');
+  source.className = 'learn-module-source';
+  source.textContent = module.source;
+
+  const prompt = document.createElement('div');
+  prompt.className = 'learn-tutorial-message ready';
+  prompt.textContent =
+    'This parked module opens in the lesson board shell now. The board is a static preview until the authored interaction lands.';
+
+  const actions = document.createElement('div');
+  actions.className = 'learn-actions';
+  const hint = document.createElement('p');
+  hint.className = 'learn-hint';
+  hint.textContent = 'The chapter outline is in the left rail.';
+  actions.append(hint);
+
+  panel.append(eyebrow, title, chapterTitle, copy, source, prompt, actions);
+  return panel;
+}
+
 function buildLearnMenu(state: TutorialState): HTMLElement {
+  const module = moduleForChapterIndex(state.chapterIndex) ?? learnModules[0]!;
   const menu = document.createElement('aside');
   menu.className = 'learn-menu';
   menu.setAttribute('aria-label', 'Learn menu');
 
-  const header = document.createElement('div');
+  const back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'learn-menu-back';
+  back.textContent = 'All modules';
+  back.addEventListener('click', () => showLearnHome(state));
+
+  const header = document.createElement('header');
   header.className = 'learn-menu-header';
 
-  const badge = document.createElement('div');
-  badge.className = 'learn-menu-badge';
-  badge.textContent = '♜';
-
-  const title = document.createElement('span');
-  title.textContent = 'Menu';
-  header.append(badge, title);
-
-  menu.append(header);
-  for (const category of learnCategories) {
-    menu.append(buildLearnCategory(state, category));
-  }
-  menu.append(buildCollapsedCategory('What Next?'));
-  return menu;
-}
-
-function buildLearnCategory(state: TutorialState, category: TutorialCategory): HTMLElement {
-  const isCurrentCategory = category.lessons.some(
-    (lesson) => chapters[state.chapterIndex]?.lesson === lesson.title,
-  );
-  const section = document.createElement('section');
-  section.className = `learn-menu-category${isCurrentCategory ? ' is-open' : ' is-collapsed'}`;
+  const eyebrow = document.createElement('div');
+  eyebrow.className = 'learn-menu-eyebrow';
+  eyebrow.textContent = moduleEyebrow(module);
 
   const title = document.createElement('h2');
-  title.textContent = category.title;
-  section.append(title);
+  title.textContent = module.title;
 
-  for (const lesson of category.lessons) {
-    section.append(buildPieceLessonMenuItem(state, lesson));
+  const meta = document.createElement('p');
+  meta.textContent = `${moduleChapterCount(module)} chapters`;
+
+  header.append(eyebrow, title, meta);
+
+  const chaptersList = document.createElement('ol');
+  chaptersList.className = 'learn-menu-chapters';
+  const chapterIds = module.chapterIds ?? [];
+  for (let localIndex = 0; localIndex < chapterIds.length; localIndex += 1) {
+    const chapter = chapterById(chapterIds[localIndex]!);
+    if (!chapter) continue;
+    chaptersList.append(buildMenuChapterButton(state, module, chapter, localIndex));
   }
 
-  return section;
-}
-
-function buildPieceLessonMenuItem(state: TutorialState, lesson: TutorialLesson): HTMLElement {
-  const lessonChapters = chapterIndexesForLesson(lesson.title);
-  const available = lessonChapters.length > 0;
-  const isCurrentLesson = chapters[state.chapterIndex]?.lesson === lesson.title;
-
-  const group = document.createElement('div');
-  group.className = `learn-menu-lesson${isCurrentLesson ? ' is-current' : ''}${available ? '' : ' is-locked'}`;
-
-  const row = document.createElement('button');
-  row.type = 'button';
-  row.className = 'learn-menu-lesson-row';
-  row.disabled = !available;
-  row.setAttribute('aria-expanded', String(isCurrentLesson && available));
-  if (isCurrentLesson) row.setAttribute('aria-current', 'true');
-
-  const piece = document.createElement('span');
-  piece.className = 'learn-menu-piece';
-  piece.textContent = lesson.icon;
-
-  const label = document.createElement('span');
-  label.className = 'learn-menu-lesson-label';
-  label.textContent = lesson.title;
-
-  const meta = document.createElement('span');
-  meta.className = 'learn-menu-lesson-meta';
-  meta.textContent = available ? `${lessonChapters.length}` : 'soon';
-
-  row.append(piece, label, meta);
-  row.addEventListener('click', () => {
-    if (!available) return;
-    goToChapter(state, lessonChapters[0]!);
-  });
-  group.append(row);
-
-  if (available && isCurrentLesson) {
-    const chapterList = document.createElement('div');
-    chapterList.className = 'learn-menu-chapters';
-    for (let localIndex = 0; localIndex < lessonChapters.length; localIndex += 1) {
-      const chapterIndex = lessonChapters[localIndex]!;
-      const chapter = chapters[chapterIndex]!;
-      const item = document.createElement('button');
-      item.type = 'button';
-      item.className = `learn-menu-chapter${chapterIndex === state.chapterIndex ? ' is-current' : ''}`;
-      if (chapterIndex === state.chapterIndex) item.setAttribute('aria-current', 'step');
-      item.textContent = `${localIndex + 1}. ${chapter.title}`;
-      item.addEventListener('click', () => goToChapter(state, chapterIndex));
-      chapterList.append(item);
-    }
-    group.append(chapterList);
-  }
-
-  return group;
-}
-
-function buildCollapsedCategory(title: string): HTMLElement {
-  const category = document.createElement('section');
-  category.className = 'learn-menu-category is-collapsed';
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'learn-menu-category-row';
-  button.disabled = true;
-  button.setAttribute('aria-expanded', 'false');
-  button.textContent = title;
-
-  category.append(button);
-  return category;
+  menu.append(back, header, chaptersList);
+  return menu;
 }
 
 function buildPanel(state: TutorialState, chapter: TutorialChapter): HTMLElement {
@@ -523,7 +1289,7 @@ function buildPanel(state: TutorialState, chapter: TutorialChapter): HTMLElement
 
   const progress = document.createElement('div');
   progress.className = 'learn-progress';
-  progress.textContent = lessonProgress(chapter.lesson);
+  progress.textContent = chapterProgress(state.chapterIndex);
 
   const heading = document.createElement('h1');
   heading.className = 'learn-heading';
@@ -556,15 +1322,8 @@ function buildPanel(state: TutorialState, chapter: TutorialChapter): HTMLElement
     const next = document.createElement('button');
     next.type = 'button';
     next.className = 'landing-cta-primary';
-    next.textContent = state.chapterIndex === chapters.length - 1 ? 'Restart' : 'Next';
-    next.addEventListener('click', () => {
-      if (state.chapterIndex === chapters.length - 1) {
-        state.chapterIndex = 0;
-      } else {
-        state.chapterIndex += 1;
-      }
-      resetChapter(state);
-    });
+    next.textContent = nextChapterLabel(state.chapterIndex);
+    next.addEventListener('click', () => goNextChapter(state));
     actions.append(next);
   } else if (chapter.interaction === 'reveal') {
     const reveal = document.createElement('button');
@@ -598,7 +1357,7 @@ function createTutorialBoard(
   state: TutorialState,
 ): Api {
   const interactive = chapter.mode
-    ? chapter.mode === 'play' && !state.playDone && !state.busy
+    ? (chapter.mode === 'practice' || chapter.mode === 'play') && !state.playDone && !state.busy
     : chapter.interaction !== 'reveal';
   const api = mountBoard(el, {
     animation: { enabled: false, duration: 0 },
@@ -623,8 +1382,32 @@ function createTutorialBoard(
   return api;
 }
 
+function createStaticLearnBoard(el: HTMLElement, view: PlayerView): Api {
+  return mountBoard(el, {
+    animation: { enabled: false, duration: 0 },
+    coordinates: true,
+    coordinatesOnSquares: false,
+    fen: boardFen(view.board),
+    orientation: 'white',
+    movable: {
+      free: false,
+      color: undefined,
+      dests: new Map(),
+    },
+    draggable: { enabled: false },
+    selectable: { enabled: false },
+    premovable: { enabled: false },
+    highlight: { custom: hiddenSquareClasses(view, 'white'), lastMove: false },
+    disableContextMenu: true,
+  });
+}
+
 function handleMove(state: TutorialState, uci: Uci): void {
   const chapter = chapters[state.chapterIndex]!;
+  if (chapter.mode === 'practice') {
+    handlePracticeMove(state, uci);
+    return;
+  }
   if (chapter.mode === 'play') {
     handlePlayMove(state, uci);
     return;
@@ -692,6 +1475,7 @@ function handleMove(state: TutorialState, uci: Uci): void {
 }
 
 function showTruthBoard(chapter: TutorialChapter, state: TutorialState): boolean {
+  if (chapter.fogPreview) return false;
   if (chapter.mode === 'demo' || chapter.mode === 'teach') return true;
   return state.status === 'success' && (chapter.revealTruthOnSuccess ?? false);
 }
@@ -709,7 +1493,8 @@ function resetChapter(state: TutorialState): void {
   state.whiteMoves = 0;
   state.playDone = false;
   state.busy = false;
-  if (chapter.mode === 'demo') state.message = chapter.demoIntro ?? '';
+  if (chapter.mode === 'practice') state.message = chapter.teachText ?? '';
+  else if (chapter.mode === 'demo') state.message = chapter.demoIntro ?? '';
   else if (chapter.mode === 'teach') state.message = chapter.teachText ?? '';
   else if (chapter.mode === 'play') state.message = '';
   else state.message = chapter.steps[0]!.teach;
@@ -718,13 +1503,17 @@ function resetChapter(state: TutorialState): void {
 
 function goToChapter(state: TutorialState, chapterIndex: number): void {
   if (!chapters[chapterIndex]) return;
-  state.chapterIndex = chapterIndex;
-  resetChapter(state);
+  const nextHash = hashForChapter(chapterIndex);
+  if (window.location.hash !== nextHash) {
+    window.location.hash = nextHash;
+    return;
+  }
+  openChapter(state, chapterIndex);
 }
 
 function updateBoard(state: TutorialState, chapter: TutorialChapter, view: PlayerView): void {
   const interactive = chapter.mode
-    ? chapter.mode === 'play' && !state.playDone && !state.busy
+    ? (chapter.mode === 'practice' || chapter.mode === 'play') && !state.playDone && !state.busy
     : chapter.interaction !== 'reveal' && state.status === 'ready';
   state.api?.set({
     fen: boardFen(renderBoardFor(chapter, state, view)),
@@ -751,7 +1540,7 @@ function tutorialSquareClasses(
   chapter: TutorialChapter,
   state: TutorialState,
 ): cg.SquareClasses {
-  if (chapter.mode) return endgameSquareClasses(view, chapter, state);
+  if (chapter.mode) return endgameSquareClasses(view, chapter);
   const classes: cg.SquareClasses = showTruthBoard(chapter, state)
     ? new Map()
     : hiddenSquareClasses(view, 'white');
@@ -781,20 +1570,214 @@ function currentStep(state: TutorialState, chapter: TutorialChapter): TutorialSt
   return chapter.steps[state.stepIndex] ?? chapter.steps[chapter.steps.length - 1]!;
 }
 
-function lessonProgress(lesson: string): string {
-  for (const category of learnCategories) {
-    const idx = category.lessons.findIndex((entry) => entry.title === lesson);
-    if (idx >= 0) return `Step ${idx + 1} of ${category.lessons.length}`;
-  }
-  return '';
+function buildMenuChapterButton(
+  state: TutorialState,
+  module: LearnModule,
+  chapter: TutorialChapter,
+  localIndex: number,
+): HTMLElement {
+  const item = document.createElement('li');
+  const chapterIndex = chapters.indexOf(chapter);
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `learn-menu-chapter${chapterIndex === state.chapterIndex ? ' is-current' : ''}`;
+  if (chapterIndex === state.chapterIndex) button.setAttribute('aria-current', 'step');
+
+  const index = document.createElement('span');
+  index.className = 'learn-menu-chapter-index';
+  index.textContent = String(localIndex + 1);
+
+  const text = document.createElement('span');
+  text.className = 'learn-menu-chapter-text';
+
+  const title = document.createElement('span');
+  title.className = 'learn-menu-chapter-title';
+  title.textContent = chapter.title;
+
+  const subtitle = document.createElement('span');
+  subtitle.className = 'learn-menu-chapter-subtitle';
+  subtitle.textContent = chapter.lesson === module.title ? chapter.goal : chapter.lesson;
+
+  text.append(title, subtitle);
+  button.append(index, text);
+  button.addEventListener('click', () => goToChapter(state, chapterIndex));
+  item.append(button);
+  return item;
 }
 
-function chapterIndexesForLesson(lesson: string): number[] {
-  const indexes: number[] = [];
-  for (let i = 0; i < chapters.length; i += 1) {
-    if (chapters[i]!.lesson === lesson) indexes.push(i);
+function modulesForGroup(group: LearnModuleGroup): LearnModule[] {
+  return learnModules.filter((module) => module.group === group);
+}
+
+function moduleGroups(): LearnModuleGroup[] {
+  const groups: LearnModuleGroup[] = [];
+  for (const module of learnModules) {
+    if (!groups.includes(module.group)) groups.push(module.group);
   }
-  return indexes;
+  return groups;
+}
+
+function moduleNumberLabel(module: LearnModule): string {
+  return String(learnModules.indexOf(module) + 1).padStart(2, '0');
+}
+
+function moduleEyebrow(module: LearnModule): string {
+  return `Module ${learnModules.indexOf(module) + 1}`;
+}
+
+function moduleStatusLabel(module: LearnModule): string {
+  if (module.status === 'available') return 'Playable';
+  if (module.status === 'wip') return 'WIP';
+  return 'Planned';
+}
+
+function moduleChapterTitles(module: LearnModule): string[] {
+  if (module.chapterIds) {
+    return module.chapterIds
+      .map((chapterId) => chapterById(chapterId)?.title)
+      .filter((title): title is string => Boolean(title));
+  }
+  return module.outlineChapters ?? [];
+}
+
+function moduleChapterCount(module: LearnModule): number {
+  return moduleChapterTitles(module).length;
+}
+
+function routeForModule(
+  module: LearnModule,
+): { view: 'module'; moduleId: string } | { view: 'chapter'; chapterIndex: number } {
+  const chapterId = module.chapterIds?.[0];
+  const chapterIndex = chapterId ? chapterIndexForId(chapterId) : -1;
+  if (chapterIndex >= 0) return { view: 'chapter', chapterIndex };
+  return { view: 'module', moduleId: module.id };
+}
+
+function applyLearnRoute(state: TutorialState): void {
+  const route = parseLearnHash();
+  if (route.view === 'home') {
+    state.view = 'home';
+    state.activeModuleId = null;
+    render(state);
+    return;
+  }
+  if (route.view === 'module') {
+    state.view = 'module';
+    state.activeModuleId = route.moduleId;
+    render(state);
+    return;
+  }
+  openChapter(state, route.chapterIndex);
+}
+
+function parseLearnHash():
+  | { view: 'home' }
+  | { view: 'module'; moduleId: string }
+  | { view: 'chapter'; chapterIndex: number } {
+  const rawHash = decodeURIComponent(window.location.hash.replace(/^#\/?/, '').trim());
+  if (!rawHash) return { view: 'home' };
+
+  const [first, second] = rawHash.split('/').filter(Boolean);
+  const numericModule = Number.parseInt(first ?? '', 10);
+  if (Number.isInteger(numericModule) && numericModule > 0) {
+    const module = learnModules[numericModule - 1];
+    if (module) return routeForModule(module);
+  }
+
+  const module = learnModules.find((candidate) => candidate.id === first);
+  if (module) {
+    const chapterIds = module.chapterIds ?? [];
+    const chapterId = second && chapterIds.includes(second) ? second : chapterIds[0];
+    const chapterIndex = chapterId ? chapterIndexForId(chapterId) : -1;
+    if (chapterIndex >= 0) return { view: 'chapter', chapterIndex };
+    return { view: 'module', moduleId: module.id };
+  }
+
+  const chapterIndex = chapterIndexForId(first ?? '');
+  if (chapterIndex >= 0) return { view: 'chapter', chapterIndex };
+
+  return { view: 'home' };
+}
+
+function showLearnHome(state: TutorialState): void {
+  if (window.location.hash) {
+    window.location.hash = '';
+    return;
+  }
+  state.view = 'home';
+  state.activeModuleId = null;
+  render(state);
+}
+
+function openModule(state: TutorialState, moduleId: string): void {
+  const module = learnModules.find((candidate) => candidate.id === moduleId);
+  if (!module) return;
+  const chapterId = module.chapterIds?.[0];
+  const chapterIndex = chapterId ? chapterIndexForId(chapterId) : -1;
+  if (chapterIndex >= 0) {
+    goToChapter(state, chapterIndex);
+    return;
+  }
+  const nextHash = hashForModule(module);
+  if (window.location.hash !== nextHash) {
+    window.location.hash = nextHash;
+    return;
+  }
+  state.view = 'module';
+  state.activeModuleId = module.id;
+  render(state);
+}
+
+function openChapter(state: TutorialState, chapterIndex: number): void {
+  if (!chapters[chapterIndex]) return;
+  state.view = 'chapter';
+  state.activeModuleId = null;
+  state.chapterIndex = chapterIndex;
+  resetChapter(state);
+}
+
+function chapterIndexForId(id: string): number {
+  return chapters.findIndex((chapter) => chapter.id === id);
+}
+
+function chapterById(id: string): TutorialChapter | null {
+  return chapters.find((chapter) => chapter.id === id) ?? null;
+}
+
+function moduleForChapterIndex(chapterIndex: number): LearnModule | null {
+  const chapter = chapters[chapterIndex];
+  if (!chapter) return null;
+  return learnModules.find((module) => module.chapterIds?.includes(chapter.id)) ?? null;
+}
+
+function hashForChapter(chapterIndex: number): string {
+  const chapter = chapters[chapterIndex]!;
+  const module = moduleForChapterIndex(chapterIndex);
+  return module ? `#/${module.id}/${chapter.id}` : `#/${chapter.id}`;
+}
+
+function hashForModule(module: LearnModule): string {
+  return `#/${module.id}`;
+}
+
+function chapterProgress(chapterIndex: number): string {
+  const chapter = chapters[chapterIndex];
+  const module = moduleForChapterIndex(chapterIndex);
+  if (!chapter || !module) return '';
+  const chapterIds = module.chapterIds ?? [];
+  const localIndex = chapterIds.indexOf(chapter.id);
+  if (localIndex < 0) return '';
+  return `Chapter ${localIndex + 1} of ${chapterIds.length}`;
+}
+
+function nextChapterLabel(chapterIndex: number): string {
+  const currentModule = moduleForChapterIndex(chapterIndex);
+  const nextIndex = chapterIndex + 1;
+  if (!chapters[nextIndex]) return 'Modules';
+  const nextModule = moduleForChapterIndex(nextIndex);
+  if (currentModule && nextModule && currentModule.id !== nextModule.id) return 'Next module';
+  return 'Next';
 }
 
 function legalDests(view: PlayerView): cg.Dests {
@@ -863,6 +1846,49 @@ function gameStateFromBoard(id: string, board: Board): GameState {
   };
 }
 
+function plannedModuleState(module: LearnModule): GameState {
+  return {
+    ...darkChessVariant.createInitialState(`learn-preview-${module.id}`),
+    board: plannedModuleBoard(module),
+    status: { type: 'playing', turn: 'white' },
+    castlingRights: [],
+    halfmoveClock: 0,
+    moveNumber: 1,
+  };
+}
+
+const researchPreviewModuleIds = new Set([
+  'belief-state-basics',
+  'particle-filters',
+  'move-selection-under-uncertainty',
+  'latent-slider-danger',
+  'engine-lab-loop',
+]);
+
+function plannedModuleBoard(module: LearnModule): Board {
+  if (researchPreviewModuleIds.has(module.id)) {
+    return {
+      e1: { color: 'white', role: 'king' },
+      d2: { color: 'white', role: 'queen' },
+      c3: { color: 'white', role: 'knight' },
+      e4: { color: 'white', role: 'pawn' },
+      a5: { color: 'black', role: 'bishop' },
+      c6: { color: 'black', role: 'knight' },
+      h8: { color: 'black', role: 'king' },
+    };
+  }
+  return {
+    e1: { color: 'white', role: 'king' },
+    a1: { color: 'white', role: 'rook' },
+    c1: { color: 'white', role: 'bishop' },
+    f3: { color: 'white', role: 'knight' },
+    e4: { color: 'white', role: 'pawn' },
+    e5: { color: 'black', role: 'pawn' },
+    c6: { color: 'black', role: 'knight' },
+    h8: { color: 'black', role: 'king' },
+  };
+}
+
 function moveFromUci(uci: Uci): Move {
   return {
     from: uci.slice(0, 2) as Square,
@@ -881,6 +1907,26 @@ function movesMatch(left: Move, right: Move): boolean {
 // --- Endgames node runtime ---
 
 const CENTER_SQUARES: Square[] = ['d4', 'd5', 'e4', 'e5'];
+
+function handlePracticeMove(state: TutorialState, uci: Uci): void {
+  const view = darkChessVariant.getPlayerView(state.activeState, 'white');
+  const resolvedMove = resolveUiMove(view, moveFromUci(uci));
+  if (!resolvedMove) {
+    state.message = 'That move is not legal from this position.';
+    render(state);
+    return;
+  }
+
+  const nextState = darkChessVariant.applyMove(state.activeState, resolvedMove);
+  state.activeState = {
+    ...nextState,
+    status: { type: 'playing', turn: 'white' },
+    lastMove: resolvedMove,
+  };
+  state.message =
+    'Move made. There is no Black move in this chapter; keep moving the king and queen to study how the fog changes.';
+  render(state);
+}
 
 function findKing(board: Board, color: 'white' | 'black'): Square | null {
   for (const [square, piece] of Object.entries(board)) {
@@ -999,11 +2045,13 @@ function advanceDemo(state: TutorialState): void {
     const move = moveFromUci(moves[beat]!.uci);
     const applied = darkChessVariant.applyMove(state.activeState, move);
     state.activeState = { ...applied, lastMove: move };
+    state.message = moves[beat]!.say;
     state.demoIndex = beat + 1;
   } else if (beat === moves.length) {
     // Conclusion beat: reset to the start position so the overlay sits on the
     // original kings.
     state.activeState = gameStateFromBoard(chapter.id, chapter.board);
+    state.message = chapter.demoConclusion ?? state.message;
     state.demoIndex = beat + 1;
   } else {
     goNextChapter(state);
@@ -1013,17 +2061,22 @@ function advanceDemo(state: TutorialState): void {
 }
 
 function goNextChapter(state: TutorialState): void {
-  state.chapterIndex = state.chapterIndex === chapters.length - 1 ? 0 : state.chapterIndex + 1;
-  resetChapter(state);
+  const nextIndex = state.chapterIndex + 1;
+  if (!chapters[nextIndex]) {
+    showLearnHome(state);
+    return;
+  }
+  goToChapter(state, nextIndex);
 }
 
 function endgameSquareClasses(
   view: PlayerView,
   chapter: TutorialChapter,
-  state: TutorialState,
 ): cg.SquareClasses {
   const classes: cg.SquareClasses =
-    chapter.mode === 'play' ? hiddenSquareClasses(view, 'white') : new Map();
+    chapter.mode === 'practice' || chapter.mode === 'play' || chapter.fogPreview
+      ? hiddenSquareClasses(view, 'white')
+      : new Map();
   const showOverlays = chapter.mode === 'teach' || chapter.mode === 'demo';
   if (showOverlays) {
     for (const sq of chapter.safePair ?? []) {
@@ -1042,7 +2095,7 @@ function buildEndgamePanel(state: TutorialState, chapter: TutorialChapter): HTML
 
   const progress = document.createElement('div');
   progress.className = 'learn-progress';
-  progress.textContent = lessonProgress(chapter.lesson);
+  progress.textContent = chapterProgress(state.chapterIndex);
 
   const heading = document.createElement('h1');
   heading.className = 'learn-heading';
@@ -1064,7 +2117,17 @@ function buildEndgamePanel(state: TutorialState, chapter: TutorialChapter): HTML
   actions.className = 'learn-actions';
 
   const moves = chapter.demoMoves ?? [];
-  if (chapter.mode === 'play' && !state.playDone) {
+  if (chapter.mode === 'practice') {
+    const hint = document.createElement('p');
+    hint.className = 'learn-hint';
+    hint.textContent = 'Move the White king or queen. Black has no pieces and makes no reply.';
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'landing-cta-primary';
+    next.textContent = chapter.nextLabel ?? 'Next';
+    next.addEventListener('click', () => goNextChapter(state));
+    actions.append(hint, next);
+  } else if (chapter.mode === 'play' && !state.playDone) {
     const hint = document.createElement('p');
     hint.className = 'learn-hint';
     const cap = chapter.playMoveCap ?? 12;
