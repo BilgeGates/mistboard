@@ -28,6 +28,7 @@ export type SnapshotRoom = {
   projection: GameProjection;
   pveEngineId?: string | null;
   rated?: boolean;
+  region?: string;
   rematch?: { offers: Partial<Record<Color, unknown>>; finalizedRoomId?: string };
   seatDisplayNames?: Partial<Record<Color, string>>;
   // Absolute ms deadline for the current pre-move abort window, or null when no
@@ -120,6 +121,7 @@ function basePayloadFields(room: SnapshotRoom, client: SnapshotClient) {
   return {
     roomId: room.id,
     gameSpecId: room.gameSpecId ?? room.projection.gameSpecId,
+    region: room.region ?? room.projection.region ?? 'global',
     mode,
     pveEngineId: mode === 'pve' ? (room.pveEngineId ?? null) : null,
     pveEngineName: pveEngineName(room, mode),

@@ -48,6 +48,7 @@ export interface HttpApiContext {
       randomSeating?: boolean;
       engineColor?: 'white' | 'black';
       creatorPreference?: 'white' | 'black';
+      region?: string;
     },
   ): Promise<Room>;
   abandonRoom(

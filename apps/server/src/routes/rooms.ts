@@ -128,6 +128,7 @@ export async function tryHandle(
         url: `/room/${encodeURIComponent(room.id)}`,
         mode: room.mode,
         gameSpecId: room.gameSpecId,
+        region: room.region ?? 'global',
       }),
     );
     return true;

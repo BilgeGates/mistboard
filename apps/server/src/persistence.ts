@@ -72,6 +72,7 @@ export type GameSummary = {
   blackName: string | null;
   corpusId: string | null;
   rated?: boolean;
+  region?: string | null;
   reviewStatus?: GameReviewStatus;
   visibility?: GameVisibility;
   participants?: GameParticipant[];
@@ -89,6 +90,7 @@ export type RunningGameSummary = {
   whiteName: string | null;
   blackName: string | null;
   corpusId: string | null;
+  region?: string | null;
   reviewStatus?: GameReviewStatus;
   visibility?: GameVisibility;
 };
@@ -704,9 +706,9 @@ export async function recordGameStart(roomId: string, summary: RunningGameSummar
     `INSERT INTO games
        (room_id, variant, result, termination, ply_count, started_at, ended_at,
         white_client, black_client, white_name, black_name, corpus_id,
-        mode, status, review_status, visibility)
+        mode, status, review_status, visibility, region)
      VALUES ($1, $2, NULL, NULL, 0, $3, NULL, $4, $5, $6, $7, $8,
-        $9, 'running', $10, $11)
+        $9, 'running', $10, $11, $12)
      ON CONFLICT (room_id) DO NOTHING`,
     [
       roomId,
@@ -720,6 +722,7 @@ export async function recordGameStart(roomId: string, summary: RunningGameSummar
       summary.mode,
       summary.reviewStatus ?? 'unreviewed',
       summary.visibility ?? 'public',
+      summary.region ?? 'global',
     ],
   );
 }
@@ -1432,8 +1435,8 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
          (room_id, variant, result, termination, ply_count, started_at, ended_at,
           white_client, black_client, white_name, black_name, corpus_id,
           mode, status, review_status, visibility, rated,
-          initial_ms, increment_ms, hidden_draft960)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed', $14, $15, $16, $17, $18, $19)
+          initial_ms, increment_ms, hidden_draft960, region)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed', $14, $15, $16, $17, $18, $19, $20)
        ON CONFLICT (room_id) DO UPDATE SET
          variant = EXCLUDED.variant,
          result = EXCLUDED.result,
@@ -1454,6 +1457,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
          initial_ms = EXCLUDED.initial_ms,
          increment_ms = EXCLUDED.increment_ms,
          hidden_draft960 = EXCLUDED.hidden_draft960,
+         region = EXCLUDED.region,
          aborted_reason = NULL
        WHERE games.status = 'running'`,
       [
@@ -1476,6 +1480,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
         summary.initialMs ?? null,
         summary.incrementMs ?? null,
         summary.hiddenDraft960 ?? null,
+        summary.region ?? 'global',
       ],
     );
     const participants =

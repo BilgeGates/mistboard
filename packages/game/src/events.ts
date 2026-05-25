@@ -39,6 +39,9 @@ export type GameEvent =
       offer: Chess960Start[];
       offers?: Partial<Record<Color, Chess960Start[]>>;
       timeControl?: RoomTimeControl;
+      // Live-game placement region. Optional for old events; new live rooms set
+      // it so future multi-region routing can remain replay-derived.
+      region?: string;
       // Whether this room was created as a rated request. Persisted so hydration
       // after a restart preserves it; the actual rated outcome is still
       // account-gated at game end (see room-manager buildGameSummary).
@@ -144,6 +147,7 @@ export type GameProjection = {
   resolvedStartId: number | null;
   resolvedStartIds: Partial<Record<Color, number>>;
   timeControl?: RoomTimeControl;
+  region?: string;
   paused: boolean;
   pausedAt: number | null;
   pauseReason: 'shutdown' | 'admin' | null;
@@ -191,6 +195,7 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
       offer: event.offer,
       offers: event.offers ?? { white: event.offer, black: event.offer },
       timeControl: event.timeControl,
+      region: event.region,
       state:
         event.variant === 'dark-chess' && hasDraftOffer(event)
           ? { ...state, status: { type: 'pregame' } }

@@ -23,6 +23,7 @@ type ServerMessage =
       pveEngineId?: string | null;
       pveEngineName?: string | null;
       roomId: string;
+      region?: string;
       serverAt?: number;
       seat: Seat;
       seatToken?: string;
@@ -47,6 +48,7 @@ type ServerMessage =
       type: 'snapshot';
       roomId: string;
       gameSpecId?: GameSpecId;
+      region?: string;
       clients: number;
       mode?: RoomMode;
       pveEngineId?: string | null;
@@ -78,6 +80,7 @@ type ServerMessage =
       type: 'event-appended';
       roomId: string;
       gameSpecId?: GameSpecId;
+      region?: string;
       seq: number;
       event?: GameEvent;
       clients: number;
@@ -117,12 +120,13 @@ type ServerMessage =
     }
   | { type: 'server_restart_scheduled'; restartAt: number }
   | { type: 'server_restart_cancelled' }
-  | { type: 'pong'; at: number };
+  | { type: 'pong'; at: number; serverAt?: number };
 
 // ── Module-scope socket state ─────────────────────────────────────────────────
 
 let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
+let lastLatencySampleSentAt = 0;
 // Last server-side event index this socket has processed. Used to detect
 // gaps in the event-appended stream and trigger snapshot:request recovery.
 // Reset to null on every snapshot/hello — the snapshot is the new baseline,
@@ -214,6 +218,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   const message = JSON.parse(event.data) as ServerMessage;
   if (message.type === 'pong') {
     liveState.latencyMs = Math.max(0, Date.now() - message.at);
+    maybeSendLatencySample(liveState.latencyMs);
     // No re-render: latency is only surfaced in the degraded-connection path
     // (see connectionDetailLabel), and a pong only arrives while connected, so
     // the value is never on screen here. Rendering on every 5s ping is pure
@@ -276,6 +281,7 @@ function applyFullFrame(message: FullFrameSource): void {
   liveState.clientCount = message.clients;
   liveState.connectionState = 'connected';
   liveState.gameSpecId = message.gameSpecId ?? liveState.gameSpecId;
+  liveState.roomRegion = message.region ?? liveState.roomRegion;
   liveState.roomMode = message.mode ?? liveState.roomMode;
   liveState.pveEngineId = message.pveEngineId ?? null;
   liveState.pveEngineName = message.pveEngineName ?? null;
@@ -344,4 +350,11 @@ export function sendSocket(payload: unknown): boolean {
   }
   socket.send(JSON.stringify(payload));
   return true;
+}
+
+function maybeSendLatencySample(rttMs: number): void {
+  const now = Date.now();
+  if (lastLatencySampleSentAt !== 0 && now - lastLatencySampleSentAt < 60_000) return;
+  lastLatencySampleSentAt = now;
+  sendSocket({ type: 'latency-sample', rttMs });
 }

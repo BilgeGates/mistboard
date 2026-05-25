@@ -164,6 +164,13 @@ const liveClockIncrementMs = 2_000;
 const pveEngineMoveDelayMs = parsePositiveInteger(process.env.MISTBOARD_PVE_ENGINE_DELAY_MS) ?? 650;
 const liveEngineTimeoutMs =
   parsePositiveInteger(process.env.MISTBOARD_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
+const defaultRoomRegion = normalizeRoomRegion(
+  process.env.MISTBOARD_ROOM_REGION ??
+    process.env.RAILWAY_DEPLOYMENT_REGION ??
+    process.env.RAILWAY_REGION ??
+    process.env.FLY_REGION ??
+    'global',
+);
 const guestPrestartAbortMs =
   parseNonNegativeInteger(process.env.MISTBOARD_GUEST_PRESTART_ABORT_MS) ?? 15 * 60 * 1000;
 const abortPolicySweepMs =
@@ -206,6 +213,7 @@ const rematchOrch: RematchOrchestrator = {
       spec.hiddenDraft960,
       spec.timeControl,
       spec.rated,
+      { region: spec.region },
     ),
   issueSeatToken: async (room, seat, identity) => {
     const rawToken = randomBytes(32).toString('base64url');
@@ -896,6 +904,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
 // `snapshot:request`; future wire-format additions should land here too.
 const KNOWN_CLIENT_MESSAGE_TYPES = new Set([
   'ping',
+  'latency-sample',
   'admin-debug-auth',
   'snapshot:request',
   'select-start',
@@ -924,7 +933,21 @@ async function handleMessage(room: Room, client: Client, raw: string): Promise<v
     return;
   }
   try {
-    if (message.type === 'ping') send(client, { type: 'pong', at: Date.now() });
+    if (message.type === 'ping') {
+      send(client, {
+        type: 'pong',
+        at: typeof message.at === 'number' ? message.at : Date.now(),
+        serverAt: Date.now(),
+      });
+      return;
+    }
+    if (message.type === 'latency-sample') {
+      if (typeof message.rttMs === 'number' && Number.isFinite(message.rttMs)) {
+        const rttMs = Math.max(0, Math.min(60_000, Math.round(message.rttMs)));
+        wsCounters.recordLatencySample(room.region ?? defaultRoomRegion, rttMs);
+      }
+      return;
+    }
     if (message.type === 'admin-debug-auth') {
       handleAdminDebugAuth(
         room,
@@ -1108,6 +1131,7 @@ async function getOrCreateRoom(
       roomId,
       variant,
       gameSpecId,
+      region: defaultRoomRegion,
       ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
     };
     if (persistence.isInitialized()) {
@@ -1151,15 +1175,16 @@ async function getOrCreateRoom(
 
   const projection = replayGameEvents(events);
   const mode = modeForProjection(projection);
-  if (createdNewPersistentRoom) {
-    await persistGameStart(roomId, projection, mode, new Date(events[0]?.at ?? Date.now()));
-  }
   const seatTokens = persistence.isInitialized()
     ? seatTokenStatesFromPersistence(await persistence.loadRoomSeatTokens(roomId))
     : {};
   const roomCreatedEvent = events.find((e) => e.type === 'room-created') as
     | Extract<GameEvent, { type: 'room-created' }>
     | undefined;
+  const region = normalizeRoomRegion(roomCreatedEvent?.region ?? defaultRoomRegion);
+  if (createdNewPersistentRoom) {
+    await persistGameStart(roomId, projection, mode, new Date(events[0]?.at ?? Date.now()), region);
+  }
   const detectedHiddenDraft960 =
     projection.variant === 'dark-chess' && roomCreatedEvent?.offers !== undefined;
   const room: Room = {
@@ -1178,6 +1203,7 @@ async function getOrCreateRoom(
     forfeitSeat: null,
     mode,
     gameSpecId: projection.gameSpecId,
+    region,
     // Rated request is persisted on the room-created event, so hydration after a
     // restart preserves it. Defaults casual if absent. The room-manager
     // account-gate is still the authoritative rated decision at game end.
@@ -1222,6 +1248,7 @@ async function createRoom(
     // (random preference uses randomSeating). Ignored for PvE — engine pre-seat
     // is set via engineColor at room creation.
     creatorPreference?: 'white' | 'black';
+    region?: string;
   } = {},
 ): Promise<Room> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -1233,12 +1260,14 @@ async function createRoom(
 
     const at = Date.now();
     const gameSpecId = gameSpecForLegacyLiveRoom({ variant, hiddenDraft960 }).id;
+    const region = normalizeRoomRegion(options.region ?? defaultRoomRegion);
     const roomCreated: Extract<GameEvent, { type: 'room-created' }> = {
       type: 'room-created',
       at,
       roomId,
       variant,
       gameSpecId,
+      region,
       ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
       ...(timeControl ? { timeControl } : {}),
       ...(rated ? { rated: true } : {}),
@@ -1270,7 +1299,7 @@ async function createRoom(
 
     const projection = replayGameEvents(events);
     if (persistence.isInitialized()) {
-      await persistGameStart(roomId, projection, mode, new Date(at));
+      await persistGameStart(roomId, projection, mode, new Date(at), region);
     }
     const room: Room = {
       id: roomId,
@@ -1288,6 +1317,7 @@ async function createRoom(
       forfeitSeat: null,
       mode,
       gameSpecId: projection.gameSpecId,
+      region,
       rated,
       randomEngine: mode === 'pve',
       randomSeating: options.randomSeating === true && mode === 'pvp',
@@ -1317,12 +1347,14 @@ async function persistGameStart(
   projection: GameProjection,
   mode: persistence.GameMode,
   startedAt: Date,
+  region = defaultRoomRegion,
 ): Promise<void> {
   if (!persistence.isInitialized()) return;
   try {
     await persistence.recordGameStart(roomId, {
       variant: projection.variant,
       mode,
+      region,
       startedAt,
       whiteClient: projection.seats.white ?? null,
       blackClient: projection.seats.black ?? null,
@@ -1801,6 +1833,8 @@ function parseMessage(raw: string): {
   to?: string;
   promotion?: string;
   token?: string;
+  at?: number;
+  rttMs?: number;
 } | null {
   try {
     const value = JSON.parse(raw) as unknown;
@@ -1824,6 +1858,12 @@ function isColor(value: string | undefined): value is Color {
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
+}
+
+function normalizeRoomRegion(value: string | undefined): string {
+  if (!value) return 'global';
+  const normalized = value.trim().toLowerCase();
+  return /^[a-z0-9-]{1,32}$/.test(normalized) ? normalized : 'global';
 }
 
 function roomCreatedDraftOfferFields(

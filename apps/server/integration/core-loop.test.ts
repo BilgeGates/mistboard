@@ -81,6 +81,19 @@ function finishedStatus(msg: unknown): { winner: 'white' | 'black' | null; reaso
 
 // ── 1. Happy-path PvP game-end via resign ────────────────────────────────────
 
+test('ping echoes the client timestamp so RTT is clock-skew safe', async () => {
+  const roomId = uniqueRoomId('ping');
+  const client = await connectClient({ url: serverInstance.url, room: roomId });
+  const at = Date.now() - 123;
+
+  client.send({ type: 'ping', at });
+  const pong = await client.expectMessage<{ type: string; at: number; serverAt: number }>('pong');
+
+  assert.equal(pong.at, at);
+  assert.equal(typeof pong.serverAt, 'number');
+  await client.disconnect();
+});
+
 test('PvP resign ends the game with opposite color winning, both clients see it', async () => {
   const roomId = uniqueRoomId('resign');
   const { white, black } = await pairPvpPlayers(roomId);

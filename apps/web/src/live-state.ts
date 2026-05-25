@@ -115,6 +115,7 @@ export const liveState = {
   latencyMs: null as number | null,
   lastServerAt: null as number | null,
   lastSnapshotAt: null as number | null,
+  roomRegion: 'global' as string,
   roomMode: 'pvp' as RoomMode,
   rated: true,
   paused: false,

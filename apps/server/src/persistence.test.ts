@@ -546,8 +546,9 @@ if (!TEST_DATABASE_URL) {
         termination: string | null;
         ended_at: Date | null;
         visibility: string;
+        region: string;
       }>(
-        'SELECT mode, status, result, termination, ended_at, visibility FROM games WHERE room_id = $1',
+        'SELECT mode, status, result, termination, ended_at, visibility, region FROM games WHERE room_id = $1',
         ['started-pve'],
       );
       assert.deepEqual(rows, [
@@ -558,6 +559,7 @@ if (!TEST_DATABASE_URL) {
           termination: null,
           ended_at: null,
           visibility: 'public',
+          region: 'global',
         },
       ]);
     } finally {

@@ -392,6 +392,21 @@ test('replays room-created game spec metadata', () => {
   assert.equal(projection.gameSpecId, DARK_CHESS_SPEC_ID);
 });
 
+test('replays room-created region metadata', () => {
+  const projection = replayGameEvents([
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'regional-room',
+      variant: 'dark-chess',
+      offer: [],
+      region: 'asia',
+    },
+  ]);
+
+  assert.equal(projection.region, 'asia');
+});
+
 test('derives game spec metadata for legacy Draft960 room-created events', () => {
   const offer = pickDraft960Offer(960);
 

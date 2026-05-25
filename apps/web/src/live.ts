@@ -122,7 +122,7 @@ window.addEventListener('keydown', handleReplayKeyboard);
 
 if (!connOverride) {
   window.setInterval(() => {
-    void sendSocket({ type: 'ping' });
+    void sendSocket({ type: 'ping', at: Date.now() });
   }, 5_000);
 }
 
@@ -139,6 +139,7 @@ window.__MISTBOARD_DEBUG__ = () => ({
   devViews: liveState.devViews,
   events: liveState.events,
   gameSpecId: liveState.gameSpecId,
+  roomRegion: liveState.roomRegion,
   seat: liveState.seat,
   solo: liveState.solo,
   state: liveState.state,

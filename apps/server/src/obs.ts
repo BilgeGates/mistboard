@@ -89,6 +89,7 @@ class WsCounters {
   totalSnapshotRequests = 0;
   totalUnknownMessages = 0;
   totalParseFailures = 0;
+  private latencyByRegion = new Map<string, number[]>();
   private lastEmittedSnapshotRequests = 0;
   private lastEmittedUnknownMessages = 0;
   private lastEmittedParseFailures = 0;
@@ -102,6 +103,12 @@ class WsCounters {
   recordParseFailure(): void {
     this.totalParseFailures += 1;
   }
+  recordLatencySample(region: string, rttMs: number): void {
+    const normalizedRegion = normalizeRegion(region);
+    const samples = this.latencyByRegion.get(normalizedRegion) ?? [];
+    samples.push(rttMs);
+    this.latencyByRegion.set(normalizedRegion, samples);
+  }
 
   snapshot(): {
     snapshotRequests: number;
@@ -110,6 +117,11 @@ class WsCounters {
     snapshotRequestsDelta: number;
     unknownMessagesDelta: number;
     parseFailuresDelta: number;
+    latencySamples: number;
+    latencyP50: number | null;
+    latencyP95: number | null;
+    latencyMax: number | null;
+    latencyByRegion: Record<string, { samples: number; p50: number; p95: number; max: number }>;
   } {
     const snapshotRequestsDelta = this.totalSnapshotRequests - this.lastEmittedSnapshotRequests;
     const unknownMessagesDelta = this.totalUnknownMessages - this.lastEmittedUnknownMessages;
@@ -117,6 +129,17 @@ class WsCounters {
     this.lastEmittedSnapshotRequests = this.totalSnapshotRequests;
     this.lastEmittedUnknownMessages = this.totalUnknownMessages;
     this.lastEmittedParseFailures = this.totalParseFailures;
+    const allLatency: number[] = [];
+    const latencyByRegion: Record<
+      string,
+      { samples: number; p50: number; p95: number; max: number }
+    > = {};
+    for (const [region, samples] of this.latencyByRegion) {
+      allLatency.push(...samples);
+      latencyByRegion[region] = latencyStats(samples);
+    }
+    this.latencyByRegion.clear();
+    const globalLatency = allLatency.length > 0 ? latencyStats(allLatency) : null;
     return {
       snapshotRequests: this.totalSnapshotRequests,
       unknownMessages: this.totalUnknownMessages,
@@ -124,6 +147,11 @@ class WsCounters {
       snapshotRequestsDelta,
       unknownMessagesDelta,
       parseFailuresDelta,
+      latencySamples: allLatency.length,
+      latencyP50: globalLatency?.p50 ?? null,
+      latencyP95: globalLatency?.p95 ?? null,
+      latencyMax: globalLatency?.max ?? null,
+      latencyByRegion,
     };
   }
 }
@@ -164,6 +192,11 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
         ws_unknown_messages_tick: ws.unknownMessagesDelta,
         ws_parse_failures_total: ws.parseFailures,
         ws_parse_failures_tick: ws.parseFailuresDelta,
+        ws_latency_samples_tick: ws.latencySamples,
+        ws_latency_p50_ms: ws.latencyP50,
+        ws_latency_p95_ms: ws.latencyP95,
+        ws_latency_max_ms: ws.latencyMax,
+        ws_latency_by_region: ws.latencyByRegion,
       },
       'metrics',
     );
@@ -179,4 +212,29 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
 
 function nsToMs(ns: number): number {
   return Math.round(ns / 1e4) / 100;
+}
+
+function latencyStats(samples: number[]): {
+  samples: number;
+  p50: number;
+  p95: number;
+  max: number;
+} {
+  const sorted = [...samples].sort((a, b) => a - b);
+  return {
+    samples: sorted.length,
+    p50: percentile(sorted, 0.5),
+    p95: percentile(sorted, 0.95),
+    max: sorted[sorted.length - 1] ?? 0,
+  };
+}
+
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1);
+  return sorted[index]!;
+}
+
+function normalizeRegion(region: string): string {
+  return /^[a-z0-9-]{1,32}$/.test(region) ? region : 'global';
 }

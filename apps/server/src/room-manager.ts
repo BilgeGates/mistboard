@@ -336,6 +336,7 @@ export function buildGameSummary(ctx: RoomManagerContext, room: Room): GameSumma
     blackName: null,
     corpusId: null,
     rated,
+    region: room.region ?? room.projection.region ?? 'global',
     initialMs: room.timeControl?.initialMs ?? null,
     incrementMs: room.timeControl?.incrementMs ?? null,
     hiddenDraft960: room.hiddenDraft960,

@@ -96,6 +96,7 @@ export type Room = {
   forfeitSeat: Color | null;
   mode: GameMode;
   gameSpecId: GameSpecId;
+  region?: string;
   rated: boolean;
   randomEngine: boolean;
   randomSeating: boolean;
@@ -125,6 +126,7 @@ export type LobbyTicket = {
   gameSpecId: GameSpecId;
   hiddenDraft960: boolean;
   rated: boolean;
+  region: string | null;
   matchedAt: number | null;
   roomId: string | null;
   timeControl: RoomTimeControl | undefined;

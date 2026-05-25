@@ -19,6 +19,7 @@ export type RematchCreateRoom = (spec: {
   hiddenDraft960: boolean;
   timeControl: Room['timeControl'];
   rated: boolean;
+  region?: string;
   mode: 'pvp' | 'pve';
   pveEngineId: string | null;
 }) => Promise<Room>;
@@ -151,6 +152,7 @@ export async function finalizeRematchIfReady(
     hiddenDraft960: room.hiddenDraft960,
     timeControl: room.timeControl,
     rated: room.rated,
+    region: room.region,
     mode: room.mode,
     pveEngineId: room.pveEngineId,
   });

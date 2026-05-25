@@ -110,6 +110,7 @@ async function joinLobby(
     gameSpecId,
     hiddenDraft960,
     rated,
+    region: null,
     matchedAt: null,
     roomId: null,
     timeControl,
@@ -139,8 +140,10 @@ async function joinLobby(
   const matchedAt = Date.now();
   matchedTicket.matchedAt = matchedAt;
   matchedTicket.roomId = room.id;
+  matchedTicket.region = room.region ?? 'global';
   ticket.matchedAt = matchedAt;
   ticket.roomId = room.id;
+  ticket.region = room.region ?? 'global';
   const matchedIndex = ctx.lobbyQueue.findIndex((candidate) => candidate.id === matchedTicket.id);
   if (matchedIndex >= 0) ctx.lobbyQueue.splice(matchedIndex, 1);
   return ticket;
@@ -178,6 +181,7 @@ function lobbyTicketResponse(ticket: LobbyTicket): Record<string, unknown> {
       ? {
           roomId: ticket.roomId,
           url: `/room/${encodeURIComponent(ticket.roomId)}`,
+          region: ticket.region ?? 'global',
         }
       : {}),
   };
