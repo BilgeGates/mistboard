@@ -49,6 +49,7 @@ class GameOverJson(TypedDict):
 class EngineObservationJson(TypedDict, total=False):
     ply: int
     kind: Literal["initial", "own_move", "opp_move"]
+    own_move: Optional["MoveJson"]
     visibility_mask: str  # "0x..." 64-bit hex
     visible_pieces: list[tuple[int, VisiblePieceJson]]
     own_capture_square: Optional[int]
@@ -115,6 +116,10 @@ class EngineObservation:
     own_capture_square: Optional[int] = None
     opp_capture_landing_square: Optional[int] = None
     game_over: Optional[GameOver] = None
+    # Present when kind == 'own_move' — the move the engine made this ply.
+    # Required for the engine to deterministically advance its belief set
+    # during cold-start transcript replay. Null for 'initial' and 'opp_move'.
+    own_move: Optional["Move"] = None
 
 
 @dataclass(frozen=True)
@@ -171,6 +176,7 @@ def observation_to_json(o: EngineObservation) -> EngineObservationJson:
     out: EngineObservationJson = {
         "ply": o.ply,
         "kind": o.kind,
+        "own_move": move_to_json(o.own_move) if o.own_move is not None else None,
         "visibility_mask": _hex_mask(o.visibility_mask),
         "visible_pieces": [
             (sq, {"type": p.type, "color": p.color}) for sq, p in o.visible_pieces
@@ -191,6 +197,8 @@ def observation_from_json(d: EngineObservationJson) -> EngineObservation:
     go = None
     if go_json is not None:
         go = GameOver(winner=go_json.get("winner"), reason=go_json["reason"])
+    own_move_json = d.get("own_move")
+    own_move = move_from_json(own_move_json) if own_move_json is not None else None
     return EngineObservation(
         ply=d["ply"],
         kind=d["kind"],
@@ -202,6 +210,7 @@ def observation_from_json(d: EngineObservationJson) -> EngineObservation:
         own_capture_square=d.get("own_capture_square"),
         opp_capture_landing_square=d.get("opp_capture_landing_square"),
         game_over=go,
+        own_move=own_move,
     )
 
 

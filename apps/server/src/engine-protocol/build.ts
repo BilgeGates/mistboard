@@ -220,9 +220,16 @@ export function buildObservationForPly(args: {
       ? { winner: nextState.status.winner, reason: nextState.status.reason }
       : null;
 
+  // own_move: present only when this was the engine's own move.
+  // Required for cold-start transcript replay — the engine needs the
+  // exact move to deterministically advance its P set via
+  // PEnumerator.update_own_move(move).
+  const own_move: Move | null = kind === 'own_move' ? move : null;
+
   return {
     ply,
     kind,
+    own_move,
     visibility_mask: maskHex(visibility_mask),
     visible_pieces,
     own_capture_square,

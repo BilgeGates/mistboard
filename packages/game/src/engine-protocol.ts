@@ -86,6 +86,18 @@ export type EngineObservation = {
   kind: 'initial' | 'own_move' | 'opp_move';
 
   /**
+   * The move that produced this observation, when `kind === 'own_move'`.
+   * Present only on own-move observations — the engine's belief-update
+   * step needs the exact move to deterministically advance its P set
+   * (the move's pseudo-legality is the only filter on each candidate
+   * truth). For `kind === 'opp_move'` this is null (the engine doesn't
+   * see opp's move directly; it only sees the post-move observation
+   * and reasons over which opp move could have produced it). For
+   * `kind === 'initial'` this is null (no move).
+   */
+  own_move: Move | null;
+
+  /**
    * 64-bit visibility bitboard as a `0x...`-prefixed hex string.
    * Bit `i` set iff `Square` index `i` is visible to the engine's
    * perspective player at this ply.

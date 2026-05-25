@@ -56,8 +56,14 @@ for path in (VENDOR, SRC):
 
 import chess
 
+from fow_chess.engine_protocol import request_from_json
 from fow_chess.event_log import iter_steps, replay_canonical
 from fow_chess.observation import observation_from_transition
+from fow_chess.protocol_adapter import (
+    build_perspective_view,
+    color_from_protocol,
+    replay_transcript_into_strategy,
+)
 from fow_chess.selfplay import PerspectiveView
 from fow_chess.strategies import RandomStrategy
 from fow_chess.tournament.config import canonical_hash, load_config
@@ -153,6 +159,128 @@ def _handle_request(
     request: dict[str, Any],
     started: float,
 ) -> dict[str, Any]:
+    # Phase 3b: prefer the redacted protocol payload when present.
+    # Phase 3a (commit 5e75427) added it alongside `events`; once all
+    # worker call sites are on the protocol, the TS side drops `events`
+    # and this branch becomes the only path.
+    if request.get("engineTurnRequest") is not None:
+        return _handle_request_protocol(strategy, spec, request, started)
+    return _handle_request_events(strategy, spec, request, started)
+
+
+def _handle_request_protocol(
+    strategy: Any,
+    spec: dict[str, Any],
+    request: dict[str, Any],
+    started: float,
+) -> dict[str, Any]:
+    """Protocol-mode handler — engine consumes EngineTurnRequest only.
+
+    The redaction-tested boundary: nothing in this function reads
+    canonical events, raw GameState, or any field outside the protocol.
+    All engine inputs come from the parsed protocol request.
+    """
+    req = request_from_json(request["engineTurnRequest"])
+    perspective = color_from_protocol(req.color)
+    # room_id is not in the protocol (engines see only gameId). The worker
+    # uses room_id for its own bookkeeping/response; map gameId → room_id.
+    room_id = req.game_id
+
+    if not req.legal_moves:
+        raise RuntimeError("no legal moves available")
+    view = build_perspective_view(req)
+
+    deadline = _deadline_monotonic(started, request)
+    if _deadline_expired(deadline):
+        # No canonical board here; reconstruct a chess.Board view from
+        # the protocol observation for the fallback move generator.
+        guard_board = _board_from_protocol(req)
+        move = _deadline_guard_move(guard_board, view)
+        return _move_response_protocol(spec, move, req, "deadline-guard")
+
+    # Cold-start replay of the full transcript through the strategy.
+    # Phase 3b v1 doesn't yet exploit per-session statefulness — every
+    # request resets and replays. Phase 4 work: stateful session keyed
+    # on req.session_id with delta-only updates between turns.
+    replay_transcript_into_strategy(strategy, req)
+    if _deadline_expired(deadline):
+        guard_board = _board_from_protocol(req)
+        move = _deadline_guard_move(guard_board, view)
+        return _move_response_protocol(spec, move, req, "deadline-guard")
+
+    move = strategy.pick_move(view)
+    if move not in view.own_legal_moves:
+        raise RuntimeError(f"engine returned illegal move: {move.uci()}")
+    decision_source = "random" if isinstance(strategy, RandomStrategy) else "tier1"
+    return _move_response_protocol(spec, move, req, decision_source)
+
+
+_LETTER_TO_PIECE_TYPE = {
+    "P": chess.PAWN, "N": chess.KNIGHT, "B": chess.BISHOP,
+    "R": chess.ROOK, "Q": chess.QUEEN, "K": chess.KING,
+}
+
+
+def _board_from_protocol(req: Any) -> chess.Board:
+    """Reconstruct a chess.Board from the last observation's visible
+    pieces. Used only by the deadline-guard fallback (which picks a
+    random legal move). Not a full canonical board — opp pieces on
+    invisible squares are absent. Sufficient for the fallback path."""
+    board = chess.Board.empty()
+    last_obs = (
+        req.observation_transcript[-1]
+        if req.observation_transcript
+        else req.latest_observation_delta
+    )
+    for sq, vp in last_obs.visible_pieces:
+        board.set_piece_at(
+            sq,
+            chess.Piece(_LETTER_TO_PIECE_TYPE[vp.type], vp.color == "white"),
+        )
+    board.turn = req.color == "white"
+    return board
+
+
+def _move_response_protocol(
+    spec: dict[str, Any], move: chess.Move, req: Any, decision_source: str,
+) -> dict[str, Any]:
+    """Construct the worker's response dict from a protocol request.
+
+    Output shape matches the legacy _move_response (consumed by TS
+    python-pool); the live-engine code on the TS side doesn't yet
+    differentiate protocol-vs-events response handling.
+    """
+    promo_letter = None
+    if move.promotion is not None:
+        promo_letter = {
+            chess.QUEEN: "queen", chess.ROOK: "rook",
+            chess.BISHOP: "bishop", chess.KNIGHT: "knight",
+        }[move.promotion]
+    return {
+        "engineId": spec.get("id", ""),
+        "color": req.color,
+        "decisionSource": decision_source,
+        "engineSpec": {
+            **spec,
+            "color": req.color,
+            "roomId": req.game_id,
+        },
+        "move": {
+            "from": chess.SQUARE_NAMES[move.from_square],
+            "to": chess.SQUARE_NAMES[move.to_square],
+            **({"promotion": promo_letter} if promo_letter else {}),
+        },
+    }
+
+
+def _handle_request_events(
+    strategy: Any,
+    spec: dict[str, Any],
+    request: dict[str, Any],
+    started: float,
+) -> dict[str, Any]:
+    """Legacy events-mode handler — kept for transition until Phase 3
+    completes by dropping the events field from the TS payload."""
     room_id = str(request["roomId"])
     perspective = _parse_color(request["color"])
     events = request["events"]
