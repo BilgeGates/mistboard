@@ -1341,6 +1341,28 @@ function xqPiecesLayer(
     .join('');
 }
 
+function xqArrowLayer(
+  arrows: Array<{ from: XiangqiSquare; to: XiangqiSquare }> | undefined,
+  x0: number,
+  y0: number,
+  perspective: XiangqiColor,
+): string {
+  if (!arrows || arrows.length === 0) return '';
+  return arrows
+    .map(({ from, to }, index) => {
+      const fromCoord = xqCoord(from);
+      const toCoord = xqCoord(to);
+      const start = xqPoint(fromCoord.file, fromCoord.rank, perspective, x0, y0);
+      const end = xqPoint(toCoord.file, toCoord.rank, perspective, x0, y0);
+      const id = `xq-arrow-${from}-${to}-${index}`;
+      return [
+        `<defs><marker id="${id}" markerWidth="4" markerHeight="4" refX="2.05" refY="2" orient="auto" overflow="visible" markerUnits="strokeWidth"><path d="M0,0 V4 L3,2 Z" fill="#15781B"/></marker></defs>`,
+        `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="#15781B" stroke-width="5.25" stroke-linecap="round" opacity="0.38" marker-end="url(#${id})"/>`,
+      ].join('');
+    })
+    .join('');
+}
+
 function xqBoardSvg(opts: {
   state: XiangqiGameState;
   view?: XiangqiPlayerView;
@@ -1348,15 +1370,18 @@ function xqBoardSvg(opts: {
   y: number;
   label: string;
   perspective?: XiangqiColor;
+  arrows?: Array<{ from: XiangqiSquare; to: XiangqiSquare }>;
 }): string {
   const perspective = opts.perspective ?? opts.view?.perspective ?? 'red';
   const view = opts.view ?? null;
+  const boardY = opts.y + 28;
   return [
-    xqBoardGrid(opts.x, opts.y, perspective),
-    xqFogLayer(view, opts.x, opts.y, perspective),
-    xqCannonTargets(opts.state, view, opts.x, opts.y, perspective),
-    xqPiecesLayer(opts.state, view, opts.x, opts.y, perspective),
-    `<text x="${opts.x + XQ_BOARD_W / 2}" y="${opts.y + XQ_BOARD_H + 28}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text>`,
+    `<text x="${opts.x + XQ_BOARD_W / 2}" y="${opts.y + 14}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text>`,
+    xqBoardGrid(opts.x, boardY, perspective),
+    xqFogLayer(view, opts.x, boardY, perspective),
+    xqCannonTargets(opts.state, view, opts.x, boardY, perspective),
+    xqPiecesLayer(opts.state, view, opts.x, boardY, perspective),
+    xqArrowLayer(opts.arrows, opts.x, boardY, perspective),
   ].join('');
 }
 
@@ -1399,13 +1424,10 @@ const XQ_VISION_STATES = [
     label: 'SOLDIER',
     state: xqVisionDemoState('xq-vision-soldier', {
       a4: { color: 'red', role: 'soldier' },
-      c4: { color: 'red', role: 'soldier' },
-      e4: { color: 'red', role: 'soldier' },
-      g6: { color: 'red', role: 'soldier' },
-      i6: { color: 'red', role: 'soldier' },
-      e5: { color: 'black', role: 'soldier' },
-      e6: { color: 'black', role: 'horse' },
-      h6: { color: 'black', role: 'advisor' },
+      c6: { color: 'red', role: 'soldier' },
+      e8: { color: 'red', role: 'soldier' },
+      f7: { color: 'red', role: 'soldier' },
+      i5: { color: 'red', role: 'soldier' },
     }),
   },
   {
@@ -1413,28 +1435,20 @@ const XQ_VISION_STATES = [
     state: xqVisionDemoState('xq-vision-advisor', {
       d1: { color: 'red', role: 'advisor' },
       f1: { color: 'red', role: 'advisor' },
-      e2: { color: 'black', role: 'soldier' },
     }),
   },
   {
     label: 'ELEPHANT',
     state: xqVisionDemoState('xq-vision-elephant', {
       c1: { color: 'red', role: 'elephant' },
-      g1: { color: 'red', role: 'elephant' },
-      a3: { color: 'black', role: 'soldier' },
-      d2: { color: 'black', role: 'soldier' },
-      i3: { color: 'black', role: 'horse' },
+      g5: { color: 'red', role: 'elephant' },
     }),
   },
   {
     label: 'HORSE',
     state: xqVisionDemoState('xq-vision-horse', {
-      b1: { color: 'red', role: 'horse' },
-      h1: { color: 'red', role: 'horse' },
-      a3: { color: 'black', role: 'soldier' },
-      c3: { color: 'black', role: 'advisor' },
-      g3: { color: 'black', role: 'elephant' },
-      i3: { color: 'black', role: 'soldier' },
+      d7: { color: 'red', role: 'horse' },
+      e7: { color: 'red', role: 'horse' },
     }),
   },
   {
@@ -1442,10 +1456,6 @@ const XQ_VISION_STATES = [
     state: xqVisionDemoState('xq-vision-cannon', {
       b3: { color: 'red', role: 'cannon' },
       h3: { color: 'red', role: 'cannon' },
-      b8: { color: 'black', role: 'cannon' },
-      h8: { color: 'black', role: 'cannon' },
-      b10: { color: 'black', role: 'horse' },
-      h10: { color: 'black', role: 'horse' },
     }),
   },
   {
@@ -1453,15 +1463,12 @@ const XQ_VISION_STATES = [
     state: xqVisionDemoState('xq-vision-chariot', {
       a1: { color: 'red', role: 'chariot' },
       i1: { color: 'red', role: 'chariot' },
-      a7: { color: 'black', role: 'soldier' },
-      i7: { color: 'black', role: 'soldier' },
     }),
   },
   {
     label: 'GENERAL',
     state: xqVisionDemoState('xq-vision-general', {
       e1: { color: 'red', role: 'general' },
-      e10: { color: 'black', role: 'general' },
     }),
   },
 ];
@@ -1472,34 +1479,38 @@ const XQ_VISIBILITY_GRID_ROW_H = XQ_BOARD_H + 52;
 const XQ_VISIBILITY_GRID = xqSvg(
   XQ_BOARD_W * XQ_VISIBILITY_GRID_COLUMNS + XQ_VISIBILITY_GRID_GAP * (XQ_VISIBILITY_GRID_COLUMNS - 1),
   XQ_VISIBILITY_GRID_ROW_H * Math.ceil(XQ_VISION_STATES.length / XQ_VISIBILITY_GRID_COLUMNS),
-  XQ_VISION_STATES.map(({ state, label }, index) =>
-    xqBoardSvg({
+  XQ_VISION_STATES.map(({ state, label }, index) => {
+    const row = Math.floor(index / XQ_VISIBILITY_GRID_COLUMNS);
+    const col = index % XQ_VISIBILITY_GRID_COLUMNS;
+    const rowCount = Math.min(XQ_VISIBILITY_GRID_COLUMNS, XQ_VISION_STATES.length - row * XQ_VISIBILITY_GRID_COLUMNS);
+    const centeredRowOffset = ((XQ_VISIBILITY_GRID_COLUMNS - rowCount) * (XQ_BOARD_W + XQ_VISIBILITY_GRID_GAP)) / 2;
+    return xqBoardSvg({
       state,
       view: getXiangqiPlayerView(state, 'red', 'E'),
-      x: (index % XQ_VISIBILITY_GRID_COLUMNS) * (XQ_BOARD_W + XQ_VISIBILITY_GRID_GAP),
-      y: Math.floor(index / XQ_VISIBILITY_GRID_COLUMNS) * XQ_VISIBILITY_GRID_ROW_H,
+      x: centeredRowOffset + col * (XQ_BOARD_W + XQ_VISIBILITY_GRID_GAP),
+      y: row * XQ_VISIBILITY_GRID_ROW_H,
       label,
       perspective: 'red',
-    }),
-  ).join(''),
+    });
+  }).join(''),
 );
 
 const XQ_VISION_MOVE_BEFORE = xqVisionDemoState('xq-vision-move-before', {
-  a1: { color: 'red', role: 'chariot' },
-  a6: { color: 'black', role: 'soldier' },
-  e4: { color: 'black', role: 'advisor' },
-  i1: { color: 'black', role: 'chariot' },
+  b1: { color: 'red', role: 'chariot' },
+  b2: { color: 'red', role: 'chariot' },
+  a9: { color: 'black', role: 'chariot' },
+  e9: { color: 'black', role: 'general' },
 });
 const XQ_VISION_MOVE_AFTER: XiangqiGameState = {
   ...XQ_VISION_MOVE_BEFORE,
   id: 'xq-vision-move-after',
   board: {
-    a4: { color: 'red', role: 'chariot' },
-    a6: { color: 'black', role: 'soldier' },
-    e4: { color: 'black', role: 'advisor' },
-    i1: { color: 'black', role: 'chariot' },
+    b1: { color: 'red', role: 'chariot' },
+    b9: { color: 'red', role: 'chariot' },
+    a9: { color: 'black', role: 'chariot' },
+    e9: { color: 'black', role: 'general' },
   },
-  lastMove: { from: 'a1' as XiangqiSquare, to: 'a4' as XiangqiSquare },
+  lastMove: { from: 'b2' as XiangqiSquare, to: 'b9' as XiangqiSquare },
 };
 const XQ_VISION_MOVE_PAIR = xqSvg(
   XQ_BOARD_W * 2 + 28,
@@ -1520,6 +1531,7 @@ const XQ_VISION_MOVE_PAIR = xqSvg(
       y: 0,
       label: 'AFTER',
       perspective: 'red',
+      arrows: [{ from: 'b2' as XiangqiSquare, to: 'b9' as XiangqiSquare }],
     }),
   ].join(''),
 );
@@ -1619,6 +1631,7 @@ const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
       y: 0,
       label: "RED'S VIEW AFTER",
       perspective: 'red',
+      arrows: [{ from: 'd2' as XiangqiSquare, to: 'd8' as XiangqiSquare }],
     }),
   ].join(''),
 );
@@ -2008,27 +2021,24 @@ export const articles: Article[] = [
     status: 'draft',
     audience:
       'Xiangqi players, dark chess players, and anyone who wants a clean first explanation of xiangqi under fog.',
+    intro: [
+      {
+        kind: 'paragraph',
+        text: 'Dark Xiangqi is the modern Fog of War version of [xiangqi](https://en.wikipedia.org/wiki/Xiangqi): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
+      },
+    ],
     sections: [
       {
         heading: 'The starting position',
         blocks: [
           {
             kind: 'paragraph',
-            text: 'If you know xiangqi, the board is familiar: the same river, palaces, generals, advisors, elephants, horses, chariots, cannons, and soldiers. Dark Xiangqi is the modern Fog of War version of the ancient game.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'Red moves first. You see your own army and the enemy pieces your army can legally see. Everything else stays in fog.',
+            text: 'Red moves first from the standard xiangqi starting position. Each side sees the squares its own pieces could legally move to under regular xiangqi rules, plus the squares they stand on. Everything else is fog.',
           },
           {
             kind: 'raw-svg',
             svg: XQ_START_TRIPTYCH,
-            caption: 'Red view, server truth, and Black view. The side boards are what each player is allowed to know.',
           } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text: 'The center board is the true position. The side boards are player views, not cosmetic overlays.',
-          },
         ],
       },
       {
@@ -2041,7 +2051,6 @@ export const articles: Article[] = [
           {
             kind: 'raw-svg',
             svg: XQ_VISIBILITY_GRID,
-            caption: 'Visibility examples, ordered roughly least to most valuable.',
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -2051,7 +2060,7 @@ export const articles: Article[] = [
           {
             kind: 'raw-svg',
             svg: XQ_VISION_MOVE_PAIR,
-            caption: "Red's chariot moves from a1 to a4. The old line goes dark; the new rank and file light up.",
+            caption: "Red's chariot moves from b2 to b9. Its new rank reveals the black chariot on a9 and the black general on e9.",
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -2064,21 +2073,12 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Legal moves use xiangqi movement geometry from the true board, but check constraints are removed. Facing generals are allowed. A general may step into danger. A player may move a screen and expose their own general.',
-          },
-          {
-            kind: 'paragraph',
-            text: 'The consequence is simple: if your opponent can capture your general next move, you can lose next move. The game does not warn you first.',
+            text: 'The game ends when a general is captured. No check, no checkmate, no warning.',
           },
           {
             kind: 'raw-svg',
             svg: XQ_GENERAL_CAPTURE_PAIR,
-            caption: 'From a random bot game: Red sees the black general on d8 and wins by playing d2xd8. Both boards are Red\'s fogged view.',
           } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text: 'Check is information. Dark Xiangqi does not announce danger for free; you survive by seeing, remembering, and deducing where attacks may be.',
-          },
         ],
       },
       {
@@ -2086,7 +2086,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. Soldier moves do not reset the no-capture counter. No stalemate draw: if a side somehow has no legal move, that side loses by immobilization.',
+            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. A non-capturing soldier move does not reset the no-capture counter; a soldier capture still does. No stalemate draws.',
           },
         ],
       },
@@ -2116,38 +2116,15 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'Basic deduction',
+        heading: 'The new frontier',
         blocks: [
           {
             kind: 'paragraph',
-            text: 'As in dark chess, the fog is information. A square going dark, a destination disappearing, or a cannon mark appearing can all say something about the true board without directly revealing the cause.',
-          },
-          { kind: 'sub-heading', text: 'Cannon marks' },
-          {
-            kind: 'paragraph',
-            text: 'When a cannon target appears, you know there is exactly one occupied screen somewhere on that line and an enemy piece beyond it. You do not know which square holds the screen, what piece it is, or whether the gap squares are empty unless some other piece sees them.',
-          },
-          { kind: 'sub-heading', text: 'Missing destinations' },
-          {
-            kind: 'paragraph',
-            text: 'When a horse or elephant destination stays fogged, the blocker may be the important fact, but Dark Xiangqi does not annotate it. You have to infer from move history, visible pieces, and the destinations that appear or vanish after each move.',
+            text: 'Dark Xiangqi is the modern dark variant of xiangqi: the ancient game\'s tactics and geometry, played through hidden information.',
           },
           {
             kind: 'paragraph',
-            text: 'That is the design target: enough information to play tactically, not enough automatic explanation to erase the hidden-information game.',
-          },
-        ],
-      },
-      {
-        heading: 'The shape of the game',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text: 'Dark Xiangqi keeps the dignity of the ancient game and adds a modern question: what can you prove from the pieces you are allowed to see?',
-          },
-          {
-            kind: 'paragraph',
-            text: 'You still build pressure with chariots, fork with horses, aim cannons through screens, and shepherd soldiers across the river. The difference is that every threat has an information cost. A strong move may win material; a beautiful move may also make the enemy guess wrong.',
+            text: 'It is for players who love xiangqi lines, cannon screens, horse forks, and the hidden-information pressure of great games like mahjong and poker. We invite everyone to play it.',
           },
           {
             kind: 'cta',
