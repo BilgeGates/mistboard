@@ -30,6 +30,30 @@ The scan reports:
 check that catches drift, new large files, and concurrent work before an agent
 opens source.
 
+For long-running work, create an isolated task tree:
+
+```bash
+npm run worktree:new -- <slug>
+```
+
+Before handoff, let the changed paths pick the narrow checks:
+
+```bash
+npm run verify -- --changed
+npm run verify -- --since origin/main
+```
+
+Use named confidence gates when a change crosses package boundaries:
+
+```bash
+npm run ci:quick
+npm run ci:local
+```
+
+`ci:quick` starts with `npm run build` so downstream packages do not accidentally
+read stale workspace `dist` types, and server unit tests have the dist entrypoint
+they spawn.
+
 ## Current velocity losses
 
 - Shared worktrees are the highest-cost failure mode. Existing dirty files
@@ -39,8 +63,8 @@ opens source.
   `landing.ts`, `persistence.ts`, and `apps/web/src/styles.css` should be split
   only when a real behavior change gives the extraction a natural boundary.
 - Manual mobile/article inspection was hidden behind `node
-  scripts/mobile-loop.mjs`; use `npm run mobile:loop` after starting the dev
-  server.
+  scripts/mobile-loop.mjs`; use `npm run test:mobile:shots` after starting the
+  dev server.
 - The old pre-commit hook auto-stashed all unstaged and untracked files. That
   was convenient for a single human session, but unsafe for parallel agents
   because it rewrote unrelated local work. The hook now fails fast unless

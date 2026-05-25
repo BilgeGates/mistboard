@@ -216,7 +216,7 @@ function printChecks() {
   console.log('  npm run test:unit');
   console.log('  npm run check:cycles');
   console.log('mobile/article visual loop, dev server already running:');
-  console.log('  npm run mobile:loop');
+  console.log('  npm run test:mobile:shots');
 }
 
 function main() {

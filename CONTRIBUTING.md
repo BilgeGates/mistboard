@@ -44,6 +44,8 @@ Usually out of scope for v1 unless explicitly gate-cleared:
 ```bash
 npm install
 npm run agent:scan        # live dirty-state, worktree, hotspot, and test map
+npm run verify -- --changed
+npm run ci:quick
 npm run dev              # in-memory server, fastest for UI work
 npm run dev:persistent   # Postgres-backed server (required for reconnect/replay testing)
 npm test                 # unit and integration tests, in-memory
@@ -67,7 +69,7 @@ http://localhost:3000/?room=fog-engine-dev&reset=1&variant=dark-chess&dev=engine
 For mobile/article layout iteration after the dev server is running:
 
 ```bash
-npm run mobile:loop
+npm run test:mobile:shots
 ```
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's currently being worked on.

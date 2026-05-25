@@ -36,6 +36,9 @@ that are easy for humans and agents to run consistently.
 
 ## First Major Push
 
+_Implementation status: initial scan, worktree, verification, local CI, and
+visual/mobile command names started in May 2026._
+
 ### 1. Worktree-First Task Setup
 
 Add a small worktree helper for new implementation tracks:

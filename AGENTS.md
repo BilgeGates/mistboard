@@ -23,6 +23,9 @@ git worktree list
 Then run `npm run agent:scan` for live dirty-state, worktree, large-file, and
 targeted-test guidance before opening source.
 
+For a long-running implementation track, prefer `npm run worktree:new -- <slug>`
+from a clean `main` instead of editing the shared tree.
+
 The user often runs Claude and Codex sessions in parallel. Treat existing dirty
 changes as someone else's work unless you made them in this session.
 
