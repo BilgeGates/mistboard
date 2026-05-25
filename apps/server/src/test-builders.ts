@@ -164,6 +164,7 @@ export function roomFixture({
     clients: new Set(clients ?? []),
     clockTimer: null,
     creatorPreference: null,
+    engineReservationId: null,
     engineTimer: null,
     events: [...roomEvents],
     forfeitDeadline: null,

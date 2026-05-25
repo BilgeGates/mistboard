@@ -42,6 +42,7 @@ function makeFinishedRoom(id: string): Room {
     gameSpecId: projection.gameSpecId,
     rated: true,
     randomEngine: false,
+    engineReservationId: null,
     randomSeating: false,
     creatorPreference: null,
     pveEngineId: null,

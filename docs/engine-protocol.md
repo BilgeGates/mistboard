@@ -36,8 +36,9 @@ the engine, not a privileged data channel from the server.
 
 3. **Engine response.** The engine returns an `EngineTurnResponse` with a
    `move` chosen from the request's `legalMoves`. The server validates and
-   applies. An illegal/missing/timeout response triggers the engine's
-   live-policy fallback (typically: play a random legal move and log).
+   applies. An illegal/missing/timeout response follows the selected engine's
+   live policy. First-party Python engines fail closed: no random move is
+   attributed to them when the engine service or engine code fails.
 
 4. **Game end.** When the server observes a terminal state, the final
    observation has a non-null `game_over` field. No further `EngineTurnRequest`
@@ -210,4 +211,22 @@ the TS file 1:1 inside the private `mistboard-engine` sibling repo
 (`src/fow_chess/engine_protocol.py`). The first-party engine lives there,
 cloned at deploy time. The protocol stays in the public repo so any
 engine — first-party private or third-party — can implement it.
-- A network-transport adapter (HTTP/WebSocket) is a possible later layer.
+
+## Internal HTTP transport
+
+Mistboard's hosted live path uses HTTP as a transport adapter for this same
+protocol. The web/server process sends an authenticated POST to the
+engine-worker service with an `EngineTurnRequest` JSON body; the engine-worker
+returns an `EngineTurnResponse` JSON body. Authentication uses a shared
+`MISTBOARD_INTERNAL_ENGINE_TOKEN` bearer token in addition to private
+networking. The request body stays protocol-only; server timing is carried in
+the `x-mistboard-engine-timeout-ms` header.
+
+Live admission is bounded by reservations. Web creates a reservation through
+`POST /internal/engine/reservations` before creating a first-party Python PvE
+room. Each subsequent turn must include
+`x-mistboard-engine-reservation-id`; engine-worker rejects missing, expired, or
+engine/color-mismatched reservations. `MISTBOARD_LIVE_ENGINE_SEATS` caps active
+reservations, while `MISTBOARD_PYTHON_POOL_SIZE` caps concurrent moves. This
+allows the service to admit M active games over N warm workers without
+weakening engine quality when demand exceeds capacity.

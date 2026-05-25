@@ -5,6 +5,7 @@ export type EngineKind = 'builtin' | 'typescript-bundle' | 'wasm' | 'container';
 export type EngineMoveContext = {
   baseThinkTimeMs?: number;
   clockRemainingMs?: number;
+  engineReservationId?: string;
   events?: GameEvent[];
   state: GameState;
   color: Color;

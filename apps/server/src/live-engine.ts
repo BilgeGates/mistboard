@@ -1,7 +1,4 @@
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { engineDir, enginePython, engineScript } from './engine-paths.js';
-import { clockRemainingMs, type EngineTurnRequest, type Move } from '@mistboard/game';
+import { clockRemainingMs, type EngineTurnResponse, type Move } from '@mistboard/game';
 import { buildEngineTurnRequest } from './engine-protocol/build.js';
 import {
   defaultEngineId,
@@ -10,7 +7,7 @@ import {
   type EngineMoveDecision,
   loadEngine,
 } from './engine-registry.js';
-import { getPythonPool } from './python-pool.js';
+import { InternalEngineClientError, requestInternalEngineTurn } from './internal-engine-client.js';
 
 /**
  * Per-engine secret used to derive deterministic per-turn engineSeed.
@@ -21,8 +18,7 @@ import { getPythonPool } from './python-pool.js';
  * This secret never leaves the server — engines receive only the
  * derived engineSeed.
  */
-const ENGINE_SECRET =
-  process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
+const ENGINE_SECRET = process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
 
 export type LiveEngineFallbackReason =
   | 'timeout'
@@ -55,11 +51,10 @@ type ChooseLiveEngineMoveOptions = {
 };
 
 const DEFAULT_LIVE_ENGINE_TIMEOUT_MS = 3_000;
-const DIAGNOSTIC_TAIL_BYTES = 4_000;
 // Padding added to the per-move budget when computing the watchdog timeout.
-// Originally sized for subprocess spawn overhead. The persistent pool no
-// longer spawns, but the buffer also covers JSON round-trip, P-update
-// variance, and gives v0.9.5 enough headroom in late-game positions where
+// Originally sized for subprocess spawn overhead. The engine-worker pool no
+// longer spawns per move, but the buffer also covers HTTP, JSON round-trip,
+// P-update variance, and gives v0.9.5 enough headroom in late-game positions where
 // |P| is large. Bumping from 2.5s → 5s in 2026-05-25 after observing
 // tier1 v0.9.5 routinely hit 10-11s compute past ply ~50 and fall back to
 // the random heuristic guard. Trade: longer hard cap on misbehaving
@@ -91,7 +86,7 @@ export async function chooseLiveEngineMove({
     const diagnostics = fallbackDiagnostics(err);
     const fallbackEngineId =
       engine.livePolicy?.fallbackEngineId === undefined
-        ? defaultEngineId()
+        ? defaultFallbackEngineId(engine)
         : engine.livePolicy.fallbackEngineId;
     if (!fallbackEngineId || fallbackEngineId === engine.id) throw err;
 
@@ -115,6 +110,11 @@ export async function chooseLiveEngineMove({
     });
     return { decision, engineId: fallbackEngineId, fallback: true };
   }
+}
+
+function defaultFallbackEngineId(engine: EngineDefinition): string | null {
+  if (engine.config.kind === 'python-subprocess') return null;
+  return defaultEngineId();
 }
 
 async function chooseWithTimeout(
@@ -178,47 +178,20 @@ async function choosePythonSubprocessMove(
     cold: true,
   });
 
-  // Protocol-only payload (Phase 3c). The redacted EngineTurnRequest is
-  // the sole game-state channel — `events`, `color`, `seed`, `roomId`
-  // were redundant with the protocol (the worker now reads `gameId`,
-  // `color`, `engineSeed`, clock, observation transcript from inside
-  // `engineTurnRequest`). `watchdogTimeoutMs` stays on the outer envelope
-  // — it's a server-timing decision, not engine-visible state.
-  const payload = {
+  const result = await requestInternalEngineTurn(
     engineTurnRequest,
     watchdogTimeoutMs,
-  };
-
-  // Try the persistent pool first; if it's disabled (env-gated) or fails
-  // to initialize, fall through to the original subprocess-per-move path.
-  // That fallback preserves correctness while we roll out the pool.
-  const pool = await getPythonPool(engine.id).catch(() => null);
-  if (pool) {
-    const response = await pool.chooseMove(payload, watchdogTimeoutMs);
-    return {
-      move: response.move as PythonLiveMoveResult['move'],
-      scores: [
-        {
-          move: response.move as PythonLiveMoveResult['move'],
-          score: 0,
-          reason: response.decisionSource
-            ? `python-pool:${response.decisionSource}`
-            : 'python-pool',
-        },
-      ],
-    };
-  }
-
-  const result = await runPythonLiveMoveProcess(payload, watchdogTimeoutMs);
+    context.engineReservationId,
+  ).catch((err) => {
+    throw liveEngineErrorFromInternalEngine(err, engine.id, watchdogTimeoutMs);
+  });
   return {
     move: result.move,
     scores: [
       {
         move: result.move,
         score: 0,
-        reason: result.decisionSource
-          ? `python-subprocess:${result.decisionSource}`
-          : 'python-subprocess',
+        reason: remoteEngineDecisionReason(result),
       },
     ],
   };
@@ -284,121 +257,42 @@ function liveIncrementMs(context: EngineMoveContext): number {
   return Math.max(0, context.incrementMs ?? context.state.clock?.incrementMs ?? 0);
 }
 
-type PythonLiveMoveRequest = {
-  engineTurnRequest: EngineTurnRequest;
-  watchdogTimeoutMs: number;
-};
-
-type PythonLiveMoveResult = {
-  decisionSource?: string;
-  move: Move;
-};
-
-async function runPythonLiveMoveProcess(
-  request: PythonLiveMoveRequest,
-  timeoutMs: number,
-): Promise<PythonLiveMoveResult> {
-  const python = enginePython();
-  const script = process.env.PYTHON_ENGINE_LIVE_RUNNER ?? engineScript('live_move_runner.py');
-  const stockfishPath =
-    process.env.PYTHON_ENGINE_STOCKFISH_PATH ??
-    process.env.STOCKFISH_PATH ??
-    defaultStockfishPath();
-  const payload = stockfishPath ? { ...request, stockfishPath } : request;
-
-  return new Promise((resolvePromise, reject) => {
-    const child = spawn(python, [script], {
-      cwd: engineDir(),
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    let settled = false;
-    const timeout = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      child.kill('SIGKILL');
-      reject(
-        new LiveEngineError(
-          'timeout',
-          `python engine ${request.engineTurnRequest.engineId} timed out after ${timeoutMs}ms`,
-          {
-            timeoutMs,
-            diagnostics: pythonProcessDiagnostics(stdout, stderr, codeLabel(child.pid)),
-          },
-        ),
-      );
-    }, timeoutMs);
-
-    child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
-    child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk));
-    child.on('error', (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      reject(err);
-    });
-    child.on('close', (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      const stderrText = Buffer.concat(stderr).toString('utf8').trim();
-      const stdoutText = Buffer.concat(stdout).toString('utf8').trim();
-      if (code !== 0) {
-        reject(
-          new LiveEngineError(
-            'internal_error',
-            `python engine runner exited ${code}: ${stderrText || stdoutText}`,
-            { diagnostics: pythonProcessDiagnostics(stdout, stderr, codeLabel(child.pid)) },
-          ),
-        );
-        return;
-      }
-      try {
-        resolvePromise(parsePythonLiveMoveResult(JSON.parse(stdoutText)));
-      } catch (err) {
-        reject(
-          new LiveEngineError(
-            'invalid_json',
-            `invalid python engine runner output: ${(err as Error).message}`,
-            { diagnostics: pythonProcessDiagnostics(stdout, stderr, codeLabel(child.pid)) },
-          ),
-        );
-      }
-    });
-    child.stdin.end(JSON.stringify(payload));
-  });
+function remoteEngineDecisionReason(response: EngineTurnResponse): string {
+  const source = response.diagnostics?.decisionSource;
+  return typeof source === 'string' ? `engine-worker:${source}` : 'engine-worker-http';
 }
 
-function defaultStockfishPath(): string | undefined {
-  for (const candidate of [
-    '/usr/games/stockfish',
-    '/usr/bin/stockfish',
-    '/opt/homebrew/bin/stockfish',
-  ]) {
-    if (existsSync(candidate)) return candidate;
+function liveEngineErrorFromInternalEngine(
+  err: unknown,
+  engineId: string,
+  watchdogTimeoutMs: number,
+): LiveEngineError {
+  if (!(err instanceof InternalEngineClientError)) {
+    return new LiveEngineError(
+      'internal_error',
+      `internal engine service request failed for ${engineId}: ${(err as Error).message}`,
+    );
   }
-  return undefined;
-}
 
-function parsePythonLiveMoveResult(value: unknown): PythonLiveMoveResult {
-  if (!isObject(value)) throw new Error('top-level response is not an object');
-  const move = value.move;
-  if (!isObject(move)) throw new Error('missing move');
-  if (typeof move.from !== 'string' || typeof move.to !== 'string')
-    throw new Error('invalid move squares');
-  return {
-    ...(typeof value.decisionSource === 'string' ? { decisionSource: value.decisionSource } : {}),
-    move: {
-      from: move.from,
-      to: move.to,
-      ...(typeof move.promotion === 'string' ? { promotion: move.promotion } : {}),
-    } as Move,
+  const diagnostics = {
+    transport: 'internal-engine-http',
+    reason: err.reason,
+    ...(err.status !== undefined ? { status: err.status } : {}),
+    ...(err.diagnostics ?? {}),
   };
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  if (err.reason === 'timeout') {
+    return new LiveEngineError('timeout', err.message, {
+      timeoutMs: err.timeoutMs ?? watchdogTimeoutMs,
+      diagnostics,
+    });
+  }
+  if (err.reason === 'missing_config') {
+    return new LiveEngineError('unsupported_engine', err.message, { diagnostics });
+  }
+  if (err.reason === 'invalid_response') {
+    return new LiveEngineError('invalid_json', err.message, { diagnostics });
+  }
+  return new LiveEngineError('internal_error', err.message, { diagnostics });
 }
 
 function validateDecision(
@@ -425,28 +319,6 @@ function fallbackReason(err: unknown): LiveEngineFallbackReason {
 
 function fallbackDiagnostics(err: unknown): Record<string, unknown> | undefined {
   return err instanceof LiveEngineError ? err.diagnostics : undefined;
-}
-
-function pythonProcessDiagnostics(
-  stdout: Buffer[],
-  stderr: Buffer[],
-  processLabel: string,
-): Record<string, unknown> {
-  return {
-    process: processLabel,
-    stderrTail: bufferTail(stderr, DIAGNOSTIC_TAIL_BYTES),
-    stdoutTail: bufferTail(stdout, DIAGNOSTIC_TAIL_BYTES),
-  };
-}
-
-function bufferTail(chunks: Buffer[], maxBytes: number): string {
-  const text = Buffer.concat(chunks).toString('utf8').trim();
-  if (text.length <= maxBytes) return text;
-  return text.slice(-maxBytes);
-}
-
-function codeLabel(pid: number | undefined): string {
-  return pid === undefined ? 'python-live-runner' : `python-live-runner:${pid}`;
 }
 
 class LiveEngineError extends Error {

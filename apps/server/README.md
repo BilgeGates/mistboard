@@ -42,6 +42,35 @@ Integration tests in `src/*.test.ts`. Tests that check hidden-information correc
 | `room-manager.ts` | In-memory and Postgres-backed room store |
 | `main.ts` | Entry point |
 
+## Live engine service
+
+Live PvE sends first-party Python engine turns to an internal engine-worker
+HTTP service. The web/server process builds the redacted `EngineTurnRequest`
+and POSTs it to `MISTBOARD_INTERNAL_ENGINE_URL`; both sides must share
+`MISTBOARD_INTERNAL_ENGINE_TOKEN`. Before creating a Python-engine PvE room,
+web reserves a live engine seat with engine-worker. Turns must carry that
+reservation id, and game end releases it. If engine-worker is at capacity,
+room creation returns `engine_busy` instead of starting a game that cannot
+receive honest engine moves.
+
+On Railway, set `MISTBOARD_INTERNAL_ENGINE_URL` on web to the engine-worker
+private domain with the service port, e.g. `http://<engine-worker-private-domain>:3001`.
+The engine-worker HTTP listener binds to `::` by default for Railway private
+networking and can be overridden with `MISTBOARD_ENGINE_SERVICE_HOST`.
+
+If that service is missing or unhealthy, Python-engine turns fail closed and
+are logged instead of being masked by a random local move under the engine's
+identity.
+
+The engine-worker service keeps the warm Python pool. `MISTBOARD_PYTHON_POOL_SIZE`
+caps concurrent live engine requests there; when unset, the HTTP service starts
+with 4 workers. `MISTBOARD_LIVE_ENGINE_SEATS` caps admitted live PvE games and
+defaults to the pool size. `MISTBOARD_ENGINE_RESERVATION_TTL_MS` controls stale
+reservation expiry and defaults to 30 minutes. Set `MISTBOARD_BUILD_ENGINE=1`,
+`RAILPACK_PACKAGES=python@3.11`, and `RAILPACK_DEPLOY_APT_PACKAGES=stockfish`
+only on the engine-worker build so Railpack installs Python, Stockfish, and the
+private engine repo there, not on the web build.
+
 ## Security invariant
 
 A `PlayerView` — not a `GameState` — is the only thing that should ever leave the server toward a client. Any outbound path that sends full board state or hidden moves is a security bug. See [`SECURITY.md`](../../SECURITY.md).

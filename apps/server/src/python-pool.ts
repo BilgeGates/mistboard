@@ -7,15 +7,14 @@
 // happens once per worker at boot, not once per move. Subsequent requests
 // pay only the per-turn protocol round-trip (EngineTurnRequest → response).
 //
-// Activation: env var MISTBOARD_PYTHON_POOL_SIZE = N (per engine_id).
-// With the var unset or <=0, this module returns null from getPythonPool()
-// and live-engine.ts falls back to its existing subprocess-per-move path.
-// That's the rollout knob — flip it on after the loadtest baseline confirms
-// the win.
+// Activation: env var MISTBOARD_PYTHON_POOL_SIZE = N (per engine_id), or a
+// caller-provided default size. Live PvE uses this only inside the
+// engine-worker HTTP service; bakeoff runners still spawn Python directly.
 
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import type { Move } from '@mistboard/game';
 import { engineDir, enginePython, engineScript } from './engine-paths.js';
 import { logger } from './obs.js';
 
@@ -33,7 +32,7 @@ export interface PythonPoolOptions {
 
 export interface PythonPoolResponse {
   decisionSource?: string;
-  move: { from: string; to: string; promotion?: string };
+  move: Move;
   engine: { id: string };
   roomId: string;
 }
@@ -435,14 +434,16 @@ const POOLS: Map<string, Promise<PythonPool>> = new Map();
 /**
  * Returns a PythonPool for `engineId`, or null if pooling is disabled.
  * Pooling activates when MISTBOARD_PYTHON_POOL_SIZE is set to a positive
- * integer. The same size is applied per engine_id (so two engines = 2N
- * total workers).
+ * integer, or when the caller provides a positive defaultSize. The same
+ * size is applied per engine_id (so two engines = 2N total workers).
  */
-export async function getPythonPool(engineId: string): Promise<PythonPool | null> {
+export async function getPythonPool(
+  engineId: string,
+  options: { defaultSize?: number } = {},
+): Promise<PythonPool | null> {
   const sizeRaw = process.env.MISTBOARD_PYTHON_POOL_SIZE;
-  if (!sizeRaw) return null;
-  const size = Number.parseInt(sizeRaw, 10);
-  if (!Number.isFinite(size) || size <= 0) return null;
+  const size = pythonPoolSize(sizeRaw, options.defaultSize);
+  if (size === null) return null;
 
   const existing = POOLS.get(engineId);
   if (existing) return existing;
@@ -452,8 +453,7 @@ export async function getPythonPool(engineId: string): Promise<PythonPool | null
       engineId,
       size,
       pythonBin: enginePython(),
-      scriptPath:
-        process.env.PYTHON_ENGINE_LIVE_WORKER ?? engineScript('live_move_worker.py'),
+      scriptPath: process.env.PYTHON_ENGINE_LIVE_WORKER ?? engineScript('live_move_worker.py'),
       cwd: engineDir(),
       workerSeed: Date.now(),
       stockfishPath:
@@ -475,6 +475,19 @@ export async function getPythonPool(engineId: string): Promise<PythonPool | null
   })();
   POOLS.set(engineId, promise);
   return promise;
+}
+
+function pythonPoolSize(
+  sizeRaw: string | undefined,
+  defaultSize: number | undefined,
+): number | null {
+  if (sizeRaw !== undefined) {
+    const size = Number.parseInt(sizeRaw, 10);
+    if (Number.isFinite(size) && size > 0) return size;
+    if (defaultSize === undefined) return null;
+  }
+  if (defaultSize === undefined) return null;
+  return Number.isFinite(defaultSize) && defaultSize > 0 ? Math.floor(defaultSize) : null;
 }
 
 export function disposeAllPythonPools(): void {

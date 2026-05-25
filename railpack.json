@@ -2,26 +2,22 @@
   "$schema": "https://schema.railpack.com",
   "provider": "node",
   "packages": {
-    "node": "22",
-    "python": "3.11"
+    "node": "22"
   },
   "steps": {
     "build": {
       "commands": [
-        "mkdir -p ~/.ssh && chmod 700 ~/.ssh",
-        "echo \"$MISTBOARD_ENGINE_DEPLOY_KEY\" | base64 -di > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519",
-        "ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null",
-        "git clone git@github.com:brianhliou/mistboard-engine.git /app/mistboard-engine && git -C /app/mistboard-engine checkout ${MISTBOARD_ENGINE_REF:-main} && echo \"engine SHA: $(git -C /app/mistboard-engine rev-parse HEAD)\"",
-        "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal",
+        "if [ ${MISTBOARD_BUILD_ENGINE:-0} = 1 ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; else echo MISTBOARD_BUILD_ENGINE_not_1_skipping_private_engine_checkout; fi",
+        "if [ ${MISTBOARD_BUILD_ENGINE:-0} = 1 ]; then printenv MISTBOARD_ENGINE_DEPLOY_KEY | base64 -di > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519; fi",
+        "if [ ${MISTBOARD_BUILD_ENGINE:-0} = 1 ]; then ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null; fi",
+        "if [ ${MISTBOARD_BUILD_ENGINE:-0} = 1 ]; then git clone git@github.com:brianhliou/mistboard-engine.git /app/mistboard-engine && git -C /app/mistboard-engine checkout ${MISTBOARD_ENGINE_REF:-main} && git -C /app/mistboard-engine rev-parse HEAD; fi",
+        "if [ ${MISTBOARD_BUILD_ENGINE:-0} = 1 ]; then curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal; fi",
         { "path": "/root/.cargo/bin" },
-        "pip install maturin",
-        "python -m maturin build --release -m /app/mistboard-engine/fow_rust/Cargo.toml && ls /app/mistboard-engine/fow_rust/target/wheels/",
+        "if [ ${MISTBOARD_BUILD_ENGINE:-0} = 1 ]; then pip install maturin; fi",
+        "if [ ${MISTBOARD_BUILD_ENGINE:-0} = 1 ]; then python -m maturin build --release -m /app/mistboard-engine/fow_rust/Cargo.toml && ls /app/mistboard-engine/fow_rust/target/wheels/; fi",
         "...",
-        "python -m pip install --target /app/mistboard-engine/vendor /app/mistboard-engine/fow_rust/target/wheels/*.whl '/app/mistboard-engine[postgres]'"
+        "if [ ${MISTBOARD_BUILD_ENGINE:-0} = 1 ]; then python -m pip install --target /app/mistboard-engine/vendor /app/mistboard-engine/fow_rust/target/wheels/*.whl /app/mistboard-engine[postgres]; fi"
       ]
     }
-  },
-  "deploy": {
-    "aptPackages": ["stockfish"]
   }
 }

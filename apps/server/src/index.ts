@@ -18,8 +18,7 @@ import pg from 'pg';
 import serveHandler from 'serve-handler';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { currentAccountUser } from './account-session.js';
-import { engineFeedbackPath } from './engine-paths.js';
-import { isPlayableLiveEngineClientId } from './engine-registry.js';
+import { isPlayableLiveEngineClientId, loadEngine } from './engine-registry.js';
 import {
   type HttpApiContext,
   handleApiRequest,
@@ -27,6 +26,11 @@ import {
   parseVariantId,
   readJsonBody,
 } from './http-api.js';
+import {
+  InternalEngineClientError,
+  releaseInternalEngineReservation,
+  requestInternalEngineReservation,
+} from './internal-engine-client.js';
 import { runMigrations } from './migrate.js';
 import { logger, wsCounters } from './obs.js';
 import { GAME_OG_IMAGE_VERSION, serveArticleOgImage, serveGameOgImage } from './og-image.js';
@@ -184,11 +188,8 @@ const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 
 const staticDir = resolveStaticDir();
-// annotations.jsonl lives in the private mistboard-engine's feedback/ dir
-// (local-only research data). If the engine repo isn't reachable, the
-// /annotations debug routes degrade to empty reads — engine spawn fails
-// loud when a PvE request actually arrives, which is the right place
-// to surface the missing-engine error.
+// Local-only research/debug annotations. Keep this independent from the private
+// engine repo so web boots cleanly without an engine checkout.
 const annotationsFile = resolveAnnotationsFile();
 
 const roomMgrCtx: RoomManagerContext = {
@@ -199,6 +200,7 @@ const roomMgrCtx: RoomManagerContext = {
   liveEngineTimeoutMs,
   liveClockInitialMs,
   liveClockIncrementMs,
+  releaseLiveEngineReservation,
 };
 
 const rematchOrch: RematchOrchestrator = {
@@ -457,6 +459,8 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
       liveClockInitialMs,
       liveClockIncrementMs,
       createRoom,
+      reserveLiveEngineSeat,
+      releaseLiveEngineReservation,
       abandonRoom,
       inMemoryGameSummary,
       isDraining,
@@ -771,18 +775,9 @@ function resolveStaticDir(): string {
 }
 
 function resolveAnnotationsFile(): string {
-  try {
-    return engineFeedbackPath('annotations.jsonl');
-  } catch (err) {
-    // Engine repo not reachable. Keep the server up; annotations routes
-    // will read/write a path that doesn't resolve to a real file (the
-    // /annotations debug routes are tolerant of missing-file reads).
-    // Real engine spawn errors surface on first PvE request.
-    console.warn(
-      `[engine-paths] annotations file unavailable: ${(err as Error).message}`,
-    );
-    return resolveRepoPath('research', 'python-fow-lab', 'feedback', 'annotations.jsonl');
-  }
+  const explicit = process.env.MISTBOARD_ANNOTATIONS_FILE;
+  if (explicit) return resolve(explicit);
+  return resolveRepoPath('research', 'python-fow-lab', 'feedback', 'annotations.jsonl');
 }
 
 // ── SECTION: WebSocket connection handling ─────────────────────────────────
@@ -1184,6 +1179,7 @@ async function getOrCreateRoom(
   }
   const detectedHiddenDraft960 =
     projection.variant === 'dark-chess' && roomCreatedEvent?.offers !== undefined;
+  const hydratedPveEngine = pveEngineSeatForProjection(projection);
   const room: Room = {
     id: roomId,
     clients: new Set(),
@@ -1205,12 +1201,11 @@ async function getOrCreateRoom(
     // restart preserves it. Defaults casual if absent. The room-manager
     // account-gate is still the authoritative rated decision at game end.
     rated: roomCreatedEvent?.rated ?? false,
-    randomEngine: isPlayableLiveEngineClientId(projection.seats.black),
+    randomEngine: hydratedPveEngine !== null,
+    engineReservationId: null,
     randomSeating: false,
     creatorPreference: null,
-    pveEngineId: isPlayableLiveEngineClientId(projection.seats.black)
-      ? canonicalEngineVersionId(projection.seats.black!)
-      : null,
+    pveEngineId: hydratedPveEngine ? canonicalEngineVersionId(hydratedPveEngine.clientId) : null,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
     variant: projection.variant,
@@ -1220,6 +1215,26 @@ async function getOrCreateRoom(
     pendingVacates: {},
     pauseGraceTimer: null,
   };
+  if (hydratedPveEngine && room.projection.state.status.type === 'playing') {
+    try {
+      room.engineReservationId = await reserveLiveEngineSeat(
+        canonicalEngineVersionId(hydratedPveEngine.clientId),
+        hydratedPveEngine.color,
+      );
+    } catch (err) {
+      logger.warn(
+        {
+          kind: 'live_engine_reservation_hydrate_failed',
+          room_id: room.id,
+          engine_id: canonicalEngineVersionId(hydratedPveEngine.clientId),
+          color: hydratedPveEngine.color,
+          error: err instanceof Error ? err.message : String(err),
+          ...(err instanceof InternalEngineClientError ? { engine_error_reason: err.reason } : {}),
+        },
+        'live engine reservation hydrate failed',
+      );
+    }
+  }
   rooms.set(roomId, room);
   scheduleClockTimeout(roomMgrCtx, room);
   scheduleAbortTimeout(roomMgrCtx, room);
@@ -1228,6 +1243,58 @@ async function getOrCreateRoom(
   // timer so the game resumes even if both players don't reconnect in time.
   if (room.projection.paused) armPauseGraceTimer(room);
   return room;
+}
+
+async function reserveLiveEngineSeat(
+  engineId: string,
+  color: 'white' | 'black',
+): Promise<string | null> {
+  if (loadEngine(engineId).config.kind !== 'python-subprocess') return null;
+  const reservation = await requestInternalEngineReservation({ engineId, color });
+  logger.info(
+    {
+      kind: 'live_engine_reservation_created',
+      engine_id: engineId,
+      color,
+      reservation_id: reservation.reservationId,
+      active_seats: reservation.capacity.activeSeats,
+      max_seats: reservation.capacity.maxSeats,
+      expires_at: reservation.expiresAt,
+    },
+    'live engine reservation created',
+  );
+  return reservation.reservationId;
+}
+
+function releaseLiveEngineReservation(reservationId: string, reason: string): void {
+  void releaseInternalEngineReservation(reservationId, reason).catch((err) => {
+    logger.warn(
+      {
+        kind: 'live_engine_reservation_release_failed',
+        reservation_id: reservationId,
+        reason,
+        error: err instanceof Error ? err.message : String(err),
+        ...(err instanceof InternalEngineClientError ? { engine_error_reason: err.reason } : {}),
+      },
+      'live engine reservation release failed',
+    );
+  });
+}
+
+function pveEngineSeatForProjection(
+  projection: GameProjection,
+): { clientId: string; color: 'white' | 'black' } | null {
+  const whiteClient = projection.seats.white;
+  const blackClient = projection.seats.black;
+  const whiteIsEngine = isPlayableLiveEngineClientId(whiteClient);
+  const blackIsEngine = isPlayableLiveEngineClientId(blackClient);
+  if (whiteIsEngine && !blackIsEngine && whiteClient) {
+    return { clientId: whiteClient, color: 'white' };
+  }
+  if (blackIsEngine && !whiteIsEngine && blackClient) {
+    return { clientId: blackClient, color: 'black' };
+  }
+  return null;
 }
 
 async function createRoom(
@@ -1240,6 +1307,7 @@ async function createRoom(
   options: {
     randomSeating?: boolean;
     engineColor?: 'white' | 'black';
+    engineReservationId?: string;
     // PvP only. When set, the first arrival in this room is assigned this seat;
     // the second arrival gets the other side. Mutually exclusive with randomSeating
     // (random preference uses randomSeating). Ignored for PvE — engine pre-seat
@@ -1317,6 +1385,7 @@ async function createRoom(
       region,
       rated,
       randomEngine: mode === 'pve',
+      engineReservationId: mode === 'pve' ? (options.engineReservationId ?? null) : null,
       randomSeating: options.randomSeating === true && mode === 'pvp',
       creatorPreference:
         mode === 'pvp' && options.creatorPreference ? options.creatorPreference : null,

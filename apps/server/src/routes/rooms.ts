@@ -3,6 +3,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
 import { playableLiveEngines } from './../engine-registry.js';
 import { ratedEnabled } from './../feature-flags.js';
+import { InternalEngineClientError } from './../internal-engine-client.js';
+import { logger } from './../obs.js';
 import * as persistence from './../persistence.js';
 import {
   type HttpApiContext,
@@ -108,30 +110,62 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'server_draining', restartAt: ctx.drainDeadlineMs() }));
       return true;
     }
-    const room = await ctx.createRoom(
-      mode,
-      variant,
-      engineId ?? ctx.pveBuiltinEngineClientId,
-      hiddenDraft960,
-      timeControl ?? undefined,
-      rated,
-      {
-        engineColor,
-        ...(pvpRandomSeating ? { randomSeating: true } : {}),
-        ...(pvpCreatorPreference ? { creatorPreference: pvpCreatorPreference } : {}),
-      },
-    );
-    response.writeHead(201, { 'content-type': 'application/json' });
-    response.end(
-      JSON.stringify({
-        roomId: room.id,
-        url: `/room/${encodeURIComponent(room.id)}`,
-        mode: room.mode,
-        gameSpecId: room.gameSpecId,
-        region: room.region ?? 'global',
-      }),
-    );
-    return true;
+    const selectedEngineId = engineId ?? ctx.pveBuiltinEngineClientId;
+    let engineReservationId: string | null = null;
+    try {
+      if (mode === 'pve') {
+        engineReservationId = await ctx.reserveLiveEngineSeat(selectedEngineId, engineColor);
+      }
+      const room = await ctx.createRoom(
+        mode,
+        variant,
+        selectedEngineId,
+        hiddenDraft960,
+        timeControl ?? undefined,
+        rated,
+        {
+          engineColor,
+          ...(engineReservationId ? { engineReservationId } : {}),
+          ...(pvpRandomSeating ? { randomSeating: true } : {}),
+          ...(pvpCreatorPreference ? { creatorPreference: pvpCreatorPreference } : {}),
+        },
+      );
+      response.writeHead(201, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          roomId: room.id,
+          url: `/room/${encodeURIComponent(room.id)}`,
+          mode: room.mode,
+          gameSpecId: room.gameSpecId,
+          region: room.region ?? 'global',
+        }),
+      );
+      return true;
+    } catch (err) {
+      if (engineReservationId) {
+        ctx.releaseLiveEngineReservation(engineReservationId, 'room-create-failed');
+      }
+      if (err instanceof InternalEngineClientError) {
+        const busy = err.reason === 'http_error' && err.status === 429;
+        logger.warn(
+          {
+            kind: 'live_engine_reservation_failed',
+            engine_id: selectedEngineId,
+            color: engineColor,
+            engine_error_reason: err.reason,
+            status: err.status ?? null,
+            timeout_ms: err.timeoutMs ?? null,
+            message: err.message,
+          },
+          'live engine reservation failed',
+        );
+        writeJson(response, 503, {
+          error: busy ? 'engine_busy' : 'engine_unavailable',
+        });
+        return true;
+      }
+      throw err;
+    }
   }
 
   const abandonMatch = pathname.match(/^\/api\/rooms\/([^/]+)\/abandon$/);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { GameState, Move } from '@mistboard/game';
+import { type GameEvent, type GameState, initialGameProjection, type Move } from '@mistboard/game';
 import type { EngineDefinition, EngineMoveContext } from './engine-registry.js';
 import {
   chooseLiveEngineMove,
@@ -102,24 +102,52 @@ test('live engine move respects disabled fallback policy', async () => {
   );
 });
 
-test('python live engine falls back when room event context is missing', async () => {
+test('python live engine fails closed when room event context is missing', async () => {
   const events: LiveEngineFallbackEvent[] = [];
-  const result = await chooseLiveEngineMove({
-    context: context([legalMove]),
-    engine: {
-      ...testEngine('python-selected', illegalMove),
-      kind: 'container',
-      config: { kind: 'python-subprocess' },
-      chooseMove: undefined,
-    },
-    onFallback: (event) => events.push(event),
-  });
+  await assert.rejects(
+    chooseLiveEngineMove({
+      context: context([legalMove]),
+      engine: {
+        ...testEngine('python-selected', illegalMove),
+        kind: 'container',
+        config: { kind: 'python-subprocess' },
+        chooseMove: undefined,
+      },
+      onFallback: (event) => events.push(event),
+    }),
+    /requires live room events/,
+  );
 
-  assert.equal(result.engineId, 'builtin-random-legal');
-  assert.equal(result.fallback, true);
-  assert.deepEqual(result.decision.move, legalMove);
-  assert.equal(events[0]?.engineId, 'python-selected');
-  assert.equal(events[0]?.reason, 'unsupported_engine');
+  assert.equal(events.length, 0);
+});
+
+test('python live engine fails closed when internal engine service is not configured', async () => {
+  const previousUrl = process.env.MISTBOARD_INTERNAL_ENGINE_URL;
+  const previousToken = process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN;
+  const events: LiveEngineFallbackEvent[] = [];
+  try {
+    delete process.env.MISTBOARD_INTERNAL_ENGINE_URL;
+    delete process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN;
+
+    await assert.rejects(
+      chooseLiveEngineMove({
+        context: remoteEngineContext([legalMove]),
+        engine: {
+          ...testEngine('python-selected', illegalMove),
+          kind: 'container',
+          config: { kind: 'python-subprocess' },
+          chooseMove: undefined,
+        },
+        onFallback: (event) => events.push(event),
+      }),
+      /internal engine service URL\/token is not configured/,
+    );
+
+    assert.equal(events.length, 0);
+  } finally {
+    restoreEnv('MISTBOARD_INTERNAL_ENGINE_URL', previousUrl);
+    restoreEnv('MISTBOARD_INTERNAL_ENGINE_TOKEN', previousToken);
+  }
 });
 
 test('python live watchdog allows Tier-1 clock budget plus subprocess overhead', () => {
@@ -198,10 +226,28 @@ function context(legalMoves: Move[]): EngineMoveContext {
   };
 }
 
+function remoteEngineContext(legalMoves: Move[]): EngineMoveContext {
+  const roomId = 'remote-engine-room';
+  const gameEvents: GameEvent[] = [
+    { type: 'room-created', at: 1, roomId, variant: 'dark-chess', offer: [] },
+  ];
+  return {
+    ...context(legalMoves),
+    events: gameEvents,
+    roomId,
+    state: initialGameProjection(roomId, 'dark-chess').state,
+  };
+}
+
 function sameMove(left: Move, right: Move): boolean {
   return (
     left.from === right.from &&
     left.to === right.to &&
     (left.promotion ?? null) === (right.promotion ?? null)
   );
+}
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
 }

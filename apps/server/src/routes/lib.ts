@@ -47,10 +47,13 @@ export interface HttpApiContext {
     options?: {
       randomSeating?: boolean;
       engineColor?: 'white' | 'black';
+      engineReservationId?: string;
       creatorPreference?: 'white' | 'black';
       region?: string;
     },
   ): Promise<Room>;
+  reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
+  releaseLiveEngineReservation(reservationId: string, reason: string): void;
   abandonRoom(
     roomId: string,
     seatToken: string,

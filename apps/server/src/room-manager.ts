@@ -34,6 +34,7 @@ export interface RoomManagerContext {
   liveEngineTimeoutMs: number;
   liveClockInitialMs: number;
   liveClockIncrementMs: number;
+  releaseLiveEngineReservation?: (reservationId: string, reason: string) => void;
 }
 
 export class PersistenceFailure extends Error {
@@ -424,6 +425,11 @@ export async function appendEvent(
     room.events.push(event);
     room.projection = replayGameEvents(room.events);
     room.mode = modeForProjection(room.projection);
+    if (room.engineReservationId && room.projection.state.status.type !== 'playing') {
+      const reason = room.projection.state.status.type;
+      ctx.releaseLiveEngineReservation?.(room.engineReservationId, reason);
+      room.engineReservationId = null;
+    }
     scheduleClockTimeout(ctx, room);
     scheduleAbortTimeout(ctx, room);
     scheduleForfeitTimeout(ctx, room);
@@ -1050,6 +1056,7 @@ export async function playRandomEngineMoveIfReady(
     clockRemainingMs: clock ? clockRemainingMs(clock, engineSeat, now) : undefined,
     events: room.events,
     incrementMs: clock?.incrementMs,
+    engineReservationId: room.engineReservationId ?? undefined,
     state: room.projection.state,
     color: engineSeat,
     legalMoves: moves,

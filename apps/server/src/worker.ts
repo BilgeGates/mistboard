@@ -12,7 +12,9 @@ import {
   stopWorkerRun,
 } from './engine-experiments.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
+import { type EngineHttpService, startEngineHttpService } from './engine-service.js';
 import { runMigrations } from './migrate.js';
+import { disposeAllPythonPools } from './python-pool.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -34,8 +36,15 @@ const workerCapabilities = { engine_games: true };
 const workerResourceLimits = {
   concurrency: Number.parseInt(process.env.WORKER_CONCURRENCY ?? '1', 10),
 };
+const engineHttpEnabled = loop && process.env.MISTBOARD_ENGINE_HTTP_DISABLED !== '1';
+const engineHttpPort =
+  parsePositiveInteger(process.env.MISTBOARD_ENGINE_SERVICE_PORT) ??
+  parsePositiveInteger(process.env.PORT) ??
+  3001;
+const engineHttpHost = process.env.MISTBOARD_ENGINE_SERVICE_HOST ?? '::';
 
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 4 });
+let engineHttpService: EngineHttpService | null = null;
 let activeWorkerRunId: string | null = null;
 let activeTask: EngineGameTask | null = null;
 let shuttingDown = false;
@@ -43,13 +52,21 @@ let shuttingDown = false;
 process.on('SIGINT', () => {
   shuttingDown = true;
   log('worker_shutdown_requested', { signal: 'SIGINT' });
+  void closeEngineHttpService();
 });
 process.on('SIGTERM', () => {
   shuttingDown = true;
   log('worker_shutdown_requested', { signal: 'SIGTERM' });
+  void closeEngineHttpService();
 });
 
 try {
+  if (engineHttpEnabled) {
+    engineHttpService = await startEngineHttpService({
+      host: engineHttpHost,
+      port: engineHttpPort,
+    });
+  }
   await migrate(databaseUrl);
   await cleanupStaleTasks();
   let nextCleanupAt = Date.now() + cleanupIntervalMs;
@@ -160,6 +177,8 @@ try {
   log('worker_failed', { error });
   process.exitCode = 1;
 } finally {
+  await closeEngineHttpService();
+  disposeAllPythonPools();
   await pool.end();
 }
 
@@ -213,6 +232,18 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+async function closeEngineHttpService(): Promise<void> {
+  if (!engineHttpService) return;
+  const service = engineHttpService;
+  engineHttpService = null;
+  try {
+    await service.close();
+    log('engine_http_stopped', { port: service.port });
+  } catch (err) {
+    log('engine_http_stop_failed', { error: (err as Error).message });
+  }
 }
 
 function log(kind: string, data: Record<string, unknown>): void {

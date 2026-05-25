@@ -99,6 +99,7 @@ export type Room = {
   region?: string;
   rated: boolean;
   randomEngine: boolean;
+  engineReservationId: string | null;
   randomSeating: boolean;
   // Honored on the first PvP arrival when set: assigns that color to the creator.
   // Random preference uses randomSeating instead, so this is null in that path.

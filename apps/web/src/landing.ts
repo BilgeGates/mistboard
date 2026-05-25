@@ -70,6 +70,9 @@ type OpenLobbyRequest = {
   };
   waitingMs: number;
 };
+type RoomCreationFailure = {
+  error?: string;
+};
 
 const HOMEPAGE_ENGINE_TIME_CONTROL = {
   kind: 'increment-budget',
@@ -79,6 +82,7 @@ const HOMEPAGE_ENGINE_TIME_CONTROL = {
 const HOMEPAGE_CORPUS_PLY_MS = 900;
 const HOMEPAGE_CORPUS_HOLD_MS = 8000;
 const HOMEPAGE_CORPUS_CLOCK_TICK_MS = 16;
+const ENGINE_SEAT_RETRY_MS = 3_000;
 const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   id: tc.id,
   label: tc.label,
@@ -1158,7 +1162,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status, selectedEngineId);
       return;
     }
-    void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup);
+    void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup, status);
   });
 
   const backButton = document.createElement('button');
@@ -1599,32 +1603,55 @@ async function createRoomFromPlay(
     timeControl: { initialMs: 30_000, incrementMs: 2_000 },
     preferredColor: 'random',
   },
+  status?: HTMLElement,
 ): Promise<void> {
   const label = button.querySelector<HTMLElement>('.landing-play-action-label');
   const originalText = label?.textContent ?? button.textContent ?? '';
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
   setButtonLabel(button, 'Creating');
+  if (status) {
+    status.hidden = false;
+    status.textContent = mode === 'pve' ? 'Checking engine seats.' : '';
+  }
   try {
-    const response = await fetch('/api/rooms', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        mode,
-        variant: 'dark-chess',
-        hiddenDraft960: setup.startFormat === 'draft960',
-        timeControl: setup.timeControl,
-        rated: setup.rated,
-        preferredColor: setup.preferredColor,
-        ...(mode === 'pve' && engineId ? { engineId } : {}),
-      }),
-    });
-    if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
-    const data = (await response.json()) as { url?: string };
-    if (!data.url) throw new Error('room creation did not return a URL');
-    window.location.href = data.url;
+    while (true) {
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          variant: 'dark-chess',
+          hiddenDraft960: setup.startFormat === 'draft960',
+          timeControl: setup.timeControl,
+          rated: setup.rated,
+          preferredColor: setup.preferredColor,
+          ...(mode === 'pve' && engineId ? { engineId } : {}),
+        }),
+      });
+      if (status && !status.isConnected) return;
+      if (response.ok) {
+        const data = (await response.json()) as { url?: string };
+        if (!data.url) throw new Error('room creation did not return a URL');
+        if (status && !status.isConnected) return;
+        window.location.href = data.url;
+        return;
+      }
+      const failure = await readRoomCreationFailure(response);
+      if (mode === 'pve' && failure.error === 'engine_busy' && status?.isConnected) {
+        status.textContent = 'All engine seats are active. Waiting for the next seat.';
+        setButtonLabel(button, 'Waiting for seat');
+        await sleep(ENGINE_SEAT_RETRY_MS);
+        if (status.isConnected) continue;
+        return;
+      }
+      throw roomCreationError(response.status, failure);
+    }
   } catch (err) {
     console.warn(err);
+    if (status?.isConnected) {
+      status.textContent = roomCreationStatusText(err, mode);
+    }
     setButtonLabel(button, 'Try again');
     button.disabled = false;
     button.removeAttribute('aria-busy');
@@ -1633,6 +1660,32 @@ async function createRoomFromPlay(
       setButtonLabel(button, originalText);
     }, 1800);
   }
+}
+
+async function readRoomCreationFailure(response: Response): Promise<RoomCreationFailure> {
+  try {
+    return (await response.json()) as RoomCreationFailure;
+  } catch {
+    return {};
+  }
+}
+
+function roomCreationError(status: number, failure: RoomCreationFailure): Error {
+  const err = new Error(`room creation failed: ${status}`);
+  err.name = failure.error ?? 'room_creation_failed';
+  return err;
+}
+
+function roomCreationStatusText(err: unknown, mode: 'pvp' | 'pve'): string {
+  if (mode === 'pve' && err instanceof Error && err.name === 'engine_unavailable') {
+    return 'The engine service is unavailable. Try again soon.';
+  }
+  if (mode === 'pve') return 'Could not start an engine game. Try again.';
+  return 'Could not create the room. Try again.';
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function joinLobbyFromPlay(
@@ -1690,7 +1743,7 @@ function joinLobbyFromPlay(
     if (!engineId) return;
     track('lobby_engine_offer_accepted', { ...bucketProps, waitMs: Date.now() - queueJoinedAt });
     cancel();
-    void createRoomFromPlay(playButton, 'pve', engineId, setup);
+    void createRoomFromPlay(playButton, 'pve', engineId, setup, status);
   };
 
   const dismissEngineOffer = () => {
