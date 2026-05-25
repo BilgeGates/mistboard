@@ -114,6 +114,7 @@ const HOMEPAGE_ENGINE_TIME_CONTROL = {
 };
 const HOMEPAGE_CORPUS_PLY_MS = 900;
 const HOMEPAGE_CORPUS_HOLD_MS = 8000;
+const HOMEPAGE_CORPUS_CLOCK_TICK_MS = 16;
 const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   id: tc.id,
   label: tc.label,
@@ -145,6 +146,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
           plyCount: game.plyCount,
           sampleId: game.roomId,
         })),
+        tickMs: HOMEPAGE_CORPUS_CLOCK_TICK_MS,
       };
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());

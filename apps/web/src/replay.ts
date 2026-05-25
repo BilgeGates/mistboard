@@ -501,6 +501,8 @@ export async function mountReplay(
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
   let lastNotifiedPly: number | null = null;
+  let renderedClockState: GameState | null = null;
+  let renderedClockEvents: GameEvent[] | null = null;
 
   function render(): void {
     root.dataset.sampleId = activeSample;
@@ -877,6 +879,8 @@ export async function mountReplay(
   }
 
   function renderClockState(state: GameState, slicedEvents: GameEvent[]): void {
+    renderedClockState = state;
+    renderedClockEvents = slicedEvents;
     const displayAt = replayClockDisplayAt(slicedEvents, state);
     renderClockPanel(
       clockPanel,
@@ -890,9 +894,8 @@ export async function mountReplay(
 
   function renderWallClockClockOnly(): void {
     if (!wallClockLoop) return;
-    const sliced = sliceToPly(events, currentPly);
-    const projection = replayGameEvents(sliced);
-    renderClockState(projection.state, sliced);
+    if (!renderedClockState || !renderedClockEvents) return;
+    renderClockState(renderedClockState, renderedClockEvents);
   }
 
   function wallClockThinkingState(state: GameState): ReplayThinkingBudgetState | null {
