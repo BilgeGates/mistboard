@@ -104,6 +104,12 @@ type OpenLobbyRequest = {
 };
 
 export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
+const HOMEPAGE_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
+const HOMEPAGE_ENGINE_SNAPSHOT_NAME = 'Engine v2 · 2026-05-24';
+const HOMEPAGE_ENGINE_TIME_CONTROL = {
+  kind: 'increment-budget',
+  label: '5s increment budget',
+};
 const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   id: tc.id,
   label: tc.label,
@@ -116,22 +122,19 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.classList.add('landing-page');
   root.append(buildNav(), buildLoadingState('Loading games'), buildFooter());
 
-  const [{ games: allGames }, engines] = await Promise.all([
-    fetchLandingGames(),
-    fetchPlayableEngines().catch((err) => {
-      console.warn(err);
-      return fallbackPlayableEngines();
-    }),
-  ]);
-  const games = allGames.filter(isHeroEligibleGame);
+  const engines = await fetchPlayableEngines().catch((err) => {
+    console.warn(err);
+    return fallbackPlayableEngines();
+  });
+  const games = homepageShowcaseGames();
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get('demo');
+  const sampleIds = games.map((g) => g.roomId);
+  const currentSample = requested && sampleIds.includes(requested) ? requested : sampleIds[0]!;
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());
   mountArticleThumbnails(stage.el);
   maybeOpenPlayDeepLink(engines);
-  if (games.length === 0) {
-    stage.replayRoot.textContent = 'No games available yet.';
-    return;
-  }
 
   const metadataByRoomId: Record<string, GameMeta> = {};
   const povByRoomId: Record<string, 'white' | 'black'> = {};
@@ -139,12 +142,6 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     metadataByRoomId[g.roomId] = gameMetaForGame(g);
     povByRoomId[g.roomId] = pickHeroPovForGame(g);
   }
-
-  const params = new URLSearchParams(window.location.search);
-  const requested = params.get('demo');
-  const sampleIds = games.map((g) => g.roomId);
-  const currentSample =
-    requested && sampleIds.includes(requested) ? requested : pickSample(sampleIds);
 
   await mountReplay(stage.replayRoot, currentSample, {
     autoplay: true,
@@ -161,29 +158,10 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
 }
 
 function pickHeroPovForGame(game: FeaturedGame): 'white' | 'black' {
-  // PvE: show the human player's POV.
-  if (game.mode === 'pve' && game.playerColor) return game.playerColor;
+  if (game.playerColor) return game.playerColor;
   // EvE / PvP / unknown: show the winner; draws and unknown results fall back to white.
-  if (game.result === '0-1') return 'black';
+  if (game.result === 'black-wins' || game.result === '0-1') return 'black';
   return 'white';
-}
-
-// Weak engines that make for unimpressive hero demos. Used only by the landing
-// hero; /watch still shows everything.
-const HERO_INELIGIBLE_ENGINE_IDS = new Set([
-  'builtin-random-legal',
-  'python-random-legal',
-  'builtin-capture-seeker',
-]);
-
-function isHeroEligibleGame(game: FeaturedGame): boolean {
-  for (const participant of game.participants ?? []) {
-    if (participant.subjectType !== 'engine-version') continue;
-    if (participant.subjectId && HERO_INELIGIBLE_ENGINE_IDS.has(participant.subjectId)) {
-      return false;
-    }
-  }
-  return true;
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -347,7 +325,9 @@ async function landingEventLoader(roomId: string): Promise<GameEvent[]> {
   if (apiEvents) return apiEvents;
   // Only fall back to bundled static samples for synthetic IDs — real DB room IDs (UUIDs, engine
   // corpus IDs) won't have a matching file and would get the Vite SPA HTML fallback.
-  if (!/^sample-\d+$/.test(roomId)) throw new Error(`no events for game: ${roomId}`);
+  if (!/^(sample-\d+|engine-v2-g\d{4})$/.test(roomId)) {
+    throw new Error(`no events for game: ${roomId}`);
+  }
   return fetchStaticSample(roomId);
 }
 
@@ -394,6 +374,74 @@ function staticSampleGames(): FeaturedGame[] {
       },
     ],
   }));
+}
+
+function homepageShowcaseGames(): FeaturedGame[] {
+  const specs: Array<{
+    id: string;
+    index: number;
+    plyCount: number;
+    result: 'white-wins' | 'black-wins';
+    v2Color: 'white' | 'black';
+  }> = [
+    {
+      id: 'engine-v2-g0004',
+      index: 4,
+      plyCount: 33,
+      result: 'white-wins',
+      v2Color: 'white',
+    },
+    {
+      id: 'engine-v2-g0005',
+      index: 5,
+      plyCount: 54,
+      result: 'black-wins',
+      v2Color: 'black',
+    },
+    {
+      id: 'engine-v2-g0008',
+      index: 8,
+      plyCount: 61,
+      result: 'white-wins',
+      v2Color: 'white',
+    },
+  ];
+
+  return specs.map((spec) => {
+    const whiteIsV2 = spec.v2Color === 'white';
+    return {
+      roomId: spec.id,
+      variant: 'dark-chess',
+      mode: 'eve',
+      result: spec.result,
+      termination: 'king-captured',
+      plyCount: spec.plyCount,
+      whiteName: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_NAME : 'Tier-1 v0.9.5',
+      blackName: whiteIsV2 ? 'Tier-1 v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_NAME,
+      corpusId: 'replay-samples',
+      gameIndex: spec.index,
+      whiteEngineId: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
+      blackEngineId: whiteIsV2 ? 'python-tier1-v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_ID,
+      timeControl: HOMEPAGE_ENGINE_TIME_CONTROL,
+      participants: [
+        {
+          color: 'white',
+          displayName: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_NAME : 'Tier-1 v0.9.5',
+          subjectType: 'engine-version',
+          subjectId: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: whiteIsV2 ? 'Tier-1 v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_NAME,
+          subjectType: 'engine-version',
+          subjectId: whiteIsV2 ? 'python-tier1-v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_ID,
+          visibility: 'public',
+        },
+      ],
+      playerColor: spec.v2Color,
+    };
+  });
 }
 
 function gameMetaForGame(game: FeaturedGame): GameMeta {
@@ -1729,6 +1777,7 @@ function engineDisplayName(name: string | null | undefined): string | null {
   const known: Record<string, string> = {
     'builtin-capture-seeker': 'Capture Seeker v1',
     'builtin-random-legal': 'Random Legal v1',
+    [HOMEPAGE_ENGINE_SNAPSHOT_ID]: HOMEPAGE_ENGINE_SNAPSHOT_NAME,
     'python-random-legal': 'Random Legal Python v1',
     'python-tier1-v0.7.0': 'Tier-1 v0.7.0',
     'python-tier1-v0.7.22': 'Tier-1 v0.7.22',
@@ -2038,9 +2087,4 @@ export function buildFooter(): HTMLElement {
   links.append(about, contact, source, faq, terms, privacy, gh, identity);
   footer.append(links);
   return footer;
-}
-
-function pickSample(pool: string[], exclude?: string): string {
-  const candidates = exclude ? pool.filter((id) => id !== exclude) : pool;
-  return candidates[Math.floor(Math.random() * candidates.length)] ?? pool[0]!;
 }

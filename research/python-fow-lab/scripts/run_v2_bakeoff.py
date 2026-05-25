@@ -142,6 +142,7 @@ def _play_one_in_process(args: argparse.Namespace) -> int:
         time_budget_seconds=args.v2_time_budget if args.v2_time_budget > 0 else None,
         p_max_size=args.v2_p_max if args.v2_p_max > 0 else None,
         capture_telemetry=True,
+        kluss_k=args.v2_kluss_k if args.v2_kluss_k > 0 else None,
     )
     config = load_config(_TIER1_CONFIG)
     runtime_cm = bot_runtime(config, stockfish_path=args.stockfish)
@@ -501,6 +502,8 @@ def main() -> int:
                     help="per-move wall budget for v2 (seconds); 0 = unlimited")
     ap.add_argument("--v2-p-max", type=int, default=1_000_000,
                     help="cap on PEnumerator |P| (0 = truly uncapped — OOM risk)")
+    ap.add_argument("--v2-kluss-k", type=int, default=0,
+                    help="KLUSS k-restriction for GT-CFR subgame (0 = off; 2 = Obscuro's choice)")
     ap.add_argument("--base-seed", type=int, default=12345)
     ap.add_argument("--stockfish", default="stockfish")
     ap.add_argument("--per-game-timeout", type=float, default=1800.0,

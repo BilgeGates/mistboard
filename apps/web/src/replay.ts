@@ -1660,11 +1660,13 @@ type ClockPanelHandle = {
   blackLabel: HTMLSpanElement;
   blackRow: HTMLDivElement;
   blackTime: HTMLSpanElement;
+  blackToMove: HTMLSpanElement;
   el: HTMLDivElement;
   label: HTMLSpanElement;
   whiteLabel: HTMLSpanElement;
   whiteRow: HTMLDivElement;
   whiteTime: HTMLSpanElement;
+  whiteToMove: HTMLSpanElement;
 };
 
 function createClockPanel(): ClockPanelHandle {
@@ -1683,11 +1685,13 @@ function createClockPanel(): ClockPanelHandle {
     blackLabel: blackRow.label,
     blackRow: blackRow.row,
     blackTime: blackRow.time,
+    blackToMove: blackRow.toMove,
     el,
     label,
     whiteLabel: whiteRow.label,
     whiteRow: whiteRow.row,
     whiteTime: whiteRow.time,
+    whiteToMove: whiteRow.toMove,
   };
 }
 
@@ -1695,6 +1699,7 @@ function createClockRow(colorLabel: string): {
   label: HTMLSpanElement;
   row: HTMLDivElement;
   time: HTMLSpanElement;
+  toMove: HTMLSpanElement;
 } {
   const row = document.createElement('div');
   row.className = 'replay-clock-row';
@@ -1702,10 +1707,14 @@ function createClockRow(colorLabel: string): {
   const label = document.createElement('span');
   label.className = 'replay-clock-side';
   label.textContent = colorLabel;
+  const toMove = document.createElement('span');
+  toMove.className = 'replay-clock-to-move';
+  toMove.textContent = 'to move';
+  toMove.setAttribute('aria-hidden', 'true');
   const time = document.createElement('span');
   time.className = 'replay-clock-time';
-  row.append(label, time);
-  return { label, row, time };
+  row.append(label, toMove, time);
+  return { label, row, time, toMove };
 }
 
 function createCompactClockSpacer(): HTMLDivElement {
@@ -1745,10 +1754,9 @@ function renderClockPanel(
   panel.label.hidden = true;
 
   if (!clock) {
-    panel.whiteTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '—';
-    panel.blackTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '—';
-    panel.whiteRow.classList.remove('active');
-    panel.blackRow.classList.remove('active');
+    panel.whiteTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '';
+    panel.blackTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '';
+    renderClockRowTurn(panel, state.status.type === 'playing' ? state.status.turn : null);
     return;
   }
 
@@ -1763,6 +1771,20 @@ function renderClockPanel(
     'active',
     state.status.type === 'playing' && clock.activeColor === 'black',
   );
+  renderClockRowTurn(panel, state.status.type === 'playing' ? clock.activeColor : null);
+}
+
+function renderClockRowTurn(panel: ClockPanelHandle, activeColor: Color | null): void {
+  const whiteActive = activeColor === 'white';
+  const blackActive = activeColor === 'black';
+  panel.whiteRow.classList.toggle('active', whiteActive);
+  panel.blackRow.classList.toggle('active', blackActive);
+  panel.whiteToMove.classList.toggle('is-visible', whiteActive);
+  panel.blackToMove.classList.toggle('is-visible', blackActive);
+  panel.whiteToMove.setAttribute('aria-hidden', whiteActive ? 'false' : 'true');
+  panel.blackToMove.setAttribute('aria-hidden', blackActive ? 'false' : 'true');
+  panel.whiteRow.setAttribute('aria-current', whiteActive ? 'true' : 'false');
+  panel.blackRow.setAttribute('aria-current', blackActive ? 'true' : 'false');
 }
 
 function replayClockDisplayAt(events: GameEvent[], state: GameState): number | null {
@@ -1781,6 +1803,7 @@ function timeControlLabelFromClock(clock: ClockState): string {
 
 function timeControlLabelFromMeta(raw: Record<string, unknown> | null | undefined): string | null {
   if (!raw) return null;
+  if (typeof raw.label === 'string' && raw.label.trim()) return raw.label.trim();
   if (raw.kind === 'none') return 'Untimed';
 
   const initialSeconds = numericValue(raw.initial_seconds);

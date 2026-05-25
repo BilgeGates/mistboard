@@ -105,6 +105,7 @@ class EngineV2:
         time_budget_seconds: float | None = None,
         i_sample_size: int = _DEFAULT_I_SAMPLE_SIZE,
         max_actions: int = _DEFAULT_MAX_ACTIONS,
+        kluss_k: int | None = None,
     ) -> chess.Move:
         """Pick a move using multi-root GT-CFR + purification.
 
@@ -144,6 +145,7 @@ class EngineV2:
             iterations=iterations,
             rng=self.rng,
             time_budget_seconds=time_budget_seconds,
+            kluss_k=kluss_k,
         )
         self.last_solution = solution
 
@@ -222,6 +224,7 @@ class EngineV2Strategy:
         p_max_size: int | None = _DEFAULT_P_MAX_SIZE,
         max_actions: int = _DEFAULT_MAX_ACTIONS,
         capture_telemetry: bool = False,
+        kluss_k: int | None = None,
     ) -> None:
         self._seed = seed
         self._iterations = iterations
@@ -229,6 +232,7 @@ class EngineV2Strategy:
         self._time_budget = time_budget_seconds
         self._p_max_size = p_max_size
         self._max_actions = max_actions
+        self._kluss_k = kluss_k
         self._engine: EngineV2 | None = None
         self.perspective: chess.Color | None = None
         # Per-ply telemetry. Append one row per observe_* / pick_move call.
@@ -284,6 +288,7 @@ class EngineV2Strategy:
                     i_sample_size=self._i_sample_size,
                     time_budget_seconds=self._time_budget,
                     max_actions=self._max_actions,
+                    kluss_k=self._kluss_k,
                 )
             )
 
