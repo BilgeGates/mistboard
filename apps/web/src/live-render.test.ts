@@ -5,6 +5,7 @@ import {
   boardHighlightClasses,
   boardResultClass,
   legalDests,
+  shouldAutoScrollMoveList,
   shouldShowPostGameRoomActions,
 } from './live-render.js';
 import { liveState } from './live-state.js';
@@ -191,6 +192,54 @@ describe('shouldShowPostGameRoomActions', () => {
     liveState.state = makeView();
 
     expect(shouldShowPostGameRoomActions(makeView())).toBe(false);
+  });
+});
+
+// ── shouldAutoScrollMoveList ─────────────────────────────────────────────────
+
+describe('shouldAutoScrollMoveList', () => {
+  it('follows the latest move on the first live render with moves', () => {
+    expect(
+      shouldAutoScrollMoveList({
+        nextIsLive: true,
+        nextPlyCount: 3,
+        previousPlyCount: null,
+        previousWasLive: null,
+      }),
+    ).toBe(true);
+  });
+
+  it('follows when a new ply arrives while already live', () => {
+    expect(
+      shouldAutoScrollMoveList({
+        nextIsLive: true,
+        nextPlyCount: 4,
+        previousPlyCount: 3,
+        previousWasLive: true,
+      }),
+    ).toBe(true);
+  });
+
+  it('does not pull the list while replaying an older position', () => {
+    expect(
+      shouldAutoScrollMoveList({
+        nextIsLive: false,
+        nextPlyCount: 4,
+        previousPlyCount: 3,
+        previousWasLive: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('scrolls to the bottom when returning from replay to live', () => {
+    expect(
+      shouldAutoScrollMoveList({
+        nextIsLive: true,
+        nextPlyCount: 4,
+        previousPlyCount: 4,
+        previousWasLive: false,
+      }),
+    ).toBe(true);
   });
 });
 

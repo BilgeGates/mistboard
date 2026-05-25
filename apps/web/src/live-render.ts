@@ -163,6 +163,8 @@ function fenToPickerPieces(fenPlacement: string, color: Color): PieceOnBoard[] {
 let playAgainStatus: PlayAgainStatus = 'idle';
 let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | 'aborted' | null = null;
 let playingSinceMs: number | null = null;
+let lastMoveListPlyCount: number | null = null;
+let lastMoveListWasLive: boolean | null = null;
 // Tracks the previous active clock color across renderClocks() calls so we can
 // detect the turn flip into the seated player's clock and play a flash. Reset
 // on room mount, on non-playing status, or when seat is not a color.
@@ -185,6 +187,8 @@ export function initRender(
   });
   lastTrackedStatusType = null;
   playingSinceMs = null;
+  lastMoveListPlyCount = null;
+  lastMoveListWasLive = null;
   lastActiveClockColor = null;
   refs = createLayout(target);
   initLiveSound();
@@ -1757,6 +1761,35 @@ function renderReplay(): void {
     rows.push(item);
   }
   refs.moveList.append(...rows);
+  syncMoveListScroll(plyCount);
+}
+
+export function shouldAutoScrollMoveList(input: {
+  nextIsLive: boolean;
+  nextPlyCount: number;
+  previousPlyCount: number | null;
+  previousWasLive: boolean | null;
+}): boolean {
+  if (!input.nextIsLive || input.nextPlyCount === 0) return false;
+  if (input.previousPlyCount === null) return true;
+  if (input.previousWasLive === false) return true;
+  return input.nextPlyCount > input.previousPlyCount;
+}
+
+function syncMoveListScroll(nextPlyCount: number): void {
+  const nextIsLive = isLive();
+  if (
+    shouldAutoScrollMoveList({
+      nextIsLive,
+      nextPlyCount,
+      previousPlyCount: lastMoveListPlyCount,
+      previousWasLive: lastMoveListWasLive,
+    })
+  ) {
+    refs.moveList.scrollTop = refs.moveList.scrollHeight;
+  }
+  lastMoveListPlyCount = nextPlyCount;
+  lastMoveListWasLive = nextIsLive;
 }
 
 function shouldMaskMoveList(): boolean {
