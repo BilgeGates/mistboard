@@ -24,7 +24,7 @@ export type RatingPoolBaseId =
 
 export type GameSpecId =
   | 'dark-chess'
-  | 'fog-draft960'
+  | 'dark-draft960'
   | 'dark-crazyhouse'
   | 'dark-suicide'
   | 'sun-tzu'
@@ -32,6 +32,8 @@ export type GameSpecId =
   | 'dark-seirawan'
   | 'dark-xiangqi'
   | 'dark-omega';
+export type GameSpecAliasId = 'fog-draft960';
+export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
 
 export type GameSpec = {
   id: GameSpecId;
@@ -54,7 +56,10 @@ export type GameSpec = {
 };
 
 export const DARK_CHESS_SPEC_ID = 'dark-chess' satisfies GameSpecId;
-export const FOG_DRAFT960_SPEC_ID = 'fog-draft960' satisfies GameSpecId;
+export const DARK_DRAFT960_SPEC_ID = 'dark-draft960' satisfies GameSpecId;
+// Compatibility alias for pre-taxonomy code and URLs. New code should use
+// DARK_DRAFT960_SPEC_ID; "fog" remains only in legacy rating/API vocabulary.
+export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
 
 export const GAME_SPECS: readonly GameSpec[] = [
@@ -75,7 +80,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     legacyLiveRoom: { variant: 'dark-chess', hiddenDraft960: false },
   },
   {
-    id: FOG_DRAFT960_SPEC_ID,
+    id: DARK_DRAFT960_SPEC_ID,
     publicName: 'Draft960',
     family: 'chess',
     board: 'chess-8x8',
@@ -199,19 +204,31 @@ export const GAME_SPECS: readonly GameSpec[] = [
 
 const gameSpecsById = new Map<GameSpecId, GameSpec>(GAME_SPECS.map((spec) => [spec.id, spec]));
 const gameSpecIds = new Set<string>(GAME_SPECS.map((spec) => spec.id));
+const gameSpecAliases = new Map<GameSpecAliasId, GameSpecId>([
+  ['fog-draft960', DARK_DRAFT960_SPEC_ID],
+]);
 
 export function isGameSpecId(value: string | null | undefined): value is GameSpecId {
   return typeof value === 'string' && gameSpecIds.has(value);
 }
 
-export function gameSpecForId(id: GameSpecId): GameSpec {
-  const spec = gameSpecsById.get(id);
+export function gameSpecForId(id: GameSpecLookupId): GameSpec {
+  const canonicalId = canonicalGameSpecId(id);
+  if (!canonicalId) throw new Error(`unknown game spec id: ${JSON.stringify(id)}`);
+  const spec = gameSpecsById.get(canonicalId);
   if (!spec) throw new Error(`unknown game spec id: ${JSON.stringify(id)}`);
   return spec;
 }
 
 export function maybeGameSpecForId(value: string | null | undefined): GameSpec | null {
-  return isGameSpecId(value) ? gameSpecForId(value) : null;
+  const canonicalId = canonicalGameSpecId(value);
+  return canonicalId ? gameSpecForId(canonicalId) : null;
+}
+
+function canonicalGameSpecId(value: string | null | undefined): GameSpecId | null {
+  if (isGameSpecId(value)) return value;
+  if (value === undefined || value === null) return null;
+  return gameSpecAliases.get(value as GameSpecAliasId) ?? null;
 }
 
 export type LegacyLiveRoomSpecInput = {
@@ -220,8 +237,13 @@ export type LegacyLiveRoomSpecInput = {
 };
 
 export function gameSpecForLegacyLiveRoom(input: LegacyLiveRoomSpecInput): GameSpec {
-  if (input.variant === 'draft960' || isTruthyLegacyFlag(input.hiddenDraft960)) {
-    return gameSpecForId(FOG_DRAFT960_SPEC_ID);
+  if (
+    input.variant === 'draft960' ||
+    input.variant === DARK_DRAFT960_SPEC_ID ||
+    input.variant === 'fog-draft960' ||
+    isTruthyLegacyFlag(input.hiddenDraft960)
+  ) {
+    return gameSpecForId(DARK_DRAFT960_SPEC_ID);
   }
   return gameSpecForId(DARK_CHESS_SPEC_ID);
 }

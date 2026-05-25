@@ -1,6 +1,6 @@
 import { type GameEvent, TIME_CONTROLS, type TimeControlId } from '@mistboard/game';
 import { isLikelySignedIn, loadCachedCurrentUser, readCachedUser } from './account-nav.js';
-import { classifyTimeControl, track } from './analytics.js';
+import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
 import { type Announcement, announcements } from './announcements.js';
 import { mountArticleThumbnails, renderArticleThumbnail } from './articles.js';
 import { findArticle } from './articles-data.js';
@@ -1905,6 +1905,10 @@ function joinLobbyFromPlay(
   const queueJoinedAt = Date.now();
   const bucketProps = {
     variant: setup.startFormat,
+    ...gameSpecAnalyticsProps({
+      variant: 'dark-chess',
+      hiddenDraft960: setup.startFormat === 'draft960',
+    }),
     initialMs: setup.timeControl.initialMs,
     incrementMs: setup.timeControl.incrementMs,
     time_class: classifyTimeControl(setup.timeControl.initialMs, setup.timeControl.incrementMs),

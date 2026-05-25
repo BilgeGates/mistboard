@@ -1,5 +1,6 @@
+import { DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID, gameSpecForId } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
-import { classifyTimeControl } from './analytics.js';
+import { classifyTimeControl, gameSpecAnalyticsProps } from './analytics.js';
 
 describe('classifyTimeControl', () => {
   it('classifies bullet (1+0)', () => {
@@ -25,5 +26,40 @@ describe('classifyTimeControl', () => {
   it('uses increment in estimate (1+3 → blitz)', () => {
     // 1*60000 + 40*3000 = 60000 + 120000 = 180000 = 3 min → bullet boundary exact → blitz
     expect(classifyTimeControl(60_000, 3_000)).toBe('blitz');
+  });
+});
+
+describe('gameSpecAnalyticsProps', () => {
+  it('maps standard Dark chess to structured analytics fields', () => {
+    const spec = gameSpecForId(DARK_CHESS_SPEC_ID);
+
+    expect(gameSpecAnalyticsProps({ variant: 'dark-chess' })).toEqual({
+      game_spec: spec.id,
+      family: spec.family,
+      setup: spec.setup,
+      visibility: spec.visibility,
+      rating_pool: spec.ratingPoolBase,
+    });
+  });
+
+  it('maps hidden Draft960 to structured analytics fields', () => {
+    const spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
+
+    expect(gameSpecAnalyticsProps({ variant: 'dark-chess', hiddenDraft960: true })).toEqual({
+      game_spec: spec.id,
+      family: spec.family,
+      setup: spec.setup,
+      visibility: spec.visibility,
+      rating_pool: spec.ratingPoolBase,
+    });
+  });
+
+  it('maps legacy and canonical Draft960 aliases to the canonical spec', () => {
+    expect(gameSpecAnalyticsProps({ variant: 'fog-draft960' }).game_spec).toBe(
+      DARK_DRAFT960_SPEC_ID,
+    );
+    expect(gameSpecAnalyticsProps({ variant: 'dark-draft960' }).game_spec).toBe(
+      DARK_DRAFT960_SPEC_ID,
+    );
   });
 });

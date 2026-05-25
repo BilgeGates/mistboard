@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   DARK_CHESS_SPEC_ID,
+  DARK_DRAFT960_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   FOG_DRAFT960_SPEC_ID,
   GAME_SPECS,
@@ -31,8 +32,9 @@ test('current dark chess maps to the flagship chess spec', () => {
 });
 
 test('Draft960 is modeled as a dark chess setup module, not a family', () => {
-  const spec = gameSpecForId(FOG_DRAFT960_SPEC_ID);
+  const spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 
+  assert.equal(spec.id, 'dark-draft960');
   assert.equal(spec.publicName, 'Draft960');
   assert.equal(spec.family, 'chess');
   assert.equal(spec.board, 'chess-8x8');
@@ -93,23 +95,33 @@ test('game spec ids are unique and discoverable', () => {
   assert.equal(new Set(ids).size, ids.length);
 
   assert.equal(isGameSpecId('dark-chess'), true);
+  assert.equal(isGameSpecId('dark-draft960'), true);
+  assert.equal(isGameSpecId('fog-draft960'), false);
   assert.equal(isGameSpecId('dark-xiangqi'), true);
   assert.equal(isGameSpecId('not-a-spec'), false);
-  assert.equal(maybeGameSpecForId('fog-draft960')?.id, FOG_DRAFT960_SPEC_ID);
+  assert.equal(maybeGameSpecForId('dark-draft960')?.id, DARK_DRAFT960_SPEC_ID);
+  assert.equal(maybeGameSpecForId('fog-draft960')?.id, DARK_DRAFT960_SPEC_ID);
   assert.equal(maybeGameSpecForId('not-a-spec'), null);
+});
+
+test('legacy Fog Draft960 spec constant aliases the canonical Dark Draft960 id', () => {
+  assert.equal(FOG_DRAFT960_SPEC_ID, DARK_DRAFT960_SPEC_ID);
+  assert.equal(gameSpecForId(FOG_DRAFT960_SPEC_ID).id, DARK_DRAFT960_SPEC_ID);
 });
 
 test('legacy live-room inputs map to current game specs', () => {
   assert.equal(gameSpecForLegacyLiveRoom({ variant: 'dark-chess' }).id, DARK_CHESS_SPEC_ID);
   assert.equal(
     gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960: true }).id,
-    FOG_DRAFT960_SPEC_ID,
+    DARK_DRAFT960_SPEC_ID,
   );
   assert.equal(
     gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960: 'yes' }).id,
-    FOG_DRAFT960_SPEC_ID,
+    DARK_DRAFT960_SPEC_ID,
   );
-  assert.equal(gameSpecForLegacyLiveRoom({ variant: 'draft960' }).id, FOG_DRAFT960_SPEC_ID);
+  assert.equal(gameSpecForLegacyLiveRoom({ variant: 'draft960' }).id, DARK_DRAFT960_SPEC_ID);
+  assert.equal(gameSpecForLegacyLiveRoom({ variant: 'dark-draft960' }).id, DARK_DRAFT960_SPEC_ID);
+  assert.equal(gameSpecForLegacyLiveRoom({ variant: 'fog-draft960' }).id, DARK_DRAFT960_SPEC_ID);
   assert.equal(gameSpecForLegacyLiveRoom({ variant: 'unknown' }).id, DARK_CHESS_SPEC_ID);
 });
 
@@ -118,7 +130,7 @@ test('current live specs can be converted back to the existing room wire shape',
     variant: 'dark-chess',
     hiddenDraft960: false,
   });
-  assert.deepEqual(legacyLiveRoomForGameSpec(FOG_DRAFT960_SPEC_ID), {
+  assert.deepEqual(legacyLiveRoomForGameSpec(DARK_DRAFT960_SPEC_ID), {
     variant: 'dark-chess',
     hiddenDraft960: true,
   });

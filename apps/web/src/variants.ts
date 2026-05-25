@@ -1,17 +1,26 @@
-// Client-side variant registry — single source of truth for which variants are
-// selectable in the lobby and shown on public rating surfaces (leaderboard +
-// profile grid). Turning a variant on/off is a one-line edit here instead of
-// hunting hardcoded lists across the UI.
+// Client-side launch registry — single source of truth for which current game
+// specs are selectable in the lobby and shown on public rating surfaces
+// (leaderboard + profile grid). Turning a game spec on/off is a one-line edit
+// here instead of hunting hardcoded lists across the UI.
 //
 // Note: this is the CLIENT registry. A variant that introduces a new server
 // rating pool (e.g. Xiangqi) also needs the server-side pool added (rating
 // bucket type + migration) as part of that variant's integration — the client
 // registry doesn't substitute for that, it just centralizes the UI surface.
 
-export type RatingVariantId = 'fog' | 'fog_draft960';
+import {
+  DARK_CHESS_SPEC_ID,
+  DARK_DRAFT960_SPEC_ID,
+  type GameSpecId,
+  gameSpecForId,
+  type RatingPoolBaseId,
+} from '@mistboard/game';
+
+export type RatingVariantId = Extract<RatingPoolBaseId, 'fog' | 'fog_draft960'>;
 
 export interface VariantDef {
   id: RatingVariantId;
+  gameSpecId: GameSpecId;
   /** `?variant=` value the leaderboard API expects. */
   apiParam: string;
   label: string;
@@ -22,16 +31,26 @@ export interface VariantDef {
 }
 
 const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
+const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
+const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 
 export const VARIANTS: VariantDef[] = [
-  { id: 'fog', apiParam: 'fog', label: 'Dark chess', enabled: true, onLeaderboard: true },
+  {
+    id: currentRatingVariantForSpec(DARK_CHESS_SPEC_ID),
+    gameSpecId: darkChessSpec.id,
+    apiParam: 'fog',
+    label: darkChessSpec.publicName,
+    enabled: true,
+    onLeaderboard: true,
+  },
   // Draft960: gated behind its flag, and temporarily hidden from the leaderboard
   // until it launches (sequenced to M4). Flip `onLeaderboard` (and the flag) when
   // expanding. Kept in the registry so re-enabling is one edit.
   {
-    id: 'fog_draft960',
-    apiParam: 'fog-draft960',
-    label: 'Draft960',
+    id: currentRatingVariantForSpec(DARK_DRAFT960_SPEC_ID),
+    gameSpecId: draft960Spec.id,
+    apiParam: 'dark-draft960',
+    label: draft960Spec.publicName,
     enabled: draft960Enabled,
     onLeaderboard: false,
   },
@@ -45,4 +64,12 @@ export const enabledVariants = VARIANTS.filter((v) => v.enabled);
 
 export function isVariantEnabled(id: RatingVariantId): boolean {
   return VARIANTS.some((v) => v.id === id && v.enabled);
+}
+
+function currentRatingVariantForSpec(
+  id: typeof DARK_CHESS_SPEC_ID | typeof DARK_DRAFT960_SPEC_ID,
+): RatingVariantId {
+  const ratingPool = gameSpecForId(id).ratingPoolBase;
+  if (ratingPool === 'fog' || ratingPool === 'fog_draft960') return ratingPool;
+  throw new Error(`game spec ${id} is not a current web rating variant`);
 }

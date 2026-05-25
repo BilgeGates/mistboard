@@ -1,4 +1,17 @@
-import { timeClassFromTimeControl } from '@mistboard/game';
+import {
+  type GameSpec,
+  gameSpecForLegacyLiveRoom,
+  timeClassFromTimeControl,
+  type VariantId,
+} from '@mistboard/game';
+
+export type GameSpecAnalyticsProps = {
+  game_spec: GameSpec['id'];
+  family: GameSpec['family'];
+  setup: GameSpec['setup'];
+  visibility: GameSpec['visibility'];
+  rating_pool: GameSpec['ratingPoolBase'];
+};
 
 export function classifyTimeControl(
   initialMs: number,
@@ -14,6 +27,20 @@ export function classifyTimeControl(
   if (estimated < 8 * 60 * 1000) return 'blitz';
   if (estimated < 25 * 60 * 1000) return 'rapid';
   return 'classical';
+}
+
+export function gameSpecAnalyticsProps(input: {
+  variant?: VariantId | string | null;
+  hiddenDraft960?: boolean | string | null;
+}): GameSpecAnalyticsProps {
+  const spec = gameSpecForLegacyLiveRoom(input);
+  return {
+    game_spec: spec.id,
+    family: spec.family,
+    setup: spec.setup,
+    visibility: spec.visibility,
+    rating_pool: spec.ratingPoolBase,
+  };
 }
 
 type PostHogLike = {

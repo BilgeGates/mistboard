@@ -18,7 +18,7 @@ import {
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type * as cg from 'chessground/types';
-import { classifyTimeControl, track } from './analytics.js';
+import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
 import { type CaptureTally, computeCaptures, sortCaptureRoles } from './captures.js';
 import {
   captureFogView,
@@ -442,6 +442,10 @@ function trackGameLifecycle(view: PlayerView | null): void {
   const baseProps = {
     gameId: view.id,
     variant: view.variant,
+    ...gameSpecAnalyticsProps({
+      variant: view.variant,
+      hiddenDraft960: isDraft960RoomForAnalytics(),
+    }),
     rated: liveState.rated,
     roomMode: liveState.roomMode,
     initialMs: view.clock?.initialMs ?? null,
@@ -469,6 +473,17 @@ function trackGameLifecycle(view: PlayerView | null): void {
     playingSinceMs = null;
   }
   lastTrackedStatusType = statusType;
+}
+
+function isDraft960RoomForAnalytics(): boolean {
+  if (
+    liveState.variantRequested === 'draft960' ||
+    liveState.variantRequested === 'fog-draft960' ||
+    liveState.variantRequested === 'dark-draft960'
+  ) {
+    return true;
+  }
+  return hasVisibleDraftData(currentProjection());
 }
 
 // ── Offer / draft ─────────────────────────────────────────────────────────────
@@ -741,9 +756,13 @@ function renderGameInfo(view: PlayerView | null): void {
 
 function formatLabel(view: PlayerView | null): string {
   const variant = view?.variant ?? liveState.state?.variant ?? liveState.variantRequested;
+  if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960') {
+    return 'Draft960';
+  }
   const base = variant === 'dark-chess' ? 'Dark chess' : capitalize(variant ?? 'dark chess');
   const isDraft960 =
     liveState.variantRequested === 'fog-draft960' ||
+    liveState.variantRequested === 'dark-draft960' ||
     Object.values(liveState.offers).some((arr) => arr && arr.length > 0) ||
     Object.keys(liveState.resolvedStartIds).length > 0;
   return isDraft960 ? `${base} · Draft960` : base;
