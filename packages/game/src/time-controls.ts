@@ -5,8 +5,8 @@
 
 import type { RoomTimeControl } from './events.js';
 
-export type TimeClass = 'bullet' | 'blitz';
-export type TimeControlId = '1m1' | '3m2' | '5m3';
+export type TimeClass = 'bullet' | 'blitz' | 'rapid';
+export type TimeControlId = '1m1' | '3m2' | '5m5';
 
 export type TimeControlSpec = {
   id: TimeControlId;
@@ -19,7 +19,7 @@ export type TimeControlSpec = {
 export const TIME_CONTROLS: readonly TimeControlSpec[] = [
   { id: '1m1', label: '1 + 1', initialMs: 60_000, incrementMs: 1_000, timeClass: 'bullet' },
   { id: '3m2', label: '3 + 2', initialMs: 180_000, incrementMs: 2_000, timeClass: 'blitz' },
-  { id: '5m3', label: '5 + 3', initialMs: 300_000, incrementMs: 3_000, timeClass: 'blitz' },
+  { id: '5m5', label: '5 + 5', initialMs: 300_000, incrementMs: 5_000, timeClass: 'rapid' },
 ];
 
 export function findTimeControl(

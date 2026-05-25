@@ -10,6 +10,10 @@ describe('classifyTimeControl', () => {
     expect(classifyTimeControl(3 * 60_000, 2_000)).toBe('blitz');
   });
 
+  it('classifies official rapid (5+5)', () => {
+    expect(classifyTimeControl(5 * 60_000, 5_000)).toBe('rapid');
+  });
+
   it('classifies rapid (10+0)', () => {
     expect(classifyTimeControl(10 * 60_000, 0)).toBe('rapid');
   });

@@ -42,7 +42,7 @@ type FeaturedGame = {
 };
 
 type ProfileRatingVariant = 'fog' | 'fog_draft960';
-type ProfileRatingTimeClass = 'bullet' | 'blitz';
+type ProfileRatingTimeClass = 'bullet' | 'blitz' | 'rapid';
 type ProfileBucketRating = {
   variant: ProfileRatingVariant;
   timeClass: ProfileRatingTimeClass;
@@ -79,6 +79,7 @@ type LeaderboardEntry = {
 const LEADERBOARD_TIME_CLASSES: { timeClass: ProfileRatingTimeClass; timeLabel: string }[] = [
   { timeClass: 'bullet', timeLabel: 'Bullet' },
   { timeClass: 'blitz', timeLabel: 'Blitz' },
+  { timeClass: 'rapid', timeLabel: 'Rapid' },
 ];
 const LEADERBOARD_BUCKETS: {
   variantParam: string;
@@ -102,10 +103,11 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
 // Profile rating grid shows the same variants as the leaderboard (registry-driven),
 // so a disabled variant doesn't surface a dead row on profiles either.
 const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = leaderboardVariants.map((v) => v.id);
-const PROFILE_TIME_CLASS_ORDER: ProfileRatingTimeClass[] = ['bullet', 'blitz'];
+const PROFILE_TIME_CLASS_ORDER: ProfileRatingTimeClass[] = ['bullet', 'blitz', 'rapid'];
 const PROFILE_TIME_CLASS_LABEL: Record<ProfileRatingTimeClass, string> = {
   bullet: 'Bullet',
   blitz: 'Blitz',
+  rapid: 'Rapid',
 };
 
 export async function mountProfile(root: HTMLElement, handle: string): Promise<void> {

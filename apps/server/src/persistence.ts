@@ -2,15 +2,14 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { type Color, type GameEvent, TIME_CONTROLS } from '@mistboard/game';
 import pg from 'pg';
 import { engineVersionDisplayName } from './engine-registry.js';
-import { bucketForGame, type RatingTimeClass, type RatingVariant } from './rating-buckets.js';
 import { PROVISIONAL_RD } from './glicko.js';
+import { bucketForGame, type RatingTimeClass, type RatingVariant } from './rating-buckets.js';
 import { applyRatedGameResult, type RatedResult } from './rating-store.js';
 
 // Build a `CASE WHEN ... THEN 'bullet' ... END` fragment from the canonical
 // time-controls list so adding a TC to packages/game/src/time-controls.ts
 // auto-extends the persistence layer's classifier. Values are numeric literals
-// and a closed set of string literals ('bullet' | 'blitz') — no SQL injection
-// surface.
+// and a closed set of TimeClass string literals — no SQL injection surface.
 const TIME_CLASS_CASE_SQL = `CASE\n${TIME_CONTROLS.map(
   (tc) =>
     `         WHEN games.initial_ms = ${tc.initialMs} AND games.increment_ms = ${tc.incrementMs} THEN '${tc.timeClass}'`,

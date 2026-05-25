@@ -35,5 +35,6 @@ export function parseRatingVariant(value: string | null | undefined): RatingVari
 export function parseRatingTimeClass(value: string | null | undefined): RatingTimeClass | null {
   if (value === 'bullet') return 'bullet';
   if (value === 'blitz') return 'blitz';
+  if (value === 'rapid') return 'rapid';
   return null;
 }
