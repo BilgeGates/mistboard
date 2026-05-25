@@ -1714,6 +1714,8 @@ button:focus-visible {
 }
 
 .clocks div {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   min-height: 44px;
   padding: 7px 12px;
   border: 1px solid #dde2dc;
@@ -2007,9 +2009,18 @@ button:focus-visible {
   font-size: 26px;
   line-height: 1;
   text-align: right;
+  white-space: nowrap;
 }
 
 .clocks .clock-label {
+  display: grid;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.clocks .clock-player-line {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -2021,10 +2032,15 @@ button:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #1d2522;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .clocks .clock-to-move {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
   flex-shrink: 0;
   font-size: 9px;
   text-transform: uppercase;
@@ -2036,11 +2052,17 @@ button:focus-visible {
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.clocks .presence-dot {
+  margin-right: 0;
 }
 
 .clocks div.active .clock-to-move {
-  display: inline-flex;
-  align-items: center;
+  visibility: visible;
+  opacity: 1;
 }
 
 .starts {
