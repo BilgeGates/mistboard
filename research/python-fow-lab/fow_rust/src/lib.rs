@@ -10,6 +10,7 @@
 use core::num::NonZeroU32;
 
 use pyo3::prelude::*;
+use rayon::prelude::*;
 use shakmaty::{
     attacks, fen::Fen, Bitboard, Board as ShakBoard, Color, File, Piece, Rank, Role, Setup, Square,
 };
@@ -603,41 +604,62 @@ fn update_opp_move_rust(
 ) -> PyResult<Vec<String>> {
     let opp = if opp_white { Color::White } else { Color::Black };
     let perspective = if perspective_white { Color::White } else { Color::Black };
-    let mut result: Vec<String> = Vec::with_capacity(prev_fens.len() * 4);
 
-    for prev_fen in &prev_fens {
-        let prev_setup = parse_fen_lenient(prev_fen)?;
-        if prev_setup.turn != opp {
-            continue;
-        }
-        let prev_own_occ = prev_setup.board.by_color(perspective).0;
-
-        let moves = gen_pseudo_legal_moves(&prev_setup, opp);
-        for (from_idx, to_idx, promo) in moves {
-            let from = unsafe { Square::new_unchecked(from_idx as u32) };
-            let to = unsafe { Square::new_unchecked(to_idx as u32) };
-            let promo_role = role_from_int(promo);
-            let next_setup = apply_move_to_setup(&prev_setup, from, to, promo_role);
-
-            if !consistent_with_setup(
-                &next_setup,
-                perspective,
-                prev_own_occ,
-                obs_visibility_mask,
-                obs_white_pawns, obs_white_knights, obs_white_bishops,
-                obs_white_rooks, obs_white_queens, obs_white_kings,
-                obs_black_pawns, obs_black_knights, obs_black_bishops,
-                obs_black_rooks, obs_black_queens, obs_black_kings,
-                obs_own_capture_idx,
-                obs_opp_capture_landing_idx,
-            ) {
-                continue;
+    // Parallel outer loop. Each prev_fen is independent: parse, generate
+    // pseudo-legal moves, apply each, check consistency, collect the
+    // kept-next-FENs into a per-prev local Vec. rayon merges the per-prev
+    // Vecs into the final result. Order is not preserved (Python wraps the
+    // result in `set()`, so order doesn't matter for downstream correctness)
+    // and there is no shared mutable state — the work is embarrassingly
+    // parallel.
+    //
+    // Errors (bad FEN parse) propagate via `Result` — rayon's
+    // `collect::<Result<_, _>>` short-circuits on the first error.
+    let per_prev: Result<Vec<Vec<String>>, PyErr> = prev_fens
+        .par_iter()
+        .map(|prev_fen| -> Result<Vec<String>, PyErr> {
+            let prev_setup = parse_fen_lenient(prev_fen)?;
+            if prev_setup.turn != opp {
+                return Ok(Vec::new());
             }
+            let prev_own_occ = prev_setup.board.by_color(perspective).0;
 
-            result.push(Fen(next_setup).to_string());
-        }
+            let moves = gen_pseudo_legal_moves(&prev_setup, opp);
+            let mut local: Vec<String> = Vec::with_capacity(moves.len());
+            for (from_idx, to_idx, promo) in moves {
+                let from = unsafe { Square::new_unchecked(from_idx as u32) };
+                let to = unsafe { Square::new_unchecked(to_idx as u32) };
+                let promo_role = role_from_int(promo);
+                let next_setup = apply_move_to_setup(&prev_setup, from, to, promo_role);
+
+                if !consistent_with_setup(
+                    &next_setup,
+                    perspective,
+                    prev_own_occ,
+                    obs_visibility_mask,
+                    obs_white_pawns, obs_white_knights, obs_white_bishops,
+                    obs_white_rooks, obs_white_queens, obs_white_kings,
+                    obs_black_pawns, obs_black_knights, obs_black_bishops,
+                    obs_black_rooks, obs_black_queens, obs_black_kings,
+                    obs_own_capture_idx,
+                    obs_opp_capture_landing_idx,
+                ) {
+                    continue;
+                }
+
+                local.push(Fen(next_setup).to_string());
+            }
+            Ok(local)
+        })
+        .collect();
+
+    let nested = per_prev?;
+    // Flatten preserves capacity hints from per-prev Vec sizes.
+    let total: usize = nested.iter().map(|v| v.len()).sum();
+    let mut result: Vec<String> = Vec::with_capacity(total);
+    for v in nested {
+        result.extend(v);
     }
-
     Ok(result)
 }
 
