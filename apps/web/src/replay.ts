@@ -83,6 +83,7 @@ export type WallClockReplayLoop = WallClockReplayTiming & {
 export type WallClockReplayPosition = {
   cycleMs: number;
   ply: number;
+  plyElapsedMs: number;
   sampleElapsedMs: number;
   sampleId: string;
   sampleIndex: number;
@@ -116,9 +117,12 @@ export function resolveWallClockReplayPosition(
 
     const plyCount = normalizedPlyCount(sample.plyCount);
     const playMs = plyCount * plyMs;
+    const inPlay = offset < playMs;
+    const ply = inPlay ? Math.floor(offset / plyMs) : plyCount;
     return {
       cycleMs,
-      ply: offset < playMs ? Math.floor(offset / plyMs) : plyCount,
+      ply,
+      plyElapsedMs: inPlay ? offset - ply * plyMs : 0,
       sampleElapsedMs: offset,
       sampleId: sample.sampleId,
       sampleIndex: index,
@@ -129,6 +133,7 @@ export function resolveWallClockReplayPosition(
   return {
     cycleMs,
     ply: 0,
+    plyElapsedMs: 0,
     sampleElapsedMs: 0,
     sampleId: first.sampleId,
     sampleIndex: 0,
@@ -255,6 +260,7 @@ export async function mountReplay(
   const wallClockLoop = options.wallClockLoop;
   const wallClockInitial = currentWallClockPosition();
   const initialReplaySampleId = wallClockInitial?.sampleId ?? initialSampleId;
+  let wallClockPosition = wallClockInitial;
   const loopSamples = wallClockLoop ? undefined : options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const autoplay = !wallClockLoop && (options.autoplay === true || loopSamples !== undefined);
@@ -842,6 +848,7 @@ export async function mountReplay(
   function syncWallClockLoop(): void {
     const target = currentWallClockPosition();
     if (!target) return;
+    wallClockPosition = target;
 
     if (target.sampleId !== activeSample) {
       if (wallClockLoadPromise) return;
@@ -861,14 +868,53 @@ export async function mountReplay(
       return;
     }
 
-    if (target.ply === currentPly) return;
+    if (target.ply === currentPly) {
+      renderWallClockClockOnly();
+      return;
+    }
     setCurrentPly(target.ply);
     render();
   }
 
   function renderClockState(state: GameState, slicedEvents: GameEvent[]): void {
     const displayAt = replayClockDisplayAt(slicedEvents, state);
-    renderClockPanel(clockPanel, state.clock, state, currentMeta(), displayAt ?? undefined);
+    renderClockPanel(
+      clockPanel,
+      state.clock,
+      state,
+      currentMeta(),
+      displayAt ?? undefined,
+      wallClockThinkingState(state),
+    );
+  }
+
+  function renderWallClockClockOnly(): void {
+    if (!wallClockLoop) return;
+    const sliced = sliceToPly(events, currentPly);
+    const projection = replayGameEvents(sliced);
+    renderClockState(projection.state, sliced);
+  }
+
+  function wallClockThinkingState(state: GameState): ReplayThinkingBudgetState | null {
+    if (!wallClockLoop || !wallClockPosition || wallClockPosition.sampleId !== activeSample) {
+      return null;
+    }
+    if (state.clock || state.status.type !== 'playing') return null;
+    const budgetMs = thinkingBudgetMsFromMeta(currentMeta()?.timeControl);
+    if (budgetMs === null) return null;
+
+    const plyMs = positiveMs(wallClockLoop.plyMs, FALLBACK_PLAY_MS);
+    const nextPly = currentPly + 1;
+    const thinkMs = thinkingDurationForPly(nextPly) ?? plyMs;
+    const elapsedMs = Math.min(
+      Math.max(0, thinkMs),
+      Math.max(0, (wallClockPosition.plyElapsedMs / plyMs) * thinkMs),
+    );
+    return {
+      activeColor: state.status.turn,
+      budgetMs,
+      elapsedMs,
+    };
   }
 
   function stopPlay(): void {

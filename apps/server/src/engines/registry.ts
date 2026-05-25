@@ -59,7 +59,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     id: 'python-tier1-v0.9.5',
     engineId: 'tier1',
     engineName: 'Mistboard Engine',
-    name: 'Mistboard Engine',
+    name: 'Mistboard Engine v0.9.5',
     kind: 'container',
     configHash: 'tier1-v0.9.5-372b4bb6c064',
     playSignature: '372b4bb6c064',
@@ -94,8 +94,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       config_hash: 'current',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes:
-      'Current first-party engine source checkout. Local-only; for strength testing.',
+    notes: 'Current first-party engine source checkout. Local-only; for strength testing.',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
@@ -114,8 +113,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'v0.9.1-pawn-shield-diagonal@8918f287499f',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes:
-      'First-party engine preview with king-defense and belief-piece-save tuning.',
+    notes: 'First-party engine preview with king-defense and belief-piece-save tuning.',
   },
   'python-tier1-v0.8.9': {
     id: 'python-tier1-v0.8.9',
@@ -134,8 +132,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'v0.8.9-repair-caps@2c010d792075',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes:
-      'Owner-operated first-party engine preview with repair-source tuning.',
+    notes: 'Owner-operated first-party engine preview with repair-source tuning.',
   },
   'python-tier1-v0.7.22': {
     id: 'python-tier1-v0.7.22',
@@ -154,8 +151,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       engine_pin: 'v0.7.22-king-risk@5d3ddffa74f6',
     },
     livePolicy: { timeoutMs: 5_000 },
-    notes:
-      'Owner-operated first-party engine preview with profiled particle updates.',
+    notes: 'Owner-operated first-party engine preview with profiled particle updates.',
   },
   'python-tier1-v0.7.0': {
     id: 'python-tier1-v0.7.0',

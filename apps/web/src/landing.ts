@@ -105,8 +105,8 @@ type OpenLobbyRequest = {
 
 export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 const HOMEPAGE_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
-const HOMEPAGE_ENGINE_SNAPSHOT_NAME = 'Mistboard Engine · 2026-05-24';
-const HOMEPAGE_ENGINE_BASELINE_NAME = 'Previous Mistboard Engine';
+const HOMEPAGE_ENGINE_SNAPSHOT_NAME = 'Mistboard Engine v2.0';
+const HOMEPAGE_ENGINE_BASELINE_NAME = 'Mistboard Engine v0.9.5';
 const HOMEPAGE_ENGINE_TIME_CONTROL = {
   kind: 'increment-budget',
   label: '5s increment budget',
@@ -1821,7 +1821,7 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'python-tier1-v0.7.22': 'Mistboard Engine preview',
     'python-tier1-v0.8.9': 'Mistboard Engine preview',
     'python-tier1-v0.9.1': 'Mistboard Engine preview',
-    'python-tier1-v0.9.5': 'Mistboard Engine',
+    'python-tier1-v0.9.5': 'Mistboard Engine v0.9.5',
     'python-tier1-current': 'Mistboard Engine dev build',
   };
   return known[name] ?? null;

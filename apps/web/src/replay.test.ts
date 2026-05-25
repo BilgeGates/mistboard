@@ -27,21 +27,38 @@ describe('resolveWallClockReplayPosition', () => {
   it('maps elapsed wall-clock time to the current sample and ply', () => {
     expect(resolveWallClockReplayPosition(samples, 100, timing)).toMatchObject({
       ply: 0,
+      plyElapsedMs: 0,
       sampleId: 'a',
       sampleIndex: 0,
     });
     expect(resolveWallClockReplayPosition(samples, 1100, timing)).toMatchObject({
       ply: 1,
+      plyElapsedMs: 0,
       sampleId: 'a',
     });
     expect(resolveWallClockReplayPosition(samples, 2100, timing)).toMatchObject({
       ply: 2,
+      plyElapsedMs: 0,
       sampleId: 'a',
     });
     expect(resolveWallClockReplayPosition(samples, 2600, timing)).toMatchObject({
       ply: 0,
+      plyElapsedMs: 0,
       sampleId: 'b',
       sampleIndex: 1,
+    });
+  });
+
+  it('reports elapsed time within the active ply', () => {
+    expect(resolveWallClockReplayPosition(samples, 650, timing)).toMatchObject({
+      ply: 0,
+      plyElapsedMs: 550,
+      sampleId: 'a',
+    });
+    expect(resolveWallClockReplayPosition(samples, 1850, timing)).toMatchObject({
+      ply: 1,
+      plyElapsedMs: 750,
+      sampleId: 'a',
     });
   });
 
