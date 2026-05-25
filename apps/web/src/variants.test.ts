@@ -1,6 +1,11 @@
-import { DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID, gameSpecForId } from '@mistboard/game';
+import {
+  DARK_CHESS_SPEC_ID,
+  DARK_DRAFT960_SPEC_ID,
+  DARK_XIANGQI_SPEC_ID,
+  gameSpecForId,
+} from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
-import { leaderboardVariants, VARIANTS } from './variants.js';
+import { enabledVariants, leaderboardVariants, VARIANTS } from './variants.js';
 
 describe('web variant launch registry', () => {
   it('uses shared game-spec labels for current dark chess formats', () => {
@@ -22,6 +27,13 @@ describe('web variant launch registry', () => {
 
   it('keeps the current public leaderboard scoped to Dark chess', () => {
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([DARK_CHESS_SPEC_ID]);
+  });
+
+  it('keeps Dark Xiangqi represented but not launch-enabled', () => {
+    expect(gameSpecForId(DARK_XIANGQI_SPEC_ID).runtimeStatus).toBe('dev-spike');
+    expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+    expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+    expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
   });
 
   it('uses canonical game-spec API params for current variants', () => {

@@ -2386,7 +2386,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Use the Dark Xiangqi lobby link below to find an opponent. Casual play stays account-optional.',
+            text: 'Use the development playtest board below to explore the current Dark Xiangqi rules. Multiplayer lobby support is still gated behind the integration track.',
           },
           {
             kind: 'paragraph',
@@ -2395,7 +2395,7 @@ export const articles: Article[] = [
           {
             kind: 'cta',
             buttons: [
-              { label: 'Find a Dark Xiangqi opponent', href: '/?play=lobby&variant=dark-xiangqi', emphasis: 'primary' },
+              { label: 'Open the playtest board', href: '/xiangqi-spike', emphasis: 'primary' },
             ],
           } as ArticleBlock,
         ],
