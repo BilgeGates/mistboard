@@ -53,6 +53,15 @@ const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
 type MovePlayedExt = MovePlayedEvent & { compute_ms?: number; thinkTimeMs?: number };
 
+export function compactReplayClockSidesForOrientation(orientation: Color): {
+  bottom: Color;
+  top: Color;
+} {
+  return orientation === 'black'
+    ? { top: 'white', bottom: 'black' }
+    : { top: 'black', bottom: 'white' };
+}
+
 export type GameMeta = {
   whiteName: string | null;
   blackName: string | null;
@@ -176,6 +185,9 @@ export async function mountReplay(
   const panesResolver = typeof options.panes === 'object' ? options.panes.resolver : null;
   const hideGameIdPill = options.hideGameIdPill === true;
   const onPlyChange = options.onPlyChange;
+  const initialMeta = metadataByRoomId?.[initialSampleId];
+  const initialOrientation = orientationForId?.(initialSampleId, initialMeta);
+  if (initialOrientation) boardOrientation = initialOrientation;
 
   // If mountReplay is called again on the same root (e.g. switching games
   // in the bakeoff browser), abort any keyboard listeners from the prior
@@ -245,16 +257,25 @@ export async function mountReplay(
   // pane so we can move the clock rows when the visible pane changes across
   // looped games.
   let compactClockHost: { boardEl: HTMLDivElement; clockSlot: HTMLDivElement } | null = null;
+  let compactClockTopColor: Color | null = null;
   function relocateCompactClockRows(host: {
     boardEl: HTMLDivElement;
     clockSlot: HTMLDivElement;
   }): void {
-    if (compactClockHost === host) return;
+    const clockSides = compactReplayClockSidesForOrientation(boardOrientation);
+    if (compactClockHost === host && compactClockTopColor === clockSides.top) return;
     clockPanel.blackRow.remove();
     clockPanel.whiteRow.remove();
-    host.boardEl.before(clockPanel.blackRow);
-    host.clockSlot.append(clockPanel.whiteRow);
+    const topRow = clockSides.top === 'white' ? clockPanel.whiteRow : clockPanel.blackRow;
+    const bottomRow = clockSides.bottom === 'white' ? clockPanel.whiteRow : clockPanel.blackRow;
+    topRow.classList.add('replay-clock-row-top');
+    topRow.classList.remove('replay-clock-row-bottom');
+    bottomRow.classList.add('replay-clock-row-bottom');
+    bottomRow.classList.remove('replay-clock-row-top');
+    host.boardEl.before(topRow);
+    host.clockSlot.append(bottomRow);
     compactClockHost = host;
+    compactClockTopColor = clockSides.top;
   }
   function paneForChoice(choice: 'white' | 'black' | 'all'): {
     boardEl: HTMLDivElement;
@@ -271,15 +292,12 @@ export async function mountReplay(
     clockPanel.whiteRow.hidden = false;
     clockPanel.blackTime.textContent = '—';
     clockPanel.whiteTime.textContent = '—';
-    clockPanel.blackRow.classList.add('replay-clock-row-top');
-    clockPanel.whiteRow.classList.add('replay-clock-row-bottom');
 
     if (panesResolver) {
       // Single-POV layout: the only visible pane hosts the clocks (and
       // player names live inside the clock rows via setClockPanelNames).
       // The hidden panes don't need spacers since they contribute nothing
       // to layout.
-      const initialMeta = metadataByRoomId?.[initialSampleId];
       const initialChoice = panesResolver(initialSampleId, initialMeta);
       relocateCompactClockRows(paneForChoice(initialChoice));
     } else {
@@ -922,6 +940,10 @@ export async function mountReplay(
       layout.replaceChildren(blackPane.el, truthPane.el, whitePane.el);
     } else {
       layout.replaceChildren(whitePane.el, truthPane.el, blackPane.el);
+    }
+    if (metadataMode === 'compact') {
+      const choice = panesResolver?.(activeSample, currentMeta()) ?? 'all';
+      relocateCompactClockRows(paneForChoice(choice));
     }
   }
 
