@@ -33,7 +33,8 @@ on:
       - "nixpacks.toml"
 
 concurrency:
-  group: ci-node-${{ github.ref }}
+  # Keep scheduled prod-lite runs from canceling push prod-smoke revision gates.
+  group: ci-node-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
