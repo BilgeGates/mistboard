@@ -2488,7 +2488,7 @@ export const articles: Article[] = [
       {
         heading: 'Contribute',
         paragraphs: [
-          'CTA: GitHub repo, engine code path under apps/server, research sidecar in research/python-fow-lab, contribution guide link.',
+          'CTA: GitHub repo, public engine protocol docs, baseline engines, benchmark methods, contribution guide link.',
         ],
       },
     ],

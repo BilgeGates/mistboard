@@ -1,6 +1,6 @@
 # Roadmap
 
-_Last updated: 2026-05-24_
+_Last updated: 2026-05-25_
 
 ## Product Pillars
 
@@ -8,12 +8,13 @@ Mistboard has two public product pillars:
 
 - **Human ladder:** server-enforced dark chess, calibrated rated games, and a
   serious ranked ladder.
-- **Open-source engine:** the strongest reproducible open-source dark-chess
-  engine people can play, inspect, and benchmark.
+- **Engine ecosystem:** a public engine protocol, public baseline engines,
+  reproducible benchmarks, and a first-party dark-chess engine that competes
+  through the same auditable information boundary as every other engine.
 
 The landing-page promise should stay simple: play dark chess online. The second
 layer explains why Mistboard is different: server-enforced hidden information,
-ranked integrity, and an open-source engine.
+ranked integrity, and a serious engine track.
 
 ## Done
 
@@ -28,11 +29,12 @@ ranked integrity, and an open-source engine.
 - [ ] **M2 — Soft launch + Elo calibration.** Discord, friend network, small subreddits. Target: 200 casual standard 3+2 games persisted. Run offline Elo simulation against the `games` table; tune K-factor; scan for anomalous endings. Keep the playable engine visible as the no-opponent fallback and learning opponent.
 - [ ] **M3 — Standard rated flip + hard launch.** Unhide leaderboard, turn on rated standard 3+2. Then r/chess, HN, streamer DMs.
 - [ ] **M4 — Draft960 enable + rated flip.** Draft960 is deliberately cut from the M1–M3 launch surface (standard-only, to avoid splitting the matchmaking pool and to keep first-touch legible). M4 enables it: flip `VITE_DRAFT960_ENABLED=true` to expose the format selector (casual-only first), accumulate ~200 Draft960 casual games, then repeat the calibration cycle for Draft960's own rating pool. Today's default build shows a static "Dark chess" variant label with no format dropdown.
-- [ ] **M5+ — Engine track.** Push from playable engine to strongest-open-source claim: pinned versions, reproducible games, public benchmarks, FUCI spec, public engine leaderboard, open-source engine release, and Article #3.
+- [ ] **M5+ — Engine track.** Push from playable engine to public protocol and benchmark ecosystem: redacted engine payloads, public baseline engines, reproducible games, FUCI-style spec, external first-party engine adapter, public engine leaderboard, and Article #3.
 
 ## Deferred / Parked
 
-- Engine article (Article #3) — held for the open-source engine release moment.
+- Engine article (Article #3) — held for the public protocol and benchmark
+  launch moment.
 - FUCI / engine submission — Stage E1+ post-distribution.
 - Half-open TCP smoke and browser-level E2E (Playwright) — out of scope for v1.
 - SSR exploration — server-rendered nav/pages to eliminate auth-state flash and unlock SEO for /articles + /@/handle. Current mitigation is the `mb_signed_in` localStorage hint in `account-nav.ts`. Likely trigger: wanting articles/profiles to rank in search.

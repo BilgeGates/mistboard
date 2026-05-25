@@ -13,11 +13,12 @@ reflects current implemented behavior or future planning.
 
 ## Planning — engine and research track
 
-These describe planned work for the engine track (M5+ on the roadmap). Not yet
-implemented in the main product.
+These describe planned work for the engine protocol, benchmark, and first-party
+engine track. Not yet implemented in the main product.
 
 | File | Contents |
 |------|----------|
+| [`engine-extraction-plan.md`](engine-extraction-plan.md) | Public/private boundary for engine work: public platform and protocol, private first-party engine, phased extraction plan. |
 | [`engine-roadmap.md`](engine-roadmap.md) | Public-facing engine interface notes: FUCI protocol, `PlayerView`-only engine contract. |
 | [`engine-architecture-roadmap.md`](engine-architecture-roadmap.md) | Long-arc architecture: belief layer, analysis workers, synthesis, anytime protocol, learning loop. Research map covering CFR-family approaches as load-bearing direction, plus PIMC, ISMCTS, neural approaches. |
 | [`engine-algorithm-family.md`](engine-algorithm-family.md) | Why FoW is structurally a poker-family problem (imperfect information) rather than a chess variant. CFR vs PIMC tradeoffs, strategy fusion, candidate research directions, what carries over from chess-family work. |

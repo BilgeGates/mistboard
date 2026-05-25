@@ -18,7 +18,7 @@ Mistboard is the durable public brand for the hosted service and repository.
 Public copy should lead with dark chess, then mention Fog of War chess where it
 helps search or recognition. The five-second promise stays simple: play dark
 chess online. The second layer explains server-enforced hidden information,
-ranked games, and the open-source engine.
+ranked games, and the public engine protocol / first-party engine track.
 
 ## Useful Public Topics
 

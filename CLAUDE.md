@@ -52,16 +52,16 @@ Do not build or surface in v1 unless explicitly gate-cleared:
 - full lichess/lila fork
 - standalone non-Fog game modes as primary product surface
 
-The ranked ladder and strongest-open-source-engine track are core to the public
-vision, but they should ship deliberately behind integrity, calibration, and
-quality gates.
+The ranked ladder and engine protocol / first-party engine track are core to
+the public vision, but they should ship deliberately behind integrity,
+calibration, and quality gates.
 
 ## Package Ownership
 
 - `packages/game`: pure game types, variants, rules, visibility, tests.
 - `apps/server`: WebSocket rooms, sessions, clocks, event append.
 - `apps/web`: board UI, game screens, client WebSocket handling.
-- `research/python-fow-lab/`: offline Python sidecar for visibility/bot/inference experiments. Not part of the product.
+- `research/python-fow-lab/`: temporary offline Python sidecar for visibility/bot/inference experiments while engine extraction is in progress. Not part of the product; do not import it from public product code.
 
 ## References
 

@@ -1,6 +1,6 @@
 # Status
 
-_Last updated: 2026-05-24_
+_Last updated: 2026-05-25_
 
 **State:** active
 **Launched:** https://mistboard.com
@@ -8,9 +8,10 @@ _Last updated: 2026-05-24_
 ## Thesis
 
 Mistboard is an open-source, trustworthy platform foundation for
-hidden-information games, starting with dark chess. The intended loop is: play
-the strongest open-source dark-chess engine, learn why the game is compelling,
-then climb a serious ranked ladder against other players.
+hidden-information games, starting with dark chess. The intended loop is:
+challenge a serious first-party dark-chess engine through a public, auditable
+information boundary, learn why the game is compelling, then climb a serious
+ranked ladder against other players.
 
 ## What's Active
 
@@ -44,7 +45,7 @@ Release confidence work now active:
 
 ## What's Next
 
-M1 gates → M2 soft launch (200 casual standard 3+2 games) → M3 Elo calibration + standard rated flip + hard launch → M4 Draft960 rated flip → M5+ engine track.
+M1 gates → M2 soft launch (200 casual standard 3+2 games) → M3 Elo calibration + standard rated flip + hard launch → M4 Draft960 rated flip → M5+ public engine protocol and benchmark track.
 
 ## Risk
 
