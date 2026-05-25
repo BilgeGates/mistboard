@@ -5,60 +5,28 @@ import { type Announcement, announcements } from './announcements.js';
 import { mountArticleThumbnails, renderArticleThumbnail } from './articles.js';
 import { findArticle } from './articles-data.js';
 import { buildContact } from './contact.js';
-import { primaryNavItems, utilityNavItems } from './nav-items.js';
+import {
+  displayParticipantName,
+  type FeaturedGame,
+  type GameParticipant,
+  MISTBOARD_ENGINE_BASELINE_NAME,
+  MISTBOARD_ENGINE_SNAPSHOT_ID,
+  MISTBOARD_ENGINE_SNAPSHOT_NAME,
+  participantForColor,
+  sourceLabel,
+} from './game-display.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
+import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
-
-type FeaturedGame = {
-  roomId: string;
-  variant: string;
-  mode?: 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
-  result: string;
-  termination: string;
-  plyCount: number;
-  whiteName: string | null;
-  blackName: string | null;
-  corpusId: string | null;
-  endedAt?: string;
-  jobId?: string | null;
-  gameIndex?: number | null;
-  whiteEngineId?: string | null;
-  blackEngineId?: string | null;
-  timeControl?: Record<string, unknown> | null;
-  participants?: GameParticipant[];
-  playerColor?: 'white' | 'black';
-};
-
-type GameParticipant = {
-  color: 'white' | 'black';
-  displayName: string;
-  subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
-  subjectId: string | null;
-  visibility: 'private' | 'link' | 'unlisted' | 'public';
-  ratingBefore?: number | null;
-  ratingAfter?: number | null;
-};
 
 type PlayableEngine = {
   id: string;
   name: string;
   familyName: string;
   kind: string;
-};
-
-type AuthUser = {
-  id: string;
-  email: string;
-  emailVerified: boolean;
-  handle: string;
-  handleChangedAt: string | null;
-  displayName: string;
-  displayNameChangedAt: string | null;
-  profileVisibility: 'private' | 'unlisted' | 'public';
-  accountRole: 'player' | 'test' | 'admin';
 };
 
 type LandingGameSource = 'recent' | 'eve' | 'sample';
@@ -103,10 +71,6 @@ type OpenLobbyRequest = {
   waitingMs: number;
 };
 
-export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
-const HOMEPAGE_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
-const HOMEPAGE_ENGINE_SNAPSHOT_NAME = 'Mistboard Engine v2.0';
-const HOMEPAGE_ENGINE_BASELINE_NAME = 'Mistboard Engine v0.9.5';
 const HOMEPAGE_ENGINE_TIME_CONTROL = {
   kind: 'increment-budget',
   label: '5s increment budget',
@@ -314,13 +278,6 @@ async function fetchPlayableEngines(): Promise<PlayableEngine[]> {
   return data.engines.length > 0 ? data.engines : fallbackPlayableEngines();
 }
 
-export async function fetchCurrentUser(): Promise<AuthUser | null> {
-  const resp = await fetch('/api/auth/me');
-  if (!resp.ok) throw new Error(`failed to load account: ${resp.status}`);
-  const data = (await resp.json()) as { user: AuthUser | null };
-  return data.user;
-}
-
 function fallbackPlayableEngines(): PlayableEngine[] {
   return [
     {
@@ -443,26 +400,26 @@ function homepageShowcaseGames(): FeaturedGame[] {
       result: engineOutcomeResult(spec.outcome, spec.v2Color),
       termination: spec.termination,
       plyCount: spec.plyCount,
-      whiteName: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_NAME : HOMEPAGE_ENGINE_BASELINE_NAME,
-      blackName: whiteIsV2 ? HOMEPAGE_ENGINE_BASELINE_NAME : HOMEPAGE_ENGINE_SNAPSHOT_NAME,
+      whiteName: whiteIsV2 ? MISTBOARD_ENGINE_SNAPSHOT_NAME : MISTBOARD_ENGINE_BASELINE_NAME,
+      blackName: whiteIsV2 ? MISTBOARD_ENGINE_BASELINE_NAME : MISTBOARD_ENGINE_SNAPSHOT_NAME,
       corpusId: 'replay-samples',
       gameIndex: spec.index,
-      whiteEngineId: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
-      blackEngineId: whiteIsV2 ? 'python-tier1-v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_ID,
+      whiteEngineId: whiteIsV2 ? MISTBOARD_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
+      blackEngineId: whiteIsV2 ? 'python-tier1-v0.9.5' : MISTBOARD_ENGINE_SNAPSHOT_ID,
       timeControl: HOMEPAGE_ENGINE_TIME_CONTROL,
       participants: [
         {
           color: 'white',
-          displayName: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_NAME : HOMEPAGE_ENGINE_BASELINE_NAME,
+          displayName: whiteIsV2 ? MISTBOARD_ENGINE_SNAPSHOT_NAME : MISTBOARD_ENGINE_BASELINE_NAME,
           subjectType: 'engine-version',
-          subjectId: whiteIsV2 ? HOMEPAGE_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
+          subjectId: whiteIsV2 ? MISTBOARD_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
           visibility: 'public',
         },
         {
           color: 'black',
-          displayName: whiteIsV2 ? HOMEPAGE_ENGINE_BASELINE_NAME : HOMEPAGE_ENGINE_SNAPSHOT_NAME,
+          displayName: whiteIsV2 ? MISTBOARD_ENGINE_BASELINE_NAME : MISTBOARD_ENGINE_SNAPSHOT_NAME,
           subjectType: 'engine-version',
-          subjectId: whiteIsV2 ? 'python-tier1-v0.9.5' : HOMEPAGE_ENGINE_SNAPSHOT_ID,
+          subjectId: whiteIsV2 ? 'python-tier1-v0.9.5' : MISTBOARD_ENGINE_SNAPSHOT_ID,
           visibility: 'public',
         },
       ],
@@ -516,46 +473,6 @@ function reviewUrlForGame(game: FeaturedGame): string | null {
   return `/game/${encodeURIComponent(game.roomId)}`;
 }
 
-export function displayParticipantName(game: FeaturedGame, color: 'white' | 'black'): string {
-  const participant = participantForColor(game, color);
-  if (participant)
-    return displayParticipant(
-      participant.displayName,
-      color === 'white' ? 'White' : 'Black',
-      participant.subjectId,
-    );
-  const fallback = color === 'white' ? 'White' : 'Black';
-  const legacyName =
-    color === 'white'
-      ? (game.whiteEngineId ?? game.whiteName)
-      : (game.blackEngineId ?? game.blackName);
-  return displayParticipant(legacyName, fallback);
-}
-
-function participantForColor(game: FeaturedGame, color: 'white' | 'black'): GameParticipant | null {
-  return game.participants?.find((participant) => participant.color === color) ?? null;
-}
-
-function displayParticipant(
-  name: string | null | undefined,
-  fallback: string,
-  subjectId?: string | null,
-): string {
-  const detailed = engineDisplayName(subjectId ?? name);
-  if (detailed) return detailed;
-  if (!name) return fallback;
-  return name;
-}
-
-export function sourceLabel(mode: FeaturedGame['mode']): string {
-  if (mode === 'eve') return 'Engine vs engine';
-  if (mode === 'pve') return 'Human vs engine';
-  if (mode === 'pvp') return 'Human vs human';
-  if (mode === 'imported') return 'Imported game';
-  if (mode === 'manual') return 'Manual game';
-  return 'Dark chess game';
-}
-
 function initialGamePly(): number {
   const value = new URLSearchParams(window.location.search).get('ply');
   if (!value) return 0;
@@ -587,156 +504,6 @@ export function mountContact(root: HTMLElement): void {
   void loadCachedCurrentUser()
     .then((user) => contact.applyAuth(user))
     .catch(() => contact.applyAuth(null));
-}
-
-export function buildNav(): HTMLElement {
-  const nav = document.createElement('nav');
-  nav.className = 'site-nav';
-  nav.setAttribute('aria-label', 'Primary');
-
-  const brand = document.createElement('a');
-  brand.className = 'site-nav-brand';
-  brand.href = '/';
-  const brandLogo = document.createElement('img');
-  brandLogo.className = 'site-nav-logo';
-  brandLogo.src = '/logo.svg';
-  brandLogo.alt = '';
-  brandLogo.width = 28;
-  brandLogo.height = 28;
-
-  const brandText = document.createElement('span');
-  brandText.textContent = 'MISTBOARD';
-  brand.append(brandLogo, brandText);
-
-  const links = document.createElement('div');
-  links.className = 'site-nav-links';
-
-  for (const item of primaryNavItems()) {
-    links.append(navLink(item.label, item.href));
-  }
-
-  const utilities = document.createElement('div');
-  utilities.className = 'site-nav-utilities';
-
-  for (const item of utilityNavItems()) {
-    utilities.append(navLink(item.label, item.href));
-  }
-  utilities.append(buildSignedOutAccountLinks());
-
-  // Mobile menu toggle. On desktop `.site-nav-collapse` is `display: contents`,
-  // so links + utilities lay out exactly as before; on mobile the toggle reveals
-  // them as a dropdown panel. theme.ts / account-nav.ts still find
-  // `.site-nav-utilities` via descendant query, so injection is unaffected.
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.className = 'site-nav-toggle';
-  toggle.setAttribute('aria-expanded', 'false');
-  toggle.setAttribute('aria-label', 'Menu');
-  for (let i = 0; i < 3; i++) toggle.append(document.createElement('span'));
-  toggle.addEventListener('click', () => {
-    const open = nav.classList.toggle('nav-open');
-    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  });
-
-  const collapse = document.createElement('div');
-  collapse.className = 'site-nav-collapse';
-  collapse.append(links, utilities);
-
-  ensureNavDismiss();
-  nav.append(brand, toggle, collapse);
-  return nav;
-}
-
-let navDismissBound = false;
-function ensureNavDismiss(): void {
-  if (navDismissBound) return;
-  navDismissBound = true;
-  const closeAll = () => {
-    for (const nav of document.querySelectorAll<HTMLElement>('.site-nav.nav-open')) {
-      nav.classList.remove('nav-open');
-      nav.querySelector('.site-nav-toggle')?.setAttribute('aria-expanded', 'false');
-    }
-  };
-  document.addEventListener('click', (event) => {
-    const target = event.target as Node;
-    for (const nav of document.querySelectorAll<HTMLElement>('.site-nav.nav-open')) {
-      if (!nav.contains(target)) {
-        nav.classList.remove('nav-open');
-        nav.querySelector('.site-nav-toggle')?.setAttribute('aria-expanded', 'false');
-      }
-    }
-  });
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeAll();
-  });
-}
-
-function buildSignedOutAccountLinks(): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = 'site-nav-auth';
-  wrap.dataset.accountSlot = '';
-
-  const path = currentPath();
-  const tab: 'login' | 'register' =
-    new URLSearchParams(window.location.search).get('tab') === 'register' ? 'register' : 'login';
-
-  const signIn = document.createElement('a');
-  signIn.href = '/account?tab=login';
-  signIn.className = 'site-nav-link site-nav-link-signin';
-  signIn.textContent = 'Sign in';
-  if (path === '/account' && tab === 'login') {
-    signIn.classList.add('active');
-    signIn.setAttribute('aria-current', 'page');
-  }
-
-  const register = document.createElement('a');
-  register.href = '/account?tab=register';
-  register.className = 'site-nav-link site-nav-link-register';
-  register.textContent = 'Register';
-  if (path === '/account' && tab === 'register') {
-    register.classList.add('active');
-    register.setAttribute('aria-current', 'page');
-  }
-
-  wrap.append(signIn, register);
-  return wrap;
-}
-
-function navLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.href = href;
-  link.textContent = label;
-  link.className = 'site-nav-link';
-  const path = currentPath();
-  if (
-    path === href ||
-    (href === '/account' && path.startsWith('/account/')) ||
-    (href === '/articles' && path.startsWith('/articles/'))
-  ) {
-    link.classList.add('active');
-    link.setAttribute('aria-current', 'page');
-  }
-  return link;
-}
-
-function currentPath(): string {
-  return window.location.pathname.replace(/\/+$/, '') || '/';
-}
-
-export function buildLoadingState(label: string): HTMLElement {
-  const section = document.createElement('main');
-  section.className = 'site-loading';
-  section.setAttribute('aria-live', 'polite');
-
-  const mark = document.createElement('div');
-  mark.className = 'site-loading-mark';
-  mark.setAttribute('aria-hidden', 'true');
-
-  const text = document.createElement('p');
-  text.textContent = label;
-
-  section.append(mark, text);
-  return section;
 }
 
 function buildLandingStage(engines: PlayableEngine[]): {
@@ -1707,18 +1474,6 @@ function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRo
   return { el: section, replayRoot, listRoot };
 }
 
-export function buildNotice(titleText: string, bodyText: string): HTMLElement {
-  const notice = document.createElement('section');
-  notice.className = 'site-section game-notice';
-  const heading = document.createElement('h1');
-  heading.className = 'site-section-heading';
-  heading.textContent = titleText;
-  const body = document.createElement('p');
-  body.textContent = bodyText;
-  notice.append(heading, body);
-  return notice;
-}
-
 function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
   // Draft960 export is deferred until the schema can encode post-draft starting
   // positions. Hide the section entirely for now to avoid shipping broken PGN.
@@ -1810,23 +1565,6 @@ function renderRecentGames(
   }
 
   root.append(list);
-}
-
-function engineDisplayName(name: string | null | undefined): string | null {
-  if (!name) return null;
-  const known: Record<string, string> = {
-    'builtin-capture-seeker': 'Capture Seeker v1',
-    'builtin-random-legal': 'Random Legal v1',
-    [HOMEPAGE_ENGINE_SNAPSHOT_ID]: HOMEPAGE_ENGINE_SNAPSHOT_NAME,
-    'python-random-legal': 'Random Legal Python v1',
-    'python-tier1-v0.7.0': 'Mistboard Engine preview',
-    'python-tier1-v0.7.22': 'Mistboard Engine preview',
-    'python-tier1-v0.8.9': 'Mistboard Engine preview',
-    'python-tier1-v0.9.1': 'Mistboard Engine preview',
-    'python-tier1-v0.9.5': 'Mistboard Engine v0.9.5',
-    'python-tier1-current': 'Mistboard Engine dev build',
-  };
-  return known[name] ?? null;
 }
 
 function resultLabel(result: string): string {
@@ -2085,50 +1823,4 @@ function setButtonLabel(button: HTMLButtonElement, text: string): void {
   } else {
     button.textContent = text;
   }
-}
-
-export function buildFooter(): HTMLElement {
-  const footer = document.createElement('footer');
-  footer.className = 'site-footer';
-
-  const links = document.createElement('div');
-  links.className = 'site-footer-links';
-
-  const about = document.createElement('a');
-  about.href = '/about';
-  about.textContent = 'About';
-
-  const contact = document.createElement('a');
-  contact.href = '/contact';
-  contact.textContent = 'Contact';
-
-  const source = document.createElement('a');
-  source.href = '/source';
-  source.textContent = 'Source';
-
-  const faq = document.createElement('a');
-  faq.href = '/faq';
-  faq.textContent = 'FAQ';
-
-  const terms = document.createElement('a');
-  terms.href = '/terms';
-  terms.textContent = 'Terms';
-
-  const privacy = document.createElement('a');
-  privacy.href = '/privacy';
-  privacy.textContent = 'Privacy';
-
-  const gh = document.createElement('a');
-  gh.href = GITHUB_URL;
-  gh.target = '_blank';
-  gh.rel = 'noreferrer noopener';
-  gh.textContent = 'GitHub';
-
-  const identity = document.createElement('span');
-  identity.className = 'site-footer-identity';
-  identity.textContent = '© 2026 Mistboard · AGPL-3.0';
-
-  links.append(about, contact, source, faq, terms, privacy, gh, identity);
-  footer.append(links);
-  return footer;
 }

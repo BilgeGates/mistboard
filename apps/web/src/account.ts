@@ -4,27 +4,17 @@
 // signed-in account card, login form (email + magic code), account settings
 // (display name / handle / email), and the auth-tabs (Sign in / Register).
 //
-// Shared shell helpers (buildNav, buildFooter, buildLoadingState,
-// fetchCurrentUser) live in landing.ts and are imported here — circular,
-// but value-only and safe at module load (per the review.ts / contact.ts
-// pattern).
+// Shared shell helpers live in site-shell.ts so account pages do not depend on
+// landing.ts.
 
 import { identify, resetIdentity, track } from './analytics.js';
-import { buildFooter, buildLoadingState, buildNav, fetchCurrentUser } from './landing.js';
-
-// Minimal subset of AuthUser — must stay in sync with landing.ts. Promote
-// to a shared types module if a third caller appears.
-type AuthUser = {
-  id: string;
-  email: string;
-  emailVerified: boolean;
-  handle: string;
-  handleChangedAt: string | null;
-  displayName: string;
-  displayNameChangedAt: string | null;
-  profileVisibility: 'private' | 'unlisted' | 'public';
-  accountRole: 'player' | 'test' | 'admin';
-};
+import {
+  type AuthUser,
+  buildFooter,
+  buildLoadingState,
+  buildNav,
+  fetchCurrentUser,
+} from './site-shell.js';
 
 // ── Page mounts ──────────────────────────────────────────────────────────────
 

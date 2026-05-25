@@ -1,8 +1,6 @@
 // Static content pages — about / source / faq / terms / not-found / articles.
-// Extracted from landing.ts (shell-helper inversion: buildNav, buildFooter,
-// GITHUB_URL imported back). See feedback_shell_helper_inversion.
 
-import { buildFooter, buildNav, GITHUB_URL } from './landing.js';
+import { buildFooter, buildNav, GITHUB_URL } from './site-shell.js';
 
 export function mountAbout(root: HTMLElement): void {
   root.replaceChildren();

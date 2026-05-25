@@ -1,4 +1,4 @@
-import { buildFooter, buildNav } from './landing.js';
+import { buildFooter, buildNav } from './site-shell.js';
 import { renderVariantMark, VARIANT_MARKS, type VariantMarkDef } from './variant-marks.js';
 
 const PREVIEW_SIZES = [96, 48, 24, 16] as const;

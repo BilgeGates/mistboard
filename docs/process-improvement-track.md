@@ -179,8 +179,8 @@ responses on `PlayerView` and per-recipient event filters.
 
 ### Codebase Velocity And Tech Debt
 
-_Status: initial server contract fixture builders started after current tree
-cleanup._
+_Status: initial server contract fixture builders and web shell/game display
+extraction started after current tree cleanup._
 
 This push is the codebase-structure companion to the first process/tooling push.
 The goal is to reduce the amount of source an agent or contributor must hold in
@@ -217,6 +217,9 @@ ownership surfaces:
    helpers into a shell module and game-row naming/formatting into a small game
    card/list module. This removes the homepage as a dependency hub for account,
    profile, static pages, and route modules.
+   Initial extraction now lives in `apps/web/src/site-shell.ts` and
+   `apps/web/src/game-display.ts`; account, profile, static pages, and dev lab
+   routes import those modules directly instead of importing from `landing.ts`.
 4. **Fix public-artifact build hygiene.** Keep dev bakeoff and pixel-lab assets
    from being copied into ordinary web builds unless explicitly opted in. Local
    `apps/web/public` artifacts should not make `apps/web/dist` hundreds of MB.

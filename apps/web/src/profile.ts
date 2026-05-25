@@ -1,45 +1,8 @@
-// Profile + leaderboard pages — extracted from landing.ts (shell-helper inversion).
-// Shell helpers (buildNav, buildFooter, buildLoadingState, buildNotice) and the
-// shared game-row formatters (displayParticipantName, sourceLabel) live in
-// landing.ts and are imported back here. See feedback_shell_helper_inversion.
+// Profile + leaderboard pages — extracted from landing.ts.
 
-import {
-  buildFooter,
-  buildLoadingState,
-  buildNav,
-  buildNotice,
-  displayParticipantName,
-  sourceLabel,
-} from './landing.js';
+import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
+import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { leaderboardVariants } from './variants.js';
-
-type GameParticipant = {
-  color: 'white' | 'black';
-  displayName: string;
-  subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
-  subjectId: string | null;
-  visibility: 'private' | 'link' | 'unlisted' | 'public';
-};
-
-type FeaturedGame = {
-  roomId: string;
-  variant: string;
-  mode?: 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
-  result: string;
-  termination: string;
-  plyCount: number;
-  whiteName: string | null;
-  blackName: string | null;
-  corpusId: string | null;
-  endedAt?: string;
-  jobId?: string | null;
-  gameIndex?: number | null;
-  whiteEngineId?: string | null;
-  blackEngineId?: string | null;
-  timeControl?: Record<string, unknown> | null;
-  participants?: GameParticipant[];
-  playerColor?: 'white' | 'black';
-};
 
 type ProfileRatingVariant = 'fog' | 'fog_draft960';
 type ProfileRatingTimeClass = 'bullet' | 'blitz' | 'rapid';
