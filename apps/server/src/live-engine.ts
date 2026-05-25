@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { clockRemainingMs, type Move } from '@mistboard/game';
+import { buildEngineTurnRequest } from './engine-protocol/build.js';
 import {
   defaultEngineId,
   type EngineDefinition,
@@ -11,6 +12,18 @@ import {
   loadEngine,
 } from './engine-registry.js';
 import { getPythonPool } from './python-pool.js';
+
+/**
+ * Per-engine secret used to derive deterministic per-turn engineSeed.
+ * In production set MISTBOARD_ENGINE_SECRET so the same game produces
+ * the same engine play across restarts. In dev a fixed fallback keeps
+ * play deterministic across local sessions.
+ *
+ * This secret never leaves the server — engines receive only the
+ * derived engineSeed.
+ */
+const ENGINE_SECRET =
+  process.env.MISTBOARD_ENGINE_SECRET ?? 'mistboard-dev-engine-secret';
 
 export type LiveEngineFallbackReason =
   | 'timeout'
@@ -143,11 +156,29 @@ async function choosePythonSubprocessMove(
     );
   }
   const watchdogTimeoutMs = pythonLiveWatchdogTimeoutMs(context, timeoutMs);
+
+  // Build the redacted EngineTurnRequest alongside the legacy `events`
+  // payload. Phase 3a: both shipped to the Python worker; worker still
+  // consumes `events`. Phase 3b: worker consumes `engineTurnRequest`;
+  // `events` dropped from this payload. The transition lets us observe
+  // real-world protocol payloads without a flag-day swap of the worker.
+  const engineTurnRequest = buildEngineTurnRequest({
+    gameId: context.roomId,
+    engineId: engine.id,
+    engineSecret: ENGINE_SECRET,
+    engineColor: context.color,
+    state: context.state,
+    events: context.events,
+    ply: context.ply,
+    cold: true,
+  });
+
   const payload = {
     ...liveClockFields(context),
     color: context.color,
     engine: { id: engine.id },
     events: context.events,
+    engineTurnRequest,
     roomId: context.roomId,
     seed: context.seed.toString(),
     watchdogTimeoutMs,
