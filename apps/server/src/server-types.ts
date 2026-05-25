@@ -1,4 +1,11 @@
-import type { Color, GameEvent, GameProjection, RoomTimeControl, VariantId } from '@mistboard/game';
+import type {
+  Color,
+  GameEvent,
+  GameProjection,
+  GameSpecId,
+  RoomTimeControl,
+  VariantId,
+} from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import type { Seat } from './payloads.js';
 import type { GameMode } from './persistence.js';
@@ -88,6 +95,7 @@ export type Room = {
   forfeitDeadline: number | null;
   forfeitSeat: Color | null;
   mode: GameMode;
+  gameSpecId: GameSpecId;
   rated: boolean;
   randomEngine: boolean;
   randomSeating: boolean;
@@ -114,6 +122,7 @@ export type Room = {
 export type LobbyTicket = {
   id: string;
   createdAt: number;
+  gameSpecId: GameSpecId;
   hiddenDraft960: boolean;
   rated: boolean;
   matchedAt: number | null;

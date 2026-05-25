@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { RoomTimeControl } from '@mistboard/game';
+import { gameSpecForLegacyLiveRoom, type RoomTimeControl } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import { ratedEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
@@ -95,9 +95,11 @@ async function joinLobby(
 ): Promise<LobbyTicket> {
   pruneLobbyTickets(ctx);
   const timeKey = timeControlKey(timeControl);
+  const gameSpecId = gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960 }).id;
   const matchedTicket = ctx.lobbyQueue.find(
     (ticket) =>
       ticket.roomId === null &&
+      ticket.gameSpecId === gameSpecId &&
       ticket.hiddenDraft960 === hiddenDraft960 &&
       ticket.rated === rated &&
       timeControlKey(ticket.timeControl) === timeKey,
@@ -105,6 +107,7 @@ async function joinLobby(
   const ticket: LobbyTicket = {
     id: randomUUID(),
     createdAt: Date.now(),
+    gameSpecId,
     hiddenDraft960,
     rated,
     matchedAt: null,
@@ -169,6 +172,7 @@ function lobbyTicketResponse(ticket: LobbyTicket): Record<string, unknown> {
   return {
     ticketId: ticket.id,
     status: ticket.roomId ? 'matched' : 'waiting',
+    gameSpecId: ticket.gameSpecId,
     pollAfterMs: lobbyPollAfterMs,
     ...(ticket.roomId
       ? {
@@ -186,6 +190,7 @@ function lobbyOpenRequests(ctx: HttpApiContext): Array<Record<string, unknown>> 
     .slice(0, 20)
     .map((ticket) => ({
       hiddenDraft960: ticket.hiddenDraft960,
+      gameSpecId: ticket.gameSpecId,
       rated: ticket.rated,
       timeControl: ticket.timeControl ?? {
         initialMs: ctx.liveClockInitialMs,

@@ -50,11 +50,12 @@ function makeRoom(
   const roomEvents: GameEvent[] = events ?? [
     { type: 'room-created', at: 1, roomId: id, variant, offer: [] },
   ];
+  const projection = replayGameEvents(roomEvents);
   return {
     id,
     clients: new Set(),
     events: [...roomEvents],
-    projection: replayGameEvents(roomEvents),
+    projection,
     seatTokens: {},
     clockTimer: null,
     engineTimer: null,
@@ -65,6 +66,7 @@ function makeRoom(
     forfeitDeadline: null,
     forfeitSeat: null,
     mode: 'pvp',
+    gameSpecId: projection.gameSpecId,
     rated: true,
     randomEngine: false,
     randomSeating: false,

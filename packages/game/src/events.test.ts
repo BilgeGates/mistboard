@@ -3,6 +3,7 @@ import test from 'node:test';
 import { generateChess960Starts, pickDraft960Offer } from './chess960.js';
 import { advanceClock, createClock, expireClock } from './clocks.js';
 import { type GameEvent, replayGameEvents } from './events.js';
+import { DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID } from './game-specs.js';
 import type { ClockState } from './types.js';
 
 // A clock already armed and ticking for white — the post-first-moves state that
@@ -374,6 +375,51 @@ test('replays room-created time control metadata', () => {
     initialMs: 180_000,
     incrementMs: 2_000,
   });
+});
+
+test('replays room-created game spec metadata', () => {
+  const projection = replayGameEvents([
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'spec-room',
+      variant: 'dark-chess',
+      gameSpecId: DARK_CHESS_SPEC_ID,
+      offer: [],
+    },
+  ]);
+
+  assert.equal(projection.gameSpecId, DARK_CHESS_SPEC_ID);
+});
+
+test('derives game spec metadata for legacy Draft960 room-created events', () => {
+  const offer = pickDraft960Offer(960);
+
+  assert.equal(
+    replayGameEvents([
+      {
+        type: 'room-created',
+        at: 1,
+        roomId: 'legacy-draft960-room',
+        variant: 'draft960',
+        offer,
+      },
+    ]).gameSpecId,
+    DARK_DRAFT960_SPEC_ID,
+  );
+  assert.equal(
+    replayGameEvents([
+      {
+        type: 'room-created',
+        at: 1,
+        roomId: 'legacy-hidden-draft960-room',
+        variant: 'dark-chess',
+        offer,
+        offers: { white: offer, black: offer },
+      },
+    ]).gameSpecId,
+    DARK_DRAFT960_SPEC_ID,
+  );
 });
 
 test('replays clock snapshots on start and move events', () => {

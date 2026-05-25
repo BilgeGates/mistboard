@@ -2,6 +2,7 @@ import {
   type Color,
   type GameEvent,
   type GameProjection,
+  type GameSpecId,
   type PlayerView,
   type Square,
   variantForId,
@@ -23,6 +24,7 @@ export type SnapshotRoom = {
   clients: { size: number } & Iterable<{ seat: Seat; displaced: boolean }>;
   events: GameEvent[];
   mode?: GameAccessMode;
+  gameSpecId?: GameSpecId;
   projection: GameProjection;
   pveEngineId?: string | null;
   rated?: boolean;
@@ -117,6 +119,7 @@ function basePayloadFields(room: SnapshotRoom, client: SnapshotClient) {
   const mode = room.mode ?? modeForProjection(room.projection);
   return {
     roomId: room.id,
+    gameSpecId: room.gameSpecId ?? room.projection.gameSpecId,
     mode,
     pveEngineId: mode === 'pve' ? (room.pveEngineId ?? null) : null,
     pveEngineName: pveEngineName(room, mode),

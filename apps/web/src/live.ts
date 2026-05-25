@@ -138,6 +138,7 @@ window.__MISTBOARD_DEBUG__ = () => ({
   currentView: currentView(),
   devViews: liveState.devViews,
   events: liveState.events,
+  gameSpecId: liveState.gameSpecId,
   seat: liveState.seat,
   solo: liveState.solo,
   state: liveState.state,

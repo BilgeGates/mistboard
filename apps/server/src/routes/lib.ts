@@ -110,7 +110,8 @@ export async function readJsonBody(request: IncomingMessage): Promise<Record<str
 
 // ── Parse helpers (also used by WebSocket handler in index.ts) ─────────────
 export function parseVariantId(value: string | null): VariantId {
-  if (value === 'draft960') return 'draft960';
+  if (value === 'draft960' || value === 'dark-draft960' || value === 'fog-draft960')
+    return 'draft960';
   return 'dark-chess';
 }
 

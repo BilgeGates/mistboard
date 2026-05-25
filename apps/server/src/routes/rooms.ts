@@ -127,6 +127,7 @@ export async function tryHandle(
         roomId: room.id,
         url: `/room/${encodeURIComponent(room.id)}`,
         mode: room.mode,
+        gameSpecId: room.gameSpecId,
       }),
     );
     return true;

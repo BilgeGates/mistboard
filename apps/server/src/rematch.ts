@@ -15,6 +15,7 @@ import type { Client, Room, SeatTokenState } from './server-types.js';
 
 export type RematchCreateRoom = (spec: {
   variant: Room['variant'];
+  gameSpecId: Room['gameSpecId'];
   hiddenDraft960: boolean;
   timeControl: Room['timeControl'];
   rated: boolean;
@@ -146,6 +147,7 @@ export async function finalizeRematchIfReady(
   if (room.mode !== 'pvp' && room.mode !== 'pve') return null;
   const newRoom = await orch.createRoom({
     variant: room.variant,
+    gameSpecId: room.gameSpecId,
     hiddenDraft960: room.hiddenDraft960,
     timeControl: room.timeControl,
     rated: room.rated,

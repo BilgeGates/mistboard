@@ -1,4 +1,4 @@
-import type { GameEvent, PlayerView } from '@mistboard/game';
+import type { GameEvent, GameSpecId, PlayerView } from '@mistboard/game';
 import {
   liveState,
   normalizedOffers,
@@ -18,6 +18,7 @@ type ServerMessage =
       type: 'hello';
       clientId: string;
       clients: number;
+      gameSpecId?: GameSpecId;
       mode?: RoomMode;
       pveEngineId?: string | null;
       pveEngineName?: string | null;
@@ -45,6 +46,7 @@ type ServerMessage =
   | {
       type: 'snapshot';
       roomId: string;
+      gameSpecId?: GameSpecId;
       clients: number;
       mode?: RoomMode;
       pveEngineId?: string | null;
@@ -75,6 +77,7 @@ type ServerMessage =
       // docs/specs/incremental-snapshot-protocol.md.
       type: 'event-appended';
       roomId: string;
+      gameSpecId?: GameSpecId;
       seq: number;
       event?: GameEvent;
       clients: number;
@@ -272,6 +275,7 @@ type FullFrameSource = Extract<ServerMessage, { type: 'hello' | 'snapshot' | 'ev
 function applyFullFrame(message: FullFrameSource): void {
   liveState.clientCount = message.clients;
   liveState.connectionState = 'connected';
+  liveState.gameSpecId = message.gameSpecId ?? liveState.gameSpecId;
   liveState.roomMode = message.mode ?? liveState.roomMode;
   liveState.pveEngineId = message.pveEngineId ?? null;
   liveState.pveEngineName = message.pveEngineName ?? null;

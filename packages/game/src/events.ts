@@ -12,6 +12,7 @@ import {
   nextClockForMove,
   unfreezeClock,
 } from './clocks.js';
+import { type GameSpecId, gameSpecForLegacyLiveRoom, maybeGameSpecForId } from './game-specs.js';
 import type {
   AbortReason,
   ClockState,
@@ -34,6 +35,7 @@ export type GameEvent =
       at: number;
       roomId: string;
       variant: VariantId;
+      gameSpecId?: GameSpecId;
       offer: Chess960Start[];
       offers?: Partial<Record<Color, Chess960Start[]>>;
       timeControl?: RoomTimeControl;
@@ -133,6 +135,7 @@ export type GameEvent =
 export type GameProjection = {
   roomId: string;
   variant: VariantId;
+  gameSpecId: GameSpecId;
   offer: Chess960Start[];
   offers: Partial<Record<Color, Chess960Start[]>>;
   state: GameState;
@@ -153,6 +156,7 @@ export function initialGameProjection(
   return {
     roomId,
     variant,
+    gameSpecId: gameSpecForLegacyLiveRoom({ variant }).id,
     offer: [],
     offers: {},
     state: variantForId(variant).createInitialState(roomId),
@@ -179,9 +183,11 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
 
   if (event.type === 'room-created') {
     const state = variantForId(event.variant).createInitialState(event.roomId);
+    const gameSpecId = gameSpecIdForRoomCreatedEvent(event);
     return {
       ...projection,
       variant: event.variant,
+      gameSpecId,
       offer: event.offer,
       offers: event.offers ?? { white: event.offer, black: event.offer },
       timeControl: event.timeControl,
@@ -423,6 +429,18 @@ export function applyGameEvent(projection: GameProjection, event: GameEvent): Ga
 
 function offerForColor(projection: GameProjection, color: Color): Chess960Start[] {
   return projection.offers[color] ?? projection.offer;
+}
+
+function gameSpecIdForRoomCreatedEvent(
+  event: Extract<GameEvent, { type: 'room-created' }>,
+): GameSpecId {
+  return (
+    maybeGameSpecForId(event.gameSpecId)?.id ??
+    gameSpecForLegacyLiveRoom({
+      variant: event.variant,
+      hiddenDraft960: hasDraftOffer(event),
+    }).id
+  );
 }
 
 function hasDraftOffer(event: Extract<GameEvent, { type: 'room-created' }>): boolean {

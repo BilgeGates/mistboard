@@ -2,6 +2,7 @@ import type {
   Chess960Start,
   Color,
   GameEvent,
+  GameSpecId,
   Move,
   PieceRole,
   PlayerView,
@@ -104,6 +105,7 @@ export const liveState = {
   engineRequested: false,
   debugRequested: false,
   variantRequested: null as string | null,
+  gameSpecId: null as GameSpecId | null,
 
   // Cross-module runtime state
   clientId: '',

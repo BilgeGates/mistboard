@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  DARK_CHESS_SPEC_ID,
   darkChessVariant,
   type GameEvent,
   type GameProjection,
@@ -42,6 +43,7 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
   const projection: GameProjection = {
     roomId: 'fog-payload',
     variant: 'dark-chess',
+    gameSpecId: DARK_CHESS_SPEC_ID,
     offer: [],
     offers: {},
     state,
@@ -71,6 +73,7 @@ test('Fog of War snapshot payload does not include hidden opponent pieces or mov
 
   const payload = JSON.stringify(snapshotPayload(room, client));
 
+  assert.match(payload, /"gameSpecId":"dark-chess"/);
   assert.match(payload, /"a4"/);
   assert.doesNotMatch(payload, /"h8"/);
   assert.doesNotMatch(payload, /queen/);
@@ -423,6 +426,7 @@ function fogRoomFixture({
   const projection: GameProjection = {
     roomId: 'fog-payload',
     variant: 'dark-chess',
+    gameSpecId: DARK_CHESS_SPEC_ID,
     offer: [],
     offers: {},
     state,
@@ -484,6 +488,7 @@ function lastMoveRoomFixture(): SnapshotRoom {
     projection: {
       roomId: 'fog-last-move-payload',
       variant: 'dark-chess',
+      gameSpecId: DARK_CHESS_SPEC_ID,
       offer: [],
       offers: {},
       state,

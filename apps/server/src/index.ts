@@ -8,6 +8,7 @@ import {
   type Color,
   type GameEvent,
   type GameProjection,
+  gameSpecForLegacyLiveRoom,
   pickDraft960Offer,
   type RoomTimeControl,
   replayGameEvents,
@@ -67,6 +68,7 @@ import {
   startLiveClockIfReady,
   touchSeatToken,
 } from './room-manager.js';
+import { authorizeExistingSeat, seatsShareAuthority } from './seat-auth.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
@@ -83,7 +85,6 @@ import {
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
-import { authorizeExistingSeat, seatsShareAuthority } from './seat-auth.js';
 import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
 
 // Navigation index — grep for section name to jump to the right block
@@ -1084,11 +1085,13 @@ async function getOrCreateRoom(
   }
 
   if (!events) {
+    const gameSpecId = gameSpecForLegacyLiveRoom({ variant, hiddenDraft960 }).id;
     const created: GameEvent = {
       type: 'room-created',
       at: Date.now(),
       roomId,
       variant,
+      gameSpecId,
       ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
     };
     if (persistence.isInitialized()) {
@@ -1158,6 +1161,7 @@ async function getOrCreateRoom(
     forfeitDeadline: null,
     forfeitSeat: null,
     mode,
+    gameSpecId: projection.gameSpecId,
     // Rated request is persisted on the room-created event, so hydration after a
     // restart preserves it. Defaults casual if absent. The room-manager
     // account-gate is still the authoritative rated decision at game end.
@@ -1212,11 +1216,13 @@ async function createRoom(
     if (existing) continue;
 
     const at = Date.now();
+    const gameSpecId = gameSpecForLegacyLiveRoom({ variant, hiddenDraft960 }).id;
     const roomCreated: Extract<GameEvent, { type: 'room-created' }> = {
       type: 'room-created',
       at,
       roomId,
       variant,
+      gameSpecId,
       ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
       ...(timeControl ? { timeControl } : {}),
       ...(rated ? { rated: true } : {}),
@@ -1265,6 +1271,7 @@ async function createRoom(
       forfeitDeadline: null,
       forfeitSeat: null,
       mode,
+      gameSpecId: projection.gameSpecId,
       rated,
       randomEngine: mode === 'pve',
       randomSeating: options.randomSeating === true && mode === 'pvp',

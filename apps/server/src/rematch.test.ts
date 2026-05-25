@@ -39,6 +39,7 @@ function makeFinishedRoom(id: string): Room {
     forfeitDeadline: null,
     forfeitSeat: null,
     mode: 'pvp',
+    gameSpecId: projection.gameSpecId,
     rated: true,
     randomEngine: false,
     randomSeating: false,
