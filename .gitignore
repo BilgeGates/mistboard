@@ -43,6 +43,7 @@ pnpm-lock.yaml
 # from prompts via scripts/pixel-gen.mjs and scripts/video-gen.mjs. The
 # DEV-only /pixel-lab page references these assets; regenerate locally with
 # REPLICATE_API_TOKEN + OPENAI_API_KEY to view them.
+apps/web/public/pixel-lab/
 apps/web/public/pixel-lab-assets/
 
 # Local scratch dir: mobile-test screenshots (scripts/mobile-loop.mjs) and

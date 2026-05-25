@@ -224,6 +224,10 @@ ownership surfaces:
 4. **Fix public-artifact build hygiene.** Keep dev bakeoff and pixel-lab assets
    from being copied into ordinary web builds unless explicitly opted in. Local
    `apps/web/public` artifacts should not make `apps/web/dist` hundreds of MB.
+   Initial hygiene now disables Vite's raw public-dir copy and copies public
+   assets through `apps/web/src/public-assets.ts`, excluding top-level bakeoff
+   and pixel-lab artifact directories unless
+   `MISTBOARD_INCLUDE_DEV_PUBLIC_ARTIFACTS=1` is set for a local build.
 5. **Split `persistence.ts` by ownership.** Preserve a temporary barrel export
    while moving pool lifecycle, events, rooms, seat tokens, accounts, feedback,
    games, and ratings into focused modules.

@@ -1,7 +1,8 @@
 import { promises as fs } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig, type Plugin } from 'vitest/config';
+import { defineConfig, type Plugin, type ResolvedConfig } from 'vitest/config';
+import { INCLUDE_DEV_PUBLIC_ARTIFACTS_ENV, shouldCopyPublicAsset } from './src/public-assets';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEV_API_URL = process.env.MISTBOARD_DEV_API_URL ?? 'http://127.0.0.1:3001';
@@ -84,8 +85,38 @@ function annotationsApiPlugin(): Plugin {
   };
 }
 
+function copyFilteredPublicDirPlugin(): Plugin {
+  let resolvedConfig: ResolvedConfig;
+
+  return {
+    name: 'mistboard-filtered-public-dir',
+    apply: 'build',
+    configResolved(config) {
+      resolvedConfig = config;
+    },
+    async writeBundle() {
+      const publicDir = resolvedConfig.publicDir;
+      if (!publicDir) return;
+
+      const outDir = resolve(resolvedConfig.root, resolvedConfig.build.outDir);
+      const includeDevPublicArtifacts = process.env[INCLUDE_DEV_PUBLIC_ARTIFACTS_ENV] === '1';
+      await fs.cp(publicDir, outDir, {
+        recursive: true,
+        dereference: false,
+        filter: (src) => {
+          const publicRelativePath = relative(publicDir, src);
+          return shouldCopyPublicAsset(publicRelativePath, includeDevPublicArtifacts);
+        },
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [annotationsApiPlugin()],
+  plugins: [annotationsApiPlugin(), copyFilteredPublicDirPlugin()],
+  build: {
+    copyPublicDir: false,
+  },
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.test.ts'],
