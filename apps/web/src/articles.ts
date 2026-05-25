@@ -727,6 +727,19 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'articles-index-card-thumb';
   wrap.setAttribute('aria-hidden', 'true');
+  if (thumb.kind === 'svg') {
+    const template = document.createElement('template');
+    template.innerHTML = thumb.svg.trim();
+    const svg = template.content.firstElementChild;
+    if (svg instanceof SVGSVGElement) {
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '100%');
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      svg.style.display = 'block';
+      wrap.append(svg);
+    }
+    return wrap;
+  }
   const board = document.createElement('div');
   board.className = 'articles-thumb-board cg-wrap';
   wrap.append(board);
@@ -740,6 +753,7 @@ export function mountArticleThumbnails(root: HTMLElement): ThumbnailBoardControl
   hosts.forEach((host) => {
     const thumb = pendingThumbnails.get(host);
     if (!thumb) return;
+    if (thumb.kind === 'svg') return;
     controllers.push(
       mountThumbnailBoard(host, {
         board: piecesToBoard(thumb.pieces),

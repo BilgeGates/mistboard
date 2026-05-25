@@ -154,11 +154,19 @@ export type ArticleSection = {
 // caption — the card itself supplies title and summary. Use a position
 // that reads at a glance: a clear fog pattern, a recognisable setup, or
 // a moment from the article.
-export type ArticleThumbnail = {
+export type BoardArticleThumbnail = {
+  kind?: 'board';
   pieces: BoardSpec['pieces'];
   fogSquares?: BoardSpec['fogSquares'];
   orientation?: BoardSpec['orientation'];
 };
+
+export type SvgArticleThumbnail = {
+  kind: 'svg';
+  svg: string;
+};
+
+export type ArticleThumbnail = BoardArticleThumbnail | SvgArticleThumbnail;
 
 export type Article = {
   slug: string;
@@ -1600,6 +1608,15 @@ const XQ_CANNON_RULE_PAIR = xqSvg(
     }),
   ].join(''),
 );
+const XQ_DARK_XIANGQI_THUMBNAIL = xqSvg(
+  XQ_BOARD_W,
+  XQ_BOARD_H,
+  [
+    xqBoardGrid(0, 0, 'red'),
+    xqFogLayer(XQ_START_RED, 0, 0, 'red'),
+    xqPiecesLayer(XQ_START, XQ_START_RED, 0, 0, 'red'),
+  ].join(''),
+);
 
 const XQ_FACING_GENERAL_BEFORE: XiangqiGameState = {
   id: 'xq-facing-general-before',
@@ -1756,44 +1773,38 @@ const XQ_BLOCKED_ELEPHANT_EYES_PAIR = xqSvg(
   ].join(''),
 );
 
-// Fixed from a random-vs-random Xiangqi bot game: seed 2, red's 141st-ply
-// chariot move d2xd8 captures the black general.
-// TODO: Replace this article diagram with a more natural xiangqi position
-// before publication; the random-bot origin makes the current layout feel arbitrary.
 const XQ_GENERAL_CAPTURE_BEFORE: XiangqiGameState = {
-  id: 'xq-general-capture-before-bot-seed-2',
+  id: 'xq-general-capture-before',
   board: {
+    c1: { color: 'red', role: 'elephant' },
     d1: { color: 'red', role: 'advisor' },
+    e1: { color: 'red', role: 'general' },
+    f1: { color: 'red', role: 'advisor' },
+    g1: { color: 'red', role: 'elephant' },
     h1: { color: 'red', role: 'horse' },
-    d2: { color: 'red', role: 'chariot' },
-    e2: { color: 'red', role: 'advisor' },
-    f2: { color: 'black', role: 'cannon' },
-    e3: { color: 'red', role: 'general' },
-    i3: { color: 'red', role: 'elephant' },
-    a4: { color: 'black', role: 'soldier' },
+    b3: { color: 'red', role: 'cannon' },
     c4: { color: 'red', role: 'soldier' },
-    a5: { color: 'black', role: 'chariot' },
-    c5: { color: 'red', role: 'elephant' },
-    i6: { color: 'red', role: 'soldier' },
-    h7: { color: 'red', role: 'horse' },
-    i7: { color: 'black', role: 'cannon' },
-    d8: { color: 'black', role: 'general' },
-    f8: { color: 'black', role: 'chariot' },
-    e9: { color: 'black', role: 'advisor' },
-    f9: { color: 'black', role: 'horse' },
+    g4: { color: 'red', role: 'soldier' },
+    e7: { color: 'red', role: 'chariot' },
+    c7: { color: 'black', role: 'soldier' },
+    g7: { color: 'black', role: 'soldier' },
+    b8: { color: 'black', role: 'cannon' },
+    h8: { color: 'black', role: 'cannon' },
     b10: { color: 'black', role: 'horse' },
-    c10: { color: 'red', role: 'chariot' },
     d10: { color: 'black', role: 'advisor' },
+    e10: { color: 'black', role: 'general' },
+    f10: { color: 'black', role: 'advisor' },
     g10: { color: 'black', role: 'elephant' },
+    h10: { color: 'black', role: 'horse' },
   },
   status: { type: 'playing', turn: 'red' },
-  moveNumber: 71,
-  progressClock: 12,
+  moveNumber: 34,
+  progressClock: 5,
   positionCounts: {},
 };
 const XQ_GENERAL_CAPTURE_AFTER = applyXiangqiMove(XQ_GENERAL_CAPTURE_BEFORE, {
-  from: 'd2' as XiangqiSquare,
-  to: 'd8' as XiangqiSquare,
+  from: 'e7' as XiangqiSquare,
+  to: 'e10' as XiangqiSquare,
 });
 const XQ_GENERAL_CAPTURE_BEFORE_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_BEFORE, 'red', 'D');
 const XQ_GENERAL_CAPTURE_AFTER_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_AFTER, 'red', 'D');
@@ -1816,7 +1827,7 @@ const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
       y: 0,
       label: "RED'S VIEW AFTER",
       perspective: 'red',
-      arrows: [{ from: 'd2' as XiangqiSquare, to: 'd8' as XiangqiSquare }],
+      arrows: [{ from: 'e7' as XiangqiSquare, to: 'e10' as XiangqiSquare }],
     }),
   ].join(''),
 );
@@ -2260,6 +2271,7 @@ export const articles: Article[] = [
     status: 'draft',
     audience:
       'Xiangqi players, dark chess players, and anyone who wants a clean first explanation of xiangqi under fog.',
+    thumbnail: { kind: 'svg', svg: XQ_DARK_XIANGQI_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
@@ -2311,7 +2323,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'The game ends when a general is captured. No check, no checkmate, no warning.',
+            text: 'The game ends when a general is captured. No check, no checkmate, no warning, no stalemate.',
           },
           {
             kind: 'raw-svg',
