@@ -305,13 +305,20 @@ class EngineV2Strategy:
         wall_ms = (_time.monotonic() - t0) * 1000.0
         p_post = eng.enumerator.size if eng is not None else 0
         self._ply_seen += 1
-        self.telemetry.append({
+        row: dict = {
             "ply": self._ply_seen,
             "kind": kind,
             "p_pre": p_pre,
             "p_post": p_post,
             "wall_ms": round(wall_ms, 2),
-        })
+        }
+        # Capture cap-probe fields from the enumerator if the call touched
+        # it (update_own_move / update_opp_move set these; pick_move does not).
+        if eng is not None and kind in ("observe_own_move", "observe_opp_move"):
+            row["p_raw"] = eng.enumerator.last_raw_count
+            row["p_pre_cap"] = eng.enumerator.last_pre_cap_count
+            row["downsampled"] = eng.enumerator.last_was_downsampled
+        self.telemetry.append(row)
 
     def close(self) -> None:
         if self._engine is not None:

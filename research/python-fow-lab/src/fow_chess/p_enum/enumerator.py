@@ -75,6 +75,20 @@ class PEnumerator:
         self._rng = rng if rng is not None else random.Random()
         # Counter — incremented each time downsampling fires.
         self.downsample_count = 0
+        # Per-call telemetry, set on every update_*_move. Lets the engine
+        # / bakeoff strategy capture pre-dedup and pre-cap |P| sizes
+        # without instrumenting inside the Rust hot path.
+        #   last_raw_count: size of the Rust hot-path output BEFORE
+        #     Python's set() dedup. Equals total (prev, move) pairs that
+        #     survived consistency check — likely-large for opp moves,
+        #     equals last_pre_cap_count for own moves (1-to-1 mapping).
+        #   last_pre_cap_count: size of new P AFTER dedup, BEFORE
+        #     _maybe_downsample. The "natural" |P| we'd carry if cap
+        #     were infinite.
+        #   last_was_downsampled: bool, True iff the cap fired this call.
+        self.last_raw_count: int = 0
+        self.last_pre_cap_count: int = 1
+        self.last_was_downsampled: bool = False
 
     @property
     def positions(self) -> frozenset[str]:
@@ -142,6 +156,7 @@ class PEnumerator:
                 move.to_square,
                 move.promotion or 0,
             )
+            self.last_raw_count = len(kept)
             new_positions: set[str] = set(kept)
         else:
             new_positions = set()
@@ -153,13 +168,17 @@ class PEnumerator:
                     continue
                 board.push(move)
                 new_positions.add(board.fen())
+            self.last_raw_count = len(new_positions)
 
+        self.last_pre_cap_count = len(new_positions)
         if not new_positions:
             raise RuntimeError(
                 f"P became empty after own move {move.uci()}; no candidate "
                 f"position admitted it. This is a soundness violation."
             )
+        prev_dc = self.downsample_count
         self._positions = self._maybe_downsample(new_positions)
+        self.last_was_downsampled = self.downsample_count > prev_dc
 
     def update_opp_move(self, observation: Observation) -> None:
         """Apply an opponent move: for each p in P, enumerate opp's
@@ -194,9 +213,11 @@ class PEnumerator:
                 obs_b[0], obs_b[1], obs_b[2], obs_b[3], obs_b[4], obs_b[5],
                 obs_own_idx, obs_opp_idx,
             )
+            self.last_raw_count = len(kept)
             new_positions: set[str] = set(kept)
         else:
             new_positions = set()
+            raw = 0
             for fen in self._positions:
                 prev = chess.Board(fen)
                 if prev.turn != opp:
@@ -205,15 +226,20 @@ class PEnumerator:
                     nxt = prev.copy()
                     nxt.push(move)
                     if consistent_with(nxt, prev, observation, self.perspective):
+                        raw += 1
                         new_positions.add(nxt.fen())
+            self.last_raw_count = raw
 
+        self.last_pre_cap_count = len(new_positions)
         if not new_positions:
             raise RuntimeError(
                 "P became empty after opp move; no (predecessor, move) pair "
                 "produced an observation-consistent position. This is a "
                 "soundness violation."
             )
+        prev_dc = self.downsample_count
         self._positions = self._maybe_downsample(new_positions)
+        self.last_was_downsampled = self.downsample_count > prev_dc
 
     def _maybe_downsample(self, positions: set[str]) -> set[str]:
         """If max_size is set and |positions| > max_size, uniformly
