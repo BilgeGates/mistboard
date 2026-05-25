@@ -2254,7 +2254,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Red moves first from the standard xiangqi starting position. Each side sees the squares its own pieces could legally move to under regular xiangqi rules, plus the squares they stand on. Everything else is fog.',
+            text: 'Each side sees the squares its own pieces could legally move to under regular xiangqi rules, plus the squares they stand on. Everything else is fog.',
           },
           {
             kind: 'raw-svg',
@@ -2275,7 +2275,7 @@ export const articles: Article[] = [
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: 'A piece reveals the squares it can legally reach from the true position. Blocked horse legs, elephant eyes, and cannon screens appear as unknown occupied squares so you can see why the line is blocked without learning the piece identity.',
+            text: 'A piece reveals the squares it can legally reach from the true position.',
           },
           { kind: 'sub-heading', text: 'Vision changes as your pieces move' },
           {
@@ -2314,6 +2314,10 @@ export const articles: Article[] = [
       {
         heading: 'Edge cases',
         blocks: [
+          {
+            kind: 'paragraph',
+            text: 'Blocked horse legs, elephant eyes, and cannon screens appear as unknown occupied squares so you can see why the line is blocked without learning the piece identity.',
+          },
           { kind: 'sub-heading', text: 'Facing generals' },
           {
             kind: 'paragraph',
