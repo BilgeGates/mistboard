@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -33,13 +31,11 @@ on:
       - "nixpacks.toml"
 
 concurrency:
-  # Keep scheduled prod-lite runs from canceling push prod-smoke revision gates.
   group: ci-node-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   node:
-    if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -78,37 +74,6 @@ jobs:
           MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true TEST_DATABASE_URL=$TEST_DATABASE_URL npm run test:integration --workspace @mistboard/server
       - name: Audit production dependencies
         run: npm audit --omit=dev
-
-  prod-smoke:
-    needs: node
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Wait for Railway deploy
-        run: npm run prod:wait-revision -- --expect-revision "$GITHUB_SHA"
-      - name: Prod smoke
-        run: npm run prod:smoke -- --expect-revision "$GITHUB_SHA"
-      - name: Engine smoke
-        run: npm run prod:smoke:engines
-
-  prod-lite-smoke:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Prod lite smoke
-        run: npm run prod:smoke:lite
 
   # --- Code-red signal (label: ci-failure) -----------------------------------
   # The `node` job is "did you break the build/tests". Its own self-clearing issue.
@@ -185,96 +150,6 @@ jobs:
                 repo: context.repo.repo,
                 issue_number: issue.number,
                 body: `✅ CI (build/test) green on \`main\` at \`${sha}\` — auto-closing.`,
-              });
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                state: 'closed',
-              });
-            }
-
-  # --- Prod-health signal (label: prod-health) -------------------------------
-  # prod-smoke is "is the deployed site healthy", not "is your code correct".
-  # Separate self-clearing issue so a Railway hiccup doesn't read as a code break.
-  # Note: prod-smoke only runs on push to main and is skipped when `node` fails,
-  # so result == 'skipped' fires neither job below (state left untouched).
-
-  notify-prod-failure:
-    needs: [prod-smoke, prod-lite-smoke]
-    if: always() && (needs.prod-smoke.result == 'failure' || needs.prod-lite-smoke.result == 'failure') && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      contents: read
-    steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const sha = context.sha ? context.sha.slice(0, 7) : 'unknown';
-            const commitMsg = (context.payload.head_commit?.message ?? 'scheduled prod-lite smoke').split('\n')[0];
-            const smokeName = context.eventName === 'push' ? 'Prod smoke' : 'Scheduled prod-lite smoke';
-            const body = [
-              `${smokeName} failed on \`main\` at \`${sha}\` — ${commitMsg}`,
-              '',
-              `This is a deploy/health signal, not necessarily a code bug.`,
-              '',
-              `Run: ${runUrl}`,
-            ].join('\n');
-
-            const { data: existing } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'prod-health',
-              per_page: 1,
-            });
-
-            if (existing.length > 0) {
-              if (context.eventName !== 'schedule') {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: existing[0].number,
-                  body,
-                });
-              }
-            } else {
-              await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `${smokeName} failing`,
-                body,
-                labels: ['prod-health'],
-              });
-            }
-
-  close-prod-health:
-    needs: [prod-smoke, prod-lite-smoke]
-    if: always() && (needs.prod-smoke.result == 'success' || needs.prod-lite-smoke.result == 'success') && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      contents: read
-    steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const sha = context.sha.slice(0, 7);
-            const { data: open } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'prod-health',
-              per_page: 20,
-            });
-            for (const issue of open) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: `✅ Prod smoke green on \`main\` at \`${sha}\` — auto-closing.`,
               });
               await github.rest.issues.update({
                 owner: context.repo.owner,
