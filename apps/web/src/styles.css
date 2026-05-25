@@ -6983,7 +6983,8 @@ a.landing-announcement-card-inner:focus-visible {
   }
 
   .game-replay .replay-moves-panel .move-list {
-    max-height: min(42vh, 360px);
+    height: clamp(220px, 42vh, 360px);
+    max-height: none;
   }
 
   .game-replay .replay-moves-panel .move-row {
@@ -7414,7 +7415,7 @@ a.landing-announcement-card-inner:focus-visible {
  */
 @media (min-width: 1100px) {
   .game-replay.replay-page.replay-meta-header {
-    grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+    grid-template-columns: minmax(0, 1fr) clamp(240px, 21vw, 340px);
     column-gap: 14px;
   }
 
@@ -7457,6 +7458,12 @@ a.landing-announcement-card-inner:focus-visible {
     grid-column: 2;
     grid-row: 2;
     align-self: start;
+    width: 100%;
+    max-width: none;
+  }
+
+  .game-replay.replay-meta-header .replay-moves-panel .move-list {
+    height: clamp(260px, 52vh, 520px);
   }
 
   .game-replay.replay-meta-header .replay-tools-row {
