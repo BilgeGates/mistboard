@@ -980,9 +980,9 @@ const DEDUCE_RECAP_NB_POSITIONS = [DEDUCE_RECAP_NB_BEFORE, DEDUCE_RECAP_NB_AFTER
 });
 
 // Pre-stringified captured WS frame for the server-enforced-fog article.
-// White's payload is rendered as a code block; black's snapshot is consumed
-// only by the live-boards pair (board + visibleSquares), so only one JSON
-// text constant is needed.
+// The full snapshot artifact is retained for board data and export/debug
+// purposes. The article itself shows a smaller steady-state payload sample
+// because snapshots intentionally include filtered replay events.
 // Compact a pretty-printed JSON string so the wire-payload blocks stay
 // verbatim but take far less vertical space: collapse two-field leaf objects
 // ({color,role}, {from,to}, {black,white}) onto one line, and fold the long
@@ -997,14 +997,42 @@ function compactJsonLeaves(json: string): string {
 }
 const SERVER_FOG_SNAPSHOT_JSON_TEXT = compactJsonLeaves(JSON.stringify(articleSnapshotFog, null, 2));
 
-// Board + fog projections for the live-boards pair in the article. Sourced
-// from the captured snapshots so the rendered position is exactly what was
-// on the wire (not a re-simulated approximation).
+const SERVER_FOG_DELTA_PAYLOAD = `{
+  "type": "event-appended",
+  "roomId": "mb-demo-room-001",
+  "seat": "white",
+  "seq": 6,
+  "state": {
+    "board": {
+      "a1": { "color": "white", "role": "rook" },
+      "e4": { "color": "white", "role": "pawn" },
+      "e5": { "color": "black", "role": "pawn" },
+      "f7": { "color": "black", "role": "pawn" }
+    },
+    "visibleSquares": ["a1", "a2", "a3", "..."],
+    "legalMoves": [{ "from": "b1", "to": "a3" }, "..."],
+    "status": { "type": "playing", "turn": "white" },
+    "perspective": "white",
+    "clock": { "...": "current clock state" }
+  }
+}`;
+
+// Board + fog projections for the server-enforced-fog article. Player views
+// are sourced from captured snapshots; server truth is the same opening
+// replayed through the game kernel.
 type CapturedFrame = { state: { board: Board; visibleSquares: Square[] } };
 const SERVER_FOG_FRAME_W = articleSnapshotFog as unknown as CapturedFrame;
 const SERVER_FOG_FRAME_B = articleSnapshotFogBlack as unknown as CapturedFrame;
 const SERVER_FOG_FOG_W = fogSquaresFromVisible(SERVER_FOG_FRAME_W.state.visibleSquares);
 const SERVER_FOG_FOG_B = fogSquaresFromVisible(SERVER_FOG_FRAME_B.state.visibleSquares);
+const SERVER_FOG_TRUTH_STATE = replayMoves(darkChessVariant.createInitialState('server-fog-model'), [
+  { from: 'e2', to: 'e4' },
+  { from: 'e7', to: 'e5' },
+  { from: 'g1', to: 'f3' },
+  { from: 'b8', to: 'c6' },
+  { from: 'f1', to: 'c4' },
+  { from: 'g8', to: 'f6' },
+]).at(-1)!;
 
 // Anatomy of the move-submission wire (client → server). One small payload;
 // the loop closes here.
@@ -1201,24 +1229,6 @@ function serverFogConnectionRuleDiagram(): string {
   `;
   return sfWrap(224, body);
 }
-
-const SERVER_FOG_CODE_MAP = `visibility set, masked board, player view
-  packages/game/src/variants.ts
-
-per-recipient outbound layer (snapshot and delta share one filter)
-  apps/server/src/payloads.ts
-
-connection rule + HTTP replay rule
-  apps/server/src/server-policy.ts
-
-seat token mint + verify
-  apps/server/src/index.ts
-
-server-side engine move (PvE only; gets canonical state, never a browser)
-  apps/server/src/live-engine.ts
-
-regression tests pinning the wire format
-  apps/server/src/delta-ws.test.ts`;
 
 // ── Dark Xiangqi article diagrams ─────────────────────────────────────────
 // The board-render package is chess-only today, so the Dark Xiangqi draft uses
@@ -2497,121 +2507,88 @@ export const articles: Article[] = [
   },
   {
     slug: 'server-enforced-fog',
-    title: 'Why Mistboard dark chess is trustworthy',
+    title: 'Server-Enforced Dark Chess',
     summary:
-      'How server-enforced hidden information, seat tokens, replay policy, and rated-game gates make dark chess fair enough to play seriously.',
+      'Server-owned state, projected player views, seat authority, and public postgame review for Mistboard games.',
     status: 'outline',
     audience:
-      'Players and engineers who want to know why Mistboard can host serious dark chess and rated games.',
+      'Players and engineers who want a reference for how Mistboard keeps live hidden-information games private and postgame review public.',
     thumbnail: ARTICLE_OG_POSITIONS['server-enforced-fog'],
     tldr: [
-      'Dark chess server-side: one PlayerView per recipient, hidden state never leaves the box.',
-      'Rated play builds on that boundary: accounts, calibration, reviewable records, and engine separation.',
+      'The server owns truth. Players receive only the seat-scoped view they are allowed to use.',
+      'Live rooms are private to seated players. Finished games become public through the review page.',
     ],
     sections: [
       {
-        heading: 'The guarantees',
+        heading: 'The model',
         blocks: [
-          { kind: 'paragraph', text: 'Dark chess is regular chess with one change: each side sees only the squares its own pieces reach, and the opponent\'s pieces stay hidden until one of yours can see them. The fairness comes from where that rule runs. The obvious build, sending both browsers the full board and painting fog over it in CSS, leaks: the hidden pieces sit in browser memory, and fog-stripping extensions already exist for the dominant platform\'s dark chess. Mistboard runs the rule on the server, and four guarantees hold for every game.' },
-          { kind: 'paragraph', text: '**One source of truth.** Only the server holds the full position. No client ever receives it.' },
-          { kind: 'paragraph', text: '**One view per player.** The server computes each player\'s view from their own pieces\' sightlines and sends only that. Two recipients, two different sets of bytes, never a shared board masked after the fact.' },
-          { kind: 'paragraph', text: '**Authenticated delivery.** A view reaches only the socket that proved it holds that seat.' },
-          { kind: 'paragraph', text: '**Reveal only when the game is over.** The full position becomes public through a separate /game link, and only after the game has reached a terminal state.' },
-          { kind: 'paragraph', text: 'Draws and the flag are judged on the canonical position too. Threefold repetition, the 50-move rule, and clock expiry run against the true board, not against what either player can see: counting from a view would call unequal positions equal and let a player manufacture a draw they don\'t hold.' },
-        ],
-      },
-      {
-        heading: 'Access, and the end-game reveal',
-        blocks: [
-          { kind: 'paragraph', text: 'A live game is private to its two seated players. Any other socket is closed at the WebSocket layer before a single byte of game data is sent, and the HTTP replay endpoint returns 403 for a game still in progress. One rule covers PvP, PvE, and engine-versus-engine, so there is no per-mode access table to drift out of sync.' },
-          { kind: 'paragraph', text: 'The reveal is not a separate artifact the server builds at the end. The full event log is the same one recorded move by move during play; the replay endpoint just refuses to hand it over until the game is finished. It decides by replaying the events and checking the result: if the position is terminal (checkmate, resignation, flag, or an agreed draw) it returns the full log, otherwise 403. The timing is read off the game state itself, not a flag set by hand or a timer. That is also how share links work: a finished game is a public game.' },
-        ],
-      },
-      {
-        heading: 'How a view is computed',
-        blocks: [
-          { kind: 'paragraph', text: 'Three steps, all on the server. The reach in step 1 (squares your pieces could move to or capture on) is why an enemy piece appears the moment one of yours bears on its square.' },
-          { kind: 'code', language: 'typescript', text: SERVER_FOG_VIEW_KERNEL },
-          { kind: 'paragraph', text: 'Only visible pieces, the player\'s own reach, the player\'s own moves. There is no opponent array to unmask.' },
-        ],
-      },
-      {
-        heading: 'The two views',
-        blocks: [
-          { kind: 'paragraph', text: 'Same canonical game state, three moves in (1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6). The server\'s job is to project one view per recipient.' },
+          { kind: 'paragraph', text: 'Dark chess is regular chess with one hidden-information rule: each side sees only the squares its own pieces reach. Mistboard runs that rule on the server. Browsers receive `PlayerView`. No browser receives a full board with CSS fog painted over it.' },
           {
             kind: 'live-boards',
             spec: {
-              layout: 'pair',
+              layout: 'triptych',
               boards: [
                 { board: SERVER_FOG_FRAME_W.state.board, fogSquares: SERVER_FOG_FOG_W, orientation: 'white', label: "WHITE'S VIEW" },
+                { board: SERVER_FOG_TRUTH_STATE.board, orientation: 'white', label: 'SERVER TRUTH' },
                 { board: SERVER_FOG_FRAME_B.state.board, fogSquares: SERVER_FOG_FOG_B, orientation: 'white', label: "BLACK'S VIEW" },
               ],
             },
-            caption: 'Both boards drawn from the captured payloads below — verbatim positions, not re-simulated. Black\'s view is drawn from white\'s side for easier comparison; from black\'s actual perspective the board is flipped.',
+            caption: 'Same position after 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6. The center board is canonical server state; the side boards are the payloads sent to each player.',
           } as ArticleBlock,
-          { kind: 'paragraph', text: 'White sees two of black\'s pieces — black\'s e-pawn and f6-knight have wandered into the squares white\'s pieces light up. Black sees one of white\'s — only the e-pawn. The bishop on c4 sits aimed at f7, completely invisible to black.' },
-          { kind: 'sub-heading', text: 'On the wire' },
-          { kind: 'paragraph', text: 'Here\'s the WebSocket payload behind white\'s board above. Real bytes, anonymized.' },
-          { kind: 'code', language: 'json', text: SERVER_FOG_SNAPSHOT_JSON_TEXT, caption: 'White\'s snapshot frame, verbatim (leaf objects and the square / move lists folded onto single lines to save space). The `state.board` and `state.visibleSquares` fields are what render the board.' },
-          { kind: 'paragraph', text: 'Black\'s payload is the same shape projected the other way: `state.board` has black\'s 16 pieces plus the one visible white pawn; `state.visibleSquares` is black\'s lit set; `events` carries three move-played entries all `color: "black"`; `state.lastMove` is present and equals their own `g8-f6` (a player always keeps their own last move; only the opponent\'s gets stripped during play). One field both payloads agree on: `state.status.turn` is `"white"` in both — turn is canonical state, it has to agree across recipients.' },
-          { kind: 'paragraph', text: 'This is the hydration shape — what a browser gets on first connect or when it explicitly asks via snapshot:request. Steady-state moves ship as smaller event-appended deltas (one filtered event per frame, same per-recipient projection); snapshots stay for first connect, gap recovery, and the game-end reveal.' },
-          { kind: 'paragraph', text: 'The same harness that captured these — spawning the production server, opening real WebSockets, asserting on bytes — runs on every commit.' },
+          { kind: 'paragraph', text: 'The core rule is simple: compute truth once, project the allowed view per seat, and keep the full event log private until the game is finished.' },
+          { kind: 'paragraph', text: 'Live games are seat-gated. Other sockets are closed before game data is sent, and the replay endpoint returns 403 until the game is terminal. Draws, flags, and repetition use canonical state.' },
+          { kind: 'paragraph', text: 'The same server-owned event log is the base for PvP, PvE, calibration, and tournaments. This article follows the player-facing live-room boundary.' },
         ],
       },
       {
-        heading: 'What the client does with it',
+        heading: 'How views are computed',
         blocks: [
-          { kind: 'paragraph', text: 'The client trusts the view: render `state.board`, fog the squares not in `state.visibleSquares`, draw `state.lastMove` if present, offer `state.legalMoves` on the player\'s turn. No reconstruction step, no client-side fog kernel. The bytes it receives are the bytes it renders.' },
-          { kind: 'paragraph', text: 'When the player moves, the client sends one message back:' },
+          { kind: 'paragraph', text: 'For a player, the boundary is `PlayerView`: visible squares, visible pieces, legal moves, status, and clock for that seat.' },
+          { kind: 'code', language: 'typescript', text: SERVER_FOG_VIEW_KERNEL },
+          { kind: 'paragraph', text: 'There is no opponent array in the browser to unmask.' },
+        ],
+      },
+      {
+        heading: 'Sample data payload',
+        blocks: [
+          { kind: 'paragraph', text: 'The live move stream uses `event-appended`, the optimized frame shape. This is the white payload from the position above, shortened to the fields that matter:' },
+          { kind: 'code', language: 'json', text: SERVER_FOG_DELTA_PAYLOAD, caption: 'Representative steady-state frame. The real payload carries complete board, square, move, and clock values.' },
+          { kind: 'paragraph', text: '**Core fields:** `seat` identifies the recipient, `seq` orders the stream, `state.board` is the redacted board, `state.visibleSquares` is the clear-vs-fog mask, and `state.status` carries the canonical turn/result state.' },
+          { kind: 'paragraph', text: 'If the appended event is visible to this seat, the frame includes one filtered `event`. If the move is hidden, the `event` field is omitted and the projected `state` still advances.' },
+          { kind: 'paragraph', text: 'Snapshots still exist for first connect, explicit recovery, and final resync. They include the filtered event history needed to hydrate the client, so they are larger than the per-move stream.' },
+        ],
+      },
+      {
+        heading: 'Player move',
+        blocks: [
+          { kind: 'paragraph', text: 'A move request is just coordinates:' },
           { kind: 'code', language: 'typescript', text: SERVER_FOG_MOVE_PAYLOAD },
-          { kind: 'paragraph', text: 'The server validates the move against the canonical game state (not against any client\'s view), applies it, and triggers the next per-recipient computation for every connected client. The loop closes.' },
+          { kind: 'paragraph', text: 'The server validates against canonical state, applies the move, appends an event, and projects the next view. The client never decides whether hidden information exists or whether an invisible move happened.' },
         ],
       },
       {
-        heading: 'Identity',
+        heading: 'Live room access',
         blocks: [
-          { kind: 'paragraph', text: 'The view computation only works if the server knows whose view to compute. If a socket\'s seat is wrong — white\'s frame goes to black, or to a third party — every other rule above runs on a lie.' },
-          { kind: 'paragraph', text: 'When a player first claims a seat, the server mints a random per-seat token, stores its bcrypt hash, and hands the raw token back to that one client. Every future WebSocket connection from that client presents the token in the subprotocol header. The server verifies it against the stored hash (constant-time) and binds the socket to a server-assigned seat. The seat is something the server remembers, not something the client claims.' },
-          { kind: 'paragraph', text: 'Three properties matter. Tokens are minted server-side, so a client cannot ask for white\'s seat without the token white was given. Only the hash is stored, so a leaked database doesn\'t hand an attacker working tokens. Comparison is constant-time, so there is no timing side channel. The token doubles as the reconnect mechanism — refresh the page, present the token, get your seat back.' },
+          { kind: 'paragraph', text: 'After a move is accepted, the server may need to send two different views. The remaining question is who is allowed to receive either one.' },
+          { kind: 'paragraph', text: 'A socket gets live room data only after it proves control of the white or black seat. Anonymous seats use random bearer tokens; the server stores only a SHA-256 token hash and compares the presented token in constant time. Signed-in seats also require the matching account session.' },
+          { kind: 'paragraph', text: 'Non-players do not get a live spectator projection. A socket without a valid seat is rejected before room data is sent, and the live replay endpoint stays closed until the game reaches a terminal state.' },
         ],
       },
       {
-        heading: 'What changes for ranked play',
+        heading: 'Postgame review',
         blocks: [
-          { kind: 'paragraph', text: 'Casual dark chess can stay low-friction: open a room, share a link, play. Ranked games need a stricter contract because a rating should attach to a durable player, not a browser tab or throwaway seat token.' },
-          { kind: 'paragraph', text: 'Mistboard treats server-enforced hidden information as the first trust layer, not the whole ladder policy. A rated game requires account-backed human seats, excludes engine games from the human ladder, records a finished game row, and updates ratings only from eligible completed PvP games.' },
-          { kind: 'paragraph', text: 'Rated beta can stay always open while still being honest about early noise. The first ladder may be provisional, sparse, and recalibrated, but motivated players should be able to try serious games when they show up.' },
-          { kind: 'paragraph', text: 'Restarts, abandons, and engine failures are explicit outcomes rather than vague losses. A server restart can pause or abort without rating impact; engine games are training and benchmark material, not human ladder results; calibration runs happen before rated pools are publicly promoted.' },
-          { kind: 'paragraph', text: 'The goal is not to pretend cheating is impossible. The goal is a serious baseline: the server never gives your opponent hidden truth, rated identities are durable, games are reviewable after completion, and rating rules are narrow enough to audit.' },
+          { kind: 'paragraph', text: 'When the game becomes terminal, the privacy rule changes. Mistboard releases game data through the review page, and that page can be viewed by everybody.' },
+          { kind: 'paragraph', text: 'The review page is the public reveal surface. The live room remains seat-scoped, while the finished game record can load the event log for review, sharing, and dispute resolution.' },
+          { kind: 'paragraph', text: 'Ratings, when enabled, should point at eligible completed account-backed games. The integrity point here is that rated results can have a public finished-game record without opening live rooms to non-players.' },
         ],
       },
       {
-        heading: 'The engine is the house',
+        heading: 'Scope and checks',
         blocks: [
-          { kind: 'paragraph', text: 'When you play the bot, you\'re playing the server itself. The engine runs in the same process that owns the canonical state, picks a move, and hands it back through the same per-recipient projection as every other move. It\'s never code running in a browser, and in human-versus-human games it\'s not in the loop at all.' },
-          { kind: 'paragraph', text: 'The engine does see the full position. It has to: choosing a move under fog means reasoning about the whole board and what each side can observe, the same work the rules code does. What decides fairness is who the engine can talk to. A bot game is you against the server, so there\'s no third party to leak your pieces to and no human opponent receiving the engine\'s view. The bot is the dealer who can see the deck, not the player across the table.' },
-          { kind: 'paragraph', text: 'The piece that isn\'t built yet is untrusted engines. A third-party bot connecting over an external protocol would get a PlayerView, the same masked frame a browser gets, sandboxed from canonical state. That protocol (FUCI) is planned, not shipped. Until it lands, the only engines that run are ones we operate.' },
-        ],
-      },
-      {
-        heading: 'What we gave up',
-        blocks: [
-          { kind: 'sub-heading', text: 'Anonymous identity' },
-          { kind: 'paragraph', text: 'Possession of the seat token is possession of the seat. There is no OAuth-bound account guarding it. Anyone with the link who got the token can take that seat. This is what makes link-share casual play simple; the design above would still hold under stronger identity if Mistboard adds it later.' },
-          { kind: 'sub-heading', text: 'No live spectator view' },
-          { kind: 'paragraph', text: 'A fair, mutually-hidden view for friends watching a live game would require exposing at least one side\'s perspective. We couldn\'t make it safe without growing the rule set above, so the answer is no. Friends can watch after the game ends.' },
-        ],
-      },
-      {
-        heading: 'Where the code is',
-        blocks: [
-          {
-            kind: 'code',
-            language: 'text',
-            text: SERVER_FOG_CODE_MAP,
-            maxHeight: 240,
-          },
+          { kind: 'paragraph', text: 'This is not a full anti-cheat claim. It is the narrower integrity claim this architecture can prove: during live play, hidden truth is not sent to unauthorized browser paths; after the game ends, the record is reviewable.' },
+          { kind: 'paragraph', text: 'Anonymous casual seats are bearer-token seats, not account-grade identity. There is also no live spectator mode for hidden-information games; friends watch through the review page after the game ends.' },
+          { kind: 'paragraph', text: 'The boundary is covered by wire-format regression tests that open real WebSockets, drive moves, and assert on the bytes each seat receives.' },
+          { kind: 'paragraph', text: 'Those tests cover live third-client rejection, seat-token reclaim behavior, `event-appended` delivery, filtered move events, and the rule that snapshot and delta frames use the same projection helpers. That is the claim: seat-scoped live play, public review after terminal state.' },
         ],
       },
     ],

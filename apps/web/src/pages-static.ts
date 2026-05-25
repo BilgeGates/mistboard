@@ -252,7 +252,7 @@ function buildFaq(): HTMLElement {
   const q3 = aboutSubheading('How does rated play work?');
   const a3 = aboutParagraph([
     'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count. See ',
-    aboutLink('why Mistboard dark chess is trustworthy', '/articles/server-enforced-fog'),
+    aboutLink('Server-Enforced Dark Chess', '/articles/server-enforced-fog'),
     ' for the trust model.',
   ]);
 
