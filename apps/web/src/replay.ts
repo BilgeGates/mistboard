@@ -47,6 +47,7 @@ const MIN_PLAY_MS = 700;
 const MAX_PLAY_MS = 2500;
 const MIN_THINKING_BUDGET_PLAY_MS = 700;
 const DEFAULT_BETWEEN_GAME_DELAY_MS = 8000;
+const DEFAULT_WALL_CLOCK_TICK_MS = 250;
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
@@ -60,6 +61,78 @@ export function compactReplayClockSidesForOrientation(orientation: Color): {
   return orientation === 'black'
     ? { top: 'white', bottom: 'black' }
     : { top: 'black', bottom: 'white' };
+}
+
+export type WallClockReplayLoopSample = {
+  plyCount: number;
+  sampleId: string;
+};
+
+export type WallClockReplayTiming = {
+  epochMs?: number;
+  holdMs?: number;
+  plyMs?: number;
+};
+
+export type WallClockReplayLoop = WallClockReplayTiming & {
+  now?: () => number;
+  samples: WallClockReplayLoopSample[];
+  tickMs?: number;
+};
+
+export type WallClockReplayPosition = {
+  cycleMs: number;
+  ply: number;
+  sampleElapsedMs: number;
+  sampleId: string;
+  sampleIndex: number;
+};
+
+export function resolveWallClockReplayPosition(
+  samples: readonly WallClockReplayLoopSample[],
+  nowMs: number,
+  timing: WallClockReplayTiming = {},
+): WallClockReplayPosition | null {
+  if (samples.length === 0) return null;
+
+  const plyMs = positiveMs(timing.plyMs, FALLBACK_PLAY_MS);
+  const holdMs = nonNegativeMs(timing.holdMs, DEFAULT_BETWEEN_GAME_DELAY_MS);
+  const epochMs =
+    typeof timing.epochMs === 'number' && Number.isFinite(timing.epochMs) ? timing.epochMs : 0;
+  const atMs = Number.isFinite(nowMs) ? nowMs : epochMs;
+  const durations = samples.map((sample) =>
+    Math.max(1, normalizedPlyCount(sample.plyCount) * plyMs + holdMs),
+  );
+  const cycleMs = durations.reduce((total, duration) => total + duration, 0);
+  let offset = positiveModulo(atMs - epochMs, cycleMs);
+
+  for (let index = 0; index < samples.length; index += 1) {
+    const duration = durations[index]!;
+    const sample = samples[index]!;
+    if (offset >= duration) {
+      offset -= duration;
+      continue;
+    }
+
+    const plyCount = normalizedPlyCount(sample.plyCount);
+    const playMs = plyCount * plyMs;
+    return {
+      cycleMs,
+      ply: offset < playMs ? Math.floor(offset / plyMs) : plyCount,
+      sampleElapsedMs: offset,
+      sampleId: sample.sampleId,
+      sampleIndex: index,
+    };
+  }
+
+  const first = samples[0]!;
+  return {
+    cycleMs,
+    ply: 0,
+    sampleElapsedMs: 0,
+    sampleId: first.sampleId,
+    sampleIndex: 0,
+  };
 }
 
 export type GameMeta = {
@@ -93,6 +166,8 @@ export type ReplayOptions = {
   blackOrientation?: Color;
   /** When set, after each game finishes the next sample loads automatically. */
   loopSamples?: string[];
+  /** When set, replay position is derived from wall-clock time across the sample corpus. */
+  wallClockLoop?: WallClockReplayLoop;
   /** Pause length on the reveal frame before cycling to the next loop sample. */
   betweenGameDelayMs?: number;
   /**
@@ -175,9 +250,12 @@ export async function mountReplay(
   const controlsMode = options.controlsMode ?? 'bar';
   let boardOrientation = options.orientation ?? options.blackOrientation ?? 'white';
   const orientationForId = options.orientationForId;
-  const loopSamples = options.loopSamples;
+  const wallClockLoop = options.wallClockLoop;
+  const wallClockInitial = currentWallClockPosition();
+  const initialReplaySampleId = wallClockInitial?.sampleId ?? initialSampleId;
+  const loopSamples = wallClockLoop ? undefined : options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
-  const autoplay = options.autoplay === true || loopSamples !== undefined;
+  const autoplay = !wallClockLoop && (options.autoplay === true || loopSamples !== undefined);
   const urlForId = options.urlForId ?? defaultUrlForId;
   const loaderForId = options.loaderForId;
   const metadataByRoomId = options.metadataByRoomId;
@@ -185,9 +263,18 @@ export async function mountReplay(
   const panesResolver = typeof options.panes === 'object' ? options.panes.resolver : null;
   const hideGameIdPill = options.hideGameIdPill === true;
   const onPlyChange = options.onPlyChange;
-  const initialMeta = metadataByRoomId?.[initialSampleId];
-  const initialOrientation = orientationForId?.(initialSampleId, initialMeta);
+  const initialMeta = metadataByRoomId?.[initialReplaySampleId];
+  const initialOrientation = orientationForId?.(initialReplaySampleId, initialMeta);
   if (initialOrientation) boardOrientation = initialOrientation;
+
+  function currentWallClockPosition(): WallClockReplayPosition | null {
+    if (!wallClockLoop) return null;
+    return resolveWallClockReplayPosition(
+      wallClockLoop.samples,
+      wallClockLoop.now ? wallClockLoop.now() : Date.now(),
+      wallClockLoop,
+    );
+  }
 
   // If mountReplay is called again on the same root (e.g. switching games
   // in the bakeoff browser), abort any keyboard listeners from the prior
@@ -221,8 +308,8 @@ export async function mountReplay(
   // Apply the pane choice synchronously so the triptych doesn't flash before
   // loadGame() finishes its async fetch and calls applyMetadata().
   if (panesResolver) {
-    const initialMeta = metadataByRoomId?.[initialSampleId];
-    const initialChoice = panesResolver(initialSampleId, initialMeta);
+    const initialMeta = metadataByRoomId?.[initialReplaySampleId];
+    const initialChoice = panesResolver(initialReplaySampleId, initialMeta);
     layout.classList.add(
       initialChoice === 'white'
         ? 'replay-layout-single-white'
@@ -392,13 +479,15 @@ export async function mountReplay(
   }
   syncAnalysisToolVisibility();
 
-  let activeSample = initialSampleId;
+  let activeSample = initialReplaySampleId;
   let events: GameEvent[] = [];
   let moveCount = 0;
   let currentPly = 0;
-  let shouldApplyInitialPly = Number.isFinite(options.initialPly);
+  let shouldApplyInitialPly = !wallClockLoop && Number.isFinite(options.initialPly);
   let playTimer: number | null = null;
   let loopTimer: number | null = null;
+  let wallClockTimer: number | null = null;
+  let wallClockLoadPromise: Promise<void> | null = null;
   let clockTickTimer: number | null = null;
   let finishedAck = false;
   let annotationsForGame: Annotation[] = [];
@@ -729,6 +818,49 @@ export async function mountReplay(
     }
   }
 
+  function startWallClockLoop(): void {
+    if (!wallClockLoop || wallClockTimer !== null) return;
+    syncWallClockLoop();
+    wallClockTimer = window.setInterval(
+      syncWallClockLoop,
+      positiveMs(wallClockLoop.tickMs, DEFAULT_WALL_CLOCK_TICK_MS),
+    );
+  }
+
+  function clearWallClockTimer(): void {
+    if (wallClockTimer !== null) {
+      window.clearInterval(wallClockTimer);
+      wallClockTimer = null;
+    }
+  }
+
+  function syncWallClockLoop(): void {
+    const target = currentWallClockPosition();
+    if (!target) return;
+
+    if (target.sampleId !== activeSample) {
+      if (wallClockLoadPromise) return;
+      let loaded = false;
+      wallClockLoadPromise = loadGame(target.sampleId, {
+        initialPly: target.ply,
+        startAutoplay: false,
+      })
+        .then(() => {
+          loaded = true;
+        })
+        .catch((err) => console.warn('[replay wall-clock loop] failed to load game:', err))
+        .finally(() => {
+          wallClockLoadPromise = null;
+          if (loaded) syncWallClockLoop();
+        });
+      return;
+    }
+
+    if (target.ply === currentPly) return;
+    setCurrentPly(target.ply);
+    render();
+  }
+
   function renderClockState(state: GameState, slicedEvents: GameEvent[]): void {
     const displayAt = replayClockDisplayAt(slicedEvents, state);
     renderClockPanel(clockPanel, state.clock, state, currentMeta(), displayAt ?? undefined);
@@ -907,16 +1039,24 @@ export async function mountReplay(
     return Math.min(MAX_PLAY_MS, Math.max(MIN_PLAY_MS, ms));
   }
 
-  async function loadGame(sampleId: string): Promise<void> {
+  async function loadGame(
+    sampleId: string,
+    loadOptions: { initialPly?: number; startAutoplay?: boolean } = {},
+  ): Promise<void> {
     stopPlay();
     clearLoopTimer();
+    const nextEvents = loaderForId
+      ? await loaderForId(sampleId)
+      : await loadEvents(sampleId, urlForId);
     activeSample = sampleId;
     annotationsForGame = [];
-    events = loaderForId ? await loaderForId(sampleId) : await loadEvents(sampleId, urlForId);
+    events = nextEvents;
     moveCount = events.filter((e) => e.type === 'move-played').length;
     beliefPanel?.setRows(belief?.rowsForSampleId(sampleId) ?? []);
     beliefPanel?.setTraceRows(belief?.traceRowsForSampleId?.(sampleId) ?? []);
-    if (shouldApplyInitialPly && typeof options.initialPly === 'number') {
+    if (typeof loadOptions.initialPly === 'number') {
+      currentPly = Math.min(Math.max(Math.floor(loadOptions.initialPly), 0), moveCount);
+    } else if (shouldApplyInitialPly && typeof options.initialPly === 'number') {
       currentPly = Math.min(Math.max(Math.floor(options.initialPly), 0), moveCount);
       shouldApplyInitialPly = false;
     } else {
@@ -928,7 +1068,7 @@ export async function mountReplay(
     applyPerspective();
     if (annotation) await reloadAnnotations();
     render();
-    if (autoplay) startPlay();
+    if (autoplay && loadOptions.startAutoplay !== false) startPlay();
   }
 
   function applyPerspective(): void {
@@ -1126,6 +1266,7 @@ export async function mountReplay(
     () => {
       stopPlay();
       clearLoopTimer();
+      clearWallClockTimer();
     },
     { once: true },
   );
@@ -1133,15 +1274,21 @@ export async function mountReplay(
   // If the initial sample fails to load (e.g. a DB game with no events endpoint),
   // fall through to the next available loop sample rather than crashing the mount.
   try {
-    await loadGame(initialSampleId);
+    await loadGame(initialReplaySampleId, {
+      initialPly: wallClockInitial?.ply,
+      startAutoplay: !wallClockLoop,
+    });
   } catch (err) {
-    const fallback = loopSamples?.find((id) => id !== initialSampleId);
+    const fallback =
+      loopSamples?.find((id) => id !== initialReplaySampleId) ??
+      wallClockLoop?.samples.find((sample) => sample.sampleId !== initialReplaySampleId)?.sampleId;
     if (fallback) {
       await loadGame(fallback);
     } else {
       throw err;
     }
   }
+  startWallClockLoop();
 
   function applyBoardOrientation(): void {
     whiteCg.set({ orientation: boardOrientation });
@@ -1154,6 +1301,26 @@ function pickNextSample(pool: string[], current: string): string {
   if (pool.length <= 1) return pool[0] ?? current;
   const others = pool.filter((id) => id !== current);
   return others[Math.floor(Math.random() * others.length)] ?? pool[0];
+}
+
+function normalizedPlyCount(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+function positiveMs(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.max(1, Math.floor(value))
+    : fallback;
+}
+
+function nonNegativeMs(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : fallback;
+}
+
+function positiveModulo(value: number, modulus: number): number {
+  return ((value % modulus) + modulus) % modulus;
 }
 
 type GameMetaPanelHandle = {
