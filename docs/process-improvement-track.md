@@ -1,0 +1,255 @@
+# Process Improvement Track
+
+_Started: 2026-05-25_
+
+This track turns repeated Mistboard operating lessons into repo-native tooling
+and contributor-visible process. The goal is not bureaucracy. The goal is to
+make the safe path faster than the improvised path, especially when multiple
+local agent sessions are active at once.
+
+## Why This Track Exists
+
+Mistboard is now large enough that process failures can cost as much time as
+ordinary implementation bugs:
+
+- concurrent sessions can clobber uncommitted work in a shared tree;
+- hidden-information changes need the right payload and persistence checks, not
+  just a green UI;
+- manual launch gates need evidence, not memory;
+- local hooks and CI do not currently express the same contract;
+- useful visual, mobile, smoke, and release scripts exist, but check selection
+  still relies too much on operator judgment.
+
+The first major push is to package the existing good habits into small commands
+that are easy for humans and agents to run consistently.
+
+## Principles
+
+- Prefer automation that reduces decision load without hiding risk.
+- Keep public docs contributor-safe; private runbooks and provider details stay
+  out of the repo.
+- Make the narrow check obvious while iterating, and the broader release check
+  obvious before handoff.
+- Protect hidden-information invariants with tests and contracts, not trust in
+  review alone.
+- Treat worktree isolation as the default for long-running or parallel work.
+
+## First Major Push
+
+### 1. Worktree-First Task Setup
+
+Add a small worktree helper for new implementation tracks:
+
+```bash
+npm run worktree:new -- <slug>
+```
+
+Expected behavior:
+
+- creates a task branch and sibling worktree;
+- prints the branch, worktree path, and starting commit;
+- runs or points to `npm run agent:scan`;
+- refuses ambiguous names and avoids overwriting existing worktrees.
+
+This formalizes the current rule from `docs/agent-velocity.md`: long-running
+tasks should not share the main working tree.
+
+### 2. Path-Aware Verification
+
+Add a verification helper that maps changed files to the checks most likely to
+matter:
+
+```bash
+npm run verify -- --changed
+npm run verify -- --since origin/main
+```
+
+Initial mapping:
+
+- `packages/game/**` → game unit tests;
+- `apps/server/src/**` or `apps/server/integration/**` → server unit and
+  integration tests;
+- `apps/server/migrations/**` or persistence paths → Postgres-backed tests;
+- `apps/web/src/**` → web unit tests and web typecheck;
+- broad cross-package edits → root typecheck, unit tests, and cycle check;
+- visual/live-room CSS or render edits → visual/mobile smoke recommendation.
+
+The helper should print commands before it runs them and make skipped checks
+explicit.
+
+### 3. Local Gate Names That Match CI
+
+Introduce named local gates so "green locally" has a clearer meaning:
+
+```bash
+npm run ci:quick
+npm run ci:local
+```
+
+Suggested split:
+
+- `ci:quick`: typecheck, unit tests, cycle check;
+- `ci:local`: build, typecheck, unit tests, Postgres-backed server tests, server
+  integration tests, production dependency audit when network is available.
+
+The pre-push hook can then call one of these names, or clearly print which CI
+steps remain CI-only.
+
+### 4. Manual Gate Evidence
+
+Add a tiny evidence workflow for M1 manual checks:
+
+```bash
+npm run gate:evidence -- --gate mobile-gameplay --result pass
+```
+
+Expected output:
+
+- a public-safe dated evidence entry under `docs/`;
+- the exact target environment and check command when relevant;
+- no cookies, tokens, seat tokens, provider secrets, or private runbook detail.
+
+This should support mobile gameplay, article mobile pass, empty-lobby engine
+fallback, OG scraper sanity, and analytics verification.
+
+### 5. First-Class Visual And Mobile Smoke
+
+Promote the existing visual and mobile scripts into a clearer test surface:
+
+```bash
+npm run test:e2e:smoke
+npm run test:mobile:shots
+```
+
+The current scripts already capture useful signal. The improvement is to give
+them predictable names, outputs, and failure summaries so they can be used in
+handoffs and optionally uploaded by CI later.
+
+### 6. Contract Checks For Drift
+
+Add small checks for the classes of bugs that have already hurt the project:
+
+- TypeScript union values versus SQL check constraints;
+- public documentation references to files that no longer exist;
+- forbidden public-doc links into private notes;
+- hidden-information response paths that bypass `PlayerView` or known
+  redaction helpers.
+
+These should start as narrow, comprehensible checks. False positives that train
+people to ignore the command are worse than a smaller useful guard.
+
+## Definition Of Done For The First Push
+
+- A new task can start in an isolated worktree with one command.
+- A contributor can run one verification command and get a check plan based on
+  changed paths.
+- The repo has named local CI gates with documented scope.
+- Manual M1 evidence can be recorded without editing the roadmap from memory.
+- Visual/mobile smoke commands are discoverable from `package.json`.
+- Documentation drift checks catch stale file references before review.
+
+## Second Major Push
+
+### Codebase Velocity And Tech Debt
+
+_Status: planned after current tree cleanup._
+
+This push is the codebase-structure companion to the first process/tooling push.
+The goal is to reduce the amount of source an agent or contributor must hold in
+context to make a safe change.
+
+Do not begin this push from the shared dirty tree. As of 2026-05-25, tree cleanup
+is already in progress. Start the work from a green, isolated worktree after the
+current staged and unstaged changes are settled.
+
+### Why This Push Exists
+
+The live repo scan found little ordinary marker debt (`TODO`, `@ts-ignore`, and
+`as any` are not the bottleneck). Velocity is being lost through concentrated
+ownership surfaces:
+
+- large files that mix several product responsibilities;
+- broad hub imports from `landing.ts`, `replay.ts`, and `persistence.ts`;
+- fragile hand-built test fixtures for core wire/model contracts;
+- local public artifacts that can silently bloat web builds;
+- scattered runtime configuration reads.
+
+### Execution Order
+
+1. **Restore a green baseline.** Resolve the current tree cleanup first, then
+   start this push in a dedicated worktree. The first check should be the narrow
+   failing checks from the cleanup, then root `npm run typecheck`.
+2. **Add contract fixture builders.** Add shared test builders for
+   `GameProjection`, `PlayerView`, `SnapshotRoom`, and `Room` in the packages
+   that own those contracts. This reduces breakage when fields such as
+   `gameSpecId`, region metadata, or seat state evolve.
+3. **Extract web shell helpers from `landing.ts`.** Move nav/footer/loading
+   helpers into a shell module and game-row naming/formatting into a small game
+   card/list module. This removes the homepage as a dependency hub for account,
+   profile, static pages, and route modules.
+4. **Fix public-artifact build hygiene.** Keep dev bakeoff and pixel-lab assets
+   from being copied into ordinary web builds unless explicitly opted in. Local
+   `apps/web/public` artifacts should not make `apps/web/dist` hundreds of MB.
+5. **Split `persistence.ts` by ownership.** Preserve a temporary barrel export
+   while moving pool lifecycle, events, rooms, seat tokens, accounts, feedback,
+   games, and ratings into focused modules.
+6. **Split `live-render.ts` incrementally.** Extract stable live-game UI domains:
+   board adapter, controls, clocks, captures, Draft960 picker, move list, and
+   status panels. Keep the orchestrator thin and keep tests green after each
+   move.
+7. **Split `replay.ts` after live render.** Extract replay timing, header/meta,
+   moves panel, board panes, engine-review dock, clocks, and annotation form.
+8. **Continue server `index.ts` extraction.** Move static/page metadata,
+   drain-admin handling, WebSocket handling, seat-session logic, and shutdown
+   orchestration into focused modules.
+9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
+   sections, then move replay, leaderboard, account, and article CSS behind
+   ownership boundaries.
+10. **Centralize runtime config.** Add typed config modules for server, engine,
+    and web feature flags so environment reads are discoverable and testable.
+
+### Definition Of Done For The Second Push
+
+- Contract test fixtures exist for core game/server/web payload shapes.
+- `landing.ts` is no longer the shared site-shell import hub.
+- Ordinary local web builds do not copy ignored bakeoff or pixel-lab artifacts
+  by default.
+- `persistence.ts` has been reduced to a barrel or thin facade, with domain
+  modules owning SQL by area.
+- `live-render.ts` and `replay.ts` each have clear domain modules and a smaller
+  orchestration surface.
+- `apps/server/src/index.ts` owns startup composition, not every WebSocket,
+  static-page, drain, seat, and shutdown detail.
+- Route/dev CSS has moved out of the single global stylesheet where practical.
+- Runtime config reads are centralized enough that new flags have an obvious
+  home.
+
+### Guardrails
+
+- Keep hidden-information invariants ahead of refactor aesthetics.
+- Move code with focused regression tests; do not combine structural splits with
+  product behavior changes unless unavoidable.
+- Preserve public imports through temporary barrels when that lowers migration
+  risk.
+- Prefer many small commits with path-specific staging over one broad cleanup
+  commit.
+- Re-run the relevant narrow test after each extraction and a broader gate before
+  handoff.
+
+## Out Of Scope
+
+- Private deploy runbooks or provider-account procedures.
+- A broad process handbook.
+- Replacing judgment for high-risk hidden-information changes.
+- Adding social, moderation, rating, or matchmaking process before the product
+  stage requires it.
+
+## Related Existing Surfaces
+
+- `npm run agent:scan` for live dirty-state, hotspot, and targeted-test
+  orientation.
+- `docs/agent-velocity.md` for current multi-session working rules.
+- `docs/qa-checklist.md` for private-alpha gameplay QA.
+- `docs/ROADMAP.md` for M1 evidence requirements.
+- `scripts/release-local-smoke.mjs`, `scripts/prod-smoke.mjs`, and
+  `scripts/prod-engine-smoke.mjs` for release and production health checks.

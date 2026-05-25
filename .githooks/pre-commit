@@ -6,19 +6,40 @@ if [ "${SKIP_PRECOMMIT:-}" = "1" ]; then
   exit 0
 fi
 
-stash_created=0
-restore_stash() {
-  if [ "$stash_created" = "1" ]; then
-    git stash pop --quiet || {
-      echo "pre-commit: failed to restore unstaged changes from stash." >&2
-      echo "Resolve manually with: git stash list && git stash pop" >&2
-      exit 1
-    }
+unstaged_paths=$(git diff --name-only)
+untracked_paths=$(git ls-files --others --exclude-standard)
+
+print_paths() {
+  label=$1
+  paths=$2
+  if [ -n "$paths" ]; then
+    echo "  $label:" >&2
+    printf '%s\n' "$paths" | sed -n '1,20p' | sed 's/^/    /' >&2
   fi
 }
-trap restore_stash EXIT INT TERM
 
-if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+if [ -n "$unstaged_paths" ] || [ -n "$untracked_paths" ]; then
+  if [ "${MISTBOARD_PRECOMMIT_STASH:-}" != "1" ]; then
+    echo "pre-commit: unstaged or untracked files are present." >&2
+    echo "pre-commit: refusing to auto-stash them because shared agent sessions can clobber work." >&2
+    print_paths "unstaged" "$unstaged_paths"
+    print_paths "untracked" "$untracked_paths"
+    echo "Commit from a clean worktree, or set MISTBOARD_PRECOMMIT_STASH=1 for one local commit." >&2
+    exit 1
+  fi
+
+  stash_created=0
+  restore_stash() {
+    if [ "$stash_created" = "1" ]; then
+      git stash pop --quiet || {
+        echo "pre-commit: failed to restore unstaged changes from stash." >&2
+        echo "Resolve manually with: git stash list && git stash pop" >&2
+        exit 1
+      }
+    fi
+  }
+  trap restore_stash EXIT INT TERM
+
   git stash push --quiet --keep-index --include-untracked \
     -m "pre-commit unstaged backup"
   stash_created=1

@@ -16,9 +16,12 @@ Read these before editing:
 Always begin with:
 
 ```bash
-git status --short --branch
+git status --short --branch --untracked-files=all
 git worktree list
 ```
+
+Then run `npm run agent:scan` for live dirty-state, worktree, large-file, and
+targeted-test guidance before opening source.
 
 The user often runs Claude and Codex sessions in parallel. Treat existing dirty
 changes as someone else's work unless you made them in this session.

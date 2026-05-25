@@ -1,6 +1,8 @@
 # Mistboard — Codebase Index
 
 Fast orientation for agents. One line per file. Read this before opening any source file.
+Run `npm run agent:scan` after the required git checks for live dirty-state,
+worktree, large-file, and targeted-test guidance.
 Edit task → find file → open only that file.
 
 > **Sprint 2 god-file work complete (2026-05-22 → 2026-05-23):** all major splits shipped — web side: `live-sound.ts`, `time-controls.ts`, `review.ts`, `contact.ts`, `account.ts`, `profile.ts`, `pages-static.ts`, `live-replay.ts`. Server side: `http-api.ts` decomposed into `routes/{lib,annotations,auth,account,engines,feedback,meta,rooms,lobby,games,users,leaderboard}.ts` (Tier-4 in audit). Biome format + lint:fix passes also landed.
@@ -165,9 +167,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | Group | Files |
 |-------|-------|
 | Build/start | `build.mjs`, `start.mjs`, `safe-deploy.mjs` |
+| Agent/dev loop | `agent-scan.mjs`, `mobile-loop.mjs`, `visual-check.mjs` |
 | Engine artifacts | `archive-engine-artifact.mjs`, `engine-artifact-{audit,closeout}.mjs`, `capture-belief-artifacts.mjs`, `generate-fow-corpus.mjs` |
 | Prod smoke | `prod-smoke.mjs`, `prod-engine-smoke.mjs` |
-| Visual check | `visual-check.mjs` |
 | AI asset gen | `pixel-gen.mjs`, `video-gen.mjs`, `loop-video.mjs`, `slice-fog.py` |
 | Other | `key-transparency.py` |
 
