@@ -321,7 +321,28 @@ def expand_leaf(
         obs_for_white = observation_from_transition(leaf.truth, next_truth, chess.WHITE)
         obs_for_black = observation_from_transition(leaf.truth, next_truth, chess.BLACK)
         # Each child carries its own leaf_value (from perspective POV).
-        if move in child_evals:
+        # Terminal check FIRST: a king-capturing move is terminal (-1/+1 from
+        # perspective). Stockfish doesn't emit king-captures as candidates in
+        # standard chess, so without this check the king-capture child falls
+        # through to material_leaf_eval, which uses material_score with king=0
+        # → the king-capture child is scored as just "I'm up some material"
+        # (~0.5-0.9 tanh-saturated) instead of an exact +1.0 win. CFR seeded
+        # from that wrong leaf_value can prefer a non-king-capture move that
+        # Stockfish ranked higher (e.g., a visible rook capture at +500cp).
+        # The terminal-first branch fixes this and also handles stalemate
+        # correctly (own_king missing → -1.0).
+        if next_truth.king(chess.WHITE) is None or next_truth.king(chess.BLACK) is None:
+            own_king = next_truth.king(perspective)
+            opp_king = next_truth.king(not perspective)
+            if own_king is None and opp_king is None:
+                child_leaf = 0.0
+            elif own_king is None:
+                child_leaf = -1.0
+            elif opp_king is None:
+                child_leaf = 1.0
+            else:
+                child_leaf = 0.0  # unreachable given the outer guard
+        elif move in child_evals:
             child_leaf = child_evals[move]
         else:
             # FoW-legal-but-chess-illegal: material fallback.
