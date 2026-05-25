@@ -277,6 +277,29 @@ const CONE_QUEEN_FOG = fogFor(CONE_QUEEN, 'white');
 const CONE_PAWN_FOG = fogFor(CONE_PAWN, 'white');
 const CONE_KING_FOG = fogFor(CONE_KING, 'white');
 
+// ── Pawn capture visibility demo ─────────────────────────────────────────
+// Pawns are the one piece whose "reach" differs between empty movement and
+// capture. Empty diagonals stay fogged; occupied enemy diagonals appear.
+const PAWN_CAPTURE_EXAMPLES = coneState('pawn-capture-examples', {
+  a2: { color: 'white', role: 'pawn' },
+  b2: { color: 'white', role: 'pawn' },
+  c2: { color: 'white', role: 'pawn' },
+  d3: { color: 'white', role: 'pawn' },
+  e4: { color: 'white', role: 'pawn' },
+  f5: { color: 'white', role: 'pawn' },
+  g4: { color: 'white', role: 'pawn' },
+  h2: { color: 'white', role: 'pawn' },
+  a4: { color: 'black', role: 'pawn' },
+  b4: { color: 'black', role: 'pawn' },
+  c6: { color: 'black', role: 'pawn' },
+  d5: { color: 'black', role: 'pawn' },
+  e7: { color: 'black', role: 'pawn' },
+  f7: { color: 'black', role: 'pawn' },
+  g7: { color: 'black', role: 'pawn' },
+  h5: { color: 'black', role: 'pawn' },
+});
+const PAWN_CAPTURE_EXAMPLES_FOG = fogFor(PAWN_CAPTURE_EXAMPLES, 'white');
+
 // ── En passant demo ───────────────────────────────────────────────────────
 // Four white pawns on the 5th rank, full black 7th rank. Black pushes
 // b/d/f/h pawn two squares; white captures e.p. on three of them. The
@@ -358,9 +381,9 @@ const ENPASSANT_POSITIONS = ENPASSANT_STATES.map((state, i) => {
 });
 
 // ── Discovered visibility demo ────────────────────────────────────────────
-// White rooks doubled on the d-file (d1 supports d2). White's d2 rook sees
+// White rooks doubled on the d-file (d1 supports d3). White's d3 rook sees
 // up the d-file but not across rank 7, so Black's king (h7) and queen (b7)
-// sit in fog. White slides Rd2-d7 — the rook's new square reveals rank 7,
+// sit in fog. White slides Rd3-d7 — the rook's new square reveals rank 7,
 // and both black pieces appear in white's view at once. The d1 rook keeps
 // the d-file in sight throughout. Demonstrates "moving a piece moves its
 // sight": new squares enter visibility on the next half-move.
@@ -374,102 +397,107 @@ const DISCOVERY_BEFORE: GameState = {
   castlingRights: [],
   halfmoveClock: 0,
 };
-const DISCOVERY_FINAL = darkChessVariant.applyMove(DISCOVERY_BEFORE, { from: 'd2', to: 'd7' });
+const DISCOVERY_FINAL = darkChessVariant.applyMove(DISCOVERY_BEFORE, { from: 'd3', to: 'd7' });
 const DISCOVERY_BEFORE_FOG_W = fogFor(DISCOVERY_BEFORE, 'white');
 const DISCOVERY_FINAL_FOG_W = fogFor(DISCOVERY_FINAL, 'white');
 
-// ── Worked game: test1 (Black) vs test2 (White), local 2026-05-15 ─────────────
-// Room 092ca35d-bd5d-4517-a135-cd7a9c3eb3f1 — 82 ply, Black wins, king captured
-// A 41-move game. The Black pawn lands on c5 on move 12 and stays there for
-// 70 ply. White's king never once sees it — until it walks to b4 on move 41
-// and the pawn captures it immediately.
-const PVP_START = darkChessVariant.createInitialState('pvp-t2t1-82ply');
-const PVP_STATES = replayMoves(PVP_START, [
-  { from: 'e2', to: 'e4' },  // 1.e4
-  { from: 'e7', to: 'e6' },  // 1...e6
-  { from: 'b1', to: 'c3' },  // 2.Nc3
-  { from: 'f8', to: 'e7' },  // 2...Be7
-  { from: 'f1', to: 'e2' },  // 3.Be2
-  { from: 'b7', to: 'b5' },  // 3...b5
-  { from: 'a2', to: 'a3' },  // 4.a3
-  { from: 'a7', to: 'a6' },  // 4...a6
-  { from: 'g1', to: 'f3' },  // 5.Nf3
-  { from: 'c8', to: 'b7' },  // 5...Bb7
-  { from: 'd2', to: 'd4' },  // 6.d4
-  { from: 'd7', to: 'd6' },  // 6...d6
-  { from: 'c1', to: 'e3' },  // 7.Be3
-  { from: 'b8', to: 'd7' },  // 7...Nd7
-  { from: 'h1', to: 'g1' },  // 8.Rg1
-  { from: 'e7', to: 'f6' },  // 8...Bf6
-  { from: 'd1', to: 'd2' },  // 9.Qd2
-  { from: 'd8', to: 'e7' },  // 9...Qe7
-  { from: 'a1', to: 'd1' },  // 10.Rd1
-  { from: 'e6', to: 'e5' },  // 10...e5
-  { from: 'd4', to: 'd5' },  // 11.d5
-  { from: 'd7', to: 'c5' },  // 11...Nc5
-  { from: 'e3', to: 'c5' },  // 12.Bxc5
-  { from: 'd6', to: 'c5' },  // 12...dxc5 ← THE PAWN LANDS
-  { from: 'd5', to: 'd6' },  // 13.d6
-  { from: 'c7', to: 'd6' },  // 13...cxd6
-  { from: 'd2', to: 'd6' },  // 14.Qxd6
-  { from: 'e7', to: 'd6' },  // 14...Qxd6
-  { from: 'd1', to: 'd6' },  // 15.Rxd6
-  { from: 'g8', to: 'e7' },  // 15...Ne7
-  { from: 'd6', to: 'd2' },  // 16.Rd2
-  { from: 'e8', to: 'h8' },  // 16...O-O
-  { from: 'c3', to: 'd5' },  // 17.Nd5
-  { from: 'e7', to: 'd5' },  // 17...Nxd5
-  { from: 'e4', to: 'd5' },  // 18.exd5
-  { from: 'f8', to: 'd8' },  // 18...Rfd8
-  { from: 'b2', to: 'b3' },  // 19.b3
-  { from: 'd8', to: 'd7' },  // 19...Rd7
-  { from: 'c2', to: 'c4' },  // 20.c4
-  { from: 'b5', to: 'c4' },  // 20...bxc4
-  { from: 'b3', to: 'c4' },  // 21.bxc4
-  { from: 'a8', to: 'd8' },  // 21...Rad8
-  { from: 'e2', to: 'd1' },  // 22.Bd1
-  { from: 'e5', to: 'e4' },  // 22...e4
-  { from: 'f3', to: 'e5' },  // 23.Ne5
-  { from: 'f6', to: 'e5' },  // 23...Bxe5
-  { from: 'f2', to: 'f3' },  // 24.f3
-  { from: 'e4', to: 'f3' },  // 24...exf3
-  { from: 'd1', to: 'f3' },  // 25.Bxf3
-  { from: 'f7', to: 'f6' },  // 25...f6
-  { from: 'e1', to: 'f2' },  // 26.Kf2
-  { from: 'd8', to: 'e8' },  // 26...Re8
-  { from: 'g1', to: 'e1' },  // 27.Re1
-  { from: 'd7', to: 'd8' },  // 27...Rd8
-  { from: 'd2', to: 'e2' },  // 28.Re2
-  { from: 'e5', to: 'd6' },  // 28...Bd6
-  { from: 'e2', to: 'e8' },  // 29.Rxe8
-  { from: 'd8', to: 'e8' },  // 29...Rxe8
-  { from: 'e1', to: 'e8' },  // 30.Rxe8
-  { from: 'g8', to: 'f7' },  // 30...Kf7
-  { from: 'e8', to: 'a8' },  // 31.Ra8
-  { from: 'b7', to: 'a8' },  // 31...Bxa8
-  { from: 'f3', to: 'e4' },  // 32.Be4
-  { from: 'a8', to: 'b7' },  // 32...Bb7
-  { from: 'e4', to: 'h7' },  // 33.Bh7
-  { from: 'd6', to: 'h2' },  // 33...Bh2
-  { from: 'h7', to: 'd3' },  // 34.Bd3
-  { from: 'h2', to: 'e5' },  // 34...Be5
-  { from: 'd5', to: 'd6' },  // 35.d6
-  { from: 'e5', to: 'd6' },  // 35...Bxd6
-  { from: 'f2', to: 'e3' },  // 36.Ke3
-  { from: 'b7', to: 'g2' },  // 36...Bg2 (captures white g-pawn)
-  { from: 'a3', to: 'a4' },  // 37.a4
-  { from: 'g7', to: 'g5' },  // 37...g5
-  { from: 'a4', to: 'a5' },  // 38.a5
-  { from: 'g2', to: 'c6' },  // 38...Bc6
-  { from: 'e3', to: 'd2' },  // 39.Kd2
-  { from: 'g5', to: 'g4' },  // 39...g4
-  { from: 'd2', to: 'e3' },  // 40.Ke3 (was Kc3) — king walks toward attacker
-  { from: 'g4', to: 'g3' },  // 40...g3
-  { from: 'e3', to: 'f4' },  // 41.Kf4 (was Kb4) — walks onto d6-bishop's h2-d6 diagonal
-  { from: 'd6', to: 'f4' },  // 41...Bxf4 (was cxb4) — bishop captures king
+// ── Homepage engine sample: engine-v2-g0000 ───────────────────────────────
+// One of the static replay samples used by the homepage hero loop. Mistboard
+// Engine v2.0 plays White against v0.9.5; White wins by king capture on ply 89.
+const ENGINE_SAMPLE_START = darkChessVariant.createInitialState('engine-v2-g0000');
+const ENGINE_SAMPLE_STATES = replayMoves(ENGINE_SAMPLE_START, [
+  { from: 'e2', to: 'e4' },  // 1.
+  { from: 'e7', to: 'e6' },  // 1...
+  { from: 'd2', to: 'd4' },  // 2.
+  { from: 'f8', to: 'e7' },  // 2...
+  { from: 'c1', to: 'f4' },  // 3.
+  { from: 'd7', to: 'd6' },  // 3...
+  { from: 'b1', to: 'c3' },  // 4.
+  { from: 'c8', to: 'd7' },  // 4...
+  { from: 'd4', to: 'd5' },  // 5.
+  { from: 'e7', to: 'f6' },  // 5...
+  { from: 'g1', to: 'h3' },  // 6.
+  { from: 'g8', to: 'e7' },  // 6...
+  { from: 'f4', to: 'e3' },  // 7.
+  { from: 'e8', to: 'h8' },  // 7...
+  { from: 'd1', to: 'd2' },  // 8.
+  { from: 'c7', to: 'c5' },  // 8...
+  { from: 'e1', to: 'a1' },  // 9.
+  { from: 'd8', to: 'a5' },  // 9...
+  { from: 'd5', to: 'e6' },  // 10.
+  { from: 'f7', to: 'e6' },  // 10...
+  { from: 'a2', to: 'a3' },  // 11.
+  { from: 'd7', to: 'c6' },  // 11...
+  { from: 'e3', to: 'f4' },  // 12.
+  { from: 'f6', to: 'd4' },  // 12...
+  { from: 'f4', to: 'g3' },  // 13.
+  { from: 'b8', to: 'd7' },  // 13...
+  { from: 'c1', to: 'b1' },  // 14.
+  { from: 'a5', to: 'a6' },  // 14...
+  { from: 'f1', to: 'a6' },  // 15.
+  { from: 'b7', to: 'a6' },  // 15...
+  { from: 'd2', to: 'd3' },  // 16.
+  { from: 'a8', to: 'b8' },  // 16...
+  { from: 'g3', to: 'd6' },  // 17.
+  { from: 'b8', to: 'e8' },  // 17...
+  { from: 'd6', to: 'f4' },  // 18.
+  { from: 'e7', to: 'g6' },  // 18...
+  { from: 'h1', to: 'g1' },  // 19.
+  { from: 'g6', to: 'h4' },  // 19...
+  { from: 'g1', to: 'e1' },  // 20.
+  { from: 'g7', to: 'g5' },  // 20...
+  { from: 'f4', to: 'g5' },  // 21.
+  { from: 'h4', to: 'g6' },  // 21...
+  { from: 'b1', to: 'c1' },  // 22.
+  { from: 'e8', to: 'b8' },  // 22...
+  { from: 'g5', to: 'e3' },  // 23.
+  { from: 'd4', to: 'e5' },  // 23...
+  { from: 'h3', to: 'g5' },  // 24.
+  { from: 'g6', to: 'h4' },  // 24...
+  { from: 'c1', to: 'b1' },  // 25.
+  { from: 'f8', to: 'f7' },  // 25...
+  { from: 'g5', to: 'f7' },  // 26.
+  { from: 'g8', to: 'f7' },  // 26...
+  { from: 'e1', to: 'g1' },  // 27.
+  { from: 'b8', to: 'g8' },  // 27...
+  { from: 'b1', to: 'a1' },  // 28.
+  { from: 'f7', to: 'e7' },  // 28...
+  { from: 'h2', to: 'h3' },  // 29.
+  { from: 'h7', to: 'h6' },  // 29...
+  { from: 'e3', to: 'c1' },  // 30.
+  { from: 'a6', to: 'a5' },  // 30...
+  { from: 'g2', to: 'g3' },  // 31.
+  { from: 'h4', to: 'g6' },  // 31...
+  { from: 'g1', to: 'e1' },  // 32.
+  { from: 'e5', to: 'd4' },  // 32...
+  { from: 'a3', to: 'a4' },  // 33.
+  { from: 'g6', to: 'e5' },  // 33...
+  { from: 'd3', to: 'd2' },  // 34.
+  { from: 'g8', to: 'f8' },  // 34...
+  { from: 'e1', to: 'f1' },  // 35.
+  { from: 'd7', to: 'f6' },  // 35...
+  { from: 'g3', to: 'g4' },  // 36.
+  { from: 'f8', to: 'b8' },  // 36...
+  { from: 'd2', to: 'e1' },  // 37.
+  { from: 'h6', to: 'h5' },  // 37...
+  { from: 'f2', to: 'f4' },  // 38.
+  { from: 'e5', to: 'g6' },  // 38...
+  { from: 'e4', to: 'e5' },  // 39.
+  { from: 'f6', to: 'd7' },  // 39...
+  { from: 'f4', to: 'f5' },  // 40.
+  { from: 'g6', to: 'f8' },  // 40...
+  { from: 'f5', to: 'e6' },  // 41.
+  { from: 'b8', to: 'b3' },  // 41...
+  { from: 'c1', to: 'g5' },  // 42.
+  { from: 'e7', to: 'e8' },  // 42...
+  { from: 'd1', to: 'd4' },  // 43.
+  { from: 'd7', to: 'b6' },  // 43...
+  { from: 'd4', to: 'd8' },  // 44.
+  { from: 'e8', to: 'e7' },  // 44...
+  { from: 'g5', to: 'e7' },  // 45.
 ]);
 
-const PVP_FULL_POSITIONS = PVP_STATES.map((state) => {
+const ENGINE_SAMPLE_POSITIONS = ENGINE_SAMPLE_STATES.map((state) => {
   const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
   return {
     boards: [
@@ -827,20 +855,10 @@ const WHITE_BISHOP_WIN_POSITIONS = [
 // into the threat.
 const CASTLE_TRIPLE_PRE_BOARD: Board = {
   // Black: castling side
-  a8: { color: 'black', role: 'rook' },
   e8: { color: 'black', role: 'king' },
   h8: { color: 'black', role: 'rook' },
-  a7: { color: 'black', role: 'pawn' },
-  b7: { color: 'black', role: 'pawn' },
-  c7: { color: 'black', role: 'pawn' },
-  d7: { color: 'black', role: 'pawn' },
-  h7: { color: 'black', role: 'pawn' },
   // White: attacking side
   a3: { color: 'white', role: 'bishop' },
-  b2: { color: 'white', role: 'pawn' },
-  c2: { color: 'white', role: 'pawn' },
-  d2: { color: 'white', role: 'pawn' },
-  h2: { color: 'white', role: 'pawn' },
   b1: { color: 'white', role: 'king' },
   e4: { color: 'white', role: 'knight' },
 };
@@ -1916,7 +1934,7 @@ export const articles: Article[] = [
               layout: 'pair',
               boards: [
                 { board: DISCOVERY_BEFORE.board, fogSquares: DISCOVERY_BEFORE_FOG_W, orientation: 'white', label: 'BEFORE' },
-                { board: DISCOVERY_FINAL.board, fogSquares: DISCOVERY_FINAL_FOG_W, orientation: 'white', label: 'AFTER', arrows: [{ orig: 'd2', dest: 'd7' }] },
+                { board: DISCOVERY_FINAL.board, fogSquares: DISCOVERY_FINAL_FOG_W, orientation: 'white', label: 'AFTER', arrows: [{ orig: 'd3', dest: 'd7' }] },
               ],
             },
           } as ArticleBlock,
@@ -1951,7 +1969,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Games auto-draw on threefold repetition (same position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. No stalemate, no insufficient-material draw.",
+              "Mistboard auto-draws games on threefold repetition (same true position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player's view. There is no stalemate draw and no insufficient-material draw.",
           },
         ],
       },
@@ -2011,6 +2029,27 @@ export const articles: Article[] = [
               ],
             },
           } as ArticleBlock,
+          { kind: 'sub-heading', text: 'Pawn captures' },
+          {
+            kind: 'paragraph',
+            text:
+              "Pawns see forward push squares when those squares are empty. They see diagonal squares only when an enemy piece is actually there to capture.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'pair',
+              boards: [
+                { board: PAWN_CAPTURE_EXAMPLES.board, fogSquares: PAWN_CAPTURE_EXAMPLES_FOG, orientation: 'white', label: "WHITE'S VIEW" },
+                { board: PAWN_CAPTURE_EXAMPLES.board, orientation: 'white', label: 'SERVER TRUTH' },
+              ],
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "White does not see a4 or b4: black pawns block those pushes, so they are not legal moves. Some rulesets reveal blocked pawn squares; Mistboard does not.",
+          },
           { kind: 'sub-heading', text: 'En passant' },
           {
             kind: 'paragraph',
@@ -2033,14 +2072,14 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "A realistic 41-move game between two decent players.",
+              "Here is a complete engine game, shown from both player views and the server's full position.",
           },
           {
             kind: 'interactive',
             widget: 'stepper',
             spec: {
               layout: 'triptych',
-              positions: PVP_FULL_POSITIONS,
+              positions: ENGINE_SAMPLE_POSITIONS,
             },
           } as ArticleBlock,
         ],

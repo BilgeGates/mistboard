@@ -43,6 +43,7 @@ const ZH_HANS: Record<string, string> = {
   'What to do with partial proof': '如何处理不完整的证据',
   // sub-headings
   Castling: '王车易位',
+  'Pawn captures': '兵的吃子',
   'En passant': '吃过路兵',
   'Pawn moves': '兵的走动',
   Captures: '吃子',
@@ -60,10 +61,16 @@ const ZH_HANS: Record<string, string> = {
     '注意 d7 的车能看到 b7 的后和 h7 的王，却看不到 a7。棋子的视野止于它走法的尽头。',
   'The game ends when a king is captured. No check, no checkmate, no warning.':
     '当一方的王被吃掉时，对局即告结束。没有将军，没有将死，也没有任何预警。',
+  'Mistboard auto-draws games on threefold repetition (same true position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player\'s view. There is no stalemate draw and no insufficient-material draw.':
+    'Mistboard 会在三次重复局面（同一真实局面出现三次，且轮到走子的一方相同、王车易位权与吃过路兵权也相同）或五十回合规则（连续五十个回合无兵的走动、也无吃子）时自动判和。两条规则都针对真实局面，而非任何一方各自的视野。这里没有逼和，也没有子力不足判和。',
   'Games auto-draw on threefold repetition (same position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player\'s view. No stalemate, no insufficient-material draw.':
     '对局会在三次重复局面（同一局面出现三次，且轮到走子的一方相同、王车易位权与吃过路兵权也相同）或五十回合规则（连续五十个回合无兵的走动、也无吃子）时自动判和。两条规则都针对真实局面，而非任何一方各自的视野。这里没有逼和，也没有子力不足判和。',
   'A king may castle out of, through, or into check.':
     '王可以在被将军时易位，可以穿过被攻击的格子易位，也可以易位到被攻击的格子上。',
+  'Pawns see forward push squares when those squares are empty. They see diagonal squares only when an enemy piece is actually there to capture.':
+    '兵在前方格为空时能看到可推进的格子。只有当斜前方真的有敌方棋子可吃时，兵才会看到那个斜线格。',
+  'White does not see a4 or b4: black pawns block those pushes, so they are not legal moves. Some rulesets reveal blocked pawn squares; Mistboard does not.':
+    '白方看不到 a4 或 b4：黑兵挡住了这些推进，所以它们不是合法走法。有些规则会显示被阻挡的兵推进格；Mistboard 不会。',
   "En passant is chess's strangest move, so our vision rule bends for it: the capturing pawn sees the captured pawn on its adjacent square. The window is one move only. Pass on the capture and the chance is gone.":
     '吃过路兵是国际象棋中最奇特的一步，因此我们的视野规则为它破了个例：执行吃子的兵能看到相邻格子上那个将被吃掉的对方兵。这个窗口只持续一步。若放弃这次吃子，机会便不复存在。',
   "You can read the darkness to deduce what's happening on the board.":
@@ -82,6 +89,8 @@ const ZH_HANS: Record<string, string> = {
     '迷雾国际象棋中的推理通常是缩小问题，而不是一次性解开答案。一旦隐藏的象、车、后或兵吃子变得可信，实际问题就是：如果这种可能性是真的，你下一步是否仍然成立。',
   'That habit is the bridge from rules to strategy: read the fog, name the dangerous possibilities, and defend against the ones that can end the game.':
     '这个习惯就是从规则走向策略的桥梁：读懂迷雾，说出危险的可能性，并防住那些会直接结束对局的可能。',
+  "Here is a complete engine game, shown from both player views and the server's full position.":
+    '下面是一盘完整的引擎对局，同时展示双方视野和服务器上的完整局面。',
   'A realistic 41-move game between two decent players.': '一盘两位尚有水平的棋手之间、贴近实战的 41 回合对局。',
   'Open a board, share the link, play. No account required.': '开一局棋，分享链接，开始对弈。无需注册账号。',
   'The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard\'s servers run in production.':
@@ -123,6 +132,7 @@ const ZH_HANT: Record<string, string> = {
   'Try it': '上手一試',
   'What to do with partial proof': '如何處理不完整的證據',
   Castling: '王車易位',
+  'Pawn captures': '兵的吃子',
   'En passant': '吃過路兵',
   'Pawn moves': '兵的走動',
   Captures: '吃子',
@@ -139,10 +149,16 @@ const ZH_HANT: Record<string, string> = {
     '注意 d7 的車能看到 b7 的后和 h7 的王，卻看不到 a7。棋子的視野止於它走法的盡頭。',
   'The game ends when a king is captured. No check, no checkmate, no warning.':
     '當一方的王被吃掉時，對局即告結束。沒有將軍，沒有將死，也沒有任何預警。',
+  'Mistboard auto-draws games on threefold repetition (same true position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player\'s view. There is no stalemate draw and no insufficient-material draw.':
+    'Mistboard 會在三次重複局面（同一真實局面出現三次，且輪到走子的一方相同、王車易位權與吃過路兵權也相同）或五十回合規則（連續五十個回合無兵的走動、也無吃子）時自動判和。兩條規則都針對真實局面，而非任何一方各自的視野。這裡沒有逼和，也沒有子力不足判和。',
   'Games auto-draw on threefold repetition (same position three times, same side to move, same castling and en-passant rights) and the 50-move rule (fifty full moves with no pawn move or capture). Both apply to the true position, not either player\'s view. No stalemate, no insufficient-material draw.':
     '對局會在三次重複局面（同一局面出現三次，且輪到走子的一方相同、王車易位權與吃過路兵權也相同）或五十回合規則（連續五十個回合無兵的走動、也無吃子）時自動判和。兩條規則都針對真實局面，而非任何一方各自的視野。這裡沒有逼和，也沒有子力不足判和。',
   'A king may castle out of, through, or into check.':
     '王可以在被將軍時易位，可以穿過被攻擊的格子易位，也可以易位到被攻擊的格子上。',
+  'Pawns see forward push squares when those squares are empty. They see diagonal squares only when an enemy piece is actually there to capture.':
+    '兵在前方格為空時能看到可推進的格子。只有當斜前方真的有敵方棋子可吃時，兵才會看到那個斜線格。',
+  'White does not see a4 or b4: black pawns block those pushes, so they are not legal moves. Some rulesets reveal blocked pawn squares; Mistboard does not.':
+    '白方看不到 a4 或 b4：黑兵擋住了這些推進，所以它們不是合法走法。有些規則會顯示被阻擋的兵推進格；Mistboard 不會。',
   "En passant is chess's strangest move, so our vision rule bends for it: the capturing pawn sees the captured pawn on its adjacent square. The window is one move only. Pass on the capture and the chance is gone.":
     '吃過路兵是國際象棋中最奇特的一步，因此我們的視野規則為它破了個例：執行吃子的兵能看到相鄰格子上那個將被吃掉的對方兵。這個窗口只持續一步。若放棄這次吃子，機會便不復存在。',
   "You can read the darkness to deduce what's happening on the board.":
@@ -161,6 +177,8 @@ const ZH_HANT: Record<string, string> = {
     '迷霧國際象棋中的推理通常是縮小問題，而不是一次性解開答案。一旦隱藏的象、車、后或兵吃子變得可信，實際問題就是：如果這種可能性是真的，你下一步是否仍然成立。',
   'That habit is the bridge from rules to strategy: read the fog, name the dangerous possibilities, and defend against the ones that can end the game.':
     '這個習慣就是從規則走向策略的橋樑：讀懂迷霧，說出危險的可能性，並防住那些會直接結束對局的可能。',
+  "Here is a complete engine game, shown from both player views and the server's full position.":
+    '下面是一盤完整的引擎對局，同時展示雙方視野和伺服器上的完整局面。',
   'A realistic 41-move game between two decent players.': '一盤兩位尚有水平的棋手之間、貼近實戰的 41 回合對局。',
   'Open a board, share the link, play. No account required.': '開一局棋，分享連結，開始對弈。無需註冊帳號。',
   'The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard\'s servers run in production.':

@@ -57,7 +57,7 @@ export const CONE_QUEEN_BOARD: Board = {
 export const DISCOVERY_BOARD: Board = {
   g1: { color: 'white', role: 'king' },
   d1: { color: 'white', role: 'rook' },
-  d2: { color: 'white', role: 'rook' },
+  d3: { color: 'white', role: 'rook' },
   h7: { color: 'black', role: 'king' },
   b7: { color: 'black', role: 'queen' },
 };
