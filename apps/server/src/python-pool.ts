@@ -196,7 +196,18 @@ class PoolWorker {
     if (msg.ok && msg.response) {
       this.current.resolve(msg.response);
     } else {
-      this.current.reject(new Error(msg.error ?? 'worker returned !ok'));
+      const errMsg = msg.error ?? 'worker returned !ok';
+      logger.error(
+        {
+          kind: 'python_pool_worker_error',
+          worker_idx: this.index,
+          engine_id: this.opts.engineId,
+          request_id: msg.requestId,
+          error: errMsg,
+        },
+        'worker returned !ok',
+      );
+      this.current.reject(new Error(errMsg));
     }
     this.completeRequest();
   }
