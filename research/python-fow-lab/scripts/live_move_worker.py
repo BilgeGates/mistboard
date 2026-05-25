@@ -17,13 +17,14 @@ Protocol (one JSON object per line on stdin and stdout):
   Then it accepts request lines from stdin, one JSON object per line:
     {
       "requestId": "<opaque>",
-      "roomId": "...",
-      "color": "white" | "black",
-      "events": [...],
-      "clockRemainingMs": <int or null>,
-      "incrementMs": <int or null>,
+      "engineTurnRequest": <EngineTurnRequest JSON, see
+        packages/game/src/engine-protocol.ts>,
       "watchdogTimeoutMs": <int or null>
     }
+  Only `engineTurnRequest` (the redacted protocol payload) carries
+  game state. Worker has no access to canonical events, GameState,
+  master seed, or opp clock — the redaction-tested boundary
+  (apps/server/src/engine-protocol/build.ts).
 
   Each request yields exactly one response line:
     {"requestId": "...", "ok": true,  "response": {...same shape as one-shot...}}
@@ -57,18 +58,14 @@ for path in (VENDOR, SRC):
 import chess
 
 from fow_chess.engine_protocol import request_from_json
-from fow_chess.event_log import iter_steps, replay_canonical
-from fow_chess.observation import observation_from_transition
 from fow_chess.protocol_adapter import (
+    board_from_request,
     build_perspective_view,
-    color_from_protocol,
     replay_transcript_into_strategy,
 )
-from fow_chess.selfplay import PerspectiveView
 from fow_chess.strategies import RandomStrategy
 from fow_chess.tournament.config import canonical_hash, load_config
 from fow_chess.tournament.runtime import bot_runtime
-from fow_chess.visibility import visible_piece_map, visible_squares
 
 TIER1_CONFIG_HASH = "b22f29dd73f5"
 DEADLINE_GUARD_MS = int(os.environ.get("PYTHON_LIVE_DEADLINE_GUARD_MS", "1200"))
@@ -159,32 +156,16 @@ def _handle_request(
     request: dict[str, Any],
     started: float,
 ) -> dict[str, Any]:
-    # Phase 3b: prefer the redacted protocol payload when present.
-    # Phase 3a (commit 5e75427) added it alongside `events`; once all
-    # worker call sites are on the protocol, the TS side drops `events`
-    # and this branch becomes the only path.
-    if request.get("engineTurnRequest") is not None:
-        return _handle_request_protocol(strategy, spec, request, started)
-    return _handle_request_events(strategy, spec, request, started)
+    """Protocol-only handler — engine consumes EngineTurnRequest.
 
+    The redaction-tested boundary: nothing here reads canonical events,
+    raw GameState, or any field outside the protocol. All engine inputs
+    come from the parsed protocol request.
 
-def _handle_request_protocol(
-    strategy: Any,
-    spec: dict[str, Any],
-    request: dict[str, Any],
-    started: float,
-) -> dict[str, Any]:
-    """Protocol-mode handler — engine consumes EngineTurnRequest only.
-
-    The redaction-tested boundary: nothing in this function reads
-    canonical events, raw GameState, or any field outside the protocol.
-    All engine inputs come from the parsed protocol request.
+    Phase 3c (commit following 4cc0319) dropped the legacy events-mode
+    handler after the TS payload stopped sending `events`.
     """
     req = request_from_json(request["engineTurnRequest"])
-    perspective = color_from_protocol(req.color)
-    # room_id is not in the protocol (engines see only gameId). The worker
-    # uses room_id for its own bookkeeping/response; map gameId → room_id.
-    room_id = req.game_id
 
     if not req.legal_moves:
         raise RuntimeError("no legal moves available")
@@ -194,61 +175,36 @@ def _handle_request_protocol(
     if _deadline_expired(deadline):
         # No canonical board here; reconstruct a chess.Board view from
         # the protocol observation for the fallback move generator.
-        guard_board = _board_from_protocol(req)
+        guard_board = board_from_request(req)
         move = _deadline_guard_move(guard_board, view)
-        return _move_response_protocol(spec, move, req, "deadline-guard")
+        return _move_response(spec, move, req, "deadline-guard")
 
     # Cold-start replay of the full transcript through the strategy.
-    # Phase 3b v1 doesn't yet exploit per-session statefulness — every
+    # Phase 3c v1 doesn't yet exploit per-session statefulness — every
     # request resets and replays. Phase 4 work: stateful session keyed
     # on req.session_id with delta-only updates between turns.
     replay_transcript_into_strategy(strategy, req)
     if _deadline_expired(deadline):
-        guard_board = _board_from_protocol(req)
+        guard_board = board_from_request(req)
         move = _deadline_guard_move(guard_board, view)
-        return _move_response_protocol(spec, move, req, "deadline-guard")
+        return _move_response(spec, move, req, "deadline-guard")
 
     move = strategy.pick_move(view)
     if move not in view.own_legal_moves:
         raise RuntimeError(f"engine returned illegal move: {move.uci()}")
     decision_source = "random" if isinstance(strategy, RandomStrategy) else "tier1"
-    return _move_response_protocol(spec, move, req, decision_source)
+    return _move_response(spec, move, req, decision_source)
 
 
-_LETTER_TO_PIECE_TYPE = {
-    "P": chess.PAWN, "N": chess.KNIGHT, "B": chess.BISHOP,
-    "R": chess.ROOK, "Q": chess.QUEEN, "K": chess.KING,
-}
-
-
-def _board_from_protocol(req: Any) -> chess.Board:
-    """Reconstruct a chess.Board from the last observation's visible
-    pieces. Used only by the deadline-guard fallback (which picks a
-    random legal move). Not a full canonical board — opp pieces on
-    invisible squares are absent. Sufficient for the fallback path."""
-    board = chess.Board.empty()
-    last_obs = (
-        req.observation_transcript[-1]
-        if req.observation_transcript
-        else req.latest_observation_delta
-    )
-    for sq, vp in last_obs.visible_pieces:
-        board.set_piece_at(
-            sq,
-            chess.Piece(_LETTER_TO_PIECE_TYPE[vp.type], vp.color == "white"),
-        )
-    board.turn = req.color == "white"
-    return board
-
-
-def _move_response_protocol(
+def _move_response(
     spec: dict[str, Any], move: chess.Move, req: Any, decision_source: str,
 ) -> dict[str, Any]:
-    """Construct the worker's response dict from a protocol request.
+    """Worker response shape matching apps/server PythonPoolResponse.
 
-    Output shape matches the legacy _move_response (consumed by TS
-    python-pool); the live-engine code on the TS side doesn't yet
-    differentiate protocol-vs-events response handling.
+    Castling note: `to` is the king's destination (e1→g1), not the
+    rook square. variants.ts:589 explicitly accepts both forms via
+    alias generation, so this aligns with python-chess's default
+    output without needing a special castling-rewrite pass.
     """
     promo_letter = None
     if move.promotion is not None:
@@ -257,94 +213,14 @@ def _move_response_protocol(
             chess.BISHOP: "bishop", chess.KNIGHT: "knight",
         }[move.promotion]
     return {
-        "engineId": spec.get("id", ""),
-        "color": req.color,
+        "roomId": req.game_id,
+        "engine": _engine_metadata(spec),
         "decisionSource": decision_source,
-        "engineSpec": {
-            **spec,
-            "color": req.color,
-            "roomId": req.game_id,
-        },
         "move": {
             "from": chess.SQUARE_NAMES[move.from_square],
             "to": chess.SQUARE_NAMES[move.to_square],
             **({"promotion": promo_letter} if promo_letter else {}),
         },
-    }
-
-
-def _handle_request_events(
-    strategy: Any,
-    spec: dict[str, Any],
-    request: dict[str, Any],
-    started: float,
-) -> dict[str, Any]:
-    """Legacy events-mode handler — kept for transition until Phase 3
-    completes by dropping the events field from the TS payload."""
-    room_id = str(request["roomId"])
-    perspective = _parse_color(request["color"])
-    events = request["events"]
-
-    boards = list(replay_canonical(events))
-    if not boards:
-        raise RuntimeError("event log produced no boards")
-    board = boards[-1]
-    if board.turn != perspective:
-        raise RuntimeError("requested engine color is not to move")
-    own_legals = list(board.pseudo_legal_moves)
-    if not own_legals:
-        raise RuntimeError("no legal moves available")
-
-    view = PerspectiveView(
-        perspective=perspective,
-        own_legal_moves=own_legals,
-        visible_squares=visible_squares(board, perspective),
-        visible_piece_map=visible_piece_map(board, perspective),
-        clock_remaining_ms=_parse_optional_int(request.get("clockRemainingMs")),
-        increment_ms=_parse_optional_int(request.get("incrementMs")) or 0,
-    )
-
-    deadline = _deadline_monotonic(started, request)
-    if _deadline_expired(deadline):
-        move = _deadline_guard_move(board, view)
-        return _move_response(spec, move, board, room_id, "deadline-guard")
-
-    strategy.reset(perspective)
-    for step in iter_steps(events, perspective):
-        if step.own_move is not None:
-            strategy.observe_own_move(
-                step.own_move,
-                observation_from_transition(step.canonical_before, step.canonical_after, perspective),
-            )
-        elif step.opp_observation is not None:
-            strategy.observe_opp_move(step.opp_observation)
-        if _deadline_expired(deadline):
-            move = _deadline_guard_move(board, view)
-            return _move_response(spec, move, board, room_id, "deadline-guard")
-
-    if _deadline_expired(deadline):
-        move = _deadline_guard_move(board, view)
-        return _move_response(spec, move, board, room_id, "deadline-guard")
-
-    move = strategy.pick_move(view)
-    if move not in own_legals:
-        raise RuntimeError(f"engine returned illegal move: {move.uci()}")
-    decision_source = "random" if isinstance(strategy, RandomStrategy) else "tier1"
-    return _move_response(spec, move, board, room_id, decision_source)
-
-
-def _move_response(
-    spec: dict[str, Any],
-    move: chess.Move,
-    board: chess.Board,
-    room_id: str,
-    decision_source: str,
-) -> dict[str, Any]:
-    return {
-        "roomId": room_id,
-        "engine": _engine_metadata(spec),
-        "decisionSource": decision_source,
-        "move": _move_to_event(move, board),
     }
 
 
@@ -440,38 +316,10 @@ def _move_sort_value(move: chess.Move) -> int:
     return move.from_square * 64 + move.to_square + (move.promotion or 0)
 
 
-def _parse_color(value: Any) -> chess.Color:
-    if value == "white":
-        return chess.WHITE
-    if value == "black":
-        return chess.BLACK
-    raise RuntimeError(f"unsupported color: {value!r}")
-
-
 def _parse_optional_int(value: Any) -> int | None:
     if value is None:
         return None
     return int(value)
-
-
-def _move_to_event(move: chess.Move, prev: chess.Board) -> dict[str, Any]:
-    out: dict[str, Any] = {
-        "from": chess.square_name(move.from_square),
-        "to": chess.square_name(move.to_square),
-    }
-    if prev.is_castling(move):
-        is_kingside = chess.square_file(move.to_square) > chess.square_file(move.from_square)
-        rank = chess.square_rank(move.from_square)
-        rook_file = 7 if is_kingside else 0
-        out["to"] = chess.square_name(chess.square(rook_file, rank))
-    if move.promotion is not None:
-        out["promotion"] = {
-            chess.QUEEN: "queen",
-            chess.ROOK: "rook",
-            chess.BISHOP: "bishop",
-            chess.KNIGHT: "knight",
-        }[move.promotion]
-    return out
 
 
 def _emit(payload: dict[str, Any]) -> None:

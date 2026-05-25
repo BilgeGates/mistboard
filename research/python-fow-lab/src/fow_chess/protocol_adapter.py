@@ -163,6 +163,35 @@ def replay_transcript_into_strategy(
             raise ValueError(f"unknown observation kind: {obs.kind}")
 
 
+def board_from_request(req: proto.EngineTurnRequest) -> chess.Board:
+    """Reconstruct a `chess.Board` from the last observation's visible
+    pieces — used by the deadline-guard fallback in live workers.
+
+    This is NOT a full canonical board (opp pieces on invisible squares
+    are absent). It's only sufficient for the fallback move generator,
+    which sorts the engine's own legal moves by a material-and-castle
+    heuristic — both inputs the partial board does provide.
+    """
+    board = chess.Board.empty()
+    last_obs: Optional[proto.EngineObservation] = None
+    if req.observation_transcript:
+        last_obs = req.observation_transcript[-1]
+    elif req.latest_observation_delta is not None:
+        last_obs = req.latest_observation_delta
+    if last_obs is None:
+        raise ValueError(
+            "EngineTurnRequest missing both observation_transcript and "
+            "latest_observation_delta"
+        )
+    for sq, vp in last_obs.visible_pieces:
+        board.set_piece_at(
+            sq,
+            chess.Piece(_PIECE_LETTER_TO_TYPE[vp.type], color_from_protocol(vp.color)),
+        )
+    board.turn = color_from_protocol(req.color)
+    return board
+
+
 def apply_delta_to_strategy(
     strategy,
     delta: proto.EngineObservation,

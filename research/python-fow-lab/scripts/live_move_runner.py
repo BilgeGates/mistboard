@@ -1,12 +1,26 @@
 """Pick one live PvE move for the TypeScript server.
 
-Protocol:
-  stdin: JSON request
-  stdout: JSON response
+Protocol (Phase 3c — protocol-only):
+  stdin: JSON request of shape {
+    "engineTurnRequest": <EngineTurnRequest, see
+      packages/game/src/engine-protocol.ts>,
+    "watchdogTimeoutMs": <int or null>,
+    "stockfishPath": <str, optional>,
+  }
+  stdout: JSON response of shape {
+    "roomId": str, "engine": {...}, "decisionSource": str,
+    "move": {"from": str, "to": str, "promotion"?: str}
+  }
 
-The server owns HTTP, rooms, legality validation, and fallback. This runner owns
-the Python strategy runtime and reconstructs strategy state from the room event
-log before asking the selected engine for one move.
+The server owns HTTP, rooms, legality validation, and fallback. This
+runner is the subprocess-per-move fallback used when the persistent
+worker pool isn't initialized; it shares the same protocol surface as
+live_move_worker.py.
+
+The engine has access ONLY to the redacted EngineTurnRequest — no
+canonical events, GameState, master seed, or opp clock. The redaction
+boundary is enforced server-side at
+apps/server/src/engine-protocol/build.ts.
 """
 
 from __future__ import annotations
@@ -28,13 +42,16 @@ for path in (VENDOR, SRC):
 
 import chess
 
-from fow_chess.event_log import iter_steps, replay_canonical
-from fow_chess.observation import observation_from_transition
+from fow_chess.engine_protocol import request_from_json
+from fow_chess.protocol_adapter import (
+    board_from_request,
+    build_perspective_view,
+    replay_transcript_into_strategy,
+)
 from fow_chess.selfplay import PerspectiveView
 from fow_chess.strategies import RandomStrategy
 from fow_chess.tournament.config import canonical_hash, load_config
 from fow_chess.tournament.runtime import bot_runtime
-from fow_chess.visibility import visible_piece_map, visible_squares
 
 TIER1_CONFIG_HASH = "b22f29dd73f5"
 DEADLINE_GUARD_MS = int(os.environ.get("PYTHON_LIVE_DEADLINE_GUARD_MS", "1200"))
@@ -79,124 +96,109 @@ TIER1_LIVE_ENGINES: dict[str, dict[str, str]] = {
 def main() -> int:
     started = time.monotonic()
     request = json.load(sys.stdin)
-    room_id = str(request["roomId"])
-    engine_spec = request["engine"]
-    perspective = _parse_color(request["color"])
-    seed = int(request.get("seed", 1))
-    events = request["events"]
+    req = request_from_json(request["engineTurnRequest"])
+    # Subprocess-per-move: derive the strategy seed from the protocol's
+    # engineSeed (which the server derives per-turn from a per-engine
+    # secret + game + ply). Matches the worker-pool behavior of resetting
+    # state per request — there's no cross-request state to preserve here.
+    seed = req.engine_seed
     stockfish_path = str(request.get("stockfishPath") or "stockfish")
+    engine_spec: dict[str, Any] = {"id": req.engine_id}
+
     _debug(
         "request-loaded",
         started,
-        roomId=room_id,
-        engineId=str(engine_spec.get("id") or ""),
-        color=request["color"],
-        eventCount=len(events),
+        roomId=req.game_id,
+        engineId=req.engine_id,
+        color=req.color,
+        ply=req.ply,
+        legalCount=len(req.legal_moves),
         seed=seed,
-        clockRemainingMs=request.get("clockRemainingMs"),
-        incrementMs=request.get("incrementMs"),
+        clockRemainingMs=req.clock.remaining_ms,
+        incrementMs=req.clock.increment_ms,
     )
 
-    boards = list(replay_canonical(events))
-    if not boards:
-        raise RuntimeError("event log produced no boards")
-    board = boards[-1]
-    if board.turn != perspective:
-        raise RuntimeError("requested engine color is not to move")
-    _debug(
-        "canonical-replayed",
-        started,
-        boardCount=len(boards),
-        boardPly=board.ply(),
-        legalCount=len(list(board.pseudo_legal_moves)),
-    )
-    own_legals = list(board.pseudo_legal_moves)
-    if not own_legals:
+    if not req.legal_moves:
         raise RuntimeError("no legal moves available")
-    view = PerspectiveView(
-        perspective=perspective,
-        own_legal_moves=own_legals,
-        visible_squares=visible_squares(board, perspective),
-        visible_piece_map=visible_piece_map(board, perspective),
-        clock_remaining_ms=_parse_optional_int(request.get("clockRemainingMs")),
-        increment_ms=_parse_optional_int(request.get("incrementMs")) or 0,
-    )
+    view = build_perspective_view(req)
+    perspective = view.perspective
+
     deadline = _deadline_monotonic(started, request)
     if _deadline_expired(deadline):
-        move = _deadline_guard_move(board, view)
+        guard_board = board_from_request(req)
+        move = _deadline_guard_move(guard_board, view)
         _debug("deadline-guard", started, phaseBefore="runtime-ready", move=move.uci())
-        _print_response(room_id, engine_spec, move, board, "deadline-guard")
+        _print_response(req, engine_spec, move, "deadline-guard")
         return 0
 
     with strategy_runtime(engine_spec, seed, stockfish_path) as strategy:
         _debug("runtime-ready", started)
-        strategy.reset(perspective)
-        _debug("strategy-reset", started)
-        observed_steps = 0
-        for step in iter_steps(events, perspective):
-            observed_steps += 1
-            if step.own_move is not None:
-                strategy.observe_own_move(
-                    step.own_move,
-                    observation_from_transition(
-                        step.canonical_before,
-                        step.canonical_after,
-                        perspective,
-                    ),
-                )
-            elif step.opp_observation is not None:
-                strategy.observe_opp_move(step.opp_observation)
-            if _deadline_expired(deadline):
-                move = _deadline_guard_move(board, view)
-                _debug(
-                    "deadline-guard",
-                    started,
-                    phaseBefore="events-observed",
-                    observedStepCount=observed_steps,
-                    move=move.uci(),
-                )
-                _print_response(room_id, engine_spec, move, board, "deadline-guard")
-                return 0
-        _debug("events-observed", started, observedStepCount=observed_steps)
+        # Cold-start: replay the full observation transcript from the
+        # protocol through the strategy's observe_own_move /
+        # observe_opp_move hooks. `replay_transcript_into_strategy`
+        # calls strategy.reset(perspective) first.
+        replay_transcript_into_strategy(strategy, req)
+        _debug(
+            "transcript-replayed",
+            started,
+            transcriptLen=(
+                len(req.observation_transcript) if req.observation_transcript else 0
+            ),
+        )
         if _deadline_expired(deadline):
-            move = _deadline_guard_move(board, view)
+            guard_board = board_from_request(req)
+            move = _deadline_guard_move(guard_board, view)
             _debug(
                 "deadline-guard",
                 started,
                 phaseBefore="pick-started",
-                observedStepCount=observed_steps,
                 move=move.uci(),
             )
-            _print_response(room_id, engine_spec, move, board, "deadline-guard")
+            _print_response(req, engine_spec, move, "deadline-guard")
             return 0
         _debug(
             "pick-started",
             started,
-            ownLegalCount=len(own_legals),
+            ownLegalCount=len(view.own_legal_moves),
             visibleSquareCount=len(view.visible_squares),
             visiblePieceCount=len(view.visible_piece_map),
         )
         move = strategy.pick_move(view)
         _debug("pick-finished", started, move=move.uci())
-        if move not in own_legals:
+        if move not in view.own_legal_moves:
             raise RuntimeError(f"engine returned illegal move: {move.uci()}")
 
-    _print_response(room_id, engine_spec, move, board, "tier1")
+    decision_source = "random" if isinstance(strategy, RandomStrategy) else "tier1"
+    _print_response(req, engine_spec, move, decision_source)
     return 0
 
 
 def _print_response(
-    room_id: str,
+    req: Any,
     engine_spec: dict[str, Any],
     move: chess.Move,
-    board: chess.Board,
     decision_source: str,
 ) -> None:
+    """Response shape matches apps/server PythonPoolResponse.
+
+    Castling uses king-destination (e1→g1), not rook-square — variants.ts
+    accepts both forms via alias generation (variants.ts:589).
+    """
+    promo_letter = None
+    if move.promotion is not None:
+        promo_letter = {
+            chess.QUEEN: "queen", chess.ROOK: "rook",
+            chess.BISHOP: "bishop", chess.KNIGHT: "knight",
+        }[move.promotion]
     print(json.dumps({
-        "roomId": room_id,
+        "roomId": req.game_id,
         "engine": engine_metadata(engine_spec),
         "decisionSource": decision_source,
-        "move": _move_to_event(move, board),
+        "move": {
+            "from": chess.SQUARE_NAMES[move.from_square],
+            "to": chess.SQUARE_NAMES[move.to_square],
+            **({"promotion": promo_letter} if promo_letter else {}),
+        },
     }, separators=(",", ":")))
 
 
@@ -304,41 +306,10 @@ def engine_metadata(spec: dict[str, Any]) -> dict[str, Any]:
     return {"id": engine_id}
 
 
-def _parse_color(value: Any) -> chess.Color:
-    if value == "white":
-        return chess.WHITE
-    if value == "black":
-        return chess.BLACK
-    raise RuntimeError(f"unsupported color: {value!r}")
-
-
 def _parse_optional_int(value: Any) -> int | None:
     if value is None:
         return None
     return int(value)
-
-
-def _move_to_event(move: chess.Move, prev: chess.Board) -> dict[str, Any]:
-    out: dict[str, Any] = {
-        "from": chess.square_name(move.from_square),
-        "to": chess.square_name(move.to_square),
-    }
-
-    if prev.is_castling(move):
-        is_kingside = chess.square_file(move.to_square) > chess.square_file(move.from_square)
-        rank = chess.square_rank(move.from_square)
-        rook_file = 7 if is_kingside else 0
-        out["to"] = chess.square_name(chess.square(rook_file, rank))
-
-    if move.promotion is not None:
-        out["promotion"] = {
-            chess.QUEEN: "queen",
-            chess.ROOK: "rook",
-            chess.BISHOP: "bishop",
-            chess.KNIGHT: "knight",
-        }[move.promotion]
-
-    return out
 
 
 if __name__ == "__main__":

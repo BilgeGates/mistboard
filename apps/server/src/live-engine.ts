@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { clockRemainingMs, type Move } from '@mistboard/game';
+import { clockRemainingMs, type EngineTurnRequest, type Move } from '@mistboard/game';
 import { buildEngineTurnRequest } from './engine-protocol/build.js';
 import {
   defaultEngineId,
@@ -157,11 +157,10 @@ async function choosePythonSubprocessMove(
   }
   const watchdogTimeoutMs = pythonLiveWatchdogTimeoutMs(context, timeoutMs);
 
-  // Build the redacted EngineTurnRequest alongside the legacy `events`
-  // payload. Phase 3a: both shipped to the Python worker; worker still
-  // consumes `events`. Phase 3b: worker consumes `engineTurnRequest`;
-  // `events` dropped from this payload. The transition lets us observe
-  // real-world protocol payloads without a flag-day swap of the worker.
+  // Build the redacted EngineTurnRequest — the sole game-state channel
+  // to the engine (Phase 3c). Construction is the security boundary:
+  // see apps/server/src/engine-protocol/build.ts for the redaction
+  // guarantees, and build.test.ts for the redaction tests.
   const engineTurnRequest = buildEngineTurnRequest({
     gameId: context.roomId,
     engineId: engine.id,
@@ -173,14 +172,14 @@ async function choosePythonSubprocessMove(
     cold: true,
   });
 
+  // Protocol-only payload (Phase 3c). The redacted EngineTurnRequest is
+  // the sole game-state channel — `events`, `color`, `seed`, `roomId`
+  // were redundant with the protocol (the worker now reads `gameId`,
+  // `color`, `engineSeed`, clock, observation transcript from inside
+  // `engineTurnRequest`). `watchdogTimeoutMs` stays on the outer envelope
+  // — it's a server-timing decision, not engine-visible state.
   const payload = {
-    ...liveClockFields(context),
-    color: context.color,
-    engine: { id: engine.id },
-    events: context.events,
     engineTurnRequest,
-    roomId: context.roomId,
-    seed: context.seed.toString(),
     watchdogTimeoutMs,
   };
 
@@ -280,13 +279,7 @@ function liveIncrementMs(context: EngineMoveContext): number {
 }
 
 type PythonLiveMoveRequest = {
-  clockRemainingMs?: number;
-  color: string;
-  engine: { id: string };
-  events: unknown[];
-  incrementMs?: number;
-  roomId: string;
-  seed: string;
+  engineTurnRequest: EngineTurnRequest;
   watchdogTimeoutMs: number;
 };
 
@@ -324,7 +317,7 @@ async function runPythonLiveMoveProcess(
       reject(
         new LiveEngineError(
           'timeout',
-          `python engine ${request.engine.id} timed out after ${timeoutMs}ms`,
+          `python engine ${request.engineTurnRequest.engineId} timed out after ${timeoutMs}ms`,
           {
             timeoutMs,
             diagnostics: pythonProcessDiagnostics(stdout, stderr, codeLabel(child.pid)),
@@ -387,25 +380,6 @@ function defaultStockfishPath(): string | undefined {
     if (existsSync(candidate)) return candidate;
   }
   return undefined;
-}
-
-function liveClockFields(
-  context: EngineMoveContext,
-): Pick<PythonLiveMoveRequest, 'clockRemainingMs' | 'incrementMs'> {
-  const clock = context.state.clock;
-  if (context.clockRemainingMs !== undefined || context.incrementMs !== undefined) {
-    return {
-      ...(context.clockRemainingMs !== undefined
-        ? { clockRemainingMs: context.clockRemainingMs }
-        : {}),
-      ...(context.incrementMs !== undefined ? { incrementMs: context.incrementMs } : {}),
-    };
-  }
-  if (!clock) return {};
-  return {
-    clockRemainingMs: clockRemainingMs(clock, context.color, Date.now()),
-    incrementMs: clock.incrementMs,
-  };
 }
 
 function parsePythonLiveMoveResult(value: unknown): PythonLiveMoveResult {
