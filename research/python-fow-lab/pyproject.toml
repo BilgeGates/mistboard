@@ -24,4 +24,7 @@ postgres = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "slow: tests that take more than a few seconds (skip with `-m 'not slow'`)",
+]
 
