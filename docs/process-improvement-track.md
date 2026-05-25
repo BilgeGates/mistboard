@@ -107,7 +107,8 @@ revision before running the smoke suite. A healthy old container is not enough
 to mark a deployment current. The prod smoke gate lives in a separate
 workflow-run workflow so Railway can first observe a green build/test CI check,
 deploy the commit, and then have the post-deploy smoke verify that exact
-revision.
+revision. The revision wait window is 15 minutes because current production
+builds include the private engine checkout and Rust/PyO3 wheel build.
 
 ### 4. Manual Gate Evidence
 

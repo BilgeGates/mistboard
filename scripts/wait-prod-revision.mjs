@@ -2,7 +2,7 @@
 // Poll production until /api/server-status reports the expected build revision.
 
 const DEFAULT_BASE_URL = 'https://mistboard.com';
-const DEFAULT_TIMEOUT_MS = 300_000;
+const DEFAULT_TIMEOUT_MS = 900_000;
 const DEFAULT_INTERVAL_MS = 10_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 

@@ -28,7 +28,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Wait for Railway deploy
-        run: npm run prod:wait-revision -- --expect-revision "$EXPECTED_REVISION"
+        run: npm run prod:wait-revision -- --expect-revision "$EXPECTED_REVISION" --timeout-ms 900000
       - name: Prod smoke
         run: npm run prod:smoke -- --expect-revision "$EXPECTED_REVISION"
       - name: Engine smoke
