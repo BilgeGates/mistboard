@@ -36,6 +36,7 @@ import {
   updateAnnotation,
 } from './annotations.js';
 import { type BeliefConfig, type BeliefPanelHandle, createBeliefPanel } from './belief-panel.js';
+import { computeCaptures, sortCaptureRoles } from './captures.js';
 import { formatClock } from './web-utils.js';
 
 const FALLBACK_PLAY_MS = 900;
@@ -76,6 +77,8 @@ export type ReplayOptions = {
   controlsMode?: 'bar' | 'panel';
   /** Initial board orientation for all replay panes. Defaults to White's perspective. */
   orientation?: Color;
+  /** Optional per-game board orientation. Applied whenever a new sample loads. */
+  orientationForId?: (sampleId: string, meta: GameMeta | undefined) => Color | null | undefined;
   /** @deprecated Use orientation. Kept for older callers. */
   blackOrientation?: Color;
   /** When set, after each game finishes the next sample loads automatically. */
@@ -161,6 +164,7 @@ export async function mountReplay(
   const showControls = options.showControls !== false;
   const controlsMode = options.controlsMode ?? 'bar';
   let boardOrientation = options.orientation ?? options.blackOrientation ?? 'white';
+  const orientationForId = options.orientationForId;
   const loopSamples = options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const autoplay = options.autoplay === true || loopSamples !== undefined;
@@ -387,6 +391,7 @@ export async function mountReplay(
     const sliced = sliceToPly(events, currentPly);
     const projection = replayGameEvents(sliced);
     const state = projection.state;
+    const captures = computeCaptures(sliced);
     const finished = state.status.type === 'finished';
     renderClockState(state, sliced);
 
@@ -431,6 +436,9 @@ export async function mountReplay(
       : blackBaseLabel;
     whitePane.el.classList.toggle('revealed', showRevealLabels);
     blackPane.el.classList.toggle('revealed', showRevealLabels);
+    renderPaneCaptures(whitePane.capturesEl, captures.white, 'black');
+    renderPaneCaptures(blackPane.capturesEl, captures.black, 'white');
+    renderTruthCaptures(truthPane.capturesEl, captures);
 
     if (showControls) {
       const annotMark = annotation && annotationsAtPly(currentPly).length > 0 ? ' ★' : '';
@@ -752,23 +760,48 @@ export async function mountReplay(
     const sliced = sliceToPly(events, currentPly);
     const projection = replayGameEvents(sliced);
     const state = projection.state;
-    const clock = state.clock;
-    if (!clock || state.status.type !== 'playing' || clock.runningSince === null) return;
-    const startDisplay = clock.runningSince;
-    const nextEvent = moveEventAtPly(nextPly);
-    const endDisplay =
-      nextEvent && typeof nextEvent.at === 'number' && Number.isFinite(nextEvent.at)
-        ? nextEvent.at
-        : startDisplay + delay;
-    const gap = Math.max(0, endDisplay - startDisplay);
-    const startWall = performance.now();
     const meta = currentMeta();
-    const tick = (): void => {
+    if (state.status.type !== 'playing') return;
+    const activeColor = state.status.turn;
+    const clock = state.clock;
+    const nextEvent = moveEventAtPly(nextPly);
+    if (!nextEvent || nextEvent.type !== 'move-played') return;
+    const startWall = performance.now();
+    const tickElapsed = (): number => {
       const elapsedWall = performance.now() - startWall;
-      const fraction = Math.min(elapsedWall / delay, 1);
-      const displayAt = startDisplay + gap * fraction;
-      renderClockPanel(clockPanel, clock, state, meta, displayAt);
+      return Math.min(elapsedWall / delay, 1);
     };
+
+    if (clock && clock.runningSince !== null) {
+      const startDisplay = clock.runningSince;
+      const endDisplay =
+        typeof nextEvent.at === 'number' && Number.isFinite(nextEvent.at)
+          ? nextEvent.at
+          : startDisplay + delay;
+      const gap = Math.max(0, endDisplay - startDisplay);
+      const tick = (): void => {
+        const fraction = tickElapsed();
+        const displayAt = startDisplay + gap * fraction;
+        renderClockPanel(clockPanel, clock, state, meta, displayAt);
+      };
+      tick();
+      clockTickTimer = window.setInterval(tick, 100);
+      return;
+    }
+
+    const budgetMs = thinkingBudgetMsFromMeta(meta?.timeControl);
+    const thinkMs = thinkingDurationForPly(nextPly) ?? delay;
+    if (budgetMs === null || thinkMs <= 0) return;
+    const tick = (): void => {
+      const fraction = tickElapsed();
+      const elapsedMs = Math.min(thinkMs * fraction, thinkMs);
+      renderClockPanel(clockPanel, undefined, state, meta, undefined, {
+        activeColor,
+        budgetMs,
+        elapsedMs,
+      });
+    };
+    tick();
     clockTickTimer = window.setInterval(tick, 100);
   }
 
@@ -796,6 +829,19 @@ export async function mountReplay(
     const ext = event as MovePlayedExt;
     if (typeof ext.thinkTimeMs !== 'number' || ext.thinkTimeMs < 0) return null;
     return Math.max(0, ext.thinkTimeMs);
+  }
+
+  function thinkingDurationForPly(ply: number): number | null {
+    const event = moveEventAtPly(ply);
+    if (!event || event.type !== 'move-played') return null;
+    const ext = event as MovePlayedExt;
+    if (typeof ext.thinkTimeMs === 'number' && ext.thinkTimeMs >= 0) {
+      return ext.thinkTimeMs;
+    }
+    if (typeof ext.compute_ms === 'number' && ext.compute_ms >= 0) {
+      return ext.compute_ms;
+    }
+    return null;
   }
 
   function recordedDelayForPly(ply: number): number | null {
@@ -864,7 +910,8 @@ export async function mountReplay(
 
   function applyPerspective(): void {
     const tier1Color = annotation?.tier1ColorForSampleId(activeSample) ?? null;
-    if (tier1Color) boardOrientation = tier1Color;
+    const resolvedOrientation = orientationForId?.(activeSample, currentMeta()) ?? tier1Color;
+    if (resolvedOrientation) boardOrientation = resolvedOrientation;
     applyBoardOrientation();
     if (tier1Color === 'black') {
       layout.replaceChildren(blackPane.el, truthPane.el, whitePane.el);
@@ -1669,6 +1716,12 @@ type ClockPanelHandle = {
   whiteToMove: HTMLSpanElement;
 };
 
+type ReplayThinkingBudgetState = {
+  activeColor: Color;
+  budgetMs: number;
+  elapsedMs: number;
+};
+
 function createClockPanel(): ClockPanelHandle {
   const el = document.createElement('div');
   el.className = 'replay-clock-panel';
@@ -1735,15 +1788,18 @@ function renderClockPanel(
   state: GameState,
   meta: GameMeta | undefined,
   displayAtOverride?: number,
+  thinking?: ReplayThinkingBudgetState | null,
 ): void {
   const timeControl = clock
     ? timeControlLabelFromClock(clock)
     : timeControlLabelFromMeta(meta?.timeControl);
+  const thinkingBudgetMs = thinkingBudgetMsFromMeta(meta?.timeControl);
   const hasPlayerLabels = Boolean(meta?.whiteName || meta?.blackName);
   if (!clock && !timeControl && !hasPlayerLabels) {
     panel.el.hidden = true;
     panel.whiteRow.hidden = true;
     panel.blackRow.hidden = true;
+    renderClockRowThinking(panel, null);
     return;
   }
 
@@ -1754,9 +1810,20 @@ function renderClockPanel(
   panel.label.hidden = true;
 
   if (!clock) {
-    panel.whiteTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '';
-    panel.blackTime.textContent = timeControl === 'Untimed' ? 'Untimed' : '';
-    renderClockRowTurn(panel, state.status.type === 'playing' ? state.status.turn : null);
+    const activeColor = state.status.type === 'playing' ? state.status.turn : null;
+    const activeThinking =
+      thinking &&
+      activeColor === thinking.activeColor &&
+      thinkingBudgetMs !== null &&
+      thinking.budgetMs === thinkingBudgetMs
+        ? thinking
+        : activeColor && thinkingBudgetMs !== null
+          ? { activeColor, budgetMs: thinkingBudgetMs, elapsedMs: 0 }
+          : null;
+    panel.whiteTime.textContent = clocklessReplayTimeLabel('white', activeThinking, timeControl);
+    panel.blackTime.textContent = clocklessReplayTimeLabel('black', activeThinking, timeControl);
+    renderClockRowTurn(panel, activeColor);
+    renderClockRowThinking(panel, activeThinking);
     return;
   }
 
@@ -1772,6 +1839,7 @@ function renderClockPanel(
     state.status.type === 'playing' && clock.activeColor === 'black',
   );
   renderClockRowTurn(panel, state.status.type === 'playing' ? clock.activeColor : null);
+  renderClockRowThinking(panel, null);
 }
 
 function renderClockRowTurn(panel: ClockPanelHandle, activeColor: Color | null): void {
@@ -1785,6 +1853,42 @@ function renderClockRowTurn(panel: ClockPanelHandle, activeColor: Color | null):
   panel.blackToMove.setAttribute('aria-hidden', blackActive ? 'false' : 'true');
   panel.whiteRow.setAttribute('aria-current', whiteActive ? 'true' : 'false');
   panel.blackRow.setAttribute('aria-current', blackActive ? 'true' : 'false');
+}
+
+function renderClockRowThinking(
+  panel: ClockPanelHandle,
+  thinking: ReplayThinkingBudgetState | null,
+): void {
+  for (const row of [panel.whiteRow, panel.blackRow]) {
+    row.classList.remove('is-thinking');
+    row.style.removeProperty('--replay-thinking-progress');
+  }
+  if (!thinking) return;
+  const row = thinking.activeColor === 'white' ? panel.whiteRow : panel.blackRow;
+  const progress = Math.min(Math.max(thinking.elapsedMs / thinking.budgetMs, 0), 1);
+  row.classList.add('is-thinking');
+  row.style.setProperty('--replay-thinking-progress', String(progress));
+}
+
+function clocklessReplayTimeLabel(
+  color: Color,
+  thinking: ReplayThinkingBudgetState | null,
+  timeControl: string | null,
+): string {
+  if (timeControl === 'Untimed') return 'Untimed';
+  if (!thinking || color !== thinking.activeColor) return '';
+  return `${formatThinkingElapsed(thinking.elapsedMs)} / ${formatThinkingBudget(thinking.budgetMs)}`;
+}
+
+function formatThinkingElapsed(ms: number): string {
+  const seconds = Math.max(0, ms) / 1000;
+  if (seconds < 10) return `${seconds.toFixed(1)}s`;
+  return `${Math.round(seconds)}s`;
+}
+
+function formatThinkingBudget(ms: number): string {
+  const seconds = Math.max(0, ms) / 1000;
+  return Number.isInteger(seconds) ? `${seconds}s` : `${seconds.toFixed(1)}s`;
 }
 
 function replayClockDisplayAt(events: GameEvent[], state: GameState): number | null {
@@ -1829,6 +1933,25 @@ function timeControlLabelFromMeta(raw: Record<string, unknown> | null | undefine
   return typeof raw.kind === 'string' ? raw.kind : null;
 }
 
+function thinkingBudgetMsFromMeta(raw: Record<string, unknown> | null | undefined): number | null {
+  if (!raw) return null;
+  const explicit =
+    numericValue(raw.budgetMs) ??
+    numericValue(raw.budget_ms) ??
+    numericValue(raw.perMoveMs) ??
+    numericValue(raw.per_move_ms) ??
+    numericValue(raw.milliseconds);
+  if (explicit !== null && explicit > 0) return explicit;
+
+  const seconds =
+    numericValue(raw.budgetSeconds) ??
+    numericValue(raw.budget_seconds) ??
+    numericValue(raw.per_move_seconds);
+  if (seconds !== null && seconds > 0) return seconds * 1000;
+
+  return null;
+}
+
 function resultLabel(result: string): string {
   if (result === 'white-wins') return 'White wins';
   if (result === 'black-wins') return 'Black wins';
@@ -1849,6 +1972,7 @@ function createPane(
 ): {
   el: HTMLDivElement;
   boardEl: HTMLDivElement;
+  capturesEl: HTMLDivElement;
   clockSlot: HTMLDivElement;
   labelEl: HTMLDivElement;
   nameEl: HTMLDivElement;
@@ -1863,12 +1987,58 @@ function createPane(
   nameEl.className = 'replay-pane-name';
   const boardEl = document.createElement('div');
   boardEl.className = 'board replay-board';
+  const capturesEl = document.createElement('div');
+  capturesEl.className = 'captures-strip replay-captures';
+  capturesEl.setAttribute('aria-label', 'Pieces captured');
   const clockSlot = document.createElement('div');
   clockSlot.className = 'replay-pane-clock-slot';
   const statusEl = document.createElement('div');
   statusEl.className = 'replay-pane-status';
-  el.append(labelEl, nameEl, boardEl, clockSlot, statusEl);
-  return { el, boardEl, clockSlot, labelEl, nameEl, statusEl };
+  el.append(labelEl, nameEl, boardEl, capturesEl, clockSlot, statusEl);
+  return { el, boardEl, capturesEl, clockSlot, labelEl, nameEl, statusEl };
+}
+
+function renderPaneCaptures(
+  target: HTMLDivElement,
+  capturedRoles: PieceRole[],
+  capturedColor: Color,
+): void {
+  target.replaceChildren();
+  target.classList.toggle('has-captures', capturedRoles.length > 0);
+  if (capturedRoles.length === 0) return;
+  const row = document.createElement('div');
+  row.className = 'captures-row';
+  for (const role of sortCaptureRoles(capturedRoles)) {
+    row.append(capturePieceEl(role, capturedColor));
+  }
+  target.append(row);
+}
+
+function renderTruthCaptures(target: HTMLDivElement, captures: Record<Color, PieceRole[]>): void {
+  target.replaceChildren();
+  const rows: HTMLDivElement[] = [];
+  for (const color of ['white', 'black'] as Color[]) {
+    const roles = captures[color];
+    if (roles.length === 0) continue;
+    const row = document.createElement('div');
+    row.className = 'captures-row';
+    for (const role of sortCaptureRoles(roles)) {
+      row.append(capturePieceEl(role, color === 'white' ? 'black' : 'white'));
+    }
+    rows.push(row);
+  }
+  target.classList.toggle('has-captures', rows.length > 0);
+  target.append(...rows);
+}
+
+function capturePieceEl(role: PieceRole, color: Color): HTMLSpanElement {
+  const wrap = document.createElement('span');
+  wrap.className = 'captures-piece cg-wrap';
+  wrap.setAttribute('aria-label', `${color} ${role}`);
+  const piece = document.createElement('piece');
+  piece.className = `${color} ${role}`;
+  wrap.append(piece);
+  return wrap;
 }
 
 function controlButton(text: string, title: string): HTMLButtonElement {

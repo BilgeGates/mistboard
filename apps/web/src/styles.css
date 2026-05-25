@@ -2841,6 +2841,28 @@ a.replay-game-id:focus-visible {
   transition: box-shadow 600ms ease;
 }
 
+.replay-captures {
+  --capture-piece-size: 35px;
+
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  min-height: calc(var(--capture-piece-size) + 4px);
+  padding: 3px 2px 0;
+}
+
+.replay-captures:not(.has-captures) {
+  visibility: hidden;
+}
+
+.replay-captures .captures-row {
+  gap: 2px;
+  justify-content: center;
+  min-height: var(--capture-piece-size);
+}
+
 .replay-pane-clock-slot {
   width: 100%;
   max-width: 380px;
@@ -2902,7 +2924,9 @@ a.replay-game-id:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, auto);
   align-items: center;
   gap: 8px;
+  overflow: hidden;
   padding: 4px 10px;
+  position: relative;
 }
 
 .replay-clock-row[hidden] {
@@ -2913,6 +2937,19 @@ a.replay-game-id:focus-visible {
   border-color: #b6d6c8;
   box-shadow: inset 3px 0 0 #1f6f5b;
   background: #eef7f1;
+}
+
+.replay-clock-row.is-thinking::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: #1f6f5b;
+  opacity: 0.78;
+  pointer-events: none;
+  transform: scaleX(var(--replay-thinking-progress, 0));
+  transform-origin: left center;
+  transition: transform 100ms linear;
 }
 
 .replay-clock-side {
@@ -2973,7 +3010,7 @@ a.replay-game-id:focus-visible {
 
 .replay-compact .replay-pane > .replay-clock-row,
 .replay-compact .replay-pane-clock-slot .replay-clock-row {
-  grid-template-columns: minmax(72px, auto) auto minmax(0, 1fr);
+  grid-template-columns: 112px auto minmax(0, 1fr);
   border-radius: 8px;
   padding: 6px 10px;
 }
@@ -2995,7 +3032,7 @@ a.replay-game-id:focus-visible {
   grid-column: 1;
   grid-row: 1;
   text-align: left;
-  font-size: 24px;
+  font-size: 16px;
   font-weight: 820;
 }
 
@@ -6048,6 +6085,14 @@ a.landing-announcement-card-inner:focus-visible {
     0 12px 26px rgba(43, 49, 45, 0.14);
 }
 
+.landing-page #landing-replay .replay-captures {
+  --capture-piece-size: 35px;
+
+  max-width: min(100%, 600px);
+  min-height: calc(var(--capture-piece-size) + 4px);
+  padding-top: 3px;
+}
+
 /* Chessground floors the inner container width to a multiple of 8 physical
    pixels for crisp squares (render.js updateBounds). With its default
    top:0;left:0 positioning, the leftover always lands on bottom/right. The
@@ -7252,6 +7297,10 @@ a.landing-announcement-card-inner:focus-visible {
     var(--board-light) 0
   );
   background-size: 25% 25%;
+}
+
+.replay-meta-header .replay-captures {
+  max-width: none;
 }
 
 /* Winner / loser pane treatment — refined from the legacy golden ring to

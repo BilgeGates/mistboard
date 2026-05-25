@@ -109,6 +109,7 @@ const HOMEPAGE_ENGINE_SNAPSHOT_NAME = 'Engine v2 · 2026-05-24';
 const HOMEPAGE_ENGINE_TIME_CONTROL = {
   kind: 'increment-budget',
   label: '5s increment budget',
+  budgetMs: 5_000,
 };
 const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   id: tc.id,
@@ -126,7 +127,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     console.warn(err);
     return fallbackPlayableEngines();
   });
-  const games = homepageShowcaseGames();
+  const games = shuffled(homepageShowcaseGames());
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('demo');
   const sampleIds = games.map((g) => g.roomId);
@@ -147,7 +148,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     autoplay: true,
     showControls: false,
     revealOnFinish: false,
-    blackOrientation: 'white',
+    orientationForId: (sampleId) => povByRoomId[sampleId] ?? 'white',
     loopSamples: sampleIds,
     loaderForId: landingEventLoader,
     metadataMode: 'compact',
@@ -162,6 +163,17 @@ function pickHeroPovForGame(game: FeaturedGame): 'white' | 'black' {
   // EvE / PvP / unknown: show the winner; draws and unknown results fall back to white.
   if (game.result === 'black-wins' || game.result === '0-1') return 'black';
   return 'white';
+}
+
+function shuffled<T>(items: readonly T[]): T[] {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const item = result[index]!;
+    result[index] = result[swapIndex]!;
+    result[swapIndex] = item;
+  }
+  return result;
 }
 
 export async function mountWatch(root: HTMLElement): Promise<void> {
@@ -321,14 +333,12 @@ async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
 }
 
 async function landingEventLoader(roomId: string): Promise<GameEvent[]> {
-  const apiEvents = await apiEventLoader(roomId).catch(() => null);
-  if (apiEvents) return apiEvents;
-  // Only fall back to bundled static samples for synthetic IDs — real DB room IDs (UUIDs, engine
-  // corpus IDs) won't have a matching file and would get the Vite SPA HTML fallback.
-  if (!/^(sample-\d+|engine-v2-g\d{4})$/.test(roomId)) {
-    throw new Error(`no events for game: ${roomId}`);
-  }
-  return fetchStaticSample(roomId);
+  if (isStaticReplaySampleId(roomId)) return fetchStaticSample(roomId);
+  return apiEventLoader(roomId);
+}
+
+function isStaticReplaySampleId(roomId: string): boolean {
+  return /^(sample-\d+|engine-v2-g\d{4})$/.test(roomId);
 }
 
 async function fetchStaticSample(sampleId: string): Promise<GameEvent[]> {
