@@ -1,10 +1,12 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { type Color, type GameEvent, TIME_CONTROLS } from '@mistboard/game';
-import pg from 'pg';
 import { engineVersionDisplayName } from './engine-registry.js';
 import { PROVISIONAL_RD } from './glicko.js';
+import { getPool } from './persistence-db.js';
 import { bucketForGame, type RatingTimeClass, type RatingVariant } from './rating-buckets.js';
 import { applyRatedGameResult, type RatedResult } from './rating-store.js';
+
+export { close, init, isInitialized, probeDb } from './persistence-db.js';
 
 // Build a `CASE WHEN ... THEN 'bullet' ... END` fragment from the canonical
 // time-controls list so adding a TC to packages/game/src/time-controls.ts
@@ -14,8 +16,6 @@ const TIME_CLASS_CASE_SQL = `CASE\n${TIME_CONTROLS.map(
   (tc) =>
     `         WHEN games.initial_ms = ${tc.initialMs} AND games.increment_ms = ${tc.incrementMs} THEN '${tc.timeClass}'`,
 ).join('\n')}\n         ELSE NULL\n       END`;
-
-let pool: pg.Pool | null = null;
 
 const MIN_TIMEOUT_SOURCE_PLY_COUNT = 10;
 const MIN_TV_PVP_PLY_COUNT = 30;
@@ -252,37 +252,6 @@ export type UserProfile = {
   ratings: ProfileBucketRating[];
   games: ProfileGameRecord[];
 };
-
-export function init(connectionString: string): void {
-  if (pool) throw new Error('persistence already initialized');
-  pool = new pg.Pool({
-    connectionString,
-    max: 10,
-    keepAlive: true,
-    keepAliveInitialDelayMillis: 10_000,
-    idleTimeoutMillis: 30_000,
-  });
-}
-
-export async function probeDb(): Promise<boolean> {
-  if (!pool) return false;
-  try {
-    await pool.query('SELECT 1');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function close(): Promise<void> {
-  if (!pool) return;
-  await pool.end();
-  pool = null;
-}
-
-export function isInitialized(): boolean {
-  return pool !== null;
-}
 
 export interface SiteStats {
   accounts: number;
@@ -1749,9 +1718,4 @@ function isUniqueViolation(err: unknown): boolean {
     'code' in err &&
     (err as { code?: string }).code === '23505'
   );
-}
-
-function getPool(): pg.Pool {
-  if (!pool) throw new Error('persistence not initialized — call init(connectionString) first');
-  return pool;
 }
