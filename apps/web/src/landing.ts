@@ -1290,7 +1290,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const draft960Enabled = isVariantEnabled('fog_draft960');
   const draft960Selectable = draft960Enabled && choice.mode !== 'lobby';
   const standardButton = startOptionButton('Standard', true);
-  const draftButton = startOptionButton(draft960Selectable ? 'Draft960' : 'Draft960 (soon)', false);
+  const draftButton = startOptionButton(
+    draft960Selectable ? 'Draft960' : 'Draft960 (coming soon)',
+    false,
+  );
   if (draft960Enabled) {
     const startGroup = document.createElement('div');
     startGroup.className = 'landing-start-options';
@@ -1333,7 +1336,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
     const enabled = preset.id === '3m2';
     const button = startOptionButton(
-      enabled ? preset.label : `${preset.label} (soon)`,
+      enabled ? preset.label : `${preset.label} (coming soon)`,
       preset.id === selectedPreset,
     );
     if (!enabled) {
@@ -1669,7 +1672,7 @@ function startOptionButton(label: string, selected: boolean): HTMLButtonElement 
   button.className = `landing-start-option${selected ? ' selected' : ''}`;
   button.setAttribute('role', 'radio');
   button.setAttribute('aria-checked', selected ? 'true' : 'false');
-  // Split a trailing parenthetical ("3 + 2 (soon)") into a muted hint badge so
+  // Split a trailing parenthetical ("3 + 2 (coming soon)") into a muted hint badge so
   // the live label stays prominent and the not-yet-available note de-emphasizes.
   const hintMatch = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
   if (hintMatch) {
