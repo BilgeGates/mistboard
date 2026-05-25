@@ -2861,6 +2861,7 @@ a.replay-game-id:focus-visible {
   gap: 2px;
   justify-content: center;
   min-height: var(--capture-piece-size);
+  width: 100%;
 }
 
 .replay-pane-clock-slot {
@@ -6094,9 +6095,10 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 .landing-page #landing-replay .replay-captures {
-  --capture-piece-size: clamp(24px, calc((100% - 14px) / 8), 35px);
+  --capture-piece-size: clamp(24px, calc((100cqw - 14px) / 8), 35px);
   --capture-row-gap: 2px;
 
+  container-type: inline-size;
   max-width: min(100%, 600px);
   height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 6px);
   min-height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 6px);
