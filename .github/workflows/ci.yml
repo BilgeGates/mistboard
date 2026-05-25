@@ -90,19 +90,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Wait for Railway deploy
-        run: |
-          echo "Polling /health until the new deploy is live (max 5 min)..."
-          for i in $(seq 1 30); do
-            if curl -fsS https://mistboard.com/health | grep -q '"ok":true'; then
-              echo "Health check passed on attempt $i"
-              exit 0
-            fi
-            echo "Attempt $i: not ready, waiting 10s..."
-            sleep 10
-          done
-          echo "Prod did not become healthy in 5 minutes" && exit 1
+        run: npm run prod:wait-revision -- --expect-revision "$GITHUB_SHA"
       - name: Prod smoke
-        run: npm run prod:smoke
+        run: npm run prod:smoke -- --expect-revision "$GITHUB_SHA"
       - name: Engine smoke
         run: npm run prod:smoke:engines
 

@@ -55,6 +55,7 @@
     "test:mobile:shots": "npm run mobile:loop",
     "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs",
     "release:local-smoke": "node scripts/release-local-smoke.mjs",
+    "prod:wait-revision": "node scripts/wait-prod-revision.mjs",
     "prod:smoke:lite": "node scripts/prod-lite-smoke.mjs",
     "prod:smoke": "node scripts/prod-smoke.mjs",
     "prod:smoke:engines": "node scripts/prod-engine-smoke.mjs"

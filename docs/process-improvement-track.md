@@ -102,6 +102,10 @@ Suggested split:
 The pre-push hook can then call one of these names, or clearly print which CI
 steps remain CI-only.
 
+CI production smoke now waits for `/api/server-status` to report the pushed
+revision before running the smoke suite. A healthy old container is not enough
+to mark a deployment current.
+
 ### 4. Manual Gate Evidence
 
 Add a tiny evidence workflow for M1 manual checks:
