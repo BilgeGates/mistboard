@@ -21,6 +21,7 @@ import * as persistence from './persistence.js';
 
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
+export const GAME_OG_IMAGE_VERSION = 4;
 
 // Bounded LRU of rendered per-game PNGs. Each card is rendered once on first
 // scraper fetch, then served from here (and from the scraper/CDN cache, via the
@@ -51,7 +52,8 @@ function cacheSet(roomId: string, png: Buffer): void {
 }
 
 export async function serveGameOgImage(roomId: string, response: ServerResponse): Promise<void> {
-  const cached = cacheGet(roomId);
+  const cacheKey = `game:v${GAME_OG_IMAGE_VERSION}:${roomId}`;
+  const cached = cacheGet(cacheKey);
   if (cached) {
     writePng(response, cached, 'HIT');
     return;
@@ -63,35 +65,29 @@ export async function serveGameOgImage(roomId: string, response: ServerResponse)
     return;
   }
 
-  // Prefer the rich two-board card built from a real mid-game position. If the
-  // event log is missing or the replay throws, fall back to the text stub so a
-  // shared link always resolves to *some* card.
+  // Prefer the game-record card built from the finished position. If the event
+  // log is missing or replay throws, fall back to a text card so a shared link
+  // always resolves to *some* image.
   let svg: string;
   try {
-    const position = await reconstructOgPosition(roomId, game.plyCount ?? 0);
+    const position = await reconstructOgPosition(roomId);
     svg = position ? renderGameOgSvg(game, position) : renderStubSvg(game);
   } catch {
     svg = renderStubSvg(game);
   }
   const png = svgToPng(svg);
-  cacheSet(roomId, png);
+  cacheSet(cacheKey, png);
   writePng(response, png, 'MISS');
 }
 
 type OgPosition = { pieces: PieceOnBoard[]; whiteFog: Square[]; blackFog: Square[] };
 
-// Replay the event log to a position 40-70% through the game, then compute each
-// side's fog there. The ply is randomized per render but the result is cached
-// immutably, so a given game link freezes on one position after its first
-// fetch (a share card shouldn't change every refresh). Returns null when there
-// are no moves to show, so the caller falls back to the text stub.
-async function reconstructOgPosition(roomId: string, plyCount: number): Promise<OgPosition | null> {
-  if (plyCount < 1) return null;
+// Replay the completed event log to the final position, then compute each side's
+// fog there. Game OG images are only served for completed games, so this does
+// not expose live hidden information.
+async function reconstructOgPosition(roomId: string): Promise<OgPosition | null> {
   const events = await persistence.loadRoom(roomId);
   if (!events || events.length === 0) return null;
-
-  const fraction = 0.4 + Math.random() * 0.3; // [0.4, 0.7]
-  const targetPly = Math.max(1, Math.round(plyCount * fraction));
 
   let projection = initialGameProjection(events[0]?.roomId ?? roomId);
   let pliesApplied = 0;
@@ -99,7 +95,6 @@ async function reconstructOgPosition(roomId: string, plyCount: number): Promise<
     projection = applyGameEvent(projection, event);
     if (event.type === 'move-played') {
       pliesApplied += 1;
-      if (pliesApplied >= targetPly) break;
     }
   }
   if (pliesApplied === 0) return null;
@@ -112,26 +107,24 @@ async function reconstructOgPosition(roomId: string, plyCount: number): Promise<
   return { pieces, whiteFog, blackFog };
 }
 
-// Two boards of the same mid-game position — White's POV left, Black's POV
-// right — with each player's name under their board and the result below.
+// Clean game-record card: Mistboard branding, player pairing, and the same
+// finished position from both player views.
 function renderGameOgSvg(game: persistence.GameRecord, position: OgPosition): string {
-  const boardSize = 360;
-  const boardY = 140;
-  const labelY = boardY + boardSize + 40;
-  const white = escapeXml(truncateName(game.whiteName ?? 'White'));
-  const black = escapeXml(truncateName(game.blackName ?? 'Black'));
-  const plies = game.plyCount ?? 0;
-  const moves = Math.ceil(plies / 2);
-  const resultLine = `${escapeXml(resultLabel(game))} · ${moves} move${moves === 1 ? '' : 's'}`;
-
-  const xs = [OG_WIDTH / 2 - boardSize / 2 - 48, OG_WIDTH / 2 + boardSize / 2 + 48];
+  const boardSize = 300;
+  const boardY = 262;
+  const white = truncateName(displayNameForColor(game, 'white'));
+  const black = truncateName(displayNameForColor(game, 'black'));
   const parts: string[] = [];
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
   );
   parts.push(`<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`);
+  parts.push(`<rect x="84" y="64" width="1032" height="534" fill="none" stroke="#253023"/>`);
   parts.push(
-    `<text x="${OG_WIDTH / 2}" y="86" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="24" font-weight="600" letter-spacing="3">MISTBOARD · DARK CHESS</text>`,
+    `<text x="${OG_WIDTH / 2}" y="125" text-anchor="middle" fill="#f4f6ef" font-family="${FONT}" font-size="52" font-weight="900" letter-spacing="8">MISTBOARD</text>`,
+  );
+  parts.push(
+    `<text x="${OG_WIDTH / 2}" y="164" text-anchor="middle" fill="#9ba39a" font-family="${FONT}" font-size="22" font-weight="700">Dark Chess replay</text>`,
   );
   parts.push(
     renderBoardComposition({
@@ -139,30 +132,43 @@ function renderGameOgSvg(game: persistence.GameRecord, position: OgPosition): st
       canvasWidth: OG_WIDTH,
       boardY,
       boardSize,
-      gap: 96,
+      gap: 104,
+      labelY: 236,
+      labelFill: '#e1e6da',
+      labelFontSize: 24,
+      labelLetterSpacing: 0,
       palette: GREEN_PALETTE,
       fogStyle: 'solid',
       boards: [
-        { pieces: position.pieces, fogSquares: position.whiteFog, orientation: 'white' },
-        { pieces: position.pieces, fogSquares: position.blackFog, orientation: 'black' },
+        {
+          pieces: position.pieces,
+          fogSquares: position.whiteFog,
+          orientation: 'white',
+          label: white,
+        },
+        {
+          pieces: position.pieces,
+          fogSquares: position.blackFog,
+          orientation: 'black',
+          label: black,
+        },
       ],
     }),
-  );
-  parts.push(
-    `<text x="${xs[0]}" y="${labelY}" text-anchor="middle" fill="#e5e7eb" font-family="${FONT}" font-size="26" font-weight="600">${white}</text>`,
-  );
-  parts.push(
-    `<text x="${xs[1]}" y="${labelY}" text-anchor="middle" fill="#e5e7eb" font-family="${FONT}" font-size="26" font-weight="600">${black}</text>`,
-  );
-  parts.push(
-    `<text x="${OG_WIDTH / 2}" y="600" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="26">${resultLine}</text>`,
   );
   parts.push(`</svg>`);
   return parts.join('');
 }
 
 function truncateName(name: string): string {
-  return name.length > 18 ? `${name.slice(0, 17)}…` : name;
+  return name.length > 24 ? `${name.slice(0, 23)}…` : name;
+}
+
+function displayNameForColor(game: persistence.GameRecord, color: 'white' | 'black'): string {
+  return (
+    game.participants.find((participant) => participant.color === color)?.displayName ??
+    (color === 'white' ? game.whiteName : game.blackName) ??
+    (color === 'white' ? 'White' : 'Black')
+  );
 }
 
 function writePng(response: ServerResponse, png: Buffer, cacheStatus: 'HIT' | 'MISS'): void {
@@ -237,27 +243,15 @@ function renderArticleOgSvg(title: string, position: ArticleOgPosition): string 
 }
 
 function renderStubSvg(game: persistence.GameRecord): string {
-  const white = escapeXml(game.whiteName ?? 'White');
-  const black = escapeXml(game.blackName ?? 'Black');
-  const resultLine = escapeXml(resultLabel(game));
-  const plies = game.plyCount ?? 0;
-  const moves = Math.ceil(plies / 2);
+  const white = escapeXml(truncateName(displayNameForColor(game, 'white')));
+  const black = escapeXml(truncateName(displayNameForColor(game, 'black')));
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">
   <rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>
-  <text x="60" y="80" fill="#9ca3af" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="22" font-weight="500" letter-spacing="2">MISTBOARD · FOG OF WAR</text>
-  <text x="600" y="280" text-anchor="middle" fill="#f3f4f6" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="56" font-weight="700">${resultLine}</text>
-  <text x="600" y="350" text-anchor="middle" fill="#9ca3af" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="28">${white} vs ${black} · ${moves} move${moves === 1 ? '' : 's'}</text>
-  <text x="600" y="560" text-anchor="middle" fill="#6b7280" font-family="system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="22">mistboard.com</text>
+  <rect x="84" y="64" width="1032" height="534" fill="none" stroke="#253023"/>
+  <text x="600" y="170" text-anchor="middle" fill="#f4f6ef" font-family="${FONT}" font-size="56" font-weight="900" letter-spacing="8">MISTBOARD</text>
+  <text x="600" y="214" text-anchor="middle" fill="#9ba39a" font-family="${FONT}" font-size="24" font-weight="700">Dark Chess replay</text>
+  <text x="600" y="316" text-anchor="middle" fill="#e1e6da" font-family="${FONT}" font-size="40" font-weight="800">${white} vs ${black}</text>
 </svg>`;
-}
-
-function resultLabel(game: persistence.GameRecord): string {
-  const white = game.whiteName ?? 'White';
-  const black = game.blackName ?? 'Black';
-  if (game.result === 'white-wins') return `${white} wins`;
-  if (game.result === 'black-wins') return `${black} wins`;
-  if (game.result === 'draw') return 'Draw';
-  return 'Game over';
 }
 
 function escapeXml(s: string): string {

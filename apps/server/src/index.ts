@@ -29,7 +29,7 @@ import {
 } from './http-api.js';
 import { runMigrations } from './migrate.js';
 import { logger, wsCounters } from './obs.js';
-import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
+import { GAME_OG_IMAGE_VERSION, serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import { snapshotPayload } from './payloads.js';
 import * as persistence from './persistence.js';
 import {
@@ -640,28 +640,25 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
 
   if (game) {
     const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
-    const white = game.whiteName ?? 'White';
-    const black = game.blackName ?? 'Black';
-    const resultLabel =
-      game.result === 'white-wins'
-        ? `${white} wins`
-        : game.result === 'black-wins'
-          ? `${black} wins`
-          : 'Draw';
-    const title = `${resultLabel} · Dark chess | Mistboard`;
-    const plies = game.plyCount ?? 0;
-    const moves = Math.ceil(plies / 2);
-    const termination = game.termination
-      ? game.termination.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-      : 'Game over';
-    const description = `${white} vs ${black} · ${termination} after ${moves} move${moves !== 1 ? 's' : ''}. Watch the full dark chess replay on Mistboard.`;
+    const white = gamePageParticipantName(game, 'white');
+    const black = gamePageParticipantName(game, 'black');
+    const title = `${white} vs ${black} · Dark Chess replay | Mistboard`;
+    const description = 'Replay this Dark Chess game from both player views on Mistboard.';
     const url = `${host}/game/${encodeURIComponent(roomId)}`;
-    const imageUrl = `${host}/og/game/${encodeURIComponent(roomId)}.png`;
+    const imageUrl = `${host}/og/game/${encodeURIComponent(roomId)}.png?v=${GAME_OG_IMAGE_VERSION}`;
     html = injectPageMeta(html, { title, description, url, imageUrl });
   }
 
   response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   response.end(html);
+}
+
+function gamePageParticipantName(game: persistence.GameRecord, color: Color): string {
+  return (
+    game.participants.find((participant) => participant.color === color)?.displayName ??
+    (color === 'white' ? game.whiteName : game.blackName) ??
+    (color === 'white' ? 'White' : 'Black')
+  );
 }
 
 // Sitemap of public, indexable surfaces: static content routes plus every
