@@ -12,6 +12,12 @@ reflects current implemented behavior or future planning.
 | [`dark-xiangqi-rules.md`](dark-xiangqi-rules.md) | Working ruleset for the Dark Xiangqi development spike: no-check xiangqi geometry, general capture, cannon target visibility, no-capture draw. |
 | [`dark-xiangqi-live-integration-plan.md`](dark-xiangqi-live-integration-plan.md) | Flag-gated live-runtime integration plan for Dark Xiangqi: runtime boundary, unsupported surfaces, implementation slices, and regression matrix. |
 
+## Planning — future game specs
+
+| File | Contents |
+|------|----------|
+| [`dark-shogi-rules.md`](dark-shogi-rules.md) | Candidate Dark Shogi ruleset: king capture, fog visibility, Lao Tzu-style drops, hidden opponent hands, promotion redaction, and replay safety boundaries. |
+
 ## Planning — engine and research track
 
 These describe planned work for the engine protocol, benchmark, and first-party

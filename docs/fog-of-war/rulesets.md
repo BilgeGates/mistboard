@@ -67,6 +67,58 @@ When this configuration is active, the canonical starting position is replaced w
 - On game end, the server reveals both players' chosen back-ranks alongside the standard postgame reveal.
 - Replay supports both per-side perspectives (preserving each player's initial back-rank uncertainty) and a full-truth mode that shows both back-ranks from t=0.
 
+## Variant Design Note: Reserves And Drops
+
+Status: research note for future `GameSpec` entries. Not implemented as a
+public Mistboard game mode.
+
+Reserve/drop variants add a second hidden-information boundary: a drop can only
+land on an empty square, but hidden squares must not become an accidental
+occupancy oracle unless that reveal is part of the ruleset. The current
+taxonomy models two published approaches from the SchemingMind fog/crazyhouse
+family:
+
+- **Sun Tzu chess** (`dropPolicy: any-legal-square`): reserve pieces may be
+  dropped on any legal empty square. A player with at least one reserve piece
+  therefore sees the empty squares where that reserve piece can legally land.
+  This intentionally reveals terrain and makes reconstruction of the opponent's
+  hidden position easier.
+- **Lao Tzu chess** (`dropPolicy: seen-squares-only`): reserve pieces may be
+  dropped only on visible squares. Hidden squares are not legal drop targets, so
+  the action list does not reveal whether a hidden square is empty or occupied.
+  This preserves fog more strongly, at the cost of a smaller drop action space.
+
+For future reserve-heavy games such as dark shogi, the Lao Tzu-style rule is the
+safer default research baseline: expose drops only on visible empty squares
+unless the ruleset deliberately chooses Sun Tzu-style empty-square revelation.
+If a future ruleset allows blind drop attempts, failed drops must not return
+occupancy-specific errors to the client.
+
+External references:
+
+- [SchemingMind variant index](https://www.schemingmind.com/home/knowledgebase.aspx?article_id=84)
+- [Sun Tzu Chess](https://www.schemingmind.com/home/knowledgebase.aspx?article_id=137)
+- [Lao Tzu Chess](https://www.schemingmind.com/home/knowledgebase.aspx?article_id=128)
+
+## Variant Track: Dark Shogi
+
+Status: candidate ruleset for research. Not implemented and not a public game
+mode yet.
+
+Dark Shogi applies the same server-owned hidden-information model to shogi, but
+uses king capture instead of checkmate to avoid check-based information leaks.
+The current candidate rule is documented in
+[`dark-shogi-rules.md`](./dark-shogi-rules.md).
+
+Key differences from dark chess:
+
+- Shogi movement, promotion, and hand/drop mechanics replace chess movement.
+- Check constraints and pawn-drop-mate adjudication are removed; king capture is
+  the win condition.
+- Drops use a Lao Tzu-style policy: pieces may be dropped only on visible empty
+  squares.
+- Opponent hand state is not transmitted as live canonical state.
+
 ## Variant Track: Dark Xiangqi
 
 Status: working ruleset for the development spike. Not a public game mode yet.
