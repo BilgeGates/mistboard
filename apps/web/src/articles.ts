@@ -59,6 +59,7 @@ export function buildArticlesIndex(): HTMLElement {
 
   for (const article of articles) {
     if (!isArticleVisibleInThisEnv(article)) continue;
+    if (article.showInIndex === false) continue;
     list.append(articleCard(article));
   }
 
@@ -86,17 +87,23 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   heading.className = 'site-section-heading article-title';
   heading.textContent = article.title;
 
-  const meta = document.createElement('p');
-  meta.className = 'article-meta';
-  if (article.status === 'outline' || article.status === 'draft') {
-    const badge = document.createElement('span');
-    badge.className = `article-status-badge article-status-${article.status}`;
-    badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
-    meta.append(badge, ' · ');
-  }
-  meta.append(document.createTextNode(article.summary));
+  main.append(breadcrumb, heading);
 
-  main.append(breadcrumb, heading, meta);
+  const showStatusBadge = article.status === 'outline' || article.status === 'draft';
+  const showSummaryOnPage = article.showSummaryOnPage ?? true;
+  if (showStatusBadge || showSummaryOnPage) {
+    const meta = document.createElement('p');
+    meta.className = 'article-meta';
+    if (showStatusBadge) {
+      const badge = document.createElement('span');
+      badge.className = `article-status-badge article-status-${article.status}`;
+      badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
+      meta.append(badge);
+      if (showSummaryOnPage) meta.append(' · ');
+    }
+    if (showSummaryOnPage) meta.append(document.createTextNode(article.summary));
+    main.append(meta);
+  }
 
   if (article.publishedAt) {
     const dates = document.createElement('p');

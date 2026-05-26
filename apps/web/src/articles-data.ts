@@ -172,6 +172,8 @@ export type Article = {
   slug: string;
   title: string;
   summary: string;
+  showSummaryOnPage?: boolean;
+  showInIndex?: boolean;
   status: 'outline' | 'draft' | 'published';
   audience: string;
   // ISO-8601 dates (YYYY-MM-DD). When present, rendered in the article meta.
@@ -2769,6 +2771,8 @@ export const articles: Article[] = [
     title: 'Xiangqi Rules Primer',
     summary:
       'A short guide to the board, pieces, movement rules, and endings you need before reading the Dark Xiangqi rules.',
+    showSummaryOnPage: false,
+    showInIndex: false,
     status: 'published',
     publishedAt: '2026-05-26',
     audience:
@@ -2934,6 +2938,8 @@ export const articles: Article[] = [
     title: 'Dark Xiangqi',
     summary:
       'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.',
+    showSummaryOnPage: false,
+    showInIndex: false,
     status: 'published',
     publishedAt: '2026-05-26',
     audience:
