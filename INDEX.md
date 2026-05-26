@@ -136,9 +136,10 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live.ts` | Live-game page bootstrap — wires `live-state`, `live-socket`, `live-render`, and `live-view` for `/room/:id` |
 | `live-state.ts` | Live-game module state (`liveState`, seat-token storage, WS base URL resolver) |
 | `live-socket.ts` | WebSocket connect / reconnect / send for live games |
-| `live-render.ts` | Live-game render orchestration: board, clocks, captures, controls, draft picker. Reads board helpers from `live-board.ts`, replay state via accessors from `live-replay.ts`, and derived views from `live-view.ts`. Layout shell is in `live-layout.ts`; sound subsystem is in `live-sound.ts`. |
+| `live-render.ts` | Live-game render orchestration: board, clocks, captures, controls, draft picker. Reads board helpers from `live-board.ts`, replay/move-list rendering from `live-move-list.ts`, replay state via accessors from `live-replay.ts`, and derived views from `live-view.ts`. Layout shell is in `live-layout.ts`; sound subsystem is in `live-sound.ts`. |
 | `live-board.ts` | Live-game board adapter helpers: fog highlight classes, result classes, legal destination maps, castling aliases, and square file helpers |
 | `live-layout.ts` | Live-game static DOM shell and `LiveRefs` query wiring for `/room/:id` |
+| `live-move-list.ts` | Live-game replay controls and move-list rendering: masked/revealed move rows, active ply tracking, and auto-scroll state |
 | `live-status.ts` | Live-game status copy and tone decisions: action banners, board status, room mode label, and seat label |
 | `live-view.ts` | Derived live-game views: current replay projection, fog-history view selection, capture tally, and dev-view reconstruction |
 | `live-sound.ts` | SoundController + `maybePlaySnapshotSound` + per-move sound policy. Owns the audio context, volume tracking, win/lose/capture/castle tone generation. Wired by live-render's render flow + live.ts's snapshot handler |
