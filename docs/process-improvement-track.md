@@ -304,7 +304,8 @@ ownership surfaces:
    moves panel, board panes, engine-review dock, clocks, and annotation form.
    Initial extraction moved wall-clock loop timing helpers into
    `apps/web/src/replay-wall-clock.ts`; the next moved replay move-list panel
-   UI into `apps/web/src/replay-moves-panel.ts`.
+   UI into `apps/web/src/replay-moves-panel.ts`; the next moved replay
+   header/metadata UI and label helpers into `apps/web/src/replay-meta.ts`.
 8. **Continue server `index.ts` extraction.** Move static/page metadata,
    drain-admin handling, WebSocket handling, seat-session logic, and shutdown
    orchestration into focused modules.
