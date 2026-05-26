@@ -153,7 +153,7 @@ function checkSqlEnums() {
     {
       label: 'games.mode',
       constraint: 'games_mode_check',
-      file: 'apps/server/src/persistence.ts',
+      file: 'apps/server/src/persistence-game-lifecycle.ts',
       type: 'GameMode',
     },
     {
@@ -165,19 +165,19 @@ function checkSqlEnums() {
     {
       label: 'games.termination',
       constraint: 'games_termination_check',
-      file: 'apps/server/src/persistence.ts',
+      file: 'apps/server/src/persistence-game-lifecycle.ts',
       type: 'GameTermination',
     },
     {
       label: 'games.review_status',
       constraint: 'games_review_status_check',
-      file: 'apps/server/src/persistence.ts',
+      file: 'apps/server/src/persistence-game-lifecycle.ts',
       type: 'GameReviewStatus',
     },
     {
       label: 'games.visibility',
       constraint: 'games_visibility_check',
-      file: 'apps/server/src/persistence.ts',
+      file: 'apps/server/src/persistence-game-lifecycle.ts',
       type: 'GameVisibility',
     },
     {

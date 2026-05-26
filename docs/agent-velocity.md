@@ -133,9 +133,10 @@ separate deploy wait time from playout wait time.
 
 ## Next refactor candidates
 
-- Split `apps/server/src/persistence.ts` by ownership
-  (`persistence/{games,events,rooms,accounts,feedback,pool}.ts`) when touching
-  SQL behavior.
+- Continue splitting `apps/server/src/persistence.ts` by ownership. Pool
+  lifecycle, room seat tokens, and running-game lifecycle/event/debug-artifact
+  persistence are already out; remaining candidates are completed-game queries,
+  accounts/profile/leaderboard, feedback, and site stats.
 - Continue extracting `apps/web/src/live-render.ts` around stable UI domains:
   clocks, controls, captures, draft picker, and end-state panels.
 - Split `apps/web/src/replay.ts` around data loading, board adapter, annotation
