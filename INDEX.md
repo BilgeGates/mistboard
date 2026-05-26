@@ -136,10 +136,11 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live.ts` | Live-game page bootstrap — wires `live-state`, `live-socket`, `live-render`, and `live-view` for `/room/:id` |
 | `live-state.ts` | Live-game module state (`liveState`, seat-token storage, WS base URL resolver) |
 | `live-socket.ts` | WebSocket connect / reconnect / send for live games |
-| `live-render.ts` | Live-game render orchestration: board, controls, draft picker. Reads board helpers from `live-board.ts`, capture rows from `live-captures.ts`, clock rendering from `live-clocks.ts`, replay/move-list rendering from `live-move-list.ts`, replay state via accessors from `live-replay.ts`, and derived views from `live-view.ts`. Layout shell is in `live-layout.ts`; sound subsystem is in `live-sound.ts`. |
+| `live-render.ts` | Live-game render orchestration: board, room actions, draft picker. Reads board helpers from `live-board.ts`, capture rows from `live-captures.ts`, clock rendering from `live-clocks.ts`, game controls from `live-game-controls.ts`, replay/move-list rendering from `live-move-list.ts`, replay state via accessors from `live-replay.ts`, and derived views from `live-view.ts`. Layout shell is in `live-layout.ts`; sound subsystem is in `live-sound.ts`. |
 | `live-board.ts` | Live-game board adapter helpers: fog highlight classes, result classes, legal destination maps, castling aliases, and square file helpers |
 | `live-captures.ts` | Live-game capture strip rows and chessground-styled captured-piece DOM helpers |
 | `live-clocks.ts` | Live-game clock UI: pregame time-control display, player clock rows, active-clock flash state, and 100ms timer refresh |
+| `live-game-controls.ts` | Live-game abort/resign controls, disconnect countdown labels, and confirmation dialog UI |
 | `live-layout.ts` | Live-game static DOM shell and `LiveRefs` query wiring for `/room/:id` |
 | `live-move-list.ts` | Live-game replay controls and move-list rendering: masked/revealed move rows, active ply tracking, and auto-scroll state |
 | `live-status.ts` | Live-game status copy and tone decisions: action banners, board status, room mode label, and seat label |

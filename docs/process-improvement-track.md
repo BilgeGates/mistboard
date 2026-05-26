@@ -296,7 +296,8 @@ ownership surfaces:
    moved replay controls and move-list rendering into
    `apps/web/src/live-move-list.ts`; the sixth moved clock rendering and timer
    refresh into `apps/web/src/live-clocks.ts`; the seventh moved capture rows
-   into `apps/web/src/live-captures.ts`.
+   into `apps/web/src/live-captures.ts`; the eighth moved abort/resign controls
+   into `apps/web/src/live-game-controls.ts`.
 7. **Split `replay.ts` after live render.** Extract replay timing, header/meta,
    moves panel, board panes, engine-review dock, clocks, and annotation form.
 8. **Continue server `index.ts` extraction.** Move static/page metadata,
