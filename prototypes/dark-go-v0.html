@@ -1,0 +1,1367 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dark Go V0 Prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f1e9;
+        --panel: #fffaf0;
+        --panel-strong: #f0e4cf;
+        --ink: #17201c;
+        --muted: #68736d;
+        --line: #c5b493;
+        --grid: #846c45;
+        --board: #d9aa61;
+        --board-light: #e9c986;
+        --fog: #26312d;
+        --fog-line: #384942;
+        --black: #161817;
+        --white: #f7f5ee;
+        --white-line: #beb6a3;
+        --green: #1f6f5b;
+        --red: #9f342d;
+        --blue: #2f5c9a;
+        --gold: #9a6a20;
+        --shadow: 0 14px 32px rgba(41, 31, 17, 0.16);
+        --radius: 8px;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)),
+          var(--bg);
+        color: var(--ink);
+      }
+
+      button,
+      select {
+        font: inherit;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fffdf7;
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: default;
+        opacity: 0.48;
+      }
+
+      .shell {
+        width: min(1440px, calc(100vw - 28px));
+        margin: 0 auto;
+        padding: 18px 0 28px;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: end;
+        margin-bottom: 14px;
+      }
+
+      .title-block h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .title-block p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
+      .toolbar select,
+      .toolbar button {
+        min-height: 36px;
+        padding: 0 11px;
+      }
+
+      .toolbar .primary {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: #fff;
+      }
+
+      .toolbar .active {
+        border-color: var(--green);
+        color: var(--green);
+        box-shadow: inset 0 0 0 1px var(--green);
+      }
+
+      .status-strip {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      .stat {
+        min-height: 62px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(255, 250, 240, 0.78);
+      }
+
+      .stat-label {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .stat-value {
+        display: block;
+        margin-top: 6px;
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.1;
+      }
+
+      .stat-value.small {
+        font-size: 14px;
+        line-height: 1.3;
+      }
+
+      .boards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        align-items: start;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .panel-head {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 56px;
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(240, 228, 207, 0.72);
+      }
+
+      .panel-title {
+        min-width: 0;
+      }
+
+      .panel-title h2 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .panel-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .turn-pill {
+        flex: 0 0 auto;
+        padding: 5px 8px;
+        border: 1px solid currentColor;
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .turn-pill.live {
+        color: var(--green);
+      }
+
+      .board-wrap {
+        padding: 12px;
+      }
+
+      .board {
+        --cells: 9;
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(var(--cells), 1fr);
+        grid-template-rows: repeat(var(--cells), 1fr);
+        width: 100%;
+        aspect-ratio: 1;
+        border: 2px solid #715735;
+        border-radius: 6px;
+        background:
+          linear-gradient(90deg, transparent calc(50% - 0.5px), var(--grid) 50%, transparent calc(50% + 0.5px)),
+          linear-gradient(0deg, transparent calc(50% - 0.5px), var(--grid) 50%, transparent calc(50% + 0.5px)),
+          linear-gradient(135deg, var(--board-light), var(--board));
+        background-size: calc(100% / 9) calc(100% / 9);
+        overflow: hidden;
+      }
+
+      .cell {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-width: 0;
+        min-height: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
+      }
+
+      .cell.fog {
+        background:
+          radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 54%),
+          rgba(38, 49, 45, 0.92);
+      }
+
+      .cell.fog::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, transparent calc(50% - 0.5px), var(--fog-line) 50%, transparent calc(50% + 0.5px)),
+          linear-gradient(0deg, transparent calc(50% - 0.5px), var(--fog-line) 50%, transparent calc(50% + 0.5px));
+        opacity: 0.62;
+      }
+
+      .cell.known-empty {
+        background: rgba(255, 244, 214, 0.5);
+      }
+
+      .cell.playable:hover,
+      .cell.playable:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: -3px;
+        background: rgba(47, 92, 154, 0.18);
+      }
+
+      .cell.blocked {
+        cursor: default;
+      }
+
+      .stone {
+        position: relative;
+        z-index: 2;
+        width: 68%;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        box-shadow:
+          inset -5px -7px 11px rgba(0, 0, 0, 0.24),
+          inset 4px 5px 10px rgba(255, 255, 255, 0.18),
+          0 2px 4px rgba(24, 18, 10, 0.3);
+      }
+
+      .stone.black {
+        background: radial-gradient(circle at 38% 30%, #444945, var(--black) 64%);
+      }
+
+      .stone.white {
+        background: radial-gradient(circle at 38% 30%, #fff, var(--white) 62%);
+        border: 1px solid var(--white-line);
+      }
+
+      .stone.learned {
+        box-shadow:
+          0 0 0 3px rgba(47, 92, 154, 0.6),
+          inset -5px -7px 11px rgba(0, 0, 0, 0.24),
+          inset 4px 5px 10px rgba(255, 255, 255, 0.18),
+          0 2px 4px rgba(24, 18, 10, 0.3);
+      }
+
+      .marker {
+        position: absolute;
+        z-index: 4;
+        width: 38%;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        border: 3px solid var(--gold);
+        background: rgba(255, 250, 240, 0.48);
+        pointer-events: none;
+      }
+
+      .marker.probe {
+        border-color: var(--blue);
+      }
+
+      .marker.capture {
+        border-color: var(--red);
+      }
+
+      .coord {
+        position: absolute;
+        z-index: 5;
+        left: 3px;
+        top: 2px;
+        color: rgba(23, 32, 28, 0.62);
+        font-size: 10px;
+        font-weight: 700;
+        pointer-events: none;
+      }
+
+      .cell.fog .coord {
+        color: rgba(255, 250, 240, 0.5);
+      }
+
+      .truth-hidden {
+        display: grid;
+        place-items: center;
+        aspect-ratio: 1;
+        border: 2px solid #715735;
+        border-radius: 6px;
+        background: var(--fog);
+        color: #fffaf0;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .below {
+        display: grid;
+        grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.35fr);
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .controls {
+        padding: 12px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .control-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .control-row button {
+        min-height: 36px;
+        padding: 0 11px;
+      }
+
+      .pass.black {
+        background: var(--black);
+        border-color: var(--black);
+        color: #fff;
+      }
+
+      .pass.white {
+        background: #fff;
+      }
+
+      .legend {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.25;
+      }
+
+      .legend-swatch {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        border-radius: 4px;
+        border: 1px solid var(--line);
+        background: var(--board-light);
+      }
+
+      .legend-swatch.fog {
+        background: var(--fog);
+      }
+
+      .legend-swatch.learned {
+        border-color: var(--blue);
+        box-shadow: inset 0 0 0 3px rgba(47, 92, 154, 0.42);
+      }
+
+      .legend-swatch.capture {
+        border-color: var(--red);
+        box-shadow: inset 0 0 0 3px rgba(159, 52, 45, 0.3);
+      }
+
+      .log {
+        max-height: 286px;
+        overflow: auto;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+
+      .log li {
+        display: grid;
+        grid-template-columns: 78px minmax(0, 1fr);
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(197, 180, 147, 0.62);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      .log li:last-child {
+        border-bottom: 0;
+      }
+
+      .log .tag {
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .score-table {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .score-row {
+        display: grid;
+        grid-template-columns: 80px repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        align-items: center;
+        padding: 8px 10px;
+        border: 1px solid rgba(197, 180, 147, 0.74);
+        border-radius: 6px;
+        background: rgba(255, 253, 247, 0.78);
+        font-size: 13px;
+      }
+
+      .score-row.header {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+
+      .score-row strong {
+        font-size: 15px;
+      }
+
+      @media (max-width: 1180px) {
+        .boards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .boards .panel.truth-panel {
+          grid-column: 1 / -1;
+        }
+
+        .truth-panel .board,
+        .truth-panel .truth-hidden {
+          max-width: 540px;
+          margin: 0 auto;
+        }
+      }
+
+      @media (max-width: 860px) {
+        .topbar,
+        .below {
+          grid-template-columns: 1fr;
+        }
+
+        .toolbar {
+          justify-content: flex-start;
+        }
+
+        .status-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .boards {
+          grid-template-columns: 1fr;
+        }
+
+        .boards .panel.truth-panel {
+          grid-column: auto;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .shell {
+          width: min(100vw - 16px, 520px);
+          padding-top: 10px;
+        }
+
+        .title-block h1 {
+          font-size: 23px;
+        }
+
+        .status-strip,
+        .legend {
+          grid-template-columns: 1fr;
+        }
+
+        .score-row {
+          grid-template-columns: 70px repeat(4, minmax(44px, 1fr));
+          gap: 5px;
+          font-size: 12px;
+        }
+
+        .log li {
+          grid-template-columns: 64px minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="topbar">
+        <div class="title-block">
+          <h1>Dark Go V0</h1>
+          <p>9x9 Phantom Go prototype with Mistboard-style private views.</p>
+        </div>
+        <div class="toolbar">
+          <select id="scenarioSelect" aria-label="Scenario"></select>
+          <button id="resetBtn" type="button">Reset</button>
+          <button id="stepBtn" class="primary" type="button">Step</button>
+          <button id="playBtn" type="button">Play</button>
+          <button id="truthBtn" class="active" type="button">Truth</button>
+        </div>
+      </div>
+
+      <section class="status-strip" aria-label="Game status">
+        <div class="stat">
+          <span class="stat-label">Turn</span>
+          <span id="turnStat" class="stat-value">Black</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Accepted Passes</span>
+          <span id="passStat" class="stat-value">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Black Captures</span>
+          <span id="blackCapStat" class="stat-value">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">White Captures</span>
+          <span id="whiteCapStat" class="stat-value">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Result</span>
+          <span id="resultStat" class="stat-value small">In progress</span>
+        </div>
+      </section>
+
+      <section class="boards" aria-label="Boards">
+        <article class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <h2>Black View</h2>
+              <p id="blackSub">Own stones, adjacent intersections, learned white stones.</p>
+            </div>
+            <span id="blackTurnPill" class="turn-pill">Waiting</span>
+          </div>
+          <div class="board-wrap">
+            <div id="blackBoard" class="board" role="grid" aria-label="Black private board"></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <h2>White View</h2>
+              <p id="whiteSub">Own stones, adjacent intersections, learned black stones.</p>
+            </div>
+            <span id="whiteTurnPill" class="turn-pill">Waiting</span>
+          </div>
+          <div class="board-wrap">
+            <div id="whiteBoard" class="board" role="grid" aria-label="White private board"></div>
+          </div>
+        </article>
+
+        <article class="panel truth-panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <h2>Referee Truth</h2>
+              <p id="truthSub">Server-owned canonical board.</p>
+            </div>
+            <span class="turn-pill live">Server</span>
+          </div>
+          <div class="board-wrap">
+            <div id="truthBoard" class="board" role="grid" aria-label="Referee truth board"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="below">
+        <article class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <h2>Controls</h2>
+              <p id="scenarioSub">Run a sample or click the active private board.</p>
+            </div>
+          </div>
+          <div class="controls">
+            <div class="control-row">
+              <button id="blackPassBtn" class="pass black" type="button">Black Pass</button>
+              <button id="whitePassBtn" class="pass white" type="button">White Pass</button>
+              <button id="newManualBtn" type="button">Blank Manual</button>
+            </div>
+            <div class="legend" aria-label="Legend">
+              <div class="legend-item"><span class="legend-swatch"></span>Visible empty</div>
+              <div class="legend-item"><span class="legend-swatch fog"></span>Fogged point</div>
+              <div class="legend-item"><span class="legend-swatch learned"></span>Learned stone</div>
+              <div class="legend-item"><span class="legend-swatch capture"></span>Recent capture</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <h2>Referee Log</h2>
+              <p id="logSub">Accepted moves, probes, reveals, passes, and scoring.</p>
+            </div>
+          </div>
+          <ol id="log" class="log" aria-live="polite"></ol>
+          <div id="scoreTable" class="score-table" hidden></div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const SIZE = 9;
+      const KOMI = 6.5;
+      const BLACK = "black";
+      const WHITE = "white";
+      const EMPTY = null;
+      const FILES = "ABCDEFGHI";
+
+      const els = {
+        scenarioSelect: document.querySelector("#scenarioSelect"),
+        resetBtn: document.querySelector("#resetBtn"),
+        stepBtn: document.querySelector("#stepBtn"),
+        playBtn: document.querySelector("#playBtn"),
+        truthBtn: document.querySelector("#truthBtn"),
+        blackBoard: document.querySelector("#blackBoard"),
+        whiteBoard: document.querySelector("#whiteBoard"),
+        truthBoard: document.querySelector("#truthBoard"),
+        turnStat: document.querySelector("#turnStat"),
+        passStat: document.querySelector("#passStat"),
+        blackCapStat: document.querySelector("#blackCapStat"),
+        whiteCapStat: document.querySelector("#whiteCapStat"),
+        resultStat: document.querySelector("#resultStat"),
+        blackTurnPill: document.querySelector("#blackTurnPill"),
+        whiteTurnPill: document.querySelector("#whiteTurnPill"),
+        blackPassBtn: document.querySelector("#blackPassBtn"),
+        whitePassBtn: document.querySelector("#whitePassBtn"),
+        newManualBtn: document.querySelector("#newManualBtn"),
+        log: document.querySelector("#log"),
+        scoreTable: document.querySelector("#scoreTable"),
+        scenarioSub: document.querySelector("#scenarioSub"),
+      };
+
+      const scenarios = [
+        {
+          id: "probe",
+          name: "Probe and retry",
+          intro: "A hidden occupied attempt reveals one stone, then the same turn continues.",
+          setup: { turn: BLACK, stones: [] },
+          steps: [
+            { type: "move", color: BLACK, at: "D4", note: "Black places into fog." },
+            { type: "move", color: WHITE, at: "D4", note: "White probes the occupied point." },
+            { type: "move", color: WHITE, at: "F6", note: "White retries and lands elsewhere." },
+            { type: "move", color: BLACK, at: "F6", note: "Black probes White's hidden stone." },
+            { type: "move", color: BLACK, at: "E4", note: "Black makes an accepted move." },
+            { type: "move", color: WHITE, at: "E4", note: "White probes the new hidden stone." },
+            { type: "move", color: WHITE, at: "F5", note: "White uses a visible adjacent point." },
+          ],
+        },
+        {
+          id: "capture",
+          name: "Capture reveal",
+          intro: "Captures remove stones; empty points fall back to fog unless currently visible.",
+          setup: {
+            turn: WHITE,
+            stones: [
+              ["E5", BLACK],
+              ["E4", WHITE],
+              ["D5", WHITE],
+              ["F5", WHITE],
+            ],
+          },
+          steps: [
+            { type: "move", color: WHITE, at: "E6", note: "White fills the last liberty." },
+            { type: "move", color: BLACK, at: "E5", note: "Black probes the old capture point." },
+            { type: "move", color: BLACK, at: "C5", note: "Black plays elsewhere after seeing fog." },
+          ],
+        },
+        {
+          id: "self-capture",
+          name: "Self-capture allowed",
+          intro: "Suicide is legal so hidden liberties do not become a separate oracle.",
+          setup: {
+            turn: BLACK,
+            stones: [
+              ["E4", WHITE],
+              ["D5", WHITE],
+              ["F5", WHITE],
+              ["E6", WHITE],
+            ],
+          },
+          steps: [
+            { type: "move", color: BLACK, at: "E5", note: "Black plays into no liberties." },
+            { type: "move", color: WHITE, at: "E5", note: "White probes the emptied point after it fogs." },
+            { type: "move", color: WHITE, at: "B7", note: "White accepts a distant move." },
+          ],
+        },
+        {
+          id: "scoring",
+          name: "Pass and score",
+          intro: "Two accepted passes reveal truth and score by area plus komi.",
+          setup: {
+            turn: BLACK,
+            stones: [
+              ["A1", BLACK],
+              ["A2", BLACK],
+              ["B1", BLACK],
+              ["C1", BLACK],
+              ["C2", BLACK],
+              ["G8", WHITE],
+              ["H8", WHITE],
+              ["I8", WHITE],
+              ["G9", WHITE],
+              ["H9", WHITE],
+              ["I9", WHITE],
+              ["E5", BLACK],
+              ["F5", WHITE],
+            ],
+          },
+          steps: [
+            { type: "pass", color: BLACK, note: "Black accepts a pass." },
+            { type: "pass", color: WHITE, note: "White accepts a pass; truth is revealed." },
+          ],
+        },
+      ];
+
+      const state = {
+        board: blankBoard(),
+        turn: BLACK,
+        passes: 0,
+        gameOver: false,
+        captures: { black: 0, white: 0 },
+        knowledge: freshKnowledge(),
+        history: new Set(),
+        log: [],
+        last: [],
+        score: null,
+        showTruth: true,
+        scenarioId: scenarios[0].id,
+        stepIndex: 0,
+        autoplay: null,
+      };
+
+      function blankBoard() {
+        return Array.from({ length: SIZE * SIZE }, () => EMPTY);
+      }
+
+      function freshKnowledge() {
+        return {
+          black: { knownOpp: new Set() },
+          white: { knownOpp: new Set() },
+        };
+      }
+
+      function coordToIndex(coord) {
+        const file = FILES.indexOf(coord[0].toUpperCase());
+        const rank = Number(coord.slice(1));
+        return xyToIndex(file, SIZE - rank);
+      }
+
+      function indexToCoord(index) {
+        const x = index % SIZE;
+        const y = Math.floor(index / SIZE);
+        return `${FILES[x]}${SIZE - y}`;
+      }
+
+      function xyToIndex(x, y) {
+        return y * SIZE + x;
+      }
+
+      function indexToXY(index) {
+        return { x: index % SIZE, y: Math.floor(index / SIZE) };
+      }
+
+      function neighbors(index) {
+        const { x, y } = indexToXY(index);
+        const out = [];
+        if (x > 0) out.push(xyToIndex(x - 1, y));
+        if (x < SIZE - 1) out.push(xyToIndex(x + 1, y));
+        if (y > 0) out.push(xyToIndex(x, y - 1));
+        if (y < SIZE - 1) out.push(xyToIndex(x, y + 1));
+        return out;
+      }
+
+      function opponent(color) {
+        return color === BLACK ? WHITE : BLACK;
+      }
+
+      function colorLabel(color) {
+        return color === BLACK ? "Black" : "White";
+      }
+
+      function boardKey(board) {
+        return board.map((p) => (p === BLACK ? "b" : p === WHITE ? "w" : ".")).join("");
+      }
+
+      function resetToScenario(id) {
+        stopAutoplay();
+        const scenario = scenarios.find((s) => s.id === id) ?? scenarios[0];
+        state.board = blankBoard();
+        state.turn = scenario.setup.turn ?? BLACK;
+        state.passes = 0;
+        state.gameOver = false;
+        state.captures = { black: 0, white: 0 };
+        state.knowledge = freshKnowledge();
+        state.history = new Set();
+        state.log = [];
+        state.last = [];
+        state.score = null;
+        state.scenarioId = scenario.id;
+        state.stepIndex = 0;
+        for (const [coord, color] of scenario.setup.stones ?? []) {
+          state.board[coordToIndex(coord)] = color;
+        }
+        state.history.add(boardKey(state.board));
+        refreshKnowledgeFromVisibility();
+        addLog("Setup", scenario.intro);
+        render();
+      }
+
+      function resetManual() {
+        stopAutoplay();
+        state.board = blankBoard();
+        state.turn = BLACK;
+        state.passes = 0;
+        state.gameOver = false;
+        state.captures = { black: 0, white: 0 };
+        state.knowledge = freshKnowledge();
+        state.history = new Set([boardKey(state.board)]);
+        state.log = [];
+        state.last = [];
+        state.score = null;
+        state.scenarioId = "manual";
+        state.stepIndex = 0;
+        els.scenarioSelect.value = scenarios[0].id;
+        addLog("Setup", "Blank manual board.");
+        render();
+      }
+
+      function addLog(tag, message) {
+        state.log.unshift({ tag, message });
+        state.log = state.log.slice(0, 80);
+      }
+
+      function stepScenario() {
+        const scenario = scenarios.find((s) => s.id === state.scenarioId);
+        if (!scenario) return;
+        const step = scenario.steps[state.stepIndex];
+        if (!step) {
+          addLog("Done", "No more scripted steps.");
+          stopAutoplay();
+          render();
+          return;
+        }
+        if (step.type === "move") {
+          attemptMove(step.color, coordToIndex(step.at), step.note);
+        } else if (step.type === "pass") {
+          passTurn(step.color, step.note);
+        }
+        state.stepIndex += 1;
+        render();
+      }
+
+      function attemptMove(color, index, note = "") {
+        if (state.gameOver) {
+          addLog("Blocked", "The game has ended.");
+          return;
+        }
+        if (color !== state.turn) {
+          addLog("Blocked", `${colorLabel(color)} is not to move.`);
+          return;
+        }
+        state.last = [{ type: "attempt", index, color }];
+        const occ = state.board[index];
+        if (occ === color) {
+          addLog("Retry", `${colorLabel(color)} already owns ${indexToCoord(index)}.`);
+          return;
+        }
+        if (occ === opponent(color)) {
+          const hidden = !isKnownOccupied(color, index);
+          if (hidden) {
+            state.knowledge[color].knownOpp.add(index);
+            state.last = [{ type: "probe", index, color }];
+            addLog(
+              "Probe",
+              `${colorLabel(color)} revealed one ${colorLabel(occ)} stone at ${indexToCoord(index)}.${note ? ` ${note}` : ""}`,
+            );
+            addLog("Contact", `${colorLabel(occ)} is notified that ${indexToCoord(index)} was contacted.`);
+          } else {
+            addLog("Retry", `${indexToCoord(index)} is visibly occupied.`);
+          }
+          return;
+        }
+
+        const next = state.board.slice();
+        next[index] = color;
+        const resolution = resolveBoardAfterPlacement(next, index, color);
+        const nextKey = boardKey(resolution.board);
+        if (state.history.has(nextKey)) {
+          state.last = [{ type: "rule", index, color }];
+          addLog("Retry", `${colorLabel(color)} is rule-blocked at ${indexToCoord(index)}.`);
+          return;
+        }
+
+        state.board = resolution.board;
+        state.history.add(nextKey);
+        state.passes = 0;
+        state.turn = opponent(color);
+        state.last = [{ type: "move", index, color }];
+        recordCaptureReveals(color, resolution.removedByColor);
+        refreshKnowledgeAfterRemovals(resolution.removed);
+        refreshKnowledgeFromVisibility();
+        addLog(
+          "Move",
+          `${colorLabel(color)} accepted ${indexToCoord(index)}.${note ? ` ${note}` : ""}`,
+        );
+      }
+
+      function passTurn(color, note = "") {
+        if (state.gameOver) return;
+        if (color !== state.turn) {
+          addLog("Blocked", `${colorLabel(color)} is not to move.`);
+          return;
+        }
+        state.passes += 1;
+        state.last = [];
+        addLog("Pass", `${colorLabel(color)} passes.${note ? ` ${note}` : ""}`);
+        if (state.passes >= 2) {
+          state.gameOver = true;
+          state.score = scoreArea();
+          addLog("Result", `${state.score.winner} wins by ${state.score.margin.toFixed(1)}.`);
+        } else {
+          state.turn = opponent(color);
+        }
+      }
+
+      function resolveBoardAfterPlacement(board, placedIndex, color) {
+        const removedByColor = { black: [], white: [] };
+        const opp = opponent(color);
+        for (const n of neighbors(placedIndex)) {
+          if (board[n] !== opp) continue;
+          const group = collectGroup(board, n);
+          if (countLiberties(board, group) === 0) {
+            removeGroup(board, group, removedByColor);
+          }
+        }
+        if (board[placedIndex] === color) {
+          const selfGroup = collectGroup(board, placedIndex);
+          if (countLiberties(board, selfGroup) === 0) {
+            removeGroup(board, selfGroup, removedByColor);
+          }
+        }
+        return {
+          board,
+          removedByColor,
+          removed: [...removedByColor.black, ...removedByColor.white],
+        };
+      }
+
+      function collectGroup(board, start) {
+        const color = board[start];
+        const seen = new Set([start]);
+        const stack = [start];
+        while (stack.length > 0) {
+          const cur = stack.pop();
+          for (const n of neighbors(cur)) {
+            if (board[n] === color && !seen.has(n)) {
+              seen.add(n);
+              stack.push(n);
+            }
+          }
+        }
+        return [...seen];
+      }
+
+      function countLiberties(board, group) {
+        const libs = new Set();
+        for (const point of group) {
+          for (const n of neighbors(point)) {
+            if (board[n] === EMPTY) libs.add(n);
+          }
+        }
+        return libs.size;
+      }
+
+      function removeGroup(board, group, removedByColor) {
+        const color = board[group[0]];
+        for (const point of group) {
+          board[point] = EMPTY;
+          removedByColor[color].push(point);
+        }
+      }
+
+      function recordCaptureReveals(mover, removedByColor) {
+        const capturedByMover = removedByColor[opponent(mover)];
+        const selfCaptured = removedByColor[mover];
+        if (capturedByMover.length > 0) {
+          state.captures[mover] += capturedByMover.length;
+          for (const idx of capturedByMover) state.last.push({ type: "capture", index: idx, color: opponent(mover) });
+          addLog(
+            "Capture",
+            `${colorLabel(mover)} removed ${capturedByMover.length} ${colorLabel(opponent(mover))} stone${capturedByMover.length === 1 ? "" : "s"}.`,
+          );
+          revealKillerStones(opponent(mover), mover, capturedByMover);
+        }
+        if (selfCaptured.length > 0) {
+          state.captures[opponent(mover)] += selfCaptured.length;
+          for (const idx of selfCaptured) state.last.push({ type: "capture", index: idx, color: mover });
+          addLog(
+            "Self",
+            `${colorLabel(mover)} self-captured ${selfCaptured.length} stone${selfCaptured.length === 1 ? "" : "s"}.`,
+          );
+          revealKillerStones(mover, opponent(mover), selfCaptured);
+        }
+      }
+
+      function revealKillerStones(capturedColor, killerColor, capturedPoints) {
+        const revealed = new Set();
+        for (const point of capturedPoints) {
+          for (const n of neighbors(point)) {
+            if (state.board[n] !== killerColor || revealed.has(n)) continue;
+            for (const g of collectGroup(state.board, n)) {
+              if (state.board[g] === killerColor) revealed.add(g);
+            }
+          }
+        }
+        if (revealed.size === 0) return;
+        for (const idx of revealed) state.knowledge[capturedColor].knownOpp.add(idx);
+        addLog(
+          "Reveal",
+          `${colorLabel(capturedColor)} sees ${revealed.size} killer stone${revealed.size === 1 ? "" : "s"}.`,
+        );
+      }
+
+      function refreshKnowledgeAfterRemovals(removed) {
+        for (const color of [BLACK, WHITE]) {
+          for (const idx of removed) state.knowledge[color].knownOpp.delete(idx);
+          for (const idx of [...state.knowledge[color].knownOpp]) {
+            if (state.board[idx] !== opponent(color)) state.knowledge[color].knownOpp.delete(idx);
+          }
+        }
+      }
+
+      function refreshKnowledgeFromVisibility() {
+        for (const color of [BLACK, WHITE]) {
+          const opp = opponent(color);
+          for (let i = 0; i < state.board.length; i += 1) {
+            if (state.board[i] !== color) continue;
+            for (const n of neighbors(i)) {
+              if (state.board[n] === opp) state.knowledge[color].knownOpp.add(n);
+            }
+          }
+        }
+      }
+
+      function visibleEmptySet(color) {
+        const visible = new Set();
+        for (let i = 0; i < state.board.length; i += 1) {
+          if (state.board[i] !== color) continue;
+          for (const n of neighbors(i)) visible.add(n);
+        }
+        return visible;
+      }
+
+      function isKnownOccupied(color, index) {
+        return state.board[index] === color || state.knowledge[color].knownOpp.has(index);
+      }
+
+      function viewCell(color, index) {
+        const occ = state.board[index];
+        if (occ === color) return { state: "own", color: occ, visible: true, learned: false };
+        if (state.knowledge[color].knownOpp.has(index) && occ === opponent(color)) {
+          return { state: "opponent", color: occ, visible: true, learned: true };
+        }
+        const visibleEmpty = visibleEmptySet(color);
+        if (visibleEmpty.has(index)) {
+          if (occ === EMPTY) return { state: "empty", color: null, visible: true, learned: false };
+          return { state: "opponent", color: occ, visible: true, learned: false };
+        }
+        return { state: "fog", color: null, visible: false, learned: false };
+      }
+
+      function scoreArea() {
+        const seen = new Set();
+        const stones = { black: 0, white: 0 };
+        const territory = { black: 0, white: 0 };
+        for (const point of state.board) {
+          if (point === BLACK) stones.black += 1;
+          if (point === WHITE) stones.white += 1;
+        }
+        for (let i = 0; i < state.board.length; i += 1) {
+          if (state.board[i] !== EMPTY || seen.has(i)) continue;
+          const region = [];
+          const borders = new Set();
+          const stack = [i];
+          seen.add(i);
+          while (stack.length > 0) {
+            const cur = stack.pop();
+            region.push(cur);
+            for (const n of neighbors(cur)) {
+              if (state.board[n] === EMPTY && !seen.has(n)) {
+                seen.add(n);
+                stack.push(n);
+              } else if (state.board[n]) {
+                borders.add(state.board[n]);
+              }
+            }
+          }
+          if (borders.size === 1) {
+            territory[[...borders][0]] += region.length;
+          }
+        }
+        const blackTotal = stones.black + territory.black;
+        const whiteTotal = stones.white + territory.white + KOMI;
+        const winner = blackTotal > whiteTotal ? "Black" : "White";
+        return {
+          stones,
+          territory,
+          blackTotal,
+          whiteTotal,
+          komi: KOMI,
+          winner,
+          margin: Math.abs(blackTotal - whiteTotal),
+        };
+      }
+
+      function render() {
+        els.turnStat.textContent = state.gameOver ? "Final" : colorLabel(state.turn);
+        els.passStat.textContent = String(state.passes);
+        els.blackCapStat.textContent = String(state.captures.black);
+        els.whiteCapStat.textContent = String(state.captures.white);
+        els.resultStat.textContent = state.score
+          ? `${state.score.winner} +${state.score.margin.toFixed(1)}`
+          : "In progress";
+        els.blackTurnPill.textContent = state.turn === BLACK && !state.gameOver ? "To move" : "Waiting";
+        els.whiteTurnPill.textContent = state.turn === WHITE && !state.gameOver ? "To move" : "Waiting";
+        els.blackTurnPill.classList.toggle("live", state.turn === BLACK && !state.gameOver);
+        els.whiteTurnPill.classList.toggle("live", state.turn === WHITE && !state.gameOver);
+        els.blackPassBtn.disabled = state.turn !== BLACK || state.gameOver;
+        els.whitePassBtn.disabled = state.turn !== WHITE || state.gameOver;
+        els.truthBtn.classList.toggle("active", state.showTruth);
+
+        renderPrivateBoard(els.blackBoard, BLACK);
+        renderPrivateBoard(els.whiteBoard, WHITE);
+        renderTruthBoard();
+        renderLog();
+        renderScore();
+
+        const scenario = scenarios.find((s) => s.id === state.scenarioId);
+        els.stepBtn.disabled = !scenario || state.stepIndex >= scenario.steps.length;
+      }
+
+      function renderPrivateBoard(root, perspective) {
+        root.innerHTML = "";
+        for (let i = 0; i < state.board.length; i += 1) {
+          const view = viewCell(perspective, i);
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = `cell ${view.visible ? "known-empty" : "fog"}`;
+          cell.setAttribute("role", "gridcell");
+          cell.setAttribute("aria-label", `${colorLabel(perspective)} ${indexToCoord(i)} ${view.state}`);
+          if (perspective === state.turn && !state.gameOver && view.state !== "own" && view.state !== "opponent") {
+            cell.classList.add("playable");
+            cell.addEventListener("click", () => {
+              attemptMove(perspective, i);
+              render();
+            });
+          } else {
+            cell.classList.add("blocked");
+            cell.disabled = !(perspective === state.turn && !state.gameOver);
+          }
+          appendCoord(cell, i);
+          if (view.state === "own" || view.state === "opponent") {
+            const stone = document.createElement("span");
+            stone.className = `stone ${view.color}${view.learned ? " learned" : ""}`;
+            cell.append(stone);
+          }
+          appendLastMarker(cell, i);
+          root.append(cell);
+        }
+      }
+
+      function renderTruthBoard() {
+        if (!state.showTruth && !state.gameOver) {
+          els.truthBoard.outerHTML = '<div id="truthBoard" class="truth-hidden">Truth hidden</div>';
+          els.truthBoard = document.querySelector("#truthBoard");
+          return;
+        }
+        if (!els.truthBoard.classList.contains("board")) {
+          els.truthBoard.outerHTML = '<div id="truthBoard" class="board" role="grid" aria-label="Referee truth board"></div>';
+          els.truthBoard = document.querySelector("#truthBoard");
+        }
+        els.truthBoard.innerHTML = "";
+        for (let i = 0; i < state.board.length; i += 1) {
+          const cell = document.createElement("div");
+          cell.className = "cell known-empty";
+          cell.setAttribute("role", "gridcell");
+          appendCoord(cell, i);
+          const occ = state.board[i];
+          if (occ) {
+            const stone = document.createElement("span");
+            stone.className = `stone ${occ}`;
+            cell.append(stone);
+          }
+          appendLastMarker(cell, i);
+          els.truthBoard.append(cell);
+        }
+      }
+
+      function appendCoord(cell, index) {
+        const label = document.createElement("span");
+        label.className = "coord";
+        label.textContent = indexToCoord(index);
+        cell.append(label);
+      }
+
+      function appendLastMarker(cell, index) {
+        const event = state.last.find((entry) => entry.index === index);
+        if (!event) return;
+        const marker = document.createElement("span");
+        marker.className = `marker ${event.type === "capture" ? "capture" : event.type === "probe" ? "probe" : ""}`;
+        cell.append(marker);
+      }
+
+      function renderLog() {
+        els.log.innerHTML = "";
+        for (const item of state.log) {
+          const li = document.createElement("li");
+          const tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = item.tag;
+          const msg = document.createElement("span");
+          msg.textContent = item.message;
+          li.append(tag, msg);
+          els.log.append(li);
+        }
+      }
+
+      function renderScore() {
+        if (!state.score) {
+          els.scoreTable.hidden = true;
+          els.scoreTable.innerHTML = "";
+          return;
+        }
+        els.scoreTable.hidden = false;
+        const s = state.score;
+        els.scoreTable.innerHTML = `
+          <div class="score-row header">
+            <span>Side</span><span>Stones</span><span>Territory</span><span>Komi</span><span>Total</span>
+          </div>
+          <div class="score-row">
+            <strong>Black</strong><span>${s.stones.black}</span><span>${s.territory.black}</span><span>0</span><span>${s.blackTotal.toFixed(1)}</span>
+          </div>
+          <div class="score-row">
+            <strong>White</strong><span>${s.stones.white}</span><span>${s.territory.white}</span><span>${s.komi.toFixed(1)}</span><span>${s.whiteTotal.toFixed(1)}</span>
+          </div>
+        `;
+      }
+
+      function stopAutoplay() {
+        if (state.autoplay) window.clearInterval(state.autoplay);
+        state.autoplay = null;
+        els.playBtn.textContent = "Play";
+      }
+
+      function toggleAutoplay() {
+        if (state.autoplay) {
+          stopAutoplay();
+          return;
+        }
+        els.playBtn.textContent = "Pause";
+        state.autoplay = window.setInterval(() => {
+          const scenario = scenarios.find((s) => s.id === state.scenarioId);
+          if (!scenario || state.stepIndex >= scenario.steps.length) {
+            stopAutoplay();
+            render();
+            return;
+          }
+          stepScenario();
+        }, 1050);
+      }
+
+      for (const scenario of scenarios) {
+        const option = document.createElement("option");
+        option.value = scenario.id;
+        option.textContent = scenario.name;
+        els.scenarioSelect.append(option);
+      }
+
+      els.scenarioSelect.addEventListener("change", () => resetToScenario(els.scenarioSelect.value));
+      els.resetBtn.addEventListener("click", () => resetToScenario(state.scenarioId));
+      els.stepBtn.addEventListener("click", stepScenario);
+      els.playBtn.addEventListener("click", toggleAutoplay);
+      els.truthBtn.addEventListener("click", () => {
+        state.showTruth = !state.showTruth;
+        render();
+      });
+      els.blackPassBtn.addEventListener("click", () => {
+        passTurn(BLACK);
+        render();
+      });
+      els.whitePassBtn.addEventListener("click", () => {
+        passTurn(WHITE);
+        render();
+      });
+      els.newManualBtn.addEventListener("click", resetManual);
+
+      resetToScenario(scenarios[0].id);
+    </script>
+  </body>
+</html>
