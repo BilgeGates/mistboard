@@ -2,6 +2,7 @@ import type { LiveRefs } from './live-state.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { escapeHtml } from './web-utils.js';
 
+// Static room chrome only. Live game decisions stay in live-render.ts.
 export function createLiveLayout(
   target: HTMLDivElement,
   options: { debugRequested: boolean },
