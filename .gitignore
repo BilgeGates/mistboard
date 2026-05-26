@@ -20,6 +20,9 @@ research/python-fow-lab/vendor/
 # output directory under /tmp; not part of the repo.
 apps/web/public/bakeoff
 
+# Engine/lab bakeoff exports belong in the private mistboard-engine repo.
+lab-exports/
+
 # Versioned bake-off output dirs (per Tier-1 release). These are ignored
 # because they are large local artifacts, not because they are disposable.
 # If a run produces annotations, screenshots, hard-fact findings, or build-log
