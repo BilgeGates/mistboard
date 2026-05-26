@@ -164,7 +164,8 @@ separate deploy wait time from playout wait time.
   in `apps/web/src/live-dev-views.ts`.
 - Split `apps/web/src/replay.ts` around data loading, board adapter, annotation
   controls, and engine-review panels. Wall-clock loop timing helpers now live
-  in `apps/web/src/replay-wall-clock.ts`.
+  in `apps/web/src/replay-wall-clock.ts`; replay move-list panel UI lives in
+  `apps/web/src/replay-moves-panel.ts`.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or
   widget-specific behavior into focused modules.
 - Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
