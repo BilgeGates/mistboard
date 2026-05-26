@@ -1562,6 +1562,16 @@ const XQ_START_TRIPTYCH = xqSvg(
     }),
   ].join(''),
 );
+const XQ_RULES_PRIMER_START_BOARD = xqSvg(
+  XQ_BOARD_W,
+  XQ_BOARD_H + 52,
+  xqBoardSvg({ state: XQ_START, x: 0, y: 0, label: 'STARTING POSITION', perspective: 'red' }),
+);
+const XQ_RULES_PRIMER_THUMBNAIL = xqSvg(
+  XQ_BOARD_W,
+  XQ_BOARD_H,
+  [xqBoardGrid(0, 0, 'red'), xqPiecesLayer(XQ_START, null, 0, 0, 'red')].join(''),
+);
 
 function xqVisionDemoState(id: string, board: Partial<Record<XiangqiSquare, XiangqiPiece>>): XiangqiGameState {
   return {
@@ -2703,6 +2713,170 @@ export const articles: Article[] = [
     ],
   },
   {
+    slug: 'xiangqi-rules-primer',
+    title: 'Xiangqi Rules Primer',
+    summary:
+      'A short guide to the board, pieces, movement rules, and endings you need before reading the Dark Xiangqi rules.',
+    status: 'draft',
+    audience:
+      'Mistboard readers who know chess or dark chess but have not learned xiangqi yet.',
+    thumbnail: { kind: 'svg', svg: XQ_RULES_PRIMER_THUMBNAIL },
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          'Xiangqi is the game underneath Dark Xiangqi. If you already play xiangqi, you can skip this primer and go straight to the [Dark Xiangqi rules](/articles/dark-xiangqi-rules). If you know chess but not xiangqi, this page gives you the board, pieces, and rule details you need before fog is added.',
+      },
+      {
+        kind: 'paragraph',
+        text:
+          'Dark Xiangqi keeps the xiangqi board and piece movement. The changes come later: hidden enemy pieces, no check warnings, and general capture as the win condition.',
+      },
+    ],
+    sections: [
+      {
+        heading: 'Xiangqi in one minute',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Xiangqi is played by two players: Red and Black. Red moves first. Each side starts with 16 pieces: one general, two advisors, two elephants, two horses, two chariots, two cannons, and five soldiers.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'In normal xiangqi, the goal is to checkmate the opposing general. If a player has no legal move, that player loses. That is different from Western chess, where stalemate is a draw.',
+          },
+        ],
+      },
+      {
+        heading: 'The board',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares. Pieces capture by moving to an enemy-occupied point. You cannot land on your own piece.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: XQ_RULES_PRIMER_START_BOARD,
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'The **palace** is the 3 by 3 box on each player\'s back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers become stronger after crossing it.',
+          },
+        ],
+      },
+      {
+        heading: 'The pieces',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              '**General:** moves one point horizontally or vertically. It must stay inside the palace.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Advisor:** moves one point diagonally. It must stay inside the palace.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Elephant:** moves exactly two points diagonally. It cannot cross the river. If another piece sits on the midpoint of that diagonal, the elephant is blocked.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Horse:** moves in an L shape, similar to a chess knight, but it does not jump. If the adjacent leg point is occupied, the horse cannot move in that direction.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Chariot:** moves any distance horizontally or vertically, like a rook. It cannot jump over pieces.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Cannon:** moves like a chariot when it is not capturing. To capture, it must jump over exactly one intervening piece, called the screen, and land on an enemy piece beyond it.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Soldier:** moves one point forward. After crossing the river, it may also move one point sideways. It never moves backward and never promotes.',
+          },
+        ],
+      },
+      {
+        heading: 'Rules chess players usually miss',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'A horse can be blocked. Unlike a knight, it cannot jump over the adjacent leg point.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'An elephant can be blocked, and it never crosses the river.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'A cannon does not capture like a rook. It needs exactly one screen between itself and the target.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'The two generals cannot face each other on the same open file in normal xiangqi. A move that exposes that direct line is illegal.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Stalemate is a loss for the player with no legal move, not a draw.',
+          },
+        ],
+      },
+      {
+        heading: 'Checks and endings',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'In normal xiangqi, a general is in check when an enemy piece attacks it. The checked player must answer the threat. If there is no legal answer, the game ends by checkmate.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Normal xiangqi also has rules for repetition, perpetual check, and perpetual chase. Those rules can get detailed in tournament play. For this primer, the useful takeaway is simple: normal xiangqi does not allow endless forcing cycles as a free drawing weapon.',
+          },
+        ],
+      },
+      {
+        heading: 'Next: Dark Xiangqi',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Dark Xiangqi keeps the board, setup, and piece movement above. Then it changes the information and the ending: enemy pieces outside your vision are hidden, there are no check warnings, facing generals are allowed, and the game ends when a general is captured.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'That means the same xiangqi tactics still matter, but under fog. Horse legs, elephant eyes, cannon screens, palace geometry, and river-crossed soldiers all become information signals as well as movement rules.',
+          },
+          {
+            kind: 'cta',
+            buttons: [
+              { label: 'Read Dark Xiangqi', href: '/articles/dark-xiangqi-rules', emphasis: 'primary' },
+            ],
+          } as ArticleBlock,
+        ],
+      },
+    ],
+  },
+  {
     slug: 'dark-xiangqi-rules',
     title: 'Dark Xiangqi',
     summary:
@@ -2714,7 +2888,12 @@ export const articles: Article[] = [
     intro: [
       {
         kind: 'paragraph',
-        text: 'Dark Xiangqi is the modern Fog of War version of [xiangqi](https://en.wikipedia.org/wiki/Xiangqi): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
+        text: 'Dark Xiangqi is the modern Fog of War version of [xiangqi](/articles/xiangqi-rules-primer): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
+      },
+      {
+        kind: 'paragraph',
+        text:
+          'If xiangqi is new to you, start with the [Xiangqi Rules Primer](/articles/xiangqi-rules-primer). If you already play xiangqi, the sections below explain only what fog changes.',
       },
     ],
     sections: [
