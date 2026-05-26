@@ -40,6 +40,28 @@ dark-chess engine through a public information boundary, learn why hidden
 information is compelling, and then climb a serious ranked ladder against other
 players.
 
+## Engine Identity
+
+The formal public engine identity is **Mistboard Engine**. Use that name in
+protocol docs, benchmark reports, replay metadata, source references, and
+integrity/trust language.
+
+The player-facing opponent name is **Misty**. Use it where the product is
+inviting someone to play or learn from the engine.
+
+Public engine choices should be stable strength tiers, not implementation
+versions:
+
+- Misty Beginner
+- Misty Casual
+- Misty Strong
+- Misty Max
+
+Technical engine versions such as `python-tier1-v0.9.5`, future v2 snapshots,
+quantized builds, config hashes, and play signatures are implementation
+metadata. They should remain available for reproducibility, benchmarks, and
+debugging, but they should not be the primary user-facing choice.
+
 ## License And Source
 
 The project is licensed as AGPL-3.0-or-later.
