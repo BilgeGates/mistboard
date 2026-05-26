@@ -52,20 +52,28 @@ async function smokeLearnInterface() {
     assert.ok((await page.locator('.learn-module-card').count()) >= 24);
 
     const firstSection = page.locator('.learn-module-section').first();
-    assert.equal(await firstSection.locator('.learn-module-section-header h2').textContent(), 'WIP');
+    assert.equal(
+      await firstSection.locator('.learn-module-section-header h2').textContent(),
+      'WIP',
+    );
     assert.equal(await firstSection.locator('.learn-module-card').count(), 3);
-    assert.equal(await firstSection.locator('.learn-module-card h2').first().textContent(), 'K+Q vs K');
+    assert.equal(
+      await firstSection.locator('.learn-module-card h2').first().textContent(),
+      'K+Q vs K',
+    );
     assert.equal(
       await firstSection.locator('.learn-module-card h2').nth(1).textContent(),
       'K+R vs K',
     );
     await firstSection.getByRole('button', { name: 'Open queen endgame' }).click();
     await page.waitForSelector('.learn-tutorial-shell');
-    await page.waitForFunction(() => window.location.hash === '#/queen-vs-king/kqk-free-queen-vision');
+    await page.waitForFunction(
+      () => window.location.hash === '#/queen-vs-king/kqk-free-queen-vision',
+    );
     assert.equal(await page.locator('.learn-heading').textContent(), 'K+Q vs K');
-    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Free queen vision');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Queen floodlight');
     assert.equal(await page.locator('.learn-menu-header h2').textContent(), 'K+Q vs K');
-    assert.equal(await page.locator('.learn-menu-chapter').count(), 5);
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
     await assertVisible(page, '.learn-board');
     await assertOnlyWhitePracticePieces(page);
     await dragSquare(page, 'd4', 'h4');
@@ -104,24 +112,60 @@ async function smokeLearnInterface() {
       'Dark Chess Basics',
     );
 
-    await page.goto(`${baseUrl}/learn#/queen-vs-king/kqk-superposition-corner`, { waitUntil: 'networkidle' });
+    await page.goto(`${baseUrl}/learn#/queen-vs-king/kqk-known-start-superposition`, {
+      waitUntil: 'networkidle',
+    });
     await page.waitForSelector('.learn-tutorial-shell');
     assert.equal(await page.locator('.learn-heading').textContent(), 'K+Q vs K');
-    assert.equal(
-      await page.locator('.learn-chapter-title').textContent(),
-      'Corner the superpositions',
-    );
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Known start net');
     const superpositionText = (await page.locator('.learn-tutorial-message').textContent()) ?? '';
-    assert.match(superpositionText, /superposition across all legal belief-state candidates/);
+    assert.match(superpositionText, /paper assumption/);
+    assert.equal(await countLearnBoardPieces(page, 'black', 'king'), 1);
+    await dragSquare(page, 'b1', 'b6');
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll('.learn-board piece')].filter((node) => {
+          const className = node.getAttribute('class') ?? '';
+          return className.includes('black') && className.includes('king');
+        }).length === 3,
+    );
+    assert.equal(await countLearnBoardPieces(page, 'black', 'king'), 3);
+    const knownStartText = (await page.locator('.learn-tutorial-message').textContent()) ?? '';
+    assert.match(knownStartText, /3 candidates still possible/);
+    assert.equal(await page.locator('.learn-board square.learn-candidate').count(), 0);
+    assert.equal(await page.locator('.learn-board square.learn-flushed').count(), 0);
+
+    await page.goto(`${baseUrl}/learn#/queen-vs-king/kqk-superposition-corner`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.learn-tutorial-shell');
+    assert.equal(await page.locator('.learn-heading').textContent(), 'K+Q vs K');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Unknown start net');
+    const unknownStartText = (await page.locator('.learn-tutorial-message').textContent()) ?? '';
+    assert.match(unknownStartText, /initial square is unknown/);
+    assert.equal(await countLearnBoardPieces(page, 'black', 'king'), 42);
+    assert.equal(await page.locator('.learn-board square.learn-candidate').count(), 0);
+    assert.equal(await page.locator('.learn-board square.learn-flushed').count(), 0);
+    await dragSquare(page, 'b1', 'b6');
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll('.learn-board piece')].filter((node) => {
+          const className = node.getAttribute('class') ?? '';
+          return className.includes('black') && className.includes('king');
+        }).length === 38,
+    );
+    assert.equal(await countLearnBoardPieces(page, 'black', 'king'), 38);
+    assert.equal(await page.locator('.learn-board square.learn-candidate').count(), 0);
+    assert.equal(await page.locator('.learn-board square.learn-flushed').count(), 0);
+    const flushedText = (await page.locator('.learn-tutorial-message').textContent()) ?? '';
+    assert.match(flushedText, /38 squares could still hold the king/);
+    assert.match(flushedText, /23 connected squares were revealed/);
     await page.locator('.learn-menu-back').click();
     await page.waitForSelector('.learn-home-shell');
 
     await page.goto(`${baseUrl}/learn#/unknown-is-not-empty`, { waitUntil: 'networkidle' });
     await page.waitForSelector('.learn-tutorial-shell');
-    assert.equal(
-      await page.locator('.learn-heading').textContent(),
-      'Unknown Is Not Empty',
-    );
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Unknown Is Not Empty');
     assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Planned module');
     await assertVisible(page, '.learn-board');
     assert.equal(await page.locator('.learn-menu-header h2').textContent(), 'Unknown Is Not Empty');
@@ -217,10 +261,17 @@ async function assertVisible(page, selector) {
   assert.equal(await locator.first().isVisible(), true, `${selector} should be visible`);
 }
 
+async function countLearnBoardPieces(page, color, role) {
+  const pieces = await page
+    .locator('.learn-board piece')
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('class') ?? ''));
+  return pieces.filter((className) => className.includes(color) && className.includes(role)).length;
+}
+
 async function assertOnlyWhitePracticePieces(page) {
-  const pieces = await page.locator('.learn-board piece').evaluateAll((nodes) =>
-    nodes.map((node) => node.getAttribute('class') ?? ''),
-  );
+  const pieces = await page
+    .locator('.learn-board piece')
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('class') ?? ''));
   assert.equal(
     pieces.filter((className) => className.includes('black') && !className.includes('ghost'))
       .length,
