@@ -108,9 +108,11 @@ build, app-level deploy-affecting pushes run `npm run verify -- --since
 <remote-main-sha>`, and broad repo-tooling/package/shared-package changes clean
 `dist/` before running `npm run ci:quick`.
 
-CI production smoke now waits for `/api/server-status` to report the pushed
-revision before running the smoke suite. A healthy old container is not enough
-to mark a deployment current. The prod smoke gate lives in a separate
+CI production smoke now waits for consecutive stable `/health` and
+`/api/server-status` responses reporting the pushed revision before running the
+smoke suite. A healthy old container is not enough to mark a deployment
+current, and a single successful response is not enough during Railway cutover.
+The prod smoke gate lives in a separate
 workflow-run workflow so Railway can first observe a green build/test CI check,
 deploy the commit, and then have the post-deploy smoke verify that exact
 revision. The revision wait window is 15 minutes because current production

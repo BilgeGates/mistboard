@@ -80,12 +80,16 @@ npm run check:drift
 It catches stale public documentation links, selected SQL enum/constraint drift,
 and accidental bypasses of the live fog payload redaction path.
 
-For production push verification, CI waits for the deployed `/api/server-status`
-revision before running smoke tests:
+For production push verification, CI waits for stable `/health` and deployed
+`/api/server-status` revision responses before running smoke tests:
 
 ```bash
 npm run prod:wait-revision -- --expect-revision <sha>
 ```
+
+The wait requires consecutive ready checks by default. This avoids releasing
+the real smoke during Railway cutover, when one edge request may already see the
+new revision while another still returns a transient service-level 404.
 
 Use the production smoke tier that matches the change:
 

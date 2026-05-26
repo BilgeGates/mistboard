@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Poll production until /api/server-status reports the expected build revision.
+// Poll production until /health and /api/server-status are stable on a revision.
 
 const DEFAULT_BASE_URL = 'https://mistboard.com';
 const DEFAULT_TIMEOUT_MS = 900_000;
 const DEFAULT_INTERVAL_MS = 10_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_STABLE_ATTEMPTS = 2;
 
 const options = parseArgs(process.argv.slice(2));
 if (options.help) {
@@ -21,9 +22,11 @@ const baseUrl = normalizeBaseUrl(
 const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 const intervalMs = options.intervalMs ?? DEFAULT_INTERVAL_MS;
 const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+const stableAttempts = options.stableAttempts ?? DEFAULT_STABLE_ATTEMPTS;
 const deadline = Date.now() + timeoutMs;
 
 let attempt = 0;
+let readyAttempts = 0;
 let lastRevision = 'missing';
 let lastHealth = 'unknown';
 
@@ -35,19 +38,30 @@ while (Date.now() <= deadline) {
     const serverStatus = await fetchJson(new URL('/api/server-status', baseUrl), requestTimeoutMs);
     const actualRevision = serverStatus.body?.build?.revision;
     lastRevision = typeof actualRevision === 'string' ? actualRevision : 'missing';
-    if (
+    const ready =
       health.status === 200 &&
       health.body?.ok === true &&
       typeof actualRevision === 'string' &&
-      revisionMatches(actualRevision, options.expectedRevision)
-    ) {
-      console.log(`revision ready on attempt ${attempt}: ${actualRevision} at ${baseUrl.href}`);
-      process.exit(0);
+      revisionMatches(actualRevision, options.expectedRevision);
+    if (ready) {
+      readyAttempts += 1;
+      if (readyAttempts >= stableAttempts) {
+        console.log(
+          `revision ready after ${readyAttempts} stable attempts: ${actualRevision} at ${baseUrl.href}`,
+        );
+        process.exit(0);
+      }
+      console.log(
+        `attempt ${attempt}: matched ${actualRevision}; waiting for stability ${readyAttempts}/${stableAttempts}`,
+      );
+    } else {
+      readyAttempts = 0;
+      console.log(
+        `attempt ${attempt}: waiting for ${options.expectedRevision}; current=${lastRevision}; health=${lastHealth}`,
+      );
     }
-    console.log(
-      `attempt ${attempt}: waiting for ${options.expectedRevision}; current=${lastRevision}; health=${lastHealth}`,
-    );
   } catch (error) {
+    readyAttempts = 0;
     console.log(`attempt ${attempt}: ${error instanceof Error ? error.message : String(error)}`);
   }
 
@@ -66,6 +80,7 @@ function parseArgs(args) {
     help: false,
     intervalMs: null,
     requestTimeoutMs: null,
+    stableAttempts: null,
     timeoutMs: null,
   };
 
@@ -81,6 +96,8 @@ function parseArgs(args) {
       parsed.intervalMs = parsePositiveInteger(requiredValue(args, ++index, arg), arg);
     } else if (arg === '--request-timeout-ms') {
       parsed.requestTimeoutMs = parsePositiveInteger(requiredValue(args, ++index, arg), arg);
+    } else if (arg === '--stable-attempts') {
+      parsed.stableAttempts = parsePositiveInteger(requiredValue(args, ++index, arg), arg);
     } else if (arg === '--help' || arg === '-h') {
       parsed.help = true;
     } else {
@@ -154,5 +171,6 @@ Options:
   --expect-revision <sha>      Required revision from /api/server-status
   --timeout-ms <ms>            Total wait window, default ${DEFAULT_TIMEOUT_MS}
   --interval-ms <ms>           Delay between attempts, default ${DEFAULT_INTERVAL_MS}
-  --request-timeout-ms <ms>    Timeout per request, default ${DEFAULT_REQUEST_TIMEOUT_MS}`);
+  --request-timeout-ms <ms>    Timeout per request, default ${DEFAULT_REQUEST_TIMEOUT_MS}
+  --stable-attempts <count>    Consecutive ready checks required, default ${DEFAULT_STABLE_ATTEMPTS}`);
 }
