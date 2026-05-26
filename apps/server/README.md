@@ -66,6 +66,18 @@ If that service is missing or unhealthy, Python-engine turns fail closed and
 are logged instead of being masked by a random local move under the engine's
 identity.
 
+After deploying either web or engine-worker, run the production playout smoke
+from the repo root:
+
+```bash
+npm run prod:smoke:engine-playout -- --base https://mistboard.com --engine python-tier1-v0.9.5 --target-plies 64 --reply-timeout-ms 45000 --total-timeout-ms 600000
+```
+
+Passing means the script returns `ok: true` by reaching the target ply count or
+by reaching a normal terminal result. A failure, engine forfeit, indefinite
+pause, or per-reply timeout means the live engine path is not healthy enough to
+ship.
+
 The engine-worker service keeps the warm Python pool. `MISTBOARD_PYTHON_POOL_SIZE`
 caps concurrent live engine requests there; when unset, the HTTP service starts
 with 4 workers. `MISTBOARD_LIVE_ENGINE_SEATS` caps admitted live PvE games and
@@ -74,6 +86,25 @@ reservation expiry and defaults to 30 minutes. Set `MISTBOARD_BUILD_ENGINE=1`,
 `RAILPACK_PACKAGES=python@3.11`, and `RAILPACK_DEPLOY_APT_PACKAGES=stockfish`
 only on the engine-worker build so Railpack installs Python, Stockfish, and the
 private engine repo there, not on the web build.
+
+When only the private engine implementation changes, redeploy engine-worker
+from source and leave web alone. When the public protocol, engine registry,
+reservation contract, or player-facing engine failure UI changes, deploy web
+and engine-worker together. Prefer pinning `MISTBOARD_ENGINE_REF` to a tag or
+SHA for release builds so engine rollouts are explicit and reversible.
+
+The metrics tick emits `kind: "metrics"` counters for dashboards. Actionable
+engine failures also emit a separate `kind: "engine_alert"` line at `error` or
+`warn` level. Notification rules should page on critical engine alerts and route
+capacity warnings separately. Critical alert fields include
+`engine_fallbacks_tick`, `engine_move_failures_tick`, `engine_turns_failed_tick`,
+`engine_turn_timeouts_tick`, `python_pool_errors_tick`,
+`python_pool_timeouts_tick`, `engine_reservation_errors_tick`, and
+`engine_reservation_release_failures_tick`. The capacity warning is
+`engine_reservation_busy_tick`; it means admission control protected running
+games, but demand exceeded available live engine seats. Watch
+`engine_turn_deadline_guards_tick` as a trend metric rather than a page, because
+deadline guards are expected near the end of low-clock games.
 
 ## Security invariant
 

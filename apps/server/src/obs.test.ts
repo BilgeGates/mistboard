@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EngineCounters } from './obs.js';
+import { EngineCounters, engineAlertFields } from './obs.js';
 
 test('engine counters emit deltas and drain latency samples', () => {
   const counters = new EngineCounters();
@@ -71,4 +71,40 @@ test('engine counters emit deltas and drain latency samples', () => {
   assert.equal(second.turnLatencySamples, 0);
   assert.equal(second.turnElapsedP95, null);
   assert.equal(second.turnQueueWaitP95, null);
+});
+
+test('engine alert fields separate critical failures from capacity pressure', () => {
+  const criticalCounters = new EngineCounters();
+  criticalCounters.recordMove(false);
+  criticalCounters.recordMove(true);
+  criticalCounters.recordMoveFailure();
+  criticalCounters.recordReservationFailure({ busy: false });
+  criticalCounters.recordReservationFailure({ busy: true });
+  criticalCounters.recordReservationReleaseFailure();
+  criticalCounters.recordTurnFailed({
+    error: 'runner timed out',
+  });
+  criticalCounters.recordPythonPoolError({ timeout: true });
+
+  assert.deepEqual(engineAlertFields(criticalCounters.snapshot()), {
+    severity: 'critical',
+    engine_fallbacks_tick: 1,
+    engine_move_failures_tick: 1,
+    engine_turns_failed_tick: 1,
+    engine_turn_timeouts_tick: 1,
+    python_pool_errors_tick: 1,
+    python_pool_timeouts_tick: 1,
+    engine_reservation_errors_tick: 1,
+    engine_reservation_release_failures_tick: 1,
+  });
+  assert.equal(engineAlertFields(criticalCounters.snapshot()), null);
+
+  const busyCounters = new EngineCounters();
+  busyCounters.recordReservationFailure({ busy: true });
+
+  assert.deepEqual(engineAlertFields(busyCounters.snapshot()), {
+    severity: 'warning',
+    engine_reservation_busy_tick: 1,
+  });
+  assert.equal(engineAlertFields(busyCounters.snapshot()), null);
 });

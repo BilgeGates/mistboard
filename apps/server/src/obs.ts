@@ -246,6 +246,55 @@ function isTimeoutish(error: string | null | undefined): boolean {
 
 export const engineCounters = new EngineCounters();
 
+type EngineCounterSnapshot = ReturnType<EngineCounters['snapshot']>;
+
+export type EngineAlertFields = {
+  severity: 'critical' | 'warning';
+  engine_fallbacks_tick?: number;
+  engine_move_failures_tick?: number;
+  engine_reservation_busy_tick?: number;
+  engine_reservation_errors_tick?: number;
+  engine_reservation_release_failures_tick?: number;
+  engine_turn_timeouts_tick?: number;
+  engine_turns_failed_tick?: number;
+  python_pool_errors_tick?: number;
+  python_pool_timeouts_tick?: number;
+};
+
+export function engineAlertFields(engine: EngineCounterSnapshot): EngineAlertFields | null {
+  const critical: EngineAlertFields = { severity: 'critical' };
+  let hasCritical = false;
+  const setCritical = (key: keyof Omit<EngineAlertFields, 'severity'>, value: number) => {
+    if (value <= 0) return;
+    critical[key] = value;
+    hasCritical = true;
+  };
+  const reservationErrorsDelta = Math.max(
+    0,
+    engine.reservationFailuresDelta - engine.reservationBusyDelta,
+  );
+  setCritical('engine_fallbacks_tick', engine.fallbacksDelta);
+  setCritical('engine_move_failures_tick', engine.moveFailuresDelta);
+  setCritical('engine_turns_failed_tick', engine.turnsFailedDelta);
+  setCritical('engine_turn_timeouts_tick', engine.turnTimeoutsDelta);
+  setCritical('python_pool_errors_tick', engine.pythonPoolErrorsDelta);
+  setCritical('python_pool_timeouts_tick', engine.pythonPoolTimeoutsDelta);
+  setCritical('engine_reservation_errors_tick', reservationErrorsDelta);
+  setCritical(
+    'engine_reservation_release_failures_tick',
+    engine.reservationReleaseFailuresDelta,
+  );
+  if (hasCritical) return critical;
+
+  if (engine.reservationBusyDelta > 0) {
+    return {
+      severity: 'warning',
+      engine_reservation_busy_tick: engine.reservationBusyDelta,
+    };
+  }
+  return null;
+}
+
 // Wire-format counters for the snapshot→delta protocol. Watching:
 // - `snapshot_requests`: rate of clients asking for a fresh snapshot.
 //   Should be near-zero in steady state. A sustained nonzero rate
@@ -340,6 +389,18 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
     const mem = process.memoryUsage();
     const engine = engineCounters.snapshot();
     const ws = wsCounters.snapshot();
+    const engineAlert = engineAlertFields(engine);
+    if (engineAlert) {
+      const logAlert = engineAlert.severity === 'critical' ? logger.error : logger.warn;
+      logAlert.call(
+        logger,
+        {
+          kind: 'engine_alert',
+          ...engineAlert,
+        },
+        'engine alert',
+      );
+    }
     logger.info(
       {
         kind: 'metrics',
