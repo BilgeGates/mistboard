@@ -160,7 +160,8 @@ separate deploy wait time from playout wait time.
   `apps/web/src/live-clocks.ts`; capture rows live in
   `apps/web/src/live-captures.ts`; abort/resign controls live in
   `apps/web/src/live-game-controls.ts`; invite/review/rematch/play-again rows
-  live in `apps/web/src/live-room-actions.ts`.
+  live in `apps/web/src/live-room-actions.ts`; debug mini-board rendering lives
+  in `apps/web/src/live-dev-views.ts`.
 - Split `apps/web/src/replay.ts` around data loading, board adapter, annotation
   controls, and engine-review panels.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or
