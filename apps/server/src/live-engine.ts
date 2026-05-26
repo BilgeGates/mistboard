@@ -55,14 +55,13 @@ const DEFAULT_LIVE_ENGINE_TIMEOUT_MS = 3_000;
 // Originally sized for subprocess spawn overhead. The engine-worker pool no
 // longer spawns per move, but the buffer also covers HTTP, JSON round-trip,
 // P-update variance, and gives v0.9.5 enough headroom in late-game positions where
-// |P| is large. Bumping from 2.5s → 5s in 2026-05-25 after observing
-// tier1 v0.9.5 routinely hit 10-11s compute past ply ~50 and fall back to
-// the random heuristic guard. Trade: longer hard cap on misbehaving
-// engines, but PYTHON_LIVE_MAX_TIMEOUT_MS still bounds the absolute max.
-const PYTHON_LIVE_PROCESS_OVERHEAD_MS = 5_000;
+// |P| is large. Bumped again to 10s in 2026-05-25 after production PvE
+// reached 14-15s engine replies around ply 40; those should spend clock,
+// not trip the service watchdog first.
+const PYTHON_LIVE_PROCESS_OVERHEAD_MS = 10_000;
 const PYTHON_LIVE_CLOCK_GRACE_MS = 1_000;
 const PYTHON_LIVE_BUDGET_SAFETY_MS = 200;
-const DEFAULT_PYTHON_LIVE_MAX_TIMEOUT_MS = 15_000;
+const DEFAULT_PYTHON_LIVE_MAX_TIMEOUT_MS = 30_000;
 const DEFAULT_PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = 12;
 const DEFAULT_PYTHON_LIVE_SOFT_BUDGET_CAP_MS = 12_000;
 

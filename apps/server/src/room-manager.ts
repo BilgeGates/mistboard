@@ -749,6 +749,26 @@ export async function pauseRoomOnShutdown(
   });
 }
 
+export async function pauseRoomOnEngineFailure(
+  ctx: RoomManagerContext,
+  room: Room,
+  at: number,
+): Promise<void> {
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.paused) return;
+  const engineSeat = engineSeatFor(room);
+  if (engineSeat === null) return;
+  if (room.projection.state.status.turn !== engineSeat) return;
+  const frozenClock = freezeClock(room.projection.state.clock, at);
+  await appendEvent(ctx, room, {
+    type: 'pause',
+    at,
+    roomId: room.id,
+    reason: 'engine-error',
+    ...(frozenClock ? { clock: frozenClock } : {}),
+  });
+}
+
 // Append a resume event for a paused room. Clears the pauseGraceTimer if set.
 // Caller broadcasts the resulting snapshot.
 export async function resumeRoom(
@@ -795,6 +815,7 @@ export async function resumeRoomIfReady(
 ): Promise<boolean> {
   if (!room.projection.paused) return false;
   if (room.projection.state.status.type !== 'playing') return false;
+  if (room.projection.pauseReason === 'engine-error') return false;
   if (!room.projection.seats.white || !room.projection.seats.black) return false;
 
   const seatPresent = (color: Color): boolean => {
@@ -1169,15 +1190,32 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
       .then(() => broadcastEventAppended(ctx, room, fromSeq))
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {
-          console.error(
-            JSON.stringify({
-              level: 'error',
+          const failedAt = Date.now();
+          logger.error(
+            {
               kind: 'engine_move_failure',
-              roomId: room.id,
+              room_id: room.id,
+              engine_id: room.pveEngineId ?? ctx.pveBuiltinEngineClientId,
               error: (err as Error).message,
-              at: Date.now(),
-            }),
+              at: failedAt,
+            },
+            'engine move failure',
           );
+          const failureSeq = room.events.length;
+          void pauseRoomOnEngineFailure(ctx, room, failedAt)
+            .then(() => broadcastEventAppended(ctx, room, failureSeq))
+            .catch((pauseErr) => {
+              if (pauseErr instanceof PersistenceFailure) return;
+              logger.error(
+                {
+                  kind: 'engine_failure_pause_failed',
+                  room_id: room.id,
+                  error: (pauseErr as Error).message,
+                  at: Date.now(),
+                },
+                'engine failure pause failed',
+              );
+            });
         }
       });
   }, 0);

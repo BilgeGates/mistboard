@@ -58,7 +58,8 @@
     "prod:wait-revision": "node scripts/wait-prod-revision.mjs",
     "prod:smoke:lite": "node scripts/prod-lite-smoke.mjs",
     "prod:smoke": "node scripts/prod-smoke.mjs",
-    "prod:smoke:engines": "node scripts/prod-engine-smoke.mjs"
+    "prod:smoke:engines": "node scripts/prod-engine-smoke.mjs",
+    "prod:smoke:engine-playout": "node scripts/prod-engine-playout.mjs"
   },
   "engines": {
     "node": ">=22"

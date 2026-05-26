@@ -139,6 +139,7 @@ function basePayloadFields(room: SnapshotRoom, client: SnapshotClient) {
     state: getClientView(room, client),
     rated: room.rated ?? false,
     paused: room.projection.paused,
+    pauseReason: room.projection.pauseReason,
     abortDeadline: room.abortDeadline ?? null,
     forfeitDeadline: room.forfeitDeadline ?? null,
     connectedSeats: computeConnectedSeats(room.clients),

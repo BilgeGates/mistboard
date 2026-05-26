@@ -15,6 +15,7 @@ import { isColor } from './web-utils.js';
 
 export type Seat = Color | 'spectator';
 export type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
+export type PauseReason = 'shutdown' | 'admin' | 'engine-error';
 export type ConnectionState =
   | 'connecting'
   | 'connected'
@@ -119,6 +120,7 @@ export const liveState = {
   roomMode: 'pvp' as RoomMode,
   rated: true,
   paused: false,
+  pauseReason: null as PauseReason | null,
   // Absolute ms deadline of the live pre-move abort window, or null. Drives the
   // "Aborting in 0:NN" countdown; an absolute timestamp so it survives reconnect.
   abortDeadline: null as number | null,

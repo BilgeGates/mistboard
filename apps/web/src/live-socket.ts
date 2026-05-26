@@ -11,7 +11,14 @@ import { isColor } from './web-utils.js';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 import type { Chess960Start, Color } from '@mistboard/game';
-import type { DevViews, DraftOffers, DraftResolvedStartIds, RoomMode, Seat } from './live-state.js';
+import type {
+  DevViews,
+  DraftOffers,
+  DraftResolvedStartIds,
+  PauseReason,
+  RoomMode,
+  Seat,
+} from './live-state.js';
 
 type ServerMessage =
   | {
@@ -38,6 +45,7 @@ type ServerMessage =
       state: PlayerView;
       rated?: boolean;
       paused?: boolean;
+      pauseReason?: PauseReason | null;
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
       connectedSeats?: { white: boolean; black: boolean };
@@ -67,6 +75,7 @@ type ServerMessage =
       state: PlayerView;
       rated?: boolean;
       paused?: boolean;
+      pauseReason?: PauseReason | null;
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
       connectedSeats?: { white: boolean; black: boolean };
@@ -100,6 +109,7 @@ type ServerMessage =
       state: PlayerView;
       rated?: boolean;
       paused?: boolean;
+      pauseReason?: PauseReason | null;
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
       connectedSeats?: { white: boolean; black: boolean };
@@ -296,6 +306,7 @@ function applyFullFrame(message: FullFrameSource): void {
   liveState.resolvedStartIds = message.resolvedStartIds ?? {};
   liveState.rated = message.rated ?? true;
   liveState.paused = message.paused ?? false;
+  liveState.pauseReason = message.pauseReason ?? null;
   liveState.abortDeadline = message.abortDeadline ?? null;
   liveState.forfeitDeadline = message.forfeitDeadline ?? null;
   liveState.state = message.state;

@@ -124,7 +124,7 @@ export type GameEvent =
       type: 'pause';
       at: number;
       roomId: string;
-      reason: 'shutdown' | 'admin';
+      reason: 'shutdown' | 'admin' | 'engine-error';
       clock?: ClockState;
     }
   | {
@@ -150,7 +150,7 @@ export type GameProjection = {
   region?: string;
   paused: boolean;
   pausedAt: number | null;
-  pauseReason: 'shutdown' | 'admin' | null;
+  pauseReason: 'shutdown' | 'admin' | 'engine-error' | null;
 };
 
 export function initialGameProjection(

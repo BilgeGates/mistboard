@@ -18,6 +18,7 @@ import {
   clearForfeitTimer,
   expireActiveClock,
   FORFEIT_WINDOW_MS,
+  pauseRoomOnEngineFailure,
   pauseRoomOnShutdown,
   playMove,
   type RoomManagerContext,
@@ -349,6 +350,40 @@ test('expireActiveClock: appends clock-expired event and sets correct winner', a
     'black',
     'white clock expired → black wins',
   );
+});
+
+test('pauseRoomOnEngineFailure: freezes PvE on engine turn', async () => {
+  const roomId = 'engine-failure-room';
+  const engineId = 'python-tier1-v0.9.5';
+  const now = Date.now();
+  const events: GameEvent[] = [
+    { type: 'room-created', at: now, roomId, variant: 'dark-chess', offer: [] },
+    { type: 'seat-assigned', at: now, roomId, clientId: 'human-white', seat: 'white' },
+    { type: 'seat-assigned', at: now, roomId, clientId: engineId, seat: 'black' },
+    { type: 'clock-started', at: now, roomId, clock: createClock(now, 180_000, 2_000) },
+    { type: 'move-played', at: now + 1, roomId, color: 'white', move: { from: 'e2', to: 'e4' } },
+    { type: 'move-played', at: now + 2, roomId, color: 'black', move: { from: 'e7', to: 'e6' } },
+    { type: 'move-played', at: now + 3, roomId, color: 'white', move: { from: 'd2', to: 'd4' } },
+  ];
+  const room = makeRoom(roomId, 'dark-chess', events);
+  room.mode = 'pve';
+  room.randomEngine = true;
+  room.pveEngineId = engineId;
+  const ctx = makeCtx();
+  const before = room.events.length;
+
+  await pauseRoomOnEngineFailure(ctx, room, now + 10_000);
+
+  assert.equal(room.events.length, before + 1);
+  assert.deepEqual(room.events[room.events.length - 1], {
+    type: 'pause',
+    at: now + 10_000,
+    roomId,
+    reason: 'engine-error',
+    clock: room.projection.state.clock,
+  });
+  assert.equal(room.projection.paused, true);
+  assert.equal(room.projection.pauseReason, 'engine-error');
 });
 
 // ── Seat assignment via event projection ──────────────────────────────────────

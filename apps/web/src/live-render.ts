@@ -249,8 +249,8 @@ export function createLayout(target: HTMLDivElement): LiveRefs {
             <div data-captures class="captures-strip" aria-label="Pieces captured"></div>
             <div data-board-paused class="board-paused" hidden role="status" aria-live="polite">
               <div class="board-paused__badge">
-                <strong>Game paused</strong>
-                <span>Server is restarting — your game will resume shortly</span>
+                <strong data-board-paused-title>Game paused</strong>
+                <span data-board-paused-body>Server is restarting — your game will resume shortly</span>
               </div>
             </div>
             <div data-draft-picker class="draft-picker" hidden></div>
@@ -1512,6 +1512,16 @@ function maybePlayPremove(): void {
 
 function renderPausedOverlay(paused: boolean): void {
   refs.boardPaused.hidden = !paused;
+  if (!paused) return;
+  const title = refs.boardPaused.querySelector<HTMLElement>('[data-board-paused-title]');
+  const body = refs.boardPaused.querySelector<HTMLElement>('[data-board-paused-body]');
+  if (liveState.pauseReason === 'engine-error') {
+    if (title) title.textContent = 'Engine paused';
+    if (body) body.textContent = 'The engine service stopped responding. This game is paused.';
+    return;
+  }
+  if (title) title.textContent = 'Game paused';
+  if (body) body.textContent = 'Server is restarting - your game will resume shortly';
 }
 
 function renderBoardResult(view: PlayerView | null): void {
