@@ -314,7 +314,10 @@ ownership surfaces:
    `apps/web/src/replay-annotations.ts`.
 8. **Continue server `index.ts` extraction.** Move static/page metadata,
    drain-admin handling, WebSocket handling, seat-session logic, and shutdown
-   orchestration into focused modules.
+   orchestration into focused modules. The first slice moved page-meta
+   injection, article prerender fallback serving, game replay shells, and
+   sitemap generation into `apps/server/src/server-static-pages.ts`, keeping
+   `index.ts` focused on route selection and fallback behavior for those paths.
 9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
    sections, then move replay, leaderboard, account, and article CSS behind
    ownership boundaries.

@@ -1,7 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { promises as fs } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { resolve } from 'node:path';
 import {
   type Chess960Start,
   type Color,
@@ -33,7 +31,7 @@ import {
 } from './internal-engine-client.js';
 import { runMigrations } from './migrate.js';
 import { engineCounters, logger, wsCounters } from './obs.js';
-import { GAME_OG_IMAGE_VERSION, serveArticleOgImage, serveGameOgImage } from './og-image.js';
+import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import { snapshotPayload } from './payloads.js';
 import * as persistence from './persistence.js';
 import {
@@ -88,12 +86,20 @@ import {
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
+import {
+  ARTICLE_META,
+  serveArticlePage,
+  serveArticlesIndexPage,
+  serveGamePage,
+  serveSitemap,
+} from './server-static-pages.js';
 import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
 // HTTP API handlers      → ./http-api.ts          (handleApiRequest, lobby, game data, auth endpoints)
 // Room game flow         → ./room-manager.ts       (playMove, appendEvent, broadcastSnapshot, scheduleClockTimeout, etc.)
+// Static page helpers    → ./server-static-pages.ts (page meta, article shells, sitemap)
 // SECTION: Types and constants          (~line 90)    module-scope maps and config constants
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
 // SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
@@ -511,7 +517,11 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   }
 
   if (pathname === '/sitemap.xml') {
-    void serveSitemap(response).catch(() => {
+    void serveSitemap({
+      response,
+      publicHost: serverConfig.publicHost,
+      staticDir,
+    }).catch(() => {
       response.writeHead(500);
       response.end();
     });
@@ -521,7 +531,12 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   const gameRouteMatch = pathname.match(/^\/game\/([^/]+)$/);
   if (gameRouteMatch && persistence.isInitialized()) {
     const roomId = decodeURIComponent(gameRouteMatch[1]!);
-    void serveGamePage(roomId, response).catch(() => {
+    void serveGamePage({
+      roomId,
+      response,
+      publicHost: serverConfig.publicHost,
+      staticDir,
+    }).catch(() => {
       request.url = '/';
       void serveHandler(request, response, { public: staticDir });
     });
@@ -533,7 +548,13 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   if (articleRouteMatch) {
     const langPrefix = articleRouteMatch[1]; // 'zh-hans' | 'zh-hant' | undefined
     const slug = decodeURIComponent(articleRouteMatch[2]!);
-    void serveArticlePage(slug, response, langPrefix).catch(() => {
+    void serveArticlePage({
+      slug,
+      response,
+      publicHost: serverConfig.publicHost,
+      staticDir,
+      langPrefix,
+    }).catch(() => {
       request.url = '/';
       void serveHandler(request, response, { public: staticDir });
     });
@@ -541,7 +562,11 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   }
 
   if (pathname === '/articles') {
-    void serveArticlesIndexPage(response).catch(() => {
+    void serveArticlesIndexPage({
+      response,
+      publicHost: serverConfig.publicHost,
+      staticDir,
+    }).catch(() => {
       request.url = '/';
       void serveHandler(request, response, { public: staticDir });
     });
@@ -553,198 +578,6 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   }
 
   void serveHandler(request, response, { public: staticDir });
-}
-
-type PageMeta = {
-  title: string;
-  description: string;
-  url: string;
-  imageUrl?: string; // omit to keep the default OG image from index.html
-};
-
-// Article slug → page meta. Content source of truth is
-// apps/web/src/articles-data.ts; this map duplicates only the share-card
-// surface (title + description) so the server can inject per-route meta
-// without importing the web bundle. Keep in sync when titles/summaries change.
-const ARTICLE_META: Record<string, { title: string; description: string }> = {
-  'dark-chess-rules': {
-    title: 'Dark Chess Rules',
-    description:
-      'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
-  },
-  'dark-chess-concepts': {
-    title: 'Dark Chess Concepts',
-    description:
-      'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
-  },
-  draft960: {
-    title: 'Draft960: dark chess with a hidden draft',
-    description:
-      "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
-  },
-  'engine-belief-state': {
-    title: 'Building an engine for hidden-information chess',
-    description:
-      "Stockfish-class engines don't transfer to dark chess because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
-  },
-};
-
-function injectPageMeta(html: string, meta: PageMeta): string {
-  let out = html
-    .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(meta.title)}</title>`)
-    .replace(
-      /(<meta\s+name="description"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.description)}$2`,
-    )
-    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.title)}$2`)
-    .replace(
-      /(<meta\s+property="og:description"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.description)}$2`,
-    )
-    .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.url)}$2`)
-    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, `$1${escapeHtml(meta.title)}$2`)
-    .replace(
-      /(<meta\s+name="twitter:description"\s+content=")[^"]*(")/,
-      `$1${escapeHtml(meta.description)}$2`,
-    );
-  if (meta.imageUrl) {
-    out = out
-      .replace(
-        /(<meta\s+property="og:image"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(meta.imageUrl)}$2`,
-      )
-      .replace(
-        /(<meta\s+name="twitter:image"\s+content=")[^"]*(")/,
-        `$1${escapeHtml(meta.imageUrl)}$2`,
-      );
-  }
-  return out;
-}
-
-async function serveGamePage(roomId: string, response: ServerResponse): Promise<void> {
-  const game = await persistence.getGameSummary(roomId);
-  const indexPath = resolve(staticDir, 'index.html');
-  let html = await fs.readFile(indexPath, 'utf-8');
-
-  if (game) {
-    const host = serverConfig.publicHost;
-    const white = gamePageParticipantName(game, 'white');
-    const black = gamePageParticipantName(game, 'black');
-    const title = `${white} vs ${black} · Dark Chess replay | Mistboard`;
-    const description = 'Replay this Dark Chess game from both player views on Mistboard.';
-    const url = `${host}/game/${encodeURIComponent(roomId)}`;
-    const imageUrl = `${host}/og/game/${encodeURIComponent(roomId)}.png?v=${GAME_OG_IMAGE_VERSION}`;
-    html = injectPageMeta(html, { title, description, url, imageUrl });
-  }
-
-  response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-  response.end(html);
-}
-
-function gamePageParticipantName(game: persistence.GameRecord, color: Color): string {
-  return (
-    game.participants.find((participant) => participant.color === color)?.displayName ??
-    (color === 'white' ? game.whiteName : game.blackName) ??
-    (color === 'white' ? 'White' : 'Black')
-  );
-}
-
-// Sitemap of public, indexable surfaces: static content routes plus every
-// pre-rendered article (discovered from dist/articles/*.html, so the published
-// set stays the single source of truth in articles-data → prerender output).
-async function serveSitemap(response: ServerResponse): Promise<void> {
-  const host = serverConfig.publicHost;
-  const staticRoutes = ['/', '/articles', '/about', '/learn', '/leaderboard', '/source', '/faq'];
-  // Each article is listed once per pre-rendered language variant (dist/articles,
-  // dist/zh-hans/articles, dist/zh-hant/articles), so the published+translated set
-  // stays single-sourced in the prerender output.
-  const readSlugs = (dir: string): Promise<string[]> =>
-    fs
-      .readdir(resolve(staticDir, dir))
-      .then((files) =>
-        files.filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -'.html'.length)),
-      )
-      .catch(() => [] as string[]);
-  const langDirs: Array<[string, string]> = [
-    ['articles', '/articles'],
-    ['zh-hans/articles', '/zh-hans/articles'],
-    ['zh-hant/articles', '/zh-hant/articles'],
-  ];
-  const articleUrls: string[] = [];
-  for (const [dir, urlBase] of langDirs) {
-    for (const slug of await readSlugs(dir)) {
-      articleUrls.push(`${urlBase}/${encodeURIComponent(slug)}`);
-    }
-  }
-  const urls = [...staticRoutes, ...articleUrls];
-  const body = urls.map((path) => `  <url><loc>${host}${path}</loc></url>`).join('\n');
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
-  response.writeHead(200, { 'content-type': 'application/xml; charset=utf-8' });
-  response.end(xml);
-}
-
-async function serveArticlePage(
-  slug: string,
-  response: ServerResponse,
-  langPrefix?: string,
-): Promise<void> {
-  // Published articles are pre-rendered at build time (apps/web/scripts/
-  // prerender-articles.mjs): prose + meta baked into the document so crawlers
-  // and LLMs see real content, not an empty #app. Translated variants live under
-  // dist/<lang>/articles/<slug>.html. Serve the file when present; the client SPA
-  // still boots and rebuilds #app on takeover. Slug + lang are charset-validated
-  // so a decoded path can't escape the dist root.
-  if (/^[a-z0-9-]+$/.test(slug) && (langPrefix === undefined || /^zh-han[st]$/.test(langPrefix))) {
-    const segments = langPrefix
-      ? [staticDir, langPrefix, 'articles', `${slug}.html`]
-      : [staticDir, 'articles', `${slug}.html`];
-    const prerendered = await fs.readFile(resolve(...segments), 'utf-8').catch(() => null);
-    if (prerendered !== null) {
-      response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      response.end(prerendered);
-      return;
-    }
-  }
-
-  // Fallback for draft/outline articles (not pre-rendered): shell + meta only.
-  // Language-prefixed routes only ever serve pre-rendered files; a missing zh
-  // file falls through here to the English shell rather than 404, which is fine.
-  const indexPath = resolve(staticDir, 'index.html');
-  let html = await fs.readFile(indexPath, 'utf-8');
-  const article = ARTICLE_META[slug];
-  if (article) {
-    const host = serverConfig.publicHost;
-    const url = `${host}/articles/${encodeURIComponent(slug)}`;
-    html = injectPageMeta(html, {
-      title: `${article.title} | Mistboard`,
-      description: article.description,
-      url,
-      imageUrl: `${host}/og/article/${encodeURIComponent(slug)}.png`,
-    });
-  }
-  response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-  response.end(html);
-}
-
-async function serveArticlesIndexPage(response: ServerResponse): Promise<void> {
-  const indexPath = resolve(staticDir, 'index.html');
-  let html = await fs.readFile(indexPath, 'utf-8');
-  const host = serverConfig.publicHost;
-  html = injectPageMeta(html, {
-    title: 'Articles | Mistboard',
-    description: 'Long-form writing on dark chess: rules, Draft960, and engine research.',
-    url: `${host}/articles`,
-  });
-  response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-  response.end(html);
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }
 
 // ── SECTION: WebSocket connection handling ─────────────────────────────────

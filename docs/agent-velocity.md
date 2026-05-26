@@ -175,3 +175,6 @@ separate deploy wait time from playout wait time.
   widget-specific behavior into focused modules.
 - Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
   startup environment reads there instead of in `apps/server/src/index.ts`.
+- Keep static page rendering out of `apps/server/src/index.ts`; page-meta
+  injection, article prerender fallback serving, game replay shells, and sitemap
+  generation live in `apps/server/src/server-static-pages.ts`.
