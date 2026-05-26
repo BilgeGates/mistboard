@@ -99,6 +99,12 @@ npm run prod:smoke:engines -- --engine python-tier1-v0.9.5
 npm run prod:smoke:engine-playout -- --engine python-tier1-v0.9.5 --target-plies 64
 ```
 
+Keep the verification budget proportional. Pure extraction with no behavior,
+CSS, or route change should stop at targeted typecheck/unit/lint/drift checks
+plus `npm run verify -- --changed`; run visual, mobile, CI, Railway, and prod
+smoke when the change affects layout, browser behavior, deployment, or a
+release-bound branch.
+
 The full engine playout is a reliability gate, not the default check for every
 deploy. Late-ply replies can take several seconds each, so handoffs should
 separate deploy wait time from playout wait time.
@@ -146,7 +152,8 @@ separate deploy wait time from playout wait time.
   and site stats now live in focused `persistence-*` modules.
 - Continue extracting `apps/web/src/live-render.ts` around stable UI domains:
   clocks, controls, captures, draft picker, and end-state panels. Static room
-  layout already lives in `apps/web/src/live-layout.ts`.
+  layout already lives in `apps/web/src/live-layout.ts`; replay-derived current
+  view helpers live in `apps/web/src/live-view.ts`.
 - Split `apps/web/src/replay.ts` around data loading, board adapter, annotation
   controls, and engine-review panels.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or

@@ -4,7 +4,6 @@ import 'chessground/assets/chessground.cburnett.css';
 import './styles.css';
 import type { GameEvent, PlayerView } from '@mistboard/game';
 import {
-  currentView,
   initRender,
   reconcileInteractionState,
   render,
@@ -22,6 +21,7 @@ import {
   liveState,
   resolveWebSocketBaseUrl,
 } from './live-state.js';
+import { currentView } from './live-view.js';
 
 declare global {
   interface Window {

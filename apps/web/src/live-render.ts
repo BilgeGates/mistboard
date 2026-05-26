@@ -11,20 +11,16 @@ import {
   type Move,
   type PieceRole,
   type PlayerView,
-  replayGameEvents,
   type Square,
-  variantForId,
 } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type * as cg from 'chessground/types';
 import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
-import { type CaptureTally, computeCaptures, sortCaptureRoles } from './captures.js';
+import { type CaptureTally, sortCaptureRoles } from './captures.js';
 import { createLiveLayout } from './live-layout.js';
 import {
   captureFogView,
-  currentReplayIndex,
-  getFogSnapshotToEventsLen,
   getFogViewHistory,
   getReplayIndex,
   handleMoveListClick,
@@ -38,7 +34,6 @@ import {
 } from './live-replay.js';
 import { initLiveSound, playSound, resetLiveSoundState, soundForOwnMove } from './live-sound.js';
 import {
-  type DevViews,
   type InfoTone,
   type LiveRefs,
   liveState,
@@ -49,15 +44,8 @@ import {
   type PromotionRole,
   type Seat,
 } from './live-state.js';
-import {
-  allSquares,
-  escapeHtml,
-  files,
-  formatClock,
-  isColor,
-  oppositeColor,
-  ranks,
-} from './web-utils.js';
+import { currentCaptures, currentDevViews, currentProjection, currentView } from './live-view.js';
+import { escapeHtml, files, formatClock, isColor, oppositeColor, ranks } from './web-utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1727,144 +1715,13 @@ function moveLabel(entry: MoveListEntry, labelsByEventIndex: Map<number, string>
   return labelsByEventIndex.get(entry.eventIndex) ?? coordinateMoveLabel(entry.event.move);
 }
 
-// ── View / projection helpers ─────────────────────────────────────────────────
-
-export function currentProjection(): GameProjection | null {
-  const slice = currentEventsSlice();
-  return slice ? replayGameEvents(slice) : null;
-}
-
-export function currentCaptures(): CaptureTally {
-  const slice = currentEventsSlice();
-  if (!slice) return { white: [], black: [] };
-  return computeCaptures(slice);
-}
-
-function currentEventsSlice(): GameEvent[] | null {
-  const events = liveState.events;
-  if (events.length === 0) return null;
-  // Fog replay uses fogSnapshotSeq as replayIndex — not an events index. Map through
-  // fogSnapshotToEventsLen in fog mode; otherwise use the replay index directly.
-  const fogHistory = getFogViewHistory();
-  const sliceAt =
-    fogHistory.size > 0 && liveState.state?.variant === 'dark-chess'
-      ? isLive()
-        ? events.length
-        : (getFogSnapshotToEventsLen().get(currentReplayIndex()) ?? events.length)
-      : currentReplayIndex();
-  return events.slice(0, sliceAt);
-}
-
-export function currentView(): PlayerView | null {
-  const projection = currentProjection();
-  const perspective = liveState.seat === 'black' ? 'black' : 'white';
-  if (
-    isLive() &&
-    (!projection ||
-      projection.state.variant !== 'dark-chess' ||
-      projection.state.status.type !== 'finished')
-  )
-    return liveState.state;
-  // Historical fog position: use the server-provided snapshot captured at that event count.
-  // viewForProjection cannot reconstruct accurate historical fog views — events from WebSocket
-  // snapshots are fog-filtered and structured differently from what replayGameEvents expects,
-  // so the projection's moveNumber stays wrong. Walking back through fogViewHistory is correct
-  // for both PvP and PvE fog games.
-  const gameFinished = liveState.state?.status.type === 'finished';
-  const idx = getReplayIndex();
-  const fogHistory = getFogViewHistory();
-  if (!isLive() && idx !== null && liveState.state?.variant === 'dark-chess') {
-    return fogHistory.get(idx) ?? liveState.state;
-  }
-  if (!projection) return liveState.state;
-  if (projection.state.variant === 'dark-chess' && projection.state.status.type === 'finished') {
-    return terminalFogViewForProjection(projection, perspective);
-  }
-  if (projection.state.variant === 'dark-chess' && gameFinished && idx !== null) {
-    const captured = fogHistory.get(idx);
-    if (captured) return captured;
-  }
-  return viewForProjection(projection, perspective);
-}
-
-export function currentDevViews(): DevViews | null {
-  if (!liveState.devViews) return null;
-  if (isLive()) return liveState.devViews;
-
-  const projection = currentProjection();
-  if (!projection || projection.state.variant !== 'dark-chess') return liveState.devViews;
-
-  const perspective = liveState.seat === 'black' ? 'black' : 'white';
-  const opponent = oppositeColor(perspective);
-  const player =
-    projection.state.status.type === 'finished'
-      ? fullTruthViewForProjection(projection, perspective)
-      : viewForProjection(projection, perspective);
-  const opponentView =
-    projection.state.status.type === 'finished'
-      ? fullTruthViewForProjection(projection, opponent)
-      : viewForProjection(projection, opponent);
-  return {
-    opponent,
-    opponentView,
-    player,
-    truth: fullTruthViewForProjection(projection, perspective),
-  };
-}
+// ── View helpers ──────────────────────────────────────────────────────────────
 
 function activeMoveColor(): Color | null {
   const status = currentView()?.status;
   if (status?.type !== 'playing') return null;
   if (liveState.solo) return status.turn;
   return liveState.seat === status.turn ? liveState.seat : null;
-}
-
-function viewForProjection(projection: GameProjection, perspective: Color): PlayerView {
-  const variant = variantForId(projection.state.variant);
-  const view = variant.getPlayerView(projection.state, perspective);
-  if (!liveState.solo || projection.state.status.type !== 'playing') return view;
-  return {
-    ...view,
-    legalMoves: variant.getLegalMoves(projection.state, projection.state.status.turn),
-  };
-}
-
-function fullTruthViewForProjection(projection: GameProjection, perspective: Color): PlayerView {
-  return {
-    id: projection.state.id,
-    variant: projection.state.variant,
-    board: projection.state.board,
-    visibleSquares: allSquares,
-    legalMoves: [],
-    status: projection.state.status,
-    perspective,
-    moveNumber: projection.state.moveNumber,
-    lastMove: projection.state.lastMove,
-    clock: projection.state.clock,
-  };
-}
-
-function terminalFogViewForProjection(projection: GameProjection, perspective: Color): PlayerView {
-  const variant = variantForId(projection.state.variant);
-  const reviewState = {
-    ...projection.state,
-    status: { type: 'playing', turn: perspective } as const,
-  };
-  const view = variant.getPlayerView(reviewState, perspective);
-  // Only show lastMove highlight if the move was made by the viewer. The to-square
-  // holds the moving side's piece, so a perspective-colored piece there means it
-  // was the viewer's move. Opponent moves stay hidden — their pieces aren't
-  // revealed in the fog room, and a stale highlight on hidden squares is confusing.
-  const lastMove = projection.state.lastMove;
-  const ownedLastMove =
-    lastMove && projection.state.board[lastMove.to]?.color === perspective ? lastMove : undefined;
-  return {
-    ...view,
-    legalMoves: [],
-    status: projection.state.status,
-    lastMove: ownedLastMove,
-    clock: projection.state.clock,
-  };
 }
 
 // ── Draft data helpers ────────────────────────────────────────────────────────

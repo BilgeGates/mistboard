@@ -130,6 +130,9 @@ every deploy-affecting commit now exposes the full production build path.
 
 Track these optimizations after the engine extraction settles:
 
+- keep verification budgets proportional: pure extraction should use targeted
+  local checks, while visual/mobile/prod smoke should be reserved for layout,
+  browser behavior, deploy, and release-bound changes;
 - compare Railway build/promotion time before and after the engine extraction;
 - keep the engine build out of ordinary web/server deploys when the engine is
   not part of the changed artifact;
@@ -286,7 +289,8 @@ ownership surfaces:
    board adapter, controls, clocks, captures, Draft960 picker, move list, and
    status panels. Keep the orchestrator thin and keep tests green after each
    move. The first slice moved static room layout and `LiveRefs` query wiring
-   into `apps/web/src/live-layout.ts`.
+   into `apps/web/src/live-layout.ts`; the second moved replay-derived current
+   view/projection helpers into `apps/web/src/live-view.ts`.
 7. **Split `replay.ts` after live render.** Extract replay timing, header/meta,
    moves panel, board panes, engine-review dock, clocks, and annotation form.
 8. **Continue server `index.ts` extraction.** Move static/page metadata,
