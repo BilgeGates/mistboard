@@ -13,7 +13,7 @@ import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type * as cg from 'chessground/types';
 import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
-import { type CaptureTally, sortCaptureRoles } from './captures.js';
+import type { CaptureTally } from './captures.js';
 import {
   boardHighlightClasses,
   boardResultClass,
@@ -21,6 +21,7 @@ import {
   legalDests,
   squareFileIndex,
 } from './live-board.js';
+import { captureRow, renderCaptures as renderCaptureRows } from './live-captures.js';
 import {
   renderClocks as renderClockRows,
   resetClockState,
@@ -207,7 +208,7 @@ export function render(): void {
   renderActionStatus(view);
   renderGameInfo(view);
   renderClockRows(refs, view);
-  renderCaptures(view);
+  renderCaptureRows(refs, view);
   renderRoomActions();
   renderGameControls(view);
   renderDevViews();
@@ -1016,13 +1017,8 @@ function devViewCard(
   const captures = document.createElement('div');
   captures.className = 'dev-captures captures-strip';
   for (const color of capturingColors) {
-    if (tally[color].length === 0) continue;
-    const row = document.createElement('div');
-    row.className = 'captures-row';
-    for (const role of sortCaptureRoles(tally[color])) {
-      row.append(capturePieceEl(role, oppositeColor(color)));
-    }
-    captures.append(row);
+    const row = captureRow(tally[color], oppositeColor(color));
+    if (row) captures.append(row);
   }
 
   card.append(title, meta, board, captures);
@@ -1031,64 +1027,6 @@ function devViewCard(
 
 export function tickClockTimers(view: PlayerView | null): void {
   tickClockRows(refs, view);
-}
-
-// ── Captures strip ────────────────────────────────────────────────────────────
-//
-// Renders pieces the viewer has personally captured. For a seated player, that's
-// their own color only — fog-filtered events naturally exclude the opponent's
-// captures, and the rule (see rulesets.md) is that no other material is revealed.
-// EVE spectators see both sides (no fog filtering applied server-side).
-function renderCaptures(view: PlayerView | null): void {
-  refs.captures.replaceChildren();
-  refs.captures.classList.toggle('has-captures', false);
-  if (!view) return;
-
-  const tally = currentCaptures();
-  const seat = liveState.seat;
-
-  const renderRow = (capturedRoles: PieceRole[], capturedColor: Color): HTMLDivElement | null => {
-    if (capturedRoles.length === 0) return null;
-    const row = document.createElement('div');
-    row.className = 'captures-row';
-    for (const role of sortCaptureRoles(capturedRoles)) {
-      row.append(capturePieceEl(role, capturedColor));
-    }
-    return row;
-  };
-
-  // Seated player: show only their own captures (the opponent pieces they took).
-  // EVE spectator: show both sides.
-  let any = false;
-  if (isColor(seat)) {
-    const row = renderRow(tally[seat], oppositeColor(seat));
-    if (row) {
-      refs.captures.append(row);
-      any = true;
-    }
-  } else {
-    for (const color of ['white', 'black'] as Color[]) {
-      const row = renderRow(tally[color], oppositeColor(color));
-      if (row) {
-        refs.captures.append(row);
-        any = true;
-      }
-    }
-  }
-  refs.captures.classList.toggle('has-captures', any);
-}
-
-// Builds a chessground-styled piece sprite for the capture strip. The outer span
-// carries the cg-wrap class so chessground.cburnett.css applies its background-image
-// rules; the inner <piece> element matches the .role.color selector chessground uses.
-function capturePieceEl(role: PieceRole, color: Color): HTMLSpanElement {
-  const wrap = document.createElement('span');
-  wrap.className = `captures-piece cg-wrap`;
-  wrap.setAttribute('aria-label', `${color} ${role}`);
-  const piece = document.createElement('piece');
-  piece.className = `${color} ${role}`;
-  wrap.append(piece);
-  return wrap;
 }
 
 // ── Board ─────────────────────────────────────────────────────────────────────
