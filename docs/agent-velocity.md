@@ -37,6 +37,15 @@ npm run worktree:new -- <slug>
 npm run worktree:prepare
 ```
 
+Sandboxed agents should place task worktrees under a writable temp root instead
+of the default sibling directory:
+
+```bash
+npm run worktree:new -- <slug> --path /private/tmp/mistboard-<slug>
+ln -s "$PWD/node_modules" /private/tmp/mistboard-<slug>/node_modules
+npm run worktree:prepare -- --no-install
+```
+
 `worktree:prepare` installs dependencies when missing, builds the internal
 package declarations that downstream workspaces read from `dist/`, and runs the
 drift guard. Use `npm run worktree:new -- <slug> --prepare` when the new tree
