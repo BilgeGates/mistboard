@@ -160,7 +160,7 @@ async function choosePythonSubprocessMove(
       `engine ${engine.id} requires live room events`,
     );
   }
-  const watchdogTimeoutMs = pythonLiveWatchdogTimeoutMs(context, timeoutMs);
+  const { computeBudgetMs, watchdogTimeoutMs } = pythonLiveTimeoutBudgetMs(context, timeoutMs);
 
   // Build the redacted EngineTurnRequest — the sole game-state channel
   // to the engine (Phase 3c). Construction is the security boundary:
@@ -181,6 +181,7 @@ async function choosePythonSubprocessMove(
     engineTurnRequest,
     watchdogTimeoutMs,
     context.engineReservationId,
+    { computeBudgetMs },
   ).catch((err) => {
     throw liveEngineErrorFromInternalEngine(err, engine.id, watchdogTimeoutMs);
   });
@@ -200,17 +201,33 @@ export function pythonLiveWatchdogTimeoutMs(
   context: EngineMoveContext,
   configuredTimeoutMs: number,
 ): number {
+  return pythonLiveTimeoutBudgetMs(context, configuredTimeoutMs).watchdogTimeoutMs;
+}
+
+export function pythonLiveTimeoutBudgetMs(
+  context: EngineMoveContext,
+  configuredTimeoutMs: number,
+): { computeBudgetMs: number; watchdogTimeoutMs: number } {
   const remainingMs = liveClockRemainingMs(context);
-  if (remainingMs === undefined) return configuredTimeoutMs;
+  if (remainingMs === undefined) {
+    return { computeBudgetMs: configuredTimeoutMs, watchdogTimeoutMs: configuredTimeoutMs };
+  }
 
   const usableClockMs = Math.max(0, remainingMs - PYTHON_LIVE_BUDGET_SAFETY_MS);
-  const budgetMs = Math.min(
+  const computeBudgetMs = Math.min(
     usableClockMs > 0 ? usableClockMs : 50,
     computePythonPerMoveBudgetMs(usableClockMs, liveIncrementMs(context)),
   );
-  const dynamicTimeoutMs = Math.ceil(budgetMs + PYTHON_LIVE_PROCESS_OVERHEAD_MS);
+  const dynamicTimeoutMs = Math.ceil(computeBudgetMs + PYTHON_LIVE_PROCESS_OVERHEAD_MS);
   const clockBoundMs = Math.ceil(Math.max(0, remainingMs) + PYTHON_LIVE_CLOCK_GRACE_MS);
-  return Math.max(1, Math.min(pythonLiveMaxTimeoutMs(), dynamicTimeoutMs, clockBoundMs));
+  const watchdogTimeoutMs = Math.max(
+    1,
+    Math.min(pythonLiveMaxTimeoutMs(), dynamicTimeoutMs, clockBoundMs),
+  );
+  return {
+    computeBudgetMs: Math.max(1, Math.min(Math.ceil(computeBudgetMs), watchdogTimeoutMs)),
+    watchdogTimeoutMs,
+  };
 }
 
 function computePythonPerMoveBudgetMs(clockRemainingMs: number, incrementMs: number): number {

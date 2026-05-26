@@ -17,6 +17,7 @@ const DEFAULT_ENGINE_RESERVATION_TTL_MS = 30 * 60 * 1000;
 export type EngineTurnHandler = (
   request: EngineTurnRequest,
   watchdogTimeoutMs: number,
+  computeBudgetMs: number,
 ) => Promise<EngineTurnResponse>;
 
 export type EngineHttpService = {
@@ -45,8 +46,8 @@ export async function startEngineHttpService(
   });
   const handler =
     options.handler ??
-    ((request: EngineTurnRequest, watchdogTimeoutMs: number) =>
-      choosePythonEngineTurn(request, watchdogTimeoutMs, poolSize));
+    ((request: EngineTurnRequest, watchdogTimeoutMs: number, computeBudgetMs: number) =>
+      choosePythonEngineTurn(request, watchdogTimeoutMs, computeBudgetMs, poolSize));
   const token = (options.token ?? process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN ?? '').trim() || null;
 
   const server = createServer((req, res) => {
@@ -97,16 +98,19 @@ export async function startEngineHttpService(
 async function choosePythonEngineTurn(
   request: EngineTurnRequest,
   watchdogTimeoutMs: number,
+  computeBudgetMs: number,
   poolSize: number,
 ): Promise<EngineTurnResponse> {
   const pool = await getPythonPool(request.engineId, { defaultSize: poolSize });
   if (!pool) throw new Error('python pool is disabled');
   const response = await pool.chooseMove(
-    { engineTurnRequest: request, watchdogTimeoutMs },
+    { engineTurnRequest: request, watchdogTimeoutMs: computeBudgetMs },
     watchdogTimeoutMs,
   );
   const diagnostics: Record<string, unknown> = {
     source: 'python-pool',
+    computeBudgetMs,
+    watchdogTimeoutMs,
     ...(response.decisionSource ? { decisionSource: response.decisionSource } : {}),
   };
   return {
@@ -198,7 +202,10 @@ async function handleRequest(
     return;
   }
   const watchdogTimeoutMs = parseWatchdogTimeout(req);
-  const response = await context.limiter.run(() => context.handler(request, watchdogTimeoutMs));
+  const computeBudgetMs = parseComputeBudget(req, watchdogTimeoutMs);
+  const response = await context.limiter.run(() =>
+    context.handler(request, watchdogTimeoutMs, computeBudgetMs),
+  );
   writeJson(res, 200, response);
 }
 
@@ -273,6 +280,15 @@ function parseWatchdogTimeout(req: IncomingMessage): number {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_ENGINE_SERVICE_TIMEOUT_MS;
   return Math.min(parsed, MAX_ENGINE_SERVICE_TIMEOUT_MS);
+}
+
+function parseComputeBudget(req: IncomingMessage, watchdogTimeoutMs: number): number {
+  const raw = req.headers['x-mistboard-engine-compute-budget-ms'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return watchdogTimeoutMs;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return watchdogTimeoutMs;
+  return Math.max(1, Math.min(parsed, watchdogTimeoutMs));
 }
 
 function engineServicePoolSize(): number {

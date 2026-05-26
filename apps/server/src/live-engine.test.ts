@@ -5,6 +5,7 @@ import type { EngineDefinition, EngineMoveContext } from './engine-registry.js';
 import {
   chooseLiveEngineMove,
   type LiveEngineFallbackEvent,
+  pythonLiveTimeoutBudgetMs,
   pythonLiveWatchdogTimeoutMs,
 } from './live-engine.js';
 
@@ -151,6 +152,14 @@ test('python live engine fails closed when internal engine service is not config
 });
 
 test('python live watchdog allows Tier-1 clock budget plus subprocess overhead', () => {
+  const budget = pythonLiveTimeoutBudgetMs(
+    {
+      ...context([legalMove]),
+      clockRemainingMs: 180_000,
+      incrementMs: 2_000,
+    },
+    5_000,
+  );
   const timeoutMs = pythonLiveWatchdogTimeoutMs(
     {
       ...context([legalMove]),
@@ -160,6 +169,8 @@ test('python live watchdog allows Tier-1 clock budget plus subprocess overhead',
     5_000,
   );
 
+  assert.equal(budget.computeBudgetMs, 12_000);
+  assert.equal(budget.watchdogTimeoutMs, 22_000);
   assert.equal(timeoutMs, 22_000);
 });
 
@@ -167,7 +178,7 @@ test('python live watchdog budget can be tuned by environment', () => {
   const previous = process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE;
   process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = '40';
   try {
-    const timeoutMs = pythonLiveWatchdogTimeoutMs(
+    const budget = pythonLiveTimeoutBudgetMs(
       {
         ...context([legalMove]),
         clockRemainingMs: 180_000,
@@ -176,8 +187,10 @@ test('python live watchdog budget can be tuned by environment', () => {
       5_000,
     );
 
-    assert.ok(timeoutMs >= 16_400);
-    assert.ok(timeoutMs <= 16_600);
+    assert.ok(budget.computeBudgetMs >= 6_400);
+    assert.ok(budget.computeBudgetMs <= 6_600);
+    assert.ok(budget.watchdogTimeoutMs >= 16_400);
+    assert.ok(budget.watchdogTimeoutMs <= 16_600);
   } finally {
     if (previous === undefined) delete process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE;
     else process.env.PYTHON_LIVE_MOVES_REMAINING_ESTIMATE = previous;
@@ -185,6 +198,14 @@ test('python live watchdog budget can be tuned by environment', () => {
 });
 
 test('python live watchdog stays bounded under clock pressure', () => {
+  const budget = pythonLiveTimeoutBudgetMs(
+    {
+      ...context([legalMove]),
+      clockRemainingMs: 900,
+      incrementMs: 0,
+    },
+    5_000,
+  );
   const timeoutMs = pythonLiveWatchdogTimeoutMs(
     {
       ...context([legalMove]),
@@ -194,6 +215,8 @@ test('python live watchdog stays bounded under clock pressure', () => {
     5_000,
   );
 
+  assert.equal(budget.computeBudgetMs, 50);
+  assert.equal(budget.watchdogTimeoutMs, 1_900);
   assert.equal(timeoutMs, 1_900);
 });
 

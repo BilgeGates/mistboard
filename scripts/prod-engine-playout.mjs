@@ -126,6 +126,14 @@ async function playOut({ baseUrl, engineId, targetPlies, replyTimeoutMs, totalTi
       }
       const state = message.state;
       if (!state) return;
+      if (message.paused || message.pauseReason) {
+        fail(
+          new Error(
+            `room paused at ply ${plies} room ${roomId} reason ${message.pauseReason ?? 'unknown'}`,
+          ),
+        );
+        return;
+      }
       const stateMoveKey = state.lastMove ? moveKey(state.lastMove) : null;
 
       const status = state.status;
@@ -164,23 +172,22 @@ async function playOut({ baseUrl, engineId, targetPlies, replyTimeoutMs, totalTi
         return;
       }
 
-      if (
-        waitingForEngine &&
-        status.turn === 'white' &&
-        stateMoveKey &&
-        stateMoveKey !== lastAcceptedMoveKey
-      ) {
+      if (waitingForEngine && status.turn === 'white') {
         waitingForEngine = false;
         clearReplyTimer();
         engineReplies += 1;
         plies += 1;
-        lastAcceptedMoveKey = stateMoveKey;
+        const visibleEngineMove =
+          stateMoveKey && stateMoveKey !== lastAcceptedMoveKey ? (state.lastMove ?? null) : null;
+        if (stateMoveKey && stateMoveKey !== lastAcceptedMoveKey) {
+          lastAcceptedMoveKey = stateMoveKey;
+        }
         moveTrace.push({
           by: 'engine',
           ply: plies,
           elapsedMs: Date.now() - lastEngineWaitStartedAt,
           moveNumber: state.moveNumber,
-          move: state.lastMove ?? null,
+          move: visibleEngineMove,
         });
       }
 

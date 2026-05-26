@@ -38,6 +38,7 @@ export async function requestInternalEngineTurn(
   request: EngineTurnRequest,
   watchdogTimeoutMs: number,
   reservationId?: string,
+  options: { computeBudgetMs?: number } = {},
 ): Promise<EngineTurnResponse> {
   const baseUrl = process.env.MISTBOARD_INTERNAL_ENGINE_URL?.trim();
   const token = process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN?.trim();
@@ -49,6 +50,10 @@ export async function requestInternalEngineTurn(
   }
 
   const timeoutMs = Math.max(1, watchdogTimeoutMs + DEFAULT_TRANSPORT_GRACE_MS);
+  const computeBudgetMs = Math.max(
+    1,
+    Math.min(watchdogTimeoutMs, Math.floor(options.computeBudgetMs ?? watchdogTimeoutMs)),
+  );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -59,6 +64,7 @@ export async function requestInternalEngineTurn(
         'content-type': 'application/json',
         ...(reservationId ? { 'x-mistboard-engine-reservation-id': reservationId } : {}),
         'x-mistboard-engine-timeout-ms': String(watchdogTimeoutMs),
+        'x-mistboard-engine-compute-budget-ms': String(computeBudgetMs),
       },
       body: JSON.stringify(request),
       signal: controller.signal,

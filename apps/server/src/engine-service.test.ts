@@ -6,13 +6,15 @@ import { startEngineHttpService } from './engine-service.js';
 const legalMove: Move = { from: 'e2', to: 'e4' };
 
 test('engine HTTP service requires auth and returns protocol response', async () => {
+  let observedComputeBudget = 0;
   let observedTimeout = 0;
   let observedRequest: EngineTurnRequest | null = null;
   const service = await startEngineHttpService({
     port: 0,
     token: 'test-token',
-    handler: async (request, watchdogTimeoutMs) => {
+    handler: async (request, watchdogTimeoutMs, computeBudgetMs) => {
       observedRequest = request;
+      observedComputeBudget = computeBudgetMs;
       observedTimeout = watchdogTimeoutMs;
       return {
         protocolVersion: '1',
@@ -38,6 +40,7 @@ test('engine HTTP service requires auth and returns protocol response', async ()
         authorization: 'Bearer test-token',
         'content-type': 'application/json',
         'x-mistboard-engine-reservation-id': reservationId,
+        'x-mistboard-engine-compute-budget-ms': '900',
         'x-mistboard-engine-timeout-ms': '2500',
       },
       body: JSON.stringify(sampleRequest),
@@ -46,6 +49,7 @@ test('engine HTTP service requires auth and returns protocol response', async ()
     const body = await response.json();
 
     assert.deepEqual(observedRequest, sampleRequest);
+    assert.equal(observedComputeBudget, 900);
     assert.equal(observedTimeout, 2500);
     assert.deepEqual(body, {
       protocolVersion: '1',

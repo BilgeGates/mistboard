@@ -17,6 +17,7 @@ test('internal engine client posts protocol body with auth and timeout header', 
   const previousToken = process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN;
   let observedBody: unknown = null;
   let observedAuth = '';
+  let observedComputeBudget = '';
   let observedReservation = '';
   let observedTimeout = '';
 
@@ -24,6 +25,7 @@ test('internal engine client posts protocol body with auth and timeout header', 
     assert.equal(req.method, 'POST');
     assert.equal(req.url, '/internal/engine/turn');
     observedAuth = req.headers.authorization ?? '';
+    observedComputeBudget = String(req.headers['x-mistboard-engine-compute-budget-ms'] ?? '');
     observedReservation = String(req.headers['x-mistboard-engine-reservation-id'] ?? '');
     observedTimeout = String(req.headers['x-mistboard-engine-timeout-ms'] ?? '');
     observedBody = JSON.parse(await readBody(req));
@@ -44,9 +46,12 @@ test('internal engine client posts protocol body with auth and timeout header', 
     process.env.MISTBOARD_INTERNAL_ENGINE_URL = `http://127.0.0.1:${serverPort(server)}`;
     process.env.MISTBOARD_INTERNAL_ENGINE_TOKEN = 'test-token';
 
-    const response = await requestInternalEngineTurn(sampleRequest, 1234, 'reservation-1');
+    const response = await requestInternalEngineTurn(sampleRequest, 1234, 'reservation-1', {
+      computeBudgetMs: 456,
+    });
 
     assert.equal(observedAuth, 'Bearer test-token');
+    assert.equal(observedComputeBudget, '456');
     assert.equal(observedReservation, 'reservation-1');
     assert.equal(observedTimeout, '1234');
     assert.deepEqual(observedBody, sampleRequest);
