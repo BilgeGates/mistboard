@@ -7,6 +7,7 @@
 // Shared shell helpers live in site-shell.ts so account pages do not depend on
 // landing.ts.
 
+import './account-profile.css';
 import { identify, resetIdentity, track } from './analytics.js';
 import {
   type AuthUser,

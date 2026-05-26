@@ -1,5 +1,6 @@
 // Profile + leaderboard pages — extracted from landing.ts.
 
+import './account-profile.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { leaderboardVariants } from './variants.js';

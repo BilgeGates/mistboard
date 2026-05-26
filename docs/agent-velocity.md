@@ -233,3 +233,6 @@ as a specific phase instead of one undifferentiated red or slow run.
 - Keep engine lab layout styles in `apps/web/src/bakeoff.css` and replay
   belief/annotation panel styles in `apps/web/src/replay-analysis.css`; do not
   add new lab-only selectors back into the global stylesheet.
+- Keep account, profile, and leaderboard route styles in
+  `apps/web/src/account-profile.css`; do not add new account/profile table or
+  form selectors back into the global stylesheet.
