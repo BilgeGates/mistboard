@@ -90,24 +90,39 @@ npm run check:drift
 It catches stale public documentation links, selected SQL enum/constraint drift,
 and accidental bypasses of the live fog payload redaction path.
 
-For production push verification, CI waits for stable `/health` and deployed
-`/api/server-status` revision responses before running smoke tests:
+For production push verification, do not attach exact-revision prod smoke as an
+automatic GitHub check on the same commit Railway is waiting to deploy. Railway
+currently treats the `Prod Smoke` workflow as part of the commit check suite, so
+an automatic post-CI smoke creates a circular gate: Railway waits for Prod Smoke
+while Prod Smoke waits for Railway.
+
+Use the planner locally or in a manual run to decide whether a pushed range can
+affect the web deployment:
 
 ```bash
 npm run prod:smoke:plan -- --base-from-prod --head HEAD
 npm run prod:smoke:plan -- --base HEAD^ --head HEAD
+```
+
+The planner compares the range from the currently deployed production revision
+to the pushed commit against `railway.web.json` watch patterns. If no web deploy
+path changed, the exact-revision wait would only poll for a revision Railway
+will not serve. If the production revision cannot be read or diffed locally, the
+planner falls back to recommending the smoke.
+
+After Railway has actually deployed a revision, dispatch the `Prod Smoke`
+workflow with `full=true` and `expect_revision=<sha>`, or run the equivalent
+local commands:
+
+```bash
 npm run prod:wait-revision -- --expect-revision <sha>
+npm run prod:smoke -- --expect-revision <sha>
+npm run prod:smoke:engines
 ```
 
 The wait requires consecutive ready checks by default. This avoids releasing
 the real smoke during Railway cutover, when one edge request may already see the
 new revision while another still returns a transient service-level 404.
-The production workflow first compares the range from the currently deployed
-production revision to the pushed commit against `railway.web.json` watch
-patterns. If no web deploy path changed, it skips the exact-revision wait
-instead of polling for a revision Railway will not serve. If the production
-revision cannot be read or diffed locally, the planner falls back to running the
-smoke.
 
 Use the production smoke tier that matches the change:
 
@@ -126,9 +141,9 @@ release-bound branch.
 The full engine playout is a reliability gate, not the default check for every
 deploy. Late-ply replies can take several seconds each, so handoffs should
 separate deploy wait time from playout wait time.
-CI production smoke writes timing summaries for dependency install, Railway
-revision wait, web smoke, and engine smoke so slow deploys are visible as a
-specific phase instead of one undifferentiated red or slow run.
+Manual full production smoke writes timing summaries for dependency install,
+Railway revision wait, web smoke, and engine smoke so slow deploys are visible
+as a specific phase instead of one undifferentiated red or slow run.
 
 ## Current velocity losses
 
