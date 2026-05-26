@@ -15,6 +15,7 @@ export type LiveBoardSpec = {
   orientation?: Color;
   label?: string;
   arrows?: LiveBoardArrow[];
+  highlightSquares?: Square[];
 };
 
 export type LiveBoardsLayout = 'single' | 'pair' | 'triptych' | 'grid';
@@ -38,9 +39,17 @@ function visibleBoard(board: Board, fogSquares: Square[]): Board {
   return out;
 }
 
-function fogSquareClasses(fogSquares: Square[], orientation: Color): cg.SquareClasses {
+function squareClasses(
+  fogSquares: Square[],
+  highlightSquares: Square[],
+  orientation: Color,
+): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
   for (const sq of fogSquares) classes.set(sq as cg.Key, fogHiddenClass(sq, orientation));
+  for (const sq of highlightSquares) {
+    const prior = classes.get(sq as cg.Key);
+    classes.set(sq as cg.Key, prior ? `${prior} deduction-highlight` : 'deduction-highlight');
+  }
   return classes;
 }
 
@@ -79,7 +88,9 @@ export function mountLiveBoards(host: HTMLElement, opts: LiveBoardsOptions): Liv
       coordinatesOnSquares: false,
       fen: boardFen(visibleBoard(spec.board, fog)),
       orientation: spec.orientation ?? 'white',
-      highlight: { custom: fogSquareClasses(fog, spec.orientation ?? 'white') },
+      highlight: {
+        custom: squareClasses(fog, spec.highlightSquares ?? [], spec.orientation ?? 'white'),
+      },
       movable: { free: false, color: undefined, dests: new Map() },
       draggable: { enabled: false },
       selectable: { enabled: false },
