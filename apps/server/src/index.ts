@@ -1,8 +1,7 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import {
   type Chess960Start,
   type Color,
@@ -18,7 +17,6 @@ import pg from 'pg';
 import serveHandler from 'serve-handler';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { currentAccountUser } from './account-session.js';
-import { engineFeedbackPath } from './engine-paths.js';
 import { isPlayableLiveEngineClientId, loadEngine } from './engine-registry.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import {
@@ -76,19 +74,17 @@ import {
   touchSeatToken,
 } from './room-manager.js';
 import { authorizeExistingSeat, seatsShareAuthority } from './seat-auth.js';
+import { normalizeRoomRegion, serverConfig } from './server-config.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
   isClientRoute,
-  isDatabaseRequired,
   isDrainToken,
   isProductionLikeRuntime,
   isServerEngineClient,
   modeForProjection,
-  parseNonNegativeInteger,
-  parsePositiveInteger,
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
@@ -112,19 +108,15 @@ import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from '
 const rooms = new Map<string, Room>();
 const lobbyTickets = new Map<string, LobbyTicket>();
 const lobbyQueue: LobbyTicket[] = [];
-const databaseRequired = isDatabaseRequired();
-const wsMaxPayloadBytes = parsePositiveInteger(process.env.MISTBOARD_WS_MAX_PAYLOAD_BYTES) ?? 8_192;
-const wsMessageLimit = parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_LIMIT) ?? 40;
-const wsMessageWindowMs =
-  parsePositiveInteger(process.env.MISTBOARD_WS_MESSAGE_WINDOW_MS) ?? 10_000;
-const shutdownGraceMs = parsePositiveInteger(process.env.MISTBOARD_SHUTDOWN_GRACE_MS) ?? 10_000;
-const pauseGraceMs = parsePositiveInteger(process.env.MISTBOARD_RESUME_GRACE_MS) ?? 90_000;
-const orphanThresholdMs =
-  parsePositiveInteger(process.env.MISTBOARD_ORPHAN_THRESHOLD_MS) ?? 300_000;
-const drainWindowMaxMs =
-  parsePositiveInteger(process.env.MISTBOARD_DRAIN_WINDOW_MAX_MS) ?? 60 * 60 * 1000;
-const drainWindowDefaultMs =
-  parsePositiveInteger(process.env.MISTBOARD_DRAIN_WINDOW_DEFAULT_MS) ?? 15 * 60 * 1000;
+const databaseRequired = serverConfig.databaseRequired;
+const wsMaxPayloadBytes = serverConfig.wsMaxPayloadBytes;
+const wsMessageLimit = serverConfig.wsMessageLimit;
+const wsMessageWindowMs = serverConfig.wsMessageWindowMs;
+const shutdownGraceMs = serverConfig.shutdownGraceMs;
+const pauseGraceMs = serverConfig.pauseGraceMs;
+const orphanThresholdMs = serverConfig.orphanThresholdMs;
+const drainWindowMaxMs = serverConfig.drainWindowMaxMs;
+const drainWindowDefaultMs = serverConfig.drainWindowDefaultMs;
 
 // Drain state: when active, matchmaking is blocked and a 'server_restart_scheduled'
 // broadcast is sent to every connected client. Idempotent — re-hitting /admin/drain
@@ -167,32 +159,21 @@ function drainRateAllowed(ip: string): boolean {
 }
 const liveClockInitialMs = 180_000;
 const liveClockIncrementMs = 2_000;
-const pveEngineMoveDelayMs = parsePositiveInteger(process.env.MISTBOARD_PVE_ENGINE_DELAY_MS) ?? 650;
-const liveEngineTimeoutMs =
-  parsePositiveInteger(process.env.MISTBOARD_LIVE_ENGINE_TIMEOUT_MS) ?? 3_000;
-const defaultRoomRegion = normalizeRoomRegion(
-  process.env.MISTBOARD_ROOM_REGION ??
-    process.env.RAILWAY_DEPLOYMENT_REGION ??
-    process.env.RAILWAY_REGION ??
-    process.env.FLY_REGION ??
-    'global',
-);
-const guestPrestartAbortMs =
-  parseNonNegativeInteger(process.env.MISTBOARD_GUEST_PRESTART_ABORT_MS) ?? 15 * 60 * 1000;
-const abortPolicySweepMs =
-  parsePositiveInteger(process.env.MISTBOARD_ABORT_POLICY_SWEEP_MS) ?? 60_000;
-const stalePauseMs =
-  (parsePositiveInteger(process.env.MISTBOARD_STALE_PAUSE_HOURS) ?? 24) * 60 * 60 * 1000;
-const stalePausedSweepMs =
-  parsePositiveInteger(process.env.MISTBOARD_STALE_PAUSED_SWEEP_MS) ?? 15 * 60 * 1000;
+const pveEngineMoveDelayMs = serverConfig.pveEngineMoveDelayMs;
+const liveEngineTimeoutMs = serverConfig.liveEngineTimeoutMs;
+const defaultRoomRegion = serverConfig.defaultRoomRegion;
+const guestPrestartAbortMs = serverConfig.guestPrestartAbortMs;
+const abortPolicySweepMs = serverConfig.abortPolicySweepMs;
+const stalePauseMs = serverConfig.stalePauseMs;
+const stalePausedSweepMs = serverConfig.stalePausedSweepMs;
 const pveBuiltinEngineClientId = 'builtin-random-legal';
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 
-const staticDir = resolveStaticDir();
+const staticDir = serverConfig.staticDir;
 // Local-only research/debug annotations. Keep this independent from the private
 // engine repo so web boots cleanly without an engine checkout.
-const annotationsFile = resolveAnnotationsFile();
+const annotationsFile = serverConfig.annotationsFile;
 
 const roomMgrCtx: RoomManagerContext = {
   send,
@@ -304,7 +285,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
     });
   });
 
-  const port = options.port ?? Number(process.env.PORT ?? 3001);
+  const port = options.port ?? serverConfig.port;
   await new Promise<void>((resolve) => {
     httpServer.listen(port, () => resolve());
   });
@@ -384,7 +365,7 @@ export async function stopServer(): Promise<void> {
 
 // ── SECTION: Server init and HTTP entry ────────────────────────────────────
 async function initPersistence(): Promise<void> {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = serverConfig.databaseUrl;
   if (!databaseUrl) {
     if (databaseRequired) {
       throw new Error(
@@ -522,7 +503,7 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   }
 
   if (pathname === '/robots.txt') {
-    const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+    const host = serverConfig.publicHost;
     response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
     response.end(`User-agent: *\nAllow: /\nSitemap: ${host}/sitemap.xml\n`);
     return;
@@ -645,7 +626,7 @@ async function serveGamePage(roomId: string, response: ServerResponse): Promise<
   let html = await fs.readFile(indexPath, 'utf-8');
 
   if (game) {
-    const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+    const host = serverConfig.publicHost;
     const white = gamePageParticipantName(game, 'white');
     const black = gamePageParticipantName(game, 'black');
     const title = `${white} vs ${black} · Dark Chess replay | Mistboard`;
@@ -671,7 +652,7 @@ function gamePageParticipantName(game: persistence.GameRecord, color: Color): st
 // pre-rendered article (discovered from dist/articles/*.html, so the published
 // set stays the single source of truth in articles-data → prerender output).
 async function serveSitemap(response: ServerResponse): Promise<void> {
-  const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+  const host = serverConfig.publicHost;
   const staticRoutes = ['/', '/articles', '/about', '/learn', '/leaderboard', '/source', '/faq'];
   // Each article is listed once per pre-rendered language variant (dist/articles,
   // dist/zh-hans/articles, dist/zh-hant/articles), so the published+translated set
@@ -731,7 +712,7 @@ async function serveArticlePage(
   let html = await fs.readFile(indexPath, 'utf-8');
   const article = ARTICLE_META[slug];
   if (article) {
-    const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+    const host = serverConfig.publicHost;
     const url = `${host}/articles/${encodeURIComponent(slug)}`;
     html = injectPageMeta(html, {
       title: `${article.title} | Mistboard`,
@@ -747,7 +728,7 @@ async function serveArticlePage(
 async function serveArticlesIndexPage(response: ServerResponse): Promise<void> {
   const indexPath = resolve(staticDir, 'index.html');
   let html = await fs.readFile(indexPath, 'utf-8');
-  const host = process.env.MISTBOARD_HOST ?? 'https://mistboard.com';
+  const host = serverConfig.publicHost;
   html = injectPageMeta(html, {
     title: 'Articles | Mistboard',
     description: 'Long-form writing on dark chess: rules, Draft960, and engine research.',
@@ -763,23 +744,6 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-}
-
-function resolveRepoPath(...parts: string[]): string {
-  const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, '..', '..', '..', ...parts);
-}
-function resolveStaticDir(): string {
-  if (process.env.STATIC_DIR) return resolve(process.env.STATIC_DIR);
-  const here = dirname(fileURLToPath(import.meta.url));
-  // dist/index.js → ../../web/dist; src/index.ts (tsx dev) → same path
-  return resolve(here, '..', '..', 'web', 'dist');
-}
-
-function resolveAnnotationsFile(): string {
-  const explicit = process.env.MISTBOARD_ANNOTATIONS_FILE;
-  if (explicit) return resolve(explicit);
-  return resolveRepoPath('research', 'python-fow-lab', 'feedback', 'annotations.jsonl');
 }
 
 // ── SECTION: WebSocket connection handling ─────────────────────────────────
@@ -1038,8 +1002,7 @@ async function handleClose(room: Room, client: Client): Promise<void> {
   broadcastSnapshot(roomMgrCtx, room);
 }
 
-const SEAT_VACATE_GRACE_MS_DEFAULT =
-  parsePositiveInteger(process.env.MISTBOARD_SEAT_VACATE_GRACE_MS) ?? 20_000;
+const SEAT_VACATE_GRACE_MS_DEFAULT = serverConfig.seatVacateGraceMs;
 
 function seatVacateGraceMs(): number {
   return seatVacateGraceMsOverride ?? SEAT_VACATE_GRACE_MS_DEFAULT;
@@ -1939,12 +1902,6 @@ function isColor(value: string | undefined): value is Color {
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
-}
-
-function normalizeRoomRegion(value: string | undefined): string {
-  if (!value) return 'global';
-  const normalized = value.trim().toLowerCase();
-  return /^[a-z0-9-]{1,32}$/.test(normalized) ? normalized : 'global';
 }
 
 function roomCreatedDraftOfferFields(

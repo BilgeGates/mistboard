@@ -143,3 +143,5 @@ separate deploy wait time from playout wait time.
   controls, and engine-review panels.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or
   widget-specific behavior into focused modules.
+- Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
+  startup environment reads there instead of in `apps/server/src/index.ts`.

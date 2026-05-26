@@ -291,6 +291,9 @@ ownership surfaces:
    ownership boundaries.
 10. **Centralize runtime config.** Add typed config modules for server, engine,
     and web feature flags so environment reads are discoverable and testable.
+    Initial server startup/runtime defaults now live in
+    `apps/server/src/server-config.ts`; `apps/server/src/index.ts` consumes the
+    parsed config instead of reading `process.env` directly.
 
 ### Definition Of Done For The Second Push
 
