@@ -274,7 +274,9 @@ ownership surfaces:
    `apps/server/src/persistence-seat-tokens.ts` behind the same facade. Room
    event loading, append, running-game lifecycle, stale-room cleanup, and debug
    artifact persistence now live in
-   `apps/server/src/persistence-game-lifecycle.ts`.
+   `apps/server/src/persistence-game-lifecycle.ts`. Completed-game summaries,
+   game lists, watch/unlock queries, participant attribution, and game-end
+   persistence now live in `apps/server/src/persistence-games.ts`.
 6. **Split `live-render.ts` incrementally.** Extract stable live-game UI domains:
    board adapter, controls, clocks, captures, Draft960 picker, move list, and
    status panels. Keep the orchestrator thin and keep tests green after each

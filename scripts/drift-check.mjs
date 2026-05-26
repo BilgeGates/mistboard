@@ -159,7 +159,7 @@ function checkSqlEnums() {
     {
       label: 'games.result',
       constraint: 'games_result_check',
-      file: 'apps/server/src/persistence.ts',
+      file: 'apps/server/src/persistence-games.ts',
       type: 'GameResult',
     },
     {
