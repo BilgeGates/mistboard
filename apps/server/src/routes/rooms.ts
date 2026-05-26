@@ -5,7 +5,7 @@ import { playableLiveEngines } from './../engine-registry.js';
 import { ratedEnabled } from './../feature-flags.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import { InternalEngineClientError } from './../internal-engine-client.js';
-import { logger } from './../obs.js';
+import { engineCounters, logger } from './../obs.js';
 import * as persistence from './../persistence.js';
 import {
   type HttpApiContext,
@@ -156,6 +156,7 @@ export async function tryHandle(
       }
       if (err instanceof InternalEngineClientError) {
         const busy = err.reason === 'http_error' && err.status === 429;
+        engineCounters.recordReservationFailure({ busy });
         logger.warn(
           {
             kind: 'live_engine_reservation_failed',

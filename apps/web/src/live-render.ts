@@ -1519,8 +1519,8 @@ function renderPausedOverlay(paused: boolean): void {
   const title = refs.boardPaused.querySelector<HTMLElement>('[data-board-paused-title]');
   const body = refs.boardPaused.querySelector<HTMLElement>('[data-board-paused-body]');
   if (liveState.pauseReason === 'engine-error') {
-    if (title) title.textContent = 'Engine paused';
-    if (body) body.textContent = 'The engine service stopped responding. This game is paused.';
+    if (title) title.textContent = 'Engine stopped';
+    if (body) body.textContent = 'The engine failed before this room could be completed.';
     return;
   }
   if (title) title.textContent = 'Game paused';
@@ -2274,6 +2274,9 @@ function finishedBody(winner: Color | null, reason: GameEndReason): string {
     const youWon = winner === seat;
     if (reason === 'resignation') return youWon ? 'Opponent resigned.' : 'You resigned.';
     if (reason === 'timeout') return youWon ? 'Opponent ran out of time.' : 'You ran out of time.';
+    if (reason === 'abandonment' && liveState.roomMode === 'pve') {
+      return youWon ? 'The engine forfeited.' : 'You forfeited.';
+    }
     return `${youWon ? 'You won' : 'Opponent won'} by ${reasonPhrase}.`;
   }
   if (winner === null) return `${capitalize(reasonPhrase)}.`;

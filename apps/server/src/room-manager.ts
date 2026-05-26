@@ -749,7 +749,7 @@ export async function pauseRoomOnShutdown(
   });
 }
 
-export async function pauseRoomOnEngineFailure(
+export async function forfeitEngineOnFailure(
   ctx: RoomManagerContext,
   room: Room,
   at: number,
@@ -761,10 +761,10 @@ export async function pauseRoomOnEngineFailure(
   if (room.projection.state.status.turn !== engineSeat) return;
   const frozenClock = freezeClock(room.projection.state.clock, at);
   await appendEvent(ctx, room, {
-    type: 'pause',
+    type: 'seat-forfeited',
     at,
     roomId: room.id,
-    reason: 'engine-error',
+    color: engineSeat,
     ...(frozenClock ? { clock: frozenClock } : {}),
   });
 }
@@ -1191,6 +1191,7 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {
           const failedAt = Date.now();
+          engineCounters.recordMoveFailure();
           logger.error(
             {
               kind: 'engine_move_failure',
@@ -1202,18 +1203,18 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
             'engine move failure',
           );
           const failureSeq = room.events.length;
-          void pauseRoomOnEngineFailure(ctx, room, failedAt)
+          void forfeitEngineOnFailure(ctx, room, failedAt)
             .then(() => broadcastEventAppended(ctx, room, failureSeq))
-            .catch((pauseErr) => {
-              if (pauseErr instanceof PersistenceFailure) return;
+            .catch((forfeitErr) => {
+              if (forfeitErr instanceof PersistenceFailure) return;
               logger.error(
                 {
-                  kind: 'engine_failure_pause_failed',
+                  kind: 'engine_failure_forfeit_failed',
                   room_id: room.id,
-                  error: (pauseErr as Error).message,
+                  error: (forfeitErr as Error).message,
                   at: Date.now(),
                 },
-                'engine failure pause failed',
+                'engine failure forfeit failed',
               );
             });
         }

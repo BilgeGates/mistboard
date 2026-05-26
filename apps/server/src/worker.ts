@@ -14,6 +14,7 @@ import {
 import { runRandomLegalEngineGame } from './engine-runner.js';
 import { type EngineHttpService, startEngineHttpService } from './engine-service.js';
 import { runMigrations } from './migrate.js';
+import { startObservability } from './obs.js';
 import { disposeAllPythonPools } from './python-pool.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -45,6 +46,7 @@ const engineHttpHost = process.env.MISTBOARD_ENGINE_SERVICE_HOST ?? '::';
 
 const pool = new pg.Pool({ connectionString: databaseUrl, max: 4 });
 let engineHttpService: EngineHttpService | null = null;
+let stopObs: (() => void) | null = null;
 let activeWorkerRunId: string | null = null;
 let activeTask: EngineGameTask | null = null;
 let shuttingDown = false;
@@ -52,11 +54,13 @@ let shuttingDown = false;
 process.on('SIGINT', () => {
   shuttingDown = true;
   log('worker_shutdown_requested', { signal: 'SIGINT' });
+  stopObservability();
   void closeEngineHttpService();
 });
 process.on('SIGTERM', () => {
   shuttingDown = true;
   log('worker_shutdown_requested', { signal: 'SIGTERM' });
+  stopObservability();
   void closeEngineHttpService();
 });
 
@@ -66,6 +70,7 @@ try {
       host: engineHttpHost,
       port: engineHttpPort,
     });
+    stopObs = startObservability({ roomCount: () => 0, wsClientCount: () => 0 });
   }
   await migrate(databaseUrl);
   await cleanupStaleTasks();
@@ -177,6 +182,7 @@ try {
   log('worker_failed', { error });
   process.exitCode = 1;
 } finally {
+  stopObservability();
   await closeEngineHttpService();
   disposeAllPythonPools();
   await pool.end();
@@ -244,6 +250,13 @@ async function closeEngineHttpService(): Promise<void> {
   } catch (err) {
     log('engine_http_stop_failed', { error: (err as Error).message });
   }
+}
+
+function stopObservability(): void {
+  if (!stopObs) return;
+  const stop = stopObs;
+  stopObs = null;
+  stop();
 }
 
 function log(kind: string, data: Record<string, unknown>): void {
