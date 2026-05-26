@@ -74,10 +74,14 @@ function buildPlan(files, options) {
 
   const game = has(starts('packages/game/'));
   const boardRender = has(starts('packages/board-render/'));
-  const server = has(
-    (file) => file.startsWith('apps/server/src/') || file.startsWith('apps/server/integration/'),
+  const serverTestTooling = has(
+    (file) => file === 'apps/server/package.json' || file.startsWith('apps/server/scripts/'),
   );
-  const serverIntegration = has(starts('apps/server/integration/'));
+  const server =
+    has(
+      (file) => file.startsWith('apps/server/src/') || file.startsWith('apps/server/integration/'),
+    ) || serverTestTooling;
+  const serverIntegration = has(starts('apps/server/integration/')) || serverTestTooling;
   const persistence = has(
     (file) =>
       file.startsWith('apps/server/migrations/') ||

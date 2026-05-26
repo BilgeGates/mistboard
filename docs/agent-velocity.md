@@ -65,6 +65,16 @@ pushes run the drift guard, app-level deploy-affecting pushes run the changed
 path verifier against the remote main SHA, and broad repo-tooling or shared
 package changes clean `dist/` before running `ci:quick`.
 
+For server integration checks, forwarded Node test flags now work as expected:
+
+```bash
+npm run test:integration --workspace @mistboard/server -- --test-name-pattern=drain
+npm run test:integration --workspace @mistboard/server -- integration/drain.test.ts
+```
+
+The wrapper keeps test-runner flags before integration files, so a narrow drain
+check does not accidentally run the slow loadtest smoke.
+
 For manual M1 gates, record public-safe evidence instead of relying on memory:
 
 ```bash

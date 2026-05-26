@@ -114,7 +114,7 @@ Edit task → find file → open only that file.
 | `loadtest-smoke.test.ts` | Builtin-engine load smoke |
 | `persist-resign.test.ts` | Postgres-on resign-termination integration test |
 
-Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --workspace @mistboard/server`. Persistence is intentionally disabled for the in-memory contract; `persist-resign` requires `TEST_DATABASE_URL`.
+Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --workspace @mistboard/server`. Narrow a run with `-- --test-name-pattern=<name>` or a file path such as `-- integration/drain.test.ts`; `apps/server/scripts/integration-tests.mjs` forwards test-runner flags before files so filters do not accidentally run the slow loadtest smoke. Persistence is intentionally disabled for the in-memory contract; `persist-resign` requires `TEST_DATABASE_URL`.
 
 **Change move validation or game flow** → `room-manager.ts`
 **Change WebSocket message handling** → `index.ts` §WebSocket connection handling

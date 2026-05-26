@@ -133,6 +133,10 @@ Track these optimizations after the engine extraction settles:
 - keep verification budgets proportional: pure extraction should use targeted
   local checks, while visual/mobile/prod smoke should be reserved for layout,
   browser behavior, deploy, and release-bound changes;
+- keep server integration filtering trustworthy: `npm run test:integration
+  --workspace @mistboard/server -- --test-name-pattern=<name>` and explicit
+  file paths should stay narrow instead of accidentally running slow loadtest
+  smokes;
 - compare Railway build/promotion time before and after the engine extraction;
 - keep the engine build out of ordinary web/server deploys when the engine is
   not part of the changed artifact;
