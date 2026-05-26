@@ -159,8 +159,8 @@ as a specific phase instead of one undifferentiated red or slow run.
 - Shared worktrees are the highest-cost failure mode. Existing dirty files
   should be treated as another session's work unless the current session made
   them.
-- Large files still dominate navigation: `live-render.ts`, `replay.ts`,
-  `landing.ts`, `persistence.ts`, and `apps/web/src/styles.css` should be split
+- Large files still dominate navigation: `learn.ts`, `landing.ts`,
+  `apps/server/src/index.ts`, and `apps/web/src/styles.css` should be split
   only when a real behavior change gives the extraction a natural boundary.
 - Manual mobile/article inspection was hidden behind `node
   scripts/mobile-loop.mjs`; use `npm run test:mobile:shots` after starting the
@@ -215,7 +215,8 @@ as a specific phase instead of one undifferentiated red or slow run.
   `apps/web/src/replay-clocks.ts`; board/pane adapters live in
   `apps/web/src/replay-board.ts`; engine review panel/toggle UI lives in
   `apps/web/src/replay-engine-panels.ts`; annotation panel/form UI lives in
-  `apps/web/src/replay-annotations.ts`.
+  `apps/web/src/replay-annotations.ts`; belief and annotation styles live in
+  `apps/web/src/replay-analysis.css`.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or
   widget-specific behavior into focused modules.
 - Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
@@ -229,3 +230,6 @@ as a specific phase instead of one undifferentiated red or slow run.
 - Keep client WebSocket wire-format parsing in
   `apps/server/src/server-ws-messages.ts`; add new inbound message names to its
   allowlist instead of hiding them in the connection dispatcher.
+- Keep engine lab layout styles in `apps/web/src/bakeoff.css` and replay
+  belief/annotation panel styles in `apps/web/src/replay-analysis.css`; do not
+  add new lab-only selectors back into the global stylesheet.

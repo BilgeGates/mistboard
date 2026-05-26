@@ -1,3 +1,4 @@
+import './bakeoff.css';
 import { type Annotation, loadAnnotations } from './annotations.js';
 import { type BeliefRow, loadBeliefRows, loadTraceRows, type TraceRow } from './belief-panel.js';
 import { mountReplay } from './replay.js';

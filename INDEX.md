@@ -161,7 +161,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `pages-static.ts` | `/about` + `/source` + `/faq` + `/terms` + `/articles` (index + slug) + 404 mounts. Builders for about/source/faq/terms/notfound + shared text primitives (`aboutSubheading`/`aboutParagraph`/`aboutLink`/`aboutExternalLink`, `sourceBlock`/`textLine`/`linkLine`). Uses `site-shell.ts` for shared chrome |
 | `contact.ts` | `buildContact` — `/contact` form builder (anon vs signed-in lanes, honeypot, submit/error states). Mounted by `landing.ts` (mountContact is 15 lines, uses buildNav/Footer) |
 | `review.ts` | Game-review data plumbing for `/game/:id`: `loadGameForReview`, `fetchGameReview`, `fetchGameArtifacts`, `fetchTraceArtifacts`, belief/trace row converters, `enginePanelsForReview`. Owns the engine-artifact panel hydration |
-| `replay.ts` | Replay viewer: `mountReplay` closure and replay state orchestration. Wall-clock loop timing helpers live in `replay-wall-clock.ts`; replay move-list panel UI lives in `replay-moves-panel.ts`; game metadata/header UI lives in `replay-meta.ts`; replay clock panel rendering lives in `replay-clocks.ts`; board/pane adapters live in `replay-board.ts`; engine review panel/toggle UI lives in `replay-engine-panels.ts`; annotation panel/form UI lives in `replay-annotations.ts`. |
+| `replay.ts` | Replay viewer: `mountReplay` closure and replay state orchestration. Wall-clock loop timing helpers live in `replay-wall-clock.ts`; replay move-list panel UI lives in `replay-moves-panel.ts`; game metadata/header UI lives in `replay-meta.ts`; replay clock panel rendering lives in `replay-clocks.ts`; board/pane adapters live in `replay-board.ts`; engine review panel/toggle UI lives in `replay-engine-panels.ts`; annotation panel/form UI lives in `replay-annotations.ts`; belief/annotation CSS lives in `replay-analysis.css`. |
+| `replay-analysis.css` | Replay belief inspector and annotation panel styles loaded by `replay.ts` |
 | `replay-annotations.ts` | Replay annotation helpers: `AnnotationConfig`, annotation panel shell, save/edit form state, picked-square input, sorted note list rendering, jump/edit/delete actions |
 | `replay-board.ts` | Replay board/pane helpers: pane DOM shell, capture-strip rendering, chessground mount/update adapters, board click-to-square math, and king-capture reveal projection |
 | `replay-clocks.ts` | Replay clock panel helpers: clock row creation, compact spacers, player-name labels, clock/thinking progress rendering, and replay display-time lookup |
@@ -177,6 +178,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `restart-banner.ts` | Boot-fetch + WS-driven drain banner |
 | `theme.ts` | Settings panel (board / fog / piece-set picker + volume slider, localStorage-backed) |
 | `bakeoff.ts` | Engine lab bakeoff view (DEV) |
+| `bakeoff.css` | Engine lab bakeoff layout and bakeoff-specific replay panel sizing loaded by `bakeoff.ts` |
 | `pixel-lab.ts` | `/pixel-lab` AI piece-art/fog lab (DEV) |
 | `xiangqi-spike.ts` | `/xiangqi-spike` FoW Xiangqi sandbox (DEV) |
 | `xiangqi-bot.ts` | DEV-only bot for the xiangqi spike |

@@ -341,7 +341,10 @@ ownership surfaces:
    with focused parser tests.
 9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
    sections, then move replay, leaderboard, account, and article CSS behind
-   ownership boundaries.
+   ownership boundaries. Initial extraction moved the engine bakeoff lab layout
+   into `apps/web/src/bakeoff.css` and replay belief/annotation panel styles
+   into `apps/web/src/replay-analysis.css`, reducing the global stylesheet by
+   about 1,260 lines.
 10. **Centralize runtime config.** Add typed config modules for server, engine,
     and web feature flags so environment reads are discoverable and testable.
     Initial server startup/runtime defaults now live in
@@ -360,7 +363,8 @@ ownership surfaces:
   orchestration surface.
 - `apps/server/src/index.ts` owns startup composition, not every WebSocket,
   static-page, drain, seat, and shutdown detail.
-- Route/dev CSS has moved out of the single global stylesheet where practical.
+- Route/dev CSS has moved out of the single global stylesheet where practical;
+  lab and replay-analysis CSS have route-owned files.
 - Runtime config reads are centralized enough that new flags have an obvious
   home.
 
