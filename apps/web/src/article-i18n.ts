@@ -43,7 +43,7 @@ const ZH_HANS: Record<string, string> = {
   'What to do with partial proof': '如何处理不完整的证据',
   // sub-headings
   Castling: '王车易位',
-  'Pawn captures': '兵的吃子',
+  'Pawn vision': '兵的视野',
   'En passant': '吃过路兵',
   'Pawn moves': '兵的走动',
   Captures: '吃子',
@@ -132,7 +132,7 @@ const ZH_HANT: Record<string, string> = {
   'Try it': '上手一試',
   'What to do with partial proof': '如何處理不完整的證據',
   Castling: '王車易位',
-  'Pawn captures': '兵的吃子',
+  'Pawn vision': '兵的視野',
   'En passant': '吃過路兵',
   'Pawn moves': '兵的走動',
   Captures: '吃子',

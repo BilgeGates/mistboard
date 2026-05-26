@@ -2029,7 +2029,7 @@ export const articles: Article[] = [
               ],
             },
           } as ArticleBlock,
-          { kind: 'sub-heading', text: 'Pawn captures' },
+          { kind: 'sub-heading', text: 'Pawn vision' },
           {
             kind: 'paragraph',
             text:
