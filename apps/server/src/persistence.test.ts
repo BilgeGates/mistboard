@@ -1544,13 +1544,15 @@ if (!TEST_DATABASE_URL) {
     );
   });
 
-  test('watch feed lists only fresh unlocked games and counts sealed games in aggregate', async () => {
+  test('watch feed lists fresh unlocked games and only active in-play sealed games', async () => {
     const now = new Date('2026-05-09T12:00:00.000Z');
     const newest = new Date(now.getTime() - 10 * 60_000);
     const middle = new Date(now.getTime() - 20 * 60_000);
     const oldest = new Date(now.getTime() - 30 * 60_000);
     const outsideWindow = new Date(now.getTime() - 3 * 60 * 60_000);
     const future = new Date(now.getTime() + 60_000);
+    const activeSealedAt = now.getTime() - 5 * 60_000;
+    const staleSealedAt = now.getTime() - 3 * 60 * 60_000;
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
@@ -1596,6 +1598,12 @@ if (!TEST_DATABASE_URL) {
             'human', 'engine', NULL, NULL, 'pve', 'running', 'link'),
            ('sealed-unlisted-eve', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'engine-white', 'engine-black', NULL, NULL, 'eve', 'running', 'unlisted'),
+           ('sealed-prestart', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'white', 'black', NULL, NULL, 'pvp', 'running', 'public'),
+           ('sealed-stale-pvp', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'white', 'black', NULL, NULL, 'pvp', 'running', 'public'),
+           ('sealed-paused-pve', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'human', 'engine', NULL, NULL, 'pve', 'running', 'public'),
            ('sealed-private-pvp', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'white', 'black', NULL, NULL, 'pvp', 'running', 'private'),
            ('sealed-imported', 'dark-chess', NULL, NULL, 0, $1, NULL,
@@ -1632,6 +1640,124 @@ if (!TEST_DATABASE_URL) {
           ],
         );
       }
+      const sealedEvents: Array<{ event: GameEvent; roomId: string; seq: number }> = [
+        {
+          roomId: 'sealed-public-pvp',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-public-pvp',
+            color: 'white',
+            move: { from: 'e2', to: 'e4' },
+          },
+        },
+        {
+          roomId: 'sealed-link-pve',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-link-pve',
+            color: 'black',
+            move: { from: 'e7', to: 'e5' },
+          },
+        },
+        {
+          roomId: 'sealed-unlisted-eve',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-unlisted-eve',
+            color: 'white',
+            move: { from: 'g1', to: 'f3' },
+          },
+        },
+        {
+          roomId: 'sealed-prestart',
+          seq: 0,
+          event: {
+            type: 'room-created',
+            at: activeSealedAt,
+            roomId: 'sealed-prestart',
+            variant: 'dark-chess',
+            offer: [],
+          },
+        },
+        {
+          roomId: 'sealed-stale-pvp',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: staleSealedAt,
+            roomId: 'sealed-stale-pvp',
+            color: 'white',
+            move: { from: 'd2', to: 'd4' },
+          },
+        },
+        {
+          roomId: 'sealed-paused-pve',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-paused-pve',
+            color: 'white',
+            move: { from: 'c2', to: 'c4' },
+          },
+        },
+        {
+          roomId: 'sealed-paused-pve',
+          seq: 1,
+          event: {
+            type: 'pause',
+            at: activeSealedAt + 1,
+            roomId: 'sealed-paused-pve',
+            reason: 'shutdown',
+          },
+        },
+        {
+          roomId: 'sealed-private-pvp',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-private-pvp',
+            color: 'white',
+            move: { from: 'b2', to: 'b4' },
+          },
+        },
+        {
+          roomId: 'sealed-imported',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-imported',
+            color: 'white',
+            move: { from: 'a2', to: 'a4' },
+          },
+        },
+        {
+          roomId: 'sealed-manual',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-manual',
+            color: 'white',
+            move: { from: 'h2', to: 'h4' },
+          },
+        },
+      ];
+      for (const { event, roomId, seq } of sealedEvents) {
+        await client.query(
+          `INSERT INTO events (room_id, seq, type, payload)
+           VALUES ($1, $2, $3, $4)`,
+          [roomId, seq, event.type, event],
+        );
+      }
     } finally {
       await client.end();
     }
@@ -1645,7 +1771,13 @@ if (!TEST_DATABASE_URL) {
       unlocked.map((game) => game.roomId),
       ['watch-pvp-newest', 'watch-pve-link', 'watch-eve'],
     );
-    assert.equal(await countWatchSealedGames(), 3);
+    assert.equal(
+      await countWatchSealedGames({
+        activeWindowMs: 2 * 60 * 60_000,
+        now,
+      }),
+      3,
+    );
   });
 
   test('listCorpusGames filters timeout games shorter than ten ply', async () => {

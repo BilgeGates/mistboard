@@ -35,7 +35,10 @@ export async function tryHandle(
     if (!requirePersistence(response)) return true;
     const now = new Date();
     const [sealedCount, unlocked] = await Promise.all([
-      persistence.countWatchSealedGames(),
+      persistence.countWatchSealedGames({
+        activeWindowMs: WATCH_UNLOCK_WINDOW_MS,
+        now,
+      }),
       persistence.listWatchUnlockedGames({
         limit: WATCH_UNLOCK_LIMIT,
         now,

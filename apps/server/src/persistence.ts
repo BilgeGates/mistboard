@@ -63,6 +63,7 @@ export type {
   GameSummary,
   ProfileGameRecord,
   RecentEveGameRecord,
+  WatchSealedGameOptions,
   WatchUnlockedGameOptions,
 } from './persistence-games.js';
 export {

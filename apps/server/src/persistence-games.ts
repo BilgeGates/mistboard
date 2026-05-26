@@ -94,6 +94,11 @@ export type WatchUnlockedGameOptions = {
   unlockWindowMs?: number;
 };
 
+export type WatchSealedGameOptions = {
+  activeWindowMs?: number;
+  now?: Date;
+};
+
 export type CompletedGameFilters = {
   endedFrom: Date;
   endedTo: Date;
@@ -267,13 +272,31 @@ export async function listWatchUnlockedGames(
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
-export async function countWatchSealedGames(): Promise<number> {
+export async function countWatchSealedGames(options: WatchSealedGameOptions = {}): Promise<number> {
+  const activeWindowMs = Math.max(1, options.activeWindowMs ?? 2 * 60 * 60 * 1000);
+  const nowMs = (options.now ?? new Date()).getTime();
+  const activeSinceMs = nowMs - activeWindowMs;
   const { rows } = await getPool().query<{ count: number }>(
-    `SELECT count(*)::int AS count
+    `WITH last_events AS (
+       SELECT DISTINCT ON (events.room_id)
+              events.room_id,
+              events.type,
+              events.payload
+       FROM events
+       JOIN games ON games.room_id = events.room_id
+       WHERE games.status = 'running'
+       ORDER BY events.room_id, events.seq DESC
+     )
+     SELECT count(*)::int AS count
      FROM games
-     WHERE status = 'running'
-       AND mode IN ('pvp', 'pve', 'eve')
-       AND visibility <> 'private'`,
+     JOIN last_events ON last_events.room_id = games.room_id
+     WHERE games.status = 'running'
+       AND games.mode IN ('pvp', 'pve', 'eve')
+       AND games.visibility <> 'private'
+       AND last_events.type IN ('clock-started', 'draft-start-resolved', 'move-played', 'resume')
+       AND (last_events.payload->>'at')::bigint >= $1
+       AND (last_events.payload->>'at')::bigint <= $2`,
+    [activeSinceMs, nowMs],
   );
   return rows[0]?.count ?? 0;
 }
