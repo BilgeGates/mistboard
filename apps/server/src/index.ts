@@ -74,7 +74,7 @@ import {
   touchSeatToken,
 } from './room-manager.js';
 import { authorizeExistingSeat, seatsShareAuthority } from './seat-auth.js';
-import { normalizeRoomRegion, serverConfig } from './server-config.js';
+import { loadServerRuntimeConfig, normalizeRoomRegion, serverConfig } from './server-config.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
@@ -365,9 +365,10 @@ export async function stopServer(): Promise<void> {
 
 // ── SECTION: Server init and HTTP entry ────────────────────────────────────
 async function initPersistence(): Promise<void> {
-  const databaseUrl = serverConfig.databaseUrl;
+  const persistenceConfig = loadServerRuntimeConfig();
+  const databaseUrl = persistenceConfig.databaseUrl;
   if (!databaseUrl) {
-    if (databaseRequired) {
+    if (persistenceConfig.databaseRequired) {
       throw new Error(
         'DATABASE_URL is required in this runtime; set MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true only for intentional ephemeral environments',
       );
