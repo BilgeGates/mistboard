@@ -1191,6 +1191,7 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
       .catch((err) => {
         if (!(err instanceof PersistenceFailure)) {
           const failedAt = Date.now();
+          engineCounters.recordMoveFailure();
           logger.error(
             {
               kind: 'engine_move_failure',

@@ -41,37 +41,207 @@ export interface ObsSources {
 // nothing surfaced — except a fallback rate that should be ~0 but was 1.0.
 // Watch the `engine_fallback_rate` and page when it's not near zero for any
 // engine that's supposed to play.
-class EngineCounters {
+export class EngineCounters {
   totalMoves = 0;
   totalFallbacks = 0;
+  totalMoveFailures = 0;
+  totalReservationFailures = 0;
+  totalReservationBusy = 0;
+  totalReservationReleaseFailures = 0;
+  totalTurnsStarted = 0;
+  totalTurnsCompleted = 0;
+  totalTurnsFailed = 0;
+  totalTurnTimeouts = 0;
+  totalTurnDeadlineGuards = 0;
+  totalPythonPoolErrors = 0;
+  totalPythonPoolTimeouts = 0;
   private lastEmittedMoves = 0;
   private lastEmittedFallbacks = 0;
+  private lastEmittedMoveFailures = 0;
+  private lastEmittedReservationFailures = 0;
+  private lastEmittedReservationBusy = 0;
+  private lastEmittedReservationReleaseFailures = 0;
+  private lastEmittedTurnsStarted = 0;
+  private lastEmittedTurnsCompleted = 0;
+  private lastEmittedTurnsFailed = 0;
+  private lastEmittedTurnTimeouts = 0;
+  private lastEmittedTurnDeadlineGuards = 0;
+  private lastEmittedPythonPoolErrors = 0;
+  private lastEmittedPythonPoolTimeouts = 0;
+  private turnElapsedSamples: number[] = [];
+  private turnQueueWaitSamples: number[] = [];
 
   recordMove(fallback: boolean): void {
     this.totalMoves += 1;
     if (fallback) this.totalFallbacks += 1;
   }
 
+  recordMoveFailure(): void {
+    this.totalMoveFailures += 1;
+  }
+
+  recordReservationFailure(input: { busy: boolean }): void {
+    this.totalReservationFailures += 1;
+    if (input.busy) this.totalReservationBusy += 1;
+  }
+
+  recordReservationReleaseFailure(): void {
+    this.totalReservationReleaseFailures += 1;
+  }
+
+  recordTurnStarted(): void {
+    this.totalTurnsStarted += 1;
+  }
+
+  recordTurnCompleted(input: {
+    decisionSource?: string | null;
+    elapsedMs: number;
+    queueWaitMs: number;
+  }): void {
+    this.totalTurnsCompleted += 1;
+    if (input.decisionSource === 'deadline-guard') this.totalTurnDeadlineGuards += 1;
+    this.recordTurnTiming(input);
+  }
+
+  recordTurnFailed(input: {
+    elapsedMs?: number | null;
+    error?: string | null;
+    queueWaitMs?: number | null;
+  }): void {
+    this.totalTurnsFailed += 1;
+    if (isTimeoutish(input.error)) this.totalTurnTimeouts += 1;
+    this.recordTurnTiming(input);
+  }
+
+  recordPythonPoolError(input: { timeout?: boolean } = {}): void {
+    this.totalPythonPoolErrors += 1;
+    if (input.timeout) this.totalPythonPoolTimeouts += 1;
+  }
+
+  private recordTurnTiming(input: { elapsedMs?: number | null; queueWaitMs?: number | null }): void {
+    if (typeof input.elapsedMs === 'number' && Number.isFinite(input.elapsedMs)) {
+      this.turnElapsedSamples.push(input.elapsedMs);
+    }
+    if (typeof input.queueWaitMs === 'number' && Number.isFinite(input.queueWaitMs)) {
+      this.turnQueueWaitSamples.push(input.queueWaitMs);
+    }
+  }
+
   snapshot(): {
+    deadlineGuards: number;
+    deadlineGuardsDelta: number;
     moves: number;
     fallbacks: number;
+    moveFailures: number;
     movesDelta: number;
     fallbacksDelta: number;
+    moveFailuresDelta: number;
+    pythonPoolErrors: number;
+    pythonPoolErrorsDelta: number;
+    pythonPoolTimeouts: number;
+    pythonPoolTimeoutsDelta: number;
     rate: number;
+    reservationFailures: number;
+    reservationFailuresDelta: number;
+    reservationBusy: number;
+    reservationBusyDelta: number;
+    reservationReleaseFailures: number;
+    reservationReleaseFailuresDelta: number;
+    turnElapsedMax: number | null;
+    turnElapsedP50: number | null;
+    turnElapsedP95: number | null;
+    turnLatencySamples: number;
+    turnQueueWaitMax: number | null;
+    turnQueueWaitP50: number | null;
+    turnQueueWaitP95: number | null;
+    turnTimeouts: number;
+    turnTimeoutsDelta: number;
+    turnsCompleted: number;
+    turnsCompletedDelta: number;
+    turnsFailed: number;
+    turnsFailedDelta: number;
+    turnsStarted: number;
+    turnsStartedDelta: number;
   } {
     const movesDelta = this.totalMoves - this.lastEmittedMoves;
     const fallbacksDelta = this.totalFallbacks - this.lastEmittedFallbacks;
+    const moveFailuresDelta = this.totalMoveFailures - this.lastEmittedMoveFailures;
+    const reservationFailuresDelta =
+      this.totalReservationFailures - this.lastEmittedReservationFailures;
+    const reservationBusyDelta = this.totalReservationBusy - this.lastEmittedReservationBusy;
+    const reservationReleaseFailuresDelta =
+      this.totalReservationReleaseFailures - this.lastEmittedReservationReleaseFailures;
+    const turnsStartedDelta = this.totalTurnsStarted - this.lastEmittedTurnsStarted;
+    const turnsCompletedDelta = this.totalTurnsCompleted - this.lastEmittedTurnsCompleted;
+    const turnsFailedDelta = this.totalTurnsFailed - this.lastEmittedTurnsFailed;
+    const turnTimeoutsDelta = this.totalTurnTimeouts - this.lastEmittedTurnTimeouts;
+    const deadlineGuardsDelta =
+      this.totalTurnDeadlineGuards - this.lastEmittedTurnDeadlineGuards;
+    const pythonPoolErrorsDelta = this.totalPythonPoolErrors - this.lastEmittedPythonPoolErrors;
+    const pythonPoolTimeoutsDelta =
+      this.totalPythonPoolTimeouts - this.lastEmittedPythonPoolTimeouts;
     this.lastEmittedMoves = this.totalMoves;
     this.lastEmittedFallbacks = this.totalFallbacks;
+    this.lastEmittedMoveFailures = this.totalMoveFailures;
+    this.lastEmittedReservationFailures = this.totalReservationFailures;
+    this.lastEmittedReservationBusy = this.totalReservationBusy;
+    this.lastEmittedReservationReleaseFailures = this.totalReservationReleaseFailures;
+    this.lastEmittedTurnsStarted = this.totalTurnsStarted;
+    this.lastEmittedTurnsCompleted = this.totalTurnsCompleted;
+    this.lastEmittedTurnsFailed = this.totalTurnsFailed;
+    this.lastEmittedTurnTimeouts = this.totalTurnTimeouts;
+    this.lastEmittedTurnDeadlineGuards = this.totalTurnDeadlineGuards;
+    this.lastEmittedPythonPoolErrors = this.totalPythonPoolErrors;
+    this.lastEmittedPythonPoolTimeouts = this.totalPythonPoolTimeouts;
     const rate = movesDelta > 0 ? fallbacksDelta / movesDelta : 0;
+    const elapsedStats =
+      this.turnElapsedSamples.length > 0 ? latencyStats(this.turnElapsedSamples) : null;
+    const queueStats =
+      this.turnQueueWaitSamples.length > 0 ? latencyStats(this.turnQueueWaitSamples) : null;
+    this.turnElapsedSamples = [];
+    this.turnQueueWaitSamples = [];
     return {
+      deadlineGuards: this.totalTurnDeadlineGuards,
+      deadlineGuardsDelta,
       moves: this.totalMoves,
       fallbacks: this.totalFallbacks,
+      moveFailures: this.totalMoveFailures,
       movesDelta,
       fallbacksDelta,
+      moveFailuresDelta,
+      pythonPoolErrors: this.totalPythonPoolErrors,
+      pythonPoolErrorsDelta,
+      pythonPoolTimeouts: this.totalPythonPoolTimeouts,
+      pythonPoolTimeoutsDelta,
       rate,
+      reservationFailures: this.totalReservationFailures,
+      reservationFailuresDelta,
+      reservationBusy: this.totalReservationBusy,
+      reservationBusyDelta,
+      reservationReleaseFailures: this.totalReservationReleaseFailures,
+      reservationReleaseFailuresDelta,
+      turnElapsedMax: elapsedStats?.max ?? null,
+      turnElapsedP50: elapsedStats?.p50 ?? null,
+      turnElapsedP95: elapsedStats?.p95 ?? null,
+      turnLatencySamples: elapsedStats?.samples ?? 0,
+      turnQueueWaitMax: queueStats?.max ?? null,
+      turnQueueWaitP50: queueStats?.p50 ?? null,
+      turnQueueWaitP95: queueStats?.p95 ?? null,
+      turnTimeouts: this.totalTurnTimeouts,
+      turnTimeoutsDelta,
+      turnsCompleted: this.totalTurnsCompleted,
+      turnsCompletedDelta,
+      turnsFailed: this.totalTurnsFailed,
+      turnsFailedDelta,
+      turnsStarted: this.totalTurnsStarted,
+      turnsStartedDelta,
     };
   }
+}
+
+function isTimeoutish(error: string | null | undefined): boolean {
+  if (!error) return false;
+  return /\b(timeout|timed out|abort)\b/i.test(error);
 }
 
 export const engineCounters = new EngineCounters();
@@ -183,9 +353,38 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
         tick_ms: tickMs,
         engine_moves_total: engine.moves,
         engine_fallbacks_total: engine.fallbacks,
+        engine_move_failures_total: engine.moveFailures,
         engine_moves_tick: engine.movesDelta,
         engine_fallbacks_tick: engine.fallbacksDelta,
+        engine_move_failures_tick: engine.moveFailuresDelta,
         engine_fallback_rate: Number(engine.rate.toFixed(4)),
+        engine_reservation_failures_total: engine.reservationFailures,
+        engine_reservation_failures_tick: engine.reservationFailuresDelta,
+        engine_reservation_busy_total: engine.reservationBusy,
+        engine_reservation_busy_tick: engine.reservationBusyDelta,
+        engine_reservation_release_failures_total: engine.reservationReleaseFailures,
+        engine_reservation_release_failures_tick: engine.reservationReleaseFailuresDelta,
+        engine_turns_started_total: engine.turnsStarted,
+        engine_turns_started_tick: engine.turnsStartedDelta,
+        engine_turns_completed_total: engine.turnsCompleted,
+        engine_turns_completed_tick: engine.turnsCompletedDelta,
+        engine_turns_failed_total: engine.turnsFailed,
+        engine_turns_failed_tick: engine.turnsFailedDelta,
+        engine_turn_timeouts_total: engine.turnTimeouts,
+        engine_turn_timeouts_tick: engine.turnTimeoutsDelta,
+        engine_turn_deadline_guards_total: engine.deadlineGuards,
+        engine_turn_deadline_guards_tick: engine.deadlineGuardsDelta,
+        engine_turn_latency_samples_tick: engine.turnLatencySamples,
+        engine_turn_elapsed_p50_ms: engine.turnElapsedP50,
+        engine_turn_elapsed_p95_ms: engine.turnElapsedP95,
+        engine_turn_elapsed_max_ms: engine.turnElapsedMax,
+        engine_turn_queue_wait_p50_ms: engine.turnQueueWaitP50,
+        engine_turn_queue_wait_p95_ms: engine.turnQueueWaitP95,
+        engine_turn_queue_wait_max_ms: engine.turnQueueWaitMax,
+        python_pool_errors_total: engine.pythonPoolErrors,
+        python_pool_errors_tick: engine.pythonPoolErrorsDelta,
+        python_pool_timeouts_total: engine.pythonPoolTimeouts,
+        python_pool_timeouts_tick: engine.pythonPoolTimeoutsDelta,
         ws_snapshot_requests_total: ws.snapshotRequests,
         ws_snapshot_requests_tick: ws.snapshotRequestsDelta,
         ws_unknown_messages_total: ws.unknownMessages,

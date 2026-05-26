@@ -32,7 +32,7 @@ import {
   requestInternalEngineReservation,
 } from './internal-engine-client.js';
 import { runMigrations } from './migrate.js';
-import { logger, wsCounters } from './obs.js';
+import { engineCounters, logger, wsCounters } from './obs.js';
 import { GAME_OG_IMAGE_VERSION, serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import { snapshotPayload } from './payloads.js';
 import * as persistence from './persistence.js';
@@ -1268,6 +1268,7 @@ async function reserveLiveEngineSeat(
 
 function releaseLiveEngineReservation(reservationId: string, reason: string): void {
   void releaseInternalEngineReservation(reservationId, reason).catch((err) => {
+    engineCounters.recordReservationReleaseFailure();
     logger.warn(
       {
         kind: 'live_engine_reservation_release_failed',

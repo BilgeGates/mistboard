@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import type { Move } from '@mistboard/game';
 import { engineDir, enginePython, engineScript } from './engine-paths.js';
-import { logger } from './obs.js';
+import { engineCounters, logger } from './obs.js';
 
 export interface PythonPoolOptions {
   engineId: string;
@@ -99,6 +99,7 @@ class PoolWorker {
     child.stdout.on('data', (chunk: Buffer) => this.handleChunk(chunk.toString('utf8')));
     child.stderr.on('data', (chunk: Buffer) => this.handleStderr(chunk.toString('utf8')));
     child.on('error', (err) => {
+      engineCounters.recordPythonPoolError();
       logger.error(
         { kind: 'python_pool_error', worker_idx: this.index, error: err.message },
         'worker error',
@@ -202,6 +203,7 @@ class PoolWorker {
       this.current.resolve(msg.response);
     } else {
       const errMsg = msg.error ?? 'worker returned !ok';
+      engineCounters.recordPythonPoolError({ timeout: isTimeoutish(errMsg) });
       logger.error(
         {
           kind: 'python_pool_worker_error',
@@ -232,6 +234,7 @@ class PoolWorker {
     if (this.current) {
       const req = this.current;
       this.current = null;
+      engineCounters.recordPythonPoolError({ timeout: isTimeoutish(err.message) });
       logger.error(
         {
           kind: 'python_pool_request_failed',
@@ -384,6 +387,7 @@ export class PythonPool {
     this.lastRestartAt.set(slot, now);
 
     if (burst > 5) {
+      engineCounters.recordPythonPoolError();
       logger.error(
         {
           kind: 'python_pool_slot_gave_up',
@@ -426,6 +430,7 @@ export class PythonPool {
         );
         this.tryDispatch();
       } catch (startErr) {
+        engineCounters.recordPythonPoolError();
         logger.error(
           {
             kind: 'python_pool_restart_failed',
@@ -522,6 +527,10 @@ function numberOrNull(value: unknown): number | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function isTimeoutish(error: string): boolean {
+  return /\b(timeout|timed out|abort)\b/i.test(error);
 }
 
 // Lazy-initialized singleton per engine_id. First chooseMove blocks on pool

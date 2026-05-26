@@ -1,7 +1,7 @@
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { EngineTurnRequest, EngineTurnResponse, Move, Square } from '@mistboard/game';
-import { logger } from './obs.js';
+import { engineCounters, logger } from './obs.js';
 import { getPythonPool } from './python-pool.js';
 
 const HEALTH_PATH = '/health';
@@ -225,29 +225,44 @@ async function handleRequest(
       active_moves: context.limiter.activeCount(),
       queued_moves: context.limiter.queueDepth(),
     };
+    engineCounters.recordTurnStarted();
     logger.info({ kind: 'engine_turn_started', ...commonLog }, 'engine turn started');
     try {
       const turnResponse = await context.handler(request, watchdogTimeoutMs, computeBudgetMs);
+      const elapsedMs = Date.now() - startedAt;
+      const decisionSource =
+        typeof turnResponse.diagnostics?.decisionSource === 'string'
+          ? turnResponse.diagnostics.decisionSource
+          : null;
+      engineCounters.recordTurnCompleted({
+        decisionSource,
+        elapsedMs,
+        queueWaitMs: commonLog.queue_wait_ms,
+      });
       logger.info(
         {
           kind: 'engine_turn_completed',
           ...commonLog,
-          elapsed_ms: Date.now() - startedAt,
-          decision_source:
-            typeof turnResponse.diagnostics?.decisionSource === 'string'
-              ? turnResponse.diagnostics.decisionSource
-              : null,
+          elapsed_ms: elapsedMs,
+          decision_source: decisionSource,
         },
         'engine turn completed',
       );
       return turnResponse;
     } catch (err) {
+      const elapsedMs = Date.now() - startedAt;
+      const error = err instanceof Error ? err.message : String(err);
+      engineCounters.recordTurnFailed({
+        elapsedMs,
+        error,
+        queueWaitMs: commonLog.queue_wait_ms,
+      });
       logger.error(
         {
           kind: 'engine_turn_failed',
           ...commonLog,
-          elapsed_ms: Date.now() - startedAt,
-          error: err instanceof Error ? err.message : String(err),
+          elapsed_ms: elapsedMs,
+          error,
         },
         'engine turn failed',
       );
