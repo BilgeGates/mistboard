@@ -78,12 +78,12 @@ function buildAbout(): HTMLElement {
   heading.textContent = 'About Mistboard';
 
   const lede = aboutParagraph([
-    'Mistboard is a free, open-source platform for dark chess: chess with fog of war, built for play, study, ranking, and engine work.',
+    'Mistboard is a free, open-source platform for board games with fog of war, starting with dark chess.',
   ]);
 
   const whyHeading = aboutSubheading('Why this site exists');
   const whyP = aboutParagraph([
-    'Hidden-information games have captured players’ imaginations for generations because every move carries two questions: what do I know, and what can my opponent know? Fogged boards make scouting, memory, inference, and risk part of the game itself. Mistboard exists to provide a serious online platform for that kind of play, starting with dark chess, and to host strong, inspectable engines built specifically for games where the full board is not visible.',
+    'Hidden-information games have captured players’ imaginations for generations because the board is never just a board. Every move asks what you can see, what you can infer, what you are willing to risk, and what your opponent may be hiding. Mistboard exists to make that kind of play easy to start, fair to finish, and interesting to study.',
   ]);
 
   const rulesHeading = aboutSubheading('What dark chess is');
@@ -91,18 +91,21 @@ function buildAbout(): HTMLElement {
     'Dark chess is hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark. The game ends when a king is captured.',
   ]);
 
-  const featuresHeading = aboutSubheading('What you can do here');
+  const featuresHeading = aboutSubheading('Play and study');
   const featuresP = aboutParagraph([
-    'Play a friend over a link. Join the lobby. Play the engine when no human opponent is available. Replay finished games from either player’s perspective or with the full board revealed. Read the ',
+    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Read the ',
     aboutLink('articles', '/articles'),
-    ' for rules, openings, Draft960 notes, and engine research, or browse the ',
-    aboutLink('leaderboard', '/leaderboard'),
-    ' as rated play stabilizes.',
+    ' for rules, openings, variants such as Draft960, and engine research.',
   ]);
 
-  const fairnessHeading = aboutSubheading('Trust and integrity');
+  const fairnessHeading = aboutSubheading('Trust by design');
   const fairnessP = aboutParagraph([
-    'No account is required to play. No ads. No trackers beyond aggregate analytics. Hidden information is enforced on the server: your opponent’s pieces and moves never reach your browser until your own pieces can see them.',
+    'Fog of war has to be enforced by software, not trust. The server owns the full game state and sends each browser only what that player is allowed to see. Replays preserve both player perspectives, so finished games can be studied without weakening live hidden information.',
+  ]);
+
+  const engineHeading = aboutSubheading('Engines for hidden-information games');
+  const engineP = aboutParagraph([
+    'Mistboard hosts and develops engines for hidden-information play. They compete through the same redacted view a human player receives, making engine games useful as opponents, benchmarks, and research artifacts. The aim is for best-in-class fog-of-war engines to be playable, comparable, and inspectable.',
   ]);
 
   const oss1Heading = aboutSubheading('Open source foundation');
@@ -112,16 +115,6 @@ function buildAbout(): HTMLElement {
     '. The rules, visibility boundary, replay model, and public site code are inspectable. Contributions, bug reports, and article drafts are welcome. See ',
     aboutLink('Source', '/source'),
     ' for license and third-party credits.',
-  ]);
-
-  const engineHeading = aboutSubheading('Engines for hidden-information chess');
-  const engineP = aboutParagraph([
-    'Hidden-information engines are a first-class part of Mistboard. The techniques that work for dark chess (belief-state search, particle filters, Monte Carlo tree search over determinized positions) come from the Reconnaissance Blind Chess literature. Mistboard’s first-party engine is in active development and plays through the same auditable information boundary as every other engine. A protocol for third-party engines (FUCI) is in design so the site can host best-in-class engine play as the ecosystem grows.',
-  ]);
-
-  const statusHeading = aboutSubheading('Project status');
-  const statusP = aboutParagraph([
-    'Early, single-maintainer, and shipping in public. The current focus is making live play, replays, mobile use, articles, and the beginner engine solid before wider distribution. Accounts, ratings, and engine protocol work are still stabilizing.',
   ]);
 
   const contactHeading = aboutSubheading('Get in touch');
@@ -142,12 +135,10 @@ function buildAbout(): HTMLElement {
     featuresP,
     fairnessHeading,
     fairnessP,
-    oss1Heading,
-    oss1P,
     engineHeading,
     engineP,
-    statusHeading,
-    statusP,
+    oss1Heading,
+    oss1P,
     contactHeading,
     contactP,
   );
