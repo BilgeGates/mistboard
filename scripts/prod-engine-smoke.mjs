@@ -26,7 +26,8 @@ for (const engineId of requestedEngineIds) {
       `abandon failed for ${engineId} room ${result.roomId}: ${JSON.stringify(abandoned)}`,
     );
   }
-  console.log(JSON.stringify({ ...result, abandoned }));
+  const { seatToken: _seatToken, ...publicResult } = result;
+  console.log(JSON.stringify({ ...publicResult, abandoned }));
 }
 
 async function fetchPlayableEngines(baseUrl) {
