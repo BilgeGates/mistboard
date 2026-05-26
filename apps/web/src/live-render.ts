@@ -1,14 +1,13 @@
 import { fogPatternDefs, type PieceOnBoard, renderBoardSvg } from '@mistboard/board-render';
 import { boardFen, mountBoard } from '@mistboard/board-render/interactive';
-import {
-  type Color,
-  clockRemainingMs,
-  type GameEvent,
-  type GameProjection,
-  type Move,
-  type PieceRole,
-  type PlayerView,
-  type Square,
+import type {
+  Color,
+  GameEvent,
+  GameProjection,
+  Move,
+  PieceRole,
+  PlayerView,
+  Square,
 } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
@@ -22,6 +21,11 @@ import {
   legalDests,
   squareFileIndex,
 } from './live-board.js';
+import {
+  renderClocks as renderClockRows,
+  resetClockState,
+  tickClockTimers as tickClockRows,
+} from './live-clocks.js';
 import { createLiveLayout } from './live-layout.js';
 import { renderReplay, resetMoveListState } from './live-move-list.js';
 import { captureFogView, initReplay, isLive, resetReplayState } from './live-replay.js';
@@ -44,7 +48,7 @@ import {
   seatLabel,
 } from './live-status.js';
 import { currentCaptures, currentDevViews, currentProjection, currentView } from './live-view.js';
-import { escapeHtml, files, formatClock, isColor, oppositeColor, ranks } from './web-utils.js';
+import { escapeHtml, files, isColor, oppositeColor, ranks } from './web-utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -150,10 +154,6 @@ function fenToPickerPieces(fenPlacement: string, color: Color): PieceOnBoard[] {
 let playAgainStatus: PlayAgainStatus = 'idle';
 let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | 'aborted' | null = null;
 let playingSinceMs: number | null = null;
-// Tracks the previous active clock color across renderClocks() calls so we can
-// detect the turn flip into the seated player's clock and play a flash. Reset
-// on room mount, on non-playing status, or when seat is not a color.
-let lastActiveClockColor: Color | null = null;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -173,7 +173,7 @@ export function initRender(
   lastTrackedStatusType = null;
   playingSinceMs = null;
   resetMoveListState();
-  lastActiveClockColor = null;
+  resetClockState();
   refs = createLiveLayout(target, { debugRequested: liveState.debugRequested });
   initLiveSound();
   resetLiveSoundState();
@@ -206,7 +206,7 @@ export function render(): void {
 
   renderActionStatus(view);
   renderGameInfo(view);
-  renderClocks(view);
+  renderClockRows(refs, view);
   renderCaptures(view);
   renderRoomActions();
   renderGameControls(view);
@@ -1029,115 +1029,8 @@ function devViewCard(
   return card;
 }
 
-// ── Clocks ────────────────────────────────────────────────────────────────────
-
-export function renderClocks(view: PlayerView | null): void {
-  refs.clockTop.replaceChildren();
-  refs.clockBottom.replaceChildren();
-  refs.clockNote.hidden = true;
-  refs.clockNote.textContent = '';
-  if (!view?.clock) {
-    lastActiveClockColor = null;
-    const roomCreated = liveState.events.find(
-      (e): e is Extract<GameEvent, { type: 'room-created' }> => e.type === 'room-created',
-    );
-    const tc = roomCreated?.timeControl;
-    if (tc) {
-      const incrementSec = Math.round(tc.incrementMs / 1000);
-      const tcLabel =
-        incrementSec > 0
-          ? `${formatClock(tc.initialMs)}+${incrementSec}`
-          : formatClock(tc.initialMs);
-      const colors: Color[] = ['black', 'white'];
-      colors.forEach((color, index) => {
-        const row = document.createElement('div');
-        row.className = 'pregame';
-        const label = document.createElement('span');
-        label.textContent = capitalize(color);
-        const time = document.createElement('strong');
-        time.textContent = formatClock(tc.initialMs);
-        row.append(label, time);
-        (index === 0 ? refs.clockTop : refs.clockBottom).append(row);
-      });
-      refs.clockNote.textContent = `${tcLabel} · clock starts when both players are ready`;
-      refs.clockNote.hidden = false;
-    }
-    return;
-  }
-
-  const clock = view.clock;
-  const displayAt = isLive() ? Date.now() : (clock.runningSince ?? Date.now());
-  const colors: Color[] = view.perspective === 'white' ? ['black', 'white'] : ['white', 'black'];
-  const isPvp = liveState.roomMode === 'pvp';
-  const humanColor = isColor(liveState.seat) ? liveState.seat : null;
-  const playing = view.status.type === 'playing';
-  const nextActiveColor = playing ? view.clock.activeColor : null;
-  // Flash fires once on the transition: previous render had a different active
-  // color (or none), and the new active is the seated player's. Skips the very
-  // first render of a game so we don't flash on initial pregame→playing flip.
-  const flashThisRender =
-    playing &&
-    humanColor !== null &&
-    nextActiveColor === humanColor &&
-    lastActiveClockColor !== null &&
-    lastActiveClockColor !== humanColor;
-  colors.forEach((color, index) => {
-    const isActive = nextActiveColor === color;
-    const row = document.createElement('div');
-    row.dataset.color = color;
-    const label = document.createElement('span');
-    label.className = 'clock-label';
-    const playerLine = document.createElement('span');
-    playerLine.className = 'clock-player-line';
-    const time = document.createElement('strong');
-    if (isPvp) playerLine.append(presenceDot(liveState.connectedSeats[color]));
-    // Prefer server-supplied display name; fall back to "You"/"Bot"/color
-    const serverName = liveState.seatDisplayNames[color];
-    const playerName =
-      serverName ??
-      (color === humanColor ? 'You' : liveState.roomMode === 'pve' ? 'Bot' : capitalize(color));
-    const nameEl = document.createElement('span');
-    nameEl.className = 'clock-name';
-    nameEl.textContent = playerName;
-    nameEl.title = playerName;
-    playerLine.append(nameEl);
-    label.append(playerLine);
-    const toMove = document.createElement('span');
-    toMove.className = 'clock-to-move';
-    toMove.textContent = 'to move';
-    toMove.setAttribute('aria-hidden', isActive ? 'false' : 'true');
-    label.append(toMove);
-    const remainingMs = clockRemainingMs(clock, color, displayAt);
-    time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
-    const classes: string[] = [];
-    if (isActive) classes.push('active');
-    if (isActive && flashThisRender) classes.push('just-activated');
-    row.className = classes.join(' ');
-    row.append(label, time);
-    (index === 0 ? refs.clockTop : refs.clockBottom).append(row);
-  });
-  lastActiveClockColor = nextActiveColor;
-}
-
-// Lightweight per-tick refresh used by the 100ms interval. Updates only the
-// time text (and the low-time emphasis) on existing rows so a CSS animation
-// applied to the active row by renderClocks() isn't restarted each tick.
 export function tickClockTimers(view: PlayerView | null): void {
-  if (!view?.clock || view.status.type !== 'playing') return;
-  if (refs.clockTop.children.length === 0 || refs.clockBottom.children.length === 0) {
-    renderClocks(view);
-    return;
-  }
-  const displayAt = isLive() ? Date.now() : (view.clock.runningSince ?? Date.now());
-  const rows = [...Array.from(refs.clockTop.children), ...Array.from(refs.clockBottom.children)];
-  for (const row of rows as HTMLDivElement[]) {
-    const color = row.dataset.color;
-    if (color !== 'white' && color !== 'black') continue;
-    const isActive = view.clock.activeColor === color;
-    const remainingMs = clockRemainingMs(view.clock, color, displayAt);
-    const strong = row.querySelector('strong');
-    if (strong) strong.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
-  }
+  tickClockRows(refs, view);
 }
 
 // ── Captures strip ────────────────────────────────────────────────────────────
@@ -1196,14 +1089,6 @@ function capturePieceEl(role: PieceRole, color: Color): HTMLSpanElement {
   piece.className = `${color} ${role}`;
   wrap.append(piece);
   return wrap;
-}
-
-function presenceDot(connected: boolean): HTMLSpanElement {
-  const dot = document.createElement('span');
-  dot.className = `presence-dot ${connected ? 'is-online' : 'is-offline'}`;
-  dot.setAttribute('aria-label', connected ? 'Connected' : 'Disconnected');
-  dot.title = connected ? 'Connected' : 'Disconnected';
-  return dot;
 }
 
 // ── Board ─────────────────────────────────────────────────────────────────────
