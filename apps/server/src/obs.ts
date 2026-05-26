@@ -11,6 +11,7 @@
 
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import pino, { type Logger } from 'pino';
+import { sendEngineAlertNotification } from './engine-alert-email.js';
 
 const isProd = process.env.NODE_ENV === 'production' || !process.stdout.isTTY;
 const level = process.env.LOG_LEVEL ?? 'info';
@@ -400,6 +401,41 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
         },
         'engine alert',
       );
+      void sendEngineAlertNotification(engineAlert)
+        .then((result) => {
+          if (result.status === 'sent') {
+            logger.info(
+              {
+                kind: 'engine_alert_email_sent',
+                severity: engineAlert.severity,
+              },
+              'engine alert email sent',
+            );
+          }
+          if (result.status === 'failed') {
+            logger.error(
+              {
+                kind: 'engine_alert_email_failed',
+                provider: 'resend',
+                severity: engineAlert.severity,
+                status: result.statusCode,
+                error: result.error,
+              },
+              'engine alert email failed',
+            );
+          }
+        })
+        .catch((err) => {
+          logger.error(
+            {
+              kind: 'engine_alert_email_failed',
+              provider: 'resend',
+              severity: engineAlert.severity,
+              error: (err as Error).message,
+            },
+            'engine alert email failed',
+          );
+        });
     }
     logger.info(
       {

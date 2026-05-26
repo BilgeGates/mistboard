@@ -115,6 +115,9 @@ Env:
 - `MISTBOARD_ALLOWED_ORIGINS` — optional comma-separated WebSocket origin allowlist. If unset in production-like runtimes, the server allows only `https://$HOST`.
 - `RESEND_API_KEY` — optional Resend API key for passwordless login email delivery. Required for real email login in production-like runtimes.
 - `MISTBOARD_AUTH_EMAIL_FROM` — sender address for account login emails, for example `Mistboard <login@mistboard.com>`. `RESEND_FROM_EMAIL` is also accepted as a fallback.
+- `MISTBOARD_ALERT_EMAIL_TO` — optional comma-separated operator inboxes for engine alert email. Falls back to `MISTBOARD_FEEDBACK_TO` when unset.
+- `MISTBOARD_ALERT_EMAIL_FROM` — optional sender address for alert email. Falls back to the feedback/auth sender when unset.
+- `MISTBOARD_ALERT_EMAIL_MIN_INTERVAL_MS` — optional per-severity throttle for engine alert email. Defaults to 10 minutes.
 - `MISTBOARD_DEV_AUTH_CODES=true` — explicit escape hatch that lets production-like runtimes return local passwordless email login codes in API responses. Do not set this on the live service.
 - `MISTBOARD_WS_MAX_PAYLOAD_BYTES`, `MISTBOARD_WS_MESSAGE_LIMIT`, `MISTBOARD_WS_MESSAGE_WINDOW_MS` — optional WebSocket abuse-control knobs.
 - `MISTBOARD_SHUTDOWN_GRACE_MS` — optional graceful shutdown budget for closing sockets, pending writes, and the Postgres pool.

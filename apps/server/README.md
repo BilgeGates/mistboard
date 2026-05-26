@@ -106,6 +106,15 @@ games, but demand exceeded available live engine seats. Watch
 `engine_turn_deadline_guards_tick` as a trend metric rather than a page, because
 deadline guards are expected near the end of low-clock games.
 
+If `RESEND_API_KEY` plus an alert sender and recipient are configured, each
+service also sends throttled email for `engine_alert` events. Set
+`MISTBOARD_ALERT_EMAIL_TO` to the operator inbox and `MISTBOARD_ALERT_EMAIL_FROM`
+to a verified Resend sender. If those are absent, alert email falls back to
+`MISTBOARD_FEEDBACK_TO` and the existing feedback/auth sender. Set
+`MISTBOARD_ALERT_EMAIL_MIN_INTERVAL_MS` to tune the per-severity email throttle;
+the default is 10 minutes. Configure these variables on both web and
+engine-worker if both services should email directly.
+
 ## Security invariant
 
 A `PlayerView` — not a `GameState` — is the only thing that should ever leave the server toward a client. Any outbound path that sends full board state or hidden moves is a security bug. See [`SECURITY.md`](../../SECURITY.md).
