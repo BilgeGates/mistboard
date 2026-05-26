@@ -6,11 +6,9 @@
 # by the Railway Postgres plugin); without it, apps/server falls back
 # to in-memory rooms.
 #
-# The engine implementation lives in the private mistboard-engine repo,
-# cloned during build via the MISTBOARD_ENGINE_DEPLOY_KEY env var (set
-# in each Railway service). MISTBOARD_ENGINE_DIR controls the clone
-# target and the path the server uses at runtime — both must agree.
-# Defaults to /mistboard-engine if unset.
+# The engine implementation lives in the private mistboard-engine repo and is
+# installed only for engine-worker builds. Web must not clone or install it.
+# Set MISTBOARD_BUILD_ENGINE=1 on engine-worker only.
 
 providers = ["...", "python"]
 
@@ -19,12 +17,12 @@ nixPkgs = ["...", "nodejs_22", "stockfish", "openssh", "git"]
 
 [phases.install]
 cmds = [
-  'mkdir -p ~/.ssh && chmod 700 ~/.ssh',
-  'printf "%s\n" "$MISTBOARD_ENGINE_DEPLOY_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519',
-  'ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null',
-  'git clone --depth 1 git@github.com:brianhliou/mistboard-engine.git "${MISTBOARD_ENGINE_DIR:-/mistboard-engine}"',
+  'if [ "${MISTBOARD_BUILD_ENGINE:-0}" = "1" ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; else echo MISTBOARD_BUILD_ENGINE_not_1_skipping_private_engine_checkout; fi',
+  'if [ "${MISTBOARD_BUILD_ENGINE:-0}" = "1" ]; then printf "%s\n" "$MISTBOARD_ENGINE_DEPLOY_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519; fi',
+  'if [ "${MISTBOARD_BUILD_ENGINE:-0}" = "1" ]; then ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null; fi',
+  'if [ "${MISTBOARD_BUILD_ENGINE:-0}" = "1" ]; then git clone --depth 1 git@github.com:brianhliou/mistboard-engine.git "${MISTBOARD_ENGINE_DIR:-/mistboard-engine}"; fi',
   'npm ci',
-  'python -m pip install "${MISTBOARD_ENGINE_DIR:-/mistboard-engine}[postgres]"',
+  'if [ "${MISTBOARD_BUILD_ENGINE:-0}" = "1" ]; then python -m pip install "${MISTBOARD_ENGINE_DIR:-/mistboard-engine}[postgres]"; fi',
 ]
 
 [phases.build]
