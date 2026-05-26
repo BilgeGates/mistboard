@@ -134,12 +134,14 @@ separate deploy wait time from playout wait time.
 ## Next refactor candidates
 
 - Continue splitting `apps/server/src/persistence.ts` by ownership. Pool
-  lifecycle, room seat tokens, and running-game lifecycle/event/debug-artifact
-  persistence are already out; remaining candidates are completed-game queries,
-  accounts/profile/leaderboard, feedback, and site stats.
+  lifecycle, room seat tokens, running-game lifecycle/event/debug-artifact
+  persistence, and completed-game queries are already out; remaining candidates
+  are accounts/profile/leaderboard, feedback, and site stats.
 - Continue extracting `apps/web/src/live-render.ts` around stable UI domains:
   clocks, controls, captures, draft picker, and end-state panels.
 - Split `apps/web/src/replay.ts` around data loading, board adapter, annotation
   controls, and engine-review panels.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or
   widget-specific behavior into focused modules.
+- Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
+  startup environment reads there instead of in `apps/server/src/index.ts`.

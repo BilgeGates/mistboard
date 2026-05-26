@@ -274,7 +274,9 @@ ownership surfaces:
    `apps/server/src/persistence-seat-tokens.ts` behind the same facade. Room
    event loading, append, running-game lifecycle, stale-room cleanup, and debug
    artifact persistence now live in
-   `apps/server/src/persistence-game-lifecycle.ts`.
+   `apps/server/src/persistence-game-lifecycle.ts`. Completed-game summaries,
+   game lists, watch/unlock queries, participant attribution, and game-end
+   persistence now live in `apps/server/src/persistence-games.ts`.
 6. **Split `live-render.ts` incrementally.** Extract stable live-game UI domains:
    board adapter, controls, clocks, captures, Draft960 picker, move list, and
    status panels. Keep the orchestrator thin and keep tests green after each
@@ -289,6 +291,9 @@ ownership surfaces:
    ownership boundaries.
 10. **Centralize runtime config.** Add typed config modules for server, engine,
     and web feature flags so environment reads are discoverable and testable.
+    Initial server startup/runtime defaults now live in
+    `apps/server/src/server-config.ts`; `apps/server/src/index.ts` consumes the
+    parsed config instead of reading `process.env` directly.
 
 ### Definition Of Done For The Second Push
 
