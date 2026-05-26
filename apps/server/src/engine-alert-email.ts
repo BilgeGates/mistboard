@@ -3,7 +3,7 @@ export type EngineAlertEmailPayload = {
   [field: string]: string | number | undefined;
 };
 
-type SendEngineAlertEmailResult =
+export type SendEngineAlertEmailResult =
   | { status: 'disabled' }
   | { status: 'throttled' }
   | { status: 'sent' }
@@ -12,6 +12,7 @@ type SendEngineAlertEmailResult =
 type SendOptions = {
   fetchImpl?: typeof fetch;
   nowMs?: number;
+  serviceName?: string;
 };
 
 const resendApiKey = process.env.RESEND_API_KEY;
@@ -29,7 +30,8 @@ const alertEmailMinIntervalMs = parsePositiveInt(
 );
 const lastEmailAtBySeverity = new Map<EngineAlertEmailPayload['severity'], number>();
 
-export const engineAlertEmailEnabled = !!resendApiKey && !!alertEmailFrom && alertEmailTo.length > 0;
+export const engineAlertEmailEnabled =
+  !!resendApiKey && !!alertEmailFrom && alertEmailTo.length > 0;
 
 export async function sendEngineAlertNotification(
   alert: EngineAlertEmailPayload,
@@ -43,7 +45,7 @@ export async function sendEngineAlertNotification(
   lastEmailAtBySeverity.set(alert.severity, nowMs);
 
   const at = new Date(nowMs);
-  const serviceName = currentServiceName();
+  const serviceName = options.serviceName ?? currentServiceName();
   const fetchImpl = options.fetchImpl ?? fetch;
   try {
     const response = await fetchImpl('https://api.resend.com/emails', {
@@ -103,7 +105,9 @@ export function engineAlertEmailText(
 }
 
 function currentServiceName(): string {
-  return process.env.RAILWAY_SERVICE_NAME ?? process.env.MISTBOARD_SERVICE_NAME ?? 'unknown-service';
+  return (
+    process.env.RAILWAY_SERVICE_NAME ?? process.env.MISTBOARD_SERVICE_NAME ?? 'unknown-service'
+  );
 }
 
 function parseRecipients(value: string | undefined): string[] {

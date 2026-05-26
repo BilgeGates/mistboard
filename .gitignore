@@ -16,6 +16,10 @@ research/python-fow-lab/feedback/annotation_replay*.md
 research/python-fow-lab/uv.lock
 research/python-fow-lab/vendor/
 
+# Local generated distillation corpora and model checkpoints. Keep reviewed
+# findings in docs or docs-private before deleting local runs.
+research/python-fow-lab/distill/
+
 # Local-only symlink for the ?bakeoff browser route. Points at a bake-off
 # output directory under /tmp; not part of the repo.
 apps/web/public/bakeoff

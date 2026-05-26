@@ -66,17 +66,28 @@ If that service is missing or unhealthy, Python-engine turns fail closed and
 are logged instead of being masked by a random local move under the engine's
 identity.
 
-After deploying either web or engine-worker, run the production playout smoke
-from the repo root:
+For production verification, choose the narrowest smoke tier that matches the
+change:
+
+```bash
+npm run prod:smoke:lite -- --base https://mistboard.com
+npm run prod:smoke:engines -- --base https://mistboard.com --engine python-tier1-v0.9.5
+```
+
+Use the full playout smoke when the engine protocol, reservation lifecycle,
+worker image, Python engine, or failure handling changed:
 
 ```bash
 npm run prod:smoke:engine-playout -- --base https://mistboard.com --engine python-tier1-v0.9.5 --target-plies 64 --reply-timeout-ms 45000 --total-timeout-ms 600000
 ```
 
-Passing means the script returns `ok: true` by reaching the target ply count or
-by reaching a normal terminal result. A failure, engine forfeit, indefinite
-pause, or per-reply timeout means the live engine path is not healthy enough to
-ship.
+Passing the full playout means the script returns `ok: true` by reaching the
+target ply count or by reaching a normal terminal result. A failure, engine
+forfeit, indefinite pause, or per-reply timeout means the live engine path is
+not healthy enough to ship. Full playouts intentionally wait for real engine
+moves and can take several minutes in late plies; report elapsed time and the
+slowest engine replies in handoffs instead of treating that wait as generic
+deploy latency.
 
 The engine-worker service keeps the warm Python pool. `MISTBOARD_PYTHON_POOL_SIZE`
 caps concurrent live engine requests there; when unset, the HTTP service starts
@@ -113,7 +124,16 @@ to a verified Resend sender. If those are absent, alert email falls back to
 `MISTBOARD_FEEDBACK_TO` and the existing feedback/auth sender. Set
 `MISTBOARD_ALERT_EMAIL_MIN_INTERVAL_MS` to tune the per-severity email throttle;
 the default is 10 minutes. Configure these variables on both web and
-engine-worker if both services should email directly.
+engine-worker if both services should email directly. To verify the rendered
+alert without sending email, run:
+
+```bash
+npm run ops:test-engine-alert -- --severity warning --service engine-worker --field engine_reservation_busy_tick=1
+```
+
+Add `--send` only when running against an environment with the alert sender,
+recipient, and Resend configuration already set. The command prints delivery
+status and rendered text, not provider credentials or environment values.
 
 ## Security invariant
 

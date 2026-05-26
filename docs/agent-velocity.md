@@ -87,6 +87,18 @@ revision before running smoke tests:
 npm run prod:wait-revision -- --expect-revision <sha>
 ```
 
+Use the production smoke tier that matches the change:
+
+```bash
+npm run prod:smoke:lite
+npm run prod:smoke:engines -- --engine python-tier1-v0.9.5
+npm run prod:smoke:engine-playout -- --engine python-tier1-v0.9.5 --target-plies 64
+```
+
+The full engine playout is a reliability gate, not the default check for every
+deploy. Late-ply replies can take several seconds each, so handoffs should
+separate deploy wait time from playout wait time.
+
 ## Current velocity losses
 
 - Shared worktrees are the highest-cost failure mode. Existing dirty files
@@ -102,6 +114,9 @@ npm run prod:wait-revision -- --expect-revision <sha>
   was convenient for a single human session, but unsafe for parallel agents
   because it rewrote unrelated local work. The hook now fails fast unless
   `MISTBOARD_PRECOMMIT_STASH=1` is set for a one-off local commit.
+- Generated research corpora and model checkpoints should stay ignored unless a
+  reviewed result is intentionally promoted into docs or docs-private. Large
+  untracked trees make dirty-state scans and hooks slower for every session.
 
 ## Working rules
 
@@ -109,6 +124,8 @@ npm run prod:wait-revision -- --expect-revision <sha>
 - Avoid repo-wide format or cleanup commands while another session is active.
 - Stage commits path-specifically and inspect `git diff --cached --stat` before
   committing.
+- Keep generated research outputs under ignored artifact directories, and
+  promote only small reviewed notes or fixtures.
 - For hidden-information changes, add or run tests that prove forbidden payloads
   are absent. UI correctness is not enough.
 - Use the narrowest meaningful check while iterating, then run the broader check
