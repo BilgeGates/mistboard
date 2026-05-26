@@ -249,14 +249,28 @@ function buildFaq(): HTMLElement {
     '. Include the room link if it’s about a specific game.',
   ]);
 
-  const q3 = aboutSubheading('How does rated play work?');
+  const q3 = aboutSubheading('How does Mistboard prevent cheating?');
   const a3 = aboutParagraph([
+    'Mistboard is built so the hidden board is not sitting in your opponent’s browser waiting to be uncovered. The server owns the full position, computes each seat’s legal view, and sends only that redacted view over the wire. The code is ',
+    aboutExternalLink('open source', GITHUB_URL),
+    ', so this trust boundary can be inspected. See ',
+    aboutLink('Server-Enforced Dark Chess', '/articles/server-enforced-fog'),
+    ' for the model and checks. Outside assistance, account abuse, and attempts to break the fog filter are still fair-play violations.',
+  ]);
+
+  const q4 = aboutSubheading('Do Mistboard engines see the full board?');
+  const a4 = aboutParagraph([
+    'No. Engines get the same fogged view for their side, plus only the game facts that side is allowed to know. They are truly playing dark chess and hidden-information variants, not cheating by seeing the true board. The true board stays server-side for adjudication.',
+  ]);
+
+  const q5 = aboutSubheading('How does rated play work?');
+  const a5 = aboutParagraph([
     'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count. See ',
     aboutLink('Server-Enforced Dark Chess', '/articles/server-enforced-fog'),
     ' for the trust model.',
   ]);
 
-  section.append(heading, q1, a1, q2, a2, q3, a3);
+  section.append(heading, q1, a1, q2, a2, q3, a3, q4, a4, q5, a5);
   return section;
 }
 
