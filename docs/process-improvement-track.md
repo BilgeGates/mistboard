@@ -291,7 +291,8 @@ ownership surfaces:
    move. The first slice moved static room layout and `LiveRefs` query wiring
    into `apps/web/src/live-layout.ts`; the second moved replay-derived current
    view/projection helpers into `apps/web/src/live-view.ts`; the third moved
-   status copy/tone decisions into `apps/web/src/live-status.ts`.
+   status copy/tone decisions into `apps/web/src/live-status.ts`; the fourth
+   moved board adapter helpers into `apps/web/src/live-board.ts`.
 7. **Split `replay.ts` after live render.** Extract replay timing, header/meta,
    moves panel, board panes, engine-review dock, clocks, and annotation form.
 8. **Continue server `index.ts` extraction.** Move static/page metadata,

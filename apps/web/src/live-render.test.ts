@@ -1,13 +1,8 @@
 import { boardFen, hiddenSquareClasses } from '@mistboard/board-render/interactive';
 import type { Board, PlayerView, Square } from '@mistboard/game';
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  boardHighlightClasses,
-  boardResultClass,
-  legalDests,
-  shouldAutoScrollMoveList,
-  shouldShowPostGameRoomActions,
-} from './live-render.js';
+import { boardHighlightClasses, boardResultClass, legalDests } from './live-board.js';
+import { shouldAutoScrollMoveList, shouldShowPostGameRoomActions } from './live-render.js';
 import { liveState } from './live-state.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────

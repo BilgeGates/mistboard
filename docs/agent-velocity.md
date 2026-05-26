@@ -154,7 +154,8 @@ separate deploy wait time from playout wait time.
   clocks, controls, captures, draft picker, and end-state panels. Static room
   layout already lives in `apps/web/src/live-layout.ts`; replay-derived current
   view helpers live in `apps/web/src/live-view.ts`; status copy/tone decisions
-  live in `apps/web/src/live-status.ts`.
+  live in `apps/web/src/live-status.ts`; board adapter helpers live in
+  `apps/web/src/live-board.ts`.
 - Split `apps/web/src/replay.ts` around data loading, board adapter, annotation
   controls, and engine-review panels.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or
