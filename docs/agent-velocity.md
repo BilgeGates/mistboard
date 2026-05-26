@@ -236,3 +236,6 @@ as a specific phase instead of one undifferentiated red or slow run.
 - Keep account, profile, and leaderboard route styles in
   `apps/web/src/account-profile.css`; do not add new account/profile table or
   form selectors back into the global stylesheet.
+- Keep learn/tutorial route styles in `apps/web/src/learn.css`; do not add new
+  learn module cards, chapter menus, tutorial panels, or learn-board callouts
+  back into the global stylesheet.

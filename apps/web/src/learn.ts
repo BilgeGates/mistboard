@@ -1,3 +1,4 @@
+import './learn.css';
 import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-render/interactive';
 import {
   type Board,
