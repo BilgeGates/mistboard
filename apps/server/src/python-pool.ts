@@ -38,6 +38,8 @@ export interface PythonPoolResponse {
 }
 
 interface PendingRequest {
+  dispatchedAt: number | null;
+  enqueuedAt: number;
   requestId: string;
   payload: Record<string, unknown>;
   timeoutMs: number;
@@ -95,16 +97,7 @@ class PoolWorker {
     this.process = child;
 
     child.stdout.on('data', (chunk: Buffer) => this.handleChunk(chunk.toString('utf8')));
-    child.stderr.on('data', (chunk: Buffer) => {
-      const text = chunk.toString('utf8').trim();
-      if (!text) return;
-      // Worker emits structured debug lines on stderr; surface only if not JSON debug noise.
-      if (text.startsWith('{') && text.includes('python_live_engine_debug')) return;
-      logger.warn(
-        { kind: 'python_pool_stderr', worker_idx: this.index, engine_id: this.opts.engineId, text },
-        'worker stderr',
-      );
-    });
+    child.stderr.on('data', (chunk: Buffer) => this.handleStderr(chunk.toString('utf8')));
     child.on('error', (err) => {
       logger.error(
         { kind: 'python_pool_error', worker_idx: this.index, error: err.message },
@@ -193,6 +186,19 @@ class PoolWorker {
     }
 
     if (msg.ok && msg.response) {
+      const dispatchedAt = this.current.dispatchedAt;
+      logger.info(
+        {
+          kind: 'python_pool_request_completed',
+          worker_idx: this.index,
+          elapsed_ms: dispatchedAt ? Date.now() - dispatchedAt : null,
+          queue_wait_ms: dispatchedAt ? dispatchedAt - this.current.enqueuedAt : null,
+          timeout_ms: this.current.timeoutMs,
+          decision_source: msg.response.decisionSource ?? null,
+          ...payloadDiagnostics(this.current.payload),
+        },
+        'python pool request completed',
+      );
       this.current.resolve(msg.response);
     } else {
       const errMsg = msg.error ?? 'worker returned !ok';
@@ -226,6 +232,18 @@ class PoolWorker {
     if (this.current) {
       const req = this.current;
       this.current = null;
+      logger.error(
+        {
+          kind: 'python_pool_request_failed',
+          worker_idx: this.index,
+          elapsed_ms: req.dispatchedAt ? Date.now() - req.dispatchedAt : null,
+          queue_wait_ms: req.dispatchedAt ? req.dispatchedAt - req.enqueuedAt : null,
+          timeout_ms: req.timeoutMs,
+          error: err.message,
+          ...payloadDiagnostics(req.payload),
+        },
+        'python pool request failed',
+      );
       req.reject(err);
       if (req.timeoutHandle) clearTimeout(req.timeoutHandle);
     }
@@ -253,6 +271,17 @@ class PoolWorker {
 
   dispatch(req: PendingRequest): void {
     this.current = req;
+    req.dispatchedAt = Date.now();
+    logger.info(
+      {
+        kind: 'python_pool_request_dispatched',
+        worker_idx: this.index,
+        queue_wait_ms: req.dispatchedAt - req.enqueuedAt,
+        timeout_ms: req.timeoutMs,
+        ...payloadDiagnostics(req.payload),
+      },
+      'python pool request dispatched',
+    );
     req.timeoutHandle = setTimeout(() => {
       if (this.current !== req) return;
       this.fail(new Error(`pool request timeout ${req.timeoutMs}ms`));
@@ -274,6 +303,29 @@ class PoolWorker {
     setTimeout(() => {
       if (this.process && !this.process.killed) this.process.kill('SIGKILL');
     }, 1_000).unref();
+  }
+
+  private handleStderr(chunk: string): void {
+    for (const rawLine of chunk.split(/\r?\n/)) {
+      const text = rawLine.trim();
+      if (!text) continue;
+      const parsed = parseWorkerDebugLine(text);
+      if (parsed) {
+        logger.info(
+          {
+            worker_idx: this.index,
+            engine_id: this.opts.engineId,
+            ...parsed,
+          },
+          'python live engine debug',
+        );
+        continue;
+      }
+      logger.warn(
+        { kind: 'python_pool_stderr', worker_idx: this.index, engine_id: this.opts.engineId, text },
+        'worker stderr',
+      );
+    }
   }
 }
 
@@ -398,6 +450,8 @@ export class PythonPool {
   chooseMove(payload: Record<string, unknown>, timeoutMs: number): Promise<PythonPoolResponse> {
     return new Promise<PythonPoolResponse>((resolvePromise, rejectPromise) => {
       const req: PendingRequest = {
+        dispatchedAt: null,
+        enqueuedAt: Date.now(),
         requestId: randomUUID(),
         payload,
         timeoutMs,
@@ -425,6 +479,49 @@ export class PythonPool {
     this.queue = [];
     for (const w of this.workers) w.dispose();
   }
+}
+
+function parseWorkerDebugLine(line: string): Record<string, unknown> | null {
+  if (!line.startsWith('{') || !line.includes('python_live_engine_debug')) return null;
+  try {
+    const parsed = JSON.parse(line);
+    if (!isRecord(parsed) || parsed.kind !== 'python_live_engine_debug') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function payloadDiagnostics(payload: Record<string, unknown>): Record<string, unknown> {
+  const request = isRecord(payload.engineTurnRequest) ? payload.engineTurnRequest : null;
+  const clock = request && isRecord(request.clock) ? request.clock : null;
+  return {
+    worker_budget_ms: numberOrNull(payload.watchdogTimeoutMs),
+    game_id: stringOrNull(request?.gameId),
+    session_id: stringOrNull(request?.sessionId),
+    engine_id: stringOrNull(request?.engineId),
+    color: stringOrNull(request?.color),
+    ply: numberOrNull(request?.ply),
+    legal_count: Array.isArray(request?.legalMoves) ? request.legalMoves.length : null,
+    clock_remaining_ms: numberOrNull(clock?.remaining_ms),
+    increment_ms: numberOrNull(clock?.increment_ms),
+    transcript_len: Array.isArray(request?.observationTranscript)
+      ? request.observationTranscript.length
+      : null,
+    has_delta: request?.latestObservationDelta !== undefined,
+  };
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 // Lazy-initialized singleton per engine_id. First chooseMove blocks on pool

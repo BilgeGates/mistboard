@@ -203,9 +203,57 @@ async function handleRequest(
   }
   const watchdogTimeoutMs = parseWatchdogTimeout(req);
   const computeBudgetMs = parseComputeBudget(req, watchdogTimeoutMs);
-  const response = await context.limiter.run(() =>
-    context.handler(request, watchdogTimeoutMs, computeBudgetMs),
-  );
+  const queuedAt = Date.now();
+  const queuedMovesBefore = context.limiter.queueDepth();
+  const activeMovesBefore = context.limiter.activeCount();
+  const response = await context.limiter.run(async () => {
+    const startedAt = Date.now();
+    const commonLog = {
+      game_id: request.gameId,
+      session_id: request.sessionId,
+      engine_id: request.engineId,
+      color: request.color,
+      ply: request.ply,
+      legal_count: request.legalMoves.length,
+      clock_remaining_ms: request.clock.remaining_ms,
+      increment_ms: request.clock.increment_ms,
+      watchdog_timeout_ms: watchdogTimeoutMs,
+      compute_budget_ms: computeBudgetMs,
+      queue_wait_ms: startedAt - queuedAt,
+      queued_moves_before: queuedMovesBefore,
+      active_moves_before: activeMovesBefore,
+      active_moves: context.limiter.activeCount(),
+      queued_moves: context.limiter.queueDepth(),
+    };
+    logger.info({ kind: 'engine_turn_started', ...commonLog }, 'engine turn started');
+    try {
+      const turnResponse = await context.handler(request, watchdogTimeoutMs, computeBudgetMs);
+      logger.info(
+        {
+          kind: 'engine_turn_completed',
+          ...commonLog,
+          elapsed_ms: Date.now() - startedAt,
+          decision_source:
+            typeof turnResponse.diagnostics?.decisionSource === 'string'
+              ? turnResponse.diagnostics.decisionSource
+              : null,
+        },
+        'engine turn completed',
+      );
+      return turnResponse;
+    } catch (err) {
+      logger.error(
+        {
+          kind: 'engine_turn_failed',
+          ...commonLog,
+          elapsed_ms: Date.now() - startedAt,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'engine turn failed',
+      );
+      throw err;
+    }
+  });
   writeJson(res, 200, response);
 }
 
