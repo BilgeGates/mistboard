@@ -168,7 +168,8 @@ separate deploy wait time from playout wait time.
   `apps/web/src/replay-moves-panel.ts`; game metadata/header UI lives in
   `apps/web/src/replay-meta.ts`; clock panel rendering lives in
   `apps/web/src/replay-clocks.ts`; board/pane adapters live in
-  `apps/web/src/replay-board.ts`.
+  `apps/web/src/replay-board.ts`; engine review panel/toggle UI lives in
+  `apps/web/src/replay-engine-panels.ts`.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or
   widget-specific behavior into focused modules.
 - Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
