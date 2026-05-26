@@ -307,7 +307,8 @@ ownership surfaces:
    UI into `apps/web/src/replay-moves-panel.ts`; the next moved replay
    header/metadata UI and label helpers into `apps/web/src/replay-meta.ts`;
    the next moved replay clock panel rendering into
-   `apps/web/src/replay-clocks.ts`.
+   `apps/web/src/replay-clocks.ts`; the next moved replay board/pane adapters
+   into `apps/web/src/replay-board.ts`.
 8. **Continue server `index.ts` extraction.** Move static/page metadata,
    drain-admin handling, WebSocket handling, seat-session logic, and shutdown
    orchestration into focused modules.

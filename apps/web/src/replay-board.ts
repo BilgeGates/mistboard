@@ -1,0 +1,175 @@
+import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-render/interactive';
+import type { Color, GameState, Move, Piece, PieceRole, PlayerView, Square } from '@mistboard/game';
+import type { Api } from 'chessground/api';
+import type * as cg from 'chessground/types';
+import { sortCaptureRoles } from './captures.js';
+
+export type ReplayPaneHandle = {
+  el: HTMLDivElement;
+  boardEl: HTMLDivElement;
+  capturesEl: HTMLDivElement;
+  clockSlot: HTMLDivElement;
+  labelEl: HTMLDivElement;
+  nameEl: HTMLDivElement;
+  statusEl: HTMLDivElement;
+};
+
+export function createPane(
+  label: string,
+  kind: 'white' | 'truth' | 'black',
+  showCaptures = true,
+): ReplayPaneHandle {
+  const el = document.createElement('div');
+  el.className = `replay-pane replay-pane-${kind}`;
+  const labelEl = document.createElement('div');
+  labelEl.className = 'replay-pane-label';
+  labelEl.textContent = label;
+  const nameEl = document.createElement('div');
+  nameEl.className = 'replay-pane-name';
+  const boardEl = document.createElement('div');
+  boardEl.className = 'board replay-board';
+  const capturesEl = document.createElement('div');
+  capturesEl.className = 'captures-strip replay-captures';
+  capturesEl.setAttribute('aria-label', 'Pieces captured');
+  const clockSlot = document.createElement('div');
+  clockSlot.className = 'replay-pane-clock-slot';
+  const statusEl = document.createElement('div');
+  statusEl.className = 'replay-pane-status';
+  if (showCaptures) {
+    el.append(labelEl, nameEl, boardEl, capturesEl, clockSlot, statusEl);
+  } else {
+    el.append(labelEl, nameEl, boardEl, clockSlot, statusEl);
+  }
+  return { el, boardEl, capturesEl, clockSlot, labelEl, nameEl, statusEl };
+}
+
+export function renderPaneCaptures(
+  target: HTMLDivElement,
+  capturedRoles: PieceRole[],
+  capturedColor: Color,
+): void {
+  target.replaceChildren();
+  target.classList.toggle('has-captures', capturedRoles.length > 0);
+  if (capturedRoles.length === 0) return;
+  const row = document.createElement('div');
+  row.className = 'captures-row';
+  for (const role of sortCaptureRoles(capturedRoles)) {
+    row.append(capturePieceEl(role, capturedColor));
+  }
+  target.append(row);
+}
+
+export function renderTruthCaptures(
+  target: HTMLDivElement,
+  captures: Record<Color, PieceRole[]>,
+): void {
+  target.replaceChildren();
+  const rows: HTMLDivElement[] = [];
+  for (const color of ['white', 'black'] as Color[]) {
+    const roles = captures[color];
+    if (roles.length === 0) continue;
+    const row = document.createElement('div');
+    row.className = 'captures-row';
+    for (const role of sortCaptureRoles(roles)) {
+      row.append(capturePieceEl(role, color === 'white' ? 'black' : 'white'));
+    }
+    rows.push(row);
+  }
+  target.classList.toggle('has-captures', rows.length > 0);
+  target.append(...rows);
+}
+
+function capturePieceEl(role: PieceRole, color: Color): HTMLSpanElement {
+  const wrap = document.createElement('span');
+  wrap.className = 'captures-piece cg-wrap';
+  wrap.setAttribute('aria-label', `${color} ${role}`);
+  const piece = document.createElement('piece');
+  piece.className = `${color} ${role}`;
+  wrap.append(piece);
+  return wrap;
+}
+
+export function createBoard(el: HTMLElement, orientation: Color): Api {
+  return mountBoard(el, {
+    animation: { enabled: false, duration: 0 },
+    coordinates: false,
+    coordinatesOnSquares: false,
+    fen: '8/8/8/8/8/8/8/8',
+    orientation,
+    movable: { free: false, color: undefined, dests: new Map() },
+    draggable: { enabled: false },
+    selectable: { enabled: false },
+    premovable: { enabled: false },
+    viewOnly: true,
+  });
+}
+
+/** Compute algebraic square (e.g., "e4") from a click event on a chessground
+ *  inner cg-board element. cg-board is rendered at full width of cg-wrap and
+ *  matches the visible board exactly, unlike the outer .replay-board parent
+ *  which can be wider/taller due to padding. Returns null if click is off the
+ *  board or if the element isn't found. */
+export function squareFromCgBoardClick(
+  boardEl: HTMLElement,
+  e: MouseEvent,
+  orientation: Color,
+): string | null {
+  const cg = boardEl.querySelector('cg-board') as HTMLElement | null;
+  if (!cg) return null;
+  const rect = cg.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return null;
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null;
+  const fileIdx = Math.floor((x / rect.width) * 8);
+  const rankIdx = Math.floor((y / rect.height) * 8);
+  const fileChar =
+    orientation === 'white'
+      ? String.fromCharCode(97 + fileIdx)
+      : String.fromCharCode(97 + (7 - fileIdx));
+  const rankNum = orientation === 'white' ? 8 - rankIdx : 1 + rankIdx;
+  if (fileChar < 'a' || fileChar > 'h' || rankNum < 1 || rankNum > 8) return null;
+  return `${fileChar}${rankNum}`;
+}
+
+export function setBoardFromView(api: Api, view: PlayerView, orientation: Color): void {
+  const lastMove = view.lastMove ? ([view.lastMove.from, view.lastMove.to] as cg.Key[]) : undefined;
+  api.set({
+    fen: boardFen(view.board),
+    lastMove,
+    highlight: {
+      custom: hiddenSquareClasses(view, orientation, { preserveFogOnFinished: true }),
+      lastMove: true,
+    },
+  });
+}
+
+export function setBoardFromState(api: Api, state: GameState): void {
+  const lastMove = state.lastMove
+    ? ([state.lastMove.from, state.lastMove.to] as cg.Key[])
+    : undefined;
+  api.set({
+    fen: boardFen(state.board),
+    lastMove,
+    highlight: { custom: new Map(), lastMove: true },
+  });
+}
+
+export function revealKingCaptureForLoser(
+  view: PlayerView,
+  lastMove: Move,
+  attacker: Piece,
+): PlayerView {
+  const visible = new Set(view.visibleSquares);
+  const board = { ...view.board };
+  visible.add(lastMove.to);
+  visible.add(lastMove.from);
+  board[lastMove.to] = attacker;
+  delete board[lastMove.from];
+  return {
+    ...view,
+    board,
+    visibleSquares: [...visible].sort() as Square[],
+    lastMove,
+  };
+}
