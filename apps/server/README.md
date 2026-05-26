@@ -53,6 +53,10 @@ reservation id, and game end releases it. If engine-worker is at capacity,
 room creation returns `engine_busy` instead of starting a game that cannot
 receive honest engine moves.
 
+`EngineTurnRequest.legalMoves` reuses the public game `Move` shape: promotion
+values are role names (`queen`, `rook`, `bishop`, `knight`). Visible pieces in
+observations use protocol letters (`Q`, `R`, `B`, `N`, `P`, `K`).
+
 On Railway, set `MISTBOARD_INTERNAL_ENGINE_URL` on web to the engine-worker
 private domain with the service port, e.g. `http://<engine-worker-private-domain>:3001`.
 The engine-worker HTTP listener binds to `::` by default for Railway private
