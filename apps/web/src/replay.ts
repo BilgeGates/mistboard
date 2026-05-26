@@ -37,112 +37,42 @@ import {
 } from './annotations.js';
 import { type BeliefConfig, type BeliefPanelHandle, createBeliefPanel } from './belief-panel.js';
 import { computeCaptures, sortCaptureRoles } from './captures.js';
+import {
+  compactReplayClockSidesForOrientation,
+  DEFAULT_BETWEEN_GAME_DELAY_MS,
+  DEFAULT_WALL_CLOCK_TICK_MS,
+  FALLBACK_PLAY_MS,
+  positiveMs,
+  resolveWallClockReplayPosition,
+  resolveWallClockThinkingElapsedMs,
+  type WallClockReplayLoop,
+  type WallClockReplayPosition,
+} from './replay-wall-clock.js';
 import { formatClock } from './web-utils.js';
 
-const FALLBACK_PLAY_MS = 900;
 const COMPUTE_SCALE = 50;
 const LEGACY_RECORDED_TIME_SCALE = 0.12;
 const MIN_RECORDED_DELTA_MS = 150;
 const MIN_PLAY_MS = 700;
 const MAX_PLAY_MS = 2500;
 const MIN_THINKING_BUDGET_PLAY_MS = 700;
-const DEFAULT_BETWEEN_GAME_DELAY_MS = 8000;
-const DEFAULT_WALL_CLOCK_TICK_MS = 250;
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
 type MovePlayedExt = MovePlayedEvent & { compute_ms?: number; thinkTimeMs?: number };
 
-export function compactReplayClockSidesForOrientation(orientation: Color): {
-  bottom: Color;
-  top: Color;
-} {
-  return orientation === 'black'
-    ? { top: 'white', bottom: 'black' }
-    : { top: 'black', bottom: 'white' };
-}
-
-export type WallClockReplayLoopSample = {
-  plyCount: number;
-  sampleId: string;
-};
-
-export type WallClockReplayTiming = {
-  epochMs?: number;
-  holdMs?: number;
-  plyMs?: number;
-};
-
-export type WallClockReplayLoop = WallClockReplayTiming & {
-  now?: () => number;
-  samples: WallClockReplayLoopSample[];
-  tickMs?: number;
-};
-
-export type WallClockReplayPosition = {
-  cycleMs: number;
-  ply: number;
-  plyElapsedMs: number;
-  sampleElapsedMs: number;
-  sampleId: string;
-  sampleIndex: number;
-};
-
-export function resolveWallClockReplayPosition(
-  samples: readonly WallClockReplayLoopSample[],
-  nowMs: number,
-  timing: WallClockReplayTiming = {},
-): WallClockReplayPosition | null {
-  if (samples.length === 0) return null;
-
-  const plyMs = positiveMs(timing.plyMs, FALLBACK_PLAY_MS);
-  const holdMs = nonNegativeMs(timing.holdMs, DEFAULT_BETWEEN_GAME_DELAY_MS);
-  const epochMs =
-    typeof timing.epochMs === 'number' && Number.isFinite(timing.epochMs) ? timing.epochMs : 0;
-  const atMs = Number.isFinite(nowMs) ? nowMs : epochMs;
-  const durations = samples.map((sample) =>
-    Math.max(1, normalizedPlyCount(sample.plyCount) * plyMs + holdMs),
-  );
-  const cycleMs = durations.reduce((total, duration) => total + duration, 0);
-  let offset = positiveModulo(atMs - epochMs, cycleMs);
-
-  for (let index = 0; index < samples.length; index += 1) {
-    const duration = durations[index]!;
-    const sample = samples[index]!;
-    if (offset >= duration) {
-      offset -= duration;
-      continue;
-    }
-
-    const plyCount = normalizedPlyCount(sample.plyCount);
-    const playMs = plyCount * plyMs;
-    const inPlay = offset < playMs;
-    const ply = inPlay ? Math.floor(offset / plyMs) : plyCount;
-    return {
-      cycleMs,
-      ply,
-      plyElapsedMs: inPlay ? offset - ply * plyMs : 0,
-      sampleElapsedMs: offset,
-      sampleId: sample.sampleId,
-      sampleIndex: index,
-    };
-  }
-
-  const first = samples[0]!;
-  return {
-    cycleMs,
-    ply: 0,
-    plyElapsedMs: 0,
-    sampleElapsedMs: 0,
-    sampleId: first.sampleId,
-    sampleIndex: 0,
-  };
-}
-
-export function resolveWallClockThinkingElapsedMs(plyElapsedMs: number, thinkMs: number): number {
-  return Math.min(nonNegativeMs(plyElapsedMs, 0), nonNegativeMs(thinkMs, 0));
-}
+export type {
+  WallClockReplayLoop,
+  WallClockReplayLoopSample,
+  WallClockReplayPosition,
+  WallClockReplayTiming,
+} from './replay-wall-clock.js';
+export {
+  compactReplayClockSidesForOrientation,
+  resolveWallClockReplayPosition,
+  resolveWallClockThinkingElapsedMs,
+} from './replay-wall-clock.js';
 
 export type GameMeta = {
   whiteName: string | null;
@@ -1356,26 +1286,6 @@ function pickNextSample(pool: string[], current: string): string {
   if (pool.length <= 1) return pool[0] ?? current;
   const others = pool.filter((id) => id !== current);
   return others[Math.floor(Math.random() * others.length)] ?? pool[0];
-}
-
-function normalizedPlyCount(value: number): number {
-  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-}
-
-function positiveMs(value: number | undefined, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? Math.max(1, Math.floor(value))
-    : fallback;
-}
-
-function nonNegativeMs(value: number | undefined, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? Math.floor(value)
-    : fallback;
-}
-
-function positiveModulo(value: number, modulus: number): number {
-  return ((value % modulus) + modulus) % modulus;
 }
 
 type GameMetaPanelHandle = {

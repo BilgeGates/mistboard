@@ -158,7 +158,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `pages-static.ts` | `/about` + `/source` + `/faq` + `/terms` + `/articles` (index + slug) + 404 mounts. Builders for about/source/faq/terms/notfound + shared text primitives (`aboutSubheading`/`aboutParagraph`/`aboutLink`/`aboutExternalLink`, `sourceBlock`/`textLine`/`linkLine`). Uses `site-shell.ts` for shared chrome |
 | `contact.ts` | `buildContact` — `/contact` form builder (anon vs signed-in lanes, honeypot, submit/error states). Mounted by `landing.ts` (mountContact is 15 lines, uses buildNav/Footer) |
 | `review.ts` | Game-review data plumbing for `/game/:id`: `loadGameForReview`, `fetchGameReview`, `fetchGameArtifacts`, `fetchTraceArtifacts`, belief/trace row converters, `enginePanelsForReview`. Owns the engine-artifact panel hydration |
-| `replay.ts` | Replay viewer: `mountReplay` (~880-line closure — extraction candidate for a future session), board adapter, panels, annotation form |
+| `replay.ts` | Replay viewer: `mountReplay` closure, board adapter, panels, annotation form. Wall-clock loop timing helpers live in `replay-wall-clock.ts`. |
+| `replay-wall-clock.ts` | Pure replay timing helpers for compact clock orientation, wall-clock loop position, thinking elapsed clamping, and replay timing constants |
 | `belief-panel.ts` | Engine belief/probability display panels for the replay lab |
 | `learn.ts` | `/learn` tutorial (Steps 1-3 shipped, 4-5 parked) |
 | `articles.ts` | Articles page renderer |

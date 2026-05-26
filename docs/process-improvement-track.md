@@ -302,6 +302,8 @@ ownership surfaces:
    rendering into `apps/web/src/live-dev-views.ts`.
 7. **Split `replay.ts` after live render.** Extract replay timing, header/meta,
    moves panel, board panes, engine-review dock, clocks, and annotation form.
+   Initial extraction moved wall-clock loop timing helpers into
+   `apps/web/src/replay-wall-clock.ts`.
 8. **Continue server `index.ts` extraction.** Move static/page metadata,
    drain-admin handling, WebSocket handling, seat-session logic, and shutdown
    orchestration into focused modules.

@@ -3,7 +3,7 @@ import {
   compactReplayClockSidesForOrientation,
   resolveWallClockReplayPosition,
   resolveWallClockThinkingElapsedMs,
-} from './replay.js';
+} from './replay-wall-clock.js';
 
 describe('compactReplayClockSidesForOrientation', () => {
   it('puts the side facing the top of a white-oriented board above the board', () => {
