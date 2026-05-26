@@ -30,6 +30,12 @@ type PlayableEngine = {
 };
 
 type LandingGameSource = 'recent' | 'eve' | 'sample';
+type WatchFeed = {
+  now: string;
+  unlockWindowMs: number;
+  sealedCount: number;
+  unlocked: FeaturedGame[];
+};
 type LandingPlayChoice = {
   engineId?: string;
   engines?: PlayableEngine[];
@@ -156,24 +162,28 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   root.classList.add('landing-page', 'watch-route');
   root.append(buildNav(), buildLoadingState('Loading replays'), buildFooter());
 
-  const { games, source } = await fetchLandingGames();
-  const watch = buildWatchSection();
+  const feed = await fetchWatchFeed().catch((err) => {
+    console.warn(err);
+    return null;
+  });
+  const watch = buildWatchSection(feed);
   root.replaceChildren(buildNav(), watch.el, buildFooter());
+  document.title = 'Mistboard TV · Mistboard';
 
-  if (games.length === 0) {
-    watch.replayRoot.textContent = 'No games available yet.';
-    renderRecentGames(watch.listRoot, games, source);
+  if (!feed || feed.unlocked.length === 0) {
+    renderWatchEmptyState(watch.replayRoot, feed);
+    renderWatchQueue(watch.queueRoot, feed, null);
     return;
   }
 
   const metadataByRoomId: Record<string, GameMeta> = {};
-  for (const g of games) {
+  for (const g of feed.unlocked) {
     metadataByRoomId[g.roomId] = gameMetaForGame(g);
   }
 
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('game');
-  const sampleIds = games.map((g) => g.roomId);
+  const sampleIds = feed.unlocked.map((g) => g.roomId);
   const currentSample = requested && sampleIds.includes(requested) ? requested : sampleIds[0]!;
 
   await mountReplay(watch.replayRoot, currentSample, {
@@ -184,7 +194,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     loaderForId: apiEventLoader,
     metadataByRoomId,
   });
-  renderRecentGames(watch.listRoot, games, source, currentSample, '/game/');
+  renderWatchQueue(watch.queueRoot, feed, currentSample);
 }
 
 export async function mountGame(root: HTMLElement, roomId: string): Promise<void> {
@@ -247,32 +257,10 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   });
 }
 
-async function fetchLandingGames(): Promise<{ games: FeaturedGame[]; source: LandingGameSource }> {
-  const recentGames = await fetchRecentGames().catch((err) => {
-    console.warn(err);
-    return [];
-  });
-  if (recentGames.length > 0) return { games: recentGames, source: 'recent' };
-  const eveGames = await fetchRecentEveGames().catch((err) => {
-    console.warn(err);
-    return [];
-  });
-  if (eveGames.length > 0) return { games: eveGames, source: 'eve' };
-  return { games: staticSampleGames(), source: 'sample' };
-}
-
-async function fetchRecentGames(): Promise<FeaturedGame[]> {
-  const resp = await fetch('/api/games/recent');
-  if (!resp.ok) throw new Error(`failed to load recent games: ${resp.status}`);
-  const data = (await resp.json()) as { games: FeaturedGame[] };
-  return data.games;
-}
-
-async function fetchRecentEveGames(): Promise<FeaturedGame[]> {
-  const resp = await fetch('/api/eve-games/recent');
-  if (!resp.ok) throw new Error(`failed to load recent EvE games: ${resp.status}`);
-  const data = (await resp.json()) as { games: FeaturedGame[] };
-  return data.games;
+async function fetchWatchFeed(): Promise<WatchFeed> {
+  const resp = await fetch('/api/watch');
+  if (!resp.ok) throw new Error(`failed to load watch feed: ${resp.status}`);
+  return (await resp.json()) as WatchFeed;
 }
 
 async function fetchPlayableEngines(): Promise<PlayableEngine[]> {
@@ -322,36 +310,6 @@ async function fetchStaticSample(sampleId: string): Promise<GameEvent[]> {
     .split('\n')
     .filter((line) => line.trim().length > 0)
     .map((line) => JSON.parse(line) as GameEvent);
-}
-
-function staticSampleGames(): FeaturedGame[] {
-  return Array.from({ length: 7 }, (_, index) => ({
-    roomId: `sample-${index + 1}`,
-    variant: 'dark-chess',
-    mode: 'manual',
-    result: index % 3 === 0 ? 'white-wins' : index % 3 === 1 ? 'black-wins' : 'draw',
-    termination: index % 3 === 2 ? 'draw' : 'king-captured',
-    plyCount: 24 + index * 3,
-    whiteName: 'White',
-    blackName: 'Black',
-    corpusId: 'replay-samples',
-    participants: [
-      {
-        color: 'white',
-        displayName: 'White',
-        subjectType: 'manual',
-        subjectId: null,
-        visibility: 'public',
-      },
-      {
-        color: 'black',
-        displayName: 'Black',
-        subjectType: 'manual',
-        subjectId: null,
-        visibility: 'public',
-      },
-    ],
-  }));
 }
 
 function homepageShowcaseGames(): FeaturedGame[] {
@@ -1464,18 +1422,56 @@ function startOptionButton(label: string, selected: boolean): HTMLButtonElement 
   return button;
 }
 
-function buildWatchSection(): { el: HTMLElement; replayRoot: HTMLElement; listRoot: HTMLElement } {
+function buildWatchSection(feed: WatchFeed | null): {
+  el: HTMLElement;
+  replayRoot: HTMLElement;
+  queueRoot: HTMLElement;
+} {
   const section = document.createElement('main');
   section.className = 'watch-shell';
 
-  const listRoot = document.createElement('aside');
-  listRoot.className = 'landing-games watch-games';
+  const header = document.createElement('header');
+  header.className = 'watch-header';
+
+  const copy = document.createElement('div');
+  copy.className = 'watch-header-copy';
+  const eyebrow = document.createElement('span');
+  eyebrow.className = 'watch-eyebrow';
+  eyebrow.textContent = 'Mistboard TV';
+  const title = document.createElement('h1');
+  title.textContent = 'Recent replays';
+  const description = document.createElement('p');
+  description.textContent =
+    'Games stay sealed while they are being played. Finished games unlock here as short-window replays.';
+  copy.append(eyebrow, title, description);
+
+  const status = document.createElement('div');
+  status.className = 'watch-status';
+  const sealed = document.createElement('strong');
+  sealed.textContent = feed ? String(feed.sealedCount) : 'n/a';
+  const sealedLabel = document.createElement('span');
+  sealedLabel.textContent =
+    feed?.sealedCount === 1 ? 'sealed game in progress' : 'sealed games in progress';
+  const windowLabel = document.createElement('span');
+  windowLabel.textContent = feed
+    ? `${feed.unlocked.length} unlocked · ${formatUnlockWindow(feed.unlockWindowMs)} window`
+    : 'feed unavailable';
+  status.append(sealed, sealedLabel, windowLabel);
+
+  header.append(copy, status);
 
   const replayRoot = document.createElement('div');
   replayRoot.className = 'watch-replay';
 
-  section.append(listRoot, replayRoot);
-  return { el: section, replayRoot, listRoot };
+  const queueRoot = document.createElement('aside');
+  queueRoot.className = 'watch-queue';
+
+  const stage = document.createElement('div');
+  stage.className = 'watch-stage';
+  stage.append(replayRoot, queueRoot);
+
+  section.append(header, stage);
+  return { el: section, replayRoot, queueRoot };
 }
 
 function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
@@ -1505,70 +1501,144 @@ function buildGameExportLinks(roomId: string, variant: string | undefined): HTML
   return section;
 }
 
-function renderRecentGames(
+function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void {
+  root.replaceChildren();
+
+  const empty = document.createElement('section');
+  empty.className = 'watch-empty';
+  const title = document.createElement('h2');
+  title.textContent = feed ? 'No unlocked replays yet' : 'Replay feed unavailable';
+  const body = document.createElement('p');
+  body.textContent = feed
+    ? feed.sealedCount > 0
+      ? 'Games are being played, but they stay hidden until completion.'
+      : 'Start a game and it can become the next replay after it finishes.'
+    : 'The watch feed needs persistence, so it is not available in this runtime.';
+
+  const actions = document.createElement('div');
+  actions.className = 'watch-empty-actions';
+  const engine = document.createElement('a');
+  engine.href = '/?play=computer';
+  engine.textContent = 'Play engine';
+  const friend = document.createElement('a');
+  friend.href = '/?play=friend';
+  friend.textContent = 'Start friend game';
+  actions.append(engine, friend);
+
+  empty.append(title, body, actions);
+  root.append(empty);
+}
+
+function renderWatchQueue(
   root: HTMLElement,
-  games: FeaturedGame[],
-  source: LandingGameSource,
-  activeRoomId?: string,
-  hrefPrefix = '/?demo=',
-  headingText?: string,
-  clickable = true,
-  limit = 10,
+  feed: WatchFeed | null,
+  activeRoomId: string | null,
 ): void {
   root.replaceChildren();
 
+  const sealed = document.createElement('section');
+  sealed.className = 'watch-queue-status';
+  const sealedCount = document.createElement('strong');
+  sealedCount.textContent = feed ? String(feed.sealedCount) : 'n/a';
+  const sealedText = document.createElement('span');
+  sealedText.textContent =
+    feed?.sealedCount === 1
+      ? 'sealed game in progress. It unlocks after completion.'
+      : 'sealed games in progress. They unlock after completion.';
+  sealed.append(sealedCount, sealedText);
+  root.append(sealed);
+
   const heading = document.createElement('div');
-  heading.className = 'landing-games-heading';
-  heading.textContent =
-    headingText ??
-    (source === 'recent'
-      ? 'Recent games'
-      : source === 'eve'
-        ? 'Recent EvE'
-        : source === 'sample'
-          ? 'Replay samples'
-          : 'Featured games');
+  heading.className = 'watch-queue-heading';
+  const title = document.createElement('h2');
+  title.textContent = 'Unlocked queue';
+  const windowLabel = document.createElement('span');
+  windowLabel.textContent = feed ? formatUnlockWindow(feed.unlockWindowMs) : 'offline';
+  heading.append(title, windowLabel);
   root.append(heading);
 
-  if (games.length === 0) {
+  if (!feed) {
     const empty = document.createElement('p');
-    empty.className = 'landing-games-empty';
-    empty.textContent = 'No games yet.';
+    empty.className = 'watch-queue-empty';
+    empty.textContent = 'Feed unavailable.';
+    root.append(empty);
+    return;
+  }
+
+  if (feed.unlocked.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'watch-queue-empty';
+    empty.textContent = 'No completed games in the current replay window.';
     root.append(empty);
     return;
   }
 
   const list = document.createElement('ol');
-  list.className = 'landing-games-list';
+  list.className = 'watch-queue-list';
 
-  for (const game of games.slice(0, limit)) {
+  for (const game of feed.unlocked) {
     const item = document.createElement('li');
-    const row = clickable ? document.createElement('a') : document.createElement('div');
-    row.className = 'landing-game-row';
-    if (clickable) {
-      (row as HTMLAnchorElement).href = `${hrefPrefix}${encodeURIComponent(game.roomId)}`;
-    }
+    item.className = 'watch-queue-item';
+
+    const row = document.createElement('a');
+    row.className = 'watch-queue-row';
+    row.href = `/watch?game=${encodeURIComponent(game.roomId)}`;
     if (game.roomId === activeRoomId) row.classList.add('active');
 
     const matchup = document.createElement('span');
-    matchup.className = 'landing-game-matchup';
+    matchup.className = 'watch-queue-matchup';
     matchup.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
 
     const meta = document.createElement('span');
-    meta.className = 'landing-game-meta';
+    meta.className = 'watch-queue-meta';
     const result = document.createElement('span');
-    result.className = 'landing-game-result';
+    result.className = 'watch-queue-result';
     result.textContent = resultLabel(game.result);
     const detail = document.createElement('span');
-    detail.textContent = `${sourceLabel(game.mode)} · ${game.plyCount} plies · ${terminationLabel(game.termination)}`;
+    detail.textContent = [
+      sourceLabel(game.mode),
+      `${game.plyCount} plies`,
+      formatEndedAge(game.endedAt, feed.now),
+    ]
+      .filter(Boolean)
+      .join(' · ');
     meta.append(result, detail);
 
     row.append(matchup, meta);
-    item.append(row);
+    const reviewUrl = reviewUrlForGame(game);
+    if (reviewUrl) {
+      const review = document.createElement('a');
+      review.className = 'watch-queue-review';
+      review.href = reviewUrl;
+      review.textContent = 'Review';
+      item.append(row, review);
+    } else {
+      item.append(row);
+    }
     list.append(item);
   }
 
   root.append(list);
+}
+
+function formatUnlockWindow(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = minutes / 60;
+  return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+}
+
+function formatEndedAge(endedAt: string | undefined, nowIso: string): string | null {
+  if (!endedAt) return null;
+  const endedMs = Date.parse(endedAt);
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(endedMs) || !Number.isFinite(nowMs)) return null;
+  const ageSeconds = Math.max(0, Math.floor((nowMs - endedMs) / 1000));
+  if (ageSeconds < 60) return 'just finished';
+  const minutes = Math.floor(ageSeconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
 }
 
 function resultLabel(result: string): string {
@@ -1587,10 +1657,6 @@ function buildGamePageTitle(game: FeaturedGame): string {
         ? `${black} beats ${white}`
         : `${white} vs ${black} · Draw`;
   return `${result} · Mistboard`;
-}
-
-function terminationLabel(termination: string): string {
-  return termination.replace(/-/g, ' ');
 }
 
 async function createRoomFromPlay(
