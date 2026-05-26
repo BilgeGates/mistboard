@@ -94,12 +94,20 @@ For production push verification, CI waits for stable `/health` and deployed
 `/api/server-status` revision responses before running smoke tests:
 
 ```bash
+npm run prod:smoke:plan -- --base-from-prod --head HEAD
+npm run prod:smoke:plan -- --base HEAD^ --head HEAD
 npm run prod:wait-revision -- --expect-revision <sha>
 ```
 
 The wait requires consecutive ready checks by default. This avoids releasing
 the real smoke during Railway cutover, when one edge request may already see the
 new revision while another still returns a transient service-level 404.
+The production workflow first compares the range from the currently deployed
+production revision to the pushed commit against `railway.web.json` watch
+patterns. If no web deploy path changed, it skips the exact-revision wait
+instead of polling for a revision Railway will not serve. If the production
+revision cannot be read or diffed locally, the planner falls back to running the
+smoke.
 
 Use the production smoke tier that matches the change:
 
@@ -118,6 +126,9 @@ release-bound branch.
 The full engine playout is a reliability gate, not the default check for every
 deploy. Late-ply replies can take several seconds each, so handoffs should
 separate deploy wait time from playout wait time.
+CI production smoke writes timing summaries for dependency install, Railway
+revision wait, web smoke, and engine smoke so slow deploys are visible as a
+specific phase instead of one undifferentiated red or slow run.
 
 ## Current velocity losses
 

@@ -16,23 +16,37 @@ jobs:
   prod-smoke:
     if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    outputs:
+      smoke_ran: ${{ steps.plan.outputs.deploy_required }}
     env:
       EXPECTED_REVISION: ${{ github.event.workflow_run.head_sha }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 50
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - name: Plan prod smoke
+        id: plan
+        run: node scripts/prod-smoke-plan.mjs --base-from-prod --head HEAD
+      - name: Skip non-deploy prod smoke
+        if: steps.plan.outputs.deploy_required != 'true'
+        run: echo "No Railway web watch pattern matched this commit; skipping exact-revision prod smoke."
+      - name: Install dependencies
+        if: steps.plan.outputs.deploy_required == 'true'
+        run: node scripts/time-command.mjs --label "prod-smoke npm ci" -- npm ci
       - name: Wait for Railway deploy
-        run: npm run prod:wait-revision -- --expect-revision "$EXPECTED_REVISION" --timeout-ms 900000
+        if: steps.plan.outputs.deploy_required == 'true'
+        run: node scripts/time-command.mjs --label "Railway revision wait" -- npm run prod:wait-revision -- --expect-revision "$EXPECTED_REVISION" --timeout-ms 900000
       - name: Prod smoke
-        run: npm run prod:smoke -- --expect-revision "$EXPECTED_REVISION"
+        if: steps.plan.outputs.deploy_required == 'true'
+        run: node scripts/time-command.mjs --label "Prod smoke" -- npm run prod:smoke -- --expect-revision "$EXPECTED_REVISION"
       - name: Engine smoke
-        run: npm run prod:smoke:engines
+        if: steps.plan.outputs.deploy_required == 'true'
+        run: node scripts/time-command.mjs --label "Engine smoke" -- npm run prod:smoke:engines
 
   prod-lite-smoke:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -43,9 +57,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
       - name: Prod lite smoke
-        run: npm run prod:smoke:lite
+        run: node scripts/time-command.mjs --label "Prod lite smoke" -- npm run prod:smoke:lite
 
   notify-prod-failure:
     needs: [prod-smoke, prod-lite-smoke]
@@ -104,7 +117,7 @@ jobs:
 
   close-prod-health:
     needs: [prod-smoke, prod-lite-smoke]
-    if: always() && (needs.prod-smoke.result == 'success' || needs.prod-lite-smoke.result == 'success')
+    if: always() && ((needs.prod-smoke.outputs.smoke_ran == 'true' && needs.prod-smoke.result == 'success') || needs.prod-lite-smoke.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       issues: write

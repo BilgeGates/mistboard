@@ -56,11 +56,13 @@
     "test:mobile:shots": "npm run mobile:loop",
     "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs",
     "release:local-smoke": "node scripts/release-local-smoke.mjs",
+    "prod:smoke:plan": "node scripts/prod-smoke-plan.mjs",
     "prod:wait-revision": "node scripts/wait-prod-revision.mjs",
     "prod:smoke:lite": "node scripts/prod-lite-smoke.mjs",
     "prod:smoke": "node scripts/prod-smoke.mjs",
     "prod:smoke:engines": "node scripts/prod-engine-smoke.mjs",
     "prod:smoke:engine-playout": "node scripts/prod-engine-playout.mjs",
+    "time:command": "node scripts/time-command.mjs",
     "research:kqk-belief": "tsx scripts/fow-kqk-belief.ts"
   },
   "engines": {

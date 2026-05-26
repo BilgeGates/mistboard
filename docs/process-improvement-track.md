@@ -155,6 +155,14 @@ Track these optimizations after the engine extraction settles:
 - publish deploy duration in handoffs alongside CI duration so slow build paths
   are visible instead of felt only as waiting time.
 
+Current implementation: `npm run prod:smoke:plan` reads `railway.web.json`
+watch patterns and the prod-smoke workflow runs it before dependency install. In
+CI it compares from the currently deployed production revision to the pushed
+commit, which keeps multi-commit pushes conservative while still skipping
+commits that do not affect the web Railway service. Deploy-affecting runs write
+step-summary timings for dependency install, revision wait, web smoke, and
+engine smoke.
+
 ### 4. Manual Gate Evidence
 
 Add a tiny evidence workflow for M1 manual checks:
