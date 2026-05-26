@@ -57,6 +57,8 @@ Expected behavior:
 - prepares fresh worktrees for typecheck/commit by building local package
   declarations;
 - refuses ambiguous names and avoids overwriting existing worktrees.
+- supports `--path <path>` so sandboxed agents can create task trees under a
+  writable temp root instead of an unwritable sibling directory.
 
 This formalizes the current rule from `docs/agent-velocity.md`: long-running
 tasks should not share the main working tree.
