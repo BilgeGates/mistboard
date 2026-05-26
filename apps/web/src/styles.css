@@ -6679,9 +6679,45 @@ a.landing-announcement-card-inner:focus-visible {
   --cg-w: min(100%, 340px);
 }
 
-.watch-replay .replay-game-meta-card {
-  padding: 0 12px 12px;
-  box-sizing: border-box;
+.watch-replay .replay-game-header {
+  margin: 12px 12px 0;
+  padding: 10px 12px;
+  gap: 12px;
+  border-radius: 8px;
+}
+
+.watch-replay .replay-game-header-cell {
+  min-width: 170px;
+}
+
+.watch-replay .replay-game-header-cell .replay-clock-row {
+  min-height: 36px;
+  padding: 6px 10px;
+}
+
+.watch-replay .replay-game-header-title {
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.watch-replay .replay-game-header-result {
+  gap: 6px;
+}
+
+.watch-replay .replay-game-header-result-chip {
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+.watch-replay .replay-game-header-result-detail,
+.watch-replay .replay-game-header-meta {
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .watch-replay .replay-game-header-cell {
+    min-width: 0;
+  }
 }
 
 @media (min-width: 1181px) {
