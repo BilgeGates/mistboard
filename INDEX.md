@@ -136,7 +136,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live.ts` | Live-game page bootstrap — wires `live-state`, `live-socket`, `live-render` for `/room/:id` |
 | `live-state.ts` | Live-game module state (`liveState`, seat-token storage, WS base URL resolver) |
 | `live-socket.ts` | WebSocket connect / reconnect / send for live games |
-| `live-render.ts` | Live-game render: board, clocks, captures, controls, draft picker. Reads replay state via accessors from `live-replay.ts`. Sound subsystem in `live-sound.ts`. ~1,990 LOC |
+| `live-render.ts` | Live-game render orchestration: board, clocks, captures, controls, draft picker. Reads replay state via accessors from `live-replay.ts`. Layout shell is in `live-layout.ts`; sound subsystem is in `live-sound.ts`. |
+| `live-layout.ts` | Live-game static DOM shell and `LiveRefs` query wiring for `/room/:id` |
 | `live-sound.ts` | SoundController + `maybePlaySnapshotSound` + per-move sound policy. Owns the audio context, volume tracking, win/lose/capture/castle tone generation. Wired by live-render's render flow + live.ts's snapshot handler |
 | `live-replay.ts` | Replay-of-live navigation. Owns `replayIndex` + `fogViewHistory` + 4 fog tracking vars. Exports state accessors (`getReplayIndex`, `getFogViewHistory`, `isLive`, `currentReplayIndex`, `fogLivePos`, `snapshotToPly`), DOM labels (`replayMetaLabel`, `replayControlDisabled`), and the navigation entry points (`handleReplayButtonClick`, `handleReplayKeyboard`, `handleMoveListClick`, `captureFogView`, `resetReplayState`). `initReplay({onStateChange})` injects the render-trigger callback so the dep is one-way (live-render → live-replay) |
 | `landing.ts` | Mounts for landing / watch / game / contact. Lobby + create-room flows, recent-games render, landing widgets, setup dialog. Shell and game-display helpers have moved out, so route modules no longer import from landing. |

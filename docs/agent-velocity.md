@@ -141,7 +141,8 @@ separate deploy wait time from playout wait time.
   persistence, completed-game queries, accounts/profile/leaderboard, feedback,
   and site stats now live in focused `persistence-*` modules.
 - Continue extracting `apps/web/src/live-render.ts` around stable UI domains:
-  clocks, controls, captures, draft picker, and end-state panels.
+  clocks, controls, captures, draft picker, and end-state panels. Static room
+  layout already lives in `apps/web/src/live-layout.ts`.
 - Split `apps/web/src/replay.ts` around data loading, board adapter, annotation
   controls, and engine-review panels.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or

@@ -283,7 +283,8 @@ ownership surfaces:
 6. **Split `live-render.ts` incrementally.** Extract stable live-game UI domains:
    board adapter, controls, clocks, captures, Draft960 picker, move list, and
    status panels. Keep the orchestrator thin and keep tests green after each
-   move.
+   move. The first slice moved static room layout and `LiveRefs` query wiring
+   into `apps/web/src/live-layout.ts`.
 7. **Split `replay.ts` after live render.** Extract replay timing, header/meta,
    moves panel, board panes, engine-review dock, clocks, and annotation form.
 8. **Continue server `index.ts` extraction.** Move static/page metadata,
