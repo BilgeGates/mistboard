@@ -361,6 +361,9 @@ function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-static';
   figure.innerHTML = block.svg;
+  if (figure.querySelector('.xq-article-svg')) {
+    figure.classList.add('article-figure-xq');
+  }
   if (block.caption) {
     const cap = document.createElement('figcaption');
     cap.className = 'article-figure-caption';
@@ -419,6 +422,9 @@ function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
     const step = block.steps[stepIdx];
     if (!step) return;
     frame.innerHTML = step.svg;
+    const hasXiangqiDiagram = Boolean(frame.querySelector('.xq-article-svg'));
+    frame.classList.toggle('raw-svg-stepper-frame-xq', hasXiangqiDiagram);
+    figure.classList.toggle('article-figure-xq', hasXiangqiDiagram);
     narrative.textContent = step.narrative ?? '';
     counter.textContent = `${stepIdx + 1} / ${block.steps.length}`;
 

@@ -1342,13 +1342,16 @@ function serverFogConnectionRuleDiagram(): string {
 // ── Dark Xiangqi article diagrams ─────────────────────────────────────────
 // The board-render package is chess-only today, so the Dark Xiangqi draft uses
 // small raw SVG diagrams generated from the Xiangqi rules kernel.
-const XQ_CELL = 30;
-const XQ_MARGIN = 24;
+const XQ_CELL = 31;
+const XQ_MARGIN = 18;
 const XQ_BOARD_W = XQ_MARGIN * 2 + 8 * XQ_CELL;
 const XQ_BOARD_H = XQ_MARGIN * 2 + 9 * XQ_CELL;
-const XQ_PIECE_SIZE = 26;
-const XQ_FOG_OVERLAP = 0.75;
+const XQ_PIECE_SIZE = 28;
+const XQ_FOG_OVERLAP = 0.5;
 const XQ_VIEWBOX_PAD = 4;
+const XQ_BOARD_RADIUS = 8;
+const XQ_BOARD_STROKE = '#8b5a24';
+const XQ_BOARD_STROKE_WIDTH = 1.5;
 
 const XQ_START = createInitialXiangqiState('article-xiangqi-start');
 
@@ -1370,9 +1373,17 @@ function xqCoord(square: XiangqiSquare): { file: number; rank: number } {
   return { file: 'abcdefghi'.indexOf(square[0]!), rank: Number(square.slice(1)) };
 }
 
+function xqSvgIdPart(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'x';
+}
+
+function xqVisualRow(rank: number, perspective: XiangqiColor): number {
+  return perspective === 'red' ? 10 - rank : rank - 1;
+}
+
 function xqBoardGrid(x0: number, y0: number, perspective: XiangqiColor): string {
   const parts: string[] = [
-    `<rect x="${x0}" y="${y0}" width="${XQ_BOARD_W}" height="${XQ_BOARD_H}" rx="8" fill="#f5dca8" stroke="#8b5a24" stroke-width="1.5"/>`,
+    `<rect x="${x0}" y="${y0}" width="${XQ_BOARD_W}" height="${XQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="#f5dca8"/>`,
   ];
   const left = x0 + XQ_MARGIN;
   const right = left + 8 * XQ_CELL;
@@ -1412,7 +1423,17 @@ function xqBoardGrid(x0: number, y0: number, perspective: XiangqiColor): string 
   return parts.join('');
 }
 
-function xqFogLayer(view: XiangqiPlayerView | null, x0: number, y0: number, perspective: XiangqiColor): string {
+function xqBoardBorder(x0: number, y0: number): string {
+  return `<rect x="${x0}" y="${y0}" width="${XQ_BOARD_W}" height="${XQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`;
+}
+
+function xqFogLayer(
+  view: XiangqiPlayerView | null,
+  x0: number,
+  y0: number,
+  perspective: XiangqiColor,
+  clipId: string,
+): string {
   if (!view) return '';
   const visible = new Set(view.visibleSquares);
   const parts: string[] = [];
@@ -1421,14 +1442,19 @@ function xqFogLayer(view: XiangqiPlayerView | null, x0: number, y0: number, pers
       const sq = xiangqiSquareOf(file, rank);
       if (visible.has(sq)) continue;
       const { x, y } = xqPoint(file, rank, perspective, x0, y0);
-      const left = x - XQ_CELL / 2 - XQ_FOG_OVERLAP;
-      const top = y - XQ_CELL / 2 - XQ_FOG_OVERLAP;
-      const size = XQ_CELL + XQ_FOG_OVERLAP * 2;
-      parts.push(`M ${left} ${top} h ${size} v ${size} h ${-size} Z`);
+      const visualRow = xqVisualRow(rank, perspective);
+      const left = file === 0 ? x0 : x - XQ_CELL / 2 - XQ_FOG_OVERLAP;
+      const right = file === 8 ? x0 + XQ_BOARD_W : x + XQ_CELL / 2 + XQ_FOG_OVERLAP;
+      const top = visualRow === 0 ? y0 : y - XQ_CELL / 2 - XQ_FOG_OVERLAP;
+      const bottom = visualRow === 9 ? y0 + XQ_BOARD_H : y + XQ_CELL / 2 + XQ_FOG_OVERLAP;
+      parts.push(`M ${left} ${top} H ${right} V ${bottom} H ${left} Z`);
     }
   }
   if (parts.length === 0) return '';
-  return `<path d="${parts.join(' ')}" fill="#24190f" opacity="0.55"/>`;
+  return [
+    `<defs><clipPath id="${clipId}"><rect x="${x0}" y="${y0}" width="${XQ_BOARD_W}" height="${XQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}"/></clipPath></defs>`,
+    `<path d="${parts.join(' ')}" fill="#24190f" opacity="0.55" clip-path="url(#${clipId})"/>`,
+  ].join('');
 }
 
 function xqCannonTargets(
@@ -1518,20 +1544,23 @@ function xqBoardSvg(opts: {
   const perspective = opts.perspective ?? opts.view?.perspective ?? 'red';
   const view = opts.view ?? null;
   const boardY = opts.y + 28;
+  const clipId = `xq-fog-${xqSvgIdPart(opts.state.id)}-${xqSvgIdPart(opts.label)}-${Math.round(opts.x)}-${Math.round(boardY)}-${perspective}`;
   return [
     `<text x="${opts.x + XQ_BOARD_W / 2}" y="${opts.y + 14}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text>`,
     xqBoardGrid(opts.x, boardY, perspective),
-    xqFogLayer(view, opts.x, boardY, perspective),
+    xqFogLayer(view, opts.x, boardY, perspective, clipId),
     xqCannonTargets(opts.state, view, opts.x, boardY, perspective),
     xqPiecesLayer(opts.state, view, opts.x, boardY, perspective),
     xqArrowLayer(opts.arrows, opts.x, boardY, perspective),
+    xqBoardBorder(opts.x, boardY),
   ].join('');
 }
 
 function xqSvg(width: number, height: number, body: string): string {
   const paddedWidth = width + XQ_VIEWBOX_PAD * 2;
   const paddedHeight = height + XQ_VIEWBOX_PAD * 2;
-  return `<svg viewBox="0 0 ${paddedWidth} ${paddedHeight}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
+  const layout = width <= XQ_BOARD_W ? 'single' : width <= XQ_BOARD_W * 2 + 28 ? 'pair' : 'wide';
+  return `<svg class="xq-article-svg" data-xq-layout="${layout}" style="--xq-svg-width: ${paddedWidth}px" viewBox="0 0 ${paddedWidth} ${paddedHeight}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
 
 function xqViewWithExtraVisibleSquares(
@@ -1742,8 +1771,9 @@ const XQ_DARK_XIANGQI_THUMBNAIL = xqSvg(
   XQ_BOARD_H,
   [
     xqBoardGrid(0, 0, 'red'),
-    xqFogLayer(XQ_START_RED, 0, 0, 'red'),
+    xqFogLayer(XQ_START_RED, 0, 0, 'red', 'xq-fog-dark-xiangqi-thumbnail'),
     xqPiecesLayer(XQ_START, XQ_START_RED, 0, 0, 'red'),
+    xqBoardBorder(0, 0),
   ].join(''),
 );
 
@@ -2739,7 +2769,8 @@ export const articles: Article[] = [
     title: 'Xiangqi Rules Primer',
     summary:
       'A short guide to the board, pieces, movement rules, and endings you need before reading the Dark Xiangqi rules.',
-    status: 'draft',
+    status: 'published',
+    publishedAt: '2026-05-26',
     audience:
       'Mistboard readers who know chess or dark chess but have not learned xiangqi yet.',
     thumbnail: { kind: 'svg', svg: XQ_RULES_PRIMER_THUMBNAIL },
@@ -2903,7 +2934,8 @@ export const articles: Article[] = [
     title: 'Dark Xiangqi',
     summary:
       'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.',
-    status: 'draft',
+    status: 'published',
+    publishedAt: '2026-05-26',
     audience:
       'Xiangqi players, dark chess players, and anyone who wants a clean first explanation of xiangqi under fog.',
     thumbnail: { kind: 'svg', svg: XQ_DARK_XIANGQI_THUMBNAIL },
@@ -2924,7 +2956,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Each side sees the squares its own pieces could legally move to under regular xiangqi rules, plus the squares they stand on. Everything else is fog.',
+            text: 'At the start, you see your own pieces and every legal destination they control. Everything else is fog.',
           },
           {
             kind: 'raw-svg',
@@ -2945,12 +2977,7 @@ export const articles: Article[] = [
           } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: 'A piece reveals the squares it can legally reach from the true position.',
-          },
-          { kind: 'sub-heading', text: 'Vision changes as your pieces move' },
-          {
-            kind: 'paragraph',
-            text: 'When a piece moves, its old vision can disappear and its new vision appears immediately. In fog, a move changes both position and information.',
+            text: 'Vision is recomputed from the true position after every move, so hidden blockers, cannon screens, and newly opened lines immediately change what you know.',
           },
           {
             kind: 'raw-svg',
@@ -2963,7 +2990,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'The game ends when a general is captured. No check, no checkmate, no warning, no stalemate.',
+            text: 'Capture the general to win. Checks and checkmates are not announced.',
           },
           {
             kind: 'raw-svg',
@@ -2976,7 +3003,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture (non-capture moves do not reset this counter). Both are judged from the true position, not either player\'s view. No stalemate draws.',
+            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. No stalemate draws.',
           },
         ],
       },
@@ -3022,22 +3049,12 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'Try it',
+        heading: 'Play status',
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Use the development playtest board below to explore the current Dark Xiangqi rules. Multiplayer lobby support is still gated behind the integration track.',
+            text: 'Playable Dark Xiangqi games are not public yet. These rules are published first so players can review the variant before live play opens.',
           },
-          {
-            kind: 'paragraph',
-            text: 'Dark Xiangqi is for players who love xiangqi lines, cannon screens, horse forks, and the hidden-information pressure of great games like mahjong and poker.',
-          },
-          {
-            kind: 'cta',
-            buttons: [
-              { label: 'Open the playtest board', href: '/xiangqi-spike', emphasis: 'primary' },
-            ],
-          } as ArticleBlock,
         ],
       },
     ],
