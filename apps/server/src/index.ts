@@ -18,7 +18,9 @@ import pg from 'pg';
 import serveHandler from 'serve-handler';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import { engineFeedbackPath } from './engine-paths.js';
 import { isPlayableLiveEngineClientId, loadEngine } from './engine-registry.js';
+import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import {
   type HttpApiContext,
   handleApiRequest,
@@ -784,6 +786,14 @@ function resolveAnnotationsFile(): string {
 async function handleConnection(socket: WebSocket, request: IncomingMessage): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
+  const gameSpecGate = gateGameSpecRequest({
+    gameSpecId: url.searchParams.get('gameSpecId'),
+    variant: url.searchParams.get('variant'),
+  });
+  if (gameSpecGate.type === 'reject') {
+    socket.close(1008, gameSpecGate.wsCloseReason);
+    return;
+  }
   if (url.searchParams.get('reset') === '1') resetRoom(roomId);
   if (await isAbortedRoom(roomId)) {
     socket.close(1008, 'room aborted');

@@ -80,14 +80,14 @@ When a cannon has a capture along a ray:
 
 - Empty squares before the screen are visible.
 - The screen appears as occupied but unidentified unless another piece sees it.
-- Empty squares between the screen and target are visible as part of the cannon
-  line.
+- Empty squares between the screen and target stay fogged; they are not legal
+  cannon destinations.
 - The capturable target is visible.
 - The UI marks the target as cannon-capturable.
 
 This means a player learns the actionable fact: "my cannon can capture that
 piece." They also learn where the enabling screen sits, but not what the screen
-piece is.
+piece is or whether the gap squares are empty.
 
 The development spike keeps alternate cannon modes for comparison, but this is
 the current candidate for the canonical rule.
@@ -125,7 +125,10 @@ forced into chess types:
 - Rules kernel: `packages/game/src/variants-xiangqi.ts`
 - Rules tests: `packages/game/src/variants-xiangqi.test.ts`
 - Development lab: `apps/web/src/xiangqi-spike.ts`
+- Live integration plan:
+  `docs/fog-of-war/dark-xiangqi-live-integration-plan.md`
 
 Before Dark Xiangqi becomes a public game mode, it still needs live room
 integration, seat-scoped payload tests, replay handling, persistence decisions,
-and engine compatibility work.
+and engine compatibility work. Any spike or integration surface must stay behind
+the explicit Dark Xiangqi feature flags until those checks pass.

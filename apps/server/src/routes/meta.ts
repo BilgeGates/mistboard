@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getBuildInfo } from '../build-info.js';
-import { ratedEnabled } from '../feature-flags.js';
+import { darkXiangqiEnabled, ratedEnabled } from '../feature-flags.js';
 import * as persistence from '../persistence.js';
 import {
   type HttpApiContext,
@@ -22,6 +22,7 @@ export async function tryHandle(
       restartAt: ctx.drainDeadlineMs(),
       activeGames: ctx.activeGameCount(),
       build: getBuildInfo(),
+      darkXiangqiEnabled: darkXiangqiEnabled(),
       ratedEnabled: ratedEnabled(),
     });
     return true;

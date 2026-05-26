@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
 import { playableLiveEngines } from './../engine-registry.js';
 import { ratedEnabled } from './../feature-flags.js';
+import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import { InternalEngineClientError } from './../internal-engine-client.js';
 import { logger } from './../obs.js';
 import * as persistence from './../persistence.js';
@@ -26,6 +27,14 @@ export async function tryHandle(
   if (pathname === '/api/rooms') {
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
+    const gameSpecGate = gateGameSpecRequest({
+      gameSpecId: body.gameSpecId,
+      variant: body.variant,
+    });
+    if (gameSpecGate.type === 'reject') {
+      writeJson(response, gameSpecGate.httpStatus, { error: gameSpecGate.error });
+      return true;
+    }
     const mode = parseRoomMode(body);
     const variant = parseVariantId(typeof body.variant === 'string' ? body.variant : null);
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
