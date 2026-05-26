@@ -1964,9 +1964,9 @@ const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
 export const articles: Article[] = [
   {
     slug: 'chess-rules-primer',
-    title: 'Chess Rules Primer',
+    title: 'Chess Basics Before Dark Chess',
     summary:
-      'A quick refresher on board setup, piece movement, captures, checkmate, special moves, and common draws.',
+      'A quick regular-chess refresher: board setup, piece movement, captures, checkmate, special moves, and draws before you learn Fog of War.',
     status: 'draft',
     audience:
       'Mistboard visitors who want a quick regular-chess refresher before reading variant rules.',
@@ -1974,6 +1974,18 @@ export const articles: Article[] = [
       pieces: boardToPieces(DARK_CHESS_START_STATE.board),
       orientation: 'white',
     },
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          'Dark chess still uses ordinary chess pieces. If you already know how regular chess works, you can skip straight to the dark chess rules. If the basics are rusty, this page is the short refresher.',
+      },
+      {
+        kind: 'paragraph',
+        text:
+          'The important handoff is simple: first understand how each piece moves on a normal board, then Fog of War changes what each player can see and how the game ends.',
+      },
+    ],
     sections: [
       {
         heading: 'Board setup',
@@ -2088,7 +2100,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              '**Pawn:** moves forward into empty squares. From its starting rank, it may move one or two squares if the path is empty. Pawns capture one square diagonally forward, not straight ahead.',
+              '**Pawn:** moves forward toward the opponent side of the board into empty squares. From its starting rank, it may move one or two squares if the path is empty. Pawns capture one square diagonally forward, not straight ahead.',
           },
           {
             kind: 'paragraph',
@@ -2128,12 +2140,17 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'In regular chess, the king is protected by check and checkmate. A king is **in check** when an enemy piece attacks it. The player must answer by moving the king, blocking the attack, or capturing the attacker.',
+              'In regular chess, the king is protected by check and checkmate. A king is **in check** when an enemy piece attacks it. The player must make a legal move that leaves the king safe again.',
           },
           {
             kind: 'paragraph',
             text:
-              'If no answer works, the game ends by **checkmate**. In regular chess, the king is never actually captured.',
+              'Most checks are answered by moving the king, blocking the attack, or capturing the attacking piece. If none of those legal answers works, the game ends by **checkmate**.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'In regular chess, the king is never actually captured. This is one of the biggest changes in Fog of War chess: there is no check or checkmate, and the game ends when a king is captured.',
           },
         ],
       },
@@ -2233,7 +2250,12 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Some chess games end without a winner. Common draws include stalemate, threefold repetition, the 50-move rule, agreement, and positions where checkmate is impossible.',
+              'Some chess games end without a winner. Common regular-chess draws include stalemate, threefold repetition, the 50-move rule, agreement, and positions where checkmate is impossible.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Mistboard Fog of War keeps the automatic draw ideas that matter for live play: threefold repetition and the 50-move rule. Checkmate-based endings change because Fog of War is decided by king capture.',
           },
         ],
       },
