@@ -5,9 +5,7 @@ import {
   pieceFen,
 } from '@mistboard/board-render/interactive';
 import {
-  type ClockState,
   type Color,
-  clockRemainingMs,
   darkChessVariant,
   type GameEvent,
   type GameState,
@@ -36,6 +34,14 @@ import {
 import { type BeliefConfig, type BeliefPanelHandle, createBeliefPanel } from './belief-panel.js';
 import { computeCaptures, sortCaptureRoles } from './captures.js';
 import {
+  createClockPanel,
+  createCompactClockSpacer,
+  type ReplayThinkingBudgetState,
+  renderClockPanel,
+  replayClockDisplayAt,
+  setClockPanelNames,
+} from './replay-clocks.js';
+import {
   createGameHeaderStrip,
   createGameMetaPanel,
   createShareButton,
@@ -44,7 +50,6 @@ import {
   renderGameHeader,
   renderGameMetaPanel,
   thinkingBudgetMsFromMeta,
-  timeControlLabelFromMeta,
 } from './replay-meta.js';
 import { createReplayMovesPanel, renderReplayMovesPanel } from './replay-moves-panel.js';
 import {
@@ -58,7 +63,6 @@ import {
   type WallClockReplayLoop,
   type WallClockReplayPosition,
 } from './replay-wall-clock.js';
-import { formatClock } from './web-utils.js';
 
 const COMPUTE_SCALE = 50;
 const LEGACY_RECORDED_TIME_SCALE = 0.12;
@@ -1460,209 +1464,6 @@ function snapshotKindsLabel(kinds: string[] | undefined): string {
 
 function capitalizeColor(color: Color): string {
   return color === 'white' ? 'White' : 'Black';
-}
-
-type ClockPanelHandle = {
-  blackLabel: HTMLSpanElement;
-  blackRow: HTMLDivElement;
-  blackTime: HTMLSpanElement;
-  blackToMove: HTMLSpanElement;
-  el: HTMLDivElement;
-  label: HTMLSpanElement;
-  whiteLabel: HTMLSpanElement;
-  whiteRow: HTMLDivElement;
-  whiteTime: HTMLSpanElement;
-  whiteToMove: HTMLSpanElement;
-};
-
-type ReplayThinkingBudgetState = {
-  activeColor: Color;
-  budgetMs: number;
-  elapsedMs: number;
-};
-
-function createClockPanel(): ClockPanelHandle {
-  const el = document.createElement('div');
-  el.className = 'replay-clock-panel';
-  el.hidden = true;
-
-  const label = document.createElement('span');
-  label.className = 'replay-clock-control';
-
-  const whiteRow = createClockRow('White');
-  const blackRow = createClockRow('Black');
-  el.append(label);
-
-  return {
-    blackLabel: blackRow.label,
-    blackRow: blackRow.row,
-    blackTime: blackRow.time,
-    blackToMove: blackRow.toMove,
-    el,
-    label,
-    whiteLabel: whiteRow.label,
-    whiteRow: whiteRow.row,
-    whiteTime: whiteRow.time,
-    whiteToMove: whiteRow.toMove,
-  };
-}
-
-function createClockRow(colorLabel: string): {
-  label: HTMLSpanElement;
-  row: HTMLDivElement;
-  time: HTMLSpanElement;
-  toMove: HTMLSpanElement;
-} {
-  const row = document.createElement('div');
-  row.className = 'replay-clock-row';
-  row.hidden = true;
-  const label = document.createElement('span');
-  label.className = 'replay-clock-side';
-  label.textContent = colorLabel;
-  const toMove = document.createElement('span');
-  toMove.className = 'replay-clock-to-move';
-  toMove.textContent = 'to move';
-  toMove.setAttribute('aria-hidden', 'true');
-  const time = document.createElement('span');
-  time.className = 'replay-clock-time';
-  row.append(label, toMove, time);
-  return { label, row, time, toMove };
-}
-
-function createCompactClockSpacer(): HTMLDivElement {
-  const spacer = document.createElement('div');
-  spacer.className = 'replay-clock-spacer';
-  spacer.setAttribute('aria-hidden', 'true');
-  return spacer;
-}
-
-function setClockPanelNames(panel: ClockPanelHandle, meta: GameMeta | undefined): void {
-  panel.whiteLabel.textContent = meta?.whiteName ?? 'White';
-  panel.blackLabel.textContent = meta?.blackName ?? 'Black';
-}
-
-function renderClockPanel(
-  panel: ClockPanelHandle,
-  clock: ClockState | undefined,
-  state: GameState,
-  meta: GameMeta | undefined,
-  displayAtOverride?: number,
-  thinking?: ReplayThinkingBudgetState | null,
-): void {
-  const timeControl = clock
-    ? timeControlLabelFromClock(clock)
-    : timeControlLabelFromMeta(meta?.timeControl);
-  const thinkingBudgetMs = thinkingBudgetMsFromMeta(meta?.timeControl);
-  const hasPlayerLabels = Boolean(meta?.whiteName || meta?.blackName);
-  if (!clock && !timeControl && !hasPlayerLabels) {
-    panel.el.hidden = true;
-    panel.whiteRow.hidden = true;
-    panel.blackRow.hidden = true;
-    renderClockRowThinking(panel, null);
-    return;
-  }
-
-  panel.el.hidden = !timeControl;
-  panel.whiteRow.hidden = false;
-  panel.blackRow.hidden = false;
-  panel.label.textContent = timeControl ? `Time ${timeControl}` : 'Clock';
-  panel.label.hidden = true;
-
-  if (!clock) {
-    const activeColor = state.status.type === 'playing' ? state.status.turn : null;
-    const activeThinking =
-      thinking &&
-      activeColor === thinking.activeColor &&
-      thinkingBudgetMs !== null &&
-      thinking.budgetMs === thinkingBudgetMs
-        ? thinking
-        : activeColor && thinkingBudgetMs !== null
-          ? { activeColor, budgetMs: thinkingBudgetMs, elapsedMs: 0 }
-          : null;
-    panel.whiteTime.textContent = clocklessReplayTimeLabel('white', activeThinking, timeControl);
-    panel.blackTime.textContent = clocklessReplayTimeLabel('black', activeThinking, timeControl);
-    renderClockRowTurn(panel, activeColor);
-    renderClockRowThinking(panel, activeThinking);
-    return;
-  }
-
-  const displayAt = displayAtOverride ?? clock.runningSince ?? 0;
-  panel.whiteTime.textContent = formatClock(clockRemainingMs(clock, 'white', displayAt), true);
-  panel.blackTime.textContent = formatClock(clockRemainingMs(clock, 'black', displayAt), true);
-  panel.whiteRow.classList.toggle(
-    'active',
-    state.status.type === 'playing' && clock.activeColor === 'white',
-  );
-  panel.blackRow.classList.toggle(
-    'active',
-    state.status.type === 'playing' && clock.activeColor === 'black',
-  );
-  renderClockRowTurn(panel, state.status.type === 'playing' ? clock.activeColor : null);
-  renderClockRowThinking(panel, null);
-}
-
-function renderClockRowTurn(panel: ClockPanelHandle, activeColor: Color | null): void {
-  const whiteActive = activeColor === 'white';
-  const blackActive = activeColor === 'black';
-  panel.whiteRow.classList.toggle('active', whiteActive);
-  panel.blackRow.classList.toggle('active', blackActive);
-  panel.whiteToMove.classList.toggle('is-visible', whiteActive);
-  panel.blackToMove.classList.toggle('is-visible', blackActive);
-  panel.whiteToMove.setAttribute('aria-hidden', whiteActive ? 'false' : 'true');
-  panel.blackToMove.setAttribute('aria-hidden', blackActive ? 'false' : 'true');
-  panel.whiteRow.setAttribute('aria-current', whiteActive ? 'true' : 'false');
-  panel.blackRow.setAttribute('aria-current', blackActive ? 'true' : 'false');
-}
-
-function renderClockRowThinking(
-  panel: ClockPanelHandle,
-  thinking: ReplayThinkingBudgetState | null,
-): void {
-  for (const row of [panel.whiteRow, panel.blackRow]) {
-    row.classList.remove('is-thinking');
-    row.style.removeProperty('--replay-thinking-progress');
-  }
-  if (!thinking) return;
-  const row = thinking.activeColor === 'white' ? panel.whiteRow : panel.blackRow;
-  const progress = Math.min(Math.max(thinking.elapsedMs / thinking.budgetMs, 0), 1);
-  row.classList.add('is-thinking');
-  row.style.setProperty('--replay-thinking-progress', String(progress));
-}
-
-function clocklessReplayTimeLabel(
-  color: Color,
-  thinking: ReplayThinkingBudgetState | null,
-  timeControl: string | null,
-): string {
-  if (timeControl === 'Untimed') return 'Untimed';
-  if (!thinking || color !== thinking.activeColor) return '';
-  return `${formatThinkingElapsed(thinking.elapsedMs)} / ${formatThinkingBudget(thinking.budgetMs)}`;
-}
-
-function formatThinkingElapsed(ms: number): string {
-  if (ms < 100) return '<0.1s';
-  const seconds = Math.max(0, ms) / 1000;
-  if (seconds < 10) return `${seconds.toFixed(1)}s`;
-  return `${Math.round(seconds)}s`;
-}
-
-function formatThinkingBudget(ms: number): string {
-  const seconds = Math.max(0, ms) / 1000;
-  return Number.isInteger(seconds) ? `${seconds}s` : `${seconds.toFixed(1)}s`;
-}
-
-function replayClockDisplayAt(events: GameEvent[], state: GameState): number | null {
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const at = events[index]?.at;
-    if (typeof at === 'number' && Number.isFinite(at)) return at;
-  }
-  return state.clock?.runningSince ?? null;
-}
-
-function timeControlLabelFromClock(clock: ClockState): string {
-  const base = formatClock(clock.initialMs);
-  const incrementSeconds = Math.round(clock.incrementMs / 1000);
-  return incrementSeconds > 0 ? `${base}+${incrementSeconds}` : base;
 }
 
 function createPane(
