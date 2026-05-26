@@ -318,6 +318,9 @@ ownership surfaces:
    injection, article prerender fallback serving, game replay shells, and
    sitemap generation into `apps/server/src/server-static-pages.ts`, keeping
    `index.ts` focused on route selection and fallback behavior for those paths.
+   The next slice moved admin drain deadline state, active-game counting,
+   drain/cancel HTTP handling, rate limiting, and restart/cancel broadcasts into
+   `apps/server/src/server-drain.ts`.
 9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
    sections, then move replay, leaderboard, account, and article CSS behind
    ownership boundaries.

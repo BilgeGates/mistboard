@@ -1,0 +1,184 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { readJsonBody, writeJson } from './routes/lib.js';
+import { isDrainToken, isProductionLikeRuntime } from './server-policy.js';
+import type { Room } from './server-types.js';
+
+export type DrainController = {
+  activeGameCount(): number;
+  drainDeadlineMs(): number | null;
+  handleRequest(
+    request: IncomingMessage,
+    response: ServerResponse,
+    pathname: string,
+  ): Promise<void>;
+  isDraining(): boolean;
+};
+
+export type DrainControllerOptions = {
+  drainWindowDefaultMs: number;
+  drainWindowMaxMs: number;
+  rooms: Map<string, Room>;
+};
+
+type DrainState = {
+  restartAt: number | null;
+};
+
+const drainRateLimit = 10;
+const drainRateWindowMs = 60_000;
+
+export function createDrainController(options: DrainControllerOptions): DrainController {
+  const drainState: DrainState = { restartAt: null };
+  const drainRateBuckets = new Map<string, number[]>();
+
+  function isDraining(): boolean {
+    return drainState.restartAt !== null && drainState.restartAt > Date.now();
+  }
+
+  function drainDeadlineMs(): number | null {
+    return isDraining() ? drainState.restartAt : null;
+  }
+
+  // Number of rooms with a live in-progress game (playing state, not paused).
+  // Used by safe deploys and /api/server-status to gate deploys behind a drain
+  // window; counts trend to zero as games finish or get paused.
+  function activeGameCount(): number {
+    let count = 0;
+    for (const room of options.rooms.values()) {
+      if (room.projection.state.status.type === 'playing' && !room.projection.paused) count += 1;
+    }
+    return count;
+  }
+
+  function drainRateAllowed(ip: string): boolean {
+    const now = Date.now();
+    const bucket = drainRateBuckets.get(ip) ?? [];
+    const fresh = bucket.filter((t) => now - t < drainRateWindowMs);
+    if (fresh.length >= drainRateLimit) {
+      drainRateBuckets.set(ip, fresh);
+      return false;
+    }
+    fresh.push(now);
+    drainRateBuckets.set(ip, fresh);
+    return true;
+  }
+
+  async function handleRequest(
+    request: IncomingMessage,
+    response: ServerResponse,
+    pathname: string,
+  ): Promise<void> {
+    if (request.method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return;
+    }
+    const ip = requestIp(request);
+    if (!drainRateAllowed(ip)) {
+      writeJson(response, 429, { error: 'rate_limited' });
+      return;
+    }
+    // Token check: only validate in production-like runtimes so local dev
+    // doesn't require setting MISTBOARD_DRAIN_TOKEN.
+    if (isProductionLikeRuntime() && !isDrainToken(bearerToken(request))) {
+      writeJson(response, 401, { error: 'unauthorized' });
+      return;
+    }
+
+    if (pathname === '/admin/drain/cancel') {
+      const wasActive = isDraining();
+      drainState.restartAt = null;
+      if (wasActive) broadcastDrainCancel(options.rooms);
+      console.log(JSON.stringify({ level: 'info', kind: 'drain_cancelled', at: Date.now() }));
+      writeJson(response, 200, { ok: true, draining: false });
+      return;
+    }
+
+    // /admin/drain: idempotent activation. If already draining, return the
+    // existing deadline rather than extending it.
+    if (isDraining()) {
+      writeJson(response, 200, {
+        ok: true,
+        draining: true,
+        restartAt: drainState.restartAt,
+        idempotent: true,
+      });
+      return;
+    }
+
+    const body = await readJsonBody(request);
+    const requestedWindowMs =
+      typeof body.windowMs === 'number'
+        ? body.windowMs
+        : typeof body.windowMinutes === 'number'
+          ? body.windowMinutes * 60_000
+          : options.drainWindowDefaultMs;
+    if (!Number.isFinite(requestedWindowMs) || requestedWindowMs <= 0) {
+      writeJson(response, 400, { error: 'invalid_window' });
+      return;
+    }
+    const windowMs = Math.min(requestedWindowMs, options.drainWindowMaxMs);
+    drainState.restartAt = Date.now() + windowMs;
+    broadcastDrainSchedule(options.rooms, drainState.restartAt);
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        kind: 'drain_activated',
+        windowMs,
+        restartAt: drainState.restartAt,
+        at: Date.now(),
+      }),
+    );
+    writeJson(response, 200, {
+      ok: true,
+      draining: true,
+      restartAt: drainState.restartAt,
+      idempotent: false,
+    });
+  }
+
+  return {
+    activeGameCount,
+    drainDeadlineMs,
+    handleRequest,
+    isDraining,
+  };
+}
+
+function requestIp(request: IncomingMessage): string {
+  // X-Forwarded-For from Railway: comma-separated, first is the client.
+  const xff = request.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0]!.trim();
+  return request.socket.remoteAddress ?? 'unknown';
+}
+
+function bearerToken(request: IncomingMessage): string | undefined {
+  const authorization = Array.isArray(request.headers.authorization)
+    ? request.headers.authorization[0]
+    : request.headers.authorization;
+  return authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
+}
+
+// Broadcast 'server_restart_scheduled' to every connected WS client. Triggered
+// on drain activation. Clients render a countdown banner from `restartAt`.
+// Sending it as a stand-alone message (not inside a snapshot) avoids waking up
+// every game's snapshot-broadcast path.
+function broadcastDrainSchedule(rooms: Map<string, Room>, restartAt: number): void {
+  const message = JSON.stringify({ type: 'server_restart_scheduled', restartAt });
+  sendDrainMessage(rooms, message);
+}
+
+function broadcastDrainCancel(rooms: Map<string, Room>): void {
+  sendDrainMessage(rooms, JSON.stringify({ type: 'server_restart_cancelled' }));
+}
+
+function sendDrainMessage(rooms: Map<string, Room>, message: string): void {
+  for (const room of rooms.values()) {
+    for (const client of room.clients) {
+      try {
+        client.socket.send(message);
+      } catch {
+        /* socket closed */
+      }
+    }
+  }
+}

@@ -178,3 +178,6 @@ separate deploy wait time from playout wait time.
 - Keep static page rendering out of `apps/server/src/index.ts`; page-meta
   injection, article prerender fallback serving, game replay shells, and sitemap
   generation live in `apps/server/src/server-static-pages.ts`.
+- Keep admin drain mechanics in `apps/server/src/server-drain.ts`; `index.ts`
+  should route `/admin/drain*` there and pass the drain controller functions
+  into HTTP API context.

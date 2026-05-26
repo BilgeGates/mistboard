@@ -22,7 +22,6 @@ import {
   handleApiRequest,
   parseHiddenDraft960,
   parseVariantId,
-  readJsonBody,
 } from './http-api.js';
 import {
   InternalEngineClientError,
@@ -73,13 +72,13 @@ import {
 } from './room-manager.js';
 import { authorizeExistingSeat, seatsShareAuthority } from './seat-auth.js';
 import { loadServerRuntimeConfig, normalizeRoomRegion, serverConfig } from './server-config.js';
+import { createDrainController } from './server-drain.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
   isClientRoute,
-  isDrainToken,
   isProductionLikeRuntime,
   isServerEngineClient,
   modeForProjection,
@@ -100,6 +99,7 @@ import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from '
 // HTTP API handlers      → ./http-api.ts          (handleApiRequest, lobby, game data, auth endpoints)
 // Room game flow         → ./room-manager.ts       (playMove, appendEvent, broadcastSnapshot, scheduleClockTimeout, etc.)
 // Static page helpers    → ./server-static-pages.ts (page meta, article shells, sitemap)
+// Drain/admin HTTP       → ./server-drain.ts       (drain state, deadline, broadcast)
 // SECTION: Types and constants          (~line 90)    module-scope maps and config constants
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
 // SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
@@ -121,48 +121,6 @@ const wsMessageWindowMs = serverConfig.wsMessageWindowMs;
 const shutdownGraceMs = serverConfig.shutdownGraceMs;
 const pauseGraceMs = serverConfig.pauseGraceMs;
 const orphanThresholdMs = serverConfig.orphanThresholdMs;
-const drainWindowMaxMs = serverConfig.drainWindowMaxMs;
-const drainWindowDefaultMs = serverConfig.drainWindowDefaultMs;
-
-// Drain state: when active, matchmaking is blocked and a 'server_restart_scheduled'
-// broadcast is sent to every connected client. Idempotent — re-hitting /admin/drain
-// returns the existing deadline rather than extending it.
-const drainState: { restartAt: number | null } = { restartAt: null };
-// Number of rooms with a live in-progress game (playing state, not paused).
-// Used by safe-deploy.sh and /api/server-status to gate deploys behind a
-// drain window — counts trend to zero as games finish or get paused.
-function countActiveGames(): number {
-  let count = 0;
-  for (const room of rooms.values()) {
-    if (room.projection.state.status.type === 'playing' && !room.projection.paused) count += 1;
-  }
-  return count;
-}
-
-function isDraining(): boolean {
-  return drainState.restartAt !== null && drainState.restartAt > Date.now();
-}
-function drainDeadlineMs(): number | null {
-  return isDraining() ? drainState.restartAt : null;
-}
-
-// Per-IP rate limiter for the drain endpoint. 10 req/min/IP — tight cap;
-// /admin/drain is hit by deploy scripts at low frequency, never by users.
-const drainRateBuckets = new Map<string, number[]>();
-const drainRateLimit = 10;
-const drainRateWindowMs = 60_000;
-function drainRateAllowed(ip: string): boolean {
-  const now = Date.now();
-  const bucket = drainRateBuckets.get(ip) ?? [];
-  const fresh = bucket.filter((t) => now - t < drainRateWindowMs);
-  if (fresh.length >= drainRateLimit) {
-    drainRateBuckets.set(ip, fresh);
-    return false;
-  }
-  fresh.push(now);
-  drainRateBuckets.set(ip, fresh);
-  return true;
-}
 const liveClockInitialMs = 180_000;
 const liveClockIncrementMs = 2_000;
 const pveEngineMoveDelayMs = serverConfig.pveEngineMoveDelayMs;
@@ -180,6 +138,11 @@ const staticDir = serverConfig.staticDir;
 // Local-only research/debug annotations. Keep this independent from the private
 // engine repo so web boots cleanly without an engine checkout.
 const annotationsFile = serverConfig.annotationsFile;
+const drainController = createDrainController({
+  drainWindowDefaultMs: serverConfig.drainWindowDefaultMs,
+  drainWindowMaxMs: serverConfig.drainWindowMaxMs,
+  rooms,
+});
 
 const roomMgrCtx: RoomManagerContext = {
   send,
@@ -421,7 +384,7 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
   }
 
   if (pathname === '/admin/drain' || pathname === '/admin/drain/cancel') {
-    void handleDrainRequest(request, response, pathname).catch((err) => {
+    void drainController.handleRequest(request, response, pathname).catch((err) => {
       console.error(
         JSON.stringify({
           level: 'error',
@@ -453,9 +416,9 @@ function handleHttpRequest(request: IncomingMessage, response: ServerResponse): 
       releaseLiveEngineReservation,
       abandonRoom,
       inMemoryGameSummary,
-      isDraining,
-      drainDeadlineMs,
-      activeGameCount: countActiveGames,
+      isDraining: drainController.isDraining,
+      drainDeadlineMs: drainController.drainDeadlineMs,
+      activeGameCount: drainController.activeGameCount,
     };
     void handleApiRequest(apiCtx, request, response).catch((err) => {
       console.error(
@@ -1796,148 +1759,6 @@ function isDebugViewAuthorized(request: IncomingMessage): boolean {
   if (!isProductionLikeRuntime()) return true;
   return isAdminDebugToken(
     adminDebugTokenFromProtocolHeader(request.headers['sec-websocket-protocol']),
-  );
-}
-
-function _isHttpAdminAuthorized(request: IncomingMessage): boolean {
-  if (!isProductionLikeRuntime()) return true;
-  const authorization = Array.isArray(request.headers.authorization)
-    ? request.headers.authorization[0]
-    : request.headers.authorization;
-  const token = authorization?.startsWith('Bearer ')
-    ? authorization.slice('Bearer '.length)
-    : undefined;
-  return isAdminDebugToken(token);
-}
-
-function requestIp(request: IncomingMessage): string {
-  // X-Forwarded-For from Railway: comma-separated, first is the client.
-  const xff = request.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0]!.trim();
-  return request.socket.remoteAddress ?? 'unknown';
-}
-
-// Broadcast 'server_restart_scheduled' to every connected WS client. Triggered
-// on drain activation. Clients render a countdown banner from `restartAt`.
-// Sending it as a stand-alone message (not inside a snapshot) avoids waking up
-// every game's snapshot-broadcast path.
-function broadcastDrainSchedule(): void {
-  const restartAt = drainState.restartAt;
-  if (restartAt === null) return;
-  const message = JSON.stringify({ type: 'server_restart_scheduled', restartAt });
-  for (const room of rooms.values()) {
-    for (const client of room.clients) {
-      try {
-        client.socket.send(message);
-      } catch {
-        /* socket closed */
-      }
-    }
-  }
-}
-
-function broadcastDrainCancel(): void {
-  const message = JSON.stringify({ type: 'server_restart_cancelled' });
-  for (const room of rooms.values()) {
-    for (const client of room.clients) {
-      try {
-        client.socket.send(message);
-      } catch {
-        /* socket closed */
-      }
-    }
-  }
-}
-
-async function handleDrainRequest(
-  request: IncomingMessage,
-  response: ServerResponse,
-  pathname: string,
-): Promise<void> {
-  if (request.method !== 'POST') {
-    response.writeHead(405, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ error: 'method_not_allowed' }));
-    return;
-  }
-  const ip = requestIp(request);
-  if (!drainRateAllowed(ip)) {
-    response.writeHead(429, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ error: 'rate_limited' }));
-    return;
-  }
-  // Token check: only validate in production-like runtimes so local dev
-  // doesn't require setting MISTBOARD_DRAIN_TOKEN.
-  if (isProductionLikeRuntime()) {
-    const authorization = Array.isArray(request.headers.authorization)
-      ? request.headers.authorization[0]
-      : request.headers.authorization;
-    const token = authorization?.startsWith('Bearer ')
-      ? authorization.slice('Bearer '.length)
-      : undefined;
-    if (!isDrainToken(token)) {
-      response.writeHead(401, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'unauthorized' }));
-      return;
-    }
-  }
-
-  if (pathname === '/admin/drain/cancel') {
-    const wasActive = isDraining();
-    drainState.restartAt = null;
-    if (wasActive) broadcastDrainCancel();
-    console.log(JSON.stringify({ level: 'info', kind: 'drain_cancelled', at: Date.now() }));
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ ok: true, draining: false }));
-    return;
-  }
-
-  // /admin/drain: idempotent activation. If already draining, return the
-  // existing deadline rather than extending it.
-  if (isDraining()) {
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(
-      JSON.stringify({
-        ok: true,
-        draining: true,
-        restartAt: drainState.restartAt,
-        idempotent: true,
-      }),
-    );
-    return;
-  }
-
-  const body = await readJsonBody(request);
-  const requestedWindowMs =
-    typeof body.windowMs === 'number'
-      ? body.windowMs
-      : typeof body.windowMinutes === 'number'
-        ? body.windowMinutes * 60_000
-        : drainWindowDefaultMs;
-  if (!Number.isFinite(requestedWindowMs) || requestedWindowMs <= 0) {
-    response.writeHead(400, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ error: 'invalid_window' }));
-    return;
-  }
-  const windowMs = Math.min(requestedWindowMs, drainWindowMaxMs);
-  drainState.restartAt = Date.now() + windowMs;
-  broadcastDrainSchedule();
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      kind: 'drain_activated',
-      windowMs,
-      restartAt: drainState.restartAt,
-      at: Date.now(),
-    }),
-  );
-  response.writeHead(200, { 'content-type': 'application/json' });
-  response.end(
-    JSON.stringify({
-      ok: true,
-      draining: true,
-      restartAt: drainState.restartAt,
-      idempotent: false,
-    }),
   );
 }
 
