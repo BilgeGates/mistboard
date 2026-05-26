@@ -8,6 +8,7 @@ import {
   isProductionLikeRuntime,
   parsePositiveInteger,
 } from './../server-policy.js';
+import { listWatchChannels, watchChannelForId } from './../watch-channels.js';
 import {
   type HttpApiContext,
   isHttpAdminAuthorized,
@@ -33,23 +34,45 @@ export async function tryHandle(
   if (pathname === '/api/watch') {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
+    const channel = watchChannelForId(parsedUrl.searchParams.get('channel'));
+    if (!channel) {
+      writeJson(response, 404, { error: 'unknown_watch_channel' });
+      return true;
+    }
     const now = new Date();
-    const [sealedCount, unlocked] = await Promise.all([
-      persistence.countWatchSealedGames({
-        activeWindowMs: WATCH_UNLOCK_WINDOW_MS,
-        now,
+    const channelResults = await Promise.all(
+      listWatchChannels().map(async (candidate) => {
+        const [sealedCount, unlocked] = await Promise.all([
+          persistence.countWatchSealedGames({
+            activeWindowMs: WATCH_UNLOCK_WINDOW_MS,
+            now,
+            variants: candidate.legacyVariants,
+          }),
+          persistence.listWatchUnlockedGames({
+            limit: WATCH_UNLOCK_LIMIT,
+            now,
+            unlockWindowMs: WATCH_UNLOCK_WINDOW_MS,
+            variants: candidate.legacyVariants,
+          }),
+        ]);
+        return { channel: candidate, sealedCount, unlocked };
       }),
-      persistence.listWatchUnlockedGames({
-        limit: WATCH_UNLOCK_LIMIT,
-        now,
-        unlockWindowMs: WATCH_UNLOCK_WINDOW_MS,
-      }),
-    ]);
+    );
+    const active = channelResults.find((result) => result.channel.id === channel.id)!;
     writeJson(response, 200, {
+      activeChannel: channel.id,
+      channels: channelResults.map((result) => ({
+        family: result.channel.family,
+        gameSpecIds: result.channel.gameSpecIds,
+        id: result.channel.id,
+        label: result.channel.label,
+        sealedCount: result.sealedCount,
+        unlockedCount: result.unlocked.length,
+      })),
       now: now.toISOString(),
       unlockWindowMs: WATCH_UNLOCK_WINDOW_MS,
-      sealedCount,
-      unlocked,
+      sealedCount: active.sealedCount,
+      unlocked: active.unlocked,
     });
     return true;
   }

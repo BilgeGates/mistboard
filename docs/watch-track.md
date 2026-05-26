@@ -60,6 +60,7 @@ Not appropriate for the homepage:
 
 Near-term `/watch` should stay narrow:
 
+- one excellent default channel: Dark chess
 - finished public games
 - engine games where the observation boundary is intentionally public
 - public-safe live game metadata, if available
@@ -67,6 +68,12 @@ Near-term `/watch` should stay narrow:
 
 It should not become a generic lobby with open challenges, broad activity feed,
 or room-page spectator access by default.
+
+The implementation should still be channel-native. A watch channel is a public
+surface over one or more `GameSpec` ids, with Dark chess as the only production
+channel until another hidden-information family is ready. Future channels such
+as Dark Xiangqi, Dark Shogi, or Dark Go should plug into the same finished-replay
+and public-safe-live-metadata contract instead of getting bespoke watch pages.
 
 ### Room Page
 

@@ -92,11 +92,13 @@ export type WatchUnlockedGameOptions = {
   limit?: number;
   now?: Date;
   unlockWindowMs?: number;
+  variants?: readonly string[];
 };
 
 export type WatchSealedGameOptions = {
   activeWindowMs?: number;
   now?: Date;
+  variants?: readonly string[];
 };
 
 export type CompletedGameFilters = {
@@ -244,11 +246,22 @@ export async function listWatchUnlockedGames(
   const unlockWindowMs = Math.max(1, options.unlockWindowMs ?? 2 * 60 * 60 * 1000);
   const now = options.now ?? new Date();
   const unlockedSince = new Date(now.getTime() - unlockWindowMs);
+  const variants = watchVariantFilter(options.variants);
+  const variantClause = variants ? 'AND games.variant = ANY($6::text[])' : '';
+  const values: unknown[] = [
+    MIN_TIMEOUT_SOURCE_PLY_COUNT,
+    boundedLimit,
+    MIN_TV_PVP_PLY_COUNT,
+    unlockedSince,
+    now,
+  ];
+  if (variants) values.push(variants);
   const { rows } = await getPool().query<RecentEveGameRow>(
     `SELECT ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
      WHERE games.status = 'completed'
+       ${variantClause}
        AND games.mode IN ('pvp', 'pve', 'eve')
        AND games.ended_at >= $4
        AND games.ended_at <= $5
@@ -267,7 +280,7 @@ export async function listWatchUnlockedGames(
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $2`,
-    [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit, MIN_TV_PVP_PLY_COUNT, unlockedSince, now],
+    values,
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
@@ -276,6 +289,10 @@ export async function countWatchSealedGames(options: WatchSealedGameOptions = {}
   const activeWindowMs = Math.max(1, options.activeWindowMs ?? 2 * 60 * 60 * 1000);
   const nowMs = (options.now ?? new Date()).getTime();
   const activeSinceMs = nowMs - activeWindowMs;
+  const variants = watchVariantFilter(options.variants);
+  const variantClause = variants ? 'AND games.variant = ANY($3::text[])' : '';
+  const values: unknown[] = [activeSinceMs, nowMs];
+  if (variants) values.push(variants);
   const { rows } = await getPool().query<{ count: number }>(
     `WITH last_events AS (
        SELECT DISTINCT ON (events.room_id)
@@ -291,14 +308,21 @@ export async function countWatchSealedGames(options: WatchSealedGameOptions = {}
      FROM games
      JOIN last_events ON last_events.room_id = games.room_id
      WHERE games.status = 'running'
+       ${variantClause}
        AND games.mode IN ('pvp', 'pve', 'eve')
        AND games.visibility <> 'private'
        AND last_events.type IN ('clock-started', 'draft-start-resolved', 'move-played', 'resume')
        AND (last_events.payload->>'at')::bigint >= $1
        AND (last_events.payload->>'at')::bigint <= $2`,
-    [activeSinceMs, nowMs],
+    values,
   );
   return rows[0]?.count ?? 0;
+}
+
+function watchVariantFilter(variants: readonly string[] | undefined): string[] | null {
+  if (!variants || variants.length === 0) return null;
+  const unique = [...new Set(variants.filter((variant) => variant.length > 0))];
+  return unique.length > 0 ? unique : null;
 }
 
 export async function listCompletedGames(

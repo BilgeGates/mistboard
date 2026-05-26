@@ -1565,6 +1565,8 @@ if (!TEST_DATABASE_URL) {
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('watch-pve-link', 'dark-chess', 'black-wins', 'timeout', 12, $2, $2,
             'human', 'engine', NULL, NULL, 'pve', 'completed', 'link'),
+           ('watch-xiangqi', 'dark-xiangqi', 'white-wins', 'king-captured', 40, $1, $1,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('watch-eve', 'dark-chess', 'draw', 'truncated', 28, $3, $3,
             'engine-white', 'engine-black', 'White Engine', 'Black Engine', 'eve', 'completed', 'unlisted'),
            ('watch-old', 'dark-chess', 'white-wins', 'king-captured', 40, $4, $4,
@@ -1604,6 +1606,8 @@ if (!TEST_DATABASE_URL) {
             'white', 'black', NULL, NULL, 'pvp', 'running', 'public'),
            ('sealed-paused-pve', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'human', 'engine', NULL, NULL, 'pve', 'running', 'public'),
+           ('sealed-xiangqi', 'dark-xiangqi', NULL, NULL, 0, $1, NULL,
+            'white', 'black', NULL, NULL, 'pvp', 'running', 'public'),
            ('sealed-private-pvp', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'white', 'black', NULL, NULL, 'pvp', 'running', 'private'),
            ('sealed-imported', 'dark-chess', NULL, NULL, 0, $1, NULL,
@@ -1615,6 +1619,7 @@ if (!TEST_DATABASE_URL) {
       for (const roomId of [
         'watch-pvp-newest',
         'watch-pve-link',
+        'watch-xiangqi',
         'watch-eve',
         'watch-old',
         'watch-future',
@@ -1718,6 +1723,17 @@ if (!TEST_DATABASE_URL) {
           },
         },
         {
+          roomId: 'sealed-xiangqi',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-xiangqi',
+            color: 'white',
+            move: { from: 'e2', to: 'e4' },
+          },
+        },
+        {
           roomId: 'sealed-private-pvp',
           seq: 0,
           event: {
@@ -1766,6 +1782,7 @@ if (!TEST_DATABASE_URL) {
       limit: 10,
       now,
       unlockWindowMs: 2 * 60 * 60_000,
+      variants: ['dark-chess', 'draft960'],
     });
     assert.deepEqual(
       unlocked.map((game) => game.roomId),
@@ -1775,6 +1792,7 @@ if (!TEST_DATABASE_URL) {
       await countWatchSealedGames({
         activeWindowMs: 2 * 60 * 60_000,
         now,
+        variants: ['dark-chess', 'draft960'],
       }),
       3,
     );
