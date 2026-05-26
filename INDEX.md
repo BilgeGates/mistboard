@@ -70,6 +70,7 @@ Edit task → find file → open only that file.
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
 | `server-types.ts` | Shared server types: `Client`, `Room`, `SeatTokenState`, `SeatAssignment`, `LobbyTicket` |
 | `server-policy.ts` | Access control: `canObserveLiveRoom`, `eventReplayResponse`, `visibleEventsForLiveSnapshot`, `modeForProjection`, `isAdminDebugToken`, `isAllowedWebSocketOrigin`, `isClientRoute`, `PARKED_CLIENT_ROUTES` |
+| `server-ws-messages.ts` | Client WebSocket message parser and known-message allowlist used by `index.ts` dispatch |
 | `persistence-db.ts` | Postgres pool lifecycle: `init`, `probeDb`, `close`, `isInitialized`, `getPool` |
 | `persistence-seat-tokens.ts` | Room seat token persistence, including token load/upsert/touch/replace/verify helpers |
 | `persistence.ts` | Public persistence facade. Import existing persistence APIs from here unless changing query ownership. |

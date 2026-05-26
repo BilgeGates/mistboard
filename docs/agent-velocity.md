@@ -217,3 +217,6 @@ as a specific phase instead of one undifferentiated red or slow run.
 - Keep admin drain mechanics in `apps/server/src/server-drain.ts`; `index.ts`
   should route `/admin/drain*` there and pass the drain controller functions
   into HTTP API context.
+- Keep client WebSocket wire-format parsing in
+  `apps/server/src/server-ws-messages.ts`; add new inbound message names to its
+  allowlist instead of hiding them in the connection dispatcher.

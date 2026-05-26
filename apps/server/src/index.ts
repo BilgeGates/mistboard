@@ -93,6 +93,7 @@ import {
   serveSitemap,
 } from './server-static-pages.js';
 import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
+import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -100,13 +101,14 @@ import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from '
 // Room game flow         → ./room-manager.ts       (playMove, appendEvent, broadcastSnapshot, scheduleClockTimeout, etc.)
 // Static page helpers    → ./server-static-pages.ts (page meta, article shells, sitemap)
 // Drain/admin HTTP       → ./server-drain.ts       (drain state, deadline, broadcast)
+// WS message parsing     → ./server-ws-messages.ts (client message parser and allowlist)
 // SECTION: Types and constants          (~line 90)    module-scope maps and config constants
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
 // SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
 // SECTION: Seat management              (~line 560)   assignSeat, existingSeatAssignment, newSeatAssignment, verifySeatToken, displaceOlderSeatClients, canClientAct
 // SECTION: Game flow                    (~line 700)   enableRandomEngine, selectStart
 // SECTION: Room event infrastructure    (~line 760)   inMemoryGameSummary, recordPersistenceError, resetRoom
-// SECTION: Helpers and shutdown         (~line 810)   send, parseMessage, isColor, roomCreatedDraftOfferFields, shutdown
+// SECTION: Helpers and shutdown         (~line 810)   send, isColor, roomCreatedDraftOfferFields, shutdown
 
 // ── SECTION: Types and constants ───────────────────────────────────────────
 // Core server types live in ./server-types.ts — Client, Room, SeatTokenState, SeatAssignment, LobbyTicket
@@ -661,28 +663,13 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   });
 }
 
-// Known client→server message types. Anything outside this set increments
-// ws_unknown_messages in the metrics tick and emits a `kind:
-// 'ws_unknown_message'` log. The snapshot→delta migration introduced
-// `snapshot:request`; future wire-format additions should land here too.
-const KNOWN_CLIENT_MESSAGE_TYPES = new Set([
-  'ping',
-  'latency-sample',
-  'admin-debug-auth',
-  'snapshot:request',
-  'select-start',
-  'move',
-  'resign',
-  'abort',
-  'rematch:offer',
-  'rematch:cancel',
-  'rematch:decline',
-]);
-
 async function handleMessage(room: Room, client: Client, raw: string): Promise<void> {
-  const message = parseMessage(raw);
-  if (!message) return;
-  if (!KNOWN_CLIENT_MESSAGE_TYPES.has(message.type)) {
+  const message = parseClientMessage(raw);
+  if (!message) {
+    wsCounters.recordParseFailure();
+    return;
+  }
+  if (!isKnownClientMessageType(message.type)) {
     wsCounters.recordUnknownMessage();
     logger.warn(
       {
@@ -1664,32 +1651,6 @@ function resetRoom(roomId: string, reason = 'room-reset'): void {
 // ── SECTION: Helpers and shutdown ──────────────────────────────────────────
 function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
-}
-
-function parseMessage(raw: string): {
-  type: string;
-  startId?: number;
-  color?: string;
-  from?: string;
-  to?: string;
-  promotion?: string;
-  token?: string;
-  at?: number;
-  rttMs?: number;
-} | null {
-  try {
-    const value = JSON.parse(raw) as unknown;
-    if (typeof value === 'object' && value !== null && 'type' in value) {
-      return value as { type: string; startId?: number };
-    }
-    // Parse succeeded but the shape is wrong (e.g. JSON array, scalar, or
-    // object missing `type`). Still a failure from the dispatcher's view.
-    wsCounters.recordParseFailure();
-    return null;
-  } catch {
-    wsCounters.recordParseFailure();
-    return null;
-  }
 }
 
 function isColor(value: string | undefined): value is Color {
