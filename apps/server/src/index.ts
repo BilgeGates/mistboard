@@ -784,7 +784,7 @@ function resolveAnnotationsFile(): string {
 async function handleConnection(socket: WebSocket, request: IncomingMessage): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
-  if (url.searchParams.get('reset') === '1') resetRoom(roomId);
+  if (url.searchParams.get('reset') === '1') resetRoom(roomId, 'manual-reset');
   if (await isAbortedRoom(roomId)) {
     socket.close(1008, 'room aborted');
     return;
@@ -1473,7 +1473,7 @@ async function runAbortPolicySweep(): Promise<void> {
     const result = await persistence.abortStaleGuestPrestartGames(new Date(), guestPrestartAbortMs);
     if (result.aborted > 0) {
       for (const roomId of result.roomIds) {
-        resetRoom(roomId);
+        resetRoom(roomId, 'guest-prestart-timeout');
       }
       console.log(
         JSON.stringify({
@@ -1512,7 +1512,7 @@ async function runStalePausedSweep(): Promise<void> {
     const result = await persistence.finalizeStalePausedRooms(now, stalePauseMs);
     if (result.finalized === 0) return;
     for (const room of result.rooms) {
-      resetRoom(room.roomId);
+      resetRoom(room.roomId, 'stale-paused-finalized');
       // Per-room line: every stale-paused finalize is a yellow flag worth
       // investigating, since post-restart the resume path is expected to
       // either bring the game back or forfeit the absent player.
@@ -1569,7 +1569,7 @@ async function abandonRoom(
       abortedReason: 'abandoned by creator',
       termination: 'abandoned',
     });
-    resetRoom(roomId);
+    resetRoom(roomId, 'abandoned');
     return { ok: true };
   }
   // In-memory fallback for tests / dev servers running without persistence.
@@ -1578,7 +1578,7 @@ async function abandonRoom(
   if (!verifySeatToken(room, seatToken)) return { ok: false, error: 'unauthorized' };
   if (room.projection.state.status.type === 'finished')
     return { ok: false, error: 'already_terminal' };
-  resetRoom(roomId);
+  resetRoom(roomId, 'abandoned');
   return { ok: true };
 }
 
@@ -1876,13 +1876,17 @@ function recordPersistenceError(roomId: string, seq: number, event: GameEvent, e
   );
 }
 
-function resetRoom(roomId: string): void {
+function resetRoom(roomId: string, reason = 'room-reset'): void {
   const room = rooms.get(roomId);
   if (room?.clockTimer) clearTimeout(room.clockTimer);
   if (room?.engineTimer) clearTimeout(room.engineTimer);
   if (room) clearAbortTimer(room);
   if (room) clearForfeitTimer(room);
   if (room?.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
+  if (room?.engineReservationId) {
+    releaseLiveEngineReservation(room.engineReservationId, reason);
+    room.engineReservationId = null;
+  }
   rooms.delete(roomId);
 }
 
