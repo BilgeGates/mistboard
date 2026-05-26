@@ -11,8 +11,12 @@ __pycache__
 *.egg-info
 research/python-fow-lab/corpora/*/games/
 research/python-fow-lab/corpora/*/views/
-research/python-fow-lab/feedback/annotation_replay*.json
-research/python-fow-lab/feedback/annotation_replay*.md
+research/python-fow-lab/feedback/
+research/python-fow-lab/fow_rust/target/
+research/python-fow-lab/fow_rust/Cargo.lock
+research/python-fow-lab/lab/runs/
+research/python-fow-lab/.pytest_cache/
+research/python-fow-lab/**/__pycache__/
 research/python-fow-lab/uv.lock
 research/python-fow-lab/vendor/
 

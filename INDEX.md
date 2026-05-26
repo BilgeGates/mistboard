@@ -70,7 +70,12 @@ Edit task → find file → open only that file.
 | `server-policy.ts` | Access control: `canObserveLiveRoom`, `eventReplayResponse`, `visibleEventsForLiveSnapshot`, `modeForProjection`, `isAdminDebugToken`, `isAllowedWebSocketOrigin`, `isClientRoute`, `PARKED_CLIENT_ROUTES` |
 | `persistence-db.ts` | Postgres pool lifecycle: `init`, `probeDb`, `close`, `isInitialized`, `getPool` |
 | `persistence-seat-tokens.ts` | Room seat token persistence, including token load/upsert/touch/replace/verify helpers |
-| `persistence.ts` | Public persistence facade + remaining Postgres SQL (god file — 5 near-clone game-row mappers; planned split into events, rooms, accounts, feedback, games, and ratings modules) |
+| `persistence.ts` | Public persistence facade. Import existing persistence APIs from here unless changing query ownership. |
+| `persistence-game-lifecycle.ts` | Room event loading/append, running-game lifecycle, stale-room cleanup, debug artifact persistence |
+| `persistence-games.ts` | Completed-game persistence, game summaries/lists, watch/unlock queries, participant attribution, game-end persistence |
+| `persistence-accounts.ts` | Account/profile/session/email-login queries and leaderboard/account-role helpers |
+| `persistence-feedback.ts` | Feedback persistence |
+| `persistence-site-stats.ts` | Site statistics query |
 | `payloads.ts` | `snapshotPayload` — builds WebSocket snapshot message; applies fog redaction and seat-scoped view logic |
 | `test-builders.ts` | Shared server test builders for `GameProjection`, `PlayerView`, `SnapshotRoom`, `Room`, clients, and seat tokens |
 | `rating-buckets.ts` | Variant × time-class → bucket-id mapping for per-bucket Elo |

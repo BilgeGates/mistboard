@@ -117,6 +117,9 @@ separate deploy wait time from playout wait time.
 - Generated research corpora and model checkpoints should stay ignored unless a
   reviewed result is intentionally promoted into docs or docs-private. Large
   untracked trees make dirty-state scans and hooks slower for every session.
+  Local Python feedback runs, lab run output, Rust build output, pytest caches,
+  and `__pycache__` directories under `research/python-fow-lab/` are ignored for
+  this reason.
 
 ## Working rules
 
