@@ -183,7 +183,7 @@ function checkSqlEnums() {
     {
       label: 'users.account_role',
       constraint: 'users_account_role_check',
-      file: 'apps/server/src/persistence.ts',
+      file: 'apps/server/src/persistence-accounts.ts',
       type: 'AccountRole',
     },
     {

@@ -276,7 +276,10 @@ ownership surfaces:
    artifact persistence now live in
    `apps/server/src/persistence-game-lifecycle.ts`. Completed-game summaries,
    game lists, watch/unlock queries, participant attribution, and game-end
-   persistence now live in `apps/server/src/persistence-games.ts`.
+   persistence now live in `apps/server/src/persistence-games.ts`. Account,
+   profile, leaderboard, feedback, and site-stat queries now live in focused
+   `persistence-*` modules, leaving `apps/server/src/persistence.ts` as a thin
+   compatibility facade.
 6. **Split `live-render.ts` incrementally.** Extract stable live-game UI domains:
    board adapter, controls, clocks, captures, Draft960 picker, move list, and
    status panels. Keep the orchestrator thin and keep tests green after each

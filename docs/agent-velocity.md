@@ -133,10 +133,10 @@ separate deploy wait time from playout wait time.
 
 ## Next refactor candidates
 
-- Continue splitting `apps/server/src/persistence.ts` by ownership. Pool
+- Keep `apps/server/src/persistence.ts` as a compatibility facade. Pool
   lifecycle, room seat tokens, running-game lifecycle/event/debug-artifact
-  persistence, and completed-game queries are already out; remaining candidates
-  are accounts/profile/leaderboard, feedback, and site stats.
+  persistence, completed-game queries, accounts/profile/leaderboard, feedback,
+  and site stats now live in focused `persistence-*` modules.
 - Continue extracting `apps/web/src/live-render.ts` around stable UI domains:
   clocks, controls, captures, draft picker, and end-state panels.
 - Split `apps/web/src/replay.ts` around data loading, board adapter, annotation
