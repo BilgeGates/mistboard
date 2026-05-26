@@ -14,14 +14,19 @@ import {
   type Annotation,
   type AnnotationContext,
   buildAnnotationFromForm,
-  deleteAnnotation,
-  formatAnnotationLine,
   loadAnnotations,
   saveAnnotation,
   updateAnnotation,
 } from './annotations.js';
 import { type BeliefConfig, type BeliefPanelHandle, createBeliefPanel } from './belief-panel.js';
 import { computeCaptures } from './captures.js';
+import {
+  type AnnotationConfig,
+  type AnnotationPanelHandle,
+  type AnnotFormValues,
+  createAnnotationPanel,
+  renderAnnotationPanel,
+} from './replay-annotations.js';
 import {
   createBoard,
   createPane,
@@ -80,6 +85,7 @@ const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
 type MovePlayedExt = MovePlayedEvent & { compute_ms?: number; thinkTimeMs?: number };
 
+export type { AnnotationConfig } from './replay-annotations.js';
 export type { EngineReviewPanels } from './replay-engine-panels.js';
 export type { GameMeta } from './replay-meta.js';
 export type {
@@ -164,16 +170,6 @@ export type ReplayOptions = {
   annotation?: AnnotationConfig;
   belief?: BeliefConfig;
   enginePanels?: EngineReviewPanels;
-};
-
-export type AnnotationConfig = {
-  manifestUrl: string;
-  /** Maps a sampleId (e.g. "games/game-0011-W-tier1-black.jsonl") to its game index in the manifest. */
-  gameIndexForSampleId: (sampleId: string) => number | null;
-  /** Maps a sampleId to the reviewed engine color in that game. */
-  tier1ColorForSampleId: (sampleId: string) => 'white' | 'black' | null;
-  /** Called after a save so the caller can refresh sidebar badges. */
-  onSaved?: () => void;
 };
 
 export async function mountReplay(
@@ -383,22 +379,12 @@ export async function mountReplay(
     toolsRow?.append(beliefPanel.el);
   }
 
-  let annotPanel: HTMLDivElement | null = null;
-  let annotForm: AnnotFormHandle | null = null;
-  let annotListEl: HTMLDivElement | null = null;
+  let annotPanel: AnnotationPanelHandle | null = null;
   if (annotation) {
-    annotPanel = document.createElement('div');
-    annotPanel.className = 'annot-panel';
-    toolsRow?.append(annotPanel);
-
-    annotForm = createAnnotForm({
+    annotPanel = createAnnotationPanel({
       onSave: handleAnnotSave,
     });
-    annotPanel.append(annotForm.el);
-
-    annotListEl = document.createElement('div');
-    annotListEl.className = 'annot-panel-list-wrapper';
-    annotPanel.append(annotListEl);
+    toolsRow?.append(annotPanel.el);
   }
 
   if (toolsToggleBar) {
@@ -543,7 +529,7 @@ export async function mountReplay(
 
   function syncAnalysisToolVisibility(): void {
     if (beliefPanel) beliefPanel.el.hidden = !beliefPanelVisible;
-    if (annotPanel) annotPanel.hidden = !annotationPanelVisible;
+    if (annotPanel) annotPanel.el.hidden = !annotationPanelVisible;
     toolsToggleBar?.setPressed('belief', beliefPanelVisible);
     toolsToggleBar?.setPressed('annotation', annotationPanelVisible);
     const hasVisibleAnalysis = Boolean(
@@ -601,96 +587,38 @@ export async function mountReplay(
   }
 
   function renderAnnotPanel(): void {
-    if (!annotPanel || !annotation || !annotForm || !annotListEl) return;
-
-    annotForm.setContext(currentAnnotContext());
-
-    annotListEl.replaceChildren();
-    const heading = document.createElement('div');
-    heading.className = 'annot-panel-list-heading';
-    heading.textContent = `Notes (${annotationsForGame.length})`;
-    annotListEl.append(heading);
-
-    if (annotationsForGame.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'annot-panel-empty';
-      empty.textContent = 'No notes for this game yet.';
-      annotListEl.append(empty);
-      return;
-    }
-
-    const list = document.createElement('div');
-    list.className = 'annot-panel-list';
-    const sorted = [...annotationsForGame].sort((a, b) => a.ply - b.ply);
-    for (const a of sorted) {
-      const row = document.createElement('div');
-      row.className = `annot-panel-item annot-${a.severity}${a.ply === currentPly ? ' active' : ''}`;
-
-      const jumpBtn = document.createElement('button');
-      jumpBtn.type = 'button';
-      jumpBtn.className = 'annot-panel-item-jump';
-      jumpBtn.textContent = formatAnnotationLine(a);
-      jumpBtn.title = 'Jump to this ply';
-      jumpBtn.addEventListener('click', () => {
-        stopPlay();
-        clearLoopTimer();
-        finishedAck = false;
-        setCurrentPly(a.ply);
+    if (!annotation) return;
+    renderAnnotationPanel(annotPanel, {
+      annotations: annotationsForGame,
+      context: currentAnnotContext(),
+      currentPly,
+      onDeleted(a) {
+        annotationsForGame = annotationsForGame.filter((x) => x.id !== a.id);
         render();
-      });
-
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.className = 'annot-panel-item-edit';
-      editBtn.textContent = '✎';
-      editBtn.title = 'Edit this note';
-      editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+        annotation.onSaved?.();
+      },
+      onEdit(a, form) {
         stopPlay();
         clearLoopTimer();
         finishedAck = false;
         setCurrentPly(a.ply);
         // Enter edit mode BEFORE render() so the form's edit state is set
-        // when renderAnnotPanel's setContext call runs (which now respects
-        // editingAnnotation when re-applying header).
-        annotForm?.loadForEdit(a);
+        // when renderAnnotationPanel's setContext call runs.
+        form.loadForEdit(a);
         render();
-      });
-
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'annot-panel-item-del';
-      delBtn.textContent = '🗑';
-      delBtn.title = 'Delete this note';
-      delBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const summary = `ply ${a.ply} ${a.move_played_uci}${
-          a.note ? ` — ${a.note.slice(0, 60)}` : ''
-        }`;
-        if (!window.confirm(`Delete annotation?\n\n${summary}`)) return;
-        try {
-          await deleteAnnotation(a.id);
-        } catch (err) {
-          window.alert(`Delete failed: ${(err as Error).message}`);
-          return;
-        }
-        annotationsForGame = annotationsForGame.filter((x) => x.id !== a.id);
+      },
+      onJump(ply) {
+        stopPlay();
+        clearLoopTimer();
+        finishedAck = false;
+        setCurrentPly(ply);
         render();
-        annotation?.onSaved?.();
-      });
-
-      row.append(jumpBtn, editBtn, delBtn);
-      list.append(row);
-    }
-    annotListEl.append(list);
+      },
+    });
   }
 
   async function handleAnnotSave(
-    formValues: {
-      severity: 'major' | 'minor' | 'good' | 'neutral';
-      better: string;
-      note: string;
-    },
+    formValues: AnnotFormValues,
     editing: Annotation | null,
   ): Promise<void> {
     if (editing) {
@@ -709,7 +637,7 @@ export async function mountReplay(
       await saveAnnotation(annot);
       annotationsForGame = [...annotationsForGame, annot];
     }
-    annotForm?.clearAfterSave();
+    annotPanel?.form.clearAfterSave();
     render();
     annotation?.onSaved?.();
   }
@@ -1072,11 +1000,11 @@ export async function mountReplay(
   // parent can be larger, which broke the prior coordinate math. Click events
   // bubble up from cg-board through pieces (which have pointer-events:none)
   // and squares to here, so a single listener on the parent works.
-  if (annotation && annotForm) {
+  if (annotation && annotPanel) {
     truthPane.boardEl.style.cursor = 'crosshair';
     truthPane.boardEl.addEventListener('click', (e) => {
       const sq = squareFromCgBoardClick(truthPane.boardEl, e, boardOrientation);
-      if (sq) annotForm?.appendPickedSquare(sq);
+      if (sq) annotPanel?.form.appendPickedSquare(sq);
     });
   }
 
@@ -1228,11 +1156,11 @@ export async function mountReplay(
           setCurrentPly(currentPly + 1);
           render();
         }
-      } else if (e.key === 'a' && annotation && annotForm) {
+      } else if (e.key === 'a' && annotation && annotPanel) {
         e.preventDefault();
         stopPlay();
         clearLoopTimer();
-        annotForm.focus();
+        annotPanel.form.focus();
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
@@ -1329,210 +1257,6 @@ async function loadEvents(
     .split('\n')
     .filter((line) => line.trim().length > 0)
     .map((line) => JSON.parse(line) as GameEvent);
-}
-
-type AnnotFormHandle = {
-  el: HTMLElement;
-  setContext: (ctx: AnnotationContext | null) => void;
-  loadForEdit: (a: Annotation) => void;
-  focus: () => void;
-  clearAfterSave: () => void;
-  appendPickedSquare: (sq: string) => void;
-};
-
-function createAnnotForm(opts: {
-  onSave: (
-    values: {
-      severity: 'major' | 'minor' | 'good' | 'neutral';
-      better: string;
-      note: string;
-    },
-    editing: Annotation | null,
-  ) => Promise<void>;
-}): AnnotFormHandle {
-  const el = document.createElement('div');
-  el.className = 'annot-form';
-  el.innerHTML = `
-    <div class="annot-form-header">
-      <span class="annot-form-title">Annotate</span>
-      <span class="annot-form-context">— scrub to a ply to begin</span>
-      <button type="button" class="annot-form-cancel-edit" hidden>✕ cancel edit</button>
-    </div>
-    <div class="annot-form-row">
-      <label class="annot-form-label">Severity</label>
-      <div class="annot-form-radios">
-        <label class="annot-form-radio annot-form-radio-major"><input type="radio" name="annot-severity" value="major" checked> Major</label>
-        <label class="annot-form-radio annot-form-radio-minor"><input type="radio" name="annot-severity" value="minor"> Minor</label>
-        <label class="annot-form-radio annot-form-radio-neutral"><input type="radio" name="annot-severity" value="neutral"> Neutral</label>
-        <label class="annot-form-radio annot-form-radio-good"><input type="radio" name="annot-severity" value="good"> Good</label>
-      </div>
-      <label class="annot-form-label" for="annot-better">Better</label>
-      <input type="text" id="annot-better" class="annot-form-input annot-form-input-better" placeholder="click 2 squares on Truth, or type UCI" autocomplete="off">
-      <button type="button" class="annot-form-better-clear" title="Clear the picked move">×</button>
-    </div>
-    <div class="annot-form-row annot-form-row-note">
-      <textarea id="annot-note" class="annot-form-note" rows="2" placeholder="What stood out — mistake, better idea, or strong move and why? (⌘/Ctrl+Enter saves)"></textarea>
-      <button type="button" class="annot-form-save">Save</button>
-    </div>
-    <div class="annot-form-status"></div>
-  `;
-
-  const titleEl = el.querySelector('.annot-form-title') as HTMLSpanElement;
-  const contextEl = el.querySelector('.annot-form-context') as HTMLSpanElement;
-  const noteEl = el.querySelector('#annot-note') as HTMLTextAreaElement;
-  const betterEl = el.querySelector('#annot-better') as HTMLInputElement;
-  const betterClearBtn = el.querySelector('.annot-form-better-clear') as HTMLButtonElement;
-  const cancelEditBtn = el.querySelector('.annot-form-cancel-edit') as HTMLButtonElement;
-  const saveBtn = el.querySelector('.annot-form-save') as HTMLButtonElement;
-  const statusEl = el.querySelector('.annot-form-status') as HTMLDivElement;
-
-  let editingAnnotation: Annotation | null = null;
-  let lastContext: AnnotationContext | null = null;
-
-  function exitEditMode(): void {
-    editingAnnotation = null;
-    cancelEditBtn.hidden = true;
-    el.classList.remove('annot-form-editing');
-    titleEl.textContent = 'Annotate';
-    saveBtn.textContent = 'Save';
-    applyContextHeader(lastContext);
-    noteEl.value = '';
-    betterEl.value = '';
-  }
-
-  function applyContextHeader(ctx: AnnotationContext | null): void {
-    if (!ctx) {
-      contextEl.textContent = '— scrub to a ply to begin';
-      return;
-    }
-    const tier1Marker = ctx.isTier1Move ? 'tier1' : 'random';
-    contextEl.innerHTML = `— ply <strong>${ctx.ply}</strong> · played <span class="annot-form-move">${ctx.movePlayedUci}</span> <span class="annot-form-meta">(${ctx.movePlayedColor}, ${tier1Marker})</span>`;
-  }
-
-  betterClearBtn.addEventListener('click', () => {
-    betterEl.value = '';
-    betterEl.focus();
-  });
-
-  cancelEditBtn.addEventListener('click', () => {
-    exitEditMode();
-  });
-
-  // Clicks on the truth board push squares into the better-move input.
-  // Two clicks fill in a UCI; a third click starts over.
-  function appendPickedSquare(sq: string): void {
-    const cur = betterEl.value.trim();
-    if (cur.length === 0 || cur.length >= 4) {
-      betterEl.value = sq;
-    } else if (cur.length === 2) {
-      betterEl.value = cur + sq;
-    } else {
-      // Mid-typed weird state — replace with this square as the new "from".
-      betterEl.value = sq;
-    }
-  }
-
-  let ready = false;
-
-  function isReady(): boolean {
-    return ready || editingAnnotation !== null;
-  }
-
-  function severityValue(): 'major' | 'minor' | 'good' | 'neutral' {
-    const checked = el.querySelector(
-      'input[name=annot-severity]:checked',
-    ) as HTMLInputElement | null;
-    const v = checked?.value ?? 'major';
-    return (v === 'minor' || v === 'good' || v === 'neutral' ? v : 'major') as
-      | 'major'
-      | 'minor'
-      | 'good'
-      | 'neutral';
-  }
-
-  async function tryToSave(): Promise<void> {
-    if (!isReady()) {
-      statusEl.textContent = 'No move at current ply.';
-      statusEl.className = 'annot-form-status annot-form-status-warn';
-      return;
-    }
-    saveBtn.disabled = true;
-    statusEl.textContent = editingAnnotation ? 'Updating…' : 'Saving…';
-    statusEl.className = 'annot-form-status';
-    try {
-      await opts.onSave(
-        {
-          severity: severityValue(),
-          better: betterEl.value,
-          note: noteEl.value,
-        },
-        editingAnnotation,
-      );
-      statusEl.textContent = editingAnnotation ? 'Updated.' : 'Saved.';
-      statusEl.className = 'annot-form-status annot-form-status-ok';
-    } catch (err) {
-      statusEl.textContent = `Save failed: ${(err as Error).message}`;
-      statusEl.className = 'annot-form-status annot-form-status-err';
-    } finally {
-      saveBtn.disabled = false;
-    }
-  }
-
-  saveBtn.addEventListener('click', () => void tryToSave());
-  el.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      void tryToSave();
-    }
-  });
-
-  return {
-    el,
-    setContext(ctx) {
-      ready = ctx !== null;
-      lastContext = ctx;
-      // Don't blow away the editing context header while editing.
-      if (!editingAnnotation) {
-        applyContextHeader(ctx);
-      }
-    },
-    loadForEdit(a) {
-      editingAnnotation = a;
-      // Defensive: explicitly uncheck all radios before setting the
-      // target. Auto-uncheck-via-radio-group can fail if the inputs are
-      // outside a <form> ancestor in some browsers, causing a stale
-      // "major" checked state to override the loaded annotation's sev.
-      el.querySelectorAll('input[name=annot-severity]').forEach((r) => {
-        (r as HTMLInputElement).checked = false;
-      });
-      const sevInput = el.querySelector(
-        `input[name=annot-severity][value="${a.severity}"]`,
-      ) as HTMLInputElement | null;
-      if (sevInput) sevInput.checked = true;
-      betterEl.value = a.suggested_move_uci ?? '';
-      noteEl.value = a.note;
-      titleEl.textContent = `Editing note (${a.severity})`;
-      saveBtn.textContent = 'Update';
-      cancelEditBtn.hidden = false;
-      el.classList.add('annot-form-editing');
-      contextEl.innerHTML = `— ply <strong>${a.ply}</strong> · played <span class="annot-form-move">${a.move_played_uci}</span> <span class="annot-form-meta">(${a.move_played_color}, editing)</span>`;
-      noteEl.focus();
-    },
-    focus() {
-      noteEl.focus();
-    },
-    clearAfterSave() {
-      if (editingAnnotation) {
-        exitEditMode();
-        return;
-      }
-      noteEl.value = '';
-      betterEl.value = '';
-      // keep severity at last selection — user is likely classifying a streak of similar issues
-    },
-    appendPickedSquare,
-  };
 }
 
 function gameOverSuffix(state: GameState): string {
