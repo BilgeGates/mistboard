@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   type ClockState,
   createClock,
+  freezeClock,
   type GameEvent,
   generateChess960Starts,
   replayGameEvents,
@@ -17,8 +18,8 @@ import {
   clearAbortTimer,
   clearForfeitTimer,
   expireActiveClock,
+  forfeitEngineOnFailure,
   FORFEIT_WINDOW_MS,
-  pauseRoomOnEngineFailure,
   pauseRoomOnShutdown,
   playMove,
   type RoomManagerContext,
@@ -352,7 +353,7 @@ test('expireActiveClock: appends clock-expired event and sets correct winner', a
   );
 });
 
-test('pauseRoomOnEngineFailure: freezes PvE on engine turn', async () => {
+test('forfeitEngineOnFailure: engine loses instead of freezing PvE indefinitely', async () => {
   const roomId = 'engine-failure-room';
   const engineId = 'python-tier1-v0.9.5';
   const now = Date.now();
@@ -371,19 +372,25 @@ test('pauseRoomOnEngineFailure: freezes PvE on engine turn', async () => {
   room.pveEngineId = engineId;
   const ctx = makeCtx();
   const before = room.events.length;
+  const failedAt = now + 10_000;
+  const expectedClock = freezeClock(room.projection.state.clock, failedAt);
 
-  await pauseRoomOnEngineFailure(ctx, room, now + 10_000);
+  await forfeitEngineOnFailure(ctx, room, failedAt);
 
   assert.equal(room.events.length, before + 1);
   assert.deepEqual(room.events[room.events.length - 1], {
-    type: 'pause',
-    at: now + 10_000,
+    type: 'seat-forfeited',
+    at: failedAt,
     roomId,
-    reason: 'engine-error',
-    clock: room.projection.state.clock,
+    color: 'black',
+    ...(expectedClock ? { clock: expectedClock } : {}),
   });
-  assert.equal(room.projection.paused, true);
-  assert.equal(room.projection.pauseReason, 'engine-error');
+  assert.equal(room.projection.paused, false);
+  assert.deepEqual(room.projection.state.status, {
+    type: 'finished',
+    winner: 'white',
+    reason: 'abandonment',
+  });
 });
 
 // ── Seat assignment via event projection ──────────────────────────────────────
