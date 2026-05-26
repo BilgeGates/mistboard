@@ -41,6 +41,7 @@ type WatchFeed = {
   activeChannel: string;
   channels: WatchChannelSummary[];
   now: string;
+  unlockLimit: number;
   unlockWindowMs: number;
   sealedCount: number;
   unlocked: FeaturedGame[];
@@ -1524,7 +1525,7 @@ function buildWatchSection(feed: WatchFeed | null): {
   title.textContent = feed ? `${activeWatchChannelLabel(feed)} replays` : 'Recent replays';
   const description = document.createElement('p');
   description.textContent =
-    'Games stay sealed while they are being played. Finished games unlock here as short-window replays.';
+    'Games stay sealed while they are being played. Finished games unlock here, with older replays filling quiet windows.';
   copy.append(eyebrow, title, description);
   const channelList = buildWatchChannelList(feed);
   if (channelList) copy.append(channelList);
@@ -1559,7 +1560,7 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
     feed?.sealedCount === 1 ? 'sealed game in progress' : 'sealed games in progress';
   const windowLabel = document.createElement('span');
   windowLabel.textContent = feed
-    ? `${feed.unlocked.length} unlocked · ${formatUnlockWindow(feed.unlockWindowMs)} window`
+    ? `${feed.unlocked.length} unlocked · ${formatWatchScope(feed)}`
     : 'feed unavailable';
   root.append(sealed, sealedLabel, windowLabel);
 }
@@ -1667,7 +1668,7 @@ function renderWatchQueue(
   const title = document.createElement('h2');
   title.textContent = 'Unlocked queue';
   const windowLabel = document.createElement('span');
-  windowLabel.textContent = feed ? formatUnlockWindow(feed.unlockWindowMs) : 'offline';
+  windowLabel.textContent = feed ? formatWatchScope(feed) : 'offline';
   heading.append(title, windowLabel);
   root.append(heading);
 
@@ -1748,6 +1749,10 @@ function formatUnlockWindow(ms: number): string {
   if (minutes < 60) return `${minutes}m`;
   const hours = minutes / 60;
   return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+}
+
+function formatWatchScope(feed: WatchFeed): string {
+  return `${formatUnlockWindow(feed.unlockWindowMs)} / latest ${feed.unlockLimit}`;
 }
 
 function formatEndedAge(endedAt: string | undefined, nowIso: string): string | null {

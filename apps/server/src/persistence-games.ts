@@ -91,7 +91,6 @@ export type RecentEveGameRecord = GameRecord & {
 export type WatchUnlockedGameOptions = {
   limit?: number;
   now?: Date;
-  unlockWindowMs?: number;
   variants?: readonly string[];
 };
 
@@ -242,19 +241,11 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
 export async function listWatchUnlockedGames(
   options: WatchUnlockedGameOptions = {},
 ): Promise<RecentEveGameRecord[]> {
-  const boundedLimit = Math.max(1, Math.min(options.limit ?? 20, 50));
-  const unlockWindowMs = Math.max(1, options.unlockWindowMs ?? 2 * 60 * 60 * 1000);
+  const boundedLimit = Math.max(1, Math.min(options.limit ?? 64, 64));
   const now = options.now ?? new Date();
-  const unlockedSince = new Date(now.getTime() - unlockWindowMs);
   const variants = watchVariantFilter(options.variants);
-  const variantClause = variants ? 'AND games.variant = ANY($6::text[])' : '';
-  const values: unknown[] = [
-    MIN_TIMEOUT_SOURCE_PLY_COUNT,
-    boundedLimit,
-    MIN_TV_PVP_PLY_COUNT,
-    unlockedSince,
-    now,
-  ];
+  const variantClause = variants ? 'AND games.variant = ANY($5::text[])' : '';
+  const values: unknown[] = [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit, MIN_TV_PVP_PLY_COUNT, now];
   if (variants) values.push(variants);
   const { rows } = await getPool().query<RecentEveGameRow>(
     `SELECT ${RECENT_EVE_SELECT_COLUMNS}
@@ -263,8 +254,7 @@ export async function listWatchUnlockedGames(
      WHERE games.status = 'completed'
        ${variantClause}
        AND games.mode IN ('pvp', 'pve', 'eve')
-       AND games.ended_at >= $4
-       AND games.ended_at <= $5
+       AND games.ended_at <= $4
        AND NOT (games.termination = 'timeout' AND games.ply_count < $1)
        AND NOT (games.mode = 'pvp' AND games.ply_count < $3)
        AND NOT (games.mode = 'pve' AND games.ply_count < 2)

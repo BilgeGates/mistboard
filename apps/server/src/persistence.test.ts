@@ -1781,12 +1781,11 @@ if (!TEST_DATABASE_URL) {
     const unlocked = await listWatchUnlockedGames({
       limit: 10,
       now,
-      unlockWindowMs: 2 * 60 * 60_000,
       variants: ['dark-chess', 'draft960'],
     });
     assert.deepEqual(
       unlocked.map((game) => game.roomId),
-      ['watch-pvp-newest', 'watch-pve-link', 'watch-eve'],
+      ['watch-pvp-newest', 'watch-pve-link', 'watch-eve', 'watch-old'],
     );
     assert.equal(
       await countWatchSealedGames({
@@ -1796,6 +1795,55 @@ if (!TEST_DATABASE_URL) {
       }),
       3,
     );
+  });
+
+  test('watch feed backfills quiet windows and caps at latest 64 eligible games', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      for (let index = 0; index < 70; index++) {
+        const roomId = `watch-cap-${String(index).padStart(2, '0')}`;
+        const endedAt = new Date(now.getTime() - index * 60 * 60_000);
+        await client.query(
+          `INSERT INTO games
+             (room_id, variant, result, termination, ply_count, started_at, ended_at,
+              white_client, black_client, white_name, black_name, mode, status, visibility)
+           VALUES
+             ($1, 'dark-chess', 'white-wins', 'king-captured', 40, $2, $2,
+              'white', 'black', NULL, NULL, 'pvp', 'completed', 'public')`,
+          [roomId, endedAt],
+        );
+        await client.query(
+          `INSERT INTO events (room_id, seq, type, payload)
+           VALUES ($1, 0, 'room-created', $2)`,
+          [
+            roomId,
+            {
+              type: 'room-created',
+              at: endedAt.getTime(),
+              roomId,
+              variant: 'dark-chess',
+              offer: [],
+            },
+          ],
+        );
+      }
+    } finally {
+      await client.end();
+    }
+
+    const unlocked = await listWatchUnlockedGames({
+      limit: 100,
+      now,
+      variants: ['dark-chess'],
+    });
+
+    assert.equal(unlocked.length, 64);
+    assert.equal(unlocked[0]?.roomId, 'watch-cap-00');
+    assert.equal(unlocked.at(-1)?.roomId, 'watch-cap-63');
+    assert.ok(unlocked.some((game) => game.roomId === 'watch-cap-30'));
+    assert.ok(!unlocked.some((game) => game.roomId === 'watch-cap-64'));
   });
 
   test('listCorpusGames filters timeout games shorter than ten ply', async () => {
