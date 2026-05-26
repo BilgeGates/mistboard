@@ -266,11 +266,10 @@ async function mountWatchReplay(root: HTMLElement, roomId: string, feed: WatchFe
   }
 
   await mountReplay(root, roomId, {
-    autoplay: false,
+    autoplay: true,
     showControls: true,
     metadataMode: 'header',
     revealOnFinish: true,
-    loopSamples: feed.unlocked.map((game) => game.roomId),
     loaderForId: apiEventLoader,
     metadataByRoomId,
   });
