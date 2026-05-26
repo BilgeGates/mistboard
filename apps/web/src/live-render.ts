@@ -34,13 +34,16 @@ import {
 import { createLiveLayout } from './live-layout.js';
 import { renderReplay, resetMoveListState } from './live-move-list.js';
 import { captureFogView, initReplay, isLive, resetReplayState } from './live-replay.js';
+import {
+  renderRoomActions as renderRoomActionRows,
+  shouldShowPostGameRoomActions as shouldShowPostGameRoomActionRows,
+} from './live-room-actions.js';
 import { initLiveSound, playSound, resetLiveSoundState, soundForOwnMove } from './live-sound.js';
 import {
   type InfoTone,
   type LiveRefs,
   liveState,
   type PendingPromotion,
-  type PlayAgainStatus,
   type PromotionRole,
 } from './live-state.js';
 import {
@@ -156,7 +159,6 @@ function fenToPickerPieces(fenPlacement: string, color: Color): PieceOnBoard[] {
   }
   return pieces;
 }
-let playAgainStatus: PlayAgainStatus = 'idle';
 let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | 'aborted' | null = null;
 let playingSinceMs: number | null = null;
 
@@ -213,7 +215,10 @@ export function render(): void {
   renderGameInfo(view);
   renderClockRows(refs, view);
   renderCaptureRows(refs, view);
-  renderRoomActions();
+  renderRoomActionRows(refs, {
+    sendSocket,
+    shouldRequestHiddenDraft960ForPlayAgain,
+  });
   renderGameControlRows(refs, view, sendSocket);
   renderDevViews();
   renderOffer(projection);
@@ -625,164 +630,8 @@ export function updateAbortCountdown(): void {
 
 // ── Room actions ──────────────────────────────────────────────────────────────
 
-function copyLinkButton(): HTMLButtonElement {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'primary';
-  btn.textContent = 'Copy invite link';
-  btn.addEventListener('click', () => {
-    navigator.clipboard
-      .writeText(window.location.href)
-      .then(() => {
-        btn.textContent = 'Link copied!';
-        setTimeout(() => {
-          btn.textContent = 'Copy invite link';
-        }, 2000);
-      })
-      .catch(() => {});
-  });
-  return btn;
-}
-
-function renderRoomActions(): void {
-  const view = currentView();
-  const actions: HTMLElement[] = [roomAction('Back home', '/')];
-  if (shouldShowPostGameRoomActions(view)) {
-    if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
-      for (const el of rematchButtons()) actions.unshift(el);
-    } else if (liveState.roomMode === 'pve') {
-      actions.unshift(playAgainButton());
-    }
-    actions.unshift(
-      roomAction('Review game', `/game/${encodeURIComponent(liveState.room)}`, 'primary'),
-    );
-    refs.roomActions.replaceChildren(...actions);
-    return;
-  }
-  if (liveState.roomMode === 'pvp' && view?.status.type === 'pregame' && isColor(liveState.seat)) {
-    actions.unshift(copyLinkButton());
-  }
-  if (liveState.engineRequested) actions.push(roomAction('New Debug Room', 'dark-chess', 'engine'));
-  refs.roomActions.replaceChildren(...actions);
-}
-
 export function shouldShowPostGameRoomActions(view: PlayerView | null): boolean {
-  return view?.status.type === 'finished' || liveState.state?.status.type === 'finished';
-}
-
-function rematchButtons(): HTMLElement[] {
-  const mySeat = liveState.seat;
-  if (mySeat !== 'white' && mySeat !== 'black') return [];
-  const theirSeat: 'white' | 'black' = mySeat === 'white' ? 'black' : 'white';
-  const offers = liveState.rematch.offers;
-  const iOffered = offers[mySeat];
-  const theyOffered = offers[theirSeat];
-
-  if (iOffered && theyOffered) {
-    // Both confirmed — redirect is imminent. Show a brief "Starting…" affordance.
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.disabled = true;
-    btn.textContent = 'Starting rematch…';
-    return [btn];
-  }
-  if (iOffered) {
-    const cancel = document.createElement('button');
-    cancel.type = 'button';
-    cancel.className = '';
-    cancel.textContent = 'Cancel rematch';
-    cancel.addEventListener('click', () => {
-      sendSocket({ type: 'rematch:cancel' });
-    });
-    const waiting = document.createElement('span');
-    waiting.className = 'room-actions-note';
-    waiting.textContent = 'Waiting for opponent…';
-    return [waiting, cancel];
-  }
-  if (theyOffered) {
-    const accept = document.createElement('button');
-    accept.type = 'button';
-    accept.className = 'primary';
-    accept.textContent = 'Accept rematch';
-    accept.addEventListener('click', () => {
-      sendSocket({ type: 'rematch:offer' });
-    });
-    const decline = document.createElement('button');
-    decline.type = 'button';
-    decline.textContent = 'Decline';
-    decline.addEventListener('click', () => {
-      sendSocket({ type: 'rematch:decline' });
-    });
-    return [decline, accept];
-  }
-  const offer = document.createElement('button');
-  offer.type = 'button';
-  offer.textContent = 'Rematch';
-  offer.addEventListener('click', () => {
-    sendSocket({ type: 'rematch:offer' });
-  });
-  return [offer];
-}
-
-function roomAction(
-  label: string,
-  href: string,
-  toneOrDev?: 'primary' | 'engine',
-): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.href = toneOrDev === 'engine' ? roomUrl('dark-chess', 'engine') : href;
-  if (toneOrDev === 'primary') link.className = 'primary';
-  link.textContent = label;
-  return link;
-}
-
-function playAgainButton(): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = playAgainStatus === 'failed' ? 'danger' : '';
-  button.disabled = playAgainStatus === 'creating';
-  button.textContent =
-    playAgainStatus === 'creating'
-      ? 'Creating'
-      : playAgainStatus === 'failed'
-        ? 'Try play again'
-        : 'Play again';
-  button.addEventListener('click', () => {
-    void createPlayAgainRoom();
-  });
-  return button;
-}
-
-async function createPlayAgainRoom(): Promise<void> {
-  if (liveState.roomMode !== 'pvp' && liveState.roomMode !== 'pve') return;
-  playAgainStatus = 'creating';
-  renderRoomActions();
-  try {
-    const response = await fetch('/api/rooms', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        mode: liveState.roomMode,
-        variant:
-          currentView()?.variant ??
-          liveState.state?.variant ??
-          liveState.variantRequested ??
-          'dark-chess',
-        hiddenDraft960: shouldRequestHiddenDraft960ForPlayAgain(),
-        ...(liveState.roomMode === 'pve' && liveState.pveEngineId
-          ? { engineId: liveState.pveEngineId }
-          : {}),
-      }),
-    });
-    if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
-    const data = (await response.json()) as { url?: string };
-    if (!data.url) throw new Error('room creation response missing url');
-    window.location.assign(data.url);
-  } catch (err) {
-    console.warn(err);
-    playAgainStatus = 'failed';
-    renderRoomActions();
-  }
+  return shouldShowPostGameRoomActionRows(view);
 }
 
 // ── Dev views ─────────────────────────────────────────────────────────────────
@@ -1244,16 +1093,6 @@ function pieceGlyphForRole(role: PieceRole, color: Color): string {
     },
   } satisfies Record<Color, Record<PieceRole, string>>;
   return labels[color][role];
-}
-
-function roomUrl(variant: PlayerView['variant'], dev?: 'engine'): string {
-  const params = new URLSearchParams({
-    reset: '1',
-    room: crypto.randomUUID(),
-  });
-  params.set('variant', variant);
-  if (dev) params.set('dev', dev);
-  return `/?${params}`;
 }
 
 function pickColorForSeat(): Color {
