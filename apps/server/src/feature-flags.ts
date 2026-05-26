@@ -12,3 +12,10 @@
 export function ratedEnabled(): boolean {
   return process.env.MISTBOARD_RATED_ENABLED === 'true';
 }
+
+// Dark Xiangqi is a rules spike, not a public/live mode. Keep every future
+// server-side entry point behind this explicit opt-in so adding integration
+// code cannot accidentally expose rooms in production.
+export function darkXiangqiEnabled(): boolean {
+  return process.env.MISTBOARD_DARK_XIANGQI_ENABLED === 'true';
+}

@@ -1304,8 +1304,10 @@ export function renderClocks(view: PlayerView | null): void {
     row.dataset.color = color;
     const label = document.createElement('span');
     label.className = 'clock-label';
+    const playerLine = document.createElement('span');
+    playerLine.className = 'clock-player-line';
     const time = document.createElement('strong');
-    if (isPvp) label.append(presenceDot(liveState.connectedSeats[color]));
+    if (isPvp) playerLine.append(presenceDot(liveState.connectedSeats[color]));
     // Prefer server-supplied display name; fall back to "You"/"Bot"/color
     const serverName = liveState.seatDisplayNames[color];
     const playerName =
@@ -1314,13 +1316,14 @@ export function renderClocks(view: PlayerView | null): void {
     const nameEl = document.createElement('span');
     nameEl.className = 'clock-name';
     nameEl.textContent = playerName;
-    label.append(nameEl);
-    if (isActive) {
-      const toMove = document.createElement('span');
-      toMove.className = 'clock-to-move';
-      toMove.textContent = 'to move';
-      label.append(toMove);
-    }
+    nameEl.title = playerName;
+    playerLine.append(nameEl);
+    label.append(playerLine);
+    const toMove = document.createElement('span');
+    toMove.className = 'clock-to-move';
+    toMove.textContent = 'to move';
+    toMove.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    label.append(toMove);
     const remainingMs = clockRemainingMs(clock, color, displayAt);
     time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
     const classes: string[] = [];

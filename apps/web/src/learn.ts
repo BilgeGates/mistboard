@@ -4,6 +4,7 @@ import {
   darkChessVariant,
   type GameState,
   type Move,
+  type PieceRole,
   type PlayerView,
   type Square,
 } from '@mistboard/game';
@@ -35,7 +36,8 @@ type DemoMove = {
 
 // Node kinds for the research-derived lessons (Endgames). 'legacy' chapters keep
 // the original step-based tutorial behavior and leave `mode` unset.
-type ChapterMode = 'practice' | 'play' | 'demo' | 'teach';
+type ChapterMode = 'practice' | 'play' | 'demo' | 'teach' | 'superposition';
+type PlayDefender = 'open-king' | 'wandering-king';
 
 type TutorialChapter = {
   id: string;
@@ -61,6 +63,11 @@ type TutorialChapter = {
   // practice: free White moves with no Black reply. play: vs a heuristic defender.
   playMoveCap?: number;
   playCoachCap?: string;
+  playCaptureText?: string;
+  playDefeatText?: string;
+  playMaterialLossText?: string;
+  playMoveHint?: string;
+  playDefender?: PlayDefender;
   // demo: a scripted line walked on the truth board with narration.
   demoIntro?: string;
   demoMoves?: DemoMove[];
@@ -70,6 +77,8 @@ type TutorialChapter = {
   // overlays (shown on the final demo beat / teach node)
   safePair?: Square[];
   unsafeSquares?: Square[];
+  candidateSquares?: Square[];
+  wallSquares?: Square[];
   // teach/demo chapters normally show the truth board. Some scaffold chapters
   // intentionally keep fog on to preview the eventual interaction.
   fogPreview?: boolean;
@@ -102,16 +111,17 @@ const learnModules: LearnModule[] = [
     status: 'wip',
     title: 'K+Q vs K',
     summary:
-      'Starting outline for turning the drawn lone-king chase into a forced queen hunt under fog.',
+      'Use the queen as a floodlight, keep her protected, and turn scattered hidden-king candidates into a corner net.',
     chapterIds: [
       'kqk-free-queen-vision',
       'kqk-random-king',
       'kqk-punish-scouting',
       'kqk-perfect-defender',
+      'kqk-known-start-superposition',
       'kqk-superposition-corner',
     ],
     cta: 'Open queen endgame',
-    source: 'Endgame continuation from K vs K scaffold',
+    source: 'Playable endgame lab from the K vs K scaffold',
   },
   {
     id: 'rook-vs-king',
@@ -740,14 +750,13 @@ const chapters: TutorialChapter[] = [
   {
     id: 'kqk-free-queen-vision',
     lesson: 'K+Q vs K',
-    title: 'Free queen vision',
-    goal: 'Only the White king and queen are on the board. Fog is on, and White practices moving them.',
+    title: 'Queen floodlight',
+    goal: 'Start with only your king and queen. Aim the queen and watch how much map one move can reveal.',
     mode: 'practice',
     teachText:
-      'Starting interaction: no Black pieces yet. Let White move the king and queen freely with fog enabled, so the player can feel how queen vision blooms, collapses, and differs from king vision before any defender is added.',
+      "The queen is both a weapon and a sensor. Move her on a file, rank, or diagonal, then move the king and compare the small king bubble with the queen's long beams.",
     fogPreview: true,
-    safePair: ['d8', 'h4', 'a4'],
-    nextLabel: 'Random king',
+    nextLabel: 'Add a hidden king',
     board: {
       d3: { color: 'white', role: 'king' },
       d4: { color: 'white', role: 'queen' },
@@ -757,14 +766,24 @@ const chapters: TutorialChapter[] = [
   {
     id: 'kqk-random-king',
     lesson: 'K+Q vs K',
-    title: 'Random hidden king',
-    goal: 'Add a Black king that makes random moves while White practices hunting it.',
-    mode: 'teach',
+    title: 'Find before chasing',
+    goal: 'A lone Black king is in the fog. Use queen lines to find it before it drifts away.',
+    mode: 'play',
+    playDefender: 'wandering-king',
+    playMoveCap: 10,
+    playMoveHint: 'Move your king or queen. The hidden king will drift after each White move.',
+    playCaptureText:
+      'King captured. The queen found a line, and Fog rules let you take the king as soon as it is in sight.',
+    playDefeatText:
+      'The hidden king captured yours. The queen can search quickly, but your king still needs a safe square.',
+    playMaterialLossText:
+      'The hidden king took the queen. In this endgame the queen must search from squares your king can eventually support.',
+    playCoachCap:
+      'Ten moves, no capture. Try using the queen to cut a rank or file first; chasing with the king alone lets the defender keep slipping away.',
     teachText:
-      'Starting interaction: after each White move, the Black king chooses a random legal king move. White sees only what the king and queen reveal. This should teach search and containment before the defender becomes adversarial.',
+      'You do not need to know exactly where the king starts. First make the queen cover useful lines, then bring the king closer so the net can tighten.',
     fogPreview: true,
-    safePair: ['h7'],
-    nextLabel: 'Punish mistakes',
+    nextLabel: 'Loose queen',
     board: {
       e3: { color: 'white', role: 'king' },
       d4: { color: 'white', role: 'queen' },
@@ -775,55 +794,105 @@ const chapters: TutorialChapter[] = [
   {
     id: 'kqk-punish-scouting',
     lesson: 'K+Q vs K',
-    title: 'Punish loose scouting',
-    goal: 'The Black king punishes poor White moves, especially unprotected queen scouting or exposed kings.',
-    mode: 'teach',
+    title: 'Loose queen',
+    goal: 'The queen is strong, but Fog does not protect her from a king she failed to respect.',
+    mode: 'demo',
+    demoIntro:
+      'This position is shown in truth view. The queen has reached far into the fog, but the White king is nowhere near her.',
+    demoMoves: [
+      {
+        by: 'white',
+        uci: 'e2e3',
+        say: 'White makes a quiet king move. The queen is still sitting alone on h6.',
+      },
+      {
+        by: 'black',
+        uci: 'g7h6',
+        say: 'Black simply takes the unsupported queen. There is no check warning and no special queen immunity.',
+      },
+    ],
+    demoConclusion:
+      'Queen reach is not permission to scout carelessly. If the king cannot support the queen soon, the defender can trade the whole hunt for one capture.',
     teachText:
-      "Starting interaction: the defender is still simple, but tactical. If White sends the queen where the king cannot protect it, Black should take it when possible. If White exposes the king, Black should capture the king. This chapter teaches that queen reach is not permission to scout carelessly.",
-    fogPreview: true,
-    safePair: ['g7', 'h7'],
+      'Keep the queen close enough that a king capture of the queen becomes losing for the defender on the next turn.',
     unsafeSquares: ['h6'],
-    nextLabel: 'Optimal defence',
+    nextLabel: 'Build the box',
     board: {
       e2: { color: 'white', role: 'king' },
       h6: { color: 'white', role: 'queen' },
-      g8: { color: 'black', role: 'king' },
+      g7: { color: 'black', role: 'king' },
     },
     steps: [],
   },
   {
     id: 'kqk-perfect-defender',
     lesson: 'K+Q vs K',
-    title: 'Perfect defender',
-    goal: 'The Black king now defends optimally while knowing exactly where White is.',
-    mode: 'teach',
-    teachText:
-      'Starting interaction: Black gets the full truth board and chooses the best defensive move, not a random move. It should preserve distance, avoid corners, punish loose pieces, and use perfect information about White king and queen placement.',
-    fogPreview: true,
-    safePair: ['h8', 'h7', 'g8'],
-    nextLabel: 'Superpositions',
+    title: 'Build the box',
+    goal: 'Do not chase one square. Use the queen to cut space, then bring the king up behind the wall.',
+    mode: 'demo',
+    demoIntro:
+      'A queen wins this endgame by making areas impossible, not by guessing the exact hidden square immediately.',
+    demoMoves: [
+      {
+        by: 'white',
+        uci: 'd4g4',
+        say: 'The queen takes the fourth rank and points a long file upward. The board is already smaller.',
+      },
+      {
+        by: 'black',
+        uci: 'h7h8',
+        say: 'The defender retreats toward the corner because crossing the queen wall would reveal too much.',
+      },
+      {
+        by: 'white',
+        uci: 'e3f4',
+        say: 'Now the king follows. Queen first, king behind it: that is the shape of the net.',
+      },
+    ],
+    demoConclusion:
+      'The queen draws the boundary; the king makes the boundary matter. Keep repeating that pattern until every candidate is stuck near the edge.',
+    teachText: 'Build a box before looking for the final capture.',
+    wallSquares: ['g4', 'g5', 'g6', 'g7', 'g8', 'h4'],
+    nextLabel: 'Known start',
     board: {
-      f4: { color: 'white', role: 'king' },
-      e5: { color: 'white', role: 'queen' },
-      h8: { color: 'black', role: 'king' },
+      e3: { color: 'white', role: 'king' },
+      d4: { color: 'white', role: 'queen' },
+      h7: { color: 'black', role: 'king' },
+    },
+    steps: [],
+  },
+  {
+    id: 'kqk-known-start-superposition',
+    lesson: 'K+Q vs K',
+    title: 'Known start net',
+    goal: 'Black starts on h8. After every White move, the possible worlds grow only from that known start.',
+    mode: 'superposition',
+    teachText:
+      'This is the paper assumption: White knows the initial Black king square. The single king on h8 is the whole belief state; after each White move it grows to the connected hidden squares the king could have reached.',
+    candidateSquares: ['h8'],
+    playCaptureText:
+      'All paths from the known start are gone. Under this belief model, the real Black king has no surviving hidden history.',
+    nextLabel: 'Unknown start',
+    board: {
+      a1: { color: 'white', role: 'king' },
+      b1: { color: 'white', role: 'queen' },
     },
     steps: [],
   },
   {
     id: 'kqk-superposition-corner',
     lesson: 'K+Q vs K',
-    title: 'Corner the superpositions',
-    goal: 'Show every possible Black king square at once, then make White demonstrate the cornering and capture plan.',
-    mode: 'teach',
+    title: 'Unknown start net',
+    goal: 'Every hidden square is a possible initial Black king. Move your cornered king and queen to test the stronger toy.',
+    mode: 'superposition',
     teachText:
-      'Starting interaction: render the Black king as a superposition across all legal belief-state candidates. White must use queen walls and king support to shrink the possible set into the corner, then choose a move that captures every remaining world.',
-    fogPreview: true,
-    safePair: ['h8', 'h7', 'g8', 'g7'],
+      'Each Black king is a possible world, not an extra piece. Unlike the paper setup, the initial square is unknown, so the belief state starts on every hidden square. After every White move, connected hidden worlds survive.',
+    playCaptureText:
+      'All candidate worlds are gone. Whichever square held the real Black king, your net has forced the capture.',
     nextLabel: 'Rook endgame',
     board: {
-      f6: { color: 'white', role: 'king' },
-      g4: { color: 'white', role: 'queen' },
-      h8: { color: 'black', role: 'king' },
+      a1: { color: 'white', role: 'king' },
+      b1: { color: 'white', role: 'queen' },
     },
     steps: [],
   },
@@ -948,6 +1017,9 @@ type TutorialState = {
   whiteMoves: number; // white moves played in a play chapter
   playDone: boolean; // play chapter reached its cap / ended
   busy: boolean; // ignore input while the defender reply is pending
+  superpositionCandidates: Square[];
+  superpositionFlushed: Square[];
+  superpositionMoveCount: number;
 };
 
 function createTutorialState(): TutorialState {
@@ -967,6 +1039,9 @@ function createTutorialState(): TutorialState {
     whiteMoves: 0,
     playDone: false,
     busy: false,
+    superpositionCandidates: [],
+    superpositionFlushed: [],
+    superpositionMoveCount: 0,
   };
 }
 
@@ -1357,7 +1432,11 @@ function createTutorialBoard(
   state: TutorialState,
 ): Api {
   const interactive = chapter.mode
-    ? (chapter.mode === 'practice' || chapter.mode === 'play') && !state.playDone && !state.busy
+    ? (chapter.mode === 'practice' ||
+        chapter.mode === 'play' ||
+        chapter.mode === 'superposition') &&
+      !state.playDone &&
+      !state.busy
     : chapter.interaction !== 'reveal';
   const api = mountBoard(el, {
     animation: { enabled: false, duration: 0 },
@@ -1410,6 +1489,10 @@ function handleMove(state: TutorialState, uci: Uci): void {
   }
   if (chapter.mode === 'play') {
     handlePlayMove(state, uci);
+    return;
+  }
+  if (chapter.mode === 'superposition') {
+    handleSuperpositionMove(state, uci);
     return;
   }
   if (chapter.mode) return;
@@ -1481,7 +1564,31 @@ function showTruthBoard(chapter: TutorialChapter, state: TutorialState): boolean
 }
 
 function renderBoardFor(chapter: TutorialChapter, state: TutorialState, view: PlayerView): Board {
+  if (chapter.mode === 'superposition') return superpositionBoardFor(state);
   return showTruthBoard(chapter, state) ? state.activeState.board : view.board;
+}
+
+function superpositionBoardFor(state: TutorialState): Board {
+  const board: Board = { ...state.activeState.board };
+  for (const square of state.superpositionCandidates) {
+    board[square] = { color: 'black', role: 'king' };
+  }
+  return board;
+}
+
+function hiddenKingCandidateSquares(gs: GameState): Square[] {
+  const view = darkChessVariant.getPlayerView(gs, 'white');
+  const visible = new Set<Square>(view.visibleSquares);
+  const candidates: Square[] = [];
+  for (const file of boardFiles) {
+    for (let rank = 1; rank <= 8; rank += 1) {
+      const square = `${file}${rank}` as Square;
+      if (visible.has(square)) continue;
+      if (gs.board[square]?.color === 'white') continue;
+      candidates.push(square);
+    }
+  }
+  return candidates;
 }
 
 function resetChapter(state: TutorialState): void {
@@ -1493,10 +1600,17 @@ function resetChapter(state: TutorialState): void {
   state.whiteMoves = 0;
   state.playDone = false;
   state.busy = false;
+  state.superpositionCandidates =
+    chapter.mode === 'superposition' && !chapter.candidateSquares?.length
+      ? hiddenKingCandidateSquares(state.activeState)
+      : [...(chapter.candidateSquares ?? [])];
+  state.superpositionFlushed = [];
+  state.superpositionMoveCount = 0;
   if (chapter.mode === 'practice') state.message = chapter.teachText ?? '';
   else if (chapter.mode === 'demo') state.message = chapter.demoIntro ?? '';
   else if (chapter.mode === 'teach') state.message = chapter.teachText ?? '';
-  else if (chapter.mode === 'play') state.message = '';
+  else if (chapter.mode === 'superposition') state.message = chapter.teachText ?? '';
+  else if (chapter.mode === 'play') state.message = chapter.teachText ?? '';
   else state.message = chapter.steps[0]!.teach;
   render(state);
 }
@@ -1513,7 +1627,11 @@ function goToChapter(state: TutorialState, chapterIndex: number): void {
 
 function updateBoard(state: TutorialState, chapter: TutorialChapter, view: PlayerView): void {
   const interactive = chapter.mode
-    ? (chapter.mode === 'practice' || chapter.mode === 'play') && !state.playDone && !state.busy
+    ? (chapter.mode === 'practice' ||
+        chapter.mode === 'play' ||
+        chapter.mode === 'superposition') &&
+      !state.playDone &&
+      !state.busy
     : chapter.interaction !== 'reveal' && state.status === 'ready';
   state.api?.set({
     fen: boardFen(renderBoardFor(chapter, state, view)),
@@ -1923,9 +2041,17 @@ function handlePracticeMove(state: TutorialState, uci: Uci): void {
     status: { type: 'playing', turn: 'white' },
     lastMove: resolvedMove,
   };
-  state.message =
-    'Move made. There is no Black move in this chapter; keep moving the king and queen to study how the fog changes.';
+  const supportPiece = supportPieceLabel(state.activeState.board);
+  state.message = `Move made. There is no Black move in this chapter; keep moving the king and ${supportPiece} to study how the fog changes.`;
   render(state);
+}
+
+function supportPieceLabel(board: Board): string {
+  for (const piece of Object.values(board)) {
+    if (!piece || piece.color !== 'white' || piece.role === 'king') continue;
+    return piece.role;
+  }
+  return 'piece';
 }
 
 function findKing(board: Board, color: 'white' | 'black'): Square | null {
@@ -1933,6 +2059,10 @@ function findKing(board: Board, color: 'white' | 'black'): Square | null {
     if (piece && piece.role === 'king' && piece.color === color) return square as Square;
   }
   return null;
+}
+
+function hasPiece(board: Board, color: 'white' | 'black', role: PieceRole): boolean {
+  return Object.values(board).some((piece) => piece?.color === color && piece.role === role);
 }
 
 function kingNeighbors(square: Square): Square[] {
@@ -2003,6 +2133,7 @@ function handlePlayMove(state: TutorialState, uci: Uci): void {
   if (afterWhite.status.type !== 'playing') {
     state.playDone = true;
     state.message =
+      chapter.playCaptureText ??
       'You caught it. On an open board that takes luck, not force. Try again and watch how it slips away.';
     render(state);
     return;
@@ -2023,18 +2154,169 @@ function handlePlayMove(state: TutorialState, uci: Uci): void {
       render(state);
       return;
     }
-    const reply = evaderReply(state.activeState);
+    const reply = defenderReplyForChapter(chapter, state.activeState);
     if (reply) {
       const afterBlack = darkChessVariant.applyMove(state.activeState, reply);
       state.activeState = {
         ...afterBlack,
-        status: { type: 'playing', turn: 'white' },
+        status:
+          afterBlack.status.type === 'playing'
+            ? { type: 'playing', turn: 'white' }
+            : afterBlack.status,
         lastMove: reply,
       };
+      if (afterBlack.status.type !== 'playing') {
+        state.playDone = true;
+        state.busy = false;
+        state.message =
+          afterBlack.status.type === 'finished' && afterBlack.status.winner === 'black'
+            ? (chapter.playDefeatText ?? 'The defender captured your king.')
+            : (chapter.playCaptureText ?? 'King captured.');
+        render(state);
+        return;
+      }
+      if (chapter.lesson === 'K+Q vs K' && !hasPiece(afterBlack.board, 'white', 'queen')) {
+        state.playDone = true;
+        state.busy = false;
+        state.message =
+          chapter.playMaterialLossText ??
+          'The defender captured your queen. Reset and keep the queen closer to king support.';
+        render(state);
+        return;
+      }
     }
     state.busy = false;
     render(state);
   }, 700);
+}
+
+function defenderReplyForChapter(chapter: TutorialChapter, gs: GameState): Move | null {
+  if (chapter.playDefender === 'wandering-king') return wanderingKingReply(gs);
+  return evaderReply(gs);
+}
+
+function wanderingKingReply(gs: GameState): Move | null {
+  const black = findKing(gs.board, 'black');
+  if (!black) return null;
+  const legal = darkChessVariant.getLegalMoves(gs, 'black').filter((move) => move.from === black);
+  if (legal.length === 0) return null;
+
+  legal.sort((left, right) => {
+    const scoreDelta =
+      scoreWanderingKingMove(gs, right, black) - scoreWanderingKingMove(gs, left, black);
+    if (scoreDelta !== 0) return scoreDelta;
+    return moveToUci(left).localeCompare(moveToUci(right));
+  });
+  return legal[0]!;
+}
+
+function scoreWanderingKingMove(gs: GameState, move: Move, from: Square): number {
+  const target = gs.board[move.to];
+  if (target?.role === 'king' && target.color === 'white') return 10_000;
+
+  const after = darkChessVariant.applyMove(gs, move);
+  const black = findKing(after.board, 'black') ?? move.to;
+  const whiteKing = findKing(after.board, 'white');
+  const whiteQueen = findPiece(after.board, 'white', 'queen');
+  const visibleToWhite = Boolean(darkChessVariant.getPlayerView(after, 'white').board[black]);
+  const canBeCaptured = whiteCanCaptureBlackKing(after);
+  const capturesQueen = target?.role === 'queen' && target.color === 'white';
+
+  let score = 0;
+  if (capturesQueen) score += 120;
+  if (!visibleToWhite) score += 60;
+  if (canBeCaptured) score -= 250;
+  if (whiteKing) score += chebyshev(black, whiteKing) * 12;
+  if (whiteQueen) score += chebyshev(black, whiteQueen) * 5;
+  score -= centerDistance(black) * 3;
+  score += chebyshev(from, black);
+  return score;
+}
+
+function findPiece(board: Board, color: 'white' | 'black', role: PieceRole): Square | null {
+  for (const [square, piece] of Object.entries(board)) {
+    if (piece && piece.role === role && piece.color === color) return square as Square;
+  }
+  return null;
+}
+
+function whiteCanCaptureBlackKing(gs: GameState): boolean {
+  const black = findKing(gs.board, 'black');
+  if (!black) return false;
+  const whiteTurn: GameState = { ...gs, status: { type: 'playing', turn: 'white' } };
+  return darkChessVariant
+    .getLegalMoves(whiteTurn, 'white')
+    .some((candidate) => candidate.to === black);
+}
+
+function handleSuperpositionMove(state: TutorialState, uci: Uci): void {
+  const chapter = chapters[state.chapterIndex]!;
+  if (state.playDone) return;
+
+  const view = darkChessVariant.getPlayerView(state.activeState, 'white');
+  const resolved = resolveUiMove(view, moveFromUci(uci));
+  if (!resolved) {
+    state.message = 'That move is not legal from this position.';
+    render(state);
+    return;
+  }
+
+  const afterWhite = darkChessVariant.applyMove(state.activeState, resolved);
+  state.activeState = {
+    ...afterWhite,
+    status: { type: 'playing', turn: 'white' },
+    lastMove: resolved,
+  };
+  state.superpositionMoveCount += 1;
+
+  const nextView = darkChessVariant.getPlayerView(state.activeState, 'white');
+  const visible = new Set(nextView.visibleSquares);
+  const candidates =
+    state.superpositionCandidates.length > 0
+      ? state.superpositionCandidates
+      : [...(chapter.candidateSquares ?? [])];
+  const connected = connectedHiddenKingCandidateSquares(candidates, state.activeState);
+  const flushed = connected.filter((square) => visible.has(square));
+  const remaining = connected.filter((square) => !visible.has(square));
+
+  state.superpositionCandidates = remaining;
+  state.superpositionFlushed = flushed;
+
+  if (remaining.length === 0) {
+    state.status = 'success';
+    state.playDone = true;
+    state.message =
+      chapter.playCaptureText ??
+      'All candidate worlds are gone. Whichever square held the real Black king, this move forces the capture.';
+    render(state);
+    return;
+  }
+
+  state.status = flushed.length > 0 ? 'ready' : 'soft-failure';
+  state.message =
+    flushed.length > 0
+      ? `${remaining.length} squares could still hold the king. ${flushed.length} connected ${flushed.length === 1 ? 'square was' : 'squares were'} revealed by your move.`
+      : `${remaining.length} candidates still possible. That move was legal, but it did not light up any candidate square.`;
+  render(state);
+}
+
+function connectedHiddenKingCandidateSquares(candidates: Square[], gs: GameState): Square[] {
+  const connected = new Set<Square>();
+  for (const candidate of candidates) {
+    for (const square of kingNeighbors(candidate)) {
+      if (gs.board[square]?.color === 'white') continue;
+      connected.add(square);
+    }
+  }
+  return sortSquares([...connected]);
+}
+
+function sortSquares(squares: Square[]): Square[] {
+  return [...squares].sort((left, right) => {
+    const byFile = squareFileIndex(left) - squareFileIndex(right);
+    if (byFile !== 0) return byFile;
+    return Number.parseInt(rankOf(left), 10) - Number.parseInt(rankOf(right), 10);
+  });
 }
 
 function advanceDemo(state: TutorialState): void {
@@ -2069,16 +2351,19 @@ function goNextChapter(state: TutorialState): void {
   goToChapter(state, nextIndex);
 }
 
-function endgameSquareClasses(
-  view: PlayerView,
-  chapter: TutorialChapter,
-): cg.SquareClasses {
+function endgameSquareClasses(view: PlayerView, chapter: TutorialChapter): cg.SquareClasses {
   const classes: cg.SquareClasses =
     chapter.mode === 'practice' || chapter.mode === 'play' || chapter.fogPreview
       ? hiddenSquareClasses(view, 'white')
       : new Map();
   const showOverlays = chapter.mode === 'teach' || chapter.mode === 'demo';
   if (showOverlays) {
+    for (const sq of chapter.wallSquares ?? []) {
+      classes.set(sq as cg.Key, `${classes.get(sq as cg.Key) ?? ''} learn-explained`.trim());
+    }
+    for (const sq of chapter.candidateSquares ?? []) {
+      classes.set(sq as cg.Key, `${classes.get(sq as cg.Key) ?? ''} learn-candidate`.trim());
+    }
     for (const sq of chapter.safePair ?? []) {
       classes.set(sq as cg.Key, `${classes.get(sq as cg.Key) ?? ''} learn-highlight`.trim());
     }
@@ -2110,7 +2395,7 @@ function buildEndgamePanel(state: TutorialState, chapter: TutorialChapter): HTML
   goal.textContent = chapter.goal;
 
   const prompt = document.createElement('div');
-  prompt.className = 'learn-tutorial-message ready';
+  prompt.className = `learn-tutorial-message ${state.status}`;
   prompt.textContent = state.message;
 
   const actions = document.createElement('div');
@@ -2120,7 +2405,7 @@ function buildEndgamePanel(state: TutorialState, chapter: TutorialChapter): HTML
   if (chapter.mode === 'practice') {
     const hint = document.createElement('p');
     hint.className = 'learn-hint';
-    hint.textContent = 'Move the White king or queen. Black has no pieces and makes no reply.';
+    hint.textContent = `Move the White king or ${supportPieceLabel(chapter.board)}. Black has no pieces and makes no reply.`;
     const next = document.createElement('button');
     next.type = 'button';
     next.className = 'landing-cta-primary';
@@ -2131,8 +2416,24 @@ function buildEndgamePanel(state: TutorialState, chapter: TutorialChapter): HTML
     const hint = document.createElement('p');
     hint.className = 'learn-hint';
     const cap = chapter.playMoveCap ?? 12;
-    hint.textContent = `Move your king. ${state.whiteMoves} of ${cap} moves used.`;
+    const prefix = state.busy ? 'Black is moving.' : (chapter.playMoveHint ?? 'Move your king.');
+    hint.textContent = `${prefix} ${state.whiteMoves} of ${cap} moves used.`;
     actions.append(hint);
+  } else if (chapter.mode === 'superposition' && !state.playDone) {
+    const hint = document.createElement('p');
+    hint.className = 'learn-hint';
+    const flushed =
+      state.superpositionFlushed.length > 0
+        ? ` ${state.superpositionFlushed.length} connected squares revealed last move.`
+        : '';
+    hint.textContent = `Move the White king or queen. ${state.superpositionCandidates.length} candidates remain.${flushed}`;
+
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'landing-cta-secondary';
+    reset.textContent = 'Reset';
+    reset.addEventListener('click', () => resetChapter(state));
+    actions.append(hint, reset);
   } else if (chapter.mode === 'demo' && state.demoIndex <= moves.length) {
     const next = document.createElement('button');
     next.type = 'button';

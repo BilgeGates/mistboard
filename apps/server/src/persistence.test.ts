@@ -10,6 +10,7 @@ import {
   appendEvent,
   close,
   consumeEmailLoginChallenge,
+  countWatchSealedGames,
   createAccountSession,
   createEmailLoginChallenge,
   createUser,
@@ -30,6 +31,7 @@ import {
   listGameDebugArtifactSummaries,
   listRecentEveGames,
   listRecentPublicGames,
+  listWatchUnlockedGames,
   loadRoom,
   loadRoomSeatTokens,
   markUserEmailVerified,
@@ -1107,8 +1109,20 @@ if (!TEST_DATABASE_URL) {
       blackName: 'Black',
       corpusId: null,
       participants: [
-        { color: 'white', displayName: 'White', subjectType: 'user', subjectId: 'user_white', visibility: 'public' },
-        { color: 'black', displayName: 'Black', subjectType: 'user', subjectId: 'user_black', visibility: 'public' },
+        {
+          color: 'white',
+          displayName: 'White',
+          subjectType: 'user',
+          subjectId: 'user_white',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: 'Black',
+          subjectType: 'user',
+          subjectId: 'user_black',
+          visibility: 'public',
+        },
       ],
       visibility: 'public',
     });
@@ -1138,7 +1152,11 @@ if (!TEST_DATABASE_URL) {
       assert.equal(white.games_played, 1);
 
       // The per-game rating-event log (game_participants) recorded before/after.
-      const { rows: parts } = await client.query<{ elo_before: number; elo_after: number; rd_after: number }>(
+      const { rows: parts } = await client.query<{
+        elo_before: number;
+        elo_after: number;
+        rd_after: number;
+      }>(
         `SELECT elo_before, elo_after, rd_after FROM game_participants
          WHERE game_id = 'rated-pvp-1' AND color = 'white'`,
       );
@@ -1160,8 +1178,22 @@ if (!TEST_DATABASE_URL) {
     // Rating is termination-independent: any completed rated PvP game rates.
     // Forfeit (abandonment) is a real win, so it must move ratings like any other.
     const now = new Date();
-    await createUser({ id: 'ff_w', email: 'ffw@e.com', emailVerifiedAt: now, handle: 'ffwhite', displayName: 'FFW', now });
-    await createUser({ id: 'ff_b', email: 'ffb@e.com', emailVerifiedAt: now, handle: 'ffblack', displayName: 'FFB', now });
+    await createUser({
+      id: 'ff_w',
+      email: 'ffw@e.com',
+      emailVerifiedAt: now,
+      handle: 'ffwhite',
+      displayName: 'FFW',
+      now,
+    });
+    await createUser({
+      id: 'ff_b',
+      email: 'ffb@e.com',
+      emailVerifiedAt: now,
+      handle: 'ffblack',
+      displayName: 'FFB',
+      now,
+    });
     await recordGameEnd('rated-forfeit', {
       variant: 'dark-chess',
       mode: 'pvp',
@@ -1179,8 +1211,20 @@ if (!TEST_DATABASE_URL) {
       blackName: 'FFB',
       corpusId: null,
       participants: [
-        { color: 'white', displayName: 'FFW', subjectType: 'user', subjectId: 'ff_w', visibility: 'public' },
-        { color: 'black', displayName: 'FFB', subjectType: 'user', subjectId: 'ff_b', visibility: 'public' },
+        {
+          color: 'white',
+          displayName: 'FFW',
+          subjectType: 'user',
+          subjectId: 'ff_w',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: 'FFB',
+          subjectType: 'user',
+          subjectId: 'ff_b',
+          visibility: 'public',
+        },
       ],
       visibility: 'public',
     });
@@ -1203,8 +1247,22 @@ if (!TEST_DATABASE_URL) {
     // Aborts go through abortRunningGame (status='aborted'), never recordGameEnd,
     // so they must never touch ratings — even for a rated PvP room of two accounts.
     const now = new Date();
-    await createUser({ id: 'ab_w', email: 'abw@e.com', emailVerifiedAt: now, handle: 'abwhite', displayName: 'ABW', now });
-    await createUser({ id: 'ab_b', email: 'abb@e.com', emailVerifiedAt: now, handle: 'abblack', displayName: 'ABB', now });
+    await createUser({
+      id: 'ab_w',
+      email: 'abw@e.com',
+      emailVerifiedAt: now,
+      handle: 'abwhite',
+      displayName: 'ABW',
+      now,
+    });
+    await createUser({
+      id: 'ab_b',
+      email: 'abb@e.com',
+      emailVerifiedAt: now,
+      handle: 'abblack',
+      displayName: 'ABB',
+      now,
+    });
     await recordGameStart('rated-aborted', {
       variant: 'dark-chess',
       mode: 'pvp',
@@ -1235,9 +1293,33 @@ if (!TEST_DATABASE_URL) {
 
   test('leaderboard shows provisional players (marked) ranked low by conservative rating', async () => {
     const now = new Date();
-    await createUser({ id: 'u_hi', email: 'hi@e.com', emailVerifiedAt: now, handle: 'settledhi', displayName: 'Hi', profileVisibility: 'public', now });
-    await createUser({ id: 'u_lo', email: 'lo@e.com', emailVerifiedAt: now, handle: 'settledlo', displayName: 'Lo', profileVisibility: 'public', now });
-    await createUser({ id: 'u_pv', email: 'pv@e.com', emailVerifiedAt: now, handle: 'provis', displayName: 'Pv', profileVisibility: 'public', now });
+    await createUser({
+      id: 'u_hi',
+      email: 'hi@e.com',
+      emailVerifiedAt: now,
+      handle: 'settledhi',
+      displayName: 'Hi',
+      profileVisibility: 'public',
+      now,
+    });
+    await createUser({
+      id: 'u_lo',
+      email: 'lo@e.com',
+      emailVerifiedAt: now,
+      handle: 'settledlo',
+      displayName: 'Lo',
+      profileVisibility: 'public',
+      now,
+    });
+    await createUser({
+      id: 'u_pv',
+      email: 'pv@e.com',
+      emailVerifiedAt: now,
+      handle: 'provis',
+      displayName: 'Pv',
+      profileVisibility: 'public',
+      now,
+    });
 
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
@@ -1263,7 +1345,11 @@ if (!TEST_DATABASE_URL) {
     assert.equal(board[1]!.handle, 'settledlo');
     assert.equal(board[2]!.handle, 'provis', 'provisional sorts last despite highest raw rating');
     assert.equal(board[2]!.provisional, true);
-    assert.equal(board[2]!.eloRating, 1900, 'displays actual rating (with "?" client-side), not conservative');
+    assert.equal(
+      board[2]!.eloRating,
+      1900,
+      'displays actual rating (with "?" client-side), not conservative',
+    );
     assert.equal(board[0]!.rank, 1);
   });
 
@@ -1456,6 +1542,110 @@ if (!TEST_DATABASE_URL) {
       games.map((game) => game.roomId),
       ['public-pvp', 'public-pve', 'link-pve', 'link-eve'],
     );
+  });
+
+  test('watch feed lists only fresh unlocked games and counts sealed games in aggregate', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const newest = new Date(now.getTime() - 10 * 60_000);
+    const middle = new Date(now.getTime() - 20 * 60_000);
+    const oldest = new Date(now.getTime() - 30 * 60_000);
+    const outsideWindow = new Date(now.getTime() - 3 * 60 * 60_000);
+    const future = new Date(now.getTime() + 60_000);
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_client, black_client, white_name, black_name, mode, status, visibility)
+         VALUES
+           ('watch-pvp-newest', 'dark-chess', 'white-wins', 'king-captured', 31, $1, $1,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('watch-pve-link', 'dark-chess', 'black-wins', 'timeout', 12, $2, $2,
+            'human', 'engine', NULL, NULL, 'pve', 'completed', 'link'),
+           ('watch-eve', 'dark-chess', 'draw', 'truncated', 28, $3, $3,
+            'engine-white', 'engine-black', 'White Engine', 'Black Engine', 'eve', 'completed', 'unlisted'),
+           ('watch-old', 'dark-chess', 'white-wins', 'king-captured', 40, $4, $4,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('watch-future', 'dark-chess', 'white-wins', 'king-captured', 40, $5, $5,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('watch-no-event', 'dark-chess', 'white-wins', 'king-captured', 40, $1, $1,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('watch-private-pvp', 'dark-chess', 'white-wins', 'king-captured', 40, $1, $1,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'private'),
+           ('watch-private-eve', 'dark-chess', 'draw', 'truncated', 40, $1, $1,
+            'engine-white', 'engine-black', NULL, NULL, 'eve', 'completed', 'private'),
+           ('watch-short-pvp', 'dark-chess', 'white-wins', 'king-captured', 12, $1, $1,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('watch-short-pve', 'dark-chess', 'white-wins', 'king-captured', 1, $1, $1,
+            'human', 'engine', NULL, NULL, 'pve', 'completed', 'public'),
+           ('watch-short-timeout', 'dark-chess', 'black-wins', 'timeout', 4, $1, $1,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('watch-imported-public', 'dark-chess', 'white-wins', 'king-captured', 40, $1, $1,
+            'white', 'black', NULL, NULL, 'imported', 'completed', 'public')`,
+        [newest, middle, oldest, outsideWindow, future],
+      );
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_client, black_client, white_name, black_name, mode, status, visibility)
+         VALUES
+           ('sealed-public-pvp', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'white', 'black', NULL, NULL, 'pvp', 'running', 'public'),
+           ('sealed-link-pve', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'human', 'engine', NULL, NULL, 'pve', 'running', 'link'),
+           ('sealed-unlisted-eve', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'engine-white', 'engine-black', NULL, NULL, 'eve', 'running', 'unlisted'),
+           ('sealed-private-pvp', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'white', 'black', NULL, NULL, 'pvp', 'running', 'private'),
+           ('sealed-imported', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'white', 'black', NULL, NULL, 'imported', 'running', 'public'),
+           ('sealed-manual', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'white', 'black', NULL, NULL, 'manual', 'running', 'public')`,
+        [now],
+      );
+      for (const roomId of [
+        'watch-pvp-newest',
+        'watch-pve-link',
+        'watch-eve',
+        'watch-old',
+        'watch-future',
+        'watch-private-pvp',
+        'watch-private-eve',
+        'watch-short-pvp',
+        'watch-short-pve',
+        'watch-short-timeout',
+        'watch-imported-public',
+      ]) {
+        await client.query(
+          `INSERT INTO events (room_id, seq, type, payload)
+           VALUES ($1, 0, 'room-created', $2)`,
+          [
+            roomId,
+            {
+              type: 'room-created',
+              at: now.getTime(),
+              roomId,
+              variant: 'dark-chess',
+              offer: [],
+            },
+          ],
+        );
+      }
+    } finally {
+      await client.end();
+    }
+
+    const unlocked = await listWatchUnlockedGames({
+      limit: 10,
+      now,
+      unlockWindowMs: 2 * 60 * 60_000,
+    });
+    assert.deepEqual(
+      unlocked.map((game) => game.roomId),
+      ['watch-pvp-newest', 'watch-pve-link', 'watch-eve'],
+    );
+    assert.equal(await countWatchSealedGames(), 3);
   });
 
   test('listCorpusGames filters timeout games shorter than ten ply', async () => {

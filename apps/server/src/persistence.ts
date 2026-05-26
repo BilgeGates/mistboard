@@ -133,6 +133,12 @@ export type RecentEveGameRecord = GameRecord & {
   incrementMs: number | null;
 };
 
+export type WatchUnlockedGameOptions = {
+  limit?: number;
+  now?: Date;
+  unlockWindowMs?: number;
+};
+
 export type GameDebugArtifactSummary = {
   artifactType: string;
   count: number;
@@ -1123,6 +1129,52 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
     [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit, MIN_TV_PVP_PLY_COUNT],
   );
   return withParticipants(rows.map(recentEveGameRecordFromRow));
+}
+
+export async function listWatchUnlockedGames(
+  options: WatchUnlockedGameOptions = {},
+): Promise<RecentEveGameRecord[]> {
+  const boundedLimit = Math.max(1, Math.min(options.limit ?? 20, 50));
+  const unlockWindowMs = Math.max(1, options.unlockWindowMs ?? 2 * 60 * 60 * 1000);
+  const now = options.now ?? new Date();
+  const unlockedSince = new Date(now.getTime() - unlockWindowMs);
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
+     FROM games
+     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     WHERE games.status = 'completed'
+       AND games.mode IN ('pvp', 'pve', 'eve')
+       AND games.ended_at >= $4
+       AND games.ended_at <= $5
+       AND NOT (games.termination = 'timeout' AND games.ply_count < $1)
+       AND NOT (games.mode = 'pvp' AND games.ply_count < $3)
+       AND NOT (games.mode = 'pve' AND games.ply_count < 2)
+       AND EXISTS (
+         SELECT 1
+         FROM events
+         WHERE events.room_id = games.room_id
+         LIMIT 1
+       )
+       AND (
+         games.visibility = 'public'
+         OR (games.mode IN ('pve', 'eve') AND games.visibility <> 'private')
+       )
+     ORDER BY games.ended_at DESC, games.room_id DESC
+     LIMIT $2`,
+    [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit, MIN_TV_PVP_PLY_COUNT, unlockedSince, now],
+  );
+  return withParticipants(rows.map(recentEveGameRecordFromRow));
+}
+
+export async function countWatchSealedGames(): Promise<number> {
+  const { rows } = await getPool().query<{ count: number }>(
+    `SELECT count(*)::int AS count
+     FROM games
+     WHERE status = 'running'
+       AND mode IN ('pvp', 'pve', 'eve')
+       AND visibility <> 'private'`,
+  );
+  return rows[0]?.count ?? 0;
 }
 
 export async function listCompletedGames(

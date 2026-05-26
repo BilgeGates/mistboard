@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { gameSpecForLegacyLiveRoom, type RoomTimeControl } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import { ratedEnabled } from './../feature-flags.js';
+import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
 import type { LobbyTicket, Room } from './../server-types.js';
 import {
@@ -33,6 +34,14 @@ export async function tryHandle(
     }
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
+    const gameSpecGate = gateGameSpecRequest({
+      gameSpecId: body.gameSpecId,
+      variant: body.variant,
+    });
+    if (gameSpecGate.type === 'reject') {
+      writeJson(response, gameSpecGate.httpStatus, { error: gameSpecGate.error });
+      return true;
+    }
     const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);

@@ -18,6 +18,9 @@ import {
 
 type ReviewArtifactType = 'belief-snapshot' | 'trace-row' | 'engine-move-choice';
 
+const WATCH_UNLOCK_LIMIT = 20;
+const WATCH_UNLOCK_WINDOW_MS = 2 * 60 * 60 * 1000;
+
 export async function tryHandle(
   ctx: HttpApiContext,
   request: IncomingMessage,
@@ -26,6 +29,27 @@ export async function tryHandle(
   parsedUrl: URL,
 ): Promise<boolean> {
   const url = request.url ?? '/';
+
+  if (pathname === '/api/watch') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const now = new Date();
+    const [sealedCount, unlocked] = await Promise.all([
+      persistence.countWatchSealedGames(),
+      persistence.listWatchUnlockedGames({
+        limit: WATCH_UNLOCK_LIMIT,
+        now,
+        unlockWindowMs: WATCH_UNLOCK_WINDOW_MS,
+      }),
+    ]);
+    writeJson(response, 200, {
+      now: now.toISOString(),
+      unlockWindowMs: WATCH_UNLOCK_WINDOW_MS,
+      sealedCount,
+      unlocked,
+    });
+    return true;
+  }
 
   if (pathname === '/api/games/recent') {
     if (!requirePersistence(response)) return true;

@@ -2,6 +2,7 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
+import { darkXiangqiEnabled } from './feature-flags.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
@@ -77,9 +78,9 @@ const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 const profileHandle = profileHandleFromPath(path);
-// Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
-// See docs-private/fog-of-war/library/variants/fow-xiangqi.md.
-const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
+// Hidden spike: FoW Xiangqi Phase A. No nav entry, no landing link, and no
+// dev default; enabling it is an explicit build-time flag.
+const wantsXiangqiSpike = darkXiangqiEnabled() && path === '/xiangqi-spike';
 // Hidden DEV-only spike: pixel-art piece + fog style probes. No nav entry.
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
