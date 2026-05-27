@@ -1,8 +1,8 @@
-import type { PlayerView } from '@mistboard/game';
+import type { Color, PlayerView } from '@mistboard/game';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
 import { currentView } from './live-view.js';
-import { isColor } from './web-utils.js';
+import { isColor, oppositeColor } from './web-utils.js';
 
 type RoomActionRefs = Pick<LiveRefs, 'roomActions'>;
 type SendSocket = (payload: unknown) => boolean;
@@ -13,6 +13,14 @@ type RoomActionDeps = {
 };
 
 let playAgainStatus: 'idle' | 'creating' | 'failed' = 'idle';
+
+export type PlayAgainRoomRequestBody = {
+  mode: 'pvp' | 'pve';
+  variant: string;
+  hiddenDraft960: boolean;
+  engineId?: string;
+  preferredColor?: Color;
+};
 
 export function renderRoomActions(refs: RoomActionRefs, deps: RoomActionDeps): void {
   const view = currentView();
@@ -143,25 +151,17 @@ function playAgainButton(refs: RoomActionRefs, deps: RoomActionDeps): HTMLButton
 }
 
 async function createPlayAgainRoom(refs: RoomActionRefs, deps: RoomActionDeps): Promise<void> {
-  if (liveState.roomMode !== 'pvp' && liveState.roomMode !== 'pve') return;
+  const body = buildPlayAgainRoomRequestBody({
+    shouldRequestHiddenDraft960: deps.shouldRequestHiddenDraft960ForPlayAgain,
+  });
+  if (!body) return;
   playAgainStatus = 'creating';
   renderRoomActions(refs, deps);
   try {
     const response = await fetch('/api/rooms', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        mode: liveState.roomMode,
-        variant:
-          currentView()?.variant ??
-          liveState.state?.variant ??
-          liveState.variantRequested ??
-          'dark-chess',
-        hiddenDraft960: deps.shouldRequestHiddenDraft960ForPlayAgain(),
-        ...(liveState.roomMode === 'pve' && liveState.pveEngineId
-          ? { engineId: liveState.pveEngineId }
-          : {}),
-      }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
     const data = (await response.json()) as { url?: string };
@@ -172,6 +172,29 @@ async function createPlayAgainRoom(refs: RoomActionRefs, deps: RoomActionDeps): 
     playAgainStatus = 'failed';
     renderRoomActions(refs, deps);
   }
+}
+
+export function buildPlayAgainRoomRequestBody(opts: {
+  shouldRequestHiddenDraft960: () => boolean;
+}): PlayAgainRoomRequestBody | null {
+  if (liveState.roomMode !== 'pvp' && liveState.roomMode !== 'pve') return null;
+  const preferredColor =
+    liveState.roomMode === 'pve' && isColor(liveState.seat)
+      ? oppositeColor(liveState.seat)
+      : undefined;
+  return {
+    mode: liveState.roomMode,
+    variant:
+      currentView()?.variant ??
+      liveState.state?.variant ??
+      liveState.variantRequested ??
+      'dark-chess',
+    hiddenDraft960: opts.shouldRequestHiddenDraft960(),
+    ...(liveState.roomMode === 'pve' && liveState.pveEngineId
+      ? { engineId: liveState.pveEngineId }
+      : {}),
+    ...(preferredColor ? { preferredColor } : {}),
+  };
 }
 
 function roomUrl(variant: PlayerView['variant'], dev?: 'engine'): string {
