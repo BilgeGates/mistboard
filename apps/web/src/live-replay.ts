@@ -30,6 +30,7 @@ let fogViewHistory: Map<number, PlayerView> = new Map();
 let fogSnapshotToEventsLen: Map<number, number> = new Map();
 let fogSnapshotSeq = 0;
 let lastCapturedFogState: PlayerView | null = null;
+let lastCapturedFogPositionKey: string | null = null;
 let fogFirstMoveSnapshotIndex: number | null = null;
 
 export function resetReplayState(): void {
@@ -38,6 +39,7 @@ export function resetReplayState(): void {
   fogSnapshotToEventsLen = new Map();
   fogSnapshotSeq = 0;
   lastCapturedFogState = null;
+  lastCapturedFogPositionKey = null;
   fogFirstMoveSnapshotIndex = null;
 }
 
@@ -55,10 +57,17 @@ export function getFogSnapshotToEventsLen(): Map<number, number> {
 
 export function captureFogView(): void {
   if (!liveState.state || liveState.state.variant !== 'dark-chess') return;
-  // Capture on every server state change, not just when eventsLen increases. Opponent moves
-  // don't appear in liveState.events (fog-filtered), so eventsLen stays constant after them —
-  // using it as the key would collapse own-move and opponent-move positions into one entry.
+  // Consider every server state change, not just eventsLen increases. Opponent moves don't
+  // appear in liveState.events (fog-filtered), so eventsLen stays constant after them — using it
+  // as the key would collapse own-move and opponent-move positions into one entry. Terminal
+  // non-move frames, such as forfeits and timeouts, are skipped below when the fogged position
+  // itself did not change.
   if (liveState.state === lastCapturedFogState) return;
+  const positionKey = fogReplayPositionKey(liveState.state);
+  if (positionKey === lastCapturedFogPositionKey) {
+    lastCapturedFogState = liveState.state;
+    return;
+  }
   if (fogFirstMoveSnapshotIndex === null && liveState.state.lastMove !== undefined) {
     fogFirstMoveSnapshotIndex = fogSnapshotSeq;
   }
@@ -66,6 +75,21 @@ export function captureFogView(): void {
   fogSnapshotToEventsLen.set(fogSnapshotSeq, liveState.events.length);
   fogSnapshotSeq++;
   lastCapturedFogState = liveState.state;
+  lastCapturedFogPositionKey = positionKey;
+}
+
+function fogReplayPositionKey(view: PlayerView): string {
+  const board = Object.entries(view.board)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([square, piece]) => [square, piece.color, piece.role]);
+  return JSON.stringify({
+    board,
+    lastMove: view.lastMove ?? null,
+    moveNumber: view.moveNumber,
+    perspective: view.perspective,
+    variant: view.variant,
+    visibleSquares: [...view.visibleSquares].sort(),
+  });
 }
 
 export function isLive(): boolean {

@@ -30,13 +30,7 @@ export function currentCaptures(): CaptureTally {
 export function currentView(): PlayerView | null {
   const projection = currentProjection();
   const perspective = liveState.seat === 'black' ? 'black' : 'white';
-  if (
-    isLive() &&
-    (!projection ||
-      projection.state.variant !== 'dark-chess' ||
-      projection.state.status.type !== 'finished')
-  )
-    return liveState.state;
+  if (isLive()) return liveState.state;
   // Historical fog position: use the server-provided snapshot captured at that event count.
   // viewForProjection cannot reconstruct accurate historical fog views because events from
   // WebSocket snapshots are fog-filtered and structured differently from replayGameEvents.
