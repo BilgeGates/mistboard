@@ -367,7 +367,13 @@ ownership surfaces:
    connection handshake, message dispatch, rate limiting, debug auth, rematch
    messages, and close handling into `apps/server/src/server-ws-connection.ts`,
    with `index.ts` injecting room lifecycle/game-flow callbacks so canonical
-   room ownership stays in one place.
+   room ownership stays in one place. The next slice moved room
+   creation/hydration, Draft960 offer seeding, abandoned-room aborts,
+   seat-vacate timers, stale guest/stale paused sweeps, paused-room grace
+   resume, and runtime reset into `apps/server/src/server-room-lifecycle.ts`;
+   `index.ts` now sits at roughly 543 lines and mostly owns startup wiring,
+   shutdown composition, canonical maps, game-flow callbacks, and
+   persistence-error status.
 9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
    sections, then move replay, leaderboard, account, and article CSS behind
    ownership boundaries. Initial extraction moved the engine bakeoff lab layout
@@ -485,10 +491,10 @@ progress. Continue from isolated worktrees._
    server integration (~68s), browser smoke when required (~50s), unit tests
    (~36s), typecheck (~33s), and build (~30s).
 
-2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
-   1,144 lines after HTTP routing, seat/session handling, lifecycle cleanup,
-   live-engine reservation boundaries, and WebSocket edge handling moved out.
-   The next high-leverage seam is room hydration/creation.
+2. **Keep server `index.ts` at startup-composition size.** HTTP routing,
+   seat/session handling, lifecycle cleanup, live-engine reservations, WebSocket
+   edge handling, and room lifecycle edges have moved out. Further extraction is
+   no longer the obvious velocity bottleneck unless startup wiring grows again.
    Avoid `apps/server/src/engines/registry.ts` while active engine work is
    dirty.
 

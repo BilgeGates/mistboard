@@ -1,16 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import {
-  type Chess960Start,
-  type Color,
-  type GameEvent,
-  type GameProjection,
-  gameSpecForLegacyLiveRoom,
-  pickDraft960Offer,
-  type RoomTimeControl,
-  replayGameEvents,
-  type VariantId,
-} from '@mistboard/game';
+import type { Color, GameEvent } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
 import { runMigrations } from './migrate.js';
@@ -19,24 +9,16 @@ import type { RematchOrchestrator } from './rematch.js';
 import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import {
   appendEvent,
-  applyOrphanRecoveryIfNeeded,
   broadcastEventAppended,
   buildGameSummary,
   canClientAct,
   offerForColor,
-  PersistenceFailure,
   persistSeatToken,
   type RoomManagerContext,
   resolveStartIfReady,
-  resumeRoom,
-  roomIdToSeed,
-  scheduleAbortTimeout,
-  scheduleClockTimeout,
-  scheduleRandomEngineMove,
-  seatTokenStatesFromPersistence,
   selectEngineDraftStart,
 } from './room-manager.js';
-import { loadServerRuntimeConfig, normalizeRoomRegion, serverConfig } from './server-config.js';
+import { loadServerRuntimeConfig, serverConfig } from './server-config.js';
 import { createDrainController } from './server-drain.js';
 import { createHttpRequestHandler } from './server-http.js';
 import {
@@ -48,14 +30,12 @@ import {
   waitForRoomWrites,
 } from './server-lifecycle.js';
 import {
-  canonicalLiveEngineVersionId,
-  pveEngineSeatForProjection,
   releaseLiveEngineReservation,
   reserveHydratedLiveEngineSeat,
   reserveLiveEngineSeat,
 } from './server-live-engine-reservations.js';
-import { modeForProjection } from './server-policy.js';
-import { hashSeatToken, verifySeatToken } from './server-seat-session.js';
+import { createRoomLifecycle } from './server-room-lifecycle.js';
+import { hashSeatToken } from './server-seat-session.js';
 import type { Client, LobbyTicket, Room, SeatTokenState } from './server-types.js';
 import {
   handleWebSocketConnection,
@@ -76,10 +56,10 @@ import {
 // Engine reservations    → ./server-live-engine-reservations.ts (live engine seat holds)
 // SECTION: Types and constants          (~line 90)    module-scope maps and config constants
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
-// SECTION: Room lifecycle              (~line 230)   getOrCreateRoom, createRoom, abort/stale sweeps
+// SECTION: Room lifecycle              (~line 230)   room lifecycle factory and timer grace config
 // SECTION: Game flow                    (~line 700)   enableRandomEngine, selectStart
-// SECTION: Room event infrastructure    (~line 760)   inMemoryGameSummary, recordPersistenceError, resetRoom
-// SECTION: Helpers and shutdown         (~line 810)   send, isColor, roomCreatedDraftOfferFields, shutdown
+// SECTION: Room event infrastructure    (~line 760)   inMemoryGameSummary, recordPersistenceError
+// SECTION: Helpers and shutdown         (~line 810)   send, isColor, shutdown
 
 // ── SECTION: Types and constants ───────────────────────────────────────────
 // Core server types live in ./server-types.ts — Client, Room, SeatTokenState, SeatAssignment, LobbyTicket
@@ -128,12 +108,28 @@ const roomMgrCtx: RoomManagerContext = {
   releaseLiveEngineReservation,
 };
 
+const roomLifecycle = createRoomLifecycle({
+  rooms,
+  roomMgrCtx,
+  defaultRoomRegion,
+  orphanThresholdMs,
+  guestPrestartAbortMs,
+  abortPolicySweepMs,
+  stalePauseMs,
+  stalePausedSweepMs,
+  pauseGraceMs,
+  recordPersistenceError,
+  releaseLiveEngineReservation,
+  reserveHydratedLiveEngineSeat,
+  seatVacateGraceMs,
+});
+
 const rematchOrch: RematchOrchestrator = {
   ctx: roomMgrCtx,
   send,
   buildRoomUrl: (roomId) => `/?room=${encodeURIComponent(roomId)}`,
   createRoom: (spec) =>
-    createRoom(
+    roomLifecycle.createRoom(
       spec.mode,
       spec.variant,
       spec.pveEngineId ?? pveBuiltinEngineClientId,
@@ -169,14 +165,14 @@ const wsConnectionCtx: WebSocketConnectionContext = {
   defaultRoomRegion,
   wsMessageLimit,
   wsMessageWindowMs,
-  clearPendingVacate,
+  clearPendingVacate: roomLifecycle.clearPendingVacate,
   enableRandomEngine,
-  getOrCreateRoom,
+  getOrCreateRoom: roomLifecycle.getOrCreateRoom,
   handleAbort,
   handleResign,
-  isAbortedRoom,
-  resetRoom,
-  scheduleSeatVacate,
+  isAbortedRoom: roomLifecycle.isAbortedRoom,
+  resetRoom: roomLifecycle.resetRoom,
+  scheduleSeatVacate: roomLifecycle.scheduleSeatVacate,
   selectStart,
   send,
 };
@@ -189,8 +185,6 @@ const wsConnectionCtx: WebSocketConnectionContext = {
 // up a controlled instance per test process.
 let server: ReturnType<typeof createServer> | null = null;
 let wss: WebSocketServer | null = null;
-let abortPolicyTimer: ReturnType<typeof setInterval> | null = null;
-let stalePausedSweepTimer: ReturnType<typeof setInterval> | null = null;
 let shuttingDown = false;
 let seatVacateGraceMsOverride: number | null = null;
 
@@ -215,8 +209,8 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
     seatVacateGraceMsOverride = null;
   }
   await initPersistence();
-  startAbortPolicySweep();
-  startStalePausedSweep();
+  roomLifecycle.startAbortPolicySweep();
+  roomLifecycle.startStalePausedSweep();
 
   const httpServer = createServer(
     createHttpRequestHandler({
@@ -232,10 +226,10 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
       staticDir,
       publicHost: serverConfig.publicHost,
       drainController,
-      createRoom,
+      createRoom: roomLifecycle.createRoom,
       reserveLiveEngineSeat,
       releaseLiveEngineReservation,
-      abandonRoom,
+      abandonRoom: roomLifecycle.abandonRoom,
       inMemoryGameSummary,
     }),
   );
@@ -301,14 +295,7 @@ export async function stopServer(): Promise<void> {
   for (const room of rooms.values()) {
     clearRoomRuntimeTimers(room, { clearPendingVacates: true });
   }
-  if (abortPolicyTimer) {
-    clearInterval(abortPolicyTimer);
-    abortPolicyTimer = null;
-  }
-  if (stalePausedSweepTimer) {
-    clearInterval(stalePausedSweepTimer);
-    stalePausedSweepTimer = null;
-  }
+  roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
   await waitForRoomWrites(rooms.values());
   await closeWebSocketServer(wss);
@@ -354,517 +341,6 @@ const SEAT_VACATE_GRACE_MS_DEFAULT = serverConfig.seatVacateGraceMs;
 
 function seatVacateGraceMs(): number {
   return seatVacateGraceMsOverride ?? SEAT_VACATE_GRACE_MS_DEFAULT;
-}
-
-function scheduleSeatVacate(room: Room, client: Client): void {
-  if (client.seat === 'spectator') return;
-  const seat = client.seat;
-  const existing = room.pendingVacates[seat];
-  if (existing) clearTimeout(existing);
-  const clientId = client.id;
-  room.pendingVacates[seat] = setTimeout(() => {
-    delete room.pendingVacates[seat];
-    // Only vacate if (a) game hasn't started in the meantime and
-    // (b) no other client has taken this seat. If a different client has
-    // displaced this seat, projection.seats[seat] no longer equals clientId.
-    if (
-      room.projection.state.status.type !== 'pregame' &&
-      !(room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined)
-    ) {
-      return;
-    }
-    if (room.projection.state.clock !== undefined) return;
-    if (room.projection.seats[seat] !== clientId) return;
-    // If a connected client already holds this seat, skip — they reconnected.
-    for (const c of room.clients) {
-      if (c.seat === seat && !c.displaced) return;
-    }
-    void appendEvent(roomMgrCtx, room, {
-      type: 'seat-vacated',
-      at: Date.now(),
-      roomId: room.id,
-      clientId,
-      seat,
-    }).catch((err) => {
-      if (err instanceof PersistenceFailure) return;
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          kind: 'seat_vacate_append_failure',
-          roomId: room.id,
-          seat,
-          error: (err as Error).message,
-          at: Date.now(),
-        }),
-      );
-    });
-  }, seatVacateGraceMs());
-}
-
-function clearPendingVacate(room: Room, seat: Client['seat']): void {
-  if (seat === 'spectator') return;
-  const timer = room.pendingVacates[seat];
-  if (!timer) return;
-  clearTimeout(timer);
-  delete room.pendingVacates[seat];
-}
-
-async function getOrCreateRoom(
-  roomId: string,
-  variant: VariantId,
-  hiddenDraft960 = false,
-): Promise<Room> {
-  const existing = rooms.get(roomId);
-  if (existing) return existing;
-
-  let events: GameEvent[] | null = null;
-  let createdNewPersistentRoom = false;
-  if (persistence.isInitialized()) {
-    try {
-      events = await persistence.loadRoom(roomId);
-    } catch (err) {
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          kind: 'persistence_load_failure',
-          roomId,
-          error: (err as Error).message,
-          at: Date.now(),
-        }),
-      );
-      events = null;
-    }
-  }
-
-  if (!events) {
-    const gameSpecId = gameSpecForLegacyLiveRoom({ variant, hiddenDraft960 }).id;
-    const created: GameEvent = {
-      type: 'room-created',
-      at: Date.now(),
-      roomId,
-      variant,
-      gameSpecId,
-      region: defaultRoomRegion,
-      ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
-    };
-    if (persistence.isInitialized()) {
-      try {
-        await persistence.appendEvent(roomId, 0, created);
-        createdNewPersistentRoom = true;
-      } catch (err) {
-        recordPersistenceError(roomId, 0, created, err as Error);
-        throw new PersistenceFailure();
-      }
-    }
-    events = [created];
-  }
-
-  // SIGKILL recovery: if hydrating a stale "playing" room with no pause event,
-  // synthesize one so the rest of the pipeline treats it as a clean restart.
-  // See docs/server-restart-pause-resume.md (Phase 5).
-  const recoveredEvents = applyOrphanRecoveryIfNeeded(events, Date.now(), orphanThresholdMs);
-  if (recoveredEvents.length > events.length) {
-    const synthPause = recoveredEvents[recoveredEvents.length - 1]!;
-    const synthPauseSeq = recoveredEvents.length - 1;
-    if (persistence.isInitialized()) {
-      try {
-        await persistence.appendEvent(roomId, synthPauseSeq, synthPause);
-      } catch (err) {
-        recordPersistenceError(roomId, synthPauseSeq, synthPause, err as Error);
-        throw new PersistenceFailure();
-      }
-    }
-    await recordRoomLifecycleAuditSafe({
-      roomId,
-      kind: 'orphan_recovery_synth_pause',
-      atMs: synthPause.at,
-      eventSeq: synthPauseSeq,
-      payload: {
-        lastEventType: events[events.length - 1]!.type,
-        lastEventAtMs: events[events.length - 1]!.at,
-        orphanThresholdMs,
-      },
-    });
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        kind: 'orphan_recovery_synth_pause',
-        roomId,
-        lastEventAt: events[events.length - 1]!.at,
-        synthPauseAt: synthPause.at,
-        at: Date.now(),
-      }),
-    );
-    events = recoveredEvents;
-  }
-
-  const projection = replayGameEvents(events);
-  const mode = modeForProjection(projection);
-  const seatTokens = persistence.isInitialized()
-    ? seatTokenStatesFromPersistence(await persistence.loadRoomSeatTokens(roomId))
-    : {};
-  const roomCreatedEvent = events.find((e) => e.type === 'room-created') as
-    | Extract<GameEvent, { type: 'room-created' }>
-    | undefined;
-  const region = normalizeRoomRegion(roomCreatedEvent?.region ?? defaultRoomRegion);
-  if (createdNewPersistentRoom) {
-    await persistGameStart(roomId, projection, mode, new Date(events[0]?.at ?? Date.now()), region);
-  }
-  const detectedHiddenDraft960 =
-    projection.variant === 'dark-chess' && roomCreatedEvent?.offers !== undefined;
-  const hydratedPveEngine = pveEngineSeatForProjection(projection);
-  const hydratedPveEngineId = hydratedPveEngine
-    ? canonicalLiveEngineVersionId(hydratedPveEngine.clientId)
-    : null;
-  const room: Room = {
-    id: roomId,
-    clients: new Set(),
-    events,
-    projection,
-    seatTokens,
-    clockTimer: null,
-    engineTimer: null,
-    abortTimer: null,
-    abortDeadline: null,
-    abortPhase: null,
-    forfeitTimer: null,
-    forfeitDeadline: null,
-    forfeitSeat: null,
-    mode,
-    gameSpecId: projection.gameSpecId,
-    region,
-    // Rated request is persisted on the room-created event, so hydration after a
-    // restart preserves it. Defaults casual if absent. The room-manager
-    // account-gate is still the authoritative rated decision at game end.
-    rated: roomCreatedEvent?.rated ?? false,
-    randomEngine: hydratedPveEngine !== null,
-    engineReservationId: null,
-    randomSeating: false,
-    creatorPreference: null,
-    pveEngineId: hydratedPveEngineId,
-    pendingWrites: Promise.resolve(),
-    gameEndRecorded: projection.state.status.type === 'finished',
-    variant: projection.variant,
-    hiddenDraft960: detectedHiddenDraft960,
-    timeControl: projection.timeControl,
-    rematch: { offers: {} },
-    pendingVacates: {},
-    pauseGraceTimer: null,
-  };
-  if (hydratedPveEngineId && hydratedPveEngine && room.projection.state.status.type === 'playing') {
-    room.engineReservationId = await reserveHydratedLiveEngineSeat({
-      color: hydratedPveEngine.color,
-      engineId: hydratedPveEngineId,
-      roomId: room.id,
-    });
-  }
-  rooms.set(roomId, room);
-  scheduleClockTimeout(roomMgrCtx, room);
-  scheduleAbortTimeout(roomMgrCtx, room);
-  scheduleRandomEngineMove(roomMgrCtx, room);
-  // Hydrated room came back paused (last event was 'pause'). Arm the grace
-  // timer so the game resumes even if both players don't reconnect in time.
-  if (room.projection.paused) {
-    await recordRoomLifecycleAuditSafe({
-      roomId: room.id,
-      kind: 'paused_room_hydrated',
-      atMs: Date.now(),
-      payload: {
-        mode: room.mode,
-        pauseReason: room.projection.pauseReason,
-        pausedAtMs: room.projection.pausedAt,
-        eventCount: room.events.length,
-      },
-    });
-    armPauseGraceTimer(room);
-  }
-  return room;
-}
-
-async function createRoom(
-  mode: 'pvp' | 'pve',
-  variant: VariantId,
-  engineId: string,
-  hiddenDraft960 = false,
-  timeControl?: RoomTimeControl,
-  rated = false,
-  options: {
-    randomSeating?: boolean;
-    engineColor?: 'white' | 'black';
-    engineReservationId?: string;
-    // PvP only. When set, the first arrival in this room is assigned this seat;
-    // the second arrival gets the other side. Mutually exclusive with randomSeating
-    // (random preference uses randomSeating). Ignored for PvE — engine pre-seat
-    // is set via engineColor at room creation.
-    creatorPreference?: 'white' | 'black';
-    region?: string;
-  } = {},
-): Promise<Room> {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const roomId = randomUUID();
-    const existing =
-      rooms.get(roomId) ??
-      (persistence.isInitialized() ? await persistence.loadRoom(roomId) : null);
-    if (existing) continue;
-
-    const at = Date.now();
-    const gameSpecId = gameSpecForLegacyLiveRoom({ variant, hiddenDraft960 }).id;
-    const region = normalizeRoomRegion(options.region ?? defaultRoomRegion);
-    const roomCreated: Extract<GameEvent, { type: 'room-created' }> = {
-      type: 'room-created',
-      at,
-      roomId,
-      variant,
-      gameSpecId,
-      region,
-      ...roomCreatedDraftOfferFields(roomId, variant, hiddenDraft960),
-      ...(timeControl ? { timeControl } : {}),
-      ...(rated ? { rated: true } : {}),
-    };
-    const events: GameEvent[] = [roomCreated];
-    if (mode === 'pve') {
-      const engineSeat: 'white' | 'black' = options.engineColor ?? 'black';
-      events.push({
-        type: 'seat-assigned',
-        at,
-        roomId,
-        clientId: engineId,
-        seat: engineSeat,
-      });
-      const engineSelection = engineDraftSelectionEvent(roomCreated, roomId, at);
-      if (engineSelection) events.push(engineSelection);
-    }
-
-    if (persistence.isInitialized()) {
-      for (const [seq, event] of events.entries()) {
-        try {
-          await persistence.appendEvent(roomId, seq, event);
-        } catch (err) {
-          recordPersistenceError(roomId, seq, event, err as Error);
-          throw new PersistenceFailure();
-        }
-      }
-    }
-
-    const projection = replayGameEvents(events);
-    if (persistence.isInitialized()) {
-      await persistGameStart(roomId, projection, mode, new Date(at), region);
-    }
-    const room: Room = {
-      id: roomId,
-      clients: new Set(),
-      events,
-      projection,
-      seatTokens: {},
-      clockTimer: null,
-      engineTimer: null,
-      abortTimer: null,
-      abortDeadline: null,
-      abortPhase: null,
-      forfeitTimer: null,
-      forfeitDeadline: null,
-      forfeitSeat: null,
-      mode,
-      gameSpecId: projection.gameSpecId,
-      region,
-      rated,
-      randomEngine: mode === 'pve',
-      engineReservationId: mode === 'pve' ? (options.engineReservationId ?? null) : null,
-      randomSeating: options.randomSeating === true && mode === 'pvp',
-      creatorPreference:
-        mode === 'pvp' && options.creatorPreference ? options.creatorPreference : null,
-      pveEngineId: mode === 'pve' ? engineId : null,
-      pendingWrites: Promise.resolve(),
-      gameEndRecorded: false,
-      variant,
-      hiddenDraft960,
-      timeControl,
-      rematch: { offers: {} },
-      pendingVacates: {},
-      pauseGraceTimer: null,
-    };
-    rooms.set(roomId, room);
-    scheduleClockTimeout(roomMgrCtx, room);
-    scheduleAbortTimeout(roomMgrCtx, room);
-    scheduleRandomEngineMove(roomMgrCtx, room);
-    return room;
-  }
-  throw new Error('room_id_collision');
-}
-
-async function persistGameStart(
-  roomId: string,
-  projection: GameProjection,
-  mode: persistence.GameMode,
-  startedAt: Date,
-  region = defaultRoomRegion,
-): Promise<void> {
-  if (!persistence.isInitialized()) return;
-  try {
-    await persistence.recordGameStart(roomId, {
-      variant: projection.variant,
-      mode,
-      region,
-      startedAt,
-      whiteClient: projection.seats.white ?? null,
-      blackClient: projection.seats.black ?? null,
-      whiteName: null,
-      blackName: null,
-      corpusId: null,
-    });
-  } catch (err) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'game_start_record_failure',
-        roomId,
-        error: (err as Error).message,
-        at: Date.now(),
-      }),
-    );
-    throw new PersistenceFailure();
-  }
-}
-
-async function isAbortedRoom(roomId: string): Promise<boolean> {
-  if (!persistence.isInitialized()) return false;
-  const lifecycle = await persistence.getGameLifecycleStatus(roomId).catch((err) => {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'game_lifecycle_status_failure',
-        roomId,
-        error: (err as Error).message,
-        at: Date.now(),
-      }),
-    );
-    return null;
-  });
-  return lifecycle?.status === 'aborted';
-}
-
-function startAbortPolicySweep(): void {
-  if (!persistence.isInitialized()) return;
-  if (guestPrestartAbortMs <= 0) return;
-  void runAbortPolicySweep();
-  abortPolicyTimer = setInterval(() => {
-    void runAbortPolicySweep();
-  }, abortPolicySweepMs);
-}
-
-async function runAbortPolicySweep(): Promise<void> {
-  try {
-    const result = await persistence.abortStaleGuestPrestartGames(new Date(), guestPrestartAbortMs);
-    if (result.aborted > 0) {
-      for (const roomId of result.roomIds) {
-        resetRoom(roomId, 'guest-prestart-timeout');
-      }
-      console.log(
-        JSON.stringify({
-          level: 'info',
-          kind: 'abort_policy_sweep',
-          policy: 'guest-prestart-timeout',
-          aborted: result.aborted,
-          at: Date.now(),
-        }),
-      );
-    }
-  } catch (err) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'abort_policy_sweep_failure',
-        error: (err as Error).message,
-        at: Date.now(),
-      }),
-    );
-  }
-}
-
-function startStalePausedSweep(): void {
-  if (!persistence.isInitialized()) return;
-  if (stalePauseMs <= 0) return;
-  void runStalePausedSweep();
-  stalePausedSweepTimer = setInterval(() => {
-    void runStalePausedSweep();
-  }, stalePausedSweepMs);
-}
-
-async function runStalePausedSweep(): Promise<void> {
-  const now = new Date();
-  try {
-    const result = await persistence.finalizeStalePausedRooms(now, stalePauseMs);
-    if (result.finalized === 0) return;
-    for (const room of result.rooms) {
-      resetRoom(room.roomId, 'stale-paused-finalized');
-      // Per-room line: every stale-paused finalize is a yellow flag worth
-      // investigating, since post-restart the resume path is expected to
-      // either bring the game back or forfeit the absent player.
-      console.log(
-        JSON.stringify({
-          level: 'warn',
-          kind: 'stale_paused_finalized',
-          roomId: room.roomId,
-          mode: room.mode,
-          pause_seq: room.pauseSeq,
-          pause_reason: room.pauseReason,
-          paused_at: room.pausedAtMs,
-          paused_duration_ms: now.getTime() - room.pausedAtMs,
-          started_at: room.startedAt.getTime(),
-          ply_count: room.plyCount,
-          at: now.getTime(),
-        }),
-      );
-    }
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        kind: 'stale_paused_sweep',
-        stale_paused_finalized_total: result.finalized,
-        at: now.getTime(),
-      }),
-    );
-  } catch (err) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        kind: 'stale_paused_sweep_failure',
-        error: (err as Error).message,
-        at: now.getTime(),
-      }),
-    );
-  }
-}
-
-async function abandonRoom(
-  roomId: string,
-  seatToken: string,
-): Promise<{ ok: true } | { ok: false; error: 'not_found' | 'unauthorized' | 'already_terminal' }> {
-  // Verify against persistence (source of truth across instances) rather than
-  // in-memory room state — the abandon HTTP request can land on a different
-  // instance from the one that handled room creation (notably during a
-  // Railway deploy cutover when both old and new containers serve traffic).
-  if (persistence.isInitialized()) {
-    const lifecycle = await persistence.getGameLifecycleStatus(roomId);
-    if (!lifecycle) return { ok: false, error: 'not_found' };
-    if (lifecycle.status !== 'running') return { ok: false, error: 'already_terminal' };
-    const verified = await persistence.verifyRoomSeatToken(roomId, seatToken);
-    if (!verified) return { ok: false, error: 'unauthorized' };
-    await persistence.abortRunningGame(roomId, {
-      abortedReason: 'abandoned by creator',
-      termination: 'abandoned',
-    });
-    resetRoom(roomId, 'abandoned');
-    return { ok: true };
-  }
-  // In-memory fallback for tests / dev servers running without persistence.
-  const room = rooms.get(roomId);
-  if (!room) return { ok: false, error: 'not_found' };
-  if (!verifySeatToken(room, seatToken)) return { ok: false, error: 'unauthorized' };
-  if (room.projection.state.status.type === 'finished')
-    return { ok: false, error: 'already_terminal' };
-  resetRoom(roomId, 'abandoned');
-  return { ok: true };
 }
 
 // ── SECTION: Game flow ─────────────────────────────────────────────────────
@@ -998,17 +474,6 @@ function recordPersistenceError(roomId: string, seq: number, event: GameEvent, e
   );
 }
 
-function resetRoom(roomId: string, reason = 'room-reset'): void {
-  const room = rooms.get(roomId);
-  if (room) {
-    clearRoomRuntimeTimers(room, {
-      releaseEngineReservation: releaseLiveEngineReservation,
-      reservationReleaseReason: reason,
-    });
-  }
-  rooms.delete(roomId);
-}
-
 // ── SECTION: Helpers and shutdown ──────────────────────────────────────────
 function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
@@ -1016,76 +481,6 @@ function send(client: Client, payload: unknown): void {
 
 function isColor(value: string | undefined): value is Color {
   return value === 'white' || value === 'black';
-}
-
-function roomCreatedDraftOfferFields(
-  roomId: string,
-  variant: VariantId,
-  hiddenDraft960 = false,
-): Pick<Extract<GameEvent, { type: 'room-created' }>, 'offer' | 'offers'> {
-  if (variant !== 'draft960' && !(variant === 'dark-chess' && hiddenDraft960)) return { offer: [] };
-
-  const seed = roomIdToSeed(roomId);
-  const offers: Record<Color, Chess960Start[]> = {
-    white: pickDraft960Offer(seed),
-    black: pickDraft960Offer(seed ^ 0x5f3759df),
-  };
-  return {
-    offer: offers.white,
-    offers,
-  };
-}
-
-function engineDraftSelectionEvent(
-  roomCreated: Extract<GameEvent, { type: 'room-created' }>,
-  roomId: string,
-  at: number,
-): Extract<GameEvent, { type: 'draft-start-selected' }> | null {
-  const offer = roomCreated.offers?.black ?? roomCreated.offer;
-  if (offer.length === 0) return null;
-  const start = offer[Math.abs(roomIdToSeed(`${roomId}:black-draft`)) % offer.length];
-  if (!start) return null;
-  return {
-    type: 'draft-start-selected',
-    at,
-    roomId,
-    color: 'black',
-    startId: start.id,
-  };
-}
-
-// Arm a one-shot timer that force-resumes a paused room after the grace
-// window, regardless of whether both players reconnected. Safe to call
-// repeatedly (subsequent calls are no-ops while a timer is already armed).
-function armPauseGraceTimer(room: Room): void {
-  if (!room.projection.paused) return;
-  if (room.pauseGraceTimer) return;
-  room.pauseGraceTimer = setTimeout(() => {
-    room.pauseGraceTimer = null;
-    const fromSeq = room.events.length;
-    void resumeRoom(roomMgrCtx, room, Date.now(), 'grace-elapsed')
-      .then(() => {
-        if (room.projection.state.status.type === 'playing' && !room.projection.paused) {
-          scheduleClockTimeout(roomMgrCtx, room);
-          scheduleAbortTimeout(roomMgrCtx, room);
-          scheduleRandomEngineMove(roomMgrCtx, room);
-        }
-        broadcastEventAppended(roomMgrCtx, room, fromSeq);
-      })
-      .catch((err) => {
-        if (!(err instanceof PersistenceFailure)) {
-          console.error(
-            JSON.stringify({
-              level: 'error',
-              kind: 'pause_grace_resume_failure',
-              roomId: room.id,
-              error: (err as Error).message,
-              at: Date.now(),
-            }),
-          );
-        }
-      });
-  }, pauseGraceMs);
 }
 
 async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
@@ -1118,7 +513,7 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   for (const room of rooms.values()) {
     clearRoomRuntimeTimers(room);
   }
-  if (abortPolicyTimer) clearInterval(abortPolicyTimer);
+  roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
 
   let exitCode = 0;
