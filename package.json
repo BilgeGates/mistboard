@@ -49,6 +49,7 @@
     "verify": "node scripts/verify.mjs",
     "ci:quick": "node scripts/ci-checks.mjs quick",
     "ci:local": "node scripts/ci-checks.mjs local",
+    "ci:browser-smoke:plan": "node scripts/ci-browser-smoke-plan.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "visual:check": "node scripts/visual-check.mjs",
     "mobile:loop": "node scripts/mobile-loop.mjs",

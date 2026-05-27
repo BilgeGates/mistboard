@@ -446,6 +446,14 @@ progress. Continue from isolated worktrees._
    `--smoke lite` for simple deploys and `--smoke full` when the release should
    include web-room plus engine smoke.
 
+   Second slice: hosted CI now runs `ci:browser-smoke:plan` before installing
+   Playwright. Web unit tests still run on every CI pass, but the expensive
+   Playwright browser install and learn-interface browser smoke only run for
+   browser-affecting paths, package dependency changes, workflow changes, or
+   unknown change sets. Release-tooling and server-only pushes should therefore
+   avoid the avoidable browser setup cost while keeping the default path
+   conservative when CI cannot prove the changed files.
+
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
    and live-engine reservation boundaries moved out. The next high-leverage

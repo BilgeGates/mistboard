@@ -215,7 +215,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | Group | Files |
 |-------|-------|
 | Build/start | `build.mjs`, `start.mjs`, `safe-deploy.mjs`, `release-prod.mjs` |
-| Agent/dev loop | `agent-scan.mjs`, `ci-checks.mjs`, `drift-check.mjs`, `gate-evidence.mjs`, `verify.mjs`, `worktree-new.mjs`, `worktree-prepare.mjs`, `mobile-loop.mjs`, `visual-check.mjs` |
+| Agent/dev loop | `agent-scan.mjs`, `ci-browser-smoke-plan.mjs`, `ci-checks.mjs`, `drift-check.mjs`, `gate-evidence.mjs`, `verify.mjs`, `worktree-new.mjs`, `worktree-prepare.mjs`, `mobile-loop.mjs`, `visual-check.mjs` |
 | Engine artifacts | `archive-engine-artifact.mjs`, `engine-artifact-{audit,closeout}.mjs`, `capture-belief-artifacts.mjs`, `generate-fow-corpus.mjs` |
 | Prod smoke | `prod-smoke-plan.mjs`, `wait-prod-revision.mjs`, `prod-lite-smoke.mjs`, `prod-smoke.mjs`, `prod-engine-smoke.mjs`, `prod-engine-playout.mjs`, `time-command.mjs` |
 | AI asset gen | `pixel-gen.mjs`, `video-gen.mjs`, `loop-video.mjs`, `slice-fog.py` |

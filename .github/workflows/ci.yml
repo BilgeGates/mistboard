@@ -60,16 +60,27 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Plan browser smoke
+        id: browser-smoke-plan
+        run: npm run ci:browser-smoke:plan
       - name: Install Playwright browser
+        if: steps.browser-smoke-plan.outputs.run_browser_smoke == 'true'
         run: npx playwright install --with-deps chromium
       - name: Build
         run: npm run build
       - name: Typecheck
         run: npm run typecheck
-      - name: Test with Postgres
+      - name: Test
+        env:
+          RUN_BROWSER_SMOKE: ${{ steps.browser-smoke-plan.outputs.run_browser_smoke }}
         run: |
           npm run test --workspace @mistboard/game
-          npm run test --workspace @mistboard/web
+          npm run test:unit --workspace @mistboard/web
+          if [ "$RUN_BROWSER_SMOKE" = "true" ]; then
+            npm run test --workspace @mistboard/web
+          else
+            echo "skip: browser smoke not required for changed paths"
+          fi
           npm run test:persistent --workspace @mistboard/server
           MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true TEST_DATABASE_URL=$TEST_DATABASE_URL npm run test:integration --workspace @mistboard/server
       - name: Audit production dependencies
