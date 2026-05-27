@@ -1,4 +1,5 @@
 import './learn.css';
+import './site-shell.css';
 import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-render/interactive';
 import {
   type Board,

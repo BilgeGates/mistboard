@@ -1,5 +1,7 @@
 // Server-restart drain countdown banner.
 //
+import './restart-banner.css';
+
 // Two sources update it:
 //   1. /api/server-status at page boot (covers the case where the user loads
 //      a page mid-drain — no WS broadcast was in flight for them).

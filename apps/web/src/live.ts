@@ -2,6 +2,7 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import './styles.css';
+import './site-shell.css';
 import type { GameEvent, PlayerView } from '@mistboard/game';
 import {
   initRender,

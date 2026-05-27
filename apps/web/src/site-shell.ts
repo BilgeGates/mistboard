@@ -1,3 +1,4 @@
+import './site-shell.css';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 
 export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
