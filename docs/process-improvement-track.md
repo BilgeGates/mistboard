@@ -454,6 +454,12 @@ progress. Continue from isolated worktrees._
    avoid the avoidable browser setup cost while keeping the default path
    conservative when CI cannot prove the changed files.
 
+   Third slice: Railway watch patterns no longer treat every root `scripts/**`
+   change as deploy-affecting. The web and engine-worker services still watch
+   root build/start scripts, package/dependency files, app packages, shared
+   packages, and Railway build config, but release, CI, smoke, visual, artifact,
+   and agent scripts can change without forcing an unrelated production build.
+
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
    and live-engine reservation boundaries moved out. The next high-leverage
