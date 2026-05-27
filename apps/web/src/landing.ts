@@ -259,7 +259,7 @@ async function mountWatchReplay(root: HTMLElement, roomId: string, feed: WatchFe
     autoplay: true,
     showControls: true,
     metadataMode: 'header',
-    revealOnFinish: true,
+    revealOnFinish: false,
     loaderForId: apiEventLoader,
     metadataByRoomId,
   });
