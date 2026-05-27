@@ -1232,15 +1232,15 @@ button:focus-visible {
 }
 
 .captures-strip {
-  --capture-piece-size: clamp(30px, calc((100cqw - 20px) / 8), 38px);
-  --capture-row-gap: 1px;
+  --capture-piece-size: clamp(24px, calc((100cqw - 20px) / 12), 34px);
+  --capture-row-gap: 2px;
 
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 8px);
-  min-height: calc((var(--capture-piece-size) * 2) + var(--capture-row-gap) + 8px);
-  padding: 6px 2px 0;
+  justify-content: center;
+  height: calc(var(--capture-piece-size) + 8px);
+  min-height: calc(var(--capture-piece-size) + 8px);
+  padding: 4px 2px 0;
 }
 
 .board-shell > .captures-strip {
@@ -1251,9 +1251,11 @@ button:focus-visible {
 .captures-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--capture-row-gap);
   line-height: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 /* Reuse chessground's cburnett piece sprites by wrapping each glyph in a
@@ -1261,6 +1263,7 @@ button:focus-visible {
    so the piece fills our inline capture cell instead. */
 .captures-piece {
   display: inline-block;
+  flex: 0 0 var(--capture-piece-size);
   width: var(--capture-piece-size);
   height: var(--capture-piece-size);
   position: relative;
@@ -1278,6 +1281,26 @@ button:focus-visible {
   background-repeat: no-repeat;
   background-position: center;
   will-change: auto;
+  pointer-events: none;
+}
+
+.captures-count-badge {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: #1d2522;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
   pointer-events: none;
 }
 
@@ -2862,15 +2885,16 @@ a.replay-game-id:focus-visible {
 }
 
 .replay-captures {
-  --capture-piece-size: 35px;
+  --capture-piece-size: 28px;
 
   align-items: center;
   box-sizing: border-box;
   width: 100%;
   max-width: 380px;
-  height: auto;
-  min-height: calc(var(--capture-piece-size) + 4px);
+  height: calc(var(--capture-piece-size) + 6px);
+  min-height: calc(var(--capture-piece-size) + 6px);
   padding: 3px 2px 0;
+  overflow: hidden;
 }
 
 .replay-captures:not(.has-captures) {
@@ -3459,127 +3483,6 @@ body:has(
   .landing-board-column
   #landing-replay {
   max-width: min(560px, calc(100dvh - 340px));
-}
-
-#landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
-#landing-replay.replay-compact .replay-layout-single-black .replay-pane-black,
-#landing-replay.replay-compact .replay-layout-all .replay-pane {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "clock-top"
-    "board"
-    "clock-bottom"
-    "status";
-  gap: 4px;
-  align-items: center;
-  justify-items: center;
-}
-
-#landing-replay.replay-compact .replay-layout-single-white .replay-pane-truth,
-#landing-replay.replay-compact .replay-layout-single-white .replay-pane-black,
-#landing-replay.replay-compact .replay-layout-single-black .replay-pane-truth,
-#landing-replay.replay-compact .replay-layout-single-black .replay-pane-white {
-  display: none;
-}
-
-#landing-replay.replay-compact .replay-pane > .replay-clock-row {
-  grid-area: clock-top;
-}
-
-#landing-replay.replay-compact .replay-pane-clock-slot {
-  grid-area: clock-bottom;
-  width: 100%;
-  max-width: none;
-}
-
-#landing-replay.replay-compact .replay-board {
-  grid-area: board;
-}
-
-#landing-replay.replay-compact .replay-captures {
-  --capture-piece-size: clamp(20px, 4.8vw, 27px);
-  --capture-piece-overlap: clamp(3px, 0.9vw, 5px);
-
-  grid-area: clock-bottom;
-  align-self: center;
-  justify-self: start;
-  z-index: 1;
-  width: calc(50% - 12px);
-  height: var(--capture-piece-size);
-  min-height: var(--capture-piece-size);
-  margin-left: 8px;
-  padding: 0 0 0 6px;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-#landing-replay.replay-compact .replay-pane-status {
-  grid-area: status;
-}
-
-#landing-replay.replay-compact .replay-pane > .replay-clock-row,
-#landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-row {
-  min-height: 32px;
-  max-width: none;
-  padding: 5px 8px;
-}
-
-#landing-replay.replay-compact .replay-pane > .replay-clock-row {
-  grid-template-columns: minmax(0, 1fr) minmax(48px, auto);
-}
-
-#landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-#landing-replay.replay-compact .replay-pane > .replay-clock-row .replay-clock-side {
-  grid-column: 1;
-  text-align: left;
-}
-
-#landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-side {
-  grid-column: 1;
-  text-align: left;
-}
-
-#landing-replay.replay-compact
-  .replay-captures.has-captures
-  ~ .replay-pane-clock-slot
-  .replay-clock-side {
-  opacity: 0;
-}
-
-#landing-replay.replay-compact .replay-pane > .replay-clock-row .replay-clock-time {
-  grid-column: 2;
-  text-align: right;
-  font-size: 14px;
-}
-
-#landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-time {
-  grid-column: 2;
-  text-align: right;
-  font-size: 14px;
-}
-
-#landing-replay.replay-compact .replay-clock-to-move {
-  display: none;
-}
-
-#landing-replay.replay-compact .replay-captures .captures-row {
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  min-height: var(--capture-piece-size);
-  overflow: hidden;
-  padding-right: var(--capture-piece-overlap);
-}
-
-#landing-replay.replay-compact .replay-captures .captures-piece {
-  margin-right: calc(var(--capture-piece-overlap) * -1);
-}
-
-#landing-replay.replay-compact .replay-captures .captures-piece:last-child {
-  margin-right: 0;
 }
 
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(

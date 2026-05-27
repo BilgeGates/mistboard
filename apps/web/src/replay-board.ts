@@ -2,7 +2,7 @@ import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-rend
 import type { Color, GameState, Move, Piece, PieceRole, PlayerView, Square } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
-import { sortCaptureRoles } from './captures.js';
+import { captureRow, combinedCaptureRow } from './capture-render.js';
 
 export type ReplayPaneHandle = {
   el: HTMLDivElement;
@@ -51,12 +51,8 @@ export function renderPaneCaptures(
   target.replaceChildren();
   target.classList.toggle('has-captures', capturedRoles.length > 0);
   if (capturedRoles.length === 0) return;
-  const row = document.createElement('div');
-  row.className = 'captures-row';
-  for (const role of sortCaptureRoles(capturedRoles)) {
-    row.append(capturePieceEl(role, capturedColor));
-  }
-  target.append(row);
+  const row = captureRow(capturedRoles, capturedColor);
+  if (row) target.append(row);
 }
 
 export function renderTruthCaptures(
@@ -64,29 +60,14 @@ export function renderTruthCaptures(
   captures: Record<Color, PieceRole[]>,
 ): void {
   target.replaceChildren();
-  const rows: HTMLDivElement[] = [];
-  for (const color of ['white', 'black'] as Color[]) {
-    const roles = captures[color];
-    if (roles.length === 0) continue;
-    const row = document.createElement('div');
-    row.className = 'captures-row';
-    for (const role of sortCaptureRoles(roles)) {
-      row.append(capturePieceEl(role, color === 'white' ? 'black' : 'white'));
-    }
-    rows.push(row);
-  }
-  target.classList.toggle('has-captures', rows.length > 0);
-  target.append(...rows);
-}
-
-function capturePieceEl(role: PieceRole, color: Color): HTMLSpanElement {
-  const wrap = document.createElement('span');
-  wrap.className = 'captures-piece cg-wrap';
-  wrap.setAttribute('aria-label', `${color} ${role}`);
-  const piece = document.createElement('piece');
-  piece.className = `${color} ${role}`;
-  wrap.append(piece);
-  return wrap;
+  const row = combinedCaptureRow(
+    (['white', 'black'] as Color[]).map((color) => ({
+      capturedRoles: captures[color],
+      capturedColor: color === 'white' ? 'black' : 'white',
+    })),
+  );
+  target.classList.toggle('has-captures', row !== null);
+  if (row) target.append(row);
 }
 
 export function createBoard(el: HTMLElement, orientation: Color): Api {

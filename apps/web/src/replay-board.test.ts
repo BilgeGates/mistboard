@@ -40,17 +40,18 @@ describe('createPane', () => {
 });
 
 describe('capture rendering', () => {
-  it('renders captured pieces in stable material order', () => {
+  it('renders captured pieces in stable material order with count badges', () => {
     const target = document.createElement('div');
 
-    renderPaneCaptures(target, ['pawn', 'queen'] as PieceRole[], 'black');
+    renderPaneCaptures(target, ['pawn', 'queen', 'pawn'] as PieceRole[], 'black');
 
     const pieces = [...target.querySelectorAll('.captures-piece')];
     expect(target.classList.contains('has-captures')).toBe(true);
     expect(pieces.map((piece) => piece.getAttribute('aria-label'))).toEqual([
       'black queen',
-      'black pawn',
+      'black pawn x2',
     ]);
+    expect(pieces[1]?.querySelector('.captures-count-badge')?.textContent).toBe('2');
   });
 
   it('renders truth captures from the captured side perspective', () => {
@@ -61,6 +62,7 @@ describe('capture rendering', () => {
       white: ['pawn'],
     });
 
+    expect(target.querySelectorAll('.captures-row')).toHaveLength(1);
     expect(
       [...target.querySelectorAll('.captures-piece')].map((piece) =>
         piece.getAttribute('aria-label'),
