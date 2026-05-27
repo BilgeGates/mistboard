@@ -23,6 +23,7 @@ import { engineCounters, logger } from './obs.js';
 import { computeConnectedSeats, eventAppendedPayload, snapshotPayload } from './payloads.js';
 import type { GameSummary } from './persistence.js';
 import * as persistence from './persistence.js';
+import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import { isServerEngineClient, modeForProjection } from './server-policy.js';
 import type { Client, Room, SeatTokenState } from './server-types.js';
 
@@ -743,6 +744,9 @@ export async function pauseRoomOnShutdown(
 ): Promise<void> {
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
+  const eventSeq = room.events.length;
+  const turn = room.projection.state.status.turn;
+  const moveNumber = room.projection.state.moveNumber;
   const frozenClock = freezeClock(room.projection.state.clock, at);
   await appendEvent(ctx, room, {
     type: 'pause',
@@ -750,6 +754,18 @@ export async function pauseRoomOnShutdown(
     roomId: room.id,
     reason: 'shutdown',
     ...(frozenClock ? { clock: frozenClock } : {}),
+  });
+  await recordRoomLifecycleAuditSafe({
+    roomId: room.id,
+    kind: 'pause_on_shutdown',
+    atMs: at,
+    eventSeq,
+    payload: {
+      mode: room.mode,
+      turn,
+      moveNumber,
+      clockFrozen: frozenClock !== undefined,
+    },
   });
 }
 
@@ -783,6 +799,9 @@ export async function resumeRoom(
 ): Promise<void> {
   if (!room.projection.paused) return;
   if (room.projection.state.status.type !== 'playing') return;
+  const eventSeq = room.events.length;
+  const pausedAtMs = room.projection.pausedAt;
+  const pauseReason = room.projection.pauseReason;
   const turn = room.projection.state.status.turn;
   const newClock = unfreezeClock(room.projection.state.clock, at, turn);
   await appendEvent(ctx, room, {
@@ -791,6 +810,21 @@ export async function resumeRoom(
     roomId: room.id,
     reason,
     ...(newClock ? { clock: newClock } : {}),
+  });
+  await recordRoomLifecycleAuditSafe({
+    roomId: room.id,
+    kind: 'resume',
+    atMs: at,
+    eventSeq,
+    payload: {
+      mode: room.mode,
+      reason,
+      pauseReason,
+      pausedAtMs,
+      pausedDurationMs: pausedAtMs === null ? null : at - pausedAtMs,
+      turn,
+      clockResumed: newClock !== undefined,
+    },
   });
   if (room.pauseGraceTimer) {
     clearTimeout(room.pauseGraceTimer);

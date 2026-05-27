@@ -1,4 +1,5 @@
 import type { Color, GameEvent } from '@mistboard/game';
+import { getBuildInfo } from './build-info.js';
 import { getPool } from './persistence-db.js';
 
 export type GameMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
@@ -63,10 +64,170 @@ export type StalePausedFinalizeRecord = {
   roomId: string;
   mode: GameMode;
   startedAt: Date;
+  pauseSeq: number;
   pausedAtMs: number;
   pauseReason: string | null;
   plyCount: number;
 };
+
+export type RoomLifecycleAuditInput = {
+  roomId?: string | null;
+  kind: string;
+  atMs?: number | null;
+  eventSeq?: number | null;
+  payload?: Record<string, unknown>;
+};
+
+export type RoomLifecycleAuditRecord = {
+  id: number;
+  roomId: string | null;
+  kind: string;
+  occurredAt: Date;
+  atMs: number | null;
+  eventSeq: number | null;
+  buildRevision: string | null;
+  payload: Record<string, unknown>;
+  createdAt: Date;
+};
+
+export type RoomLifecycleTimelineEvent = {
+  seq: number;
+  type: string;
+  atMs: number | null;
+  reason: string | null;
+  createdAt: Date;
+};
+
+export type RoomLifecycleTimeline = {
+  roomId: string;
+  game: {
+    mode: GameMode;
+    status: 'running' | 'completed' | 'aborted';
+    result: string | null;
+    termination: GameTermination | null;
+    startedAt: Date;
+    endedAt: Date | null;
+    plyCount: number;
+    visibility: GameVisibility;
+  } | null;
+  events: RoomLifecycleTimelineEvent[];
+  audit: RoomLifecycleAuditRecord[];
+};
+
+export async function recordRoomLifecycleAudit(input: RoomLifecycleAuditInput): Promise<void> {
+  const atMs = typeof input.atMs === 'number' && Number.isFinite(input.atMs) ? input.atMs : null;
+  const payload = input.payload ?? {};
+  await getPool().query(
+    `INSERT INTO room_lifecycle_audit
+       (room_id, kind, occurred_at, at_ms, event_seq, build_revision, payload)
+     VALUES ($1, $2, COALESCE(to_timestamp($3::double precision / 1000.0), now()), $3, $4, $5, $6)`,
+    [
+      input.roomId ?? null,
+      input.kind,
+      atMs,
+      input.eventSeq ?? null,
+      getBuildInfo().revision,
+      payload,
+    ],
+  );
+}
+
+export async function listRoomLifecycleAudit(
+  options: { roomId?: string | null; limit?: number } = {},
+): Promise<RoomLifecycleAuditRecord[]> {
+  const limit =
+    typeof options.limit === 'number' && Number.isInteger(options.limit)
+      ? Math.min(Math.max(options.limit, 1), 500)
+      : 100;
+  const { rows } = await getPool().query<{
+    id: string;
+    room_id: string | null;
+    kind: string;
+    occurred_at: Date;
+    at_ms: string | null;
+    event_seq: number | null;
+    build_revision: string | null;
+    payload: Record<string, unknown>;
+    created_at: Date;
+  }>(
+    `SELECT id, room_id, kind, occurred_at, at_ms, event_seq, build_revision, payload, created_at
+     FROM room_lifecycle_audit
+     WHERE ($1::text IS NULL OR room_id = $1)
+     ORDER BY occurred_at DESC, id DESC
+     LIMIT $2`,
+    [options.roomId ?? null, limit],
+  );
+  return rows.map((row) => ({
+    id: Number(row.id),
+    roomId: row.room_id,
+    kind: row.kind,
+    occurredAt: row.occurred_at,
+    atMs: row.at_ms === null ? null : Number(row.at_ms),
+    eventSeq: row.event_seq,
+    buildRevision: row.build_revision,
+    payload: row.payload,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function getRoomLifecycleTimeline(
+  roomId: string,
+  options: { auditLimit?: number } = {},
+): Promise<RoomLifecycleTimeline> {
+  const gameResult = await getPool().query<{
+    mode: GameMode;
+    status: 'running' | 'completed' | 'aborted';
+    result: string | null;
+    termination: GameTermination | null;
+    started_at: Date;
+    ended_at: Date | null;
+    ply_count: number;
+    visibility: GameVisibility;
+  }>(
+    `SELECT mode, status, result, termination, started_at, ended_at, ply_count, visibility
+     FROM games
+     WHERE room_id = $1
+     LIMIT 1`,
+    [roomId],
+  );
+  const eventResult = await getPool().query<{
+    seq: number;
+    type: string;
+    at_ms: string | null;
+    reason: string | null;
+    created_at: Date;
+  }>(
+    `SELECT seq, type, payload->>'at' AS at_ms, payload->>'reason' AS reason, created_at
+     FROM events
+     WHERE room_id = $1
+     ORDER BY seq ASC`,
+    [roomId],
+  );
+  const gameRow = gameResult.rows[0] ?? null;
+  return {
+    roomId,
+    game: gameRow
+      ? {
+          mode: gameRow.mode,
+          status: gameRow.status,
+          result: gameRow.result,
+          termination: gameRow.termination,
+          startedAt: gameRow.started_at,
+          endedAt: gameRow.ended_at,
+          plyCount: gameRow.ply_count,
+          visibility: gameRow.visibility,
+        }
+      : null,
+    events: eventResult.rows.map((row) => ({
+      seq: row.seq,
+      type: row.type,
+      atMs: row.at_ms === null ? null : Number(row.at_ms),
+      reason: row.reason,
+      createdAt: row.created_at,
+    })),
+    audit: await listRoomLifecycleAudit({ roomId, limit: options.auditLimit }),
+  };
+}
 
 export async function loadRoom(roomId: string): Promise<GameEvent[] | null> {
   const { rows } = await getPool().query<{ payload: GameEvent }>(
@@ -220,6 +381,7 @@ export async function finalizeStalePausedRooms(
     room_id: string;
     mode: GameMode;
     started_at: Date;
+    pause_seq: number;
     paused_at_ms: string;
     pause_reason: string | null;
     ply_count: number;
@@ -230,7 +392,7 @@ export async function finalizeStalePausedRooms(
        WHERE status = 'running'
      ),
      last_events AS (
-       SELECT DISTINCT ON (e.room_id) e.room_id, e.type, e.payload
+       SELECT DISTINCT ON (e.room_id) e.room_id, e.seq, e.type, e.payload
        FROM events e
        JOIN running_rooms r ON r.room_id = e.room_id
        ORDER BY e.room_id, e.seq DESC
@@ -240,6 +402,7 @@ export async function finalizeStalePausedRooms(
          r.room_id,
          r.mode,
          r.started_at,
+         le.seq AS pause_seq,
          (le.payload->>'at')::bigint AS paused_at_ms,
          le.payload->>'reason' AS pause_reason
        FROM running_rooms r
@@ -267,13 +430,35 @@ export async function finalizeStalePausedRooms(
          games.mode,
          games.started_at,
          games.ply_count,
+         candidates.pause_seq,
          candidates.paused_at_ms,
          candidates.pause_reason
+     ),
+     audited AS (
+       INSERT INTO room_lifecycle_audit
+         (room_id, kind, occurred_at, at_ms, event_seq, build_revision, payload)
+       SELECT
+         room_id,
+         'stale_paused_finalized',
+         $2,
+         $3,
+         pause_seq,
+         $4,
+         jsonb_build_object(
+           'mode', mode,
+           'pauseReason', pause_reason,
+           'pausedAtMs', paused_at_ms,
+           'pausedDurationMs', $3 - paused_at_ms,
+           'startedAtMs', FLOOR(EXTRACT(EPOCH FROM started_at) * 1000)::bigint,
+           'plyCount', ply_count
+         )
+       FROM finalized
+       RETURNING room_id
      )
-     SELECT room_id, mode, started_at, paused_at_ms, pause_reason, ply_count
+     SELECT room_id, mode, started_at, pause_seq, paused_at_ms, pause_reason, ply_count
      FROM finalized
      ORDER BY room_id`,
-    [stalePauseBeforeMs, now],
+    [stalePauseBeforeMs, now, now.getTime(), getBuildInfo().revision],
   );
   return {
     finalized: rows.length,
@@ -281,6 +466,7 @@ export async function finalizeStalePausedRooms(
       roomId: row.room_id,
       mode: row.mode,
       startedAt: row.started_at,
+      pauseSeq: row.pause_seq,
       pausedAtMs: Number(row.paused_at_ms),
       pauseReason: row.pause_reason,
       plyCount: row.ply_count,

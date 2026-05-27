@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import { readJsonBody, writeJson } from './routes/lib.js';
 import { isDrainToken, isProductionLikeRuntime } from './server-policy.js';
 import type { Room } from './server-types.js';
@@ -86,9 +87,21 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
 
     if (pathname === '/admin/drain/cancel') {
       const wasActive = isDraining();
+      const cancelledAt = Date.now();
+      const restartAt = drainState.restartAt;
       drainState.restartAt = null;
       if (wasActive) broadcastDrainCancel(options.rooms);
-      console.log(JSON.stringify({ level: 'info', kind: 'drain_cancelled', at: Date.now() }));
+      await recordRoomLifecycleAuditSafe({
+        kind: 'drain_cancelled',
+        atMs: cancelledAt,
+        payload: {
+          wasActive,
+          restartAt,
+          rooms: options.rooms.size,
+          activeGames: activeGameCount(),
+        },
+      });
+      console.log(JSON.stringify({ level: 'info', kind: 'drain_cancelled', at: cancelledAt }));
       writeJson(response, 200, { ok: true, draining: false });
       return;
     }
@@ -117,15 +130,27 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
       return;
     }
     const windowMs = Math.min(requestedWindowMs, options.drainWindowMaxMs);
-    drainState.restartAt = Date.now() + windowMs;
+    const activatedAt = Date.now();
+    drainState.restartAt = activatedAt + windowMs;
     broadcastDrainSchedule(options.rooms, drainState.restartAt);
+    await recordRoomLifecycleAuditSafe({
+      kind: 'drain_activated',
+      atMs: activatedAt,
+      payload: {
+        windowMs,
+        restartAt: drainState.restartAt,
+        requestedWindowMs,
+        rooms: options.rooms.size,
+        activeGames: activeGameCount(),
+      },
+    });
     console.log(
       JSON.stringify({
         level: 'info',
         kind: 'drain_activated',
         windowMs,
         restartAt: drainState.restartAt,
-        at: Date.now(),
+        at: activatedAt,
       }),
     );
     writeJson(response, 200, {

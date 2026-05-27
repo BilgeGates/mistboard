@@ -4,9 +4,12 @@ import {
   createUser,
   finalizeStalePausedRooms,
   type GameSummary,
+  getRoomLifecycleTimeline,
   listActiveRoomIds,
+  listRoomLifecycleAudit,
   recordGameEnd,
   recordGameStart,
+  recordRoomLifecycleAudit,
 } from './persistence.js';
 import {
   assert,
@@ -125,6 +128,65 @@ definePersistenceTests('lifecycle', () => {
     } finally {
       await client.end();
     }
+  });
+
+  test('room lifecycle audit stores public-safe room timeline metadata', async () => {
+    const startedAt = new Date('2026-05-22T10:00:00.000Z');
+    const pauseAt = startedAt.getTime() + 60_000;
+    await recordGameStart('audit-room', {
+      variant: 'dark-chess',
+      mode: 'pvp',
+      startedAt,
+      whiteClient: 'white-client',
+      blackClient: 'black-client',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    });
+    await appendEvent('audit-room', 0, {
+      type: 'room-created',
+      at: startedAt.getTime(),
+      roomId: 'audit-room',
+      variant: 'dark-chess',
+      offer: [],
+    });
+    await appendEvent('audit-room', 1, {
+      type: 'pause',
+      at: pauseAt,
+      roomId: 'audit-room',
+      reason: 'shutdown',
+    });
+    await recordRoomLifecycleAudit({
+      roomId: 'audit-room',
+      kind: 'pause_on_shutdown',
+      atMs: pauseAt,
+      eventSeq: 1,
+      payload: { mode: 'pvp', clockFrozen: true },
+    });
+
+    const audit = await listRoomLifecycleAudit({ roomId: 'audit-room' });
+    assert.equal(audit.length, 1);
+    assert.equal(audit[0]?.kind, 'pause_on_shutdown');
+    assert.equal(audit[0]?.roomId, 'audit-room');
+    assert.equal(audit[0]?.atMs, pauseAt);
+    assert.equal(audit[0]?.eventSeq, 1);
+    assert.deepEqual(audit[0]?.payload, { mode: 'pvp', clockFrozen: true });
+
+    const timeline = await getRoomLifecycleTimeline('audit-room');
+    assert.equal(timeline.game?.status, 'running');
+    assert.deepEqual(
+      timeline.events.map((event) => ({
+        seq: event.seq,
+        type: event.type,
+        atMs: event.atMs,
+        reason: event.reason,
+      })),
+      [
+        { seq: 0, type: 'room-created', atMs: startedAt.getTime(), reason: null },
+        { seq: 1, type: 'pause', atMs: pauseAt, reason: 'shutdown' },
+      ],
+    );
+    assert.equal(timeline.audit[0]?.kind, 'pause_on_shutdown');
   });
 
   test('abortStaleGuestPrestartGames aborts only guest rooms that never started', async () => {
@@ -398,6 +460,7 @@ definePersistenceTests('lifecycle', () => {
     assert.equal(result.finalized, 1, 'exactly one room should finalize');
     assert.equal(result.rooms[0]?.roomId, 'stale-paused-pvp');
     assert.equal(result.rooms[0]?.mode, 'pvp');
+    assert.equal(result.rooms[0]?.pauseSeq, 3);
     assert.equal(result.rooms[0]?.pausedAtMs, stalePauseAt);
     assert.equal(result.rooms[0]?.pauseReason, 'shutdown');
     assert.equal(result.rooms[0]?.plyCount, 2, 'ply_count should reflect move-played events');
@@ -456,6 +519,34 @@ definePersistenceTests('lifecycle', () => {
           result: null,
           termination: null,
           ply_count: 0,
+        },
+      ]);
+      const auditRows = await verify.query<{
+        room_id: string;
+        kind: string;
+        at_ms: string | null;
+        event_seq: number | null;
+        payload: Record<string, unknown>;
+      }>(
+        `SELECT room_id, kind, at_ms, event_seq, payload
+         FROM room_lifecycle_audit
+         WHERE room_id = 'stale-paused-pvp'
+         ORDER BY id`,
+      );
+      assert.deepEqual(auditRows.rows, [
+        {
+          room_id: 'stale-paused-pvp',
+          kind: 'stale_paused_finalized',
+          at_ms: String(now.getTime()),
+          event_seq: 3,
+          payload: {
+            mode: 'pvp',
+            pauseReason: 'shutdown',
+            pausedAtMs: stalePauseAt,
+            pausedDurationMs: now.getTime() - stalePauseAt,
+            startedAtMs: startedAt.getTime(),
+            plyCount: 2,
+          },
         },
       ]);
     } finally {

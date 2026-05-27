@@ -28,6 +28,7 @@ import {
   offerRematch,
   type RematchOrchestrator,
 } from './rematch.js';
+import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import {
   appendEvent,
   applyOrphanRecoveryIfNeeded,
@@ -712,14 +713,26 @@ async function getOrCreateRoom(
   const recoveredEvents = applyOrphanRecoveryIfNeeded(events, Date.now(), orphanThresholdMs);
   if (recoveredEvents.length > events.length) {
     const synthPause = recoveredEvents[recoveredEvents.length - 1]!;
+    const synthPauseSeq = recoveredEvents.length - 1;
     if (persistence.isInitialized()) {
       try {
-        await persistence.appendEvent(roomId, recoveredEvents.length - 1, synthPause);
+        await persistence.appendEvent(roomId, synthPauseSeq, synthPause);
       } catch (err) {
-        recordPersistenceError(roomId, recoveredEvents.length - 1, synthPause, err as Error);
+        recordPersistenceError(roomId, synthPauseSeq, synthPause, err as Error);
         throw new PersistenceFailure();
       }
     }
+    await recordRoomLifecycleAuditSafe({
+      roomId,
+      kind: 'orphan_recovery_synth_pause',
+      atMs: synthPause.at,
+      eventSeq: synthPauseSeq,
+      payload: {
+        lastEventType: events[events.length - 1]!.type,
+        lastEventAtMs: events[events.length - 1]!.at,
+        orphanThresholdMs,
+      },
+    });
     console.log(
       JSON.stringify({
         level: 'info',
@@ -799,7 +812,20 @@ async function getOrCreateRoom(
   scheduleRandomEngineMove(roomMgrCtx, room);
   // Hydrated room came back paused (last event was 'pause'). Arm the grace
   // timer so the game resumes even if both players don't reconnect in time.
-  if (room.projection.paused) armPauseGraceTimer(room);
+  if (room.projection.paused) {
+    await recordRoomLifecycleAuditSafe({
+      roomId: room.id,
+      kind: 'paused_room_hydrated',
+      atMs: Date.now(),
+      payload: {
+        mode: room.mode,
+        pauseReason: room.projection.pauseReason,
+        pausedAtMs: room.projection.pausedAt,
+        eventCount: room.events.length,
+      },
+    });
+    armPauseGraceTimer(room);
+  }
   return room;
 }
 
@@ -1028,6 +1054,7 @@ async function runStalePausedSweep(): Promise<void> {
           kind: 'stale_paused_finalized',
           roomId: room.roomId,
           mode: room.mode,
+          pause_seq: room.pauseSeq,
           pause_reason: room.pauseReason,
           paused_at: room.pausedAtMs,
           paused_duration_ms: now.getTime() - room.pausedAtMs,
@@ -1350,10 +1377,10 @@ function armPauseGraceTimer(room: Room): void {
 async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
+  const shutdownAt = Date.now();
   console.log(
-    JSON.stringify({ level: 'info', kind: 'server_shutdown_requested', signal, at: Date.now() }),
+    JSON.stringify({ level: 'info', kind: 'server_shutdown_requested', signal, at: shutdownAt }),
   );
-
   const forceExit = setTimeout(() => {
     console.error(
       JSON.stringify({ level: 'error', kind: 'server_shutdown_timeout', signal, at: Date.now() }),
@@ -1361,6 +1388,16 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
     process.exit(1);
   }, shutdownGraceMs);
   forceExit.unref();
+
+  await recordRoomLifecycleAuditSafe({
+    kind: 'server_shutdown_requested',
+    atMs: shutdownAt,
+    payload: {
+      signal,
+      activeGames: drainController.activeGameCount(),
+      rooms: rooms.size,
+    },
+  });
 
   await pauseActiveRoomsOnShutdown(rooms.values(), roomMgrCtx);
 

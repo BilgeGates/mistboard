@@ -15,6 +15,7 @@ export async function tryHandle(
   request: IncomingMessage,
   response: ServerResponse,
   pathname: string,
+  parsedUrl: URL,
 ): Promise<boolean> {
   if (pathname === '/api/server-status') {
     if (!requireMethod(request, response, 'GET')) return true;
@@ -24,6 +25,29 @@ export async function tryHandle(
       build: getBuildInfo(),
       darkXiangqiEnabled: darkXiangqiEnabled(),
       ratedEnabled: ratedEnabled(),
+    });
+    return true;
+  }
+
+  if (pathname === '/api/admin/lifecycle') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!isHttpAdminAuthorized(request)) {
+      writeJson(response, 401, { error: 'unauthorized' });
+      return true;
+    }
+    if (!requirePersistence(response)) return true;
+
+    const limit = parseLimit(parsedUrl.searchParams.get('limit'));
+    const roomId = parsedUrl.searchParams.get('roomId')?.trim() || null;
+    if (roomId) {
+      writeJson(response, 200, {
+        timeline: await persistence.getRoomLifecycleTimeline(roomId, { auditLimit: limit }),
+      });
+      return true;
+    }
+
+    writeJson(response, 200, {
+      audit: await persistence.listRoomLifecycleAudit({ limit }),
     });
     return true;
   }
@@ -57,4 +81,11 @@ export async function tryHandle(
   }
 
   return false;
+}
+
+function parseLimit(value: string | null): number {
+  if (!value) return 100;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed)) return 100;
+  return Math.min(Math.max(parsed, 1), 500);
 }

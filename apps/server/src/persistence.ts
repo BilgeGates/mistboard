@@ -38,6 +38,10 @@ export type {
   GameReviewStatus,
   GameTermination,
   GameVisibility,
+  RoomLifecycleAuditInput,
+  RoomLifecycleAuditRecord,
+  RoomLifecycleTimeline,
+  RoomLifecycleTimelineEvent,
   RunningGameSummary,
   StalePausedFinalizeRecord,
 } from './persistence-game-lifecycle.js';
@@ -47,12 +51,15 @@ export {
   appendEvent,
   finalizeStalePausedRooms,
   getGameLifecycleStatus,
+  getRoomLifecycleTimeline,
   listActiveRoomIds,
   listGameDebugArtifactPayloads,
   listGameDebugArtifactSummaries,
+  listRoomLifecycleAudit,
   loadRoom,
   recordGameDebugArtifact,
   recordGameStart,
+  recordRoomLifecycleAudit,
 } from './persistence-game-lifecycle.js';
 export type {
   CompletedGameFilters,
