@@ -438,6 +438,14 @@ progress. Continue from isolated worktrees._
    or `/api/server-status` to report the pushed SHA before dispatching the
    GitHub `Prod Smoke` workflow.
 
+   Operator command: use `npm run release:prod -- --push` instead of a
+   standalone `git push` for production-bound changes. The release command owns
+   the safe order: local `ci:quick`, push current HEAD to `main`, wait for
+   hosted GitHub CI, wait for production to serve the pushed revision when
+   Railway should deploy it, then run the selected smoke tier. Use
+   `--smoke lite` for simple deploys and `--smoke full` when the release should
+   include web-room plus engine smoke.
+
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
    and live-engine reservation boundaries moved out. The next high-leverage
