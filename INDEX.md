@@ -197,8 +197,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `replay-moves-panel.ts` | Replay side-panel move controls/list: first/prev/next/last buttons, algebraic move rows, active-ply jump handling, and active-row scrolling |
 | `replay-wall-clock.ts` | Pure replay timing helpers for compact clock orientation, wall-clock loop position, thinking elapsed clamping, and replay timing constants |
 | `belief-panel.ts` | Engine belief/probability display panels for the replay lab |
-| `learn.ts` | `/learn` tutorial route mount, tutorial shell rendering, board, route hash handling, and interaction logic. Loads `learn.css`, uses shared site shell, and reads curriculum data from `learn-content.ts` |
+| `learn.ts` | `/learn` tutorial route mount, board setup/update, route hash handling, state transitions, and move interaction logic. Loads `learn.css`, uses shared site shell, and reads curriculum data from `learn-content.ts` |
 | `learn-home.ts` | `/learn` home/module card rendering plus module labels and chapter count helpers shared with the tutorial shell |
+| `learn-panels.ts` | `/learn` tutorial menu, planned-module preview panel, chapter prompt panel, and endgame action panel rendering |
 | `learn-content.ts` | `/learn` static curriculum data and data-shape types: module list, chapter list, tutorial steps, endgame lesson metadata |
 | `learn.css` | `/learn` tutorial route styles loaded by `learn.ts` |
 | `articles.ts` | Articles page renderer and article thumbnail board mounting. Loads `articles.css` for article index/page/widget styles |

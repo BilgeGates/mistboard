@@ -20,13 +20,14 @@ import {
   type TutorialStep,
   type Uci,
 } from './learn-content.js';
+import { buildLearnHome } from './learn-home.js';
 import {
-  buildLearnHome,
-  moduleChapterCount,
-  moduleChapterTitles,
-  moduleEyebrow,
-  moduleStatusLabel,
-} from './learn-home.js';
+  buildLearnMenu,
+  buildPanel,
+  buildPlannedModuleMenu,
+  buildPlannedModulePanel,
+  type LearnPanelActions,
+} from './learn-panels.js';
 import { buildFooter, buildNav } from './site-shell.js';
 
 const boardFiles = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
@@ -115,7 +116,12 @@ function render(state: TutorialState): void {
   shell.className = 'learn-shell learn-tutorial-shell';
   const chapter = chapters[state.chapterIndex]!;
   const view = darkChessVariant.getPlayerView(state.activeState, 'white');
-  const menu = buildLearnMenu(state);
+  const menu = buildLearnMenu(
+    state,
+    moduleForChapterIndex(state.chapterIndex) ?? learnModules[0]!,
+    moduleChaptersForChapterIndex(state.chapterIndex),
+    learnPanelActions(state),
+  );
   const boardPanel = document.createElement('section');
   boardPanel.className = 'learn-board-panel';
   const boardEl = document.createElement('div');
@@ -123,7 +129,7 @@ function render(state: TutorialState): void {
   boardEl.setAttribute('aria-label', 'Dark chess tutorial board');
   boardPanel.append(boardEl);
 
-  const panel = buildPanel(state, chapter);
+  const panel = buildPanel(state, chapter, currentStep(state, chapter), learnPanelActions(state));
   shell.replaceChildren(menu, boardPanel, panel);
   state.boardEl = boardEl;
   state.api = createTutorialBoard(boardEl, view, chapter, state);
@@ -140,7 +146,7 @@ function renderPlannedModule(state: TutorialState): void {
   const view = darkChessVariant.getPlayerView(moduleState, 'white');
 
   shell.className = 'learn-shell learn-tutorial-shell';
-  const menu = buildPlannedModuleMenu(state, module);
+  const menu = buildPlannedModuleMenu(module, learnPanelActions(state));
   const boardPanel = document.createElement('section');
   boardPanel.className = 'learn-board-panel';
 
@@ -154,216 +160,6 @@ function renderPlannedModule(state: TutorialState): void {
   state.boardEl = boardEl;
   state.activeState = moduleState;
   state.api = createStaticLearnBoard(boardEl, view);
-}
-
-function buildPlannedModuleMenu(state: TutorialState, module: LearnModule): HTMLElement {
-  const menu = document.createElement('aside');
-  menu.className = 'learn-menu';
-  menu.setAttribute('aria-label', 'Module outline');
-
-  const back = document.createElement('button');
-  back.type = 'button';
-  back.className = 'learn-menu-back';
-  back.textContent = 'All modules';
-  back.addEventListener('click', () => showLearnHome(state));
-
-  const header = document.createElement('header');
-  header.className = 'learn-menu-header';
-
-  const eyebrow = document.createElement('div');
-  eyebrow.className = 'learn-menu-eyebrow';
-  eyebrow.textContent = moduleEyebrow(module);
-
-  const title = document.createElement('h2');
-  title.textContent = module.title;
-
-  const meta = document.createElement('p');
-  meta.textContent = `${moduleChapterCount(module)} planned chapters`;
-
-  header.append(eyebrow, title, meta);
-
-  const chaptersList = document.createElement('ol');
-  chaptersList.className = 'learn-menu-chapters';
-  const chapterTitles = moduleChapterTitles(module);
-  for (let localIndex = 0; localIndex < chapterTitles.length; localIndex += 1) {
-    const item = document.createElement('li');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = `learn-menu-chapter${localIndex === 0 ? ' is-current' : ''}`;
-    button.disabled = true;
-
-    const index = document.createElement('span');
-    index.className = 'learn-menu-chapter-index';
-    index.textContent = String(localIndex + 1);
-
-    const text = document.createElement('span');
-    text.className = 'learn-menu-chapter-text';
-
-    const chapterTitle = document.createElement('span');
-    chapterTitle.className = 'learn-menu-chapter-title';
-    chapterTitle.textContent = chapterTitles[localIndex]!;
-
-    const subtitle = document.createElement('span');
-    subtitle.className = 'learn-menu-chapter-subtitle';
-    subtitle.textContent = 'Planned';
-
-    text.append(chapterTitle, subtitle);
-    button.append(index, text);
-    item.append(button);
-    chaptersList.append(item);
-  }
-
-  menu.append(back, header, chaptersList);
-  return menu;
-}
-
-function buildPlannedModulePanel(module: LearnModule): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'learn-panel learn-tutorial-panel';
-
-  const eyebrow = document.createElement('div');
-  eyebrow.className = 'learn-progress';
-  eyebrow.textContent = `${moduleEyebrow(module)} · ${moduleStatusLabel(module)}`;
-
-  const title = document.createElement('h1');
-  title.className = 'learn-heading';
-  title.textContent = module.title;
-
-  const chapterTitle = document.createElement('h2');
-  chapterTitle.className = 'learn-chapter-title';
-  chapterTitle.textContent = 'Planned module';
-
-  const copy = document.createElement('p');
-  copy.className = 'learn-copy';
-  copy.textContent = module.summary;
-
-  const source = document.createElement('p');
-  source.className = 'learn-module-source';
-  source.textContent = module.source;
-
-  const prompt = document.createElement('div');
-  prompt.className = 'learn-tutorial-message ready';
-  prompt.textContent =
-    'This parked module opens in the lesson board shell now. The board is a static preview until the authored interaction lands.';
-
-  const actions = document.createElement('div');
-  actions.className = 'learn-actions';
-  const hint = document.createElement('p');
-  hint.className = 'learn-hint';
-  hint.textContent = 'The chapter outline is in the left rail.';
-  actions.append(hint);
-
-  panel.append(eyebrow, title, chapterTitle, copy, source, prompt, actions);
-  return panel;
-}
-
-function buildLearnMenu(state: TutorialState): HTMLElement {
-  const module = moduleForChapterIndex(state.chapterIndex) ?? learnModules[0]!;
-  const menu = document.createElement('aside');
-  menu.className = 'learn-menu';
-  menu.setAttribute('aria-label', 'Learn menu');
-
-  const back = document.createElement('button');
-  back.type = 'button';
-  back.className = 'learn-menu-back';
-  back.textContent = 'All modules';
-  back.addEventListener('click', () => showLearnHome(state));
-
-  const header = document.createElement('header');
-  header.className = 'learn-menu-header';
-
-  const eyebrow = document.createElement('div');
-  eyebrow.className = 'learn-menu-eyebrow';
-  eyebrow.textContent = moduleEyebrow(module);
-
-  const title = document.createElement('h2');
-  title.textContent = module.title;
-
-  const meta = document.createElement('p');
-  meta.textContent = `${moduleChapterCount(module)} chapters`;
-
-  header.append(eyebrow, title, meta);
-
-  const chaptersList = document.createElement('ol');
-  chaptersList.className = 'learn-menu-chapters';
-  const chapterIds = module.chapterIds ?? [];
-  for (let localIndex = 0; localIndex < chapterIds.length; localIndex += 1) {
-    const chapter = chapterById(chapterIds[localIndex]!);
-    if (!chapter) continue;
-    chaptersList.append(buildMenuChapterButton(state, module, chapter, localIndex));
-  }
-
-  menu.append(back, header, chaptersList);
-  return menu;
-}
-
-function buildPanel(state: TutorialState, chapter: TutorialChapter): HTMLElement {
-  if (chapter.mode) return buildEndgamePanel(state, chapter);
-  const step = currentStep(state, chapter);
-  const panel = document.createElement('section');
-  panel.className = 'learn-panel learn-tutorial-panel';
-
-  const progress = document.createElement('div');
-  progress.className = 'learn-progress';
-  progress.textContent = chapterProgress(state.chapterIndex);
-
-  const heading = document.createElement('h1');
-  heading.className = 'learn-heading';
-  heading.textContent = chapter.lesson;
-
-  const chapterTitle = document.createElement('h2');
-  chapterTitle.className = 'learn-chapter-title';
-  chapterTitle.textContent = chapter.title;
-
-  const goal = document.createElement('p');
-  goal.className = 'learn-copy';
-  goal.textContent = chapter.goal;
-
-  const prompt = document.createElement('div');
-  prompt.className = `learn-tutorial-message ${state.status}`;
-  prompt.textContent = state.message;
-
-  const targetList = document.createElement('div');
-  targetList.className = 'learn-target-list';
-  for (const target of step.targets) {
-    const item = document.createElement('span');
-    item.textContent = target;
-    targetList.append(item);
-  }
-
-  const actions = document.createElement('div');
-  actions.className = 'learn-actions';
-
-  if (state.status === 'success') {
-    const next = document.createElement('button');
-    next.type = 'button';
-    next.className = 'landing-cta-primary';
-    next.textContent = nextChapterLabel(state.chapterIndex);
-    next.addEventListener('click', () => goNextChapter(state));
-    actions.append(next);
-  } else if (chapter.interaction === 'reveal') {
-    const reveal = document.createElement('button');
-    reveal.type = 'button';
-    reveal.className = 'landing-cta-primary';
-    reveal.textContent = 'Reveal what happened';
-    reveal.addEventListener('click', () => triggerReveal(state));
-    actions.append(reveal);
-  } else if (state.status === 'soft-failure') {
-    const retry = document.createElement('button');
-    retry.type = 'button';
-    retry.className = 'landing-cta-primary';
-    retry.textContent = 'Try again';
-    retry.addEventListener('click', () => resetChapter(state));
-    actions.append(retry);
-  } else {
-    const hint = document.createElement('p');
-    hint.className = 'learn-hint';
-    hint.textContent = step.challenge;
-    actions.append(hint);
-  }
-
-  panel.append(progress, heading, chapterTitle, goal, prompt, targetList, actions);
-  return panel;
 }
 
 function createTutorialBoard(
@@ -629,42 +425,6 @@ function currentStep(state: TutorialState, chapter: TutorialChapter): TutorialSt
   return chapter.steps[state.stepIndex] ?? chapter.steps[chapter.steps.length - 1]!;
 }
 
-function buildMenuChapterButton(
-  state: TutorialState,
-  module: LearnModule,
-  chapter: TutorialChapter,
-  localIndex: number,
-): HTMLElement {
-  const item = document.createElement('li');
-  const chapterIndex = chapters.indexOf(chapter);
-
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = `learn-menu-chapter${chapterIndex === state.chapterIndex ? ' is-current' : ''}`;
-  if (chapterIndex === state.chapterIndex) button.setAttribute('aria-current', 'step');
-
-  const index = document.createElement('span');
-  index.className = 'learn-menu-chapter-index';
-  index.textContent = String(localIndex + 1);
-
-  const text = document.createElement('span');
-  text.className = 'learn-menu-chapter-text';
-
-  const title = document.createElement('span');
-  title.className = 'learn-menu-chapter-title';
-  title.textContent = chapter.title;
-
-  const subtitle = document.createElement('span');
-  subtitle.className = 'learn-menu-chapter-subtitle';
-  subtitle.textContent = chapter.lesson === module.title ? chapter.goal : chapter.lesson;
-
-  text.append(title, subtitle);
-  button.append(index, text);
-  button.addEventListener('click', () => goToChapter(state, chapterIndex));
-  item.append(button);
-  return item;
-}
-
 function routeForModule(
   module: LearnModule,
 ): { view: 'module'; moduleId: string } | { view: 'chapter'; chapterIndex: number } {
@@ -761,14 +521,25 @@ function chapterIndexForId(id: string): number {
   return chapters.findIndex((chapter) => chapter.id === id);
 }
 
-function chapterById(id: string): TutorialChapter | null {
-  return chapters.find((chapter) => chapter.id === id) ?? null;
-}
-
 function moduleForChapterIndex(chapterIndex: number): LearnModule | null {
   const chapter = chapters[chapterIndex];
   if (!chapter) return null;
   return learnModules.find((module) => module.chapterIds?.includes(chapter.id)) ?? null;
+}
+
+function moduleChaptersForChapterIndex(
+  chapterIndex: number,
+): { chapter: TutorialChapter; localIndex: number; chapterIndex: number }[] {
+  const module = moduleForChapterIndex(chapterIndex);
+  const chapterIds = module?.chapterIds ?? [];
+  const entries: { chapter: TutorialChapter; localIndex: number; chapterIndex: number }[] = [];
+  for (let localIndex = 0; localIndex < chapterIds.length; localIndex += 1) {
+    const nextChapterIndex = chapterIndexForId(chapterIds[localIndex]!);
+    const chapter = chapters[nextChapterIndex];
+    if (!chapter) continue;
+    entries.push({ chapter, localIndex, chapterIndex: nextChapterIndex });
+  }
+  return entries;
 }
 
 function hashForChapter(chapterIndex: number): string {
@@ -798,6 +569,20 @@ function nextChapterLabel(chapterIndex: number): string {
   const nextModule = moduleForChapterIndex(nextIndex);
   if (currentModule && nextModule && currentModule.id !== nextModule.id) return 'Next module';
   return 'Next';
+}
+
+function learnPanelActions(state: TutorialState): LearnPanelActions {
+  return {
+    advanceDemo: () => advanceDemo(state),
+    chapterProgress,
+    goNextChapter: () => goNextChapter(state),
+    goToChapter: (chapterIndex) => goToChapter(state, chapterIndex),
+    nextChapterLabel,
+    resetChapter: () => resetChapter(state),
+    showLearnHome: () => showLearnHome(state),
+    supportPieceLabel,
+    triggerReveal: () => triggerReveal(state),
+  };
 }
 
 function legalDests(view: PlayerView): cg.Dests {
@@ -1274,84 +1059,4 @@ function endgameSquareClasses(view: PlayerView, chapter: TutorialChapter): cg.Sq
     }
   }
   return classes;
-}
-
-function buildEndgamePanel(state: TutorialState, chapter: TutorialChapter): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'learn-panel learn-tutorial-panel';
-
-  const progress = document.createElement('div');
-  progress.className = 'learn-progress';
-  progress.textContent = chapterProgress(state.chapterIndex);
-
-  const heading = document.createElement('h1');
-  heading.className = 'learn-heading';
-  heading.textContent = chapter.lesson;
-
-  const chapterTitle = document.createElement('h2');
-  chapterTitle.className = 'learn-chapter-title';
-  chapterTitle.textContent = chapter.title;
-
-  const goal = document.createElement('p');
-  goal.className = 'learn-copy';
-  goal.textContent = chapter.goal;
-
-  const prompt = document.createElement('div');
-  prompt.className = `learn-tutorial-message ${state.status}`;
-  prompt.textContent = state.message;
-
-  const actions = document.createElement('div');
-  actions.className = 'learn-actions';
-
-  const moves = chapter.demoMoves ?? [];
-  if (chapter.mode === 'practice') {
-    const hint = document.createElement('p');
-    hint.className = 'learn-hint';
-    hint.textContent = `Move the White king or ${supportPieceLabel(chapter.board)}. Black has no pieces and makes no reply.`;
-    const next = document.createElement('button');
-    next.type = 'button';
-    next.className = 'landing-cta-primary';
-    next.textContent = chapter.nextLabel ?? 'Next';
-    next.addEventListener('click', () => goNextChapter(state));
-    actions.append(hint, next);
-  } else if (chapter.mode === 'play' && !state.playDone) {
-    const hint = document.createElement('p');
-    hint.className = 'learn-hint';
-    const cap = chapter.playMoveCap ?? 12;
-    const prefix = state.busy ? 'Black is moving.' : (chapter.playMoveHint ?? 'Move your king.');
-    hint.textContent = `${prefix} ${state.whiteMoves} of ${cap} moves used.`;
-    actions.append(hint);
-  } else if (chapter.mode === 'superposition' && !state.playDone) {
-    const hint = document.createElement('p');
-    hint.className = 'learn-hint';
-    const flushed =
-      state.superpositionFlushed.length > 0
-        ? ` ${state.superpositionFlushed.length} connected squares revealed last move.`
-        : '';
-    hint.textContent = `Move the White king or queen. ${state.superpositionCandidates.length} candidates remain.${flushed}`;
-
-    const reset = document.createElement('button');
-    reset.type = 'button';
-    reset.className = 'landing-cta-secondary';
-    reset.textContent = 'Reset';
-    reset.addEventListener('click', () => resetChapter(state));
-    actions.append(hint, reset);
-  } else if (chapter.mode === 'demo' && state.demoIndex <= moves.length) {
-    const next = document.createElement('button');
-    next.type = 'button';
-    next.className = 'landing-cta-primary';
-    next.textContent = state.demoIndex === 0 ? 'Begin' : 'Next';
-    next.addEventListener('click', () => advanceDemo(state));
-    actions.append(next);
-  } else {
-    const next = document.createElement('button');
-    next.type = 'button';
-    next.className = 'landing-cta-primary';
-    next.textContent = chapter.nextLabel ?? 'Next';
-    next.addEventListener('click', () => goNextChapter(state));
-    actions.append(next);
-  }
-
-  panel.append(progress, heading, chapterTitle, goal, prompt, actions);
-  return panel;
 }
