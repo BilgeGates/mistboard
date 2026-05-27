@@ -12,6 +12,10 @@ function playingState(turn: 'white' | 'black' = 'white'): GameState {
   return { status: { turn, type: 'playing' } } as GameState;
 }
 
+function finishedState(): GameState {
+  return { status: { reason: 'king-captured', type: 'finished', winner: 'white' } } as GameState;
+}
+
 describe('replayClockDisplayAt', () => {
   it('uses the last event timestamp before falling back to the running clock', () => {
     const events = [{ at: 100 }, { at: 250 }] as GameEvent[];
@@ -64,6 +68,19 @@ describe('renderClockPanel', () => {
     });
 
     expect(panel.whiteTime.textContent).toBe('0.0s / 5s');
+  });
+
+  it('leaves per-move budget clocks blank after clockless games finish', () => {
+    const panel = createClockPanel();
+    setClockPanelNames(panel, meta);
+
+    renderClockPanel(panel, undefined, finishedState(), meta);
+
+    expect(panel.el.hidden).toBe(false);
+    expect(panel.whiteTime.textContent).toBe('');
+    expect(panel.blackTime.textContent).toBe('');
+    expect(panel.whiteRow.classList.contains('active')).toBe(false);
+    expect(panel.blackRow.classList.contains('active')).toBe(false);
   });
 
   it('renders real clock time using display overrides', () => {

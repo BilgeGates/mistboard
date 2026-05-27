@@ -129,17 +129,20 @@ export function renderClockPanel(
         : activeColor && thinkingBudgetMs !== null
           ? { activeColor, budgetMs: thinkingBudgetMs, elapsedMs: 0 }
           : null;
+    const showIdleThinkingBudget = state.status.type === 'playing';
     panel.whiteTime.textContent = clocklessReplayTimeLabel(
       'white',
       activeThinking,
       timeControl,
       thinkingBudgetMs,
+      showIdleThinkingBudget,
     );
     panel.blackTime.textContent = clocklessReplayTimeLabel(
       'black',
       activeThinking,
       timeControl,
       thinkingBudgetMs,
+      showIdleThinkingBudget,
     );
     renderClockRowTurn(panel, activeColor);
     renderClockRowThinking(panel, activeThinking);
@@ -194,9 +197,14 @@ function clocklessReplayTimeLabel(
   thinking: ReplayThinkingBudgetState | null,
   timeControl: string | null,
   thinkingBudgetMs: number | null,
+  showIdleThinkingBudget: boolean,
 ): string {
   if (timeControl === 'Untimed') return 'Untimed';
-  if (!thinking) return thinkingBudgetMs !== null ? formatThinkingBudget(thinkingBudgetMs) : '';
+  if (!thinking) {
+    return showIdleThinkingBudget && thinkingBudgetMs !== null
+      ? formatThinkingBudget(thinkingBudgetMs)
+      : '';
+  }
   if (color !== thinking.activeColor) return formatThinkingBudget(thinking.budgetMs);
   return `${formatThinkingElapsed(thinking.elapsedMs)} / ${formatThinkingBudget(thinking.budgetMs)}`;
 }
