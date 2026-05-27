@@ -91,6 +91,24 @@ export type LearnModule = {
 
 export const learnModules: LearnModule[] = [
   {
+    id: 'always-take-the-king',
+    group: 'Exploratory',
+    status: 'available',
+    title: 'Always Take The King',
+    summary:
+      'Build the first dark-chess reflex: if the enemy king is visible and legal to capture, take it immediately.',
+    chapterIds: [
+      'king-capture-rook-file',
+      'king-capture-bishop-diagonal',
+      'king-capture-queen-ray',
+      'king-capture-knight-jump',
+      'king-capture-pawn-eye',
+      'king-capture-king-step',
+    ],
+    cta: 'Practice king captures',
+    source: 'First dark-chess beginner lesson',
+  },
+  {
     id: 'queen-vs-king',
     group: 'WIP',
     status: 'wip',
@@ -187,23 +205,6 @@ export const learnModules: LearnModule[] = [
       'Safe square, unsafe square',
       'Unknown capture',
       'Truth reveal',
-    ],
-    cta: 'Open preview',
-    source: 'Beginner tutorial curriculum',
-  },
-  {
-    id: 'no-check-capture-king',
-    group: 'Exploratory',
-    status: 'planned',
-    title: 'No Check, Capture The King',
-    summary:
-      'Replace normal checkmate intuition with Fog rules: there may be no warning, and king capture ends the game.',
-    outlineChapters: [
-      'Check is not the signal',
-      'Find the king',
-      'Capture to win',
-      'Your king can be captured too',
-      'Race condition',
     ],
     cta: 'Open preview',
     source: 'Beginner tutorial curriculum',
@@ -500,6 +501,175 @@ export const learnModules: LearnModule[] = [
 ];
 
 export const chapters: TutorialChapter[] = [
+  {
+    id: 'king-capture-rook-file',
+    lesson: 'Always Take The King',
+    title: 'Rook on the same file',
+    goal: "The black king is in your rook's sight. Capture it now.",
+    board: {
+      e1: { color: 'white', role: 'king' },
+      h1: { color: 'white', role: 'rook' },
+      h8: { color: 'black', role: 'king' },
+    },
+    steps: [
+      {
+        teach:
+          'This is the first dark-chess reflex: if you see the enemy king and can capture it, ALWAYS take it. Start with the simple rook file.',
+        challenge: 'Capture the king on h8.',
+        targets: ['h8'],
+        afterTargets: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8'],
+        accepted: ['h1h8'],
+        softFailures: {
+          h1h7: 'Go all the way. The king is on h8, and king capture ends the game.',
+          h1h2: 'Do not spend a tempo when the king is visible. Push the rook to h8.',
+          h1h3: 'Do not improve first. Capture the king on h8 now.',
+          h1h4: 'The rule is immediate: visible king, legal capture, take it.',
+        },
+        success:
+          'Correct. The game ends as soon as the king is captured, so there is no better move than taking a visible king.',
+      },
+    ],
+  },
+  {
+    id: 'king-capture-bishop-diagonal',
+    lesson: 'Always Take The King',
+    title: 'Bishop on the diagonal',
+    goal: 'The bishop can see the black king on g8. Follow the diagonal and take it.',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      c4: { color: 'white', role: 'bishop' },
+      g8: { color: 'black', role: 'king' },
+    },
+    steps: [
+      {
+        teach:
+          'The rule is the same on diagonals. If the enemy king is on a square your bishop can reach, do not make a waiting move.',
+        challenge: 'Capture the king on g8.',
+        targets: ['g8'],
+        afterTargets: ['c4', 'd5', 'e6', 'f7', 'g8'],
+        accepted: ['c4g8'],
+        softFailures: {
+          c4f7: 'Keep going. The king is one more diagonal square away on g8.',
+          c4e6: 'The bishop already sees the king. Finish the capture on g8.',
+          c4d5: 'Do not inch forward. A visible king should be captured immediately.',
+        },
+        success:
+          'Correct. A visible king is not a threat to announce later; it is the target to remove now.',
+      },
+    ],
+  },
+  {
+    id: 'king-capture-queen-ray',
+    lesson: 'Always Take The King',
+    title: 'King over material',
+    goal: 'The queen sees a rook and a king. Ignore the material and capture the king.',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      d3: { color: 'white', role: 'queen' },
+      d8: { color: 'black', role: 'rook' },
+      h7: { color: 'black', role: 'king' },
+    },
+    steps: [
+      {
+        teach:
+          'Sometimes a normal chess move looks profitable. In dark chess, material is irrelevant if you can end the game by taking the king.',
+        challenge: 'Capture the king on h7.',
+        targets: ['h7'],
+        afterTargets: ['d3', 'e4', 'f5', 'g6', 'h7'],
+        accepted: ['d3h7'],
+        softFailures: {
+          d3d8: 'The rook can wait. Capturing the king wins immediately.',
+          d3g6: 'Keep going along the diagonal. The king is on h7.',
+          d3h3: 'Sideways pressure is too slow. The visible king on h7 is the move.',
+        },
+        success:
+          'Correct. A king capture is worth more than any material capture because it ends the game.',
+      },
+    ],
+  },
+  {
+    id: 'king-capture-knight-jump',
+    lesson: 'Always Take The King',
+    title: 'Knight jump',
+    goal: 'The knight has two captures. Choose the king.',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      f5: { color: 'white', role: 'knight' },
+      d6: { color: 'black', role: 'queen' },
+      h6: { color: 'black', role: 'king' },
+    },
+    steps: [
+      {
+        teach:
+          'Knights make the lesson easy to miss because their vision jumps. If one of those jumps lands on the king, take that square.',
+        challenge: 'Capture the king on h6.',
+        targets: ['h6'],
+        afterTargets: ['f5', 'h6'],
+        accepted: ['f5h6'],
+        softFailures: {
+          f5d6: 'The queen is tempting, but the king capture wins immediately.',
+          f5g7: 'That is legal, but it leaves a visible king on the board.',
+          f5e7: 'Do not reposition. The knight already attacks h6.',
+        },
+        success: 'Correct. The knight jump to h6 captures the king and ends the game.',
+      },
+    ],
+  },
+  {
+    id: 'king-capture-pawn-eye',
+    lesson: 'Always Take The King',
+    title: 'Pawn capture eye',
+    goal: 'The pawn sees the king diagonally. Capture it with the pawn.',
+    board: {
+      e1: { color: 'white', role: 'king' },
+      e5: { color: 'white', role: 'pawn' },
+      d6: { color: 'black', role: 'queen' },
+      f6: { color: 'black', role: 'king' },
+    },
+    steps: [
+      {
+        teach:
+          'Pawn vision is capture vision: diagonals matter. If one diagonal holds the king, that is the move.',
+        challenge: 'Capture the king on f6.',
+        targets: ['f6'],
+        afterTargets: ['e5', 'f6'],
+        accepted: ['e5f6'],
+        softFailures: {
+          e5d6: 'The queen is not the priority. The pawn can capture the king on f6.',
+          e5e6: 'Forward is legal, but it ignores the visible king. Capture on f6.',
+        },
+        success: 'Correct. Even a pawn ends the game when it captures the king.',
+      },
+    ],
+  },
+  {
+    id: 'king-capture-king-step',
+    lesson: 'Always Take The King',
+    title: 'Your king can take it too',
+    goal: 'The kings are adjacent. Capture the black king with your king.',
+    board: {
+      e4: { color: 'white', role: 'king' },
+      d5: { color: 'black', role: 'queen' },
+      e5: { color: 'black', role: 'king' },
+    },
+    steps: [
+      {
+        teach:
+          'Normal chess teaches you to think about check. Dark chess is simpler here: if your king can step onto the enemy king, take it.',
+        challenge: 'Capture the king on e5.',
+        targets: ['e5'],
+        afterTargets: ['e4', 'e5'],
+        accepted: ['e4e5'],
+        softFailures: {
+          e4d5: 'Even a queen is the wrong capture when the king is available.',
+          e4f5: 'Do not dodge away. Step onto e5 and capture the king.',
+          e4e3: 'The winning square is e5, not a safer-looking retreat.',
+        },
+        success:
+          'Correct. If the enemy king is visible and your king can capture it, the game is over.',
+      },
+    ],
+  },
   {
     id: 'tutorial-vision',
     lesson: 'Vision',

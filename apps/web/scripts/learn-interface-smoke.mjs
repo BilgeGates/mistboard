@@ -54,18 +54,50 @@ async function smokeLearnInterface() {
     const firstSection = page.locator('.learn-module-section').first();
     assert.equal(
       await firstSection.locator('.learn-module-section-header h2').textContent(),
-      'WIP',
+      'Exploratory',
     );
-    assert.equal(await firstSection.locator('.learn-module-card').count(), 3);
+    assert.equal(await firstSection.locator('.learn-module-card').count(), 21);
     assert.equal(
       await firstSection.locator('.learn-module-card h2').first().textContent(),
-      'K+Q vs K',
+      'Always Take The King',
     );
     assert.equal(
       await firstSection.locator('.learn-module-card h2').nth(1).textContent(),
+      'Dark Chess Basics',
+    );
+    await firstSection.getByRole('button', { name: 'Practice king captures' }).click();
+    await page.waitForSelector('.learn-tutorial-shell');
+    await page.waitForFunction(
+      () => window.location.hash === '#/always-take-the-king/king-capture-rook-file',
+    );
+    assert.equal(await page.locator('.learn-heading').textContent(), 'Always Take The King');
+    assert.equal(await page.locator('.learn-chapter-title').textContent(), 'Rook on the same file');
+    assert.equal(await page.locator('.learn-menu-header h2').textContent(), 'Always Take The King');
+    assert.equal(await page.locator('.learn-menu-chapter').count(), 6);
+    await dragSquare(page, 'h1', 'h8');
+    await page.waitForSelector('.learn-tutorial-message.success');
+    const kingCaptureText = await page.locator('.learn-tutorial-message.success').textContent();
+    assert.match(kingCaptureText ?? '', /no better move than taking a visible king/);
+    await page.locator('.learn-actions').getByRole('button', { name: 'Next' }).click();
+    await page.waitForFunction(
+      () =>
+        window.location.hash === '#/always-take-the-king/king-capture-bishop-diagonal' &&
+        document.querySelector('.learn-chapter-title')?.textContent === 'Bishop on the diagonal',
+    );
+    await page.locator('.learn-menu-back').click();
+    await page.waitForSelector('.learn-home-shell');
+
+    const wipSection = page.locator('.learn-module-section').filter({ hasText: 'WIP' });
+    assert.equal(await wipSection.locator('.learn-module-card').count(), 3);
+    assert.equal(
+      await wipSection.locator('.learn-module-card h2').first().textContent(),
+      'K+Q vs K',
+    );
+    assert.equal(
+      await wipSection.locator('.learn-module-card h2').nth(1).textContent(),
       'K+R vs K',
     );
-    await firstSection.getByRole('button', { name: 'Open queen endgame' }).click();
+    await wipSection.getByRole('button', { name: 'Open queen endgame' }).click();
     await page.waitForSelector('.learn-tutorial-shell');
     await page.waitForFunction(
       () => window.location.hash === '#/queen-vs-king/kqk-free-queen-vision',
@@ -109,6 +141,10 @@ async function smokeLearnInterface() {
     );
     assert.equal(
       await exploratorySection.locator('.learn-module-card h2').first().textContent(),
+      'Always Take The King',
+    );
+    assert.equal(
+      await exploratorySection.locator('.learn-module-card h2').nth(1).textContent(),
       'Dark Chess Basics',
     );
 
