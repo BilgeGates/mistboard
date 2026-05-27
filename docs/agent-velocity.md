@@ -236,6 +236,9 @@ runtime server paths remain deploy-triggering.
   data and hero POV selection live in `apps/web/src/landing-showcase.ts`.
 - Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
   startup environment reads there instead of in `apps/server/src/index.ts`.
+- Keep HTTP entry routing in `apps/server/src/server-http.ts`; `index.ts`
+  should compose the server and inject maps/functions, not own health, API,
+  OG/static, sitemap, and SPA fallback branching.
 - Keep static page rendering out of `apps/server/src/index.ts`; page-meta
   injection, article prerender fallback serving, game replay shells, and sitemap
   generation live in `apps/server/src/server-static-pages.ts`.

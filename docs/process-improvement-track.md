@@ -338,9 +338,9 @@ ownership surfaces:
    analysis toggle UI into `apps/web/src/replay-engine-panels.ts`; the next
    moved replay annotation panel/form UI into
    `apps/web/src/replay-annotations.ts`.
-8. **Continue server `index.ts` extraction.** Move static/page metadata,
-   drain-admin handling, WebSocket handling, seat-session logic, and shutdown
-   orchestration into focused modules. The first slice moved page-meta
+8. **Continue server `index.ts` extraction.** Move HTTP entry routing,
+   static/page metadata, drain-admin handling, WebSocket handling, seat-session
+   logic, and shutdown orchestration into focused modules. The first slice moved page-meta
    injection, article prerender fallback serving, game replay shells, and
    sitemap generation into `apps/server/src/server-static-pages.ts`, keeping
    `index.ts` focused on route selection and fallback behavior for those paths.
@@ -348,7 +348,10 @@ ownership surfaces:
    drain/cancel HTTP handling, rate limiting, and restart/cancel broadcasts into
    `apps/server/src/server-drain.ts`. Client WebSocket message parsing and the
    known-message allowlist now live in `apps/server/src/server-ws-messages.ts`
-   with focused parser tests.
+   with focused parser tests. HTTP entry routing now lives in
+   `apps/server/src/server-http.ts`, which owns `/health`, API context dispatch,
+   OG/static routes, robots/sitemap, article/game shell fallbacks, and SPA
+   fallback while `index.ts` injects the live server maps and room functions.
 9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
    sections, then move replay, leaderboard, account, and article CSS behind
    ownership boundaries. Initial extraction moved the engine bakeoff lab layout
@@ -379,8 +382,8 @@ ownership surfaces:
   modules owning SQL by area.
 - `live-render.ts` and `replay.ts` each have clear domain modules and a smaller
   orchestration surface.
-- `apps/server/src/index.ts` owns startup composition, not every WebSocket,
-  static-page, drain, seat, and shutdown detail.
+- `apps/server/src/index.ts` owns startup composition, not every HTTP,
+  WebSocket, static-page, drain, seat, and shutdown detail.
 - Route/dev CSS has moved out of the single global stylesheet where practical;
   lab, replay-analysis, account, profile, leaderboard, and learn CSS have
   route-owned files.

@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer, type IncomingMessage } from 'node:http';
 import {
   type Chess960Start,
   type Color,
@@ -12,17 +12,11 @@ import {
   type VariantId,
 } from '@mistboard/game';
 import pg from 'pg';
-import serveHandler from 'serve-handler';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { currentAccountUser } from './account-session.js';
 import { isPlayableLiveEngineClientId, loadEngine } from './engine-registry.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
-import {
-  type HttpApiContext,
-  handleApiRequest,
-  parseHiddenDraft960,
-  parseVariantId,
-} from './http-api.js';
+import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import {
   InternalEngineClientError,
   releaseInternalEngineReservation,
@@ -30,7 +24,6 @@ import {
 } from './internal-engine-client.js';
 import { runMigrations } from './migrate.js';
 import { engineCounters, logger, wsCounters } from './obs.js';
-import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import { snapshotPayload } from './payloads.js';
 import * as persistence from './persistence.js';
 import {
@@ -73,25 +66,18 @@ import {
 import { authorizeExistingSeat, seatsShareAuthority } from './seat-auth.js';
 import { loadServerRuntimeConfig, normalizeRoomRegion, serverConfig } from './server-config.js';
 import { createDrainController } from './server-drain.js';
+import { createHttpRequestHandler } from './server-http.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
-  isClientRoute,
   isProductionLikeRuntime,
   isServerEngineClient,
   modeForProjection,
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
-import {
-  ARTICLE_META,
-  serveArticlePage,
-  serveArticlesIndexPage,
-  serveGamePage,
-  serveSitemap,
-} from './server-static-pages.js';
 import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
 
@@ -229,7 +215,27 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
   startAbortPolicySweep();
   startStalePausedSweep();
 
-  const httpServer = createServer(handleHttpRequest);
+  const httpServer = createServer(
+    createHttpRequestHandler({
+      rooms,
+      lobbyTickets,
+      lobbyQueue,
+      databaseRequired,
+      persistenceErrors,
+      pveBuiltinEngineClientId,
+      annotationsFile,
+      liveClockInitialMs,
+      liveClockIncrementMs,
+      staticDir,
+      publicHost: serverConfig.publicHost,
+      drainController,
+      createRoom,
+      reserveLiveEngineSeat,
+      releaseLiveEngineReservation,
+      abandonRoom,
+      inMemoryGameSummary,
+    }),
+  );
   const wsServer = new WebSocketServer({ server: httpServer, maxPayload: wsMaxPayloadBytes });
   server = httpServer;
   wss = wsServer;
@@ -358,191 +364,6 @@ async function initPersistence(): Promise<void> {
   }
   persistence.init(databaseUrl);
   console.log('persistence: enabled');
-}
-
-function handleHttpRequest(request: IncomingMessage, response: ServerResponse): void {
-  const url = request.url ?? '/';
-  const pathname = url.split('?', 1)[0] ?? '/';
-
-  if (url === '/health') {
-    void (async () => {
-      const cutoff1m = Date.now() - 60_000;
-      const recent = persistenceErrors.filter((entry) => entry.at > cutoff1m);
-      const lastAt =
-        persistenceErrors.length > 0 ? persistenceErrors[persistenceErrors.length - 1]!.at : null;
-      const dbReachable = databaseRequired ? await persistence.probeDb() : true;
-      const ok = recent.length === 0 && dbReachable;
-      response.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' });
-      response.end(
-        JSON.stringify({
-          ok,
-          databaseRequired,
-          persistence: persistence.isInitialized() ? 'enabled' : 'disabled',
-          persistenceErrors: { count1m: recent.length, lastAt },
-        }),
-      );
-    })();
-    return;
-  }
-
-  if (pathname === '/admin/drain' || pathname === '/admin/drain/cancel') {
-    void drainController.handleRequest(request, response, pathname).catch((err) => {
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          kind: 'drain_handler_failure',
-          error: (err as Error).message,
-          at: Date.now(),
-        }),
-      );
-      if (!response.headersSent) {
-        response.writeHead(500, { 'content-type': 'application/json' });
-        response.end(JSON.stringify({ error: 'internal_error' }));
-      }
-    });
-    return;
-  }
-
-  if (url.startsWith('/api/')) {
-    const apiCtx: HttpApiContext = {
-      rooms,
-      lobbyTickets,
-      lobbyQueue,
-      databaseRequired,
-      pveBuiltinEngineClientId,
-      annotationsFile,
-      liveClockInitialMs,
-      liveClockIncrementMs,
-      createRoom,
-      reserveLiveEngineSeat,
-      releaseLiveEngineReservation,
-      abandonRoom,
-      inMemoryGameSummary,
-      isDraining: drainController.isDraining,
-      drainDeadlineMs: drainController.drainDeadlineMs,
-      activeGameCount: drainController.activeGameCount,
-    };
-    void handleApiRequest(apiCtx, request, response).catch((err) => {
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          kind: 'api_handler_failure',
-          url,
-          error: (err as Error).message,
-          at: Date.now(),
-        }),
-      );
-      if (!response.headersSent) {
-        response.writeHead(500, { 'content-type': 'application/json' });
-        response.end(JSON.stringify({ error: 'internal_error' }));
-      }
-    });
-    return;
-  }
-
-  const ogImageMatch = pathname.match(/^\/og\/game\/([^/]+)\.png$/);
-  if (ogImageMatch && persistence.isInitialized()) {
-    const roomId = decodeURIComponent(ogImageMatch[1]!);
-    void serveGameOgImage(roomId, response).catch((err) => {
-      console.warn('og image render failed', (err as Error).message);
-      if (!response.headersSent) {
-        response.writeHead(302, { location: '/og-image.png' });
-        response.end();
-      }
-    });
-    return;
-  }
-
-  const articleOgMatch = pathname.match(/^\/og\/article\/([^/]+)\.png$/);
-  if (articleOgMatch) {
-    const slug = decodeURIComponent(articleOgMatch[1]!);
-    const meta = ARTICLE_META[slug];
-    try {
-      if (meta) {
-        serveArticleOgImage(slug, meta.title, response);
-      } else {
-        response.writeHead(302, { location: '/og-image.png' });
-        response.end();
-      }
-    } catch (err) {
-      console.warn('article og render failed', (err as Error).message);
-      if (!response.headersSent) {
-        response.writeHead(302, { location: '/og-image.png' });
-        response.end();
-      }
-    }
-    return;
-  }
-
-  if (pathname === '/robots.txt') {
-    const host = serverConfig.publicHost;
-    response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
-    response.end(`User-agent: *\nAllow: /\nSitemap: ${host}/sitemap.xml\n`);
-    return;
-  }
-
-  if (pathname === '/sitemap.xml') {
-    void serveSitemap({
-      response,
-      publicHost: serverConfig.publicHost,
-      staticDir,
-    }).catch(() => {
-      response.writeHead(500);
-      response.end();
-    });
-    return;
-  }
-
-  const gameRouteMatch = pathname.match(/^\/game\/([^/]+)$/);
-  if (gameRouteMatch && persistence.isInitialized()) {
-    const roomId = decodeURIComponent(gameRouteMatch[1]!);
-    void serveGamePage({
-      roomId,
-      response,
-      publicHost: serverConfig.publicHost,
-      staticDir,
-    }).catch(() => {
-      request.url = '/';
-      void serveHandler(request, response, { public: staticDir });
-    });
-    return;
-  }
-
-  // Optional language prefix: /zh-hans/articles/<slug>, /zh-hant/articles/<slug>.
-  const articleRouteMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/articles\/([^/]+)$/);
-  if (articleRouteMatch) {
-    const langPrefix = articleRouteMatch[1]; // 'zh-hans' | 'zh-hant' | undefined
-    const slug = decodeURIComponent(articleRouteMatch[2]!);
-    void serveArticlePage({
-      slug,
-      response,
-      publicHost: serverConfig.publicHost,
-      staticDir,
-      langPrefix,
-    }).catch(() => {
-      request.url = '/';
-      void serveHandler(request, response, { public: staticDir });
-    });
-    return;
-  }
-
-  if (pathname === '/articles') {
-    void serveArticlesIndexPage({
-      response,
-      publicHost: serverConfig.publicHost,
-      staticDir,
-    }).catch(() => {
-      request.url = '/';
-      void serveHandler(request, response, { public: staticDir });
-    });
-    return;
-  }
-
-  if (isClientRoute(pathname)) {
-    request.url = '/';
-  }
-
-  void serveHandler(request, response, { public: staticDir });
 }
 
 // ── SECTION: WebSocket connection handling ─────────────────────────────────
