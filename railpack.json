@@ -5,6 +5,7 @@
     "node": "22",
     "python": "3.11"
   },
+  "buildAptPackages": ["git"],
   "steps": {
     "build": {
       "commands": [
