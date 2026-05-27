@@ -412,6 +412,8 @@ ownership surfaces:
    unused landing leaderboard panel CSS, reducing the global stylesheet by
    another 1,278 lines. The latest slice moved `/watch` route styles into
    `apps/web/src/watch-route.css`, reducing `landing.css` by another 476 lines.
+   The next slice moved public game-review route styles into
+   `apps/web/src/game-route.css`, reducing `landing.css` by another 367 lines.
 10. **Split learn route ownership.** Keep `apps/web/src/learn.ts` focused on
     route mounting, rendering, board, and interaction logic. Static module and
     chapter curriculum data now lives in `apps/web/src/learn-content.ts`, which
@@ -557,15 +559,15 @@ npm run agent:scan
    Avoid `apps/server/src/engines/registry.ts` while active engine work is
    dirty.
 
-4. **Split remaining large web surfaces.** Current scan after the watch-route
-   split reports `apps/web/src/styles.css` (~3,933 lines),
-   `apps/web/src/landing.css` (~1,600), `apps/web/src/learn.ts` (~1,589),
-   `apps/web/src/replay.ts` (~1,384), and `apps/web/src/landing-play.ts`
+4. **Split remaining large web surfaces.** Current scan after the game-route
+   CSS split reports `apps/web/src/styles.css` (~3,933 lines),
+   `apps/web/src/learn.ts` (~1,589), `apps/web/src/replay.ts` (~1,384),
+   `apps/web/src/landing.css` (~1,233), and `apps/web/src/landing-play.ts`
    (~1,094) as the largest web navigation costs. `landing.ts` is down to about
-   289 lines and should stay a route coordinator rather than regain setup/lobby
-   or watch ownership. The next meaningful web velocity slice is likely
-   `landing-play.ts` sub-splitting only when changing play setup behavior, or a
-   separate `replay.ts`/`learn.ts` ownership pass.
+   289 lines and should stay a route coordinator rather than regain setup/lobby,
+   watch, or game-route ownership. The next meaningful web velocity slice is
+   likely `landing-play.ts` sub-splitting only when changing play setup
+   behavior, or a separate `replay.ts`/`learn.ts` ownership pass.
 
 5. **Expand fixture ownership where it reduces churn.** Server builders now
    cover the core room/payload shapes. Add web/live/replay fixture helpers only

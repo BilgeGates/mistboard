@@ -1,5 +1,6 @@
 import type { GameEvent } from '@mistboard/game';
 import './landing.css';
+import './game-route.css';
 import { isLikelySignedIn, loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { mountArticleThumbnails } from './articles.js';
 import { buildContact } from './contact.js';
