@@ -1,5 +1,4 @@
 import './learn.css';
-import './site-shell.css';
 import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-render/interactive';
 import {
   type Board,
@@ -16,15 +15,20 @@ import {
   type ChapterStatus,
   chapters,
   type LearnModule,
-  type LearnModuleGroup,
   learnModules,
   type TutorialChapter,
   type TutorialStep,
   type Uci,
 } from './learn-content.js';
-import { primaryNavItems, utilityNavItems } from './nav-items.js';
+import {
+  buildLearnHome,
+  moduleChapterCount,
+  moduleChapterTitles,
+  moduleEyebrow,
+  moduleStatusLabel,
+} from './learn-home.js';
+import { buildFooter, buildNav } from './site-shell.js';
 
-const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 const boardFiles = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 
 export function mountLearn(root: HTMLElement): void {
@@ -95,7 +99,9 @@ function render(state: TutorialState): void {
 
   if (state.view === 'home') {
     shell.className = 'learn-shell learn-home-shell';
-    shell.replaceChildren(buildLearnHome(state));
+    shell.replaceChildren(
+      buildLearnHome({ onOpenModule: (moduleId) => openModule(state, moduleId) }),
+    );
     state.api = null;
     state.boardEl = null;
     return;
@@ -122,108 +128,6 @@ function render(state: TutorialState): void {
   state.boardEl = boardEl;
   state.api = createTutorialBoard(boardEl, view, chapter, state);
   updateBoard(state, chapter, view);
-}
-
-function buildLearnHome(state: TutorialState): HTMLElement {
-  const page = document.createElement('section');
-  page.className = 'learn-home';
-  page.setAttribute('aria-labelledby', 'learn-home-title');
-
-  const intro = document.createElement('div');
-  intro.className = 'learn-home-intro';
-
-  const eyebrow = document.createElement('div');
-  eyebrow.className = 'learn-progress';
-  eyebrow.textContent = 'Learning modules';
-
-  const title = document.createElement('h1');
-  title.id = 'learn-home-title';
-  title.className = 'learn-heading';
-  title.textContent = 'Learn dark chess';
-
-  const copy = document.createElement('p');
-  copy.className = 'learn-copy';
-  copy.textContent =
-    'Short interactive modules for the parts of dark chess that normal chess does not teach: vision, hidden moves, king capture, and information mistakes.';
-
-  intro.append(eyebrow, title, copy);
-
-  const grid = document.createElement('div');
-  grid.className = 'learn-module-grid';
-  for (const group of moduleGroups()) {
-    grid.append(buildLearnModuleSection(state, group));
-  }
-
-  page.append(intro, grid);
-  return page;
-}
-
-function buildLearnModuleSection(state: TutorialState, group: LearnModuleGroup): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'learn-module-section';
-
-  const header = document.createElement('div');
-  header.className = 'learn-module-section-header';
-
-  const title = document.createElement('h2');
-  title.textContent = group;
-
-  const count = document.createElement('span');
-  const modules = modulesForGroup(group);
-  count.textContent = `${modules.length} ${modules.length === 1 ? 'module' : 'modules'}`;
-
-  header.append(title, count);
-
-  const list = document.createElement('div');
-  list.className = 'learn-module-section-list';
-  for (const module of modules) {
-    list.append(buildLearnModuleCard(state, module));
-  }
-
-  section.append(header, list);
-  return section;
-}
-
-function buildLearnModuleCard(state: TutorialState, module: LearnModule): HTMLElement {
-  const card = document.createElement('article');
-  card.className = `learn-module-card is-${module.status}`;
-
-  const number = document.createElement('div');
-  number.className = 'learn-module-number';
-  number.textContent = moduleNumberLabel(module);
-
-  const body = document.createElement('div');
-  body.className = 'learn-module-body';
-
-  const top = document.createElement('div');
-  top.className = 'learn-module-top';
-
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'learn-module-eyebrow';
-  eyebrow.textContent = moduleEyebrow(module);
-
-  const meta = document.createElement('span');
-  meta.className = 'learn-module-meta';
-  meta.textContent = `${moduleChapterCount(module)} chapters · ${moduleStatusLabel(module)}`;
-
-  top.append(eyebrow, meta);
-
-  const title = document.createElement('h2');
-  title.textContent = module.title;
-
-  const copy = document.createElement('p');
-  copy.textContent = module.summary;
-
-  const action = document.createElement('button');
-  action.type = 'button';
-  action.className =
-    module.status === 'available' ? 'landing-cta-primary' : 'landing-cta-secondary';
-  action.textContent = module.status === 'planned' ? 'Open preview' : module.cta;
-  action.addEventListener('click', () => openModule(state, module.id));
-
-  body.append(top, title, copy, action);
-  card.append(number, body);
-  return card;
 }
 
 function renderPlannedModule(state: TutorialState): void {
@@ -759,45 +663,6 @@ function buildMenuChapterButton(
   button.addEventListener('click', () => goToChapter(state, chapterIndex));
   item.append(button);
   return item;
-}
-
-function modulesForGroup(group: LearnModuleGroup): LearnModule[] {
-  return learnModules.filter((module) => module.group === group);
-}
-
-function moduleGroups(): LearnModuleGroup[] {
-  const groups: LearnModuleGroup[] = [];
-  for (const module of learnModules) {
-    if (!groups.includes(module.group)) groups.push(module.group);
-  }
-  return groups;
-}
-
-function moduleNumberLabel(module: LearnModule): string {
-  return String(learnModules.indexOf(module) + 1).padStart(2, '0');
-}
-
-function moduleEyebrow(module: LearnModule): string {
-  return `Module ${learnModules.indexOf(module) + 1}`;
-}
-
-function moduleStatusLabel(module: LearnModule): string {
-  if (module.status === 'available') return 'Playable';
-  if (module.status === 'wip') return 'WIP';
-  return 'Planned';
-}
-
-function moduleChapterTitles(module: LearnModule): string[] {
-  if (module.chapterIds) {
-    return module.chapterIds
-      .map((chapterId) => chapterById(chapterId)?.title)
-      .filter((title): title is string => Boolean(title));
-  }
-  return module.outlineChapters ?? [];
-}
-
-function moduleChapterCount(module: LearnModule): number {
-  return moduleChapterTitles(module).length;
 }
 
 function routeForModule(
@@ -1489,102 +1354,4 @@ function buildEndgamePanel(state: TutorialState, chapter: TutorialChapter): HTML
 
   panel.append(progress, heading, chapterTitle, goal, prompt, actions);
   return panel;
-}
-
-function buildNav(): HTMLElement {
-  const nav = document.createElement('nav');
-  nav.className = 'site-nav';
-  nav.setAttribute('aria-label', 'Primary');
-
-  const brand = document.createElement('a');
-  brand.className = 'site-nav-brand';
-  brand.href = '/';
-
-  const brandLogo = document.createElement('img');
-  brandLogo.className = 'site-nav-logo';
-  brandLogo.src = '/logo.svg';
-  brandLogo.alt = '';
-  brandLogo.width = 28;
-  brandLogo.height = 28;
-
-  const brandText = document.createElement('span');
-  brandText.textContent = 'MISTBOARD';
-  brand.append(brandLogo, brandText);
-
-  const links = document.createElement('div');
-  links.className = 'site-nav-links';
-  for (const item of primaryNavItems()) {
-    links.append(navLink(item.label, item.href));
-  }
-
-  const utilities = document.createElement('div');
-  utilities.className = 'site-nav-utilities';
-  for (const item of utilityNavItems()) {
-    utilities.append(navLink(item.label, item.href));
-  }
-  utilities.append(navLink('Account', '/account'));
-
-  nav.append(brand, links, utilities);
-  return nav;
-}
-
-function navLink(label: string, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.href = href;
-  link.className = 'site-nav-link';
-  link.textContent = label;
-  if (currentPath() === href) {
-    link.classList.add('active');
-    link.setAttribute('aria-current', 'page');
-  }
-  return link;
-}
-
-function currentPath(): string {
-  return window.location.pathname.replace(/\/+$/, '') || '/';
-}
-
-function buildFooter(): HTMLElement {
-  const footer = document.createElement('footer');
-  footer.className = 'site-footer';
-
-  const left = document.createElement('div');
-  left.className = 'site-footer-left';
-  left.textContent = '© 2026 Mistboard';
-
-  const right = document.createElement('div');
-  right.className = 'site-footer-right';
-
-  const license = document.createElement('span');
-  license.textContent = 'AGPL-3.0';
-
-  const sep = document.createElement('span');
-  sep.className = 'site-footer-sep';
-  sep.textContent = '·';
-
-  const about = document.createElement('a');
-  about.href = '/about';
-  about.textContent = 'About';
-
-  const sep2 = document.createElement('span');
-  sep2.className = 'site-footer-sep';
-  sep2.textContent = '·';
-
-  const gh = document.createElement('a');
-  gh.href = GITHUB_URL;
-  gh.target = '_blank';
-  gh.rel = 'noreferrer noopener';
-  gh.textContent = 'GitHub';
-
-  const source = document.createElement('a');
-  source.href = '/source';
-  source.textContent = 'Source';
-
-  const sep3 = document.createElement('span');
-  sep3.className = 'site-footer-sep';
-  sep3.textContent = '·';
-
-  right.append(license, sep, about, sep2, source, sep3, gh);
-  footer.append(left, right);
-  return footer;
 }
