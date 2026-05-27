@@ -25,7 +25,7 @@ import {
 import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
 import { files, isColor } from './web-utils.js';
 
-const SOUND_MASTER_GAIN = 4;
+const SOUND_MASTER_GAIN = 5.5;
 
 let sound: SoundController | null = null;
 let lastSoundEventCount: number | null = null;
