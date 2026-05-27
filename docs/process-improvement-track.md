@@ -363,7 +363,11 @@ ownership surfaces:
    engine reservation create/release, hydrated PvE engine-seat detection, and
    legacy engine-id normalization now live in
    `apps/server/src/server-live-engine-reservations.ts`, keeping the entrypoint
-   out of engine-worker protocol details.
+   out of engine-worker protocol details. The latest slice moved the WebSocket
+   connection handshake, message dispatch, rate limiting, debug auth, rematch
+   messages, and close handling into `apps/server/src/server-ws-connection.ts`,
+   with `index.ts` injecting room lifecycle/game-flow callbacks so canonical
+   room ownership stays in one place.
 9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
    sections, then move replay, leaderboard, account, and article CSS behind
    ownership boundaries. Initial extraction moved the engine bakeoff lab layout
@@ -475,12 +479,16 @@ progress. Continue from isolated worktrees._
    that typecheck or execute workspace consumers build the shared game and
    board-render packages locally instead of depending on build artifacts left by
    a previous serial step; the unit-test job also builds the server because the
-   delta websocket unit tests spawn `apps/server/dist/main.js`.
+   delta websocket unit tests spawn `apps/server/dist/main.js`. Released at
+   `6d7203a`: local `ci:quick` was 16.7s, hosted CI passed in roughly 1m18s
+   from run creation to aggregate `node`, and the longest hosted jobs were
+   server integration (~68s), browser smoke when required (~50s), unit tests
+   (~36s), typecheck (~33s), and build (~30s).
 
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
-   1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
-   and live-engine reservation boundaries moved out. The next high-leverage
-   seams are WebSocket connection/message handling and room hydration/creation.
+   1,144 lines after HTTP routing, seat/session handling, lifecycle cleanup,
+   live-engine reservation boundaries, and WebSocket edge handling moved out.
+   The next high-leverage seam is room hydration/creation.
    Avoid `apps/server/src/engines/registry.ts` while active engine work is
    dirty.
 

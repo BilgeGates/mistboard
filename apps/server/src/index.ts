@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { createServer, type IncomingMessage } from 'node:http';
+import { createServer } from 'node:http';
 import {
   type Chess960Start,
   type Color,
@@ -12,44 +12,27 @@ import {
   type VariantId,
 } from '@mistboard/game';
 import pg from 'pg';
-import { type WebSocket, WebSocketServer } from 'ws';
-import { currentAccountUser } from './account-session.js';
-import { gateGameSpecRequest } from './game-spec-request-gate.js';
-import { parseHiddenDraft960, parseVariantId } from './http-api.js';
+import { WebSocketServer } from 'ws';
 import { runMigrations } from './migrate.js';
-import { logger, wsCounters } from './obs.js';
-import { snapshotPayload } from './payloads.js';
 import * as persistence from './persistence.js';
-import {
-  cancelRematch,
-  declineRematch,
-  finalizeRematchIfReady,
-  maybeReplayRematchRedirect,
-  offerRematch,
-  type RematchOrchestrator,
-} from './rematch.js';
+import type { RematchOrchestrator } from './rematch.js';
 import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import {
   appendEvent,
   applyOrphanRecoveryIfNeeded,
   broadcastEventAppended,
-  broadcastSnapshot,
   buildGameSummary,
   canClientAct,
   offerForColor,
   PersistenceFailure,
   persistSeatToken,
-  playMove,
   type RoomManagerContext,
   resolveStartIfReady,
   resumeRoom,
-  resumeRoomIfReady,
   roomIdToSeed,
   scheduleAbortTimeout,
   scheduleClockTimeout,
-  scheduleForfeitTimeout,
   scheduleRandomEngineMove,
-  seatDisplayNamesForRoom,
   seatTokenStatesFromPersistence,
   selectEngineDraftStart,
 } from './room-manager.js';
@@ -71,24 +54,14 @@ import {
   reserveHydratedLiveEngineSeat,
   reserveLiveEngineSeat,
 } from './server-live-engine-reservations.js';
+import { modeForProjection } from './server-policy.js';
+import { hashSeatToken, verifySeatToken } from './server-seat-session.js';
+import type { Client, LobbyTicket, Room, SeatTokenState } from './server-types.js';
 import {
-  adminDebugTokenFromProtocolHeader,
-  canObserveLiveRoom,
-  isAdminDebugToken,
-  isAllowedWebSocketOrigin,
-  isProductionLikeRuntime,
-  modeForProjection,
-  recordMessageTimestamp,
-  seatTokenFromProtocolHeader,
-} from './server-policy.js';
-import {
-  assignSeat,
-  displaceOlderSeatClients,
-  hashSeatToken,
-  verifySeatToken,
-} from './server-seat-session.js';
-import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
-import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
+  handleWebSocketConnection,
+  isAllowedWebSocketRequest,
+  type WebSocketConnectionContext,
+} from './server-ws-connection.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -96,13 +69,14 @@ import { isKnownClientMessageType, parseClientMessage } from './server-ws-messag
 // Room game flow         → ./room-manager.ts       (playMove, appendEvent, broadcastSnapshot, scheduleClockTimeout, etc.)
 // Static page helpers    → ./server-static-pages.ts (page meta, article shells, sitemap)
 // Drain/admin HTTP       → ./server-drain.ts       (drain state, deadline, broadcast)
+// WS connection handling → ./server-ws-connection.ts (handshake, dispatch, close handling)
 // WS message parsing     → ./server-ws-messages.ts (client message parser and allowlist)
 // Seat/session handling  → ./server-seat-session.ts (seat assignment, tokens, displacement)
 // Server lifecycle       → ./server-lifecycle.ts   (shutdown pause, timer/socket/server cleanup)
 // Engine reservations    → ./server-live-engine-reservations.ts (live engine seat holds)
 // SECTION: Types and constants          (~line 90)    module-scope maps and config constants
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
-// SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
+// SECTION: Room lifecycle              (~line 230)   getOrCreateRoom, createRoom, abort/stale sweeps
 // SECTION: Game flow                    (~line 700)   enableRandomEngine, selectStart
 // SECTION: Room event infrastructure    (~line 760)   inMemoryGameSummary, recordPersistenceError, resetRoom
 // SECTION: Helpers and shutdown         (~line 810)   send, isColor, roomCreatedDraftOfferFields, shutdown
@@ -189,6 +163,24 @@ const rematchOrch: RematchOrchestrator = {
   },
 };
 
+const wsConnectionCtx: WebSocketConnectionContext = {
+  roomMgrCtx,
+  rematchOrch,
+  defaultRoomRegion,
+  wsMessageLimit,
+  wsMessageWindowMs,
+  clearPendingVacate,
+  enableRandomEngine,
+  getOrCreateRoom,
+  handleAbort,
+  handleResign,
+  isAbortedRoom,
+  resetRoom,
+  scheduleSeatVacate,
+  selectStart,
+  send,
+};
+
 // ── SECTION: startServer (module side-effect-free until called) ────────────
 //
 // All side effects (DB init, listener, intervals, signal handlers) live inside
@@ -256,7 +248,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
       socket.close(1008, 'origin not allowed');
       return;
     }
-    void handleConnection(socket, request).catch((err) => {
+    void handleWebSocketConnection(wsConnectionCtx, socket, request).catch((err) => {
       console.error(
         JSON.stringify({
           level: 'error',
@@ -357,247 +349,7 @@ async function initPersistence(): Promise<void> {
   console.log('persistence: enabled');
 }
 
-// ── SECTION: WebSocket connection handling ─────────────────────────────────
-async function handleConnection(socket: WebSocket, request: IncomingMessage): Promise<void> {
-  const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
-  const roomId = url.searchParams.get('room') ?? 'dev-room';
-  const gameSpecGate = gateGameSpecRequest({
-    gameSpecId: url.searchParams.get('gameSpecId'),
-    variant: url.searchParams.get('variant'),
-  });
-  if (gameSpecGate.type === 'reject') {
-    socket.close(1008, gameSpecGate.wsCloseReason);
-    return;
-  }
-  if (url.searchParams.get('reset') === '1') resetRoom(roomId, 'manual-reset');
-  if (await isAbortedRoom(roomId)) {
-    socket.close(1008, 'room aborted');
-    return;
-  }
-  const devMode = url.searchParams.get('dev');
-  const solo = devMode === 'solo';
-  const randomEngine = devMode === 'engine' || url.searchParams.get('engine') === 'random';
-  const debugRequested = randomEngine || url.searchParams.get('views') === 'all';
-  const devViews = debugRequested && isDebugViewAuthorized(request);
-  const accountUser = await currentAccountUser(request);
-  const room = await getOrCreateRoom(
-    roomId,
-    parseVariantId(url.searchParams.get('variant')),
-    parseHiddenDraft960(url.searchParams.get('hiddenDraft960') ?? url.searchParams.get('draft960')),
-  );
-  if (randomEngine) await enableRandomEngine(room);
-  const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
-  const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
-  const assignment = solo
-    ? ({ seat: 'spectator' } satisfies SeatAssignment)
-    : await assignSeat(roomMgrCtx, room, clientId, seatToken, accountUser);
-  const seat = assignment.seat;
-  if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection)) {
-    socket.close(1008, 'private room');
-    return;
-  }
-  const client: Client = {
-    debugRequested,
-    devViews,
-    id: clientId,
-    messageTimestamps: [],
-    socket,
-    roomId,
-    seat,
-    seatTokenHash: assignment.seatTokenHash,
-    userId: accountUser?.id ?? null,
-    displaced: false,
-    solo,
-  };
-  room.clients.add(client);
-  if (!solo && seat !== 'spectator') {
-    displaceOlderSeatClients(room, client);
-    clearPendingVacate(room, seat);
-    // A returning seat-holder re-derives the forfeit countdown: if this brings
-    // both sides present, the leaver's forfeit is cancelled. Runs after the
-    // auth gate (assignSeat) has already granted a color seat, so an
-    // unauthenticated client never reaches here as a seat-holder.
-    scheduleForfeitTimeout(roomMgrCtx, room);
-  }
-
-  // If the room is paused (post-restart hydration), let resumeRoomIfReady
-  // decide whether resume is appropriate — it knows the mode-specific rules
-  // (PvP needs both humans, PvE needs the human, EvE auto-resumes on any
-  // connection). Safe to call for spectators too; it short-circuits when seats
-  // aren't satisfied.
-  if (room.projection.paused && !solo) {
-    try {
-      const resumed = await resumeRoomIfReady(roomMgrCtx, room, Date.now());
-      if (resumed) {
-        scheduleClockTimeout(roomMgrCtx, room);
-        scheduleAbortTimeout(roomMgrCtx, room);
-        scheduleRandomEngineMove(roomMgrCtx, room);
-      }
-    } catch (err) {
-      if (!(err instanceof PersistenceFailure)) {
-        console.error(
-          JSON.stringify({
-            level: 'error',
-            kind: 'resume_on_connect_failure',
-            roomId: room.id,
-            error: (err as Error).message,
-            at: Date.now(),
-          }),
-        );
-      }
-    }
-  }
-
-  const snapshot = snapshotPayload(
-    { ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) },
-    client,
-  );
-  send(client, {
-    ...snapshot,
-    type: 'hello',
-    clientId: client.id,
-    offer: snapshot.offer,
-    ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
-  });
-  broadcastSnapshot(roomMgrCtx, room);
-  maybeReplayRematchRedirect(rematchOrch, room, client);
-
-  socket.on('message', (raw) => {
-    if (!recordClientMessage(client)) {
-      socket.close(1008, 'rate limit');
-      return;
-    }
-    void handleMessage(room, client, raw.toString());
-  });
-
-  socket.on('close', () => {
-    void handleClose(room, client);
-  });
-}
-
-async function handleMessage(room: Room, client: Client, raw: string): Promise<void> {
-  const message = parseClientMessage(raw);
-  if (!message) {
-    wsCounters.recordParseFailure();
-    return;
-  }
-  if (!isKnownClientMessageType(message.type)) {
-    wsCounters.recordUnknownMessage();
-    logger.warn(
-      {
-        kind: 'ws_unknown_message',
-        room_id: room.id,
-        client_id: client.id,
-        message_type: message.type,
-      },
-      'ws unknown message',
-    );
-    return;
-  }
-  try {
-    if (message.type === 'ping') {
-      send(client, {
-        type: 'pong',
-        at: typeof message.at === 'number' ? message.at : Date.now(),
-        serverAt: Date.now(),
-      });
-      return;
-    }
-    if (message.type === 'latency-sample') {
-      if (typeof message.rttMs === 'number' && Number.isFinite(message.rttMs)) {
-        const rttMs = Math.max(0, Math.min(60_000, Math.round(message.rttMs)));
-        wsCounters.recordLatencySample(room.region ?? defaultRoomRegion, rttMs);
-      }
-      return;
-    }
-    if (message.type === 'admin-debug-auth') {
-      handleAdminDebugAuth(
-        room,
-        client,
-        typeof message.token === 'string' ? message.token : undefined,
-      );
-      return;
-    }
-    if (message.type === 'snapshot:request') {
-      // Delta-mode recovery channel. The client is already authenticated to
-      // this room via the WS connect handshake (canObserveLiveRoom + seat
-      // token); we inherit that auth here rather than re-deriving it.
-      wsCounters.recordSnapshotRequest();
-      send(
-        client,
-        snapshotPayload(
-          { ...room, seatDisplayNames: seatDisplayNamesForRoom(room, roomMgrCtx) },
-          client,
-        ),
-      );
-      return;
-    }
-    if (message.type === 'select-start') {
-      await selectStart(room, client, message.startId, message.color);
-    }
-    if (
-      message.type === 'move' &&
-      typeof message.from === 'string' &&
-      typeof message.to === 'string'
-    ) {
-      await playMove(roomMgrCtx, room, client, {
-        type: 'move',
-        from: message.from,
-        to: message.to,
-        promotion: message.promotion,
-      });
-    }
-    if (message.type === 'resign') {
-      await handleResign(room, client);
-    }
-    if (message.type === 'abort') {
-      await handleAbort(room, client);
-    }
-    if (message.type === 'rematch:offer') {
-      offerRematch(rematchOrch, room, client);
-      await finalizeRematchIfReady(rematchOrch, room);
-    }
-    if (message.type === 'rematch:cancel') {
-      cancelRematch(rematchOrch, room, client);
-    }
-    if (message.type === 'rematch:decline') {
-      declineRematch(rematchOrch, room, client);
-    }
-  } catch (err) {
-    if (err instanceof PersistenceFailure) {
-      send(client, { type: 'error', reason: 'persistence_failure' });
-      return;
-    }
-    throw err;
-  }
-}
-
-async function handleClose(room: Room, client: Client): Promise<void> {
-  room.clients.delete(client);
-  if (client.displaced) {
-    broadcastSnapshot(roomMgrCtx, room);
-    return;
-  }
-  const beforeFirstMove =
-    room.projection.state.moveNumber === 1 && room.projection.state.lastMove === undefined;
-  const clockStarted = room.projection.state.clock !== undefined;
-  if (
-    (room.projection.state.status.type === 'pregame' || beforeFirstMove) &&
-    !clockStarted &&
-    client.seat !== 'spectator' &&
-    room.projection.seats[client.seat] === client.id
-  ) {
-    scheduleSeatVacate(room, client);
-  }
-  // Post-move-1, a seated player leaving starts (or, if the opponent also just
-  // left, clears) the forfeit countdown. Re-derived from current presence —
-  // the disconnecting client was already removed from room.clients above. The
-  // displaced early-out higher up means a same-account device switch never
-  // reaches here, so it can't trigger a phantom forfeit.
-  scheduleForfeitTimeout(roomMgrCtx, room);
-  broadcastSnapshot(roomMgrCtx, room);
-}
-
+// ── SECTION: Room lifecycle ────────────────────────────────────────────────
 const SEAT_VACATE_GRACE_MS_DEFAULT = serverConfig.seatVacateGraceMs;
 
 function seatVacateGraceMs(): number {
@@ -1266,11 +1018,6 @@ function isColor(value: string | undefined): value is Color {
   return value === 'white' || value === 'black';
 }
 
-function parseClientId(value: string | null): string | null {
-  if (!value) return null;
-  return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
-}
-
 function roomCreatedDraftOfferFields(
   roomId: string,
   variant: VariantId,
@@ -1305,39 +1052,6 @@ function engineDraftSelectionEvent(
     color: 'black',
     startId: start.id,
   };
-}
-
-function handleAdminDebugAuth(room: Room, client: Client, token: string | undefined): void {
-  if (!client.debugRequested) {
-    send(client, { type: 'error', reason: 'debug_not_requested' });
-    return;
-  }
-  if (!isAdminDebugToken(token)) {
-    send(client, { type: 'error', reason: 'debug_unauthorized' });
-    return;
-  }
-  client.devViews = true;
-  send(client, snapshotPayload(room, client));
-}
-
-function isDebugViewAuthorized(request: IncomingMessage): boolean {
-  if (!isProductionLikeRuntime()) return true;
-  return isAdminDebugToken(
-    adminDebugTokenFromProtocolHeader(request.headers['sec-websocket-protocol']),
-  );
-}
-
-function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
-  return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
-}
-
-function recordClientMessage(client: Client): boolean {
-  return recordMessageTimestamp(
-    client.messageTimestamps,
-    Date.now(),
-    wsMessageLimit,
-    wsMessageWindowMs,
-  );
 }
 
 // Arm a one-shot timer that force-resumes a paused room after the grace
