@@ -38,6 +38,10 @@ lab-exports/
 # a worktree or reusing the save dir. See docs/fog-of-war/engine-lab-loop.md.
 apps/web/public/bakeoff-*
 
+# Belief-replay captures (engine-v2 belief-set enumeration) are engine internals.
+# Kept local-only for the gated ?belief= viewer; slated to move to mistboard-engine.
+apps/web/public/belief-replays/
+
 # Tournament run output dirs (timestamped per-run game logs + manifests,
 # multi-MB each). Local-only artifact; archive/inventory meaningful runs before
 # cleanup.

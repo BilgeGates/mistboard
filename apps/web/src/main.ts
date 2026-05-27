@@ -90,12 +90,18 @@ const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 
 if (beliefParam) {
+  // Engine-internals viewer: gated like the bakeoff lab so it never serves
+  // belief-set enumeration data on the public site. DEV (or VITE_ENABLE_ENGINE_LAB)
+  // only; otherwise 404. Slated to move into the private mistboard-engine repo.
   setTitle('Belief replay');
-  void mountOrReport(() =>
-    import('./belief-replay.js').then(({ mountBeliefReplay }) =>
-      mountBeliefReplay(appRoot, beliefParam),
-    ),
-  );
+  void mountOrReport(async () => {
+    if (!engineLabEnabled || !(await canOpenLab())) {
+      renderNotFound(appRoot);
+      return;
+    }
+    const { mountBeliefReplay } = await import('./belief-replay.js');
+    await mountBeliefReplay(appRoot, beliefParam);
+  });
 } else if (replaySample) {
   setTitle('Replay');
   void mountOrReport(() =>
