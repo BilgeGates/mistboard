@@ -96,6 +96,29 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 5_000 },
     notes: 'Current first-party engine source checkout. Local-only; for strength testing.',
   },
+  // GT-CFR v2 engine (EngineV2 / Obscuro architecture), current source. The
+  // worker constructs EngineV2Strategy for this id (use_rust_eq, |I|=16). Local-
+  // only: enable via MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-v2-current. Generous
+  // timeout because the worker replays the transcript per move (stateless), so
+  // v2's belief enumeration re-runs each move and late-game moves are slow.
+  'python-v2-current': {
+    id: 'python-v2-current',
+    engineId: 'v2',
+    engineName: 'Mistboard Engine',
+    name: 'Mistboard Engine v2 (GT-CFR dev)',
+    kind: 'container',
+    configHash: 'v2-current',
+    playSignature: 'v2-current',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: 'current',
+      config: 'v2-current',
+      config_hash: 'current',
+    },
+    livePolicy: { timeoutMs: 120_000 },
+    notes: 'GT-CFR v2 engine (use_rust_eq, |I|=16). Local-only; slow late-game (stateless replay).',
+  },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
     engineId: 'tier1',
