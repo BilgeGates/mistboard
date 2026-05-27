@@ -387,10 +387,12 @@ ownership surfaces:
    styles into `apps/web/src/learn.css`, reducing the global stylesheet by
    another 538 lines. The next slice moved article index, article page, and
    article interactive widget styles into `apps/web/src/articles.css`, reducing
-   the global stylesheet by another 792 lines. The latest slice moved
+   the global stylesheet by another 792 lines. The next slice moved
    theme/settings controls, dark-mode overrides, and parked video page styles
    into `apps/web/src/theme.css` and `apps/web/src/video.css`, reducing the
-   global stylesheet by another 1,007 lines.
+   global stylesheet by another 1,007 lines. The latest slice moved top-nav
+   account menu and auth slot styles into `apps/web/src/account-nav.css`,
+   reducing the global stylesheet by another 135 lines.
 10. **Split learn route ownership.** Keep `apps/web/src/learn.ts` focused on
     route mounting, rendering, board, and interaction logic. Static module and
     chapter curriculum data now lives in `apps/web/src/learn-content.ts`, which
@@ -533,7 +535,7 @@ progress. Continue from isolated worktrees._
   WebSocket, static-page, drain, seat, and shutdown detail.
 - Route/dev CSS has moved out of the single global stylesheet where practical;
   lab, replay-analysis, account, profile, leaderboard, learn, article, theme,
-  and parked video CSS have owned files.
+  account-nav, and parked video CSS have owned files.
 - Learn curriculum data is separated from the route renderer so tutorial copy
   and chapter additions do not require loading the interaction-heavy page file.
 - Runtime config reads are centralized enough that new flags have an obvious

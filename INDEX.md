@@ -192,7 +192,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `articles.ts` | Articles page renderer and article thumbnail board mounting. Loads `articles.css` for article index/page/widget styles |
 | `articles.css` | Article index, article page, and article interactive widget styles loaded by `articles.ts` |
 | `articles-data.ts` | Article content (large; content not code) |
-| `account-nav.ts` | Top-nav account menu + sign-in state |
+| `account-nav.ts` | Top-nav account menu + sign-in state. Loads `account-nav.css` |
+| `account-nav.css` | Top-nav account/auth slot styles loaded by `account-nav.ts` |
 | `restart-banner.ts` | Boot-fetch + WS-driven drain banner |
 | `theme.ts` | Settings panel (board / fog / piece-set picker + volume slider, localStorage-backed). Loads `theme.css` for settings controls and dark-mode overrides |
 | `theme.css` | Site appearance/settings control styles and dark-mode overrides loaded by `theme.ts` |

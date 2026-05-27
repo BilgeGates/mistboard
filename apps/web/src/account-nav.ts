@@ -1,3 +1,5 @@
+import './account-nav.css';
+
 import { identify, resetIdentity } from './analytics.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 
