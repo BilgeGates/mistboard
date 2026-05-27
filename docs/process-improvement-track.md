@@ -461,6 +461,12 @@ progress. Continue from isolated worktrees._
    packages, and Railway build config, but release, CI, smoke, visual, artifact,
    and agent scripts can change without forcing an unrelated production build.
 
+   Fourth slice: `release:prod` now plans hosted CI separately from Railway
+   deploy necessity. Non-deploying changes skip the exact production revision
+   wait, but still wait for hosted CI when the pushed diff matches the CI
+   workflow paths, avoiding the manual `gh run watch` step for CI/tooling-only
+   releases.
+
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
    and live-engine reservation boundaries moved out. The next high-leverage

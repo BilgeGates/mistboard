@@ -11,6 +11,19 @@ const DEFAULT_SMOKE = 'full';
 const DEFAULT_TARGET_BRANCH = 'main';
 const DEFAULT_TIMEOUT_MS = 900_000;
 const GITHUB_POLL_MS = 10_000;
+const CI_TRIGGER_PATTERNS = [
+  '.github/workflows/ci.yml',
+  'apps/**',
+  'packages/**',
+  'scripts/**',
+  'package.json',
+  'package-lock.json',
+  'tsconfig*.json',
+  'docker-compose.yml',
+  'railway*.json',
+  'railpack.json',
+  'nixpacks.toml',
+];
 const VALID_SMOKE_TIERS = new Set(['full', 'web', 'lite', 'none']);
 
 const options = parseArgs(process.argv.slice(2));
@@ -21,19 +34,24 @@ if (options.help) {
 
 const startedAt = performance.now();
 const release = {
+  ciRequired: false,
+  ciReason: null,
   deployRequired: false,
   headRevision: null,
   planReason: null,
   productionRevision: null,
+  targetRevision: null,
 };
 
 try {
   ensureCleanWorktree();
   release.headRevision = git(['rev-parse', '--verify', options.head]);
+  release.targetRevision = readRemoteTargetRevision();
 
   console.log(`# production release`);
   console.log(`head: ${release.headRevision}`);
   console.log(`target: ${options.remote}/${options.targetBranch}`);
+  console.log(`target_head: ${release.targetRevision ?? 'unknown'}`);
   console.log(`push: ${options.push ? 'yes' : 'no'}`);
   console.log(`smoke: ${options.smoke}`);
 
@@ -41,6 +59,14 @@ try {
   release.deployRequired = plan.deployRequired;
   release.planReason = plan.reason;
   release.productionRevision = plan.productionRevision;
+
+  const ciPlan = planHostedCi({
+    baseRevision: release.targetRevision,
+    headRevision: release.headRevision,
+  });
+  release.ciRequired = ciPlan.ciRequired;
+  release.ciReason = ciPlan.reason;
+  printHostedCiPlan(ciPlan);
 
   if (options.localCi) {
     runTimed('local ci:quick', ['npm', 'run', 'ci:quick']);
@@ -54,10 +80,10 @@ try {
     console.log('skip: git push (pass --push to publish the current commit)');
   }
 
-  if (release.deployRequired && options.ciWait) {
+  if (release.ciRequired && options.ciWait) {
     await waitForGithubCi({ headRevision: release.headRevision });
-  } else if (!release.deployRequired) {
-    console.log(`skip: hosted CI wait (${release.planReason})`);
+  } else if (!release.ciRequired) {
+    console.log(`skip: hosted CI wait (${release.ciReason})`);
   } else {
     console.log('skip: hosted CI wait (--skip-ci-wait)');
   }
@@ -178,6 +204,73 @@ function parsePlan(output) {
   };
 }
 
+function planHostedCi({ baseRevision, headRevision }) {
+  if (!baseRevision) {
+    return {
+      changedFiles: [],
+      ciRequired: true,
+      matched: [],
+      reason: 'target_revision_unknown_conservative',
+      unmatched: [],
+    };
+  }
+
+  if (revisionMatches(baseRevision, headRevision)) {
+    return {
+      changedFiles: [],
+      ciRequired: false,
+      matched: [],
+      reason: 'target_already_at_head',
+      unmatched: [],
+    };
+  }
+
+  let changedFiles = [];
+  try {
+    changedFiles = readChangedFiles({ base: baseRevision, head: headRevision });
+  } catch (error) {
+    return {
+      changedFiles: [],
+      ciRequired: true,
+      matched: [],
+      reason: `changed_files_unknown_conservative: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      unmatched: [],
+    };
+  }
+
+  const matched = [];
+  const unmatched = [];
+  for (const file of changedFiles) {
+    const pattern = CI_TRIGGER_PATTERNS.find((candidate) => matchesPathPattern(file, candidate));
+    if (pattern) matched.push({ file, pattern });
+    else unmatched.push(file);
+  }
+
+  return {
+    changedFiles,
+    ciRequired: matched.length > 0,
+    matched,
+    reason: matched.length > 0 ? 'matched_ci_workflow_path' : 'no_ci_workflow_path_match',
+    unmatched,
+  };
+}
+
+function printHostedCiPlan({ changedFiles, ciRequired, matched, reason, unmatched }) {
+  console.log('# hosted CI plan');
+  console.log(`hosted_ci_required=${ciRequired ? 'true' : 'false'}`);
+  console.log(`reason: ${reason}`);
+  console.log(`changed_count: ${changedFiles.length}`);
+  console.log(`matched_count: ${matched.length}`);
+  printList(
+    'matched',
+    matched.map((entry) => `${entry.file} -> ${entry.pattern}`),
+  );
+  printList('unmatched', unmatched);
+  console.log('');
+}
+
 async function waitForGithubCi({ headRevision }) {
   const deadline = Date.now() + options.timeoutMs;
   let run = null;
@@ -239,6 +332,12 @@ function listGithubRuns(headRevision) {
   } catch (error) {
     throw new Error(`could not parse gh run list JSON: ${error.message}`);
   }
+}
+
+function readChangedFiles({ base, head }) {
+  const output = git(['diff', '--name-only', '--diff-filter=ACDMRTUXB', `${base}..${head}`]);
+  if (!output) return [];
+  return unique(output.split('\n').map(normalizePath));
 }
 
 function prodWaitCommand(headRevision) {
@@ -325,6 +424,72 @@ function git(args) {
   return runCapture('git', ['git', ...args], { quiet: true }).trim();
 }
 
+function readRemoteTargetRevision() {
+  const output = git(['ls-remote', options.remote, `refs/heads/${options.targetBranch}`]);
+  const [revision] = output.split(/\s+/);
+  return revision || null;
+}
+
+function matchesPathPattern(file, pattern) {
+  const normalized = normalizePath(pattern);
+  if (normalized.endsWith('/**')) {
+    const prefix = normalized.slice(0, -'/**'.length);
+    return file === prefix || file.startsWith(`${prefix}/`);
+  }
+  if (!normalized.includes('*')) return file === normalized;
+  return globToRegex(normalized).test(file);
+}
+
+function globToRegex(pattern) {
+  let source = '';
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    if (char !== '*') {
+      source += escapeRegex(char);
+      continue;
+    }
+
+    if (pattern[index + 1] === '*') {
+      if (pattern[index + 2] === '/') {
+        source += '(?:.*/)?';
+        index += 2;
+      } else {
+        source += '.*';
+        index += 1;
+      }
+    } else {
+      source += '[^/]*';
+    }
+  }
+  return new RegExp(`^${source}$`);
+}
+
+function revisionMatches(left, right) {
+  return left === right || left.startsWith(right) || right.startsWith(left);
+}
+
+function printList(label, values) {
+  if (values.length === 0) return;
+  console.log(`${label}:`);
+  for (const value of values.slice(0, 30)) console.log(`  ${value}`);
+  if (values.length > 30) console.log(`  ... ${values.length - 30} more`);
+}
+
+function normalizePath(file) {
+  return file
+    .replaceAll('\\', '/')
+    .replace(/^\.?\//, '')
+    .trim();
+}
+
+function unique(values) {
+  return Array.from(new Set(values.filter(Boolean))).sort();
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -363,7 +528,7 @@ function printHelp() {
   npm run release:prod -- --skip-local-ci --smoke web
 
 Order:
-  local ci:quick -> optional git push -> hosted GitHub CI -> production revision wait -> smoke
+  local ci:quick -> optional git push -> hosted GitHub CI when matched -> production revision wait when deploying -> smoke
 
 Options:
   --push                   Push --head to origin/main. Without this, assume it is already pushed.
@@ -379,8 +544,9 @@ Options:
 
 Use --push instead of a standalone git push when you want this command to own
 the release order. For docs-only or other non-deploy commits, the planner skips
-the exact-revision wait because production is not expected to serve that SHA.
-When local ci:quick runs, --push uses git push --no-verify to avoid running the
-same broad pre-push gate twice. With --skip-local-ci, the pre-push hook still
-runs normally.`);
+the exact-revision wait because production is not expected to serve that SHA,
+but still waits for hosted CI when the diff matches the CI workflow paths. When
+local ci:quick runs, --push uses git push --no-verify to avoid running the same
+broad pre-push gate twice. With --skip-local-ci, the pre-push hook still runs
+normally.`);
 }
