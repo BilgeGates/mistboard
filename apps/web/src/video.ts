@@ -1,6 +1,8 @@
 // Curated FoW video page. Data inlined here while the corpus is small.
 // Promote to a separate data module when entry count justifies it.
 
+import './video.css';
+
 export type CuratedVideo = {
   id: string; // YouTube video ID
   title: string;

@@ -1,3 +1,5 @@
+import './theme.css';
+
 type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
 type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
 type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';

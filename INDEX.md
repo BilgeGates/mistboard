@@ -194,7 +194,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `articles-data.ts` | Article content (large; content not code) |
 | `account-nav.ts` | Top-nav account menu + sign-in state |
 | `restart-banner.ts` | Boot-fetch + WS-driven drain banner |
-| `theme.ts` | Settings panel (board / fog / piece-set picker + volume slider, localStorage-backed) |
+| `theme.ts` | Settings panel (board / fog / piece-set picker + volume slider, localStorage-backed). Loads `theme.css` for settings controls and dark-mode overrides |
+| `theme.css` | Site appearance/settings control styles and dark-mode overrides loaded by `theme.ts` |
 | `bakeoff.ts` | Engine lab bakeoff view (DEV) |
 | `bakeoff.css` | Engine lab bakeoff layout and bakeoff-specific replay panel sizing loaded by `bakeoff.ts` |
 | `pixel-lab.ts` | `/pixel-lab` AI piece-art/fog lab (DEV) |
@@ -207,7 +208,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `announcements.ts` | Card list for /announcements + landing widget |
 | `annotations.ts` | Annotation read/write for the research feedback workflow |
 | `analytics.ts` | PostHog wrapper + time-class inference (client-side) |
-| `video.ts` | `/video` page (parked; removal in flight this session) |
+| `video.ts` | `/video` page (parked; removal in flight this session). Loads `video.css` |
+| `video.css` | Parked `/video` page styles loaded by `video.ts` |
 
 ## apps/server/migrations/ — Postgres schema migrations
 

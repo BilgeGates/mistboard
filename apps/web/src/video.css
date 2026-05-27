@@ -1,0 +1,223 @@
+/* --- /video page (spike) --- */
+
+.video-index {
+  max-width: 1180px;
+}
+
+.video-index .site-section-heading {
+  margin-bottom: 10px;
+}
+
+.video-index-intro {
+  color: #3f4742;
+  line-height: 1.65;
+  font-size: 16px;
+  margin: 0 0 28px;
+  max-width: 580px;
+}
+
+.video-index-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px 16px;
+}
+
+.video-index-item {
+  margin: 0;
+}
+
+.video-index-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 0.15s;
+}
+
+.video-index-card:hover {
+  transform: translateY(-2px);
+}
+
+.video-index-card-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #1f2521;
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(29, 37, 34, 0.08);
+  transition:
+    box-shadow 0.15s,
+    outline 0.15s;
+}
+
+.video-index-card:hover .video-index-card-thumb {
+  box-shadow: 0 6px 16px rgba(29, 37, 34, 0.18);
+  outline: 2px solid #629924;
+  outline-offset: 1px;
+}
+
+.video-index-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.video-index-card-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 22px 12px 10px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.55) 55%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.video-index-card-summary {
+  margin: 8px 2px 0;
+  color: #3f4742;
+  line-height: 1.45;
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-index-card,
+  .video-index-card-thumb {
+    transition: none;
+  }
+  .video-index-card:hover {
+    transform: none;
+  }
+}
+
+/* --- /video/[id] player view --- */
+
+.video-player {
+  max-width: 960px;
+}
+
+.video-player-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #3f4742;
+  text-decoration: none;
+  padding: 6px 10px 6px 4px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.video-player-back:hover {
+  background: #eef2eb;
+  color: #1f2521;
+}
+
+.video-player-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background: #000000;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(29, 37, 34, 0.18);
+}
+
+.video-player-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.video-player-title {
+  margin: 22px 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2521;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.video-player-meta {
+  margin: 0 0 14px;
+  color: #5a635d;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.video-player-summary {
+  margin: 0 0 18px;
+  color: #3f4742;
+  line-height: 1.6;
+  font-size: 15px;
+  max-width: 640px;
+}
+
+.video-player-tags {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.video-player-tags li {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5a635d;
+  padding: 3px 8px;
+  border: 1px solid #d8dad7;
+  border-radius: 999px;
+  background: #f5f6f4;
+}
+
+.video-player-external {
+  display: inline-block;
+  font-size: 13px;
+  color: #5a635d;
+  text-decoration: none;
+  border-bottom: 1px dotted #b6bdb6;
+  padding-bottom: 1px;
+}
+
+.video-player-external:hover {
+  color: #1f2521;
+  border-bottom-color: #629924;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-player-back {
+    transition: none;
+  }
+}
