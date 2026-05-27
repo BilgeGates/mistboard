@@ -267,14 +267,21 @@
 
 .profile-ratings-grid {
   display: grid;
-  grid-template-columns: minmax(140px, 200px) repeat(2, minmax(0, 1fr));
-  column-gap: 24px;
-  row-gap: 14px;
-  align-items: baseline;
-  padding: 18px 16px;
+  grid-template-columns: minmax(124px, 176px) repeat(3, minmax(116px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  padding: 16px;
+}
+
+.profile-ratings-corner {
+  min-height: 28px;
 }
 
 .profile-ratings-th {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 2px;
   color: #777777;
   font-size: 11px;
   font-weight: 700;
@@ -283,6 +290,13 @@
 }
 
 .profile-ratings-variant {
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-left: 3px solid #1f6f5b;
+  border-radius: 6px 3px 3px 6px;
+  background: #f6f8f5;
   color: #262421;
   font-size: 15px;
   font-weight: 600;
@@ -291,14 +305,34 @@
 .profile-rating-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 3px;
   min-width: 0;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid #e0ded8;
+  border-radius: 6px;
+  background: #fffdf8;
+}
+
+.profile-rating-cell-empty {
+  background: #f8f8f8;
+}
+
+.profile-rating-cell-rated {
+  border-color: #cadbcf;
+  background: #fbfdfb;
+}
+
+.profile-rating-cell-rated[data-time-class="blitz"] {
+  border-color: #c9d7e5;
+  background: #fbfdff;
 }
 
 .profile-rating-value {
   color: #262421;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
@@ -322,39 +356,46 @@
 
 @media (max-width: 720px) {
   .profile-ratings-grid {
-    grid-template-columns: 1fr 1fr;
-    column-gap: 16px;
-    row-gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px;
   }
 
-  .profile-ratings-corner {
-    display: none;
-  }
-
-  .profile-ratings-th:first-of-type {
+  .profile-ratings-corner,
+  .profile-ratings-th {
     display: none;
   }
 
   .profile-ratings-variant {
-    grid-column: 1 / -1;
-    padding-top: 6px;
-    border-top: 1px solid #eeeeee;
+    min-height: 0;
+    margin-top: 8px;
+    border-radius: 6px;
   }
 
   .profile-ratings-grid > .profile-ratings-variant:first-of-type {
-    padding-top: 0;
-    border-top: 0;
+    margin-top: 0;
+  }
+
+  .profile-rating-cell {
+    display: grid;
+    grid-template-columns: minmax(76px, 0.7fr) minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 2px;
+    min-height: 54px;
+    align-items: center;
   }
 
   .profile-rating-cell::before {
-    content: attr(data-time-class);
-    display: block;
+    content: attr(data-time-label);
     color: #777777;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin-bottom: 2px;
+  }
+
+  .profile-rating-games {
+    grid-column: 2;
   }
 }
 

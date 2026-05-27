@@ -384,6 +384,7 @@ function buildRatingCell(
   const cell = document.createElement('div');
   cell.className = 'profile-rating-cell';
   cell.dataset.timeClass = timeClass;
+  cell.dataset.timeLabel = PROFILE_TIME_CLASS_LABEL[timeClass];
 
   const bucket = ratings.find((r) => r.variant === variant && r.timeClass === timeClass);
 
@@ -391,6 +392,7 @@ function buildRatingCell(
   value.className = 'profile-rating-value';
 
   if (!bucket || bucket.totalGamesPlayed === 0) {
+    cell.classList.add('profile-rating-cell-empty');
     value.textContent = '—';
     value.classList.add('profile-rating-value-empty');
     cell.append(value);
@@ -398,12 +400,14 @@ function buildRatingCell(
   }
 
   if (bucket.eloRating == null) {
+    cell.classList.add('profile-rating-cell-unrated');
     value.textContent = 'Unrated';
     value.classList.add('profile-rating-value-unrated');
     cell.append(value);
     return cell;
   }
 
+  cell.classList.add('profile-rating-cell-rated');
   // "?" marks a provisional rating (still settling). RD itself is not shown.
   value.textContent = bucket.provisional ? `${bucket.eloRating}?` : String(bucket.eloRating);
   if (bucket.provisional) value.classList.add('profile-rating-value-provisional');
