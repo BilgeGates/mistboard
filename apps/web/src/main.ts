@@ -44,6 +44,7 @@ const appRoot = app;
 const params = new URLSearchParams(window.location.search);
 const path = window.location.pathname.replace(/\/+$/, '') || '/';
 const replaySample = params.get('replay');
+const beliefParam = params.get('belief');
 const bakeoffParam = params.get('bakeoff');
 const playDeepLink = params.get('play');
 const wantsLive =
@@ -88,7 +89,14 @@ const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 
-if (replaySample) {
+if (beliefParam) {
+  setTitle('Belief replay');
+  void mountOrReport(() =>
+    import('./belief-replay.js').then(({ mountBeliefReplay }) =>
+      mountBeliefReplay(appRoot, beliefParam),
+    ),
+  );
+} else if (replaySample) {
   setTitle('Replay');
   void mountOrReport(() =>
     import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)),
