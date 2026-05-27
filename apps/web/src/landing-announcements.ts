@@ -1,3 +1,4 @@
+import './landing-announcements.css';
 import { type Announcement, announcements } from './announcements.js';
 import { renderArticleThumbnail } from './articles.js';
 import { findArticle } from './articles-data.js';
