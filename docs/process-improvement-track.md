@@ -417,22 +417,53 @@ ownership surfaces:
 
 ### Remaining Velocity Handoff
 
-_Checkpoint: 2026-05-26. `main` is pushed and production-smoked through
-`b2ede09`; the shared checkout still had active engine-registry work in
-progress. Continue from isolated worktrees._
+_Checkpoint: 2026-05-27. `origin/main` and production are pushed and
+production-smoked through `3e71fd2`. The clean velocity worktree used for the
+release reported `HEAD`, `origin/main`, and production all at
+`3e71fd2da40caa35a5fd504c2ce115d5f2acdbd6`. A separate shared checkout still
+had active belief/engine work and local divergence. Do not release or reconcile
+from a dirty shared checkout until that work is isolated._
 
-1. **Pull up deploy/build latency as the next major velocity item.** The
-   biggest wall-clock loss during this push was no longer local verification.
-   Targeted local checks usually completed quickly, while Railway repeatedly
-   spent about five to seven minutes building and promoting small
-   deploy-affecting changes. The exact-revision wait should stay: it caught the
-   difference between a healthy old container and the pushed revision. The next
-   optimization is to make that wait cheaper.
+Recent release checkpoints:
+
+- `3ee25e4` moved homepage landing CSS into `apps/web/src/landing.css`, reduced
+  the global stylesheet to roughly 3,896 lines at that point, and shipped in
+  4m31s (`ci:quick` 17.8s, production revision wait 2m22s, web smoke 928ms).
+- `3e71fd2` reconciled and released the five committed shared-main changes:
+  default OG board-label removal, watch replay scope copy, truth-board capture
+  strip split, clockless replay budget hiding, and watch replay POV fog
+  preservation. It shipped in 5m43s (`ci:quick` 17.0s, production revision wait
+  3m44s, web smoke 1.1s).
+
+Next-session start:
+
+```bash
+git status --short --branch --untracked-files=all
+git worktree list
+npm run agent:scan
+```
+
+1. **Clean up dirty-main discipline before more release work.** The current
+   largest operational risk is not a code hotspot; it is the shared checkout
+   carrying uncommitted belief/engine work while `origin/main` has advanced.
+   Move that work into a dedicated branch/worktree, or otherwise settle it with
+   the operator, before using that checkout as an integration point. Until
+   then, continue releases and velocity slices from a clean isolated worktree
+   based on `origin/main`.
+
+2. **Keep deploy/build latency visible, then remove unrelated engine work from
+   ordinary deploys.** The biggest wall-clock loss during this push was no
+   longer local verification. Targeted local checks usually completed quickly,
+   while Railway promotion remained the long pole. The exact-revision wait
+   should stay: it caught the difference between a healthy old container and the
+   pushed revision. The next optimization is to keep normal web/server deploys
+   from doing private engine checkout, Rust/PyO3 wheel, or Python artifact work
+   unless the changed service actually needs it.
 
    Next actions:
 
-   - measure CI duration, Railway waiting-for-CI duration, Railway build time,
-     revision propagation time, and smoke time as separate handoff fields;
+   - keep reporting CI duration, Railway build/deploy wait, revision
+     propagation time, and smoke time in release handoffs;
    - compare deploy timings before and after engine extraction and the active
      engine-registry work settle;
    - keep private engine checkout, Rust/PyO3 wheel work, and engine artifact
@@ -512,26 +543,39 @@ progress. Continue from isolated worktrees._
    server integration (~68s), browser smoke when required (~50s), unit tests
    (~36s), typecheck (~33s), and build (~30s).
 
-2. **Keep server `index.ts` at startup-composition size.** HTTP routing,
+3. **Keep server `index.ts` at startup-composition size.** HTTP routing,
    seat/session handling, lifecycle cleanup, live-engine reservations, WebSocket
    edge handling, and room lifecycle edges have moved out. Further extraction is
    no longer the obvious velocity bottleneck unless startup wiring grows again.
    Avoid `apps/server/src/engines/registry.ts` while active engine work is
    dirty.
 
-3. **Split remaining large web surfaces.** `apps/web/src/styles.css`,
-   `apps/web/src/landing.ts`, and `apps/web/src/replay.ts` are still large
-   navigation costs. Continue route-owned CSS and focused landing/replay module
-   extraction when those areas are not under active product work.
+4. **Split remaining large web surfaces.** Current scan on shipped `main`
+   reports `apps/web/src/styles.css` (~3,933 lines), `apps/web/src/landing.css`
+   (~2,076), `apps/web/src/landing.ts` (~1,790),
+   `apps/web/src/learn.ts` (~1,589), and `apps/web/src/replay.ts` (~1,384) as
+   the largest web navigation costs. The next best implementation slice is
+   probably a focused `landing.ts` split, because CSS ownership is now much
+   better and the route orchestrator still owns landing/watch/game/contact flow
+   plus lobby/setup behavior.
 
-4. **Expand fixture ownership where it reduces churn.** Server builders now
+   Suggested next `landing.ts` slices:
+
+   - move the setup dialog and play-choice state into a `landing-setup.ts`
+     module with its existing DOM behavior and targeted tests where practical;
+   - move watch feed queue rendering/polling into a `watch-route.ts` module once
+     the route-specific CSS is already in `landing.css`;
+   - keep `landing.ts` as the route mount coordinator instead of a UI ownership
+     hub.
+
+5. **Expand fixture ownership where it reduces churn.** Server builders now
    cover the core room/payload shapes. Add web/live/replay fixture helpers only
    where repeated payload shape edits are still costing test-update time.
 
-5. **Keep dirty-main discipline strict.** Repeated reconciliation worked, but it
-   cost real time. Long-running engine experiments and exploratory sessions
-   should keep using isolated worktrees so `main` remains a fast-forwardable
-   integration point.
+6. **Finish runtime config centralization only where it removes real ambiguity.**
+   Server startup defaults now live in `apps/server/src/server-config.ts`, but
+   engine/web flag reads can still be made more obvious. Do not broaden this
+   into a config refactor unless a new flag or deploy setting needs a home.
 
 ### Definition Of Done For The Second Push
 
