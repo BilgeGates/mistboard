@@ -1,4 +1,5 @@
 import { type GameEvent, TIME_CONTROLS, type TimeControlId } from '@mistboard/game';
+import './landing.css';
 import { isLikelySignedIn, loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
 import { mountArticleThumbnails } from './articles.js';

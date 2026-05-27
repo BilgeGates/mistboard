@@ -396,7 +396,9 @@ ownership surfaces:
    contact form styles into `apps/web/src/contact.css`, reducing the global
    stylesheet by another 126 lines. The latest slice moved about/source static
    page helper styles into `apps/web/src/pages-static.css`, reducing the global
-   stylesheet by another 58 lines.
+   stylesheet by another 58 lines. The latest slice moved watch route and
+   public game-review route styles into `apps/web/src/landing.css`, reducing
+   the global stylesheet by another 839 lines.
 10. **Split learn route ownership.** Keep `apps/web/src/learn.ts` focused on
     route mounting, rendering, board, and interaction logic. Static module and
     chapter curriculum data now lives in `apps/web/src/learn-content.ts`, which
@@ -539,8 +541,8 @@ progress. Continue from isolated worktrees._
   WebSocket, static-page, drain, seat, and shutdown detail.
 - Route/dev CSS has moved out of the single global stylesheet where practical;
   lab, replay-analysis, account, profile, leaderboard, learn, article,
-  static-page, theme, account-nav, contact, and parked video CSS have owned
-  files.
+  static-page, landing/watch/game, theme, account-nav, contact, and parked
+  video CSS have owned files.
 - Learn curriculum data is separated from the route renderer so tutorial copy
   and chapter additions do not require loading the interaction-heavy page file.
 - Runtime config reads are centralized enough that new flags have an obvious
