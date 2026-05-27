@@ -1,8 +1,9 @@
 import {
   type FeaturedGame,
-  MISTBOARD_ENGINE_BASELINE_NAME,
-  MISTBOARD_ENGINE_SNAPSHOT_ID,
-  MISTBOARD_ENGINE_SNAPSHOT_NAME,
+  MISTBOARD_ENGINE_V2_BASE_ID,
+  MISTBOARD_ENGINE_V2_BASE_NAME,
+  MISTBOARD_ENGINE_V2_KLUSS_ID,
+  MISTBOARD_ENGINE_V2_KLUSS_NAME,
 } from './game-display.js';
 
 const HOMEPAGE_ENGINE_TIME_CONTROL = {
@@ -17,89 +18,68 @@ export function pickHeroPovForGame(game: FeaturedGame): 'white' | 'black' {
   return 'white';
 }
 
+// v2 self-play showcase: Mistboard Engine v2 with the KLUSS search-scope feature
+// (knowledge-limited subgame, k=2) vs the same engine without it. Both sides are
+// the v2 engine; `klussColor` marks which side ran KLUSS. Games are the decisive
+// (king-captured), substantial (>=33-ply) games from the kluss self-play corpus
+// (lab/runs/v2-kluss-self-play-2026-05-25); short early-blunder games are omitted.
 export function homepageShowcaseGames(): FeaturedGame[] {
   const specs: Array<{
     index: number;
-    outcome: 'W' | 'L' | 'D';
     plyCount: number;
-    termination: string;
-    v2Color: 'white' | 'black';
+    klussColor: 'white' | 'black';
+    winner: 'white' | 'black';
   }> = [
-    { index: 0, outcome: 'W', plyCount: 89, termination: 'king-captured', v2Color: 'white' },
-    { index: 1, outcome: 'W', plyCount: 118, termination: 'king-captured', v2Color: 'black' },
-    { index: 2, outcome: 'W', plyCount: 119, termination: 'king-captured', v2Color: 'white' },
-    { index: 3, outcome: 'W', plyCount: 90, termination: 'king-captured', v2Color: 'black' },
-    { index: 4, outcome: 'W', plyCount: 33, termination: 'king-captured', v2Color: 'white' },
-    { index: 5, outcome: 'W', plyCount: 54, termination: 'king-captured', v2Color: 'black' },
-    { index: 6, outcome: 'W', plyCount: 123, termination: 'king-captured', v2Color: 'white' },
-    { index: 7, outcome: 'W', plyCount: 90, termination: 'king-captured', v2Color: 'black' },
-    { index: 8, outcome: 'W', plyCount: 61, termination: 'king-captured', v2Color: 'white' },
-    { index: 9, outcome: 'W', plyCount: 102, termination: 'king-captured', v2Color: 'black' },
-    { index: 10, outcome: 'W', plyCount: 117, termination: 'king-captured', v2Color: 'white' },
-    { index: 11, outcome: 'W', plyCount: 128, termination: 'king-captured', v2Color: 'black' },
-    { index: 13, outcome: 'W', plyCount: 120, termination: 'king-captured', v2Color: 'black' },
-    { index: 14, outcome: 'W', plyCount: 139, termination: 'king-captured', v2Color: 'white' },
-    { index: 15, outcome: 'W', plyCount: 98, termination: 'king-captured', v2Color: 'black' },
-    { index: 16, outcome: 'W', plyCount: 91, termination: 'king-captured', v2Color: 'white' },
-    { index: 17, outcome: 'W', plyCount: 132, termination: 'king-captured', v2Color: 'black' },
-    { index: 18, outcome: 'W', plyCount: 137, termination: 'king-captured', v2Color: 'white' },
-    { index: 19, outcome: 'W', plyCount: 126, termination: 'king-captured', v2Color: 'black' },
-    { index: 20, outcome: 'W', plyCount: 115, termination: 'king-captured', v2Color: 'white' },
-    { index: 21, outcome: 'W', plyCount: 86, termination: 'king-captured', v2Color: 'black' },
-    { index: 22, outcome: 'W', plyCount: 89, termination: 'king-captured', v2Color: 'white' },
-    { index: 23, outcome: 'D', plyCount: 130, termination: 'draw', v2Color: 'black' },
-    { index: 24, outcome: 'D', plyCount: 105, termination: 'draw', v2Color: 'white' },
-    { index: 25, outcome: 'W', plyCount: 84, termination: 'king-captured', v2Color: 'black' },
-    { index: 26, outcome: 'W', plyCount: 97, termination: 'king-captured', v2Color: 'white' },
-    { index: 27, outcome: 'W', plyCount: 102, termination: 'king-captured', v2Color: 'black' },
-    { index: 28, outcome: 'W', plyCount: 73, termination: 'king-captured', v2Color: 'white' },
-    { index: 29, outcome: 'D', plyCount: 160, termination: 'truncated', v2Color: 'black' },
-    { index: 30, outcome: 'W', plyCount: 89, termination: 'king-captured', v2Color: 'white' },
-    { index: 31, outcome: 'W', plyCount: 138, termination: 'king-captured', v2Color: 'black' },
+    { index: 0, plyCount: 78, klussColor: 'white', winner: 'black' },
+    { index: 1, plyCount: 62, klussColor: 'black', winner: 'black' },
+    { index: 2, plyCount: 78, klussColor: 'white', winner: 'black' },
+    { index: 3, plyCount: 35, klussColor: 'black', winner: 'white' },
+    { index: 4, plyCount: 43, klussColor: 'black', winner: 'white' },
+    { index: 5, plyCount: 98, klussColor: 'white', winner: 'black' },
+    { index: 6, plyCount: 59, klussColor: 'black', winner: 'white' },
+    { index: 7, plyCount: 67, klussColor: 'black', winner: 'white' },
+    { index: 8, plyCount: 71, klussColor: 'black', winner: 'white' },
+    { index: 9, plyCount: 69, klussColor: 'black', winner: 'white' },
+    { index: 10, plyCount: 57, klussColor: 'black', winner: 'white' },
   ];
 
   return specs.map((spec) => {
-    const whiteIsV2 = spec.v2Color === 'white';
+    const klussIsWhite = spec.klussColor === 'white';
+    const whiteName = klussIsWhite ? MISTBOARD_ENGINE_V2_KLUSS_NAME : MISTBOARD_ENGINE_V2_BASE_NAME;
+    const blackName = klussIsWhite ? MISTBOARD_ENGINE_V2_BASE_NAME : MISTBOARD_ENGINE_V2_KLUSS_NAME;
+    const whiteId = klussIsWhite ? MISTBOARD_ENGINE_V2_KLUSS_ID : MISTBOARD_ENGINE_V2_BASE_ID;
+    const blackId = klussIsWhite ? MISTBOARD_ENGINE_V2_BASE_ID : MISTBOARD_ENGINE_V2_KLUSS_ID;
     return {
       roomId: `engine-v2-g${String(spec.index).padStart(4, '0')}`,
       variant: 'dark-chess',
       mode: 'eve',
-      result: engineOutcomeResult(spec.outcome, spec.v2Color),
-      termination: spec.termination,
+      result: spec.winner === 'white' ? 'white-wins' : 'black-wins',
+      termination: 'king-captured',
       plyCount: spec.plyCount,
-      whiteName: whiteIsV2 ? MISTBOARD_ENGINE_SNAPSHOT_NAME : MISTBOARD_ENGINE_BASELINE_NAME,
-      blackName: whiteIsV2 ? MISTBOARD_ENGINE_BASELINE_NAME : MISTBOARD_ENGINE_SNAPSHOT_NAME,
+      whiteName,
+      blackName,
       corpusId: 'replay-samples',
       gameIndex: spec.index,
-      whiteEngineId: whiteIsV2 ? MISTBOARD_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
-      blackEngineId: whiteIsV2 ? 'python-tier1-v0.9.5' : MISTBOARD_ENGINE_SNAPSHOT_ID,
+      whiteEngineId: whiteId,
+      blackEngineId: blackId,
       timeControl: HOMEPAGE_ENGINE_TIME_CONTROL,
       participants: [
         {
           color: 'white',
-          displayName: whiteIsV2 ? MISTBOARD_ENGINE_SNAPSHOT_NAME : MISTBOARD_ENGINE_BASELINE_NAME,
+          displayName: whiteName,
           subjectType: 'engine-version',
-          subjectId: whiteIsV2 ? MISTBOARD_ENGINE_SNAPSHOT_ID : 'python-tier1-v0.9.5',
+          subjectId: whiteId,
           visibility: 'public',
         },
         {
           color: 'black',
-          displayName: whiteIsV2 ? MISTBOARD_ENGINE_BASELINE_NAME : MISTBOARD_ENGINE_SNAPSHOT_NAME,
+          displayName: blackName,
           subjectType: 'engine-version',
-          subjectId: whiteIsV2 ? 'python-tier1-v0.9.5' : MISTBOARD_ENGINE_SNAPSHOT_ID,
+          subjectId: blackId,
           visibility: 'public',
         },
       ],
-      playerColor: spec.v2Color,
+      // playerColor omitted -> hero POV defaults to the winning side.
     };
   });
-}
-
-function engineOutcomeResult(
-  outcome: 'W' | 'L' | 'D',
-  v2Color: 'white' | 'black',
-): 'white-wins' | 'black-wins' | 'draw' {
-  if (outcome === 'D') return 'draw';
-  const winner = outcome === 'W' ? v2Color : v2Color === 'white' ? 'black' : 'white';
-  return winner === 'white' ? 'white-wins' : 'black-wins';
 }
