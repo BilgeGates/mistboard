@@ -103,6 +103,10 @@ export function engineSeatFor(room: Room): Color | null {
   return null;
 }
 
+function bothSeatsAssigned(room: Room): boolean {
+  return Boolean(room.projection.seats.white && room.projection.seats.black);
+}
+
 // ── Seat token helpers ─────────────────────────────────────────────────────
 
 function persistenceRecordForSeatToken(token: SeatTokenState): persistence.RoomSeatTokenRecord {
@@ -846,9 +850,10 @@ export async function startLiveClockIfReady(ctx: RoomManagerContext, room: Room)
   const now = Date.now();
   const timeControl = room.projection.timeControl;
   // The clock starts frozen and arms only once both players complete their
-  // first move (see armClockOnFirstMoves in the reducer). This holds for
-  // engineColor='white' PvE too: the engine's first move lands before
-  // clock-started, and the human's first reply (black) arms the clock.
+  // first move (see armClockOnFirstMoves in the reducer). In engineColor='white'
+  // PvE, this is also the first point where the human black seat exists, so the
+  // engine opening move is scheduled after the player can receive the room
+  // snapshot instead of racing the page navigation.
   const initialClock = timeControl
     ? createClock(now, timeControl.initialMs, timeControl.incrementMs)
     : createClock(now, ctx.liveClockInitialMs, ctx.liveClockIncrementMs);
@@ -1053,6 +1058,7 @@ export async function playRandomEngineMoveIfReady(
   if (room.projection.variant !== 'dark-chess') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
+  if (!bothSeatsAssigned(room)) return;
   const engineSeat = engineSeatFor(room);
   if (engineSeat === null) return;
   if (room.projection.state.status.turn !== engineSeat) return;
@@ -1179,6 +1185,7 @@ export function scheduleRandomEngineMove(ctx: RoomManagerContext, room: Room): v
   if (room.projection.variant !== 'dark-chess') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.paused) return;
+  if (!bothSeatsAssigned(room)) return;
   const engineSeat = engineSeatFor(room);
   if (engineSeat === null) return;
   if (room.projection.state.status.turn !== engineSeat) return;

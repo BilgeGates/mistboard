@@ -18,8 +18,8 @@ import {
   clearAbortTimer,
   clearForfeitTimer,
   expireActiveClock,
-  forfeitEngineOnFailure,
   FORFEIT_WINDOW_MS,
+  forfeitEngineOnFailure,
   pauseRoomOnShutdown,
   playMove,
   type RoomManagerContext,
@@ -680,6 +680,23 @@ test('scheduleRandomEngineMove: no-op when room is paused', () => {
   scheduleRandomEngineMove(ctx, room);
 
   assert.equal(room.engineTimer, null, 'paused room must not schedule an engine move');
+});
+
+test('scheduleRandomEngineMove: waits for the human seat before engine opens as white', () => {
+  const roomId = 'room-engine-white-awaits-human';
+  const engineId = 'builtin-random-legal';
+  const room = makeRoom('room-engine-white-awaits-human', 'dark-chess', [
+    { type: 'room-created', at: 1, roomId, variant: 'dark-chess', offer: [] },
+    { type: 'seat-assigned', at: 2, roomId, clientId: engineId, seat: 'white' },
+  ]);
+  room.mode = 'pve';
+  room.randomEngine = true;
+  room.pveEngineId = engineId;
+  const ctx = makeCtx();
+
+  scheduleRandomEngineMove(ctx, room);
+
+  assert.equal(room.engineTimer, null, 'engine must wait until black is seated');
 });
 
 test('replay: hydrating a room from a pause event reconstructs the paused projection', () => {

@@ -15,7 +15,13 @@ import {
   replayGameEvents,
   type Square,
 } from '@mistboard/game';
-import { liveState, type SoundController, type SoundKind } from './live-state.js';
+import {
+  liveState,
+  type RoomMode,
+  type Seat,
+  type SoundController,
+  type SoundKind,
+} from './live-state.js';
 import { readEffectiveSoundVolume, soundSettingsChangedEvent } from './theme.js';
 import { files, isColor } from './web-utils.js';
 
@@ -71,30 +77,42 @@ export function maybePlaySnapshotSound(nextEvents: GameEvent[], nextView: Player
   lastSoundView = nextView;
 }
 
-// The engine's opening move (PvE with the engine on White) is baked into the
-// initial `hello` snapshot: it fires on setTimeout(0) at room creation, before
-// the player's fresh socket connects. The delta path therefore never sees it,
-// and the first-snapshot guard above would swallow it. When we load straight
-// into a game where the opponent has played exactly the opening move and it's
-// now our turn, sound that one move (deferred until the audio context unlocks,
-// since the player hasn't gestured on the room page yet). Bounding it to a
-// single move-played event keeps mid-game reconnects — whose snapshot carries
-// the full history — silent.
+// PvE with the engine on White can reach the room before the page has an
+// unlocked AudioContext. Sound the single opening move with playWhenUnlocked so
+// browser autoplay policy does not swallow it. Live fog snapshots intentionally
+// filter opponent move events, so the hidden-opening case is inferred from the
+// black-to-move player view rather than from canonical event history.
 function maybePlayInitialOpponentMove(events: GameEvent[], view: PlayerView | null): void {
-  if (!isColor(liveState.seat) || !view) return;
-  if (view.status.type !== 'playing' || view.status.turn !== liveState.seat) return;
+  const kind = initialOpponentMoveSoundForSnapshot(
+    events,
+    view,
+    liveState.seat,
+    liveState.roomMode,
+  );
+  if (kind) sound?.playWhenUnlocked(kind);
+}
 
+export function initialOpponentMoveSoundForSnapshot(
+  events: GameEvent[],
+  view: PlayerView | null,
+  seat: Seat,
+  roomMode: RoomMode,
+): SoundKind | null {
+  if (!isColor(seat) || !view) return null;
+  if (view.status.type !== 'playing' || view.status.turn !== seat) return null;
   let moveIndex = -1;
   for (let index = 0; index < events.length; index += 1) {
     if (events[index]?.type !== 'move-played') continue;
-    if (moveIndex >= 0) return; // more than one move → not a fresh opening
+    if (moveIndex >= 0) return null; // more than one move -> not a fresh opening
     moveIndex = index;
   }
-  if (moveIndex < 0) return;
+  if (moveIndex < 0) {
+    return isHiddenPveOpeningReply(view, seat, roomMode) ? 'move' : null;
+  }
 
   const moveEvent = events[moveIndex]!;
-  if (moveEvent.type !== 'move-played' || moveEvent.color === liveState.seat) return;
-  sound?.playWhenUnlocked(soundForMove(events.slice(0, moveIndex), moveEvent));
+  if (moveEvent.type !== 'move-played' || moveEvent.color === seat) return null;
+  return soundForMove(events.slice(0, moveIndex), moveEvent);
 }
 
 export function soundForOwnMove(view: PlayerView | null, move: Move): SoundKind {
@@ -281,11 +299,38 @@ function playSanitizedOpponentSound(
   if (previousView.status.turn === liveState.seat) return;
   if (nextView.status.type === 'playing' && nextView.status.turn !== liveState.seat) return;
 
-  sound?.play(
+  const kind =
     ownPieceCount(nextView, liveState.seat) < ownPieceCount(previousView, liveState.seat)
       ? 'captured'
-      : 'move',
-  );
+      : 'move';
+  if (
+    shouldDeferHiddenPveOpeningSound(previousView, nextView, liveState.seat, liveState.roomMode)
+  ) {
+    sound?.playWhenUnlocked(kind);
+    return;
+  }
+  sound?.play(kind);
+}
+
+export function shouldDeferHiddenPveOpeningSound(
+  previousView: PlayerView | null,
+  nextView: PlayerView | null,
+  seat: Seat,
+  roomMode: RoomMode,
+): boolean {
+  if (roomMode !== 'pve' || seat !== 'black') return false;
+  if (!previousView || !nextView) return false;
+  if (previousView.variant !== 'dark-chess' || nextView.variant !== 'dark-chess') return false;
+  if (previousView.moveNumber !== 1 || nextView.moveNumber !== 1) return false;
+  if (previousView.status.type !== 'playing' || nextView.status.type !== 'playing') return false;
+  return previousView.status.turn === 'white' && nextView.status.turn === 'black';
+}
+
+function isHiddenPveOpeningReply(view: PlayerView, seat: Seat, roomMode: RoomMode): boolean {
+  if (roomMode !== 'pve' || seat !== 'black') return false;
+  if (view.variant !== 'dark-chess') return false;
+  if (view.status.type !== 'playing') return false;
+  return view.status.turn === 'black' && view.moveNumber === 1;
 }
 
 function isCastleMoveInView(view: PlayerView, move: Move, color: Color): boolean {
