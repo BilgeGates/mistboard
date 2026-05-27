@@ -1,5 +1,7 @@
 // Static content pages — about / source / faq / terms / not-found / articles.
 
+import './pages-static.css';
+
 import { buildFooter, buildNav, GITHUB_URL } from './site-shell.js';
 
 export function mountAbout(root: HTMLElement): void {
