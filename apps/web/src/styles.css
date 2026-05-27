@@ -3461,6 +3461,127 @@ body:has(
   max-width: min(560px, calc(100dvh - 340px));
 }
 
+#landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
+#landing-replay.replay-compact .replay-layout-single-black .replay-pane-black,
+#landing-replay.replay-compact .replay-layout-all .replay-pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "clock-top"
+    "board"
+    "clock-bottom"
+    "status";
+  gap: 4px;
+  align-items: center;
+  justify-items: center;
+}
+
+#landing-replay.replay-compact .replay-layout-single-white .replay-pane-truth,
+#landing-replay.replay-compact .replay-layout-single-white .replay-pane-black,
+#landing-replay.replay-compact .replay-layout-single-black .replay-pane-truth,
+#landing-replay.replay-compact .replay-layout-single-black .replay-pane-white {
+  display: none;
+}
+
+#landing-replay.replay-compact .replay-pane > .replay-clock-row {
+  grid-area: clock-top;
+}
+
+#landing-replay.replay-compact .replay-pane-clock-slot {
+  grid-area: clock-bottom;
+  width: 100%;
+  max-width: none;
+}
+
+#landing-replay.replay-compact .replay-board {
+  grid-area: board;
+}
+
+#landing-replay.replay-compact .replay-captures {
+  --capture-piece-size: clamp(20px, 4.8vw, 27px);
+  --capture-piece-overlap: clamp(3px, 0.9vw, 5px);
+
+  grid-area: clock-bottom;
+  align-self: center;
+  justify-self: start;
+  z-index: 1;
+  width: calc(50% - 12px);
+  height: var(--capture-piece-size);
+  min-height: var(--capture-piece-size);
+  margin-left: 8px;
+  padding: 0 0 0 6px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#landing-replay.replay-compact .replay-pane-status {
+  grid-area: status;
+}
+
+#landing-replay.replay-compact .replay-pane > .replay-clock-row,
+#landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-row {
+  min-height: 32px;
+  max-width: none;
+  padding: 5px 8px;
+}
+
+#landing-replay.replay-compact .replay-pane > .replay-clock-row {
+  grid-template-columns: minmax(0, 1fr) minmax(48px, auto);
+}
+
+#landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+#landing-replay.replay-compact .replay-pane > .replay-clock-row .replay-clock-side {
+  grid-column: 1;
+  text-align: left;
+}
+
+#landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-side {
+  grid-column: 1;
+  text-align: left;
+}
+
+#landing-replay.replay-compact
+  .replay-captures.has-captures
+  ~ .replay-pane-clock-slot
+  .replay-clock-side {
+  opacity: 0;
+}
+
+#landing-replay.replay-compact .replay-pane > .replay-clock-row .replay-clock-time {
+  grid-column: 2;
+  text-align: right;
+  font-size: 14px;
+}
+
+#landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-time {
+  grid-column: 2;
+  text-align: right;
+  font-size: 14px;
+}
+
+#landing-replay.replay-compact .replay-clock-to-move {
+  display: none;
+}
+
+#landing-replay.replay-compact .replay-captures .captures-row {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  min-height: var(--capture-piece-size);
+  overflow: hidden;
+  padding-right: var(--capture-piece-overlap);
+}
+
+#landing-replay.replay-compact .replay-captures .captures-piece {
+  margin-right: calc(var(--capture-piece-overlap) * -1);
+}
+
+#landing-replay.replay-compact .replay-captures .captures-piece:last-child {
+  margin-right: 0;
+}
+
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
     .account-route
   ):not(.profile-route):not(.source-route)

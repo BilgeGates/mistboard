@@ -150,7 +150,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     metadataMode: 'compact',
     metadataByRoomId,
     hideGameIdPill: true,
-    showCaptures: false,
+    showCaptures: true,
     panes: { resolver: (sampleId) => povByRoomId[sampleId] ?? 'white' },
   });
 }
