@@ -467,6 +467,12 @@ progress. Continue from isolated worktrees._
    workflow paths, avoiding the manual `gh run watch` step for CI/tooling-only
    releases.
 
+   Fifth slice: hosted CI now fans out into separate build, typecheck, unit,
+   server integration, browser-smoke, and audit jobs, with a final `node`
+   aggregate job preserving the old required-check surface. Browser smoke stays
+   conditional on the path planner, and the aggregate gate treats a skipped
+   browser-smoke job as success only when the planner did not require it.
+
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
    and live-engine reservation boundaries moved out. The next high-leverage

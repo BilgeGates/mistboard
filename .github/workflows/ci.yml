@@ -35,7 +35,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  node:
+  browser-smoke-plan:
+    name: Browser smoke plan
+    runs-on: ubuntu-latest
+    outputs:
+      run_browser_smoke: ${{ steps.browser-smoke-plan.outputs.run_browser_smoke }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Plan browser smoke
+        id: browser-smoke-plan
+        run: node scripts/ci-browser-smoke-plan.mjs
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npm run build
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Unit tests
+        run: npm run test:unit
+
+  integration:
+    name: Server integration
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -55,38 +111,77 @@ jobs:
       TEST_DATABASE_URL: postgres://bichess:bichess@localhost:5432/bichess
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Plan browser smoke
-        id: browser-smoke-plan
-        run: npm run ci:browser-smoke:plan
-      - name: Install Playwright browser
-        if: steps.browser-smoke-plan.outputs.run_browser_smoke == 'true'
-        run: npx playwright install --with-deps chromium
-      - name: Build
-        run: npm run build
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Test
-        env:
-          RUN_BROWSER_SMOKE: ${{ steps.browser-smoke-plan.outputs.run_browser_smoke }}
+      - name: Server integration
         run: |
-          npm run test --workspace @mistboard/game
-          npm run test:unit --workspace @mistboard/web
-          if [ "$RUN_BROWSER_SMOKE" = "true" ]; then
-            npm run test --workspace @mistboard/web
-          else
-            echo "skip: browser smoke not required for changed paths"
-          fi
           npm run test:persistent --workspace @mistboard/server
           MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true TEST_DATABASE_URL=$TEST_DATABASE_URL npm run test:integration --workspace @mistboard/server
+
+  browser-smoke:
+    name: Browser smoke
+    needs: [browser-smoke-plan]
+    if: needs.browser-smoke-plan.outputs.run_browser_smoke == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Browser smoke
+        run: npm run test --workspace @mistboard/web
+
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Audit production dependencies
         run: npm audit --omit=dev
+
+  node:
+    name: node
+    needs:
+      - browser-smoke-plan
+      - build
+      - typecheck
+      - unit
+      - integration
+      - browser-smoke
+      - audit
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          node <<'EOF'
+          const needs = JSON.parse(process.env.NEEDS_JSON);
+          const failures = Object.entries(needs).filter(([name, job]) => {
+            if (name === 'browser-smoke' && job.result === 'skipped') return false;
+            return job.result !== 'success';
+          });
+          if (failures.length > 0) {
+            for (const [name, job] of failures) {
+              console.error(`${name}: ${job.result}`);
+            }
+            process.exit(1);
+          }
+          console.log('all required CI jobs passed');
+          EOF
 
   # --- Code-red signal (label: ci-failure) -----------------------------------
   # The `node` job is "did you break the build/tests". Its own self-clearing issue.
