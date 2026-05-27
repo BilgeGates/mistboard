@@ -290,7 +290,10 @@ ownership surfaces:
    ordering, article thumbnail lookup, and CTA labels out of the route mount.
    Homepage play panel, setup dialog, lobby queue polling, room creation, and
    empty-lobby engine offer behavior now live in `apps/web/src/landing-play.ts`,
-   reducing `landing.ts` to a route/replay/watch coordinator.
+   reducing `landing.ts` to a route/replay/watch coordinator. The next slice
+   moved `/watch` feed polling, replay mounting, status/empty states, channel
+   links, and queue rendering into `apps/web/src/watch-route.ts`; shared replay
+   metadata assembly now lives in `apps/web/src/game-meta.ts`.
 4. **Fix public-artifact build hygiene.** Keep dev bakeoff and pixel-lab assets
    from being copied into ordinary web builds unless explicitly opted in. Local
    `apps/web/public` artifacts should not make `apps/web/dist` hundreds of MB.
@@ -407,7 +410,8 @@ ownership surfaces:
    another 206 lines. The latest slice moved homepage stage, play, setup,
    lobby, and replay embed styles into `apps/web/src/landing.css` and removed
    unused landing leaderboard panel CSS, reducing the global stylesheet by
-   another 1,278 lines.
+   another 1,278 lines. The latest slice moved `/watch` route styles into
+   `apps/web/src/watch-route.css`, reducing `landing.css` by another 476 lines.
 10. **Split learn route ownership.** Keep `apps/web/src/learn.ts` focused on
     route mounting, rendering, board, and interaction logic. Static module and
     chapter curriculum data now lives in `apps/web/src/learn-content.ts`, which
@@ -553,20 +557,15 @@ npm run agent:scan
    Avoid `apps/server/src/engines/registry.ts` while active engine work is
    dirty.
 
-4. **Split remaining large web surfaces.** Current scan after the landing-play
+4. **Split remaining large web surfaces.** Current scan after the watch-route
    split reports `apps/web/src/styles.css` (~3,933 lines),
-   `apps/web/src/landing.css` (~2,076), `apps/web/src/learn.ts` (~1,589),
+   `apps/web/src/landing.css` (~1,600), `apps/web/src/learn.ts` (~1,589),
    `apps/web/src/replay.ts` (~1,384), and `apps/web/src/landing-play.ts`
    (~1,094) as the largest web navigation costs. `landing.ts` is down to about
-   705 lines and should stay a route coordinator rather than regain setup/lobby
-   ownership.
-
-   Suggested next `landing.ts` slices:
-
-   - move watch feed queue rendering/polling into a `watch-route.ts` module once
-     the route-specific CSS is already in `landing.css`;
-   - keep `landing.ts` as the route mount coordinator instead of a UI ownership
-     hub.
+   289 lines and should stay a route coordinator rather than regain setup/lobby
+   or watch ownership. The next meaningful web velocity slice is likely
+   `landing-play.ts` sub-splitting only when changing play setup behavior, or a
+   separate `replay.ts`/`learn.ts` ownership pass.
 
 5. **Expand fixture ownership where it reduces churn.** Server builders now
    cover the core room/payload shapes. Add web/live/replay fixture helpers only

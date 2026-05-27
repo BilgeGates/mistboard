@@ -143,7 +143,9 @@ if (beliefParam) {
   );
 } else if (wantsWatch) {
   setTitle('Watch');
-  void mountOrReport(() => import('./landing.js').then(({ mountWatch }) => mountWatch(appRoot)));
+  void mountOrReport(() =>
+    import('./watch-route.js').then(({ mountWatch }) => mountWatch(appRoot)),
+  );
 } else if (wantsXiangqiSpike) {
   setTitle('Xiangqi spike');
   void mountOrReport(() =>

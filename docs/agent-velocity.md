@@ -242,6 +242,9 @@ runtime server paths remain deploy-triggering.
   widget-specific behavior into focused modules. Homepage replay sample catalog
   data and hero POV selection live in `apps/web/src/landing-showcase.ts`.
   Homepage play/setup/lobby behavior lives in `apps/web/src/landing-play.ts`.
+  Watch feed polling, replay mounting, and queue rendering live in
+  `apps/web/src/watch-route.ts`; watch route styles live in
+  `apps/web/src/watch-route.css`.
 - Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
   startup environment reads there instead of in `apps/server/src/index.ts`.
 - Keep HTTP entry routing in `apps/server/src/server-http.ts`; `index.ts`
