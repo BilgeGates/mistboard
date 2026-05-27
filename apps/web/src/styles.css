@@ -3433,14 +3433,14 @@ body:has(
 .landing-demo {
   display: grid;
   grid-template-columns:
-    clamp(280px, 24vw, 340px)
-    minmax(0, 1fr)
-    clamp(280px, 24vw, 340px);
+    clamp(240px, 20vw, 300px)
+    minmax(520px, 1fr)
+    clamp(260px, 22vw, 320px);
   grid-template-areas:
     "hero board play"
     "announcements board play";
   grid-template-rows: auto auto;
-  column-gap: clamp(20px, 3vw, 40px);
+  column-gap: clamp(14px, 2vw, 28px);
   row-gap: clamp(10px, 1.4vw, 16px);
   align-items: stretch;
   justify-content: center;
@@ -3457,7 +3457,7 @@ body:has(
     .account-route
   ):not(.profile-route):not(.source-route)
   .landing-demo {
-  column-gap: clamp(20px, 3vw, 40px);
+  column-gap: clamp(14px, 2vw, 28px);
   row-gap: clamp(10px, 1.4vw, 16px);
   padding: 0;
 }
@@ -3474,7 +3474,7 @@ body:has(
 
 .landing-board-column #landing-replay {
   width: 100%;
-  max-width: 560px;
+  max-width: 760px;
 }
 
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
@@ -3482,7 +3482,7 @@ body:has(
   ):not(.profile-route):not(.source-route)
   .landing-board-column
   #landing-replay {
-  max-width: min(560px, calc(100dvh - 340px));
+  max-width: min(760px, calc(100dvh + 20px));
 }
 
 .landing-page:not(.watch-route):not(.game-route):not(.about-route):not(.learn-route):not(
@@ -5710,9 +5710,7 @@ a.landing-announcement-card-inner:focus-visible {
   --cg-w: min(100%, 600px, calc(100dvh - 180px));
   border: none;
   background: transparent;
-  box-shadow:
-    0 0 0 1px rgba(58, 65, 60, 0.18),
-    0 12px 26px rgba(43, 49, 45, 0.14);
+  box-shadow: 0 12px 26px rgba(43, 49, 45, 0.14);
 }
 
 /* Chessground floors the inner container width to a multiple of 8 physical
@@ -5740,6 +5738,170 @@ a.landing-announcement-card-inner:focus-visible {
 .landing-page #landing-replay .replay-clock-row.active {
   border-color: #b6d6c8;
   background: #eef7f1;
+}
+
+.landing-page #landing-replay.replay-compact {
+  --landing-viewer-capture-piece: clamp(22px, 3vw, 30px);
+  --landing-viewer-capture-h: calc(var(--landing-viewer-capture-piece) + 4px);
+  --landing-viewer-rail-w: clamp(190px, 18vw, 220px);
+}
+
+.landing-page #landing-replay.replay-compact .replay-layout {
+  width: 100%;
+}
+
+.landing-page
+  #landing-replay.replay-compact
+  .replay-layout-single-white
+  .replay-pane-white,
+.landing-page
+  #landing-replay.replay-compact
+  .replay-layout-single-black
+  .replay-pane-black {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--landing-viewer-rail-w);
+  grid-template-areas:
+    "captures-top rail"
+    "board rail"
+    "captures-bottom rail";
+  column-gap: clamp(10px, 1.2vw, 16px);
+  row-gap: 2px;
+  align-items: stretch;
+  justify-items: stretch;
+  width: 100%;
+}
+
+.landing-page #landing-replay.replay-compact .replay-captures-top {
+  grid-area: captures-top;
+}
+
+.landing-page #landing-replay.replay-compact .replay-captures-bottom {
+  grid-area: captures-bottom;
+}
+
+.landing-page #landing-replay.replay-compact .replay-captures {
+  --capture-piece-size: var(--landing-viewer-capture-piece);
+
+  width: 100%;
+  max-width: none;
+  height: var(--landing-viewer-capture-h);
+  min-height: var(--landing-viewer-capture-h);
+  padding: 0 2px;
+}
+
+.landing-page #landing-replay.replay-compact .replay-captures .captures-row {
+  justify-content: center;
+  width: 100%;
+}
+
+.landing-page #landing-replay.replay-compact .replay-board {
+  grid-area: board;
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+}
+
+.landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
+  grid-area: rail;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+}
+
+.landing-page #landing-replay.replay-compact .replay-pane-status {
+  grid-area: status;
+  display: none;
+}
+
+.landing-page #landing-replay.replay-compact .replay-pane > .replay-clock-row,
+.landing-page #landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-content: center;
+  justify-items: center;
+  width: 100%;
+  max-width: none;
+  min-height: 72px;
+  padding: 10px 12px;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-stack-name {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  color: #58645d;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-stack-result {
+  border-radius: 999px;
+  background: rgba(31, 111, 91, 0.1);
+  color: #1f6f5b;
+  font-size: 10px;
+  font-weight: 820;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  padding: 3px 6px;
+  text-transform: uppercase;
+}
+
+.landing-page
+  #landing-replay.replay-compact
+  .replay-clock-stack-name.result-loss
+  .replay-clock-stack-result {
+  background: rgba(90, 98, 93, 0.1);
+  color: #6f7771;
+}
+
+.landing-page
+  #landing-replay.replay-compact
+  .replay-clock-stack-name.result-draw
+  .replay-clock-stack-result {
+  background: rgba(90, 98, 93, 0.1);
+  color: #59635d;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-side {
+  display: none;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-time {
+  grid-column: 1;
+  grid-row: 1;
+  text-align: center;
+  font-size: clamp(26px, 2.8vw, 34px);
+  font-weight: 780;
+  line-height: 0.95;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-to-move {
+  display: none;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-row.result-win {
+  border-color: #93c5a9;
+  background: #edf8f1;
+  box-shadow: inset 4px 0 0 #1f6f5b;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-row.result-loss {
+  color: #6f7771;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-row.result-draw {
+  border-color: #c9d2cc;
+  background: #f4f6f2;
 }
 
 .landing-games {
@@ -7103,6 +7265,47 @@ a.landing-announcement-card-inner:focus-visible {
   .play-engine-select {
     width: 100%;
     max-width: none;
+  }
+
+  .landing-board-column #landing-replay {
+    max-width: 560px;
+  }
+
+  .landing-page
+    #landing-replay.replay-compact
+    .replay-layout-single-white
+    .replay-pane-white,
+  .landing-page
+    #landing-replay.replay-compact
+    .replay-layout-single-black
+    .replay-pane-black {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "rail"
+      "captures-top"
+      "board"
+      "captures-bottom";
+  }
+
+  .landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
+    gap: 4px;
+    margin-top: 0;
+  }
+
+  .landing-page #landing-replay.replay-compact .replay-pane > .replay-clock-row,
+  .landing-page #landing-replay.replay-compact .replay-pane-clock-slot .replay-clock-row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    justify-items: center;
+    min-height: 38px;
+    padding: 6px 9px;
+  }
+
+  .landing-page #landing-replay.replay-compact .replay-clock-time {
+    grid-column: 1;
+    grid-row: 1;
+    text-align: center;
+    font-size: 18px;
   }
 }
 

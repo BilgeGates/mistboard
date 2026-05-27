@@ -8,16 +8,20 @@ export type ReplayPaneHandle = {
   el: HTMLDivElement;
   boardEl: HTMLDivElement;
   capturesEl: HTMLDivElement;
+  topCapturesEl: HTMLDivElement;
   clockSlot: HTMLDivElement;
   labelEl: HTMLDivElement;
   nameEl: HTMLDivElement;
   statusEl: HTMLDivElement;
 };
 
+export type ReplayCaptureLayout = 'single' | 'split';
+
 export function createPane(
   label: string,
   kind: 'white' | 'truth' | 'black',
   showCaptures = true,
+  captureLayout: ReplayCaptureLayout = 'single',
 ): ReplayPaneHandle {
   const el = document.createElement('div');
   el.className = `replay-pane replay-pane-${kind}`;
@@ -28,19 +32,24 @@ export function createPane(
   nameEl.className = 'replay-pane-name';
   const boardEl = document.createElement('div');
   boardEl.className = 'board replay-board';
+  const topCapturesEl = document.createElement('div');
+  topCapturesEl.className = 'captures-strip replay-captures replay-captures-top';
+  topCapturesEl.setAttribute('aria-label', 'Pieces captured');
   const capturesEl = document.createElement('div');
-  capturesEl.className = 'captures-strip replay-captures';
+  capturesEl.className = 'captures-strip replay-captures replay-captures-bottom';
   capturesEl.setAttribute('aria-label', 'Pieces captured');
   const clockSlot = document.createElement('div');
   clockSlot.className = 'replay-pane-clock-slot';
   const statusEl = document.createElement('div');
   statusEl.className = 'replay-pane-status';
-  if (showCaptures) {
+  if (showCaptures && captureLayout === 'split') {
+    el.append(labelEl, nameEl, topCapturesEl, boardEl, capturesEl, clockSlot, statusEl);
+  } else if (showCaptures) {
     el.append(labelEl, nameEl, boardEl, capturesEl, clockSlot, statusEl);
   } else {
     el.append(labelEl, nameEl, boardEl, clockSlot, statusEl);
   }
-  return { el, boardEl, capturesEl, clockSlot, labelEl, nameEl, statusEl };
+  return { el, boardEl, capturesEl, topCapturesEl, clockSlot, labelEl, nameEl, statusEl };
 }
 
 export function renderPaneCaptures(

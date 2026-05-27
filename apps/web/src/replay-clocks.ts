@@ -129,8 +129,18 @@ export function renderClockPanel(
         : activeColor && thinkingBudgetMs !== null
           ? { activeColor, budgetMs: thinkingBudgetMs, elapsedMs: 0 }
           : null;
-    panel.whiteTime.textContent = clocklessReplayTimeLabel('white', activeThinking, timeControl);
-    panel.blackTime.textContent = clocklessReplayTimeLabel('black', activeThinking, timeControl);
+    panel.whiteTime.textContent = clocklessReplayTimeLabel(
+      'white',
+      activeThinking,
+      timeControl,
+      thinkingBudgetMs,
+    );
+    panel.blackTime.textContent = clocklessReplayTimeLabel(
+      'black',
+      activeThinking,
+      timeControl,
+      thinkingBudgetMs,
+    );
     renderClockRowTurn(panel, activeColor);
     renderClockRowThinking(panel, activeThinking);
     return;
@@ -183,14 +193,16 @@ function clocklessReplayTimeLabel(
   color: Color,
   thinking: ReplayThinkingBudgetState | null,
   timeControl: string | null,
+  thinkingBudgetMs: number | null,
 ): string {
   if (timeControl === 'Untimed') return 'Untimed';
-  if (!thinking || color !== thinking.activeColor) return '';
+  if (!thinking) return thinkingBudgetMs !== null ? formatThinkingBudget(thinkingBudgetMs) : '';
+  if (color !== thinking.activeColor) return formatThinkingBudget(thinking.budgetMs);
   return `${formatThinkingElapsed(thinking.elapsedMs)} / ${formatThinkingBudget(thinking.budgetMs)}`;
 }
 
 function formatThinkingElapsed(ms: number): string {
-  if (ms < 100) return '<0.1s';
+  if (ms < 100) return '0.0s';
   const seconds = Math.max(0, ms) / 1000;
   if (seconds < 10) return `${seconds.toFixed(1)}s`;
   return `${Math.round(seconds)}s`;

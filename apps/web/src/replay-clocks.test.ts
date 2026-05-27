@@ -48,10 +48,22 @@ describe('renderClockPanel', () => {
     expect(panel.whiteLabel.textContent).toBe('Guest');
     expect(panel.blackLabel.textContent).toBe('Engine');
     expect(panel.whiteTime.textContent).toBe('0.3s / 5s');
-    expect(panel.blackTime.textContent).toBe('');
+    expect(panel.blackTime.textContent).toBe('5s');
     expect(panel.whiteRow.classList.contains('active')).toBe(true);
     expect(panel.whiteRow.classList.contains('is-thinking')).toBe(true);
     expect(panel.whiteRow.style.getPropertyValue('--replay-thinking-progress')).toBe('0.05');
+  });
+
+  it('keeps sub-tenth clockless labels aligned with later elapsed labels', () => {
+    const panel = createClockPanel();
+
+    renderClockPanel(panel, undefined, playingState('white'), meta, undefined, {
+      activeColor: 'white',
+      budgetMs: 5_000,
+      elapsedMs: 50,
+    });
+
+    expect(panel.whiteTime.textContent).toBe('0.0s / 5s');
   });
 
   it('renders real clock time using display overrides', () => {

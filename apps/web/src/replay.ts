@@ -31,6 +31,7 @@ import {
 import {
   createBoard,
   createPane,
+  type ReplayPaneHandle,
   renderPaneCaptures,
   renderTruthCaptures,
   revealKingCaptureForLoser,
@@ -163,6 +164,12 @@ export type ReplayOptions = {
   hideGameIdPill?: boolean;
   /** When false, do not render captured-piece strips under replay boards. */
   showCaptures?: boolean;
+  /** Split captured pieces above and below POV boards instead of one strip below. */
+  captureLayout?: 'single' | 'split';
+  /** Compact-mode clock placement. Defaults to the historical board-edge rows. */
+  compactClockLayout?: 'board-edges' | 'stacked';
+  /** End-result placement. Defaults to pane footer labels. */
+  endStatusMode?: 'pane' | 'clock';
   /**
    * When set, enables the annotation tooling. Press `a` at any ply to open
    * the modal pre-filled with the move just played. Annotations persist via
@@ -197,6 +204,10 @@ export async function mountReplay(
   const panesResolver = typeof options.panes === 'object' ? options.panes.resolver : null;
   const hideGameIdPill = options.hideGameIdPill === true;
   const showCaptures = options.showCaptures !== false;
+  const captureLayout = options.captureLayout ?? 'single';
+  const splitCaptures = showCaptures && captureLayout === 'split';
+  const compactClockLayout = options.compactClockLayout ?? 'board-edges';
+  const endStatusMode = options.endStatusMode ?? 'pane';
   const onPlyChange = options.onPlyChange;
   const initialMeta = metadataByRoomId?.[initialReplaySampleId];
   const initialOrientation = orientationForId?.(initialReplaySampleId, initialMeta);
@@ -236,9 +247,9 @@ export async function mountReplay(
   let whiteBaseLabel = "White's view";
   let blackBaseLabel = "Black's view";
 
-  const whitePane = createPane(whiteBaseLabel, 'white', showCaptures);
-  const truthPane = createPane('Truth', 'truth', showCaptures);
-  const blackPane = createPane(blackBaseLabel, 'black', showCaptures);
+  const whitePane = createPane(whiteBaseLabel, 'white', showCaptures, captureLayout);
+  const truthPane = createPane('Truth', 'truth', showCaptures, captureLayout);
+  const blackPane = createPane(blackBaseLabel, 'black', showCaptures, captureLayout);
   layout.append(whitePane.el, truthPane.el, blackPane.el);
   // Apply the pane choice synchronously so the triptych doesn't flash before
   // loadGame() finishes its async fetch and calls applyMetadata().
@@ -280,6 +291,10 @@ export async function mountReplay(
   // looped games.
   let compactClockHost: { boardEl: HTMLDivElement; clockSlot: HTMLDivElement } | null = null;
   let compactClockTopColor: Color | null = null;
+  const compactClockTopName = document.createElement('div');
+  compactClockTopName.className = 'replay-clock-stack-name replay-clock-stack-name-top';
+  const compactClockBottomName = document.createElement('div');
+  compactClockBottomName.className = 'replay-clock-stack-name replay-clock-stack-name-bottom';
   function relocateCompactClockRows(host: {
     boardEl: HTMLDivElement;
     clockSlot: HTMLDivElement;
@@ -294,10 +309,47 @@ export async function mountReplay(
     topRow.classList.remove('replay-clock-row-bottom');
     bottomRow.classList.add('replay-clock-row-bottom');
     bottomRow.classList.remove('replay-clock-row-top');
-    host.boardEl.before(topRow);
-    host.clockSlot.append(bottomRow);
+    if (compactClockLayout === 'stacked') {
+      compactClockTopName.remove();
+      compactClockBottomName.remove();
+      updateCompactClockNames(clockSides);
+      host.clockSlot.append(compactClockTopName, topRow, bottomRow, compactClockBottomName);
+    } else {
+      host.boardEl.before(topRow);
+      host.clockSlot.append(bottomRow);
+    }
     compactClockHost = host;
     compactClockTopColor = clockSides.top;
+  }
+  function updateCompactClockNames(
+    clockSides = compactReplayClockSidesForOrientation(boardOrientation),
+    resultByColor?: Partial<Record<Color, 'draw' | 'loss' | 'win'>>,
+  ): void {
+    renderCompactClockName(compactClockTopName, clockSides.top, resultByColor?.[clockSides.top]);
+    renderCompactClockName(
+      compactClockBottomName,
+      clockSides.bottom,
+      resultByColor?.[clockSides.bottom],
+    );
+  }
+  function renderCompactClockName(
+    target: HTMLDivElement,
+    color: Color,
+    result: 'draw' | 'loss' | 'win' | undefined,
+  ): void {
+    target.classList.toggle('result-win', result === 'win');
+    target.classList.toggle('result-loss', result === 'loss');
+    target.classList.toggle('result-draw', result === 'draw');
+    const baseName =
+      color === 'white' ? clockPanel.whiteLabel.textContent : clockPanel.blackLabel.textContent;
+    if (!result) {
+      target.textContent = baseName;
+      return;
+    }
+    const resultChip = document.createElement('span');
+    resultChip.className = 'replay-clock-stack-result';
+    resultChip.textContent = result === 'win' ? 'won' : result === 'loss' ? 'lost' : 'draw';
+    target.replaceChildren(document.createTextNode(baseName ?? ''), resultChip);
   }
   function paneForChoice(choice: 'white' | 'black' | 'all'): {
     boardEl: HTMLDivElement;
@@ -429,6 +481,7 @@ export async function mountReplay(
     const captures = showCaptures ? computeCaptures(sliced) : null;
     const finished = state.status.type === 'finished';
     renderClockState(state, sliced);
+    clearClockEndGameState();
 
     setBoardFromState(truthCg, state);
 
@@ -472,8 +525,14 @@ export async function mountReplay(
     whitePane.el.classList.toggle('revealed', showRevealLabels);
     blackPane.el.classList.toggle('revealed', showRevealLabels);
     if (captures) {
-      renderPaneCaptures(whitePane.capturesEl, captures.white, 'black');
-      renderPaneCaptures(blackPane.capturesEl, captures.black, 'white');
+      if (splitCaptures) {
+        renderSplitPaneCaptures(whitePane, captures, 'white');
+        renderSplitPaneCaptures(blackPane, captures, 'black');
+        renderPaneCaptures(truthPane.topCapturesEl, [], 'white');
+      } else {
+        renderPaneCaptures(whitePane.capturesEl, captures.white, 'black');
+        renderPaneCaptures(blackPane.capturesEl, captures.black, 'white');
+      }
       renderTruthCaptures(truthPane.capturesEl, captures);
     }
 
@@ -754,6 +813,8 @@ export async function mountReplay(
     if (!wallClockLoop) return;
     if (!renderedClockState || !renderedClockEvents) return;
     renderClockState(renderedClockState, renderedClockEvents);
+    clearClockEndGameState();
+    if (renderedClockState.status.type === 'finished') applyEndGameState(renderedClockState);
   }
 
   function wallClockThinkingState(state: GameState): ReplayThinkingBudgetState | null {
@@ -1014,6 +1075,9 @@ export async function mountReplay(
     whitePane.nameEl.textContent = '';
     blackPane.nameEl.textContent = '';
     setClockPanelNames(clockPanel, meta);
+    if (metadataMode === 'compact' && compactClockLayout === 'stacked') {
+      updateCompactClockNames();
+    }
     renderGameMetaPanel(gameMetaPanel, meta, activeSample);
     renderGameHeader(gameHeader, meta);
     whiteBaseLabel = playerViewLabel(meta?.whiteName, 'white');
@@ -1061,20 +1125,58 @@ export async function mountReplay(
     if (winner === 'white') {
       whitePane.el.classList.add('winner');
       blackPane.el.classList.add('loser');
-      whitePane.statusEl.textContent = 'WINNER';
-      blackPane.statusEl.textContent = 'LOST';
+      if (endStatusMode === 'clock') {
+        applyClockEndGameState('white');
+      } else {
+        whitePane.statusEl.textContent = 'WINNER';
+        blackPane.statusEl.textContent = 'LOST';
+      }
     } else if (winner === 'black') {
       blackPane.el.classList.add('winner');
       whitePane.el.classList.add('loser');
-      blackPane.statusEl.textContent = 'WINNER';
-      whitePane.statusEl.textContent = 'LOST';
+      if (endStatusMode === 'clock') {
+        applyClockEndGameState('black');
+      } else {
+        blackPane.statusEl.textContent = 'WINNER';
+        whitePane.statusEl.textContent = 'LOST';
+      }
     } else {
       // Draw — neither side gets winner/loser visual state.
-      whitePane.statusEl.textContent = 'DRAW';
-      blackPane.statusEl.textContent = 'DRAW';
+      if (endStatusMode === 'clock') {
+        applyClockEndGameState(null);
+      } else {
+        whitePane.statusEl.textContent = 'DRAW';
+        blackPane.statusEl.textContent = 'DRAW';
+      }
     }
     truthPane.el.classList.add('finished');
-    truthPane.statusEl.textContent = reasonLabel;
+    truthPane.statusEl.textContent = endStatusMode === 'clock' ? '' : reasonLabel;
+  }
+
+  function clearClockEndGameState(): void {
+    if (endStatusMode !== 'clock') return;
+    clockPanel.whiteRow.classList.remove('result-win', 'result-loss', 'result-draw');
+    clockPanel.blackRow.classList.remove('result-win', 'result-loss', 'result-draw');
+    compactClockTopName.classList.remove('result-win', 'result-loss', 'result-draw');
+    compactClockBottomName.classList.remove('result-win', 'result-loss', 'result-draw');
+    updateCompactClockNames();
+  }
+
+  function applyClockEndGameState(winner: Color | null): void {
+    if (winner === null) {
+      clockPanel.whiteRow.classList.add('result-draw');
+      clockPanel.blackRow.classList.add('result-draw');
+      updateCompactClockNames(undefined, { black: 'draw', white: 'draw' });
+      return;
+    }
+    const winnerRow = winner === 'white' ? clockPanel.whiteRow : clockPanel.blackRow;
+    const loserRow = winner === 'white' ? clockPanel.blackRow : clockPanel.whiteRow;
+    winnerRow.classList.add('result-win');
+    loserRow.classList.add('result-loss');
+    updateCompactClockNames(undefined, {
+      [winner]: 'win',
+      [winner === 'white' ? 'black' : 'white']: 'loss',
+    });
   }
 
   function endGameReasonLabel(reason: string): string {
@@ -1204,6 +1306,20 @@ export async function mountReplay(
     truthCg.set({ orientation: boardOrientation });
     blackCg.set({ orientation: boardOrientation });
   }
+}
+
+function renderSplitPaneCaptures(
+  pane: ReplayPaneHandle,
+  captures: Record<Color, PieceRole[]>,
+  perspective: Color,
+): void {
+  const opponent = oppositeReplayColor(perspective);
+  renderPaneCaptures(pane.topCapturesEl, captures[opponent], perspective);
+  renderPaneCaptures(pane.capturesEl, captures[perspective], opponent);
+}
+
+function oppositeReplayColor(color: Color): Color {
+  return color === 'white' ? 'black' : 'white';
 }
 
 function pickNextSample(pool: string[], current: string): string {

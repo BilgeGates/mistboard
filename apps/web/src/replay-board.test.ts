@@ -30,11 +30,25 @@ function mockBoardRect(cgBoard: HTMLElement): void {
 describe('createPane', () => {
   it('creates the replay pane shell with optional captures', () => {
     const withCaptures = createPane("White's view", 'white');
+    const withSplitCaptures = createPane("Black's view", 'black', true, 'split');
     const withoutCaptures = createPane('Truth', 'truth', false);
 
     expect(withCaptures.el.className).toContain('replay-pane-white');
     expect(withCaptures.labelEl.textContent).toBe("White's view");
     expect(withCaptures.el.contains(withCaptures.capturesEl)).toBe(true);
+    expect(withCaptures.el.contains(withCaptures.topCapturesEl)).toBe(false);
+    expect(withSplitCaptures.el.contains(withSplitCaptures.topCapturesEl)).toBe(true);
+    expect(
+      [...withSplitCaptures.el.children].map((child) => (child as HTMLElement).className),
+    ).toEqual([
+      'replay-pane-label',
+      'replay-pane-name',
+      'captures-strip replay-captures replay-captures-top',
+      'board replay-board',
+      'captures-strip replay-captures replay-captures-bottom',
+      'replay-pane-clock-slot',
+      'replay-pane-status',
+    ]);
     expect(withoutCaptures.el.contains(withoutCaptures.capturesEl)).toBe(false);
   });
 });
