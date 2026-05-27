@@ -21,8 +21,7 @@ import {
   coordOf,
   getLegalMoves,
   getPlayerView,
-  inOwnHalf,
-  inPalace,
+  inBounds,
   squareOf,
   type XiangqiBoard,
   type XiangqiCannonVisionMode,
@@ -152,139 +151,62 @@ export function chooseVisibleGreedyMove(
   return bestMoves[Math.floor(Math.random() * bestMoves.length)];
 }
 
-// ── Fair fog-of-war bot: determinization / PIMC-lite ────────────────────────
+// ── Fair fog-of-war bot ─────────────────────────────────────────────────────
 //
-// Plays using ONLY its own PlayerView — never the ground-truth board. For each
-// candidate move it samples a handful of full boards consistent with what it
-// can see (known pieces fixed; the rest of the standard roster scattered across
-// fogged squares under light legality constraints), scores the move on every
-// sample with the same material-minus-threat eval the god-view bot uses, and
-// plays the best average. This is the variant of belief the demo opponent needs
-// without the private engine stack: contained here, no cross-file dependency,
-// no neural net, no CFR.
-//
-// Known simplification: with no move history it assumes the enemy's full roster
-// is still on the board (minus pieces it can currently identify), so it slightly
-// over-estimates hidden material and errs cautious. Cross-move capture tracking
-// is the next increment if that caution reads as passivity in playtest.
+// Plays using ONLY its own PlayerView — never the ground-truth board. See
+// chooseFairMove below for the scoring model. Two earlier approaches failed and
+// are worth not repeating: full-roster determinization (scatter the enemy's
+// hidden pieces across the fog) invents phantom attackers — including phantom
+// checks on the general worth 100k — that swamp the eval; and global material on
+// the visible-only board makes the near-empty enemy look nearly dead, so any
+// capture reads as a winning/king-mating move. Both traded a cannon for a
+// defended horse. Local per-move scoring plus an explicit unseen-defender prior
+// avoids both. Contained here: no private engine stack, no neural net, no CFR.
 
-const FULL_SIDE_ROSTER: readonly XiangqiPieceRole[] = [
-  'general',
-  'advisor',
-  'advisor',
-  'elephant',
-  'elephant',
-  'horse',
-  'horse',
-  'chariot',
-  'chariot',
-  'cannon',
-  'cannon',
-  'soldier',
-  'soldier',
-  'soldier',
-  'soldier',
-  'soldier',
-];
-
-const DEFAULT_FAIR_SAMPLES = 8;
+// Fraction of a destination's neighbourhood that must be fogged before a capture
+// there is treated as fully defended (whole moving-piece value at risk).
+const FOG_FULL_RISK_EXPOSURE = 0.5;
 
 function oppositeColor(color: XiangqiColor): XiangqiColor {
   return color === 'red' ? 'black' : 'red';
 }
 
-// Cheap legality gate for sampled hidden placements. Tight where a wrong guess
-// most distorts the eval (a misplaced general is worth 100k), loose elsewhere.
-function canHoldHidden(role: XiangqiPieceRole, color: XiangqiColor, square: XiangqiSquare): boolean {
+// How fogged the neighbourhood of a square is, 0 (fully seen) … 1 (fully dark).
+// A proxy for "could an unseen defender be covering this square."
+function fogExposure(square: XiangqiSquare, visible: Set<XiangqiSquare>): number {
   const { file, rank } = coordOf(square);
-  switch (role) {
-    case 'general':
-    case 'advisor':
-      return inPalace(color, file, rank);
-    case 'elephant':
-      return inOwnHalf(color, rank);
-    case 'soldier':
-      // A soldier never sits behind its own starting rank.
-      return color === 'red' ? rank >= 4 : rank <= 7;
-    default:
-      return true; // horse, chariot, cannon: anywhere
+  let total = 0;
+  let fogged = 0;
+  for (let df = -1; df <= 1; df++) {
+    for (let dr = -1; dr <= 1; dr++) {
+      if (df === 0 && dr === 0) continue;
+      const f = file + df;
+      const r = rank + dr;
+      if (!inBounds(f, r)) continue;
+      total++;
+      if (!visible.has(squareOf(f, r))) fogged++;
+    }
   }
+  return total === 0 ? 0 : fogged / total;
 }
 
-function shuffleInPlace<T>(arr: T[]): void {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-}
-
-// Build one full board consistent with `view`: every visible square is fixed,
-// every shrouded enemy marker gets a plausible type, and the remaining roster is
-// scattered across fogged squares. `color` is the bot to move.
-function determinize(view: XiangqiPlayerView, color: XiangqiColor, id: string): XiangqiGameState {
+// The board the bot can actually see: identified pieces as-is, shrouded enemy
+// markers kept as minimal blockers (so cannon screens and blocked lines stay
+// correct) without leaking their true type. `color` is the side to move.
+function buildVisibleState(
+  view: XiangqiPlayerView,
+  color: XiangqiColor,
+  id: string,
+): XiangqiGameState {
   const enemy = oppositeColor(color);
   const board: XiangqiBoard = {};
-  const occupied = new Set<XiangqiSquare>();
-  const shroudedSquares: XiangqiSquare[] = [];
-  const identifiedEnemy = new Map<XiangqiPieceRole, number>();
-
   for (const [sq, entry] of Object.entries(view.board) as [
     XiangqiSquare,
     XiangqiVisibleBoardEntry | undefined,
   ][]) {
     if (!entry) continue;
-    if (entry.shrouded) {
-      shroudedSquares.push(sq); // enemy occupies a known square, type unknown
-      occupied.add(sq);
-      continue;
-    }
-    board[sq] = entry.piece;
-    occupied.add(sq);
-    if (entry.piece.color === enemy) {
-      identifiedEnemy.set(entry.piece.role, (identifiedEnemy.get(entry.piece.role) ?? 0) + 1);
-    }
+    board[sq] = entry.shrouded ? { color: enemy, role: 'soldier' } : entry.piece;
   }
-
-  // Hidden roster = standard side roster minus pieces already identified.
-  const remaining: XiangqiPieceRole[] = [];
-  const rosterCounts = new Map<XiangqiPieceRole, number>();
-  for (const role of FULL_SIDE_ROSTER) rosterCounts.set(role, (rosterCounts.get(role) ?? 0) + 1);
-  for (const [role, total] of rosterCounts) {
-    const seen = identifiedEnemy.get(role) ?? 0;
-    for (let i = seen; i < total; i++) remaining.push(role);
-  }
-  shuffleInPlace(remaining);
-
-  // Assign a plausible type to each known-square shrouded marker first.
-  for (const sq of shroudedSquares) {
-    const idx = remaining.findIndex((role) => canHoldHidden(role, enemy, sq));
-    const role = idx >= 0 ? remaining.splice(idx, 1)[0] : 'soldier';
-    board[sq] = { color: enemy, role };
-  }
-
-  // Scatter the rest across fogged (not-visible, not-occupied) squares.
-  const visible = new Set(view.visibleSquares);
-  const fogged: XiangqiSquare[] = [];
-  for (let f = 0; f < 9; f++) {
-    for (let rank = 1; rank <= 10; rank++) {
-      const sq = squareOf(f, rank);
-      if (!visible.has(sq) && !occupied.has(sq)) fogged.push(sq);
-    }
-  }
-  shuffleInPlace(fogged);
-  let cursor = 0;
-  for (const role of remaining) {
-    for (let k = 0; k < fogged.length; k++) {
-      const sq = fogged[(cursor + k) % fogged.length];
-      if (occupied.has(sq) || !canHoldHidden(role, enemy, sq)) continue;
-      board[sq] = { color: enemy, role };
-      occupied.add(sq);
-      cursor = (cursor + k + 1) % fogged.length;
-      break;
-    }
-    // If no legal fogged square exists, the piece is simply dropped (≈ captured).
-  }
-
   return {
     id,
     board,
@@ -295,11 +217,28 @@ function determinize(view: XiangqiPlayerView, color: XiangqiColor, id: string): 
   };
 }
 
+// Tiny tie-breaker so safe quiet moves have direction instead of being random:
+// nudge non-general pieces forward, gently discourage shuffling the general.
+// Weights are deliberately an order of magnitude below any piece value so this
+// never overrides a tactical decision.
+function positionalNudge(move: XiangqiMove, mover: XiangqiPiece, color: XiangqiColor): number {
+  if (mover.role === 'general') return -4;
+  const forward = color === 'red' ? coordOf(move.to).rank - coordOf(move.from).rank : coordOf(move.from).rank - coordOf(move.to).rank;
+  return Math.max(0, forward) * 2;
+}
+
+// Fair fog-of-war bot. Scores each move LOCALLY on what the bot can see — capture
+// gain, minus what the opponent takes back (a visible recapture OR, for captures
+// into fog, an unseen-defender prior worth the moving piece), minus any piece
+// left hanging to a visible enemy, plus a small positional nudge. Only capturing
+// a visible enemy general counts as a win. It never counts global material or
+// terminal stalemate, both of which are meaningless when most of the enemy is
+// hidden (that was what made the earlier determinization and visible-board
+// material evals trade a cannon for a defended horse).
 export function chooseFairMove(
   state: XiangqiGameState,
   color: XiangqiColor,
   mode: XiangqiCannonVisionMode = 'D',
-  samples = DEFAULT_FAIR_SAMPLES,
 ): XiangqiMove | null {
   if (state.status.type !== 'playing' || state.status.turn !== color) return null;
   const view = getPlayerView(state, color, mode);
@@ -307,33 +246,44 @@ export function chooseFairMove(
   if (moves.length === 0) return null;
   if (moves.length === 1) return moves[0];
 
-  const totals = new Array<number>(moves.length).fill(0);
-  for (let s = 0; s < samples; s++) {
-    const sampled = determinize(view, color, `${state.id}-det${s}`);
-    for (let i = 0; i < moves.length; i++) {
-      const next = applyMove(sampled, moves[i]);
-      let score: number;
-      if (next === sampled) {
-        // Move was illegal in this determinization (a sampled hidden piece
-        // blocked the line). Mildly discourage, but it may be fine elsewhere.
-        score = -DRAW_PENALTY;
-      } else if (next.status.type === 'finished') {
-        score =
-          next.status.winner === color ? WIN : next.status.winner === null ? -DRAW_PENALTY : -WIN;
-      } else {
-        score = evaluatePosition(next, color) - bestOpponentCaptureValue(next);
-      }
-      totals[i] += score;
-    }
-  }
+  const visible = new Set(view.visibleSquares);
+  const known = buildVisibleState(view, color, state.id);
 
   let best = -Infinity;
   let bestIdxs: number[] = [];
-  for (let i = 0; i < totals.length; i++) {
-    if (totals[i] > best) {
-      best = totals[i];
+  for (let i = 0; i < moves.length; i++) {
+    const move = moves[i];
+    const mover = known.board[move.from];
+    const captured = known.board[move.to];
+    const capturesEnemy = !!captured && !!mover && captured.color !== mover.color;
+
+    let score: number;
+    if (capturesEnemy && captured!.role === 'general') {
+      score = WIN; // taking the (visible) enemy general ends the game
+    } else {
+      const next = applyMove(known, move);
+      if (next === known || !mover) {
+        // Illegal once the visible board is laid out (a shrouded blocker sits in
+        // the line) — playable on the true board, but discourage relying on it.
+        score = -DRAW_PENALTY;
+      } else {
+        const moverValue = PIECE_VALUE[mover.role];
+        const captureGain = capturesEnemy ? PIECE_VALUE[captured!.role] : 0;
+        // What the opponent grabs in reply, using only pieces the bot can see.
+        const visibleThreat = bestOpponentCaptureValue(next);
+        // Unseen defender: a capture into fog risks losing the moving piece to a
+        // piece the bot cannot see; ramp to the full mover value as fog deepens.
+        const fogThreat = capturesEnemy
+          ? moverValue * Math.min(1, fogExposure(move.to, visible) / FOG_FULL_RISK_EXPOSURE)
+          : 0;
+        score = captureGain - Math.max(visibleThreat, fogThreat) + positionalNudge(move, mover, color);
+      }
+    }
+
+    if (score > best) {
+      best = score;
       bestIdxs = [i];
-    } else if (totals[i] === best) {
+    } else if (score === best) {
       bestIdxs.push(i);
     }
   }
