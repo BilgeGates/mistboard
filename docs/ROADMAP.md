@@ -1,6 +1,6 @@
 # Roadmap
 
-_Last updated: 2026-05-25_
+_Last updated: 2026-05-27_
 
 ## Product Pillars
 
@@ -27,6 +27,7 @@ ranked integrity, and a serious engine track.
 ## Planned
 
 - [ ] **M2 — Soft launch + Elo calibration.** Discord, friend network, small subreddits. Target: 200 casual standard 3+2 games persisted. Run offline Elo simulation against the `games` table; tune K-factor; scan for anomalous endings. Keep the playable engine visible as the no-opponent fallback and learning opponent.
+- [ ] **Login/account hardening track.** See [Login Track](login-track.md). This is not an M1 gameplay gate, but L4 fair-play acceptance is a prerequisite for the M3 standard rated flip, and any engine-play account gate must preserve or intentionally replace the M1 empty-lobby fallback.
 - [ ] **M3 — Standard rated flip + hard launch.** Unhide leaderboard, turn on rated standard 3+2. Then r/chess, HN, streamer DMs.
 - [ ] **M4 — Draft960 enable + rated flip.** Draft960 is deliberately cut from the M1–M3 launch surface (standard-only, to avoid splitting the matchmaking pool and to keep first-touch legible). M4 enables it: flip `VITE_DRAFT960_ENABLED=true` to expose the format selector (casual-only first), accumulate ~200 Draft960 casual games, then repeat the calibration cycle for Draft960's own rating pool. Today's default build shows a static "Dark chess" variant label with no format dropdown.
 - [ ] **M5+ — Engine track.** Push from playable engine to public protocol and benchmark ecosystem: redacted engine payloads, public baseline engines, reproducible games, FUCI-style spec, external first-party engine adapter, public engine leaderboard, and Article #3.
