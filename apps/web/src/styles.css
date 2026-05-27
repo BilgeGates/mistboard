@@ -2455,7 +2455,9 @@ button:focus-visible {
 
 .move-list {
   display: grid;
+  align-content: start;
   gap: 2px;
+  grid-auto-rows: 32px;
   height: 96px;
   margin: 0;
   padding: 0;
@@ -6651,6 +6653,7 @@ a.landing-announcement-card-inner:focus-visible {
 
   .game-replay .replay-moves-panel .move-list {
     height: clamp(220px, 42vh, 360px);
+    grid-auto-rows: 28px;
     max-height: none;
   }
 
