@@ -394,7 +394,7 @@ test('forfeitEngineOnFailure: engine loses instead of freezing PvE indefinitely'
 });
 
 // ── Seat assignment via event projection ──────────────────────────────────────
-// assignSeat() lives in index.ts and cannot be imported in isolation.
+// assignSeat() lives in server-seat-session.ts and is covered through integration tests.
 // These tests verify the same observable invariants through appendEvent + projection.
 
 test('seat assignment: first joiner gets white seat', async () => {
@@ -437,7 +437,7 @@ test('seat assignment: second joiner gets black seat', async () => {
 });
 
 test('seat assignment: third connection is spectator (no seat left)', async () => {
-  // With both color seats filled, assignSeat() in index.ts returns { seat: 'spectator' }.
+  // With both color seats filled, assignSeat() returns { seat: 'spectator' }.
   // We verify the projection gate: when projection.seats.white and .black are both set,
   // no further seat-assigned event changes them (event replay rejects a duplicate assignment).
   const room = makeRoom('room-g');
@@ -458,7 +458,7 @@ test('seat assignment: third connection is spectator (no seat left)', async () =
     seat: 'black',
   });
 
-  // index.ts assignSeat() returns spectator when both seats are filled.
+  // assignSeat() returns spectator when both seats are filled.
   // The projection confirms no empty seat remains.
   assert.ok(room.projection.seats.white !== undefined, 'white should be filled');
   assert.ok(room.projection.seats.black !== undefined, 'black should be filled');

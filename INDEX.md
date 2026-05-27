@@ -72,6 +72,7 @@ Edit task → find file → open only that file.
 | `server-types.ts` | Shared server types: `Client`, `Room`, `SeatTokenState`, `SeatAssignment`, `LobbyTicket` |
 | `server-policy.ts` | Access control: `canObserveLiveRoom`, `eventReplayResponse`, `visibleEventsForLiveSnapshot`, `modeForProjection`, `isAdminDebugToken`, `isAllowedWebSocketOrigin`, `isClientRoute`, `PARKED_CLIENT_ROUTES` |
 | `server-ws-messages.ts` | Client WebSocket message parser and known-message allowlist used by `index.ts` dispatch |
+| `server-seat-session.ts` | Seat assignment/session helpers: seat-token hashing and verification, account/token credential gate, new/existing seat assignment, and duplicate seat displacement. |
 | `persistence-db.ts` | Postgres pool lifecycle: `init`, `probeDb`, `close`, `isInitialized`, `getPool` |
 | `persistence-seat-tokens.ts` | Room seat token persistence, including token load/upsert/touch/replace/verify helpers |
 | `persistence.ts` | Public persistence facade. Import existing persistence APIs from here unless changing query ownership. |
@@ -126,7 +127,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 **Change HTTP API routing** → relevant `routes/*.ts` module (dispatcher in `http-api.ts` rarely needs touching unless adding a new route module)
 **Add a new HTTP route** → either add to an existing `routes/*.ts` module or create a new one with `tryHandle()` + register it in `http-api.ts`'s `routes` array (order matters for overlapping patterns)
 **Change account/session/email auth** → `account-session.ts`
-**Change seat token auth** → `index.ts` §Seat management
+**Change seat token auth or seat assignment** → `server-seat-session.ts` + `seat-auth.ts`
 **Change persistence pool lifecycle** → `persistence-db.ts`
 **Change room seat token persistence** → `persistence-seat-tokens.ts`
 **Change persistence queries** → focused `persistence-*.ts` module first, otherwise `persistence.ts`

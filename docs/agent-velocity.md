@@ -248,6 +248,9 @@ runtime server paths remain deploy-triggering.
 - Keep client WebSocket wire-format parsing in
   `apps/server/src/server-ws-messages.ts`; add new inbound message names to its
   allowlist instead of hiding them in the connection dispatcher.
+- Keep seat assignment and duplicate-session displacement in
+  `apps/server/src/server-seat-session.ts`; keep pure credential policy in
+  `apps/server/src/seat-auth.ts`.
 - Keep engine lab layout styles in `apps/web/src/bakeoff.css` and replay
   belief/annotation panel styles in `apps/web/src/replay-analysis.css`; do not
   add new lab-only selectors back into the global stylesheet.

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage } from 'node:http';
 import {
   type Chess960Start,
@@ -60,10 +60,7 @@ import {
   seatDisplayNamesForRoom,
   seatTokenStatesFromPersistence,
   selectEngineDraftStart,
-  startLiveClockIfReady,
-  touchSeatToken,
 } from './room-manager.js';
-import { authorizeExistingSeat, seatsShareAuthority } from './seat-auth.js';
 import { loadServerRuntimeConfig, normalizeRoomRegion, serverConfig } from './server-config.js';
 import { createDrainController } from './server-drain.js';
 import { createHttpRequestHandler } from './server-http.js';
@@ -73,11 +70,16 @@ import {
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
   isProductionLikeRuntime,
-  isServerEngineClient,
   modeForProjection,
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
+import {
+  assignSeat,
+  displaceOlderSeatClients,
+  hashSeatToken,
+  verifySeatToken,
+} from './server-seat-session.js';
 import type { Client, LobbyTicket, Room, SeatAssignment, SeatTokenState } from './server-types.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
 
@@ -88,10 +90,10 @@ import { isKnownClientMessageType, parseClientMessage } from './server-ws-messag
 // Static page helpers    → ./server-static-pages.ts (page meta, article shells, sitemap)
 // Drain/admin HTTP       → ./server-drain.ts       (drain state, deadline, broadcast)
 // WS message parsing     → ./server-ws-messages.ts (client message parser and allowlist)
+// Seat/session handling  → ./server-seat-session.ts (seat assignment, tokens, displacement)
 // SECTION: Types and constants          (~line 90)    module-scope maps and config constants
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
 // SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
-// SECTION: Seat management              (~line 560)   assignSeat, existingSeatAssignment, newSeatAssignment, verifySeatToken, displaceOlderSeatClients, canClientAct
 // SECTION: Game flow                    (~line 700)   enableRandomEngine, selectStart
 // SECTION: Room event infrastructure    (~line 760)   inMemoryGameSummary, recordPersistenceError, resetRoom
 // SECTION: Helpers and shutdown         (~line 810)   send, isColor, roomCreatedDraftOfferFields, shutdown
@@ -399,7 +401,7 @@ async function handleConnection(socket: WebSocket, request: IncomingMessage): Pr
   const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
   const assignment = solo
     ? ({ seat: 'spectator' } satisfies SeatAssignment)
-    : await assignSeat(room, clientId, seatToken, accountUser);
+    : await assignSeat(roomMgrCtx, room, clientId, seatToken, accountUser);
   const seat = assignment.seat;
   if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection)) {
     socket.close(1008, 'private room');
@@ -1159,169 +1161,6 @@ async function abandonRoom(
     return { ok: false, error: 'already_terminal' };
   resetRoom(roomId, 'abandoned');
   return { ok: true };
-}
-
-// ── SECTION: Seat management ───────────────────────────────────────────────
-async function assignSeat(
-  room: Room,
-  clientId: string,
-  suppliedSeatToken: string | undefined,
-  accountUser: persistence.UserAccount | null,
-): Promise<SeatAssignment> {
-  // Credential gate for claiming an EXISTING seat. authorizeExistingSeat owns
-  // the policy (token vs account identity); see seat-auth.ts. A denial means a
-  // valid token was presented for an account-bound seat by the wrong (or no)
-  // identity — that connection becomes a spectator, never the seat-holder, so
-  // it can neither move nor cancel a forfeit countdown.
-  const tokenSeat = verifySeatToken(room, suppliedSeatToken);
-  const decision = authorizeExistingSeat(room.seatTokens, tokenSeat, accountUser?.id ?? null);
-  if (decision.kind === 'deny') return { seat: 'spectator' };
-  if (decision.kind === 'grant') {
-    const state = room.seatTokens[decision.seat];
-    if (state) {
-      state.lastSeenAt = new Date();
-      await touchSeatToken(roomMgrCtx, room, state);
-    }
-    await startLiveClockIfReady(roomMgrCtx, room);
-    // Identity reclaim issues no new raw token (the holder re-authenticates by
-    // session each connect); the hash still flows so displacement can match.
-    return { seat: decision.seat, seatTokenHash: decision.tokenHash };
-  }
-  if (room.projection.seats.white === clientId) {
-    await startLiveClockIfReady(roomMgrCtx, room);
-    return await existingSeatAssignment(room, 'white', clientId, accountUser);
-  }
-  if (room.projection.seats.black === clientId) {
-    await startLiveClockIfReady(roomMgrCtx, room);
-    return await existingSeatAssignment(room, 'black', clientId, accountUser);
-  }
-  if (room.randomSeating && !room.projection.seats.white && !room.projection.seats.black) {
-    const seat: Color = randomBytes(1)[0]! < 128 ? 'white' : 'black';
-    await appendEvent(roomMgrCtx, room, {
-      type: 'seat-assigned',
-      at: Date.now(),
-      roomId: room.id,
-      clientId,
-      seat,
-    });
-    await startLiveClockIfReady(roomMgrCtx, room);
-    return await newSeatAssignment(room, seat, clientId, accountUser);
-  }
-  if (room.creatorPreference && !room.projection.seats.white && !room.projection.seats.black) {
-    const seat = room.creatorPreference;
-    await appendEvent(roomMgrCtx, room, {
-      type: 'seat-assigned',
-      at: Date.now(),
-      roomId: room.id,
-      clientId,
-      seat,
-    });
-    await startLiveClockIfReady(roomMgrCtx, room);
-    return await newSeatAssignment(room, seat, clientId, accountUser);
-  }
-  if (!room.projection.seats.white) {
-    await appendEvent(roomMgrCtx, room, {
-      type: 'seat-assigned',
-      at: Date.now(),
-      roomId: room.id,
-      clientId,
-      seat: 'white',
-    });
-    await startLiveClockIfReady(roomMgrCtx, room);
-    return await newSeatAssignment(room, 'white', clientId, accountUser);
-  }
-  if (!room.projection.seats.black) {
-    await appendEvent(roomMgrCtx, room, {
-      type: 'seat-assigned',
-      at: Date.now(),
-      roomId: room.id,
-      clientId,
-      seat: 'black',
-    });
-    await startLiveClockIfReady(roomMgrCtx, room);
-    return await newSeatAssignment(room, 'black', clientId, accountUser);
-  }
-  return { seat: 'spectator' };
-}
-
-async function existingSeatAssignment(
-  room: Room,
-  seat: Color,
-  clientId: string,
-  accountUser: persistence.UserAccount | null,
-): Promise<SeatAssignment> {
-  const existing = room.seatTokens[seat];
-  if (existing) {
-    return { seat: 'spectator' };
-  }
-  return newSeatAssignment(room, seat, clientId, accountUser);
-}
-
-async function newSeatAssignment(
-  room: Room,
-  seat: Color,
-  clientId: string,
-  accountUser: persistence.UserAccount | null,
-): Promise<SeatAssignment> {
-  if (isServerEngineClient(clientId)) return { seat };
-  const rawToken = randomBytes(32).toString('base64url');
-  const tokenHash = hashSeatToken(rawToken);
-  const now = new Date();
-  const tokenState: SeatTokenState = {
-    clientId,
-    seat,
-    tokenHash,
-    userId: accountUser?.id ?? null,
-    userHandle: accountUser?.handle ?? null,
-    userDisplayName: accountUser?.displayName ?? null,
-    issuedAt: now,
-    lastSeenAt: now,
-    revokedAt: null,
-  };
-  await persistSeatToken(roomMgrCtx, room, tokenState);
-  room.seatTokens[seat] = tokenState;
-  return {
-    seat,
-    seatToken: rawToken,
-    seatTokenHash: tokenHash,
-  };
-}
-
-function verifySeatToken(room: Room, suppliedSeatToken: string | undefined): SeatTokenState | null {
-  if (!suppliedSeatToken) return null;
-  const tokenHash = hashSeatToken(suppliedSeatToken);
-  const supplied = Buffer.from(tokenHash, 'hex');
-  for (const state of Object.values(room.seatTokens)) {
-    if (!state) continue;
-    const expected = Buffer.from(state.tokenHash, 'hex');
-    if (expected.length === supplied.length && timingSafeEqual(expected, supplied)) {
-      return state;
-    }
-  }
-  return null;
-}
-
-function hashSeatToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
-
-function displaceOlderSeatClients(room: Room, replacement: Client): void {
-  for (const client of room.clients) {
-    if (client === replacement) continue;
-    if (client.seat !== replacement.seat) continue;
-    if (client.seat === 'spectator') continue;
-    if (!sameSeatAuthority(client, replacement)) continue;
-    client.displaced = true;
-    try {
-      client.socket.close(4000, 'duplicate session');
-    } catch {
-      // The close handler will clear already-closed sockets.
-    }
-  }
-}
-
-function sameSeatAuthority(left: Client, right: Client): boolean {
-  return seatsShareAuthority(left, right, isServerEngineClient);
 }
 
 // ── SECTION: Game flow ─────────────────────────────────────────────────────

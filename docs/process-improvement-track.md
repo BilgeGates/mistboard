@@ -352,6 +352,10 @@ ownership surfaces:
    `apps/server/src/server-http.ts`, which owns `/health`, API context dispatch,
    OG/static routes, robots/sitemap, article/game shell fallbacks, and SPA
    fallback while `index.ts` injects the live server maps and room functions.
+   Seat assignment, seat-token hashing/verification, and duplicate-session
+   displacement now live in `apps/server/src/server-seat-session.ts`, keeping
+   `index.ts` focused on the connection handshake rather than seat-session
+   internals.
 9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
    sections, then move replay, leaderboard, account, and article CSS behind
    ownership boundaries. Initial extraction moved the engine bakeoff lab layout
