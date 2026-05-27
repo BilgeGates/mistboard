@@ -153,8 +153,10 @@ The full engine playout is a reliability gate, not the default check for every
 deploy. Late-ply replies can take several seconds each, so handoffs should
 separate deploy wait time from playout wait time.
 Manual full production smoke writes timing summaries for dependency install,
-Railway revision wait, web smoke, and engine smoke so slow deploys are visible
-as a specific phase instead of one undifferentiated red or slow run.
+CI status/duration when GitHub metadata is available, time spent waiting for CI,
+Railway build/deploy wait, revision propagation/stability, web smoke, and engine
+smoke so slow deploys are visible as a specific phase instead of one
+undifferentiated red or slow run.
 Railway web and engine-worker configs also exclude server-only tests,
 integration harnesses, loadtests, and server helper scripts from deploy watches;
 runtime server paths remain deploy-triggering.

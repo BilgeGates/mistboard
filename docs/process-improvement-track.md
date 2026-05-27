@@ -167,8 +167,9 @@ server helper scripts from deploy watches. Automatic post-CI exact-revision
 smoke is intentionally disabled because Railway treats that workflow as part of
 the commit check suite; running it automatically caused a circular wait where
 Railway waited for Prod Smoke and Prod Smoke waited for Railway. Manual full
-smoke writes step-summary timings for dependency install, revision wait, web
-smoke, and engine smoke.
+smoke writes step-summary timings for dependency install, CI status/duration
+when GitHub metadata is available, waiting-for-CI time, Railway build/deploy
+wait, revision propagation/stability, web smoke, and engine smoke.
 
 ### 4. Manual Gate Evidence
 
@@ -418,6 +419,12 @@ progress. Continue from isolated worktrees._
    Definition of done: a normal server/web deploy has a visible phase timing
    summary, avoids unrelated engine build work, and makes clear whether the
    remaining wait is CI, Railway build, propagation, or smoke.
+
+   Initial slice: `prod:wait-revision` now writes a phase table for CI
+   status/duration, waiting-for-CI time, Railway build/deploy wait, and revision
+   propagation/stability; the manual full smoke workflow exposes a GitHub token
+   with read-only Actions scope for that lookup and labels the room smoke as web
+   smoke.
 
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,

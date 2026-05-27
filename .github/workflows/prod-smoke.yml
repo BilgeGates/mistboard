@@ -23,6 +23,9 @@ jobs:
   prod-smoke:
     if: github.event_name == 'workflow_dispatch' && inputs.full
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     env:
       EXPECTED_REVISION: ${{ inputs.expect_revision }}
     steps:
@@ -35,13 +38,15 @@ jobs:
         run: node scripts/time-command.mjs --label "prod-smoke npm ci" -- npm ci
       - name: Wait for Railway deploy
         if: inputs.expect_revision != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/time-command.mjs --label "Railway revision wait" -- npm run prod:wait-revision -- --expect-revision "$EXPECTED_REVISION" --timeout-ms 900000
-      - name: Prod smoke
+      - name: Web smoke
         if: inputs.expect_revision == ''
-        run: node scripts/time-command.mjs --label "Prod smoke" -- npm run prod:smoke
-      - name: Prod smoke with revision
+        run: node scripts/time-command.mjs --label "Web smoke" -- npm run prod:smoke
+      - name: Web smoke with revision
         if: inputs.expect_revision != ''
-        run: node scripts/time-command.mjs --label "Prod smoke" -- npm run prod:smoke -- --expect-revision "$EXPECTED_REVISION"
+        run: node scripts/time-command.mjs --label "Web smoke" -- npm run prod:smoke -- --expect-revision "$EXPECTED_REVISION"
       - name: Engine smoke
         run: node scripts/time-command.mjs --label "Engine smoke" -- npm run prod:smoke:engines
 
