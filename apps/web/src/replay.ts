@@ -19,7 +19,10 @@ import {
   saveAnnotation,
   updateAnnotation,
 } from './annotations.js';
-import { type BeliefConfig, type BeliefPanelHandle, createBeliefPanel } from './belief-panel.js';
+// belief-panel is type-only here so it stays out of the replay bundle every
+// game view loads; the implementation is dynamically imported below, only when
+// belief data is present (dev / admin-gated engine review — never normal play).
+import type { BeliefConfig, BeliefPanelHandle } from './belief-panel.js';
 import { computeCaptures } from './captures.js';
 import {
   type AnnotationConfig,
@@ -428,6 +431,7 @@ export async function mountReplay(
   let annotationPanelVisible = Boolean(annotation);
   if (enginePanelDock) toolsRow?.append(enginePanelDock.el);
   if (belief) {
+    const { createBeliefPanel } = await import('./belief-panel.js');
     beliefPanel = createBeliefPanel();
     toolsRow?.append(beliefPanel.el);
   }

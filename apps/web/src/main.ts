@@ -46,22 +46,12 @@ const appRoot = app;
 const params = new URLSearchParams(window.location.search);
 const path = window.location.pathname.replace(/\/+$/, '') || '/';
 const replaySample = params.get('replay');
-const bakeoffParam = params.get('bakeoff');
 const playDeepLink = params.get('play');
 const wantsLive =
   import.meta.env.DEV &&
   !playDeepLink &&
   (params.has('room') || params.has('variant') || params.has('dev'));
 const page = params.get('page');
-const engineLabEnabled = import.meta.env.DEV || import.meta.env.VITE_ENABLE_ENGINE_LAB === 'true';
-const wantsEngineLab =
-  bakeoffParam !== null ||
-  path === '/lab' ||
-  path === '/engine-lab' ||
-  path === '/arena' ||
-  page === 'lab' ||
-  page === 'engine-lab' ||
-  page === 'arena';
 const gameRoomId = gameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
@@ -95,18 +85,6 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)),
   );
-} else if (wantsEngineLab) {
-  setTitle('Lab');
-  void mountOrReport(async () => {
-    if (!engineLabEnabled || !(await canOpenLab())) {
-      renderNotFound(appRoot);
-      return;
-    }
-    // ?bakeoff loads the default manifest; ?bakeoff=<url> loads a specific one.
-    const manifestUrl = bakeoffParam && bakeoffParam.length > 0 ? bakeoffParam : undefined;
-    const { mountBakeoff } = await import('./bakeoff.js');
-    await mountBakeoff(appRoot, manifestUrl);
-  });
 } else if (liveRoomId || wantsLive) {
   setTitle('Live');
   void mountOrReport(() => import('./live.js').then(() => undefined));
@@ -242,30 +220,6 @@ async function mountOrReport(run: () => Promise<void>): Promise<void> {
     shell.append(heading, detail);
     appRoot.append(shell);
   }
-}
-
-async function canOpenLab(): Promise<boolean> {
-  if (import.meta.env.DEV) return true;
-  try {
-    const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
-    if (!response.ok) return false;
-    const data = (await response.json()) as { user?: { accountRole?: string } | null };
-    return data.user?.accountRole === 'admin';
-  } catch {
-    return false;
-  }
-}
-
-function renderNotFound(root: HTMLElement): void {
-  root.replaceChildren();
-  root.classList.add('landing-page');
-  const shell = document.createElement('main');
-  shell.className = 'site-section';
-  const heading = document.createElement('h1');
-  heading.className = 'site-section-heading';
-  heading.textContent = 'Not found';
-  shell.append(heading);
-  root.append(shell);
 }
 
 function gameRoomIdFromPath(value: string): string | null {
