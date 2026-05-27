@@ -251,6 +251,10 @@ runtime server paths remain deploy-triggering.
 - Keep seat assignment and duplicate-session displacement in
   `apps/server/src/server-seat-session.ts`; keep pure credential policy in
   `apps/server/src/seat-auth.ts`.
+- Keep shutdown and test teardown cleanup in
+  `apps/server/src/server-lifecycle.ts`; `apps/server/src/index.ts` should
+  orchestrate startup/shutdown, not duplicate timer, socket, pending-write, and
+  HTTP/WS close mechanics.
 - Keep engine lab layout styles in `apps/web/src/bakeoff.css` and replay
   belief/annotation panel styles in `apps/web/src/replay-analysis.css`; do not
   add new lab-only selectors back into the global stylesheet.

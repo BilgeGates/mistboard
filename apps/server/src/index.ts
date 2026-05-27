@@ -41,11 +41,8 @@ import {
   broadcastSnapshot,
   buildGameSummary,
   canClientAct,
-  clearAbortTimer,
-  clearForfeitTimer,
   offerForColor,
   PersistenceFailure,
-  pauseRoomOnShutdown,
   persistSeatToken,
   playMove,
   type RoomManagerContext,
@@ -64,6 +61,14 @@ import {
 import { loadServerRuntimeConfig, normalizeRoomRegion, serverConfig } from './server-config.js';
 import { createDrainController } from './server-drain.js';
 import { createHttpRequestHandler } from './server-http.js';
+import {
+  clearRoomRuntimeTimers,
+  closeHttpServer,
+  closeRoomClients,
+  closeWebSocketServer,
+  pauseActiveRoomsOnShutdown,
+  waitForRoomWrites,
+} from './server-lifecycle.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
@@ -91,6 +96,7 @@ import { isKnownClientMessageType, parseClientMessage } from './server-ws-messag
 // Drain/admin HTTP       → ./server-drain.ts       (drain state, deadline, broadcast)
 // WS message parsing     → ./server-ws-messages.ts (client message parser and allowlist)
 // Seat/session handling  → ./server-seat-session.ts (seat assignment, tokens, displacement)
+// Server lifecycle       → ./server-lifecycle.ts   (shutdown pause, timer/socket/server cleanup)
 // SECTION: Types and constants          (~line 90)    module-scope maps and config constants
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
 // SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
@@ -296,16 +302,9 @@ export function installShutdownHandlers(): void {
 // process.exit, so the runner stays alive across tests.
 export async function stopServer(): Promise<void> {
   if (!server || !wss) return;
-  await pauseActiveRoomsOnShutdown();
+  await pauseActiveRoomsOnShutdown(rooms.values(), roomMgrCtx);
   for (const room of rooms.values()) {
-    if (room.clockTimer) clearTimeout(room.clockTimer);
-    if (room.engineTimer) clearTimeout(room.engineTimer);
-    clearAbortTimer(room);
-    clearForfeitTimer(room);
-    if (room.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
-    for (const timer of Object.values(room.pendingVacates)) {
-      if (timer) clearTimeout(timer);
-    }
+    clearRoomRuntimeTimers(room, { clearPendingVacates: true });
   }
   if (abortPolicyTimer) {
     clearInterval(abortPolicyTimer);
@@ -315,23 +314,10 @@ export async function stopServer(): Promise<void> {
     clearInterval(stalePausedSweepTimer);
     stalePausedSweepTimer = null;
   }
-  for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
-    try {
-      client.socket.close(1001, 'server shutting down');
-    } catch {
-      /* socket already closed */
-    }
-  }
-  await Promise.allSettled([...rooms.values()].map((room) => room.pendingWrites));
-  await new Promise<void>((resolve) => {
-    wss!.close(() => resolve());
-  });
-  await new Promise<void>((resolve, reject) => {
-    server!.close((err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+  closeRoomClients(rooms.values());
+  await waitForRoomWrites(rooms.values());
+  await closeWebSocketServer(wss);
+  await closeHttpServer(server);
   await persistence.close();
   rooms.clear();
   lobbyTickets.clear();
@@ -1296,14 +1282,11 @@ function recordPersistenceError(roomId: string, seq: number, event: GameEvent, e
 
 function resetRoom(roomId: string, reason = 'room-reset'): void {
   const room = rooms.get(roomId);
-  if (room?.clockTimer) clearTimeout(room.clockTimer);
-  if (room?.engineTimer) clearTimeout(room.engineTimer);
-  if (room) clearAbortTimer(room);
-  if (room) clearForfeitTimer(room);
-  if (room?.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
-  if (room?.engineReservationId) {
-    releaseLiveEngineReservation(room.engineReservationId, reason);
-    room.engineReservationId = null;
+  if (room) {
+    clearRoomRuntimeTimers(room, {
+      releaseEngineReservation: releaseLiveEngineReservation,
+      reservationReleaseReason: reason,
+    });
   }
   rooms.delete(roomId);
 }
@@ -1430,31 +1413,6 @@ function armPauseGraceTimer(room: Room): void {
   }, pauseGraceMs);
 }
 
-// Iterate active rooms and append a 'pause' event for each one that's still
-// playing. Awaits in parallel — each room serializes writes through its own
-// pendingWrites chain, so concurrent calls are safe.
-async function pauseActiveRoomsOnShutdown(): Promise<void> {
-  if (rooms.size === 0) return;
-  const at = Date.now();
-  const results = await Promise.allSettled(
-    [...rooms.values()].map((room) => pauseRoomOnShutdown(roomMgrCtx, room, at)),
-  );
-  for (const [idx, result] of results.entries()) {
-    if (result.status === 'rejected') {
-      const room = [...rooms.values()][idx];
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          kind: 'pause_on_shutdown_failure',
-          roomId: room?.id,
-          error: (result.reason as Error)?.message,
-          at: Date.now(),
-        }),
-      );
-    }
-  }
-}
-
 async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -1470,29 +1428,19 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   }, shutdownGraceMs);
   forceExit.unref();
 
-  await pauseActiveRoomsOnShutdown();
+  await pauseActiveRoomsOnShutdown(rooms.values(), roomMgrCtx);
 
   for (const room of rooms.values()) {
-    if (room.clockTimer) clearTimeout(room.clockTimer);
-    if (room.engineTimer) clearTimeout(room.engineTimer);
-    clearAbortTimer(room);
-    clearForfeitTimer(room);
-    if (room.pauseGraceTimer) clearTimeout(room.pauseGraceTimer);
+    clearRoomRuntimeTimers(room);
   }
   if (abortPolicyTimer) clearInterval(abortPolicyTimer);
-  for (const client of [...rooms.values()].flatMap((room) => [...room.clients])) {
-    try {
-      client.socket.close(1001, 'server shutting down');
-    } catch {
-      /* socket already closed */
-    }
-  }
+  closeRoomClients(rooms.values());
 
   let exitCode = 0;
   try {
-    await Promise.allSettled([...rooms.values()].map((room) => room.pendingWrites));
-    await closeWebSocketServer();
-    await closeHttpServer();
+    await waitForRoomWrites(rooms.values());
+    await closeWebSocketServer(wss);
+    await closeHttpServer(server);
     await persistence.close();
   } catch (err) {
     exitCode = 1;
@@ -1508,27 +1456,4 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
     clearTimeout(forceExit);
   }
   process.exit(exitCode);
-}
-
-function closeWebSocketServer(): Promise<void> {
-  return new Promise((resolve) => {
-    if (!wss) {
-      resolve();
-      return;
-    }
-    wss.close(() => resolve());
-  });
-}
-
-function closeHttpServer(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (!server) {
-      resolve();
-      return;
-    }
-    server.close((err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
 }

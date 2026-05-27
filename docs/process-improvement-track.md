@@ -355,7 +355,10 @@ ownership surfaces:
    Seat assignment, seat-token hashing/verification, and duplicate-session
    displacement now live in `apps/server/src/server-seat-session.ts`, keeping
    `index.ts` focused on the connection handshake rather than seat-session
-   internals.
+   internals. Shutdown pause fan-out, room timer cleanup, client socket
+   closure, pending-write waits, and HTTP/WebSocket server close helpers now
+   live in `apps/server/src/server-lifecycle.ts`, leaving `index.ts` to
+   orchestrate lifecycle order instead of duplicating teardown mechanics.
 9. **Partition route CSS.** Start with parked/dev surfaces and route-specific
    sections, then move replay, leaderboard, account, and article CSS behind
    ownership boundaries. Initial extraction moved the engine bakeoff lab layout

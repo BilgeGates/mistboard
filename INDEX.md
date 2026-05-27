@@ -48,8 +48,9 @@ Edit task → find file → open only that file.
 | File | Owns |
 |------|------|
 | `main.ts` | Prod entry point. Calls `installShutdownHandlers()` then `startServer({port})`. Tiny — all logic lives in `index.ts`. |
-| `index.ts` | Server library: exports `startServer`, `installShutdownHandlers`, `stopServer`. Module-load side-effect-free so the integration harness can boot a test instance on a random port. Has `// ── SECTION:` markers; WebSocket/session and shutdown handling remain candidates for extraction. |
+| `index.ts` | Server library: exports `startServer`, `installShutdownHandlers`, `stopServer`. Module-load side-effect-free so the integration harness can boot a test instance on a random port. Has `// ── SECTION:` markers; WebSocket/session handling remains a candidate for extraction. |
 | `server-http.ts` | HTTP entry routing: `/health`, admin drain handoff, API context dispatch, OG/static page routes, robots/sitemap, article/game shell fallbacks, and SPA static fallback. |
+| `server-lifecycle.ts` | Server shutdown/test-teardown mechanics: pause active rooms, clear room timers, close room sockets, wait for room writes, and close HTTP/WebSocket servers. |
 | `server-static-pages.ts` | Static page helpers for non-API HTTP routes: per-game/article page-meta injection, article shell/prerender serving, articles index shell, and sitemap generation. |
 | `server-drain.ts` | Admin drain controller: drain deadline state, active-game counting, rate limiting, token-gated drain/cancel HTTP handling, and restart/cancel WebSocket broadcasts. |
 | `rematch.ts` | Mutual-confirm rematch state machine + finalize. `offerRematch`, `cancelRematch`, `declineRematch`, `finalizeRematchIfReady`, `maybeReplayRematchRedirect`. |
@@ -124,6 +125,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 **Change move validation or game flow** → `room-manager.ts`
 **Change HTTP entry routing or static fallback** → `server-http.ts`
 **Change WebSocket message handling** → `index.ts` §WebSocket connection handling
+**Change server shutdown or test teardown** → `server-lifecycle.ts` + `index.ts` orchestration
 **Change HTTP API routing** → relevant `routes/*.ts` module (dispatcher in `http-api.ts` rarely needs touching unless adding a new route module)
 **Add a new HTTP route** → either add to an existing `routes/*.ts` module or create a new one with `tryHandle()` + register it in `http-api.ts`'s `routes` array (order matters for overlapping patterns)
 **Change account/session/email auth** → `account-session.ts`
