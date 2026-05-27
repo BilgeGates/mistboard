@@ -76,12 +76,19 @@ describe('capture rendering', () => {
       white: ['pawn'],
     });
 
-    expect(target.querySelectorAll('.captures-row')).toHaveLength(1);
+    const sides = [...target.querySelectorAll('.captures-truth-side')];
+    expect(target.querySelectorAll('.captures-row')).toHaveLength(2);
+    expect(sides).toHaveLength(2);
     expect(
-      [...target.querySelectorAll('.captures-piece')].map((piece) =>
+      [...sides[0]!.querySelectorAll('.captures-piece')].map((piece) =>
         piece.getAttribute('aria-label'),
       ),
-    ).toEqual(['black pawn', 'white queen']);
+    ).toEqual(['black pawn']);
+    expect(
+      [...sides[1]!.querySelectorAll('.captures-piece')].map((piece) =>
+        piece.getAttribute('aria-label'),
+      ),
+    ).toEqual(['white queen']);
   });
 });
 

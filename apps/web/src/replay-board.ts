@@ -2,7 +2,7 @@ import { boardFen, hiddenSquareClasses, mountBoard } from '@mistboard/board-rend
 import type { Color, GameState, Move, Piece, PieceRole, PlayerView, Square } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
-import { captureRow, combinedCaptureRow } from './capture-render.js';
+import { captureRow } from './capture-render.js';
 
 export type ReplayPaneHandle = {
   el: HTMLDivElement;
@@ -37,6 +37,7 @@ export function createPane(
   topCapturesEl.setAttribute('aria-label', 'Pieces captured');
   const capturesEl = document.createElement('div');
   capturesEl.className = 'captures-strip replay-captures replay-captures-bottom';
+  if (kind === 'truth') capturesEl.classList.add('replay-captures-truth');
   capturesEl.setAttribute('aria-label', 'Pieces captured');
   const clockSlot = document.createElement('div');
   clockSlot.className = 'replay-pane-clock-slot';
@@ -69,14 +70,27 @@ export function renderTruthCaptures(
   captures: Record<Color, PieceRole[]>,
 ): void {
   target.replaceChildren();
-  const row = combinedCaptureRow(
-    (['white', 'black'] as Color[]).map((color) => ({
-      capturedRoles: captures[color],
-      capturedColor: color === 'white' ? 'black' : 'white',
-    })),
-  );
-  target.classList.toggle('has-captures', row !== null);
-  if (row) target.append(row);
+  const whiteCaptureRow = captureRow(captures.white, 'black');
+  const blackCaptureRow = captureRow(captures.black, 'white');
+  const hasCaptures = whiteCaptureRow !== null || blackCaptureRow !== null;
+  target.classList.toggle('has-captures', hasCaptures);
+  if (!hasCaptures) return;
+
+  const split = document.createElement('div');
+  split.className = 'captures-truth-split';
+
+  const whiteSide = document.createElement('div');
+  whiteSide.className = 'captures-truth-side captures-truth-side-white';
+  whiteSide.setAttribute('aria-label', 'Black pieces captured by White');
+  if (whiteCaptureRow) whiteSide.append(whiteCaptureRow);
+
+  const blackSide = document.createElement('div');
+  blackSide.className = 'captures-truth-side captures-truth-side-black';
+  blackSide.setAttribute('aria-label', 'White pieces captured by Black');
+  if (blackCaptureRow) blackSide.append(blackCaptureRow);
+
+  split.append(whiteSide, blackSide);
+  target.append(split);
 }
 
 export function createBoard(el: HTMLElement, orientation: Color): Api {

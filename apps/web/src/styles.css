@@ -2578,6 +2578,43 @@ a.replay-game-id:focus-visible {
   width: 100%;
 }
 
+.replay-captures-truth .captures-truth-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: var(--capture-piece-size);
+  width: 100%;
+}
+
+.replay-captures-truth .captures-truth-side {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.replay-captures-truth .captures-truth-side-white {
+  justify-content: flex-start;
+}
+
+.replay-captures-truth .captures-truth-side-black {
+  justify-content: flex-end;
+}
+
+.replay-captures-truth .captures-row {
+  min-width: 0;
+  width: auto;
+}
+
+.replay-captures-truth .captures-truth-side-white .captures-row {
+  justify-content: flex-start;
+}
+
+.replay-captures-truth .captures-truth-side-black .captures-row {
+  justify-content: flex-end;
+}
+
 .replay-pane-clock-slot {
   width: 100%;
   max-width: 380px;
