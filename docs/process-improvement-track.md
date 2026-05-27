@@ -414,6 +414,9 @@ ownership surfaces:
    `apps/web/src/watch-route.css`, reducing `landing.css` by another 476 lines.
    The next slice moved public game-review route styles into
    `apps/web/src/game-route.css`, reducing `landing.css` by another 367 lines.
+   The next slice moved homepage play/setup/lobby base styles into
+   `apps/web/src/landing-play.css`, reducing `landing.css` by another 626
+   lines while preserving responsive homepage overrides in `landing.css`.
 10. **Split learn route ownership.** Keep `apps/web/src/learn.ts` focused on
     route mounting, rendering, board, and interaction logic. Static module and
     chapter curriculum data now lives in `apps/web/src/learn-content.ts`, which
@@ -559,11 +562,12 @@ npm run agent:scan
    Avoid `apps/server/src/engines/registry.ts` while active engine work is
    dirty.
 
-4. **Split remaining large web surfaces.** Current scan after the game-route
+4. **Split remaining large web surfaces.** Current scan after the landing-play
    CSS split reports `apps/web/src/styles.css` (~3,933 lines),
    `apps/web/src/learn.ts` (~1,589), `apps/web/src/replay.ts` (~1,384),
-   `apps/web/src/landing.css` (~1,233), and `apps/web/src/landing-play.ts`
-   (~1,094) as the largest web navigation costs. `landing.ts` is down to about
+   `apps/web/src/landing-play.ts` (~1,094), and
+   `apps/web/src/live-render.ts` (~1,007) as the largest web navigation costs.
+   `landing.css` is down to about 608 lines, and `landing.ts` is down to about
    289 lines and should stay a route coordinator rather than regain setup/lobby,
    watch, or game-route ownership. The next meaningful web velocity slice is
    likely `landing-play.ts` sub-splitting only when changing play setup
