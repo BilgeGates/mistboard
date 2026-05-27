@@ -3016,6 +3016,15 @@ export const articles: Article[] = [
       {
         heading: 'Edge cases',
         blocks: [
+          { kind: 'sub-heading', text: 'Cannons' },
+          {
+            kind: 'paragraph',
+            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as unknown occupancy.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: XQ_CANNON_RULE_PAIR,
+          } as ArticleBlock,
           { kind: 'sub-heading', text: 'Facing generals' },
           {
             kind: 'paragraph',
@@ -3042,15 +3051,6 @@ export const articles: Article[] = [
           {
             kind: 'raw-svg',
             svg: XQ_BLOCKED_ELEPHANT_EYES_PAIR,
-          } as ArticleBlock,
-          { kind: 'sub-heading', text: 'Cannons' },
-          {
-            kind: 'paragraph',
-            text: 'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as unknown occupancy.',
-          },
-          {
-            kind: 'raw-svg',
-            svg: XQ_CANNON_RULE_PAIR,
           } as ArticleBlock,
         ],
       },
