@@ -145,6 +145,7 @@ function readGithubEventFiles() {
         files.push(...commit[key]);
       }
     }
+    if (files.length === 0) return readGithubEventDiffFiles(event);
     return {
       changedFiles: unique(files.map(normalizePath)),
       reason: 'github_push_event',
@@ -157,6 +158,32 @@ function readGithubEventFiles() {
     reason: 'github_event_no_push_files',
     warning: 'GitHub event did not include push commit file lists',
   };
+}
+
+function readGithubEventDiffFiles(event) {
+  const before = typeof event.before === 'string' ? event.before : '';
+  const after = typeof event.after === 'string' ? event.after : '';
+  if (!isRevision(before) || !isRevision(after) || isZeroRevision(before)) {
+    return {
+      changedFiles: [],
+      reason: 'github_push_event_empty_files',
+      warning: 'GitHub push event did not include changed files or a usable before/after diff',
+    };
+  }
+
+  try {
+    return {
+      changedFiles: readGitDiffFiles(before, after),
+      reason: 'github_push_event_diff',
+      warning: null,
+    };
+  } catch (error) {
+    return {
+      changedFiles: [],
+      reason: 'github_push_event_diff_failed',
+      warning: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 function readGitDiffFiles(base, head) {
@@ -294,6 +321,14 @@ function unique(values) {
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isRevision(value) {
+  return /^[0-9a-f]{40}$/i.test(value);
+}
+
+function isZeroRevision(value) {
+  return /^0{40}$/.test(value);
 }
 
 function requiredValue(args, index, flag) {

@@ -452,7 +452,8 @@ progress. Continue from isolated worktrees._
    browser-affecting paths, package dependency changes, workflow changes, or
    unknown change sets. Release-tooling and server-only pushes should therefore
    avoid the avoidable browser setup cost while keeping the default path
-   conservative when CI cannot prove the changed files.
+   conservative when CI cannot prove the changed files. The planner falls back
+   to a `before..after` diff when a GitHub push event omits commit file lists.
 
    Third slice: Railway watch patterns no longer treat every root `scripts/**`
    change as deploy-affecting. The web and engine-worker services still watch
