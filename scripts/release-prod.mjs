@@ -49,12 +49,7 @@ try {
   }
 
   if (options.push) {
-    runTimed('git push release head', [
-      'git',
-      'push',
-      options.remote,
-      `${release.headRevision}:refs/heads/${options.targetBranch}`,
-    ]);
+    runTimed('git push release head', pushCommand(release.headRevision));
   } else {
     console.log('skip: git push (pass --push to publish the current commit)');
   }
@@ -261,6 +256,13 @@ function prodWaitCommand(headRevision) {
   return command;
 }
 
+function pushCommand(headRevision) {
+  const command = ['git', 'push'];
+  if (options.localCi) command.push('--no-verify');
+  command.push(options.remote, `${headRevision}:refs/heads/${options.targetBranch}`);
+  return command;
+}
+
 function runSmoke({ deployRequired, headRevision }) {
   if (options.smoke === 'none') {
     console.log('skip: prod smoke (--smoke none)');
@@ -377,5 +379,8 @@ Options:
 
 Use --push instead of a standalone git push when you want this command to own
 the release order. For docs-only or other non-deploy commits, the planner skips
-the exact-revision wait because production is not expected to serve that SHA.`);
+the exact-revision wait because production is not expected to serve that SHA.
+When local ci:quick runs, --push uses git push --no-verify to avoid running the
+same broad pre-push gate twice. With --skip-local-ci, the pre-push hook still
+runs normally.`);
 }
