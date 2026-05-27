@@ -1277,13 +1277,12 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
   const sealed = document.createElement('strong');
   sealed.textContent = feed ? String(feed.sealedCount) : 'n/a';
   const sealedLabel = document.createElement('span');
-  sealedLabel.textContent =
-    feed?.sealedCount === 1 ? 'sealed game in progress' : 'sealed games in progress';
-  const windowLabel = document.createElement('span');
-  windowLabel.textContent = feed
-    ? `${feed.unlocked.length} unlocked · ${formatWatchScope(feed)}`
-    : 'feed unavailable';
-  root.append(sealed, sealedLabel, windowLabel);
+  sealedLabel.className = 'watch-status-label';
+  sealedLabel.textContent = 'sealed in progress';
+  const hint = document.createElement('span');
+  hint.className = 'watch-status-hint';
+  hint.textContent = feed ? 'unlock after completion' : 'feed unavailable';
+  root.append(sealed, sealedLabel, hint);
 }
 
 function activeWatchChannelLabel(feed: WatchFeed): string {
@@ -1372,25 +1371,20 @@ function renderWatchQueue(
   root.replaceChildren();
   const previousRoomIds = options.previousRoomIds ?? null;
 
-  const sealed = document.createElement('section');
-  sealed.className = 'watch-queue-status';
-  const sealedCount = document.createElement('strong');
-  sealedCount.textContent = feed ? String(feed.sealedCount) : 'n/a';
-  const sealedText = document.createElement('span');
-  sealedText.textContent =
-    feed?.sealedCount === 1
-      ? 'sealed game in progress. It unlocks after completion.'
-      : 'sealed games in progress. They unlock after completion.';
-  sealed.append(sealedCount, sealedText);
-  root.append(sealed);
-
   const heading = document.createElement('div');
   heading.className = 'watch-queue-heading';
+  const headingCopy = document.createElement('div');
+  headingCopy.className = 'watch-queue-heading-copy';
   const title = document.createElement('h2');
-  title.textContent = 'Unlocked queue';
+  title.textContent = 'Unlocked replays';
+  const unlockedCount = document.createElement('span');
+  unlockedCount.className = 'watch-queue-count';
+  unlockedCount.textContent = feed ? `${feed.unlocked.length} shown` : 'offline';
+  headingCopy.append(title, unlockedCount);
   const windowLabel = document.createElement('span');
-  windowLabel.textContent = feed ? formatWatchScope(feed) : 'offline';
-  heading.append(title, windowLabel);
+  windowLabel.className = 'watch-queue-scope';
+  windowLabel.textContent = feed ? formatWatchScope(feed) : 'feed unavailable';
+  heading.append(headingCopy, windowLabel);
   root.append(heading);
 
   if (!feed) {
@@ -1420,7 +1414,10 @@ function renderWatchQueue(
     const row = document.createElement('a');
     row.className = 'watch-queue-row';
     row.href = watchQueueGameHref(feed, game.roomId);
-    if (game.roomId === activeRoomId) row.classList.add('active');
+    if (game.roomId === activeRoomId) {
+      item.classList.add('active');
+      row.classList.add('active');
+    }
 
     const matchup = document.createElement('span');
     matchup.className = 'watch-queue-matchup';
@@ -1432,13 +1429,19 @@ function renderWatchQueue(
     result.className = 'watch-queue-result';
     result.textContent = resultLabel(game.result);
     const detail = document.createElement('span');
-    detail.textContent = [
+    detail.className = 'watch-queue-detail';
+    const detailParts = [
       sourceLabel(game.mode),
       `${game.plyCount} plies`,
       formatEndedAge(game.endedAt, feed.now),
     ]
       .filter(Boolean)
-      .join(' · ');
+      .map(String);
+    for (const part of detailParts) {
+      const detailPart = document.createElement('span');
+      detailPart.textContent = part;
+      detail.append(detailPart);
+    }
     meta.append(result, detail);
 
     row.append(matchup, meta);
@@ -1473,7 +1476,7 @@ function formatUnlockWindow(ms: number): string {
 }
 
 function formatWatchScope(feed: WatchFeed): string {
-  return `${formatUnlockWindow(feed.unlockWindowMs)} / latest ${feed.unlockLimit}`;
+  return `${formatUnlockWindow(feed.unlockWindowMs)} window · up to ${feed.unlockLimit}`;
 }
 
 function formatEndedAge(endedAt: string | undefined, nowIso: string): string | null {
