@@ -176,31 +176,33 @@ definePersistenceTests('game lists', () => {
            (room_id, variant, result, termination, ply_count, started_at, ended_at,
             white_client, black_client, white_name, black_name, mode, status, visibility)
          VALUES
-           ('watch-pvp-newest', 'dark-chess', 'white-wins', 'king-captured', 31, $1, $1,
+           ('watch-pvp-newest', 'dark-chess', 'white-wins', 'resignation', 31, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('watch-pve-link', 'dark-chess', 'black-wins', 'timeout', 12, $2, $2,
+           ('watch-pve-link', 'dark-chess', 'white-wins', 'resignation', 12, $2, $2,
             'human', 'engine', NULL, NULL, 'pve', 'completed', 'link'),
-           ('watch-xiangqi', 'dark-xiangqi', 'white-wins', 'king-captured', 40, $1, $1,
+           ('watch-xiangqi', 'dark-xiangqi', 'white-wins', 'resignation', 40, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('watch-eve', 'dark-chess', 'draw', 'truncated', 28, $3, $3,
+           ('watch-eve', 'dark-chess', 'white-wins', 'resignation', 28, $3, $3,
             'engine-white', 'engine-black', 'White Engine', 'Black Engine', 'eve', 'completed', 'unlisted'),
-           ('watch-old', 'dark-chess', 'white-wins', 'king-captured', 40, $4, $4,
+           ('watch-old', 'dark-chess', 'white-wins', 'resignation', 40, $4, $4,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('watch-future', 'dark-chess', 'white-wins', 'king-captured', 40, $5, $5,
+           ('watch-future', 'dark-chess', 'white-wins', 'resignation', 40, $5, $5,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('watch-no-event', 'dark-chess', 'white-wins', 'king-captured', 40, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('watch-private-pvp', 'dark-chess', 'white-wins', 'king-captured', 40, $1, $1,
+           ('watch-nonterminal-event', 'dark-chess', 'draw', 'server-restarted', 53, $1, $1,
+            'white', 'engine', NULL, NULL, 'pve', 'completed', 'public'),
+           ('watch-private-pvp', 'dark-chess', 'white-wins', 'resignation', 40, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'private'),
-           ('watch-private-eve', 'dark-chess', 'draw', 'truncated', 40, $1, $1,
+           ('watch-private-eve', 'dark-chess', 'white-wins', 'resignation', 40, $1, $1,
             'engine-white', 'engine-black', NULL, NULL, 'eve', 'completed', 'private'),
-           ('watch-short-pvp', 'dark-chess', 'white-wins', 'king-captured', 12, $1, $1,
+           ('watch-short-pvp', 'dark-chess', 'white-wins', 'resignation', 12, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('watch-short-pve', 'dark-chess', 'white-wins', 'king-captured', 1, $1, $1,
+           ('watch-short-pve', 'dark-chess', 'white-wins', 'resignation', 1, $1, $1,
             'human', 'engine', NULL, NULL, 'pve', 'completed', 'public'),
            ('watch-short-timeout', 'dark-chess', 'black-wins', 'timeout', 4, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
-           ('watch-imported-public', 'dark-chess', 'white-wins', 'king-captured', 40, $1, $1,
+           ('watch-imported-public', 'dark-chess', 'white-wins', 'resignation', 40, $1, $1,
             'white', 'black', NULL, NULL, 'imported', 'completed', 'public')`,
         [newest, middle, oldest, outsideWindow, future],
       );
@@ -244,6 +246,7 @@ definePersistenceTests('game lists', () => {
         'watch-short-pve',
         'watch-short-timeout',
         'watch-imported-public',
+        'watch-nonterminal-event',
       ]) {
         await client.query(
           `INSERT INTO events (room_id, seq, type, payload)
@@ -260,6 +263,49 @@ definePersistenceTests('game lists', () => {
           ],
         );
       }
+      for (const roomId of [
+        'watch-pvp-newest',
+        'watch-pve-link',
+        'watch-xiangqi',
+        'watch-eve',
+        'watch-old',
+        'watch-future',
+        'watch-private-pvp',
+        'watch-private-eve',
+        'watch-short-pvp',
+        'watch-short-pve',
+        'watch-imported-public',
+      ]) {
+        const event: GameEvent = {
+          type: 'seat-resigned',
+          at: now.getTime() + 1,
+          roomId,
+          color: 'black',
+        };
+        await client.query(
+          `INSERT INTO events (room_id, seq, type, payload)
+           VALUES ($1, 1, $2, $3)`,
+          [roomId, event.type, event],
+        );
+      }
+      const shortTimeoutEvent: GameEvent = {
+        type: 'clock-expired',
+        at: now.getTime() + 1,
+        roomId: 'watch-short-timeout',
+        color: 'white',
+        clock: {
+          activeColor: null,
+          incrementMs: 0,
+          initialMs: 180_000,
+          remainingMs: { white: 0, black: 180_000 },
+          runningSince: null,
+        },
+      };
+      await client.query(
+        `INSERT INTO events (room_id, seq, type, payload)
+         VALUES ($1, 1, $2, $3)`,
+        ['watch-short-timeout', shortTimeoutEvent.type, shortTimeoutEvent],
+      );
       const sealedEvents: Array<{ event: GameEvent; roomId: string; seq: number }> = [
         {
           roomId: 'sealed-public-pvp',
@@ -425,7 +471,7 @@ definePersistenceTests('game lists', () => {
              (room_id, variant, result, termination, ply_count, started_at, ended_at,
               white_client, black_client, white_name, black_name, mode, status, visibility)
            VALUES
-             ($1, 'dark-chess', 'white-wins', 'king-captured', 40, $2, $2,
+             ($1, 'dark-chess', 'white-wins', 'resignation', 40, $2, $2,
               'white', 'black', NULL, NULL, 'pvp', 'completed', 'public')`,
           [roomId, endedAt],
         );
@@ -442,6 +488,17 @@ definePersistenceTests('game lists', () => {
               offer: [],
             },
           ],
+        );
+        const terminalEvent: GameEvent = {
+          type: 'seat-resigned',
+          at: endedAt.getTime() + 1,
+          roomId,
+          color: 'black',
+        };
+        await client.query(
+          `INSERT INTO events (room_id, seq, type, payload)
+           VALUES ($1, 1, $2, $3)`,
+          [roomId, terminalEvent.type, terminalEvent],
         );
       }
     } finally {

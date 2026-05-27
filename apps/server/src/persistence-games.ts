@@ -248,9 +248,19 @@ export async function listWatchUnlockedGames(
   const values: unknown[] = [MIN_TIMEOUT_SOURCE_PLY_COUNT, boundedLimit, MIN_TV_PVP_PLY_COUNT, now];
   if (variants) values.push(variants);
   const { rows } = await getPool().query<RecentEveGameRow>(
-    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
+    `WITH last_events AS (
+       SELECT DISTINCT ON (events.room_id)
+              events.room_id,
+              events.type
+       FROM events
+       JOIN games ON games.room_id = events.room_id
+       WHERE games.status = 'completed'
+       ORDER BY events.room_id, events.seq DESC
+     )
+     SELECT ${RECENT_EVE_SELECT_COLUMNS}
      FROM games
      LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     JOIN last_events ON last_events.room_id = games.room_id
      WHERE games.status = 'completed'
        ${variantClause}
        AND games.mode IN ('pvp', 'pve', 'eve')
@@ -258,11 +268,11 @@ export async function listWatchUnlockedGames(
        AND NOT (games.termination = 'timeout' AND games.ply_count < $1)
        AND NOT (games.mode = 'pvp' AND games.ply_count < $3)
        AND NOT (games.mode = 'pve' AND games.ply_count < 2)
-       AND EXISTS (
-         SELECT 1
-         FROM events
-         WHERE events.room_id = games.room_id
-         LIMIT 1
+       AND (
+         (games.termination IN ('checkmate', 'draw', 'king-captured') AND last_events.type = 'move-played')
+         OR (games.termination = 'timeout' AND last_events.type = 'clock-expired')
+         OR (games.termination = 'resignation' AND last_events.type = 'seat-resigned')
+         OR (games.termination = 'abandonment' AND last_events.type = 'seat-forfeited')
        )
        AND (
          games.visibility = 'public'
