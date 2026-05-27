@@ -349,7 +349,11 @@ ownership surfaces:
    stylesheet by another 635 lines. The next slice moved learn/tutorial route
    styles into `apps/web/src/learn.css`, reducing the global stylesheet by
    another 538 lines.
-10. **Centralize runtime config.** Add typed config modules for server, engine,
+10. **Split learn route ownership.** Keep `apps/web/src/learn.ts` focused on
+    route mounting, rendering, board, and interaction logic. Static module and
+    chapter curriculum data now lives in `apps/web/src/learn-content.ts`, which
+    removes about 975 lines of content from the route renderer.
+11. **Centralize runtime config.** Add typed config modules for server, engine,
     and web feature flags so environment reads are discoverable and testable.
     Initial server startup/runtime defaults now live in
     `apps/server/src/server-config.ts`; `apps/server/src/index.ts` consumes the
@@ -370,6 +374,8 @@ ownership surfaces:
 - Route/dev CSS has moved out of the single global stylesheet where practical;
   lab, replay-analysis, account, profile, leaderboard, and learn CSS have
   route-owned files.
+- Learn curriculum data is separated from the route renderer so tutorial copy
+  and chapter additions do not require loading the interaction-heavy page file.
 - Runtime config reads are centralized enough that new flags have an obvious
   home.
 

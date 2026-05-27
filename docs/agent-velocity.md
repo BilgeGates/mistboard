@@ -159,9 +159,12 @@ as a specific phase instead of one undifferentiated red or slow run.
 - Shared worktrees are the highest-cost failure mode. Existing dirty files
   should be treated as another session's work unless the current session made
   them.
-- Large files still dominate navigation: `learn.ts`, `landing.ts`,
-  `apps/server/src/index.ts`, and `apps/web/src/styles.css` should be split
-  only when a real behavior change gives the extraction a natural boundary.
+- Large files still dominate navigation: `landing.ts`, `apps/server/src/index.ts`,
+  and `apps/web/src/styles.css` should be split only when a real behavior change
+  gives the extraction a natural boundary. The learn route has started this
+  pattern: static curriculum data lives in `apps/web/src/learn-content.ts`,
+  route styles live in `apps/web/src/learn.css`, and `apps/web/src/learn.ts`
+  owns route/render/interaction logic.
 - Manual mobile/article inspection was hidden behind `node
   scripts/mobile-loop.mjs`; use `npm run test:mobile:shots` after starting the
   dev server.
@@ -239,3 +242,5 @@ as a specific phase instead of one undifferentiated red or slow run.
 - Keep learn/tutorial route styles in `apps/web/src/learn.css`; do not add new
   learn module cards, chapter menus, tutorial panels, or learn-board callouts
   back into the global stylesheet.
+- Keep learn curriculum data in `apps/web/src/learn-content.ts`; do not add new
+  module/chapter data back into the route renderer in `apps/web/src/learn.ts`.

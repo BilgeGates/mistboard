@@ -172,7 +172,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `replay-moves-panel.ts` | Replay side-panel move controls/list: first/prev/next/last buttons, algebraic move rows, active-ply jump handling, and active-row scrolling |
 | `replay-wall-clock.ts` | Pure replay timing helpers for compact clock orientation, wall-clock loop position, thinking elapsed clamping, and replay timing constants |
 | `belief-panel.ts` | Engine belief/probability display panels for the replay lab |
-| `learn.ts` | `/learn` tutorial (Steps 1-3 shipped, 4-5 parked). Loads `learn.css` for route-owned tutorial layout and board callout styles |
+| `learn.ts` | `/learn` tutorial route mount, rendering, board, and interaction logic. Loads `learn.css` and reads curriculum data from `learn-content.ts` |
+| `learn-content.ts` | `/learn` static curriculum data and data-shape types: module list, chapter list, tutorial steps, endgame lesson metadata |
 | `learn.css` | `/learn` tutorial route styles loaded by `learn.ts` |
 | `articles.ts` | Articles page renderer |
 | `articles-data.ts` | Article content (large; content not code) |
