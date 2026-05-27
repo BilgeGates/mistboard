@@ -474,7 +474,8 @@ progress. Continue from isolated worktrees._
    browser-smoke job as success only when the planner did not require it. Jobs
    that typecheck or execute workspace consumers build the shared game and
    board-render packages locally instead of depending on build artifacts left by
-   a previous serial step.
+   a previous serial step; the unit-test job also builds the server because the
+   delta websocket unit tests spawn `apps/server/dist/main.js`.
 
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,

@@ -95,6 +95,7 @@ jobs:
         run: |
           npm run build --workspace @mistboard/game
           npm run build --workspace @mistboard/board-render
+          npm run build --workspace @mistboard/server
       - name: Unit tests
         run: npm run test:unit
 
