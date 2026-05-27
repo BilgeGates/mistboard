@@ -9,7 +9,7 @@ import {
   type XiangqiMove,
   type XiangqiSquare,
 } from '@mistboard/game';
-import { chooseVisibleGreedyMove } from './xiangqi-bot.js';
+import { chooseFairMove } from './xiangqi-bot.js';
 import {
   buildGodView,
   renderBoardSvg,
@@ -44,7 +44,7 @@ export function mountXiangqiDemo(root: HTMLElement): void {
   root.classList.add('landing-page', 'xiangqi-demo-route');
   initLiveSound();
   clearAiTimer();
-  active = { root, state: freshState('red') };
+  active = { root, state: freshState(Math.random() < 0.5 ? 'red' : 'black') };
   rerender();
   scheduleAiTurn();
 }
@@ -331,7 +331,7 @@ function scheduleAiTurn(): void {
     if (isReplay(current) || !isAiTurn(current)) return;
     if (current.game.status.type !== 'playing') return;
     const color = current.game.status.turn;
-    const move = chooseVisibleGreedyMove(current.game, color, CANNON_MODE);
+    const move = chooseFairMove(current.game, color, CANNON_MODE);
     if (!move) {
       active.state = { ...current, aiThinking: false, note: 'AI has no move.' };
       rerender();
