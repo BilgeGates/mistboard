@@ -14,16 +14,10 @@ import {
 import pg from 'pg';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { currentAccountUser } from './account-session.js';
-import { isPlayableLiveEngineClientId, loadEngine } from './engine-registry.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
-import {
-  InternalEngineClientError,
-  releaseInternalEngineReservation,
-  requestInternalEngineReservation,
-} from './internal-engine-client.js';
 import { runMigrations } from './migrate.js';
-import { engineCounters, logger, wsCounters } from './obs.js';
+import { logger, wsCounters } from './obs.js';
 import { snapshotPayload } from './payloads.js';
 import * as persistence from './persistence.js';
 import {
@@ -70,6 +64,13 @@ import {
   waitForRoomWrites,
 } from './server-lifecycle.js';
 import {
+  canonicalLiveEngineVersionId,
+  pveEngineSeatForProjection,
+  releaseLiveEngineReservation,
+  reserveHydratedLiveEngineSeat,
+  reserveLiveEngineSeat,
+} from './server-live-engine-reservations.js';
+import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
   isAdminDebugToken,
@@ -97,6 +98,7 @@ import { isKnownClientMessageType, parseClientMessage } from './server-ws-messag
 // WS message parsing     → ./server-ws-messages.ts (client message parser and allowlist)
 // Seat/session handling  → ./server-seat-session.ts (seat assignment, tokens, displacement)
 // Server lifecycle       → ./server-lifecycle.ts   (shutdown pause, timer/socket/server cleanup)
+// Engine reservations    → ./server-live-engine-reservations.ts (live engine seat holds)
 // SECTION: Types and constants          (~line 90)    module-scope maps and config constants
 // SECTION: Server init and HTTP entry   (~line 130)   initPersistence, handleHttpRequest, static file serving
 // SECTION: WebSocket connection handling (~line 230)  handleConnection, handleMessage, handleClose, getOrCreateRoom, createRoom, runAbortPolicySweep
@@ -746,6 +748,9 @@ async function getOrCreateRoom(
   const detectedHiddenDraft960 =
     projection.variant === 'dark-chess' && roomCreatedEvent?.offers !== undefined;
   const hydratedPveEngine = pveEngineSeatForProjection(projection);
+  const hydratedPveEngineId = hydratedPveEngine
+    ? canonicalLiveEngineVersionId(hydratedPveEngine.clientId)
+    : null;
   const room: Room = {
     id: roomId,
     clients: new Set(),
@@ -771,7 +776,7 @@ async function getOrCreateRoom(
     engineReservationId: null,
     randomSeating: false,
     creatorPreference: null,
-    pveEngineId: hydratedPveEngine ? canonicalEngineVersionId(hydratedPveEngine.clientId) : null,
+    pveEngineId: hydratedPveEngineId,
     pendingWrites: Promise.resolve(),
     gameEndRecorded: projection.state.status.type === 'finished',
     variant: projection.variant,
@@ -781,25 +786,12 @@ async function getOrCreateRoom(
     pendingVacates: {},
     pauseGraceTimer: null,
   };
-  if (hydratedPveEngine && room.projection.state.status.type === 'playing') {
-    try {
-      room.engineReservationId = await reserveLiveEngineSeat(
-        canonicalEngineVersionId(hydratedPveEngine.clientId),
-        hydratedPveEngine.color,
-      );
-    } catch (err) {
-      logger.warn(
-        {
-          kind: 'live_engine_reservation_hydrate_failed',
-          room_id: room.id,
-          engine_id: canonicalEngineVersionId(hydratedPveEngine.clientId),
-          color: hydratedPveEngine.color,
-          error: err instanceof Error ? err.message : String(err),
-          ...(err instanceof InternalEngineClientError ? { engine_error_reason: err.reason } : {}),
-        },
-        'live engine reservation hydrate failed',
-      );
-    }
+  if (hydratedPveEngineId && hydratedPveEngine && room.projection.state.status.type === 'playing') {
+    room.engineReservationId = await reserveHydratedLiveEngineSeat({
+      color: hydratedPveEngine.color,
+      engineId: hydratedPveEngineId,
+      roomId: room.id,
+    });
   }
   rooms.set(roomId, room);
   scheduleClockTimeout(roomMgrCtx, room);
@@ -809,59 +801,6 @@ async function getOrCreateRoom(
   // timer so the game resumes even if both players don't reconnect in time.
   if (room.projection.paused) armPauseGraceTimer(room);
   return room;
-}
-
-async function reserveLiveEngineSeat(
-  engineId: string,
-  color: 'white' | 'black',
-): Promise<string | null> {
-  if (loadEngine(engineId).config.kind !== 'python-subprocess') return null;
-  const reservation = await requestInternalEngineReservation({ engineId, color });
-  logger.info(
-    {
-      kind: 'live_engine_reservation_created',
-      engine_id: engineId,
-      color,
-      reservation_id: reservation.reservationId,
-      active_seats: reservation.capacity.activeSeats,
-      max_seats: reservation.capacity.maxSeats,
-      expires_at: reservation.expiresAt,
-    },
-    'live engine reservation created',
-  );
-  return reservation.reservationId;
-}
-
-function releaseLiveEngineReservation(reservationId: string, reason: string): void {
-  void releaseInternalEngineReservation(reservationId, reason).catch((err) => {
-    engineCounters.recordReservationReleaseFailure();
-    logger.warn(
-      {
-        kind: 'live_engine_reservation_release_failed',
-        reservation_id: reservationId,
-        reason,
-        error: err instanceof Error ? err.message : String(err),
-        ...(err instanceof InternalEngineClientError ? { engine_error_reason: err.reason } : {}),
-      },
-      'live engine reservation release failed',
-    );
-  });
-}
-
-function pveEngineSeatForProjection(
-  projection: GameProjection,
-): { clientId: string; color: 'white' | 'black' } | null {
-  const whiteClient = projection.seats.white;
-  const blackClient = projection.seats.black;
-  const whiteIsEngine = isPlayableLiveEngineClientId(whiteClient);
-  const blackIsEngine = isPlayableLiveEngineClientId(blackClient);
-  if (whiteIsEngine && !blackIsEngine && whiteClient) {
-    return { clientId: whiteClient, color: 'white' };
-  }
-  if (blackIsEngine && !whiteIsEngine && blackClient) {
-    return { clientId: blackClient, color: 'black' };
-  }
-  return null;
 }
 
 async function createRoom(
@@ -1339,11 +1278,6 @@ function engineDraftSelectionEvent(
     color: 'black',
     startId: start.id,
   };
-}
-
-function canonicalEngineVersionId(clientId: string): string {
-  if (clientId === 'random-engine') return pveBuiltinEngineClientId;
-  return clientId;
 }
 
 function handleAdminDebugAuth(room: Room, client: Client, token: string | undefined): void {

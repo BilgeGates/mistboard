@@ -255,6 +255,10 @@ runtime server paths remain deploy-triggering.
   `apps/server/src/server-lifecycle.ts`; `apps/server/src/index.ts` should
   orchestrate startup/shutdown, not duplicate timer, socket, pending-write, and
   HTTP/WS close mechanics.
+- Keep live engine reservation create/release plumbing in
+  `apps/server/src/server-live-engine-reservations.ts`; `apps/server/src/index.ts`
+  should request or release reservations without owning engine-worker protocol
+  logging or legacy engine-id normalization.
 - Keep engine lab layout styles in `apps/web/src/bakeoff.css` and replay
   belief/annotation panel styles in `apps/web/src/replay-analysis.css`; do not
   add new lab-only selectors back into the global stylesheet.
