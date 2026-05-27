@@ -3223,8 +3223,7 @@ body:has(
 }
 
 .about-section p,
-.source-section p,
-.contact-section p {
+.source-section p {
   margin: 0 0 14px;
   color: var(--site-text);
   line-height: 1.65;
@@ -3232,133 +3231,8 @@ body:has(
 }
 
 .about-section p:last-child,
-.source-section p:last-child,
-.contact-section p:last-child {
+.source-section p:last-child {
   margin-bottom: 0;
-}
-
-.contact-section {
-  max-width: 600px;
-}
-
-.contact-reply-note {
-  font-size: 13px;
-  color: #6a716c;
-  margin: -4px 0 20px;
-}
-
-.contact-card {
-  background: #ffffff;
-  border: 1px solid #d4ddd6;
-  border-radius: 10px;
-  padding: 24px;
-}
-
-.contact-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.contact-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 14px;
-  color: #3f4742;
-}
-
-.contact-field > span {
-  font-weight: 600;
-  color: #1f2521;
-}
-
-.contact-field textarea,
-.contact-field input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid #c8cec8;
-  border-radius: 6px;
-  background: #ffffff;
-  font: inherit;
-  color: #1f2521;
-  resize: vertical;
-}
-
-.contact-field textarea:focus,
-.contact-field input:focus {
-  outline: 2px solid #2f6f4f;
-  outline-offset: 1px;
-  border-color: #2f6f4f;
-}
-
-.contact-submit-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.contact-submit {
-  appearance: none;
-  border: 1px solid #1f2521;
-  background: #1f2521;
-  color: #ffffff;
-  padding: 10px 18px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.contact-submit:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-.contact-status {
-  font-size: 14px;
-  color: #3f4742;
-}
-
-.contact-status[data-state="ok"] {
-  color: #2f6f4f;
-}
-
-.contact-status[data-state="error"] {
-  color: #b03a2e;
-}
-
-/* Lane slot has natural height. The common case (returning signed-in user)
-   paints the right lane with real text on first mount via readCachedUser(),
-   so no reservation is needed to suppress a first-paint jolt. Rare auth
-   reconciliation events (sign-out elsewhere, cleared storage) will shift
-   the form height as the auth fetch resolves — that's an acceptable signal. */
-.contact-lane-slot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.contact-signin-prompt {
-  margin: 0;
-  font-size: 13px;
-  color: #6a716c;
-}
-
-.contact-signin-prompt a {
-  color: #2f6f4f;
-  text-decoration: underline;
-}
-
-.contact-signed-in-hint {
-  margin: 0;
-  font-size: 13px;
-  color: #6a716c;
-}
-
-.contact-signed-in-hint strong {
-  color: #1f2521;
 }
 
 .about-subheading {

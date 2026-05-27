@@ -4,6 +4,8 @@
 // submit/error states, and the applyAuth reconciliation hook called once
 // /api/auth/me resolves.
 
+import './contact.css';
+
 // Minimal subset of AuthUser — kept in sync with landing.ts. Promote to a
 // shared types module if a third caller appears.
 type AuthUser = {
