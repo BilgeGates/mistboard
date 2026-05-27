@@ -383,6 +383,63 @@ ownership surfaces:
     `apps/server/src/server-config.ts`; `apps/server/src/index.ts` consumes the
     parsed config instead of reading `process.env` directly.
 
+### Remaining Velocity Handoff
+
+_Checkpoint: 2026-05-26. `main` is pushed and production-smoked through
+`b2ede09`; the shared checkout still had active engine-registry work in
+progress. Continue from isolated worktrees._
+
+1. **Pull up deploy/build latency as the next major velocity item.** The
+   biggest wall-clock loss during this push was no longer local verification.
+   Targeted local checks usually completed quickly, while Railway repeatedly
+   spent about five to seven minutes building and promoting small
+   deploy-affecting changes. The exact-revision wait should stay: it caught the
+   difference between a healthy old container and the pushed revision. The next
+   optimization is to make that wait cheaper.
+
+   Next actions:
+
+   - measure CI duration, Railway waiting-for-CI duration, Railway build time,
+     revision propagation time, and smoke time as separate handoff fields;
+   - compare deploy timings before and after engine extraction and the active
+     engine-registry work settle;
+   - keep private engine checkout, Rust/PyO3 wheel work, and engine artifact
+     preparation out of ordinary web/server deploys unless the changed service
+     actually needs them;
+   - cache or prebuild engine/wheel artifacts if they remain in the web build
+     image;
+   - keep using `npm run prod:smoke:plan -- --base-from-prod --head HEAD`
+     before revision waits so non-deploy commits do not poll for a SHA Railway
+     will never serve;
+   - keep smoke tiers proportional: `prod:smoke:lite` for refactors and basic
+     server/web deploys, engine smoke for engine admission changes, and full
+     playout only for engine reliability work.
+
+   Definition of done: a normal server/web deploy has a visible phase timing
+   summary, avoids unrelated engine build work, and makes clear whether the
+   remaining wait is CI, Railway build, propagation, or smoke.
+
+2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
+   1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
+   and live-engine reservation boundaries moved out. The next high-leverage
+   seams are WebSocket connection/message handling and room hydration/creation.
+   Avoid `apps/server/src/engines/registry.ts` while active engine work is
+   dirty.
+
+3. **Split remaining large web surfaces.** `apps/web/src/styles.css`,
+   `apps/web/src/landing.ts`, and `apps/web/src/replay.ts` are still large
+   navigation costs. Continue route-owned CSS and focused landing/replay module
+   extraction when those areas are not under active product work.
+
+4. **Expand fixture ownership where it reduces churn.** Server builders now
+   cover the core room/payload shapes. Add web/live/replay fixture helpers only
+   where repeated payload shape edits are still costing test-update time.
+
+5. **Keep dirty-main discipline strict.** Repeated reconciliation worked, but it
+   cost real time. Long-running engine experiments and exploratory sessions
+   should keep using isolated worktrees so `main` remains a fast-forwardable
+   integration point.
+
 ### Definition Of Done For The Second Push
 
 - Contract test fixtures exist for core game/server/web payload shapes.
