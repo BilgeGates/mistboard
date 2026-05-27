@@ -1,3 +1,4 @@
+import './app-base.css';
 import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
