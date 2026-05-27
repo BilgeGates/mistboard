@@ -150,7 +150,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `main.ts` | Entry point — URL routing to page modules via dynamic import; mounts theme + nav + restart banner + analytics |
 | `live.ts` | Live-game page bootstrap — wires `live-state`, `live-socket`, `live-render`, and `live-view` for `/room/:id` |
 | `app-base.css` | Global site/board/fog tokens plus page-base primitives loaded before shared styles by both `main.ts` and `live.ts` |
-| `styles.css` | Remaining shared board, fog-rendering, live-game, replay, and gameplay surface styles |
+| `board-fog.css` | Fog theme rendering rules, including Mistveil tile URL mapping and hidden-square background behavior |
+| `styles.css` | Remaining shared board, live-game, replay, and gameplay surface styles |
 | `live-state.ts` | Live-game module state (`liveState`, seat-token storage, WS base URL resolver) |
 | `live-socket.ts` | WebSocket connect / reconnect / send for live games |
 | `live-render.ts` | Live-game render orchestration: board and draft picker. Reads board helpers from `live-board.ts`, capture rows from `live-captures.ts`, clock rendering from `live-clocks.ts`, dev-view rendering from `live-dev-views.ts`, game controls from `live-game-controls.ts`, room actions from `live-room-actions.ts`, replay/move-list rendering from `live-move-list.ts`, replay state via accessors from `live-replay.ts`, and derived views from `live-view.ts`. Layout shell is in `live-layout.ts`; sound subsystem is in `live-sound.ts`. |

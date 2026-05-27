@@ -1,4 +1,5 @@
 import './app-base.css';
+import './board-fog.css';
 import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
