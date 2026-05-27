@@ -426,6 +426,18 @@ progress. Continue from isolated worktrees._
    with read-only Actions scope for that lookup and labels the room smoke as web
    smoke.
 
+   Baseline run: 2026-05-27, commit `4f5346b`. Dispatching manual full prod
+   smoke immediately after push reproduced the circular gate: Railway marked the
+   web deployment `SKIPPED` with `CI check suite failed`, the exact-revision wait
+   timed out after 14m54s, and production stayed on `07a1167`. The wait logs
+   showed CI in progress through the early attempts, then
+   `railway_build_or_deploy_wait` until timeout. After an explicit Railway
+   source redeploy promoted `4f5346b`, the second manual full smoke passed:
+   dependency install 8s, exact-revision wait 12s, web smoke 1s, engine smoke
+   2s, prod-smoke job 31s. Correct sequence: wait for Railway deployment success
+   or `/api/server-status` to report the pushed SHA before dispatching the
+   GitHub `Prod Smoke` workflow.
+
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
    and live-engine reservation boundaries moved out. The next high-leverage

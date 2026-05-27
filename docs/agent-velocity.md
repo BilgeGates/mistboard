@@ -121,9 +121,14 @@ planner falls back to recommending the smoke. The planner evaluates Railway
 watch patterns in order, including `!` exclusions, so server test-only files can
 stay in the repo without forcing a web deployment wait.
 
-After Railway has actually deployed a revision, dispatch the `Prod Smoke`
-workflow with `full=true` and `expect_revision=<sha>`, or run the equivalent
-local commands:
+Do not dispatch the manual `Prod Smoke` workflow before Railway has actually
+deployed the revision. The workflow still belongs to the commit check suite; on
+2026-05-27, dispatching `full=true` for `4f5346b` immediately after push caused
+Railway to skip the web deployment with `CI check suite failed` because the
+smoke was waiting for a revision Railway had not promoted yet. First confirm the
+Railway deployment is successful or `/api/server-status` already reports the
+pushed SHA. Then dispatch the `Prod Smoke` workflow with `full=true` and
+`expect_revision=<sha>`, or run the equivalent local commands:
 
 ```bash
 npm run prod:wait-revision -- --expect-revision <sha>
