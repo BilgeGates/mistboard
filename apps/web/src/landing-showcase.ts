@@ -60,6 +60,7 @@ export function homepageShowcaseGames(): FeaturedGame[] {
       blackName,
       corpusId: 'replay-samples',
       gameIndex: spec.index,
+      playerColor: spec.klussColor,
       whiteEngineId: whiteId,
       blackEngineId: blackId,
       timeControl: HOMEPAGE_ENGINE_TIME_CONTROL,
@@ -79,7 +80,8 @@ export function homepageShowcaseGames(): FeaturedGame[] {
           visibility: 'public',
         },
       ],
-      // playerColor omitted -> hero POV defaults to the winning side.
+      // The homepage hero is a KLUSS showcase, so the visible POV follows the
+      // KLUSS side even when the non-KLUSS baseline won the sample.
     };
   });
 }
