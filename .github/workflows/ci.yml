@@ -74,6 +74,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build workspace dependencies
+        run: |
+          npm run build --workspace @mistboard/game
+          npm run build --workspace @mistboard/board-render
       - name: Typecheck
         run: npm run typecheck
 
@@ -87,6 +91,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build workspace dependencies
+        run: |
+          npm run build --workspace @mistboard/game
+          npm run build --workspace @mistboard/board-render
       - name: Unit tests
         run: npm run test:unit
 
@@ -116,6 +124,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build workspace dependencies
+        run: |
+          npm run build --workspace @mistboard/game
+          npm run build --workspace @mistboard/board-render
       - name: Server integration
         run: |
           npm run test:persistent --workspace @mistboard/server
@@ -133,6 +145,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build workspace dependencies
+        run: |
+          npm run build --workspace @mistboard/game
+          npm run build --workspace @mistboard/board-render
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
       - name: Browser smoke

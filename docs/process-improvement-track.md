@@ -471,7 +471,10 @@ progress. Continue from isolated worktrees._
    server integration, browser-smoke, and audit jobs, with a final `node`
    aggregate job preserving the old required-check surface. Browser smoke stays
    conditional on the path planner, and the aggregate gate treats a skipped
-   browser-smoke job as success only when the planner did not require it.
+   browser-smoke job as success only when the planner did not require it. Jobs
+   that typecheck or execute workspace consumers build the shared game and
+   board-render packages locally instead of depending on build artifacts left by
+   a previous serial step.
 
 2. **Continue server `index.ts` extraction.** The entrypoint dropped to roughly
    1,393 lines after HTTP routing, seat/session handling, lifecycle cleanup,
