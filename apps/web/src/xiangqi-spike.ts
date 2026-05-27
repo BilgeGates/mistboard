@@ -44,7 +44,7 @@ const FOG_RADIUS = 22;
 const HIT_HALF = 24; // half-width of the per-intersection click target
 
 type Perspective = XiangqiColor | 'god';
-type CannonTargetMarker = 'corners' | 'ring' | 'badge' | 'line';
+export type CannonTargetMarker = 'corners' | 'ring' | 'badge' | 'line';
 
 function intersection(
   file: number,
@@ -168,8 +168,13 @@ function fogLayerMask(view: XiangqiPlayerView, perspective: XiangqiColor, maskKe
     const file = 'abcdefghi'.indexOf(sq[0]);
     const rank = Number(sq.slice(1));
     const { x, y } = intersection(file, rank, perspective);
+    const rDisplay = perspective === 'red' ? RANKS - rank : rank - 1;
+    const x0 = file === 0 ? 0 : x - half;
+    const x1 = file === FILES - 1 ? WIDTH : x + half;
+    const y0 = rDisplay === 0 ? 0 : y - half;
+    const y1 = rDisplay === RANKS - 1 ? HEIGHT : y + half;
     cutouts.push(
-      `<rect x="${x - half}" y="${y - half}" width="${CELL}" height="${CELL}" fill="black"/>`,
+      `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="black"/>`,
     );
   }
   return `
@@ -337,7 +342,7 @@ function clickLayer(perspective: XiangqiColor): string {
   return parts.join('');
 }
 
-type FogStyle = 'dots' | 'mask';
+export type FogStyle = 'dots' | 'mask';
 type BoardStyle = 'intersection' | 'grid';
 
 function fogLayerFor(
@@ -617,7 +622,7 @@ function renderBoardSvgGridReadOnly(
   ].join('');
 }
 
-function renderBoardSvg(
+export function renderBoardSvg(
   view: XiangqiPlayerView,
   perspective: XiangqiColor,
   state: XiangqiGameState,
@@ -646,7 +651,7 @@ function renderBoardSvg(
 
 // Read-only renderer for the triptych dev view. Drops selection, hints, and
 // the click layer — these boards are observers, not playable surfaces.
-function renderBoardSvgReadOnly(
+export function renderBoardSvgReadOnly(
   view: XiangqiPlayerView,
   perspective: XiangqiColor,
   state: XiangqiGameState,
@@ -697,7 +702,10 @@ function triptychHtml(s: SpikeState): string {
 
 // ── God view: bypass FoW filter ────────────────────────────────────────────
 
-function buildGodView(state: XiangqiGameState, mode: XiangqiCannonVisionMode): XiangqiPlayerView {
+export function buildGodView(
+  state: XiangqiGameState,
+  mode: XiangqiCannonVisionMode,
+): XiangqiPlayerView {
   const board: Record<string, { piece: XiangqiPiece; shrouded: boolean }> = {};
   const visibleSquares: XiangqiSquare[] = [];
   for (let f = 0; f < FILES; f++) {
@@ -1232,7 +1240,3 @@ export function mountXiangqiSpike(root: HTMLElement): void {
   active = { root, state: { ...freshState(), history, cursor: 0 } };
   rerender();
 }
-
-// Exported for content-scenario tools that want to render a known position
-// without the interactive mount lifecycle.
-export { renderBoardSvg };

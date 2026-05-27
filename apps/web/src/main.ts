@@ -81,6 +81,8 @@ const profileHandle = profileHandleFromPath(path);
 // Hidden spike: FoW Xiangqi Phase A. No nav entry, no landing link, and no
 // dev default; enabling it is an explicit build-time flag.
 const wantsXiangqiSpike = darkXiangqiEnabled() && path === '/xiangqi-spike';
+// Hidden reviewer demo: no nav entry, direct-link only, build-time flagged.
+const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
 // Hidden DEV-only spike: pixel-art piece + fog style probes. No nav entry.
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
@@ -138,6 +140,11 @@ if (replaySample) {
   setTitle('Xiangqi spike');
   void mountOrReport(() =>
     import('./xiangqi-spike.js').then(({ mountXiangqiSpike }) => mountXiangqiSpike(appRoot)),
+  );
+} else if (wantsXiangqiDemo) {
+  setTitle('Dark Xiangqi demo');
+  void mountOrReport(() =>
+    import('./xiangqi-demo.js').then(({ mountXiangqiDemo }) => mountXiangqiDemo(appRoot)),
   );
 } else if (wantsPixelLab) {
   setTitle('Pixel lab');

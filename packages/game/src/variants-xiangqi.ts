@@ -781,6 +781,18 @@ export function getVisibleSquares(state: XiangqiGameState, color: XiangqiColor):
   return [...all].sort();
 }
 
+function mergePlayerBoardEntry(
+  board: XiangqiPlayerBoard,
+  square: XiangqiSquare,
+  piece: XiangqiPiece,
+  shrouded: boolean,
+): void {
+  const existing = board[square];
+  if (!existing || (existing.shrouded && !shrouded)) {
+    board[square] = { piece, shrouded };
+  }
+}
+
 export function getPlayerView(
   state: XiangqiGameState,
   color: XiangqiColor,
@@ -790,8 +802,8 @@ export function getPlayerView(
   const playerBoard: XiangqiPlayerBoard = {};
 
   // Mode rendering rules for cannon-only-visible squares.
-  // For a square that is BOTH in directlyVisible AND in cannonScreens/Targets,
-  // directlyVisible wins (no shrouding).
+  // If multiple pieces reveal the same square, the most informative view wins:
+  // a fully identified piece overrides a shrouded "?" marker.
   //
   // The shrouded `?` rendering is provided by renderXiangqiPiece — when a screen
   // is shrouded the player sees "something is here, identity unknown," which
@@ -805,24 +817,21 @@ export function getPlayerView(
 
   for (const sq of vision.directlyVisible) {
     const piece = state.board[sq];
-    if (piece) playerBoard[sq] = { piece, shrouded: false };
+    if (piece) mergePlayerBoardEntry(playerBoard, sq, piece, false);
   }
   for (const sq of vision.shroudedBlockers) {
-    if (playerBoard[sq]) continue;
     const piece = state.board[sq];
-    if (piece) playerBoard[sq] = { piece, shrouded: true };
+    if (piece) mergePlayerBoardEntry(playerBoard, sq, piece, true);
   }
   if (!fogScreen) {
     for (const sq of vision.cannonScreens) {
-      if (playerBoard[sq]) continue;
       const piece = state.board[sq];
-      if (piece) playerBoard[sq] = { piece, shrouded: screenShrouded };
+      if (piece) mergePlayerBoardEntry(playerBoard, sq, piece, screenShrouded);
     }
   }
   for (const sq of vision.cannonTargets) {
-    if (playerBoard[sq]) continue;
     const piece = state.board[sq];
-    if (piece) playerBoard[sq] = { piece, shrouded: targetShrouded };
+    if (piece) mergePlayerBoardEntry(playerBoard, sq, piece, targetShrouded);
   }
 
   // Build the visible set from the accum so mode E can exclude the screen.

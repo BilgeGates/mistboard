@@ -831,6 +831,87 @@ test("player view legal-moves: only when it is the player's turn", () => {
   );
 });
 
+test('mode D player view explains every legal destination in the initial position', () => {
+  assertModeDLegalMovesAreVisible(createInitialXiangqiState('red'), 'red');
+  assertModeDLegalMovesAreVisible(
+    { ...createInitialXiangqiState('black'), status: { type: 'playing', turn: 'black' } },
+    'black',
+  );
+});
+
+test('mode D player view explains legal destinations with blockers and cannon screens', () => {
+  const state: XiangqiGameState = {
+    id: 'mode-d-alignment',
+    board: {
+      e1: { color: 'red', role: 'general' },
+      a1: { color: 'red', role: 'chariot' },
+      c1: { color: 'red', role: 'elephant' },
+      e2: { color: 'red', role: 'horse' },
+      b3: { color: 'red', role: 'cannon' },
+      g4: { color: 'red', role: 'soldier' },
+      a3: { color: 'black', role: 'soldier' },
+      d2: { color: 'black', role: 'soldier' },
+      e3: { color: 'black', role: 'soldier' },
+      b8: { color: 'black', role: 'cannon' },
+      b10: { color: 'black', role: 'horse' },
+      e10: { color: 'black', role: 'general' },
+    },
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  const view = getPlayerView(state, 'red', 'D');
+
+  assert.equal(view.board.e3?.shrouded, true, 'horse leg/cannon screen e3 is visible as ?');
+  assert.equal(view.board.d2?.shrouded, true, 'elephant eye d2 is visible as ?');
+  assert.equal(view.board.b8?.shrouded, true, 'cannon screen b8 is visible as ?');
+  assert.equal(view.board.b10?.shrouded, false, 'mode D reveals cannon target b10');
+  assertModeDLegalMovesAreVisible(state, 'red');
+});
+
+test('direct visibility overrides shrouded blocker markers', () => {
+  const state: XiangqiGameState = {
+    id: 'direct-overrides-shroud',
+    board: {
+      e1: { color: 'red', role: 'general' },
+      e2: { color: 'red', role: 'horse' },
+      a3: { color: 'red', role: 'chariot' },
+      e3: { color: 'black', role: 'soldier' },
+      e10: { color: 'black', role: 'general' },
+    },
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  const view = getPlayerView(state, 'red', 'D');
+
+  assert.equal(
+    view.board.e3?.shrouded,
+    false,
+    'chariot direct vision should reveal a piece even if horse logic also sees it as a leg blocker',
+  );
+});
+
+test('mode D revealed cannon target overrides same-square shrouded cannon screen', () => {
+  const state = play(createInitialXiangqiState('cannon-overlap'), [
+    ['b3', 'e3'],
+    ['h8', 'h1'],
+    ['i1', 'h1'],
+    ['b8', 'b3'],
+  ]);
+  const view = getPlayerView(state, 'red', 'D');
+
+  assert.equal(view.board.b3?.piece.color, 'black');
+  assert.equal(view.board.b3?.piece.role, 'cannon');
+  assert.equal(
+    view.board.b3?.shrouded,
+    false,
+    'b3 is a shrouded screen for one red cannon but a revealed target for another',
+  );
+});
+
 test('player view does not reveal squares the perspective player cannot see', () => {
   const state = createInitialXiangqiState('t');
   const view = getPlayerView(state, 'red');
@@ -846,6 +927,37 @@ test('player view does not reveal squares the perspective player cannot see', ()
     'red should not see a10 (black chariot)',
   );
 });
+
+function assertModeDLegalMovesAreVisible(state: XiangqiGameState, color: 'red' | 'black'): void {
+  const view = getPlayerView(state, color, 'D');
+  const visible = new Set(view.visibleSquares);
+  for (const move of view.legalMoves) {
+    const source = view.board[move.from];
+    assert.ok(source, `${move.from}-${move.to}: source should be visible`);
+    assert.equal(
+      source.shrouded,
+      false,
+      `${move.from}-${move.to}: source identity should be known`,
+    );
+    assert.equal(source.piece.color, color, `${move.from}-${move.to}: source should be own piece`);
+    assert.ok(visible.has(move.to), `${move.from}-${move.to}: destination should be visible`);
+
+    const target = state.board[move.to];
+    if (!target) continue;
+    const renderedTarget = view.board[move.to];
+    assert.ok(renderedTarget, `${move.from}-${move.to}: occupied target should be rendered`);
+    assert.equal(
+      renderedTarget.shrouded,
+      false,
+      `${move.from}-${move.to}: legal capture target should be identified in mode D`,
+    );
+    assert.notEqual(
+      renderedTarget.piece.color,
+      color,
+      `${move.from}-${move.to}: legal destination should not be own occupied square`,
+    );
+  }
+}
 
 // ── applyMove: state transitions + end conditions ──────────────────────────
 

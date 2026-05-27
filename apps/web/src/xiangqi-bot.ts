@@ -1,14 +1,15 @@
-// Hand-tuned FoW Xiangqi bot — Phase A baseline.
+// Hand-tuned FoW Xiangqi bots — Phase A baselines.
 //
 // What it is:
 //   - 1-ply greedy with a 1-ply opponent-best-capture lookahead. Defends
 //     against simple hangs without paying for full 2-ply minimax.
-//   - God-view (operates on full ground-truth state). NOT FoW-aware.
+//   - chooseHandTunedMove is god-view (operates on full ground-truth state).
+//   - chooseVisibleGreedyMove scores only what the side's PlayerView reveals.
 //   - Material + soldier-crossing bonus. General capture is terminal-win.
 //
 // What it isn't:
-//   - A fair FoW opponent. A real FoW bot would operate on getPlayerView
-//     and track a belief over hidden enemy positions.
+//   - A full fair FoW engine. chooseVisibleGreedyMove does not track a belief
+//     over hidden pieces.
 //   - A strong xiangqi engine. There's no positional eval beyond material,
 //     no search past 1.5 plies, no quiescence on full trees.
 //
@@ -19,6 +20,8 @@ import {
   applyMove,
   coordOf,
   getLegalMoves,
+  getPlayerView,
+  type XiangqiCannonVisionMode,
   type XiangqiColor,
   type XiangqiGameState,
   type XiangqiMove,
@@ -104,6 +107,35 @@ export function chooseHandTunedMove(
   let bestMoves: XiangqiMove[] = [];
   for (const move of moves) {
     const score = evaluateMove(state, move, color);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMoves = [move];
+    } else if (score === bestScore) {
+      bestMoves.push(move);
+    }
+  }
+  return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+}
+
+export function chooseVisibleGreedyMove(
+  state: XiangqiGameState,
+  color: XiangqiColor,
+  mode: XiangqiCannonVisionMode = 'D',
+): XiangqiMove | null {
+  if (state.status.type !== 'playing' || state.status.turn !== color) return null;
+  const view = getPlayerView(state, color, mode);
+  const visible = new Set(view.visibleSquares);
+  const moves = view.legalMoves.filter((move) => visible.has(move.to));
+  if (moves.length === 0) return null;
+
+  let bestScore = -Infinity;
+  let bestMoves: XiangqiMove[] = [];
+  for (const move of moves) {
+    const target = view.board[move.to];
+    const score =
+      target && !target.shrouded && target.piece.color !== color
+        ? pieceValue(target.piece, move.to)
+        : 0;
     if (score > bestScore) {
       bestScore = score;
       bestMoves = [move];
