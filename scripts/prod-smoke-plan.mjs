@@ -88,6 +88,7 @@ async function buildPlan({ configPath, options, watchPatterns }) {
             changedFiles: [],
             configPath,
             deployRequired: true,
+            excluded: [],
             headRevision,
             matched: [],
             prodRevision,
@@ -104,6 +105,7 @@ async function buildPlan({ configPath, options, watchPatterns }) {
           changedFiles: [],
           configPath,
           deployRequired: true,
+          excluded: [],
           headRevision,
           matched: [],
           prodRevision,
@@ -123,6 +125,7 @@ async function buildPlan({ configPath, options, watchPatterns }) {
         changedFiles: [],
         configPath,
         deployRequired: true,
+        excluded: [],
         headRevision,
         matched: [],
         prodRevision,
@@ -134,17 +137,23 @@ async function buildPlan({ configPath, options, watchPatterns }) {
     }
   }
 
+  const excluded = [];
   const matched = [];
   const unmatched = [];
 
   for (const file of changedFiles) {
-    const pattern = watchPatterns.find((candidate) => matchesWatchPattern(file, candidate));
-    if (pattern) matched.push({ file, pattern });
+    const result = evaluateWatchPatterns(file, watchPatterns);
+    if (result.status === 'matched') matched.push({ file, pattern: result.pattern });
+    else if (result.status === 'excluded') excluded.push({ file, pattern: result.pattern });
     else unmatched.push(file);
   }
 
   deployRequired = matched.length > 0;
-  reason = deployRequired ? 'matched_railway_watch_pattern' : 'no_railway_watch_pattern_match';
+  reason = deployRequired
+    ? 'matched_railway_watch_pattern'
+    : excluded.length > 0
+      ? 'excluded_by_railway_watch_negation'
+      : 'no_railway_watch_pattern_match';
   if (changedFiles.length === 0) {
     deployRequired = true;
     reason = 'empty_diff_conservative';
@@ -154,6 +163,7 @@ async function buildPlan({ configPath, options, watchPatterns }) {
     changedFiles,
     configPath,
     deployRequired,
+    excluded,
     headRevision,
     matched,
     prodRevision,
@@ -174,7 +184,12 @@ function readWatchPatterns(configPath) {
     if (typeof pattern !== 'string' || pattern.trim() === '') {
       throw new Error(`${configPath} contains an invalid watch pattern`);
     }
-    return pattern.trim();
+    const normalized = pattern.trim();
+    const target = normalized.startsWith('!') ? normalized.slice(1) : normalized;
+    if (target.trim() === '') {
+      throw new Error(`${configPath} contains an invalid watch pattern`);
+    }
+    return normalized;
   });
 }
 
@@ -185,6 +200,28 @@ function readChangedFiles({ base, head }) {
   const output = execFileSync('git', args, { encoding: 'utf8' }).trim();
   if (!output) return [];
   return output.split('\n').map(normalizePath).filter(Boolean);
+}
+
+function evaluateWatchPatterns(file, patterns) {
+  let excludedPattern = null;
+  let matchedPattern = null;
+
+  for (const pattern of patterns) {
+    if (!matchesWatchPattern(file, pattern)) continue;
+    if (isNegatedWatchPattern(pattern)) {
+      if (matchedPattern) {
+        excludedPattern = pattern;
+        matchedPattern = null;
+      }
+    } else {
+      excludedPattern = null;
+      matchedPattern = pattern;
+    }
+  }
+
+  if (matchedPattern) return { status: 'matched', pattern: matchedPattern };
+  if (excludedPattern) return { status: 'excluded', pattern: excludedPattern };
+  return { status: 'unmatched' };
 }
 
 async function fetchProdRevision({ baseUrl, requestTimeoutMs }) {
@@ -222,14 +259,41 @@ function matchesWatchPattern(file, pattern) {
   }
   if (!normalizedPattern.includes('*')) return file === normalizedPattern;
 
-  const regex = new RegExp(
-    `^${escapeRegex(normalizedPattern).replaceAll('\\*\\*', '.*').replaceAll('\\*', '[^/]*')}$`,
-  );
-  return regex.test(file);
+  return watchGlobToRegex(normalizedPattern).test(file);
+}
+
+function watchGlobToRegex(pattern) {
+  let source = '';
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    if (char !== '*') {
+      source += escapeRegex(char);
+      continue;
+    }
+
+    if (pattern[index + 1] === '*') {
+      if (pattern[index + 2] === '/') {
+        source += '(?:.*/)?';
+        index += 2;
+      } else {
+        source += '.*';
+        index += 1;
+      }
+    } else {
+      source += '[^/]*';
+    }
+  }
+
+  return new RegExp(`^${source}$`);
+}
+
+function isNegatedWatchPattern(pattern) {
+  return pattern.startsWith('!');
 }
 
 function normalizeWatchPattern(pattern) {
-  return normalizePath(pattern.replace(/^\/+/, ''));
+  const target = isNegatedWatchPattern(pattern) ? pattern.slice(1) : pattern;
+  return normalizePath(target.replace(/^\/+/, ''));
 }
 
 function normalizePath(file) {
@@ -243,7 +307,7 @@ function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function writeGithubOutputs({ changedFiles, deployRequired, matched, reason }) {
+function writeGithubOutputs({ changedFiles, deployRequired, excluded, matched, reason }) {
   const outputPath = options.githubOutput ?? process.env.GITHUB_OUTPUT;
   if (!outputPath) return;
   appendFileSync(
@@ -252,6 +316,7 @@ function writeGithubOutputs({ changedFiles, deployRequired, matched, reason }) {
       `deploy_required=${deployRequired ? 'true' : 'false'}`,
       `changed_count=${changedFiles.length}`,
       `matched_count=${matched.length}`,
+      `excluded_count=${excluded.length}`,
       `reason=${reason}`,
       '',
     ].join('\n'),
@@ -262,6 +327,7 @@ function writeGithubSummary({
   changedFiles,
   configPath,
   deployRequired,
+  excluded,
   headRevision,
   matched,
   prodRevision,
@@ -284,11 +350,16 @@ function writeGithubSummary({
       `- Production revision: \`${prodRevision ? prodRevision.slice(0, 12) : 'not checked'}\``,
       `- Changed files: ${changedFiles.length}`,
       `- Railway matches: ${matched.length}`,
+      `- Railway exclusions: ${excluded.length}`,
       ...(warning ? [`- Warning: \`${warning}\``] : []),
       '',
       ...formatFileSection(
         'Matched files',
         matched.map((entry) => `${entry.file} -> ${entry.pattern}`),
+      ),
+      ...formatFileSection(
+        'Excluded files',
+        excluded.map((entry) => `${entry.file} -> ${entry.pattern}`),
       ),
       ...formatFileSection('Unmatched files', unmatched),
       '',
@@ -300,6 +371,7 @@ function printPlan({
   changedFiles,
   configPath,
   deployRequired,
+  excluded,
   headRevision,
   matched,
   prodRevision,
@@ -315,9 +387,14 @@ function printPlan({
   if (warning) console.log(`warning: ${warning}`);
   console.log(`changed_count: ${changedFiles.length}`);
   console.log(`matched_count: ${matched.length}`);
+  console.log(`excluded_count: ${excluded.length}`);
   printList(
     'matched',
     matched.map((entry) => `${entry.file} -> ${entry.pattern}`),
+  );
+  printList(
+    'excluded',
+    excluded.map((entry) => `${entry.file} -> ${entry.pattern}`),
   );
   printList('unmatched', unmatched);
 }

@@ -160,12 +160,15 @@ Track these optimizations after the engine extraction settles:
 Current implementation: `npm run prod:smoke:plan` reads `railway.web.json`
 watch patterns and can compare from the currently deployed production revision
 to a pushed commit, which keeps multi-commit pushes conservative while still
-identifying commits that do not affect the web Railway service. Automatic
-post-CI exact-revision smoke is intentionally disabled because Railway treats
-that workflow as part of the commit check suite; running it automatically caused
-a circular wait where Railway waited for Prod Smoke and Prod Smoke waited for
-Railway. Manual full smoke writes step-summary timings for dependency install,
-revision wait, web smoke, and engine smoke.
+identifying commits that do not affect the web Railway service. The planner now
+honors ordered Railway `!` watch exclusions, and the Railway web/engine-worker
+configs exclude server test-only files, integration harnesses, loadtests, and
+server helper scripts from deploy watches. Automatic post-CI exact-revision
+smoke is intentionally disabled because Railway treats that workflow as part of
+the commit check suite; running it automatically caused a circular wait where
+Railway waited for Prod Smoke and Prod Smoke waited for Railway. Manual full
+smoke writes step-summary timings for dependency install, revision wait, web
+smoke, and engine smoke.
 
 ### 4. Manual Gate Evidence
 

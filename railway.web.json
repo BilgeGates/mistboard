@@ -3,6 +3,12 @@
   "build": {
     "watchPatterns": [
       "/apps/server/**",
+      "!/apps/server/src/**/*.test.ts",
+      "!/apps/server/src/test-builders.ts",
+      "!/apps/server/src/persistence-test-support.ts",
+      "!/apps/server/integration/**",
+      "!/apps/server/loadtest/**",
+      "!/apps/server/scripts/**",
       "/apps/web/**",
       "/packages/game/**",
       "/packages/board-render/**",

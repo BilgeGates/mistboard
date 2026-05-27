@@ -117,7 +117,9 @@ The planner compares the range from the currently deployed production revision
 to the pushed commit against `railway.web.json` watch patterns. If no web deploy
 path changed, the exact-revision wait would only poll for a revision Railway
 will not serve. If the production revision cannot be read or diffed locally, the
-planner falls back to recommending the smoke.
+planner falls back to recommending the smoke. The planner evaluates Railway
+watch patterns in order, including `!` exclusions, so server test-only files can
+stay in the repo without forcing a web deployment wait.
 
 After Railway has actually deployed a revision, dispatch the `Prod Smoke`
 workflow with `full=true` and `expect_revision=<sha>`, or run the equivalent
@@ -153,6 +155,9 @@ separate deploy wait time from playout wait time.
 Manual full production smoke writes timing summaries for dependency install,
 Railway revision wait, web smoke, and engine smoke so slow deploys are visible
 as a specific phase instead of one undifferentiated red or slow run.
+Railway web and engine-worker configs also exclude server-only tests,
+integration harnesses, loadtests, and server helper scripts from deploy watches;
+runtime server paths remain deploy-triggering.
 
 ## Current velocity losses
 
