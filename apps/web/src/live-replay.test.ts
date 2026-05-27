@@ -1,13 +1,19 @@
 import type { GameEvent, PlayerView } from '@mistboard/game';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   captureFogView,
   handleReplayButtonClick,
   replayMetaLabel,
   resetReplayState,
 } from './live-replay.js';
+import { playSound } from './live-sound.js';
 import { liveState } from './live-state.js';
 import { currentView } from './live-view.js';
+
+vi.mock('./live-sound.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./live-sound.js')>();
+  return { ...actual, playSound: vi.fn() };
+});
 
 const roomId = 'fog-terminal-forfeit';
 
@@ -43,7 +49,17 @@ const blackForfeit: GameEvent = {
   color: 'black',
 };
 
+const whiteKingCapture: GameEvent = {
+  type: 'move-played',
+  at: 6,
+  roomId,
+  color: 'white',
+  move: { from: 'e6', to: 'e7' },
+  capturedRole: 'king',
+};
+
 afterEach(() => {
+  vi.clearAllMocks();
   resetReplayState();
   liveState.events = [];
   liveState.roomMode = 'pvp';
@@ -131,6 +147,43 @@ describe('live fog replay', () => {
     expect(view?.board.d5).toEqual({ color: 'white', role: 'pawn' });
     expect(view?.board.e4).toBeUndefined();
     expect(view?.board.h8).toBeUndefined();
+  });
+
+  it('replays the king-capture sound for a visible winning capture', () => {
+    resetReplayState();
+    liveState.roomMode = 'pvp';
+    liveState.seat = 'white';
+
+    capture(
+      makeView({
+        board: {
+          e1: { color: 'white', role: 'king' },
+          e6: { color: 'white', role: 'queen' },
+          e7: { color: 'black', role: 'king' },
+        },
+        visibleSquares: ['e1', 'e6', 'e7'],
+      }),
+      [roomCreated],
+    );
+    capture(
+      makeView({
+        board: {
+          e1: { color: 'white', role: 'king' },
+          e7: { color: 'white', role: 'queen' },
+        },
+        lastMove: whiteKingCapture.move,
+        status: { type: 'finished', winner: 'white', reason: 'king-captured' },
+        visibleSquares: ['e1', 'e7'],
+      }),
+      [roomCreated, whiteKingCapture],
+    );
+
+    handleReplayButtonClick('first');
+    vi.mocked(playSound).mockClear();
+    handleReplayButtonClick('next');
+
+    expect(playSound).toHaveBeenCalledTimes(1);
+    expect(playSound).toHaveBeenCalledWith('king-capture');
   });
 });
 

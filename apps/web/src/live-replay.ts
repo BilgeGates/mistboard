@@ -8,7 +8,7 @@
 // a value-circular import.
 
 import type { GameEvent, PlayerView } from '@mistboard/game';
-import { ownPieceCount, playSound, soundForMove } from './live-sound.js';
+import { ownPieceCount, playSound, soundForMove, soundForOwnMove } from './live-sound.js';
 import { liveState } from './live-state.js';
 import { isColor } from './web-utils.js';
 
@@ -243,6 +243,11 @@ function maybeSoundForReplayStep(prevIndex: number | null, nextIndex: number | n
     const nextView = fogViewHistory.get(effectiveNext);
     if (!prevView || !nextView) return;
     const seat = isColor(liveState.seat) ? liveState.seat : 'white';
+    const moveEvent = fogReplayStepMoveEvent(effectivePrev, effectiveNext);
+    if (moveEvent && (liveState.solo || moveEvent.color === seat)) {
+      playSound(soundForOwnReplayMove(prevView, moveEvent));
+      return;
+    }
     playSound(ownPieceCount(nextView, seat) < ownPieceCount(prevView, seat) ? 'captured' : 'move');
     return;
   }
@@ -251,6 +256,31 @@ function maybeSoundForReplayStep(prevIndex: number | null, nextIndex: number | n
   const event = liveState.events[eventIndex];
   if (!event || event.type !== 'move-played') return;
   playSound(soundForMove(liveState.events.slice(0, eventIndex), event));
+}
+
+function fogReplayStepMoveEvent(
+  prevSnapshot: number,
+  nextSnapshot: number,
+): Extract<GameEvent, { type: 'move-played' }> | null {
+  const prevEventsLen = fogSnapshotToEventsLen.get(prevSnapshot);
+  const nextEventsLen = fogSnapshotToEventsLen.get(nextSnapshot);
+  if (prevEventsLen === undefined || nextEventsLen === undefined || nextEventsLen <= prevEventsLen)
+    return null;
+
+  for (let index = nextEventsLen - 1; index >= prevEventsLen; index -= 1) {
+    const event = liveState.events[index];
+    if (event?.type === 'move-played') return event;
+  }
+  return null;
+}
+
+function soundForOwnReplayMove(
+  prevView: PlayerView,
+  event: Extract<GameEvent, { type: 'move-played' }>,
+) {
+  const viewSound = soundForOwnMove(prevView, event.move);
+  if (viewSound !== 'move' || !event.capturedRole) return viewSound;
+  return event.capturedRole === 'king' ? 'king-capture' : 'capture';
 }
 
 function replayActionForKey(key: string): string | null {
