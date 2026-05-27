@@ -7,6 +7,7 @@ import {
   type StepperController,
   type ThumbnailBoardController,
 } from '@mistboard/board-render/interactive';
+import './articles.css';
 import { type ArticleLang, translateArticle } from './article-i18n.js';
 import {
   type Article,

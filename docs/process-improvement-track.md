@@ -383,7 +383,9 @@ ownership surfaces:
    route styles into `apps/web/src/account-profile.css`, reducing the global
    stylesheet by another 635 lines. The next slice moved learn/tutorial route
    styles into `apps/web/src/learn.css`, reducing the global stylesheet by
-   another 538 lines.
+   another 538 lines. The latest slice moved article index, article page, and
+   article interactive widget styles into `apps/web/src/articles.css`, reducing
+   the global stylesheet by another 792 lines.
 10. **Split learn route ownership.** Keep `apps/web/src/learn.ts` focused on
     route mounting, rendering, board, and interaction logic. Static module and
     chapter curriculum data now lives in `apps/web/src/learn-content.ts`, which

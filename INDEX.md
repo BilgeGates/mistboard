@@ -188,7 +188,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `learn.ts` | `/learn` tutorial route mount, rendering, board, and interaction logic. Loads `learn.css` and reads curriculum data from `learn-content.ts` |
 | `learn-content.ts` | `/learn` static curriculum data and data-shape types: module list, chapter list, tutorial steps, endgame lesson metadata |
 | `learn.css` | `/learn` tutorial route styles loaded by `learn.ts` |
-| `articles.ts` | Articles page renderer |
+| `articles.ts` | Articles page renderer and article thumbnail board mounting. Loads `articles.css` for article index/page/widget styles |
+| `articles.css` | Article index, article page, and article interactive widget styles loaded by `articles.ts` |
 | `articles-data.ts` | Article content (large; content not code) |
 | `account-nav.ts` | Top-nav account menu + sign-in state |
 | `restart-banner.ts` | Boot-fetch + WS-driven drain banner |
