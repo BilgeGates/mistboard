@@ -16,11 +16,11 @@ export const BOARD_BORDER = BOARD_FRAME;
 // overlay so the underlying light/dark square color still shows through.
 export const FOG_LIGHT_FILL = 'rgba(6, 10, 8, 0.66)';
 export const FOG_DARK_FILL = 'rgba(6, 10, 8, 0.72)';
-export const FOG_SOLID_LIGHT_FILL = '#17110c';
+export const FOG_SOLID_LIGHT_FILL = '#17261a';
 export const FOG_SOLID_DARK_FILL = FOG_SOLID_LIGHT_FILL;
 export const FOG_LINE = 'rgba(0, 0, 0, 0.36)';
 export const FOG_LINE_SOFT = 'rgba(255, 255, 255, 0.06)';
-export const FOG_SHADOW = 'rgba(255, 244, 224, 0.07)';
+export const FOG_SHADOW = '#3a523f';
 export const FOG_TILE_SIZE = 14;
 // Legacy flat-fog values, kept for any caller that hasn't migrated.
 export const FOG_FILL = '#1a1a1a';
@@ -66,8 +66,8 @@ export const GREEN_PALETTE: BoardPalette = {
   frame: '#2a3a2a',
   fogLightFill: FOG_LIGHT_FILL,
   fogDarkFill: FOG_DARK_FILL,
-  fogSolidLightFill: '#101810',
-  fogSolidDarkFill: '#101810',
+  fogSolidLightFill: FOG_SOLID_LIGHT_FILL,
+  fogSolidDarkFill: FOG_SOLID_DARK_FILL,
   fogLine: 'rgba(8, 24, 12, 0.36)',
   fogLineSoft: 'rgba(255, 255, 255, 0.08)',
   fogShadow: FOG_SHADOW,

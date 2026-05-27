@@ -502,6 +502,103 @@
   line-height: 1.45;
 }
 
+:root[data-effective-theme="dark"] .learn-module-section-header h2,
+:root[data-effective-theme="dark"] .learn-module-card h2,
+:root[data-effective-theme="dark"] .learn-menu-header h2,
+:root[data-effective-theme="dark"] .learn-heading {
+  color: var(--site-heading);
+}
+
+:root[data-effective-theme="dark"] .learn-module-section-header span,
+:root[data-effective-theme="dark"] .learn-module-card p,
+:root[data-effective-theme="dark"] .learn-module-eyebrow,
+:root[data-effective-theme="dark"] .learn-module-meta,
+:root[data-effective-theme="dark"] .learn-menu-eyebrow,
+:root[data-effective-theme="dark"] .learn-menu-header p,
+:root[data-effective-theme="dark"] .learn-menu-chapter-subtitle,
+:root[data-effective-theme="dark"] .learn-progress,
+:root[data-effective-theme="dark"] .learn-hint {
+  color: var(--site-muted);
+}
+
+:root[data-effective-theme="dark"] .learn-copy,
+:root[data-effective-theme="dark"] .learn-steps,
+:root[data-effective-theme="dark"] .learn-chapter-title {
+  color: var(--site-text);
+}
+
+:root[data-effective-theme="dark"] .learn-module-card,
+:root[data-effective-theme="dark"] .learn-menu,
+:root[data-effective-theme="dark"] .learn-tutorial-message {
+  border-color: var(--site-border);
+  background: var(--site-panel);
+  color: var(--site-text);
+  box-shadow: 0 10px 26px var(--site-shadow);
+}
+
+:root[data-effective-theme="dark"] .learn-module-card:hover {
+  border-color: color-mix(in srgb, var(--site-accent) 34%, var(--site-border));
+  box-shadow: 0 12px 30px var(--site-shadow);
+}
+
+:root[data-effective-theme="dark"] .learn-module-card.is-planned,
+:root[data-effective-theme="dark"] .learn-module-card.is-wip,
+:root[data-effective-theme="dark"] .learn-module-source,
+:root[data-effective-theme="dark"] .learn-menu-chapter:hover,
+:root[data-effective-theme="dark"] .learn-menu-chapter:focus-visible {
+  background: var(--site-panel-soft);
+}
+
+:root[data-effective-theme="dark"] .learn-module-number {
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+}
+
+:root[data-effective-theme="dark"] .learn-menu-back,
+:root[data-effective-theme="dark"] .learn-menu-chapter {
+  color: var(--site-text);
+}
+
+:root[data-effective-theme="dark"] .learn-menu-back:hover,
+:root[data-effective-theme="dark"] .learn-menu-back:focus-visible {
+  background: var(--site-hover);
+  color: var(--site-heading);
+}
+
+:root[data-effective-theme="dark"] .learn-menu-chapter:hover,
+:root[data-effective-theme="dark"] .learn-menu-chapter:focus-visible {
+  border-color: var(--site-border);
+}
+
+:root[data-effective-theme="dark"] .learn-menu-chapter.is-current,
+:root[data-effective-theme="dark"] .learn-tutorial-message.success {
+  border-color: color-mix(in srgb, var(--site-accent) 48%, var(--site-border));
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+}
+
+:root[data-effective-theme="dark"] .learn-menu-chapter-index {
+  border-color: var(--site-border);
+  color: var(--site-muted);
+}
+
+:root[data-effective-theme="dark"] .learn-menu-chapter.is-current .learn-menu-chapter-index {
+  border-color: var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+:root[data-effective-theme="dark"] .learn-tutorial-message.soft-failure {
+  border-color: color-mix(in srgb, #c69250 45%, var(--site-border));
+  background: color-mix(in srgb, #c69250 14%, var(--site-panel));
+}
+
+:root[data-effective-theme="dark"] .learn-target-list span {
+  border-color: color-mix(in srgb, var(--board-highlight) 65%, var(--site-border));
+  background: color-mix(in srgb, var(--board-highlight) 18%, var(--site-panel));
+  color: color-mix(in srgb, var(--board-highlight) 82%, var(--site-heading));
+}
+
 @media (max-width: 940px) {
   .learn-shell {
     grid-template-columns: minmax(0, 1fr);

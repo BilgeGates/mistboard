@@ -1159,13 +1159,13 @@ function colorOptionButton(
   if (value === 'random') {
     const w = document.createElement('span');
     w.className = 'white';
-    w.textContent = '♔';
+    w.textContent = '♚';
     const b = document.createElement('span');
     b.className = 'black';
     b.textContent = '♚';
     glyph.append(w, b);
   } else {
-    glyph.textContent = value === 'white' ? '♔' : '♚';
+    glyph.textContent = '♚';
   }
 
   const text = document.createElement('span');

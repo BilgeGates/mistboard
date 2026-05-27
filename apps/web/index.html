@@ -30,6 +30,27 @@
       content="Hidden-information chess where the server only sends what your pieces can see."
     />
     <meta name="twitter:image" content="https://mistboard.com/og-image.png?v=2" />
+    <script>
+      (() => {
+        const key = "mistboard.siteTheme";
+        const allowed = new Set(["system", "light", "dark"]);
+        let stored = "system";
+        try {
+          const value = window.localStorage.getItem(key);
+          if (allowed.has(value)) stored = value;
+        } catch {
+          /* localStorage may be unavailable in private contexts. */
+        }
+        const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches === true;
+        const resolved = stored === "dark" || (stored === "system" && prefersDark) ? "dark" : "light";
+        document.documentElement.dataset.siteTheme = stored;
+        document.documentElement.dataset.effectiveTheme = resolved;
+        document.documentElement.style.colorScheme = resolved;
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute("content", resolved === "dark" ? "#101512" : "#f4f1ea");
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
