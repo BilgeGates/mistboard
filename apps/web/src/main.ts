@@ -46,7 +46,6 @@ const appRoot = app;
 const params = new URLSearchParams(window.location.search);
 const path = window.location.pathname.replace(/\/+$/, '') || '/';
 const replaySample = params.get('replay');
-const beliefParam = params.get('belief');
 const bakeoffParam = params.get('bakeoff');
 const playDeepLink = params.get('play');
 const wantsLive =
@@ -91,20 +90,7 @@ const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 
-if (beliefParam) {
-  // Engine-internals viewer: gated like the bakeoff lab so it never serves
-  // belief-set enumeration data on the public site. DEV (or VITE_ENABLE_ENGINE_LAB)
-  // only; otherwise 404. Slated to move into the private mistboard-engine repo.
-  setTitle('Belief replay');
-  void mountOrReport(async () => {
-    if (!engineLabEnabled || !(await canOpenLab())) {
-      renderNotFound(appRoot);
-      return;
-    }
-    const { mountBeliefReplay } = await import('./belief-replay.js');
-    await mountBeliefReplay(appRoot, beliefParam);
-  });
-} else if (replaySample) {
+if (replaySample) {
   setTitle('Replay');
   void mountOrReport(() =>
     import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)),

@@ -1,9 +1,4 @@
-const DEV_PUBLIC_ARTIFACT_DIRS = new Set([
-  'bakeoff',
-  'belief-replays',
-  'pixel-lab',
-  'pixel-lab-assets',
-]);
+const DEV_PUBLIC_ARTIFACT_DIRS = new Set(['bakeoff', 'pixel-lab', 'pixel-lab-assets']);
 
 export const INCLUDE_DEV_PUBLIC_ARTIFACTS_ENV = 'MISTBOARD_INCLUDE_DEV_PUBLIC_ARTIFACTS';
 

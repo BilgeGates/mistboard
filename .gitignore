@@ -39,7 +39,8 @@ lab-exports/
 apps/web/public/bakeoff-*
 
 # Belief-replay captures (engine-v2 belief-set enumeration) are engine internals.
-# Kept local-only for the gated ?belief= viewer; slated to move to mistboard-engine.
+# The viewer + captures now live in the private mistboard-engine repo (viewer/);
+# this guard keeps them from being re-introduced into the public build.
 apps/web/public/belief-replays/
 
 # Tournament run output dirs (timestamped per-run game logs + manifests,
