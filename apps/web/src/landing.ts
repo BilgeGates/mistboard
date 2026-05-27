@@ -39,8 +39,8 @@ type WatchFeed = {
   activeChannel: string;
   channels: WatchChannelSummary[];
   now: string;
+  sealedActivityWindowMs?: number;
   unlockLimit: number;
-  unlockWindowMs: number;
   sealedCount: number;
   unlocked: FeaturedGame[];
 };
@@ -1469,15 +1469,8 @@ function watchQueueGameHref(feed: WatchFeed, roomId: string): string {
   return `/watch?${params.toString()}`;
 }
 
-function formatUnlockWindow(ms: number): string {
-  const minutes = Math.max(1, Math.round(ms / 60_000));
-  if (minutes < 60) return `${minutes}m`;
-  const hours = minutes / 60;
-  return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
-}
-
 function formatWatchScope(feed: WatchFeed): string {
-  return `${formatUnlockWindow(feed.unlockWindowMs)} window · up to ${feed.unlockLimit}`;
+  return `latest replays · up to ${feed.unlockLimit}`;
 }
 
 function formatEndedAge(endedAt: string | undefined, nowIso: string): string | null {

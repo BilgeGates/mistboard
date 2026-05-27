@@ -19,8 +19,8 @@ import {
 
 type ReviewArtifactType = 'belief-snapshot' | 'trace-row' | 'engine-move-choice';
 
-const WATCH_UNLOCK_LIMIT = 64;
-const WATCH_UNLOCK_WINDOW_MS = 24 * 60 * 60 * 1000;
+const WATCH_REPLAY_LIMIT = 64;
+const WATCH_SEALED_ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function tryHandle(
   ctx: HttpApiContext,
@@ -44,12 +44,12 @@ export async function tryHandle(
       listWatchChannels().map(async (candidate) => {
         const [sealedCount, unlocked] = await Promise.all([
           persistence.countWatchSealedGames({
-            activeWindowMs: WATCH_UNLOCK_WINDOW_MS,
+            activeWindowMs: WATCH_SEALED_ACTIVITY_WINDOW_MS,
             now,
             variants: candidate.legacyVariants,
           }),
           persistence.listWatchUnlockedGames({
-            limit: WATCH_UNLOCK_LIMIT,
+            limit: WATCH_REPLAY_LIMIT,
             now,
             variants: candidate.legacyVariants,
           }),
@@ -69,8 +69,8 @@ export async function tryHandle(
         unlockedCount: result.unlocked.length,
       })),
       now: now.toISOString(),
-      unlockLimit: WATCH_UNLOCK_LIMIT,
-      unlockWindowMs: WATCH_UNLOCK_WINDOW_MS,
+      sealedActivityWindowMs: WATCH_SEALED_ACTIVITY_WINDOW_MS,
+      unlockLimit: WATCH_REPLAY_LIMIT,
       sealedCount: active.sealedCount,
       unlocked: active.unlocked,
     });
