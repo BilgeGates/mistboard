@@ -79,6 +79,8 @@ Edit task → find file → open only that file.
 | `persistence-accounts.ts` | Account/profile/session/email-login queries and leaderboard/account-role helpers |
 | `persistence-feedback.ts` | Feedback persistence |
 | `persistence-site-stats.ts` | Site statistics query |
+| `persistence-test-support.ts` | Shared Postgres test harness: migration, truncation reset, DB URL gating, and persistence test helpers |
+| `persistence-*.test.ts` | Postgres-backed persistence regressions split by domain: events, accounts, seat tokens, lifecycle, game end/lists, ratings, and debug artifacts |
 | `payloads.ts` | `snapshotPayload` — builds WebSocket snapshot message; applies fog redaction and seat-scoped view logic |
 | `test-builders.ts` | Shared server test builders for `GameProjection`, `PlayerView`, `SnapshotRoom`, `Room`, clients, and seat tokens |
 | `rating-buckets.ts` | Variant × time-class → bucket-id mapping for per-bucket Elo |

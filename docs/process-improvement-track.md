@@ -237,8 +237,9 @@ responses on `PlayerView` and per-recipient event filters.
 
 ### Codebase Velocity And Tech Debt
 
-_Status: initial server contract fixture builders and web shell/game display
-extraction started after current tree cleanup._
+_Status: initial server contract fixture builders, web shell/game display
+extraction, and persistence test-domain splitting started after current tree
+cleanup._
 
 This push is the codebase-structure companion to the first process/tooling push.
 The goal is to reduce the amount of source an agent or contributor must hold in
@@ -303,7 +304,10 @@ ownership surfaces:
    persistence now live in `apps/server/src/persistence-games.ts`. Account,
    profile, leaderboard, feedback, and site-stat queries now live in focused
    `persistence-*` modules, leaving `apps/server/src/persistence.ts` as a thin
-   compatibility facade.
+   compatibility facade. The Postgres persistence regression tests now mirror
+   those ownership seams through domain files for events, accounts, seat
+   tokens, running-game lifecycle, game end/lists, ratings, and debug artifacts,
+   with shared setup isolated in `persistence-test-support.ts`.
 6. **Split `live-render.ts` incrementally.** Extract stable live-game UI domains:
    board adapter, controls, clocks, captures, Draft960 picker, move list, and
    status panels. Keep the orchestrator thin and keep tests green after each

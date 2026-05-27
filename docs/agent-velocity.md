@@ -197,7 +197,13 @@ as a specific phase instead of one undifferentiated red or slow run.
 - Keep `apps/server/src/persistence.ts` as a compatibility facade. Pool
   lifecycle, room seat tokens, running-game lifecycle/event/debug-artifact
   persistence, completed-game queries, accounts/profile/leaderboard, feedback,
-  and site stats now live in focused `persistence-*` modules.
+  and site stats now live in focused `persistence-*` modules. The Postgres-backed
+  persistence regression suite follows the same ownership shape:
+  `persistence-events.test.ts`, `persistence-accounts.test.ts`,
+  `persistence-seat-tokens.test.ts`, `persistence-lifecycle.test.ts`,
+  `persistence-game-end.test.ts`, `persistence-game-lists.test.ts`,
+  `persistence-ratings.test.ts`, and `persistence-debug-artifacts.test.ts` share
+  setup through `persistence-test-support.ts`.
 - Continue extracting `apps/web/src/live-render.ts` around stable UI domains:
   clocks, controls, captures, draft picker, and end-state panels. Static room
   layout already lives in `apps/web/src/live-layout.ts`; replay-derived current

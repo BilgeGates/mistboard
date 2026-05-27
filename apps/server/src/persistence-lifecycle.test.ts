@@ -1,0 +1,469 @@
+import {
+  abortStaleGuestPrestartGames,
+  appendEvent,
+  createUser,
+  finalizeStalePausedRooms,
+  type GameSummary,
+  listActiveRoomIds,
+  recordGameEnd,
+  recordGameStart,
+} from './persistence.js';
+import {
+  assert,
+  definePersistenceTests,
+  pg,
+  sha256,
+  TEST_DATABASE_URL,
+  test,
+} from './persistence-test-support.js';
+
+definePersistenceTests('lifecycle', () => {
+  test('listActiveRoomIds excludes finished games', async () => {
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 60_000);
+
+    await appendEvent('active-room', 0, {
+      type: 'room-created',
+      at: now.getTime(),
+      roomId: 'active-room',
+      variant: 'dark-chess',
+      offer: [],
+    });
+    await appendEvent('finished-room', 0, {
+      type: 'room-created',
+      at: now.getTime(),
+      roomId: 'finished-room',
+      variant: 'dark-chess',
+      offer: [],
+    });
+    await recordGameEnd('finished-room', {
+      variant: 'dark-chess',
+      result: 'white-wins',
+      termination: 'king-captured',
+      plyCount: 12,
+      startedAt: now,
+      endedAt: now,
+      whiteClient: 'client-w',
+      blackClient: 'client-b',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    } satisfies GameSummary);
+
+    const active = await listActiveRoomIds(earlier);
+    assert.deepEqual(active, ['active-room']);
+  });
+
+  test('listActiveRoomIds includes running games', async () => {
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 60_000);
+
+    await appendEvent('running-room', 0, {
+      type: 'room-created',
+      at: now.getTime(),
+      roomId: 'running-room',
+      variant: 'dark-chess',
+      offer: [],
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at, mode, status)
+         VALUES ($1, 'dark-chess', NULL, NULL, 0, $2, NULL, 'eve', 'running')`,
+        ['running-room', now],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const active = await listActiveRoomIds(earlier);
+    assert.deepEqual(active, ['running-room']);
+  });
+
+  test('recordGameStart creates a durable running game row', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    await recordGameStart('started-pve', {
+      variant: 'dark-chess',
+      mode: 'pve',
+      startedAt: now,
+      whiteClient: null,
+      blackClient: 'builtin-random-legal',
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query<{
+        mode: string;
+        status: string;
+        result: string | null;
+        termination: string | null;
+        ended_at: Date | null;
+        visibility: string;
+        region: string;
+      }>(
+        'SELECT mode, status, result, termination, ended_at, visibility, region FROM games WHERE room_id = $1',
+        ['started-pve'],
+      );
+      assert.deepEqual(rows, [
+        {
+          mode: 'pve',
+          status: 'running',
+          result: null,
+          termination: null,
+          ended_at: null,
+          visibility: 'public',
+          region: 'global',
+        },
+      ]);
+    } finally {
+      await client.end();
+    }
+  });
+
+  test('abortStaleGuestPrestartGames aborts only guest rooms that never started', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const stale = new Date(now.getTime() - 20 * 60_000);
+    const fresh = new Date(now.getTime() - 2 * 60_000);
+    const user = await createUser({
+      id: 'abort-policy-user',
+      email: 'abort-policy@example.com',
+      emailVerifiedAt: null,
+      handle: 'abortpolicy',
+      displayName: 'Abort Policy',
+      now,
+    });
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_client, black_client, white_name, black_name, mode, status)
+         VALUES
+           ('stale-guest-prestart', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            NULL, NULL, NULL, NULL, 'pvp', 'running'),
+           ('fresh-guest-prestart', 'dark-chess', NULL, NULL, 0, $2, NULL,
+            NULL, NULL, NULL, NULL, 'pvp', 'running'),
+           ('stale-signed-in-prestart', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'signed-client', NULL, NULL, NULL, 'pvp', 'running'),
+           ('stale-started-clock', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'clock-white', 'clock-black', NULL, NULL, 'pvp', 'running'),
+           ('stale-started-move', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'move-white', 'move-black', NULL, NULL, 'pvp', 'running')`,
+        [stale, fresh],
+      );
+      await client.query(
+        `INSERT INTO events (room_id, seq, type, payload)
+         VALUES
+           ('stale-guest-prestart', 0, 'room-created', $1),
+           ('fresh-guest-prestart', 0, 'room-created', $2),
+           ('stale-signed-in-prestart', 0, 'room-created', $3),
+           ('stale-started-clock', 0, 'room-created', $4),
+           ('stale-started-clock', 1, 'clock-started', $5),
+           ('stale-started-move', 0, 'room-created', $6),
+           ('stale-started-move', 1, 'move-played', $7)`,
+        [
+          {
+            type: 'room-created',
+            at: stale.getTime(),
+            roomId: 'stale-guest-prestart',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'room-created',
+            at: fresh.getTime(),
+            roomId: 'fresh-guest-prestart',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'room-created',
+            at: stale.getTime(),
+            roomId: 'stale-signed-in-prestart',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'room-created',
+            at: stale.getTime(),
+            roomId: 'stale-started-clock',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'clock-started',
+            at: stale.getTime() + 1000,
+            roomId: 'stale-started-clock',
+            clock: {
+              initialMs: 30000,
+              incrementMs: 2000,
+              remainingMs: { white: 30000, black: 30000 },
+              activeColor: 'white',
+              runningSince: stale.getTime() + 1000,
+            },
+          },
+          {
+            type: 'room-created',
+            at: stale.getTime(),
+            roomId: 'stale-started-move',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'move-played',
+            at: stale.getTime() + 1000,
+            roomId: 'stale-started-move',
+            color: 'white',
+            move: { from: 'e2', to: 'e4' },
+          },
+        ],
+      );
+      await client.query(
+        `INSERT INTO room_seat_tokens
+           (room_id, seat, client_id, token_hash, user_id, issued_at, last_seen_at, revoked_at)
+         VALUES
+           ('stale-signed-in-prestart', 'white', 'signed-client', $1, $2, $3, $3, NULL)`,
+        [sha256('signed-seat-token'), user.id, stale],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const result = await abortStaleGuestPrestartGames(now, 15 * 60_000);
+    assert.deepEqual(result, { aborted: 1, roomIds: ['stale-guest-prestart'] });
+
+    const verifyClient = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await verifyClient.connect();
+    try {
+      const { rows } = await verifyClient.query<{
+        room_id: string;
+        status: string;
+        termination: string | null;
+      }>(
+        `SELECT room_id, status, termination
+         FROM games
+         WHERE room_id LIKE '%prestart' OR room_id LIKE 'stale-started-%'
+         ORDER BY room_id`,
+      );
+      assert.deepEqual(rows, [
+        { room_id: 'fresh-guest-prestart', status: 'running', termination: null },
+        { room_id: 'stale-guest-prestart', status: 'aborted', termination: 'abandoned' },
+        { room_id: 'stale-signed-in-prestart', status: 'running', termination: null },
+        { room_id: 'stale-started-clock', status: 'running', termination: null },
+        { room_id: 'stale-started-move', status: 'running', termination: null },
+      ]);
+    } finally {
+      await verifyClient.end();
+    }
+  });
+
+  test('finalizeStalePausedRooms only touches rooms whose last event is a stale pause', async () => {
+    const now = new Date('2026-05-22T12:00:00.000Z');
+    const stalePauseMs = 24 * 60 * 60 * 1000;
+    const stalePauseAt = now.getTime() - 25 * 60 * 60 * 1000; // older than window
+    const freshPauseAt = now.getTime() - 1 * 60 * 60 * 1000; // within window
+    const startedAt = new Date(stalePauseAt - 60 * 60 * 1000);
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO games
+           (room_id, variant, result, termination, ply_count, started_at, ended_at,
+            white_client, black_client, white_name, black_name, mode, status)
+         VALUES
+           ('stale-paused-pvp', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
+           ('stale-paused-then-resumed', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
+           ('fresh-paused', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
+           ('running-no-pause', 'dark-chess', NULL, NULL, 0, $1, NULL,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'running'),
+           ('stale-paused-already-completed', 'dark-chess', 'white-wins', 'king-captured', 12, $1, $2,
+            'cw', 'cb', 'Alice', 'Bob', 'pvp', 'completed')`,
+        [startedAt, now],
+      );
+
+      // Events: each stale-paused room gets a move + a pause as its last event.
+      // The resumed room has pause + resume after the pause.
+      await client.query(
+        `INSERT INTO events (room_id, seq, type, payload)
+         VALUES
+           ('stale-paused-pvp', 0, 'room-created', $1),
+           ('stale-paused-pvp', 1, 'move-played', $2),
+           ('stale-paused-pvp', 2, 'move-played', $3),
+           ('stale-paused-pvp', 3, 'pause', $4),
+           ('stale-paused-then-resumed', 0, 'room-created', $5),
+           ('stale-paused-then-resumed', 1, 'pause', $6),
+           ('stale-paused-then-resumed', 2, 'resume', $7),
+           ('fresh-paused', 0, 'room-created', $8),
+           ('fresh-paused', 1, 'pause', $9),
+           ('running-no-pause', 0, 'room-created', $10),
+           ('running-no-pause', 1, 'move-played', $11),
+           ('stale-paused-already-completed', 0, 'room-created', $12),
+           ('stale-paused-already-completed', 1, 'pause', $13)`,
+        [
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'stale-paused-pvp',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'move-played',
+            at: startedAt.getTime() + 1000,
+            roomId: 'stale-paused-pvp',
+            color: 'white',
+            move: { from: 'e2', to: 'e4' },
+          },
+          {
+            type: 'move-played',
+            at: startedAt.getTime() + 2000,
+            roomId: 'stale-paused-pvp',
+            color: 'black',
+            move: { from: 'e7', to: 'e5' },
+          },
+          { type: 'pause', at: stalePauseAt, roomId: 'stale-paused-pvp', reason: 'shutdown' },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'stale-paused-then-resumed',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'pause',
+            at: stalePauseAt,
+            roomId: 'stale-paused-then-resumed',
+            reason: 'shutdown',
+          },
+          {
+            type: 'resume',
+            at: stalePauseAt + 1000,
+            roomId: 'stale-paused-then-resumed',
+            reason: 'both-present',
+          },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'fresh-paused',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          { type: 'pause', at: freshPauseAt, roomId: 'fresh-paused', reason: 'shutdown' },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'running-no-pause',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'move-played',
+            at: startedAt.getTime() + 1000,
+            roomId: 'running-no-pause',
+            color: 'white',
+            move: { from: 'e2', to: 'e4' },
+          },
+          {
+            type: 'room-created',
+            at: startedAt.getTime(),
+            roomId: 'stale-paused-already-completed',
+            variant: 'dark-chess',
+            offer: [],
+          },
+          {
+            type: 'pause',
+            at: stalePauseAt,
+            roomId: 'stale-paused-already-completed',
+            reason: 'shutdown',
+          },
+        ],
+      );
+    } finally {
+      await client.end();
+    }
+
+    const result = await finalizeStalePausedRooms(now, stalePauseMs);
+    assert.equal(result.finalized, 1, 'exactly one room should finalize');
+    assert.equal(result.rooms[0]?.roomId, 'stale-paused-pvp');
+    assert.equal(result.rooms[0]?.mode, 'pvp');
+    assert.equal(result.rooms[0]?.pausedAtMs, stalePauseAt);
+    assert.equal(result.rooms[0]?.pauseReason, 'shutdown');
+    assert.equal(result.rooms[0]?.plyCount, 2, 'ply_count should reflect move-played events');
+
+    const verify = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await verify.connect();
+    try {
+      const { rows } = await verify.query<{
+        room_id: string;
+        status: string;
+        result: string | null;
+        termination: string | null;
+        ply_count: number;
+      }>(
+        `SELECT room_id, status, result, termination, ply_count
+         FROM games
+         WHERE room_id IN (
+           'stale-paused-pvp', 'stale-paused-then-resumed', 'fresh-paused',
+           'running-no-pause', 'stale-paused-already-completed'
+         )
+         ORDER BY room_id`,
+      );
+      assert.deepEqual(rows, [
+        {
+          room_id: 'fresh-paused',
+          status: 'running',
+          result: null,
+          termination: null,
+          ply_count: 0,
+        },
+        {
+          room_id: 'running-no-pause',
+          status: 'running',
+          result: null,
+          termination: null,
+          ply_count: 0,
+        },
+        // Already-completed row is untouched by the sweep.
+        {
+          room_id: 'stale-paused-already-completed',
+          status: 'completed',
+          result: 'white-wins',
+          termination: 'king-captured',
+          ply_count: 12,
+        },
+        {
+          room_id: 'stale-paused-pvp',
+          status: 'completed',
+          result: 'draw',
+          termination: 'server-restarted',
+          ply_count: 2,
+        },
+        {
+          room_id: 'stale-paused-then-resumed',
+          status: 'running',
+          result: null,
+          termination: null,
+          ply_count: 0,
+        },
+      ]);
+    } finally {
+      await verify.end();
+    }
+
+    // Idempotency — second sweep finds nothing.
+    const repeat = await finalizeStalePausedRooms(now, stalePauseMs);
+    assert.deepEqual(repeat, { finalized: 0, rooms: [] });
+  });
+});
