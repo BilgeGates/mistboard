@@ -288,6 +288,9 @@ ownership surfaces:
    of the landing route orchestrator. Landing announcement panel/card rendering
    now lives in `apps/web/src/landing-announcements.ts`, keeping announcement
    ordering, article thumbnail lookup, and CTA labels out of the route mount.
+   Homepage play panel, setup dialog, lobby queue polling, room creation, and
+   empty-lobby engine offer behavior now live in `apps/web/src/landing-play.ts`,
+   reducing `landing.ts` to a route/replay/watch coordinator.
 4. **Fix public-artifact build hygiene.** Keep dev bakeoff and pixel-lab assets
    from being copied into ordinary web builds unless explicitly opted in. Local
    `apps/web/public` artifacts should not make `apps/web/dist` hundreds of MB.
@@ -550,19 +553,16 @@ npm run agent:scan
    Avoid `apps/server/src/engines/registry.ts` while active engine work is
    dirty.
 
-4. **Split remaining large web surfaces.** Current scan on shipped `main`
-   reports `apps/web/src/styles.css` (~3,933 lines), `apps/web/src/landing.css`
-   (~2,076), `apps/web/src/landing.ts` (~1,790),
-   `apps/web/src/learn.ts` (~1,589), and `apps/web/src/replay.ts` (~1,384) as
-   the largest web navigation costs. The next best implementation slice is
-   probably a focused `landing.ts` split, because CSS ownership is now much
-   better and the route orchestrator still owns landing/watch/game/contact flow
-   plus lobby/setup behavior.
+4. **Split remaining large web surfaces.** Current scan after the landing-play
+   split reports `apps/web/src/styles.css` (~3,933 lines),
+   `apps/web/src/landing.css` (~2,076), `apps/web/src/learn.ts` (~1,589),
+   `apps/web/src/replay.ts` (~1,384), and `apps/web/src/landing-play.ts`
+   (~1,094) as the largest web navigation costs. `landing.ts` is down to about
+   705 lines and should stay a route coordinator rather than regain setup/lobby
+   ownership.
 
    Suggested next `landing.ts` slices:
 
-   - move the setup dialog and play-choice state into a `landing-setup.ts`
-     module with its existing DOM behavior and targeted tests where practical;
    - move watch feed queue rendering/polling into a `watch-route.ts` module once
      the route-specific CSS is already in `landing.css`;
    - keep `landing.ts` as the route mount coordinator instead of a UI ownership
