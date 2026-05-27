@@ -32,14 +32,17 @@ test('handleBaseForEmail falls back when the email local part has no safe handle
 test('displayNameForEmail strips plus tags and keeps human-facing spacing', () => {
   assert.equal(displayNameForEmail('first.last+tag@example.com'), 'first last');
   assert.equal(displayNameForEmail('++@example.com'), 'Player');
+  assert.equal(displayNameForEmail(`${'a'.repeat(60)}@example.com`).length, 40);
 });
 
 test('normalizeProfileHandle accepts public handle syntax', () => {
   assert.equal(normalizeProfileHandle(' Brian_H-Liou '), 'brian_h-liou');
+  assert.equal(normalizeProfileHandle('a'.repeat(24)), 'a'.repeat(24));
 });
 
 test('normalizeProfileHandle rejects unsafe or reserved handles', () => {
   assert.equal(normalizeProfileHandle('ab'), null);
+  assert.equal(normalizeProfileHandle('a'.repeat(25)), null);
   assert.equal(normalizeProfileHandle('-brian'), null);
   assert.equal(normalizeProfileHandle('brian-'), null);
   assert.equal(normalizeProfileHandle('api'), null);

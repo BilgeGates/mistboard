@@ -446,14 +446,14 @@
 /* ── Leaderboard ──────────────────────────────────────────────────────────── */
 
 .leaderboard-shell {
-  width: min(860px, calc(100% - 32px));
+  width: min(1040px, calc(100% - 32px));
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 32px 0 48px;
+  padding: 64px 0 48px;
 }
 
 .leaderboard-shell .site-section-heading {
-  margin: 0 0 20px;
-  font-size: clamp(24px, 4vw, 36px);
+  margin: 0 0 16px;
   color: #1f2521;
 }
 
@@ -474,6 +474,7 @@
 
 .leaderboard-beta-banner p {
   margin: 0;
+  max-width: 64ch;
   color: #5a6960;
   font-size: 13px;
   line-height: 1.45;
@@ -494,6 +495,7 @@
 .leaderboard-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 14px;
 }
 
@@ -518,20 +520,31 @@
 }
 
 .leaderboard-table td {
-  padding: 10px 12px;
+  padding: 10px;
   vertical-align: middle;
 }
 
+.leaderboard-table th:nth-child(1),
 .leaderboard-rank {
-  width: 44px;
+  width: 34px;
+}
+
+.leaderboard-rank {
   color: #8a9490;
   font-variant-numeric: tabular-nums;
   font-size: 13px;
 }
 
+.leaderboard-player {
+  min-width: 0;
+}
+
 .leaderboard-player a {
+  display: block;
+  overflow-wrap: anywhere;
   color: #1f6f5b;
   font-weight: 600;
+  line-height: 1.25;
   text-decoration: none;
 }
 
@@ -539,16 +552,21 @@
   text-decoration: underline;
 }
 
+.leaderboard-table th:nth-child(4),
 .leaderboard-rating {
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: #1f2521;
-  width: 72px;
+  width: 76px;
+}
+
+.leaderboard-table th:nth-child(3),
+.leaderboard-games {
+  width: 56px;
 }
 
 .leaderboard-games {
-  width: 64px;
   color: #5a6960;
   font-variant-numeric: tabular-nums;
   font-size: 13px;
@@ -557,8 +575,8 @@
 
 .leaderboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
   margin-top: 4px;
 }
 
@@ -613,7 +631,13 @@
   margin: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1080px) {
+  .leaderboard-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
   .leaderboard-grid {
     grid-template-columns: 1fr;
   }

@@ -1,5 +1,8 @@
 import { randomInt } from 'node:crypto';
 
+export const maxHandleLength = 24;
+export const maxDisplayNameLength = 40;
+
 const maxEmailLength = 254;
 const fallbackHandlePrefix = 'player';
 const reservedHandles = new Set([
@@ -47,7 +50,7 @@ export function handleBaseForEmail(email: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 24)
+    .slice(0, maxHandleLength)
     .replace(/-+$/g, '');
   return normalized.length >= 3 ? normalized : `${fallbackHandlePrefix}-${randomHandleSuffix()}`;
 }
@@ -56,13 +59,13 @@ export function displayNameForEmail(email: string): string {
   const local = email.split('@', 1)[0] ?? '';
   const publicStem = local.split('+', 1)[0] ?? '';
   const words = publicStem.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
-  return (words || 'Player').slice(0, 48);
+  return (words || 'Player').slice(0, maxDisplayNameLength);
 }
 
 export function normalizeProfileHandle(value: string | null): string | null {
   if (!value) return null;
   const handle = value.trim().toLowerCase();
-  if (handle.length < 3 || handle.length > 24) return null;
+  if (handle.length < 3 || handle.length > maxHandleLength) return null;
   if (!/^[a-z0-9][a-z0-9_-]*[a-z0-9]$/.test(handle)) return null;
   if (reservedHandles.has(handle)) return null;
   return handle;
@@ -71,7 +74,7 @@ export function normalizeProfileHandle(value: string | null): string | null {
 export function normalizeDisplayName(value: string | null): string | null {
   if (!value) return null;
   const name = value.trim().replace(/\s+/g, ' ');
-  if (name.length < 1 || name.length > 40) return null;
+  if (name.length < 1 || name.length > maxDisplayNameLength) return null;
   // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control chars in display names is the rule's intent
   if (/[\u0000-\u001F\u007F]/.test(name)) return null;
   return name;

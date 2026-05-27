@@ -1,6 +1,6 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import { displayNameForEmail, handleBaseForEmail } from './account-identity.js';
+import { displayNameForEmail, handleBaseForEmail, maxHandleLength } from './account-identity.js';
 import * as persistence from './persistence.js';
 import { isProductionLikeRuntime } from './server-policy.js';
 
@@ -36,7 +36,7 @@ export async function ensureUserForEmail(
 
   const baseHandle = handleBaseForEmail(email);
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const handle = attempt === 0 ? baseHandle : `${baseHandle}${randomInt(10_000, 99_999)}`;
+    const handle = attempt === 0 ? baseHandle : handleCollisionAttempt(baseHandle);
     try {
       const user = await persistence.createUser({
         id: `user_${randomUUID()}`,
@@ -55,6 +55,11 @@ export async function ensureUserForEmail(
     }
   }
   throw new Error('failed to allocate user handle');
+}
+
+export function handleCollisionAttempt(baseHandle: string): string {
+  const suffix = String(randomInt(10_000, 99_999));
+  return `${baseHandle.slice(0, maxHandleLength - suffix.length)}${suffix}`;
 }
 
 export function publicUser(user: persistence.UserAccount): Record<string, unknown> {
