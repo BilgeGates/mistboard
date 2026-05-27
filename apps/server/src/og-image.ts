@@ -292,7 +292,6 @@ export function renderDefaultOgSvg(): string {
   const { pieces, whiteFog, blackFog } = openingBoards();
   const boardSize = 360;
   const boardY = 150;
-  const labelY = boardY + boardSize + 40;
 
   const parts: string[] = [];
   parts.push(
@@ -317,14 +316,6 @@ export function renderDefaultOgSvg(): string {
         { pieces, fogSquares: blackFog, orientation: 'black' },
       ],
     }),
-  );
-  // Per-board POV captions, just under each board.
-  const xs = [OG_WIDTH / 2 - boardSize / 2 - 48, OG_WIDTH / 2 + boardSize / 2 + 48];
-  parts.push(
-    `<text x="${xs[0]}" y="${labelY}" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="22" letter-spacing="1">White's view</text>`,
-  );
-  parts.push(
-    `<text x="${xs[1]}" y="${labelY}" text-anchor="middle" fill="#9ca3af" font-family="${FONT}" font-size="22" letter-spacing="1">Black's view</text>`,
   );
   // Tagline — slightly larger than before.
   parts.push(
