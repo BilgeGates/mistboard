@@ -221,7 +221,8 @@ as a specific phase instead of one undifferentiated red or slow run.
   `apps/web/src/replay-annotations.ts`; belief and annotation styles live in
   `apps/web/src/replay-analysis.css`.
 - Keep `apps/web/src/landing.ts` as the shell only; move new route-specific or
-  widget-specific behavior into focused modules.
+  widget-specific behavior into focused modules. Homepage replay sample catalog
+  data and hero POV selection live in `apps/web/src/landing-showcase.ts`.
 - Keep server runtime defaults in `apps/server/src/server-config.ts`; add new
   startup environment reads there instead of in `apps/server/src/index.ts`.
 - Keep static page rendering out of `apps/server/src/index.ts`; page-meta

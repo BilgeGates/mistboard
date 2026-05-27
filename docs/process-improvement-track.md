@@ -278,6 +278,9 @@ ownership surfaces:
    Initial extraction now lives in `apps/web/src/site-shell.ts` and
    `apps/web/src/game-display.ts`; account, profile, static pages, and dev lab
    routes import those modules directly instead of importing from `landing.ts`.
+   Homepage replay showcase data and hero POV selection now live in
+   `apps/web/src/landing-showcase.ts`, keeping static demo catalog changes out
+   of the landing route orchestrator.
 4. **Fix public-artifact build hygiene.** Keep dev bakeoff and pixel-lab assets
    from being copied into ordinary web builds unless explicitly opted in. Local
    `apps/web/public` artifacts should not make `apps/web/dist` hundreds of MB.
