@@ -34,8 +34,8 @@ import {
 import {
   createBoard,
   createPane,
-  type ReplayPaneHandle,
   renderPaneCaptures,
+  renderSplitPaneCaptures,
   renderTruthCaptures,
   revealKingCaptureForLoser,
   setBoardFromState,
@@ -532,12 +532,12 @@ export async function mountReplay(
       if (splitCaptures) {
         renderSplitPaneCaptures(whitePane, captures, 'white');
         renderSplitPaneCaptures(blackPane, captures, 'black');
-        renderPaneCaptures(truthPane.topCapturesEl, [], 'white');
+        renderSplitPaneCaptures(truthPane, captures, boardOrientation);
       } else {
         renderPaneCaptures(whitePane.capturesEl, captures.white, 'black');
         renderPaneCaptures(blackPane.capturesEl, captures.black, 'white');
+        renderTruthCaptures(truthPane.capturesEl, captures);
       }
-      renderTruthCaptures(truthPane.capturesEl, captures);
     }
 
     if (showControls) {
@@ -1237,6 +1237,7 @@ export async function mountReplay(
     flipBtn.addEventListener('click', () => {
       boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
       applyBoardOrientation();
+      render();
     });
   }
 
@@ -1272,6 +1273,7 @@ export async function mountReplay(
         e.preventDefault();
         boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
         applyBoardOrientation();
+        render();
       }
     },
     { signal: abortController.signal },
@@ -1310,20 +1312,6 @@ export async function mountReplay(
     truthCg.set({ orientation: boardOrientation });
     blackCg.set({ orientation: boardOrientation });
   }
-}
-
-function renderSplitPaneCaptures(
-  pane: ReplayPaneHandle,
-  captures: Record<Color, PieceRole[]>,
-  perspective: Color,
-): void {
-  const opponent = oppositeReplayColor(perspective);
-  renderPaneCaptures(pane.topCapturesEl, captures[opponent], perspective);
-  renderPaneCaptures(pane.capturesEl, captures[perspective], opponent);
-}
-
-function oppositeReplayColor(color: Color): Color {
-  return color === 'white' ? 'black' : 'white';
 }
 
 function pickNextSample(pool: string[], current: string): string {

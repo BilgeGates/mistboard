@@ -93,6 +93,16 @@ export function renderTruthCaptures(
   target.append(split);
 }
 
+export function renderSplitPaneCaptures(
+  pane: ReplayPaneHandle,
+  captures: Record<Color, PieceRole[]>,
+  bottomColor: Color,
+): void {
+  const topColor = bottomColor === 'white' ? 'black' : 'white';
+  renderPaneCaptures(pane.topCapturesEl, captures[topColor], bottomColor);
+  renderPaneCaptures(pane.capturesEl, captures[bottomColor], topColor);
+}
+
 export function createBoard(el: HTMLElement, orientation: Color): Api {
   return mountBoard(el, {
     animation: { enabled: false, duration: 0 },

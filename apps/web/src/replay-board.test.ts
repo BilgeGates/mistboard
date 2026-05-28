@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createPane,
   renderPaneCaptures,
+  renderSplitPaneCaptures,
   renderTruthCaptures,
   revealKingCaptureForLoser,
   squareFromCgBoardClick,
@@ -86,6 +87,50 @@ describe('capture rendering', () => {
     ).toEqual(['black pawn']);
     expect(
       [...sides[1]!.querySelectorAll('.captures-piece')].map((piece) =>
+        piece.getAttribute('aria-label'),
+      ),
+    ).toEqual(['white queen']);
+  });
+
+  it('splits captures around the board using the bottom color', () => {
+    const pane = createPane('Truth', 'truth', true, 'split');
+
+    renderSplitPaneCaptures(
+      pane,
+      {
+        black: ['queen'],
+        white: ['pawn'],
+      },
+      'white',
+    );
+
+    expect(
+      [...pane.topCapturesEl.querySelectorAll('.captures-piece')].map((piece) =>
+        piece.getAttribute('aria-label'),
+      ),
+    ).toEqual(['white queen']);
+    expect(
+      [...pane.capturesEl.querySelectorAll('.captures-piece')].map((piece) =>
+        piece.getAttribute('aria-label'),
+      ),
+    ).toEqual(['black pawn']);
+
+    renderSplitPaneCaptures(
+      pane,
+      {
+        black: ['queen'],
+        white: ['pawn'],
+      },
+      'black',
+    );
+
+    expect(
+      [...pane.topCapturesEl.querySelectorAll('.captures-piece')].map((piece) =>
+        piece.getAttribute('aria-label'),
+      ),
+    ).toEqual(['black pawn']);
+    expect(
+      [...pane.capturesEl.querySelectorAll('.captures-piece')].map((piece) =>
         piece.getAttribute('aria-label'),
       ),
     ).toEqual(['white queen']);
