@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'node:http';
 import type { VariantId } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import { isDarkXiangqiRoomId } from './dark-xiangqi-runtime.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import { logger, wsCounters } from './obs.js';
@@ -82,6 +83,10 @@ export async function handleWebSocketConnection(
   const darkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
   if (darkXiangqiRoom) {
     await handleDarkXiangqiWebSocketConnection(ctx, socket, request, darkXiangqiRoom);
+    return;
+  }
+  if (isDarkXiangqiRoomId(roomId)) {
+    socket.close(1008, 'game spec not integrated');
     return;
   }
   const gameSpecGate = gateGameSpecRequest({

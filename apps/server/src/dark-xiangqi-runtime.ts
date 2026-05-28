@@ -12,6 +12,8 @@ import {
 } from '@mistboard/game';
 import { darkXiangqiEnabled } from './feature-flags.js';
 
+export const DARK_XIANGQI_ROOM_ID_PREFIX = 'dxq_';
+
 export type DarkXiangqiSeat = XiangqiColor | 'spectator';
 
 export type DarkXiangqiEvent =
@@ -85,6 +87,10 @@ export type DarkXiangqiSnapshotClient = {
   seat: DarkXiangqiSeat;
   solo: boolean;
 };
+
+export function isDarkXiangqiRoomId(roomId: string): boolean {
+  return roomId.startsWith(DARK_XIANGQI_ROOM_ID_PREFIX);
+}
 
 type DarkXiangqiWireBoardEntry =
   | { piece: XiangqiPiece; shrouded: false }

@@ -3,7 +3,10 @@ import { createServer } from 'node:http';
 import type { Color, GameEvent } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
-import { createDarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
+import {
+  createDarkXiangqiRuntimeRoom,
+  DARK_XIANGQI_ROOM_ID_PREFIX,
+} from './dark-xiangqi-runtime.js';
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { RematchOrchestrator } from './rematch.js';
@@ -359,7 +362,7 @@ async function createDarkXiangqiRoom(): Promise<
   | { ok: false; error: 'dark_xiangqi_disabled' | 'room_id_collision' }
 > {
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const roomId = randomUUID();
+    const roomId = `${DARK_XIANGQI_ROOM_ID_PREFIX}${randomUUID()}`;
     if (rooms.has(roomId) || darkXiangqiRooms.has(roomId)) continue;
     const created = createDarkXiangqiRuntimeRoom(roomId);
     if (!created.ok) return created;

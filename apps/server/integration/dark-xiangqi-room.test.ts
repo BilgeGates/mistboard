@@ -37,6 +37,7 @@ test('Dark Xiangqi room create + websocket loop is flag-gated and redacted', asy
     };
     assert.equal(created.gameSpecId, 'dark-xiangqi');
     assert.equal(created.mode, 'pvp');
+    assert.equal(created.roomId.startsWith('dxq_'), true);
     assert.equal(created.url, `/room/${encodeURIComponent(created.roomId)}`);
 
     const red = await connectClient({
@@ -101,6 +102,27 @@ test('Dark Xiangqi room create + websocket loop is flag-gated and redacted', asy
       state: { board: Record<string, unknown>; visibleSquares: string[] };
     }>((msg) => msg.type === 'event-appended' && msg.gameSpecId === 'dark-xiangqi');
     assert.equal('event' in blackMoveFrame, false);
+  } finally {
+    restoreEnv(darkXiangqiKey, before);
+    await server.close();
+  }
+});
+
+test('Dark Xiangqi room ids fail closed instead of falling through to chess', async () => {
+  const before = process.env[darkXiangqiKey];
+  process.env[darkXiangqiKey] = 'true';
+  const server = await startTestServer();
+  try {
+    const missingRoomId = `dxq_missing_${Date.now()}`;
+    const client = await connectClient({
+      url: server.url,
+      room: missingRoomId,
+      awaitHello: false,
+    });
+
+    await client.closed;
+    assert.equal(client.isClosed(), true);
+    assert.equal(server.rooms.has(missingRoomId), false);
   } finally {
     restoreEnv(darkXiangqiKey, before);
     await server.close();
