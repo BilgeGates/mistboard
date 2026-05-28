@@ -8,7 +8,7 @@ import {
   type ThumbnailBoardController,
 } from '@mistboard/board-render/interactive';
 import './articles.css';
-import { type ArticleLang, translateArticle } from './article-i18n.js';
+import { ARTICLE_LANG_PREFIX, type ArticleLang, translateArticle } from './article-i18n.js';
 import {
   type Article,
   type ArticleBlock,
@@ -43,17 +43,51 @@ function isArticleVisibleInThisEnv(article: Article): boolean {
   return import.meta.env.DEV;
 }
 
-export function buildArticlesIndex(): HTMLElement {
+const ARTICLE_INDEX_COPY: Record<
+  ArticleLang | 'en',
+  {
+    heading: string;
+    intro: string;
+    published: string;
+    updated: string;
+    dateLocale: string;
+  }
+> = {
+  en: {
+    heading: 'Articles',
+    intro: 'Rules, variants, and engine work for dark chess.',
+    published: 'Published',
+    updated: 'Updated',
+    dateLocale: 'en-US',
+  },
+  'zh-Hans': {
+    heading: '文章',
+    intro: '迷雾国际象棋的规则、变体与引擎工作。',
+    published: '发布于',
+    updated: '更新于',
+    dateLocale: 'zh-CN',
+  },
+  'zh-Hant': {
+    heading: '文章',
+    intro: '迷霧國際象棋的規則、變體與引擎工作。',
+    published: '發布於',
+    updated: '更新於',
+    dateLocale: 'zh-TW',
+  },
+};
+
+export function buildArticlesIndex(lang?: ArticleLang): HTMLElement {
+  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
   const main = document.createElement('main');
   main.className = 'site-section articles-index';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Articles';
+  heading.textContent = copy.heading;
 
   const intro = document.createElement('p');
   intro.className = 'articles-index-intro';
-  intro.textContent = 'Rules, variants, and engine work for dark chess.';
+  intro.textContent = copy.intro;
 
   const list = document.createElement('ul');
   list.className = 'articles-index-list';
@@ -61,7 +95,7 @@ export function buildArticlesIndex(): HTMLElement {
   for (const article of articles) {
     if (!isArticleVisibleInThisEnv(article)) continue;
     if (article.showInIndex === false) continue;
-    list.append(articleCard(article));
+    list.append(articleCard(lang ? translateArticle(article, lang) : article, lang));
   }
 
   main.append(heading, intro, list);
@@ -673,13 +707,14 @@ function renderStaticBoardsBlock(block: StaticBoardsBlock): HTMLElement {
 // spec on each pending wrap and consume it in mountArticleThumbnails.
 const pendingThumbnails = new WeakMap<HTMLElement, ArticleThumbnail>();
 
-function articleCard(article: Article): HTMLLIElement {
+function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
+  const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
   const item = document.createElement('li');
   item.className = 'articles-index-item';
 
   const link = document.createElement('a');
   link.className = 'articles-index-card';
-  link.href = `/articles/${article.slug}`;
+  link.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/articles/${article.slug}`;
 
   if (article.thumbnail) {
     link.append(renderArticleThumbnail(article.thumbnail));
@@ -713,7 +748,7 @@ function articleCard(article: Article): HTMLLIElement {
     dates.className = 'articles-index-card-dates';
     const fmt = (iso: string): string => {
       const d = new Date(`${iso}T00:00:00Z`);
-      return d.toLocaleDateString('en-US', {
+      return d.toLocaleDateString(copy.dateLocale, {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -722,8 +757,8 @@ function articleCard(article: Article): HTMLLIElement {
     };
     const showUpdated = article.updatedAt && article.updatedAt !== article.publishedAt;
     dates.textContent = showUpdated
-      ? `Updated ${fmt(article.updatedAt!)}`
-      : `Published ${fmt(article.publishedAt)}`;
+      ? `${copy.updated} ${fmt(article.updatedAt!)}`
+      : `${copy.published} ${fmt(article.publishedAt)}`;
     body.append(dates);
   }
 

@@ -191,11 +191,13 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       return;
     }
 
-    if (pathname === '/articles') {
+    const articlesIndexMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/articles\/?$/);
+    if (articlesIndexMatch) {
       void serveArticlesIndexPage({
         response,
         publicHost: options.publicHost,
         staticDir: options.staticDir,
+        langPrefix: articlesIndexMatch[1],
       }).catch(() => {
         request.url = '/';
         void serveHandler(request, response, { public: options.staticDir });

@@ -4,7 +4,7 @@ import type { ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { injectPageMeta, serveArticlePage } from './server-static-pages.js';
+import { injectPageMeta, serveArticlePage, serveArticlesIndexPage } from './server-static-pages.js';
 
 type ResponseCapture = {
   body: string;
@@ -105,5 +105,30 @@ test('serveArticlePage falls back to index shell with article metadata', async (
   assert.match(
     response.body,
     /<meta property="og:image" content="https:\/\/mistboard.test\/og\/article\/dark-chess-rules.png">/,
+  );
+});
+
+test('serveArticlesIndexPage injects localized metadata', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(
+    join(staticDir, 'index.html'),
+    indexHtml().replace('<html>', '<html lang="en">'),
+    'utf-8',
+  );
+  const response = captureResponse();
+
+  await serveArticlesIndexPage({
+    response,
+    publicHost: 'https://mistboard.test',
+    staticDir,
+    langPrefix: 'zh-hans',
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(response.body, /<html lang="zh-Hans">/);
+  assert.match(response.body, /<title>文章 \| Mistboard<\/title>/);
+  assert.match(
+    response.body,
+    /<meta property="og:url" content="https:\/\/mistboard.test\/zh-hans\/articles">/,
   );
 });

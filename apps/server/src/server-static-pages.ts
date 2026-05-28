@@ -12,6 +12,27 @@ export type PageMeta = {
   imageUrl?: string; // omit to keep the default OG image from index.html
 };
 
+const ARTICLES_INDEX_META: Record<
+  'en' | 'zh-hans' | 'zh-hant',
+  { title: string; description: string; htmlLang: string }
+> = {
+  en: {
+    title: 'Articles | Mistboard',
+    description: 'Long-form writing on dark chess: rules, Draft960, and engine research.',
+    htmlLang: 'en',
+  },
+  'zh-hans': {
+    title: '文章 | Mistboard',
+    description: '迷雾国际象棋的规则、变体与引擎工作。',
+    htmlLang: 'zh-Hans',
+  },
+  'zh-hant': {
+    title: '文章 | Mistboard',
+    description: '迷霧國際象棋的規則、變體與引擎工作。',
+    htmlLang: 'zh-Hant',
+  },
+};
+
 // Article slug -> page meta. Content source of truth is
 // apps/web/src/articles-data.ts; this map duplicates only the share-card
 // surface (title + description) so the server can inject per-route meta
@@ -191,13 +212,20 @@ export async function serveArticlesIndexPage(params: {
   response: ServerResponse;
   publicHost: string;
   staticDir: string;
+  langPrefix?: string;
 }): Promise<void> {
   const indexPath = resolve(params.staticDir, 'index.html');
   let html = await fs.readFile(indexPath, 'utf-8');
+  const langKey =
+    params.langPrefix === 'zh-hans' || params.langPrefix === 'zh-hant' ? params.langPrefix : 'en';
+  const meta = ARTICLES_INDEX_META[langKey];
+  if (langKey !== 'en') {
+    html = html.replace('<html lang="en">', `<html lang="${meta.htmlLang}">`);
+  }
   html = injectPageMeta(html, {
-    title: 'Articles | Mistboard',
-    description: 'Long-form writing on dark chess: rules, Draft960, and engine research.',
-    url: `${params.publicHost}/articles`,
+    title: meta.title,
+    description: meta.description,
+    url: `${params.publicHost}${langKey === 'en' ? '' : `/${langKey}`}/articles`,
   });
   params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   params.response.end(html);

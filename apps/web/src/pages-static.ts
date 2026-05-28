@@ -40,11 +40,14 @@ export function mountNotFound(root: HTMLElement): void {
   root.append(buildNav(), buildNotFound(), buildFooter());
 }
 
-export async function mountArticlesIndex(root: HTMLElement): Promise<void> {
+export async function mountArticlesIndex(
+  root: HTMLElement,
+  lang?: import('./article-i18n.js').ArticleLang | null,
+): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'articles-route');
   const { buildArticlesIndex, mountArticleThumbnails } = await import('./articles.js');
-  const index = buildArticlesIndex();
+  const index = buildArticlesIndex(lang ?? undefined);
   root.append(buildNav(), index, buildFooter());
   mountArticleThumbnails(index);
 }
