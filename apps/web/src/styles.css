@@ -52,8 +52,25 @@
 
 .board-shell {
   container-type: inline-size;
-  position: relative;
+  display: grid;
   width: min(100%, 66vh, 640px);
+}
+
+.board-shell > .captures-strip,
+.board-stage {
+  position: relative;
+  width: 100%;
+}
+
+@supports (width: round(down, 100%, 8px)) {
+  .board-shell > .captures-strip,
+  .board-stage {
+    width: round(down, 100%, 8px);
+  }
+}
+
+.board-stage {
+  aspect-ratio: 1;
 }
 
 /* ── Board width snapping (central) ────────────────────────────────────────
@@ -464,20 +481,20 @@
   background-color: var(--board-last-move);
 }
 
-.board-shell > .board.cg-wrap cg-board square.move-dest,
-.board-shell > .board.cg-wrap cg-board square.premove-dest,
-.board-shell > .board.cg-wrap cg-board square.move-dest:hover,
-.board-shell > .board.cg-wrap cg-board square.premove-dest:hover {
+.board-stage > .board.cg-wrap cg-board square.move-dest,
+.board-stage > .board.cg-wrap cg-board square.premove-dest,
+.board-stage > .board.cg-wrap cg-board square.move-dest:hover,
+.board-stage > .board.cg-wrap cg-board square.premove-dest:hover {
   background-image: none;
 }
 
-.board-shell > .board.cg-wrap cg-board square.move-dest:hover,
-.board-shell > .board.cg-wrap cg-board square.premove-dest:hover {
+.board-stage > .board.cg-wrap cg-board square.move-dest:hover,
+.board-stage > .board.cg-wrap cg-board square.premove-dest:hover {
   background-color: transparent;
 }
 
-.board-shell > .board.cg-wrap cg-board square.move-dest::after,
-.board-shell > .board.cg-wrap cg-board square.premove-dest::after {
+.board-stage > .board.cg-wrap cg-board square.move-dest::after,
+.board-stage > .board.cg-wrap cg-board square.premove-dest::after {
   position: absolute;
   content: "";
   inset: 37.5%;
@@ -488,47 +505,47 @@
   pointer-events: none;
 }
 
-.board-shell > .board.cg-wrap cg-board square.premove-dest::after {
+.board-stage > .board.cg-wrap cg-board square.premove-dest::after {
   background: rgba(37, 77, 122, 0.66);
   box-shadow: 0 0 0 1px rgba(19, 44, 79, 0.18);
 }
 
-.board-shell > .board.cg-wrap cg-board square.oc.move-dest::after,
-.board-shell > .board.cg-wrap cg-board square.oc.premove-dest::after {
+.board-stage > .board.cg-wrap cg-board square.oc.move-dest::after,
+.board-stage > .board.cg-wrap cg-board square.oc.premove-dest::after {
   inset: 10%;
   border: 4px solid rgba(31, 111, 91, 0.48);
   background: transparent;
   box-shadow: none;
 }
 
-.board-shell > .board.cg-wrap cg-board square.oc.premove-dest::after {
+.board-stage > .board.cg-wrap cg-board square.oc.premove-dest::after {
   border-color: rgba(37, 77, 122, 0.42);
 }
 
-.board-shell > .board.cg-wrap cg-board square.move-dest:hover::after,
-.board-shell > .board.cg-wrap cg-board square.premove-dest:hover::after {
+.board-stage > .board.cg-wrap cg-board square.move-dest:hover::after,
+.board-stage > .board.cg-wrap cg-board square.premove-dest:hover::after {
   inset: 35%;
 }
 
-.board-shell > .board.cg-wrap cg-board square.oc.move-dest:hover::after,
-.board-shell > .board.cg-wrap cg-board square.oc.premove-dest:hover::after {
+.board-stage > .board.cg-wrap cg-board square.oc.move-dest:hover::after,
+.board-stage > .board.cg-wrap cg-board square.oc.premove-dest:hover::after {
   inset: 8%;
 }
 
-.board-shell > .board.cg-wrap cg-board square.fog-hidden.move-dest,
-.board-shell > .board.cg-wrap cg-board square.fog-hidden.premove-dest {
+.board-stage > .board.cg-wrap cg-board square.fog-hidden.move-dest,
+.board-stage > .board.cg-wrap cg-board square.fog-hidden.premove-dest {
   background: var(--board-fog-light-background);
   background-size: var(--board-fog-size) var(--board-fog-size);
 }
 
-.board-shell > .board.cg-wrap cg-board square.fog-hidden.white.move-dest,
-.board-shell > .board.cg-wrap cg-board square.fog-hidden.white.premove-dest {
+.board-stage > .board.cg-wrap cg-board square.fog-hidden.white.move-dest,
+.board-stage > .board.cg-wrap cg-board square.fog-hidden.white.premove-dest {
   background: var(--board-fog-light-background);
   background-size: var(--board-fog-size) var(--board-fog-size);
 }
 
-.board-shell > .board.cg-wrap cg-board square.fog-hidden.black.move-dest,
-.board-shell > .board.cg-wrap cg-board square.fog-hidden.black.premove-dest {
+.board-stage > .board.cg-wrap cg-board square.fog-hidden.black.move-dest,
+.board-stage > .board.cg-wrap cg-board square.fog-hidden.black.premove-dest {
   background: var(--board-fog-dark-background);
   background-size: var(--board-fog-size) var(--board-fog-size);
 }
@@ -548,7 +565,7 @@
     inset 0 0 0 2px rgba(212, 160, 23, 0.6);
 }
 
-.board-shell > .promotion-picker {
+.board-stage > .promotion-picker {
   position: absolute;
   inset: 0;
   z-index: 3;
@@ -559,7 +576,7 @@
   cursor: default;
 }
 
-.board-shell > .promotion-picker[hidden] {
+.board-stage > .promotion-picker[hidden] {
   display: none;
 }
 

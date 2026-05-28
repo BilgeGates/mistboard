@@ -61,7 +61,8 @@ export type LiveRefs = {
   draftPicker: HTMLDivElement;
   actionStatus: HTMLDivElement;
   actionSection: HTMLElement;
-  captures: HTMLDivElement;
+  capturesBottom: HTMLDivElement;
+  capturesTop: HTMLDivElement;
   devViews: HTMLDivElement;
   devViewsSection: HTMLElement;
   gameInfo: HTMLDivElement;

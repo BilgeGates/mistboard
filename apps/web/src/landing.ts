@@ -110,6 +110,7 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
     showControls: true,
     controlsMode: 'panel',
     metadataMode: 'header',
+    captureLayout: 'split',
     // FoW review preserves each player's perspective: keep their fog as it
     // was at game end. Truth is always shown on the truth pane; the only
     // post-finish change to the POVs is the king-capture attacker reveal —

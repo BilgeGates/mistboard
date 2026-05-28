@@ -48,22 +48,25 @@ export function createLiveLayout(
             </section>
           </aside>
           <div class="board-shell">
-            <div data-board-status class="board-status">
-              <div class="board-status__inner">
-                <span data-board-status-spinner class="board-status__spinner" aria-hidden="true"></span>
-                <p data-board-status-label class="board-status__label">Connecting</p>
+            <div data-captures-top class="captures-strip captures-strip-top" aria-label="Pieces captured by the top side"></div>
+            <div class="board-stage">
+              <div data-board-status class="board-status">
+                <div class="board-status__inner">
+                  <span data-board-status-spinner class="board-status__spinner" aria-hidden="true"></span>
+                  <p data-board-status-label class="board-status__label">Connecting</p>
+                </div>
               </div>
-            </div>
-            <div data-board class="board" aria-label="chess board"></div>
-            <div data-captures class="captures-strip" aria-label="Pieces captured"></div>
-            <div data-board-paused class="board-paused" hidden role="status" aria-live="polite">
-              <div class="board-paused__badge">
-                <strong data-board-paused-title>Game paused</strong>
-                <span data-board-paused-body>Server is restarting — your game will resume shortly</span>
+              <div data-board class="board" aria-label="chess board"></div>
+              <div data-board-paused class="board-paused" hidden role="status" aria-live="polite">
+                <div class="board-paused__badge">
+                  <strong data-board-paused-title>Game paused</strong>
+                  <span data-board-paused-body>Server is restarting — your game will resume shortly</span>
+                </div>
               </div>
+              <div data-draft-picker class="draft-picker" hidden></div>
+              <div data-promotion class="promotion-picker" hidden></div>
             </div>
-            <div data-draft-picker class="draft-picker" hidden></div>
-            <div data-promotion class="promotion-picker" hidden></div>
+            <div data-captures class="captures-strip captures-strip-bottom" aria-label="Pieces captured by the bottom side"></div>
           </div>
           <aside class="side-panel moves-panel" aria-label="Replay and move list">
             <section class="panel-section game-console">
@@ -104,7 +107,8 @@ export function createLiveLayout(
   const clockTop = target.querySelector<HTMLDivElement>('[data-clock-top]');
   const clockBottom = target.querySelector<HTMLDivElement>('[data-clock-bottom]');
   const clockNote = target.querySelector<HTMLParagraphElement>('[data-clocks-note]');
-  const captures = target.querySelector<HTMLDivElement>('[data-captures]');
+  const capturesTop = target.querySelector<HTMLDivElement>('[data-captures-top]');
+  const capturesBottom = target.querySelector<HTMLDivElement>('[data-captures]');
   const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
   const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
   const devViewsPanel = target.querySelector<HTMLDivElement>('[data-dev-views]');
@@ -128,7 +132,8 @@ export function createLiveLayout(
     !boardStatus ||
     !actionSection ||
     !actionStatus ||
-    !captures ||
+    !capturesTop ||
+    !capturesBottom ||
     !clockTop ||
     !clockBottom ||
     !clockNote ||
@@ -159,7 +164,8 @@ export function createLiveLayout(
     draftPicker,
     actionSection,
     actionStatus,
-    captures,
+    capturesBottom,
+    capturesTop,
     devViews: devViewsPanel,
     devViewsSection,
     gameInfo,
