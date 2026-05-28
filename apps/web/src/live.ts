@@ -6,7 +6,7 @@ import './board-fog.css';
 import './live-xiangqi.css';
 import './styles.css';
 import './site-shell.css';
-import type { GameEvent, PlayerView } from '@mistboard/game';
+import { type GameEvent, type GameSpecId, isGameSpecId, type PlayerView } from '@mistboard/game';
 import {
   initRender,
   reconcileInteractionState,
@@ -58,6 +58,7 @@ const engineRequested = pageParams.get('dev') === 'engine' || pageParams.get('en
 const allViewsRequested = pageParams.get('views') === 'all';
 const debugRequested = engineRequested || allViewsRequested;
 const variantRequested = pageParams.get('variant');
+const gameSpecIdRequested = parseGameSpecId(pageParams.get('gameSpecId'));
 
 if (pageParams.get('reset') === '1') {
   clearSeatTokenForRoom(room);
@@ -76,6 +77,7 @@ if (soloRequested) socketParams.set('dev', 'solo');
 if (engineRequested) socketParams.set('dev', 'engine');
 if (allViewsRequested) socketParams.set('views', 'all');
 if (variantRequested) socketParams.set('variant', variantRequested);
+if (gameSpecIdRequested) socketParams.set('gameSpecId', gameSpecIdRequested);
 
 // ── Populate shared state ─────────────────────────────────────────────────────
 
@@ -84,6 +86,7 @@ liveState.socketUrl = `${resolveWebSocketBaseUrl()}?${socketParams}`;
 liveState.engineRequested = engineRequested;
 liveState.debugRequested = debugRequested;
 liveState.variantRequested = variantRequested;
+liveState.gameSpecId = gameSpecIdRequested;
 liveState.solo = soloRequested;
 liveState.roomMode = engineRequested ? 'pve' : 'pvp';
 
@@ -158,4 +161,8 @@ function roomIdFromPath(pathname: string): string | null {
   if (normalized === '/room') return 'dev-room';
   const match = normalized.match(/^\/room\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function parseGameSpecId(value: string | null): GameSpecId | null {
+  return isGameSpecId(value) ? value : null;
 }
