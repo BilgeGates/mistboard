@@ -125,6 +125,7 @@ async function mountWatchReplay(root: HTMLElement, roomId: string, feed: WatchFe
 
   await mountReplay(root, roomId, {
     autoplay: true,
+    captureLayout: 'split',
     showControls: true,
     metadataMode: 'header',
     revealOnFinish: false,
