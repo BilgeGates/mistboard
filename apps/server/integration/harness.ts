@@ -10,6 +10,7 @@
 import { WebSocket } from 'ws';
 import { type StartedServer, startServer, stopServer } from '../src/index.js';
 import type { Room } from '../src/server-types.js';
+import type { DarkXiangqiLiveRoom } from '../src/server-ws-dark-xiangqi.js';
 
 const DEFAULT_WAIT_TIMEOUT_MS = 2_000;
 
@@ -17,6 +18,7 @@ export interface TestServer {
   url: string;
   port: number;
   rooms: Map<string, Room>;
+  darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
   close(): Promise<void>;
 }
 
@@ -70,6 +72,7 @@ export async function startTestServer(
     url,
     port: started.port,
     rooms: started.rooms,
+    darkXiangqiRooms: started.darkXiangqiRooms,
     close: async () => {
       await started.close();
     },
