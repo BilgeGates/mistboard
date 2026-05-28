@@ -239,10 +239,13 @@
 
 .watch-queue-item {
   border-bottom: 1px solid #edf0eb;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
 }
 
+.watch-queue-item:hover,
+.watch-queue-item:focus-within,
 .watch-queue-item.active {
   background: var(--site-accent-soft);
 }
@@ -265,18 +268,15 @@
   text-decoration: none;
 }
 
-.watch-queue-row:hover,
-.watch-queue-row:focus-visible {
-  background: var(--site-accent-soft);
-}
-
 .watch-queue-matchup {
   min-width: 0;
   color: #242a27;
   font-size: 13px;
   font-weight: 800;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .watch-queue-meta {

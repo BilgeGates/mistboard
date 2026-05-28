@@ -318,7 +318,9 @@ function renderWatchQueue(
 
     const matchup = document.createElement('span');
     matchup.className = 'watch-queue-matchup';
-    matchup.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
+    const matchupLabel = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
+    matchup.textContent = matchupLabel;
+    matchup.title = matchupLabel;
 
     const meta = document.createElement('span');
     meta.className = 'watch-queue-meta';
