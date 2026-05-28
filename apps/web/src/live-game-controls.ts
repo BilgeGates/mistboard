@@ -11,12 +11,12 @@ export function renderGameControls(
   view: PlayerView | null,
   sendSocket: SendSocket,
 ): void {
-  const isLivePvp =
-    liveState.roomMode === 'pvp' &&
+  const isLivePlayableRoom =
+    (liveState.roomMode === 'pvp' || liveState.roomMode === 'pve') &&
     isColor(liveState.seat) &&
     view?.status.type === 'playing' &&
     !liveState.solo;
-  if (!isLivePvp || !view || view.status.type !== 'playing') {
+  if (!isLivePlayableRoom || !view || view.status.type !== 'playing') {
     refs.gameControlsSection.hidden = true;
     refs.gameControls.replaceChildren();
     return;
