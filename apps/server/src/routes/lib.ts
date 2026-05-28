@@ -12,6 +12,7 @@ import {
   type TimeControlId,
   type VariantId,
 } from '@mistboard/game';
+import type { DarkXiangqiRuntimeRoom } from './../dark-xiangqi-runtime.js';
 import * as persistence from './../persistence.js';
 import { isAdminDebugToken, isProductionLikeRuntime } from './../server-policy.js';
 import type { LobbyTicket, Room } from './../server-types.js';
@@ -52,6 +53,10 @@ export interface HttpApiContext {
       region?: string;
     },
   ): Promise<Room>;
+  createDarkXiangqiRoom(): Promise<
+    | { ok: true; room: DarkXiangqiRuntimeRoom }
+    | { ok: false; error: 'dark_xiangqi_disabled' | 'room_id_collision' }
+  >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;
   abandonRoom(

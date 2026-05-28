@@ -38,6 +38,10 @@ import {
 } from './server-policy.js';
 import { assignSeat, displaceOlderSeatClients } from './server-seat-session.js';
 import type { Client, Room, SeatAssignment } from './server-types.js';
+import {
+  type DarkXiangqiLiveRoom,
+  handleDarkXiangqiWebSocketConnection,
+} from './server-ws-dark-xiangqi.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
 
 export type WebSocketConnectionContext = {
@@ -47,6 +51,7 @@ export type WebSocketConnectionContext = {
   wsMessageLimit: number;
   wsMessageWindowMs: number;
   clearPendingVacate: (room: Room, seat: Client['seat']) => void;
+  darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
   enableRandomEngine: (room: Room) => Promise<void>;
   getOrCreateRoom: (roomId: string, variant: VariantId, hiddenDraft960?: boolean) => Promise<Room>;
   handleAbort: (room: Room, client: Client) => Promise<void>;
@@ -74,6 +79,11 @@ export async function handleWebSocketConnection(
 ): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
+  const darkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
+  if (darkXiangqiRoom) {
+    await handleDarkXiangqiWebSocketConnection(ctx, socket, request, darkXiangqiRoom);
+    return;
+  }
   const gameSpecGate = gateGameSpecRequest({
     gameSpecId: url.searchParams.get('gameSpecId'),
     variant: url.searchParams.get('variant'),

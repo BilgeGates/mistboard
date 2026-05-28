@@ -190,6 +190,8 @@ function darkXiangqiRoomFixture({
       seats: { red: 'red-client', black: 'black-client' },
     },
     gameSpecId: DARK_XIANGQI_SPEC_ID,
+    pendingWrites: Promise.resolve(),
+    seatTokens: {},
   };
 }
 

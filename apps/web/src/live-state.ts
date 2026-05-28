@@ -7,13 +7,15 @@ import type {
   PieceRole,
   PlayerView,
   Square,
+  XiangqiColor,
 } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import { isColor } from './web-utils.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type Seat = Color | 'spectator';
+export type PlayableSeat = Color | XiangqiColor;
+export type Seat = PlayableSeat | 'spectator';
 export type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 export type PauseReason = 'shutdown' | 'admin' | 'engine-error';
 export type ConnectionState =
@@ -47,9 +49,10 @@ export type DevViews = {
   truth: PlayerView;
 };
 export type StoredSeatToken = {
-  seat: Color;
+  seat: PlayableSeat;
   token: string;
 };
+export type ConnectedSeats = Partial<Record<PlayableSeat, boolean>>;
 
 export type LiveRefs = {
   board: HTMLDivElement;
@@ -144,7 +147,7 @@ export const liveState = {
   events: [] as GameEvent[],
   reconnectAttempt: 0,
   rematch: { offers: { white: false, black: false }, finalizedRoomId: null as string | null },
-  connectedSeats: { white: false, black: false },
+  connectedSeats: { white: false, black: false } as ConnectedSeats,
 
   // Chessground instance — owned by live-render, typed here for cross-module access
   ground: null as Api | null,
@@ -190,13 +193,17 @@ export function readSeatTokenForRoom(roomId: string): StoredSeatToken | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<StoredSeatToken>;
-    if (!isColor(parsed.seat)) return null;
+    if (!isPlayableSeat(parsed.seat)) return null;
     if (typeof parsed.token !== 'string' || !/^[a-zA-Z0-9_-]{32,128}$/.test(parsed.token))
       return null;
     return { seat: parsed.seat, token: parsed.token };
   } catch {
     return null;
   }
+}
+
+export function isPlayableSeat(value: unknown): value is PlayableSeat {
+  return isColor(value) || value === 'red';
 }
 
 export function writeSeatTokenForRoom(roomId: string, token: StoredSeatToken): void {

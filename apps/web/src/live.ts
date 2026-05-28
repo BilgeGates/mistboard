@@ -3,6 +3,7 @@ import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import './app-base.css';
 import './board-fog.css';
+import './live-xiangqi.css';
 import './styles.css';
 import './site-shell.css';
 import type { GameEvent, PlayerView } from '@mistboard/game';

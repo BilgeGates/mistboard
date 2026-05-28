@@ -17,17 +17,20 @@ import { type DevViews, liveState } from './live-state.js';
 import { allSquares, oppositeColor } from './web-utils.js';
 
 export function currentProjection(): GameProjection | null {
+  if (liveState.gameSpecId === 'dark-xiangqi') return null;
   const slice = currentEventsSlice();
   return slice ? replayGameEvents(slice) : null;
 }
 
 export function currentCaptures(): CaptureTally {
+  if (liveState.gameSpecId === 'dark-xiangqi') return { white: [], black: [] };
   const slice = currentEventsSlice();
   if (!slice) return { white: [], black: [] };
   return computeCaptures(slice);
 }
 
 export function currentView(): PlayerView | null {
+  if (liveState.gameSpecId === 'dark-xiangqi') return liveState.state;
   const projection = currentProjection();
   const perspective = liveState.seat === 'black' ? 'black' : 'white';
   if (isLive()) return liveState.state;
@@ -77,6 +80,7 @@ export function currentDevViews(): DevViews | null {
 }
 
 function currentEventsSlice(): GameEvent[] | null {
+  if (liveState.gameSpecId === 'dark-xiangqi') return null;
   const events = liveState.events;
   if (events.length === 0) return null;
   // Fog replay uses fogSnapshotSeq as replayIndex, not an events index. Map through

@@ -1,17 +1,18 @@
 import type { GameEvent, GameSpecId, PlayerView } from '@mistboard/game';
 import {
+  isPlayableSeat,
   liveState,
   normalizedOffers,
   seatTokenForRoom,
   writeSeatTokenForRoom,
 } from './live-state.js';
 import { setRestartBanner } from './restart-banner.js';
-import { isColor } from './web-utils.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 import type { Chess960Start, Color } from '@mistboard/game';
 import type {
+  ConnectedSeats,
   DevViews,
   DraftOffers,
   DraftResolvedStartIds,
@@ -35,11 +36,11 @@ type ServerMessage =
       seat: Seat;
       seatToken?: string;
       solo: boolean;
-      offer: Chess960Start[];
+      offer?: Chess960Start[];
       offers?: DraftOffers;
-      selections: Partial<Record<Color, number>>;
-      devViews: DevViews | null;
-      resolvedStartId: number | null;
+      selections?: Partial<Record<Color, number>>;
+      devViews?: DevViews | null;
+      resolvedStartId?: number | null;
       resolvedStartIds?: DraftResolvedStartIds;
       events: GameEvent[];
       state: PlayerView;
@@ -48,7 +49,7 @@ type ServerMessage =
       pauseReason?: PauseReason | null;
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
-      connectedSeats?: { white: boolean; black: boolean };
+      connectedSeats?: ConnectedSeats;
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
@@ -65,11 +66,11 @@ type ServerMessage =
       seat: Seat;
       solo: boolean;
       seats: Partial<Record<Color, string>>;
-      offer: Chess960Start[];
+      offer?: Chess960Start[];
       offers?: DraftOffers;
-      selections: Partial<Record<Color, number>>;
-      devViews: DevViews | null;
-      resolvedStartId: number | null;
+      selections?: Partial<Record<Color, number>>;
+      devViews?: DevViews | null;
+      resolvedStartId?: number | null;
       resolvedStartIds?: DraftResolvedStartIds;
       events: GameEvent[];
       state: PlayerView;
@@ -78,7 +79,7 @@ type ServerMessage =
       pauseReason?: PauseReason | null;
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
-      connectedSeats?: { white: boolean; black: boolean };
+      connectedSeats?: ConnectedSeats;
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
@@ -100,11 +101,11 @@ type ServerMessage =
       seat: Seat;
       solo: boolean;
       seats: Partial<Record<Color, string>>;
-      offer: Chess960Start[];
+      offer?: Chess960Start[];
       offers?: DraftOffers;
-      selections: Partial<Record<Color, number>>;
-      devViews: DevViews | null;
-      resolvedStartId: number | null;
+      selections?: Partial<Record<Color, number>>;
+      devViews?: DevViews | null;
+      resolvedStartId?: number | null;
       resolvedStartIds?: DraftResolvedStartIds;
       state: PlayerView;
       rated?: boolean;
@@ -112,7 +113,7 @@ type ServerMessage =
       pauseReason?: PauseReason | null;
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
-      connectedSeats?: { white: boolean; black: boolean };
+      connectedSeats?: ConnectedSeats;
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
@@ -259,7 +260,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   liveState.lastSnapshotAt = Date.now();
   if (message.type === 'hello') {
     liveState.clientId = message.clientId;
-    if (message.seatToken && isColor(message.seat)) {
+    if (message.seatToken && isPlayableSeat(message.seat)) {
       writeSeatTokenForRoom(liveState.room, { seat: message.seat, token: message.seatToken });
     }
     applyFullFrame(message);
@@ -276,7 +277,9 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   } else if (message.type === 'event-appended') {
     if (!applyEventAppended(message)) return;
   }
-  _maybePlaySnapshotSound(liveState.events, liveState.state);
+  if (liveState.gameSpecId !== 'dark-xiangqi') {
+    _maybePlaySnapshotSound(liveState.events, liveState.state);
+  }
   _reconcileInteractionState();
   _render();
 }
@@ -298,11 +301,11 @@ function applyFullFrame(message: FullFrameSource): void {
   liveState.lastServerAt = message.serverAt ?? null;
   liveState.seat = message.seat;
   liveState.solo = message.solo;
-  liveState.offer = message.offer;
-  liveState.offers = normalizedOffers(message.offer, message.offers);
-  liveState.selections = message.selections;
-  liveState.devViews = message.devViews;
-  liveState.resolvedStartId = message.resolvedStartId;
+  liveState.offer = message.offer ?? [];
+  liveState.offers = normalizedOffers(message.offer ?? [], message.offers);
+  liveState.selections = message.selections ?? {};
+  liveState.devViews = message.devViews ?? null;
+  liveState.resolvedStartId = message.resolvedStartId ?? null;
   liveState.resolvedStartIds = message.resolvedStartIds ?? {};
   liveState.rated = message.rated ?? true;
   liveState.paused = message.paused ?? false;

@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { DARK_XIANGQI_SPEC_ID } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import { playableLiveEngines } from './../engine-registry.js';
 import { ratedEnabled } from './../feature-flags.js';
@@ -27,6 +28,10 @@ export async function tryHandle(
   if (pathname === '/api/rooms') {
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
+    if (requestsDarkXiangqi(body)) {
+      await handleDarkXiangqiCreate(ctx, response, body);
+      return true;
+    }
     const gameSpecGate = gateGameSpecRequest({
       gameSpecId: body.gameSpecId,
       variant: body.variant,
@@ -199,6 +204,61 @@ export async function tryHandle(
   }
 
   return false;
+}
+
+async function handleDarkXiangqiCreate(
+  ctx: HttpApiContext,
+  response: ServerResponse,
+  body: Record<string, unknown>,
+): Promise<void> {
+  const gameSpecGate = gateGameSpecRequest({
+    gameSpecId: body.gameSpecId,
+    variant: body.variant,
+  });
+  if (body.gameSpecId !== DARK_XIANGQI_SPEC_ID) {
+    if (gameSpecGate.type === 'reject') {
+      writeJson(response, gameSpecGate.httpStatus, { error: gameSpecGate.error });
+      return;
+    }
+    writeJson(response, 501, { error: 'dark_xiangqi_not_integrated' });
+    return;
+  }
+  if (gameSpecGate.type === 'reject' && gameSpecGate.error === 'dark_xiangqi_disabled') {
+    writeJson(response, gameSpecGate.httpStatus, { error: gameSpecGate.error });
+    return;
+  }
+  const mode = parseRoomMode(body);
+  if (
+    mode !== 'pvp' ||
+    body.rated === true ||
+    body.timeControl !== undefined ||
+    body.engineId !== undefined
+  ) {
+    writeJson(response, 501, { error: 'dark_xiangqi_unsupported_surface' });
+    return;
+  }
+  if (ctx.isDraining()) {
+    writeJson(response, 503, { error: 'server_draining', restartAt: ctx.drainDeadlineMs() });
+    return;
+  }
+
+  const created = await ctx.createDarkXiangqiRoom();
+  if (!created.ok) {
+    const status = created.error === 'dark_xiangqi_disabled' ? 404 : 500;
+    writeJson(response, status, { error: created.error });
+    return;
+  }
+  writeJson(response, 201, {
+    roomId: created.room.id,
+    url: `/room/${encodeURIComponent(created.room.id)}`,
+    mode: 'pvp',
+    gameSpecId: created.room.gameSpecId,
+    region: 'global',
+  });
+}
+
+function requestsDarkXiangqi(body: Record<string, unknown>): boolean {
+  return body.gameSpecId === DARK_XIANGQI_SPEC_ID || body.variant === DARK_XIANGQI_SPEC_ID;
 }
 
 function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {

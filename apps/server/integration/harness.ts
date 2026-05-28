@@ -25,7 +25,7 @@ export interface TestClient {
   /** Messages observed so far, in order. */
   readonly messages: unknown[];
   /** Seat assignment captured from the most recent `hello`. */
-  seat: 'white' | 'black' | 'spectator' | null;
+  seat: 'white' | 'black' | 'red' | 'spectator' | null;
   /** Server-issued seat token captured from `hello` if any. */
   seatToken: string | null;
   /** Server-assigned client UUID. */
@@ -76,6 +76,7 @@ export interface ConnectOptions {
   url: string;
   room: string;
   variant?: 'dark-chess' | 'draft960';
+  gameSpecId?: 'dark-xiangqi';
   hiddenDraft960?: boolean;
   seatToken?: string;
   /**
@@ -93,7 +94,8 @@ export interface ConnectOptions {
 export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
   const variant = opts.variant ?? 'dark-chess';
   const hidden = opts.hiddenDraft960 ? '&hiddenDraft960=true' : '';
-  const target = `${opts.url}/?room=${encodeURIComponent(opts.room)}&variant=${variant}${hidden}`;
+  const spec = opts.gameSpecId ? `&gameSpecId=${encodeURIComponent(opts.gameSpecId)}` : '';
+  const target = `${opts.url}/?room=${encodeURIComponent(opts.room)}&variant=${variant}${hidden}${spec}`;
 
   const protocols = opts.seatToken ? [`mistboard-seat.${opts.seatToken}`] : undefined;
   // Production WS handshake requires an Origin header matching the host
@@ -210,7 +212,7 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
       timeoutMs: opts.helloTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
     });
     const h = hello as unknown as {
-      seat: 'white' | 'black' | 'spectator';
+      seat: 'white' | 'black' | 'red' | 'spectator';
       seatToken?: string;
       clientId: string;
     };

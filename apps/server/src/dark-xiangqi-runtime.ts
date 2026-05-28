@@ -51,17 +51,29 @@ export type DarkXiangqiProjection = {
 };
 
 export type DarkXiangqiClientRef = {
+  id?: string;
   seat: DarkXiangqiSeat;
   displaced: boolean;
+};
+
+export type DarkXiangqiSeatTokenState = {
+  clientId: string;
+  seat: XiangqiColor;
+  tokenHash: string;
+  issuedAt: Date;
+  lastSeenAt: Date;
+  revokedAt: Date | null;
 };
 
 export type DarkXiangqiRuntimeRoom = {
   kind: 'dark-xiangqi';
   id: string;
-  clients: { size: number } & Iterable<DarkXiangqiClientRef>;
+  clients: Set<DarkXiangqiClientRef>;
   events: DarkXiangqiEvent[];
   projection: DarkXiangqiProjection;
   gameSpecId: typeof DARK_XIANGQI_SPEC_ID;
+  pendingWrites: Promise<void>;
+  seatTokens: Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>>;
 };
 
 export type DarkXiangqiRoomCreation =
@@ -106,6 +118,8 @@ export function createDarkXiangqiRuntimeRoom(
       events,
       projection,
       gameSpecId: DARK_XIANGQI_SPEC_ID,
+      pendingWrites: Promise.resolve(),
+      seatTokens: {},
     },
   };
 }
