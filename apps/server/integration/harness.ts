@@ -46,6 +46,10 @@ export interface TestClient {
   disconnect(opts?: { code?: number; reason?: string }): Promise<void>;
   /** Has the socket closed? */
   isClosed(): boolean;
+  /** WebSocket close code observed by the harness, once closed. */
+  closeCode(): number | null;
+  /** WebSocket close reason observed by the harness, once closed. */
+  closeReason(): string;
   /** Wait for the close event to fire. */
   closed: Promise<void>;
 }
@@ -120,6 +124,8 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
     closedResolve = resolve;
   });
   let isClosed = false;
+  let closeCode: number | null = null;
+  let closeReason = '';
 
   socket.on('message', (raw) => {
     let parsed: MessageOf;
@@ -138,8 +144,10 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
       }
     }
   });
-  socket.on('close', () => {
+  socket.on('close', (code, reason) => {
     isClosed = true;
+    closeCode = code;
+    closeReason = reason.toString();
     closedResolve();
   });
   socket.on('error', () => {
@@ -204,6 +212,8 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
       await closed;
     },
     isClosed: () => isClosed,
+    closeCode: () => closeCode,
+    closeReason: () => closeReason,
     closed,
   };
 

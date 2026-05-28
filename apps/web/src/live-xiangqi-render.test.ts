@@ -8,6 +8,7 @@ describe('Dark Xiangqi live renderer', () => {
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
     liveState.gameSpecId = 'dark-xiangqi';
     liveState.connectionState = 'connected';
+    liveState.closeReason = '';
     liveState.seat = 'red';
     liveState.events = [];
     liveState.state = viewFixture() as never;
@@ -17,6 +18,7 @@ describe('Dark Xiangqi live renderer', () => {
     vi.unstubAllEnvs();
     liveState.gameSpecId = null;
     liveState.connectionState = 'connecting';
+    liveState.closeReason = '';
     liveState.seat = 'spectator';
     liveState.events = [];
     liveState.state = null;
@@ -60,6 +62,19 @@ describe('Dark Xiangqi live renderer', () => {
 
     expect(sent).toEqual([{ type: 'move', from: 'b3', to: 'b4' }]);
   });
+
+  it('renders stale Dark Xiangqi rooms as unavailable without a board', () => {
+    const refs = refsFixture();
+    liveState.connectionState = 'rejected';
+    liveState.closeReason = 'room unavailable';
+    liveState.state = null;
+
+    renderDarkXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    expect(refs.actionStatus.textContent).toContain('Room unavailable');
+    expect(refs.actionStatus.textContent).toContain('This Dark Xiangqi room is not active');
+    expect(refs.board.querySelector('.xq-live-svg')).toBeNull();
+  });
 });
 
 function viewFixture(): DarkXiangqiWireView {
@@ -86,7 +101,8 @@ function refsFixture(): LiveRefs {
     board: el('div'),
     boardPaused: el('div'),
     boardStatus: el('div'),
-    captures: el('div'),
+    capturesBottom: el('div'),
+    capturesTop: el('div'),
     clockBottom: el('div'),
     clockNote: el('p'),
     clockTop: el('div'),

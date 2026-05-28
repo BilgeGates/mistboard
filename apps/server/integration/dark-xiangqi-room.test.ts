@@ -122,6 +122,8 @@ test('Dark Xiangqi room ids fail closed instead of falling through to chess', as
 
     await client.closed;
     assert.equal(client.isClosed(), true);
+    assert.equal(client.closeCode(), 1008);
+    assert.equal(client.closeReason(), 'room unavailable');
     assert.equal(server.rooms.has(missingRoomId), false);
   } finally {
     restoreEnv(darkXiangqiKey, before);

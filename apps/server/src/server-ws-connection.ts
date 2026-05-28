@@ -4,6 +4,7 @@ import type { VariantId } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
 import { isDarkXiangqiRoomId } from './dark-xiangqi-runtime.js';
+import { darkXiangqiEnabled } from './feature-flags.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import { logger, wsCounters } from './obs.js';
@@ -86,7 +87,7 @@ export async function handleWebSocketConnection(
     return;
   }
   if (isDarkXiangqiRoomId(roomId)) {
-    socket.close(1008, 'game spec not integrated');
+    socket.close(1008, darkXiangqiEnabled() ? 'room unavailable' : 'game spec disabled');
     return;
   }
   const gameSpecGate = gateGameSpecRequest({

@@ -6,7 +6,7 @@ import './board-fog.css';
 import './live-xiangqi.css';
 import './styles.css';
 import './site-shell.css';
-import { type GameEvent, type GameSpecId, isGameSpecId, type PlayerView } from '@mistboard/game';
+import type { GameEvent, PlayerView } from '@mistboard/game';
 import {
   initRender,
   reconcileInteractionState,
@@ -15,6 +15,7 @@ import {
   updateAbortCountdown,
 } from './live-render.js';
 import { handleReplayKeyboard } from './live-replay.js';
+import { gameSpecIdForRoomBootstrap, roomIdFromPath } from './live-room-bootstrap.js';
 import { connectSocket, initSocket, reconnectNow, sendSocket } from './live-socket.js';
 import { maybePlaySnapshotSound } from './live-sound.js';
 import {
@@ -58,7 +59,7 @@ const engineRequested = pageParams.get('dev') === 'engine' || pageParams.get('en
 const allViewsRequested = pageParams.get('views') === 'all';
 const debugRequested = engineRequested || allViewsRequested;
 const variantRequested = pageParams.get('variant');
-const gameSpecIdRequested = parseGameSpecId(pageParams.get('gameSpecId'));
+const gameSpecIdRequested = gameSpecIdForRoomBootstrap(room, pageParams.get('gameSpecId'));
 
 if (pageParams.get('reset') === '1') {
   clearSeatTokenForRoom(room);
@@ -153,16 +154,3 @@ window.__MISTBOARD_DEBUG__ = () => ({
 });
 
 render();
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function roomIdFromPath(pathname: string): string | null {
-  const normalized = pathname.replace(/\/+$/, '');
-  if (normalized === '/room') return 'dev-room';
-  const match = normalized.match(/^\/room\/([^/]+)$/);
-  return match ? decodeURIComponent(match[1]!) : null;
-}
-
-function parseGameSpecId(value: string | null): GameSpecId | null {
-  return isGameSpecId(value) ? value : null;
-}

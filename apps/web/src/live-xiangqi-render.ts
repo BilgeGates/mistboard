@@ -92,7 +92,8 @@ function resetChessOnlyPanels(refs: LiveRefs): void {
   refs.draftPicker.hidden = true;
   refs.promotion.hidden = true;
   refs.boardPaused.hidden = true;
-  refs.captures.replaceChildren();
+  refs.capturesBottom.replaceChildren();
+  refs.capturesTop.replaceChildren();
   refs.clockTop.replaceChildren();
   refs.clockBottom.replaceChildren();
   refs.clockNote.hidden = true;
@@ -185,8 +186,7 @@ function actionTitle(view: DarkXiangqiWireView | null): string {
 }
 
 function actionBody(view: DarkXiangqiWireView | null): string {
-  if (liveState.connectionState === 'rejected')
-    return liveState.closeReason || 'The room rejected this connection.';
+  if (liveState.connectionState === 'rejected') return rejectedBody();
   if (liveState.connectionState === 'displaced') return 'Another tab reclaimed this seat.';
   if (!view) return 'Opening the room socket.';
   if (view.status.type === 'finished') {
@@ -196,6 +196,17 @@ function actionBody(view: DarkXiangqiWireView | null): string {
   if (liveState.seat === view.status.turn)
     return 'Select one of your visible pieces, then choose a destination.';
   return 'Waiting for the opponent.';
+}
+
+function rejectedBody(): string {
+  if (liveState.closeReason === 'room unavailable')
+    return 'This Dark Xiangqi room is not active. Create a new invite to start a game.';
+  if (liveState.closeReason === 'game spec disabled')
+    return 'Dark Xiangqi is not enabled on this server.';
+  if (liveState.closeReason === 'private room') return 'This Dark Xiangqi room is full.';
+  if (liveState.closeReason === 'rate limit')
+    return 'The room connection was closed after too many messages.';
+  return 'The Dark Xiangqi room rejected this connection.';
 }
 
 function renderBoard(
