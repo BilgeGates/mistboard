@@ -55,7 +55,7 @@ export interface HttpApiContext {
   ): Promise<Room>;
   createDarkXiangqiRoom(): Promise<
     | { ok: true; room: DarkXiangqiRuntimeRoom }
-    | { ok: false; error: 'dark_xiangqi_disabled' | 'room_id_collision' }
+    | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
   >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;

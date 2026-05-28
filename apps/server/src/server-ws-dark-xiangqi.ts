@@ -9,12 +9,13 @@ import {
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
 import {
-  applyDarkXiangqiEvent,
+  appendDarkXiangqiRuntimeEvent,
   type DarkXiangqiEvent,
   type DarkXiangqiRuntimeRoom,
   darkXiangqiSnapshotPayload,
 } from './dark-xiangqi-runtime.js';
 import { logger, wsCounters } from './obs.js';
+import * as persistence from './persistence.js';
 import { recordMessageTimestamp, seatTokenFromProtocolHeader } from './server-policy.js';
 import { hashSeatToken } from './server-seat-session.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
@@ -76,13 +77,20 @@ export async function handleDarkXiangqiWebSocketConnection(
   };
   room.clients.add(client);
   displaceOlderDarkXiangqiSeatClients(room, client);
-  appendDarkXiangqiEvent(room, {
-    type: 'seat-assigned',
-    at: Date.now(),
-    roomId: room.id,
-    clientId: client.id,
-    seat: client.seat,
-  });
+  try {
+    await appendDarkXiangqiEvent(room, {
+      type: 'seat-assigned',
+      at: Date.now(),
+      roomId: room.id,
+      clientId: client.id,
+      seat: client.seat,
+    });
+  } catch (err) {
+    room.clients.delete(client);
+    recordDarkXiangqiPersistenceError(room.id, room.events.length, 'seat-assigned', err as Error);
+    socket.close(1011, 'persistence failure');
+    return;
+  }
 
   sendDarkXiangqiPayload(client, {
     ...darkXiangqiSnapshotPayload(room, snapshotClientFor(client)),
@@ -234,14 +242,33 @@ async function handleDarkXiangqiMessage(
     color: client.seat,
     move,
   };
-  const seq = appendDarkXiangqiEvent(room, event);
+  let seq: number;
+  try {
+    seq = await appendDarkXiangqiEvent(room, event);
+  } catch (err) {
+    recordDarkXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
+    client.socket.close(1011, 'persistence failure');
+    return;
+  }
   broadcastDarkXiangqiEventAppended(room, event, seq);
 }
 
-function appendDarkXiangqiEvent(room: DarkXiangqiLiveRoom, event: DarkXiangqiEvent): number {
-  room.events.push(event);
-  room.projection = applyDarkXiangqiEvent(room.projection, event);
-  return room.events.length - 1;
+async function appendDarkXiangqiEvent(
+  room: DarkXiangqiLiveRoom,
+  event: DarkXiangqiEvent,
+): Promise<number> {
+  const write = room.pendingWrites.then(async () => {
+    const seq = room.events.length;
+    if (persistence.isInitialized()) {
+      await persistence.appendRoomEvent(room.id, seq, event);
+    }
+    return appendDarkXiangqiRuntimeEvent(room, event);
+  });
+  room.pendingWrites = write.then(
+    () => undefined,
+    () => undefined,
+  );
+  return write;
 }
 
 function broadcastDarkXiangqiSnapshot(room: DarkXiangqiLiveRoom): void {
@@ -290,4 +317,22 @@ function sendDarkXiangqiPayload(client: DarkXiangqiLiveClient, payload: unknown)
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
+}
+
+function recordDarkXiangqiPersistenceError(
+  roomId: string,
+  seq: number,
+  eventType: string,
+  err: Error,
+): void {
+  logger.error(
+    {
+      kind: 'dark_xiangqi_persistence_failure',
+      room_id: roomId,
+      seq,
+      event_type: eventType,
+      error: err.message,
+    },
+    'Dark Xiangqi persistence failure',
+  );
 }

@@ -82,6 +82,10 @@ export type DarkXiangqiRoomCreation =
   | { ok: true; room: DarkXiangqiRuntimeRoom }
   | { ok: false; error: 'dark_xiangqi_disabled' };
 
+export type DarkXiangqiRoomHydration =
+  | { ok: true; room: DarkXiangqiRuntimeRoom }
+  | { ok: false; error: 'empty_event_log' | 'invalid_event_log' };
+
 export type DarkXiangqiSnapshotClient = {
   id: string;
   seat: DarkXiangqiSeat;
@@ -115,19 +119,78 @@ export function createDarkXiangqiRuntimeRoom(
     },
   ];
   const projection = replayDarkXiangqiEvents(events);
+  const room = createDarkXiangqiRuntimeRoomFromEvents(events, projection);
+  if (!room.ok) throw new Error(`failed to create Dark Xiangqi runtime room: ${room.error}`);
+  return { ok: true, room: room.room };
+}
+
+export function createDarkXiangqiRuntimeRoomFromEvents(
+  events: readonly DarkXiangqiEvent[],
+  projection = replayDarkXiangqiEvents(events),
+): DarkXiangqiRoomHydration {
+  if (events.length === 0) return { ok: false, error: 'empty_event_log' };
+  if (!isDarkXiangqiEventLog(events)) return { ok: false, error: 'invalid_event_log' };
+  const first = events[0]!;
   return {
     ok: true,
     room: {
       kind: 'dark-xiangqi',
-      id: roomId,
+      id: first.roomId,
       clients: new Set(),
-      events,
+      events: [...events],
       projection,
       gameSpecId: DARK_XIANGQI_SPEC_ID,
       pendingWrites: Promise.resolve(),
       seatTokens: {},
     },
   };
+}
+
+export function appendDarkXiangqiRuntimeEvent(
+  room: DarkXiangqiRuntimeRoom,
+  event: DarkXiangqiEvent,
+): number {
+  room.events.push(event);
+  room.projection = applyDarkXiangqiEvent(room.projection, event);
+  return room.events.length - 1;
+}
+
+export function isDarkXiangqiEventLog(
+  events: readonly unknown[],
+  roomId?: string,
+): events is readonly DarkXiangqiEvent[] {
+  const firstRoomId = roomId ?? roomIdFromUnknownEvent(events[0]);
+  if (!firstRoomId) return false;
+  const [created, ...rest] = events;
+  if (
+    !isDarkXiangqiEvent(created, firstRoomId) ||
+    created.type !== 'room-created' ||
+    created.gameSpecId !== DARK_XIANGQI_SPEC_ID ||
+    !isFiniteTimestamp(created.at)
+  ) {
+    return false;
+  }
+  return rest.every((event) => isDarkXiangqiEvent(event, firstRoomId));
+}
+
+export function isDarkXiangqiEvent(value: unknown, roomId?: string): value is DarkXiangqiEvent {
+  if (typeof value !== 'object' || value === null) return false;
+  const event = value as Record<string, unknown>;
+  if (typeof event.type !== 'string') return false;
+  if (typeof event.roomId !== 'string') return false;
+  if (roomId !== undefined && event.roomId !== roomId) return false;
+  if (!isFiniteTimestamp(event.at)) return false;
+
+  if (event.type === 'room-created') {
+    return event.gameSpecId === DARK_XIANGQI_SPEC_ID;
+  }
+  if (event.type === 'seat-assigned' || event.type === 'seat-vacated') {
+    return typeof event.clientId === 'string' && isXiangqiColor(event.seat);
+  }
+  if (event.type === 'move-played') {
+    return isXiangqiColor(event.color) && isXiangqiMove(event.move);
+  }
+  return false;
 }
 
 export function replayDarkXiangqiEvents(
@@ -138,6 +201,26 @@ export function replayDarkXiangqiEvents(
     (projection, event) => applyDarkXiangqiEvent(projection, event),
     initialDarkXiangqiProjection(firstRoomId),
   );
+}
+
+function isFiniteTimestamp(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isXiangqiColor(value: unknown): value is XiangqiColor {
+  return value === 'red' || value === 'black';
+}
+
+function isXiangqiMove(value: unknown): value is XiangqiMove {
+  if (typeof value !== 'object' || value === null) return false;
+  const move = value as Partial<Record<keyof XiangqiMove, unknown>>;
+  return typeof move.from === 'string' && typeof move.to === 'string';
+}
+
+function roomIdFromUnknownEvent(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const roomId = (value as Record<string, unknown>).roomId;
+  return typeof roomId === 'string' ? roomId : undefined;
 }
 
 export function applyDarkXiangqiEvent(

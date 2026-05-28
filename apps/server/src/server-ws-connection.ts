@@ -55,6 +55,7 @@ export type WebSocketConnectionContext = {
   clearPendingVacate: (room: Room, seat: Client['seat']) => void;
   darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
   enableRandomEngine: (room: Room) => Promise<void>;
+  getOrLoadDarkXiangqiRoom: (roomId: string) => Promise<DarkXiangqiLiveRoom | null>;
   getOrCreateRoom: (roomId: string, variant: VariantId, hiddenDraft960?: boolean) => Promise<Room>;
   handleAbort: (room: Room, client: Client) => Promise<void>;
   handleResign: (room: Room, client: Client) => Promise<void>;
@@ -81,7 +82,10 @@ export async function handleWebSocketConnection(
 ): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
-  const darkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
+  let darkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
+  if (!darkXiangqiRoom && isDarkXiangqiRoomId(roomId) && darkXiangqiEnabled()) {
+    darkXiangqiRoom = (await ctx.getOrLoadDarkXiangqiRoom(roomId)) ?? undefined;
+  }
   if (darkXiangqiRoom) {
     await handleDarkXiangqiWebSocketConnection(ctx, socket, request, darkXiangqiRoom);
     return;

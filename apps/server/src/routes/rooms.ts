@@ -237,6 +237,10 @@ async function handleDarkXiangqiCreate(
     writeJson(response, 501, { error: 'dark_xiangqi_unsupported_surface' });
     return;
   }
+  if (ctx.databaseRequired && !persistence.isInitialized()) {
+    writeJson(response, 503, { error: 'persistence_disabled' });
+    return;
+  }
   if (ctx.isDraining()) {
     writeJson(response, 503, { error: 'server_draining', restartAt: ctx.drainDeadlineMs() });
     return;
@@ -244,7 +248,12 @@ async function handleDarkXiangqiCreate(
 
   const created = await ctx.createDarkXiangqiRoom();
   if (!created.ok) {
-    const status = created.error === 'dark_xiangqi_disabled' ? 404 : 500;
+    const status =
+      created.error === 'dark_xiangqi_disabled'
+        ? 404
+        : created.error === 'persistence_failure'
+          ? 503
+          : 500;
     writeJson(response, status, { error: created.error });
     return;
   }
