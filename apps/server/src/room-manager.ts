@@ -362,7 +362,7 @@ export function seatDisplayNamesForRoom(
     if (!clientId) continue;
     if (isServerEngineClient(clientId)) {
       const engineId = clientId === 'random-engine' ? ctx.pveBuiltinEngineClientId : clientId;
-      names[color] = engineVersionDisplayName(engineId);
+      names[color] = engineSeatDisplayName(engineId);
     } else {
       const token = room.seatTokens[color as Color];
       const name = token?.userDisplayName ?? token?.userHandle ?? null;
@@ -370,6 +370,14 @@ export function seatDisplayNamesForRoom(
     }
   }
   return names;
+}
+
+function engineSeatDisplayName(engineId: string): string {
+  try {
+    return loadEngine(engineId).engineName;
+  } catch {
+    return engineVersionDisplayName(engineId);
+  }
 }
 
 export function broadcastSnapshot(ctx: RoomManagerContext, room: Room): void {

@@ -67,8 +67,6 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
     const isActive = nextActiveColor === color;
     const row = document.createElement('div');
     row.dataset.color = color;
-    const label = document.createElement('span');
-    label.className = 'clock-label';
     const playerLine = document.createElement('span');
     playerLine.className = 'clock-player-line';
     const time = document.createElement('strong');
@@ -82,20 +80,25 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
     nameEl.textContent = playerName;
     nameEl.title = playerName;
     playerLine.append(nameEl);
-    label.append(playerLine);
     const toMove = document.createElement('span');
     toMove.className = 'clock-to-move';
     toMove.textContent = 'to move';
     toMove.setAttribute('aria-hidden', isActive ? 'false' : 'true');
-    label.append(toMove);
+    playerLine.append(toMove);
     const remainingMs = clockRemainingMs(clock, color, displayAt);
     time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
-    const classes: string[] = [];
+    const classes = ['clock-time-row'];
     if (isActive) classes.push('active');
     if (isActive && flashThisRender) classes.push('just-activated');
     row.className = classes.join(' ');
-    row.append(label, time);
-    (index === 0 ? refs.clockTop : refs.clockBottom).append(row);
+    row.append(time);
+    if (isActive) playerLine.classList.add('active');
+    const slot = index === 0 ? refs.clockTop : refs.clockBottom;
+    if (index === 0) {
+      slot.append(playerLine, row);
+    } else {
+      slot.append(row, playerLine);
+    }
   });
   lastActiveClockColor = nextActiveColor;
 }

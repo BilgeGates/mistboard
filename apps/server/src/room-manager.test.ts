@@ -29,6 +29,7 @@ import {
   scheduleAbortTimeout,
   scheduleForfeitTimeout,
   scheduleRandomEngineMove,
+  seatDisplayNamesForRoom,
 } from './room-manager.js';
 import type { Client, Room } from './server-types.js';
 import { clientFixture, roomFixture } from './test-builders.js';
@@ -86,6 +87,18 @@ function makeCtx(): SpyCtx {
     liveClockIncrementMs: 2_000,
   };
 }
+
+test('seatDisplayNamesForRoom uses engine family names for live seat labels', () => {
+  const room = makeRoom('engine-seat-name');
+  room.projection = {
+    ...room.projection,
+    seats: { ...room.projection.seats, black: 'python-tier1-v0.9.5' },
+  };
+
+  assert.deepEqual(seatDisplayNamesForRoom(room, makeCtx()), {
+    black: 'Mistboard Engine',
+  });
+});
 
 // ── playMove ──────────────────────────────────────────────────────────────────
 

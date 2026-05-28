@@ -737,6 +737,7 @@
 
 .meta-panel,
 .moves-panel {
+  align-self: center;
   max-height: calc(100vh - 122px);
   overflow: auto;
   scrollbar-width: thin;
@@ -919,6 +920,13 @@
   border: 1px solid #dde2dc;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.clocks div.clock-time-row {
+  grid-template-columns: 1fr;
+  justify-items: end;
+  min-height: 52px;
+  padding: 10px 12px;
 }
 
 .clocks div.pregame {
@@ -1204,18 +1212,10 @@
 
 .clocks strong {
   font-variant-numeric: tabular-nums;
-  font-size: 26px;
+  font-size: 30px;
   line-height: 1;
   text-align: right;
   white-space: nowrap;
-}
-
-.clocks .clock-label {
-  display: grid;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  line-height: 1.1;
 }
 
 .clocks .clock-player-line {
@@ -1223,6 +1223,8 @@
   align-items: center;
   gap: 7px;
   min-width: 0;
+  padding: 0 4px;
+  line-height: 1.1;
 }
 
 .clocks .clock-name {
@@ -1258,7 +1260,7 @@
   margin-right: 0;
 }
 
-.clocks div.active .clock-to-move {
+.clocks .clock-player-line.active .clock-to-move {
   visibility: visible;
   opacity: 1;
 }
@@ -1748,6 +1750,7 @@
 
   .meta-panel,
   .moves-panel {
+    align-self: stretch;
     max-height: none;
     overflow: visible;
   }
