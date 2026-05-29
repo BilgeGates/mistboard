@@ -11,13 +11,17 @@ import { currentAccountUser } from './account-session.js';
 import type { DarkXiangqiEvent, DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
 import { darkXiangqiSnapshotPayload } from './dark-xiangqi-runtime.js';
 import { logger, wsCounters } from './obs.js';
-import { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from './room-manager.js';
 import {
   appendDarkXiangqiEvent,
   appendDarkXiangqiSeatAssigned,
   type DarkXiangqiEventWriterContext,
   recordDarkXiangqiPersistenceError,
 } from './server-dark-xiangqi-events.js';
+import {
+  clearDarkXiangqiRuntimeTimers,
+  type DarkXiangqiLifecycleContext,
+  scheduleDarkXiangqiLifecycleTimers as scheduleDarkXiangqiLifecycleTimersWithContext,
+} from './server-dark-xiangqi-lifecycle.js';
 import {
   assignDarkXiangqiSeat,
   displaceOlderDarkXiangqiSeatClients,
@@ -49,9 +53,21 @@ export type DarkXiangqiWebSocketContext = {
   wsMessageWindowMs: number;
 };
 
-const darkXiangqiEventWriterCtx: DarkXiangqiEventWriterContext = {
-  scheduleLifecycleTimers: scheduleDarkXiangqiLifecycleTimers,
+let darkXiangqiEventWriterCtx: DarkXiangqiEventWriterContext;
+
+const darkXiangqiLifecycleCtx: DarkXiangqiLifecycleContext<DarkXiangqiLiveRoom> = {
+  appendEvent: (room, event) => appendDarkXiangqiEvent(room, event, darkXiangqiEventWriterCtx),
+  broadcastEventAppended: broadcastDarkXiangqiEventAppended,
 };
+
+darkXiangqiEventWriterCtx = {
+  scheduleLifecycleTimers: (room) =>
+    scheduleDarkXiangqiLifecycleTimers(room as DarkXiangqiLiveRoom),
+};
+
+export function scheduleDarkXiangqiLifecycleTimers(room: DarkXiangqiLiveRoom): void {
+  scheduleDarkXiangqiLifecycleTimersWithContext(room, darkXiangqiLifecycleCtx);
+}
 
 export async function handleDarkXiangqiWebSocketConnection(
   ctx: DarkXiangqiWebSocketContext,
@@ -269,132 +285,6 @@ async function handleDarkXiangqiResign(
   broadcastDarkXiangqiEventAppended(room, event, seq);
 }
 
-type DarkXiangqiAbortPhase = 'red-1' | 'black-1';
-
-export function clearDarkXiangqiRuntimeTimers(room: DarkXiangqiLiveRoom): void {
-  clearDarkXiangqiAbortTimer(room);
-  clearDarkXiangqiForfeitTimer(room);
-}
-
-export function clearDarkXiangqiAbortTimer(room: DarkXiangqiLiveRoom): void {
-  if (room.abortTimer) clearTimeout(room.abortTimer);
-  room.abortTimer = null;
-}
-
-export function clearDarkXiangqiForfeitTimer(room: DarkXiangqiLiveRoom): void {
-  if (room.forfeitTimer) clearTimeout(room.forfeitTimer);
-  room.forfeitTimer = null;
-}
-
-export function scheduleDarkXiangqiLifecycleTimers(room: DarkXiangqiLiveRoom): void {
-  scheduleDarkXiangqiAbortTimeout(room);
-  scheduleDarkXiangqiForfeitTimeout(room);
-}
-
-function scheduleDarkXiangqiAbortTimeout(room: DarkXiangqiLiveRoom): void {
-  clearDarkXiangqiAbortTimer(room);
-  const phase = darkXiangqiAbortPhaseFor(room);
-  if (phase === null) {
-    room.abortDeadline = null;
-    room.abortPhase = null;
-    return;
-  }
-  if (room.abortPhase !== phase || room.abortDeadline === null) {
-    room.abortPhase = phase;
-    room.abortDeadline = Date.now() + ABORT_WINDOW_MS;
-  }
-  const delay = Math.max(0, room.abortDeadline - Date.now());
-  room.abortTimer = setTimeout(() => {
-    if (darkXiangqiAbortPhaseFor(room) === null) return;
-    void appendDarkXiangqiEvent(
-      room,
-      {
-        type: 'game-aborted',
-        at: Date.now(),
-        roomId: room.id,
-        reason: 'pregame-timeout',
-      },
-      darkXiangqiEventWriterCtx,
-    )
-      .then((seq) => {
-        const event = room.events[seq];
-        if (event) broadcastDarkXiangqiEventAppended(room, event, seq);
-      })
-      .catch((err) => {
-        logger.error(
-          {
-            kind: 'dark_xiangqi_abort_window_failure',
-            room_id: room.id,
-            error: (err as Error).message,
-            at: Date.now(),
-          },
-          'Dark Xiangqi abort window failure',
-        );
-      });
-  }, delay + 25);
-  room.abortTimer.unref();
-}
-
-function scheduleDarkXiangqiForfeitTimeout(room: DarkXiangqiLiveRoom): void {
-  clearDarkXiangqiForfeitTimer(room);
-  const seat = darkXiangqiForfeitingSeat(room);
-  if (seat === null) {
-    room.forfeitSeat = null;
-    room.forfeitDeadline = null;
-    return;
-  }
-  if (room.forfeitSeat !== seat || room.forfeitDeadline === null) {
-    room.forfeitSeat = seat;
-    room.forfeitDeadline = Date.now() + FORFEIT_WINDOW_MS;
-  }
-  const delay = Math.max(0, room.forfeitDeadline - Date.now());
-  room.forfeitTimer = setTimeout(() => {
-    if (darkXiangqiForfeitingSeat(room) !== seat) return;
-    void appendDarkXiangqiEvent(
-      room,
-      {
-        type: 'seat-forfeited',
-        at: Date.now(),
-        roomId: room.id,
-        color: seat,
-      },
-      darkXiangqiEventWriterCtx,
-    )
-      .then((seq) => {
-        const event = room.events[seq];
-        if (event) broadcastDarkXiangqiEventAppended(room, event, seq);
-      })
-      .catch((err) => {
-        logger.error(
-          {
-            kind: 'dark_xiangqi_forfeit_window_failure',
-            room_id: room.id,
-            error: (err as Error).message,
-            at: Date.now(),
-          },
-          'Dark Xiangqi forfeit window failure',
-        );
-      });
-  }, delay + 25);
-  room.forfeitTimer.unref();
-}
-
-function darkXiangqiAbortPhaseFor(room: DarkXiangqiLiveRoom): DarkXiangqiAbortPhase | null {
-  const { status, moveNumber, lastMove } = room.projection.state;
-  if (status.type !== 'playing' || moveNumber >= 2) return null;
-  if (!room.projection.seats.red || !room.projection.seats.black) return null;
-  return lastMove === undefined ? 'red-1' : 'black-1';
-}
-
-function darkXiangqiForfeitingSeat(room: DarkXiangqiLiveRoom): XiangqiColor | null {
-  const { status, moveNumber } = room.projection.state;
-  if (status.type !== 'playing' || moveNumber < 2) return null;
-  const connected = darkXiangqiConnectedSeats(room.clients);
-  if (connected.red && !connected.black) return 'black';
-  if (!connected.red && connected.black) return 'red';
-  return null;
-}
-
 function broadcastDarkXiangqiSnapshot(room: DarkXiangqiLiveRoom): void {
   for (const client of room.clients) {
     if (client.displaced) continue;
@@ -447,13 +337,4 @@ function parseClientId(value: string | null): string | null {
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(value) ? value : null;
 }
 
-function darkXiangqiConnectedSeats(
-  clients: Iterable<DarkXiangqiLiveClient>,
-): Record<XiangqiColor, boolean> {
-  const connected = { red: false, black: false };
-  for (const client of clients) {
-    if (client.displaced) continue;
-    connected[client.seat] = true;
-  }
-  return connected;
-}
+export { clearDarkXiangqiRuntimeTimers };

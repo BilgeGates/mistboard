@@ -78,6 +78,9 @@ Implemented pieces:
 - `apps/server/src/server-dark-xiangqi-events.ts` owns Dark Xiangqi event
   writes, including fail-closed persistence ordering, seat-token upserts, and
   terminal private summary recording.
+- `apps/server/src/server-dark-xiangqi-lifecycle.ts` owns Dark Xiangqi
+  pre-move abort phases, disconnect forfeit seat detection, timer clearing, and
+  timer-fired event append handoff.
 
 The existing live-room stack is chess-shaped:
 
