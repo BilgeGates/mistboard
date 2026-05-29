@@ -88,7 +88,9 @@ const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 if (replaySample) {
   setTitle('Replay');
   void mountOrReport(() =>
-    import('./replay.js').then(({ mountReplay }) => mountReplay(appRoot, replaySample)),
+    import('./replay.js').then(({ mountReplay }) =>
+      mountReplay(appRoot, replaySample).then(() => undefined),
+    ),
   );
 } else if (liveRoomId || wantsLive) {
   setTitle('Live');

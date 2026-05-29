@@ -2,7 +2,7 @@ import type { GameEvent } from '@mistboard/game';
 import './watch-route.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
-import { type GameMeta, mountReplay } from './replay.js';
+import { type GameMeta, type ReplayHandle, mountReplay } from './replay.js';
 import { buildFooter, buildLoadingState, buildNav } from './site-shell.js';
 
 type WatchChannelSummary = {
@@ -40,39 +40,65 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   document.title = 'Mistboard TV · Mistboard';
 
   let activeRoomId: string | null = null;
-  let replayMounted = false;
+  let replayHandle: ReplayHandle | null = null;
   let pollTimer: number | null = null;
   let refreshInFlight = false;
+  const selectedRoomByChannel = new Map<string, string>();
+  const metadataByRoomId: Record<string, GameMeta> = {};
+  const abortController = new AbortController();
 
   const renderFeed = async (
     nextFeed: WatchFeed | null,
     previousFeed: WatchFeed | null,
     animateNewRows: boolean,
+    options: { urlMode?: 'push' | 'replace' | false } = {},
   ): Promise<void> => {
     const previousRoomIds =
       animateNewRows && previousFeed
         ? new Set(previousFeed.unlocked.map((game) => game.roomId))
         : null;
+    mergeWatchMetadata(metadataByRoomId, nextFeed);
+    renderWatchTitle(watch.titleRoot, nextFeed);
+    renderWatchChannelList(watch.channelRoot, nextFeed);
     renderWatchStatus(watch.statusRoot, nextFeed);
 
     if (!nextFeed || nextFeed.unlocked.length === 0) {
-      if (!replayMounted) renderWatchEmptyState(watch.replayRoot, nextFeed);
+      replayHandle?.destroy();
+      replayHandle = null;
+      activeRoomId = null;
+      renderWatchEmptyState(watch.replayRoot, nextFeed);
       renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds });
       currentFeed = nextFeed;
+      if (options.urlMode && nextFeed) {
+        syncWatchUrl(options.urlMode, nextFeed.activeChannel, activeRoomId);
+      }
       return;
     }
 
-    const sampleIds = nextFeed.unlocked.map((game) => game.roomId);
-    if (!replayMounted) {
-      const params = new URLSearchParams(window.location.search);
-      const requested = params.get('game');
-      activeRoomId = requested && sampleIds.includes(requested) ? requested : sampleIds[0]!;
-      await mountWatchReplay(watch.replayRoot, activeRoomId, nextFeed);
-      replayMounted = true;
+    const nextRoomId = resolveWatchRoomId(nextFeed, activeRoomId, selectedRoomByChannel);
+    const priorRoomId = activeRoomId;
+    activeRoomId = nextRoomId;
+    selectedRoomByChannel.set(nextFeed.activeChannel, nextRoomId);
+    renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds });
+
+    try {
+      if (!replayHandle) {
+        replayHandle = await mountWatchReplay(watch.replayRoot, nextRoomId, metadataByRoomId);
+      } else if (replayHandle.activeSampleId() !== nextRoomId) {
+        await replayHandle.loadGame(nextRoomId);
+      }
+    } catch (err) {
+      console.warn(err);
+      activeRoomId = priorRoomId;
+      if (!replayHandle) renderWatchEmptyState(watch.replayRoot, null);
+      renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds: null });
+      return;
     }
 
-    renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds });
     currentFeed = nextFeed;
+    if (options.urlMode) {
+      syncWatchUrl(options.urlMode, nextFeed.activeChannel, activeRoomId);
+    }
   };
 
   const clearPollTimer = (): void => {
@@ -93,7 +119,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       await renderFeed(nextFeed, previousFeed, true);
     } catch (err) {
       console.warn(err);
-      if (!currentFeed && !replayMounted) {
+      if (!currentFeed && !replayHandle) {
         await renderFeed(null, null, false);
       }
     } finally {
@@ -110,20 +136,87 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     if (!document.hidden) void refreshFeed();
   };
 
-  await renderFeed(currentFeed, null, false);
+  const handleNavigationClick = (event: MouseEvent): void => {
+    const target = event.target as Element | null;
+    const link = target?.closest<HTMLAnchorElement>('a.watch-queue-row, a.watch-channel-link');
+    if (!link) return;
+    const url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin || url.pathname !== '/watch') return;
+
+    event.preventDefault();
+    const channel = url.searchParams.get('channel');
+    const roomId = url.searchParams.get('game');
+    if (link.classList.contains('watch-channel-link')) {
+      void switchWatchChannel(channel, 'push');
+      return;
+    }
+    if (roomId) void switchWatchGame(roomId, 'push');
+  };
+
+  const switchWatchChannel = async (
+    channelId: string | null,
+    urlMode: 'push' | 'replace',
+  ): Promise<void> => {
+    try {
+      const nextFeed = await fetchWatchFeed(channelId);
+      await renderFeed(nextFeed, currentFeed, true, { urlMode });
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  const switchWatchGame = async (roomId: string, urlMode: 'push' | 'replace'): Promise<void> => {
+    if (!currentFeed || !currentFeed.unlocked.some((game) => game.roomId === roomId)) return;
+    if (roomId === activeRoomId) {
+      syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
+      return;
+    }
+    const previousRoomId = activeRoomId;
+    activeRoomId = roomId;
+    selectedRoomByChannel.set(currentFeed.activeChannel, roomId);
+    updateWatchQueueActive(watch.queueRoot, activeRoomId);
+    try {
+      if (!replayHandle) {
+        replayHandle = await mountWatchReplay(watch.replayRoot, roomId, metadataByRoomId);
+      } else {
+        await replayHandle.loadGame(roomId);
+      }
+      syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
+    } catch (err) {
+      console.warn(err);
+      activeRoomId = previousRoomId;
+      updateWatchQueueActive(watch.queueRoot, activeRoomId);
+    }
+  };
+
+  const handlePopState = (): void => {
+    const channel = watchChannelFromLocation();
+    const currentChannel = currentFeed?.activeChannel ?? null;
+    if (channel !== currentChannel) {
+      void switchWatchChannel(channel, 'replace');
+      return;
+    }
+    const roomId = watchRoomFromLocation();
+    if (roomId) void switchWatchGame(roomId, 'replace');
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange, {
+    signal: abortController.signal,
+  });
+  window.addEventListener('popstate', handlePopState, { signal: abortController.signal });
+  watch.el.addEventListener('click', handleNavigationClick, { signal: abortController.signal });
+  await renderFeed(currentFeed, null, false, { urlMode: 'replace' });
   if (!document.hidden) {
     pollTimer = window.setTimeout(() => void refreshFeed(), pollDelay(currentFeed));
   }
-  document.addEventListener('visibilitychange', handleVisibilityChange);
 }
 
-async function mountWatchReplay(root: HTMLElement, roomId: string, feed: WatchFeed): Promise<void> {
-  const metadataByRoomId: Record<string, GameMeta> = {};
-  for (const game of feed.unlocked) {
-    metadataByRoomId[game.roomId] = gameMetaForGame(game);
-  }
-
-  await mountReplay(root, roomId, {
+async function mountWatchReplay(
+  root: HTMLElement,
+  roomId: string,
+  metadataByRoomId: Record<string, GameMeta>,
+): Promise<ReplayHandle> {
+  return await mountReplay(root, roomId, {
     autoplay: true,
     captureLayout: 'split',
     showControls: true,
@@ -134,9 +227,8 @@ async function mountWatchReplay(root: HTMLElement, roomId: string, feed: WatchFe
   });
 }
 
-async function fetchWatchFeed(): Promise<WatchFeed> {
-  const params = new URLSearchParams(window.location.search);
-  const channel = params.get('channel');
+async function fetchWatchFeed(channelOverride?: string | null): Promise<WatchFeed> {
+  const channel = channelOverride ?? watchChannelFromLocation();
   const url = channel ? `/api/watch?channel=${encodeURIComponent(channel)}` : '/api/watch';
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`failed to load watch feed: ${resp.status}`);
@@ -150,11 +242,64 @@ async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
   return data.events;
 }
 
+function mergeWatchMetadata(
+  target: Record<string, GameMeta>,
+  feed: WatchFeed | null | undefined,
+): void {
+  if (!feed) return;
+  for (const game of feed.unlocked) {
+    target[game.roomId] = gameMetaForGame(game);
+  }
+}
+
+function resolveWatchRoomId(
+  feed: WatchFeed,
+  activeRoomId: string | null,
+  selectedRoomByChannel: ReadonlyMap<string, string>,
+): string {
+  const roomIds = new Set(feed.unlocked.map((game) => game.roomId));
+  const candidates = [
+    selectedRoomByChannel.get(feed.activeChannel),
+    activeRoomId,
+    watchRoomFromLocation(),
+    feed.unlocked[0]?.roomId,
+  ];
+  for (const candidate of candidates) {
+    if (candidate && roomIds.has(candidate)) return candidate;
+  }
+  return feed.unlocked[0]!.roomId;
+}
+
+function watchChannelFromLocation(): string | null {
+  return new URLSearchParams(window.location.search).get('channel');
+}
+
+function watchRoomFromLocation(): string | null {
+  return new URLSearchParams(window.location.search).get('game');
+}
+
+function syncWatchUrl(
+  mode: 'push' | 'replace',
+  channelId: string,
+  roomId: string | null,
+): void {
+  const params = new URLSearchParams();
+  params.set('channel', channelId);
+  if (roomId) params.set('game', roomId);
+  const nextUrl = `/watch?${params.toString()}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}`;
+  if (nextUrl === currentUrl) return;
+  const method = mode === 'push' ? 'pushState' : 'replaceState';
+  window.history[method](null, '', nextUrl);
+}
+
 function buildWatchSection(feed: WatchFeed | null): {
   el: HTMLElement;
+  channelRoot: HTMLElement;
   replayRoot: HTMLElement;
   queueRoot: HTMLElement;
   statusRoot: HTMLElement;
+  titleRoot: HTMLHeadingElement;
 } {
   const section = document.createElement('main');
   section.className = 'watch-shell';
@@ -168,13 +313,16 @@ function buildWatchSection(feed: WatchFeed | null): {
   eyebrow.className = 'watch-eyebrow';
   eyebrow.textContent = 'Mistboard TV';
   const title = document.createElement('h1');
-  title.textContent = feed ? `${activeWatchChannelLabel(feed)} replays` : 'Recent replays';
+  renderWatchTitle(title, feed);
   const description = document.createElement('p');
   description.textContent =
     'Games stay sealed while they are being played. Finished games unlock here, with older replays filling quiet windows.';
   copy.append(eyebrow, title, description);
-  const channelList = buildWatchChannelList(feed);
-  if (channelList) copy.append(channelList);
+  const channelRoot = document.createElement('nav');
+  channelRoot.className = 'watch-channel-list';
+  channelRoot.setAttribute('aria-label', 'Watch channels');
+  renderWatchChannelList(channelRoot, feed);
+  copy.append(channelRoot);
 
   const status = document.createElement('div');
   status.className = 'watch-status';
@@ -193,7 +341,11 @@ function buildWatchSection(feed: WatchFeed | null): {
   stage.append(replayRoot, queueRoot);
 
   section.append(header, stage);
-  return { el: section, replayRoot, queueRoot, statusRoot: status };
+  return { el: section, channelRoot, replayRoot, queueRoot, statusRoot: status, titleRoot: title };
+}
+
+function renderWatchTitle(root: HTMLHeadingElement, feed: WatchFeed | null): void {
+  root.textContent = feed ? `${activeWatchChannelLabel(feed)} replays` : 'Recent replays';
 }
 
 function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
@@ -214,22 +366,22 @@ function activeWatchChannelLabel(feed: WatchFeed): string {
   return feed.channels.find((channel) => channel.id === feed.activeChannel)?.label ?? 'Recent';
 }
 
-function buildWatchChannelList(feed: WatchFeed | null): HTMLElement | null {
-  if (!feed || feed.channels.length <= 1) return null;
-
-  const list = document.createElement('nav');
-  list.className = 'watch-channel-list';
-  list.setAttribute('aria-label', 'Watch channels');
+function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void {
+  root.replaceChildren();
+  root.hidden = !feed || feed.channels.length <= 1;
+  if (!feed || feed.channels.length <= 1) return;
 
   for (const channel of feed.channels) {
     const link = document.createElement('a');
+    link.className = 'watch-channel-link';
     link.href = `/watch?channel=${encodeURIComponent(channel.id)}`;
-    link.textContent = channel.label;
-    if (channel.id === feed.activeChannel) link.classList.add('active');
-    list.append(link);
+    link.textContent = `${channel.label} (${channel.unlockedCount})`;
+    if (channel.id === feed.activeChannel) {
+      link.classList.add('active');
+      link.setAttribute('aria-current', 'page');
+    }
+    root.append(link);
   }
-
-  return list;
 }
 
 function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void {
@@ -307,6 +459,7 @@ function renderWatchQueue(
   for (const game of feed.unlocked) {
     const item = document.createElement('li');
     item.className = 'watch-queue-item';
+    item.dataset.roomId = game.roomId;
     if (previousRoomIds && !previousRoomIds.has(game.roomId)) item.classList.add('is-new');
 
     const row = document.createElement('a');
@@ -359,6 +512,15 @@ function renderWatchQueue(
   }
 
   root.append(list);
+}
+
+function updateWatchQueueActive(root: HTMLElement, activeRoomId: string | null): void {
+  for (const item of root.querySelectorAll<HTMLElement>('.watch-queue-item')) {
+    const active = activeRoomId !== null && item.dataset.roomId === activeRoomId;
+    item.classList.toggle('active', active);
+    const row = item.querySelector<HTMLAnchorElement>('.watch-queue-row');
+    row?.classList.toggle('active', active);
+  }
 }
 
 function watchQueueGameHref(feed: WatchFeed, roomId: string): string {

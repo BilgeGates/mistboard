@@ -183,11 +183,22 @@ export type ReplayOptions = {
   enginePanels?: EngineReviewPanels;
 };
 
+type ReplayLoadOptions = {
+  initialPly?: number;
+  startAutoplay?: boolean;
+};
+
+export type ReplayHandle = {
+  activeSampleId: () => string;
+  destroy: () => void;
+  loadGame: (sampleId: string, options?: ReplayLoadOptions) => Promise<void>;
+};
+
 export async function mountReplay(
   root: HTMLElement,
   initialSampleId: string,
   options: ReplayOptions = {},
-): Promise<void> {
+): Promise<ReplayHandle> {
   const reveal = options.revealOnFinish !== false;
   const showControls = options.showControls !== false;
   const controlsMode = options.controlsMode ?? 'bar';
@@ -253,6 +264,7 @@ export async function mountReplay(
   const whitePane = createPane(whiteBaseLabel, 'white', showCaptures, captureLayout);
   const truthPane = createPane('Truth', 'truth', showCaptures, captureLayout);
   const blackPane = createPane(blackBaseLabel, 'black', showCaptures, captureLayout);
+  let layoutOrder: 'white-first' | 'black-first' = 'white-first';
   layout.append(whitePane.el, truthPane.el, blackPane.el);
   // Apply the pane choice synchronously so the triptych doesn't flash before
   // loadGame() finishes its async fetch and calls applyMetadata().
@@ -1013,10 +1025,7 @@ export async function mountReplay(
     return Math.min(MAX_PLAY_MS, Math.max(MIN_PLAY_MS, ms));
   }
 
-  async function loadGame(
-    sampleId: string,
-    loadOptions: { initialPly?: number; startAutoplay?: boolean } = {},
-  ): Promise<void> {
+  async function loadGame(sampleId: string, loadOptions: ReplayLoadOptions = {}): Promise<void> {
     stopPlay();
     clearLoopTimer();
     const nextEvents = loaderForId
@@ -1050,10 +1059,13 @@ export async function mountReplay(
     const resolvedOrientation = orientationForId?.(activeSample, currentMeta()) ?? tier1Color;
     if (resolvedOrientation) boardOrientation = resolvedOrientation;
     applyBoardOrientation();
-    if (tier1Color === 'black') {
+    const nextLayoutOrder = tier1Color === 'black' ? 'black-first' : 'white-first';
+    if (nextLayoutOrder !== layoutOrder && nextLayoutOrder === 'black-first') {
       layout.replaceChildren(blackPane.el, truthPane.el, whitePane.el);
-    } else {
+      layoutOrder = nextLayoutOrder;
+    } else if (nextLayoutOrder !== layoutOrder) {
       layout.replaceChildren(whitePane.el, truthPane.el, blackPane.el);
+      layoutOrder = nextLayoutOrder;
     }
     if (metadataMode === 'compact') {
       const choice = panesResolver?.(activeSample, currentMeta()) ?? 'all';
@@ -1284,6 +1296,9 @@ export async function mountReplay(
       stopPlay();
       clearLoopTimer();
       clearWallClockTimer();
+      if (replayAbortControllers.get(root) === abortController) {
+        replayAbortControllers.delete(root);
+      }
     },
     { once: true },
   );
@@ -1312,6 +1327,12 @@ export async function mountReplay(
     truthCg.set({ orientation: boardOrientation });
     blackCg.set({ orientation: boardOrientation });
   }
+
+  return {
+    activeSampleId: () => activeSample,
+    destroy: () => abortController.abort(),
+    loadGame,
+  };
 }
 
 function pickNextSample(pool: string[], current: string): string {
