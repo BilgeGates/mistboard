@@ -21,6 +21,7 @@ import type {
 import { Board as EoBoard } from 'elephantops/board';
 import { makeSquare as eoMakeSquare, parseSquare as eoParseSquare } from 'elephantops/util';
 import { Xiangqi as EoXiangqi } from 'elephantops/xiangqi';
+import type { AbortReason } from './types.js';
 
 export type XiangqiColor = EoColor; // 'red' | 'black'
 
@@ -87,12 +88,14 @@ export type XiangqiGameEndReason =
   | 'stalemate'
   | 'timeout'
   | 'resignation'
+  | 'abandonment'
   | 'repetition'
   | 'progress-clock';
 
 export type XiangqiGameStatus =
   | { type: 'playing'; turn: XiangqiColor }
-  | { type: 'finished'; winner: XiangqiColor | null; reason: XiangqiGameEndReason };
+  | { type: 'finished'; winner: XiangqiColor | null; reason: XiangqiGameEndReason }
+  | { type: 'aborted'; reason: AbortReason };
 
 export type XiangqiGameState = {
   id: string;

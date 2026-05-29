@@ -90,6 +90,45 @@ test('Dark Xiangqi replay applies resignations as native red/black endings', () 
   });
 });
 
+test('Dark Xiangqi replay applies disconnect forfeits as native abandonment endings', () => {
+  const events: DarkXiangqiEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'xq-forfeit', gameSpecId: DARK_XIANGQI_SPEC_ID },
+    {
+      type: 'seat-forfeited',
+      at: 2,
+      roomId: 'xq-forfeit',
+      color: 'black',
+    },
+  ];
+
+  const projection = replayDarkXiangqiEvents(events);
+
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'red',
+    reason: 'abandonment',
+  });
+});
+
+test('Dark Xiangqi replay applies first-move aborts as native aborted endings', () => {
+  const events: DarkXiangqiEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'xq-abort', gameSpecId: DARK_XIANGQI_SPEC_ID },
+    {
+      type: 'game-aborted',
+      at: 2,
+      roomId: 'xq-abort',
+      reason: 'pregame-timeout',
+    },
+  ];
+
+  const projection = replayDarkXiangqiEvents(events);
+
+  assert.deepEqual(projection.state.status, {
+    type: 'aborted',
+    reason: 'pregame-timeout',
+  });
+});
+
 test('Dark Xiangqi runtime hydrates from canonical events', () => {
   const events: DarkXiangqiEvent[] = [
     { type: 'room-created', at: 1, roomId: 'xq-hydrate', gameSpecId: DARK_XIANGQI_SPEC_ID },
@@ -263,7 +302,13 @@ function darkXiangqiRoomFixture({
       seats: { red: 'red-client', black: 'black-client' },
     },
     gameSpecId: DARK_XIANGQI_SPEC_ID,
-    gameEndRecorded: state.status.type === 'finished',
+    abortTimer: null,
+    abortDeadline: null,
+    abortPhase: null,
+    forfeitTimer: null,
+    forfeitDeadline: null,
+    forfeitSeat: null,
+    gameEndRecorded: state.status.type !== 'playing',
     pendingWrites: Promise.resolve(),
     seatTokens: {},
   };

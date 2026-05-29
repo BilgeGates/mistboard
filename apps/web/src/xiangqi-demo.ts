@@ -9,16 +9,16 @@ import {
   type XiangqiMove,
   type XiangqiSquare,
 } from '@mistboard/game';
+import { initLiveSound, playSound } from './live-sound.js';
+import type { SoundKind } from './live-state.js';
 import { chooseFairMove } from './xiangqi-bot.js';
 import {
   buildGodView,
-  renderBoardSvg,
-  renderBoardSvgReadOnly,
   type CannonTargetMarker,
   type FogStyle,
+  renderBoardSvg,
+  renderBoardSvgReadOnly,
 } from './xiangqi-spike.js';
-import type { SoundKind } from './live-state.js';
-import { initLiveSound, playSound } from './live-sound.js';
 
 const CANNON_MODE: XiangqiCannonVisionMode = 'D';
 const FOG_STYLE: FogStyle = 'mask';
@@ -129,14 +129,7 @@ function rerender(): void {
   const view = getPlayerView(state.game, state.humanColor, CANNON_MODE);
   const aiColor = opposite(state.humanColor);
   const boardSvg = isReplay(state)
-    ? renderBoardSvgReadOnly(
-        view,
-        state.humanColor,
-        state.game,
-        FOG_STYLE,
-        'demo',
-        CANNON_MARKER,
-      )
+    ? renderBoardSvgReadOnly(view, state.humanColor, state.game, FOG_STYLE, 'demo', CANNON_MARKER)
     : renderBoardSvg(
         view,
         state.humanColor,
@@ -264,9 +257,11 @@ function statusText(state: DemoState): string {
   if (isAiTurn(state)) return state.aiThinking ? 'AI thinking.' : 'AI move.';
   const { status } = state.game;
   if (status.type === 'finished') {
-    if (status.winner) return `${labelColor(status.winner)} wins by ${formatReason(status.reason)}.`;
+    if (status.winner)
+      return `${labelColor(status.winner)} wins by ${formatReason(status.reason)}.`;
     return `Draw by ${formatReason(status.reason)}.`;
   }
+  if (status.type === 'aborted') return 'Game aborted.';
   return status.turn === state.humanColor ? 'Your move.' : 'AI move.';
 }
 
@@ -410,22 +405,26 @@ function attachHandlers(page: HTMLElement): void {
     ['ply-prev', -1],
     ['ply-next', 1],
   ] as const) {
-    page.querySelector<HTMLButtonElement>(`[data-action="${action}"]`)?.addEventListener('click', () => {
+    page
+      .querySelector<HTMLButtonElement>(`[data-action="${action}"]`)
+      ?.addEventListener('click', () => {
+        if (!active) return;
+        clearAiTimer();
+        active.state = setCursor(active.state, active.state.cursor + delta);
+        rerender();
+        scheduleAiTurn();
+      });
+  }
+
+  page
+    .querySelector<HTMLButtonElement>('[data-action="ply-live"]')
+    ?.addEventListener('click', () => {
       if (!active) return;
       clearAiTimer();
-      active.state = setCursor(active.state, active.state.cursor + delta);
+      active.state = setCursor(active.state, active.state.history.length);
       rerender();
       scheduleAiTurn();
     });
-  }
-
-  page.querySelector<HTMLButtonElement>('[data-action="ply-live"]')?.addEventListener('click', () => {
-    if (!active) return;
-    clearAiTimer();
-    active.state = setCursor(active.state, active.state.history.length);
-    rerender();
-    scheduleAiTurn();
-  });
 
   page.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
     el.addEventListener('click', () => {

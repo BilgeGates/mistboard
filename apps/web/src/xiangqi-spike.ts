@@ -173,9 +173,7 @@ function fogLayerMask(view: XiangqiPlayerView, perspective: XiangqiColor, maskKe
     const x1 = file === FILES - 1 ? WIDTH : x + half;
     const y0 = rDisplay === 0 ? 0 : y - half;
     const y1 = rDisplay === RANKS - 1 ? HEIGHT : y + half;
-    cutouts.push(
-      `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="black"/>`,
-    );
+    cutouts.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="black"/>`);
   }
   return `
     <defs>
@@ -928,6 +926,8 @@ function statusHtml(s: SpikeState): string {
   if (game.status.type === 'finished') {
     const winner = game.status.winner ? `${game.status.winner} wins` : 'draw';
     line = `Game over — ${winner} (${game.status.reason}) · move ${game.moveNumber}`;
+  } else if (game.status.type === 'aborted') {
+    line = `Game aborted · move ${game.moveNumber}`;
   } else {
     line = `Move ${game.moveNumber} · ${game.status.turn} to move`;
   }
@@ -954,7 +954,15 @@ function rerender(): void {
     <div class="xq-board-wrap">${
       state.boardStyle === 'grid'
         ? renderBoardSvgGrid(view, orient, state.game, state.selection, 'main', state.cannonMarker)
-        : renderBoardSvg(view, orient, state.game, state.selection, state.fogStyle, 'main', state.cannonMarker)
+        : renderBoardSvg(
+            view,
+            orient,
+            state.game,
+            state.selection,
+            state.fogStyle,
+            'main',
+            state.cannonMarker,
+          )
     }</div>
     <div class="xq-triptych-section">
       <div class="xq-triptych-heading">All POVs</div>

@@ -1,4 +1,5 @@
 import {
+  type AbortReason,
   applyMove as applyXiangqiMove,
   createInitialXiangqiState,
   DARK_XIANGQI_SPEC_ID,
@@ -49,6 +50,18 @@ export type DarkXiangqiEvent =
       at: number;
       roomId: string;
       color: XiangqiColor;
+    }
+  | {
+      type: 'game-aborted';
+      at: number;
+      roomId: string;
+      reason: AbortReason;
+    }
+  | {
+      type: 'seat-forfeited';
+      at: number;
+      roomId: string;
+      color: XiangqiColor;
     };
 
 export type DarkXiangqiProjection = {
@@ -83,6 +96,12 @@ export type DarkXiangqiRuntimeRoom = {
   events: DarkXiangqiEvent[];
   projection: DarkXiangqiProjection;
   gameSpecId: typeof DARK_XIANGQI_SPEC_ID;
+  abortTimer: ReturnType<typeof setTimeout> | null;
+  abortDeadline: number | null;
+  abortPhase: 'red-1' | 'black-1' | null;
+  forfeitTimer: ReturnType<typeof setTimeout> | null;
+  forfeitDeadline: number | null;
+  forfeitSeat: XiangqiColor | null;
   gameEndRecorded: boolean;
   pendingWrites: Promise<void>;
   seatTokens: Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>>;
@@ -150,7 +169,13 @@ export function createDarkXiangqiRuntimeRoomFromEvents(
       events: [...events],
       projection,
       gameSpecId: DARK_XIANGQI_SPEC_ID,
-      gameEndRecorded: projection.state.status.type === 'finished',
+      abortTimer: null,
+      abortDeadline: null,
+      abortPhase: null,
+      forfeitTimer: null,
+      forfeitDeadline: null,
+      forfeitSeat: null,
+      gameEndRecorded: projection.state.status.type !== 'playing',
       pendingWrites: Promise.resolve(),
       seatTokens: {},
     },
@@ -204,6 +229,12 @@ export function isDarkXiangqiEvent(value: unknown, roomId?: string): value is Da
   if (event.type === 'seat-resigned') {
     return isXiangqiColor(event.color);
   }
+  if (event.type === 'game-aborted') {
+    return isAbortReason(event.reason);
+  }
+  if (event.type === 'seat-forfeited') {
+    return isXiangqiColor(event.color);
+  }
   return false;
 }
 
@@ -223,6 +254,10 @@ function isFiniteTimestamp(value: unknown): value is number {
 
 function isXiangqiColor(value: unknown): value is XiangqiColor {
   return value === 'red' || value === 'black';
+}
+
+function isAbortReason(value: unknown): value is AbortReason {
+  return value === 'pregame-timeout' || value === 'user-abort';
 }
 
 function isXiangqiMove(value: unknown): value is XiangqiMove {
@@ -288,6 +323,33 @@ export function applyDarkXiangqiEvent(
     };
   }
 
+  if (event.type === 'seat-forfeited') {
+    if (projection.state.status.type !== 'playing') return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: {
+          type: 'finished',
+          winner: oppositeXiangqiColor(event.color),
+          reason: 'abandonment',
+        },
+      },
+    };
+  }
+
+  if (event.type === 'game-aborted') {
+    if (projection.state.status.type !== 'playing') return projection;
+    if (projection.state.moveNumber !== 1) return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: { type: 'aborted', reason: event.reason },
+      },
+    };
+  }
+
   return projection;
 }
 
@@ -307,6 +369,7 @@ export function darkXiangqiSnapshotPayload(
     clients: room.clients.size,
     seat: client.seat,
     solo: client.solo,
+    abortDeadline: room.abortDeadline,
     seats: room.projection.seats,
     state: getDarkXiangqiClientView(room.projection.state, client),
     events: darkXiangqiEventsForClient(room, client),

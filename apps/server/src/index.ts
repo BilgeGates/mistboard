@@ -49,7 +49,10 @@ import {
   isAllowedWebSocketRequest,
   type WebSocketConnectionContext,
 } from './server-ws-connection.js';
-import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
+import {
+  clearDarkXiangqiRuntimeTimers,
+  type DarkXiangqiLiveRoom,
+} from './server-ws-dark-xiangqi.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -308,6 +311,9 @@ export async function stopServer(): Promise<void> {
   await pauseActiveRoomsOnShutdown(rooms.values(), roomMgrCtx);
   for (const room of rooms.values()) {
     clearRoomRuntimeTimers(room, { clearPendingVacates: true });
+  }
+  for (const room of darkXiangqiRooms.values()) {
+    clearDarkXiangqiRuntimeTimers(room);
   }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
@@ -653,6 +659,9 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
 
   for (const room of rooms.values()) {
     clearRoomRuntimeTimers(room);
+  }
+  for (const room of darkXiangqiRooms.values()) {
+    clearDarkXiangqiRuntimeTimers(room);
   }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());

@@ -73,6 +73,30 @@ describe('Dark Xiangqi live renderer', () => {
     expect(refs.gameControls.textContent).toContain('Resign');
   });
 
+  it('shows Dark Xiangqi abort controls during the first-move window', () => {
+    const refs = refsFixture();
+
+    renderDarkXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    expect(refs.gameControlsSection.hidden).toBe(false);
+    expect(refs.gameControls.textContent).toContain('Abort');
+  });
+
+  it('renders aborted Dark Xiangqi rooms without reading a side to move', () => {
+    const refs = refsFixture();
+    liveState.state = {
+      ...viewFixture(),
+      status: { type: 'aborted', reason: 'user-abort' },
+      legalMoves: [],
+    } as never;
+
+    renderDarkXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    expect(refs.actionStatus.textContent).toContain('Game aborted');
+    expect(refs.actionStatus.textContent).toContain('before both sides completed their first move');
+    expect(refs.gameControlsSection.hidden).toBe(true);
+  });
+
   it('renders stale Dark Xiangqi rooms as unavailable without a board', () => {
     const refs = refsFixture();
     liveState.connectionState = 'rejected';

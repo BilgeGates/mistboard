@@ -134,12 +134,26 @@ function renderGameControls(
 ): void {
   refs.gameControls.replaceChildren();
   refs.gameControlsSection.hidden = true;
-  if (
-    !view ||
-    view.status.type !== 'playing' ||
-    view.moveNumber < 2 ||
-    !isXiangqiColor(liveState.seat)
-  ) {
+  if (!view || view.status.type !== 'playing' || !isXiangqiColor(liveState.seat)) {
+    return;
+  }
+  if (view.moveNumber < 2) {
+    if (view.status.turn !== liveState.seat) return;
+    const abort = document.createElement('button');
+    abort.type = 'button';
+    abort.className = 'danger';
+    abort.textContent = 'Abort';
+    abort.addEventListener('click', () => {
+      openConfirmDialog({
+        title: 'Abort this game?',
+        body: 'This ends the room without recording a result.',
+        confirmLabel: 'Abort',
+        confirmTone: 'danger',
+        onConfirm: () => sendSocket({ type: 'abort' }),
+      });
+    });
+    refs.gameControls.append(abort);
+    refs.gameControlsSection.hidden = false;
     return;
   }
 
@@ -216,6 +230,7 @@ function actionTitle(view: DarkXiangqiWireView | null): string {
   if (liveState.connectionState === 'displaced') return 'Session moved';
   if (!view) return 'Connecting';
   if (view.status.type === 'finished') return 'Game finished';
+  if (view.status.type === 'aborted') return 'Game aborted';
   if (liveState.seat === view.status.turn) return 'Your move';
   return `${capitalize(view.status.turn)} to move`;
 }
@@ -226,6 +241,9 @@ function actionBody(view: DarkXiangqiWireView | null): string {
   if (!view) return 'Opening the room socket.';
   if (view.status.type === 'finished') {
     return view.status.winner ? `${capitalize(view.status.winner)} wins.` : 'Draw.';
+  }
+  if (view.status.type === 'aborted') {
+    return 'This game ended before both sides completed their first move.';
   }
   if (liveState.seat === 'spectator') return 'Watching without private information.';
   if (liveState.seat === view.status.turn)
