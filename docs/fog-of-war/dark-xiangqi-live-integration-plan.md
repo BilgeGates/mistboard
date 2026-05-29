@@ -64,6 +64,8 @@ Implemented pieces:
 - `apps/server/src/server-ws-connection.ts` now resolves WebSocket room ids
   through an explicit `WebSocketLiveRuntime` boundary before either the chess or
   Dark Xiangqi connection handler runs.
+- Server shutdown now uses structural lifecycle helpers for client closing and
+  pending writes across both chess rooms and Dark Xiangqi rooms.
 
 The existing live-room stack is chess-shaped:
 

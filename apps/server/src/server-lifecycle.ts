@@ -4,6 +4,20 @@ import type { RoomManagerContext } from './room-manager.js';
 import { clearAbortTimer, clearForfeitTimer, pauseRoomOnShutdown } from './room-manager.js';
 import type { Room } from './server-types.js';
 
+type ClosableRuntimeClient = {
+  socket: {
+    close: (code: number, reason: string) => void;
+  };
+};
+
+type RuntimeRoomWithClients = {
+  clients: Iterable<ClosableRuntimeClient>;
+};
+
+type RuntimeRoomWithWrites = {
+  pendingWrites: Promise<void>;
+};
+
 export type RoomTimerCleanupOptions = {
   clearPendingVacates?: boolean;
   releaseEngineReservation?: (reservationId: string, reason: string) => void;
@@ -60,7 +74,7 @@ export async function pauseActiveRoomsOnShutdown(
   }
 }
 
-export function closeRoomClients(rooms: Iterable<Room>): void {
+export function closeRoomClients(rooms: Iterable<RuntimeRoomWithClients>): void {
   for (const client of [...rooms].flatMap((room) => [...room.clients])) {
     try {
       client.socket.close(1001, 'server shutting down');
@@ -71,7 +85,7 @@ export function closeRoomClients(rooms: Iterable<Room>): void {
 }
 
 export function waitForRoomWrites(
-  rooms: Iterable<Room>,
+  rooms: Iterable<RuntimeRoomWithWrites>,
 ): Promise<Array<PromiseSettledResult<void>>> {
   return Promise.allSettled([...rooms].map((room) => room.pendingWrites));
 }

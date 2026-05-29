@@ -72,6 +72,25 @@ test('closeRoomClients closes every connected room client', () => {
   ]);
 });
 
+test('closeRoomClients accepts non-chess runtime rooms', () => {
+  const closed: string[] = [];
+  const room = {
+    clients: [
+      {
+        socket: {
+          close(code: number, reason: string) {
+            closed.push(`red:${code}:${reason}`);
+          },
+        },
+      },
+    ],
+  };
+
+  closeRoomClients([room]);
+
+  assert.deepEqual(closed, ['red:1001:server shutting down']);
+});
+
 test('waitForRoomWrites waits for all room write chains', async () => {
   const order: string[] = [];
   const first = roomFixture({

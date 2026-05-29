@@ -317,9 +317,9 @@ export async function stopServer(): Promise<void> {
   }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
-  closeDarkXiangqiRoomClients();
+  closeRoomClients(darkXiangqiRooms.values());
   await waitForRoomWrites(rooms.values());
-  await Promise.allSettled([...darkXiangqiRooms.values()].map((room) => room.pendingWrites));
+  await waitForRoomWrites(darkXiangqiRooms.values());
   await closeWebSocketServer(wss);
   await closeHttpServer(server);
   await persistence.close();
@@ -614,18 +614,6 @@ function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
 }
 
-function closeDarkXiangqiRoomClients(): void {
-  for (const room of darkXiangqiRooms.values()) {
-    for (const client of room.clients) {
-      try {
-        client.socket.close(1001, 'server shutting down');
-      } catch {
-        /* socket already closed */
-      }
-    }
-  }
-}
-
 function isColor(value: string | undefined): value is Color {
   return value === 'white' || value === 'black';
 }
@@ -665,12 +653,12 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
-  closeDarkXiangqiRoomClients();
+  closeRoomClients(darkXiangqiRooms.values());
 
   let exitCode = 0;
   try {
     await waitForRoomWrites(rooms.values());
-    await Promise.allSettled([...darkXiangqiRooms.values()].map((room) => room.pendingWrites));
+    await waitForRoomWrites(darkXiangqiRooms.values());
     await closeWebSocketServer(wss);
     await closeHttpServer(server);
     await persistence.close();
