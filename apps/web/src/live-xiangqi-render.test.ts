@@ -63,6 +63,16 @@ describe('Dark Xiangqi live renderer', () => {
     expect(sent).toEqual([{ type: 'move', from: 'b3', to: 'b4' }]);
   });
 
+  it('shows Dark Xiangqi resign controls only after the first-move window', () => {
+    const refs = refsFixture();
+    liveState.state = { ...viewFixture(), moveNumber: 2 } as never;
+
+    renderDarkXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    expect(refs.gameControlsSection.hidden).toBe(false);
+    expect(refs.gameControls.textContent).toContain('Resign');
+  });
+
   it('renders stale Dark Xiangqi rooms as unavailable without a board', () => {
     const refs = refsFixture();
     liveState.connectionState = 'rejected';

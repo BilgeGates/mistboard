@@ -70,6 +70,26 @@ test('Dark Xiangqi replay applies moves from the event log', () => {
   assert.deepEqual(projection.state.status, { type: 'playing', turn: 'black' });
 });
 
+test('Dark Xiangqi replay applies resignations as native red/black endings', () => {
+  const events: DarkXiangqiEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'xq-resign', gameSpecId: DARK_XIANGQI_SPEC_ID },
+    {
+      type: 'seat-resigned',
+      at: 2,
+      roomId: 'xq-resign',
+      color: 'red',
+    },
+  ];
+
+  const projection = replayDarkXiangqiEvents(events);
+
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'resignation',
+  });
+});
+
 test('Dark Xiangqi runtime hydrates from canonical events', () => {
   const events: DarkXiangqiEvent[] = [
     { type: 'room-created', at: 1, roomId: 'xq-hydrate', gameSpecId: DARK_XIANGQI_SPEC_ID },

@@ -131,6 +131,61 @@ test('Dark Xiangqi room ids fail closed instead of falling through to chess', as
   }
 });
 
+test('Dark Xiangqi rooms accept native resignation after both first moves', async () => {
+  const before = process.env[darkXiangqiKey];
+  process.env[darkXiangqiKey] = 'true';
+  const server = await startTestServer();
+  try {
+    const createdResponse = await createDarkXiangqiRoom(server);
+    assert.equal(createdResponse.status, 201);
+    const created = (await createdResponse.json()) as { roomId: string };
+
+    const red = await connectClient({
+      url: server.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+    });
+    const black = await connectClient({
+      url: server.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+    });
+
+    red.send({ type: 'move', from: 'b3', to: 'b4' });
+    await black.waitFor<{ type: string }>(
+      (msg) => msg.type === 'event-appended' && msg.gameSpecId === 'dark-xiangqi',
+    );
+
+    black.send({ type: 'move', from: 'b8', to: 'b7' });
+    await red.waitFor<{ type: string }>(
+      (msg) => msg.type === 'event-appended' && msg.gameSpecId === 'dark-xiangqi',
+    );
+
+    red.send({ type: 'resign' });
+    const finalFrame = await black.waitFor<{
+      type: string;
+      state: { status: { type: string; winner: string; reason: string } };
+    }>(
+      (msg) =>
+        msg.type === 'snapshot' &&
+        msg.gameSpecId === 'dark-xiangqi' &&
+        (msg.state as { status?: { type?: string; reason?: string } } | undefined)?.status?.type ===
+          'finished' &&
+        (msg.state as { status?: { reason?: string } } | undefined)?.status?.reason ===
+          'resignation',
+    );
+
+    assert.deepEqual(finalFrame.state.status, {
+      type: 'finished',
+      winner: 'black',
+      reason: 'resignation',
+    });
+  } finally {
+    restoreEnv(darkXiangqiKey, before);
+    await server.close();
+  }
+});
+
 async function createDarkXiangqiRoom(
   server: TestServer,
   body: Record<string, unknown> = {},

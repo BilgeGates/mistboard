@@ -43,6 +43,12 @@ export type DarkXiangqiEvent =
       roomId: string;
       color: XiangqiColor;
       move: XiangqiMove;
+    }
+  | {
+      type: 'seat-resigned';
+      at: number;
+      roomId: string;
+      color: XiangqiColor;
     };
 
 export type DarkXiangqiProjection = {
@@ -193,6 +199,9 @@ export function isDarkXiangqiEvent(value: unknown, roomId?: string): value is Da
   if (event.type === 'move-played') {
     return isXiangqiColor(event.color) && isXiangqiMove(event.move);
   }
+  if (event.type === 'seat-resigned') {
+    return isXiangqiColor(event.color);
+  }
   return false;
 }
 
@@ -262,7 +271,26 @@ export function applyDarkXiangqiEvent(
     };
   }
 
+  if (event.type === 'seat-resigned') {
+    if (projection.state.status.type !== 'playing') return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: {
+          type: 'finished',
+          winner: oppositeXiangqiColor(event.color),
+          reason: 'resignation',
+        },
+      },
+    };
+  }
+
   return projection;
+}
+
+function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
+  return color === 'red' ? 'black' : 'red';
 }
 
 export function darkXiangqiSnapshotPayload(

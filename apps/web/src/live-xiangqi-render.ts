@@ -5,6 +5,7 @@ import type {
   XiangqiPiece,
   XiangqiSquare,
 } from '@mistboard/game';
+import { openConfirmDialog } from './confirm-dialog.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
@@ -61,6 +62,7 @@ export function renderDarkXiangqiRoom(
   const view = liveState.state as unknown as DarkXiangqiWireView | null;
   refs.boardStatus.hidden = view !== null;
   renderActionStatus(refs, view, callbacks.reconnectNow);
+  renderGameControls(refs, view, callbacks.sendSocket);
 
   if (!darkXiangqiEnabled()) {
     refs.board.className = 'board xiangqi-live-board xiangqi-live-board--disabled';
@@ -123,6 +125,39 @@ function renderRoomActions(refs: LiveRefs): void {
   });
   row.append(copy);
   refs.roomActions.append(row);
+}
+
+function renderGameControls(
+  refs: LiveRefs,
+  view: DarkXiangqiWireView | null,
+  sendSocket: (payload: unknown) => boolean,
+): void {
+  refs.gameControls.replaceChildren();
+  refs.gameControlsSection.hidden = true;
+  if (
+    !view ||
+    view.status.type !== 'playing' ||
+    view.moveNumber < 2 ||
+    !isXiangqiColor(liveState.seat)
+  ) {
+    return;
+  }
+
+  const resign = document.createElement('button');
+  resign.type = 'button';
+  resign.className = 'danger';
+  resign.textContent = 'Resign';
+  resign.addEventListener('click', () => {
+    openConfirmDialog({
+      title: 'Resign this game?',
+      body: 'Your opponent wins. This cannot be undone.',
+      confirmLabel: 'Resign',
+      confirmTone: 'danger',
+      onConfirm: () => sendSocket({ type: 'resign' }),
+    });
+  });
+  refs.gameControls.append(resign);
+  refs.gameControlsSection.hidden = false;
 }
 
 function renderReplayShell(refs: LiveRefs): void {

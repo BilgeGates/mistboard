@@ -288,6 +288,10 @@ async function handleDarkXiangqiMessage(
     sendDarkXiangqiPayload(client, darkXiangqiSnapshotPayload(room, snapshotClientFor(client)));
     return;
   }
+  if (message.type === 'resign') {
+    await handleDarkXiangqiResign(room, client);
+    return;
+  }
   if (message.type !== 'move') return;
   if (typeof message.from !== 'string' || typeof message.to !== 'string') return;
   if (client.seat !== 'red' && client.seat !== 'black') return;
@@ -305,6 +309,30 @@ async function handleDarkXiangqiMessage(
     roomId: room.id,
     color: client.seat,
     move,
+  };
+  let seq: number;
+  try {
+    seq = await appendDarkXiangqiEvent(room, event);
+  } catch (err) {
+    recordDarkXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
+    client.socket.close(1011, 'persistence failure');
+    return;
+  }
+  broadcastDarkXiangqiEventAppended(room, event, seq);
+}
+
+async function handleDarkXiangqiResign(
+  room: DarkXiangqiLiveRoom,
+  client: DarkXiangqiLiveClient,
+): Promise<void> {
+  if (client.seat !== 'red' && client.seat !== 'black') return;
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.state.moveNumber < 2) return;
+  const event: DarkXiangqiEvent = {
+    type: 'seat-resigned',
+    at: Date.now(),
+    roomId: room.id,
+    color: client.seat,
   };
   let seq: number;
   try {
@@ -392,6 +420,10 @@ function broadcastDarkXiangqiEventAppended(
 ): void {
   for (const client of room.clients) {
     if (client.displaced) continue;
+    if (room.projection.state.status.type === 'finished') {
+      sendDarkXiangqiPayload(client, darkXiangqiSnapshotPayload(room, snapshotClientFor(client)));
+      continue;
+    }
     const snapshot = darkXiangqiSnapshotPayload(room, snapshotClientFor(client));
     const { events: _events, ...base } = snapshot;
     const eventVisible = event.type !== 'move-played' || event.color === client.seat;
