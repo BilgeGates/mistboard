@@ -18,6 +18,7 @@
     "og:default": "tsx src/scripts/generate-default-og.ts",
     "og:bicolor": "tsx src/scripts/generate-bicolor-screenshot.ts",
     "migrate": "tsx src/migrate.ts",
+    "seed:profiles": "node scripts/seed-profile-fixtures.mjs",
     "import-corpus": "tsx src/import-corpus.ts",
     "engine:enqueue": "tsx src/enqueue-engine-games.ts",
     "engine:enqueue-smoke": "tsx src/enqueue-engine-smoke.ts",

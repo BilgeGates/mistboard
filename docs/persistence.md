@@ -127,6 +127,7 @@ Local dev DB:
 ```bash
 npm run db:up
 npm run db:migrate
+npm run db:seed:profiles
 npm run dev:persistent
 npm run test:persistent
 ```
@@ -134,6 +135,16 @@ npm run test:persistent
 The local Postgres URL is `postgres://mistboard:mistboard@localhost:5435/mistboard`.
 Migrations run via a tiny in-repo script — no ORM, no migration framework. Raw
 SQL files in `apps/server/migrations/` are applied in order.
+
+`npm run db:seed:profiles` adds deterministic local public profile fixtures.
+The seed is idempotent and only replaces `seed-*` users and games:
+
+- `/@/seed-rich` — account-attributed public games, PvE/PvP rows, multiple time controls, and rated buckets.
+- `/@/seed-empty` — public account with no games.
+- `/@/seed-long-names` — long display/opponent names and a test-role badge for overflow checks.
+
+The seed command refuses non-local database URLs unless
+`MISTBOARD_ALLOW_NONLOCAL_SEED=true` is set.
 
 Minimal account auth is passwordless email:
 

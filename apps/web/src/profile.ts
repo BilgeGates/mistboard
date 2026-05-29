@@ -29,6 +29,13 @@ type UserProfile = {
   games: FeaturedGame[];
 };
 
+type ProfileRecordSummary = {
+  wins: number;
+  losses: number;
+  draws: number;
+  total: number;
+};
+
 type LeaderboardEntry = {
   rank: number;
   handle: string;
@@ -300,8 +307,33 @@ function buildProfileHeader(profile: UserProfile): HTMLElement {
     meta.append(roleBadge);
   }
 
-  header.append(eyebrow, title, meta);
+  const summary = profileRecordSummary(profile.games);
+  const stats = document.createElement('div');
+  stats.className = 'profile-stat-grid';
+  stats.append(
+    buildProfileStat('Games', String(summary.total)),
+    buildProfileStat('Record', `${summary.wins}-${summary.losses}-${summary.draws}`),
+    buildProfileStat('Win rate', profileWinRateLabel(summary)),
+  );
+
+  header.append(eyebrow, title, meta, stats);
   return header;
+}
+
+function buildProfileStat(labelText: string, valueText: string): HTMLElement {
+  const stat = document.createElement('span');
+  stat.className = 'profile-stat';
+
+  const label = document.createElement('span');
+  label.className = 'profile-stat-label';
+  label.textContent = labelText;
+
+  const value = document.createElement('strong');
+  value.className = 'profile-stat-value';
+  value.textContent = valueText;
+
+  stat.append(label, value);
+  return stat;
 }
 
 function buildRoleBadge(role: UserProfile['user']['accountRole']): HTMLElement | null {
@@ -446,22 +478,44 @@ function buildProfileGames(games: FeaturedGame[]): HTMLElement {
     const link = document.createElement('a');
     link.href = `/game/${encodeURIComponent(game.roomId)}`;
     link.className = 'profile-game-row';
+    const tone = profileResultTone(game);
+    link.classList.add(`profile-game-row-${tone}`);
 
-    const main = document.createElement('span');
-    main.className = 'profile-game-main';
-
-    const outcome = document.createElement('strong');
+    const outcome = document.createElement('span');
+    outcome.className = `profile-game-outcome profile-game-outcome-${tone}`;
     outcome.textContent = profileResultLabel(game);
 
+    const body = document.createElement('span');
+    body.className = 'profile-game-body';
+
+    const topLine = document.createElement('span');
+    topLine.className = 'profile-game-topline';
+
     const opponent = document.createElement('span');
+    opponent.className = 'profile-game-opponent';
     opponent.textContent = `vs ${profileOpponentName(game)}`;
-    main.append(outcome, opponent);
 
-    const meta = document.createElement('span');
-    meta.className = 'profile-game-meta';
-    meta.textContent = `${profileSideLabel(game)} · ${sourceLabel(game.mode)} · ${game.plyCount} plies · ${formatGameDate(game.endedAt)}`;
+    const date = document.createElement('span');
+    date.className = 'profile-game-date';
+    date.textContent = formatGameDate(game.endedAt);
 
-    link.append(main, meta);
+    topLine.append(opponent, date);
+
+    const details = document.createElement('span');
+    details.className = 'profile-game-details';
+    for (const label of [
+      profileSideLabel(game),
+      sourceLabel(game.mode),
+      `${game.plyCount} plies`,
+    ]) {
+      const pill = document.createElement('span');
+      pill.className = 'profile-game-detail';
+      pill.textContent = label;
+      details.append(pill);
+    }
+
+    body.append(topLine, details);
+    link.append(outcome, body);
     item.append(link);
     list.append(item);
   }
@@ -483,6 +537,32 @@ function profileResultLabel(game: FeaturedGame): string {
   if (game.result === 'draw') return 'Draw';
   if (game.playerColor === 'black') return game.result === 'black-wins' ? 'Win' : 'Loss';
   return game.result === 'white-wins' ? 'Win' : 'Loss';
+}
+
+function profileResultTone(game: FeaturedGame): 'win' | 'loss' | 'draw' {
+  const result = profileResultLabel(game);
+  if (result === 'Win') return 'win';
+  if (result === 'Loss') return 'loss';
+  return 'draw';
+}
+
+function profileRecordSummary(games: FeaturedGame[]): ProfileRecordSummary {
+  return games.reduce<ProfileRecordSummary>(
+    (summary, game) => {
+      const result = profileResultTone(game);
+      if (result === 'win') summary.wins += 1;
+      else if (result === 'loss') summary.losses += 1;
+      else summary.draws += 1;
+      summary.total += 1;
+      return summary;
+    },
+    { wins: 0, losses: 0, draws: 0, total: 0 },
+  );
+}
+
+function profileWinRateLabel(summary: ProfileRecordSummary): string {
+  if (summary.total === 0) return '—';
+  return `${Math.round((summary.wins / summary.total) * 100)}%`;
 }
 
 function formatGameDate(value: string | undefined): string {
