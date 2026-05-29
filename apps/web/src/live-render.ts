@@ -60,6 +60,7 @@ import {
   isDarkXiangqiLiveRoom,
   reconcileDarkXiangqiInteractionState,
   renderDarkXiangqiRoom,
+  resetDarkXiangqiReplayState,
 } from './live-xiangqi-render.js';
 import { escapeHtml, isColor } from './web-utils.js';
 
@@ -176,6 +177,7 @@ export function initRender(
   sendSocket = callbacks.sendSocket;
   reconnectNow = callbacks.reconnectNow;
   resetReplayState();
+  resetDarkXiangqiReplayState();
   initReplay({
     onStateChange: () => {
       reconcileInteractionState();

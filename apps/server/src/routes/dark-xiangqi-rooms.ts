@@ -3,7 +3,7 @@ import { DARK_XIANGQI_SPEC_ID } from '@mistboard/game';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
 import type { HttpApiContext } from './lib.js';
-import { writeJson } from './lib.js';
+import { parseRoomTimeControl, writeJson } from './lib.js';
 
 export function requestsDarkXiangqi(body: Record<string, unknown>): boolean {
   return body.gameSpecId === DARK_XIANGQI_SPEC_ID || body.variant === DARK_XIANGQI_SPEC_ID;
@@ -31,12 +31,14 @@ export async function handleDarkXiangqiCreate(
     return;
   }
   const mode = parseDarkXiangqiRoomMode(body);
-  if (
-    mode !== 'pvp' ||
-    body.rated === true ||
-    body.timeControl !== undefined ||
-    body.engineId !== undefined
-  ) {
+  const preferredColor = parseDarkXiangqiPreferredColor(body.preferredColor);
+  const timeControl =
+    body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
+  if (body.timeControl !== undefined && !timeControl) {
+    writeJson(response, 400, { error: 'invalid_time_control' });
+    return;
+  }
+  if (mode !== 'pvp' || body.rated === true || body.engineId !== undefined) {
     writeJson(response, 501, { error: 'dark_xiangqi_unsupported_surface' });
     return;
   }
@@ -49,7 +51,7 @@ export async function handleDarkXiangqiCreate(
     return;
   }
 
-  const created = await ctx.createDarkXiangqiRoom();
+  const created = await ctx.createDarkXiangqiRoom(timeControl ?? undefined, preferredColor);
   if (!created.ok) {
     const status =
       created.error === 'dark_xiangqi_disabled'
@@ -66,10 +68,16 @@ export async function handleDarkXiangqiCreate(
     mode: 'pvp',
     gameSpecId: created.room.gameSpecId,
     region: 'global',
+    ...(timeControl ? { timeControl } : {}),
   });
 }
 
 function parseDarkXiangqiRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
   return null;
+}
+
+function parseDarkXiangqiPreferredColor(value: unknown): 'red' | 'black' | 'random' | undefined {
+  if (value === 'red' || value === 'black' || value === 'random') return value;
+  return undefined;
 }

@@ -12,7 +12,10 @@ export type DarkXiangqiSeatClient = {
 
 export type DarkXiangqiSeatRoom<Client extends DarkXiangqiSeatClient = DarkXiangqiSeatClient> = {
   clients: Set<Client>;
-  projection: { seats: Partial<Record<XiangqiColor, string>> };
+  projection: {
+    creatorPreference?: XiangqiColor | 'random';
+    seats: Partial<Record<XiangqiColor, string>>;
+  };
   seatTokens: Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>>;
 };
 
@@ -77,11 +80,7 @@ export function assignDarkXiangqiSeat(
   for (const color of ['red', 'black'] as const) {
     if (room.projection.seats[color] || room.seatTokens[color]) occupiedSeats.add(color);
   }
-  const seat: XiangqiColor | null = !occupiedSeats.has('red')
-    ? 'red'
-    : !occupiedSeats.has('black')
-      ? 'black'
-      : null;
+  const seat = nextAvailableSeat(room.projection.creatorPreference, occupiedSeats);
   if (!seat) return { ok: false, reason: 'private room' };
 
   const seatToken = randomBytes(32).toString('base64url');
@@ -100,6 +99,19 @@ export function assignDarkXiangqiSeat(
   };
   room.seatTokens[seat] = tokenState;
   return { ok: true, seat, seatToken, seatTokenHash, tokenState };
+}
+
+function nextAvailableSeat(
+  creatorPreference: XiangqiColor | 'random' | undefined,
+  occupiedSeats: ReadonlySet<XiangqiColor>,
+): XiangqiColor | null {
+  if (creatorPreference === 'red' || creatorPreference === 'black') {
+    if (!occupiedSeats.has(creatorPreference)) return creatorPreference;
+  }
+  if (creatorPreference === 'random' && occupiedSeats.size === 0) {
+    return randomBytes(1)[0]! < 128 ? 'red' : 'black';
+  }
+  return !occupiedSeats.has('red') ? 'red' : !occupiedSeats.has('black') ? 'black' : null;
 }
 
 export function rollbackDarkXiangqiSeatAssignment(

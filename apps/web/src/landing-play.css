@@ -357,6 +357,11 @@
   color: var(--site-text);
 }
 
+.landing-color-option .landing-color-glyph.xiangqi {
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
 .landing-color-option .landing-color-glyph.white {
   color: #f8faf5;
   -webkit-text-stroke: 1px #65716a;
@@ -365,6 +370,10 @@
 
 .landing-color-option .landing-color-glyph.black {
   color: #1a1a1a;
+}
+
+.landing-color-option .landing-color-glyph.red {
+  color: #b91c1c;
 }
 
 .landing-color-option .landing-color-glyph.random {
@@ -379,6 +388,10 @@
 
 .landing-color-option .landing-color-glyph.random .black {
   color: #1a1a1a;
+}
+
+.landing-color-option .landing-color-glyph.random .red {
+  color: #b91c1c;
 }
 
 .landing-color-option.selected .landing-color-glyph {

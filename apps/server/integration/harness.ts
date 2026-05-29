@@ -85,6 +85,7 @@ export interface ConnectOptions {
   variant?: 'dark-chess' | 'draft960';
   gameSpecId?: 'dark-xiangqi';
   hiddenDraft960?: boolean;
+  clientId?: string;
   seatToken?: string;
   /**
    * Account-session cookie to send on the WS upgrade. Makes the connection
@@ -102,7 +103,8 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
   const variant = opts.variant ?? 'dark-chess';
   const hidden = opts.hiddenDraft960 ? '&hiddenDraft960=true' : '';
   const spec = opts.gameSpecId ? `&gameSpecId=${encodeURIComponent(opts.gameSpecId)}` : '';
-  const target = `${opts.url}/?room=${encodeURIComponent(opts.room)}&variant=${variant}${hidden}${spec}`;
+  const clientParam = opts.clientId ? `&client=${encodeURIComponent(opts.clientId)}` : '';
+  const target = `${opts.url}/?room=${encodeURIComponent(opts.room)}&variant=${variant}${hidden}${spec}${clientParam}`;
 
   const protocols = opts.seatToken ? [`mistboard-seat.${opts.seatToken}`] : undefined;
   // Production WS handshake requires an Origin header matching the host

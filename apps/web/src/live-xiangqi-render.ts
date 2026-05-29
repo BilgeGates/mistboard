@@ -27,9 +27,18 @@ export type DarkXiangqiWireView = {
 };
 
 type DarkXiangqiWireEvent =
-  | { type: 'move-played'; color: XiangqiColor; move: XiangqiMove; at: number }
+  | { type: 'move-played'; color: XiangqiColor; move: XiangqiMove; at: number; ply?: number }
   | { type: string; [key: string]: unknown };
 type DarkXiangqiMoveEvent = Extract<DarkXiangqiWireEvent, { type: 'move-played' }>;
+type DarkXiangqiVisibleMoveRow = {
+  fullMove: number;
+  red?: string;
+  black?: string;
+};
+type DarkXiangqiReplaySnapshot = {
+  ply: number;
+  view: DarkXiangqiWireView;
+};
 
 const FILES = 'abcdefghi';
 const FILE_COUNT = 9;
@@ -45,21 +54,42 @@ const HIT_HALF = 26;
 const FOG_OVERLAP = 0.5;
 
 let selectedSquare: XiangqiSquare | null = null;
+let playAgainStatus: 'idle' | 'creating' | 'failed' = 'idle';
+let replayIndex: number | null = null;
+let viewHistory: DarkXiangqiReplaySnapshot[] = [];
+let lastCapturedView: DarkXiangqiWireView | null = null;
+let lastCapturedPositionKey: string | null = null;
+let latestCapturedPly = 0;
+let renderCallbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean } = {
+  reconnectNow: () => {},
+  sendSocket: () => false,
+};
 
 export function isDarkXiangqiLiveRoom(): boolean {
   return liveState.gameSpecId === 'dark-xiangqi';
+}
+
+export function resetDarkXiangqiReplayState(): void {
+  replayIndex = null;
+  viewHistory = [];
+  lastCapturedView = null;
+  lastCapturedPositionKey = null;
+  latestCapturedPly = 0;
 }
 
 export function renderDarkXiangqiRoom(
   refs: LiveRefs,
   callbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean },
 ): void {
+  renderCallbacks = callbacks;
   resetChessOnlyPanels(refs);
   renderMeta(refs);
   renderRoomActions(refs);
-  renderReplayShell(refs);
 
   const view = liveState.state as unknown as DarkXiangqiWireView | null;
+  captureReplayView(view);
+  const displayedView = currentReplayView(view);
+  renderReplayShell(refs);
   refs.boardStatus.hidden = view !== null;
   renderActionStatus(refs, view, callbacks.reconnectNow);
   renderGameControls(refs, view, callbacks.sendSocket);
@@ -71,7 +101,7 @@ export function renderDarkXiangqiRoom(
     return;
   }
 
-  renderBoard(refs, view, callbacks.sendSocket);
+  renderBoard(refs, displayedView, callbacks.sendSocket);
   renderVisibleMoveList(refs);
 }
 
@@ -84,6 +114,13 @@ export function reconcileDarkXiangqiInteractionState(): void {
   if (selectedSquare && !view.legalMoves.some((move) => move.from === selectedSquare)) {
     selectedSquare = null;
   }
+}
+
+export function renderDarkXiangqiBoardSvg(
+  view: DarkXiangqiWireView,
+  perspective: XiangqiColor = view.perspective,
+): string {
+  return boardSvg(view, perspective, { interactive: false });
 }
 
 function resetChessOnlyPanels(refs: LiveRefs): void {
@@ -117,6 +154,19 @@ function renderRoomActions(refs: LiveRefs): void {
   refs.roomActions.replaceChildren();
   const row = document.createElement('div');
   row.className = 'room-actions-row';
+  const view = liveState.state as unknown as DarkXiangqiWireView | null;
+
+  if (view?.status.type === 'finished' || view?.status.type === 'aborted') {
+    row.append(playAgainButton(refs), roomLink('Home', '/'));
+    if (view.status.type === 'finished') {
+      row.append(
+        roomLink('Game review', `/dark-xiangqi/game/${encodeURIComponent(liveState.room)}`),
+      );
+    }
+    refs.roomActions.append(row);
+    return;
+  }
+
   const copy = document.createElement('button');
   copy.type = 'button';
   copy.textContent = 'Copy invite';
@@ -125,6 +175,54 @@ function renderRoomActions(refs: LiveRefs): void {
   });
   row.append(copy);
   refs.roomActions.append(row);
+}
+
+function roomLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = href;
+  link.textContent = label;
+  return link;
+}
+
+function playAgainButton(refs: LiveRefs): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = playAgainStatus === 'failed' ? 'danger' : 'primary';
+  button.disabled = playAgainStatus === 'creating';
+  button.textContent =
+    playAgainStatus === 'creating'
+      ? 'Creating'
+      : playAgainStatus === 'failed'
+        ? 'Try play again'
+        : 'Play again';
+  button.addEventListener('click', () => {
+    void createPlayAgainRoom(refs);
+  });
+  return button;
+}
+
+async function createPlayAgainRoom(refs: LiveRefs): Promise<void> {
+  playAgainStatus = 'creating';
+  renderRoomActions(refs);
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'pvp',
+        gameSpecId: 'dark-xiangqi',
+        timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      }),
+    });
+    if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
+    const data = (await response.json()) as { url?: string };
+    if (!data.url) throw new Error('room creation response missing url');
+    window.location.assign(data.url);
+  } catch (err) {
+    console.warn(err);
+    playAgainStatus = 'failed';
+    renderRoomActions(refs);
+  }
 }
 
 function renderGameControls(
@@ -176,8 +274,15 @@ function renderGameControls(
 
 function renderReplayShell(refs: LiveRefs): void {
   refs.moveList.classList.add('xiangqi-move-list');
-  refs.replayMeta.textContent = 'Live';
-  for (const button of refs.replayControls) button.disabled = true;
+  refs.replayMeta.textContent = replayMetaLabel();
+  for (const button of refs.replayControls) {
+    const action = button.dataset.replay ?? '';
+    button.disabled = replayControlDisabled(action);
+    button.onclick = () => {
+      handleReplayControl(action);
+      renderDarkXiangqiRoom(refs, renderCallbacks);
+    };
+  }
 }
 
 function renderActionStatus(
@@ -275,7 +380,7 @@ function renderBoard(
   }
 
   const perspective = orientationFor(view);
-  refs.board.innerHTML = boardSvg(view, perspective);
+  refs.board.innerHTML = boardSvg(view, perspective, { interactive: true });
   refs.board.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
     el.addEventListener('click', () => {
       const square = el.dataset.square as XiangqiSquare | undefined;
@@ -286,7 +391,11 @@ function renderBoard(
   });
 }
 
-function boardSvg(view: DarkXiangqiWireView, perspective: XiangqiColor): string {
+function boardSvg(
+  view: DarkXiangqiWireView,
+  perspective: XiangqiColor,
+  options: { interactive: boolean },
+): string {
   const maskId = `xq-live-fog-${view.id.replace(/[^a-zA-Z0-9_-]/g, '')}-${perspective}`;
   return `
     <svg class="xq-live-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
@@ -299,7 +408,7 @@ function boardSvg(view: DarkXiangqiWireView, perspective: XiangqiColor): string 
       <g class="xq-live-selection">${selectionLayer(selectedSquare, perspective)}</g>
       <g class="xq-live-hints">${hintLayer(view, perspective)}</g>
       <g class="xq-live-pieces">${pieceLayer(view, perspective)}</g>
-      <g class="xq-live-clicks">${clickLayer(perspective)}</g>
+      <g class="xq-live-clicks">${options.interactive ? clickLayer(perspective) : ''}</g>
       <rect class="xq-live-border" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="8"/>
     </svg>
   `;
@@ -474,6 +583,7 @@ function handleSquareClick(
 
 function canInteract(view: DarkXiangqiWireView): boolean {
   return (
+    isReplayLive() &&
     liveState.connectionState === 'connected' &&
     view.status.type === 'playing' &&
     isXiangqiColor(liveState.seat) &&
@@ -492,20 +602,162 @@ function renderVisibleMoveList(refs: LiveRefs): void {
   const moves = (liveState.events as unknown as DarkXiangqiWireEvent[]).filter(
     (event): event is DarkXiangqiMoveEvent => isDarkXiangqiMoveEvent(event),
   );
+  const plyCount = visiblePlyCount();
   refs.moveList.replaceChildren();
-  if (moves.length === 0) {
+  if (plyCount === 0) {
     const item = document.createElement('li');
     item.className = 'move-row masked';
     item.textContent = 'No visible moves yet';
     refs.moveList.append(item);
     return;
   }
-  moves.forEach((event, index) => {
+  const activePly = activeReplayPly();
+  for (const row of visibleMoveRows(moves, plyCount)) {
     const item = document.createElement('li');
-    item.className = 'move-row';
-    item.textContent = `${index + 1}. ${capitalize(event.color)} ${event.move.from}-${event.move.to}`;
+    item.className = 'move-row xiangqi-move-row';
+    const number = document.createElement('span');
+    number.className = 'xiangqi-move-row__number';
+    number.textContent = `${row.fullMove}.`;
+    const red = document.createElement('span');
+    red.className = [
+      'xiangqi-move-row__move',
+      row.red ? '' : 'masked',
+      activePly === row.fullMove * 2 - 1 ? 'active' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    red.textContent = row.red ?? '...';
+    const black = document.createElement('span');
+    const blackPly = row.fullMove * 2;
+    black.className = [
+      'xiangqi-move-row__move',
+      row.black ? '' : 'masked',
+      activePly === blackPly ? 'active' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    black.textContent = blackPly <= plyCount ? (row.black ?? '...') : '';
+    item.append(number, red, black);
     refs.moveList.append(item);
+  }
+}
+
+function visibleMoveRows(
+  moves: readonly DarkXiangqiMoveEvent[],
+  plyCount: number,
+): DarkXiangqiVisibleMoveRow[] {
+  const rows = new Map<number, DarkXiangqiVisibleMoveRow>();
+  for (let fullMove = 1; fullMove <= Math.ceil(plyCount / 2); fullMove += 1) {
+    rows.set(fullMove, { fullMove });
+  }
+  moves.forEach((event, index) => {
+    const ply = eventPly(event, index);
+    if (ply > plyCount) return;
+    const fullMove = Math.floor((ply - 1) / 2) + 1;
+    const row = rows.get(fullMove) ?? { fullMove };
+    row[event.color] = `${event.move.from}-${event.move.to}`;
+    rows.set(fullMove, row);
   });
+  return [...rows.values()].sort((a, b) => a.fullMove - b.fullMove);
+}
+
+function eventPly(event: DarkXiangqiMoveEvent, fallbackIndex: number): number {
+  return Number.isInteger(event.ply) && event.ply && event.ply > 0 ? event.ply : fallbackIndex + 1;
+}
+
+function captureReplayView(view: DarkXiangqiWireView | null): void {
+  if (!view) return;
+  if (view === lastCapturedView) return;
+  const positionKey = replayPositionKey(view);
+  const nextPly = replayPlyForView(view, positionKey !== lastCapturedPositionKey);
+  if (positionKey === lastCapturedPositionKey && nextPly <= latestCapturedPly) {
+    lastCapturedView = view;
+    return;
+  }
+  latestCapturedPly = nextPly;
+  viewHistory.push({ ply: latestCapturedPly, view });
+  lastCapturedView = view;
+  lastCapturedPositionKey = positionKey;
+}
+
+function replayPlyForView(view: DarkXiangqiWireView, positionChanged: boolean): number {
+  if (view.status.type === 'playing') {
+    const completedFullMoves = Math.max(0, view.moveNumber - 1);
+    return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
+  }
+  if (positionChanged && view.lastMove) return latestCapturedPly + 1;
+  return latestCapturedPly;
+}
+
+function replayPositionKey(view: DarkXiangqiWireView): string {
+  const board = Object.entries(view.board)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([square, entry]) =>
+      'piece' in entry
+        ? [square, entry.piece.color, entry.piece.role, false]
+        : [square, entry.color, true],
+    );
+  return JSON.stringify({
+    board,
+    lastMove: view.lastMove ?? null,
+    moveNumber: view.moveNumber,
+    perspective: view.perspective,
+    visibleSquares: [...view.visibleSquares].sort(),
+  });
+}
+
+function currentReplayView(liveView: DarkXiangqiWireView | null): DarkXiangqiWireView | null {
+  if (replayIndex === null) return liveView;
+  return viewHistory[replayIndex]?.view ?? liveView;
+}
+
+function isReplayLive(): boolean {
+  return replayIndex === null || replayIndex >= viewHistory.length - 1;
+}
+
+function visiblePlyCount(): number {
+  if (replayIndex !== null) return viewHistory[replayIndex]?.ply ?? 0;
+  return viewHistory.at(-1)?.ply ?? 0;
+}
+
+function activeReplayPly(): number | null {
+  if (replayIndex === null) return null;
+  return viewHistory[replayIndex]?.ply ?? null;
+}
+
+function replayMetaLabel(): string {
+  const total = viewHistory.at(-1)?.ply ?? 0;
+  if (total === 0) return 'Live · ply 0 of 0';
+  if (isReplayLive()) return `Live · ply ${total} of ${total}`;
+  return `Replay · ply ${visiblePlyCount()} of ${total}`;
+}
+
+function replayControlDisabled(action: string): boolean {
+  if (viewHistory.length <= 1) return action !== 'latest';
+  const current = replayIndex ?? viewHistory.length - 1;
+  if (action === 'latest') return isReplayLive();
+  if (action === 'next') return isReplayLive();
+  if (action === 'first') return current <= 0;
+  if (action === 'prev') return current <= 0;
+  return true;
+}
+
+function handleReplayControl(action: string): void {
+  if (action === 'latest') {
+    replayIndex = null;
+    return;
+  }
+  if (viewHistory.length === 0) {
+    replayIndex = null;
+    return;
+  }
+  const current = replayIndex ?? viewHistory.length - 1;
+  if (action === 'first') replayIndex = 0;
+  if (action === 'prev') replayIndex = Math.max(0, current - 1);
+  if (action === 'next') {
+    const next = current + 1;
+    replayIndex = next >= viewHistory.length - 1 ? null : next;
+  }
 }
 
 function isDarkXiangqiMoveEvent(event: DarkXiangqiWireEvent): event is DarkXiangqiMoveEvent {

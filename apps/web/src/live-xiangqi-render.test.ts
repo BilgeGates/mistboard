@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
-import { type DarkXiangqiWireView, renderDarkXiangqiRoom } from './live-xiangqi-render.js';
+import {
+  type DarkXiangqiWireView,
+  renderDarkXiangqiRoom,
+  resetDarkXiangqiReplayState,
+} from './live-xiangqi-render.js';
 
 describe('Dark Xiangqi live renderer', () => {
   beforeEach(() => {
@@ -12,6 +16,7 @@ describe('Dark Xiangqi live renderer', () => {
     liveState.seat = 'red';
     liveState.events = [];
     liveState.state = viewFixture() as never;
+    resetDarkXiangqiReplayState();
   });
 
   afterEach(() => {
@@ -22,6 +27,7 @@ describe('Dark Xiangqi live renderer', () => {
     liveState.seat = 'spectator';
     liveState.events = [];
     liveState.state = null;
+    resetDarkXiangqiReplayState();
   });
 
   it('renders the article-style intersection board instead of a cell grid', () => {
@@ -108,6 +114,85 @@ describe('Dark Xiangqi live renderer', () => {
     expect(refs.actionStatus.textContent).toContain('Room unavailable');
     expect(refs.actionStatus.textContent).toContain('This Dark Xiangqi room is not active');
     expect(refs.board.querySelector('.xq-live-svg')).toBeNull();
+  });
+
+  it('renders visible moves in full-move rows with hidden opponent plies', () => {
+    const refs = refsFixture();
+    liveState.state = {
+      ...viewFixture(),
+      moveNumber: 2,
+      status: { type: 'playing', turn: 'black' },
+    } as never;
+    liveState.events = [
+      { type: 'move-played', at: 2, color: 'red', move: { from: 'b3', to: 'b4' }, ply: 1 },
+      { type: 'move-played', at: 4, color: 'red', move: { from: 'b4', to: 'b5' }, ply: 3 },
+    ] as never;
+
+    renderDarkXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    const rows = [...refs.moveList.querySelectorAll('.xiangqi-move-row')].map((row) =>
+      row.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(rows).toEqual(['1.b3-b4...', '2.b4-b5']);
+  });
+
+  it('renders hidden opponent plies even before the seated player has a visible move', () => {
+    const refs = refsFixture();
+    liveState.seat = 'black';
+    liveState.state = {
+      ...viewFixture(),
+      perspective: 'black',
+      status: { type: 'playing', turn: 'black' },
+    } as never;
+
+    renderDarkXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    expect(refs.moveList.textContent?.replace(/\s+/g, '')).toBe('1....');
+  });
+
+  it('enables replay navigation for Dark Xiangqi live snapshots', () => {
+    const refs = refsFixture();
+    const callbacks = { reconnectNow: () => {}, sendSocket: () => true };
+
+    liveState.state = viewFixture() as never;
+    renderDarkXiangqiRoom(refs, callbacks);
+    liveState.state = {
+      ...viewFixture(),
+      board: {
+        b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+        b8: { color: 'black', shrouded: true },
+      },
+      lastMove: { from: 'b3', to: 'b4' },
+      status: { type: 'playing', turn: 'black' },
+      visibleSquares: ['b4', 'b8'],
+    } as never;
+    renderDarkXiangqiRoom(refs, callbacks);
+
+    expect(refs.replayMeta.textContent).toBe('Live · ply 1 of 1');
+    const first = refs.replayControls[0]!;
+    first.dispatchEvent(clickEvent());
+
+    expect(refs.replayMeta.textContent).toBe('Replay · ply 0 of 1');
+    expect(refs.board.innerHTML).toContain('data-square="b3"');
+  });
+
+  it('shows terminal room actions for Dark Xiangqi games', () => {
+    const refs = refsFixture();
+    liveState.room = 'dxq_done';
+    liveState.state = {
+      ...viewFixture(),
+      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      legalMoves: [],
+    } as never;
+
+    renderDarkXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    expect(refs.roomActions.textContent).toContain('Play again');
+    expect(refs.roomActions.textContent).toContain('Home');
+    expect(refs.roomActions.textContent).toContain('Game review');
+    expect(
+      refs.roomActions.querySelector<HTMLAnchorElement>('a[href="/dark-xiangqi/game/dxq_done"]'),
+    ).not.toBeNull();
   });
 });
 

@@ -1,7 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RoomTimeControl, VariantId } from '@mistboard/game';
 import serveHandler from 'serve-handler';
-import type { DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
+import type {
+  DarkXiangqiCreatorPreference,
+  DarkXiangqiRuntimeRoom,
+} from './dark-xiangqi-runtime.js';
 import { type HttpApiContext, handleApiRequest } from './http-api.js';
 import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
@@ -50,7 +53,10 @@ type ServerHttpHandlerOptions = {
       region?: string;
     },
   ): Promise<Room>;
-  createDarkXiangqiRoom(): Promise<
+  createDarkXiangqiRoom(
+    timeControl?: RoomTimeControl,
+    creatorPreference?: DarkXiangqiCreatorPreference,
+  ): Promise<
     | { ok: true; room: DarkXiangqiRuntimeRoom }
     | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
   >;

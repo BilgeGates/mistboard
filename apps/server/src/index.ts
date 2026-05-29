@@ -1,10 +1,11 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import type { Color, GameEvent, XiangqiColor } from '@mistboard/game';
+import type { Color, GameEvent, RoomTimeControl, XiangqiColor } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
 import {
   createDarkXiangqiRuntimeRoomFromEvents,
+  type DarkXiangqiCreatorPreference,
   type DarkXiangqiSeatTokenState,
   isDarkXiangqiEventLog,
 } from './dark-xiangqi-runtime.js';
@@ -24,6 +25,7 @@ import {
   selectEngineDraftStart,
 } from './room-manager.js';
 import { loadServerRuntimeConfig, serverConfig } from './server-config.js';
+import { clearDarkXiangqiRuntimeTimers } from './server-dark-xiangqi-lifecycle.js';
 import { createDarkXiangqiLiveRoom } from './server-dark-xiangqi-room-factory.js';
 import { createDrainController } from './server-drain.js';
 import { createHttpRequestHandler } from './server-http.js';
@@ -48,10 +50,7 @@ import {
   isAllowedWebSocketRequest,
   type WebSocketConnectionContext,
 } from './server-ws-connection.js';
-import {
-  clearDarkXiangqiRuntimeTimers,
-  type DarkXiangqiLiveRoom,
-} from './server-ws-dark-xiangqi.js';
+import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -366,17 +365,24 @@ function seatVacateGraceMs(): number {
 }
 
 // ── SECTION: Game flow ─────────────────────────────────────────────────────
-async function createDarkXiangqiRoom(): Promise<
+async function createDarkXiangqiRoom(
+  timeControl?: RoomTimeControl,
+  creatorPreference?: DarkXiangqiCreatorPreference,
+): Promise<
   | { ok: true; room: DarkXiangqiLiveRoom }
   | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
 > {
-  return createDarkXiangqiLiveRoom({
-    appendRoomEvent: persistence.appendRoomEvent,
-    chessRooms: rooms,
-    darkXiangqiRooms,
-    isPersistenceEnabled: persistence.isInitialized,
-    recordPersistenceError: recordDarkXiangqiPersistenceError,
-  });
+  return createDarkXiangqiLiveRoom(
+    {
+      appendRoomEvent: persistence.appendRoomEvent,
+      chessRooms: rooms,
+      darkXiangqiRooms,
+      isPersistenceEnabled: persistence.isInitialized,
+      recordPersistenceError: recordDarkXiangqiPersistenceError,
+    },
+    timeControl,
+    creatorPreference,
+  );
 }
 
 async function getOrLoadDarkXiangqiRoom(roomId: string): Promise<DarkXiangqiLiveRoom | null> {

@@ -127,13 +127,19 @@ if (!testDbUrl) {
     ) as
       | {
           events?: Array<{ type: string }>;
-          state?: { status?: { type: string; turn?: string }; lastMove?: { from: string; to: string } };
+          state?: {
+            status?: { type: string; turn?: string };
+            lastMove?: { from: string; to: string };
+          };
         }
       | undefined;
     assert.equal(hydratedBlack.seat, 'black');
     assert.equal(blackHello?.state?.status?.turn, 'black');
     assert.equal(blackHello?.state?.lastMove, undefined);
-    assert.equal(blackHello?.events?.some((event) => event.type === 'move-played'), false);
+    assert.equal(
+      blackHello?.events?.some((event) => event.type === 'move-played'),
+      false,
+    );
     assert.doesNotMatch(JSON.stringify(blackHello), /"lastMove"/);
 
     await hydratedRed.disconnect();
@@ -244,6 +250,136 @@ if (!testDbUrl) {
     await red.disconnect();
     await black.disconnect();
   });
+
+  test('Dark Xiangqi postgame API is family-native and seat-redacted', async () => {
+    const createdResponse = await createDarkXiangqiRoom(serverInstance);
+    assert.equal(createdResponse.status, 201);
+    const created = (await createdResponse.json()) as { roomId: string };
+
+    const red = await connectClient({
+      url: serverInstance.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+    });
+    const black = await connectClient({
+      url: serverInstance.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+    });
+
+    red.send({ type: 'move', from: 'b3', to: 'b4' });
+    await black.waitFor(
+      (msg) =>
+        msg.type === 'event-appended' &&
+        (msg as { state?: { status?: { turn?: string } } }).state?.status?.turn === 'black',
+    );
+
+    black.send({ type: 'move', from: 'b8', to: 'b7' });
+    await red.waitFor(
+      (msg) =>
+        msg.type === 'event-appended' &&
+        (msg as { state?: { status?: { turn?: string } } }).state?.status?.turn === 'red',
+    );
+
+    black.send({ type: 'resign' });
+    await red.waitFor(
+      (msg) =>
+        msg.type === 'snapshot' &&
+        (msg as { state?: { status?: { type?: string; reason?: string } } }).state?.status?.type ===
+          'finished',
+    );
+
+    const genericReplayResponse = await fetch(
+      `http://127.0.0.1:${serverInstance.port}/api/games/${encodeURIComponent(created.roomId)}/events`,
+    );
+    assert.equal(genericReplayResponse.status, 403);
+
+    const publicResponse = await fetchDarkXiangqiPostgame(serverInstance, created.roomId);
+    assert.equal(publicResponse.status, 200);
+    const publicPostgame = (await publicResponse.json()) as DarkXiangqiPostgameResponse;
+    assert.equal(publicPostgame.game.variant, 'dark-xiangqi');
+    assert.equal(publicPostgame.game.visibility, 'private');
+    assert.deepEqual(publicPostgame.access, { seat: 'spectator' });
+    assert.equal(publicPostgame.view.perspective, 'red');
+    assert.deepEqual(publicPostgame.view.board, {});
+    assert.deepEqual(publicPostgame.views, { spectator: publicPostgame.view });
+    assert.equal(
+      publicPostgame.timeline.some((entry) => entry.type === 'move-played'),
+      false,
+    );
+    assert.doesNotMatch(JSON.stringify(publicPostgame), /clientId|seat-assigned|seat-vacated/);
+
+    assert.ok(red.seatToken);
+    const redResponse = await fetchDarkXiangqiPostgame(
+      serverInstance,
+      created.roomId,
+      red.seatToken,
+    );
+    assert.equal(redResponse.status, 200);
+    const redPostgame = (await redResponse.json()) as DarkXiangqiPostgameResponse;
+    assert.deepEqual(redPostgame.access, { seat: 'red' });
+    assert.equal(redPostgame.view.perspective, 'red');
+    assert.deepEqual(redPostgame.view.board.b4, {
+      piece: { color: 'red', role: 'cannon' },
+      shrouded: false,
+    });
+    assert.equal(shroudedEntriesCarryPieceIdentity(redPostgame.view.board), false);
+    assert.equal(redPostgame.views?.red?.perspective, 'red');
+    assert.deepEqual(redPostgame.views?.red?.board.b4, redPostgame.view.board.b4);
+    assert.equal(redPostgame.views?.spectator?.perspective, 'red');
+    assert.deepEqual(redPostgame.views?.spectator?.board, {});
+    assert.equal(redPostgame.views?.black?.perspective, 'black');
+    assert.equal(shroudedEntriesCarryPieceIdentity(redPostgame.views?.black?.board ?? {}), false);
+    assert.deepEqual(
+      redPostgame.timeline
+        .filter((entry) => entry.type === 'move-played')
+        .map((entry) => ({
+          color: entry.color,
+          move: entry.move,
+        })),
+      [{ color: 'red', move: { from: 'b3', to: 'b4' } }],
+    );
+
+    assert.ok(black.seatToken);
+    const blackResponse = await fetchDarkXiangqiPostgame(
+      serverInstance,
+      created.roomId,
+      black.seatToken,
+    );
+    assert.equal(blackResponse.status, 200);
+    const blackPostgame = (await blackResponse.json()) as DarkXiangqiPostgameResponse;
+    assert.deepEqual(blackPostgame.access, { seat: 'black' });
+    assert.equal(blackPostgame.view.perspective, 'black');
+    assert.equal(blackPostgame.views?.red?.perspective, 'red');
+    assert.equal(blackPostgame.views?.black?.perspective, 'black');
+    assert.deepEqual(
+      blackPostgame.timeline
+        .filter((entry) => entry.type === 'move-played')
+        .map((entry) => ({
+          color: entry.color,
+          move: entry.move,
+        })),
+      [{ color: 'black', move: { from: 'b8', to: 'b7' } }],
+    );
+
+    const invalidTokenResponse = await fetchDarkXiangqiPostgame(
+      serverInstance,
+      created.roomId,
+      'not-a-valid-seat-token',
+    );
+    assert.equal(invalidTokenResponse.status, 401);
+
+    process.env[darkXiangqiKey] = 'false';
+    try {
+      const disabledResponse = await fetchDarkXiangqiPostgame(serverInstance, created.roomId);
+      assert.equal(disabledResponse.status, 404);
+    } finally {
+      process.env[darkXiangqiKey] = 'true';
+    }
+
+    await red.disconnect();
+    await black.disconnect();
+  });
 }
 
 async function createDarkXiangqiRoom(server: TestServer): Promise<Response> {
@@ -252,6 +388,50 @@ async function createDarkXiangqiRoom(server: TestServer): Promise<Response> {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ mode: 'pvp', gameSpecId: 'dark-xiangqi' }),
   });
+}
+
+function fetchDarkXiangqiPostgame(
+  server: TestServer,
+  roomId: string,
+  seatToken?: string,
+): Promise<Response> {
+  const url = new URL(
+    `http://127.0.0.1:${server.port}/api/dark-xiangqi/games/${encodeURIComponent(roomId)}`,
+  );
+  if (seatToken) url.searchParams.set('seatToken', seatToken);
+  return fetch(url);
+}
+
+type DarkXiangqiPostgameResponse = {
+  game: {
+    variant: string;
+    visibility: string;
+  };
+  access: { seat: 'red' | 'black' | 'spectator' };
+  timeline: Array<{
+    type: string;
+    color?: string;
+    move?: { from: string; to: string };
+  }>;
+  view: {
+    perspective: 'red' | 'black';
+    board: Record<string, unknown>;
+  };
+  views?: {
+    red?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
+    spectator?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
+    black?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
+  };
+};
+
+function shroudedEntriesCarryPieceIdentity(board: Record<string, unknown>): boolean {
+  return Object.values(board).some(
+    (entry) =>
+      typeof entry === 'object' &&
+      entry !== null &&
+      (entry as { shrouded?: unknown }).shrouded === true &&
+      'piece' in entry,
+  );
 }
 
 async function truncateTestTables(client: pg.Client): Promise<void> {

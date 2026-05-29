@@ -30,6 +30,20 @@ test('Dark Xiangqi seat session assigns new anonymous seats red then black', () 
   assert.equal(room.seatTokens.black, black.tokenState);
 });
 
+test('Dark Xiangqi seat session honors creator color preference for first join', () => {
+  const room = seatRoom({ creatorPreference: 'black' });
+
+  const first = assignDarkXiangqiSeat(room, 'creator-client', undefined, null);
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  assert.equal(first.seat, 'black');
+
+  const second = assignDarkXiangqiSeat(room, 'invitee-client', undefined, null);
+  assert.equal(second.ok, true);
+  if (!second.ok) return;
+  assert.equal(second.seat, 'red');
+});
+
 test('Dark Xiangqi seat session reclaims a token-bound seat', () => {
   const rawToken = 'red-token';
   const previous = seatTokenState({
@@ -153,13 +167,17 @@ type TestClient = DarkXiangqiSeatClient & {
 function seatRoom(
   options: {
     clients?: TestClient[];
+    creatorPreference?: XiangqiColor | 'random';
     projectionSeats?: Partial<Record<XiangqiColor, string>>;
     seatTokens?: Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>>;
   } = {},
 ): DarkXiangqiSeatRoom<TestClient> {
   return {
     clients: new Set(options.clients ?? []),
-    projection: { seats: options.projectionSeats ?? {} },
+    projection: {
+      ...(options.creatorPreference ? { creatorPreference: options.creatorPreference } : {}),
+      seats: options.projectionSeats ?? {},
+    },
     seatTokens: { ...(options.seatTokens ?? {}) },
   };
 }

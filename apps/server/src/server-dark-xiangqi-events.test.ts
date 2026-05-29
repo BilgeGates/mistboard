@@ -156,6 +156,33 @@ test('Dark Xiangqi event writer marks aborted games terminal without summaries',
   assert.equal(persistence.gameEnds.length, 0);
 });
 
+test('Dark Xiangqi event writer records timeout summaries with native result colors', async () => {
+  const room = roomFixture('dxq_timeout');
+  const persistence = persistenceFixture();
+
+  await appendDarkXiangqiEvent(
+    room,
+    {
+      type: 'clock-expired',
+      at: 2,
+      roomId: room.id,
+      color: 'red',
+      clock: {
+        activeColor: null,
+        incrementMs: 0,
+        initialMs: 10_000,
+        remainingMs: { black: 10_000, red: 0 },
+        runningSince: null,
+      },
+    },
+    writerContext({ persistence }),
+  );
+
+  assert.equal(persistence.gameEnds.length, 1);
+  assert.equal(persistence.gameEnds[0]?.summary.result, 'black-wins');
+  assert.equal(persistence.gameEnds[0]?.summary.termination, 'timeout');
+});
+
 test('Dark Xiangqi seat-assigned writer persists event and token before mutation', async () => {
   const room = roomFixture('dxq_seat');
   const tokenState = seatTokenState('red', null);
