@@ -124,4 +124,33 @@ definePersistenceTests('seat tokens', () => {
       },
     });
   });
+
+  test('room seat tokens support Dark Xiangqi red seats', async () => {
+    const issuedAt = new Date('2026-05-25T10:00:00.000Z');
+    await upsertRoomSeatToken('dxq-token-room', {
+      seat: 'red',
+      clientId: 'red-client',
+      tokenHash: 'hash-red',
+      userId: null,
+      userHandle: null,
+      userDisplayName: null,
+      issuedAt,
+      lastSeenAt: issuedAt,
+      revokedAt: null,
+    });
+
+    assert.deepEqual(await loadRoomSeatTokens('dxq-token-room'), {
+      red: {
+        seat: 'red',
+        clientId: 'red-client',
+        tokenHash: 'hash-red',
+        userId: null,
+        userHandle: null,
+        userDisplayName: null,
+        issuedAt,
+        lastSeenAt: issuedAt,
+        revokedAt: null,
+      },
+    });
+  });
 });

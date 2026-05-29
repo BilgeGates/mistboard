@@ -1,12 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import type { Color, GameEvent } from '@mistboard/game';
+import type { Color, GameEvent, XiangqiColor } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
 import {
   createDarkXiangqiRuntimeRoom,
   createDarkXiangqiRuntimeRoomFromEvents,
   DARK_XIANGQI_ROOM_ID_PREFIX,
+  type DarkXiangqiSeatTokenState,
   isDarkXiangqiEventLog,
 } from './dark-xiangqi-runtime.js';
 import { runMigrations } from './migrate.js';
@@ -425,8 +426,32 @@ async function getOrLoadDarkXiangqiRoom(roomId: string): Promise<DarkXiangqiLive
     return null;
   }
   const room = hydrated.room as DarkXiangqiLiveRoom;
+  room.seatTokens = darkXiangqiSeatTokenStatesFromPersistence(
+    await persistence.loadRoomSeatTokens<XiangqiColor>(roomId),
+  );
   darkXiangqiRooms.set(roomId, room);
   return room;
+}
+
+function darkXiangqiSeatTokenStatesFromPersistence(
+  tokens: Partial<Record<XiangqiColor, persistence.RoomSeatTokenRecord<XiangqiColor>>>,
+): Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>> {
+  const states: Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>> = {};
+  for (const token of Object.values(tokens)) {
+    if (!token || token.revokedAt) continue;
+    states[token.seat] = {
+      clientId: token.clientId,
+      seat: token.seat,
+      tokenHash: token.tokenHash,
+      userId: token.userId,
+      userHandle: token.userHandle,
+      userDisplayName: token.userDisplayName,
+      issuedAt: token.issuedAt,
+      lastSeenAt: token.lastSeenAt,
+      revokedAt: token.revokedAt,
+    };
+  }
+  return states;
 }
 
 async function enableRandomEngine(room: Room): Promise<void> {

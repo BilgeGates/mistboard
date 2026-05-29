@@ -52,6 +52,7 @@ if (!testDbUrl) {
     });
     assert.equal(red.seat, 'red');
     assert.equal(black.seat, 'black');
+    assert.ok(red.seatToken);
 
     red.send({ type: 'move', from: 'b3', to: 'b4' });
     await black.waitFor(
@@ -67,10 +68,22 @@ if (!testDbUrl) {
     assert.equal(serverInstance.darkXiangqiRooms.has(created.roomId), false);
     assert.equal(serverInstance.rooms.has(created.roomId), false);
 
+    const uncredentialed = await connectClient({
+      url: serverInstance.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+      awaitHello: false,
+    });
+    await uncredentialed.closed;
+    assert.equal(uncredentialed.isClosed(), true);
+    assert.equal(uncredentialed.closeCode(), 1008);
+    assert.equal(uncredentialed.closeReason(), 'private room');
+
     const hydratedRed = await connectClient({
       url: serverInstance.url,
       room: created.roomId,
       gameSpecId: 'dark-xiangqi',
+      seatToken: red.seatToken,
     });
 
     assert.equal(hydratedRed.seat, 'red');

@@ -12,6 +12,7 @@ import {
   appendDarkXiangqiRuntimeEvent,
   type DarkXiangqiEvent,
   type DarkXiangqiRuntimeRoom,
+  type DarkXiangqiSeatTokenState,
   darkXiangqiSnapshotPayload,
 } from './dark-xiangqi-runtime.js';
 import { logger, wsCounters } from './obs.js';
@@ -44,7 +45,14 @@ export type DarkXiangqiWebSocketContext = {
 };
 
 type DarkXiangqiSeatAssignment =
-  | { ok: true; seat: XiangqiColor; seatToken?: string; seatTokenHash?: string }
+  | {
+      ok: true;
+      seat: XiangqiColor;
+      seatToken?: string;
+      seatTokenHash: string;
+      tokenState: DarkXiangqiSeatTokenState;
+      previousTokenState?: DarkXiangqiSeatTokenState;
+    }
   | { ok: false; reason: 'private room' };
 
 export async function handleDarkXiangqiWebSocketConnection(
@@ -57,9 +65,26 @@ export async function handleDarkXiangqiWebSocketConnection(
   const clientId = parseClientId(url.searchParams.get('client')) ?? randomUUID();
   const accountUser = await currentAccountUser(request);
   const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
-  const assignment = assignDarkXiangqiSeat(room, clientId, seatToken);
+  const assignment = assignDarkXiangqiSeat(room, clientId, seatToken, accountUser);
   if (!assignment.ok) {
     socket.close(1008, assignment.reason);
+    return;
+  }
+  try {
+    await appendDarkXiangqiSeatAssigned(room, {
+      event: {
+        type: 'seat-assigned',
+        at: Date.now(),
+        roomId: room.id,
+        clientId,
+        seat: assignment.seat,
+      },
+      tokenState: assignment.tokenState,
+    });
+  } catch (err) {
+    rollbackDarkXiangqiSeatAssignment(room, assignment);
+    recordDarkXiangqiPersistenceError(room.id, room.events.length, 'seat-assigned', err as Error);
+    socket.close(1011, 'persistence failure');
     return;
   }
 
@@ -77,20 +102,6 @@ export async function handleDarkXiangqiWebSocketConnection(
   };
   room.clients.add(client);
   displaceOlderDarkXiangqiSeatClients(room, client);
-  try {
-    await appendDarkXiangqiEvent(room, {
-      type: 'seat-assigned',
-      at: Date.now(),
-      roomId: room.id,
-      clientId: client.id,
-      seat: client.seat,
-    });
-  } catch (err) {
-    room.clients.delete(client);
-    recordDarkXiangqiPersistenceError(room.id, room.events.length, 'seat-assigned', err as Error);
-    socket.close(1011, 'persistence failure');
-    return;
-  }
 
   sendDarkXiangqiPayload(client, {
     ...darkXiangqiSnapshotPayload(room, snapshotClientFor(client)),
@@ -125,25 +136,55 @@ function assignDarkXiangqiSeat(
   room: DarkXiangqiLiveRoom,
   clientId: string,
   rawToken: string | undefined,
+  accountUser: persistence.UserAccount | null,
 ): DarkXiangqiSeatAssignment {
   const tokenHash = rawToken ? hashSeatToken(rawToken) : undefined;
   if (tokenHash) {
     for (const color of ['red', 'black'] as const) {
       const state = room.seatTokens[color];
       if (state && state.revokedAt === null && state.tokenHash === tokenHash) {
-        state.clientId = clientId;
-        state.lastSeenAt = new Date();
-        return { ok: true, seat: color, seatTokenHash: tokenHash };
+        if (state.userId !== null && state.userId !== accountUser?.id) {
+          return { ok: false, reason: 'private room' };
+        }
+        const tokenState = { ...state, clientId, lastSeenAt: new Date() };
+        room.seatTokens[color] = tokenState;
+        return {
+          ok: true,
+          seat: color,
+          seatTokenHash: tokenHash,
+          tokenState,
+          previousTokenState: state,
+        };
       }
     }
   }
 
-  const activeSeats = new Set(
+  if (accountUser) {
+    for (const color of ['red', 'black'] as const) {
+      const state = room.seatTokens[color];
+      if (state && state.revokedAt === null && state.userId === accountUser.id) {
+        const tokenState = { ...state, clientId, lastSeenAt: new Date() };
+        room.seatTokens[color] = tokenState;
+        return {
+          ok: true,
+          seat: color,
+          seatTokenHash: state.tokenHash,
+          tokenState,
+          previousTokenState: state,
+        };
+      }
+    }
+  }
+
+  const occupiedSeats = new Set<XiangqiColor>(
     [...room.clients].filter((client) => !client.displaced).map((client) => client.seat),
   );
-  const seat: XiangqiColor | null = !activeSeats.has('red')
+  for (const color of ['red', 'black'] as const) {
+    if (room.projection.seats[color] || room.seatTokens[color]) occupiedSeats.add(color);
+  }
+  const seat: XiangqiColor | null = !occupiedSeats.has('red')
     ? 'red'
-    : !activeSeats.has('black')
+    : !occupiedSeats.has('black')
       ? 'black'
       : null;
   if (!seat) return { ok: false, reason: 'private room' };
@@ -151,15 +192,38 @@ function assignDarkXiangqiSeat(
   const seatToken = randomBytes(32).toString('base64url');
   const seatTokenHash = hashSeatToken(seatToken);
   const now = new Date();
-  room.seatTokens[seat] = {
+  const tokenState: DarkXiangqiSeatTokenState = {
     clientId,
     seat,
     tokenHash: seatTokenHash,
+    userId: accountUser?.id ?? null,
+    userHandle: accountUser?.handle ?? null,
+    userDisplayName: accountUser?.displayName ?? null,
     issuedAt: now,
     lastSeenAt: now,
     revokedAt: null,
   };
-  return { ok: true, seat, seatToken, seatTokenHash };
+  room.seatTokens[seat] = tokenState;
+  return { ok: true, seat, seatToken, seatTokenHash, tokenState };
+}
+
+function rollbackDarkXiangqiSeatAssignment(
+  room: DarkXiangqiLiveRoom,
+  assignment: Extract<DarkXiangqiSeatAssignment, { ok: true }>,
+): void {
+  const current = room.seatTokens[assignment.seat];
+  if (
+    !current ||
+    current.clientId !== assignment.tokenState.clientId ||
+    current.tokenHash !== assignment.tokenState.tokenHash
+  ) {
+    return;
+  }
+  if (assignment.previousTokenState) {
+    room.seatTokens[assignment.seat] = assignment.previousTokenState;
+    return;
+  }
+  delete room.seatTokens[assignment.seat];
 }
 
 function displaceOlderDarkXiangqiSeatClients(
@@ -269,6 +333,49 @@ async function appendDarkXiangqiEvent(
     () => undefined,
   );
   return write;
+}
+
+async function appendDarkXiangqiSeatAssigned(
+  room: DarkXiangqiLiveRoom,
+  args: {
+    event: Extract<DarkXiangqiEvent, { type: 'seat-assigned' }>;
+    tokenState: DarkXiangqiSeatTokenState;
+  },
+): Promise<number> {
+  const write = room.pendingWrites.then(async () => {
+    const seq = room.events.length;
+    if (persistence.isInitialized()) {
+      await persistence.appendRoomEvent(room.id, seq, args.event);
+      await persistence.upsertRoomSeatToken(
+        room.id,
+        persistenceRecordForDarkXiangqiSeatToken(args.tokenState),
+      );
+    }
+    const appendedSeq = appendDarkXiangqiRuntimeEvent(room, args.event);
+    room.seatTokens[args.event.seat] = args.tokenState;
+    return appendedSeq;
+  });
+  room.pendingWrites = write.then(
+    () => undefined,
+    () => undefined,
+  );
+  return write;
+}
+
+function persistenceRecordForDarkXiangqiSeatToken(
+  token: DarkXiangqiSeatTokenState,
+): persistence.RoomSeatTokenRecord<XiangqiColor> {
+  return {
+    seat: token.seat,
+    clientId: token.clientId,
+    tokenHash: token.tokenHash,
+    userId: token.userId,
+    userHandle: token.userHandle,
+    userDisplayName: token.userDisplayName,
+    issuedAt: token.issuedAt,
+    lastSeenAt: token.lastSeenAt,
+    revokedAt: token.revokedAt,
+  };
 }
 
 function broadcastDarkXiangqiSnapshot(room: DarkXiangqiLiveRoom): void {

@@ -86,7 +86,7 @@ export {
   listWatchUnlockedGames,
   recordGameEnd,
 } from './persistence-games.js';
-export type { RoomSeatTokenRecord } from './persistence-seat-tokens.js';
+export type { RoomSeatTokenRecord, RoomSeatTokenSeat } from './persistence-seat-tokens.js';
 export {
   loadRoomSeatTokens,
   replaceRoomSeatTokens,

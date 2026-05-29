@@ -62,6 +62,9 @@ export type DarkXiangqiSeatTokenState = {
   clientId: string;
   seat: XiangqiColor;
   tokenHash: string;
+  userId: string | null;
+  userHandle: string | null;
+  userDisplayName: string | null;
   issuedAt: Date;
   lastSeenAt: Date;
   revokedAt: Date | null;

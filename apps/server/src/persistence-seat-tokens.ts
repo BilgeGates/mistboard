@@ -1,9 +1,11 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type { Color } from '@mistboard/game';
+import type { Color, XiangqiColor } from '@mistboard/game';
 import { getPool } from './persistence-db.js';
 
-export type RoomSeatTokenRecord = {
-  seat: Color;
+export type RoomSeatTokenSeat = Color | XiangqiColor;
+
+export type RoomSeatTokenRecord<TSeat extends RoomSeatTokenSeat = Color> = {
+  seat: TSeat;
   clientId: string;
   tokenHash: string;
   userId: string | null;
@@ -14,11 +16,11 @@ export type RoomSeatTokenRecord = {
   revokedAt: Date | null;
 };
 
-export async function loadRoomSeatTokens(
+export async function loadRoomSeatTokens<TSeat extends RoomSeatTokenSeat = Color>(
   roomId: string,
-): Promise<Partial<Record<Color, RoomSeatTokenRecord>>> {
+): Promise<Partial<Record<TSeat, RoomSeatTokenRecord<TSeat>>>> {
   const { rows } = await getPool().query<{
-    seat: Color;
+    seat: TSeat;
     client_id: string;
     token_hash: string;
     user_id: string | null;
@@ -37,7 +39,7 @@ export async function loadRoomSeatTokens(
        AND room_seat_tokens.revoked_at IS NULL`,
     [roomId],
   );
-  const tokens: Partial<Record<Color, RoomSeatTokenRecord>> = {};
+  const tokens: Partial<Record<TSeat, RoomSeatTokenRecord<TSeat>>> = {};
   for (const row of rows) {
     tokens[row.seat] = {
       seat: row.seat,
@@ -56,7 +58,7 @@ export async function loadRoomSeatTokens(
 
 export async function upsertRoomSeatToken(
   roomId: string,
-  token: Omit<RoomSeatTokenRecord, 'issuedAt' | 'lastSeenAt' | 'revokedAt'> & {
+  token: Omit<RoomSeatTokenRecord<RoomSeatTokenSeat>, 'issuedAt' | 'lastSeenAt' | 'revokedAt'> & {
     issuedAt: Date;
     lastSeenAt: Date;
     revokedAt?: Date | null;
@@ -88,7 +90,7 @@ export async function upsertRoomSeatToken(
 
 export async function touchRoomSeatToken(
   roomId: string,
-  seat: Color,
+  seat: RoomSeatTokenSeat,
   tokenHash: string,
   at: Date,
 ): Promise<void> {
@@ -105,7 +107,7 @@ export async function touchRoomSeatToken(
 
 export async function replaceRoomSeatTokens(
   roomId: string,
-  tokens: Partial<Record<Color, RoomSeatTokenRecord>>,
+  tokens: Partial<Record<RoomSeatTokenSeat, RoomSeatTokenRecord<RoomSeatTokenSeat>>>,
 ): Promise<void> {
   const client = await getPool().connect();
   try {
@@ -141,10 +143,10 @@ export async function replaceRoomSeatTokens(
 export async function verifyRoomSeatToken(
   roomId: string,
   rawSeatToken: string,
-): Promise<{ seat: Color } | null> {
+): Promise<{ seat: RoomSeatTokenSeat } | null> {
   if (!rawSeatToken) return null;
   const supplied = createHash('sha256').update(rawSeatToken).digest();
-  const { rows } = await getPool().query<{ seat: Color; token_hash: string }>(
+  const { rows } = await getPool().query<{ seat: RoomSeatTokenSeat; token_hash: string }>(
     `SELECT seat, token_hash
      FROM room_seat_tokens
      WHERE room_id = $1 AND revoked_at IS NULL`,
