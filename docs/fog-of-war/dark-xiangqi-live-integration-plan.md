@@ -69,6 +69,9 @@ Implemented pieces:
 - `apps/server/src/server-dark-xiangqi-room-factory.ts` owns hidden Dark
   Xiangqi live-room creation, including cross-runtime id collision checks and
   persistence failure handling.
+- `apps/server/src/routes/dark-xiangqi-rooms.ts` owns the hidden
+  `POST /api/rooms` Dark Xiangqi branch, including request claiming,
+  supported-surface checks, and create-result HTTP mapping.
 
 The existing live-room stack is chess-shaped:
 

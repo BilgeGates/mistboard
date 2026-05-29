@@ -63,6 +63,7 @@ Edit task → find file → open only that file.
 | `routes/account.ts` | `/api/account/profile` (PATCH) |
 | `routes/users.ts` | `/api/users/:handle/profile` |
 | `routes/rooms.ts` | POST `/api/rooms`, `/api/rooms/:id/abandon`, plus `parseRoomMode` / `parsePlayablePveEngineId` |
+| `routes/dark-xiangqi-rooms.ts` | Hidden Dark Xiangqi direct room creation branch for `POST /api/rooms`: request claiming, flag behavior, supported-surface gate, and room factory result mapping |
 | `routes/lobby.ts` | `/api/lobby`, `/api/lobby/:ticketId`, plus `joinLobby` / `cancelLobbyTicket` / `pruneLobbyTickets` / `lobbyTicketResponse` / `lobbyOpenRequests` |
 | `routes/games.ts` | All `/api/games/*` + `/api/eve-games/recent` (8 routes) + game-data helpers (`gameSummaryForApi`, `gameEventsForApi`, `gameReviewForApi`, `gameArtifactsForApi`, engine-color helpers) |
 | `routes/leaderboard.ts` | `/api/leaderboard` |
