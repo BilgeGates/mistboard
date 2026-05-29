@@ -1,5 +1,6 @@
 import { TIME_CONTROLS, type TimeControlId } from '@mistboard/game';
 import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
+import { darkXiangqiEnabled } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
@@ -87,6 +88,9 @@ export function buildLandingPlayPanel(
   const lobbyButton = landingPlayAction('Find opponent', 'lobby');
   const challengeButton = landingPlayAction('Challenge a friend', 'friend');
   const engineButton = landingPlayAction('Play the engine', 'computer');
+  const darkXiangqiButton = darkXiangqiEnabled()
+    ? landingPlayAction('Dark Xiangqi', 'friend')
+    : null;
 
   lobbyButton.addEventListener('click', () => {
     openLandingSetupDialog({
@@ -111,8 +115,12 @@ export function buildLandingPlayPanel(
       title: 'Play the engine',
     });
   });
+  darkXiangqiButton?.addEventListener('click', () => {
+    void createDarkXiangqiRoomFromPlay(darkXiangqiButton);
+  });
 
   panel.append(lobbyButton, challengeButton, engineButton);
+  if (darkXiangqiButton) panel.append(darkXiangqiButton);
 
   const anonNote = document.createElement('p');
   anonNote.className = 'landing-play-anon-note';
@@ -867,6 +875,39 @@ async function createRoomFromPlay(
     if (status?.isConnected) {
       status.textContent = roomCreationStatusText(err, mode);
     }
+    setButtonLabel(button, 'Try again');
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    window.setTimeout(() => {
+      if (button.disabled) return;
+      setButtonLabel(button, originalText);
+    }, 1800);
+  }
+}
+
+async function createDarkXiangqiRoomFromPlay(button: HTMLButtonElement): Promise<void> {
+  const originalText = button.textContent ?? '';
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  setButtonLabel(button, 'Creating');
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'pvp',
+        gameSpecId: 'dark-xiangqi',
+        timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      }),
+    });
+    if (!response.ok) {
+      throw roomCreationError(response.status, await readRoomCreationFailure(response));
+    }
+    const data = (await response.json()) as { url?: string };
+    if (!data.url) throw new Error('room creation did not return a URL');
+    window.location.href = data.url;
+  } catch (err) {
+    console.warn(err);
     setButtonLabel(button, 'Try again');
     button.disabled = false;
     button.removeAttribute('aria-busy');
