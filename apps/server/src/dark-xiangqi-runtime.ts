@@ -83,6 +83,7 @@ export type DarkXiangqiRuntimeRoom = {
   events: DarkXiangqiEvent[];
   projection: DarkXiangqiProjection;
   gameSpecId: typeof DARK_XIANGQI_SPEC_ID;
+  gameEndRecorded: boolean;
   pendingWrites: Promise<void>;
   seatTokens: Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>>;
 };
@@ -149,6 +150,7 @@ export function createDarkXiangqiRuntimeRoomFromEvents(
       events: [...events],
       projection,
       gameSpecId: DARK_XIANGQI_SPEC_ID,
+      gameEndRecorded: projection.state.status.type === 'finished',
       pendingWrites: Promise.resolve(),
       seatTokens: {},
     },

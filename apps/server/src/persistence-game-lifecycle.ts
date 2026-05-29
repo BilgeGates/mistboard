@@ -10,6 +10,7 @@ export type PersistedRoomEvent = {
 export type GameMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 export type GameTermination =
   | 'king-captured'
+  | 'general-captured'
   | 'timeout'
   | 'checkmate'
   | 'draw'
@@ -20,6 +21,9 @@ export type GameTermination =
   | 'abandoned'
   | 'abandonment'
   | 'no-legal-moves'
+  | 'stalemate'
+  | 'repetition'
+  | 'progress-clock'
   | 'truncated';
 export type GameReviewStatus = 'unreviewed' | 'flagged' | 'reviewed' | 'training' | 'rejected';
 export type GameVisibility = 'private' | 'link' | 'unlisted' | 'public';

@@ -67,6 +67,7 @@ export {
 export type {
   CompletedGameFilters,
   GameParticipant,
+  GameParticipantColor,
   GameParticipantSubjectType,
   GameRecord,
   GameResult,

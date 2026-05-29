@@ -35,7 +35,12 @@ export function eventReplayResponse(events: GameEvent[] | null): EventReplayResp
 }
 
 export function canExposeFullEventReplay(events: GameEvent[]): boolean {
-  return replayGameEvents(events).state.status.type === 'finished';
+  try {
+    return replayGameEvents(events).state.status.type === 'finished';
+  } catch {
+    // Unknown or non-chess room-family event logs are not public replay data.
+    return false;
+  }
 }
 
 export function modeForProjection(projection: GameProjection): GameAccessMode {

@@ -1,4 +1,4 @@
-import type { Color } from '@mistboard/game';
+import type { Color, XiangqiColor } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
 import { getPool } from './persistence-db.js';
 import type {
@@ -13,7 +13,8 @@ import { applyRatedGameResult, type RatedResult } from './rating-store.js';
 const MIN_TIMEOUT_SOURCE_PLY_COUNT = 10;
 const MIN_TV_PVP_PLY_COUNT = 30;
 
-export type GameResult = 'white-wins' | 'black-wins' | 'draw';
+export type GameResult = 'white-wins' | 'black-wins' | 'red-wins' | 'draw';
+export type GameParticipantColor = Color | XiangqiColor;
 export type GameParticipantSubjectType =
   | 'guest'
   | 'user'
@@ -22,7 +23,7 @@ export type GameParticipantSubjectType =
   | 'imported';
 
 export type GameParticipant = {
-  color: Color;
+  color: GameParticipantColor;
   displayName: string;
   subjectType: GameParticipantSubjectType;
   subjectId: string | null;
@@ -75,7 +76,7 @@ export type GameRecord = {
 };
 
 export type ProfileGameRecord = GameRecord & {
-  playerColor: Color;
+  playerColor: GameParticipantColor;
 };
 
 export type RecentEveGameRecord = GameRecord & {
@@ -500,7 +501,7 @@ export async function attachGameParticipants<T extends GameRecord>(records: T[])
 async function loadGameParticipants(roomIds: string[]): Promise<Map<string, GameParticipant[]>> {
   const { rows } = await getPool().query<{
     game_id: string;
-    color: Color;
+    color: GameParticipantColor;
     subject_type: GameParticipantSubjectType;
     subject_id: string | null;
     display_name: string;
@@ -512,7 +513,7 @@ async function loadGameParticipants(roomIds: string[]): Promise<Map<string, Game
             elo_before, elo_after
      FROM game_participants
      WHERE game_id = ANY($1)
-     ORDER BY game_id, CASE color WHEN 'white' THEN 0 ELSE 1 END`,
+     ORDER BY game_id, CASE color WHEN 'white' THEN 0 WHEN 'red' THEN 0 ELSE 1 END`,
     [roomIds],
   );
   const byGame = new Map<string, GameParticipant[]>();

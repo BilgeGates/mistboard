@@ -370,7 +370,11 @@ async function canViewEngineArtifactsForRequest(request: IncomingMessage): Promi
 
 function engineParticipantColors(game: persistence.RecentEveGameRecord): Color[] {
   return game.participants
-    .filter((participant) => participant.subjectType === 'engine-version')
+    .filter(
+      (participant): participant is persistence.GameParticipant & { color: Color } =>
+        participant.subjectType === 'engine-version' &&
+        (participant.color === 'white' || participant.color === 'black'),
+    )
     .map((participant) => participant.color);
 }
 

@@ -1,8 +1,8 @@
-import { type Color, TIME_CONTROLS } from '@mistboard/game';
+import { TIME_CONTROLS } from '@mistboard/game';
 import { PROVISIONAL_RD } from './glicko.js';
 import { getPool } from './persistence-db.js';
 import type { GameMode, GameTermination, GameVisibility } from './persistence-game-lifecycle.js';
-import type { GameResult, ProfileGameRecord } from './persistence-games.js';
+import type { GameParticipantColor, GameResult, ProfileGameRecord } from './persistence-games.js';
 import { attachGameParticipants } from './persistence-games.js';
 import type { RatingTimeClass, RatingVariant } from './rating-buckets.js';
 
@@ -347,7 +347,7 @@ export async function getUserProfileByHandle(
        AND game_participants.visibility <> 'private'`;
   const { rows: gameRows } = await getPool().query<{
     room_id: string;
-    player_color: Color;
+    player_color: GameParticipantColor;
     variant: string;
     mode: GameMode;
     result: string;

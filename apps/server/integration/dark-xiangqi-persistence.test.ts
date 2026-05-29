@@ -115,6 +115,111 @@ if (!testDbUrl) {
 
     await hydratedRed.disconnect();
   });
+
+  test('Dark Xiangqi completion records private family-native game summary', async () => {
+    const createdResponse = await createDarkXiangqiRoom(serverInstance);
+    assert.equal(createdResponse.status, 201);
+    const created = (await createdResponse.json()) as { roomId: string };
+
+    const red = await connectClient({
+      url: serverInstance.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+    });
+    const black = await connectClient({
+      url: serverInstance.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+    });
+
+    red.send({ type: 'move', from: 'b3', to: 'b4' });
+    await black.waitFor(
+      (msg) =>
+        msg.type === 'event-appended' &&
+        (msg as { state?: { status?: { turn?: string } } }).state?.status?.turn === 'black',
+    );
+
+    black.send({ type: 'move', from: 'b8', to: 'b7' });
+    await red.waitFor(
+      (msg) =>
+        msg.type === 'event-appended' &&
+        (msg as { state?: { status?: { turn?: string } } }).state?.status?.turn === 'red',
+    );
+
+    black.send({ type: 'resign' });
+    await red.waitFor(
+      (msg) =>
+        msg.type === 'snapshot' &&
+        (msg as { state?: { status?: { type?: string; reason?: string } } }).state?.status?.type ===
+          'finished' &&
+        (msg as { state?: { status?: { reason?: string } } }).state?.status?.reason ===
+          'resignation',
+    );
+
+    const { rows: games } = await db.query<{
+      variant: string;
+      result: string;
+      termination: string;
+      ply_count: number;
+      mode: string;
+      status: string;
+      visibility: string;
+      rated: boolean;
+      white_client: string | null;
+      black_client: string | null;
+    }>(
+      `SELECT variant, result, termination, ply_count, mode, status, visibility,
+              COALESCE(rated, true) AS rated, white_client, black_client
+       FROM games
+       WHERE room_id = $1`,
+      [created.roomId],
+    );
+    assert.deepEqual(games[0], {
+      variant: 'dark-xiangqi',
+      result: 'red-wins',
+      termination: 'resignation',
+      ply_count: 2,
+      mode: 'pvp',
+      status: 'completed',
+      visibility: 'private',
+      rated: false,
+      white_client: null,
+      black_client: null,
+    });
+
+    const { rows: participants } = await db.query<{
+      color: string;
+      subject_type: string;
+      subject_id: string | null;
+      display_name: string;
+      visibility: string;
+    }>(
+      `SELECT color, subject_type, subject_id, display_name, visibility
+       FROM game_participants
+       WHERE game_id = $1
+       ORDER BY color`,
+      [created.roomId],
+    );
+    assert.deepEqual(participants, [
+      {
+        color: 'black',
+        subject_type: 'guest',
+        subject_id: null,
+        display_name: 'Black',
+        visibility: 'private',
+      },
+      {
+        color: 'red',
+        subject_type: 'guest',
+        subject_id: null,
+        display_name: 'Red',
+        visibility: 'private',
+      },
+    ]);
+
+    await red.disconnect();
+    await black.disconnect();
+  });
 }
 
 async function createDarkXiangqiRoom(server: TestServer): Promise<Response> {
