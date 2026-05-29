@@ -742,6 +742,7 @@ interface SpikeState {
   fogStyle: FogStyle;
   boardStyle: BoardStyle;
   cannonMarker: CannonTargetMarker;
+  serverRoomStatus: 'idle' | 'creating' | 'failed';
 }
 
 function freshState(): SpikeState {
@@ -755,6 +756,7 @@ function freshState(): SpikeState {
     fogStyle: 'mask',
     boardStyle: 'intersection',
     cannonMarker: 'corners',
+    serverRoomStatus: 'idle',
   };
 }
 
@@ -857,8 +859,23 @@ function controlsHtml(s: SpikeState): string {
     `<button data-mode="${mode}" class="xq-btn${s.mode === mode ? ' on' : ''}">${label}</button>`;
   const markerBtn = (marker: CannonTargetMarker, label: string) =>
     `<button data-cannon-marker="${marker}" class="xq-btn${s.cannonMarker === marker ? ' on' : ''}">${label}</button>`;
+  const serverRoomLabel =
+    s.serverRoomStatus === 'creating'
+      ? 'Creating'
+      : s.serverRoomStatus === 'failed'
+        ? 'Try again'
+        : 'Create server room';
+  const serverRoomStatus =
+    s.serverRoomStatus === 'failed'
+      ? '<span class="xq-inline-status">Room creation failed</span>'
+      : '';
   return `
     <div class="xq-controls">
+      <div class="xq-control-row">
+        <span class="xq-control-label">Server room</span>
+        <button data-action="create-server-room" class="xq-btn"${s.serverRoomStatus === 'creating' ? ' disabled' : ''}>${serverRoomLabel}</button>
+        ${serverRoomStatus}
+      </div>
       <div class="xq-control-row">
         <span class="xq-control-label">POV</span>
         ${povBtn('red', 'Red')}
@@ -984,6 +1001,11 @@ function setCursor(s: SpikeState, cursor: number): SpikeState {
 }
 
 function attachHandlers(container: HTMLElement): void {
+  container.querySelectorAll<HTMLElement>('[data-action="create-server-room"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      void createServerRoom();
+    });
+  });
   container.querySelectorAll<HTMLElement>('[data-pov]').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (!active) return;
@@ -1091,6 +1113,28 @@ function attachHandlers(container: HTMLElement): void {
   });
 }
 
+async function createServerRoom(): Promise<void> {
+  if (!active || active.state.serverRoomStatus === 'creating') return;
+  active.state = { ...active.state, serverRoomStatus: 'creating' };
+  rerender();
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'pvp', gameSpecId: 'dark-xiangqi' }),
+    });
+    if (!response.ok) throw new Error(`Dark Xiangqi room creation failed: ${response.status}`);
+    const data = (await response.json()) as { url?: string };
+    if (!data.url) throw new Error('Dark Xiangqi room creation response missing url');
+    window.location.assign(data.url);
+  } catch (err) {
+    console.warn(err);
+    if (!active) return;
+    active.state = { ...active.state, serverRoomStatus: 'failed' };
+    rerender();
+  }
+}
+
 const STYLE = `
   .xq-spike-root {
     max-width: 800px;
@@ -1117,6 +1161,7 @@ const STYLE = `
   .xq-btn:hover { background: #efefef; }
   .xq-btn.on { background: #1f2521; color: #f7e8c5; border-color: #1f2521; }
   .xq-btn[disabled] { opacity: 0.4; cursor: default; }
+  .xq-inline-status { font-size: 0.85rem; color: #9f1239; }
   .xq-slider { flex: 1; min-width: 160px; accent-color: #1f2521; }
   .xq-ply-readout {
     font-size: 0.85rem;

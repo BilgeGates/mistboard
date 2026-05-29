@@ -1,6 +1,6 @@
 # Dark Xiangqi Live Integration Plan
 
-_Last updated: 2026-05-26_
+_Last updated: 2026-05-29_
 
 Status: architecture plan for a hidden, flag-gated integration. Dark Xiangqi is
 not a public Mistboard game mode yet.
@@ -45,11 +45,22 @@ Implemented pieces:
 - `packages/game/src/variants-xiangqi.ts` owns the pure Xiangqi rules and
   visibility kernel.
 - `apps/web/src/xiangqi-spike.ts` is a hidden local sandbox with local bot
-  self-play.
+  self-play and a flagged server-room creation path for manual live testing.
 - `apps/server/src/game-spec-request-gate.ts` prevents `dark-xiangqi` requests
   from silently normalizing to Dark chess.
 - `apps/server/src/dark-xiangqi-runtime.ts` starts a separate hidden server
   runtime core for replay-derived Xiangqi state and redacted Xiangqi snapshots.
+- `POST /api/rooms` can create hidden Dark Xiangqi PvP rooms when
+  `MISTBOARD_DARK_XIANGQI_ENABLED=true`.
+- The Dark Xiangqi WebSocket path supports red/black seat assignment, seat-token
+  reclaim, duplicate-seat displacement, move validation, abort, resignation,
+  abandonment by forfeit timer, and per-recipient snapshots.
+- Dark Xiangqi room events and red/black seat tokens persist when persistence is
+  enabled, and rooms can hydrate after restart from the event log.
+- Finished Dark Xiangqi games record private game summaries. They are not public
+  replay/watch records.
+- The flagged live renderer in `apps/web/src/live-xiangqi-render.ts` renders the
+  Xiangqi wire view and intentionally disables chess-only panels.
 
 The existing live-room stack is chess-shaped:
 
@@ -104,8 +115,8 @@ First live slice:
 - `POST /api/rooms` may create a Dark Xiangqi room only when
   `body.gameSpecId === 'dark-xiangqi'`, `mode === 'pvp'`, and the server flag is
   enabled.
-- Lobby, rated play, PvE, rematch, persistence, and public replay remain
-  rejected for Dark Xiangqi.
+- Lobby, rated play, PvE, rematch, clocks/time controls, public replay, and
+  public watch/recent-game surfaces remain rejected for Dark Xiangqi.
 - WebSocket-only room creation should not create Dark Xiangqi rooms in the first
   slice. A Dark Xiangqi room should be created by the HTTP path first, then
   joined by room id.
@@ -189,7 +200,6 @@ The first hidden live integration should reject:
 - engine requests,
 - clocks and time controls,
 - rematch,
-- persistence/hydration,
 - public replay,
 - public leaderboard and recent-games surfaces.
 
@@ -286,8 +296,10 @@ Exit criteria:
 
 ### Slice 5 - Persistence And Public Replay
 
-Persist Xiangqi events only after the event schema and postgame reveal policy
-are decided.
+Persistence has started, but public replay remains intentionally out of scope.
+The current code persists the hidden room event log and seat tokens, hydrates
+rooms from that log, and records private terminal summaries. It does not expose
+finished Dark Xiangqi games through the public replay/watch surfaces.
 
 Open decision:
 
@@ -296,7 +308,6 @@ Open decision:
 
 Exit criteria:
 
-- persistence migration stores runtime kind or game spec safely,
 - replay reconstructs from events,
 - live games are not publicly observable before terminal state,
 - postgame API behavior is tested for both seated and public consumers,
@@ -343,6 +354,8 @@ Targeted assertions to keep:
 - Dark Xiangqi cannon gap squares are absent.
 - Dark Xiangqi shrouded entries do not serialize piece roles.
 - Dark Xiangqi opponent move coordinates are absent.
+- Dark Xiangqi opponent move coordinates are absent from both filtered
+  `move-played` events and `state.lastMove`.
 - All runtime branches report `gameSpecId` correctly.
 
 ## Manual Local Checks
@@ -350,6 +363,7 @@ Targeted assertions to keep:
 Before any public exposure:
 
 - flag off: direct Dark Xiangqi HTTP create returns hidden/not-found behavior,
+- flag on: `/xiangqi-spike` can create and redirect to a server-owned room,
 - flag on: direct Dark Xiangqi HTTP create returns a room only for the supported
   surface,
 - two browser windows can join red and black,
@@ -357,6 +371,8 @@ Before any public exposure:
 - refresh/reconnect preserves the same seat with a token,
 - copied URL without token cannot steal a seat,
 - red and black perspectives do not show the same hidden information,
+- an opponent move updates the board without sending a `move-played` event or
+  `state.lastMove` to the non-moving player,
 - a known cannon screen/target position keeps gap squares fogged.
 
 ## Keep Out Of Scope

@@ -90,19 +90,26 @@ test('Dark Xiangqi room create + websocket loop is flag-gated and redacted', asy
         color: string;
         move: { from: string; to: string };
       };
-      state: { board: Record<string, unknown> };
+      state: { board: Record<string, unknown>; lastMove?: { from: string; to: string } };
     }>((msg) => msg.type === 'event-appended' && msg.gameSpecId === 'dark-xiangqi');
     assert.equal(redMoveFrame.event?.type, 'move-played');
     assert.equal(redMoveFrame.event.roomId, created.roomId);
     assert.equal(redMoveFrame.event.color, 'red');
     assert.deepEqual(redMoveFrame.event.move, { from: 'b3', to: 'b4' });
+    assert.deepEqual(redMoveFrame.state.lastMove, { from: 'b3', to: 'b4' });
 
     const blackMoveFrame = await black.waitFor<{
       type: string;
       event?: unknown;
-      state: { board: Record<string, unknown>; visibleSquares: string[] };
+      state: {
+        board: Record<string, unknown>;
+        visibleSquares: string[];
+        lastMove?: { from: string; to: string };
+      };
     }>((msg) => msg.type === 'event-appended' && msg.gameSpecId === 'dark-xiangqi');
     assert.equal('event' in blackMoveFrame, false);
+    assert.equal(blackMoveFrame.state.lastMove, undefined);
+    assert.doesNotMatch(JSON.stringify(blackMoveFrame), /"lastMove"/);
   } finally {
     restoreEnv(darkXiangqiKey, before);
     await server.close();

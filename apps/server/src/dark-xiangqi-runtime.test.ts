@@ -267,6 +267,51 @@ test('Dark Xiangqi payload hides opponent move events from seated players and al
   assert.doesNotMatch(json, /chariot/);
 });
 
+test('Dark Xiangqi payload hides opponent lastMove coordinates even when squares are visible', () => {
+  const events: DarkXiangqiEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'xq-lastmove', gameSpecId: DARK_XIANGQI_SPEC_ID },
+    {
+      type: 'move-played',
+      at: 2,
+      roomId: 'xq-lastmove',
+      color: 'black',
+      move: { from: 'e10', to: 'e9' },
+    },
+  ];
+  const room = darkXiangqiRoomFixture({
+    id: 'xq-lastmove',
+    events,
+    state: {
+      ...darkXiangqiState({
+        e1: { color: 'red', role: 'general' },
+        e3: { color: 'red', role: 'chariot' },
+        e9: { color: 'black', role: 'general' },
+      }),
+      status: { type: 'playing', turn: 'red' },
+      lastMove: { from: 'e10', to: 'e9' },
+    },
+  });
+
+  const redPayload = darkXiangqiSnapshotPayload(room, {
+    id: 'red-client',
+    seat: 'red',
+    solo: false,
+  });
+  const blackPayload = darkXiangqiSnapshotPayload(room, {
+    id: 'black-client',
+    seat: 'black',
+    solo: false,
+  });
+
+  assert.equal(redPayload.state.visibleSquares.includes('e9'), true);
+  assert.equal(redPayload.state.lastMove, undefined);
+  assert.deepEqual(blackPayload.state.lastMove, { from: 'e10', to: 'e9' });
+
+  const json = JSON.stringify(redPayload);
+  assert.doesNotMatch(json, /"lastMove"/);
+  assert.doesNotMatch(json, /"e10"/);
+});
+
 function darkXiangqiState(board: XiangqiBoard): XiangqiGameState {
   return {
     id: 'xq-test',

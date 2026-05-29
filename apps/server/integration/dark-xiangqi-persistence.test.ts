@@ -53,6 +53,7 @@ if (!testDbUrl) {
     assert.equal(red.seat, 'red');
     assert.equal(black.seat, 'black');
     assert.ok(red.seatToken);
+    assert.ok(black.seatToken);
 
     red.send({ type: 'move', from: 'b3', to: 'b4' });
     await black.waitFor(
@@ -99,6 +100,7 @@ if (!testDbUrl) {
           state?: {
             board?: Record<string, unknown>;
             status?: { type: string; turn?: string };
+            lastMove?: { from: string; to: string };
           };
         }
       | undefined;
@@ -109,11 +111,33 @@ if (!testDbUrl) {
     assert.equal(moveEvents[0]?.color, 'red');
     assert.deepEqual(moveEvents[0]?.move, { from: 'b3', to: 'b4' });
     assert.equal(hello?.state?.status?.turn, 'black');
+    assert.deepEqual(hello?.state?.lastMove, { from: 'b3', to: 'b4' });
     assert.deepEqual(hello?.state?.board?.b8, { color: 'black', shrouded: true });
     assert.equal(serverInstance.darkXiangqiRooms.has(created.roomId), true);
     assert.equal(serverInstance.rooms.has(created.roomId), false);
 
+    const hydratedBlack = await connectClient({
+      url: serverInstance.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+      seatToken: black.seatToken,
+    });
+    const blackHello = hydratedBlack.messages.find(
+      (msg) => (msg as { type?: string }).type === 'hello',
+    ) as
+      | {
+          events?: Array<{ type: string }>;
+          state?: { status?: { type: string; turn?: string }; lastMove?: { from: string; to: string } };
+        }
+      | undefined;
+    assert.equal(hydratedBlack.seat, 'black');
+    assert.equal(blackHello?.state?.status?.turn, 'black');
+    assert.equal(blackHello?.state?.lastMove, undefined);
+    assert.equal(blackHello?.events?.some((event) => event.type === 'move-played'), false);
+    assert.doesNotMatch(JSON.stringify(blackHello), /"lastMove"/);
+
     await hydratedRed.disconnect();
+    await hydratedBlack.disconnect();
   });
 
   test('Dark Xiangqi completion records private family-native game summary', async () => {

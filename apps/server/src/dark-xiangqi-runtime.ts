@@ -361,6 +361,11 @@ export function darkXiangqiSnapshotPayload(
   room: DarkXiangqiRuntimeRoom,
   client: DarkXiangqiSnapshotClient,
 ) {
+  const state = getDarkXiangqiClientView(
+    room.projection.state,
+    client,
+    latestVisibleMoveColor(room.events, client),
+  );
   return {
     type: 'snapshot' as const,
     roomId: room.id,
@@ -371,7 +376,7 @@ export function darkXiangqiSnapshotPayload(
     solo: client.solo,
     abortDeadline: room.abortDeadline,
     seats: room.projection.seats,
-    state: getDarkXiangqiClientView(room.projection.state, client),
+    state,
     events: darkXiangqiEventsForClient(room, client),
     connectedSeats: computeDarkXiangqiConnectedSeats(room.clients),
   };
@@ -391,10 +396,13 @@ export function darkXiangqiEventsForClient(
 export function getDarkXiangqiClientView(
   state: XiangqiGameState,
   client: DarkXiangqiSnapshotClient,
+  latestVisibleMoveColor?: XiangqiColor,
 ): DarkXiangqiWirePlayerView {
   const perspective = client.seat === 'black' ? 'black' : 'red';
   if (client.seat === 'spectator') return emptyDarkXiangqiView(state, perspective);
-  return redactShroudedXiangqiView(getXiangqiPlayerView(state, perspective));
+  const view = redactShroudedXiangqiView(getXiangqiPlayerView(state, perspective));
+  if (latestVisibleMoveColor !== client.seat) return { ...view, lastMove: undefined };
+  return view;
 }
 
 function initialDarkXiangqiProjection(roomId: string): DarkXiangqiProjection {
@@ -412,6 +420,18 @@ function isDarkXiangqiEventVisible(
 ): boolean {
   if (event.type !== 'move-played') return true;
   return client.seat !== 'spectator' && event.color === client.seat;
+}
+
+function latestVisibleMoveColor(
+  events: readonly DarkXiangqiEvent[],
+  client: DarkXiangqiSnapshotClient,
+): XiangqiColor | undefined {
+  if (client.seat === 'spectator') return undefined;
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]!;
+    if (event.type === 'move-played') return event.color === client.seat ? event.color : undefined;
+  }
+  return undefined;
 }
 
 function redactShroudedXiangqiView(view: XiangqiPlayerView): DarkXiangqiWirePlayerView {
