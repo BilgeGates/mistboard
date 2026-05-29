@@ -54,6 +54,7 @@
     "visual:check": "node scripts/visual-check.mjs",
     "mobile:loop": "node scripts/mobile-loop.mjs",
     "test:e2e:smoke": "npm run visual:check",
+    "test:dark-xiangqi:persistent": "npm run test:dark-xiangqi:persistent --workspace @mistboard/web",
     "test:mobile:shots": "npm run mobile:loop",
     "engine:capture-beliefs": "node scripts/capture-belief-artifacts.mjs",
     "release:local-smoke": "node scripts/release-local-smoke.mjs",
