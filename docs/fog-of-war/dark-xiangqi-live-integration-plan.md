@@ -54,7 +54,7 @@ Implemented pieces:
   `MISTBOARD_DARK_XIANGQI_ENABLED=true`.
 - The Dark Xiangqi WebSocket path supports red/black seat assignment, seat-token
   reclaim, duplicate-seat displacement, move validation, abort, resignation,
-  abandonment by forfeit timer, and per-recipient snapshots.
+  timeout, abandonment by forfeit timer, and per-recipient snapshots.
 - Dark Xiangqi room events and red/black seat tokens persist when persistence is
   enabled, and rooms can hydrate after restart from the event log.
 - Finished Dark Xiangqi games record private game summaries. They are not public
@@ -79,8 +79,8 @@ Implemented pieces:
   writes, including fail-closed persistence ordering, seat-token upserts, and
   terminal private summary recording.
 - `apps/server/src/server-dark-xiangqi-lifecycle.ts` owns Dark Xiangqi
-  pre-move abort phases, disconnect forfeit seat detection, timer clearing, and
-  timer-fired event append handoff.
+  pre-move abort phases, native red/black clock expiry, disconnect forfeit seat
+  detection, timer clearing, and timer-fired event append handoff.
 - `apps/server/src/server-dark-xiangqi-transport.ts` owns Dark Xiangqi outbound
   WebSocket payload delivery, including recipient-scoped snapshots,
   event-appended privacy filtering, terminal snapshot fallback, and
@@ -307,16 +307,15 @@ Exit criteria:
 
 ### Slice 4 - Clocks And Platform Results
 
-Decision as of 2026-05-29: hidden Dark Xiangqi should support clocks and time
-controls. Generalize clock/result handling for runtime seats or add
-Xiangqi-specific clock handling behind the runtime boundary. Do not route
-red/black clock state through chess `Color` assumptions.
+Decision as of 2026-05-29: hidden Dark Xiangqi supports clocks and time controls
+through Xiangqi-specific red/black clock state behind the runtime boundary. Do
+not route red/black clock state through chess `Color` assumptions.
 
 Exit criteria:
 
 - timeout result works for red/black,
 - resignation and abandonment work for red/black,
-- abort/forfeit windows are tested or intentionally excluded,
+- abort/forfeit windows are tested,
 - Dark chess clock tests remain unchanged.
 
 ### Slice 5 - Persistence And Postgame Page

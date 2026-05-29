@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import type { Color, GameEvent, XiangqiColor } from '@mistboard/game';
+import type { Color, GameEvent, RoomTimeControl, XiangqiColor } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
 import {
@@ -364,17 +364,20 @@ function seatVacateGraceMs(): number {
 }
 
 // ── SECTION: Game flow ─────────────────────────────────────────────────────
-async function createDarkXiangqiRoom(): Promise<
+async function createDarkXiangqiRoom(timeControl?: RoomTimeControl): Promise<
   | { ok: true; room: DarkXiangqiLiveRoom }
   | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
 > {
-  return createDarkXiangqiLiveRoom({
-    appendRoomEvent: persistence.appendRoomEvent,
-    chessRooms: rooms,
-    darkXiangqiRooms,
-    isPersistenceEnabled: persistence.isInitialized,
-    recordPersistenceError: recordDarkXiangqiPersistenceError,
-  });
+  return createDarkXiangqiLiveRoom(
+    {
+      appendRoomEvent: persistence.appendRoomEvent,
+      chessRooms: rooms,
+      darkXiangqiRooms,
+      isPersistenceEnabled: persistence.isInitialized,
+      recordPersistenceError: recordDarkXiangqiPersistenceError,
+    },
+    timeControl,
+  );
 }
 
 async function getOrLoadDarkXiangqiRoom(roomId: string): Promise<DarkXiangqiLiveRoom | null> {

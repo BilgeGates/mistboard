@@ -53,7 +53,7 @@ export interface HttpApiContext {
       region?: string;
     },
   ): Promise<Room>;
-  createDarkXiangqiRoom(): Promise<
+  createDarkXiangqiRoom(timeControl?: RoomTimeControl): Promise<
     | { ok: true; room: DarkXiangqiRuntimeRoom }
     | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
   >;

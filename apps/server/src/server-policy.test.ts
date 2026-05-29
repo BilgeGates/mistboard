@@ -50,6 +50,24 @@ test('unknown room-family event logs fail closed for replay APIs', () => {
   });
 });
 
+test('finished Dark Xiangqi event logs stay out of the generic chess replay API', () => {
+  const events = [
+    { type: 'room-created', at: 1, roomId: 'dxq-postgame', gameSpecId: 'dark-xiangqi' },
+    {
+      type: 'seat-resigned',
+      at: 2,
+      roomId: 'dxq-postgame',
+      color: 'red',
+    },
+  ] as unknown as GameEvent[];
+
+  assert.equal(canExposeFullEventReplay(events), false);
+  assert.deepEqual(eventReplayResponse(events), {
+    status: 403,
+    body: { error: 'game_not_public' },
+  });
+});
+
 test('live replay API returns 403 for every mode (PvP, PvE, EvE)', () => {
   // Uniform rule: live games are private to the seated players regardless of
   // mode. The replay endpoint only exposes finished games.

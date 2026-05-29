@@ -80,6 +80,18 @@ test('Dark Xiangqi room create + websocket loop is flag-gated and redacted', asy
     await third.closed;
     assert.equal(third.isClosed(), true);
 
+    const copiedClientId = await connectClient({
+      url: server.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+      clientId: redReclaim.clientId ?? undefined,
+      awaitHello: false,
+    });
+    await copiedClientId.closed;
+    assert.equal(copiedClientId.isClosed(), true);
+    assert.equal(copiedClientId.closeCode(), 1008);
+    assert.equal(copiedClientId.closeReason(), 'private room');
+
     redReclaim.send({ type: 'move', from: 'b3', to: 'b4' });
     const redMoveFrame = await redReclaim.waitFor<{
       type: string;
@@ -110,6 +122,88 @@ test('Dark Xiangqi room create + websocket loop is flag-gated and redacted', asy
     assert.equal('event' in blackMoveFrame, false);
     assert.equal(blackMoveFrame.state.lastMove, undefined);
     assert.doesNotMatch(JSON.stringify(blackMoveFrame), /"lastMove"/);
+  } finally {
+    restoreEnv(darkXiangqiKey, before);
+    await server.close();
+  }
+});
+
+test('Dark Xiangqi time controls use native red/black clocks and timeout results', async () => {
+  const before = process.env[darkXiangqiKey];
+  process.env[darkXiangqiKey] = 'true';
+  const server = await startTestServer();
+  try {
+    const createdResponse = await createDarkXiangqiRoom(server, {
+      timeControl: { initialMs: 10_000, incrementMs: 1_000 },
+    });
+    assert.equal(createdResponse.status, 201);
+    const created = (await createdResponse.json()) as { roomId: string };
+
+    const red = await connectClient({
+      url: server.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+    });
+    const black = await connectClient({
+      url: server.url,
+      room: created.roomId,
+      gameSpecId: 'dark-xiangqi',
+    });
+    const redHello = red.messages.find((msg) => (msg as { type?: string }).type === 'hello') as {
+      clock?: { activeColor: string | null; remainingMs: { red: number; black: number } };
+      timeControl?: { initialMs: number; incrementMs: number };
+    };
+    assert.deepEqual(redHello.timeControl, { initialMs: 10_000, incrementMs: 1_000 });
+    assert.deepEqual(redHello.clock, {
+      activeColor: null,
+      incrementMs: 1_000,
+      initialMs: 10_000,
+      remainingMs: { black: 10_000, red: 10_000 },
+      runningSince: null,
+    });
+
+    red.send({ type: 'move', from: 'b3', to: 'b4' });
+    await black.waitFor<{ clock: { activeColor: string | null; remainingMs: Record<string, number> } }>(
+      (msg) =>
+        msg.type === 'event-appended' &&
+        msg.gameSpecId === 'dark-xiangqi' &&
+        (msg as { clock?: { remainingMs?: { red?: number } } }).clock?.remainingMs?.red === 11_000,
+    );
+
+    black.send({ type: 'move', from: 'b8', to: 'b7' });
+    await red.waitFor<{ clock: { activeColor: string | null; remainingMs: Record<string, number> } }>(
+      (msg) =>
+        msg.type === 'event-appended' &&
+        msg.gameSpecId === 'dark-xiangqi' &&
+        (msg as { clock?: { activeColor?: string; remainingMs?: { black?: number } } }).clock
+          ?.activeColor === 'red' &&
+        (msg as { clock?: { remainingMs?: { black?: number } } }).clock?.remainingMs?.black ===
+          11_000,
+    );
+
+    const room = server.darkXiangqiRooms.get(created.roomId);
+    assert.ok(room?.projection.clock);
+    room.projection.clock.remainingMs.red = 0;
+    room.projection.clock.runningSince = Date.now() - 1;
+
+    red.send({ type: 'move', from: 'b4', to: 'b5' });
+    const timeoutFrame = await black.waitFor<{
+      clock: { activeColor: null; remainingMs: { red: number } };
+      state: { status: { type: string; winner: string; reason: string } };
+    }>(
+      (msg) =>
+        msg.type === 'snapshot' &&
+        msg.gameSpecId === 'dark-xiangqi' &&
+        (msg as { state?: { status?: { reason?: string } } }).state?.status?.reason === 'timeout',
+    );
+
+    assert.equal(timeoutFrame.clock.activeColor, null);
+    assert.equal(timeoutFrame.clock.remainingMs.red, 0);
+    assert.deepEqual(timeoutFrame.state.status, {
+      type: 'finished',
+      winner: 'black',
+      reason: 'timeout',
+    });
   } finally {
     restoreEnv(darkXiangqiKey, before);
     await server.close();

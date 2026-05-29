@@ -108,6 +108,24 @@ test('Dark Xiangqi lifecycle scheduling arms and clears forfeit timers', () => {
   assert.equal(room.forfeitTimer, null);
 });
 
+test('Dark Xiangqi lifecycle scheduling arms and clears clock timers', () => {
+  const room = roomFixture('dxq_schedule_clock');
+  room.projection.clock = {
+    activeColor: 'red',
+    incrementMs: 0,
+    initialMs: 10_000,
+    remainingMs: { black: 10_000, red: 2_000 },
+    runningSince: 1_000,
+  };
+  const ctx = lifecycleContext();
+
+  scheduleDarkXiangqiLifecycleTimers(room, ctx);
+
+  assert.notEqual(room.clockTimer, null);
+  clearDarkXiangqiRuntimeTimers(room);
+  assert.equal(room.clockTimer, null);
+});
+
 function roomFixture(roomId: string): DarkXiangqiLifecycleRoom {
   const created = createDarkXiangqiRuntimeRoomFromEvents([
     { type: 'room-created', at: 1, roomId, gameSpecId: DARK_XIANGQI_SPEC_ID },

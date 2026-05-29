@@ -4,7 +4,9 @@ import {
   createInitialXiangqiState,
   DARK_XIANGQI_SPEC_ID,
   getPlayerView as getXiangqiPlayerView,
+  type RoomTimeControl,
   type XiangqiColor,
+  type XiangqiGameStatus,
   type XiangqiGameState,
   type XiangqiMove,
   type XiangqiPiece,
@@ -17,12 +19,21 @@ export const DARK_XIANGQI_ROOM_ID_PREFIX = 'dxq_';
 
 export type DarkXiangqiSeat = XiangqiColor | 'spectator';
 
+export type DarkXiangqiClockState = {
+  activeColor: XiangqiColor | null;
+  incrementMs: number;
+  initialMs: number;
+  remainingMs: Record<XiangqiColor, number>;
+  runningSince: number | null;
+};
+
 export type DarkXiangqiEvent =
   | {
       type: 'room-created';
       at: number;
       roomId: string;
       gameSpecId: typeof DARK_XIANGQI_SPEC_ID;
+      timeControl?: RoomTimeControl;
     }
   | {
       type: 'seat-assigned';
@@ -39,29 +50,46 @@ export type DarkXiangqiEvent =
       seat: XiangqiColor;
     }
   | {
+      type: 'clock-started';
+      at: number;
+      roomId: string;
+      clock: DarkXiangqiClockState;
+    }
+  | {
+      type: 'clock-expired';
+      at: number;
+      roomId: string;
+      color: XiangqiColor;
+      clock: DarkXiangqiClockState;
+    }
+  | {
       type: 'move-played';
       at: number;
       roomId: string;
       color: XiangqiColor;
       move: XiangqiMove;
+      clock?: DarkXiangqiClockState;
     }
   | {
       type: 'seat-resigned';
       at: number;
       roomId: string;
       color: XiangqiColor;
+      clock?: DarkXiangqiClockState;
     }
   | {
       type: 'game-aborted';
       at: number;
       roomId: string;
       reason: AbortReason;
+      clock?: DarkXiangqiClockState;
     }
   | {
       type: 'seat-forfeited';
       at: number;
       roomId: string;
       color: XiangqiColor;
+      clock?: DarkXiangqiClockState;
     };
 
 export type DarkXiangqiProjection = {
@@ -69,6 +97,8 @@ export type DarkXiangqiProjection = {
   gameSpecId: typeof DARK_XIANGQI_SPEC_ID;
   state: XiangqiGameState;
   seats: Partial<Record<XiangqiColor, string>>;
+  clock?: DarkXiangqiClockState;
+  timeControl?: RoomTimeControl;
 };
 
 export type DarkXiangqiClientRef = {
@@ -99,6 +129,7 @@ export type DarkXiangqiRuntimeRoom = {
   abortTimer: ReturnType<typeof setTimeout> | null;
   abortDeadline: number | null;
   abortPhase: 'red-1' | 'black-1' | null;
+  clockTimer: ReturnType<typeof setTimeout> | null;
   forfeitTimer: ReturnType<typeof setTimeout> | null;
   forfeitDeadline: number | null;
   forfeitSeat: XiangqiColor | null;
@@ -121,10 +152,6 @@ export type DarkXiangqiSnapshotClient = {
   solo: boolean;
 };
 
-export function isDarkXiangqiRoomId(roomId: string): boolean {
-  return roomId.startsWith(DARK_XIANGQI_ROOM_ID_PREFIX);
-}
-
 type DarkXiangqiWireBoardEntry =
   | { piece: XiangqiPiece; shrouded: false }
   | { color: XiangqiColor; shrouded: true };
@@ -133,20 +160,132 @@ export type DarkXiangqiWirePlayerView = Omit<XiangqiPlayerView, 'board'> & {
   board: Partial<Record<XiangqiSquare, DarkXiangqiWireBoardEntry>>;
 };
 
+export function isDarkXiangqiRoomId(roomId: string): boolean {
+  return roomId.startsWith(DARK_XIANGQI_ROOM_ID_PREFIX);
+}
+
+export function createDarkXiangqiClock(
+  _at: number,
+  initialMs: number,
+  incrementMs: number,
+): DarkXiangqiClockState {
+  return {
+    activeColor: null,
+    incrementMs,
+    initialMs,
+    remainingMs: {
+      black: initialMs,
+      red: initialMs,
+    },
+    runningSince: null,
+  };
+}
+
+export function nextDarkXiangqiClockForMove(
+  clock: DarkXiangqiClockState | undefined,
+  at: number,
+  movedColor: XiangqiColor,
+  prevMoveNumber: number,
+  nextStatus: XiangqiGameStatus,
+): DarkXiangqiClockState | undefined {
+  if (!clock) return clock;
+  if (clock.activeColor === null && clock.runningSince === null) {
+    const remainingMs = {
+      ...clock.remainingMs,
+      [movedColor]: clock.remainingMs[movedColor] + clock.incrementMs,
+    };
+    const armsNow = movedColor === 'black' && prevMoveNumber === 1;
+    if (armsNow && nextStatus.type === 'playing') {
+      return { ...clock, activeColor: nextStatus.turn, remainingMs, runningSince: at };
+    }
+    return { ...clock, remainingMs };
+  }
+  if (clock.activeColor !== movedColor || clock.runningSince === null) return clock;
+  const remaining = Math.max(0, darkXiangqiClockRemainingMs(clock, movedColor, at));
+  const nextActiveColor = nextStatus.type === 'playing' ? nextStatus.turn : null;
+  return {
+    ...clock,
+    activeColor: nextActiveColor,
+    remainingMs: {
+      ...clock.remainingMs,
+      [movedColor]: nextStatus.type === 'playing' ? remaining + clock.incrementMs : remaining,
+    },
+    runningSince: nextActiveColor ? at : null,
+  };
+}
+
+export function expireDarkXiangqiClock(
+  clock: DarkXiangqiClockState | undefined,
+  at: number,
+  color: XiangqiColor,
+): DarkXiangqiClockState | undefined {
+  if (!clock) return clock;
+  return {
+    ...clock,
+    activeColor: null,
+    remainingMs: {
+      ...clock.remainingMs,
+      [color]: Math.max(0, darkXiangqiClockRemainingMs(clock, color, at)),
+    },
+    runningSince: null,
+  };
+}
+
+export function freezeDarkXiangqiClock(
+  clock: DarkXiangqiClockState | undefined,
+  at: number,
+): DarkXiangqiClockState | undefined {
+  if (!clock) return clock;
+  if (clock.activeColor === null && clock.runningSince === null) return clock;
+  const active = clock.activeColor;
+  const remainingMs = { ...clock.remainingMs };
+  if (active) remainingMs[active] = Math.max(0, darkXiangqiClockRemainingMs(clock, active, at));
+  return {
+    ...clock,
+    activeColor: null,
+    remainingMs,
+    runningSince: null,
+  };
+}
+
+export function darkXiangqiClockRemainingMs(
+  clock: DarkXiangqiClockState,
+  color: XiangqiColor,
+  at: number,
+): number {
+  const remaining = clock.remainingMs[color];
+  if (clock.activeColor !== color || clock.runningSince === null) return remaining;
+  return Math.max(0, remaining - Math.max(0, at - clock.runningSince));
+}
+
 export function createDarkXiangqiRuntimeRoom(
   roomId: string,
-  options: { now?: number } = {},
+  options: { now?: number; timeControl?: RoomTimeControl } = {},
 ): DarkXiangqiRoomCreation {
   if (!darkXiangqiEnabled()) return { ok: false, error: 'dark_xiangqi_disabled' };
 
+  const now = options.now ?? Date.now();
   const events: DarkXiangqiEvent[] = [
     {
       type: 'room-created',
-      at: options.now ?? Date.now(),
+      at: now,
       roomId,
       gameSpecId: DARK_XIANGQI_SPEC_ID,
+      ...(options.timeControl ? { timeControl: options.timeControl } : {}),
     },
   ];
+  if (options.timeControl) {
+    events.push({
+      type: 'clock-started',
+      at: now,
+      roomId,
+      clock: createDarkXiangqiClock(
+        now,
+        options.timeControl.initialMs,
+        options.timeControl.incrementMs,
+      ),
+    });
+  }
   const projection = replayDarkXiangqiEvents(events);
   const room = createDarkXiangqiRuntimeRoomFromEvents(events, projection);
   if (!room.ok) throw new Error(`failed to create Dark Xiangqi runtime room: ${room.error}`);
@@ -172,6 +311,7 @@ export function createDarkXiangqiRuntimeRoomFromEvents(
       abortTimer: null,
       abortDeadline: null,
       abortPhase: null,
+      clockTimer: null,
       forfeitTimer: null,
       forfeitDeadline: null,
       forfeitSeat: null,
@@ -218,22 +358,44 @@ export function isDarkXiangqiEvent(value: unknown, roomId?: string): value is Da
   if (!isFiniteTimestamp(event.at)) return false;
 
   if (event.type === 'room-created') {
-    return event.gameSpecId === DARK_XIANGQI_SPEC_ID;
+    return (
+      event.gameSpecId === DARK_XIANGQI_SPEC_ID &&
+      (event.timeControl === undefined || isRoomTimeControl(event.timeControl))
+    );
   }
   if (event.type === 'seat-assigned' || event.type === 'seat-vacated') {
     return typeof event.clientId === 'string' && isXiangqiColor(event.seat);
   }
+  if (event.type === 'clock-started') {
+    return isDarkXiangqiClockState(event.clock);
+  }
+  if (event.type === 'clock-expired') {
+    return isXiangqiColor(event.color) && isDarkXiangqiClockState(event.clock);
+  }
   if (event.type === 'move-played') {
-    return isXiangqiColor(event.color) && isXiangqiMove(event.move);
+    return (
+      isXiangqiColor(event.color) &&
+      isXiangqiMove(event.move) &&
+      (event.clock === undefined || isDarkXiangqiClockState(event.clock))
+    );
   }
   if (event.type === 'seat-resigned') {
-    return isXiangqiColor(event.color);
+    return (
+      isXiangqiColor(event.color) &&
+      (event.clock === undefined || isDarkXiangqiClockState(event.clock))
+    );
   }
   if (event.type === 'game-aborted') {
-    return isAbortReason(event.reason);
+    return (
+      isAbortReason(event.reason) &&
+      (event.clock === undefined || isDarkXiangqiClockState(event.clock))
+    );
   }
   if (event.type === 'seat-forfeited') {
-    return isXiangqiColor(event.color);
+    return (
+      isXiangqiColor(event.color) &&
+      (event.clock === undefined || isDarkXiangqiClockState(event.clock))
+    );
   }
   return false;
 }
@@ -248,30 +410,6 @@ export function replayDarkXiangqiEvents(
   );
 }
 
-function isFiniteTimestamp(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isXiangqiColor(value: unknown): value is XiangqiColor {
-  return value === 'red' || value === 'black';
-}
-
-function isAbortReason(value: unknown): value is AbortReason {
-  return value === 'pregame-timeout' || value === 'user-abort';
-}
-
-function isXiangqiMove(value: unknown): value is XiangqiMove {
-  if (typeof value !== 'object' || value === null) return false;
-  const move = value as Partial<Record<keyof XiangqiMove, unknown>>;
-  return typeof move.from === 'string' && typeof move.to === 'string';
-}
-
-function roomIdFromUnknownEvent(value: unknown): string | undefined {
-  if (typeof value !== 'object' || value === null) return undefined;
-  const roomId = (value as Record<string, unknown>).roomId;
-  return typeof roomId === 'string' ? roomId : undefined;
-}
-
 export function applyDarkXiangqiEvent(
   projection: DarkXiangqiProjection,
   event: DarkXiangqiEvent,
@@ -279,7 +417,7 @@ export function applyDarkXiangqiEvent(
   if (event.roomId !== projection.roomId) return projection;
 
   if (event.type === 'room-created') {
-    return initialDarkXiangqiProjection(event.roomId);
+    return initialDarkXiangqiProjection(event.roomId, event.timeControl);
   }
 
   if (event.type === 'seat-assigned') {
@@ -299,12 +437,44 @@ export function applyDarkXiangqiEvent(
     return { ...projection, seats };
   }
 
+  if (event.type === 'clock-started') {
+    if (projection.state.status.type !== 'playing' || projection.clock) return projection;
+    return { ...projection, clock: event.clock };
+  }
+
   if (event.type === 'move-played') {
     if (projection.state.status.type !== 'playing') return projection;
     if (projection.state.status.turn !== event.color) return projection;
+    const prevMoveNumber = projection.state.moveNumber;
+    const nextState = applyXiangqiMove(projection.state, event.move);
     return {
       ...projection,
-      state: applyXiangqiMove(projection.state, event.move),
+      clock:
+        event.clock ??
+        nextDarkXiangqiClockForMove(
+          projection.clock,
+          event.at,
+          event.color,
+          prevMoveNumber,
+          nextState.status,
+        ),
+      state: nextState,
+    };
+  }
+
+  if (event.type === 'clock-expired') {
+    if (projection.state.status.type !== 'playing') return projection;
+    return {
+      ...projection,
+      clock: event.clock,
+      state: {
+        ...projection.state,
+        status: {
+          type: 'finished',
+          winner: oppositeXiangqiColor(event.color),
+          reason: 'timeout',
+        },
+      },
     };
   }
 
@@ -312,6 +482,7 @@ export function applyDarkXiangqiEvent(
     if (projection.state.status.type !== 'playing') return projection;
     return {
       ...projection,
+      clock: event.clock ?? freezeDarkXiangqiClock(projection.clock, event.at),
       state: {
         ...projection.state,
         status: {
@@ -327,6 +498,7 @@ export function applyDarkXiangqiEvent(
     if (projection.state.status.type !== 'playing') return projection;
     return {
       ...projection,
+      clock: event.clock ?? freezeDarkXiangqiClock(projection.clock, event.at),
       state: {
         ...projection.state,
         status: {
@@ -343,6 +515,7 @@ export function applyDarkXiangqiEvent(
     if (projection.state.moveNumber !== 1) return projection;
     return {
       ...projection,
+      clock: event.clock ?? freezeDarkXiangqiClock(projection.clock, event.at),
       state: {
         ...projection.state,
         status: { type: 'aborted', reason: event.reason },
@@ -351,10 +524,6 @@ export function applyDarkXiangqiEvent(
   }
 
   return projection;
-}
-
-function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
-  return color === 'red' ? 'black' : 'red';
 }
 
 export function darkXiangqiSnapshotPayload(
@@ -375,10 +544,12 @@ export function darkXiangqiSnapshotPayload(
     seat: client.seat,
     solo: client.solo,
     abortDeadline: room.abortDeadline,
+    clock: room.projection.clock,
+    connectedSeats: computeDarkXiangqiConnectedSeats(room.clients),
+    events: darkXiangqiEventsForClient(room, client),
     seats: room.projection.seats,
     state,
-    events: darkXiangqiEventsForClient(room, client),
-    connectedSeats: computeDarkXiangqiConnectedSeats(room.clients),
+    timeControl: room.projection.timeControl,
   };
 }
 
@@ -405,12 +576,16 @@ export function getDarkXiangqiClientView(
   return view;
 }
 
-function initialDarkXiangqiProjection(roomId: string): DarkXiangqiProjection {
+function initialDarkXiangqiProjection(
+  roomId: string,
+  timeControl?: RoomTimeControl,
+): DarkXiangqiProjection {
   return {
     roomId,
     gameSpecId: DARK_XIANGQI_SPEC_ID,
     state: createInitialXiangqiState(roomId),
     seats: {},
+    ...(timeControl ? { timeControl } : {}),
   };
 }
 
@@ -471,4 +646,62 @@ function computeDarkXiangqiConnectedSeats(
     else if (client.seat === 'black') connected.black = true;
   }
   return connected;
+}
+
+function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
+  return color === 'red' ? 'black' : 'red';
+}
+
+function isFiniteTimestamp(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isXiangqiColor(value: unknown): value is XiangqiColor {
+  return value === 'red' || value === 'black';
+}
+
+function isAbortReason(value: unknown): value is AbortReason {
+  return value === 'pregame-timeout' || value === 'user-abort';
+}
+
+function isRoomTimeControl(value: unknown): value is RoomTimeControl {
+  if (typeof value !== 'object' || value === null) return false;
+  const timeControl = value as Partial<Record<keyof RoomTimeControl, unknown>>;
+  return (
+    typeof timeControl.initialMs === 'number' &&
+    Number.isInteger(timeControl.initialMs) &&
+    typeof timeControl.incrementMs === 'number' &&
+    Number.isInteger(timeControl.incrementMs)
+  );
+}
+
+function isDarkXiangqiClockState(value: unknown): value is DarkXiangqiClockState {
+  if (typeof value !== 'object' || value === null) return false;
+  const clock = value as Partial<DarkXiangqiClockState>;
+  return (
+    (clock.activeColor === null || isXiangqiColor(clock.activeColor)) &&
+    typeof clock.initialMs === 'number' &&
+    Number.isFinite(clock.initialMs) &&
+    typeof clock.incrementMs === 'number' &&
+    Number.isFinite(clock.incrementMs) &&
+    (typeof clock.runningSince === 'number' || clock.runningSince === null) &&
+    typeof clock.remainingMs === 'object' &&
+    clock.remainingMs !== null &&
+    typeof clock.remainingMs.red === 'number' &&
+    Number.isFinite(clock.remainingMs.red) &&
+    typeof clock.remainingMs.black === 'number' &&
+    Number.isFinite(clock.remainingMs.black)
+  );
+}
+
+function isXiangqiMove(value: unknown): value is XiangqiMove {
+  if (typeof value !== 'object' || value === null) return false;
+  const move = value as Partial<Record<keyof XiangqiMove, unknown>>;
+  return typeof move.from === 'string' && typeof move.to === 'string';
+}
+
+function roomIdFromUnknownEvent(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const roomId = (value as Record<string, unknown>).roomId;
+  return typeof roomId === 'string' ? roomId : undefined;
 }

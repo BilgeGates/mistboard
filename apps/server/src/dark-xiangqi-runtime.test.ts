@@ -51,6 +51,37 @@ test('Dark Xiangqi direct runtime creation seeds a replay-backed room when flagg
   }
 });
 
+test('Dark Xiangqi direct runtime creation can seed native red/black clocks', () => {
+  const before = process.env[darkXiangqiKey];
+  process.env[darkXiangqiKey] = 'true';
+  try {
+    const result = createDarkXiangqiRuntimeRoom('xq-clocked', {
+      now: 123,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(
+      result.room.events.map((event) => event.type),
+      ['room-created', 'clock-started'],
+    );
+    assert.deepEqual(result.room.projection.timeControl, {
+      initialMs: 180_000,
+      incrementMs: 2_000,
+    });
+    assert.deepEqual(result.room.projection.clock, {
+      activeColor: null,
+      incrementMs: 2_000,
+      initialMs: 180_000,
+      remainingMs: { black: 180_000, red: 180_000 },
+      runningSince: null,
+    });
+  } finally {
+    restoreEnv(darkXiangqiKey, before);
+  }
+});
+
 test('Dark Xiangqi replay applies moves from the event log', () => {
   const events: DarkXiangqiEvent[] = [
     { type: 'room-created', at: 1, roomId: 'xq-replay', gameSpecId: DARK_XIANGQI_SPEC_ID },
@@ -68,6 +99,72 @@ test('Dark Xiangqi replay applies moves from the event log', () => {
   assert.deepEqual(projection.state.board.b4, { color: 'red', role: 'cannon' });
   assert.equal(projection.state.board.b3, undefined);
   assert.deepEqual(projection.state.status, { type: 'playing', turn: 'black' });
+});
+
+test('Dark Xiangqi replay advances native clocks and applies timeout results', () => {
+  const events: DarkXiangqiEvent[] = [
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'xq-clock-replay',
+      gameSpecId: DARK_XIANGQI_SPEC_ID,
+      timeControl: { initialMs: 10_000, incrementMs: 1_000 },
+    },
+    {
+      type: 'clock-started',
+      at: 1,
+      roomId: 'xq-clock-replay',
+      clock: {
+        activeColor: null,
+        incrementMs: 1_000,
+        initialMs: 10_000,
+        remainingMs: { black: 10_000, red: 10_000 },
+        runningSince: null,
+      },
+    },
+    {
+      type: 'move-played',
+      at: 2,
+      roomId: 'xq-clock-replay',
+      color: 'red',
+      move: { from: 'b3', to: 'b4' },
+    },
+    {
+      type: 'move-played',
+      at: 3,
+      roomId: 'xq-clock-replay',
+      color: 'black',
+      move: { from: 'b8', to: 'b7' },
+    },
+    {
+      type: 'clock-expired',
+      at: 10_004,
+      roomId: 'xq-clock-replay',
+      color: 'red',
+      clock: {
+        activeColor: null,
+        incrementMs: 1_000,
+        initialMs: 10_000,
+        remainingMs: { black: 11_000, red: 0 },
+        runningSince: null,
+      },
+    },
+  ];
+
+  const projection = replayDarkXiangqiEvents(events);
+
+  assert.deepEqual(projection.clock, {
+    activeColor: null,
+    incrementMs: 1_000,
+    initialMs: 10_000,
+    remainingMs: { black: 11_000, red: 0 },
+    runningSince: null,
+  });
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'timeout',
+  });
 });
 
 test('Dark Xiangqi replay applies resignations as native red/black endings', () => {
@@ -350,6 +447,7 @@ function darkXiangqiRoomFixture({
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
+    clockTimer: null,
     forfeitTimer: null,
     forfeitDeadline: null,
     forfeitSeat: null,

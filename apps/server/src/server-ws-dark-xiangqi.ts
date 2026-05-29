@@ -8,7 +8,12 @@ import {
 } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
-import type { DarkXiangqiEvent, DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
+import {
+  darkXiangqiClockRemainingMs,
+  expireDarkXiangqiClock,
+  type DarkXiangqiEvent,
+  type DarkXiangqiRuntimeRoom,
+} from './dark-xiangqi-runtime.js';
 import { logger, wsCounters } from './obs.js';
 import {
   appendDarkXiangqiEvent,
@@ -217,6 +222,7 @@ async function handleDarkXiangqiMessage(
   if (client.seat !== 'red' && client.seat !== 'black') return;
   if (room.projection.state.status.type !== 'playing') return;
   if (room.projection.state.status.turn !== client.seat) return;
+  if (await expireDarkXiangqiActiveClockIfNeeded(room, client)) return;
 
   const move: XiangqiMove = {
     from: message.from as XiangqiSquare,
@@ -239,6 +245,36 @@ async function handleDarkXiangqiMessage(
     return;
   }
   broadcastDarkXiangqiEventAppended(room, event, seq);
+}
+
+async function expireDarkXiangqiActiveClockIfNeeded(
+  room: DarkXiangqiLiveRoom,
+  client: DarkXiangqiLiveClient,
+): Promise<boolean> {
+  const clock = room.projection.clock;
+  const activeColor = clock?.activeColor ?? null;
+  if (!clock || activeColor === null) return false;
+  const now = Date.now();
+  if (darkXiangqiClockRemainingMs(clock, activeColor, now) > 0) return false;
+  const expiredClock = expireDarkXiangqiClock(clock, now, activeColor);
+  if (!expiredClock) return false;
+  const event: DarkXiangqiEvent = {
+    type: 'clock-expired',
+    at: now,
+    roomId: room.id,
+    color: activeColor,
+    clock: expiredClock,
+  };
+  let seq: number;
+  try {
+    seq = await appendDarkXiangqiEvent(room, event, darkXiangqiEventWriterCtx);
+  } catch (err) {
+    recordDarkXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
+    client.socket.close(1011, 'persistence failure');
+    return true;
+  }
+  broadcastDarkXiangqiEventAppended(room, event, seq);
+  return true;
 }
 
 async function handleDarkXiangqiAbort(

@@ -62,7 +62,6 @@ test('Dark Xiangqi room route rejects unsupported create surfaces before room cr
     for (const body of [
       { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pve' },
       { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pvp', rated: true },
-      { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pvp', timeControl: { id: '3m2' } },
       { engineId: 'engine', gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pvp' },
     ]) {
       let createCalls = 0;
@@ -82,6 +81,67 @@ test('Dark Xiangqi room route rejects unsupported create surfaces before room cr
       assert.deepEqual(responseJson(response), { error: 'dark_xiangqi_unsupported_surface' });
       assert.equal(createCalls, 0);
     }
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Xiangqi room route accepts valid PvP time controls', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    let requestedTimeControl: unknown;
+    const response = captureResponse();
+    await handleDarkXiangqiCreate(
+      testContext({
+        createDarkXiangqiRoom: async (timeControl) => {
+          requestedTimeControl = timeControl;
+          return { ok: true, room: darkXiangqiRoom('dxq_clocked') };
+        },
+      }),
+      response,
+      {
+        gameSpecId: DARK_XIANGQI_SPEC_ID,
+        mode: 'pvp',
+        timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      },
+    );
+
+    assert.equal(response.status, 201);
+    assert.deepEqual(requestedTimeControl, { initialMs: 180_000, incrementMs: 2_000 });
+    assert.deepEqual(responseJson(response), {
+      roomId: 'dxq_clocked',
+      url: '/room/dxq_clocked',
+      mode: 'pvp',
+      gameSpecId: DARK_XIANGQI_SPEC_ID,
+      region: 'global',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Xiangqi room route rejects invalid time controls before room creation', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    let createCalls = 0;
+    const response = captureResponse();
+    await handleDarkXiangqiCreate(
+      testContext({
+        createDarkXiangqiRoom: async () => {
+          createCalls += 1;
+          return { ok: true, room: darkXiangqiRoom('dxq_unreachable') };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_XIANGQI_SPEC_ID, mode: 'pvp', timeControl: { id: '3m2' } },
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(responseJson(response), { error: 'invalid_time_control' });
+    assert.equal(createCalls, 0);
   } finally {
     restoreFlag(before);
   }

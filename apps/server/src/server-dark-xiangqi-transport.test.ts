@@ -167,6 +167,7 @@ function transportRoomFixture({
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
+    clockTimer: null,
     forfeitTimer: null,
     forfeitDeadline: null,
     forfeitSeat: null,

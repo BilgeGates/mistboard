@@ -59,6 +59,34 @@ test('Dark Xiangqi live room factory persists the room-created event when persis
   }
 });
 
+test('Dark Xiangqi live room factory persists seeded clock events for time controls', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    const ctx = factoryContext({ ids: ['dxq_clocked'], persistenceEnabled: true });
+    const result = await createDarkXiangqiLiveRoom(ctx, {
+      initialMs: 180_000,
+      incrementMs: 2_000,
+    });
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(ctx.persistedEvents, [
+      {
+        roomId: 'dxq_clocked',
+        seq: 0,
+        eventType: 'room-created',
+      },
+      {
+        roomId: 'dxq_clocked',
+        seq: 1,
+        eventType: 'clock-started',
+      },
+    ]);
+  } finally {
+    restoreFlag(before);
+  }
+});
+
 test('Dark Xiangqi live room factory fails closed on persistence errors', async () => {
   const before = process.env[darkXiangqiFlag];
   process.env[darkXiangqiFlag] = 'true';
