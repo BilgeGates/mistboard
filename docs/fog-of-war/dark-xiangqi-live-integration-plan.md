@@ -72,6 +72,9 @@ Implemented pieces:
 - `apps/server/src/routes/dark-xiangqi-rooms.ts` owns the hidden
   `POST /api/rooms` Dark Xiangqi branch, including request claiming,
   supported-surface checks, and create-result HTTP mapping.
+- `apps/server/src/server-dark-xiangqi-seat-session.ts` owns Dark Xiangqi
+  red/black seat authority, including token/account reclaim, rollback on
+  persistence failure, and duplicate-seat displacement.
 
 The existing live-room stack is chess-shaped:
 
