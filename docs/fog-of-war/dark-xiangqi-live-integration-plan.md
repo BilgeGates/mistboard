@@ -75,6 +75,9 @@ Implemented pieces:
 - `apps/server/src/server-dark-xiangqi-seat-session.ts` owns Dark Xiangqi
   red/black seat authority, including token/account reclaim, rollback on
   persistence failure, and duplicate-seat displacement.
+- `apps/server/src/server-dark-xiangqi-events.ts` owns Dark Xiangqi event
+  writes, including fail-closed persistence ordering, seat-token upserts, and
+  terminal private summary recording.
 
 The existing live-room stack is chess-shaped:
 
