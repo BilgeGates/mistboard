@@ -9,7 +9,6 @@ import {
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
 import type { DarkXiangqiEvent, DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
-import { darkXiangqiSnapshotPayload } from './dark-xiangqi-runtime.js';
 import { logger, wsCounters } from './obs.js';
 import {
   appendDarkXiangqiEvent,
@@ -27,6 +26,12 @@ import {
   displaceOlderDarkXiangqiSeatClients,
   rollbackDarkXiangqiSeatAssignment,
 } from './server-dark-xiangqi-seat-session.js';
+import {
+  broadcastDarkXiangqiEventAppended,
+  broadcastDarkXiangqiSnapshot,
+  darkXiangqiTransportSnapshotPayload,
+  sendDarkXiangqiPayload,
+} from './server-dark-xiangqi-transport.js';
 import { recordMessageTimestamp, seatTokenFromProtocolHeader } from './server-policy.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
 
@@ -123,7 +128,7 @@ export async function handleDarkXiangqiWebSocketConnection(
   scheduleDarkXiangqiLifecycleTimers(room);
 
   sendDarkXiangqiPayload(client, {
-    ...darkXiangqiSnapshotPayload(room, snapshotClientFor(client)),
+    ...darkXiangqiTransportSnapshotPayload(room, client),
     type: 'hello',
     clientId: client.id,
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
@@ -196,7 +201,7 @@ async function handleDarkXiangqiMessage(
   }
   if (message.type === 'snapshot:request') {
     wsCounters.recordSnapshotRequest();
-    sendDarkXiangqiPayload(client, darkXiangqiSnapshotPayload(room, snapshotClientFor(client)));
+    sendDarkXiangqiPayload(client, darkXiangqiTransportSnapshotPayload(room, client));
     return;
   }
   if (message.type === 'resign') {
@@ -283,53 +288,6 @@ async function handleDarkXiangqiResign(
     return;
   }
   broadcastDarkXiangqiEventAppended(room, event, seq);
-}
-
-function broadcastDarkXiangqiSnapshot(room: DarkXiangqiLiveRoom): void {
-  for (const client of room.clients) {
-    if (client.displaced) continue;
-    sendDarkXiangqiPayload(client, darkXiangqiSnapshotPayload(room, snapshotClientFor(client)));
-  }
-}
-
-function broadcastDarkXiangqiEventAppended(
-  room: DarkXiangqiLiveRoom,
-  event: DarkXiangqiEvent,
-  seq: number,
-): void {
-  for (const client of room.clients) {
-    if (client.displaced) continue;
-    if (room.projection.state.status.type !== 'playing') {
-      sendDarkXiangqiPayload(client, darkXiangqiSnapshotPayload(room, snapshotClientFor(client)));
-      continue;
-    }
-    const snapshot = darkXiangqiSnapshotPayload(room, snapshotClientFor(client));
-    const { events: _events, ...base } = snapshot;
-    const eventVisible = event.type !== 'move-played' || event.color === client.seat;
-    sendDarkXiangqiPayload(client, {
-      ...base,
-      type: 'event-appended',
-      seq,
-      ...(eventVisible ? { event } : {}),
-    });
-  }
-}
-
-function snapshotClientFor(client: DarkXiangqiLiveClient) {
-  return {
-    id: client.id,
-    seat: client.seat,
-    solo: false,
-  };
-}
-
-function sendDarkXiangqiPayload(client: DarkXiangqiLiveClient, payload: unknown): void {
-  if (client.displaced) return;
-  try {
-    client.socket.send(JSON.stringify(payload));
-  } catch {
-    /* socket closed */
-  }
 }
 
 function parseClientId(value: string | null): string | null {

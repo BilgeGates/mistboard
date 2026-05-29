@@ -81,6 +81,10 @@ Implemented pieces:
 - `apps/server/src/server-dark-xiangqi-lifecycle.ts` owns Dark Xiangqi
   pre-move abort phases, disconnect forfeit seat detection, timer clearing, and
   timer-fired event append handoff.
+- `apps/server/src/server-dark-xiangqi-transport.ts` owns Dark Xiangqi outbound
+  WebSocket payload delivery, including recipient-scoped snapshots,
+  event-appended privacy filtering, terminal snapshot fallback, and
+  displaced-client skips.
 
 The existing live-room stack is chess-shaped:
 
@@ -218,7 +222,6 @@ The first hidden live integration should reject:
 - rated games,
 - PvE/bot games,
 - engine requests,
-- clocks and time controls,
 - rematch,
 - public replay,
 - public leaderboard and recent-games surfaces.
@@ -304,8 +307,10 @@ Exit criteria:
 
 ### Slice 4 - Clocks And Platform Results
 
-Generalize clock/result handling for runtime seats or add Xiangqi-specific
-clock handling behind the runtime boundary.
+Decision as of 2026-05-29: hidden Dark Xiangqi should support clocks and time
+controls. Generalize clock/result handling for runtime seats or add
+Xiangqi-specific clock handling behind the runtime boundary. Do not route
+red/black clock state through chess `Color` assumptions.
 
 Exit criteria:
 
@@ -314,23 +319,22 @@ Exit criteria:
 - abort/forfeit windows are tested or intentionally excluded,
 - Dark chess clock tests remain unchanged.
 
-### Slice 5 - Persistence And Public Replay
+### Slice 5 - Persistence And Postgame Page
 
 Persistence has started, but public replay remains intentionally out of scope.
 The current code persists the hidden room event log and seat tokens, hydrates
 rooms from that log, and records private terminal summaries. It does not expose
 finished Dark Xiangqi games through the public replay/watch surfaces.
 
-Open decision:
-
-- Should public Dark Xiangqi replay reveal full truth after terminal state, or
-  should it preserve player-view history by default?
+Decision as of 2026-05-29: postgame replay should aim for a separate game page,
+parallel to Dark chess, not reuse the live room page. Public exposure remains
+blocked until that page has explicit Dark Xiangqi privacy and replay semantics.
 
 Exit criteria:
 
 - replay reconstructs from events,
 - live games are not publicly observable before terminal state,
-- postgame API behavior is tested for both seated and public consumers,
+- postgame API/page behavior is tested for seated and public consumers,
 - existing chess game export and replay behavior is unchanged.
 
 ### Slice 6 - Bot And Engine Work
