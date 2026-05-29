@@ -66,6 +66,9 @@ Implemented pieces:
   Dark Xiangqi connection handler runs.
 - Server shutdown now uses structural lifecycle helpers for client closing and
   pending writes across both chess rooms and Dark Xiangqi rooms.
+- `apps/server/src/server-dark-xiangqi-room-factory.ts` owns hidden Dark
+  Xiangqi live-room creation, including cross-runtime id collision checks and
+  persistence failure handling.
 
 The existing live-room stack is chess-shaped:
 

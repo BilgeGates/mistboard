@@ -4,9 +4,7 @@ import type { Color, GameEvent, XiangqiColor } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
 import {
-  createDarkXiangqiRuntimeRoom,
   createDarkXiangqiRuntimeRoomFromEvents,
-  DARK_XIANGQI_ROOM_ID_PREFIX,
   type DarkXiangqiSeatTokenState,
   isDarkXiangqiEventLog,
 } from './dark-xiangqi-runtime.js';
@@ -26,6 +24,7 @@ import {
   selectEngineDraftStart,
 } from './room-manager.js';
 import { loadServerRuntimeConfig, serverConfig } from './server-config.js';
+import { createDarkXiangqiLiveRoom } from './server-dark-xiangqi-room-factory.js';
 import { createDrainController } from './server-drain.js';
 import { createHttpRequestHandler } from './server-http.js';
 import {
@@ -371,25 +370,13 @@ async function createDarkXiangqiRoom(): Promise<
   | { ok: true; room: DarkXiangqiLiveRoom }
   | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
 > {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const roomId = `${DARK_XIANGQI_ROOM_ID_PREFIX}${randomUUID()}`;
-    if (rooms.has(roomId) || darkXiangqiRooms.has(roomId)) continue;
-    const created = createDarkXiangqiRuntimeRoom(roomId);
-    if (!created.ok) return created;
-    const room = created.room as DarkXiangqiLiveRoom;
-    if (persistence.isInitialized()) {
-      const event = room.events[0]!;
-      try {
-        await persistence.appendRoomEvent(roomId, 0, event);
-      } catch (err) {
-        recordDarkXiangqiPersistenceError(roomId, 0, event.type, err as Error);
-        return { ok: false, error: 'persistence_failure' };
-      }
-    }
-    darkXiangqiRooms.set(roomId, room);
-    return { ok: true, room };
-  }
-  return { ok: false, error: 'room_id_collision' };
+  return createDarkXiangqiLiveRoom({
+    appendRoomEvent: persistence.appendRoomEvent,
+    chessRooms: rooms,
+    darkXiangqiRooms,
+    isPersistenceEnabled: persistence.isInitialized,
+    recordPersistenceError: recordDarkXiangqiPersistenceError,
+  });
 }
 
 async function getOrLoadDarkXiangqiRoom(roomId: string): Promise<DarkXiangqiLiveRoom | null> {
