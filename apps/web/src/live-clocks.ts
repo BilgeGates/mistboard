@@ -70,7 +70,7 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
     const playerLine = document.createElement('span');
     playerLine.className = 'clock-player-line';
     const time = document.createElement('strong');
-    if (isPvp) playerLine.append(presenceDot(liveState.connectedSeats[color]));
+    if (isPvp) playerLine.append(presenceDot(liveState.connectedSeats[color] ?? false));
     const serverName = liveState.seatDisplayNames[color];
     const playerName =
       serverName ??

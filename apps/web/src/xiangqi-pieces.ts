@@ -34,6 +34,7 @@ const CHARACTERS: Record<XiangqiColor, Record<XiangqiPieceRole, string>> = {
 };
 
 export type XiangqiPieceRenderOptions = {
+  ariaLabel?: string;
   // Set to true to render the piece as "shrouded" — the FoW mode-B/C render
   // for cannon-target squares. Currently shows a ?-glyph in the piece color
   // instead of the character. The renderer can override this with CSS classes.
@@ -62,13 +63,14 @@ export function renderXiangqiPiece(
   const baseFill = '#f3e6c4';
   const ringWidth = 2.5;
   const glyph = opts.shrouded ? '?' : xiangqiCharacter(piece.color, piece.role);
+  const ariaLabel = opts.ariaLabel ?? `${piece.color} ${piece.role}`;
   const classAttr = opts.className ? ` class="${escapeAttr(opts.className)}"` : '';
   const posAttrs =
     opts.size !== undefined || opts.x !== undefined || opts.y !== undefined
       ? ` x="${opts.x ?? 0}" y="${opts.y ?? 0}" width="${opts.size ?? 100}" height="${opts.size ?? 100}"`
       : '';
   return [
-    `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${piece.color} ${piece.role}">`,
+    `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
     // Outer ring shadow (subtle depth)
     `<circle cx="50" cy="50" r="46" fill="${baseFill}" stroke="${colorHex}" stroke-width="${ringWidth}"/>`,
     // Inner ring — traditional double-ring look

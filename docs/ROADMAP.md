@@ -39,7 +39,11 @@ ranked integrity, and a serious engine track.
   Mistboard TV engine channels, engine profile pages linked from replay
   headers, and public recent-game/version/benchmark records. Engine profiles
   are public records for engines and games, not a social network surface;
-  follows, comments, chat, and moderation remain separately gate-cleared.
+  follows, comments, chat, and moderation remain separately gate-cleared. For
+  future Dark Xiangqi engine work, revisit the current TypeScript
+  `elephantops`-backed rules wrapper before putting it in an engine hot path:
+  the live-room layer is acceptable for play, but engine search should review
+  kernel performance, allocation patterns, and the GPL dependency boundary.
 
 ## Deferred / Parked
 

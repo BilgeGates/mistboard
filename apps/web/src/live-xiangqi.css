@@ -1,0 +1,94 @@
+.xiangqi-live-board {
+  aspect-ratio: 552 / 612;
+  width: min(100%, 72vh);
+  max-width: 620px;
+  min-height: 0;
+  background: #f3d7a1;
+  border: 1px solid rgba(79, 52, 22, 0.28);
+  box-shadow: 0 18px 50px rgba(37, 31, 24, 0.16);
+}
+
+.xiangqi-live-board--disabled {
+  background: repeating-linear-gradient(135deg, #ece7dc, #ece7dc 16px, #ddd5c5 16px, #ddd5c5 32px);
+}
+
+.xq-live-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.xq-live-bg {
+  fill: #f5dca8;
+}
+
+.xq-live-line {
+  stroke: #5a3a14;
+  stroke-width: 1.2;
+}
+
+.xq-live-palace line {
+  stroke: #5a3a14;
+  stroke-width: 1.2;
+}
+
+.xq-live-river text {
+  dominant-baseline: central;
+  fill: #5a3a14;
+  font-family: ui-serif, Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-anchor: middle;
+}
+
+.xq-live-fog-mask {
+  fill: #24190f;
+  opacity: 0.55;
+}
+
+.xq-live-lastmove-cell {
+  fill: #f59e0b;
+  opacity: 0.26;
+}
+
+.xq-live-selection-cell {
+  fill: none;
+  stroke: #f59e0b;
+  stroke-width: 3;
+}
+
+.xq-live-hint-dot {
+  fill: #166534;
+  opacity: 0.9;
+}
+
+.xq-live-hint-capture {
+  fill: none;
+  stroke: #b91c1c;
+  stroke-dasharray: 6 4;
+  stroke-width: 3;
+}
+
+.xq-live-hit {
+  cursor: pointer;
+  fill: transparent;
+}
+
+.xq-piece {
+  filter: drop-shadow(0 3px 4px rgba(35, 27, 18, 0.25));
+  pointer-events: none;
+}
+
+.xq-live-border {
+  fill: none;
+  pointer-events: none;
+  stroke: #8b5a24;
+  stroke-width: 1.5;
+}
+
+.xiangqi-move-list .move-row {
+  display: block;
+  padding: 7px 10px;
+  white-space: nowrap;
+}

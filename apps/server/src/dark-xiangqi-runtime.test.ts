@@ -3,9 +3,11 @@ import test from 'node:test';
 import { DARK_XIANGQI_SPEC_ID, type XiangqiBoard, type XiangqiGameState } from '@mistboard/game';
 import {
   createDarkXiangqiRuntimeRoom,
+  createDarkXiangqiRuntimeRoomFromEvents,
   type DarkXiangqiEvent,
   type DarkXiangqiRuntimeRoom,
   darkXiangqiSnapshotPayload,
+  isDarkXiangqiEventLog,
   replayDarkXiangqiEvents,
 } from './dark-xiangqi-runtime.js';
 
@@ -66,6 +68,77 @@ test('Dark Xiangqi replay applies moves from the event log', () => {
   assert.deepEqual(projection.state.board.b4, { color: 'red', role: 'cannon' });
   assert.equal(projection.state.board.b3, undefined);
   assert.deepEqual(projection.state.status, { type: 'playing', turn: 'black' });
+});
+
+test('Dark Xiangqi replay applies resignations as native red/black endings', () => {
+  const events: DarkXiangqiEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'xq-resign', gameSpecId: DARK_XIANGQI_SPEC_ID },
+    {
+      type: 'seat-resigned',
+      at: 2,
+      roomId: 'xq-resign',
+      color: 'red',
+    },
+  ];
+
+  const projection = replayDarkXiangqiEvents(events);
+
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'resignation',
+  });
+});
+
+test('Dark Xiangqi runtime hydrates from canonical events', () => {
+  const events: DarkXiangqiEvent[] = [
+    { type: 'room-created', at: 1, roomId: 'xq-hydrate', gameSpecId: DARK_XIANGQI_SPEC_ID },
+    {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: 'xq-hydrate',
+      clientId: 'red-client',
+      seat: 'red',
+    },
+    {
+      type: 'move-played',
+      at: 3,
+      roomId: 'xq-hydrate',
+      color: 'red',
+      move: { from: 'b3', to: 'b4' },
+    },
+  ];
+
+  const result = createDarkXiangqiRuntimeRoomFromEvents(events);
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.room.id, 'xq-hydrate');
+  assert.equal(result.room.events.length, events.length);
+  assert.equal(result.room.projection.seats.red, 'red-client');
+  assert.deepEqual(result.room.projection.state.board.b4, { color: 'red', role: 'cannon' });
+});
+
+test('Dark Xiangqi event logs reject wrong room families and mixed room ids', () => {
+  assert.equal(
+    isDarkXiangqiEventLog([
+      { type: 'room-created', at: 1, roomId: 'chess-room', variant: 'dark-chess', offer: [] },
+    ]),
+    false,
+  );
+  assert.equal(
+    isDarkXiangqiEventLog([
+      { type: 'room-created', at: 1, roomId: 'xq-invalid', gameSpecId: DARK_XIANGQI_SPEC_ID },
+      {
+        type: 'move-played',
+        at: 2,
+        roomId: 'other-room',
+        color: 'red',
+        move: { from: 'b3', to: 'b4' },
+      },
+    ]),
+    false,
+  );
 });
 
 test('Dark Xiangqi payload hides cannon gap squares and redacts shrouded piece identities', () => {
@@ -190,6 +263,8 @@ function darkXiangqiRoomFixture({
       seats: { red: 'red-client', black: 'black-client' },
     },
     gameSpecId: DARK_XIANGQI_SPEC_ID,
+    pendingWrites: Promise.resolve(),
+    seatTokens: {},
   };
 }
 

@@ -56,6 +56,11 @@ import {
   seatLabel,
 } from './live-status.js';
 import { currentCaptures, currentProjection, currentView } from './live-view.js';
+import {
+  isDarkXiangqiLiveRoom,
+  reconcileDarkXiangqiInteractionState,
+  renderDarkXiangqiRoom,
+} from './live-xiangqi-render.js';
 import { escapeHtml, isColor } from './web-utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -189,6 +194,12 @@ export function initRender(
 // ── Main render ───────────────────────────────────────────────────────────────
 
 export function render(): void {
+  if (isDarkXiangqiLiveRoom()) {
+    destroyChessBoardForAlternateRenderer();
+    captureFogView();
+    renderDarkXiangqiRoom(refs, { sendSocket, reconnectNow });
+    return;
+  }
   captureFogView();
   const view = currentView();
   const projection = currentProjection();
@@ -734,6 +745,10 @@ function renderBoardResult(view: PlayerView | null): void {
 // ── Interaction state ─────────────────────────────────────────────────────────
 
 export function reconcileInteractionState(): void {
+  if (isDarkXiangqiLiveRoom()) {
+    reconcileDarkXiangqiInteractionState();
+    return;
+  }
   const view = currentView();
   if (!isLive() || !view || view.status.type !== 'playing') {
     pendingPromotion = null;
@@ -1004,4 +1019,11 @@ function selectionItem(label: string, value: number | string | null | undefined)
 
 function pickColorForSeat(): Color {
   return liveState.seat === 'black' ? 'black' : 'white';
+}
+
+function destroyChessBoardForAlternateRenderer(): void {
+  if (!ground) return;
+  ground.destroy();
+  ground = null;
+  liveState.ground = null;
 }

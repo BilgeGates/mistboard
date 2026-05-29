@@ -2,6 +2,11 @@ import type { Color, GameEvent } from '@mistboard/game';
 import { getBuildInfo } from './build-info.js';
 import { getPool } from './persistence-db.js';
 
+export type PersistedRoomEvent = {
+  type: string;
+  roomId: string;
+};
+
 export type GameMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 export type GameTermination =
   | 'king-captured'
@@ -230,7 +235,13 @@ export async function getRoomLifecycleTimeline(
 }
 
 export async function loadRoom(roomId: string): Promise<GameEvent[] | null> {
-  const { rows } = await getPool().query<{ payload: GameEvent }>(
+  return loadRoomEvents<GameEvent>(roomId);
+}
+
+export async function loadRoomEvents<T extends PersistedRoomEvent>(
+  roomId: string,
+): Promise<T[] | null> {
+  const { rows } = await getPool().query<{ payload: T }>(
     'SELECT payload FROM events WHERE room_id = $1 ORDER BY seq ASC',
     [roomId],
   );
@@ -239,6 +250,17 @@ export async function loadRoom(roomId: string): Promise<GameEvent[] | null> {
 }
 
 export async function appendEvent(roomId: string, seq: number, event: GameEvent): Promise<void> {
+  await appendRoomEvent(roomId, seq, event);
+}
+
+export async function appendRoomEvent<T extends PersistedRoomEvent>(
+  roomId: string,
+  seq: number,
+  event: T,
+): Promise<void> {
+  if (event.roomId !== roomId) {
+    throw new Error(`event roomId mismatch: expected ${roomId}, got ${event.roomId}`);
+  }
   await getPool().query(
     'INSERT INTO events (room_id, seq, type, payload) VALUES ($1, $2, $3, $4)',
     [roomId, seq, event.type, event],

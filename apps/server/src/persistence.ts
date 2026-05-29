@@ -38,6 +38,7 @@ export type {
   GameReviewStatus,
   GameTermination,
   GameVisibility,
+  PersistedRoomEvent,
   RoomLifecycleAuditInput,
   RoomLifecycleAuditRecord,
   RoomLifecycleTimeline,
@@ -49,6 +50,7 @@ export {
   abortRunningGame,
   abortStaleGuestPrestartGames,
   appendEvent,
+  appendRoomEvent,
   finalizeStalePausedRooms,
   getGameLifecycleStatus,
   getRoomLifecycleTimeline,
@@ -57,6 +59,7 @@ export {
   listGameDebugArtifactSummaries,
   listRoomLifecycleAudit,
   loadRoom,
+  loadRoomEvents,
   recordGameDebugArtifact,
   recordGameStart,
   recordRoomLifecycleAudit,
@@ -83,7 +86,7 @@ export {
   listWatchUnlockedGames,
   recordGameEnd,
 } from './persistence-games.js';
-export type { RoomSeatTokenRecord } from './persistence-seat-tokens.js';
+export type { RoomSeatTokenRecord, RoomSeatTokenSeat } from './persistence-seat-tokens.js';
 export {
   loadRoomSeatTokens,
   replaceRoomSeatTokens,

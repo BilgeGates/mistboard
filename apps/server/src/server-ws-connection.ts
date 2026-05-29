@@ -3,6 +3,8 @@ import type { IncomingMessage } from 'node:http';
 import type { VariantId } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import { isDarkXiangqiRoomId } from './dark-xiangqi-runtime.js';
+import { darkXiangqiEnabled } from './feature-flags.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import { logger, wsCounters } from './obs.js';
@@ -38,6 +40,10 @@ import {
 } from './server-policy.js';
 import { assignSeat, displaceOlderSeatClients } from './server-seat-session.js';
 import type { Client, Room, SeatAssignment } from './server-types.js';
+import {
+  type DarkXiangqiLiveRoom,
+  handleDarkXiangqiWebSocketConnection,
+} from './server-ws-dark-xiangqi.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
 
 export type WebSocketConnectionContext = {
@@ -47,7 +53,9 @@ export type WebSocketConnectionContext = {
   wsMessageLimit: number;
   wsMessageWindowMs: number;
   clearPendingVacate: (room: Room, seat: Client['seat']) => void;
+  darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
   enableRandomEngine: (room: Room) => Promise<void>;
+  getOrLoadDarkXiangqiRoom: (roomId: string) => Promise<DarkXiangqiLiveRoom | null>;
   getOrCreateRoom: (roomId: string, variant: VariantId, hiddenDraft960?: boolean) => Promise<Room>;
   handleAbort: (room: Room, client: Client) => Promise<void>;
   handleResign: (room: Room, client: Client) => Promise<void>;
@@ -74,6 +82,18 @@ export async function handleWebSocketConnection(
 ): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
+  let darkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
+  if (!darkXiangqiRoom && isDarkXiangqiRoomId(roomId) && darkXiangqiEnabled()) {
+    darkXiangqiRoom = (await ctx.getOrLoadDarkXiangqiRoom(roomId)) ?? undefined;
+  }
+  if (darkXiangqiRoom) {
+    await handleDarkXiangqiWebSocketConnection(ctx, socket, request, darkXiangqiRoom);
+    return;
+  }
+  if (isDarkXiangqiRoomId(roomId)) {
+    socket.close(1008, darkXiangqiEnabled() ? 'room unavailable' : 'game spec disabled');
+    return;
+  }
   const gameSpecGate = gateGameSpecRequest({
     gameSpecId: url.searchParams.get('gameSpecId'),
     variant: url.searchParams.get('variant'),

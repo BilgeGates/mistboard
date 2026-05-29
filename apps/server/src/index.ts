@@ -1,8 +1,15 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import type { Color, GameEvent } from '@mistboard/game';
+import type { Color, GameEvent, XiangqiColor } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
+import {
+  createDarkXiangqiRuntimeRoom,
+  createDarkXiangqiRuntimeRoomFromEvents,
+  DARK_XIANGQI_ROOM_ID_PREFIX,
+  type DarkXiangqiSeatTokenState,
+  isDarkXiangqiEventLog,
+} from './dark-xiangqi-runtime.js';
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { RematchOrchestrator } from './rematch.js';
@@ -42,6 +49,7 @@ import {
   isAllowedWebSocketRequest,
   type WebSocketConnectionContext,
 } from './server-ws-connection.js';
+import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 
 // Navigation index — grep for section name to jump to the right block
 // Account/auth           → ./account-session.ts  (currentAccountUser, hashSecret, session cookies)
@@ -65,6 +73,7 @@ import {
 // Core server types live in ./server-types.ts — Client, Room, SeatTokenState, SeatAssignment, LobbyTicket
 
 const rooms = new Map<string, Room>();
+const darkXiangqiRooms = new Map<string, DarkXiangqiLiveRoom>();
 const lobbyTickets = new Map<string, LobbyTicket>();
 const lobbyQueue: LobbyTicket[] = [];
 const databaseRequired = serverConfig.databaseRequired;
@@ -166,7 +175,9 @@ const wsConnectionCtx: WebSocketConnectionContext = {
   wsMessageLimit,
   wsMessageWindowMs,
   clearPendingVacate: roomLifecycle.clearPendingVacate,
+  darkXiangqiRooms,
   enableRandomEngine,
+  getOrLoadDarkXiangqiRoom,
   getOrCreateRoom: roomLifecycle.getOrCreateRoom,
   handleAbort,
   handleResign,
@@ -196,6 +207,7 @@ export type StartServerOptions = {
 export type StartedServer = {
   port: number;
   rooms: Map<string, Room>;
+  darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
   wsClientCount: () => number;
   close: () => Promise<void>;
 };
@@ -227,6 +239,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
       publicHost: serverConfig.publicHost,
       drainController,
       createRoom: roomLifecycle.createRoom,
+      createDarkXiangqiRoom,
       reserveLiveEngineSeat,
       releaseLiveEngineReservation,
       abandonRoom: roomLifecycle.abandonRoom,
@@ -272,6 +285,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
   return {
     port: boundPort,
     rooms,
+    darkXiangqiRooms,
     wsClientCount: () => wsServer.clients.size,
     close: async () => {
       await stopServer();
@@ -297,11 +311,14 @@ export async function stopServer(): Promise<void> {
   }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
+  closeDarkXiangqiRoomClients();
   await waitForRoomWrites(rooms.values());
+  await Promise.allSettled([...darkXiangqiRooms.values()].map((room) => room.pendingWrites));
   await closeWebSocketServer(wss);
   await closeHttpServer(server);
   await persistence.close();
   rooms.clear();
+  darkXiangqiRooms.clear();
   lobbyTickets.clear();
   lobbyQueue.length = 0;
   persistenceErrors.length = 0;
@@ -344,6 +361,99 @@ function seatVacateGraceMs(): number {
 }
 
 // ── SECTION: Game flow ─────────────────────────────────────────────────────
+async function createDarkXiangqiRoom(): Promise<
+  | { ok: true; room: DarkXiangqiLiveRoom }
+  | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
+> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const roomId = `${DARK_XIANGQI_ROOM_ID_PREFIX}${randomUUID()}`;
+    if (rooms.has(roomId) || darkXiangqiRooms.has(roomId)) continue;
+    const created = createDarkXiangqiRuntimeRoom(roomId);
+    if (!created.ok) return created;
+    const room = created.room as DarkXiangqiLiveRoom;
+    if (persistence.isInitialized()) {
+      const event = room.events[0]!;
+      try {
+        await persistence.appendRoomEvent(roomId, 0, event);
+      } catch (err) {
+        recordDarkXiangqiPersistenceError(roomId, 0, event.type, err as Error);
+        return { ok: false, error: 'persistence_failure' };
+      }
+    }
+    darkXiangqiRooms.set(roomId, room);
+    return { ok: true, room };
+  }
+  return { ok: false, error: 'room_id_collision' };
+}
+
+async function getOrLoadDarkXiangqiRoom(roomId: string): Promise<DarkXiangqiLiveRoom | null> {
+  const existing = darkXiangqiRooms.get(roomId);
+  if (existing) return existing;
+  if (!persistence.isInitialized()) return null;
+
+  let events: persistence.PersistedRoomEvent[] | null = null;
+  try {
+    events = await persistence.loadRoomEvents<persistence.PersistedRoomEvent>(roomId);
+  } catch (err) {
+    recordDarkXiangqiPersistenceError(roomId, -1, 'load-room', err as Error);
+    return null;
+  }
+  if (!events) return null;
+  if (!isDarkXiangqiEventLog(events, roomId)) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'dark_xiangqi_invalid_event_log',
+        roomId,
+        eventCount: events.length,
+        at: Date.now(),
+      }),
+    );
+    return null;
+  }
+
+  const hydrated = createDarkXiangqiRuntimeRoomFromEvents(events);
+  if (!hydrated.ok) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'dark_xiangqi_hydration_failure',
+        roomId,
+        error: hydrated.error,
+        at: Date.now(),
+      }),
+    );
+    return null;
+  }
+  const room = hydrated.room as DarkXiangqiLiveRoom;
+  room.seatTokens = darkXiangqiSeatTokenStatesFromPersistence(
+    await persistence.loadRoomSeatTokens<XiangqiColor>(roomId),
+  );
+  darkXiangqiRooms.set(roomId, room);
+  return room;
+}
+
+function darkXiangqiSeatTokenStatesFromPersistence(
+  tokens: Partial<Record<XiangqiColor, persistence.RoomSeatTokenRecord<XiangqiColor>>>,
+): Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>> {
+  const states: Partial<Record<XiangqiColor, DarkXiangqiSeatTokenState>> = {};
+  for (const token of Object.values(tokens)) {
+    if (!token || token.revokedAt) continue;
+    states[token.seat] = {
+      clientId: token.clientId,
+      seat: token.seat,
+      tokenHash: token.tokenHash,
+      userId: token.userId,
+      userHandle: token.userHandle,
+      userDisplayName: token.userDisplayName,
+      issuedAt: token.issuedAt,
+      lastSeenAt: token.lastSeenAt,
+      revokedAt: token.revokedAt,
+    };
+  }
+  return states;
+}
+
 async function enableRandomEngine(room: Room): Promise<void> {
   room.randomEngine = true;
   room.pveEngineId = pveBuiltinEngineClientId;
@@ -474,9 +584,40 @@ function recordPersistenceError(roomId: string, seq: number, event: GameEvent, e
   );
 }
 
+function recordDarkXiangqiPersistenceError(
+  roomId: string,
+  seq: number,
+  eventType: string,
+  err: Error,
+): void {
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      kind: 'dark_xiangqi_persistence_failure',
+      roomId,
+      seq,
+      eventType,
+      error: err.message,
+      at: Date.now(),
+    }),
+  );
+}
+
 // ── SECTION: Helpers and shutdown ──────────────────────────────────────────
 function send(client: Client, payload: unknown): void {
   client.socket.send(JSON.stringify(payload));
+}
+
+function closeDarkXiangqiRoomClients(): void {
+  for (const room of darkXiangqiRooms.values()) {
+    for (const client of room.clients) {
+      try {
+        client.socket.close(1001, 'server shutting down');
+      } catch {
+        /* socket already closed */
+      }
+    }
+  }
 }
 
 function isColor(value: string | undefined): value is Color {
@@ -515,10 +656,12 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
+  closeDarkXiangqiRoomClients();
 
   let exitCode = 0;
   try {
     await waitForRoomWrites(rooms.values());
+    await Promise.allSettled([...darkXiangqiRooms.values()].map((room) => room.pendingWrites));
     await closeWebSocketServer(wss);
     await closeHttpServer(server);
     await persistence.close();

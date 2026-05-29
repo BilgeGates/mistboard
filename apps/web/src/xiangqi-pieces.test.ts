@@ -67,6 +67,15 @@ describe('xiangqi piece sprites', () => {
     expect(svg).not.toContain('馬');
   });
 
+  it('supports overriding the accessible label for hidden live pieces', () => {
+    const svg = renderXiangqiPiece(
+      { color: 'black', role: 'soldier' },
+      { ariaLabel: 'black hidden piece', shrouded: true },
+    );
+    expect(svg).toContain('aria-label="black hidden piece"');
+    expect(svg).not.toContain('aria-label="black soldier"');
+  });
+
   it('applies the className when provided', () => {
     const svg = renderXiangqiPiece({ color: 'red', role: 'cannon' }, { className: 'xq-piece' });
     expect(svg).toContain('class="xq-piece"');

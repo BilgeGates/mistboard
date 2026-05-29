@@ -10,6 +10,7 @@
 import { WebSocket } from 'ws';
 import { type StartedServer, startServer, stopServer } from '../src/index.js';
 import type { Room } from '../src/server-types.js';
+import type { DarkXiangqiLiveRoom } from '../src/server-ws-dark-xiangqi.js';
 
 const DEFAULT_WAIT_TIMEOUT_MS = 2_000;
 
@@ -17,6 +18,7 @@ export interface TestServer {
   url: string;
   port: number;
   rooms: Map<string, Room>;
+  darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
   close(): Promise<void>;
 }
 
@@ -25,7 +27,7 @@ export interface TestClient {
   /** Messages observed so far, in order. */
   readonly messages: unknown[];
   /** Seat assignment captured from the most recent `hello`. */
-  seat: 'white' | 'black' | 'spectator' | null;
+  seat: 'white' | 'black' | 'red' | 'spectator' | null;
   /** Server-issued seat token captured from `hello` if any. */
   seatToken: string | null;
   /** Server-assigned client UUID. */
@@ -46,6 +48,10 @@ export interface TestClient {
   disconnect(opts?: { code?: number; reason?: string }): Promise<void>;
   /** Has the socket closed? */
   isClosed(): boolean;
+  /** WebSocket close code observed by the harness, once closed. */
+  closeCode(): number | null;
+  /** WebSocket close reason observed by the harness, once closed. */
+  closeReason(): string;
   /** Wait for the close event to fire. */
   closed: Promise<void>;
 }
@@ -66,6 +72,7 @@ export async function startTestServer(
     url,
     port: started.port,
     rooms: started.rooms,
+    darkXiangqiRooms: started.darkXiangqiRooms,
     close: async () => {
       await started.close();
     },
@@ -76,6 +83,7 @@ export interface ConnectOptions {
   url: string;
   room: string;
   variant?: 'dark-chess' | 'draft960';
+  gameSpecId?: 'dark-xiangqi';
   hiddenDraft960?: boolean;
   seatToken?: string;
   /**
@@ -93,7 +101,8 @@ export interface ConnectOptions {
 export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
   const variant = opts.variant ?? 'dark-chess';
   const hidden = opts.hiddenDraft960 ? '&hiddenDraft960=true' : '';
-  const target = `${opts.url}/?room=${encodeURIComponent(opts.room)}&variant=${variant}${hidden}`;
+  const spec = opts.gameSpecId ? `&gameSpecId=${encodeURIComponent(opts.gameSpecId)}` : '';
+  const target = `${opts.url}/?room=${encodeURIComponent(opts.room)}&variant=${variant}${hidden}${spec}`;
 
   const protocols = opts.seatToken ? [`mistboard-seat.${opts.seatToken}`] : undefined;
   // Production WS handshake requires an Origin header matching the host
@@ -118,6 +127,8 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
     closedResolve = resolve;
   });
   let isClosed = false;
+  let closeCode: number | null = null;
+  let closeReason = '';
 
   socket.on('message', (raw) => {
     let parsed: MessageOf;
@@ -136,8 +147,10 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
       }
     }
   });
-  socket.on('close', () => {
+  socket.on('close', (code, reason) => {
     isClosed = true;
+    closeCode = code;
+    closeReason = reason.toString();
     closedResolve();
   });
   socket.on('error', () => {
@@ -202,6 +215,8 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
       await closed;
     },
     isClosed: () => isClosed,
+    closeCode: () => closeCode,
+    closeReason: () => closeReason,
     closed,
   };
 
@@ -210,7 +225,7 @@ export async function connectClient(opts: ConnectOptions): Promise<TestClient> {
       timeoutMs: opts.helloTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
     });
     const h = hello as unknown as {
-      seat: 'white' | 'black' | 'spectator';
+      seat: 'white' | 'black' | 'red' | 'spectator';
       seatToken?: string;
       clientId: string;
     };
