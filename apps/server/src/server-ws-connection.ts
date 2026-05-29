@@ -71,8 +71,32 @@ export type WebSocketConnectionContext = {
   send: (client: Client, payload: unknown) => void;
 };
 
+export type WebSocketRuntimeResolverContext = Pick<
+  WebSocketConnectionContext,
+  'darkXiangqiRooms' | 'getOrLoadDarkXiangqiRoom'
+>;
+
+export type WebSocketLiveRuntime =
+  | { kind: 'chess' }
+  | { kind: 'dark-xiangqi'; room: DarkXiangqiLiveRoom }
+  | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' };
+
 export function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
   return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
+}
+
+export async function resolveWebSocketLiveRuntime(
+  ctx: WebSocketRuntimeResolverContext,
+  roomId: string,
+): Promise<WebSocketLiveRuntime> {
+  const existingDarkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
+  if (existingDarkXiangqiRoom) return { kind: 'dark-xiangqi', room: existingDarkXiangqiRoom };
+  if (!isDarkXiangqiRoomId(roomId)) return { kind: 'chess' };
+  if (!darkXiangqiEnabled())
+    return { kind: 'dark-xiangqi-unavailable', reason: 'game spec disabled' };
+  const hydratedDarkXiangqiRoom = await ctx.getOrLoadDarkXiangqiRoom(roomId);
+  if (hydratedDarkXiangqiRoom) return { kind: 'dark-xiangqi', room: hydratedDarkXiangqiRoom };
+  return { kind: 'dark-xiangqi-unavailable', reason: 'room unavailable' };
 }
 
 export async function handleWebSocketConnection(
@@ -82,16 +106,13 @@ export async function handleWebSocketConnection(
 ): Promise<void> {
   const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
   const roomId = url.searchParams.get('room') ?? 'dev-room';
-  let darkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
-  if (!darkXiangqiRoom && isDarkXiangqiRoomId(roomId) && darkXiangqiEnabled()) {
-    darkXiangqiRoom = (await ctx.getOrLoadDarkXiangqiRoom(roomId)) ?? undefined;
-  }
-  if (darkXiangqiRoom) {
-    await handleDarkXiangqiWebSocketConnection(ctx, socket, request, darkXiangqiRoom);
+  const runtime = await resolveWebSocketLiveRuntime(ctx, roomId);
+  if (runtime.kind === 'dark-xiangqi') {
+    await handleDarkXiangqiWebSocketConnection(ctx, socket, request, runtime.room);
     return;
   }
-  if (isDarkXiangqiRoomId(roomId)) {
-    socket.close(1008, darkXiangqiEnabled() ? 'room unavailable' : 'game spec disabled');
+  if (runtime.kind === 'dark-xiangqi-unavailable') {
+    socket.close(1008, runtime.reason);
     return;
   }
   const gameSpecGate = gateGameSpecRequest({

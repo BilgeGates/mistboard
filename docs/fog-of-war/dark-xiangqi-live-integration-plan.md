@@ -61,6 +61,9 @@ Implemented pieces:
   replay/watch records.
 - The flagged live renderer in `apps/web/src/live-xiangqi-render.ts` renders the
   Xiangqi wire view and intentionally disables chess-only panels.
+- `apps/server/src/server-ws-connection.ts` now resolves WebSocket room ids
+  through an explicit `WebSocketLiveRuntime` boundary before either the chess or
+  Dark Xiangqi connection handler runs.
 
 The existing live-room stack is chess-shaped:
 
