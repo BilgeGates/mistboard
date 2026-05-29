@@ -98,19 +98,17 @@ function buildAbout(): HTMLElement {
 
   const featuresHeading = aboutSubheading('Play and study');
   const featuresP = aboutParagraph([
-    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Read the ',
-    aboutLink('articles', '/articles'),
-    ' for rules, openings, variants such as Draft960, and engine research.',
+    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Articles cover rules, openings, engine research, and future hidden-information variants such as dark xiangqi.',
   ]);
 
   const fairnessHeading = aboutSubheading('Trust by design');
   const fairnessP = aboutParagraph([
-    'Fog of war has to be enforced by software, not trust. The server owns the full game state and sends each browser only what that player is allowed to see. Replays preserve both player perspectives, so finished games can be studied without weakening live hidden information.',
+    'Fog of war has to be enforced by software, not trust. The server owns the full game state and sends each browser only what that player is allowed to see. Live games are not spectatable; full-truth review unlocks only after a game has finished.',
   ]);
 
   const engineHeading = aboutSubheading('Engines for hidden-information games');
   const engineP = aboutParagraph([
-    'Mistboard hosts and develops engines for hidden-information play. They compete through the same redacted view a human player receives, making engine games useful as opponents, benchmarks, and research artifacts. The aim is for best-in-class fog-of-war engines to be playable, comparable, and inspectable.',
+    'Mistboard hosts and develops engines for hidden-information play. They compete through the same redacted view a human player receives, making engine games useful as opponents, benchmarks, and research artifacts.',
   ]);
 
   const oss1Heading = aboutSubheading('Open source foundation');
@@ -120,13 +118,6 @@ function buildAbout(): HTMLElement {
     '. The rules, visibility boundary, replay model, and public site code are inspectable. Contributions, bug reports, and article drafts are welcome. See ',
     aboutLink('Source', '/source'),
     ' for license and third-party credits.',
-  ]);
-
-  const contactHeading = aboutSubheading('Get in touch');
-  const contactP = aboutParagraph([
-    'Bug reports, feature ideas, broken games: send anything via ',
-    aboutLink('Contact', '/contact'),
-    '. Email is optional.',
   ]);
 
   section.append(
@@ -144,8 +135,6 @@ function buildAbout(): HTMLElement {
     engineP,
     oss1Heading,
     oss1P,
-    contactHeading,
-    contactP,
   );
   return section;
 }
@@ -261,9 +250,7 @@ function buildFaq(): HTMLElement {
 
   const q5 = aboutSubheading('How does rated play work?');
   const a5 = aboutParagraph([
-    'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count. See ',
-    aboutLink('Server-Enforced Dark Chess', '/articles/server-enforced-fog'),
-    ' for the trust model.',
+    'Rated dark chess is account-backed human-vs-human play. During beta, the ladder may be provisional while ratings calibrate. Engine games and casual games do not count.',
   ]);
 
   section.append(heading, q1, a1, q2, a2, q3, a3, q4, a4, q5, a5);
