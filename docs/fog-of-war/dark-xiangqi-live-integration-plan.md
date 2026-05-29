@@ -320,14 +320,16 @@ Exit criteria:
 
 ### Slice 5 - Persistence And Postgame Page
 
-Persistence has started, but public replay remains intentionally out of scope.
-The current code persists the hidden room event log and seat tokens, hydrates
-rooms from that log, and records private terminal summaries. It does not expose
-finished Dark Xiangqi games through the public replay/watch surfaces.
+Persistence has started, but generic public replay remains intentionally out of
+scope. The current code persists the hidden room event log and seat tokens,
+hydrates rooms from that log, records private terminal summaries, and exposes a
+separate Dark Xiangqi postgame API at `/api/dark-xiangqi/games/:roomId`.
 
 Decision as of 2026-05-29: postgame replay should aim for a separate game page,
-parallel to Dark chess, not reuse the live room page. Public exposure remains
-blocked until that page has explicit Dark Xiangqi privacy and replay semantics.
+parallel to Dark chess, not reuse the live room page. Public consumers get only
+a spectator-safe terminal payload. Seated consumers must present their seat token
+and receive only that side's redacted final view plus that side's visible move
+timeline. Chess replay/watch/export endpoints remain closed to Dark Xiangqi.
 
 Exit criteria:
 
