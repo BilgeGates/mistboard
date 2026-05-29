@@ -86,6 +86,13 @@ export function reconcileDarkXiangqiInteractionState(): void {
   }
 }
 
+export function renderDarkXiangqiBoardSvg(
+  view: DarkXiangqiWireView,
+  perspective: XiangqiColor = view.perspective,
+): string {
+  return boardSvg(view, perspective, { interactive: false });
+}
+
 function resetChessOnlyPanels(refs: LiveRefs): void {
   refs.offerSection.hidden = true;
   refs.selectionSection.hidden = true;
@@ -275,7 +282,7 @@ function renderBoard(
   }
 
   const perspective = orientationFor(view);
-  refs.board.innerHTML = boardSvg(view, perspective);
+  refs.board.innerHTML = boardSvg(view, perspective, { interactive: true });
   refs.board.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
     el.addEventListener('click', () => {
       const square = el.dataset.square as XiangqiSquare | undefined;
@@ -286,7 +293,11 @@ function renderBoard(
   });
 }
 
-function boardSvg(view: DarkXiangqiWireView, perspective: XiangqiColor): string {
+function boardSvg(
+  view: DarkXiangqiWireView,
+  perspective: XiangqiColor,
+  options: { interactive: boolean },
+): string {
   const maskId = `xq-live-fog-${view.id.replace(/[^a-zA-Z0-9_-]/g, '')}-${perspective}`;
   return `
     <svg class="xq-live-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
@@ -299,7 +310,7 @@ function boardSvg(view: DarkXiangqiWireView, perspective: XiangqiColor): string 
       <g class="xq-live-selection">${selectionLayer(selectedSquare, perspective)}</g>
       <g class="xq-live-hints">${hintLayer(view, perspective)}</g>
       <g class="xq-live-pieces">${pieceLayer(view, perspective)}</g>
-      <g class="xq-live-clicks">${clickLayer(perspective)}</g>
+      <g class="xq-live-clicks">${options.interactive ? clickLayer(perspective) : ''}</g>
       <rect class="xq-live-border" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="8"/>
     </svg>
   `;

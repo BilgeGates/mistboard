@@ -53,6 +53,7 @@ const wantsLive =
   (params.has('room') || params.has('variant') || params.has('dev'));
 const page = params.get('page');
 const gameRoomId = gameRoomIdFromPath(path);
+const darkXiangqiGameRoomId = darkXiangqiGameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsSource = path === '/source' || page === 'source';
@@ -92,6 +93,13 @@ if (replaySample) {
 } else if (liveRoomId || wantsLive) {
   setTitle('Live');
   void mountOrReport(() => import('./live.js').then(() => undefined));
+} else if (darkXiangqiGameRoomId && darkXiangqiEnabled()) {
+  setTitle('Dark Xiangqi');
+  void mountOrReport(() =>
+    import('./dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
+      mountDarkXiangqiPostgame(appRoot, darkXiangqiGameRoomId),
+    ),
+  );
 } else if (gameRoomId) {
   setTitle('Game');
   void mountOrReport(() =>
@@ -230,6 +238,11 @@ async function mountOrReport(run: () => Promise<void>): Promise<void> {
 
 function gameRoomIdFromPath(value: string): string | null {
   const match = value.match(/^\/game\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function darkXiangqiGameRoomIdFromPath(value: string): string | null {
+  const match = value.match(/^\/dark-xiangqi\/game\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
