@@ -1,8 +1,9 @@
 # Dark Shogi Ruleset Candidate
 
-Status: candidate ruleset for research and future `GameSpec` planning. Not
-implemented, not a public Mistboard game mode, and not a compatibility claim
-with any existing hidden-shogi platform.
+Status: candidate ruleset for research and future runtime planning. A hidden
+`dark-shogi` `GameSpec` placeholder exists, but the rules are not implemented,
+not a public Mistboard game mode, and not a compatibility claim with any
+existing hidden-shogi platform.
 
 Dark Shogi applies Mistboard's hidden-information model to shogi while keeping
 the product rule: the server owns canonical truth, clients receive only
@@ -54,7 +55,7 @@ A player cannot see:
 
 - Opponent pieces outside visible squares.
 - Empty or occupied status of hidden squares.
-- Opponent hand contents as live canonical state.
+- Opponent hand contents during live play.
 - Hidden opponent moves, drops, captures, or promotions.
 - Whether an unseen opponent reserve piece has been spent.
 
@@ -66,19 +67,15 @@ beyond the blocker are not visible through that line.
 
 Each player sees their own hand exactly.
 
-The opponent's hand is hidden in live payloads. A client may offer a memory aid
-for pieces the player knows the opponent captured from them, but that memory aid
-must not be treated as exact opponent-hand state:
+The opponent's hand is hidden during live play. The live UI should not summarize
+known or inferred opponent reserve contents as a hand counter, because a hidden
+drop would force that counter either to lie or to reveal that reserve spending
+happened in the fog.
 
-- If one of your pieces is captured, you know that piece left the board and
-  entered the opponent's reserve in unpromoted form.
-- If the opponent later drops that piece in the fog, the live payload must not
-  decrement a public opponent-hand counter.
-- If the opponent drops a piece onto a square you can see, the appeared piece is
-  visible as board state.
-
-This preserves facts the player witnessed without using hidden reserve spending
-as an information leak.
+If the opponent drops a piece onto a square you can see, the appeared piece is
+visible as board state. If the opponent drops a piece in the fog, the live
+payload must not reveal the drop, the spent piece type, or any opponent-hand
+delta. A full-truth postgame view may reveal both hands after the game ends.
 
 ## Drops
 

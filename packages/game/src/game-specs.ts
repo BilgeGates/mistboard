@@ -1,12 +1,16 @@
 import type { VariantId } from './types.js';
 
-export type GameFamilyId = 'chess' | 'xiangqi' | 'omega-chess';
-export type BoardGeometryId = 'chess-8x8' | 'xiangqi-9x10' | 'omega-10x10-plus-corners';
-export type MovementRulesId = 'orthodox-chess' | 'xiangqi' | 'omega' | 'seirawan';
+export type GameFamilyId = 'chess' | 'xiangqi' | 'shogi' | 'omega-chess';
+export type BoardGeometryId =
+  | 'chess-8x8'
+  | 'xiangqi-9x10'
+  | 'shogi-9x9'
+  | 'omega-10x10-plus-corners';
+export type MovementRulesId = 'orthodox-chess' | 'xiangqi' | 'shogi' | 'omega' | 'seirawan';
 export type ObjectiveRulesId = 'king-capture' | 'general-capture' | 'suicide';
 export type VisibilityRulesId = 'dark';
 export type SetupRulesId = 'standard' | 'draft960' | 'double-fischer-random';
-export type ReserveRulesId = 'none' | 'crazyhouse' | 'seirawan-gating';
+export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId = 'none' | 'any-legal-square' | 'seen-squares-only' | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
 export type GameSpecRuntimeStatus = 'live' | 'dev-spike' | 'future';
@@ -20,6 +24,7 @@ export type RatingPoolBaseId =
   | 'lao_tzu'
   | 'dark_seirawan'
   | 'dark_xiangqi'
+  | 'dark_shogi'
   | 'dark_omega';
 
 export type GameSpecId =
@@ -31,6 +36,7 @@ export type GameSpecId =
   | 'lao-tzu'
   | 'dark-seirawan'
   | 'dark-xiangqi'
+  | 'dark-shogi'
   | 'dark-omega';
 export type GameSpecAliasId = 'fog-draft960';
 export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
@@ -61,6 +67,7 @@ export const DARK_DRAFT960_SPEC_ID = 'dark-draft960' satisfies GameSpecId;
 // DARK_DRAFT960_SPEC_ID; "fog" remains only in legacy rating/API vocabulary.
 export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
+export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
 
 export const GAME_SPECS: readonly GameSpec[] = [
   {
@@ -184,6 +191,21 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'dark_xiangqi',
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',
+  },
+  {
+    id: DARK_SHOGI_SPEC_ID,
+    publicName: 'Dark Shogi',
+    family: 'shogi',
+    board: 'shogi-9x9',
+    movement: 'shogi',
+    objective: 'king-capture',
+    visibility: 'dark',
+    setup: 'standard',
+    reserves: 'shogi-hands',
+    dropPolicy: 'seen-squares-only',
+    ratingPoolBase: 'dark_shogi',
+    publicSurface: 'hidden',
+    runtimeStatus: 'future',
   },
   {
     id: 'dark-omega',

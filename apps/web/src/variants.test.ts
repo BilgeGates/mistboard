@@ -1,6 +1,7 @@
 import {
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   gameSpecForId,
 } from '@mistboard/game';
@@ -34,6 +35,13 @@ describe('web variant launch registry', () => {
     expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
     expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+  });
+
+  it('keeps Dark Shogi represented but not launch-enabled', () => {
+    expect(gameSpecForId(DARK_SHOGI_SPEC_ID).runtimeStatus).toBe('future');
+    expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
+    expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
+    expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
   });
 
   it('uses canonical game-spec API params for current variants', () => {

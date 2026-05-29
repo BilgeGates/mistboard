@@ -117,7 +117,7 @@ Key differences from dark chess:
   the win condition.
 - Drops use a Lao Tzu-style policy: pieces may be dropped only on visible empty
   squares.
-- Opponent hand state is not transmitted as live canonical state.
+- Opponent hand contents are hidden during live play.
 
 ## Variant Track: Dark Xiangqi
 

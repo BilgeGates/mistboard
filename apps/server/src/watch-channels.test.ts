@@ -16,6 +16,7 @@ test('watch channel lookup defaults empty input and rejects unknown channels', (
   assert.equal(watchChannelForId(undefined)?.id, 'dark-chess');
   assert.equal(watchChannelForId('dark-chess')?.id, 'dark-chess');
   assert.equal(watchChannelForId('dark-xiangqi'), null);
+  assert.equal(watchChannelForId('dark-shogi'), null);
 });
 
 test('watch channel list is immutable by convention', () => {

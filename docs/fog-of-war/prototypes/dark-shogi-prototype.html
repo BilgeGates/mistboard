@@ -645,7 +645,7 @@
               </div>
               <div class="rule-chip">
                 <strong>Hidden hands</strong>
-                <span>Opponent reserve spending is not live-public.</span>
+                <span>Opponent hand contents stay hidden during live play.</span>
               </div>
               <div class="rule-chip">
                 <strong>Redacted replay</strong>
@@ -1238,7 +1238,7 @@
         renderHandStack(ownHand, state.hands[side], side, true);
         const hidden = document.createElement("span");
         hidden.className = "muted";
-        hidden.textContent = "hidden live state";
+        hidden.textContent = "hidden";
         opponentHand.append(hidden);
       }
 

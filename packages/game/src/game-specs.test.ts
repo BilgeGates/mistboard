@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   FOG_DRAFT960_SPEC_ID,
   GAME_SPECS,
@@ -67,6 +68,24 @@ test('Dark Xiangqi is representable as a separate family without live-room mappi
   assert.equal(spec.legacyLiveRoom, undefined);
 });
 
+test('Dark Shogi is reserved as a future shogi family spec', () => {
+  const spec = gameSpecForId(DARK_SHOGI_SPEC_ID);
+
+  assert.equal(spec.publicName, 'Dark Shogi');
+  assert.equal(spec.family, 'shogi');
+  assert.equal(spec.board, 'shogi-9x9');
+  assert.equal(spec.movement, 'shogi');
+  assert.equal(spec.objective, 'king-capture');
+  assert.equal(spec.visibility, 'dark');
+  assert.equal(spec.setup, 'standard');
+  assert.equal(spec.reserves, 'shogi-hands');
+  assert.equal(spec.dropPolicy, 'seen-squares-only');
+  assert.equal(spec.ratingPoolBase, 'dark_shogi');
+  assert.equal(spec.publicSurface, 'hidden');
+  assert.equal(spec.runtimeStatus, 'future');
+  assert.equal(spec.legacyLiveRoom, undefined);
+});
+
 test('future composites are composed from rule modules', () => {
   const sunTzu = gameSpecForId('sun-tzu');
   const laoTzu = gameSpecForId('lao-tzu');
@@ -98,6 +117,7 @@ test('game spec ids are unique and discoverable', () => {
   assert.equal(isGameSpecId('dark-draft960'), true);
   assert.equal(isGameSpecId('fog-draft960'), false);
   assert.equal(isGameSpecId('dark-xiangqi'), true);
+  assert.equal(isGameSpecId('dark-shogi'), true);
   assert.equal(isGameSpecId('not-a-spec'), false);
   assert.equal(maybeGameSpecForId('dark-draft960')?.id, DARK_DRAFT960_SPEC_ID);
   assert.equal(maybeGameSpecForId('fog-draft960')?.id, DARK_DRAFT960_SPEC_ID);
@@ -135,4 +155,5 @@ test('current live specs can be converted back to the existing room wire shape',
     hiddenDraft960: true,
   });
   assert.equal(legacyLiveRoomForGameSpec(DARK_XIANGQI_SPEC_ID), null);
+  assert.equal(legacyLiveRoomForGameSpec(DARK_SHOGI_SPEC_ID), null);
 });

@@ -36,4 +36,5 @@ test('parseRatingVariant keeps legacy leaderboard API params stable', () => {
   assert.equal(parseRatingVariant('fog-draft960'), 'fog_draft960');
   assert.equal(parseRatingVariant('dark-draft960'), 'fog_draft960');
   assert.equal(parseRatingVariant('dark-xiangqi'), null);
+  assert.equal(parseRatingVariant('dark-shogi'), null);
 });
