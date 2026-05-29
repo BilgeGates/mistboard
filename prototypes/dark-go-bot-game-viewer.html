@@ -1,0 +1,1134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dark Go Bot Game Viewer</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f3ed;
+        --surface: #fffdf8;
+        --surface-2: #ece5d8;
+        --ink: #17201c;
+        --muted: #68736d;
+        --line: #c8b897;
+        --board: #d9aa61;
+        --board-light: #ebca88;
+        --grid: #806842;
+        --fog: #26312d;
+        --black: #151716;
+        --white: #f7f5ee;
+        --green: #1f6f5b;
+        --blue: #2f5c9a;
+        --red: #9f342d;
+        --gold: #a36e1f;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        display: inline-grid;
+        place-items: center;
+        min-width: 38px;
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      button.active {
+        border-color: var(--green);
+        color: var(--green);
+        box-shadow: inset 0 0 0 1px var(--green);
+      }
+
+      .shell {
+        width: min(1500px, calc(100vw - 28px));
+        margin: 0 auto;
+        padding: 16px 0 28px;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: end;
+        margin-bottom: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .controls,
+      .segmented {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .controls button.primary {
+        min-width: 76px;
+        background: var(--ink);
+        border-color: var(--ink);
+        color: #fff;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .stat {
+        min-height: 62px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 253, 248, 0.82);
+      }
+
+      .label {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+
+      .value {
+        display: block;
+        margin-top: 6px;
+        overflow: hidden;
+        font-size: 18px;
+        font-weight: 850;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .viewer {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .boards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .panel {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+
+      .panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 54px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface-2);
+      }
+
+      .panel-title h2 {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .panel-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.25;
+      }
+
+      .pill {
+        align-self: start;
+        padding: 5px 8px;
+        border: 1px solid currentColor;
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+        white-space: nowrap;
+      }
+
+      .pill.live {
+        color: var(--green);
+      }
+
+      .board-wrap {
+        padding: 12px;
+      }
+
+      .board {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(9, 1fr);
+        grid-template-rows: repeat(9, 1fr);
+        width: 100%;
+        aspect-ratio: 1;
+        overflow: hidden;
+        border: 2px solid #715735;
+        border-radius: 6px;
+        background:
+          linear-gradient(90deg, transparent calc(50% - 0.5px), var(--grid) 50%, transparent calc(50% + 0.5px)),
+          linear-gradient(0deg, transparent calc(50% - 0.5px), var(--grid) 50%, transparent calc(50% + 0.5px)),
+          linear-gradient(135deg, var(--board-light), var(--board));
+        background-size: calc(100% / 9) calc(100% / 9);
+      }
+
+      .cell {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      .cell.fog {
+        background:
+          radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 54%),
+          rgba(38, 49, 45, 0.92);
+      }
+
+      .cell.territory-black::after,
+      .cell.territory-white::after {
+        content: "";
+        position: absolute;
+        inset: 34%;
+        border-radius: 999px;
+        pointer-events: none;
+      }
+
+      .cell.territory-black::after {
+        background: rgba(21, 23, 22, 0.45);
+        box-shadow: 0 0 0 2px rgba(21, 23, 22, 0.18);
+      }
+
+      .cell.territory-white::after {
+        background: rgba(247, 245, 238, 0.72);
+        box-shadow: 0 0 0 2px rgba(47, 92, 154, 0.24);
+      }
+
+      .coord {
+        position: absolute;
+        left: 3px;
+        top: 2px;
+        color: rgba(23, 32, 28, 0.58);
+        font-size: 9px;
+        font-weight: 750;
+        pointer-events: none;
+      }
+
+      .fog .coord {
+        color: rgba(255, 250, 240, 0.46);
+      }
+
+      .stone {
+        width: 62%;
+        aspect-ratio: 1;
+        border-radius: 999px;
+        box-shadow: 0 3px 7px rgba(0, 0, 0, 0.28);
+      }
+
+      .stone.black {
+        background:
+          radial-gradient(circle at 34% 28%, #4e5550, transparent 24%),
+          var(--black);
+      }
+
+      .stone.white {
+        border: 1px solid #bcb4a3;
+        background:
+          radial-gradient(circle at 34% 28%, #fff, transparent 28%),
+          var(--white);
+      }
+
+      .stone.learned {
+        box-shadow:
+          0 3px 7px rgba(0, 0, 0, 0.28),
+          0 0 0 4px rgba(47, 92, 154, 0.36);
+      }
+
+      .marker {
+        position: absolute;
+        inset: 18%;
+        border: 3px solid var(--gold);
+        border-radius: 999px;
+        pointer-events: none;
+      }
+
+      .marker.probe {
+        border-color: var(--blue);
+      }
+
+      .marker.capture {
+        border-color: var(--red);
+      }
+
+      .side {
+        display: grid;
+        gap: 12px;
+      }
+
+      .scrubber {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+      }
+
+      .timeline {
+        max-height: 445px;
+        overflow: auto;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+
+      .timeline button {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        width: 100%;
+        min-height: 0;
+        padding: 9px 10px;
+        border: 0;
+        border-bottom: 1px solid rgba(200, 184, 151, 0.6);
+        border-radius: 0;
+        text-align: left;
+        place-items: stretch;
+      }
+
+      .timeline button.active {
+        background: #eef6f1;
+        box-shadow: inset 3px 0 0 var(--green);
+      }
+
+      .timeline .num {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .timeline .event {
+        overflow: hidden;
+        font-size: 13px;
+        line-height: 1.3;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .score {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .score-row {
+        display: grid;
+        grid-template-columns: 74px repeat(4, minmax(0, 1fr));
+        gap: 7px;
+        padding: 8px;
+        border: 1px solid rgba(200, 184, 151, 0.74);
+        border-radius: 6px;
+        background: rgba(255, 253, 248, 0.78);
+        font-size: 13px;
+      }
+
+      .score-row.header {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .note {
+        padding: 0 12px 12px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      @media (max-width: 1180px) {
+        .viewer {
+          grid-template-columns: 1fr;
+        }
+
+        .boards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .truth-panel {
+          grid-column: 1 / -1;
+        }
+
+        .truth-panel .board {
+          max-width: 560px;
+          margin: 0 auto;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          width: min(100vw - 16px, 520px);
+          padding-top: 10px;
+        }
+
+        .topbar,
+        .stats,
+        .boards {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 23px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="topbar">
+        <div>
+          <h1>Dark Go Bot Game Viewer</h1>
+          <p class="subtitle">Deterministic 9x9 Phantom Go showcase with probes, captures, passes, and final area scoring.</p>
+        </div>
+        <div class="controls">
+          <button id="firstBtn" type="button" title="First position">|&lt;</button>
+          <button id="prevBtn" type="button" title="Previous">&lt;</button>
+          <button id="playBtn" class="primary" type="button">Play</button>
+          <button id="nextBtn" type="button" title="Next">&gt;</button>
+          <button id="lastBtn" type="button" title="Final position">&gt;|</button>
+        </div>
+      </div>
+
+      <section class="stats" aria-label="Replay status">
+        <div class="stat"><span class="label">Frame</span><span id="frameStat" class="value"></span></div>
+        <div class="stat"><span class="label">Event</span><span id="eventStat" class="value"></span></div>
+        <div class="stat"><span class="label">Turn</span><span id="turnStat" class="value"></span></div>
+        <div class="stat"><span class="label">Captures</span><span id="captureStat" class="value"></span></div>
+        <div class="stat"><span class="label">Result</span><span id="resultStat" class="value"></span></div>
+      </section>
+
+      <section class="viewer">
+        <div class="boards">
+          <article class="panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <h2>Black View</h2>
+                <p>Own stones, adjacent intersections, and learned white stones.</p>
+              </div>
+              <span id="blackPill" class="pill">Waiting</span>
+            </div>
+            <div class="board-wrap"><div id="blackBoard" class="board" role="grid" aria-label="Black private board"></div></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <h2>White View</h2>
+                <p>Own stones, adjacent intersections, and learned black stones.</p>
+              </div>
+              <span id="whitePill" class="pill">Waiting</span>
+            </div>
+            <div class="board-wrap"><div id="whiteBoard" class="board" role="grid" aria-label="White private board"></div></div>
+          </article>
+
+          <article class="panel truth-panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <h2>Referee Truth</h2>
+                <p>Canonical board used for captures and final area scoring.</p>
+              </div>
+              <span class="pill live">Server</span>
+            </div>
+            <div class="board-wrap"><div id="truthBoard" class="board" role="grid" aria-label="Referee truth board"></div></div>
+          </article>
+        </div>
+
+        <aside class="side">
+          <article class="panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <h2>Scrubber</h2>
+                <p id="detailText"></p>
+              </div>
+            </div>
+            <div class="scrubber">
+              <input id="range" type="range" min="0" value="0" />
+              <div class="segmented">
+                <button id="jumpOpening" type="button">Opening</button>
+                <button id="jumpEndgame" type="button">Endgame</button>
+                <button id="jumpScore" type="button">Score</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <h2>Timeline</h2>
+                <p>Moves, probes, passes, and terminal scoring.</p>
+              </div>
+            </div>
+            <ol id="timeline" class="timeline"></ol>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <h2>Final Score</h2>
+                <p>Area scoring after two accepted passes.</p>
+              </div>
+            </div>
+            <div id="scoreTable" class="score"></div>
+            <p class="note">Area score = stones on board + empty regions bordered by one color; White also gets 6.5 komi. Final territory points are marked on the truth board.</p>
+          </article>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      const SIZE = 9;
+      const KOMI = 6.5;
+      const BLACK = "black";
+      const WHITE = "white";
+      const EMPTY = null;
+      const FILES = "ABCDEFGHI";
+
+      const els = {
+        frameStat: document.querySelector("#frameStat"),
+        eventStat: document.querySelector("#eventStat"),
+        turnStat: document.querySelector("#turnStat"),
+        captureStat: document.querySelector("#captureStat"),
+        resultStat: document.querySelector("#resultStat"),
+        blackPill: document.querySelector("#blackPill"),
+        whitePill: document.querySelector("#whitePill"),
+        blackBoard: document.querySelector("#blackBoard"),
+        whiteBoard: document.querySelector("#whiteBoard"),
+        truthBoard: document.querySelector("#truthBoard"),
+        timeline: document.querySelector("#timeline"),
+        scoreTable: document.querySelector("#scoreTable"),
+        range: document.querySelector("#range"),
+        detailText: document.querySelector("#detailText"),
+        firstBtn: document.querySelector("#firstBtn"),
+        prevBtn: document.querySelector("#prevBtn"),
+        playBtn: document.querySelector("#playBtn"),
+        nextBtn: document.querySelector("#nextBtn"),
+        lastBtn: document.querySelector("#lastBtn"),
+        jumpOpening: document.querySelector("#jumpOpening"),
+        jumpEndgame: document.querySelector("#jumpEndgame"),
+        jumpScore: document.querySelector("#jumpScore"),
+      };
+
+      const game = generateGame();
+      let frameIndex = game.frames.length - 1;
+      let timer = null;
+
+      function blankBoard() {
+        return Array.from({ length: SIZE * SIZE }, () => EMPTY);
+      }
+
+      function freshKnowledge() {
+        return { black: { knownOpp: new Set() }, white: { knownOpp: new Set() } };
+      }
+
+      function xyToIndex(x, y) {
+        return y * SIZE + x;
+      }
+
+      function indexToXY(index) {
+        return { x: index % SIZE, y: Math.floor(index / SIZE) };
+      }
+
+      function indexToCoord(index) {
+        const x = index % SIZE;
+        const y = Math.floor(index / SIZE);
+        return `${FILES[x]}${SIZE - y}`;
+      }
+
+      function neighbors(index) {
+        const { x, y } = indexToXY(index);
+        const out = [];
+        if (x > 0) out.push(xyToIndex(x - 1, y));
+        if (x < SIZE - 1) out.push(xyToIndex(x + 1, y));
+        if (y > 0) out.push(xyToIndex(x, y - 1));
+        if (y < SIZE - 1) out.push(xyToIndex(x, y + 1));
+        return out;
+      }
+
+      function opponent(color) {
+        return color === BLACK ? WHITE : BLACK;
+      }
+
+      function colorLabel(color) {
+        return color === BLACK ? "Black" : "White";
+      }
+
+      function boardKey(board) {
+        return board.map((p) => (p === BLACK ? "b" : p === WHITE ? "w" : ".")).join("");
+      }
+
+      function cloneKnowledge(knowledge) {
+        return {
+          black: { knownOpp: [...knowledge.black.knownOpp] },
+          white: { knownOpp: [...knowledge.white.knownOpp] },
+        };
+      }
+
+      function frameKnowledge(frame) {
+        return {
+          black: { knownOpp: new Set(frame.knowledge.black.knownOpp) },
+          white: { knownOpp: new Set(frame.knowledge.white.knownOpp) },
+        };
+      }
+
+      function collectGroup(board, start) {
+        const color = board[start];
+        const seen = new Set([start]);
+        const stack = [start];
+        while (stack.length > 0) {
+          const cur = stack.pop();
+          for (const n of neighbors(cur)) {
+            if (board[n] === color && !seen.has(n)) {
+              seen.add(n);
+              stack.push(n);
+            }
+          }
+        }
+        return [...seen];
+      }
+
+      function countLiberties(board, group) {
+        const libs = new Set();
+        for (const point of group) {
+          for (const n of neighbors(point)) {
+            if (board[n] === EMPTY) libs.add(n);
+          }
+        }
+        return libs.size;
+      }
+
+      function removeGroup(board, group, removedByColor) {
+        const color = board[group[0]];
+        for (const point of group) {
+          board[point] = EMPTY;
+          removedByColor[color].push(point);
+        }
+      }
+
+      function resolveBoardAfterPlacement(board, placedIndex, color) {
+        const removedByColor = { black: [], white: [] };
+        for (const n of neighbors(placedIndex)) {
+          if (board[n] !== opponent(color)) continue;
+          const group = collectGroup(board, n);
+          if (countLiberties(board, group) === 0) removeGroup(board, group, removedByColor);
+        }
+        if (board[placedIndex] === color) {
+          const group = collectGroup(board, placedIndex);
+          if (countLiberties(board, group) === 0) removeGroup(board, group, removedByColor);
+        }
+        return { board, removedByColor, removed: [...removedByColor.black, ...removedByColor.white] };
+      }
+
+      function scoreArea(board) {
+        const seen = new Set();
+        const stones = { black: 0, white: 0 };
+        const territory = { black: 0, white: 0 };
+        const territoryOwner = Array.from({ length: board.length }, () => null);
+        for (const point of board) {
+          if (point === BLACK) stones.black += 1;
+          if (point === WHITE) stones.white += 1;
+        }
+        for (let i = 0; i < board.length; i += 1) {
+          if (board[i] !== EMPTY || seen.has(i)) continue;
+          const region = [];
+          const borders = new Set();
+          const stack = [i];
+          seen.add(i);
+          while (stack.length > 0) {
+            const cur = stack.pop();
+            region.push(cur);
+            for (const n of neighbors(cur)) {
+              if (board[n] === EMPTY && !seen.has(n)) {
+                seen.add(n);
+                stack.push(n);
+              } else if (board[n]) {
+                borders.add(board[n]);
+              }
+            }
+          }
+          if (borders.size === 1) territory[[...borders][0]] += region.length;
+          if (borders.size === 1) {
+            const owner = [...borders][0];
+            for (const point of region) territoryOwner[point] = owner;
+          }
+        }
+        const blackTotal = stones.black + territory.black;
+        const whiteTotal = stones.white + territory.white + KOMI;
+        return {
+          stones,
+          territory,
+          territoryOwner,
+          blackTotal,
+          whiteTotal,
+          komi: KOMI,
+          winner: blackTotal > whiteTotal ? "Black" : "White",
+          margin: Math.abs(blackTotal - whiteTotal),
+        };
+      }
+
+      function generateGame() {
+        const s = {
+          board: blankBoard(),
+          turn: BLACK,
+          passes: 0,
+          gameOver: false,
+          captures: { black: 0, white: 0 },
+          knowledge: freshKnowledge(),
+          history: new Set(),
+          last: [],
+          score: null,
+          acceptedMoves: 0,
+          botTurns: 0,
+          rngSeed: 0x7d5f0a9,
+          frames: [],
+        };
+        s.history.add(boardKey(s.board));
+        recordFrame(s, "Setup", "Blank board. Black to move. This showcase uses deterministic private-view bot choices.");
+        playShowcaseGame(s);
+        return { frames: s.frames, finalScore: s.score };
+      }
+
+      function playShowcaseGame(s) {
+        const script = [
+          ["move", BLACK, "D5", "Black opens in the center."],
+          ["move", WHITE, "D5", "White probes a hidden occupied point; the turn continues."],
+          ["move", WHITE, "E5", "White retries on an empty point."],
+          ["move", BLACK, "F5", "Black leans on the visible contact."],
+          ["move", WHITE, "H7", "White starts a corner framework."],
+          ["move", BLACK, "E4", "Black removes another liberty from E5."],
+          ["move", WHITE, "H9", "White extends the upper-right frame."],
+          ["move", BLACK, "E6", "Black fills the last liberty and captures E5."],
+          ["move", WHITE, "C2", "White starts a lower-left fight."],
+          ["move", BLACK, "C3", "Black invades the shape."],
+          ["move", WHITE, "C4", "White presses from above."],
+          ["move", BLACK, "A9", "Black tenukis."],
+          ["move", WHITE, "B3", "White takes a third liberty."],
+          ["move", BLACK, "A8", "Black keeps playing away."],
+          ["move", WHITE, "D3", "White fills the final liberty and captures C3."],
+          ["move", BLACK, "G2", "Black starts a small lower-right enclosure."],
+          ["move", WHITE, "G8", "White tightens the upper-right enclosure."],
+          ["move", BLACK, "H1", "Black adds the bottom wall."],
+          ["move", WHITE, "I8", "White surrounds H8 on three sides."],
+          ["move", BLACK, "H3", "Black adds the top wall around H2."],
+          ["move", WHITE, "A5", "White plays a neutral filler point."],
+          ["move", BLACK, "I2", "Black completes one point of territory at H2."],
+          ["move", WHITE, "I7", "White adds corner thickness."],
+          ["move", BLACK, "B8", "Black plays a final filler point."],
+          ["pass", WHITE, null, "White sees no valuable private-view continuation."],
+          ["pass", BLACK, null, "Black accepts the end. The referee reveals truth and scores area."],
+        ];
+        for (const [kind, color, coord, note] of script) {
+          if (s.gameOver) return;
+          if (kind === "pass") {
+            passTurn(s, color, note);
+          } else {
+            playScriptedMove(s, color, coord, note);
+          }
+        }
+      }
+
+      function coordToIndex(coord) {
+        const file = FILES.indexOf(coord[0].toUpperCase());
+        const rank = Number(coord.slice(1));
+        return xyToIndex(file, SIZE - rank);
+      }
+
+      function recordFrame(s, tag, text) {
+        s.frames.push({
+          board: s.board.slice(),
+          turn: s.turn,
+          passes: s.passes,
+          gameOver: s.gameOver,
+          captures: { ...s.captures },
+          knowledge: cloneKnowledge(s.knowledge),
+          last: s.last.map((entry) => ({ ...entry })),
+          score: s.score,
+          tag,
+          text,
+          acceptedMoves: s.acceptedMoves,
+          botTurns: s.botTurns,
+        });
+      }
+
+      function random01(s) {
+        s.rngSeed = (Math.imul(s.rngSeed, 1664525) + 1013904223) >>> 0;
+        return s.rngSeed / 0x100000000;
+      }
+
+      function visibleEmptySet(board, color) {
+        const visible = new Set();
+        for (let i = 0; i < board.length; i += 1) {
+          if (board[i] !== color) continue;
+          for (const n of neighbors(i)) visible.add(n);
+        }
+        return visible;
+      }
+
+      function viewCell(board, knowledge, color, index) {
+        const occ = board[index];
+        if (occ === color) return { state: "own", color: occ, visible: true, learned: false };
+        if (knowledge[color].knownOpp.has(index) && occ === opponent(color)) {
+          return { state: "opponent", color: occ, visible: true, learned: true };
+        }
+        if (visibleEmptySet(board, color).has(index)) {
+          if (occ === EMPTY) return { state: "empty", color: null, visible: true, learned: false };
+          return { state: "opponent", color: occ, visible: true, learned: false };
+        }
+        return { state: "fog", color: null, visible: false, learned: false };
+      }
+
+      function isKnownOccupied(s, color, index) {
+        return s.board[index] === color || s.knowledge[color].knownOpp.has(index);
+      }
+
+      function refreshKnowledgeFromVisibility(s) {
+        for (const color of [BLACK, WHITE]) {
+          for (let i = 0; i < s.board.length; i += 1) {
+            if (s.board[i] !== color) continue;
+            for (const n of neighbors(i)) {
+              if (s.board[n] === opponent(color)) s.knowledge[color].knownOpp.add(n);
+            }
+          }
+        }
+      }
+
+      function refreshKnowledgeAfterRemovals(s, removed) {
+        for (const color of [BLACK, WHITE]) {
+          for (const idx of removed) s.knowledge[color].knownOpp.delete(idx);
+          for (const idx of [...s.knowledge[color].knownOpp]) {
+            if (s.board[idx] !== opponent(color)) s.knowledge[color].knownOpp.delete(idx);
+          }
+        }
+      }
+
+      function revealKillerStones(s, capturedColor, killerColor, capturedPoints) {
+        const revealed = new Set();
+        for (const point of capturedPoints) {
+          for (const n of neighbors(point)) {
+            if (s.board[n] !== killerColor || revealed.has(n)) continue;
+            for (const g of collectGroup(s.board, n)) {
+              if (s.board[g] === killerColor) revealed.add(g);
+            }
+          }
+        }
+        for (const idx of revealed) s.knowledge[capturedColor].knownOpp.add(idx);
+        return revealed.size;
+      }
+
+      function attemptMove(s, color, index) {
+        s.last = [{ type: "attempt", index, color }];
+        const occ = s.board[index];
+        if (occ === color) return { type: "retry", text: `${colorLabel(color)} already owns ${indexToCoord(index)}.` };
+        if (occ === opponent(color)) {
+          if (!isKnownOccupied(s, color, index)) {
+            s.knowledge[color].knownOpp.add(index);
+            s.last = [{ type: "probe", index, color }];
+            return { type: "probe", text: `${colorLabel(color)} probes ${indexToCoord(index)} and reveals a hidden ${colorLabel(occ)} stone.` };
+          }
+          return { type: "retry", text: `${indexToCoord(index)} is visibly occupied.` };
+        }
+        const next = s.board.slice();
+        next[index] = color;
+        const resolution = resolveBoardAfterPlacement(next, index, color);
+        const nextKey = boardKey(resolution.board);
+        if (s.history.has(nextKey)) {
+          s.last = [{ type: "rule", index, color }];
+          return { type: "retry", text: `${colorLabel(color)} is rule-blocked at ${indexToCoord(index)}.` };
+        }
+        s.board = resolution.board;
+        s.history.add(nextKey);
+        s.passes = 0;
+        s.turn = opponent(color);
+        s.acceptedMoves += 1;
+        s.last = [{ type: "move", index, color }];
+        const captured = resolution.removedByColor[opponent(color)];
+        const selfCaptured = resolution.removedByColor[color];
+        let extra = "";
+        if (captured.length > 0) {
+          s.captures[color] += captured.length;
+          for (const idx of captured) s.last.push({ type: "capture", index: idx, color: opponent(color) });
+          const revealed = revealKillerStones(s, opponent(color), color, captured);
+          extra = ` Captured ${captured.length}; ${colorLabel(opponent(color))} sees ${revealed} killer stones.`;
+        }
+        if (selfCaptured.length > 0) {
+          s.captures[opponent(color)] += selfCaptured.length;
+          for (const idx of selfCaptured) s.last.push({ type: "capture", index: idx, color });
+          const revealed = revealKillerStones(s, color, opponent(color), selfCaptured);
+          extra = ` Self-captured ${selfCaptured.length}; ${colorLabel(color)} sees ${revealed} killer stones.`;
+        }
+        refreshKnowledgeAfterRemovals(s, resolution.removed);
+        refreshKnowledgeFromVisibility(s);
+        return { type: "move", text: `${colorLabel(color)} plays ${indexToCoord(index)}.${extra}` };
+      }
+
+      function playScriptedMove(s, color, coord, note) {
+        if (color !== s.turn) {
+          recordFrame(s, "Blocked", `${colorLabel(color)} tried ${coord}, but ${colorLabel(s.turn)} is to move.`);
+          return { type: "blocked" };
+        }
+        s.botTurns += 1;
+        const result = attemptMove(s, color, coordToIndex(coord));
+        const tag = result.type === "probe" ? "Probe" : result.type === "move" ? "Move" : "Retry";
+        const suffix = note ? ` ${note}` : "";
+        recordFrame(s, tag, `${result.text}${suffix}`);
+        return result;
+      }
+
+      function passTurn(s, color, note) {
+        if (color !== s.turn) {
+          recordFrame(s, "Blocked", `${colorLabel(color)} tried to pass, but ${colorLabel(s.turn)} is to move.`);
+          return { type: "blocked" };
+        }
+        s.passes += 1;
+        s.last = [];
+        if (s.passes >= 2) {
+          s.gameOver = true;
+          s.score = scoreArea(s.board);
+          recordFrame(s, "Result", `${colorLabel(color)} passes. ${s.score.winner} wins by ${s.score.margin.toFixed(1)}.`);
+          return { type: "game-over" };
+        }
+        s.turn = opponent(color);
+        recordFrame(s, "Pass", `${colorLabel(color)} passes. ${note}`);
+        return { type: "pass" };
+      }
+
+      function botMoveCandidates(s, color) {
+        const candidates = [];
+        for (let i = 0; i < s.board.length; i += 1) {
+          const view = viewCell(s.board, s.knowledge, color, i);
+          if (view.state === "own" || view.state === "opponent") continue;
+          let score = view.visible ? 7 : 2;
+          const near = neighbors(i);
+          score += near.filter((n) => s.board[n] === color).length * 2;
+          score += near.filter((n) => s.knowledge[color].knownOpp.has(n)).length * 5;
+          score += near.filter((n) => s.board[n] === EMPTY).length;
+          const { x, y } = indexToXY(i);
+          const centerDistance = Math.abs(x - 4) + Math.abs(y - 4);
+          const homeX = color === BLACK ? 2 : 6;
+          const homeY = color === BLACK ? 6 : 2;
+          const homeDistance = Math.abs(x - homeX) + Math.abs(y - homeY);
+          score += Math.max(0, 5 - centerDistance) * 0.45;
+          score += Math.max(0, 8 - homeDistance) * 0.75;
+          score += random01(s);
+          candidates.push({ index: i, score });
+        }
+        return candidates.sort((a, b) => b.score - a.score);
+      }
+
+      function shouldBotPass(s, color) {
+        const candidates = botMoveCandidates(s, color);
+        if (candidates.length === 0) return true;
+        if (s.passes === 1 && s.acceptedMoves >= 42) return true;
+        if (s.acceptedMoves < 30) return false;
+        const occupied = s.board.filter(Boolean).length;
+        if (occupied >= 56) return true;
+        if (s.acceptedMoves >= 52 && candidates.length < 24) return true;
+        if (s.acceptedMoves >= 62) return random01(s) < 0.72;
+        if (s.acceptedMoves >= 46) return random01(s) < 0.34;
+        return false;
+      }
+
+      function playBotDecision(s) {
+        const color = s.turn;
+        s.botTurns += 1;
+        if (shouldBotPass(s, color)) return passTurn(s, color, "Bot endgame heuristic.");
+        for (const candidate of botMoveCandidates(s, color).slice(0, 28)) {
+          const result = attemptMove(s, color, candidate.index);
+          if (result.type === "move" || result.type === "probe") {
+            recordFrame(s, result.type === "probe" ? "Probe" : "Move", result.text);
+            return result;
+          }
+        }
+        return passTurn(s, color, "No useful private-view placement found.");
+      }
+
+      function renderBoard(root, frame, perspective) {
+        const knowledge = frameKnowledge(frame);
+        root.innerHTML = "";
+        for (let i = 0; i < frame.board.length; i += 1) {
+          const view =
+            perspective === "truth"
+              ? { state: frame.board[i] ? "own" : "empty", color: frame.board[i], visible: true, learned: false }
+              : viewCell(frame.board, knowledge, perspective, i);
+          const cell = document.createElement("div");
+          cell.className = `cell ${view.visible ? "known" : "fog"}`;
+          if (perspective === "truth" && frame.gameOver && frame.score?.territoryOwner?.[i]) {
+            cell.classList.add(`territory-${frame.score.territoryOwner[i]}`);
+          }
+          cell.setAttribute("role", "gridcell");
+          const coord = document.createElement("span");
+          coord.className = "coord";
+          coord.textContent = indexToCoord(i);
+          cell.append(coord);
+          if (view.color) {
+            const stone = document.createElement("span");
+            stone.className = `stone ${view.color}${view.learned ? " learned" : ""}`;
+            cell.append(stone);
+          }
+          const last = frame.last.find((entry) => entry.index === i);
+          if (last) {
+            const marker = document.createElement("span");
+            marker.className = `marker ${last.type === "capture" ? "capture" : last.type === "probe" ? "probe" : ""}`;
+            cell.append(marker);
+          }
+          root.append(cell);
+        }
+      }
+
+      function renderTimeline() {
+        els.timeline.innerHTML = "";
+        game.frames.forEach((frame, i) => {
+          const li = document.createElement("li");
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = i === frameIndex ? "active" : "";
+          btn.innerHTML = `<span class="num">${i}</span><span class="event">${frame.tag}: ${frame.text}</span>`;
+          btn.addEventListener("click", () => setFrame(i));
+          li.append(btn);
+          els.timeline.append(li);
+        });
+      }
+
+      function renderScore() {
+        const s = game.finalScore;
+        els.scoreTable.innerHTML = `
+          <div class="score-row header"><span>Side</span><span>Stones</span><span>Terr.</span><span>Komi</span><span>Total</span></div>
+          <div class="score-row"><strong>Black</strong><span>${s.stones.black}</span><span>${s.territory.black}</span><span>0</span><span>${s.blackTotal.toFixed(1)}</span></div>
+          <div class="score-row"><strong>White</strong><span>${s.stones.white}</span><span>${s.territory.white}</span><span>${s.komi.toFixed(1)}</span><span>${s.whiteTotal.toFixed(1)}</span></div>
+        `;
+      }
+
+      function render() {
+        const frame = game.frames[frameIndex];
+        els.frameStat.textContent = `${frameIndex} / ${game.frames.length - 1}`;
+        els.eventStat.textContent = frame.tag;
+        els.turnStat.textContent = frame.gameOver ? "Final" : colorLabel(frame.turn);
+        els.captureStat.textContent = `B ${frame.captures.black} / W ${frame.captures.white}`;
+        els.resultStat.textContent = frame.score ? `${frame.score.winner} +${frame.score.margin.toFixed(1)}` : "In progress";
+        els.detailText.textContent = frame.text;
+        els.range.max = String(game.frames.length - 1);
+        els.range.value = String(frameIndex);
+        els.blackPill.textContent = frame.turn === BLACK && !frame.gameOver ? "To move" : "Waiting";
+        els.whitePill.textContent = frame.turn === WHITE && !frame.gameOver ? "To move" : "Waiting";
+        els.blackPill.classList.toggle("live", frame.turn === BLACK && !frame.gameOver);
+        els.whitePill.classList.toggle("live", frame.turn === WHITE && !frame.gameOver);
+        renderBoard(els.blackBoard, frame, BLACK);
+        renderBoard(els.whiteBoard, frame, WHITE);
+        renderBoard(els.truthBoard, frame, "truth");
+        renderTimeline();
+        renderScore();
+      }
+
+      function setFrame(index) {
+        frameIndex = Math.max(0, Math.min(game.frames.length - 1, index));
+        render();
+      }
+
+      function stopPlayback() {
+        if (timer) window.clearInterval(timer);
+        timer = null;
+        els.playBtn.textContent = "Play";
+      }
+
+      function togglePlayback() {
+        if (timer) {
+          stopPlayback();
+          return;
+        }
+        els.playBtn.textContent = "Pause";
+        timer = window.setInterval(() => {
+          if (frameIndex >= game.frames.length - 1) {
+            stopPlayback();
+            return;
+          }
+          setFrame(frameIndex + 1);
+        }, 460);
+      }
+
+      els.firstBtn.addEventListener("click", () => {
+        stopPlayback();
+        setFrame(0);
+      });
+      els.prevBtn.addEventListener("click", () => {
+        stopPlayback();
+        setFrame(frameIndex - 1);
+      });
+      els.playBtn.addEventListener("click", togglePlayback);
+      els.nextBtn.addEventListener("click", () => {
+        stopPlayback();
+        setFrame(frameIndex + 1);
+      });
+      els.lastBtn.addEventListener("click", () => {
+        stopPlayback();
+        setFrame(game.frames.length - 1);
+      });
+      els.range.addEventListener("input", () => {
+        stopPlayback();
+        setFrame(Number(els.range.value));
+      });
+      els.jumpOpening.addEventListener("click", () => setFrame(Math.min(8, game.frames.length - 1)));
+      els.jumpEndgame.addEventListener("click", () => setFrame(Math.max(0, game.frames.length - 8)));
+      els.jumpScore.addEventListener("click", () => setFrame(game.frames.length - 1));
+
+      render();
+    </script>
+  </body>
+</html>

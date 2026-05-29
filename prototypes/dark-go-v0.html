@@ -561,6 +561,8 @@
           <button id="resetBtn" type="button">Reset</button>
           <button id="stepBtn" class="primary" type="button">Step</button>
           <button id="playBtn" type="button">Play</button>
+          <button id="botTurnBtn" type="button">Bot Turn</button>
+          <button id="botFinishBtn" type="button">Bot Finish</button>
           <button id="truthBtn" class="active" type="button">Truth</button>
         </div>
       </div>
@@ -678,6 +680,8 @@
         resetBtn: document.querySelector("#resetBtn"),
         stepBtn: document.querySelector("#stepBtn"),
         playBtn: document.querySelector("#playBtn"),
+        botTurnBtn: document.querySelector("#botTurnBtn"),
+        botFinishBtn: document.querySelector("#botFinishBtn"),
         truthBtn: document.querySelector("#truthBtn"),
         blackBoard: document.querySelector("#blackBoard"),
         whiteBoard: document.querySelector("#whiteBoard"),
@@ -795,6 +799,9 @@
         scenarioId: scenarios[0].id,
         stepIndex: 0,
         autoplay: null,
+        acceptedMoves: 0,
+        botTurns: 0,
+        rngSeed: 0x7d5f0a9,
       };
 
       function blankBoard() {
@@ -865,6 +872,9 @@
         state.score = null;
         state.scenarioId = scenario.id;
         state.stepIndex = 0;
+        state.acceptedMoves = 0;
+        state.botTurns = 0;
+        state.rngSeed = scenario.id.split("").reduce((seed, ch) => seed + ch.charCodeAt(0), 0x7d5f0a9);
         for (const [coord, color] of scenario.setup.stones ?? []) {
           state.board[coordToIndex(coord)] = color;
         }
@@ -888,6 +898,9 @@
         state.score = null;
         state.scenarioId = "manual";
         state.stepIndex = 0;
+        state.acceptedMoves = 0;
+        state.botTurns = 0;
+        state.rngSeed = 0x4d475631;
         els.scenarioSelect.value = scenarios[0].id;
         addLog("Setup", "Blank manual board.");
         render();
@@ -920,17 +933,17 @@
       function attemptMove(color, index, note = "") {
         if (state.gameOver) {
           addLog("Blocked", "The game has ended.");
-          return;
+          return { type: "blocked" };
         }
         if (color !== state.turn) {
           addLog("Blocked", `${colorLabel(color)} is not to move.`);
-          return;
+          return { type: "blocked" };
         }
         state.last = [{ type: "attempt", index, color }];
         const occ = state.board[index];
         if (occ === color) {
           addLog("Retry", `${colorLabel(color)} already owns ${indexToCoord(index)}.`);
-          return;
+          return { type: "retry" };
         }
         if (occ === opponent(color)) {
           const hidden = !isKnownOccupied(color, index);
@@ -942,10 +955,11 @@
               `${colorLabel(color)} revealed one ${colorLabel(occ)} stone at ${indexToCoord(index)}.${note ? ` ${note}` : ""}`,
             );
             addLog("Contact", `${colorLabel(occ)} is notified that ${indexToCoord(index)} was contacted.`);
+            return { type: "probe" };
           } else {
             addLog("Retry", `${indexToCoord(index)} is visibly occupied.`);
+            return { type: "retry" };
           }
-          return;
         }
 
         const next = state.board.slice();
@@ -955,13 +969,14 @@
         if (state.history.has(nextKey)) {
           state.last = [{ type: "rule", index, color }];
           addLog("Retry", `${colorLabel(color)} is rule-blocked at ${indexToCoord(index)}.`);
-          return;
+          return { type: "retry" };
         }
 
         state.board = resolution.board;
         state.history.add(nextKey);
         state.passes = 0;
         state.turn = opponent(color);
+        state.acceptedMoves += 1;
         state.last = [{ type: "move", index, color }];
         recordCaptureReveals(color, resolution.removedByColor);
         refreshKnowledgeAfterRemovals(resolution.removed);
@@ -970,13 +985,14 @@
           "Move",
           `${colorLabel(color)} accepted ${indexToCoord(index)}.${note ? ` ${note}` : ""}`,
         );
+        return { type: "move" };
       }
 
       function passTurn(color, note = "") {
-        if (state.gameOver) return;
+        if (state.gameOver) return { type: "blocked" };
         if (color !== state.turn) {
           addLog("Blocked", `${colorLabel(color)} is not to move.`);
-          return;
+          return { type: "blocked" };
         }
         state.passes += 1;
         state.last = [];
@@ -985,9 +1001,11 @@
           state.gameOver = true;
           state.score = scoreArea();
           addLog("Result", `${state.score.winner} wins by ${state.score.margin.toFixed(1)}.`);
+          return { type: "game-over" };
         } else {
           state.turn = opponent(color);
         }
+        return { type: "pass" };
       }
 
       function resolveBoardAfterPlacement(board, placedIndex, color) {
@@ -1180,6 +1198,86 @@
         };
       }
 
+      function random01() {
+        state.rngSeed = (Math.imul(state.rngSeed, 1664525) + 1013904223) >>> 0;
+        return state.rngSeed / 0x100000000;
+      }
+
+      function botMoveCandidates(color) {
+        const candidates = [];
+        for (let i = 0; i < state.board.length; i += 1) {
+          const view = viewCell(color, i);
+          if (view.state === "own" || view.state === "opponent") continue;
+          let score = view.visible ? 7 : 2;
+          const near = neighbors(i);
+          const friendly = near.filter((n) => state.board[n] === color).length;
+          const knownEnemy = near.filter((n) => state.knowledge[color].knownOpp.has(n)).length;
+          const empty = near.filter((n) => state.board[n] === EMPTY).length;
+          score += friendly * 2 + knownEnemy * 5 + empty;
+          const { x, y } = indexToXY(i);
+          const centerDistance = Math.abs(x - 4) + Math.abs(y - 4);
+          const homeX = color === BLACK ? 2 : 6;
+          const homeY = color === BLACK ? 6 : 2;
+          const homeDistance = Math.abs(x - homeX) + Math.abs(y - homeY);
+          score += Math.max(0, 5 - centerDistance) * 0.45;
+          score += Math.max(0, 8 - homeDistance) * 0.75;
+          score += random01();
+          candidates.push({ index: i, score });
+        }
+        return candidates.sort((a, b) => b.score - a.score);
+      }
+
+      function shouldBotPass(color) {
+        const candidates = botMoveCandidates(color);
+        if (candidates.length === 0) return true;
+        if (state.passes === 1 && state.acceptedMoves >= 42) return true;
+        if (state.acceptedMoves < 30) return false;
+        const occupied = state.board.filter(Boolean).length;
+        if (occupied >= 56) return true;
+        if (state.acceptedMoves >= 52 && candidates.length < 24) return true;
+        if (state.acceptedMoves >= 62) return random01() < 0.72;
+        if (state.acceptedMoves >= 46) return random01() < 0.34;
+        return false;
+      }
+
+      function playBotDecision(note = "Bot heuristic.") {
+        if (state.gameOver) return { type: "blocked" };
+        const color = state.turn;
+        state.botTurns += 1;
+        if (shouldBotPass(color)) {
+          return passTurn(color, `${note} Endgame pass.`);
+        }
+        const candidates = botMoveCandidates(color);
+        for (const candidate of candidates.slice(0, 28)) {
+          const result = attemptMove(color, candidate.index, note);
+          if (result.type === "move" || result.type === "probe") return result;
+        }
+        return passTurn(color, `${note} No useful private-view placement found.`);
+      }
+
+      function playOneBotTurn() {
+        stopAutoplay();
+        const result = playBotDecision("Bot turn.");
+        addLog("Bot", `Decision ${state.botTurns}: ${result.type}.`);
+        render();
+      }
+
+      function finishBotGame() {
+        stopAutoplay();
+        let steps = 0;
+        while (!state.gameOver && steps < 360) {
+          playBotDecision("Bot playout.");
+          steps += 1;
+        }
+        if (!state.gameOver) {
+          addLog("Safety", "Bot playout reached the safety cap; forcing two referee passes for scoring inspection.");
+          passTurn(state.turn, "Safety-cap pass.");
+          if (!state.gameOver) passTurn(state.turn, "Safety-cap pass.");
+        }
+        addLog("Bot", `Finished after ${steps} bot decisions and ${state.acceptedMoves} accepted moves.`);
+        render();
+      }
+
       function render() {
         els.turnStat.textContent = state.gameOver ? "Final" : colorLabel(state.turn);
         els.passStat.textContent = String(state.passes);
@@ -1194,6 +1292,8 @@
         els.whiteTurnPill.classList.toggle("live", state.turn === WHITE && !state.gameOver);
         els.blackPassBtn.disabled = state.turn !== BLACK || state.gameOver;
         els.whitePassBtn.disabled = state.turn !== WHITE || state.gameOver;
+        els.botTurnBtn.disabled = state.gameOver;
+        els.botFinishBtn.disabled = state.gameOver;
         els.truthBtn.classList.toggle("active", state.showTruth);
 
         renderPrivateBoard(els.blackBoard, BLACK);
@@ -1347,6 +1447,8 @@
       els.resetBtn.addEventListener("click", () => resetToScenario(state.scenarioId));
       els.stepBtn.addEventListener("click", stepScenario);
       els.playBtn.addEventListener("click", toggleAutoplay);
+      els.botTurnBtn.addEventListener("click", playOneBotTurn);
+      els.botFinishBtn.addEventListener("click", finishBotGame);
       els.truthBtn.addEventListener("click", () => {
         state.showTruth = !state.showTruth;
         render();
