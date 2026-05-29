@@ -87,8 +87,42 @@
   stroke-width: 1.5;
 }
 
+.room-actions-row {
+  display: grid;
+  gap: 10px;
+}
+
 .xiangqi-move-list .move-row {
   display: block;
   padding: 7px 10px;
   white-space: nowrap;
+}
+
+.xiangqi-move-list .xiangqi-move-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.xiangqi-move-row__number {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.xiangqi-move-row__move {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xiangqi-move-row__move.masked {
+  color: var(--muted);
+}
+
+.xiangqi-move-row__move.active {
+  border-radius: 6px;
+  background: #eef8f2;
+  box-shadow: inset 3px 0 0 #1f6f5b;
 }

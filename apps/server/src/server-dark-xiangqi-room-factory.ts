@@ -3,6 +3,7 @@ import type { RoomTimeControl } from '@mistboard/game';
 import {
   createDarkXiangqiRuntimeRoom,
   DARK_XIANGQI_ROOM_ID_PREFIX,
+  type DarkXiangqiCreatorPreference,
   type DarkXiangqiEvent,
 } from './dark-xiangqi-runtime.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
@@ -23,11 +24,12 @@ export type DarkXiangqiLiveRoomFactoryContext = {
 export async function createDarkXiangqiLiveRoom(
   ctx: DarkXiangqiLiveRoomFactoryContext,
   timeControl?: RoomTimeControl,
+  creatorPreference?: DarkXiangqiCreatorPreference,
 ): Promise<DarkXiangqiLiveRoomCreation> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = ctx.createRoomId?.() ?? `${DARK_XIANGQI_ROOM_ID_PREFIX}${randomUUID()}`;
     if (ctx.chessRooms.has(roomId) || ctx.darkXiangqiRooms.has(roomId)) continue;
-    const created = createDarkXiangqiRuntimeRoom(roomId, { timeControl });
+    const created = createDarkXiangqiRuntimeRoom(roomId, { creatorPreference, timeControl });
     if (!created.ok) return created;
     const room = created.room as DarkXiangqiLiveRoom;
     if (ctx.isPersistenceEnabled()) {

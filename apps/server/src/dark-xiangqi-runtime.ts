@@ -6,8 +6,8 @@ import {
   getPlayerView as getXiangqiPlayerView,
   type RoomTimeControl,
   type XiangqiColor,
-  type XiangqiGameStatus,
   type XiangqiGameState,
+  type XiangqiGameStatus,
   type XiangqiMove,
   type XiangqiPiece,
   type XiangqiPlayerView,
@@ -18,6 +18,7 @@ import { darkXiangqiEnabled } from './feature-flags.js';
 export const DARK_XIANGQI_ROOM_ID_PREFIX = 'dxq_';
 
 export type DarkXiangqiSeat = XiangqiColor | 'spectator';
+export type DarkXiangqiCreatorPreference = XiangqiColor | 'random';
 
 export type DarkXiangqiClockState = {
   activeColor: XiangqiColor | null;
@@ -33,6 +34,7 @@ export type DarkXiangqiEvent =
       at: number;
       roomId: string;
       gameSpecId: typeof DARK_XIANGQI_SPEC_ID;
+      creatorPreference?: DarkXiangqiCreatorPreference;
       timeControl?: RoomTimeControl;
     }
   | {
@@ -92,8 +94,15 @@ export type DarkXiangqiEvent =
       clock?: DarkXiangqiClockState;
     };
 
+type DarkXiangqiMovePlayedEvent = Extract<DarkXiangqiEvent, { type: 'move-played' }>;
+
+export type DarkXiangqiClientEvent =
+  | Exclude<DarkXiangqiEvent, DarkXiangqiMovePlayedEvent>
+  | (DarkXiangqiMovePlayedEvent & { ply: number });
+
 export type DarkXiangqiProjection = {
   roomId: string;
+  creatorPreference?: DarkXiangqiCreatorPreference;
   gameSpecId: typeof DARK_XIANGQI_SPEC_ID;
   state: XiangqiGameState;
   seats: Partial<Record<XiangqiColor, string>>;
@@ -260,7 +269,11 @@ export function darkXiangqiClockRemainingMs(
 
 export function createDarkXiangqiRuntimeRoom(
   roomId: string,
-  options: { now?: number; timeControl?: RoomTimeControl } = {},
+  options: {
+    creatorPreference?: DarkXiangqiCreatorPreference;
+    now?: number;
+    timeControl?: RoomTimeControl;
+  } = {},
 ): DarkXiangqiRoomCreation {
   if (!darkXiangqiEnabled()) return { ok: false, error: 'dark_xiangqi_disabled' };
 
@@ -271,6 +284,7 @@ export function createDarkXiangqiRuntimeRoom(
       at: now,
       roomId,
       gameSpecId: DARK_XIANGQI_SPEC_ID,
+      ...(options.creatorPreference ? { creatorPreference: options.creatorPreference } : {}),
       ...(options.timeControl ? { timeControl: options.timeControl } : {}),
     },
   ];
@@ -360,6 +374,8 @@ export function isDarkXiangqiEvent(value: unknown, roomId?: string): value is Da
   if (event.type === 'room-created') {
     return (
       event.gameSpecId === DARK_XIANGQI_SPEC_ID &&
+      (event.creatorPreference === undefined ||
+        isDarkXiangqiCreatorPreference(event.creatorPreference)) &&
       (event.timeControl === undefined || isRoomTimeControl(event.timeControl))
     );
   }
@@ -417,7 +433,7 @@ export function applyDarkXiangqiEvent(
   if (event.roomId !== projection.roomId) return projection;
 
   if (event.type === 'room-created') {
-    return initialDarkXiangqiProjection(event.roomId, event.timeControl);
+    return initialDarkXiangqiProjection(event.roomId, event.timeControl, event.creatorPreference);
   }
 
   if (event.type === 'seat-assigned') {
@@ -556,12 +572,36 @@ export function darkXiangqiSnapshotPayload(
 export function darkXiangqiEventsForClient(
   room: DarkXiangqiRuntimeRoom,
   client: DarkXiangqiSnapshotClient,
-): DarkXiangqiEvent[] {
-  const out: DarkXiangqiEvent[] = [];
+): DarkXiangqiClientEvent[] {
+  const out: DarkXiangqiClientEvent[] = [];
+  let ply = 0;
   for (const event of room.events) {
-    if (isDarkXiangqiEventVisible(client, event)) out.push(event);
+    if (event.type === 'move-played') ply += 1;
+    const visible = darkXiangqiClientEventFor(event, client.seat, ply);
+    if (visible) out.push(visible);
   }
   return out;
+}
+
+export function darkXiangqiClientEventFor(
+  event: DarkXiangqiEvent,
+  seat: DarkXiangqiSeat,
+  ply: number,
+): DarkXiangqiClientEvent | null {
+  if (event.type !== 'move-played') return event;
+  if (seat === 'spectator' || event.color !== seat) return null;
+  return { ...event, ply };
+}
+
+export function darkXiangqiPlyAtEventIndex(
+  events: readonly DarkXiangqiEvent[],
+  eventIndex: number,
+): number {
+  let ply = 0;
+  for (let index = 0; index <= eventIndex && index < events.length; index += 1) {
+    if (events[index]?.type === 'move-played') ply += 1;
+  }
+  return ply;
 }
 
 export function getDarkXiangqiClientView(
@@ -579,22 +619,16 @@ export function getDarkXiangqiClientView(
 function initialDarkXiangqiProjection(
   roomId: string,
   timeControl?: RoomTimeControl,
+  creatorPreference?: DarkXiangqiCreatorPreference,
 ): DarkXiangqiProjection {
   return {
     roomId,
+    ...(creatorPreference ? { creatorPreference } : {}),
     gameSpecId: DARK_XIANGQI_SPEC_ID,
     state: createInitialXiangqiState(roomId),
     seats: {},
     ...(timeControl ? { timeControl } : {}),
   };
-}
-
-function isDarkXiangqiEventVisible(
-  client: DarkXiangqiSnapshotClient,
-  event: DarkXiangqiEvent,
-): boolean {
-  if (event.type !== 'move-played') return true;
-  return client.seat !== 'spectator' && event.color === client.seat;
 }
 
 function latestVisibleMoveColor(
@@ -658,6 +692,10 @@ function isFiniteTimestamp(value: unknown): value is number {
 
 function isXiangqiColor(value: unknown): value is XiangqiColor {
   return value === 'red' || value === 'black';
+}
+
+function isDarkXiangqiCreatorPreference(value: unknown): value is DarkXiangqiCreatorPreference {
+  return value === 'red' || value === 'black' || value === 'random';
 }
 
 function isAbortReason(value: unknown): value is AbortReason {

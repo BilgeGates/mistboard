@@ -65,7 +65,7 @@ test('Dark Xiangqi transport hides opponent move event payloads in live event fr
 
   assert.equal(red.frames[0]?.type, 'event-appended');
   assert.equal(black.frames[0]?.type, 'event-appended');
-  assert.deepEqual(red.frames[0]?.event, event);
+  assert.deepEqual(red.frames[0]?.event, { ...event, ply: 1 });
   assert.equal(black.frames[0]?.event, undefined);
   assert.equal(JSON.stringify(black.frames[0]).includes('"b3"'), false);
   assert.equal(JSON.stringify(black.frames[0]).includes('"b4"'), false);

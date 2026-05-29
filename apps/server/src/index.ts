@@ -5,6 +5,7 @@ import pg from 'pg';
 import { WebSocketServer } from 'ws';
 import {
   createDarkXiangqiRuntimeRoomFromEvents,
+  type DarkXiangqiCreatorPreference,
   type DarkXiangqiSeatTokenState,
   isDarkXiangqiEventLog,
 } from './dark-xiangqi-runtime.js';
@@ -364,7 +365,10 @@ function seatVacateGraceMs(): number {
 }
 
 // ── SECTION: Game flow ─────────────────────────────────────────────────────
-async function createDarkXiangqiRoom(timeControl?: RoomTimeControl): Promise<
+async function createDarkXiangqiRoom(
+  timeControl?: RoomTimeControl,
+  creatorPreference?: DarkXiangqiCreatorPreference,
+): Promise<
   | { ok: true; room: DarkXiangqiLiveRoom }
   | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
 > {
@@ -377,6 +381,7 @@ async function createDarkXiangqiRoom(timeControl?: RoomTimeControl): Promise<
       recordPersistenceError: recordDarkXiangqiPersistenceError,
     },
     timeControl,
+    creatorPreference,
   );
 }
 

@@ -15,10 +15,12 @@ export type PlayableEngine = {
 type LandingPlayChoice = {
   engineId?: string;
   engines?: PlayableEngine[];
+  initialGameSpecId?: LandingGameSpecId;
   mode: 'lobby' | 'pvp' | 'pve';
   ratedDisabled?: boolean;
   title: string;
 };
+type LandingGameSpecId = 'dark-chess' | 'dark-xiangqi';
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -27,8 +29,9 @@ type LandingTimePreset = {
   initialMs: number;
   incrementMs: number;
 };
-type LandingColorPreference = 'white' | 'black' | 'random';
+type LandingColorPreference = 'white' | 'red' | 'black' | 'random';
 type LandingRoomSetup = {
+  gameSpecId: LandingGameSpecId;
   startFormat: LandingStartFormat;
   rated: boolean;
   timeControl: {
@@ -88,9 +91,6 @@ export function buildLandingPlayPanel(
   const lobbyButton = landingPlayAction('Find opponent', 'lobby');
   const challengeButton = landingPlayAction('Challenge a friend', 'friend');
   const engineButton = landingPlayAction('Play the engine', 'computer');
-  const darkXiangqiButton = darkXiangqiEnabled()
-    ? landingPlayAction('Dark Xiangqi', 'friend')
-    : null;
 
   lobbyButton.addEventListener('click', () => {
     openLandingSetupDialog({
@@ -115,12 +115,8 @@ export function buildLandingPlayPanel(
       title: 'Play the engine',
     });
   });
-  darkXiangqiButton?.addEventListener('click', () => {
-    void createDarkXiangqiRoomFromPlay(darkXiangqiButton);
-  });
 
   panel.append(lobbyButton, challengeButton, engineButton);
-  if (darkXiangqiButton) panel.append(darkXiangqiButton);
 
   const anonNote = document.createElement('p');
   anonNote.className = 'landing-play-anon-note';
@@ -280,6 +276,7 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
     join.textContent = 'Joining';
     const status = document.createElement('span');
     const setup: LandingRoomSetup = {
+      gameSpecId: 'dark-chess',
       startFormat: request.hiddenDraft960 ? 'draft960' : 'standard',
       rated: request.rated ?? true,
       timeControl: request.timeControl,
@@ -335,6 +332,10 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
       break;
     case 'friend':
       openLandingSetupDialog({
+        initialGameSpecId:
+          params.get('variant') === 'dark-xiangqi' && darkXiangqiEnabled()
+            ? 'dark-xiangqi'
+            : undefined,
         mode: 'pvp',
         title: 'Challenge a friend',
         ratedDisabled: true,
@@ -365,9 +366,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   let startFormat: LandingStartFormat = 'standard';
   let rated = !(choice.mode === 'pve' || choice.ratedDisabled);
+  let selectedGameSpecId: LandingGameSpecId = choice.initialGameSpecId ?? 'dark-chess';
   let selectedPreset: LandingTimePresetId = '3m2';
   let selectedEngineId = choice.engineId;
   let preferredColor: LandingColorPreference = loadStoredColorPreference();
+  let syncGameSpecificSections = () => {};
+  let syncVariantControls = () => {};
+  let syncColorPreferenceControls = () => {};
 
   const overlay = document.createElement('div');
   overlay.className = 'landing-setup-overlay';
@@ -398,10 +403,34 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantSection.className = 'landing-setup-section';
   variantSection.append(setupSectionLabel('Variant'));
 
-  const variantControl = document.createElement('div');
-  variantControl.className = 'landing-variant-control';
-  variantControl.textContent = 'Dark chess';
-  variantSection.append(variantControl);
+  const darkXiangqiSelectable = choice.mode === 'pvp' && darkXiangqiEnabled();
+  if (darkXiangqiSelectable) {
+    const variantSelect = document.createElement('select');
+    variantSelect.className = 'landing-variant-select landing-engine-select';
+    variantSelect.setAttribute('aria-label', 'Variant');
+    for (const [value, label] of [
+      ['dark-chess', 'Dark chess'],
+      ['dark-xiangqi', 'Dark Xiangqi'],
+    ] as const) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      variantSelect.append(option);
+    }
+    syncVariantControls = () => {
+      variantSelect.value = selectedGameSpecId;
+    };
+    variantSelect.addEventListener('change', () => {
+      selectedGameSpecId = variantSelect.value === 'dark-xiangqi' ? 'dark-xiangqi' : 'dark-chess';
+      syncGameSpecificSections();
+    });
+    variantSection.append(variantSelect);
+  } else {
+    const variantControl = document.createElement('div');
+    variantControl.className = 'landing-variant-control';
+    variantControl.textContent = 'Dark chess';
+    variantSection.append(variantControl);
+  }
 
   const engineSection =
     choice.mode === 'pve'
@@ -416,13 +445,14 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   const draft960Enabled = isVariantEnabled('fog_draft960');
   const draft960Selectable = draft960Enabled && choice.mode !== 'lobby';
+  let startGroup: HTMLDivElement | null = null;
   const standardButton = startOptionButton('Standard', true);
   const draftButton = startOptionButton(
     draft960Selectable ? 'Draft960' : 'Draft960 (coming soon)',
     false,
   );
   if (draft960Enabled) {
-    const startGroup = document.createElement('div');
+    startGroup = document.createElement('div');
     startGroup.className = 'landing-start-options';
     startGroup.setAttribute('role', 'radiogroup');
     startGroup.setAttribute('aria-label', 'Fog start format');
@@ -508,7 +538,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
         ? 'Create room'
         : 'Start game';
   startButton.addEventListener('click', () => {
-    const setup = selectedRoomSetup(startFormat, rated, selectedPreset, preferredColor);
+    const setup = selectedRoomSetup(
+      selectedGameSpecId,
+      startFormat,
+      rated,
+      selectedPreset,
+      preferredColor,
+    );
     if (choice.mode === 'lobby') {
       cancelLobbyWait?.();
       cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status, selectedEngineId);
@@ -558,8 +594,28 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
             preferredColor = value;
             storeColorPreference(value);
           },
+          () => selectedGameSpecId,
+          (sync) => {
+            syncColorPreferenceControls = sync;
+          },
         )
       : null;
+
+  syncGameSpecificSections = () => {
+    const isDarkXiangqi = selectedGameSpecId === 'dark-xiangqi';
+    if (isDarkXiangqi) {
+      startFormat = 'standard';
+      rated = false;
+      if (preferredColor === 'white') preferredColor = 'red';
+    } else if (preferredColor === 'red') {
+      preferredColor = 'white';
+    }
+    if (startGroup) startGroup.hidden = isDarkXiangqi;
+    if (ratingSection) ratingSection.hidden = isDarkXiangqi;
+    syncVariantControls();
+    syncColorPreferenceControls();
+  };
+  syncGameSpecificSections();
 
   actions.append(startButton, backButton);
   dialog.append(header, variantSection);
@@ -570,7 +626,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   dialog.append(status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
-  (draft960Enabled ? standardButton : startButton).focus();
+  (draft960Enabled && selectedGameSpecId !== 'dark-xiangqi' ? standardButton : startButton).focus();
 }
 
 function buildEngineSetupSection(
@@ -669,7 +725,7 @@ const COLOR_PREFERENCE_STORAGE_KEY = 'mistboard:setup:preferredColor';
 function loadStoredColorPreference(): LandingColorPreference {
   try {
     const raw = window.localStorage.getItem(COLOR_PREFERENCE_STORAGE_KEY);
-    if (raw === 'white' || raw === 'black' || raw === 'random') return raw;
+    if (raw === 'white' || raw === 'red' || raw === 'black' || raw === 'random') return raw;
   } catch {
     // ignore — storage may be disabled (private mode, quota); fall through to default
   }
@@ -687,6 +743,8 @@ function storeColorPreference(value: LandingColorPreference): void {
 function buildColorPreferenceSection(
   get: () => LandingColorPreference,
   set: (value: LandingColorPreference) => void,
+  getGameSpecId: () => LandingGameSpecId = () => 'dark-chess',
+  onSync?: (sync: () => void) => void,
 ): HTMLElement {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
@@ -698,14 +756,24 @@ function buildColorPreferenceSection(
   group.setAttribute('aria-label', 'Color');
 
   const initial = get();
-  const whiteButton = colorOptionButton('white', 'White', initial === 'white');
+  const firstButton = colorOptionButton('white', 'White', initial === 'white');
   const randomButton = colorOptionButton('random', 'Random', initial === 'random');
   const blackButton = colorOptionButton('black', 'Black', initial === 'black');
 
   const sync = () => {
+    const gameSpecId = getGameSpecId();
+    const firstValue: LandingColorPreference = gameSpecId === 'dark-xiangqi' ? 'red' : 'white';
     const current = get();
+    updateColorOptionButton(
+      firstButton,
+      firstValue,
+      firstValue === 'red' ? 'Red' : 'White',
+      gameSpecId,
+    );
+    updateColorOptionButton(randomButton, 'random', 'Random', gameSpecId);
+    updateColorOptionButton(blackButton, 'black', 'Black', gameSpecId);
     for (const [button, value] of [
-      [whiteButton, 'white'],
+      [firstButton, firstValue],
       [randomButton, 'random'],
       [blackButton, 'black'],
     ] as const) {
@@ -715,8 +783,8 @@ function buildColorPreferenceSection(
     }
   };
 
-  whiteButton.addEventListener('click', () => {
-    set('white');
+  firstButton.addEventListener('click', () => {
+    set(getGameSpecId() === 'dark-xiangqi' ? 'red' : 'white');
     sync();
   });
   randomButton.addEventListener('click', () => {
@@ -728,7 +796,8 @@ function buildColorPreferenceSection(
     sync();
   });
 
-  group.append(whiteButton, randomButton, blackButton);
+  onSync?.(sync);
+  group.append(firstButton, randomButton, blackButton);
   section.append(group);
   return section;
 }
@@ -747,17 +816,7 @@ function colorOptionButton(
   const glyph = document.createElement('span');
   glyph.className = `landing-color-glyph ${value}`;
   glyph.setAttribute('aria-hidden', 'true');
-  if (value === 'random') {
-    const w = document.createElement('span');
-    w.className = 'white';
-    w.textContent = '♚';
-    const b = document.createElement('span');
-    b.className = 'black';
-    b.textContent = '♚';
-    glyph.append(w, b);
-  } else {
-    glyph.textContent = '♚';
-  }
+  glyph.append(...colorGlyphNodes(value));
 
   const text = document.createElement('span');
   text.className = 'landing-color-label';
@@ -765,6 +824,41 @@ function colorOptionButton(
 
   button.append(glyph, text);
   return button;
+}
+
+function updateColorOptionButton(
+  button: HTMLButtonElement,
+  value: LandingColorPreference,
+  label: string,
+  gameSpecId: LandingGameSpecId,
+): void {
+  const glyph = button.querySelector<HTMLSpanElement>('.landing-color-glyph');
+  const text = button.querySelector<HTMLSpanElement>('.landing-color-label');
+  if (glyph) {
+    glyph.className = `landing-color-glyph ${value}`;
+    glyph.classList.toggle('xiangqi', gameSpecId === 'dark-xiangqi');
+    glyph.replaceChildren(...colorGlyphNodes(value, gameSpecId));
+  }
+  if (text) text.textContent = label;
+}
+
+function colorGlyphNodes(
+  value: LandingColorPreference,
+  gameSpecId: LandingGameSpecId = 'dark-chess',
+): Node[] {
+  if (value === 'random') {
+    const first = document.createElement('span');
+    first.className = gameSpecId === 'dark-xiangqi' ? 'red' : 'white';
+    first.textContent = gameSpecId === 'dark-xiangqi' ? '帥' : '♚';
+    const second = document.createElement('span');
+    second.className = 'black';
+    second.textContent = gameSpecId === 'dark-xiangqi' ? '將' : '♚';
+    return [first, second];
+  }
+  if (gameSpecId === 'dark-xiangqi') {
+    return [document.createTextNode(value === 'black' ? '將' : '帥')];
+  }
+  return [document.createTextNode('♚')];
 }
 
 function setupSectionLabel(text: string): HTMLSpanElement {
@@ -775,6 +869,7 @@ function setupSectionLabel(text: string): HTMLSpanElement {
 }
 
 function selectedRoomSetup(
+  gameSpecId: LandingGameSpecId,
   startFormat: LandingStartFormat,
   rated: boolean,
   presetId: LandingTimePresetId,
@@ -783,6 +878,7 @@ function selectedRoomSetup(
   const preset =
     LANDING_TIME_PRESETS.find((candidate) => candidate.id === presetId) ?? LANDING_TIME_PRESETS[1];
   return {
+    gameSpecId,
     startFormat,
     rated,
     timeControl: {
@@ -821,6 +917,7 @@ async function createRoomFromPlay(
   mode: 'pvp' | 'pve',
   engineId?: string,
   setup: LandingRoomSetup = {
+    gameSpecId: 'dark-chess',
     startFormat: 'standard',
     rated: true,
     timeControl: { initialMs: 30_000, incrementMs: 2_000 },
@@ -842,15 +939,7 @@ async function createRoomFromPlay(
       const response = await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          mode,
-          variant: 'dark-chess',
-          hiddenDraft960: setup.startFormat === 'draft960',
-          timeControl: setup.timeControl,
-          rated: setup.rated,
-          preferredColor: setup.preferredColor,
-          ...(mode === 'pve' && engineId ? { engineId } : {}),
-        }),
+        body: JSON.stringify(roomCreationRequestBody(mode, setup, engineId)),
       });
       if (status && !status.isConnected) return;
       if (response.ok) {
@@ -885,37 +974,33 @@ async function createRoomFromPlay(
   }
 }
 
-async function createDarkXiangqiRoomFromPlay(button: HTMLButtonElement): Promise<void> {
-  const originalText = button.textContent ?? '';
-  button.disabled = true;
-  button.setAttribute('aria-busy', 'true');
-  setButtonLabel(button, 'Creating');
-  try {
-    const response = await fetch('/api/rooms', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        mode: 'pvp',
-        gameSpecId: 'dark-xiangqi',
-        timeControl: { initialMs: 180_000, incrementMs: 2_000 },
-      }),
-    });
-    if (!response.ok) {
-      throw roomCreationError(response.status, await readRoomCreationFailure(response));
-    }
-    const data = (await response.json()) as { url?: string };
-    if (!data.url) throw new Error('room creation did not return a URL');
-    window.location.href = data.url;
-  } catch (err) {
-    console.warn(err);
-    setButtonLabel(button, 'Try again');
-    button.disabled = false;
-    button.removeAttribute('aria-busy');
-    window.setTimeout(() => {
-      if (button.disabled) return;
-      setButtonLabel(button, originalText);
-    }, 1800);
+function roomCreationRequestBody(
+  mode: 'pvp' | 'pve',
+  setup: LandingRoomSetup,
+  engineId?: string,
+): Record<string, unknown> {
+  if (setup.gameSpecId === 'dark-xiangqi') {
+    return {
+      mode: 'pvp',
+      gameSpecId: 'dark-xiangqi',
+      timeControl: setup.timeControl,
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+    };
   }
+  return {
+    mode,
+    variant: 'dark-chess',
+    hiddenDraft960: setup.startFormat === 'draft960',
+    timeControl: setup.timeControl,
+    rated: setup.rated,
+    preferredColor: setup.preferredColor,
+    ...(mode === 'pve' && engineId ? { engineId } : {}),
+  };
 }
 
 async function readRoomCreationFailure(response: Response): Promise<RoomCreationFailure> {

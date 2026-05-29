@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { DARK_XIANGQI_SPEC_ID, type XiangqiColor } from '@mistboard/game';
+import { DARK_XIANGQI_SPEC_ID, type XiangqiColor, type XiangqiGameState } from '@mistboard/game';
 import {
   type DarkXiangqiEvent,
+  type DarkXiangqiWirePlayerView,
   getDarkXiangqiClientView,
   isDarkXiangqiEventLog,
   replayDarkXiangqiEvents,
@@ -13,6 +14,10 @@ import { type HttpApiContext, requireMethod, requirePersistence, writeJson } fro
 type DarkXiangqiPostgameAccess = {
   seat: XiangqiColor | 'spectator';
 };
+
+type DarkXiangqiPostgameViews = Partial<
+  Record<XiangqiColor | 'spectator', DarkXiangqiWirePlayerView>
+>;
 
 type DarkXiangqiPostgameMove = {
   type: 'move-played';
@@ -71,10 +76,7 @@ async function postgameAccessForRequest(
   return { seat: verified.seat };
 }
 
-async function darkXiangqiPostgameForApi(
-  roomId: string,
-  access: DarkXiangqiPostgameAccess,
-) {
+async function darkXiangqiPostgameForApi(roomId: string, access: DarkXiangqiPostgameAccess) {
   const [game, events] = await Promise.all([
     persistence.getGameSummary(roomId),
     persistence.loadRoomEvents<DarkXiangqiEvent>(roomId),
@@ -86,6 +88,11 @@ async function darkXiangqiPostgameForApi(
   if (projection.state.status.type !== 'finished') return null;
 
   const latestMoveColor = latestDarkXiangqiMoveColor(events);
+  const view = getDarkXiangqiClientView(
+    projection.state,
+    { id: `postgame-${access.seat}`, seat: access.seat, solo: false },
+    latestMoveColor,
+  );
   return {
     game: {
       roomId: game.roomId,
@@ -109,9 +116,32 @@ async function darkXiangqiPostgameForApi(
       timeControl: projection.timeControl,
     },
     timeline: darkXiangqiPostgameTimeline(events, access.seat),
-    view: getDarkXiangqiClientView(
-      projection.state,
-      { id: `postgame-${access.seat}`, seat: access.seat, solo: false },
+    view,
+    views: darkXiangqiPostgameViews(projection.state, access.seat, latestMoveColor),
+  };
+}
+
+function darkXiangqiPostgameViews(
+  state: XiangqiGameState,
+  seat: XiangqiColor | 'spectator',
+  latestMoveColor?: XiangqiColor,
+): DarkXiangqiPostgameViews {
+  const spectator = getDarkXiangqiClientView(
+    state,
+    { id: 'postgame-spectator', seat: 'spectator', solo: false },
+    latestMoveColor,
+  );
+  if (seat === 'spectator') return { spectator };
+  return {
+    red: getDarkXiangqiClientView(
+      state,
+      { id: 'postgame-red', seat: 'red', solo: false },
+      latestMoveColor,
+    ),
+    spectator,
+    black: getDarkXiangqiClientView(
+      state,
+      { id: 'postgame-black', seat: 'black', solo: false },
       latestMoveColor,
     ),
   };

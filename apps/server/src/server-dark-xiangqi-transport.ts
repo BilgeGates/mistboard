@@ -2,6 +2,8 @@ import type { XiangqiColor } from '@mistboard/game';
 import {
   type DarkXiangqiEvent,
   type DarkXiangqiRuntimeRoom,
+  darkXiangqiClientEventFor,
+  darkXiangqiPlyAtEventIndex,
   darkXiangqiSnapshotPayload,
 } from './dark-xiangqi-runtime.js';
 
@@ -54,12 +56,16 @@ export function broadcastDarkXiangqiEventAppended(
     }
     const snapshot = darkXiangqiTransportSnapshotPayload(room, client);
     const { events: _events, ...base } = snapshot;
-    const eventVisible = event.type !== 'move-played' || event.color === client.seat;
+    const clientEvent = darkXiangqiClientEventFor(
+      event,
+      client.seat,
+      darkXiangqiPlyAtEventIndex(room.events, seq),
+    );
     sendDarkXiangqiPayload(client, {
       ...base,
       type: 'event-appended',
       seq,
-      ...(eventVisible ? { event } : {}),
+      ...(clientEvent ? { event: clientEvent } : {}),
     });
   }
 }

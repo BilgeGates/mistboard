@@ -3,32 +3,50 @@ import { buildLandingPlayPanel } from './landing-play.js';
 
 describe('landing play panel', () => {
   afterEach(() => {
+    document.body.replaceChildren();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
 
   it('keeps Dark Xiangqi hidden unless the client flag is enabled', () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ playing: 0, online: 0 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
     const panel = buildLandingPlayPanel([]);
 
     expect(panel.textContent).not.toContain('Dark Xiangqi');
   });
 
-  it('creates a Dark Xiangqi room from the flagged homepage action', async () => {
+  it('creates a Dark Xiangqi room from the flagged challenge variant', async () => {
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
-    const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dxq_home' });
       return jsonResponse({}, { status: 404 });
     });
     vi.stubGlobal('fetch', fetchSpy);
     const panel = buildLandingPlayPanel([]);
-    const button = [...panel.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent === 'Dark Xiangqi',
+    document.body.append(panel);
+    const challengeButton = [...panel.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Challenge a friend',
     );
 
-    expect(button).toBeDefined();
-    button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
+    expect(variantSelect).not.toBeNull();
+    variantSelect!.value = 'dark-xiangqi';
+    variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(document.body.textContent).toContain('Red');
+    expect(document.body.textContent).not.toContain('White');
+    const glyphs = [...document.querySelectorAll('.landing-color-glyph')].map((glyph) =>
+      glyph.textContent?.trim(),
+    );
+    expect(glyphs).toEqual(['帥', '帥將', '將']);
+    const createButton = [...document.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Create room',
+    );
+    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     await flushPromises();
 
     const roomCall = fetchSpy.mock.calls.find(([input]) => String(input) === '/api/rooms');
@@ -37,6 +55,7 @@ describe('landing play panel', () => {
       mode: 'pvp',
       gameSpecId: 'dark-xiangqi',
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      preferredColor: 'random',
     });
     expect(window.location.pathname).toBe('/room/dxq_home');
   });

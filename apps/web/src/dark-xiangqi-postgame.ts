@@ -3,10 +3,7 @@ import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import { readSeatTokenForRoom } from './live-state.js';
-import {
-  type DarkXiangqiWireView,
-  renderDarkXiangqiBoardSvg,
-} from './live-xiangqi-render.js';
+import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-xiangqi-render.js';
 
 type DarkXiangqiPostgameResponse = {
   game: {
@@ -40,6 +37,7 @@ type DarkXiangqiPostgameResponse = {
     reason?: string;
   }>;
   view: DarkXiangqiWireView;
+  views?: Partial<Record<XiangqiColor | 'spectator', DarkXiangqiWireView>>;
 };
 
 type LoadResult =
@@ -87,7 +85,10 @@ export async function loadDarkXiangqiPostgame(roomId: string): Promise<LoadResul
 }
 
 export function darkXiangqiPostgameApiUrl(roomId: string, seatToken: string | null): string {
-  const url = new URL(`/api/dark-xiangqi/games/${encodeURIComponent(roomId)}`, window.location.href);
+  const url = new URL(
+    `/api/dark-xiangqi/games/${encodeURIComponent(roomId)}`,
+    window.location.href,
+  );
   if (seatToken) url.searchParams.set('seatToken', seatToken);
   return `${url.pathname}${url.search}`;
 }
@@ -126,21 +127,52 @@ function renderPostgame(
   layout.className = 'dxq-postgame__layout';
   layout.setAttribute('aria-label', 'Dark Xiangqi postgame');
 
-  const boardWrap = document.createElement('div');
-  boardWrap.className = 'dxq-postgame__board-wrap';
-  const board = document.createElement('div');
-  board.className = 'dxq-postgame__board xiangqi-live-board';
-  board.setAttribute('aria-label', 'Final Dark Xiangqi board');
-  board.innerHTML = renderDarkXiangqiBoardSvg(postgame.view, postgame.view.perspective);
-  boardWrap.append(board);
-
   const side = document.createElement('aside');
   side.className = 'dxq-postgame__side';
   side.append(detailsPanel(postgame), timelinePanel(postgame));
 
-  layout.append(boardWrap, side);
+  layout.append(boardsPanel(postgame), side);
   page.append(header, layout);
   root.append(page);
+}
+
+function boardsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'dxq-postgame__boards';
+  const views = postgameViewEntries(postgame);
+  for (const entry of views) {
+    const boardWrap = document.createElement('section');
+    boardWrap.className = 'dxq-postgame__board-wrap';
+    const heading = document.createElement('h2');
+    heading.className = 'dxq-postgame__board-title';
+    heading.textContent = entry.label;
+    const board = document.createElement('div');
+    board.className = 'dxq-postgame__board xiangqi-live-board';
+    board.setAttribute('aria-label', `${entry.label} final Dark Xiangqi board`);
+    board.innerHTML = renderDarkXiangqiBoardSvg(entry.view, entry.view.perspective);
+    boardWrap.append(heading, board);
+    panel.append(boardWrap);
+  }
+  return panel;
+}
+
+function postgameViewEntries(
+  postgame: DarkXiangqiPostgameResponse,
+): Array<{ label: string; view: DarkXiangqiWireView }> {
+  const views = postgame.views;
+  if (views?.red && views.spectator && views.black) {
+    return [
+      { label: 'Red view', view: views.red },
+      { label: 'Public view', view: views.spectator },
+      { label: 'Black view', view: views.black },
+    ];
+  }
+  return [
+    {
+      label: accessLabel(postgame.access.seat, postgame.access.seat !== 'spectator'),
+      view: postgame.view,
+    },
+  ];
 }
 
 function postgameActions(roomId: string): HTMLElement {
@@ -295,11 +327,7 @@ function dateLabel(value: string): string {
 }
 
 function labelize(value: string): string {
-  return value
-    .split('-')
-    .filter(Boolean)
-    .map(capitalize)
-    .join(' ');
+  return value.split('-').filter(Boolean).map(capitalize).join(' ');
 }
 
 function capitalize(value: string): string {

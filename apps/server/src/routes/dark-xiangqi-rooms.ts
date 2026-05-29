@@ -31,6 +31,7 @@ export async function handleDarkXiangqiCreate(
     return;
   }
   const mode = parseDarkXiangqiRoomMode(body);
+  const preferredColor = parseDarkXiangqiPreferredColor(body.preferredColor);
   const timeControl =
     body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
   if (body.timeControl !== undefined && !timeControl) {
@@ -50,7 +51,7 @@ export async function handleDarkXiangqiCreate(
     return;
   }
 
-  const created = await ctx.createDarkXiangqiRoom(timeControl ?? undefined);
+  const created = await ctx.createDarkXiangqiRoom(timeControl ?? undefined, preferredColor);
   if (!created.ok) {
     const status =
       created.error === 'dark_xiangqi_disabled'
@@ -74,4 +75,9 @@ export async function handleDarkXiangqiCreate(
 function parseDarkXiangqiRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
   return null;
+}
+
+function parseDarkXiangqiPreferredColor(value: unknown): 'red' | 'black' | 'random' | undefined {
+  if (value === 'red' || value === 'black' || value === 'random') return value;
+  return undefined;
 }

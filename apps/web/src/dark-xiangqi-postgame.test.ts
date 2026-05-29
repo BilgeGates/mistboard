@@ -62,15 +62,20 @@ describe('Dark Xiangqi postgame page', () => {
     );
     expect(root.textContent).toContain('Red wins');
     expect(root.textContent).toContain('Red view');
+    expect(root.textContent).toContain('Public view');
+    expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Red b3-b4');
     expect(root.textContent).not.toContain('Black b8-b7');
-    expect(root.querySelector('.xq-live-svg')).not.toBeNull();
+    expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
     expect(root.innerHTML).toContain('aria-label="black hidden piece"');
-    expect(root.innerHTML).not.toContain('aria-label="black soldier"');
+    expect(root.innerHTML).toContain('aria-label="black soldier"');
   });
 
   it('renders public spectator payloads without board truth', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(postgameFixture('spectator'))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(postgameFixture('spectator'))),
+    );
     const root = document.createElement('div');
 
     mountDarkXiangqiPostgame(root, 'dxq_public');
@@ -78,6 +83,8 @@ describe('Dark Xiangqi postgame page', () => {
 
     expect(root.textContent).toContain('Spectator');
     expect(root.textContent).toContain('No visible moves');
+    expect(root.textContent).not.toContain('Red view');
+    expect(root.textContent).not.toContain('Black view');
     expect(root.querySelectorAll('.xq-piece')).toHaveLength(0);
   });
 
@@ -151,6 +158,44 @@ function postgameFixture(seat: 'red' | 'black' | 'spectator') {
       status: { type: 'finished', winner: 'red', reason: 'resignation' },
       moveNumber: 2,
     },
+    views:
+      seat === 'spectator'
+        ? undefined
+        : {
+            red: {
+              id: 'dxq_postgame_red',
+              perspective: 'red',
+              board: {
+                b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+                b8: { color: 'black', shrouded: true },
+              },
+              visibleSquares: ['b4', 'b8'],
+              legalMoves: [],
+              status: { type: 'finished', winner: 'red', reason: 'resignation' },
+              moveNumber: 2,
+            },
+            spectator: {
+              id: 'dxq_postgame_spectator',
+              perspective: 'red',
+              board: {},
+              visibleSquares: [],
+              legalMoves: [],
+              status: { type: 'finished', winner: 'red', reason: 'resignation' },
+              moveNumber: 2,
+            },
+            black: {
+              id: 'dxq_postgame_black',
+              perspective: 'black',
+              board: {
+                b4: { color: 'red', shrouded: true },
+                b7: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
+              },
+              visibleSquares: ['b4', 'b7'],
+              legalMoves: [],
+              status: { type: 'finished', winner: 'red', reason: 'resignation' },
+              moveNumber: 2,
+            },
+          },
   };
 }
 
