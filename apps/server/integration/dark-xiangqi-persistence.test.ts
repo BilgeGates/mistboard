@@ -303,6 +303,17 @@ if (!testDbUrl) {
     assert.equal(publicPostgame.view.perspective, 'red');
     assert.deepEqual(publicPostgame.view.board, {});
     assert.deepEqual(publicPostgame.views, { spectator: publicPostgame.view });
+    assert.deepEqual(
+      publicPostgame.history?.spectator?.map((snapshot) => ({
+        ply: snapshot.ply,
+        board: snapshot.view.board,
+      })),
+      [
+        { ply: 0, board: {} },
+        { ply: 1, board: {} },
+        { ply: 2, board: {} },
+      ],
+    );
     assert.equal(
       publicPostgame.timeline.some((entry) => entry.type === 'move-played'),
       false,
@@ -330,6 +341,24 @@ if (!testDbUrl) {
     assert.deepEqual(redPostgame.views?.spectator?.board, {});
     assert.equal(redPostgame.views?.black?.perspective, 'black');
     assert.equal(shroudedEntriesCarryPieceIdentity(redPostgame.views?.black?.board ?? {}), false);
+    assert.deepEqual(
+      redPostgame.history?.red?.map((snapshot) => snapshot.ply),
+      [0, 1, 2],
+    );
+    assert.deepEqual(
+      redPostgame.history?.spectator?.map((snapshot) => snapshot.view.board),
+      [{}, {}, {}],
+    );
+    assert.deepEqual(
+      redPostgame.history?.black?.map((snapshot) => snapshot.ply),
+      [0, 1, 2],
+    );
+    assert.equal(
+      redPostgame.history?.black?.some((snapshot) =>
+        shroudedEntriesCarryPieceIdentity(snapshot.view.board),
+      ),
+      false,
+    );
     assert.deepEqual(
       redPostgame.timeline
         .filter((entry) => entry.type === 'move-played')
@@ -421,6 +450,11 @@ type DarkXiangqiPostgameResponse = {
     red?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
     spectator?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
     black?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
+  };
+  history?: {
+    red?: Array<{ ply: number; view: { board: Record<string, unknown> } }>;
+    spectator?: Array<{ ply: number; view: { board: Record<string, unknown> } }>;
+    black?: Array<{ ply: number; view: { board: Record<string, unknown> } }>;
   };
 };
 

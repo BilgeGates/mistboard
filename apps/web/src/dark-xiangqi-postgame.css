@@ -77,6 +77,42 @@
   align-items: start;
 }
 
+.dxq-postgame__replay-controls {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 40px 40px minmax(92px, max-content) 40px 40px;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 1px solid #c8d0cc;
+  border-radius: 8px;
+  background: #fbfcfb;
+}
+
+.dxq-postgame__replay-button {
+  width: 40px;
+  min-height: 34px;
+  border: 1px solid #b8c5c0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #263129;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dxq-postgame__replay-button:disabled {
+  color: #89938d;
+  background: #eef2f0;
+}
+
+.dxq-postgame__replay-status {
+  color: #263129;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .dxq-postgame__board-wrap {
   display: grid;
   gap: 6px;

@@ -1,7 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { DARK_XIANGQI_SPEC_ID, type XiangqiColor, type XiangqiGameState } from '@mistboard/game';
 import {
+  applyDarkXiangqiEvent,
   type DarkXiangqiEvent,
+  type DarkXiangqiProjection,
   type DarkXiangqiWirePlayerView,
   getDarkXiangqiClientView,
   isDarkXiangqiEventLog,
@@ -17,6 +19,13 @@ type DarkXiangqiPostgameAccess = {
 
 type DarkXiangqiPostgameViews = Partial<
   Record<XiangqiColor | 'spectator', DarkXiangqiWirePlayerView>
+>;
+type DarkXiangqiPostgameSnapshot = {
+  ply: number;
+  view: DarkXiangqiWirePlayerView;
+};
+type DarkXiangqiPostgameHistory = Partial<
+  Record<XiangqiColor | 'spectator', DarkXiangqiPostgameSnapshot[]>
 >;
 
 type DarkXiangqiPostgameMove = {
@@ -118,6 +127,7 @@ async function darkXiangqiPostgameForApi(roomId: string, access: DarkXiangqiPost
     timeline: darkXiangqiPostgameTimeline(events, access.seat),
     view,
     views: darkXiangqiPostgameViews(projection.state, access.seat, latestMoveColor),
+    history: darkXiangqiPostgameHistory(events, access.seat),
   };
 }
 
@@ -145,6 +155,62 @@ function darkXiangqiPostgameViews(
       latestMoveColor,
     ),
   };
+}
+
+function darkXiangqiPostgameHistory(
+  events: readonly DarkXiangqiEvent[],
+  seat: XiangqiColor | 'spectator',
+): DarkXiangqiPostgameHistory {
+  const created = events[0];
+  if (!created || created.type !== 'room-created') return {};
+  let projection = replayDarkXiangqiEvents([created]);
+  let ply = 0;
+  let latestMoveColor: XiangqiColor | undefined;
+  const history = postgameHistoryViews(projection, seat, ply, latestMoveColor);
+
+  for (const event of events.slice(1)) {
+    projection = applyDarkXiangqiEvent(projection, event);
+    if (event.type !== 'move-played') continue;
+    ply += 1;
+    latestMoveColor = event.color;
+    appendPostgameHistoryViews(history, projection, seat, ply, latestMoveColor);
+  }
+  return history;
+}
+
+function postgameHistoryViews(
+  projection: DarkXiangqiProjection,
+  seat: XiangqiColor | 'spectator',
+  ply: number,
+  latestMoveColor?: XiangqiColor,
+): DarkXiangqiPostgameHistory {
+  const history: DarkXiangqiPostgameHistory = {};
+  appendPostgameHistoryViews(history, projection, seat, ply, latestMoveColor);
+  return history;
+}
+
+function appendPostgameHistoryViews(
+  history: DarkXiangqiPostgameHistory,
+  projection: DarkXiangqiProjection,
+  seat: XiangqiColor | 'spectator',
+  ply: number,
+  latestMoveColor?: XiangqiColor,
+): void {
+  const spectator = getDarkXiangqiClientView(
+    projection.state,
+    { id: `postgame-history-spectator-${ply}`, seat: 'spectator', solo: false },
+    latestMoveColor,
+  );
+  history.spectator = [...(history.spectator ?? []), { ply, view: spectator }];
+  if (seat === 'spectator') return;
+  for (const color of ['red', 'black'] as const) {
+    const view = getDarkXiangqiClientView(
+      projection.state,
+      { id: `postgame-history-${color}-${ply}`, seat: color, solo: false },
+      latestMoveColor,
+    );
+    history[color] = [...(history[color] ?? []), { ply, view }];
+  }
 }
 
 function darkXiangqiPostgameTimeline(

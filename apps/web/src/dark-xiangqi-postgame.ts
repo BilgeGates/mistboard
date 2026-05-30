@@ -38,6 +38,9 @@ type DarkXiangqiPostgameResponse = {
   }>;
   view: DarkXiangqiWireView;
   views?: Partial<Record<XiangqiColor | 'spectator', DarkXiangqiWireView>>;
+  history?: Partial<
+    Record<XiangqiColor | 'spectator', Array<{ ply: number; view: DarkXiangqiWireView }>>
+  >;
 };
 
 type LoadResult =
@@ -140,6 +143,55 @@ function boardsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'dxq-postgame__boards';
   const views = postgameViewEntries(postgame);
+  const maxPly = postgameReplayMaxPly(postgame);
+  let currentPly = maxPly;
+  const boardTargets: Array<{
+    board: HTMLElement;
+    entry: { key: XiangqiColor | 'spectator'; label: string; view: DarkXiangqiWireView };
+  }> = [];
+
+  const controls = document.createElement('div');
+  controls.className = 'dxq-postgame__replay-controls';
+  const first = replayControlButton('|<', 'First ply');
+  const previous = replayControlButton('<', 'Previous ply');
+  const status = document.createElement('span');
+  status.className = 'dxq-postgame__replay-status';
+  status.setAttribute('aria-live', 'polite');
+  const next = replayControlButton('>', 'Next ply');
+  const last = replayControlButton('>|', 'Final ply');
+
+  const syncReplay = () => {
+    for (const { board, entry } of boardTargets) {
+      const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
+      board.innerHTML = renderDarkXiangqiBoardSvg(view, view.perspective);
+    }
+    status.textContent = `Ply ${currentPly} of ${maxPly}`;
+    first.disabled = currentPly <= 0;
+    previous.disabled = currentPly <= 0;
+    next.disabled = currentPly >= maxPly;
+    last.disabled = currentPly >= maxPly;
+  };
+
+  first.addEventListener('click', () => {
+    currentPly = 0;
+    syncReplay();
+  });
+  previous.addEventListener('click', () => {
+    currentPly = Math.max(0, currentPly - 1);
+    syncReplay();
+  });
+  next.addEventListener('click', () => {
+    currentPly = Math.min(maxPly, currentPly + 1);
+    syncReplay();
+  });
+  last.addEventListener('click', () => {
+    currentPly = maxPly;
+    syncReplay();
+  });
+
+  controls.append(first, previous, status, next, last);
+  panel.append(controls);
+
   for (const entry of views) {
     const boardWrap = document.createElement('section');
     boardWrap.className = 'dxq-postgame__board-wrap';
@@ -149,30 +201,61 @@ function boardsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
     const board = document.createElement('div');
     board.className = 'dxq-postgame__board xiangqi-live-board';
     board.setAttribute('aria-label', `${entry.label} final Dark Xiangqi board`);
-    board.innerHTML = renderDarkXiangqiBoardSvg(entry.view, entry.view.perspective);
+    boardTargets.push({ board, entry });
     boardWrap.append(heading, board);
     panel.append(boardWrap);
   }
+  syncReplay();
   return panel;
 }
 
 function postgameViewEntries(
   postgame: DarkXiangqiPostgameResponse,
-): Array<{ label: string; view: DarkXiangqiWireView }> {
+): Array<{ key: XiangqiColor | 'spectator'; label: string; view: DarkXiangqiWireView }> {
   const views = postgame.views;
   if (views?.red && views.spectator && views.black) {
     return [
-      { label: 'Red view', view: views.red },
-      { label: 'Public view', view: views.spectator },
-      { label: 'Black view', view: views.black },
+      { key: 'red', label: 'Red view', view: views.red },
+      { key: 'spectator', label: 'Public view', view: views.spectator },
+      { key: 'black', label: 'Black view', view: views.black },
     ];
   }
   return [
     {
+      key: postgame.access.seat,
       label: accessLabel(postgame.access.seat, postgame.access.seat !== 'spectator'),
       view: postgame.view,
     },
   ];
+}
+
+function replayControlButton(text: string, label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'dxq-postgame__replay-button';
+  button.setAttribute('aria-label', label);
+  button.textContent = text;
+  return button;
+}
+
+function postgameReplayMaxPly(postgame: DarkXiangqiPostgameResponse): number {
+  const history = Object.values(postgame.history ?? {}).flat();
+  return Math.max(postgame.game.plyCount, ...history.map((snapshot) => snapshot.ply), 0);
+}
+
+function postgameViewAtPly(
+  postgame: DarkXiangqiPostgameResponse,
+  key: XiangqiColor | 'spectator',
+  ply: number,
+): DarkXiangqiWireView | null {
+  const history = postgame.history?.[key];
+  if (!history || history.length === 0) return null;
+  let selected = history[0] ?? null;
+  for (const snapshot of history) {
+    if (snapshot.ply > ply) break;
+    selected = snapshot;
+  }
+  return selected?.view ?? null;
 }
 
 function postgameActions(roomId: string): HTMLElement {

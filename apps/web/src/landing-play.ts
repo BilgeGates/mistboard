@@ -37,6 +37,15 @@ type LandingTimePreset = {
   incrementMs: number;
 };
 type LandingColorPreference = 'white' | 'red' | 'black' | 'random';
+type LandingGameSpecCapabilities = {
+  blackGlyph: string;
+  firstColor: Extract<LandingColorPreference, 'red' | 'white'>;
+  firstGlyph: string;
+  firstLabel: 'Red' | 'White';
+  glyphClass?: string;
+  supportsRated: boolean;
+  supportsStartFormat: boolean;
+};
 type LandingRoomSetup = {
   gameSpecId: LandingVariantGameSpecId;
   startFormat: LandingStartFormat;
@@ -80,6 +89,28 @@ const LANDING_VARIANT_GAME_SPECS: readonly {
   { id: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
   { id: DARK_XIANGQI_SPEC_ID, label: gameSpecForId(DARK_XIANGQI_SPEC_ID).publicName },
 ];
+const LANDING_GAME_SPEC_CAPABILITIES: Record<
+  LandingVariantGameSpecId,
+  LandingGameSpecCapabilities
+> = {
+  [DARK_CHESS_SPEC_ID]: {
+    blackGlyph: '♚',
+    firstColor: 'white',
+    firstGlyph: '♚',
+    firstLabel: 'White',
+    supportsRated: true,
+    supportsStartFormat: true,
+  },
+  [DARK_XIANGQI_SPEC_ID]: {
+    blackGlyph: '將',
+    firstColor: 'red',
+    firstGlyph: '帥',
+    firstLabel: 'Red',
+    glyphClass: 'xiangqi',
+    supportsRated: false,
+    supportsStartFormat: false,
+  },
+};
 
 export function fallbackPlayableEngines(): PlayableEngine[] {
   return [
@@ -614,16 +645,17 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       : null;
 
   syncGameSpecificSections = () => {
-    const isDarkXiangqi = selectedGameSpecId === DARK_XIANGQI_SPEC_ID;
-    if (isDarkXiangqi) {
+    const capabilities = landingGameSpecCapabilities(selectedGameSpecId);
+    if (!capabilities.supportsStartFormat) {
       startFormat = 'standard';
-      rated = false;
-      if (preferredColor === 'white') preferredColor = 'red';
-    } else if (preferredColor === 'red') {
-      preferredColor = 'white';
     }
-    if (startGroup) startGroup.hidden = isDarkXiangqi;
-    if (ratingSection) ratingSection.hidden = isDarkXiangqi;
+    if (!capabilities.supportsRated) {
+      rated = false;
+    }
+    if (capabilities.firstColor === 'red' && preferredColor === 'white') preferredColor = 'red';
+    if (capabilities.firstColor === 'white' && preferredColor === 'red') preferredColor = 'white';
+    if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
+    if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
     syncVariantControls();
     syncColorPreferenceControls();
   };
@@ -777,15 +809,10 @@ function buildColorPreferenceSection(
 
   const sync = () => {
     const gameSpecId = getGameSpecId();
-    const firstValue: LandingColorPreference =
-      gameSpecId === DARK_XIANGQI_SPEC_ID ? 'red' : 'white';
+    const capabilities = landingGameSpecCapabilities(gameSpecId);
+    const firstValue: LandingColorPreference = capabilities.firstColor;
     const current = get();
-    updateColorOptionButton(
-      firstButton,
-      firstValue,
-      firstValue === 'red' ? 'Red' : 'White',
-      gameSpecId,
-    );
+    updateColorOptionButton(firstButton, firstValue, capabilities.firstLabel, gameSpecId);
     updateColorOptionButton(randomButton, 'random', 'Random', gameSpecId);
     updateColorOptionButton(blackButton, 'black', 'Black', gameSpecId);
     for (const [button, value] of [
@@ -800,7 +827,7 @@ function buildColorPreferenceSection(
   };
 
   firstButton.addEventListener('click', () => {
-    set(getGameSpecId() === DARK_XIANGQI_SPEC_ID ? 'red' : 'white');
+    set(landingGameSpecCapabilities(getGameSpecId()).firstColor);
     sync();
   });
   randomButton.addEventListener('click', () => {
@@ -852,7 +879,8 @@ function updateColorOptionButton(
   const text = button.querySelector<HTMLSpanElement>('.landing-color-label');
   if (glyph) {
     glyph.className = `landing-color-glyph ${value}`;
-    glyph.classList.toggle('xiangqi', gameSpecId === DARK_XIANGQI_SPEC_ID);
+    const capabilities = landingGameSpecCapabilities(gameSpecId);
+    if (capabilities.glyphClass) glyph.classList.add(capabilities.glyphClass);
     glyph.replaceChildren(...colorGlyphNodes(value, gameSpecId));
   }
   if (text) text.textContent = label;
@@ -862,19 +890,25 @@ function colorGlyphNodes(
   value: LandingColorPreference,
   gameSpecId: LandingVariantGameSpecId = DARK_CHESS_SPEC_ID,
 ): Node[] {
+  const capabilities = landingGameSpecCapabilities(gameSpecId);
   if (value === 'random') {
     const first = document.createElement('span');
-    first.className = gameSpecId === DARK_XIANGQI_SPEC_ID ? 'red' : 'white';
-    first.textContent = gameSpecId === DARK_XIANGQI_SPEC_ID ? '帥' : '♚';
+    first.className = capabilities.firstColor;
+    first.textContent = capabilities.firstGlyph;
     const second = document.createElement('span');
     second.className = 'black';
-    second.textContent = gameSpecId === DARK_XIANGQI_SPEC_ID ? '將' : '♚';
+    second.textContent = capabilities.blackGlyph;
     return [first, second];
   }
-  if (gameSpecId === DARK_XIANGQI_SPEC_ID) {
-    return [document.createTextNode(value === 'black' ? '將' : '帥')];
-  }
-  return [document.createTextNode('♚')];
+  return [
+    document.createTextNode(value === 'black' ? capabilities.blackGlyph : capabilities.firstGlyph),
+  ];
+}
+
+function landingGameSpecCapabilities(
+  gameSpecId: LandingVariantGameSpecId,
+): LandingGameSpecCapabilities {
+  return LANDING_GAME_SPEC_CAPABILITIES[gameSpecId];
 }
 
 function setupSectionLabel(text: string): HTMLSpanElement {

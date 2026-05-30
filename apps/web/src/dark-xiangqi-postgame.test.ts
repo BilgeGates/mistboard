@@ -66,9 +66,15 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Red b3-b4');
     expect(root.textContent).not.toContain('Black b8-b7');
+    expect(root.textContent).toContain('Ply 2 of 2');
     expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
     expect(root.innerHTML).toContain('aria-label="black hidden piece"');
     expect(root.innerHTML).toContain('aria-label="black soldier"');
+
+    root
+      .querySelector<HTMLButtonElement>('.dxq-postgame__replay-button[aria-label="Previous ply"]')
+      ?.click();
+    expect(root.textContent).toContain('Ply 1 of 2');
   });
 
   it('renders public spectator payloads without board truth', async () => {
@@ -82,6 +88,7 @@ describe('Dark Xiangqi postgame page', () => {
     await flushPromises();
 
     expect(root.textContent).toContain('Spectator');
+    expect(root.textContent).toContain('Ply 2 of 2');
     expect(root.textContent).toContain('No visible moves');
     expect(root.textContent).not.toContain('Red view');
     expect(root.textContent).not.toContain('Black view');
@@ -158,6 +165,125 @@ function postgameFixture(seat: 'red' | 'black' | 'spectator') {
       status: { type: 'finished', winner: 'red', reason: 'resignation' },
       moveNumber: 2,
     },
+    history:
+      seat === 'spectator'
+        ? {
+            spectator: [
+              {
+                ply: 0,
+                view: emptySpectatorView('dxq_postgame_spectator_0'),
+              },
+              {
+                ply: 1,
+                view: emptySpectatorView('dxq_postgame_spectator_1'),
+              },
+              {
+                ply: 2,
+                view: emptySpectatorView('dxq_postgame_spectator_2'),
+              },
+            ],
+          }
+        : {
+            red: [
+              {
+                ply: 0,
+                view: {
+                  id: 'dxq_postgame_red_0',
+                  perspective: 'red',
+                  board: {
+                    b3: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+                    b8: { color: 'black', shrouded: true },
+                  },
+                  visibleSquares: ['b3', 'b8'],
+                  legalMoves: [],
+                  status: { type: 'playing', turn: 'red' },
+                  moveNumber: 1,
+                },
+              },
+              {
+                ply: 1,
+                view: {
+                  id: 'dxq_postgame_red_1',
+                  perspective: 'red',
+                  board: {
+                    b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+                    b8: { color: 'black', shrouded: true },
+                  },
+                  visibleSquares: ['b4', 'b8'],
+                  legalMoves: [],
+                  status: { type: 'playing', turn: 'black' },
+                  moveNumber: 1,
+                },
+              },
+              {
+                ply: 2,
+                view: {
+                  id: 'dxq_postgame_red_2',
+                  perspective: 'red',
+                  board: {
+                    b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+                    b7: { color: 'black', shrouded: true },
+                  },
+                  visibleSquares: ['b4', 'b7'],
+                  legalMoves: [],
+                  status: { type: 'finished', winner: 'red', reason: 'resignation' },
+                  moveNumber: 2,
+                },
+              },
+            ],
+            spectator: [
+              { ply: 0, view: emptySpectatorView('dxq_postgame_spectator_0') },
+              { ply: 1, view: emptySpectatorView('dxq_postgame_spectator_1') },
+              { ply: 2, view: emptySpectatorView('dxq_postgame_spectator_2') },
+            ],
+            black: [
+              {
+                ply: 0,
+                view: {
+                  id: 'dxq_postgame_black_0',
+                  perspective: 'black',
+                  board: {
+                    b3: { color: 'red', shrouded: true },
+                    b8: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
+                  },
+                  visibleSquares: ['b3', 'b8'],
+                  legalMoves: [],
+                  status: { type: 'playing', turn: 'red' },
+                  moveNumber: 1,
+                },
+              },
+              {
+                ply: 1,
+                view: {
+                  id: 'dxq_postgame_black_1',
+                  perspective: 'black',
+                  board: {
+                    b4: { color: 'red', shrouded: true },
+                    b8: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
+                  },
+                  visibleSquares: ['b4', 'b8'],
+                  legalMoves: [],
+                  status: { type: 'playing', turn: 'black' },
+                  moveNumber: 1,
+                },
+              },
+              {
+                ply: 2,
+                view: {
+                  id: 'dxq_postgame_black_2',
+                  perspective: 'black',
+                  board: {
+                    b4: { color: 'red', shrouded: true },
+                    b7: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
+                  },
+                  visibleSquares: ['b4', 'b7'],
+                  legalMoves: [],
+                  status: { type: 'finished', winner: 'red', reason: 'resignation' },
+                  moveNumber: 2,
+                },
+              },
+            ],
+          },
     views:
       seat === 'spectator'
         ? undefined
@@ -196,6 +322,18 @@ function postgameFixture(seat: 'red' | 'black' | 'spectator') {
               moveNumber: 2,
             },
           },
+  };
+}
+
+function emptySpectatorView(id: string) {
+  return {
+    id,
+    perspective: 'red',
+    board: {},
+    visibleSquares: [],
+    legalMoves: [],
+    status: { type: 'finished', winner: 'red', reason: 'resignation' },
+    moveNumber: 2,
   };
 }
 
