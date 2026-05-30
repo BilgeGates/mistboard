@@ -1090,6 +1090,44 @@ const DEDUCE_RECAP_NB_POSITIONS = [DEDUCE_RECAP_NB_BEFORE, DEDUCE_RECAP_NB_AFTER
   };
 });
 
+// A second capture-deduction pattern: a pawn behind the captured pawn can later
+// prove what did not capture. If the black e6-pawn took on d5, d5 would stay
+// blocked in front of White's d4 pawn. When the hidden piece leaves and d5
+// becomes visible empty, White can rule out the pawn capture and identify the
+// mobile knight as the capturer.
+const DEDUCE_BACK_PAWN_START: GameState = {
+  id: 'deduction-back-pawn-capturer',
+  variant: 'dark-chess',
+  board: {
+    g1: { color: 'white', role: 'king' },
+    d5: { color: 'white', role: 'pawn' },
+    d4: { color: 'white', role: 'pawn' },
+    g8: { color: 'black', role: 'king' },
+    e6: { color: 'black', role: 'pawn' },
+    f6: { color: 'black', role: 'knight' },
+  },
+  status: { type: 'playing', turn: 'black' },
+  moveNumber: 24,
+  castlingRights: [],
+  halfmoveClock: 0,
+};
+const DEDUCE_BACK_PAWN_STATES = replayMoves(DEDUCE_BACK_PAWN_START, [
+  { from: 'f6', to: 'd5' },
+  { from: 'g1', to: 'h1' },
+  { from: 'd5', to: 'f4' },
+]);
+const DEDUCE_BACK_PAWN_POSITIONS = DEDUCE_BACK_PAWN_STATES.map((state, i) => {
+  const arrows = state.lastMove ? [{ orig: state.lastMove.from, dest: state.lastMove.to }] : undefined;
+  const highlightSquares = i === DEDUCE_BACK_PAWN_STATES.length - 1 ? ['d5' as Square] : undefined;
+  return {
+    boards: [
+      { board: state.board, fogSquares: fogFor(state, 'white'), orientation: 'white' as const, label: "WHITE'S VIEW", highlightSquares },
+      { board: state.board, orientation: 'white' as const, label: 'SERVER TRUTH', arrows },
+      { board: state.board, fogSquares: fogFor(state, 'black'), orientation: 'white' as const, label: "BLACK'S VIEW" },
+    ],
+  };
+});
+
 // Pre-stringified captured WS frame for the server-enforced-fog article.
 // The full snapshot artifact is retained for board data and export/debug
 // purposes. The article itself shows a smaller steady-state payload sample
@@ -2655,6 +2693,44 @@ export const articles: Article[] = [
               positions: DEDUCE_RECAP_POSITIONS,
             },
           } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "A pawn behind the captured piece can also prove what did not happen. Here White's d5 pawn is attacked by a Black pawn on e6 and a Black knight on f6, with another White pawn on d4 behind it. After the pawn vanishes, d5 is fogged in front of the d4 pawn.",
+          },
+          {
+            kind: 'interactive',
+            widget: 'stepper',
+            spec: {
+              layout: 'triptych',
+              positions: DEDUCE_BACK_PAWN_POSITIONS,
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "White makes a quiet king move. Then the hidden piece on d5 moves away, and d5 becomes visible empty again. That rules out 1...exd5: a Black pawn on d5 would still be blocking the d4 pawn's push square. The mobile piece was the knight.",
+          },
+        ],
+      },
+      {
+        heading: 'Castling into hidden safety',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "In regular chess, castling choices are judged in public. In dark chess, your opponent often does not know where your king is unless a scout has seen it, a move has revealed it, or castling itself gives the position away.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "That makes some unconventional castles playable. You can sometimes castle into a pawn structure or side you would normally reject because the opponent cannot immediately aim at a king they have not located. The safety is relative: the structure still matters, but the hidden king buys time.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "The danger is scouting. Once a knight, bishop, rook, queen, or pawn signal reveals where the king landed, the position stops being mysterious and has to hold up as chess again.",
+          },
         ],
       },
       {
