@@ -112,29 +112,12 @@
   line-height: 1.2;
 }
 
-.account-settings-heading {
-  margin: 0;
-  color: var(--site-heading);
-  font-size: 22px;
-  font-weight: 550;
-  line-height: 1.25;
-}
-
 .account-copy {
   margin: 8px 0 0;
   max-width: 640px;
   color: var(--site-muted);
   font-size: 14px;
   line-height: 1.5;
-}
-
-.account-theme-mode-row {
-  margin-top: 16px;
-}
-
-.account-theme-mode-row .theme-mode-option {
-  min-height: 38px;
-  font-size: 13px;
 }
 
 .account-actions,

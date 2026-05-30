@@ -16,7 +16,6 @@ import {
   buildNav,
   fetchCurrentUser,
 } from './site-shell.js';
-import { createSiteThemeButton, siteThemeOptions } from './theme.js';
 
 // ── Page mounts ──────────────────────────────────────────────────────────────
 
@@ -123,37 +122,8 @@ function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
 
 function buildAccountSettingsPage(user: AuthUser, shell: HTMLElement): DocumentFragment {
   const fragment = document.createDocumentFragment();
-  fragment.append(buildDisplaySettings(), buildAccountSettings(user, shell));
+  fragment.append(buildAccountSettings(user, shell));
   return fragment;
-}
-
-function buildDisplaySettings(): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'account-panel account-display-panel';
-
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = 'Display';
-
-  const title = document.createElement('h2');
-  title.className = 'account-settings-heading';
-  title.textContent = 'Appearance';
-
-  const copy = document.createElement('p');
-  copy.className = 'account-copy';
-  copy.textContent = 'Choose how Mistboard looks on this device.';
-
-  const row = document.createElement('div');
-  row.className = 'theme-mode-row account-theme-mode-row';
-  row.setAttribute('role', 'radiogroup');
-  row.setAttribute('aria-label', 'Site appearance');
-
-  for (const option of siteThemeOptions) {
-    row.append(createSiteThemeButton(option.id, option.label));
-  }
-
-  panel.append(eyebrow, title, copy, row);
-  return panel;
 }
 
 function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
