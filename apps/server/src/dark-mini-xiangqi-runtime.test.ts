@@ -150,6 +150,49 @@ test('Dark Mini Xiangqi runtime applies seat events and filters snapshots by rec
   }
 });
 
+test('Dark Mini Xiangqi runtime hides opponent move events and lastMove coordinates', () => {
+  const before = process.env[darkMiniXiangqiKey];
+  process.env[darkMiniXiangqiKey] = 'true';
+  try {
+    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_moves');
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const { room } = result;
+
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'move-played',
+      at: 101,
+      roomId: room.id,
+      color: 'red',
+      move: { from: 'a2', to: 'a3' },
+    });
+
+    const redSnapshot = darkMiniXiangqiSnapshotPayload(room, {
+      id: 'red-client',
+      seat: 'red',
+      solo: false,
+    });
+    const blackSnapshot = darkMiniXiangqiSnapshotPayload(room, {
+      id: 'black-client',
+      seat: 'black',
+      solo: false,
+    });
+
+    assert.deepEqual(redSnapshot.state.lastMove, { from: 'a2', to: 'a3' });
+    assert.equal(blackSnapshot.state.lastMove, undefined);
+    assert.equal(
+      redSnapshot.events.some((event) => event.type === 'move-played' && event.ply === 1),
+      true,
+    );
+    assert.equal(
+      blackSnapshot.events.some((event) => event.type === 'move-played'),
+      false,
+    );
+  } finally {
+    restoreEnv(darkMiniXiangqiKey, before);
+  }
+});
+
 test('Dark Mini Xiangqi runtime exposes its room id prefix predicate', () => {
   assert.equal(DARK_MINI_XIANGQI_ROOM_ID_PREFIX, 'dmxq_');
   assert.equal(isDarkMiniXiangqiRoomId('dmxq_abc'), true);

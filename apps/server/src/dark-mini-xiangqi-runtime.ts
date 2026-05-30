@@ -1,9 +1,11 @@
 import {
+  applyMiniXiangqiMove,
   createInitialMiniXiangqiState,
   DARK_MINI_XIANGQI_SPEC_ID,
   getMiniXiangqiPlayerView,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
+  type MiniXiangqiMove,
   type MiniXiangqiPlayerView,
 } from '@mistboard/game';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
@@ -27,7 +29,18 @@ export type DarkMiniXiangqiEvent =
       roomId: string;
       clientId: string;
       seat: MiniXiangqiColor;
+    }
+  | {
+      type: 'move-played';
+      at: number;
+      roomId: string;
+      color: MiniXiangqiColor;
+      move: MiniXiangqiMove;
     };
+
+export type DarkMiniXiangqiClientEvent =
+  | Exclude<DarkMiniXiangqiEvent, { type: 'move-played' }>
+  | (Extract<DarkMiniXiangqiEvent, { type: 'move-played' }> & { ply: number });
 
 export type DarkMiniXiangqiProjection = {
   roomId: string;
@@ -166,6 +179,14 @@ export function applyDarkMiniXiangqiEvent(
       },
     };
   }
+  if (event.type === 'move-played') {
+    if (projection.state.status.type !== 'playing') return projection;
+    if (projection.state.status.turn !== event.color) return projection;
+    return {
+      ...projection,
+      state: applyMiniXiangqiMove(projection.state, event.move),
+    };
+  }
   return projection;
 }
 
@@ -173,6 +194,11 @@ export function darkMiniXiangqiSnapshotPayload(
   room: DarkMiniXiangqiRuntimeRoom,
   client: DarkMiniXiangqiSnapshotClient,
 ) {
+  const state = getDarkMiniXiangqiClientView(
+    room.projection.state,
+    client,
+    latestVisibleMiniXiangqiMoveColor(room.events, client),
+  );
   return {
     type: 'snapshot' as const,
     roomId: room.id,
@@ -184,27 +210,59 @@ export function darkMiniXiangqiSnapshotPayload(
     connectedSeats: computeDarkMiniXiangqiConnectedSeats(room.clients),
     events: darkMiniXiangqiEventsForClient(room, client),
     seats: room.projection.seats,
-    state: getDarkMiniXiangqiClientView(room.projection.state, client),
+    state,
   };
 }
 
 export function darkMiniXiangqiEventsForClient(
   room: DarkMiniXiangqiRuntimeRoom,
   client: DarkMiniXiangqiSnapshotClient,
-): DarkMiniXiangqiEvent[] {
-  if (client.seat === 'spectator') return [];
-  return room.events.filter(
-    (event) => event.type !== 'seat-assigned' || event.seat === client.seat,
-  );
+): DarkMiniXiangqiClientEvent[] {
+  const out: DarkMiniXiangqiClientEvent[] = [];
+  let ply = 0;
+  for (const event of room.events) {
+    if (event.type === 'move-played') ply += 1;
+    const visible = darkMiniXiangqiClientEventFor(event, client.seat, ply);
+    if (visible) out.push(visible);
+  }
+  return out;
+}
+
+export function darkMiniXiangqiClientEventFor(
+  event: DarkMiniXiangqiEvent,
+  seat: DarkMiniXiangqiSeat,
+  ply: number,
+): DarkMiniXiangqiClientEvent | null {
+  if (seat === 'spectator') return null;
+  if (event.type === 'seat-assigned') return event.seat === seat ? event : null;
+  if (event.type === 'move-played') {
+    if (event.color !== seat) return null;
+    return { ...event, ply };
+  }
+  return event;
+}
+
+export function darkMiniXiangqiPlyAtEventIndex(
+  events: readonly DarkMiniXiangqiEvent[],
+  eventIndex: number,
+): number {
+  let ply = 0;
+  for (let index = 0; index <= eventIndex && index < events.length; index += 1) {
+    if (events[index]?.type === 'move-played') ply += 1;
+  }
+  return ply;
 }
 
 export function getDarkMiniXiangqiClientView(
   state: MiniXiangqiGameState,
   client: DarkMiniXiangqiSnapshotClient,
+  latestVisibleMoveColor?: MiniXiangqiColor,
 ): MiniXiangqiPlayerView {
   const perspective = client.seat === 'black' ? 'black' : 'red';
   if (client.seat === 'spectator') return emptyDarkMiniXiangqiView(state, perspective);
-  return getMiniXiangqiPlayerView(state, perspective);
+  const view = getMiniXiangqiPlayerView(state, perspective);
+  if (latestVisibleMoveColor !== client.seat) return { ...view, lastMove: undefined };
+  return view;
 }
 
 export function isDarkMiniXiangqiEventLog(
@@ -246,6 +304,9 @@ export function isDarkMiniXiangqiEvent(
   if (event.type === 'seat-assigned') {
     return typeof event.clientId === 'string' && isMiniXiangqiColor(event.seat);
   }
+  if (event.type === 'move-played') {
+    return isMiniXiangqiColor(event.color) && isMiniXiangqiMove(event.move);
+  }
   return false;
 }
 
@@ -268,6 +329,28 @@ function isFiniteTimestamp(value: unknown): value is number {
 
 function isMiniXiangqiColor(value: unknown): value is MiniXiangqiColor {
   return value === 'red' || value === 'black';
+}
+
+export function isMiniXiangqiSquare(value: unknown): value is MiniXiangqiMove['from'] {
+  return typeof value === 'string' && /^[a-g][1-7]$/.test(value);
+}
+
+function isMiniXiangqiMove(value: unknown): value is MiniXiangqiMove {
+  if (typeof value !== 'object' || value === null) return false;
+  const move = value as Record<string, unknown>;
+  return isMiniXiangqiSquare(move.from) && isMiniXiangqiSquare(move.to);
+}
+
+function latestVisibleMiniXiangqiMoveColor(
+  events: readonly DarkMiniXiangqiEvent[],
+  client: DarkMiniXiangqiSnapshotClient,
+): MiniXiangqiColor | undefined {
+  if (client.seat === 'spectator') return undefined;
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]!;
+    if (event.type === 'move-played') return event.color === client.seat ? event.color : undefined;
+  }
+  return undefined;
 }
 
 function computeDarkMiniXiangqiConnectedSeats(

@@ -1,12 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import type { MiniXiangqiColor } from '@mistboard/game';
+import {
+  isMiniXiangqiLegalMove,
+  type MiniXiangqiColor,
+  type MiniXiangqiMove,
+} from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
 import {
   appendDarkMiniXiangqiRuntimeEvent,
+  type DarkMiniXiangqiEvent,
   type DarkMiniXiangqiRuntimeRoom,
+  darkMiniXiangqiClientEventFor,
+  darkMiniXiangqiPlyAtEventIndex,
   darkMiniXiangqiSnapshotPayload,
+  isMiniXiangqiSquare,
 } from './dark-mini-xiangqi-runtime.js';
 import { wsCounters } from './obs.js';
 import {
@@ -127,6 +135,49 @@ function handleDarkMiniXiangqiMessage(
   if (message.type === 'snapshot:request') {
     wsCounters.recordSnapshotRequest();
     sendDarkMiniXiangqiPayload(client, darkMiniXiangqiTransportSnapshotPayload(room, client));
+    return;
+  }
+  if (message.type !== 'move') return;
+  if (!isMiniXiangqiSquare(message.from) || !isMiniXiangqiSquare(message.to)) return;
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.state.status.turn !== client.seat) return;
+  const move: MiniXiangqiMove = { from: message.from, to: message.to };
+  if (!isMiniXiangqiLegalMove(room.projection.state, move)) return;
+  const event: DarkMiniXiangqiEvent = {
+    type: 'move-played',
+    at: Date.now(),
+    roomId: room.id,
+    color: client.seat,
+    move,
+  };
+  const seq = appendDarkMiniXiangqiRuntimeEvent(room, event);
+  broadcastDarkMiniXiangqiEventAppended(room, event, seq);
+}
+
+export function broadcastDarkMiniXiangqiEventAppended(
+  room: DarkMiniXiangqiLiveRoom,
+  event: DarkMiniXiangqiEvent,
+  seq: number,
+): void {
+  for (const client of room.clients) {
+    if (client.displaced) continue;
+    if (room.projection.state.status.type !== 'playing') {
+      sendDarkMiniXiangqiPayload(client, darkMiniXiangqiTransportSnapshotPayload(room, client));
+      continue;
+    }
+    const snapshot = darkMiniXiangqiTransportSnapshotPayload(room, client);
+    const { events: _events, ...base } = snapshot;
+    const clientEvent = darkMiniXiangqiClientEventFor(
+      event,
+      client.seat,
+      darkMiniXiangqiPlyAtEventIndex(room.events, seq),
+    );
+    sendDarkMiniXiangqiPayload(client, {
+      ...base,
+      type: 'event-appended',
+      seq,
+      ...(clientEvent ? { event: clientEvent } : {}),
+    });
   }
 }
 

@@ -104,6 +104,41 @@ test('Dark Mini Xiangqi WebSocket handler reclaims a token seat and displaces ol
   });
 });
 
+test('Dark Mini Xiangqi WebSocket handler appends legal moves without leaking opponent coordinates', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dmxq_move');
+    const red = new FakeSocket();
+    const black = new FakeSocket();
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      red.socket,
+      request('dmxq_move', 'red-client'),
+      room,
+    );
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      black.socket,
+      request('dmxq_move', 'black-client'),
+      room,
+    );
+    red.messages.length = 0;
+    black.messages.length = 0;
+
+    red.emit('message', JSON.stringify({ type: 'move', from: 'a2', to: 'a3' }));
+
+    assert.equal(room.events.at(-1)?.type, 'move-played');
+    assert.deepEqual(room.projection.state.lastMove, { from: 'a2', to: 'a3' });
+    assert.deepEqual(room.projection.state.status, { type: 'playing', turn: 'black' });
+    const redFrame = red.messages.at(-1) as Record<string, unknown>;
+    const blackFrame = black.messages.at(-1) as Record<string, unknown>;
+    assert.equal(redFrame.type, 'event-appended');
+    assert.equal((redFrame.event as Record<string, unknown> | undefined)?.type, 'move-played');
+    assert.equal(blackFrame.type, 'event-appended');
+    assert.equal(blackFrame.event, undefined);
+    assert.equal((blackFrame.state as Record<string, unknown>).lastMove, undefined);
+  });
+});
+
 function testContext() {
   return {
     wsMessageLimit: 20,
@@ -160,4 +195,10 @@ class FakeSocket {
       this.messages.push(JSON.parse(payload) as unknown);
     },
   } as unknown as WebSocket;
+
+  emit(event: string, ...args: unknown[]): void {
+    for (const listener of this.listeners.get(event) ?? []) {
+      listener(...args);
+    }
+  }
 }
