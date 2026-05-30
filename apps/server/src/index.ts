@@ -3,6 +3,10 @@ import { createServer } from 'node:http';
 import type { Color, GameEvent, RoomTimeControl, XiangqiColor } from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
+import type {
+  DarkMiniXiangqiCreatorPreference,
+  DarkMiniXiangqiRuntimeRoom,
+} from './dark-mini-xiangqi-runtime.js';
 import {
   createDarkXiangqiRuntimeRoomFromEvents,
   type DarkXiangqiCreatorPreference,
@@ -25,6 +29,7 @@ import {
   selectEngineDraftStart,
 } from './room-manager.js';
 import { loadServerRuntimeConfig, serverConfig } from './server-config.js';
+import { createDarkMiniXiangqiLiveRoom } from './server-dark-mini-xiangqi-room-factory.js';
 import { clearDarkXiangqiRuntimeTimers } from './server-dark-xiangqi-lifecycle.js';
 import { createDarkXiangqiLiveRoom } from './server-dark-xiangqi-room-factory.js';
 import { createDrainController } from './server-drain.js';
@@ -75,6 +80,7 @@ import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 
 const rooms = new Map<string, Room>();
 const darkXiangqiRooms = new Map<string, DarkXiangqiLiveRoom>();
+const darkMiniXiangqiRooms = new Map<string, DarkMiniXiangqiRuntimeRoom>();
 const lobbyTickets = new Map<string, LobbyTicket>();
 const lobbyQueue: LobbyTicket[] = [];
 const databaseRequired = serverConfig.databaseRequired;
@@ -241,6 +247,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
       drainController,
       createRoom: roomLifecycle.createRoom,
       createDarkXiangqiRoom,
+      createDarkMiniXiangqiRoom,
       reserveLiveEngineSeat,
       releaseLiveEngineReservation,
       abandonRoom: roomLifecycle.abandonRoom,
@@ -318,11 +325,13 @@ export async function stopServer(): Promise<void> {
   closeRoomClients(darkXiangqiRooms.values());
   await waitForRoomWrites(rooms.values());
   await waitForRoomWrites(darkXiangqiRooms.values());
+  await waitForRoomWrites(darkMiniXiangqiRooms.values());
   await closeWebSocketServer(wss);
   await closeHttpServer(server);
   await persistence.close();
   rooms.clear();
   darkXiangqiRooms.clear();
+  darkMiniXiangqiRooms.clear();
   lobbyTickets.clear();
   lobbyQueue.length = 0;
   persistenceErrors.length = 0;
@@ -381,6 +390,28 @@ async function createDarkXiangqiRoom(
       recordPersistenceError: recordDarkXiangqiPersistenceError,
     },
     timeControl,
+    creatorPreference,
+  );
+}
+
+async function createDarkMiniXiangqiRoom(
+  creatorPreference?: DarkMiniXiangqiCreatorPreference,
+): Promise<
+  | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
+  | {
+      ok: false;
+      error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
+    }
+> {
+  return createDarkMiniXiangqiLiveRoom(
+    {
+      appendRoomEvent: persistence.appendRoomEvent,
+      chessRooms: rooms,
+      darkMiniXiangqiRooms,
+      darkXiangqiRooms,
+      isPersistenceEnabled: persistence.isInitialized,
+      recordPersistenceError: recordDarkMiniXiangqiPersistenceError,
+    },
     creatorPreference,
   );
 }
@@ -593,6 +624,25 @@ function recordDarkXiangqiPersistenceError(
     JSON.stringify({
       level: 'error',
       kind: 'dark_xiangqi_persistence_failure',
+      roomId,
+      seq,
+      eventType,
+      error: err.message,
+      at: Date.now(),
+    }),
+  );
+}
+
+function recordDarkMiniXiangqiPersistenceError(
+  roomId: string,
+  seq: number,
+  eventType: string,
+  err: Error,
+): void {
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      kind: 'dark_mini_xiangqi_persistence_failure',
       roomId,
       seq,
       eventType,

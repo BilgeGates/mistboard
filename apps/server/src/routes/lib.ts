@@ -13,6 +13,10 @@ import {
   type VariantId,
 } from '@mistboard/game';
 import type {
+  DarkMiniXiangqiCreatorPreference,
+  DarkMiniXiangqiRuntimeRoom,
+} from './../dark-mini-xiangqi-runtime.js';
+import type {
   DarkXiangqiCreatorPreference,
   DarkXiangqiRuntimeRoom,
 } from './../dark-xiangqi-runtime.js';
@@ -62,6 +66,13 @@ export interface HttpApiContext {
   ): Promise<
     | { ok: true; room: DarkXiangqiRuntimeRoom }
     | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
+  >;
+  createDarkMiniXiangqiRoom(creatorPreference?: DarkMiniXiangqiCreatorPreference): Promise<
+    | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
+    | {
+        ok: false;
+        error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
+      }
   >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;
