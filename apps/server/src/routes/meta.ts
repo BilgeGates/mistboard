@@ -66,6 +66,13 @@ export async function tryHandle(
     return true;
   }
 
+  if (pathname === '/api/stats/public') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    writeJson(response, 200, await persistence.getPublicSiteStats());
+    return true;
+  }
+
   if (pathname === '/api/stats') {
     if (!requireMethod(request, response, 'GET')) return true;
     // Canonical durable totals (accounts/games), unlike the in-memory

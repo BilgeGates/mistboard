@@ -29,6 +29,146 @@
   text-decoration-thickness: 2px;
 }
 
+.platform-activity {
+  margin: 34px 0 30px;
+}
+
+.platform-activity .about-subheading {
+  margin-top: 0;
+}
+
+.platform-activity-body {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.platform-activity-status {
+  margin: 0;
+  color: #5e655f;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.platform-activity-summary {
+  margin: 0;
+  color: #5f6b64;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.platform-activity-chart {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #d9dfd9;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faf8 100%);
+}
+
+.platform-activity-chart h3 {
+  margin: 0;
+  color: #202922;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.platform-activity-chart svg {
+  display: block;
+  width: 100%;
+  aspect-ratio: 17 / 7.5;
+  min-height: 170px;
+}
+
+.platform-activity-y-axis line {
+  stroke: #e2e7e2;
+  stroke-width: 1;
+}
+
+.platform-activity-y-axis text,
+.platform-activity-x-axis text {
+  fill: #66716a;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.platform-activity-y-axis text {
+  text-anchor: end;
+}
+
+.platform-activity-x-axis line {
+  stroke: #cfd7d0;
+  stroke-width: 1;
+}
+
+.platform-activity-x-axis text {
+  text-anchor: middle;
+}
+
+.platform-activity-area {
+  fill: rgba(63, 119, 100, 0.08);
+}
+
+.platform-activity-line {
+  fill: none;
+  stroke: #2f715c;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+.platform-activity-markers circle {
+  fill: #f7faf8;
+  stroke: #2f715c;
+  stroke-width: 1.2;
+}
+
+.platform-activity-mode-split {
+  display: grid;
+}
+
+.platform-activity-mode-split p {
+  margin: 0;
+  color: #5d6862;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.platform-activity-mode-inline-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #66716a;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.platform-activity-mode-inline-item + .platform-activity-mode-inline-item {
+  margin-left: 12px;
+}
+
+.platform-activity-mode-inline-item::before {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  content: "";
+}
+
+.platform-activity-mode-inline-item.mode-pvp::before {
+  background: #2f715c;
+}
+
+.platform-activity-mode-inline-item.mode-pve::before {
+  background: #78917f;
+}
+
+.platform-activity-mode-inline-item.mode-eve::before {
+  background: #b0b9aa;
+}
+
 .source-block {
   display: grid;
   gap: 8px;
@@ -54,4 +194,14 @@
 .source-block a {
   color: var(--site-accent);
   font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .platform-activity-chart {
+    padding: 12px;
+  }
+
+  .platform-activity-chart svg {
+    min-height: 150px;
+  }
 }

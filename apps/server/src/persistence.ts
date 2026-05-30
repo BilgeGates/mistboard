@@ -95,5 +95,10 @@ export {
   upsertRoomSeatToken,
   verifyRoomSeatToken,
 } from './persistence-seat-tokens.js';
-export type { SiteStats } from './persistence-site-stats.js';
-export { getSiteStats } from './persistence-site-stats.js';
+export type {
+  PublicSiteStats,
+  PublicStatsDay,
+  PublicStatsMode,
+  SiteStats,
+} from './persistence-site-stats.js';
+export { getPublicSiteStats, getSiteStats } from './persistence-site-stats.js';

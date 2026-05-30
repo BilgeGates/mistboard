@@ -4,6 +4,34 @@ import './pages-static.css';
 
 import { buildFooter, buildNav, GITHUB_URL } from './site-shell.js';
 
+type PublicStatsMode = 'pvp' | 'pve' | 'eve';
+
+type PublicStatsDay = {
+  date: string;
+  completedGames: number;
+  cumulativeGames: number;
+};
+
+type PublicSiteStats = {
+  generatedAt: string;
+  totalCompletedGames: number;
+  last30dCompletedGames: number;
+  publicGames: number;
+  modeTotals: Record<PublicStatsMode, number>;
+  dailyCompletedGames: PublicStatsDay[];
+};
+
+const publicStatsModes: Array<{
+  key: PublicStatsMode;
+  label: string;
+}> = [
+  { key: 'pvp', label: 'Player vs player' },
+  { key: 'pve', label: 'Player vs engine' },
+  { key: 'eve', label: 'Engine lab' },
+];
+
+const numberFormat = new Intl.NumberFormat('en-US');
+
 export function mountAbout(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'about-route');
@@ -120,6 +148,7 @@ function buildAbout(): HTMLElement {
     ' for license and third-party credits.',
   ]);
 
+  const platformActivity = buildPlatformActivity();
   section.append(
     heading,
     lede,
@@ -135,8 +164,269 @@ function buildAbout(): HTMLElement {
     engineP,
     oss1Heading,
     oss1P,
+    platformActivity,
   );
+  void hydratePlatformActivity(platformActivity);
   return section;
+}
+
+function buildPlatformActivity(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'platform-activity';
+  section.setAttribute('aria-labelledby', 'platform-activity-heading');
+
+  const heading = document.createElement('h2');
+  heading.id = 'platform-activity-heading';
+  heading.className = 'about-subheading';
+  heading.textContent = 'Platform activity';
+
+  const intro = aboutParagraph([
+    'Mistboard tracks completed games as durable replay records. These aggregate counts show the platform history without exposing private game details.',
+  ]);
+
+  const body = document.createElement('div');
+  body.className = 'platform-activity-body';
+  body.setAttribute('aria-live', 'polite');
+  renderPlatformActivityLoading(body);
+
+  section.append(heading, intro, body);
+  return section;
+}
+
+async function hydratePlatformActivity(section: HTMLElement): Promise<void> {
+  const body = section.querySelector<HTMLElement>('.platform-activity-body');
+  if (!body) return;
+  try {
+    const stats = await fetchPublicStats();
+    renderPlatformActivityStats(body, stats);
+  } catch {
+    renderPlatformActivityUnavailable(body);
+  }
+}
+
+async function fetchPublicStats(): Promise<PublicSiteStats> {
+  const response = await fetch('/api/stats/public', { credentials: 'same-origin' });
+  if (!response.ok) throw new Error(`stats unavailable: ${response.status}`);
+  return (await response.json()) as PublicSiteStats;
+}
+
+function renderPlatformActivityLoading(body: HTMLElement): void {
+  const loading = document.createElement('p');
+  loading.className = 'platform-activity-status';
+  loading.textContent = 'Loading activity totals...';
+  body.replaceChildren(loading);
+}
+
+function renderPlatformActivityUnavailable(body: HTMLElement): void {
+  const status = document.createElement('p');
+  status.className = 'platform-activity-status';
+  status.textContent = 'Activity totals are unavailable while persistent storage is offline.';
+  body.replaceChildren(status);
+}
+
+function renderPlatformActivityStats(body: HTMLElement, stats: PublicSiteStats): void {
+  const summary = document.createElement('p');
+  summary.className = 'platform-activity-summary';
+  summary.append(
+    document.createTextNode(
+      `${numberFormat.format(stats.totalCompletedGames)} completed games tracked`,
+    ),
+  );
+  if (stats.last30dCompletedGames > 0) {
+    summary.append(
+      document.createTextNode(
+        `, including ${numberFormat.format(stats.last30dCompletedGames)} in the last 30 days`,
+      ),
+    );
+  }
+  summary.append(document.createTextNode('.'));
+  const chart = buildActivityChart(stats.dailyCompletedGames);
+  body.replaceChildren(summary, chart, buildModeSplit(stats.modeTotals));
+}
+
+function buildActivityChart(days: PublicStatsDay[]): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'platform-activity-chart';
+
+  const label = document.createElement('h3');
+  label.textContent = 'Cumulative completed games';
+
+  if (days.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'platform-activity-status';
+    empty.textContent = 'No completed games have been recorded yet.';
+    panel.append(label, empty);
+    return panel;
+  }
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 340 150');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute(
+    'aria-label',
+    `${numberFormat.format(days.at(-1)?.cumulativeGames ?? 0)} completed games over time`,
+  );
+
+  const yTicks = yAxisTicks(days);
+  const xTicks = xAxisTicks(days);
+  const points = chartPoints(days);
+  const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  area.setAttribute('class', 'platform-activity-area');
+  area.setAttribute(
+    'points',
+    `${points} ${chartBounds.xMax},${chartBounds.yMax} ${chartBounds.xMin},${chartBounds.yMax}`,
+  );
+
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('class', 'platform-activity-line');
+  line.setAttribute('points', points);
+
+  svg.append(buildYGrid(yTicks), buildXAxisTicks(xTicks), area, line, buildActivityMarkers(days));
+
+  panel.append(label, svg);
+  return panel;
+}
+
+const chartBounds = {
+  xMin: 42,
+  xMax: 322,
+  yMin: 20,
+  yMax: 112,
+};
+
+function chartPoints(days: PublicStatsDay[]): string {
+  return chartCoordinates(days)
+    .map(({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`)
+    .join(' ');
+}
+
+function buildActivityMarkers(days: PublicStatsDay[]): SVGElement {
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('class', 'platform-activity-markers');
+  for (const point of chartCoordinates(days).filter((point) => point.completedGames > 0)) {
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    marker.setAttribute('cx', point.x.toFixed(1));
+    marker.setAttribute('cy', point.y.toFixed(1));
+    marker.setAttribute('r', '1.8');
+    group.append(marker);
+  }
+  return group;
+}
+
+function chartCoordinates(days: PublicStatsDay[]): Array<{
+  x: number;
+  y: number;
+  completedGames: number;
+}> {
+  const max = chartMax(days);
+  return days.map((day, index) => {
+    const x =
+      days.length === 1
+        ? (chartBounds.xMin + chartBounds.xMax) / 2
+        : chartBounds.xMin + (index / (days.length - 1)) * (chartBounds.xMax - chartBounds.xMin);
+    const y =
+      chartBounds.yMax - (day.cumulativeGames / max) * (chartBounds.yMax - chartBounds.yMin);
+    return { x, y, completedGames: day.completedGames };
+  });
+}
+
+function buildYGrid(ticks: number[]): SVGElement {
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('class', 'platform-activity-y-axis');
+  const max = Math.max(...ticks, 1);
+  for (const tick of ticks) {
+    const y = chartBounds.yMax - (tick / max) * (chartBounds.yMax - chartBounds.yMin);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', String(chartBounds.xMin));
+    line.setAttribute('x2', String(chartBounds.xMax));
+    line.setAttribute('y1', y.toFixed(1));
+    line.setAttribute('y2', y.toFixed(1));
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', String(chartBounds.xMin - 10));
+    label.setAttribute('y', String(y + 4));
+    label.textContent = numberFormat.format(tick);
+    group.append(line, label);
+  }
+  return group;
+}
+
+function buildXAxisTicks(ticks: Array<{ index: number; date: string }>): SVGElement {
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('class', 'platform-activity-x-axis');
+  const lastIndex = Math.max(ticks.at(-1)?.index ?? 1, 1);
+  for (const tick of ticks) {
+    const x = chartBounds.xMin + (tick.index / lastIndex) * (chartBounds.xMax - chartBounds.xMin);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x.toFixed(1));
+    line.setAttribute('x2', x.toFixed(1));
+    line.setAttribute('y1', String(chartBounds.yMax));
+    line.setAttribute('y2', String(chartBounds.yMax + 5));
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', x.toFixed(1));
+    label.setAttribute('y', String(chartBounds.yMax + 20));
+    label.textContent = formatDateLabel(tick.date);
+    group.append(line, label);
+  }
+  return group;
+}
+
+function yAxisTicks(days: PublicStatsDay[]): number[] {
+  const max = chartMax(days);
+  if (max <= 6) return Array.from({ length: max + 1 }, (_, i) => i);
+  const step = niceTickStep(max / 4);
+  const ticks: number[] = [];
+  for (let value = 0; value < max; value += step) ticks.push(value);
+  if (ticks.at(-1) !== max) ticks.push(max);
+  return ticks;
+}
+
+function chartMax(days: PublicStatsDay[]): number {
+  return Math.max(...days.map((day) => day.cumulativeGames), 1);
+}
+
+function niceTickStep(raw: number): number {
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const normalized = raw / magnitude;
+  if (normalized <= 1) return magnitude;
+  if (normalized <= 2) return 2 * magnitude;
+  if (normalized <= 5) return 5 * magnitude;
+  return 10 * magnitude;
+}
+
+function xAxisTicks(days: PublicStatsDay[]): Array<{ index: number; date: string }> {
+  if (days.length === 1) return [{ index: 0, date: days[0]?.date ?? '' }];
+  const tickCount = Math.min(days.length, 5);
+  const lastIndex = days.length - 1;
+  const ticks = new Map<number, string>();
+  for (let i = 0; i < tickCount; i++) {
+    const index = Math.round((i / (tickCount - 1)) * lastIndex);
+    const day = days[index];
+    if (day) ticks.set(index, day.date);
+  }
+  return [...ticks.entries()].map(([index, date]) => ({ index, date }));
+}
+
+function buildModeSplit(modeTotals: Record<PublicStatsMode, number>): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'platform-activity-mode-split';
+
+  const label = document.createElement('p');
+  label.append(document.createTextNode('Mode split: '));
+  for (const mode of publicStatsModes) {
+    const item = document.createElement('span');
+    item.className = `platform-activity-mode-inline-item mode-${mode.key}`;
+    item.textContent = `${mode.label} ${numberFormat.format(modeTotals[mode.key] ?? 0)}`;
+    label.append(item);
+  }
+
+  wrap.append(label);
+  return wrap;
+}
+
+function formatDateLabel(value: string | undefined): string {
+  if (!value) return '';
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 function aboutSubheading(text: string): HTMLElement {
