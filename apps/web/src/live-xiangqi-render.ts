@@ -6,6 +6,10 @@ import type {
   XiangqiSquare,
 } from '@mistboard/game';
 import { openConfirmDialog } from './confirm-dialog.js';
+import {
+  createDarkXiangqiPlayAgainRoom,
+  darkXiangqiTimeControlFromEvents,
+} from './dark-xiangqi-room-actions.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
@@ -205,19 +209,10 @@ async function createPlayAgainRoom(refs: LiveRefs): Promise<void> {
   playAgainStatus = 'creating';
   renderRoomActions(refs);
   try {
-    const response = await fetch('/api/rooms', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        mode: 'pvp',
-        gameSpecId: 'dark-xiangqi',
-        timeControl: { initialMs: 180_000, incrementMs: 2_000 },
-      }),
+    const url = await createDarkXiangqiPlayAgainRoom({
+      timeControl: darkXiangqiTimeControlFromEvents(liveState.events),
     });
-    if (!response.ok) throw new Error(`room creation failed: ${response.status}`);
-    const data = (await response.json()) as { url?: string };
-    if (!data.url) throw new Error('room creation response missing url');
-    window.location.assign(data.url);
+    window.location.assign(url);
   } catch (err) {
     console.warn(err);
     playAgainStatus = 'failed';

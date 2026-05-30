@@ -21,6 +21,7 @@ describe('Dark Xiangqi live renderer', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     liveState.gameSpecId = null;
     liveState.connectionState = 'connecting';
     liveState.closeReason = '';
@@ -194,6 +195,44 @@ describe('Dark Xiangqi live renderer', () => {
       refs.roomActions.querySelector<HTMLAnchorElement>('a[href="/dark-xiangqi/game/dxq_done"]'),
     ).not.toBeNull();
   });
+
+  it('creates play-again Dark Xiangqi rooms with the current room time control', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse({}));
+    vi.stubGlobal('fetch', fetchSpy);
+    const refs = refsFixture();
+    liveState.room = 'dxq_done';
+    liveState.events = [
+      {
+        type: 'room-created',
+        roomId: 'dxq_done',
+        gameSpecId: 'dark-xiangqi',
+        at: 1,
+        timeControl: { initialMs: 60_000, incrementMs: 1_000 },
+      },
+    ] as never;
+    liveState.state = {
+      ...viewFixture(),
+      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      legalMoves: [],
+    } as never;
+
+    renderDarkXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+    refs.roomActions
+      .querySelector<HTMLButtonElement>('button')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'pvp',
+        gameSpecId: 'dark-xiangqi',
+        preferredColor: 'random',
+        timeControl: { initialMs: 60_000, incrementMs: 1_000 },
+      }),
+    });
+  });
 });
 
 function viewFixture(): DarkXiangqiWireView {
@@ -250,4 +289,17 @@ function el<K extends keyof HTMLElementTagNameMap>(tagName: K): HTMLElementTagNa
 
 function clickEvent(): MouseEvent {
   return new MouseEvent('click', { bubbles: true });
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'content-type': 'application/json' },
+    status: init.status ?? 200,
+  });
 }

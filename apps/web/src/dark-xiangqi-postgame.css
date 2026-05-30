@@ -64,6 +64,22 @@
   text-decoration: none;
 }
 
+button.dxq-postgame__link {
+  cursor: pointer;
+  font: inherit;
+}
+
+.dxq-postgame__link--primary {
+  border-color: #237960;
+  background: #237960;
+  color: #ffffff;
+}
+
+.dxq-postgame__link:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
 .dxq-postgame__layout {
   display: grid;
   gap: 14px;

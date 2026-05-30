@@ -64,6 +64,8 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Red view');
     expect(root.textContent).toContain('Public view');
     expect(root.textContent).toContain('Black view');
+    expect(root.textContent).toContain('Play again');
+    expect(root.textContent).toContain('Back home');
     expect(root.textContent).toContain('Red b3-b4');
     expect(root.textContent).not.toContain('Black b8-b7');
     expect(root.textContent).toContain('Ply 2 of 2');
