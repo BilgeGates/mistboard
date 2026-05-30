@@ -22,12 +22,12 @@ export type PlayableEngine = {
 type LandingPlayChoice = {
   engineId?: string;
   engines?: PlayableEngine[];
-  initialGameSpecId?: LandingVariantGameSpecId;
+  initialGameSpecId?: LandingGameSpecId;
   mode: 'lobby' | 'pvp' | 'pve';
   ratedDisabled?: boolean;
   title: string;
 };
-type LandingVariantGameSpecId = typeof DARK_CHESS_SPEC_ID | typeof DARK_XIANGQI_SPEC_ID;
+type LandingGameSpecId = typeof DARK_CHESS_SPEC_ID | typeof DARK_XIANGQI_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -47,7 +47,7 @@ type LandingGameSpecCapabilities = {
   supportsStartFormat: boolean;
 };
 type LandingRoomSetup = {
-  gameSpecId: LandingVariantGameSpecId;
+  gameSpecId: LandingGameSpecId;
   startFormat: LandingStartFormat;
   rated: boolean;
   timeControl: {
@@ -82,17 +82,14 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   initialMs: tc.initialMs,
   incrementMs: tc.incrementMs,
 }));
-const LANDING_VARIANT_GAME_SPECS: readonly {
-  id: LandingVariantGameSpecId;
+const LANDING_VARIANT_OPTIONS: readonly {
+  gameSpecId: LandingGameSpecId;
   label: string;
 }[] = [
-  { id: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
-  { id: DARK_XIANGQI_SPEC_ID, label: gameSpecForId(DARK_XIANGQI_SPEC_ID).publicName },
+  { gameSpecId: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
+  { gameSpecId: DARK_XIANGQI_SPEC_ID, label: gameSpecForId(DARK_XIANGQI_SPEC_ID).publicName },
 ];
-const LANDING_GAME_SPEC_CAPABILITIES: Record<
-  LandingVariantGameSpecId,
-  LandingGameSpecCapabilities
-> = {
+const LANDING_GAME_SPEC_CAPABILITIES: Record<LandingGameSpecId, LandingGameSpecCapabilities> = {
   [DARK_CHESS_SPEC_ID]: {
     blackGlyph: '♚',
     firstColor: 'white',
@@ -376,15 +373,18 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
       });
       break;
     case 'friend':
-      openLandingSetupDialog({
-        initialGameSpecId:
-          params.get('variant') === DARK_XIANGQI_SPEC_ID && darkXiangqiEnabled()
-            ? DARK_XIANGQI_SPEC_ID
-            : undefined,
-        mode: 'pvp',
-        title: 'Challenge a friend',
-        ratedDisabled: true,
-      });
+      {
+        const requestedGameSpecId = params.get('gameSpecId') ?? params.get('variant');
+        openLandingSetupDialog({
+          initialGameSpecId:
+            requestedGameSpecId === DARK_XIANGQI_SPEC_ID && darkXiangqiEnabled()
+              ? DARK_XIANGQI_SPEC_ID
+              : undefined,
+          mode: 'pvp',
+          title: 'Challenge a friend',
+          ratedDisabled: true,
+        });
+      }
       break;
     case 'computer':
       openLandingSetupDialog({
@@ -399,6 +399,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
   }
 
   params.delete('play');
+  params.delete('gameSpecId');
   params.delete('variant');
   const query = params.toString();
   const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
@@ -411,7 +412,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   let startFormat: LandingStartFormat = 'standard';
   let rated = !(choice.mode === 'pve' || choice.ratedDisabled);
-  let selectedGameSpecId: LandingVariantGameSpecId = choice.initialGameSpecId ?? DARK_CHESS_SPEC_ID;
+  let selectedGameSpecId: LandingGameSpecId = choice.initialGameSpecId ?? DARK_CHESS_SPEC_ID;
   let selectedPreset: LandingTimePresetId = '3m2';
   let selectedEngineId = choice.engineId;
   let preferredColor: LandingColorPreference = loadStoredColorPreference();
@@ -453,9 +454,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     const gameSpecSelect = document.createElement('select');
     gameSpecSelect.className = 'landing-variant-select landing-engine-select';
     gameSpecSelect.setAttribute('aria-label', 'Variant');
-    for (const { id, label } of LANDING_VARIANT_GAME_SPECS) {
+    for (const { gameSpecId, label } of LANDING_VARIANT_OPTIONS) {
       const option = document.createElement('option');
-      option.value = id;
+      option.value = gameSpecId;
       option.textContent = label;
       gameSpecSelect.append(option);
     }
@@ -790,7 +791,7 @@ function storeColorPreference(value: LandingColorPreference): void {
 function buildColorPreferenceSection(
   get: () => LandingColorPreference,
   set: (value: LandingColorPreference) => void,
-  getGameSpecId: () => LandingVariantGameSpecId = () => DARK_CHESS_SPEC_ID,
+  getGameSpecId: () => LandingGameSpecId = () => DARK_CHESS_SPEC_ID,
   onSync?: (sync: () => void) => void,
 ): HTMLElement {
   const section = document.createElement('div');
@@ -873,7 +874,7 @@ function updateColorOptionButton(
   button: HTMLButtonElement,
   value: LandingColorPreference,
   label: string,
-  gameSpecId: LandingVariantGameSpecId,
+  gameSpecId: LandingGameSpecId,
 ): void {
   const glyph = button.querySelector<HTMLSpanElement>('.landing-color-glyph');
   const text = button.querySelector<HTMLSpanElement>('.landing-color-label');
@@ -888,7 +889,7 @@ function updateColorOptionButton(
 
 function colorGlyphNodes(
   value: LandingColorPreference,
-  gameSpecId: LandingVariantGameSpecId = DARK_CHESS_SPEC_ID,
+  gameSpecId: LandingGameSpecId = DARK_CHESS_SPEC_ID,
 ): Node[] {
   const capabilities = landingGameSpecCapabilities(gameSpecId);
   if (value === 'random') {
@@ -905,9 +906,7 @@ function colorGlyphNodes(
   ];
 }
 
-function landingGameSpecCapabilities(
-  gameSpecId: LandingVariantGameSpecId,
-): LandingGameSpecCapabilities {
+function landingGameSpecCapabilities(gameSpecId: LandingGameSpecId): LandingGameSpecCapabilities {
   return LANDING_GAME_SPEC_CAPABILITIES[gameSpecId];
 }
 
@@ -919,7 +918,7 @@ function setupSectionLabel(text: string): HTMLSpanElement {
 }
 
 function selectedRoomSetup(
-  gameSpecId: LandingVariantGameSpecId,
+  gameSpecId: LandingGameSpecId,
   startFormat: LandingStartFormat,
   rated: boolean,
   presetId: LandingTimePresetId,
@@ -1046,7 +1045,6 @@ function roomCreationRequestBody(
   return {
     mode,
     gameSpecId,
-    variant: DARK_CHESS_SPEC_ID,
     hiddenDraft960: setup.startFormat === 'draft960',
     timeControl: setup.timeControl,
     rated: setup.rated,

@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildLandingPlayPanel } from './landing-play.js';
+import { buildLandingPlayPanel, maybeOpenPlayDeepLink } from './landing-play.js';
 
 describe('landing play panel', () => {
   afterEach(() => {
     document.body.replaceChildren();
+    window.history.replaceState(null, '', '/');
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -43,7 +44,6 @@ describe('landing play panel', () => {
     expect(JSON.parse(String(roomCall?.[1]?.body))).toEqual({
       mode: 'pvp',
       gameSpecId: 'dark-chess',
-      variant: 'dark-chess',
       hiddenDraft960: false,
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
       rated: false,
@@ -92,6 +92,21 @@ describe('landing play panel', () => {
       preferredColor: 'random',
     });
     expect(window.location.pathname).toBe('/room/dxq_home');
+  });
+
+  it('uses gameSpecId, not variant, to deep-link the challenge variant projection', () => {
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    window.history.replaceState(null, '', '/?play=friend&gameSpecId=dark-xiangqi');
+
+    maybeOpenPlayDeepLink([]);
+
+    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
+    expect(variantSelect?.value).toBe('dark-xiangqi');
+    expect(window.location.search).toBe('');
   });
 });
 
