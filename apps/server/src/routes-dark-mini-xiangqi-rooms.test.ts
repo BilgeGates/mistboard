@@ -238,6 +238,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     },
     gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
     pendingWrites: Promise.resolve(),
+    seatTokens: {},
   };
 }
 
