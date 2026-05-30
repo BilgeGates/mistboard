@@ -62,7 +62,7 @@ export const ARTICLE_META: Record<string, { title: string; description: string }
   'chess-rules-primer': {
     title: 'Chess Rules',
     description:
-      'The regular chess baseline for Mistboard: board setup, piece movement, captures, check, checkmate, special moves, and common draws.',
+      'The regular chess baseline for Mistboard: setup, turns, legal moves, captures, check, checkmate, castling, promotion, en passant, and common draws.',
   },
   'dark-chess-rules': {
     title: 'Dark Chess Rules',
@@ -82,17 +82,22 @@ export const ARTICLE_META: Record<string, { title: string; description: string }
   'xiangqi-rules-primer': {
     title: 'Xiangqi Rules',
     description:
-      'The regular xiangqi baseline for Mistboard: board geometry, piece movement, captures, check, facing generals, and endings.',
+      'The regular xiangqi baseline for Mistboard: intersections, palaces, river rules, piece movement, cannon screens, checks, facing generals, and endings.',
   },
   'dark-xiangqi-rules': {
     title: 'Dark Xiangqi',
     description:
-      'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.',
+      'Xiangqi under Fog of War: each side sees only what its pieces can reach, hidden blockers matter, check warnings disappear, and the general falls by capture.',
+  },
+  'mini-xiangqi-rules': {
+    title: 'Mini Xiangqi',
+    description:
+      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: palaces, generals, chariots, cannons, horses, soldiers, immobilization losses, and no river.',
   },
   'dark-mini-xiangqi-rules': {
     title: 'Dark Mini Xiangqi',
     description:
-      'A compact 7x7 Fog of War xiangqi variant with generals, chariots, cannons, horses, soldiers, shrouded blockers, and general capture.',
+      'Mini Xiangqi under Fog of War: a compact 7x7 variant with generals, chariots, cannons, horses, soldiers, shrouded blockers, and general capture.',
   },
   'engine-belief-state': {
     title: 'Building an engine for hidden-information chess',
