@@ -22,6 +22,7 @@ describe('Dark Xiangqi live renderer', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    document.body.classList.remove('live-route--xiangqi');
     liveState.gameSpecId = null;
     liveState.connectionState = 'connecting';
     liveState.closeReason = '';
@@ -114,6 +115,8 @@ describe('Dark Xiangqi live renderer', () => {
 
     expect(refs.actionStatus.textContent).toContain('Room unavailable');
     expect(refs.actionStatus.textContent).toContain('This Dark Xiangqi room is not active');
+    expect(document.body.classList.contains('live-route--xiangqi')).toBe(true);
+    expect(refs.boardStatus.hidden).toBe(false);
     expect(refs.board.querySelector('.xq-live-svg')).toBeNull();
   });
 

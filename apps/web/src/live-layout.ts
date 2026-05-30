@@ -2,6 +2,10 @@ import type { LiveRefs } from './live-state.js';
 import { primaryNavItems, utilityNavItems } from './nav-items.js';
 import { escapeHtml } from './web-utils.js';
 
+export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | null): void {
+  target.classList.toggle('live-route--xiangqi', gameSpecId === 'dark-xiangqi');
+}
+
 // Static room chrome only. Live game decisions stay in live-render.ts.
 export function createLiveLayout(
   target: HTMLDivElement,

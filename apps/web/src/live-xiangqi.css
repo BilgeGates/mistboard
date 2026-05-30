@@ -1,3 +1,16 @@
+.live-route--xiangqi .board-shell {
+  width: min(100%, 72vh, 620px);
+}
+
+.live-route--xiangqi .board-stage,
+.live-route--xiangqi .board-status {
+  aspect-ratio: 552 / 612;
+}
+
+.live-route--xiangqi .board-status {
+  width: 100%;
+}
+
 .xiangqi-live-board {
   aspect-ratio: 552 / 612;
   width: min(100%, 72vh);

@@ -31,7 +31,7 @@ import {
   renderGameControls as renderGameControlRows,
   updateAbortCountdown as updateGameControlCountdown,
 } from './live-game-controls.js';
-import { createLiveLayout } from './live-layout.js';
+import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { renderReplay, resetMoveListState } from './live-move-list.js';
 import { captureFogView, initReplay, isLive, resetReplayState } from './live-replay.js';
 import {
@@ -196,6 +196,7 @@ export function initRender(
 // ── Main render ───────────────────────────────────────────────────────────────
 
 export function render(): void {
+  setLiveLayoutGameSpec(refs.board.closest('#app') ?? document.body, liveState.gameSpecId);
   if (isDarkXiangqiLiveRoom()) {
     destroyChessBoardForAlternateRenderer();
     captureFogView();

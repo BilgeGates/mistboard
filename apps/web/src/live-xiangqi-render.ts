@@ -11,6 +11,7 @@ import {
   darkXiangqiTimeControlFromEvents,
 } from './dark-xiangqi-room-actions.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
+import { setLiveLayoutGameSpec } from './live-layout.js';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
@@ -85,6 +86,10 @@ export function renderDarkXiangqiRoom(
   refs: LiveRefs,
   callbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) => boolean },
 ): void {
+  setLiveLayoutGameSpec(
+    refs.board.closest('#app') ?? refs.board.ownerDocument.body,
+    'dark-xiangqi',
+  );
   renderCallbacks = callbacks;
   resetChessOnlyPanels(refs);
   renderMeta(refs);
