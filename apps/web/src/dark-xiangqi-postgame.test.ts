@@ -1,16 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  darkXiangqiPostgameApiUrl,
-  darkXiangqiPostgameSeatToken,
-  mountDarkXiangqiPostgame,
-} from './dark-xiangqi-postgame.js';
-
-const redToken = 'r'.repeat(32);
-const blackToken = 'b'.repeat(32);
+import { darkXiangqiPostgameApiUrl, mountDarkXiangqiPostgame } from './dark-xiangqi-postgame.js';
 
 describe('Dark Xiangqi postgame page', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
+    window.history.replaceState(null, '', '/');
     Object.defineProperty(window, 'localStorage', {
       configurable: true,
       value: memoryStorage(),
@@ -24,99 +18,66 @@ describe('Dark Xiangqi postgame page', () => {
     window.localStorage.clear();
   });
 
-  it('builds the family-native postgame API URL with a seat token when present', () => {
-    expect(darkXiangqiPostgameApiUrl('dxq room', null)).toBe('/api/dark-xiangqi/games/dxq%20room');
-    expect(darkXiangqiPostgameApiUrl('dxq room', redToken)).toBe(
-      `/api/dark-xiangqi/games/dxq%20room?seatToken=${redToken}`,
-    );
+  it('builds the family-native public postgame API URL', () => {
+    expect(darkXiangqiPostgameApiUrl('dxq room')).toBe('/api/dark-xiangqi/games/dxq%20room');
   });
 
-  it('uses only red or black stored seat tokens for postgame fetches', () => {
-    window.localStorage.setItem(
-      'mistboard.seatToken.dxq_red',
-      JSON.stringify({ seat: 'red', token: redToken }),
-    );
-    window.localStorage.setItem(
-      'mistboard.seatToken.dxq_white',
-      JSON.stringify({ seat: 'white', token: 'w'.repeat(32) }),
-    );
-
-    expect(darkXiangqiPostgameSeatToken('dxq_red')).toBe(redToken);
-    expect(darkXiangqiPostgameSeatToken('dxq_white')).toBeNull();
-  });
-
-  it('renders a seated redacted final board and only that seat timeline', async () => {
-    window.localStorage.setItem(
-      'mistboard.seatToken.dxq_postgame',
-      JSON.stringify({ seat: 'red', token: redToken }),
-    );
-    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture('red')));
+  it('renders the public review triptych with server truth and all moves', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
 
     mountDarkXiangqiPostgame(root, 'dxq_postgame');
     await flushPromises();
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      `/api/dark-xiangqi/games/dxq_postgame?seatToken=${redToken}`,
-    );
+    expect(fetchSpy).toHaveBeenCalledWith('/api/dark-xiangqi/games/dxq_postgame');
+    expect(root.textContent).toContain('Game review');
     expect(root.textContent).toContain('Red wins');
     expect(root.textContent).toContain('Red view');
-    expect(root.textContent).toContain('Public view');
+    expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Play again');
     expect(root.textContent).toContain('Back home');
     expect(root.textContent).toContain('Red b3-b4');
-    expect(root.textContent).not.toContain('Black b8-b7');
+    expect(root.textContent).toContain('Black b8-b7');
     expect(root.textContent).toContain('Ply 2 of 2');
     expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
     expect(root.innerHTML).toContain('aria-label="black hidden piece"');
-    expect(root.innerHTML).toContain('aria-label="black soldier"');
+    expect(root.innerHTML).toContain('aria-label="black cannon"');
+    expect(root.innerHTML).toContain('aria-label="black cannon"');
+    expect(boardWrap(root, 'Server truth').querySelector('.xq-live-fog-mask')).toBeNull();
+    expect(boardWrap(root, 'Server truth').innerHTML).not.toContain('hidden piece');
+    expect(blackCannonY(root)).toBe('190');
+
+    root.querySelector<HTMLButtonElement>('[aria-label="Flip all boards"]')?.click();
+    expect(blackCannonY(root)).toBe('370');
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
+    expect(blackCannonY(root)).toBe('190');
 
     root
       .querySelector<HTMLButtonElement>('.dxq-postgame__replay-button[aria-label="Previous ply"]')
       ?.click();
     expect(root.textContent).toContain('Ply 1 of 2');
   });
-
-  it('renders public spectator payloads without board truth', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => jsonResponse(postgameFixture('spectator'))),
-    );
-    const root = document.createElement('div');
-
-    mountDarkXiangqiPostgame(root, 'dxq_public');
-    await flushPromises();
-
-    expect(root.textContent).toContain('Spectator');
-    expect(root.textContent).toContain('Ply 2 of 2');
-    expect(root.textContent).toContain('No visible moves');
-    expect(root.textContent).not.toContain('Red view');
-    expect(root.textContent).not.toContain('Black view');
-    expect(root.querySelectorAll('.xq-piece')).toHaveLength(0);
-  });
-
-  it('renders a stale-seat error when the token is rejected', async () => {
-    window.localStorage.setItem(
-      'mistboard.seatToken.dxq_rejected',
-      JSON.stringify({ seat: 'black', token: blackToken }),
-    );
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => jsonResponse({ error: 'invalid_seat_token' }, { status: 401 })),
-    );
-    const root = document.createElement('div');
-
-    mountDarkXiangqiPostgame(root, 'dxq_rejected');
-    await flushPromises();
-
-    expect(root.textContent).toContain('Seat unavailable');
-    expect(root.textContent).toContain('stored seat token was rejected');
-  });
 });
 
-function postgameFixture(seat: 'red' | 'black' | 'spectator') {
+function boardWrap(root: HTMLElement, label: string): HTMLElement {
+  const wrap = [...root.querySelectorAll<HTMLElement>('.dxq-postgame__board-wrap')].find((el) =>
+    el.textContent?.includes(label),
+  );
+  if (!wrap) throw new Error(`Missing board wrap: ${label}`);
+  return wrap;
+}
+
+function blackCannonY(root: HTMLElement): string | null {
+  return (
+    boardWrap(root, 'Black view').querySelector('[aria-label="black cannon"]')?.getAttribute('y') ??
+    null
+  );
+}
+
+function postgameFixture() {
   return {
     game: {
       roomId: 'dxq_postgame',
@@ -132,211 +93,204 @@ function postgameFixture(seat: 'red' | 'black' | 'spectator') {
       initialMs: 180000,
       incrementMs: 2000,
     },
-    access: { seat },
     state: {
       status: { type: 'finished', winner: 'red', reason: 'resignation' },
       moveNumber: 2,
       timeControl: { initialMs: 180000, incrementMs: 2000 },
     },
-    timeline:
-      seat === 'red'
-        ? [{ type: 'move-played', at: 2, color: 'red', move: { from: 'b3', to: 'b4' }, ply: 1 }]
-        : seat === 'black'
-          ? [
-              {
-                type: 'move-played',
-                at: 3,
-                color: 'black',
-                move: { from: 'b8', to: 'b7' },
-                ply: 2,
-              },
-            ]
-          : [],
+    timeline: [
+      { type: 'move-played', at: 2, color: 'red', move: { from: 'b3', to: 'b4' }, ply: 1 },
+      {
+        type: 'move-played',
+        at: 3,
+        color: 'black',
+        move: { from: 'b8', to: 'b7' },
+        ply: 2,
+      },
+    ],
     view: {
       id: 'dxq_postgame',
-      perspective: seat === 'black' ? 'black' : 'red',
-      board:
-        seat === 'spectator'
-          ? {}
-          : {
-              b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
-              b8: { color: 'black', shrouded: true },
-            },
-      visibleSquares: seat === 'spectator' ? [] : ['b4', 'b8'],
+      perspective: 'red',
+      board: {
+        b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+        b7: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+      },
+      visibleSquares: allFixtureSquares(),
       legalMoves: [],
       status: { type: 'finished', winner: 'red', reason: 'resignation' },
       moveNumber: 2,
     },
-    history:
-      seat === 'spectator'
-        ? {
-            spectator: [
-              {
-                ply: 0,
-                view: emptySpectatorView('dxq_postgame_spectator_0'),
-              },
-              {
-                ply: 1,
-                view: emptySpectatorView('dxq_postgame_spectator_1'),
-              },
-              {
-                ply: 2,
-                view: emptySpectatorView('dxq_postgame_spectator_2'),
-              },
-            ],
-          }
-        : {
-            red: [
-              {
-                ply: 0,
-                view: {
-                  id: 'dxq_postgame_red_0',
-                  perspective: 'red',
-                  board: {
-                    b3: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
-                    b8: { color: 'black', shrouded: true },
-                  },
-                  visibleSquares: ['b3', 'b8'],
-                  legalMoves: [],
-                  status: { type: 'playing', turn: 'red' },
-                  moveNumber: 1,
-                },
-              },
-              {
-                ply: 1,
-                view: {
-                  id: 'dxq_postgame_red_1',
-                  perspective: 'red',
-                  board: {
-                    b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
-                    b8: { color: 'black', shrouded: true },
-                  },
-                  visibleSquares: ['b4', 'b8'],
-                  legalMoves: [],
-                  status: { type: 'playing', turn: 'black' },
-                  moveNumber: 1,
-                },
-              },
-              {
-                ply: 2,
-                view: {
-                  id: 'dxq_postgame_red_2',
-                  perspective: 'red',
-                  board: {
-                    b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
-                    b7: { color: 'black', shrouded: true },
-                  },
-                  visibleSquares: ['b4', 'b7'],
-                  legalMoves: [],
-                  status: { type: 'finished', winner: 'red', reason: 'resignation' },
-                  moveNumber: 2,
-                },
-              },
-            ],
-            spectator: [
-              { ply: 0, view: emptySpectatorView('dxq_postgame_spectator_0') },
-              { ply: 1, view: emptySpectatorView('dxq_postgame_spectator_1') },
-              { ply: 2, view: emptySpectatorView('dxq_postgame_spectator_2') },
-            ],
-            black: [
-              {
-                ply: 0,
-                view: {
-                  id: 'dxq_postgame_black_0',
-                  perspective: 'black',
-                  board: {
-                    b3: { color: 'red', shrouded: true },
-                    b8: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
-                  },
-                  visibleSquares: ['b3', 'b8'],
-                  legalMoves: [],
-                  status: { type: 'playing', turn: 'red' },
-                  moveNumber: 1,
-                },
-              },
-              {
-                ply: 1,
-                view: {
-                  id: 'dxq_postgame_black_1',
-                  perspective: 'black',
-                  board: {
-                    b4: { color: 'red', shrouded: true },
-                    b8: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
-                  },
-                  visibleSquares: ['b4', 'b8'],
-                  legalMoves: [],
-                  status: { type: 'playing', turn: 'black' },
-                  moveNumber: 1,
-                },
-              },
-              {
-                ply: 2,
-                view: {
-                  id: 'dxq_postgame_black_2',
-                  perspective: 'black',
-                  board: {
-                    b4: { color: 'red', shrouded: true },
-                    b7: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
-                  },
-                  visibleSquares: ['b4', 'b7'],
-                  legalMoves: [],
-                  status: { type: 'finished', winner: 'red', reason: 'resignation' },
-                  moveNumber: 2,
-                },
-              },
-            ],
+    history: {
+      red: [
+        {
+          ply: 0,
+          view: {
+            id: 'dxq_postgame_red_0',
+            perspective: 'red',
+            board: {
+              b3: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+              b8: { color: 'black', shrouded: true },
+            },
+            visibleSquares: ['b3', 'b8'],
+            legalMoves: [],
+            status: { type: 'playing', turn: 'red' },
+            moveNumber: 1,
           },
-    views:
-      seat === 'spectator'
-        ? undefined
-        : {
-            red: {
-              id: 'dxq_postgame_red',
-              perspective: 'red',
-              board: {
-                b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
-                b8: { color: 'black', shrouded: true },
-              },
-              visibleSquares: ['b4', 'b8'],
-              legalMoves: [],
-              status: { type: 'finished', winner: 'red', reason: 'resignation' },
-              moveNumber: 2,
+        },
+        {
+          ply: 1,
+          view: {
+            id: 'dxq_postgame_red_1',
+            perspective: 'red',
+            board: {
+              b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+              b8: { color: 'black', shrouded: true },
             },
-            spectator: {
-              id: 'dxq_postgame_spectator',
-              perspective: 'red',
-              board: {},
-              visibleSquares: [],
-              legalMoves: [],
-              status: { type: 'finished', winner: 'red', reason: 'resignation' },
-              moveNumber: 2,
-            },
-            black: {
-              id: 'dxq_postgame_black',
-              perspective: 'black',
-              board: {
-                b4: { color: 'red', shrouded: true },
-                b7: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
-              },
-              visibleSquares: ['b4', 'b7'],
-              legalMoves: [],
-              status: { type: 'finished', winner: 'red', reason: 'resignation' },
-              moveNumber: 2,
-            },
+            visibleSquares: ['b4', 'b8'],
+            legalMoves: [],
+            status: { type: 'playing', turn: 'black' },
+            moveNumber: 1,
           },
+        },
+        {
+          ply: 2,
+          view: {
+            id: 'dxq_postgame_red_2',
+            perspective: 'red',
+            board: {
+              b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+              b7: { color: 'black', shrouded: true },
+            },
+            visibleSquares: ['b4', 'b7'],
+            legalMoves: [],
+            status: { type: 'finished', winner: 'red', reason: 'resignation' },
+            moveNumber: 2,
+          },
+        },
+      ],
+      truth: [
+        {
+          ply: 0,
+          view: truthView('dxq_postgame_truth_0', {
+            b3: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+            b8: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+          }),
+        },
+        {
+          ply: 1,
+          view: truthView('dxq_postgame_truth_1', {
+            b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+            b8: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+          }),
+        },
+        {
+          ply: 2,
+          view: truthView('dxq_postgame_truth_2', {
+            b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+            b7: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+          }),
+        },
+      ],
+      black: [
+        {
+          ply: 0,
+          view: {
+            id: 'dxq_postgame_black_0',
+            perspective: 'black',
+            board: {
+              b3: { color: 'red', shrouded: true },
+              b8: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+            },
+            visibleSquares: ['b3', 'b8'],
+            legalMoves: [],
+            status: { type: 'playing', turn: 'red' },
+            moveNumber: 1,
+          },
+        },
+        {
+          ply: 1,
+          view: {
+            id: 'dxq_postgame_black_1',
+            perspective: 'black',
+            board: {
+              b4: { color: 'red', shrouded: true },
+              b8: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+            },
+            visibleSquares: ['b4', 'b8'],
+            legalMoves: [],
+            status: { type: 'playing', turn: 'black' },
+            moveNumber: 1,
+          },
+        },
+        {
+          ply: 2,
+          view: {
+            id: 'dxq_postgame_black_2',
+            perspective: 'black',
+            board: {
+              b4: { color: 'red', shrouded: true },
+              b7: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+            },
+            visibleSquares: ['b4', 'b7'],
+            legalMoves: [],
+            status: { type: 'finished', winner: 'red', reason: 'resignation' },
+            moveNumber: 2,
+          },
+        },
+      ],
+    },
+    views: {
+      red: {
+        id: 'dxq_postgame_red',
+        perspective: 'red',
+        board: {
+          b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+          b8: { color: 'black', shrouded: true },
+        },
+        visibleSquares: ['b4', 'b8'],
+        legalMoves: [],
+        status: { type: 'finished', winner: 'red', reason: 'resignation' },
+        moveNumber: 2,
+      },
+      truth: truthView('dxq_postgame_truth', {
+        b4: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+        b7: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+      }),
+      black: {
+        id: 'dxq_postgame_black',
+        perspective: 'black',
+        board: {
+          b4: { color: 'red', shrouded: true },
+          b7: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+        },
+        visibleSquares: ['b4', 'b7'],
+        legalMoves: [],
+        status: { type: 'finished', winner: 'red', reason: 'resignation' },
+        moveNumber: 2,
+      },
+    },
   };
 }
 
-function emptySpectatorView(id: string) {
+function truthView(id: string, board: Record<string, unknown>) {
   return {
     id,
     perspective: 'red',
-    board: {},
-    visibleSquares: [],
+    board,
+    visibleSquares: allFixtureSquares(),
     legalMoves: [],
     status: { type: 'finished', winner: 'red', reason: 'resignation' },
     moveNumber: 2,
   };
+}
+
+function allFixtureSquares(): string[] {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
+  const squares: string[] = [];
+  for (let rank = 1; rank <= 10; rank += 1) {
+    for (const file of files) squares.push(`${file}${rank}`);
+  }
+  return squares;
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {

@@ -251,7 +251,7 @@ if (!testDbUrl) {
     await black.disconnect();
   });
 
-  test('Dark Xiangqi postgame API is family-native and seat-redacted', async () => {
+  test('Dark Xiangqi postgame API is family-native and public truth review', async () => {
     const createdResponse = await createDarkXiangqiRoom(serverInstance);
     assert.equal(createdResponse.status, 201);
     const created = (await createdResponse.json()) as { roomId: string };
@@ -299,104 +299,73 @@ if (!testDbUrl) {
     const publicPostgame = (await publicResponse.json()) as DarkXiangqiPostgameResponse;
     assert.equal(publicPostgame.game.variant, 'dark-xiangqi');
     assert.equal(publicPostgame.game.visibility, 'private');
-    assert.deepEqual(publicPostgame.access, { seat: 'spectator' });
     assert.equal(publicPostgame.view.perspective, 'red');
-    assert.deepEqual(publicPostgame.view.board, {});
-    assert.deepEqual(publicPostgame.views, { spectator: publicPostgame.view });
-    assert.deepEqual(
-      publicPostgame.history?.spectator?.map((snapshot) => ({
-        ply: snapshot.ply,
-        board: snapshot.view.board,
-      })),
-      [
-        { ply: 0, board: {} },
-        { ply: 1, board: {} },
-        { ply: 2, board: {} },
-      ],
-    );
-    assert.equal(
-      publicPostgame.timeline.some((entry) => entry.type === 'move-played'),
-      false,
-    );
-    assert.doesNotMatch(JSON.stringify(publicPostgame), /clientId|seat-assigned|seat-vacated/);
-
-    assert.ok(red.seatToken);
-    const redResponse = await fetchDarkXiangqiPostgame(
-      serverInstance,
-      created.roomId,
-      red.seatToken,
-    );
-    assert.equal(redResponse.status, 200);
-    const redPostgame = (await redResponse.json()) as DarkXiangqiPostgameResponse;
-    assert.deepEqual(redPostgame.access, { seat: 'red' });
-    assert.equal(redPostgame.view.perspective, 'red');
-    assert.deepEqual(redPostgame.view.board.b4, {
+    assert.deepEqual(publicPostgame.views?.red?.board.b4, {
       piece: { color: 'red', role: 'cannon' },
       shrouded: false,
     });
-    assert.equal(shroudedEntriesCarryPieceIdentity(redPostgame.view.board), false);
-    assert.equal(redPostgame.views?.red?.perspective, 'red');
-    assert.deepEqual(redPostgame.views?.red?.board.b4, redPostgame.view.board.b4);
-    assert.equal(redPostgame.views?.spectator?.perspective, 'red');
-    assert.deepEqual(redPostgame.views?.spectator?.board, {});
-    assert.equal(redPostgame.views?.black?.perspective, 'black');
-    assert.equal(shroudedEntriesCarryPieceIdentity(redPostgame.views?.black?.board ?? {}), false);
+    assert.deepEqual(publicPostgame.views?.truth?.board.b4, {
+      piece: { color: 'red', role: 'cannon' },
+      shrouded: false,
+    });
+    assert.deepEqual(publicPostgame.views?.truth?.board.b7, {
+      piece: { color: 'black', role: 'cannon' },
+      shrouded: false,
+    });
+    assert.equal(publicPostgame.views?.truth?.visibleSquares.length, 90);
+    assert.equal(publicPostgame.views?.black?.perspective, 'black');
+    assert.equal(shroudedEntriesCarryPieceIdentity(publicPostgame.views?.red?.board ?? {}), false);
+    assert.equal(
+      shroudedEntriesCarryPieceIdentity(publicPostgame.views?.black?.board ?? {}),
+      false,
+    );
+    assert.equal(
+      Object.values(publicPostgame.views?.truth?.board ?? {}).some(
+        (entry) =>
+          typeof entry === 'object' &&
+          entry !== null &&
+          (entry as { shrouded?: unknown }).shrouded === true,
+      ),
+      false,
+    );
     assert.deepEqual(
-      redPostgame.history?.red?.map((snapshot) => snapshot.ply),
+      publicPostgame.history?.red?.map((snapshot) => snapshot.ply),
       [0, 1, 2],
     );
     assert.deepEqual(
-      redPostgame.history?.spectator?.map((snapshot) => snapshot.view.board),
-      [{}, {}, {}],
+      publicPostgame.history?.truth?.map((snapshot) => snapshot.ply),
+      [0, 1, 2],
     );
     assert.deepEqual(
-      redPostgame.history?.black?.map((snapshot) => snapshot.ply),
+      publicPostgame.history?.black?.map((snapshot) => snapshot.ply),
       [0, 1, 2],
     );
     assert.equal(
-      redPostgame.history?.black?.some((snapshot) =>
+      publicPostgame.history?.black?.some((snapshot) =>
         shroudedEntriesCarryPieceIdentity(snapshot.view.board),
       ),
       false,
     );
     assert.deepEqual(
-      redPostgame.timeline
+      publicPostgame.timeline
         .filter((entry) => entry.type === 'move-played')
         .map((entry) => ({
           color: entry.color,
           move: entry.move,
         })),
-      [{ color: 'red', move: { from: 'b3', to: 'b4' } }],
+      [
+        { color: 'red', move: { from: 'b3', to: 'b4' } },
+        { color: 'black', move: { from: 'b8', to: 'b7' } },
+      ],
     );
-
-    assert.ok(black.seatToken);
-    const blackResponse = await fetchDarkXiangqiPostgame(
-      serverInstance,
-      created.roomId,
-      black.seatToken,
-    );
-    assert.equal(blackResponse.status, 200);
-    const blackPostgame = (await blackResponse.json()) as DarkXiangqiPostgameResponse;
-    assert.deepEqual(blackPostgame.access, { seat: 'black' });
-    assert.equal(blackPostgame.view.perspective, 'black');
-    assert.equal(blackPostgame.views?.red?.perspective, 'red');
-    assert.equal(blackPostgame.views?.black?.perspective, 'black');
-    assert.deepEqual(
-      blackPostgame.timeline
-        .filter((entry) => entry.type === 'move-played')
-        .map((entry) => ({
-          color: entry.color,
-          move: entry.move,
-        })),
-      [{ color: 'black', move: { from: 'b8', to: 'b7' } }],
-    );
+    assert.doesNotMatch(JSON.stringify(publicPostgame), /clientId|seat-assigned|seat-vacated/);
 
     const invalidTokenResponse = await fetchDarkXiangqiPostgame(
       serverInstance,
       created.roomId,
       'not-a-valid-seat-token',
     );
-    assert.equal(invalidTokenResponse.status, 401);
+    assert.equal(invalidTokenResponse.status, 200);
 
     process.env[darkXiangqiKey] = 'false';
     try {
@@ -436,7 +405,6 @@ type DarkXiangqiPostgameResponse = {
     variant: string;
     visibility: string;
   };
-  access: { seat: 'red' | 'black' | 'spectator' };
   timeline: Array<{
     type: string;
     color?: string;
@@ -447,13 +415,25 @@ type DarkXiangqiPostgameResponse = {
     board: Record<string, unknown>;
   };
   views?: {
-    red?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
-    spectator?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
-    black?: { perspective: 'red' | 'black'; board: Record<string, unknown> };
+    red?: {
+      perspective: 'red' | 'black';
+      board: Record<string, unknown>;
+      visibleSquares: string[];
+    };
+    truth?: {
+      perspective: 'red' | 'black';
+      board: Record<string, unknown>;
+      visibleSquares: string[];
+    };
+    black?: {
+      perspective: 'red' | 'black';
+      board: Record<string, unknown>;
+      visibleSquares: string[];
+    };
   };
   history?: {
     red?: Array<{ ply: number; view: { board: Record<string, unknown> } }>;
-    spectator?: Array<{ ply: number; view: { board: Record<string, unknown> } }>;
+    truth?: Array<{ ply: number; view: { board: Record<string, unknown> } }>;
     black?: Array<{ ply: number; view: { board: Record<string, unknown> } }>;
   };
 };

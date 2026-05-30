@@ -128,8 +128,9 @@ export function reconcileDarkXiangqiInteractionState(): void {
 export function renderDarkXiangqiBoardSvg(
   view: DarkXiangqiWireView,
   perspective: XiangqiColor = view.perspective,
+  options: { showFog?: boolean } = {},
 ): string {
-  return boardSvg(view, perspective, { interactive: false });
+  return boardSvg(view, perspective, { interactive: false, showFog: options.showFog ?? true });
 }
 
 function resetChessOnlyPanels(refs: LiveRefs): void {
@@ -394,16 +395,17 @@ function renderBoard(
 function boardSvg(
   view: DarkXiangqiWireView,
   perspective: XiangqiColor,
-  options: { interactive: boolean },
+  options: { interactive: boolean; showFog?: boolean },
 ): string {
   const maskId = `xq-live-fog-${view.id.replace(/[^a-zA-Z0-9_-]/g, '')}-${perspective}`;
+  const fog = options.showFog === false ? '' : fogLayer(view, perspective, maskId);
   return `
     <svg class="xq-live-svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
       <rect class="xq-live-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="8"/>
       <g class="xq-live-grid">${gridLayer()}</g>
       <g class="xq-live-palace">${palaceLayer(perspective)}</g>
       <g class="xq-live-river">${riverLayer(perspective)}</g>
-      <g class="xq-live-fog">${fogLayer(view, perspective, maskId)}</g>
+      <g class="xq-live-fog">${fog}</g>
       <g class="xq-live-lastmove">${lastMoveLayer(view, perspective)}</g>
       <g class="xq-live-selection">${selectionLayer(selectedSquare, perspective)}</g>
       <g class="xq-live-hints">${hintLayer(view, perspective)}</g>

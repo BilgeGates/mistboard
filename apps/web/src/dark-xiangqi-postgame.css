@@ -96,7 +96,7 @@ button.dxq-postgame__link {
 .dxq-postgame__replay-controls {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 40px 40px minmax(92px, max-content) 40px 40px;
+  grid-template-columns: 40px 40px minmax(92px, max-content) 40px 40px minmax(58px, max-content);
   gap: 8px;
   align-items: center;
   justify-content: center;
@@ -107,8 +107,9 @@ button.dxq-postgame__link {
 }
 
 .dxq-postgame__replay-button {
-  width: 40px;
+  min-width: 40px;
   min-height: 34px;
+  padding: 0 10px;
   border: 1px solid #b8c5c0;
   border-radius: 8px;
   background: #ffffff;

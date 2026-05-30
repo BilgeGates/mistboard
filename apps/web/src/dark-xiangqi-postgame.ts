@@ -3,8 +3,11 @@ import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import { createDarkXiangqiPlayAgainRoom } from './dark-xiangqi-room-actions.js';
 import { darkXiangqiEnabled } from './feature-flags.js';
-import { readSeatTokenForRoom } from './live-state.js';
 import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-xiangqi-render.js';
+
+type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
+
+const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 type DarkXiangqiPostgameResponse = {
   game: {
@@ -21,7 +24,6 @@ type DarkXiangqiPostgameResponse = {
     initialMs: number | null;
     incrementMs: number | null;
   };
-  access: { seat: XiangqiColor | 'spectator' };
   state: {
     status: XiangqiGameStatus;
     moveNumber: number;
@@ -38,15 +40,15 @@ type DarkXiangqiPostgameResponse = {
     reason?: string;
   }>;
   view: DarkXiangqiWireView;
-  views?: Partial<Record<XiangqiColor | 'spectator', DarkXiangqiWireView>>;
+  views?: Partial<Record<DarkXiangqiPostgameViewKey, DarkXiangqiWireView>>;
   history?: Partial<
-    Record<XiangqiColor | 'spectator', Array<{ ply: number; view: DarkXiangqiWireView }>>
+    Record<DarkXiangqiPostgameViewKey, Array<{ ply: number; view: DarkXiangqiWireView }>>
   >;
 };
 
 type LoadResult =
-  | { ok: true; postgame: DarkXiangqiPostgameResponse; usedSeatToken: boolean }
-  | { ok: false; status: number; error: string; usedSeatToken: boolean };
+  | { ok: true; postgame: DarkXiangqiPostgameResponse }
+  | { ok: false; status: number; error: string };
 
 export function mountDarkXiangqiPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'dark-xiangqi-postgame-route');
@@ -58,7 +60,7 @@ export function mountDarkXiangqiPostgame(root: HTMLElement, roomId: string): voi
   void loadDarkXiangqiPostgame(roomId)
     .then((result) => {
       if (result.ok) {
-        renderPostgame(root, result.postgame, result.usedSeatToken);
+        renderPostgame(root, result.postgame);
         return;
       }
       renderError(root, errorTitle(result.status), errorBody(result));
@@ -69,45 +71,35 @@ export function mountDarkXiangqiPostgame(root: HTMLElement, roomId: string): voi
 }
 
 export async function loadDarkXiangqiPostgame(roomId: string): Promise<LoadResult> {
-  const seatToken = darkXiangqiPostgameSeatToken(roomId);
-  const usedSeatToken = seatToken !== null;
-  const response = await fetch(darkXiangqiPostgameApiUrl(roomId, seatToken));
+  const response = await fetch(darkXiangqiPostgameApiUrl(roomId));
   if (!response.ok) {
     const body = await safeJson(response);
     return {
       ok: false,
       status: response.status,
       error: typeof body?.error === 'string' ? body.error : 'request_failed',
-      usedSeatToken,
     };
   }
   return {
     ok: true,
     postgame: (await response.json()) as DarkXiangqiPostgameResponse,
-    usedSeatToken,
   };
 }
 
-export function darkXiangqiPostgameApiUrl(roomId: string, seatToken: string | null): string {
+export function darkXiangqiPostgameApiUrl(roomId: string): string {
   const url = new URL(
     `/api/dark-xiangqi/games/${encodeURIComponent(roomId)}`,
     window.location.href,
   );
-  if (seatToken) url.searchParams.set('seatToken', seatToken);
-  return `${url.pathname}${url.search}`;
+  return url.pathname;
 }
 
-export function darkXiangqiPostgameSeatToken(roomId: string): string | null {
-  const stored = readSeatTokenForRoom(roomId);
-  if (!stored || !isXiangqiColor(stored.seat)) return null;
-  return stored.token;
-}
+function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse): void {
+  const priorAbort = postgameAbortControllers.get(root);
+  if (priorAbort) priorAbort.abort();
+  const abortController = new AbortController();
+  postgameAbortControllers.set(root, abortController);
 
-function renderPostgame(
-  root: HTMLElement,
-  postgame: DarkXiangqiPostgameResponse,
-  usedSeatToken: boolean,
-): void {
   root.replaceChildren();
   const page = document.createElement('main');
   page.className = 'dxq-postgame';
@@ -117,7 +109,7 @@ function renderPostgame(
   const titleBlock = document.createElement('div');
   const eyebrow = document.createElement('p');
   eyebrow.className = 'dxq-postgame__eyebrow';
-  eyebrow.textContent = accessLabel(postgame.access.seat, usedSeatToken);
+  eyebrow.textContent = 'Game review';
   const title = document.createElement('h1');
   title.className = 'dxq-postgame__title';
   title.textContent = 'Dark Xiangqi';
@@ -135,20 +127,21 @@ function renderPostgame(
   side.className = 'dxq-postgame__side';
   side.append(detailsPanel(postgame), timelinePanel(postgame));
 
-  layout.append(boardsPanel(postgame), side);
+  layout.append(boardsPanel(postgame, abortController.signal), side);
   page.append(header, layout);
   root.append(page);
 }
 
-function boardsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
+function boardsPanel(postgame: DarkXiangqiPostgameResponse, signal: AbortSignal): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'dxq-postgame__boards';
   const views = postgameViewEntries(postgame);
   const maxPly = postgameReplayMaxPly(postgame);
   let currentPly = maxPly;
+  let boardOrientation: XiangqiColor = 'red';
   const boardTargets: Array<{
     board: HTMLElement;
-    entry: { key: XiangqiColor | 'spectator'; label: string; view: DarkXiangqiWireView };
+    entry: { key: DarkXiangqiPostgameViewKey; label: string; view: DarkXiangqiWireView };
   }> = [];
 
   const controls = document.createElement('div');
@@ -160,11 +153,15 @@ function boardsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
   status.setAttribute('aria-live', 'polite');
   const next = replayControlButton('>', 'Next ply');
   const last = replayControlButton('>|', 'Final ply');
+  const flip = replayControlButton('Flip', 'Flip all boards');
+  flip.title = 'Flip all boards (f)';
 
   const syncReplay = () => {
     for (const { board, entry } of boardTargets) {
       const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
-      board.innerHTML = renderDarkXiangqiBoardSvg(view, view.perspective);
+      board.innerHTML = renderDarkXiangqiBoardSvg(view, boardOrientation, {
+        showFog: entry.key !== 'truth',
+      });
     }
     status.textContent = `Ply ${currentPly} of ${maxPly}`;
     first.disabled = currentPly <= 0;
@@ -189,8 +186,25 @@ function boardsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
     currentPly = maxPly;
     syncReplay();
   });
+  flip.addEventListener('click', () => {
+    boardOrientation = oppositeXiangqiColor(boardOrientation);
+    syncReplay();
+  });
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      if (event.key !== 'f' && event.key !== 'F') return;
+      event.preventDefault();
+      boardOrientation = oppositeXiangqiColor(boardOrientation);
+      syncReplay();
+    },
+    { signal },
+  );
 
-  controls.append(first, previous, status, next, last);
+  controls.append(first, previous, status, next, last, flip);
   panel.append(controls);
 
   for (const entry of views) {
@@ -210,24 +224,22 @@ function boardsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
   return panel;
 }
 
+function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
+  return color === 'red' ? 'black' : 'red';
+}
+
 function postgameViewEntries(
   postgame: DarkXiangqiPostgameResponse,
-): Array<{ key: XiangqiColor | 'spectator'; label: string; view: DarkXiangqiWireView }> {
+): Array<{ key: DarkXiangqiPostgameViewKey; label: string; view: DarkXiangqiWireView }> {
   const views = postgame.views;
-  if (views?.red && views.spectator && views.black) {
+  if (views?.red && views.truth && views.black) {
     return [
       { key: 'red', label: 'Red view', view: views.red },
-      { key: 'spectator', label: 'Public view', view: views.spectator },
+      { key: 'truth', label: 'Server truth', view: views.truth },
       { key: 'black', label: 'Black view', view: views.black },
     ];
   }
-  return [
-    {
-      key: postgame.access.seat,
-      label: accessLabel(postgame.access.seat, postgame.access.seat !== 'spectator'),
-      view: postgame.view,
-    },
-  ];
+  return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
 }
 
 function replayControlButton(text: string, label: string): HTMLButtonElement {
@@ -246,7 +258,7 @@ function postgameReplayMaxPly(postgame: DarkXiangqiPostgameResponse): number {
 
 function postgameViewAtPly(
   postgame: DarkXiangqiPostgameResponse,
-  key: XiangqiColor | 'spectator',
+  key: DarkXiangqiPostgameViewKey,
   ply: number,
 ): DarkXiangqiWireView | null {
   const history = postgame.history?.[key];
@@ -312,7 +324,6 @@ function detailsPanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
   details.append(
     detailRow('Result', resultLabel(postgame.game.result)),
     detailRow('Ending', labelize(postgame.game.termination)),
-    detailRow('Seat', accessLabel(postgame.access.seat, postgame.access.seat !== 'spectator')),
     detailRow('Clock', timeControlLabel(postgame)),
     detailRow('Ended', dateLabel(postgame.game.endedAt)),
   );
@@ -324,14 +335,14 @@ function timelinePanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'dxq-postgame__panel';
   const heading = document.createElement('h2');
-  heading.textContent = 'Visible Moves';
+  heading.textContent = 'Moves';
   const list = document.createElement('ol');
   list.className = 'dxq-postgame__moves';
   const moves = postgame.timeline.filter((entry) => entry.type === 'move-played' && entry.move);
   if (moves.length === 0) {
     const empty = document.createElement('li');
     empty.className = 'dxq-postgame__move';
-    empty.textContent = 'No visible moves';
+    empty.textContent = 'No moves';
     list.append(empty);
   } else {
     for (const entry of moves) {
@@ -341,7 +352,7 @@ function timelinePanel(postgame: DarkXiangqiPostgameResponse): HTMLElement {
       number.className = 'dxq-postgame__move-number';
       number.textContent = String(entry.ply ?? '');
       const move = document.createElement('span');
-      move.textContent = `${capitalize(entry.color ?? postgame.access.seat)} ${entry.move!.from}-${entry.move!.to}`;
+      move.textContent = `${capitalize(entry.color ?? '')} ${entry.move!.from}-${entry.move!.to}`;
       item.append(number, move);
       list.append(item);
     }
@@ -382,14 +393,12 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
 }
 
 function errorTitle(status: number): string {
-  if (status === 401) return 'Seat unavailable';
   if (status === 404) return 'Game not found';
   if (status === 503) return 'Postgame unavailable';
   return 'Postgame unavailable';
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 401 && result.usedSeatToken) return 'The stored seat token was rejected.';
   if (result.status === 404) return 'This Dark Xiangqi game is not available.';
   if (result.status === 503) return 'The postgame service is not available.';
   return result.error;
@@ -401,11 +410,6 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function accessLabel(seat: XiangqiColor | 'spectator', usedSeatToken: boolean): string {
-  if (seat === 'spectator') return 'Spectator';
-  return usedSeatToken ? `${capitalize(seat)} view` : capitalize(seat);
 }
 
 function resultLabel(result: string): string {
@@ -458,8 +462,4 @@ function labelize(value: string): string {
 function capitalize(value: string): string {
   if (!value) return value;
   return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
-}
-
-function isXiangqiColor(value: unknown): value is XiangqiColor {
-  return value === 'red' || value === 'black';
 }

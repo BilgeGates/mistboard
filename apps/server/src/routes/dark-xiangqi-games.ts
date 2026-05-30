@@ -1,5 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { DARK_XIANGQI_SPEC_ID, type XiangqiColor, type XiangqiGameState } from '@mistboard/game';
+import {
+  DARK_XIANGQI_SPEC_ID,
+  type XiangqiColor,
+  type XiangqiGameState,
+  type XiangqiSquare,
+} from '@mistboard/game';
 import {
   applyDarkXiangqiEvent,
   type DarkXiangqiEvent,
@@ -13,19 +18,17 @@ import { darkXiangqiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
 import { type HttpApiContext, requireMethod, requirePersistence, writeJson } from './lib.js';
 
-type DarkXiangqiPostgameAccess = {
-  seat: XiangqiColor | 'spectator';
-};
+type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
 
 type DarkXiangqiPostgameViews = Partial<
-  Record<XiangqiColor | 'spectator', DarkXiangqiWirePlayerView>
+  Record<DarkXiangqiPostgameViewKey, DarkXiangqiWirePlayerView>
 >;
 type DarkXiangqiPostgameSnapshot = {
   ply: number;
   view: DarkXiangqiWirePlayerView;
 };
 type DarkXiangqiPostgameHistory = Partial<
-  Record<XiangqiColor | 'spectator', DarkXiangqiPostgameSnapshot[]>
+  Record<DarkXiangqiPostgameViewKey, DarkXiangqiPostgameSnapshot[]>
 >;
 
 type DarkXiangqiPostgameMove = {
@@ -47,7 +50,7 @@ export async function tryHandle(
   request: IncomingMessage,
   response: ServerResponse,
   pathname: string,
-  parsedUrl: URL,
+  _parsedUrl: URL,
 ): Promise<boolean> {
   const postgameMatch = pathname.match(/^\/api\/dark-xiangqi\/games\/([^/]+)$/);
   if (!postgameMatch) return false;
@@ -60,12 +63,7 @@ export async function tryHandle(
   if (!requirePersistence(response)) return true;
 
   const roomId = decodeURIComponent(postgameMatch[1]!);
-  const access = await postgameAccessForRequest(roomId, parsedUrl);
-  if (!access) {
-    writeJson(response, 401, { error: 'invalid_seat_token' });
-    return true;
-  }
-  const payload = await darkXiangqiPostgameForApi(roomId, access);
+  const payload = await darkXiangqiPostgameForApi(roomId);
   if (!payload) {
     writeJson(response, 404, { error: 'not_found' });
     return true;
@@ -74,18 +72,7 @@ export async function tryHandle(
   return true;
 }
 
-async function postgameAccessForRequest(
-  roomId: string,
-  parsedUrl: URL,
-): Promise<DarkXiangqiPostgameAccess | null> {
-  const seatToken = parsedUrl.searchParams.get('seatToken');
-  if (!seatToken) return { seat: 'spectator' };
-  const verified = await persistence.verifyRoomSeatToken(roomId, seatToken);
-  if (!verified || !isXiangqiSeat(verified.seat)) return null;
-  return { seat: verified.seat };
-}
-
-async function darkXiangqiPostgameForApi(roomId: string, access: DarkXiangqiPostgameAccess) {
+async function darkXiangqiPostgameForApi(roomId: string) {
   const [game, events] = await Promise.all([
     persistence.getGameSummary(roomId),
     persistence.loadRoomEvents<DarkXiangqiEvent>(roomId),
@@ -97,11 +84,6 @@ async function darkXiangqiPostgameForApi(roomId: string, access: DarkXiangqiPost
   if (projection.state.status.type !== 'finished') return null;
 
   const latestMoveColor = latestDarkXiangqiMoveColor(events);
-  const view = getDarkXiangqiClientView(
-    projection.state,
-    { id: `postgame-${access.seat}`, seat: access.seat, solo: false },
-    latestMoveColor,
-  );
   return {
     game: {
       roomId: game.roomId,
@@ -117,38 +99,30 @@ async function darkXiangqiPostgameForApi(roomId: string, access: DarkXiangqiPost
       initialMs: game.initialMs,
       incrementMs: game.incrementMs,
     },
-    access,
     state: {
       status: projection.state.status,
       moveNumber: projection.state.moveNumber,
       clock: projection.clock,
       timeControl: projection.timeControl,
     },
-    timeline: darkXiangqiPostgameTimeline(events, access.seat),
-    view,
-    views: darkXiangqiPostgameViews(projection.state, access.seat, latestMoveColor),
-    history: darkXiangqiPostgameHistory(events, access.seat),
+    timeline: darkXiangqiPostgameTimeline(events),
+    view: darkXiangqiTruthView(projection.state),
+    views: darkXiangqiPostgameViews(projection.state, latestMoveColor),
+    history: darkXiangqiPostgameHistory(events),
   };
 }
 
 function darkXiangqiPostgameViews(
   state: XiangqiGameState,
-  seat: XiangqiColor | 'spectator',
   latestMoveColor?: XiangqiColor,
 ): DarkXiangqiPostgameViews {
-  const spectator = getDarkXiangqiClientView(
-    state,
-    { id: 'postgame-spectator', seat: 'spectator', solo: false },
-    latestMoveColor,
-  );
-  if (seat === 'spectator') return { spectator };
   return {
     red: getDarkXiangqiClientView(
       state,
       { id: 'postgame-red', seat: 'red', solo: false },
       latestMoveColor,
     ),
-    spectator,
+    truth: darkXiangqiTruthView(state),
     black: getDarkXiangqiClientView(
       state,
       { id: 'postgame-black', seat: 'black', solo: false },
@@ -159,50 +133,41 @@ function darkXiangqiPostgameViews(
 
 function darkXiangqiPostgameHistory(
   events: readonly DarkXiangqiEvent[],
-  seat: XiangqiColor | 'spectator',
 ): DarkXiangqiPostgameHistory {
   const created = events[0];
   if (!created || created.type !== 'room-created') return {};
   let projection = replayDarkXiangqiEvents([created]);
   let ply = 0;
   let latestMoveColor: XiangqiColor | undefined;
-  const history = postgameHistoryViews(projection, seat, ply, latestMoveColor);
+  const history = postgameHistoryViews(projection, ply, latestMoveColor);
 
   for (const event of events.slice(1)) {
     projection = applyDarkXiangqiEvent(projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     latestMoveColor = event.color;
-    appendPostgameHistoryViews(history, projection, seat, ply, latestMoveColor);
+    appendPostgameHistoryViews(history, projection, ply, latestMoveColor);
   }
   return history;
 }
 
 function postgameHistoryViews(
   projection: DarkXiangqiProjection,
-  seat: XiangqiColor | 'spectator',
   ply: number,
   latestMoveColor?: XiangqiColor,
 ): DarkXiangqiPostgameHistory {
   const history: DarkXiangqiPostgameHistory = {};
-  appendPostgameHistoryViews(history, projection, seat, ply, latestMoveColor);
+  appendPostgameHistoryViews(history, projection, ply, latestMoveColor);
   return history;
 }
 
 function appendPostgameHistoryViews(
   history: DarkXiangqiPostgameHistory,
   projection: DarkXiangqiProjection,
-  seat: XiangqiColor | 'spectator',
   ply: number,
   latestMoveColor?: XiangqiColor,
 ): void {
-  const spectator = getDarkXiangqiClientView(
-    projection.state,
-    { id: `postgame-history-spectator-${ply}`, seat: 'spectator', solo: false },
-    latestMoveColor,
-  );
-  history.spectator = [...(history.spectator ?? []), { ply, view: spectator }];
-  if (seat === 'spectator') return;
+  history.truth = [...(history.truth ?? []), { ply, view: darkXiangqiTruthView(projection.state) }];
   for (const color of ['red', 'black'] as const) {
     const view = getDarkXiangqiClientView(
       projection.state,
@@ -215,14 +180,12 @@ function appendPostgameHistoryViews(
 
 function darkXiangqiPostgameTimeline(
   events: readonly DarkXiangqiEvent[],
-  seat: XiangqiColor | 'spectator',
 ): Array<DarkXiangqiPostgameMove | DarkXiangqiPostgameTerminal> {
   const timeline: Array<DarkXiangqiPostgameMove | DarkXiangqiPostgameTerminal> = [];
   let ply = 0;
   for (const event of events) {
     if (event.type === 'move-played') {
       ply += 1;
-      if (event.color !== seat) continue;
       timeline.push({
         type: event.type,
         at: event.at,
@@ -265,10 +228,32 @@ function latestDarkXiangqiMoveColor(events: readonly DarkXiangqiEvent[]): Xiangq
   return undefined;
 }
 
-function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
-  return color === 'red' ? 'black' : 'red';
+function darkXiangqiTruthView(state: XiangqiGameState): DarkXiangqiWirePlayerView {
+  return {
+    id: state.id,
+    perspective: 'red',
+    board: Object.fromEntries(
+      Object.entries(state.board).map(([square, piece]) => [square, { piece, shrouded: false }]),
+    ) as DarkXiangqiWirePlayerView['board'],
+    visibleSquares: allXiangqiSquares(),
+    legalMoves: [],
+    status: state.status,
+    moveNumber: state.moveNumber,
+    lastMove: state.lastMove,
+  };
 }
 
-function isXiangqiSeat(value: unknown): value is XiangqiColor {
-  return value === 'red' || value === 'black';
+function allXiangqiSquares(): XiangqiSquare[] {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
+  const squares: XiangqiSquare[] = [];
+  for (let rank = 1; rank <= 10; rank += 1) {
+    for (const file of files) {
+      squares.push(`${file}${rank}` as XiangqiSquare);
+    }
+  }
+  return squares;
+}
+
+function oppositeXiangqiColor(color: XiangqiColor): XiangqiColor {
+  return color === 'red' ? 'black' : 'red';
 }
