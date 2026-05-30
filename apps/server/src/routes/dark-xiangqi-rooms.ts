@@ -6,7 +6,7 @@ import type { HttpApiContext } from './lib.js';
 import { parseRoomTimeControl, writeJson } from './lib.js';
 
 export function requestsDarkXiangqi(body: Record<string, unknown>): boolean {
-  return body.gameSpecId === DARK_XIANGQI_SPEC_ID || body.variant === DARK_XIANGQI_SPEC_ID;
+  return body.gameSpecId === DARK_XIANGQI_SPEC_ID;
 }
 
 export async function handleDarkXiangqiCreate(

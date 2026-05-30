@@ -32,5 +32,8 @@ export function gateGameSpecRequest(input: {
 }
 
 function requestsDarkXiangqi(input: { gameSpecId?: unknown; variant?: unknown }): boolean {
+  // `gameSpecId` is the canonical selector. Keep the legacy `variant` guard only
+  // to fail closed if an older or hand-written client sends Dark Xiangqi through
+  // the chess room path.
   return input.gameSpecId === DARK_XIANGQI_SPEC_ID || input.variant === DARK_XIANGQI_SPEC_ID;
 }

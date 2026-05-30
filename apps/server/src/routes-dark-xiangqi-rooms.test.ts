@@ -14,9 +14,9 @@ type ResponseCapture = {
   status: number | null;
 };
 
-test('Dark Xiangqi room route only claims explicit Dark Xiangqi selectors', () => {
+test('Dark Xiangqi room route only claims canonical Dark Xiangqi game spec requests', () => {
   assert.equal(requestsDarkXiangqi({ gameSpecId: DARK_XIANGQI_SPEC_ID }), true);
-  assert.equal(requestsDarkXiangqi({ variant: DARK_XIANGQI_SPEC_ID }), true);
+  assert.equal(requestsDarkXiangqi({ variant: DARK_XIANGQI_SPEC_ID }), false);
   assert.equal(requestsDarkXiangqi({ gameSpecId: 'dark-chess' }), false);
   assert.equal(requestsDarkXiangqi({ variant: 'dark-chess' }), false);
 });

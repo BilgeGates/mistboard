@@ -18,6 +18,40 @@ describe('landing play panel', () => {
     expect(panel.textContent).not.toContain('Dark Xiangqi');
   });
 
+  it('creates dark chess rooms with a canonical game spec id behind the Variant UI', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dark_home' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    const challengeButton = [...panel.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Challenge a friend',
+    );
+
+    challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const createButton = [...document.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Create room',
+    );
+    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    const roomCall = fetchSpy.mock.calls.find(([input]) => String(input) === '/api/rooms');
+    expect(roomCall).toBeDefined();
+    expect(JSON.parse(String(roomCall?.[1]?.body))).toEqual({
+      mode: 'pvp',
+      gameSpecId: 'dark-chess',
+      variant: 'dark-chess',
+      hiddenDraft960: false,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      rated: false,
+      preferredColor: 'random',
+    });
+    expect(window.location.pathname).toBe('/room/dark_home');
+  });
+
   it('creates a Dark Xiangqi room from the flagged challenge variant', async () => {
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
