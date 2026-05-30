@@ -183,6 +183,7 @@ const wsConnectionCtx: WebSocketConnectionContext = {
   wsMessageWindowMs,
   clearPendingVacate: roomLifecycle.clearPendingVacate,
   darkXiangqiRooms,
+  darkMiniXiangqiRooms,
   enableRandomEngine,
   getOrLoadDarkXiangqiRoom,
   getOrCreateRoom: roomLifecycle.getOrCreateRoom,
@@ -323,6 +324,7 @@ export async function stopServer(): Promise<void> {
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
   closeRoomClients(darkXiangqiRooms.values());
+  closeDarkMiniXiangqiClients(darkMiniXiangqiRooms.values());
   await waitForRoomWrites(rooms.values());
   await waitForRoomWrites(darkXiangqiRooms.values());
   await waitForRoomWrites(darkMiniXiangqiRooms.values());
@@ -661,6 +663,20 @@ function isColor(value: string | undefined): value is Color {
   return value === 'white' || value === 'black';
 }
 
+function closeDarkMiniXiangqiClients(roomsToClose: Iterable<DarkMiniXiangqiRuntimeRoom>): void {
+  for (const room of roomsToClose) {
+    for (const client of room.clients) {
+      const socket = (client as { socket?: { close(code?: number, reason?: string): unknown } })
+        .socket;
+      try {
+        socket?.close(1001, 'server shutting down');
+      } catch {
+        /* socket already closed */
+      }
+    }
+  }
+}
+
 async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -697,11 +713,13 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
   closeRoomClients(darkXiangqiRooms.values());
+  closeDarkMiniXiangqiClients(darkMiniXiangqiRooms.values());
 
   let exitCode = 0;
   try {
     await waitForRoomWrites(rooms.values());
     await waitForRoomWrites(darkXiangqiRooms.values());
+    await waitForRoomWrites(darkMiniXiangqiRooms.values());
     await closeWebSocketServer(wss);
     await closeHttpServer(server);
     await persistence.close();

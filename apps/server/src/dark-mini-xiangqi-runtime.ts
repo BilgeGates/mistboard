@@ -1,8 +1,10 @@
 import {
   createInitialMiniXiangqiState,
   DARK_MINI_XIANGQI_SPEC_ID,
+  getMiniXiangqiPlayerView,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
+  type MiniXiangqiPlayerView,
 } from '@mistboard/game';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
 
@@ -11,13 +13,21 @@ export const DARK_MINI_XIANGQI_ROOM_ID_PREFIX = 'dmxq_';
 export type DarkMiniXiangqiSeat = MiniXiangqiColor | 'spectator';
 export type DarkMiniXiangqiCreatorPreference = MiniXiangqiColor | 'random';
 
-export type DarkMiniXiangqiEvent = {
-  type: 'room-created';
-  at: number;
-  roomId: string;
-  gameSpecId: typeof DARK_MINI_XIANGQI_SPEC_ID;
-  creatorPreference?: DarkMiniXiangqiCreatorPreference;
-};
+export type DarkMiniXiangqiEvent =
+  | {
+      type: 'room-created';
+      at: number;
+      roomId: string;
+      gameSpecId: typeof DARK_MINI_XIANGQI_SPEC_ID;
+      creatorPreference?: DarkMiniXiangqiCreatorPreference;
+    }
+  | {
+      type: 'seat-assigned';
+      at: number;
+      roomId: string;
+      clientId: string;
+      seat: MiniXiangqiColor;
+    };
 
 export type DarkMiniXiangqiProjection = {
   roomId: string;
@@ -54,6 +64,12 @@ export type DarkMiniXiangqiRuntimeRoom = {
   gameSpecId: typeof DARK_MINI_XIANGQI_SPEC_ID;
   pendingWrites: Promise<void>;
   seatTokens: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>>;
+};
+
+export type DarkMiniXiangqiSnapshotClient = {
+  id: string;
+  seat: DarkMiniXiangqiSeat;
+  solo: boolean;
 };
 
 export type DarkMiniXiangqiRoomCreation =
@@ -114,6 +130,15 @@ export function createDarkMiniXiangqiRuntimeRoomFromEvents(
   };
 }
 
+export function appendDarkMiniXiangqiRuntimeEvent(
+  room: DarkMiniXiangqiRuntimeRoom,
+  event: DarkMiniXiangqiEvent,
+): number {
+  room.events.push(event);
+  room.projection = applyDarkMiniXiangqiEvent(room.projection, event);
+  return room.events.length - 1;
+}
+
 export function replayDarkMiniXiangqiEvents(
   events: readonly DarkMiniXiangqiEvent[],
 ): DarkMiniXiangqiProjection {
@@ -132,7 +157,54 @@ export function applyDarkMiniXiangqiEvent(
   if (event.type === 'room-created') {
     return initialDarkMiniXiangqiProjection(event.roomId, event.creatorPreference);
   }
+  if (event.type === 'seat-assigned') {
+    return {
+      ...projection,
+      seats: {
+        ...projection.seats,
+        [event.seat]: event.clientId,
+      },
+    };
+  }
   return projection;
+}
+
+export function darkMiniXiangqiSnapshotPayload(
+  room: DarkMiniXiangqiRuntimeRoom,
+  client: DarkMiniXiangqiSnapshotClient,
+) {
+  return {
+    type: 'snapshot' as const,
+    roomId: room.id,
+    gameSpecId: room.gameSpecId,
+    serverAt: Date.now(),
+    clients: room.clients.size,
+    seat: client.seat,
+    solo: client.solo,
+    connectedSeats: computeDarkMiniXiangqiConnectedSeats(room.clients),
+    events: darkMiniXiangqiEventsForClient(room, client),
+    seats: room.projection.seats,
+    state: getDarkMiniXiangqiClientView(room.projection.state, client),
+  };
+}
+
+export function darkMiniXiangqiEventsForClient(
+  room: DarkMiniXiangqiRuntimeRoom,
+  client: DarkMiniXiangqiSnapshotClient,
+): DarkMiniXiangqiEvent[] {
+  if (client.seat === 'spectator') return [];
+  return room.events.filter(
+    (event) => event.type !== 'seat-assigned' || event.seat === client.seat,
+  );
+}
+
+export function getDarkMiniXiangqiClientView(
+  state: MiniXiangqiGameState,
+  client: DarkMiniXiangqiSnapshotClient,
+): MiniXiangqiPlayerView {
+  const perspective = client.seat === 'black' ? 'black' : 'red';
+  if (client.seat === 'spectator') return emptyDarkMiniXiangqiView(state, perspective);
+  return getMiniXiangqiPlayerView(state, perspective);
 }
 
 export function isDarkMiniXiangqiEventLog(
@@ -159,17 +231,22 @@ export function isDarkMiniXiangqiEvent(
 ): value is DarkMiniXiangqiEvent {
   if (typeof value !== 'object' || value === null) return false;
   const event = value as Record<string, unknown>;
-  if (event.type !== 'room-created') return false;
   if (typeof event.roomId !== 'string') return false;
   if (roomId !== undefined && event.roomId !== roomId) return false;
-  return (
-    event.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID &&
-    isFiniteTimestamp(event.at) &&
-    (event.creatorPreference === undefined ||
-      event.creatorPreference === 'red' ||
-      event.creatorPreference === 'black' ||
-      event.creatorPreference === 'random')
-  );
+  if (!isFiniteTimestamp(event.at)) return false;
+  if (event.type === 'room-created') {
+    return (
+      event.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID &&
+      (event.creatorPreference === undefined ||
+        event.creatorPreference === 'red' ||
+        event.creatorPreference === 'black' ||
+        event.creatorPreference === 'random')
+    );
+  }
+  if (event.type === 'seat-assigned') {
+    return typeof event.clientId === 'string' && isMiniXiangqiColor(event.seat);
+  }
+  return false;
 }
 
 function initialDarkMiniXiangqiProjection(
@@ -187,6 +264,38 @@ function initialDarkMiniXiangqiProjection(
 
 function isFiniteTimestamp(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isMiniXiangqiColor(value: unknown): value is MiniXiangqiColor {
+  return value === 'red' || value === 'black';
+}
+
+function computeDarkMiniXiangqiConnectedSeats(
+  clients: Iterable<DarkMiniXiangqiClientRef>,
+): Record<MiniXiangqiColor, boolean> {
+  const connected = { red: false, black: false };
+  for (const client of clients) {
+    if (client.displaced) continue;
+    if (client.seat === 'red') connected.red = true;
+    else if (client.seat === 'black') connected.black = true;
+  }
+  return connected;
+}
+
+function emptyDarkMiniXiangqiView(
+  state: MiniXiangqiGameState,
+  perspective: MiniXiangqiColor,
+): MiniXiangqiPlayerView {
+  return {
+    id: state.id,
+    perspective,
+    board: {},
+    visibleSquares: [],
+    legalMoves: [],
+    status: state.status,
+    moveNumber: state.moveNumber,
+    lastMove: undefined,
+  };
 }
 
 function roomIdFromUnknownEvent(value: unknown): string | undefined {

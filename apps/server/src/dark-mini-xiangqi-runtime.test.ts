@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  appendDarkMiniXiangqiRuntimeEvent,
   createDarkMiniXiangqiRuntimeRoom,
   createDarkMiniXiangqiRuntimeRoomFromEvents,
   DARK_MINI_XIANGQI_ROOM_ID_PREFIX,
   type DarkMiniXiangqiEvent,
+  darkMiniXiangqiEventsForClient,
+  darkMiniXiangqiSnapshotPayload,
   isDarkMiniXiangqiEventLog,
   isDarkMiniXiangqiRoomId,
   replayDarkMiniXiangqiEvents,
@@ -94,6 +97,57 @@ test('Dark Mini Xiangqi runtime hydrates from an event log', () => {
       : null,
     'red',
   );
+});
+
+test('Dark Mini Xiangqi runtime applies seat events and filters snapshots by recipient', () => {
+  const before = process.env[darkMiniXiangqiKey];
+  process.env[darkMiniXiangqiKey] = 'true';
+  try {
+    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_seats');
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const { room } = result;
+
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'seat-assigned',
+      at: 101,
+      roomId: room.id,
+      clientId: 'red-client',
+      seat: 'red',
+    });
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'seat-assigned',
+      at: 102,
+      roomId: room.id,
+      clientId: 'black-client',
+      seat: 'black',
+    });
+
+    assert.deepEqual(room.projection.seats, {
+      red: 'red-client',
+      black: 'black-client',
+    });
+
+    const redEvents = darkMiniXiangqiEventsForClient(room, {
+      id: 'red-client',
+      seat: 'red',
+      solo: false,
+    });
+    assert.equal(
+      redEvents.some((event) => event.type === 'seat-assigned' && event.seat === 'black'),
+      false,
+    );
+
+    const spectatorSnapshot = darkMiniXiangqiSnapshotPayload(room, {
+      id: 'spectator',
+      seat: 'spectator',
+      solo: false,
+    });
+    assert.deepEqual(spectatorSnapshot.events, []);
+    assert.deepEqual(spectatorSnapshot.state.board, {});
+  } finally {
+    restoreEnv(darkMiniXiangqiKey, before);
+  }
 });
 
 test('Dark Mini Xiangqi runtime exposes its room id prefix predicate', () => {
