@@ -7,5 +7,6 @@ export * from './notation.js';
 export * from './time-controls.js';
 export * from './types.js';
 export * from './variants.js';
+export * from './variants-mini-xiangqi.js';
 export * from './variants-shogi.js';
 export * from './variants-xiangqi.js';

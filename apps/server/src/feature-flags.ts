@@ -19,3 +19,10 @@ export function ratedEnabled(): boolean {
 export function darkXiangqiEnabled(): boolean {
   return process.env.MISTBOARD_DARK_XIANGQI_ENABLED === 'true';
 }
+
+// Dark Mini Xiangqi is a separate 7x7 rules spike. Keep it independently
+// gateable from full Dark Xiangqi so runtime experiments cannot expose both
+// families at once by accident.
+export function darkMiniXiangqiEnabled(): boolean {
+  return process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED === 'true';
+}

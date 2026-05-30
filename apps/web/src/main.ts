@@ -78,6 +78,8 @@ const profileHandle = profileHandleFromPath(path);
 // Hidden spike: FoW Xiangqi Phase A. No nav entry, no landing link, and no
 // dev default; enabling it is an explicit build-time flag.
 const wantsXiangqiSpike = darkXiangqiEnabled() && path === '/xiangqi-spike';
+// Hidden DEV-only spike for the candidate 7x7 Dark Mini Xiangqi ruleset.
+const wantsMiniXiangqiSpike = import.meta.env.DEV && path === '/mini-xiangqi-spike';
 // Hidden reviewer demo: no nav entry, direct-link only, build-time flagged.
 const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
 // Hidden DEV-only spike: pixel-art piece + fog style probes. No nav entry.
@@ -136,6 +138,13 @@ if (replaySample) {
   setTitle('Xiangqi spike');
   void mountOrReport(() =>
     import('./xiangqi-spike.js').then(({ mountXiangqiSpike }) => mountXiangqiSpike(appRoot)),
+  );
+} else if (wantsMiniXiangqiSpike) {
+  setTitle('Mini Xiangqi spike');
+  void mountOrReport(() =>
+    import('./mini-xiangqi-spike.js').then(({ mountMiniXiangqiSpike }) =>
+      mountMiniXiangqiSpike(appRoot),
+    ),
   );
 } else if (wantsXiangqiDemo) {
   setTitle('Dark Xiangqi demo');

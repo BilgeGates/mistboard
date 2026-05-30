@@ -1,0 +1,687 @@
+// Dark Mini Xiangqi — pure rules + fog kernel.
+//
+// This module intentionally stays parallel to the chess Variant interface and
+// the full Xiangqi spike. Mini Xiangqi has its own 7x7 board geometry and a
+// smaller piece set, so forcing it through either existing shape would hide
+// important rules and privacy boundaries.
+
+import type { AbortReason } from './types.js';
+
+export type MiniXiangqiColor = 'red' | 'black';
+
+export type MiniXiangqiPieceRole = 'general' | 'horse' | 'cannon' | 'chariot' | 'soldier';
+
+export type MiniXiangqiPiece = {
+  color: MiniXiangqiColor;
+  role: MiniXiangqiPieceRole;
+};
+
+export type MiniXiangqiCoord = { file: number; rank: number };
+
+export type MiniXiangqiSquare =
+  | 'a1'
+  | 'b1'
+  | 'c1'
+  | 'd1'
+  | 'e1'
+  | 'f1'
+  | 'g1'
+  | 'a2'
+  | 'b2'
+  | 'c2'
+  | 'd2'
+  | 'e2'
+  | 'f2'
+  | 'g2'
+  | 'a3'
+  | 'b3'
+  | 'c3'
+  | 'd3'
+  | 'e3'
+  | 'f3'
+  | 'g3'
+  | 'a4'
+  | 'b4'
+  | 'c4'
+  | 'd4'
+  | 'e4'
+  | 'f4'
+  | 'g4'
+  | 'a5'
+  | 'b5'
+  | 'c5'
+  | 'd5'
+  | 'e5'
+  | 'f5'
+  | 'g5'
+  | 'a6'
+  | 'b6'
+  | 'c6'
+  | 'd6'
+  | 'e6'
+  | 'f6'
+  | 'g6'
+  | 'a7'
+  | 'b7'
+  | 'c7'
+  | 'd7'
+  | 'e7'
+  | 'f7'
+  | 'g7';
+
+export type MiniXiangqiBoard = Partial<Record<MiniXiangqiSquare, MiniXiangqiPiece>>;
+
+export type MiniXiangqiMove = {
+  from: MiniXiangqiSquare;
+  to: MiniXiangqiSquare;
+};
+
+export type MiniXiangqiVisibleBoardEntry =
+  | { piece: MiniXiangqiPiece; shrouded: false }
+  | { color: MiniXiangqiColor; shrouded: true };
+
+export type MiniXiangqiPlayerBoard = Partial<
+  Record<MiniXiangqiSquare, MiniXiangqiVisibleBoardEntry>
+>;
+
+export type MiniXiangqiPlayerView = {
+  id: string;
+  perspective: MiniXiangqiColor;
+  board: MiniXiangqiPlayerBoard;
+  visibleSquares: MiniXiangqiSquare[];
+  legalMoves: MiniXiangqiMove[];
+  status: MiniXiangqiGameStatus;
+  moveNumber: number;
+  lastMove?: MiniXiangqiMove;
+};
+
+export type MiniXiangqiGameEndReason =
+  | 'general-captured'
+  | 'stalemate'
+  | 'timeout'
+  | 'resignation'
+  | 'abandonment'
+  | 'repetition'
+  | 'progress-clock';
+
+export type MiniXiangqiGameStatus =
+  | { type: 'playing'; turn: MiniXiangqiColor }
+  | { type: 'finished'; winner: MiniXiangqiColor | null; reason: MiniXiangqiGameEndReason }
+  | { type: 'aborted'; reason: AbortReason };
+
+export type MiniXiangqiGameState = {
+  id: string;
+  board: MiniXiangqiBoard;
+  status: MiniXiangqiGameStatus;
+  moveNumber: number;
+  progressClock: number;
+  lastMove?: MiniXiangqiMove;
+  positionCounts: Record<string, number>;
+};
+
+type VisionAccum = {
+  directlyVisible: Set<MiniXiangqiSquare>;
+  shroudedBlockers: Set<MiniXiangqiSquare>;
+  cannonScreens: Set<MiniXiangqiSquare>;
+  cannonTargets: Set<MiniXiangqiSquare>;
+  cannonPath: Set<MiniXiangqiSquare>;
+};
+
+const FILE_CHARS = ['a', 'b', 'c', 'd', 'e', 'f', 'g'] as const;
+const BOARD_SIZE = 7;
+const DEFAULT_PROGRESS_CLOCK_LIMIT = 60;
+const ROLE_REPETITION_CODES: Record<MiniXiangqiPieceRole, string> = {
+  general: 'g',
+  horse: 'h',
+  cannon: 'n',
+  chariot: 'r',
+  soldier: 's',
+};
+
+export type MiniXiangqiApplyMoveOptions = {
+  progressClockLimit?: number;
+};
+
+export function miniXiangqiSquareOf(file: number, rank: number): MiniXiangqiSquare {
+  if (!miniXiangqiInBounds(file, rank)) {
+    throw new RangeError(`mini xiangqi coord out of range: file=${file} rank=${rank}`);
+  }
+  return `${FILE_CHARS[file]}${rank}` as MiniXiangqiSquare;
+}
+
+export function miniXiangqiCoordOf(square: MiniXiangqiSquare): MiniXiangqiCoord {
+  const file = FILE_CHARS.indexOf(square[0] as (typeof FILE_CHARS)[number]);
+  const rank = Number(square.slice(1));
+  if (file < 0 || !Number.isInteger(rank) || rank < 1 || rank > BOARD_SIZE) {
+    throw new RangeError(`invalid mini xiangqi square: ${square}`);
+  }
+  return { file, rank };
+}
+
+export function miniXiangqiInBounds(file: number, rank: number): boolean {
+  return file >= 0 && file < BOARD_SIZE && rank >= 1 && rank <= BOARD_SIZE;
+}
+
+export function miniXiangqiInPalace(color: MiniXiangqiColor, file: number, rank: number): boolean {
+  if (file < 2 || file > 4) return false;
+  return color === 'red' ? rank <= 3 : rank >= 5;
+}
+
+export function createInitialMiniXiangqiBoard(): MiniXiangqiBoard {
+  const board: MiniXiangqiBoard = {};
+  const backRank: MiniXiangqiPieceRole[] = [
+    'chariot',
+    'cannon',
+    'horse',
+    'general',
+    'horse',
+    'cannon',
+    'chariot',
+  ];
+  for (let f = 0; f < BOARD_SIZE; f += 1) {
+    board[miniXiangqiSquareOf(f, 1)] = { color: 'red', role: backRank[f] };
+    board[miniXiangqiSquareOf(f, 7)] = { color: 'black', role: backRank[f] };
+  }
+  for (const f of [0, 2, 3, 4, 6]) {
+    board[miniXiangqiSquareOf(f, 2)] = { color: 'red', role: 'soldier' };
+    board[miniXiangqiSquareOf(f, 6)] = { color: 'black', role: 'soldier' };
+  }
+  return board;
+}
+
+export function createInitialMiniXiangqiState(gameId: string): MiniXiangqiGameState {
+  const base: MiniXiangqiGameState = {
+    id: gameId,
+    board: createInitialMiniXiangqiBoard(),
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  return {
+    ...base,
+    positionCounts: { [miniXiangqiPositionRepetitionKey(base)]: 1 },
+  };
+}
+
+export function oppositeMiniXiangqiColor(color: MiniXiangqiColor): MiniXiangqiColor {
+  return color === 'red' ? 'black' : 'red';
+}
+
+export function getMiniXiangqiLegalMoves(state: MiniXiangqiGameState): MiniXiangqiMove[] {
+  if (state.status.type !== 'playing') return [];
+  const moves: MiniXiangqiMove[] = [];
+  for (const [sq, piece] of Object.entries(state.board)) {
+    if (!piece || piece.color !== state.status.turn) continue;
+    moves.push(...getMiniXiangqiLegalMovesFrom(state, sq as MiniXiangqiSquare));
+  }
+  return moves;
+}
+
+export function getMiniXiangqiLegalMovesFrom(
+  state: MiniXiangqiGameState,
+  from: MiniXiangqiSquare,
+): MiniXiangqiMove[] {
+  if (state.status.type !== 'playing') return [];
+  const piece = state.board[from];
+  if (!piece || piece.color !== state.status.turn) return [];
+  const { file, rank } = miniXiangqiCoordOf(from);
+  const moves: MiniXiangqiMove[] = [];
+  const addStep = (f: number, r: number): void => {
+    if (!miniXiangqiInBounds(f, r)) return;
+    const to = miniXiangqiSquareOf(f, r);
+    if (state.board[to]?.color === piece.color) return;
+    moves.push({ from, to });
+  };
+
+  switch (piece.role) {
+    case 'general':
+      for (const [df, dr] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
+        const f = file + df;
+        const r = rank + dr;
+        if (miniXiangqiInPalace(piece.color, f, r)) addStep(f, r);
+      }
+      {
+        const facing = miniXiangqiFacingGeneralCaptureTarget(state.board, from, piece);
+        if (facing && !moves.some((move) => move.to === facing)) moves.push({ from, to: facing });
+      }
+      break;
+    case 'horse':
+      for (const [df, dr, legDf, legDr] of [
+        [1, 2, 0, 1],
+        [1, -2, 0, -1],
+        [-1, 2, 0, 1],
+        [-1, -2, 0, -1],
+        [2, 1, 1, 0],
+        [2, -1, 1, 0],
+        [-2, 1, -1, 0],
+        [-2, -1, -1, 0],
+      ] as const) {
+        if (miniXiangqiIsOccupied(state.board, file + legDf, rank + legDr)) continue;
+        addStep(file + df, rank + dr);
+      }
+      break;
+    case 'chariot':
+      rayMovesInto(moves, state.board, from, piece.color, file, rank, false);
+      break;
+    case 'cannon':
+      rayMovesInto(moves, state.board, from, piece.color, file, rank, true);
+      break;
+    case 'soldier':
+      {
+        const forward = piece.color === 'red' ? 1 : -1;
+        addStep(file, rank + forward);
+        addStep(file - 1, rank);
+        addStep(file + 1, rank);
+      }
+      break;
+  }
+  return moves;
+}
+
+export function isMiniXiangqiLegalMove(
+  state: MiniXiangqiGameState,
+  move: MiniXiangqiMove,
+): boolean {
+  return getMiniXiangqiLegalMovesFrom(state, move.from).some((m) => m.to === move.to);
+}
+
+export function applyMiniXiangqiMove(
+  state: MiniXiangqiGameState,
+  move: MiniXiangqiMove,
+  opts: MiniXiangqiApplyMoveOptions = {},
+): MiniXiangqiGameState {
+  if (state.status.type !== 'playing') return state;
+  if (!isMiniXiangqiLegalMove(state, move)) return state;
+
+  const movingPiece = state.board[move.from];
+  if (!movingPiece) return state;
+  const capturedPiece = state.board[move.to];
+  const nextTurn = oppositeMiniXiangqiColor(state.status.turn);
+  const newBoard: MiniXiangqiBoard = { ...state.board };
+  delete newBoard[move.from];
+  newBoard[move.to] = movingPiece;
+  const wasCapture = capturedPiece !== undefined;
+  const newProgressClock = wasCapture ? 0 : state.progressClock + 1;
+  const newMoveNumber = state.status.turn === 'black' ? state.moveNumber + 1 : state.moveNumber;
+
+  const nextStateForKey: MiniXiangqiGameState = {
+    ...state,
+    board: newBoard,
+    status: { type: 'playing', turn: nextTurn },
+    moveNumber: newMoveNumber,
+    progressClock: newProgressClock,
+    lastMove: move,
+  };
+  const repKey = miniXiangqiPositionRepetitionKey(nextStateForKey);
+  const newPositionCounts = { ...state.positionCounts };
+  newPositionCounts[repKey] = (newPositionCounts[repKey] ?? 0) + 1;
+
+  let nextStatus: MiniXiangqiGameStatus = { type: 'playing', turn: nextTurn };
+  if (capturedPiece?.role === 'general') {
+    nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'general-captured' };
+  } else if (!hasMiniXiangqiLegalMove(newBoard, nextTurn)) {
+    nextStatus = { type: 'finished', winner: movingPiece.color, reason: 'stalemate' };
+  } else if ((newPositionCounts[repKey] ?? 0) >= 3) {
+    nextStatus = { type: 'finished', winner: null, reason: 'repetition' };
+  } else if (newProgressClock >= (opts.progressClockLimit ?? DEFAULT_PROGRESS_CLOCK_LIMIT)) {
+    nextStatus = { type: 'finished', winner: null, reason: 'progress-clock' };
+  }
+
+  return {
+    ...state,
+    board: newBoard,
+    status: nextStatus,
+    moveNumber: newMoveNumber,
+    progressClock: newProgressClock,
+    lastMove: move,
+    positionCounts: newPositionCounts,
+  };
+}
+
+export function miniXiangqiPositionRepetitionKey(state: MiniXiangqiGameState): string {
+  const turn = state.status.type === 'playing' ? state.status.turn : '-';
+  const board = Object.entries(state.board)
+    .filter(([, piece]) => piece)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([sq, p]) => `${sq}${p!.color[0]}${ROLE_REPETITION_CODES[p!.role]}`)
+    .join(',');
+  return `${turn}|${board}`;
+}
+
+export function computeMiniXiangqiVision(
+  state: MiniXiangqiGameState,
+  color: MiniXiangqiColor,
+): VisionAccum {
+  const accum = emptyMiniXiangqiVision();
+  for (const [sq, piece] of Object.entries(state.board)) {
+    if (!piece || piece.color !== color) continue;
+    const square = sq as MiniXiangqiSquare;
+    accum.directlyVisible.add(square);
+    const { file, rank } = miniXiangqiCoordOf(square);
+    switch (piece.role) {
+      case 'general':
+        generalVisionInto(accum.directlyVisible, color, state.board, file, rank);
+        break;
+      case 'horse':
+        horseVisionInto(accum, state.board, file, rank);
+        break;
+      case 'chariot':
+        chariotVisionInto(accum.directlyVisible, state.board, file, rank);
+        break;
+      case 'cannon':
+        cannonVisionInto(accum, state.board, color, file, rank);
+        break;
+      case 'soldier':
+        soldierVisionInto(accum.directlyVisible, color, file, rank);
+        break;
+    }
+  }
+  return accum;
+}
+
+export function getMiniXiangqiVisibleSquares(
+  state: MiniXiangqiGameState,
+  color: MiniXiangqiColor,
+): MiniXiangqiSquare[] {
+  const vision = computeMiniXiangqiVision(state, color);
+  return [
+    ...new Set<MiniXiangqiSquare>([
+      ...vision.directlyVisible,
+      ...vision.shroudedBlockers,
+      ...vision.cannonScreens,
+      ...vision.cannonTargets,
+    ]),
+  ].sort();
+}
+
+export function getMiniXiangqiPlayerView(
+  state: MiniXiangqiGameState,
+  color: MiniXiangqiColor,
+): MiniXiangqiPlayerView {
+  const vision = computeMiniXiangqiVision(state, color);
+  const board: MiniXiangqiPlayerBoard = {};
+
+  for (const sq of vision.directlyVisible) {
+    const piece = state.board[sq];
+    if (piece) mergeMiniXiangqiPlayerBoardEntry(board, sq, { piece, shrouded: false });
+  }
+  for (const sq of vision.shroudedBlockers) {
+    const piece = state.board[sq];
+    if (piece) {
+      mergeMiniXiangqiPlayerBoardEntry(board, sq, { color: piece.color, shrouded: true });
+    }
+  }
+  for (const sq of vision.cannonScreens) {
+    const piece = state.board[sq];
+    if (piece) {
+      mergeMiniXiangqiPlayerBoardEntry(board, sq, { color: piece.color, shrouded: true });
+    }
+  }
+  for (const sq of vision.cannonTargets) {
+    const piece = state.board[sq];
+    if (piece) mergeMiniXiangqiPlayerBoardEntry(board, sq, { piece, shrouded: false });
+  }
+
+  const visibleSquares = [
+    ...new Set<MiniXiangqiSquare>([
+      ...vision.directlyVisible,
+      ...vision.shroudedBlockers,
+      ...vision.cannonScreens,
+      ...vision.cannonTargets,
+    ]),
+  ].sort();
+  const legalMoves =
+    state.status.type === 'playing' && state.status.turn === color
+      ? getMiniXiangqiLegalMoves(state)
+      : [];
+
+  return {
+    id: state.id,
+    perspective: color,
+    board,
+    visibleSquares,
+    legalMoves,
+    status: state.status,
+    moveNumber: state.moveNumber,
+    lastMove: state.lastMove,
+  };
+}
+
+function rayMovesInto(
+  moves: MiniXiangqiMove[],
+  board: MiniXiangqiBoard,
+  from: MiniXiangqiSquare,
+  color: MiniXiangqiColor,
+  file: number,
+  rank: number,
+  cannon: boolean,
+): void {
+  for (const [df, dr] of orthogonalDirections()) {
+    let f = file + df;
+    let r = rank + dr;
+    if (!cannon) {
+      while (miniXiangqiInBounds(f, r)) {
+        const to = miniXiangqiSquareOf(f, r);
+        const target = board[to];
+        if (!target) {
+          moves.push({ from, to });
+        } else {
+          if (target.color !== color) moves.push({ from, to });
+          break;
+        }
+        f += df;
+        r += dr;
+      }
+      continue;
+    }
+
+    while (miniXiangqiInBounds(f, r) && !miniXiangqiIsOccupied(board, f, r)) {
+      moves.push({ from, to: miniXiangqiSquareOf(f, r) });
+      f += df;
+      r += dr;
+    }
+    if (!miniXiangqiInBounds(f, r)) continue;
+    f += df;
+    r += dr;
+    while (miniXiangqiInBounds(f, r) && !miniXiangqiIsOccupied(board, f, r)) {
+      f += df;
+      r += dr;
+    }
+    if (!miniXiangqiInBounds(f, r)) continue;
+    const to = miniXiangqiSquareOf(f, r);
+    if (board[to]?.color !== color) moves.push({ from, to });
+  }
+}
+
+function hasMiniXiangqiLegalMove(board: MiniXiangqiBoard, color: MiniXiangqiColor): boolean {
+  const state: MiniXiangqiGameState = {
+    id: 'move-check',
+    board,
+    status: { type: 'playing', turn: color },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  return getMiniXiangqiLegalMoves(state).length > 0;
+}
+
+function miniXiangqiFacingGeneralCaptureTarget(
+  board: MiniXiangqiBoard,
+  from: MiniXiangqiSquare,
+  piece: MiniXiangqiPiece,
+): MiniXiangqiSquare | null {
+  if (piece.role !== 'general') return null;
+  const origin = miniXiangqiCoordOf(from);
+  for (const [sq, target] of Object.entries(board)) {
+    if (!target || target.role !== 'general' || target.color === piece.color) continue;
+    const enemy = miniXiangqiCoordOf(sq as MiniXiangqiSquare);
+    if (enemy.file !== origin.file) continue;
+    const minR = Math.min(origin.rank, enemy.rank);
+    const maxR = Math.max(origin.rank, enemy.rank);
+    let clear = true;
+    for (let rank = minR + 1; rank < maxR; rank += 1) {
+      if (miniXiangqiIsOccupied(board, origin.file, rank)) {
+        clear = false;
+        break;
+      }
+    }
+    if (clear) return sq as MiniXiangqiSquare;
+  }
+  return null;
+}
+
+function emptyMiniXiangqiVision(): VisionAccum {
+  return {
+    directlyVisible: new Set(),
+    shroudedBlockers: new Set(),
+    cannonScreens: new Set(),
+    cannonTargets: new Set(),
+    cannonPath: new Set(),
+  };
+}
+
+function generalVisionInto(
+  set: Set<MiniXiangqiSquare>,
+  color: MiniXiangqiColor,
+  board: MiniXiangqiBoard,
+  file: number,
+  rank: number,
+): void {
+  for (const [df, dr] of orthogonalDirections()) {
+    const f = file + df;
+    const r = rank + dr;
+    if (miniXiangqiInPalace(color, f, r)) addIfMiniXiangqiOnBoard(set, f, r);
+  }
+  const own = miniXiangqiSquareOf(file, rank);
+  const piece = board[own];
+  const facing = piece ? miniXiangqiFacingGeneralCaptureTarget(board, own, piece) : null;
+  if (facing) set.add(facing);
+}
+
+function horseVisionInto(
+  accum: VisionAccum,
+  board: MiniXiangqiBoard,
+  file: number,
+  rank: number,
+): void {
+  for (const [df, dr, legDf, legDr] of [
+    [1, 2, 0, 1],
+    [1, -2, 0, -1],
+    [-1, 2, 0, 1],
+    [-1, -2, 0, -1],
+    [2, 1, 1, 0],
+    [2, -1, 1, 0],
+    [-2, 1, -1, 0],
+    [-2, -1, -1, 0],
+  ] as const) {
+    const legF = file + legDf;
+    const legR = rank + legDr;
+    const destF = file + df;
+    const destR = rank + dr;
+    if (!miniXiangqiInBounds(destF, destR) || !miniXiangqiInBounds(legF, legR)) continue;
+    if (miniXiangqiIsOccupied(board, legF, legR)) {
+      accum.shroudedBlockers.add(miniXiangqiSquareOf(legF, legR));
+    } else {
+      accum.directlyVisible.add(miniXiangqiSquareOf(destF, destR));
+    }
+  }
+}
+
+function chariotVisionInto(
+  set: Set<MiniXiangqiSquare>,
+  board: MiniXiangqiBoard,
+  file: number,
+  rank: number,
+): void {
+  for (const [df, dr] of orthogonalDirections()) {
+    let f = file + df;
+    let r = rank + dr;
+    while (miniXiangqiInBounds(f, r)) {
+      set.add(miniXiangqiSquareOf(f, r));
+      if (miniXiangqiIsOccupied(board, f, r)) break;
+      f += df;
+      r += dr;
+    }
+  }
+}
+
+function cannonVisionInto(
+  accum: VisionAccum,
+  board: MiniXiangqiBoard,
+  color: MiniXiangqiColor,
+  file: number,
+  rank: number,
+): void {
+  for (const [df, dr] of orthogonalDirections()) {
+    let f = file + df;
+    let r = rank + dr;
+    while (miniXiangqiInBounds(f, r) && !miniXiangqiIsOccupied(board, f, r)) {
+      accum.directlyVisible.add(miniXiangqiSquareOf(f, r));
+      f += df;
+      r += dr;
+    }
+    if (!miniXiangqiInBounds(f, r)) continue;
+    accum.cannonScreens.add(miniXiangqiSquareOf(f, r));
+    f += df;
+    r += dr;
+
+    const candidates: MiniXiangqiSquare[] = [];
+    while (miniXiangqiInBounds(f, r) && !miniXiangqiIsOccupied(board, f, r)) {
+      candidates.push(miniXiangqiSquareOf(f, r));
+      f += df;
+      r += dr;
+    }
+    if (!miniXiangqiInBounds(f, r)) continue;
+    const targetSq = miniXiangqiSquareOf(f, r);
+    const target = board[targetSq];
+    if (!target || target.color === color) continue;
+    for (const sq of candidates) accum.cannonPath.add(sq);
+    accum.cannonTargets.add(targetSq);
+  }
+}
+
+function soldierVisionInto(
+  set: Set<MiniXiangqiSquare>,
+  color: MiniXiangqiColor,
+  file: number,
+  rank: number,
+): void {
+  const forward = color === 'red' ? 1 : -1;
+  addIfMiniXiangqiOnBoard(set, file, rank + forward);
+  addIfMiniXiangqiOnBoard(set, file - 1, rank);
+  addIfMiniXiangqiOnBoard(set, file + 1, rank);
+}
+
+function mergeMiniXiangqiPlayerBoardEntry(
+  board: MiniXiangqiPlayerBoard,
+  square: MiniXiangqiSquare,
+  entry: MiniXiangqiVisibleBoardEntry,
+): void {
+  const existing = board[square];
+  if (!existing || (existing.shrouded && !entry.shrouded)) {
+    board[square] = entry;
+  }
+}
+
+function miniXiangqiIsOccupied(board: MiniXiangqiBoard, file: number, rank: number): boolean {
+  return miniXiangqiInBounds(file, rank) && board[miniXiangqiSquareOf(file, rank)] !== undefined;
+}
+
+function addIfMiniXiangqiOnBoard(set: Set<MiniXiangqiSquare>, file: number, rank: number): void {
+  if (miniXiangqiInBounds(file, rank)) set.add(miniXiangqiSquareOf(file, rank));
+}
+
+function orthogonalDirections(): readonly (readonly [number, number])[] {
+  return [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const;
+}
