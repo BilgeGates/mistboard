@@ -15,6 +15,7 @@ import {
   serveArticlePage,
   serveArticlesIndexPage,
   serveGamePage,
+  serveRulesIndexPage,
   serveSitemap,
 } from './server-static-pages.js';
 import type { LobbyTicket, Room } from './server-types.js';
@@ -209,6 +210,20 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
         publicHost: options.publicHost,
         staticDir: options.staticDir,
         langPrefix: articlesIndexMatch[1],
+      }).catch(() => {
+        request.url = '/';
+        void serveHandler(request, response, { public: options.staticDir });
+      });
+      return;
+    }
+
+    const rulesIndexMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/rules\/?$/);
+    if (rulesIndexMatch) {
+      void serveRulesIndexPage({
+        response,
+        publicHost: options.publicHost,
+        staticDir: options.staticDir,
+        langPrefix: rulesIndexMatch[1],
       }).catch(() => {
         request.url = '/';
         void serveHandler(request, response, { public: options.staticDir });

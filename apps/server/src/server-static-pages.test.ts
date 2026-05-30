@@ -4,7 +4,12 @@ import type { ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { injectPageMeta, serveArticlePage, serveArticlesIndexPage } from './server-static-pages.js';
+import {
+  injectPageMeta,
+  serveArticlePage,
+  serveArticlesIndexPage,
+  serveRulesIndexPage,
+} from './server-static-pages.js';
 
 type ResponseCapture = {
   body: string;
@@ -130,5 +135,30 @@ test('serveArticlesIndexPage injects localized metadata', async () => {
   assert.match(
     response.body,
     /<meta property="og:url" content="https:\/\/mistboard.test\/zh-hans\/articles">/,
+  );
+});
+
+test('serveRulesIndexPage injects rules metadata', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(
+    join(staticDir, 'index.html'),
+    indexHtml().replace('<html>', '<html lang="en">'),
+    'utf-8',
+  );
+  const response = captureResponse();
+
+  await serveRulesIndexPage({
+    response,
+    publicHost: 'https://mistboard.test',
+    staticDir,
+    langPrefix: 'zh-hant',
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(response.body, /<html lang="zh-Hant">/);
+  assert.match(response.body, /<title>規則 \| Mistboard<\/title>/);
+  assert.match(
+    response.body,
+    /<meta property="og:url" content="https:\/\/mistboard.test\/zh-hant\/rules">/,
   );
 });

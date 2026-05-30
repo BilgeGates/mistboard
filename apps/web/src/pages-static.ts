@@ -1,4 +1,4 @@
-// Static content pages — about / source / faq / terms / not-found / articles.
+// Static content pages — about / source / faq / terms / not-found / articles / rules.
 
 import './pages-static.css';
 
@@ -80,6 +80,18 @@ export async function mountArticlesIndex(
   mountArticleThumbnails(index);
 }
 
+export async function mountRulesIndex(
+  root: HTMLElement,
+  lang?: import('./article-i18n.js').ArticleLang | null,
+): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'articles-route', 'rules-route');
+  const { buildRulesIndex, mountArticleThumbnails } = await import('./articles.js');
+  const index = buildRulesIndex(lang ?? undefined);
+  root.append(buildNav(), index, buildFooter());
+  mountArticleThumbnails(index);
+}
+
 export async function mountArticle(
   root: HTMLElement,
   slug: string,
@@ -126,7 +138,7 @@ function buildAbout(): HTMLElement {
 
   const featuresHeading = aboutSubheading('Play and study');
   const featuresP = aboutParagraph([
-    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Articles cover rules, openings, engine research, and future hidden-information variants such as dark xiangqi.',
+    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Rules and articles cover openings, engine research, and future hidden-information variants such as dark xiangqi.',
   ]);
 
   const fairnessHeading = aboutSubheading('Trust by design');
@@ -499,7 +511,7 @@ function buildFaq(): HTMLElement {
   const q1 = aboutSubheading('What is dark chess?');
   const a1 = aboutParagraph([
     'Hidden-information chess. You see your own pieces and the squares they could legally move to. Everything else is dark, so an opponent’s pieces and moves stay hidden until your pieces can see them. The game ends when a king is captured. The ',
-    aboutLink('rules reference', '/articles/dark-chess-rules'),
+    aboutLink('rules reference', '/rules'),
     ' has the full rules.',
   ]);
 

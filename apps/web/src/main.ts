@@ -64,6 +64,8 @@ const wantsPrivacy = path === '/privacy' || page === 'privacy';
 const wantsAccount = path === '/account' || page === 'account';
 const wantsAccountSettings = path === '/account/settings' || page === 'account-settings';
 const wantsLearn = path === '/learn' || page === 'learn';
+const wantsRulesIndex =
+  path === '/rules' || path === '/zh-hans/rules' || path === '/zh-hant/rules' || page === 'rules';
 const articleSlug = articleSlugFromPath(path);
 const articleLang = articleLangFromPath(path);
 const wantsArticlesIndex =
@@ -173,6 +175,13 @@ if (replaySample) {
       mountArticlesIndex(appRoot, articleLang),
     ),
   );
+} else if (wantsRulesIndex) {
+  setTitle(articleLang ? '规则' : 'Rules');
+  void mountOrReport(() =>
+    import('./pages-static.js').then(({ mountRulesIndex }) =>
+      mountRulesIndex(appRoot, articleLang),
+    ),
+  );
 } else if (wantsLearn) {
   setTitle('Learn');
   void mountOrReport(() => import('./learn.js').then(({ mountLearn }) => mountLearn(appRoot)));
@@ -267,6 +276,8 @@ function articleSlugFromPath(value: string): string | null {
 }
 
 function articleLangFromPath(value: string): ArticleLang | null {
+  if (value === '/zh-hans/rules') return 'zh-Hans';
+  if (value === '/zh-hant/rules') return 'zh-Hant';
   if (value === '/zh-hans/articles' || value.startsWith('/zh-hans/articles/')) return 'zh-Hans';
   if (value === '/zh-hant/articles' || value.startsWith('/zh-hant/articles/')) return 'zh-Hant';
   return null;

@@ -170,6 +170,7 @@ export type ArticleThumbnail = BoardArticleThumbnail | SvgArticleThumbnail;
 
 export type Article = {
   slug: string;
+  kind: 'rules' | 'article';
   title: string;
   summary: string;
   showSummaryOnPage?: boolean;
@@ -2034,6 +2035,7 @@ const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
 export const articles: Article[] = [
   {
     slug: 'chess-rules-primer',
+    kind: 'rules',
     title: 'Chess Basics Before Dark Chess',
     summary:
       'A quick regular-chess refresher: board setup, piece movement, captures, checkmate, special moves, and draws before you learn Fog of War.',
@@ -2355,6 +2357,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'dark-chess-rules',
+    kind: 'rules',
     title: 'Dark Chess Rules',
     summary:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
@@ -2601,6 +2604,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'dark-chess-concepts',
+    kind: 'article',
     title: 'Dark Chess Concepts',
     summary:
       'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
@@ -2759,10 +2763,11 @@ export const articles: Article[] = [
   },
   {
     slug: 'draft960',
+    kind: 'rules',
     title: 'Draft960: dark chess with a hidden draft',
     summary:
       "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
-    status: 'outline',
+    status: 'draft',
     audience:
       'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
     thumbnail: ARTICLE_OG_POSITIONS.draft960,
@@ -2844,11 +2849,11 @@ export const articles: Article[] = [
   },
   {
     slug: 'xiangqi-rules-primer',
+    kind: 'rules',
     title: 'Xiangqi Rules Primer',
     summary:
       'A short guide to the board, pieces, movement rules, and endings you need before reading the Dark Xiangqi rules.',
     showSummaryOnPage: false,
-    showInIndex: false,
     status: 'published',
     publishedAt: '2026-05-26',
     audience:
@@ -3011,11 +3016,11 @@ export const articles: Article[] = [
   },
   {
     slug: 'dark-xiangqi-rules',
+    kind: 'rules',
     title: 'Dark Xiangqi',
     summary:
       'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.',
     showSummaryOnPage: false,
-    showInIndex: false,
     status: 'published',
     publishedAt: '2026-05-26',
     audience:
@@ -3143,6 +3148,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'engine-belief-state',
+    kind: 'article',
     title: 'Building an engine for hidden-information chess',
     summary:
       'Stockfish-class engines don’t transfer to dark chess because they assume perfect information. The right technique is belief-state search with particle-filter approximations, drawn from the Reconnaissance Blind Chess literature.',
@@ -3236,6 +3242,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'server-enforced-fog',
+    kind: 'article',
     title: 'Server-Enforced Dark Chess',
     summary:
       'Server-owned state, projected player views, seat authority, and public postgame review for Mistboard games.',

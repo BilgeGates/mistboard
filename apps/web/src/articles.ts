@@ -48,6 +48,8 @@ const ARTICLE_INDEX_COPY: Record<
   {
     heading: string;
     intro: string;
+    rulesHeading: string;
+    rulesIntro: string;
     published: string;
     updated: string;
     dateLocale: string;
@@ -55,21 +57,27 @@ const ARTICLE_INDEX_COPY: Record<
 > = {
   en: {
     heading: 'Articles',
-    intro: 'Rules, variants, and engine work for dark chess.',
+    intro: 'Essays, variants, and engine work for dark chess.',
+    rulesHeading: 'Rules',
+    rulesIntro: 'Reference rules for Mistboard games and Fog of War variants.',
     published: 'Published',
     updated: 'Updated',
     dateLocale: 'en-US',
   },
   'zh-Hans': {
     heading: '文章',
-    intro: '迷雾国际象棋的规则、变体与引擎工作。',
+    intro: '迷雾国际象棋的变体、策略与引擎工作。',
+    rulesHeading: '规则',
+    rulesIntro: 'Mistboard 游戏与战争迷雾变体的规则参考。',
     published: '发布于',
     updated: '更新于',
     dateLocale: 'zh-CN',
   },
   'zh-Hant': {
     heading: '文章',
-    intro: '迷霧國際象棋的規則、變體與引擎工作。',
+    intro: '迷霧國際象棋的變體、策略與引擎工作。',
+    rulesHeading: '規則',
+    rulesIntro: 'Mistboard 遊戲與戰爭迷霧變體的規則參考。',
     published: '發布於',
     updated: '更新於',
     dateLocale: 'zh-TW',
@@ -77,22 +85,31 @@ const ARTICLE_INDEX_COPY: Record<
 };
 
 export function buildArticlesIndex(lang?: ArticleLang): HTMLElement {
+  return buildContentIndex('article', lang);
+}
+
+export function buildRulesIndex(lang?: ArticleLang): HTMLElement {
+  return buildContentIndex('rules', lang);
+}
+
+function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLElement {
   const copy = ARTICLE_INDEX_COPY[lang ?? 'en'];
   const main = document.createElement('main');
   main.className = 'site-section articles-index';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = copy.heading;
+  heading.textContent = kind === 'rules' ? copy.rulesHeading : copy.heading;
 
   const intro = document.createElement('p');
   intro.className = 'articles-index-intro';
-  intro.textContent = copy.intro;
+  intro.textContent = kind === 'rules' ? copy.rulesIntro : copy.intro;
 
   const list = document.createElement('ul');
   list.className = 'articles-index-list';
 
   for (const article of articles) {
+    if (article.kind !== kind) continue;
     if (!isArticleVisibleInThisEnv(article)) continue;
     if (article.showInIndex === false) continue;
     list.append(articleCard(lang ? translateArticle(article, lang) : article, lang));
@@ -114,8 +131,9 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   const breadcrumb = document.createElement('p');
   breadcrumb.className = 'article-breadcrumb';
   const back = document.createElement('a');
-  back.href = '/articles';
-  back.textContent = '← All articles';
+  const prefix = lang ? ARTICLE_LANG_PREFIX[lang] : '';
+  back.href = article.kind === 'rules' ? `${prefix}/rules` : `${prefix}/articles`;
+  back.textContent = article.kind === 'rules' ? '← All rules' : '← All articles';
   breadcrumb.append(back);
 
   const heading = document.createElement('h1');

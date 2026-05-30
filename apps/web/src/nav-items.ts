@@ -9,6 +9,12 @@ export function primaryNavItems(): NavItem[] {
   return [
     { label: 'Watch', href: '/watch' },
     { label: 'Leaderboard', href: '/leaderboard' },
+  ];
+}
+
+export function learnNavItems(): NavItem[] {
+  return [
+    { label: 'Rules', href: '/rules' },
     { label: 'Articles', href: '/articles' },
   ];
 }

@@ -18,17 +18,38 @@ const ARTICLES_INDEX_META: Record<
 > = {
   en: {
     title: 'Articles | Mistboard',
-    description: 'Long-form writing on dark chess: rules, Draft960, and engine research.',
+    description: 'Long-form writing on dark chess: variants, strategy, and engine research.',
     htmlLang: 'en',
   },
   'zh-hans': {
     title: '文章 | Mistboard',
-    description: '迷雾国际象棋的规则、变体与引擎工作。',
+    description: '迷雾国际象棋的变体、策略与引擎工作。',
     htmlLang: 'zh-Hans',
   },
   'zh-hant': {
     title: '文章 | Mistboard',
-    description: '迷霧國際象棋的規則、變體與引擎工作。',
+    description: '迷霧國際象棋的變體、策略與引擎工作。',
+    htmlLang: 'zh-Hant',
+  },
+};
+
+const RULES_INDEX_META: Record<
+  'en' | 'zh-hans' | 'zh-hant',
+  { title: string; description: string; htmlLang: string }
+> = {
+  en: {
+    title: 'Rules | Mistboard',
+    description: 'Reference rules for Mistboard games and Fog of War variants.',
+    htmlLang: 'en',
+  },
+  'zh-hans': {
+    title: '规则 | Mistboard',
+    description: 'Mistboard 游戏与战争迷雾变体的规则参考。',
+    htmlLang: 'zh-Hans',
+  },
+  'zh-hant': {
+    title: '規則 | Mistboard',
+    description: 'Mistboard 遊戲與戰爭迷霧變體的規則參考。',
     htmlLang: 'zh-Hant',
   },
 };
@@ -132,7 +153,18 @@ export async function serveSitemap(params: {
   publicHost: string;
   staticDir: string;
 }): Promise<void> {
-  const staticRoutes = ['/', '/articles', '/about', '/learn', '/leaderboard', '/source', '/faq'];
+  const staticRoutes = [
+    '/',
+    '/articles',
+    '/rules',
+    '/zh-hans/rules',
+    '/zh-hant/rules',
+    '/about',
+    '/learn',
+    '/leaderboard',
+    '/source',
+    '/faq',
+  ];
   // Each article is listed once per pre-rendered language variant (dist/articles,
   // dist/zh-hans/articles, dist/zh-hant/articles), so the published+translated set
   // stays single-sourced in the prerender output.
@@ -226,6 +258,29 @@ export async function serveArticlesIndexPage(params: {
     title: meta.title,
     description: meta.description,
     url: `${params.publicHost}${langKey === 'en' ? '' : `/${langKey}`}/articles`,
+  });
+  params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  params.response.end(html);
+}
+
+export async function serveRulesIndexPage(params: {
+  response: ServerResponse;
+  publicHost: string;
+  staticDir: string;
+  langPrefix?: string;
+}): Promise<void> {
+  const indexPath = resolve(params.staticDir, 'index.html');
+  let html = await fs.readFile(indexPath, 'utf-8');
+  const langKey =
+    params.langPrefix === 'zh-hans' || params.langPrefix === 'zh-hant' ? params.langPrefix : 'en';
+  const meta = RULES_INDEX_META[langKey];
+  if (langKey !== 'en') {
+    html = html.replace('<html lang="en">', `<html lang="${meta.htmlLang}">`);
+  }
+  html = injectPageMeta(html, {
+    title: meta.title,
+    description: meta.description,
+    url: `${params.publicHost}${langKey === 'en' ? '' : `/${langKey}`}/rules`,
   });
   params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   params.response.end(html);

@@ -1,5 +1,5 @@
 import './site-shell.css';
-import { primaryNavItems, utilityNavItems } from './nav-items.js';
+import { learnNavItems, type NavItem, primaryNavItems, utilityNavItems } from './nav-items.js';
 
 export const GITHUB_URL = 'https://github.com/brianhliou/mistboard';
 
@@ -47,6 +47,7 @@ export function buildNav(): HTMLElement {
   for (const item of primaryNavItems()) {
     links.append(navLink(item.label, item.href));
   }
+  links.append(navMenu('Learn', learnNavItems()));
 
   const utilities = document.createElement('div');
   utilities.className = 'site-nav-utilities';
@@ -98,9 +99,19 @@ function ensureNavDismiss(): void {
         nav.querySelector('.site-nav-toggle')?.setAttribute('aria-expanded', 'false');
       }
     }
+    for (const menu of document.querySelectorAll<HTMLElement>(
+      '.site-nav-menu.site-nav-menu-open',
+    )) {
+      if (!menu.contains(target)) closeNavMenu(menu);
+    }
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeAll();
+    if (event.key === 'Escape') {
+      closeAll();
+      for (const menu of document.querySelectorAll<HTMLElement>('.site-nav-menu-open')) {
+        closeNavMenu(menu);
+      }
+    }
   });
 }
 
@@ -141,15 +152,67 @@ function navLink(label: string, href: string): HTMLAnchorElement {
   link.textContent = label;
   link.className = 'site-nav-link';
   const path = currentPath();
-  if (
-    path === href ||
-    (href === '/account' && path.startsWith('/account/')) ||
-    (href === '/articles' && path.startsWith('/articles/'))
-  ) {
+  if (pathMatchesNavItem(path, href)) {
     link.classList.add('active');
     link.setAttribute('aria-current', 'page');
   }
   return link;
+}
+
+function navMenu(label: string, items: NavItem[]): HTMLElement {
+  const menu = document.createElement('div');
+  menu.className = 'site-nav-menu';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'site-nav-link site-nav-menu-toggle';
+  button.setAttribute('aria-expanded', 'false');
+  button.textContent = label;
+  const caret = document.createElement('span');
+  caret.className = 'site-nav-menu-caret';
+  caret.setAttribute('aria-hidden', 'true');
+  button.append(caret);
+
+  const panel = document.createElement('div');
+  panel.className = 'site-nav-menu-panel';
+  for (const item of items) {
+    const link = navLink(item.label, item.href);
+    panel.append(link);
+  }
+
+  if (items.some((item) => pathMatchesNavItem(currentPath(), item.href))) {
+    button.classList.add('active');
+  }
+
+  button.addEventListener('click', () => {
+    const open = !menu.classList.contains('site-nav-menu-open');
+    for (const other of document.querySelectorAll<HTMLElement>('.site-nav-menu-open')) {
+      if (other !== menu) closeNavMenu(other);
+    }
+    menu.classList.toggle('site-nav-menu-open', open);
+    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
+  menu.append(button, panel);
+  return menu;
+}
+
+function closeNavMenu(menu: HTMLElement): void {
+  menu.classList.remove('site-nav-menu-open');
+  menu.querySelector('.site-nav-menu-toggle')?.setAttribute('aria-expanded', 'false');
+}
+
+function pathMatchesNavItem(path: string, href: string): boolean {
+  return (
+    path === href ||
+    (href === '/account' && path.startsWith('/account/')) ||
+    (href === '/rules' && (path === '/zh-hans/rules' || path === '/zh-hant/rules')) ||
+    (href === '/articles' &&
+      (path === '/zh-hans/articles' ||
+        path === '/zh-hant/articles' ||
+        path.startsWith('/articles/') ||
+        path.includes('/articles/')))
+  );
 }
 
 function currentPath(): string {
