@@ -115,12 +115,6 @@
   stroke: #2f715c;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.4;
-}
-
-.platform-activity-markers circle {
-  fill: #f7faf8;
-  stroke: #2f715c;
   stroke-width: 1.2;
 }
 

@@ -54,7 +54,7 @@ describe('about page platform activity', () => {
     expect(root.querySelectorAll('.platform-activity-y-axis text').length).toBeGreaterThan(1);
     expect(root.querySelectorAll('.platform-activity-x-axis text').length).toBeGreaterThan(2);
     expect(root.querySelectorAll('.platform-activity-mode-inline-item')).toHaveLength(3);
-    expect(root.querySelectorAll('.platform-activity-markers circle')).toHaveLength(3);
+    expect(root.querySelector('.platform-activity-markers')).toBeNull();
   });
 
   it('keeps the about page readable when stats are unavailable', async () => {

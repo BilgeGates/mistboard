@@ -267,9 +267,9 @@ function buildActivityChart(days: PublicStatsDay[]): HTMLElement {
     `${numberFormat.format(days.at(-1)?.cumulativeGames ?? 0)} completed games over time`,
   );
 
-  const yTicks = yAxisTicks(days);
+  const yScale = yAxisScale(days);
   const xTicks = xAxisTicks(days);
-  const points = chartPoints(days);
+  const points = chartPoints(days, yScale.max);
   const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
   area.setAttribute('class', 'platform-activity-area');
   area.setAttribute(
@@ -281,7 +281,7 @@ function buildActivityChart(days: PublicStatsDay[]): HTMLElement {
   line.setAttribute('class', 'platform-activity-line');
   line.setAttribute('points', points);
 
-  svg.append(buildYGrid(yTicks), buildXAxisTicks(xTicks), area, line, buildActivityMarkers(days));
+  svg.append(buildYGrid(yScale), buildXAxisTicks(xTicks), area, line);
 
   panel.append(label, svg);
   return panel;
@@ -294,31 +294,20 @@ const chartBounds = {
   yMax: 112,
 };
 
-function chartPoints(days: PublicStatsDay[]): string {
-  return chartCoordinates(days)
+function chartPoints(days: PublicStatsDay[], scaleMax: number): string {
+  return chartCoordinates(days, scaleMax)
     .map(({ x, y }) => `${x.toFixed(1)},${y.toFixed(1)}`)
     .join(' ');
 }
 
-function buildActivityMarkers(days: PublicStatsDay[]): SVGElement {
-  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  group.setAttribute('class', 'platform-activity-markers');
-  for (const point of chartCoordinates(days).filter((point) => point.completedGames > 0)) {
-    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    marker.setAttribute('cx', point.x.toFixed(1));
-    marker.setAttribute('cy', point.y.toFixed(1));
-    marker.setAttribute('r', '1.8');
-    group.append(marker);
-  }
-  return group;
-}
-
-function chartCoordinates(days: PublicStatsDay[]): Array<{
+function chartCoordinates(
+  days: PublicStatsDay[],
+  scaleMax: number,
+): Array<{
   x: number;
   y: number;
-  completedGames: number;
 }> {
-  const max = chartMax(days);
+  const max = Math.max(scaleMax, 1);
   return days.map((day, index) => {
     const x =
       days.length === 1
@@ -326,16 +315,15 @@ function chartCoordinates(days: PublicStatsDay[]): Array<{
         : chartBounds.xMin + (index / (days.length - 1)) * (chartBounds.xMax - chartBounds.xMin);
     const y =
       chartBounds.yMax - (day.cumulativeGames / max) * (chartBounds.yMax - chartBounds.yMin);
-    return { x, y, completedGames: day.completedGames };
+    return { x, y };
   });
 }
 
-function buildYGrid(ticks: number[]): SVGElement {
+function buildYGrid(scale: { max: number; ticks: number[] }): SVGElement {
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('class', 'platform-activity-y-axis');
-  const max = Math.max(...ticks, 1);
-  for (const tick of ticks) {
-    const y = chartBounds.yMax - (tick / max) * (chartBounds.yMax - chartBounds.yMin);
+  for (const tick of scale.ticks) {
+    const y = chartBounds.yMax - (tick / scale.max) * (chartBounds.yMax - chartBounds.yMin);
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', String(chartBounds.xMin));
     line.setAttribute('x2', String(chartBounds.xMax));
@@ -350,12 +338,11 @@ function buildYGrid(ticks: number[]): SVGElement {
   return group;
 }
 
-function buildXAxisTicks(ticks: Array<{ index: number; date: string }>): SVGElement {
+function buildXAxisTicks(ticks: Array<{ position: number; date: string }>): SVGElement {
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('class', 'platform-activity-x-axis');
-  const lastIndex = Math.max(ticks.at(-1)?.index ?? 1, 1);
   for (const tick of ticks) {
-    const x = chartBounds.xMin + (tick.index / lastIndex) * (chartBounds.xMax - chartBounds.xMin);
+    const x = chartBounds.xMin + tick.position * (chartBounds.xMax - chartBounds.xMin);
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', x.toFixed(1));
     line.setAttribute('x2', x.toFixed(1));
@@ -370,14 +357,14 @@ function buildXAxisTicks(ticks: Array<{ index: number; date: string }>): SVGElem
   return group;
 }
 
-function yAxisTicks(days: PublicStatsDay[]): number[] {
+function yAxisScale(days: PublicStatsDay[]): { max: number; ticks: number[] } {
   const max = chartMax(days);
-  if (max <= 6) return Array.from({ length: max + 1 }, (_, i) => i);
-  const step = niceTickStep(max / 4);
+  if (max <= 6) return { max, ticks: Array.from({ length: max + 1 }, (_, i) => i) };
+  const step = niceTickStep(max / 3);
+  const scaleMax = Math.ceil(max / step) * step;
   const ticks: number[] = [];
-  for (let value = 0; value < max; value += step) ticks.push(value);
-  if (ticks.at(-1) !== max) ticks.push(max);
-  return ticks;
+  for (let value = 0; value <= scaleMax; value += step) ticks.push(value);
+  return { max: scaleMax, ticks };
 }
 
 function chartMax(days: PublicStatsDay[]): number {
@@ -393,17 +380,18 @@ function niceTickStep(raw: number): number {
   return 10 * magnitude;
 }
 
-function xAxisTicks(days: PublicStatsDay[]): Array<{ index: number; date: string }> {
-  if (days.length === 1) return [{ index: 0, date: days[0]?.date ?? '' }];
+function xAxisTicks(days: PublicStatsDay[]): Array<{ position: number; date: string }> {
+  if (days.length === 1) return [{ position: 0.5, date: days[0]?.date ?? '' }];
   const tickCount = Math.min(days.length, 5);
   const lastIndex = days.length - 1;
-  const ticks = new Map<number, string>();
+  const ticks: Array<{ position: number; date: string }> = [];
   for (let i = 0; i < tickCount; i++) {
-    const index = Math.round((i / (tickCount - 1)) * lastIndex);
+    const position = i / (tickCount - 1);
+    const index = Math.round(position * lastIndex);
     const day = days[index];
-    if (day) ticks.set(index, day.date);
+    if (day) ticks.push({ position, date: day.date });
   }
-  return [...ticks.entries()].map(([index, date]) => ({ index, date }));
+  return ticks;
 }
 
 function buildModeSplit(modeTotals: Record<PublicStatsMode, number>): HTMLElement {
