@@ -59,6 +59,11 @@ const RULES_INDEX_META: Record<
 // surface (title + description) so the server can inject per-route meta
 // without importing the web bundle. Keep in sync when titles/summaries change.
 export const ARTICLE_META: Record<string, { title: string; description: string }> = {
+  'chess-rules-primer': {
+    title: 'Chess Rules',
+    description:
+      'The regular chess baseline for Mistboard: board setup, piece movement, captures, check, checkmate, special moves, and common draws.',
+  },
   'dark-chess-rules': {
     title: 'Dark Chess Rules',
     description:
@@ -73,6 +78,21 @@ export const ARTICLE_META: Record<string, { title: string; description: string }
     title: 'Draft960: dark chess with a hidden draft',
     description:
       "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
+  },
+  'xiangqi-rules-primer': {
+    title: 'Xiangqi Rules',
+    description:
+      'The regular xiangqi baseline for Mistboard: board geometry, piece movement, captures, check, facing generals, and endings.',
+  },
+  'dark-xiangqi-rules': {
+    title: 'Dark Xiangqi',
+    description:
+      'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.',
+  },
+  'dark-mini-xiangqi-rules': {
+    title: 'Dark Mini Xiangqi',
+    description:
+      'A compact 7x7 Fog of War xiangqi variant with generals, chariots, cannons, horses, soldiers, shrouded blockers, and general capture.',
   },
   'engine-belief-state': {
     title: 'Building an engine for hidden-information chess',

@@ -1818,6 +1818,24 @@ const XQ_DARK_XIANGQI_THUMBNAIL = xqSvg(
   ].join(''),
 );
 
+const DARK_MINI_XIANGQI_THUMBNAIL = `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: 276px" viewBox="0 0 276 276" role="img" xmlns="http://www.w3.org/2000/svg">
+  <rect x="8" y="8" width="260" height="260" rx="10" fill="#f5dca8" stroke="#8b5a24" stroke-width="1.5"/>
+  ${Array.from({ length: 7 }, (_, i) => {
+    const p = 36 + i * 34;
+    return `<line x1="36" y1="${p}" x2="240" y2="${p}" stroke="#5a3a14" stroke-width="1"/><line x1="${p}" y1="36" x2="${p}" y2="240" stroke="#5a3a14" stroke-width="1"/>`;
+  }).join('')}
+  <rect x="88" y="36" width="102" height="68" fill="#fff7df" opacity="0.45"/>
+  <rect x="88" y="172" width="102" height="68" fill="#fff7df" opacity="0.45"/>
+  <path d="M88 36 L190 104 M190 36 L88 104 M88 172 L190 240 M190 172 L88 240" stroke="#5a3a14" stroke-width="1"/>
+  <g font-family="system-ui, sans-serif" font-size="16" font-weight="800" text-anchor="middle" dominant-baseline="central">
+    <text x="36" y="240" fill="#a12721">R</text><text x="70" y="240" fill="#a12721">C</text><text x="104" y="240" fill="#a12721">H</text><text x="138" y="240" fill="#a12721">G</text><text x="172" y="240" fill="#a12721">H</text><text x="206" y="240" fill="#a12721">C</text><text x="240" y="240" fill="#a12721">R</text>
+    <text x="36" y="206" fill="#a12721">S</text><text x="104" y="206" fill="#a12721">S</text><text x="138" y="206" fill="#a12721">S</text><text x="172" y="206" fill="#a12721">S</text><text x="240" y="206" fill="#a12721">S</text>
+    <text x="36" y="36" fill="#111827">R</text><text x="70" y="36" fill="#111827">C</text><text x="104" y="36" fill="#111827">H</text><text x="138" y="36" fill="#111827">G</text><text x="172" y="36" fill="#111827">H</text><text x="206" y="36" fill="#111827">C</text><text x="240" y="36" fill="#111827">R</text>
+    <text x="36" y="70" fill="#111827">S</text><text x="104" y="70" fill="#111827">S</text><text x="138" y="70" fill="#111827">S</text><text x="172" y="70" fill="#111827">S</text><text x="240" y="70" fill="#111827">S</text>
+  </g>
+  <path d="M8 8 H268 V132 H8 Z M8 178 H268 V268 H8 Z" fill="#24190f" opacity="0.26"/>
+</svg>`;
+
 const XQ_FACING_GENERAL_BEFORE: XiangqiGameState = {
   id: 'xq-facing-general-before',
   board: {
@@ -2036,12 +2054,12 @@ export const articles: Article[] = [
   {
     slug: 'chess-rules-primer',
     kind: 'rules',
-    title: 'Chess Basics Before Dark Chess',
+    title: 'Chess Rules',
     summary:
-      'A quick regular-chess refresher: board setup, piece movement, captures, checkmate, special moves, and draws before you learn Fog of War.',
-    status: 'draft',
-    audience:
-      'Mistboard visitors who want a quick regular-chess refresher before reading variant rules.',
+      'The regular chess baseline for Mistboard: board setup, piece movement, captures, check, checkmate, special moves, and common draws.',
+    status: 'published',
+    publishedAt: '2026-05-30',
+    audience: 'Mistboard visitors who want the regular chess baseline before reading Fog of War rules.',
     thumbnail: {
       pieces: boardToPieces(DARK_CHESS_START_STATE.board),
       orientation: 'white',
@@ -2050,12 +2068,12 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Dark chess still uses ordinary chess pieces. If you already know how regular chess works, you can skip straight to the dark chess rules. If the basics are rusty, this page is the short refresher.',
+          'Mistboard starts from regular chess. If you already know orthodox chess, you can skip straight to the Dark Chess rules. If the basics are rusty, this page is the reference baseline.',
       },
       {
         kind: 'paragraph',
         text:
-          'The important handoff is simple: first understand how each piece moves on a normal board, then Fog of War changes what each player can see and how the game ends.',
+          'The handoff is simple: first understand how pieces move, capture, check, and draw on a normal board. Fog of War then changes visibility and replaces checkmate with direct king capture.',
       },
     ],
     sections: [
@@ -2337,7 +2355,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'This article covers regular chess. Fog of War chess uses the same piece movement, then hides enemy pieces outside your vision and replaces checkmate with direct king capture.',
+              'This page covers regular chess. Fog of War chess uses the same piece movement, then hides enemy pieces outside your vision and replaces checkmate with direct king capture.',
           },
           {
             kind: 'paragraph',
@@ -2347,8 +2365,8 @@ export const articles: Article[] = [
           {
             kind: 'cta',
             buttons: [
-              { label: 'Read dark chess rules', href: '/articles/dark-chess-rules', emphasis: 'primary' },
-              { label: 'Start interactive basics', href: '/learn', emphasis: 'secondary' },
+              { label: 'Read Dark Chess Rules', href: '/articles/dark-chess-rules', emphasis: 'primary' },
+              { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
             ],
           } as ArticleBlock,
         ],
@@ -2850,12 +2868,13 @@ export const articles: Article[] = [
   {
     slug: 'xiangqi-rules-primer',
     kind: 'rules',
-    title: 'Xiangqi Rules Primer',
+    title: 'Xiangqi Rules',
     summary:
-      'A short guide to the board, pieces, movement rules, and endings you need before reading the Dark Xiangqi rules.',
+      'The regular xiangqi baseline for Mistboard: board geometry, piece movement, captures, check, facing generals, and endings.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-05-26',
+    updatedAt: '2026-05-30',
     audience:
       'Mistboard readers who know chess or dark chess but have not learned xiangqi yet.',
     thumbnail: { kind: 'svg', svg: XQ_RULES_PRIMER_THUMBNAIL },
@@ -2863,7 +2882,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Xiangqi is the game underneath Dark Xiangqi. If you already play xiangqi, you can skip this primer and go straight to the [Dark Xiangqi rules](/articles/dark-xiangqi-rules). If you know chess but not xiangqi, this page gives you the board, pieces, and rule details you need before fog is added.',
+          'Xiangqi is the game underneath Dark Xiangqi. If you already play xiangqi, you can skip this page and go straight to the [Dark Xiangqi rules](/articles/dark-xiangqi-rules). If you know chess but not xiangqi, this page gives you the board, pieces, and rule details you need before fog is added.',
       },
       {
         kind: 'paragraph',
@@ -3141,6 +3160,147 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text: 'Playable Dark Xiangqi games are not public yet. These rules are published first so players can review the variant before live play opens.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'dark-mini-xiangqi-rules',
+    kind: 'rules',
+    title: 'Dark Mini Xiangqi',
+    summary:
+      'A compact 7x7 Fog of War xiangqi variant with generals, chariots, cannons, horses, soldiers, shrouded blockers, and general capture.',
+    showSummaryOnPage: false,
+    status: 'published',
+    publishedAt: '2026-05-30',
+    audience:
+      'Dark Xiangqi readers who want the smaller experimental ruleset Mistboard is testing first.',
+    thumbnail: { kind: 'svg', svg: DARK_MINI_XIANGQI_THUMBNAIL },
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          'Dark Mini Xiangqi is Mini Xiangqi played with Fog of War. Each player sees all of their own pieces and only the enemy pieces their army can see. The board is 7 by 7, the piece set is compact, and the game ends by capturing the opposing general.',
+      },
+      {
+        kind: 'paragraph',
+        text:
+          'The smaller board is not meant to make xiangqi casual. It keeps the cannon, horse, chariot, soldier, and palace-general tactics that matter most under hidden information while reducing empty fog and making games easier to learn from.',
+      },
+    ],
+    sections: [
+      {
+        heading: 'Board and setup',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Dark Mini Xiangqi uses a 7 file by 7 rank board. Coordinates use files a through g and ranks 1 through 7. Red starts on rank 1, Black starts on rank 7, and Red moves first.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: DARK_MINI_XIANGQI_THUMBNAIL,
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'Each side has one general, two chariots, two cannons, two horses, and five soldiers. The back rank is chariot, cannon, horse, general, horse, cannon, chariot. Soldiers start one rank ahead on files a, c, d, e, and g.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Each general is confined to a 3 by 3 palace. There are no advisors, elephants, river, promotions, drops, or reserves.',
+          },
+        ],
+      },
+      {
+        heading: 'Piece movement',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              '**General:** moves one point orthogonally inside its own palace. If the two generals face each other on the same open file, a general may capture the opposing general across that file.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Chariot:** moves any distance horizontally or vertically. It cannot jump, and it may capture the first enemy piece it reaches.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Cannon:** moves like a chariot when it is not capturing. To capture, it jumps over exactly one intervening piece, called the screen, and lands on the first enemy piece beyond it.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Horse:** moves one point orthogonally and then one point diagonally outward, like a xiangqi horse. It cannot move if the adjacent orthogonal leg point is occupied.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Soldier:** moves and captures one point forward or sideways from the start of the game. There is no river-crossing rule because soldiers already have sideways movement.',
+          },
+        ],
+      },
+      {
+        heading: 'Fog of War',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'A player sees all of their own pieces, the squares their pieces can see, enemy pieces on visible unshrouded squares, and shrouded occupancy markers for certain blockers and cannon screens.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'A player does not see enemy pieces outside visible squares, whether a hidden square is empty, the role of a shrouded blocker, or empty cannon gap squares between a screen and target.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'The key cannon rule is **screen shrouded, target revealed**. Empty squares before the screen are visible, the screen appears occupied but unidentified, empty squares between the screen and target stay fogged, and the capturable target is visible.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Horses follow the same privacy principle. If a horse leg is blocked, the leg point appears occupied but unidentified, and the destinations behind that leg stay hidden.',
+          },
+        ],
+      },
+      {
+        heading: 'Winning and draws',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'The game ends when a general is captured. There is no separate check or checkmate rule, and check warnings are not announced.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'A player may move into danger, leave their general exposed, or allow facing generals. This follows Mistboard\'s Fog of War rule philosophy: the server should not reveal warning information that the visible position may not justify.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'If the side to move has no legal move, that side loses by immobilization. Draws are adjudicated from the true position, not either player\'s view: threefold repetition is an automatic draw, and a no-capture progress clock can also draw the game.',
+          },
+        ],
+      },
+      {
+        heading: 'Play status',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Dark Mini Xiangqi is an experimental launch candidate, not a public Mistboard game mode yet. The intended game spec id is dark-mini-xiangqi.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'The conservative path is rules and fog tests first, a hidden local play lab second, live runtime only after privacy tests pass, and public launch only after mobile play, invite/share, and postgame behavior are ready.',
           },
         ],
       },
