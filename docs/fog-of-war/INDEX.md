@@ -16,6 +16,8 @@ reflects current implemented behavior or future planning.
 
 | File | Contents |
 |------|----------|
+| [`dark-mini-xiangqi-rules.md`](dark-mini-xiangqi-rules.md) | Draft public rules article for Dark Mini Xiangqi: 7x7 board, no-check general-capture play, cannon/horse fog visibility, and relationship to full Dark Xiangqi. |
+| [`dark-mini-xiangqi-plan.md`](dark-mini-xiangqi-plan.md) | Candidate launch plan for Dark Mini Xiangqi: separate `GameSpec`, rules/fog decisions, live-runtime milestones, UX gates, and engine deferrals. |
 | [`dark-shogi-rules.md`](dark-shogi-rules.md) | Candidate Dark Shogi ruleset: king capture, fog visibility, Lao Tzu-style drops, hidden opponent hands, promotion redaction, and replay safety boundaries. |
 
 ## Planning — engine and research track
