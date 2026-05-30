@@ -6,6 +6,7 @@ import {
 } from './server-ws-connection.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 
+const darkMiniXiangqiFlag = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
 const darkXiangqiFlag = 'MISTBOARD_DARK_XIANGQI_ENABLED';
 
 test('WebSocket runtime resolver routes existing Dark Xiangqi rooms before flag checks', async () => {
@@ -64,6 +65,38 @@ test('WebSocket runtime resolver keeps non-Dark-Xiangqi ids on the chess runtime
   }
 });
 
+test('WebSocket runtime resolver rejects Dark Mini Xiangqi ids while the flag is off', async () => {
+  const ctx = resolverContext({});
+  const before = process.env[darkMiniXiangqiFlag];
+  delete process.env[darkMiniXiangqiFlag];
+  try {
+    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dmxq_disabled');
+    assert.deepEqual(runtime, {
+      kind: 'dark-mini-xiangqi-unavailable',
+      reason: 'game spec disabled',
+    });
+    assert.equal(ctx.loadCalls, 0);
+  } finally {
+    restoreEnv(darkMiniXiangqiFlag, before);
+  }
+});
+
+test('WebSocket runtime resolver does not fall through to chess for flagged Dark Mini Xiangqi ids', async () => {
+  const ctx = resolverContext({});
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dmxq_created');
+    assert.deepEqual(runtime, {
+      kind: 'dark-mini-xiangqi-unavailable',
+      reason: 'game spec not integrated',
+    });
+    assert.equal(ctx.loadCalls, 0);
+  } finally {
+    restoreEnv(darkMiniXiangqiFlag, before);
+  }
+});
+
 test('WebSocket runtime resolver rejects missing flagged Dark Xiangqi rooms', async () => {
   const ctx = resolverContext({});
   const before = process.env[darkXiangqiFlag];
@@ -73,7 +106,7 @@ test('WebSocket runtime resolver rejects missing flagged Dark Xiangqi rooms', as
     assert.deepEqual(runtime, { kind: 'dark-xiangqi-unavailable', reason: 'room unavailable' });
     assert.equal(ctx.loadCalls, 1);
   } finally {
-    restoreFlag(before);
+    restoreEnv(darkXiangqiFlag, before);
   }
 });
 
@@ -101,9 +134,13 @@ function darkXiangqiRoomFixture(id: string): DarkXiangqiLiveRoom {
 }
 
 function restoreFlag(value: string | undefined): void {
+  restoreEnv(darkXiangqiFlag, value);
+}
+
+function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) {
-    delete process.env[darkXiangqiFlag];
+    delete process.env[key];
     return;
   }
-  process.env[darkXiangqiFlag] = value;
+  process.env[key] = value;
 }

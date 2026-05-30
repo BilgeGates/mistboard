@@ -3,8 +3,9 @@ import type { IncomingMessage } from 'node:http';
 import type { VariantId } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import { isDarkMiniXiangqiRoomId } from './dark-mini-xiangqi-runtime.js';
 import { isDarkXiangqiRoomId } from './dark-xiangqi-runtime.js';
-import { darkXiangqiEnabled } from './feature-flags.js';
+import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import { logger, wsCounters } from './obs.js';
@@ -79,7 +80,11 @@ export type WebSocketRuntimeResolverContext = Pick<
 export type WebSocketLiveRuntime =
   | { kind: 'chess' }
   | { kind: 'dark-xiangqi'; room: DarkXiangqiLiveRoom }
-  | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' };
+  | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' }
+  | {
+      kind: 'dark-mini-xiangqi-unavailable';
+      reason: 'game spec disabled' | 'game spec not integrated';
+    };
 
 export function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
   return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
@@ -91,6 +96,12 @@ export async function resolveWebSocketLiveRuntime(
 ): Promise<WebSocketLiveRuntime> {
   const existingDarkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
   if (existingDarkXiangqiRoom) return { kind: 'dark-xiangqi', room: existingDarkXiangqiRoom };
+  if (isDarkMiniXiangqiRoomId(roomId)) {
+    if (!darkMiniXiangqiEnabled()) {
+      return { kind: 'dark-mini-xiangqi-unavailable', reason: 'game spec disabled' };
+    }
+    return { kind: 'dark-mini-xiangqi-unavailable', reason: 'game spec not integrated' };
+  }
   if (!isDarkXiangqiRoomId(roomId)) return { kind: 'chess' };
   if (!darkXiangqiEnabled())
     return { kind: 'dark-xiangqi-unavailable', reason: 'game spec disabled' };
@@ -112,6 +123,10 @@ export async function handleWebSocketConnection(
     return;
   }
   if (runtime.kind === 'dark-xiangqi-unavailable') {
+    socket.close(1008, runtime.reason);
+    return;
+  }
+  if (runtime.kind === 'dark-mini-xiangqi-unavailable') {
     socket.close(1008, runtime.reason);
     return;
   }
