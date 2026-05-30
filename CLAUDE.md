@@ -61,7 +61,7 @@ calibration, and quality gates.
 - `packages/game`: pure game types, variants, rules, visibility, tests.
 - `apps/server`: WebSocket rooms, sessions, clocks, event append.
 - `apps/web`: board UI, game screens, client WebSocket handling.
-- engine code (KLUSS, PCFR+, GT-CFR, PEnumerator, Stockfish wrapping, Tier-1 snapshots, the live-play worker scripts) lives in the **private `mistboard-engine` sibling repo**, cloned at build time via a Railway deploy key. The public Mistboard server talks to it only through the redacted `EngineTurnRequest` / `EngineTurnResponse` protocol (see `packages/game/src/engine-protocol.ts` and `apps/server/src/engine-paths.ts`). Do not reach for engine internals from `apps/` or `packages/`.
+- engine code (KLUSS, PCFR+, GT-CFR, PEnumerator, Stockfish wrapping, Tier-1 snapshots, the live-play worker scripts) lives in the **private `mistboard-engine` sibling repo**. The public Mistboard server talks to it only through the redacted `EngineTurnRequest` / `EngineTurnResponse` protocol (see `packages/game/src/engine-protocol.ts` and `apps/server/src/engine-paths.ts`). Do not reach for engine internals from `apps/` or `packages/`.
 
 ## References
 

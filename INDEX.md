@@ -12,8 +12,11 @@ Edit task → find file → open only that file.
 | File | Owns |
 |------|------|
 | `types.ts` | Shared types: `Color`, `Square`, `Board`, `Move`, `GameState`, `PlayerView`, `Variant` |
+| `game-specs.ts` | Game-family taxonomy and stable spec ids: current dark chess/Draft960 plus hidden/future Xiangqi, Shogi, Omega, and other dark variants |
+| `engine-protocol.ts` | Public redacted engine request/response contract shared by server and external/first-party engines |
 | `variants.ts` | Variants (`draft960Variant`, `darkChessVariant`); fog kernel: `fogVisibleSquares`, `fogMovesFrom`, `fogPawnMoves`, `fogSlideMoves`, `fogCastlingMoves`, `applyFogMove` |
-| `variants-xiangqi.ts` | FoW Xiangqi variant (DEV `/xiangqi-spike` only); cannon vision = field of fire |
+| `variants-xiangqi.ts` | FoW Xiangqi variant (flagged/dev-only live room + `/xiangqi-spike`); cannon vision = field of fire |
+| `variants-shogi.ts` | Shogi rules kernel reserved for future hidden-information variants |
 | `events.ts` | `GameEvent` union type, `replayGameEvents` reducer, `GameProjection` |
 | `notation.ts` | `algebraicMoveLabels` — algebraic/coordinate notation for move lists and replay |
 | `clocks.ts` | `createClock`, `advanceClock`, `clockRemainingMs`, `expireClock` |
@@ -37,7 +40,9 @@ Edit task → find file → open only that file.
 | `pieces.ts` | Piece SVG sprite refs |
 | `positions.ts` | FEN → board position parsing |
 | `tokens.ts` | Color/size tokens |
+| `article-positions.ts` | Reusable article board positions |
 | `interactive/board.ts` | Browser-side interactive board |
+| `interactive/index.ts` | Browser interactive renderer exports |
 | `interactive/live-boards.ts` | Pool of interactive boards keyed by id |
 | `interactive/stepper.ts` | Triptych stepper UI (article triptychs) |
 | `interactive/thumbnail.ts` | Thumbnail renderer |
@@ -55,6 +60,8 @@ Edit task → find file → open only that file.
 | `server-drain.ts` | Admin drain controller: drain deadline state, active-game counting, rate limiting, token-gated drain/cancel HTTP handling, and restart/cancel WebSocket broadcasts. |
 | `server-ws-connection.ts` | WebSocket edge handling: connection handshake, game-spec gate, account/session lookup, seat assignment, hello snapshot, message dispatch, rate limiting, debug auth, rematch messages, and disconnect behavior. Injects room lifecycle/game-flow callbacks from `index.ts`. |
 | `server-ws-dark-xiangqi.ts` | Hidden Dark Xiangqi WebSocket handler: red/black connection handoff, message dispatch, move/abort/resign events, lifecycle scheduling, and outbound transport handoff. |
+| `dark-xiangqi-runtime.ts` | Hidden Dark Xiangqi runtime model, replay, snapshots, room hydration, and family-aware helpers. |
+| `server-dark-xiangqi-room-factory.ts` | Hidden Dark Xiangqi room creation/store/persistence factory behind server feature flags. |
 | `server-dark-xiangqi-seat-session.ts` | Hidden Dark Xiangqi red/black seat authority: token/account reclaim, new token issuance, persistence rollback support, and duplicate-seat displacement. |
 | `server-dark-xiangqi-events.ts` | Hidden Dark Xiangqi event writer: pending-write chaining, fail-closed persistence ordering, seat-token upserts, terminal private summary recording, and persistence failure logging. |
 | `server-dark-xiangqi-lifecycle.ts` | Hidden Dark Xiangqi lifecycle timers: pre-move abort phases, disconnect forfeit seat detection, timer clearing, and timer-fired event appends. |
@@ -69,6 +76,7 @@ Edit task → find file → open only that file.
 | `routes/users.ts` | `/api/users/:handle/profile` |
 | `routes/rooms.ts` | POST `/api/rooms`, `/api/rooms/:id/abandon`, plus `parseRoomMode` / `parsePlayablePveEngineId` |
 | `routes/dark-xiangqi-rooms.ts` | Hidden Dark Xiangqi direct room creation branch for `POST /api/rooms`: request claiming, flag behavior, supported-surface gate, and room factory result mapping |
+| `routes/dark-xiangqi-games.ts` | Hidden Dark Xiangqi postgame/review API branch; keeps non-chess finished-game records out of generic chess replay APIs |
 | `routes/lobby.ts` | `/api/lobby`, `/api/lobby/:ticketId`, plus `joinLobby` / `cancelLobbyTicket` / `pruneLobbyTickets` / `lobbyTicketResponse` / `lobbyOpenRequests` |
 | `routes/games.ts` | All `/api/games/*` + `/api/eve-games/recent` (8 routes) + game-data helpers (`gameSummaryForApi`, `gameEventsForApi`, `gameReviewForApi`, `gameArtifactsForApi`, engine-color helpers) |
 | `routes/leaderboard.ts` | `/api/leaderboard` |
@@ -78,11 +86,16 @@ Edit task → find file → open only that file.
 | `routes/engines.ts` | `/api/engines/playable` |
 | `account-session.ts` | Account auth: `currentAccountUser`, `ensureUserForEmail`, `hashSecret`, session cookies, email login |
 | `account-identity.ts` | Email normalization, handle generation, display name handling |
+| `build-info.ts` | Build metadata surfaced through status responses |
+| `feature-flags.ts` | Runtime on-switches for rated mode and hidden/prelaunch surfaces |
+| `game-spec-request-gate.ts` | Request gate from incoming room specs to supported runtime families |
+| `server-config.ts` | Runtime config parsing and room-region normalization |
 | `server-types.ts` | Shared server types: `Client`, `Room`, `SeatTokenState`, `SeatAssignment`, `LobbyTicket` |
 | `server-policy.ts` | Access control: `canObserveLiveRoom`, `eventReplayResponse`, `visibleEventsForLiveSnapshot`, `modeForProjection`, `isAdminDebugToken`, `isAllowedWebSocketOrigin`, `isClientRoute`, `PARKED_CLIENT_ROUTES` |
 | `server-ws-messages.ts` | Client WebSocket message parser and known-message allowlist used by `server-ws-connection.ts` dispatch |
 | `server-seat-session.ts` | Seat assignment/session helpers: seat-token hashing and verification, account/token credential gate, new/existing seat assignment, and duplicate seat displacement. |
 | `server-live-engine-reservations.ts` | Live engine reservation helpers: PvE engine-seat detection, legacy engine ID normalization, engine-worker reservation create/release, and reservation logging. |
+| `internal-engine-client.ts` | HTTP client/reservation adapter for the internal live engine service |
 | `persistence-db.ts` | Postgres pool lifecycle: `init`, `probeDb`, `close`, `isInitialized`, `getPool` |
 | `persistence-seat-tokens.ts` | Room seat token persistence, including token load/upsert/touch/replace/verify helpers |
 | `persistence.ts` | Public persistence facade. Import existing persistence APIs from here unless changing query ownership. |
@@ -97,8 +110,14 @@ Edit task → find file → open only that file.
 | `test-builders.ts` | Shared server test builders for `GameProjection`, `PlayerView`, `SnapshotRoom`, `Room`, clients, and seat tokens |
 | `rating-buckets.ts` | Variant × time-class → bucket-id mapping for per-bucket Elo |
 | `elo.ts` | Elo update math |
+| `glicko.ts` | Glicko-2 rating math for the newer rating model |
+| `rating-store.ts` | Rating persistence/store helpers |
 | `migrate.ts` | Schema migrations — run once on startup |
 | `python-pool.ts` | Persistent Python worker pool for live engines (size=4 in prod) |
+| `engine-service.ts` | Internal HTTP engine service and live engine reservation admission control |
+| `engine-alert-email.ts` | Engine alert email rendering/sending helpers |
+| `engine-protocol/build.ts` | Server-side redacted `EngineTurnRequest` builder |
+| `engines/{registry,think-time,types}.ts` | Engine registry/type helpers for engine service code |
 | `engine-registry.ts` | Maps engine client IDs to implementations: `loadEngine`, `playableLiveEngines`, `engineVersionDisplayName` |
 | `live-engine.ts` | `chooseLiveEngineMove` — interfaces room state with an engine implementation |
 | `engine-time-policy.ts` | Engine think-time budgets per time control / tier |
@@ -118,6 +137,9 @@ Edit task → find file → open only that file.
 | `game-export.ts` | PGN/JSON export for `/api/games/:id/export.*` (Phase D, 2026-05-22) |
 | `og-image.ts` | OG image rendering (default + per-game + per-article) |
 | `obs.ts` | Structured-JSON logging helpers |
+| `room-lifecycle-audit.ts` | Lifecycle audit/event helpers |
+| `seat-auth.ts` | Seat-authority verification helpers shared by chess and non-chess room flows |
+| `watch-channels.ts` | Public watch-channel definitions and lookup |
 
 ## apps/server/integration/ — Two-client WebSocket integration tests
 
@@ -187,6 +209,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `site-shell.css` | Shared site chrome styles for nav, mobile nav collapse, loading state, and footer; also loaded by live/learn routes that render site chrome directly |
 | `game-display.ts` | Shared game display contracts and formatters: `FeaturedGame`, `GameParticipant`, `displayParticipantName`, participant lookup, source labels, and known engine display names |
 | `game-meta.ts` | Shared `GameMeta` builder for replay surfaces, including participant rating deltas and public game review URL selection |
+| `variants.ts` | Current web-visible variant/game-spec list and leaderboard API mapping |
+| `feature-flags.ts` | Build-time gates for hidden/prelaunch client surfaces |
+| `rated-flag.ts` | Client mirror of `/api/server-status` rated-mode switch |
 | `public-assets.ts` | Public build asset filter used by `vite.config.ts` to keep local bakeoff and pixel-lab artifacts out of ordinary web builds |
 | `account.ts` | `/account` + `/account/settings` mounts. Sign-in/registration form (email + magic code), signed-in account card, settings form (display name / handle / email), auth-tabs. Uses `site-shell.ts` for shared chrome/auth fetch and loads `account-profile.css` |
 | `profile.ts` | `/@/:handle` + `/leaderboard` mounts. `mountProfile`, `mountLeaderboard`, profile header/ratings/games builders, leaderboard panel + table. Uses `site-shell.ts` and `game-display.ts` for shared contracts and loads `account-profile.css` |
@@ -195,6 +220,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `pages-static.css` | Static about/source page helper styles loaded by `pages-static.ts` |
 | `contact.ts` | `buildContact` — `/contact` form builder (anon vs signed-in lanes, honeypot, submit/error states). Mounted by `landing.ts` (mountContact is 15 lines, uses buildNav/Footer) and loads `contact.css` |
 | `contact.css` | `/contact` form styles loaded by `contact.ts` |
+| `confirm-dialog.ts` | Shared confirmation dialog primitive for irreversible/important user actions |
 | `review.ts` | Game-review data plumbing for `/game/:id`: `loadGameForReview`, `fetchGameReview`, `fetchGameArtifacts`, `fetchTraceArtifacts`, belief/trace row converters, `enginePanelsForReview`. Owns the engine-artifact panel hydration |
 | `replay.ts` | Replay viewer: `mountReplay` closure and replay state orchestration. Wall-clock loop timing helpers live in `replay-wall-clock.ts`; replay move-list panel UI lives in `replay-moves-panel.ts`; game metadata/header UI lives in `replay-meta.ts`; replay clock panel rendering lives in `replay-clocks.ts`; board/pane adapters live in `replay-board.ts`; engine review panel/toggle UI lives in `replay-engine-panels.ts`; annotation panel/form UI lives in `replay-annotations.ts`; belief/annotation CSS lives in `replay-analysis.css`. |
 | `replay-analysis.css` | Replay belief inspector and annotation panel styles loaded by `replay.ts` |
@@ -214,6 +240,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `articles.ts` | Articles page renderer and article thumbnail board mounting. Loads `articles.css` for article index/page/widget styles |
 | `articles.css` | Article index, article page, and article interactive widget styles loaded by `articles.ts` |
 | `articles-data.ts` | Article content (large; content not code) |
+| `article-i18n.ts` | Article localization strings and language helpers |
+| `dark-xiangqi-postgame.ts` | Flagged Dark Xiangqi postgame/review route renderer |
+| `dark-xiangqi-room-actions.ts` | Flagged Dark Xiangqi room creation/action helpers |
 | `account-nav.ts` | Top-nav account menu + sign-in state. Loads `account-nav.css` |
 | `account-nav.css` | Top-nav account/auth slot styles loaded by `account-nav.ts` |
 | `restart-banner.ts` | Boot-fetch + WS-driven drain banner. Loads `restart-banner.css` |
@@ -223,7 +252,12 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `bakeoff.ts` | Engine lab bakeoff view (DEV) |
 | `bakeoff.css` | Engine lab bakeoff layout and bakeoff-specific replay panel sizing loaded by `bakeoff.ts` |
 | `pixel-lab.ts` | `/pixel-lab` AI piece-art/fog lab (DEV) |
+| `variant-marks.ts` | Variant mark/glyph definitions for current and candidate variants |
+| `variant-marks-lab.ts` | DEV-only route for candidate variant marks |
+| `live-room-bootstrap.ts` | Room-id to game-spec bootstrap helper for live routes |
+| `live-xiangqi-render.ts` | Flagged Dark Xiangqi live board renderer |
 | `xiangqi-spike.ts` | `/xiangqi-spike` FoW Xiangqi sandbox (DEV) |
+| `xiangqi-demo.ts` | Flagged Dark Xiangqi reviewer/demo route |
 | `xiangqi-bot.ts` | DEV-only bot for the xiangqi spike |
 | `xiangqi-pieces.ts` | Xiangqi piece SVG refs |
 | `web-utils.ts` | `escapeHtml`, `isColor`, `formatClock`, `oppositeColor`, file/rank helpers |
@@ -237,7 +271,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 
 ## apps/server/migrations/ — Postgres schema migrations
 
-21 files (`001_init.sql` through `021_feedback_ip_hash.sql`). Runner: `migrate.ts` — Postgres advisory-lock + `_migrations` table. File-level idempotent, but data-backfill migrations 004/006/008/011 lacked `ON CONFLICT` guards until this session.
+30 files (`001_init.sql` through `030_family_aware_game_results.sql`). Runner: `migrate.ts` — Postgres advisory-lock + `_migrations` table. Add schema changes as new numbered migrations only.
 
 **Change schema** → add a new `0NN_*.sql` (never modify a landed migration). Constraint rewrites: drop-then-readd in a new file (see `018_add_resignation_termination.sql`).
 

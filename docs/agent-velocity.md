@@ -140,13 +140,8 @@ The wait requires consecutive ready checks by default. This avoids releasing
 the real smoke during Railway cutover, when one edge request may already see the
 new revision while another still returns a transient service-level 404.
 
-Use the production smoke tier that matches the change:
-
-```bash
-npm run prod:smoke:lite
-npm run prod:smoke:engines -- --engine python-tier1-v0.9.5
-npm run prod:smoke:engine-playout -- --engine python-tier1-v0.9.5 --target-plies 64
-```
+Use the production smoke tier that matches the change. Keep exact provider and
+engine-worker runbook details in ignored private notes, not in public docs.
 
 Keep the verification budget proportional. Pure extraction with no behavior,
 CSS, or route change should stop at targeted typecheck/unit/lint/drift checks

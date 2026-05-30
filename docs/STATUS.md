@@ -1,6 +1,6 @@
 # Status
 
-_Last updated: 2026-05-25_
+_Last updated: 2026-05-30_
 
 **State:** active
 **Launched:** https://mistboard.com
@@ -24,6 +24,10 @@ Recent shipped work:
 - Engine v0.9.5 with phantom-check guard and recapture exemption
 - Per-bucket leaderboard infra (dormant until rated flip)
 - WS integration harness + Postgres-backed integration test for `recordGameEnd`
+- Game-spec taxonomy for current and future hidden-information variants
+- Hidden Dark Xiangqi live-room/postgame/review spike behind explicit flags
+- Public platform activity stats and watch/replay polish
+- Rated-mode plumbing remains off by default and account-gated
 
 Still open against M1:
 - Record mobile gameplay end-to-end evidence for iPhone Safari + Android Chrome
@@ -37,11 +41,14 @@ Still open against M1:
 Moved out of M1:
 - Draft960 lobby and Draft960 rated work are M4. The Draft960 article exists,
   but the launch surface stays standard Fog of War to avoid splitting the pool.
+- Dark Xiangqi is a hidden dev spike, not an M1 public launch surface.
 
 Release confidence work now active:
 - Local production-like release smoke: build, local Postgres, migrations, server
   boot, PvP WebSocket smoke, and builtin-engine PvE smoke.
 - Public artifact identity through `/api/server-status` build metadata.
+- Public/private documentation cleanup: public docs should stay
+  contributor-safe; exact provider runbooks belong in ignored private notes.
 
 ## What's Next
 

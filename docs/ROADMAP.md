@@ -1,6 +1,6 @@
 # Roadmap
 
-_Last updated: 2026-05-27_
+_Last updated: 2026-05-30_
 
 ## Product Pillars
 
@@ -12,9 +12,10 @@ Mistboard has two public product pillars:
   reproducible benchmarks, and a first-party dark-chess engine that competes
   through the same auditable information boundary as every other engine.
 
-The landing-page promise should stay simple: play dark chess online. The second
-layer explains why Mistboard is different: server-enforced hidden information,
-ranked integrity, and a serious engine track.
+The landing-page promise should keep the umbrella legible without hiding the
+first playable game: hidden-information games, starting with dark chess. The
+second layer explains why Mistboard is different: server-enforced hidden
+information, ranked integrity, and a serious engine track.
 
 ## Done
 
@@ -44,6 +45,10 @@ ranked integrity, and a serious engine track.
   `elephantops`-backed rules wrapper before putting it in an engine hot path:
   the live-room layer is acceptable for play, but engine search should review
   kernel performance, allocation patterns, and the GPL dependency boundary.
+- [ ] **Future hidden-information variants.** Current game-spec taxonomy and
+  hidden Dark Xiangqi spike prove the platform can represent non-chess families,
+  but they are not launch-surface commitments. Keep new families hidden or
+  dev-only until the dark-chess M1-M3 loop is healthy.
 
 ## Deferred / Parked
 
@@ -52,6 +57,8 @@ ranked integrity, and a serious engine track.
 - FUCI / engine submission — Stage E1+ post-distribution.
 - Half-open TCP smoke and browser-level E2E (Playwright) — out of scope for v1.
 - SSR exploration — server-rendered nav/pages to eliminate auth-state flash and unlock SEO for /articles + /@/handle. Current mitigation is the `mb_signed_in` localStorage hint in `account-nav.ts`. Likely trigger: wanting articles/profiles to rank in search.
+- Dark Xiangqi public launch — hidden/dev-only while the standard dark-chess
+  launch gates remain open.
 
 ---
 
@@ -65,7 +72,7 @@ Outreach is one-shot for HN reputation and streamer credibility. Every item is p
 3. M3 hard launch (HN, r/chess, streamers)
 4. M4 Draft960 rated flip once its own ~200-game volume hits
 
-**Legend:** `[x]` done/verified · `[~]` code shipped, needs a runtime/manual check before it counts · `[ ]` open. Reconciled against the tree 2026-05-23.
+**Legend:** `[x]` done/verified · `[~]` code shipped, needs a runtime/manual check before it counts · `[ ]` open. Reconciled against the tree 2026-05-30.
 
 Manual gates should not be closed from memory. When a gate is verified, record
 the evidence in the item text: date, target environment, device/browser when
@@ -95,7 +102,7 @@ from M1, say that explicitly instead of leaving it as stale open work.
 
 ### Tier D — First-touch UX
 
-- [x] <5 seconds to "this is dark chess" on landing. _Current first-screen copy leads with "Dark chess" and one-sentence server-enforced hidden information._
+- [x] <5 seconds to "this is hidden-information games, starting with dark chess" on landing. _Current first-screen copy leads with "Hidden-information games" and names server-enforced dark chess as the first playable game._
 - [x] ≤3 clicks from cold load to in-game. _Cleared: each play action is 2 clicks (button + confirm) via `openLandingSetupDialog`._
 - [x] Anonymity model legible. _Cleared: Register demoted to text link, "No account needed." microcopy under the play CTAs._
 

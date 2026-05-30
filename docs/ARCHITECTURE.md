@@ -1,6 +1,6 @@
 # Architecture
 
-_Last updated: 2026-05-22_
+_Last updated: 2026-05-30_
 
 ## One-line shape
 
@@ -10,6 +10,7 @@ Full-stack hidden-information chess platform — Vite-bundled TypeScript browser
 
 ```text
 packages/game          Pure game logic: types, rules, visibility, variants, tests
+packages/board-render  Shared SVG/interactive board rendering primitives
 apps/server            WebSocket rooms, session management, clocks, event append, HTTP API
 apps/web               Browser client (Vite + vanilla TypeScript, no framework)
 ```
@@ -38,23 +39,39 @@ apps/web               Browser client (Vite + vanilla TypeScript, no framework)
 Key files:
 - `types.ts` — `GameState`, `PlayerView`, `GameEvent`, piece and square types
 - `variants.ts` — `darkChessVariant`, `draft960Variant`, and the fog visibility kernel (`fogVisibleSquares`, `fogMovesFrom`, `applyFogMove`)
+- `game-specs.ts` — taxonomy for current and future hidden-information game families
 - `chess960.ts` — `pickDraft960Offer(seed)` — generates a seeded offer of 3 Chess960 back-ranks
 - `events.ts` — event projection: `replayGameEvents` reduces a sequence of `GameEvent`s into a `GameProjection`
 - `notation.ts` — algebraic/coordinate move notation
 - `clocks.ts` — clock math (`createClock`, `advanceClock`, `clockRemainingMs`)
+- `time-controls.ts` — official time controls and time-class derivation
+- `variants-xiangqi.ts`, `variants-shogi.ts` — non-chess rules kernels for hidden/dev/future variants
 
 Tests live in `packages/game/src/*.test.ts`. Run with `npm test` from root or from the package directory.
+
+## Packages/board-render internals
+
+`packages/board-render` owns shared board rendering used by server/build/browser
+surfaces: OG images, article compositions, thumbnails, and interactive article
+boards. It depends on `packages/game` types but not on server runtime state.
 
 ## Server internals
 
 Key files:
-- `index.ts` — WebSocket server, room lifecycle, message handlers
-- `http-api.ts` — REST endpoints (room creation, lobby, replay, OG images)
-- `room-manager.ts` — in-memory and Postgres-backed room store
-- `variants.ts` — server-side variant dispatch
-- `main.ts` — entry point; splits HTTP and WebSocket handling
+- `main.ts` — production entry point; installs shutdown handlers and starts the server
+- `index.ts` — server orchestration and dependency wiring
+- `server-http.ts` — HTTP entry routing, static serving, health, API dispatch, and page fallbacks
+- `http-api.ts` and `routes/*` — REST endpoints split by domain
+- `server-ws-connection.ts` — chess-family WebSocket connection and message handling
+- `server-ws-dark-xiangqi.ts` plus `server-dark-xiangqi-*` — hidden Dark Xiangqi runtime behind explicit flags
+- `server-room-lifecycle.ts` — room creation, hydration, stale-room cleanup, pause/resume handling
+- `room-manager.ts` — core chess-family game loop and event append/broadcast logic
+- `payloads.ts` — recipient-scoped snapshot construction and fog redaction
 
-Server integration tests in `apps/server/src/*.test.ts` use an in-memory harness by default. Run `npm run test:persistent` for tests against a real Postgres instance.
+Server unit tests live in `apps/server/src/*.test.ts`; Postgres-backed tests
+skip unless `TEST_DATABASE_URL` or `DATABASE_URL` is set. WebSocket integration
+tests live under `apps/server/integration/` and use the integration harness.
+Run `npm run test:persistent` for the local Postgres-backed server suite.
 
 ## Persistence
 

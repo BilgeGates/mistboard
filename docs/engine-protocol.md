@@ -208,9 +208,9 @@ The protocol supports both. The server doesn't care which the engine is.
 
 The canonical type definitions live in TypeScript; a Python mirror tracks
 the TS file 1:1 inside the private `mistboard-engine` sibling repo
-(`src/fow_chess/engine_protocol.py`). The first-party engine lives there,
-cloned at deploy time. The protocol stays in the public repo so any
-engine — first-party private or third-party — can implement it.
+(`src/fow_chess/engine_protocol.py`). The first-party implementation lives
+there. The protocol stays in the public repo so any engine — first-party
+private or third-party — can implement it.
 
 ## Internal HTTP transport
 

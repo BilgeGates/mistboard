@@ -1,11 +1,11 @@
 # Engine Extraction Plan
 
 > **Status (2026-05-25):** executed. The engine lives in the private
-> `mistboard-engine` sibling repo, cloned at Railway build time via a
-> deploy key (`apps/server/src/engine-paths.ts` + `railpack.json`). The
-> protocol contract is `packages/game/src/engine-protocol.ts`, verified
-> by `apps/server/src/engine-protocol/build.test.ts`. This document is
-> retained as the original design.
+> `mistboard-engine` sibling repo. The protocol contract is
+> `packages/game/src/engine-protocol.ts`, verified by
+> `apps/server/src/engine-protocol/build.test.ts`. This document is retained
+> as the original public/private boundary design; provider wiring belongs in
+> private operator notes.
 
 This plan documents the public/private boundary for Mistboard's engine work.
 The goal is to keep Mistboard trustworthy as an open-source hidden-information

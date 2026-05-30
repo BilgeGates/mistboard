@@ -147,10 +147,9 @@ Track these optimizations after the engine extraction settles:
 - make CI and prod-smoke path filters match Railway deploy watch patterns, so
   non-deploy commits do not wait for a revision that production will never
   serve;
-- treat production smoke as tiers: `prod:smoke:lite` for revision and basic API
-  health, `prod:smoke:engines` for engine admission and one real reply, and
-  `prod:smoke:engine-playout` for reliability changes where several minutes of
-  live engine turns are intentional signal;
+- treat production smoke as tiers: lightweight revision/API health, engine
+  admission with one real reply, and full live-engine playout for reliability
+  changes where several minutes of live engine turns are intentional signal;
 - keep a safe synthetic alert path available through
   `npm run ops:test-engine-alert` so Resend rendering and delivery can be tested
   without manufacturing a real incident;

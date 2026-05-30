@@ -31,78 +31,42 @@ npm test                 # in-memory harness
 npm run test:persistent  # requires local Postgres (npm run db:up first)
 ```
 
-Integration tests in `src/*.test.ts`. Tests that check hidden-information correctness should use `test:persistent` — the in-memory harness cannot catch DB-constraint violations or persistence bugs.
+Unit tests live in `src/*.test.ts`. WebSocket integration tests live under
+`integration/`. Tests that check persistence behavior should use
+`test:persistent` — the in-memory harness cannot catch DB-constraint
+violations or persistence bugs.
 
 ## Key files
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | WebSocket server, room lifecycle, message handlers |
-| `http-api.ts` | REST endpoints (room creation, lobby, replay, OG images) |
-| `room-manager.ts` | In-memory and Postgres-backed room store |
-| `main.ts` | Entry point |
+| `main.ts` | Production entry point |
+| `index.ts` | Server orchestration and dependency wiring |
+| `server-http.ts` | HTTP/static/API entry routing |
+| `http-api.ts` + `routes/*` | REST endpoints by domain |
+| `server-ws-connection.ts` | Chess-family WebSocket connection handling |
+| `room-manager.ts` | Core chess-family game loop |
+| `payloads.ts` | Recipient-scoped snapshots and fog redaction |
 
 ## Live engine service
 
-Live PvE sends first-party Python engine turns to an internal engine-worker
-HTTP service. The web/server process builds the redacted `EngineTurnRequest`
-and POSTs it to `MISTBOARD_INTERNAL_ENGINE_URL`; both sides must share
-`MISTBOARD_INTERNAL_ENGINE_TOKEN`. Before creating a Python-engine PvE room,
-web reserves a live engine seat with engine-worker. Turns must carry that
-reservation id, and game end releases it. If engine-worker is at capacity,
+Live PvE sends first-party engine turns through an internal service that speaks
+the public redacted `EngineTurnRequest` / `EngineTurnResponse` protocol. Before
+creating a live engine room, the server reserves an engine seat. Turns carry
+that reservation id, and game end releases it. If engine capacity is exhausted,
 room creation returns `engine_busy` instead of starting a game that cannot
-receive honest engine moves.
+receive engine moves.
 
 `EngineTurnRequest.legalMoves` reuses the public game `Move` shape: promotion
 values are role names (`queen`, `rook`, `bishop`, `knight`). Visible pieces in
 observations use protocol letters (`Q`, `R`, `B`, `N`, `P`, `K`).
 
-On Railway, set `MISTBOARD_INTERNAL_ENGINE_URL` on web to the engine-worker
-private domain with the service port, e.g. `http://<engine-worker-private-domain>:3001`.
-The engine-worker HTTP listener binds to `::` by default for Railway private
-networking and can be overridden with `MISTBOARD_ENGINE_SERVICE_HOST`.
-
 If that service is missing or unhealthy, Python-engine turns fail closed and
 are logged instead of being masked by a random local move under the engine's
 identity.
 
-For production verification, choose the narrowest smoke tier that matches the
-change:
-
-```bash
-npm run prod:smoke:lite -- --base https://mistboard.com
-npm run prod:smoke:engines -- --base https://mistboard.com --engine python-tier1-v0.9.5
-```
-
-Use the full playout smoke when the engine protocol, reservation lifecycle,
-worker image, Python engine, or failure handling changed:
-
-```bash
-npm run prod:smoke:engine-playout -- --base https://mistboard.com --engine python-tier1-v0.9.5 --target-plies 64 --reply-timeout-ms 45000 --total-timeout-ms 600000
-```
-
-Passing the full playout means the script returns `ok: true` by reaching the
-target ply count or by reaching a normal terminal result. A failure, engine
-forfeit, indefinite pause, or per-reply timeout means the live engine path is
-not healthy enough to ship. Full playouts intentionally wait for real engine
-moves and can take several minutes in late plies; report elapsed time and the
-slowest engine replies in handoffs instead of treating that wait as generic
-deploy latency.
-
-The engine-worker service keeps the warm Python pool. `MISTBOARD_PYTHON_POOL_SIZE`
-caps concurrent live engine requests there; when unset, the HTTP service starts
-with 4 workers. `MISTBOARD_LIVE_ENGINE_SEATS` caps admitted live PvE games and
-defaults to the pool size. `MISTBOARD_ENGINE_RESERVATION_TTL_MS` controls stale
-reservation expiry and defaults to 30 minutes. Set `MISTBOARD_BUILD_ENGINE=1`,
-`RAILPACK_PACKAGES=python@3.11`, and `RAILPACK_DEPLOY_APT_PACKAGES=stockfish`
-only on the engine-worker build so Railpack installs Python, Stockfish, and the
-private engine repo there, not on the web build.
-
-When only the private engine implementation changes, redeploy engine-worker
-from source and leave web alone. When the public protocol, engine registry,
-reservation contract, or player-facing engine failure UI changes, deploy web
-and engine-worker together. Prefer pinning `MISTBOARD_ENGINE_REF` to a tag or
-SHA for release builds so engine rollouts are explicit and reversible.
+Provider setup, private networking, release sequencing, smoke tiers, and alert
+destinations are operator runbook material and stay out of this public README.
 
 The metrics tick emits `kind: "metrics"` counters for dashboards. Actionable
 engine failures also emit a separate `kind: "engine_alert"` line at `error` or
@@ -117,23 +81,9 @@ games, but demand exceeded available live engine seats. Watch
 `engine_turn_deadline_guards_tick` as a trend metric rather than a page, because
 deadline guards are expected near the end of low-clock games.
 
-If `RESEND_API_KEY` plus an alert sender and recipient are configured, each
-service also sends throttled email for `engine_alert` events. Set
-`MISTBOARD_ALERT_EMAIL_TO` to the operator inbox and `MISTBOARD_ALERT_EMAIL_FROM`
-to a verified Resend sender. If those are absent, alert email falls back to
-`MISTBOARD_FEEDBACK_TO` and the existing feedback/auth sender. Set
-`MISTBOARD_ALERT_EMAIL_MIN_INTERVAL_MS` to tune the per-severity email throttle;
-the default is 10 minutes. Configure these variables on both web and
-engine-worker if both services should email directly. To verify the rendered
-alert without sending email, run:
-
-```bash
-npm run ops:test-engine-alert -- --severity warning --service engine-worker --field engine_reservation_busy_tick=1
-```
-
-Add `--send` only when running against an environment with the alert sender,
-recipient, and Resend configuration already set. The command prints delivery
-status and rendered text, not provider credentials or environment values.
+Alert email is optional. Engine alert rendering is covered by tests, and
+runtime delivery should be verified without printing provider credentials or
+environment values.
 
 ## Security invariant
 
