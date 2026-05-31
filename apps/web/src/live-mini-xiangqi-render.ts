@@ -9,7 +9,7 @@ import {
   miniXiangqiSquareOf,
 } from '@mistboard/game';
 import { readStoredXiangqiPieceSet } from './theme.js';
-import { type XiangqiPieceSet, renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
+import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
 // Bespoke SVG renderer for the 7x7 Dark Mini Xiangqi board. Pieces sit on
 // intersections (xiangqi convention) and Fog of War is drawn as an inverse
@@ -26,6 +26,9 @@ const HEIGHT = MARGIN * 2 + (RANKS - 1) * CELL;
 const HIT_HALF = 31;
 const FOG_OVERLAP = 0.5;
 
+// Monotonic source of unique fog-mask ids (see renderMiniXiangqiBoardSvg).
+let miniXqFogMaskCounter = 0;
+
 export type MiniXiangqiBoardRenderOptions = {
   interactive?: boolean;
   showFog?: boolean;
@@ -41,7 +44,11 @@ export function renderMiniXiangqiBoardSvg(
 ): string {
   const showFog = options.showFog ?? true;
   const pieceSet = options.pieceSet ?? readStoredXiangqiPieceSet();
-  const maskId = `mini-xq-fog-${view.id.replace(/[^a-zA-Z0-9_-]/g, '')}-${perspective}`;
+  // Globally-unique per render: the postgame triptych mounts three boards in one
+  // document, and SVG `url(#id)` resolves the FIRST element with that id document-
+  // wide. A shared id (same game id + same render orientation) made the black
+  // board apply the red board's fog mask. A counter guarantees no collision.
+  const maskId = `mini-xq-fog-${(miniXqFogMaskCounter += 1)}`;
   const fog = showFog ? fogLayer(view, perspective, maskId) : '';
   return `
     <svg class="mini-xq-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dark Mini Xiangqi board">

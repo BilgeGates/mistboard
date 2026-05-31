@@ -30,7 +30,7 @@ describe('Dark Mini Xiangqi postgame page', () => {
     await flushPromises();
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/dark-mini-xiangqi/games/dmxq_postgame');
-    expect(root.textContent).toContain('Game review');
+    expect(root.textContent).toContain('Dark Mini Xiangqi');
     expect(root.textContent).toContain('Red wins');
     expect(root.textContent).toContain('Red view');
     expect(root.textContent).toContain('Server truth');
@@ -42,10 +42,16 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(download?.textContent).toBe('Download JSON');
     expect(download?.getAttribute('download')).toBe('mistboard-dmxq_postgame.json');
     expect(root.textContent).toContain('Untimed');
-    expect(root.textContent).toContain('Red b1-b2');
-    expect(root.textContent).toContain('Black b7-b6');
-    expect(root.textContent).toContain('Ply 2 of 2');
+    // Moves are grouped two plies per row, dark-chess style: number + red + black.
+    expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1b1-b2b7-b6');
+    expect(root.textContent).toContain('ply 2 of 2');
     expect(root.querySelectorAll('.mini-xq-board')).toHaveLength(3);
+
+    // Each board's fog <mask> needs a unique id: SVG url(#id) resolves the first
+    // match document-wide, so a collision makes one board apply another's fog.
+    const maskIds = [...root.querySelectorAll<SVGMaskElement>('mask[id]')].map((m) => m.id);
+    expect(maskIds.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(maskIds).size).toBe(maskIds.length);
 
     // Fog-safety: a seat view shrouds the opponent; the truth board reveals all.
     expect(root.innerHTML).toContain('aria-label="black hidden piece"');
@@ -55,15 +61,13 @@ describe('Dark Mini Xiangqi postgame page', () => {
     // Flip re-renders all boards; scrubbing back steps the ply counter.
     root.querySelector<HTMLButtonElement>('[aria-label="Flip all boards"]')?.click();
     expect(root.querySelectorAll('.mini-xq-board')).toHaveLength(3);
-    root
-      .querySelector<HTMLButtonElement>('.dxq-postgame__replay-button[aria-label="Previous ply"]')
-      ?.click();
-    expect(root.textContent).toContain('Ply 1 of 2');
+    root.querySelector<HTMLButtonElement>('[aria-label="Previous move"]')?.click();
+    expect(root.textContent).toContain('ply 1 of 2');
   });
 });
 
 function boardWrap(root: HTMLElement, label: string): HTMLElement {
-  const wrap = [...root.querySelectorAll<HTMLElement>('.dxq-postgame__board-wrap')].find((el) =>
+  const wrap = [...root.querySelectorAll<HTMLElement>('.replay-pane')].find((el) =>
     el.textContent?.includes(label),
   );
   if (!wrap) throw new Error(`Missing board wrap: ${label}`);

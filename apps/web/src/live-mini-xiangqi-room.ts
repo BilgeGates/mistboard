@@ -179,8 +179,12 @@ function renderMiniXiangqiClocks(refs: LiveRefs): void {
       row.append(label, time);
       (index === 0 ? refs.clockTop : refs.clockBottom).append(row);
     });
-    refs.clockNote.textContent = `${tcLabel} · clock starts after the opening moves`;
-    refs.clockNote.hidden = false;
+    // Only show the "clock starts after the opening moves" hint while the game is
+    // actually pregame — not once it's finished/aborted (the clock just sits unarmed
+    // at the final times, and the hint would be stale).
+    const ended = view?.status.type === 'finished' || view?.status.type === 'aborted';
+    refs.clockNote.textContent = ended ? '' : `${tcLabel} · clock starts after the opening moves`;
+    refs.clockNote.hidden = ended;
     lastActiveMiniClockColor = null;
     return;
   }
