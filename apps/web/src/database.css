@@ -1,0 +1,281 @@
+/* Unlisted admin game browser (/database). Functional, dense layout — this is
+   an internal tool, not a public surface. Uses the shared site tokens so it
+   tracks the active theme. */
+
+.database-shell {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.database-sub {
+  color: var(--site-muted);
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+}
+
+.database-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: end;
+  padding: 1rem;
+  border: 1px solid var(--site-border);
+  border-radius: 10px;
+  background: var(--site-panel);
+}
+
+.database-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.database-field-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--site-muted);
+}
+
+.database-select,
+.database-input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--site-border);
+  border-radius: 7px;
+  background: var(--site-bg);
+  color: var(--site-text);
+  font-size: 0.88rem;
+}
+
+.database-select:focus,
+.database-input:focus {
+  outline: 2px solid var(--site-focus);
+  outline-offset: 1px;
+}
+
+.database-filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+}
+
+.database-btn {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--site-border);
+  border-radius: 7px;
+  background: var(--site-panel-soft);
+  color: var(--site-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.database-btn:hover:not(:disabled) {
+  background: var(--site-hover);
+}
+
+.database-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.database-btn-primary {
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+  color: var(--site-on-accent);
+}
+
+.database-btn-primary:hover:not(:disabled) {
+  background: var(--site-accent-strong);
+}
+
+/* Summary / win-rate readout */
+.database-summary {
+  margin: 1.25rem 0;
+}
+
+.database-total {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--site-heading);
+  margin: 0 0 0.6rem;
+}
+
+.database-winbar {
+  display: flex;
+  width: 100%;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--site-border);
+  background: var(--site-panel);
+}
+
+.database-winseg-white {
+  background: #e8e8e8;
+}
+.database-winseg-black {
+  background: #2b2b2b;
+}
+.database-winseg-draw {
+  background: var(--site-muted);
+}
+.database-winseg-red {
+  background: #b03636;
+}
+
+.database-winlegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--site-muted);
+}
+
+.database-winlegend-item::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 0.35rem;
+  border: 1px solid var(--site-border);
+  vertical-align: baseline;
+}
+.database-winlegend-white::before {
+  background: #e8e8e8;
+}
+.database-winlegend-black::before {
+  background: #2b2b2b;
+}
+.database-winlegend-draw::before {
+  background: var(--site-muted);
+}
+.database-winlegend-red::before {
+  background: #b03636;
+}
+
+.database-length {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--site-muted);
+}
+
+.database-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.database-term-chip {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--site-panel-soft);
+  border: 1px solid var(--site-border-soft);
+  font-size: 0.78rem;
+  color: var(--site-text);
+}
+
+/* Results list */
+.database-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.database-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  background: var(--site-panel);
+  text-decoration: none;
+  color: var(--site-text);
+}
+
+.database-row:hover {
+  background: var(--site-hover);
+  border-color: var(--site-accent-soft);
+}
+
+.database-result {
+  flex: 0 0 auto;
+  width: 52px;
+  text-align: center;
+  padding: 0.2rem 0;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.database-result-white {
+  background: #e8e8e8;
+  color: #1a1a1a;
+}
+.database-result-black {
+  background: #2b2b2b;
+  color: #f0f0f0;
+}
+.database-result-draw {
+  background: var(--site-panel-soft);
+  color: var(--site-muted);
+  border: 1px solid var(--site-border);
+}
+.database-result-red {
+  background: #b03636;
+  color: #fff;
+}
+
+.database-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.database-row-players {
+  font-weight: 600;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.database-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.database-meta-pill {
+  font-size: 0.72rem;
+  color: var(--site-muted);
+  background: var(--site-panel-soft);
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+}
+
+/* Pager */
+.database-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.database-pager-status {
+  font-size: 0.85rem;
+  color: var(--site-muted);
+}
+
+.database-status {
+  color: var(--site-muted);
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}

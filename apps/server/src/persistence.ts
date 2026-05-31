@@ -67,9 +67,13 @@ export {
 } from './persistence-game-lifecycle.js';
 export type {
   CompletedGameFilters,
+  GameAggregates,
+  GameFacets,
   GameParticipant,
   GameParticipantColor,
   GameParticipantSubjectType,
+  GameQueryFilters,
+  GameQueryPage,
   GameRecord,
   GameResult,
   GameSummary,
@@ -80,12 +84,15 @@ export type {
 } from './persistence-games.js';
 export {
   countWatchSealedGames,
+  gameAggregates,
+  gameFacets,
   getGameSummary,
   listCompletedGames,
   listCorpusGames,
   listRecentEveGames,
   listRecentPublicGames,
   listWatchUnlockedGames,
+  queryGames,
   recordGameEnd,
 } from './persistence-games.js';
 export type { RoomSeatTokenRecord, RoomSeatTokenSeat } from './persistence-seat-tokens.js';

@@ -1,4 +1,5 @@
-import type { Color, XiangqiColor } from '@mistboard/game';
+import type { Color, TimeClass, XiangqiColor } from '@mistboard/game';
+import { TIME_CONTROLS } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
 import { getPool } from './persistence-db.js';
 import type {
@@ -365,6 +366,185 @@ export async function getGameSummary(roomId: string): Promise<RecentEveGameRecor
   if (!row) return null;
   const [record] = await attachGameParticipants([recentEveGameRecordFromRow(row)]);
   return record ?? null;
+}
+
+// ── Faceted game query + aggregates (powers the admin game browser) ─────────
+// queryGames / gameAggregates share one WHERE builder so a filtered result page
+// and its win-rate readout describe the exact same slice of completed games.
+
+export type GameQueryFilters = {
+  variant?: string;
+  mode?: GameMode;
+  result?: GameResult;
+  termination?: GameTermination;
+  rated?: boolean;
+  timeClass?: TimeClass;
+  plyMin?: number;
+  plyMax?: number;
+  endedFrom?: Date;
+  endedTo?: Date;
+  offset?: number;
+  limit?: number;
+};
+
+export type GameQueryPage = {
+  games: RecentEveGameRecord[];
+  total: number;
+};
+
+export type GameAggregates = {
+  total: number;
+  results: { whiteWins: number; blackWins: number; redWins: number; draws: number };
+  terminations: { termination: string; count: number }[];
+  plyCount: { avg: number | null; min: number | null; max: number | null };
+};
+
+export type GameFacets = {
+  variants: string[];
+  modes: string[];
+  terminations: string[];
+  results: string[];
+};
+
+// Translate filters into a parameterized WHERE clause. Every value is bound as a
+// query parameter ($n) — nothing is string-interpolated — so the filter set is
+// injection-safe even though it is assembled dynamically. Exported for unit
+// tests of the param indexing.
+export function buildGameQueryWhere(filters: GameQueryFilters): {
+  clause: string;
+  values: unknown[];
+} {
+  const conditions: string[] = [`games.status = 'completed'`];
+  const values: unknown[] = [];
+  const bind = (value: unknown): string => {
+    values.push(value);
+    return `$${values.length}`;
+  };
+  if (filters.variant) conditions.push(`games.variant = ${bind(filters.variant)}`);
+  if (filters.mode) conditions.push(`games.mode = ${bind(filters.mode)}`);
+  if (filters.result) conditions.push(`games.result = ${bind(filters.result)}`);
+  if (filters.termination) conditions.push(`games.termination = ${bind(filters.termination)}`);
+  if (typeof filters.rated === 'boolean') conditions.push(`games.rated = ${bind(filters.rated)}`);
+  if (filters.timeClass) {
+    const matches = TIME_CONTROLS.filter((tc) => tc.timeClass === filters.timeClass);
+    const ors = matches.map(
+      (tc) =>
+        `(games.initial_ms = ${bind(tc.initialMs)} AND games.increment_ms = ${bind(tc.incrementMs)})`,
+    );
+    conditions.push(ors.length > 0 ? `(${ors.join(' OR ')})` : 'FALSE');
+  }
+  if (typeof filters.plyMin === 'number') {
+    conditions.push(`games.ply_count >= ${bind(filters.plyMin)}`);
+  }
+  if (typeof filters.plyMax === 'number') {
+    conditions.push(`games.ply_count <= ${bind(filters.plyMax)}`);
+  }
+  if (filters.endedFrom) conditions.push(`games.ended_at >= ${bind(filters.endedFrom)}`);
+  if (filters.endedTo) conditions.push(`games.ended_at < ${bind(filters.endedTo)}`);
+  return { clause: conditions.join('\n       AND '), values };
+}
+
+export async function queryGames(filters: GameQueryFilters): Promise<GameQueryPage> {
+  const limit = Math.max(1, Math.min(filters.limit ?? 50, 200));
+  const offset = Math.max(0, filters.offset ?? 0);
+  const { clause, values } = buildGameQueryWhere(filters);
+
+  const countResult = await getPool().query<{ total: number }>(
+    `SELECT count(*)::int AS total FROM games WHERE ${clause}`,
+    values,
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+  if (total === 0) return { games: [], total: 0 };
+
+  const pageValues = [...values, limit, offset];
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
+     FROM games
+     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     WHERE ${clause}
+     ORDER BY games.ended_at DESC, games.room_id DESC
+     LIMIT $${pageValues.length - 1} OFFSET $${pageValues.length}`,
+    pageValues,
+  );
+  const games = await attachGameParticipants(rows.map(recentEveGameRecordFromRow));
+  return { games, total };
+}
+
+export async function gameAggregates(filters: GameQueryFilters): Promise<GameAggregates> {
+  const { clause, values } = buildGameQueryWhere(filters);
+  const summary = await getPool().query<{
+    total: number;
+    white_wins: number;
+    black_wins: number;
+    red_wins: number;
+    draws: number;
+    avg_ply: string | null;
+    min_ply: number | null;
+    max_ply: number | null;
+  }>(
+    `SELECT count(*)::int AS total,
+            count(*) FILTER (WHERE games.result = 'white-wins')::int AS white_wins,
+            count(*) FILTER (WHERE games.result = 'black-wins')::int AS black_wins,
+            count(*) FILTER (WHERE games.result = 'red-wins')::int AS red_wins,
+            count(*) FILTER (WHERE games.result = 'draw')::int AS draws,
+            avg(games.ply_count) AS avg_ply,
+            min(games.ply_count)::int AS min_ply,
+            max(games.ply_count)::int AS max_ply
+     FROM games
+     WHERE ${clause}`,
+    values,
+  );
+  const terms = await getPool().query<{ termination: string; count: number }>(
+    `SELECT games.termination, count(*)::int AS count
+     FROM games
+     WHERE ${clause}
+     GROUP BY games.termination
+     ORDER BY count DESC, games.termination ASC`,
+    values,
+  );
+  const row = summary.rows[0];
+  return {
+    total: row?.total ?? 0,
+    results: {
+      whiteWins: row?.white_wins ?? 0,
+      blackWins: row?.black_wins ?? 0,
+      redWins: row?.red_wins ?? 0,
+      draws: row?.draws ?? 0,
+    },
+    terminations: terms.rows.map((r) => ({ termination: r.termination, count: r.count })),
+    plyCount: {
+      avg: row?.avg_ply != null ? Math.round(Number(row.avg_ply)) : null,
+      min: row?.min_ply ?? null,
+      max: row?.max_ply ?? null,
+    },
+  };
+}
+
+// Distinct values present in completed games, for populating filter dropdowns
+// from real data rather than a hardcoded list.
+export async function gameFacets(): Promise<GameFacets> {
+  const { rows } = await getPool().query<{
+    variants: string[] | null;
+    modes: string[] | null;
+    terminations: string[] | null;
+    results: string[] | null;
+  }>(
+    `SELECT array_agg(DISTINCT variant) AS variants,
+            array_agg(DISTINCT mode) AS modes,
+            array_agg(DISTINCT termination) AS terminations,
+            array_agg(DISTINCT result) AS results
+     FROM games
+     WHERE status = 'completed'`,
+  );
+  const row = rows[0];
+  const clean = (xs: string[] | null | undefined): string[] =>
+    [...new Set((xs ?? []).filter((value): value is string => Boolean(value)))].sort();
+  return {
+    variants: clean(row?.variants),
+    modes: clean(row?.modes),
+    terminations: clean(row?.terminations),
+    results: clean(row?.results),
+  };
 }
 
 export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void> {

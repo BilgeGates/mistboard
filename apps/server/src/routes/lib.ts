@@ -12,6 +12,7 @@ import {
   type TimeControlId,
   type VariantId,
 } from '@mistboard/game';
+import { currentAccountUser } from './../account-session.js';
 import type {
   DarkMiniXiangqiCreatorPreference,
   DarkMiniXiangqiRuntimeRoom,
@@ -182,4 +183,14 @@ export function isHttpAdminAuthorized(request: IncomingMessage): boolean {
     ? authorization.slice('Bearer '.length)
     : undefined;
   return isAdminDebugToken(token);
+}
+
+// Session-cookie admin gate (vs. isHttpAdminAuthorized's Bearer-token gate).
+// Used by browser-driven admin surfaces that authenticate via the account
+// session rather than a script-supplied token. Open in local dev so the tool is
+// usable without an admin account.
+export async function isHttpAdminSession(request: IncomingMessage): Promise<boolean> {
+  if (!isProductionLikeRuntime()) return true;
+  const user = await currentAccountUser(request);
+  return user?.accountRole === 'admin';
 }

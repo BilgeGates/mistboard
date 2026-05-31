@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { Color, GameEvent } from '@mistboard/game';
+import type { Color, GameEvent, TimeClass } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import { buildGamePgn, buildGamePublicationJson } from './../game-export.js';
 import * as persistence from './../persistence.js';
@@ -12,6 +12,7 @@ import { listWatchChannels, watchChannelForId } from './../watch-channels.js';
 import {
   type HttpApiContext,
   isHttpAdminAuthorized,
+  isHttpAdminSession,
   requireMethod,
   requirePersistence,
   writeJson,
@@ -82,6 +83,37 @@ export async function tryHandle(
     const games = await persistence.listRecentPublicGames(10);
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ games }));
+    return true;
+  }
+
+  // Admin game browser: faceted query + win-rate aggregates over completed
+  // games. Session-admin gated (works from a logged-in admin browser); open in
+  // local dev. Powers the unlisted /database surface.
+  if (pathname === '/api/admin/games/query') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    if (!(await isHttpAdminSession(request))) {
+      writeJson(response, 403, { error: 'admin_required' });
+      return true;
+    }
+    const parsed = parseGameQueryFilters(parsedUrl.searchParams);
+    if ('error' in parsed) {
+      writeJson(response, 400, { error: parsed.error });
+      return true;
+    }
+    const [page, aggregates, facets] = await Promise.all([
+      persistence.queryGames(parsed.value),
+      persistence.gameAggregates(parsed.value),
+      persistence.gameFacets(),
+    ]);
+    writeJson(response, 200, {
+      games: page.games,
+      total: page.total,
+      aggregates,
+      facets,
+      offset: parsed.value.offset ?? 0,
+      limit: parsed.value.limit ?? 50,
+    });
     return true;
   }
 
@@ -423,4 +455,84 @@ function parseUtcDateParam(value: string | null): Date | null {
   const date = new Date(`${value}T00:00:00.000Z`);
   if (!Number.isFinite(date.getTime())) return null;
   return date.toISOString().startsWith(value) ? date : null;
+}
+
+function parseNonNegativeInt(value: string | null): number | null {
+  if (value == null || value === '') return null;
+  if (!/^\d+$/.test(value)) return null;
+  return Number.parseInt(value, 10);
+}
+
+const GAME_RESULT_VALUES = new Set(['white-wins', 'black-wins', 'red-wins', 'draw']);
+const TIME_CLASS_VALUES = new Set<TimeClass>(['bullet', 'blitz', 'rapid']);
+
+// Parse + validate the /api/admin/games/query string into typed filters. Every
+// param is optional; an unrecognized value for a closed-set param is a 400 so
+// the UI can't silently send a no-op filter. `to` is widened to an inclusive
+// day (end-of-day exclusive) to match the date-only granularity of the input.
+// Exported for unit tests.
+export function parseGameQueryFilters(
+  params: URLSearchParams,
+): { value: persistence.GameQueryFilters } | { error: string } {
+  const value: persistence.GameQueryFilters = {};
+
+  const variant = params.get('variant');
+  if (variant) value.variant = variant;
+
+  if (params.has('mode')) {
+    const mode = parseGameModeParam(params.get('mode'));
+    if (!mode) return { error: 'invalid_mode' };
+    value.mode = mode;
+  }
+
+  const result = params.get('result');
+  if (result) {
+    if (!GAME_RESULT_VALUES.has(result)) return { error: 'invalid_result' };
+    value.result = result as persistence.GameResult;
+  }
+
+  const termination = params.get('termination');
+  if (termination) value.termination = termination as persistence.GameTermination;
+
+  if (params.has('rated')) {
+    const rated = params.get('rated');
+    if (rated === 'true') value.rated = true;
+    else if (rated === 'false') value.rated = false;
+    else if (rated) return { error: 'invalid_rated' };
+  }
+
+  const timeClass = params.get('timeClass');
+  if (timeClass) {
+    if (!TIME_CLASS_VALUES.has(timeClass as TimeClass)) return { error: 'invalid_time_class' };
+    value.timeClass = timeClass as TimeClass;
+  }
+
+  if (params.has('plyMin')) {
+    const plyMin = parseNonNegativeInt(params.get('plyMin'));
+    if (plyMin == null) return { error: 'invalid_ply_min' };
+    value.plyMin = plyMin;
+  }
+  if (params.has('plyMax')) {
+    const plyMax = parseNonNegativeInt(params.get('plyMax'));
+    if (plyMax == null) return { error: 'invalid_ply_max' };
+    value.plyMax = plyMax;
+  }
+
+  if (params.has('from')) {
+    const from = parseUtcDateParam(params.get('from'));
+    if (!from) return { error: 'invalid_from' };
+    value.endedFrom = from;
+  }
+  if (params.has('to')) {
+    const to = parseUtcDateParam(params.get('to'));
+    if (!to) return { error: 'invalid_to' };
+    value.endedTo = new Date(to.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  const offset = parseNonNegativeInt(params.get('offset'));
+  if (offset != null) value.offset = offset;
+  const limit = parsePositiveInteger(params.get('limit') ?? undefined);
+  if (limit) value.limit = limit;
+
+  return { value };
 }
