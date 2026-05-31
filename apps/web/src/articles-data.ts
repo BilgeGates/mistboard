@@ -2433,7 +2433,7 @@ const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
 
 export const articles: Article[] = [
   {
-    slug: 'chess-rules-primer',
+    slug: 'chess-rules',
     kind: 'rules',
     title: 'Chess Rules',
     summary:
@@ -3243,7 +3243,7 @@ export const articles: Article[] = [
     ],
   },
   {
-    slug: 'xiangqi-rules-primer',
+    slug: 'xiangqi-rules',
     kind: 'rules',
     title: 'Xiangqi Rules',
     summary:
@@ -3432,12 +3432,12 @@ export const articles: Article[] = [
     intro: [
       {
         kind: 'paragraph',
-        text: 'Dark Xiangqi is the modern Fog of War version of [xiangqi](/articles/xiangqi-rules-primer): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
+        text: 'Dark Xiangqi is the modern Fog of War version of [xiangqi](/articles/xiangqi-rules): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
       },
       {
         kind: 'paragraph',
         text:
-          'If xiangqi is new to you, start with [Xiangqi Rules](/articles/xiangqi-rules-primer). If you already play xiangqi, the sections below explain only what fog changes.',
+          'If xiangqi is new to you, start with [Xiangqi Rules](/articles/xiangqi-rules). If you already play xiangqi, the sections below explain only what fog changes.',
       },
     ],
     sections: [
@@ -3570,7 +3570,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Mini Xiangqi was invented in 1973 by Shigenobu Kusumoto of Osaka, Japan. It is a simplified, reduced version of [xiangqi](/articles/xiangqi-rules-primer): a smaller board, fewer pieces, and no river.',
+          'Mini Xiangqi was invented in 1973 by Shigenobu Kusumoto of Osaka, Japan. It is a simplified, reduced version of [xiangqi](/articles/xiangqi-rules): a smaller board, fewer pieces, and no river.',
       },
       {
         kind: 'paragraph',

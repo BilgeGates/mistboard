@@ -186,10 +186,10 @@ const ZH_HANS: Record<string, string> = {
   'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.':
     '为这门古老的棋类加上现代的迷雾：每一方只能看到己方棋子可及的范围，没有将军提示，将帅由被吃而落败。',
   // intro
-  'Dark Xiangqi is the modern Fog of War version of [xiangqi](/articles/xiangqi-rules-primer): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
-    '迷雾象棋是[象棋](/articles/xiangqi-rules-primer)的现代「战争迷雾」版本：棋子按标准象棋规则走动，而看不见的敌方棋子保持隐藏、危险也不会被告知。擒获将帅即获胜。',
-  'If xiangqi is new to you, start with the [Xiangqi Rules Primer](/articles/xiangqi-rules-primer). If you already play xiangqi, the sections below explain only what fog changes.':
-    '如果你刚接触象棋，请先从[象棋规则入门](/articles/xiangqi-rules-primer)开始。如果你已经会下象棋，下面各节只讲解迷雾改变了什么。',
+  'Dark Xiangqi is the modern Fog of War version of [xiangqi](/articles/xiangqi-rules): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
+    '迷雾象棋是[象棋](/articles/xiangqi-rules)的现代「战争迷雾」版本：棋子按标准象棋规则走动，而看不见的敌方棋子保持隐藏、危险也不会被告知。擒获将帅即获胜。',
+  'If xiangqi is new to you, start with the [Xiangqi Rules Primer](/articles/xiangqi-rules). If you already play xiangqi, the sections below explain only what fog changes.':
+    '如果你刚接触象棋，请先从[象棋规则入门](/articles/xiangqi-rules)开始。如果你已经会下象棋，下面各节只讲解迷雾改变了什么。',
   // section headings
   'Win condition: general capture': '胜负条件：擒获将帅',
   'Play status': '对弈状态',
@@ -376,10 +376,10 @@ const ZH_HANT: Record<string, string> = {
   'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.':
     '為這門古老的棋類加上現代的迷霧：每一方只能看到己方棋子可及的範圍，沒有將軍提示，將帥由被吃而落敗。',
   // intro
-  'Dark Xiangqi is the modern Fog of War version of [xiangqi](/articles/xiangqi-rules-primer): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
-    '迷霧象棋是[象棋](/articles/xiangqi-rules-primer)的現代「戰爭迷霧」版本：棋子按標準象棋規則走動，而看不見的敵方棋子保持隱藏、危險也不會被告知。擒獲將帥即獲勝。',
-  'If xiangqi is new to you, start with the [Xiangqi Rules Primer](/articles/xiangqi-rules-primer). If you already play xiangqi, the sections below explain only what fog changes.':
-    '如果你剛接觸象棋，請先從[象棋規則入門](/articles/xiangqi-rules-primer)開始。如果你已經會下象棋，下面各節只講解迷霧改變了什麼。',
+  'Dark Xiangqi is the modern Fog of War version of [xiangqi](/articles/xiangqi-rules): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
+    '迷霧象棋是[象棋](/articles/xiangqi-rules)的現代「戰爭迷霧」版本：棋子按標準象棋規則走動，而看不見的敵方棋子保持隱藏、危險也不會被告知。擒獲將帥即獲勝。',
+  'If xiangqi is new to you, start with the [Xiangqi Rules Primer](/articles/xiangqi-rules). If you already play xiangqi, the sections below explain only what fog changes.':
+    '如果你剛接觸象棋，請先從[象棋規則入門](/articles/xiangqi-rules)開始。如果你已經會下象棋，下面各節只講解迷霧改變了什麼。',
   // section headings
   'Win condition: general capture': '勝負條件：擒獲將帥',
   'Play status': '對弈狀態',

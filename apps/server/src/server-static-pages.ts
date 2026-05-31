@@ -59,7 +59,7 @@ const RULES_INDEX_META: Record<
 // surface (title + description) so the server can inject per-route meta
 // without importing the web bundle. Keep in sync when titles/summaries change.
 export const ARTICLE_META: Record<string, { title: string; description: string }> = {
-  'chess-rules-primer': {
+  'chess-rules': {
     title: 'Chess Rules',
     description:
       'The regular chess baseline for Mistboard: setup, turns, legal moves, captures, check, checkmate, castling, promotion, en passant, and common draws.',
@@ -79,7 +79,7 @@ export const ARTICLE_META: Record<string, { title: string; description: string }
     description:
       "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
   },
-  'xiangqi-rules-primer': {
+  'xiangqi-rules': {
     title: 'Xiangqi Rules',
     description:
       'The regular xiangqi baseline for Mistboard: intersections, palaces, river rules, piece movement, cannon screens, checks, facing generals, and endings.',
@@ -104,6 +104,13 @@ export const ARTICLE_META: Record<string, { title: string; description: string }
     description:
       "Stockfish-class engines don't transfer to dark chess because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
   },
+};
+
+// Articles renamed for cleaner URLs (old slug -> new slug). serveArticlePage
+// 301s these so previously-published links and crawler-cached URLs don't 404.
+const RENAMED_ARTICLE_SLUGS: Record<string, string> = {
+  'chess-rules-primer': 'chess-rules',
+  'xiangqi-rules-primer': 'xiangqi-rules',
 };
 
 export function injectPageMeta(html: string, meta: PageMeta): string {
@@ -225,6 +232,16 @@ export async function serveArticlePage(params: {
   staticDir: string;
   langPrefix?: string;
 }): Promise<void> {
+  // 301 renamed legacy slugs to their clean path, preserving any language
+  // prefix, before any serving work.
+  const renamed = RENAMED_ARTICLE_SLUGS[params.slug];
+  if (renamed) {
+    const prefix = params.langPrefix ? `/${params.langPrefix}` : '';
+    params.response.writeHead(301, { location: `${prefix}/articles/${renamed}` });
+    params.response.end();
+    return;
+  }
+
   // Published articles are pre-rendered at build time (apps/web/scripts/
   // prerender-articles.mjs): prose + meta baked into the document so crawlers
   // and LLMs see real content, not an empty #app. Translated variants live under
