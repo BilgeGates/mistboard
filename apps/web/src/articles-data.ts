@@ -3193,7 +3193,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Mini Xiangqi was invented in 1973 by [Shigenobu Kusumoto of Osaka, Japan](https://playstrategy.org/variant/minixiangqi). It is a simplified, reduced version of [xiangqi](/articles/xiangqi-rules-primer): a smaller board, fewer pieces, and no river.',
+          'Mini Xiangqi was invented in 1973 by Shigenobu Kusumoto of Osaka, Japan. It is a simplified, reduced version of [xiangqi](/articles/xiangqi-rules-primer): a smaller board, fewer pieces, and no river.',
       },
       {
         kind: 'paragraph',
