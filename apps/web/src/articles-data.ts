@@ -3405,7 +3405,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Xiangqi, or Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).',
+          '[Xiangqi](https://en.wikipedia.org/wiki/Xiangqi), or Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).',
       },
       {
         kind: 'paragraph',
@@ -3526,7 +3526,12 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Xiangqi also restricts endless forcing cycles. Perpetual check and perpetual chase are not allowed, and tournament rules spell out detailed repetition procedures. The practical takeaway: you cannot use an endless check or chase as a free way to force a draw.',
+              'Xiangqi also restricts endless forcing cycles. Perpetual check and perpetual chase are not allowed: a player who repeats an endless attack loses rather than forcing a draw. Tournament rules spell out detailed repetition procedures for exactly when a cycle counts as perpetual.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'A game is drawn when neither side has enough material to checkmate, by a repetition that breaks none of those rules, or when a long run of moves passes with no capture. The no-capture limit depends on the rule set: the World Xiangqi Federation rules use a fifty-move rule, while the Chinese (CXA) rules require at least sixty plies before a draw can be claimed.',
           },
         ],
       },
