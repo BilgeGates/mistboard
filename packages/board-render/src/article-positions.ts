@@ -11,7 +11,12 @@
 import { type Board, darkChessVariant, type GameState, type PieceRole } from '@mistboard/game';
 import type { Color, Square } from '@mistboard/game';
 import type { PieceOnBoard } from './board-svg.js';
-import { boardToPieces, fogSquaresFromVisible, startingPositionFromBackRank } from './positions.js';
+import {
+  boardToPieces,
+  fogSquaresFromVisible,
+  piecesToBoard,
+  startingPositionFromBackRank,
+} from './positions.js';
 
 export type ArticleOgPosition = {
   pieces: PieceOnBoard[];
@@ -78,6 +83,10 @@ const DARK_CHESS_START = darkChessVariant.createInitialState('dark-chess-rules-s
 const CONE_QUEEN = demoState('cone-queen', CONE_QUEEN_BOARD);
 const DISCOVERY_BEFORE = demoState('dark-chess-rules-discovery', DISCOVERY_BOARD);
 const DARK_CHESS_CONCEPTS = demoState('dark-chess-concepts-deduction', DARK_CHESS_CONCEPTS_BOARD);
+const DRAFT960_START = demoState(
+  'dark-draft960-start',
+  piecesToBoard(startingPositionFromBackRank(DRAFT960_OFFER_A)),
+);
 
 export const ARTICLE_OG_POSITIONS: Record<string, ArticleOgPosition> = {
   'dark-chess': {
@@ -92,6 +101,7 @@ export const ARTICLE_OG_POSITIONS: Record<string, ArticleOgPosition> = {
   },
   draft960: {
     pieces: startingPositionFromBackRank(DRAFT960_OFFER_A),
+    fogSquares: fogFor(DRAFT960_START, 'white'),
     orientation: 'white',
   },
   'engine-belief-state': {

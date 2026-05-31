@@ -3494,12 +3494,12 @@ export const articles: Article[] = [
   {
     slug: 'draft960',
     kind: 'rules',
-    title: 'Draft960: dark chess with a hidden draft',
+    title: 'Dark Draft960',
     summary:
       "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
     status: 'draft',
     audience:
-      'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Draft960 unique.',
+      'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Dark Draft960 unique.',
     thumbnail: ARTICLE_OG_POSITIONS.draft960,
     sections: [
       {
@@ -3561,12 +3561,12 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: "Open a board, pick Draft960, share the link. No account required.",
+            text: "Open a board, pick Dark Draft960, share the link. No account required.",
           },
           {
             kind: 'cta',
             buttons: [
-              { label: 'Play Draft960', href: '/', emphasis: 'primary' },
+              { label: 'Play Dark Draft960', href: '/', emphasis: 'primary' },
             ],
           } as ArticleBlock,
           {

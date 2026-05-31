@@ -83,7 +83,7 @@ export const ARTICLE_META: Record<
       'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
   },
   draft960: {
-    title: 'Draft960: dark chess with a hidden draft',
+    title: 'Dark Draft960',
     kind: 'rules',
     description:
       "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
