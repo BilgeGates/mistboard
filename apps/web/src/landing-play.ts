@@ -49,6 +49,7 @@ type LandingGameSpecCapabilities = {
   glyphClass?: string;
   supportsRated: boolean;
   supportsStartFormat: boolean;
+  supportsTimeControl: boolean;
 };
 type LandingRoomSetup = {
   gameSpecId: LandingVariantGameSpecId;
@@ -128,6 +129,7 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<
     firstLabel: 'White',
     supportsRated: true,
     supportsStartFormat: true,
+    supportsTimeControl: true,
   },
   [DARK_XIANGQI_SPEC_ID]: {
     blackGlyph: '將',
@@ -137,6 +139,7 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<
     glyphClass: 'xiangqi',
     supportsRated: false,
     supportsStartFormat: false,
+    supportsTimeControl: true,
   },
   [DARK_MINI_XIANGQI_SPEC_ID]: {
     blackGlyph: '將',
@@ -146,6 +149,7 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<
     glyphClass: 'xiangqi',
     supportsRated: false,
     supportsStartFormat: false,
+    supportsTimeControl: false,
   },
 };
 
@@ -690,6 +694,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     if (capabilities.firstColor === 'white' && preferredColor === 'red') preferredColor = 'white';
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
     if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
+    timeSection.hidden = !capabilities.supportsTimeControl;
     syncVariantControls();
     syncColorPreferenceControls();
   };

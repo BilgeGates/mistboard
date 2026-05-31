@@ -117,6 +117,11 @@ describe('landing play panel', () => {
     variantSelect!.value = 'dark-mini-xiangqi';
     variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
     expect(document.body.textContent).toContain('Red');
+    // Mini is untimed: the time-control section is hidden so it can't mislead.
+    const timeSection = document
+      .querySelector('.landing-time-presets')
+      ?.closest('.landing-setup-section') as HTMLElement | null;
+    expect(timeSection?.hidden).toBe(true);
     const createButton = [...document.querySelectorAll('button')].find(
       (candidate) => candidate.textContent === 'Create room',
     );
