@@ -115,17 +115,26 @@ export async function consumeEmailLoginChallenge(
   codeHash: string,
   at: Date,
 ): Promise<{ email: string } | null> {
+  // Atomic attempt-and-check. Every guess against a live, non-exhausted
+  // challenge burns one attempt; a correct guess additionally marks the
+  // challenge consumed and returns the email. A wrong guess increments
+  // attempt_count without matching code_hash, so once attempt_count reaches
+  // max_attempts the row no longer satisfies the WHERE clause and the
+  // challenge is dead well before its TTL — closing the brute-force window on
+  // the 8-digit code. Single statement so concurrent confirms can't race past
+  // the cap.
   const { rows } = await getPool().query<{ email: string }>(
     `UPDATE email_login_challenges
-     SET consumed_at = $3
+     SET attempt_count = attempt_count + 1,
+         consumed_at = CASE WHEN code_hash = $2 THEN $3 ELSE consumed_at END
      WHERE id = $1
-       AND code_hash = $2
        AND consumed_at IS NULL
        AND expires_at > $3
-     RETURNING email`,
+       AND attempt_count < max_attempts
+     RETURNING CASE WHEN consumed_at = $3 THEN email ELSE NULL END AS email`,
     [id, codeHash, at],
   );
-  return rows[0] ?? null;
+  return rows[0]?.email ? { email: rows[0].email } : null;
 }
 
 export async function findUserByEmail(email: string): Promise<UserAccount | null> {

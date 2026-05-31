@@ -37,6 +37,50 @@ definePersistenceTests('accounts', () => {
     assert.equal(await consumeEmailLoginChallenge('login-expired', codeHash, now), null);
   });
 
+  test('email login challenges lock out after too many wrong codes', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const correctHash = sha256('11112222');
+    const wrongHash = sha256('99998888');
+    await createEmailLoginChallenge({
+      id: 'login-bruteforce',
+      email: 'mallory@example.com',
+      codeHash: correctHash,
+      expiresAt: new Date(now.getTime() + 60_000),
+    });
+
+    // Five wrong guesses exhaust the default attempt cap. The challenge is
+    // still inside its TTL the whole time, so only the cap can stop it.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      assert.equal(await consumeEmailLoginChallenge('login-bruteforce', wrongHash, now), null);
+    }
+
+    // The correct code is now rejected too: the challenge is locked, not just
+    // the individual guesses. An attacker who burned the budget can't recover.
+    assert.equal(await consumeEmailLoginChallenge('login-bruteforce', correctHash, now), null);
+  });
+
+  test('email login challenges accept the correct code before the cap', async () => {
+    const now = new Date('2026-05-09T12:00:00.000Z');
+    const correctHash = sha256('44445555');
+    const wrongHash = sha256('00001111');
+    await createEmailLoginChallenge({
+      id: 'login-recoverable',
+      email: 'recoverable@example.com',
+      codeHash: correctHash,
+      expiresAt: new Date(now.getTime() + 60_000),
+    });
+
+    // A couple of typos don't cost the user the challenge.
+    assert.equal(await consumeEmailLoginChallenge('login-recoverable', wrongHash, now), null);
+    assert.equal(await consumeEmailLoginChallenge('login-recoverable', wrongHash, now), null);
+
+    assert.deepEqual(await consumeEmailLoginChallenge('login-recoverable', correctHash, now), {
+      email: 'recoverable@example.com',
+    });
+    // And it remains one-time after the successful consume.
+    assert.equal(await consumeEmailLoginChallenge('login-recoverable', correctHash, now), null);
+  });
+
   test('email login challenges can be deleted after delivery failure', async () => {
     const now = new Date('2026-05-09T12:00:00.000Z');
     const codeHash = sha256('12345678');
