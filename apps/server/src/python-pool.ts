@@ -35,6 +35,9 @@ export interface PythonPoolResponse {
   move: Move;
   engine: { id: string };
   roomId: string;
+  // Opaque per-move telemetry the worker emits (belief size, iters, move
+  // ranking). Forwarded into the EngineTurnResponse diagnostics for observability.
+  diagnostics?: Record<string, unknown>;
 }
 
 interface PendingRequest {

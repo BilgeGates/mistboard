@@ -26,6 +26,10 @@ export type EngineMoveDecision = {
   move: Move;
   scores: EngineMoveScore[];
   thinkTimeMs?: number;
+  // Opaque per-move engine telemetry (e.g. v2 belief size, GT-CFR iters, full
+  // move ranking) for the live-engine-decision debug artifact. Optional;
+  // non-remote engines don't set it.
+  diagnostics?: Record<string, unknown>;
 };
 
 export type EngineLivePolicy = {

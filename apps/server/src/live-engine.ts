@@ -194,6 +194,9 @@ async function choosePythonSubprocessMove(
         reason: remoteEngineDecisionReason(result),
       },
     ],
+    // Surface the worker's per-move telemetry for the live-engine-decision
+    // artifact (observability) — it rides through in result.diagnostics.
+    ...(result.diagnostics ? { diagnostics: result.diagnostics } : {}),
   };
 }
 

@@ -112,6 +112,9 @@ async function choosePythonEngineTurn(
     computeBudgetMs,
     watchdogTimeoutMs,
     ...(response.decisionSource ? { decisionSource: response.decisionSource } : {}),
+    // Per-move engine telemetry (belief size, iters, move ranking) for the
+    // live-engine-decision artifact (observability).
+    ...(response.diagnostics ?? {}),
   };
   return {
     protocolVersion: '1',

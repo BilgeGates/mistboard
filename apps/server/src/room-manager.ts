@@ -1038,6 +1038,7 @@ type LiveEngineDecisionArtifactInput = {
   requestedEngineId: string;
   scores: Array<{ move: Move; score: number; reason: string }>;
   thinkTimeMs: number;
+  engineDiagnostics?: Record<string, unknown>;
 };
 
 async function recordLiveEngineDecisionArtifact(
@@ -1059,6 +1060,9 @@ async function recordLiveEngineDecisionArtifact(
         think_time_ms: input.thinkTimeMs,
         duration_ms: input.durationMs,
         scores: input.scores,
+        ...(input.engineDiagnostics
+          ? { engine_diagnostics: input.engineDiagnostics }
+          : {}),
       },
     });
     if (input.fallbackEvent) {
@@ -1218,6 +1222,9 @@ export async function playRandomEngineMoveIfReady(
     requestedEngineId: engine.id,
     scores: result.decision.scores,
     thinkTimeMs: engineThinkTimeMs,
+    ...(result.decision.diagnostics
+      ? { engineDiagnostics: result.decision.diagnostics }
+      : {}),
   });
 }
 
