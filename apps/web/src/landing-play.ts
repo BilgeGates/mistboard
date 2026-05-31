@@ -1,13 +1,14 @@
 import {
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   gameSpecForId,
   TIME_CONTROLS,
   type TimeControlId,
 } from '@mistboard/game';
 import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
-import { darkXiangqiEnabled } from './feature-flags.js';
+import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
@@ -27,7 +28,10 @@ type LandingPlayChoice = {
   ratedDisabled?: boolean;
   title: string;
 };
-type LandingVariantGameSpecId = typeof DARK_CHESS_SPEC_ID | typeof DARK_XIANGQI_SPEC_ID;
+type LandingVariantGameSpecId =
+  | typeof DARK_CHESS_SPEC_ID
+  | typeof DARK_MINI_XIANGQI_SPEC_ID
+  | typeof DARK_XIANGQI_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -82,13 +86,37 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   initialMs: tc.initialMs,
   incrementMs: tc.incrementMs,
 }));
-const LANDING_VARIANT_GAME_SPECS: readonly {
-  id: LandingVariantGameSpecId;
-  label: string;
-}[] = [
-  { id: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
-  { id: DARK_XIANGQI_SPEC_ID, label: gameSpecForId(DARK_XIANGQI_SPEC_ID).publicName },
-];
+// Dark chess is always offered; the xiangqi-family specs appear only when their
+// own client flag is on, so each stays hidden until its launch gate clears.
+function enabledLandingVariantGameSpecs(): { id: LandingVariantGameSpecId; label: string }[] {
+  const specs: { id: LandingVariantGameSpecId; label: string }[] = [
+    { id: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
+  ];
+  if (darkXiangqiEnabled()) {
+    specs.push({ id: DARK_XIANGQI_SPEC_ID, label: gameSpecForId(DARK_XIANGQI_SPEC_ID).publicName });
+  }
+  if (darkMiniXiangqiEnabled()) {
+    specs.push({
+      id: DARK_MINI_XIANGQI_SPEC_ID,
+      label: gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID).publicName,
+    });
+  }
+  return specs;
+}
+
+function parseLandingGameSpecId(value: string): LandingVariantGameSpecId {
+  if (value === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
+  if (value === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
+  return DARK_CHESS_SPEC_ID;
+}
+
+function deepLinkInitialVariant(variant: string | null): LandingVariantGameSpecId | undefined {
+  if (variant === DARK_XIANGQI_SPEC_ID && darkXiangqiEnabled()) return DARK_XIANGQI_SPEC_ID;
+  if (variant === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiEnabled()) {
+    return DARK_MINI_XIANGQI_SPEC_ID;
+  }
+  return undefined;
+}
 const LANDING_GAME_SPEC_CAPABILITIES: Record<
   LandingVariantGameSpecId,
   LandingGameSpecCapabilities
@@ -102,6 +130,15 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<
     supportsStartFormat: true,
   },
   [DARK_XIANGQI_SPEC_ID]: {
+    blackGlyph: '將',
+    firstColor: 'red',
+    firstGlyph: '帥',
+    firstLabel: 'Red',
+    glyphClass: 'xiangqi',
+    supportsRated: false,
+    supportsStartFormat: false,
+  },
+  [DARK_MINI_XIANGQI_SPEC_ID]: {
     blackGlyph: '將',
     firstColor: 'red',
     firstGlyph: '帥',
@@ -377,10 +414,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
       break;
     case 'friend':
       openLandingSetupDialog({
-        initialGameSpecId:
-          params.get('variant') === DARK_XIANGQI_SPEC_ID && darkXiangqiEnabled()
-            ? DARK_XIANGQI_SPEC_ID
-            : undefined,
+        initialGameSpecId: deepLinkInitialVariant(params.get('variant')),
         mode: 'pvp',
         title: 'Challenge a friend',
         ratedDisabled: true,
@@ -448,12 +482,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantSection.className = 'landing-setup-section';
   variantSection.append(setupSectionLabel('Variant'));
 
-  const darkXiangqiSelectable = choice.mode === 'pvp' && darkXiangqiEnabled();
-  if (darkXiangqiSelectable) {
+  const variantSelectable =
+    choice.mode === 'pvp' && (darkXiangqiEnabled() || darkMiniXiangqiEnabled());
+  if (variantSelectable) {
     const gameSpecSelect = document.createElement('select');
     gameSpecSelect.className = 'landing-variant-select landing-engine-select';
     gameSpecSelect.setAttribute('aria-label', 'Variant');
-    for (const { id, label } of LANDING_VARIANT_GAME_SPECS) {
+    for (const { id, label } of enabledLandingVariantGameSpecs()) {
       const option = document.createElement('option');
       option.value = id;
       option.textContent = label;
@@ -463,8 +498,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       gameSpecSelect.value = selectedGameSpecId;
     };
     gameSpecSelect.addEventListener('change', () => {
-      selectedGameSpecId =
-        gameSpecSelect.value === DARK_XIANGQI_SPEC_ID ? DARK_XIANGQI_SPEC_ID : DARK_CHESS_SPEC_ID;
+      selectedGameSpecId = parseLandingGameSpecId(gameSpecSelect.value);
       syncGameSpecificSections();
     });
     variantSection.append(gameSpecSelect);
@@ -670,7 +704,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   dialog.append(status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
-  (draft960Enabled && selectedGameSpecId !== DARK_XIANGQI_SPEC_ID
+  (draft960Enabled && selectedGameSpecId === DARK_CHESS_SPEC_ID
     ? standardButton
     : startButton
   ).focus();
@@ -1030,6 +1064,19 @@ function roomCreationRequestBody(
   engineId?: string,
 ): Record<string, unknown> {
   const gameSpecId = roomCreationGameSpecId(setup);
+  if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
+    // Dark Mini Xiangqi is untimed for now; its room route rejects timeControl.
+    return {
+      mode: 'pvp',
+      gameSpecId,
+      preferredColor:
+        setup.preferredColor === 'white'
+          ? 'red'
+          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
+            ? setup.preferredColor
+            : 'random',
+    };
+  }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) {
     return {
       mode: 'pvp',
@@ -1057,7 +1104,12 @@ function roomCreationRequestBody(
 
 function roomCreationGameSpecId(
   setup: LandingRoomSetup,
-): typeof DARK_CHESS_SPEC_ID | typeof DARK_DRAFT960_SPEC_ID | typeof DARK_XIANGQI_SPEC_ID {
+):
+  | typeof DARK_CHESS_SPEC_ID
+  | typeof DARK_DRAFT960_SPEC_ID
+  | typeof DARK_MINI_XIANGQI_SPEC_ID
+  | typeof DARK_XIANGQI_SPEC_ID {
+  if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
   return setup.startFormat === 'draft960' ? DARK_DRAFT960_SPEC_ID : DARK_CHESS_SPEC_ID;
 }
