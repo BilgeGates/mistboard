@@ -304,7 +304,11 @@ function renderBoard(
   const hints = selectedSquare
     ? view.legalMoves.filter((move) => move.from === selectedSquare)
     : [];
-  refs.board.innerHTML = renderMiniXiangqiBoardSvg(view, perspective, {
+  // Only ever highlight the viewer's own last move. The server already redacts
+  // an opponent's move, but gating on board ownership here makes the fog
+  // guarantee hold for every rendered view — live, replayed, or reconnected.
+  const renderView = viewerOwnsLastMove(view) ? view : { ...view, lastMove: undefined };
+  refs.board.innerHTML = renderMiniXiangqiBoardSvg(renderView, perspective, {
     interactive: true,
     showFog: true,
     selectedSquare,
@@ -538,6 +542,16 @@ function isMiniXiangqiMoveEvent(event: MiniXiangqiWireEvent): event is MiniXiang
 
 function orientationFor(view: MiniXiangqiPlayerView): MiniXiangqiColor {
   return isMiniColor(liveState.seat) ? liveState.seat : view.perspective;
+}
+
+function viewerOwnsLastMove(view: MiniXiangqiPlayerView): boolean {
+  const lastMove = view.lastMove;
+  if (!lastMove) return false;
+  // After a move the moving piece sits on `to`; a visible own piece there means
+  // the viewer made this move. An opponent move shows the opponent's piece (or a
+  // shrouded/absent square), so it is never highlighted.
+  const entry = view.board[lastMove.to];
+  return entry?.shrouded === false && entry.piece.color === liveState.seat;
 }
 
 function isMiniColor(value: unknown): value is MiniXiangqiColor {

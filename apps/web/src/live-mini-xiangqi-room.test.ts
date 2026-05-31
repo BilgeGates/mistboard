@@ -165,6 +165,40 @@ describe('Dark Mini Xiangqi live room', () => {
     );
     expect(rows).toEqual(['1.b1-b2...', '2.b2-b3']);
   });
+
+  it('highlights the viewer own last move', () => {
+    const refs = refsFixture();
+    liveState.seat = 'red';
+    liveState.state = {
+      ...viewFixture(),
+      board: { a3: { piece: { color: 'red', role: 'soldier' }, shrouded: false } },
+      visibleSquares: ['a3'],
+      lastMove: { from: 'a2', to: 'a3' },
+      status: { type: 'playing', turn: 'black' },
+    } as never;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    expect(refs.board.querySelector('.mini-xq-last')).not.toBeNull();
+  });
+
+  it('never highlights an opponent last move, even if a view carries one', () => {
+    const refs = refsFixture();
+    liveState.seat = 'red';
+    // Simulate a view whose lastMove lands on a square holding Black's piece —
+    // the render guard must drop it so Red never sees Black's move highlighted.
+    liveState.state = {
+      ...viewFixture(),
+      board: { a5: { color: 'black', shrouded: true } },
+      visibleSquares: ['a5'],
+      lastMove: { from: 'a6', to: 'a5' },
+      status: { type: 'playing', turn: 'red' },
+    } as never;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    expect(refs.board.querySelector('.mini-xq-last')).toBeNull();
+  });
 });
 
 function viewFixture(): MiniView {

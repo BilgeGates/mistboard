@@ -127,6 +127,8 @@
 .xiangqi-move-row__move {
   min-width: 0;
   overflow: hidden;
+  padding: 1px 6px;
+  border-radius: 6px;
   text-overflow: ellipsis;
 }
 
@@ -134,8 +136,9 @@
   color: var(--muted);
 }
 
+/* Theme-agnostic: tint derived from the current text colour stays readable in
+   both light and dark mode, and the padding keeps it clear of the move number. */
 .xiangqi-move-row__move.active {
-  border-radius: 6px;
-  background: #eef8f2;
-  box-shadow: inset 3px 0 0 #1f6f5b;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-weight: 700;
 }
