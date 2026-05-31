@@ -19,6 +19,7 @@ export {
   findUserByEmail,
   getLeaderboard,
   getUserByAccountSession,
+  getUserGamesPage,
   getUserProfileByHandle,
   markUserEmailVerified,
   revokeAccountSession,

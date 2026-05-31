@@ -23,6 +23,10 @@ export type FeaturedGame = {
   roomId: string;
   variant: string;
   mode?: 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
+  // Whether the game counted toward ratings. Absent on feeds that don't carry
+  // it (treated as rated by COALESCE on the server); the profile list relies on
+  // it to tag rows rated vs casual.
+  rated?: boolean;
   result: string;
   termination: string;
   plyCount: number;

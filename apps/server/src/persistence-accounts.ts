@@ -95,7 +95,11 @@ export type ProfileBucketRating = {
 export type UserProfile = {
   user: PublicProfileUser;
   ratings: ProfileBucketRating[];
+  // First page of games (newest first). Older pages load via getUserGamesPage.
   games: ProfileGameRecord[];
+  // Total completed games visible to the viewer, so the client can show an
+  // accurate count and decide whether to offer "Load more".
+  gamesTotal: number;
 };
 
 export async function createEmailLoginChallenge(challenge: EmailLoginChallenge): Promise<void> {
@@ -329,12 +333,14 @@ export async function revokeAccountSession(
   );
 }
 
-export async function getUserProfileByHandle(
-  handle: string,
-  viewerUserId: string | null,
-  limit = 50,
-): Promise<UserProfile | null> {
-  const { rows: userRows } = await getPool().query<UserRow>(
+// Default page size for the profile games list. The first page ships with the
+// profile payload; the rest load lazily via getUserGamesPage.
+const PROFILE_GAMES_PAGE = 15;
+
+// Resolve a public profile user by handle (case-insensitive). Null when the
+// handle doesn't exist.
+async function loadProfileUser(handle: string): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
     `SELECT id, email, email_verified_at, handle, handle_changed_at,
             display_name, display_name_changed_at, profile_visibility,
             account_role, elo_rating, created_at, updated_at
@@ -343,18 +349,28 @@ export async function getUserProfileByHandle(
      LIMIT 1`,
     [handle],
   );
-  const user = userRows[0] ? userFromRow(userRows[0]) : null;
-  if (!user) return null;
+  return rows[0] ? userFromRow(rows[0]) : null;
+}
 
-  const isViewer = viewerUserId === user.id;
-  if (user.profileVisibility === 'private' && !isViewer) return null;
-
-  const boundedLimit = Math.max(1, Math.min(limit, 100));
-  const visibilityClause = isViewer
+// Build the visibility filter for a profile's game queries. A viewer sees their
+// own private games; everyone else is restricted to non-private rows.
+function profileVisibilityClause(isViewer: boolean): string {
+  return isViewer
     ? ''
     : `AND games.visibility <> 'private'
        AND game_participants.visibility <> 'private'`;
-  const { rows: gameRows } = await getPool().query<{
+}
+
+// One page of a user's completed games, newest first. total_count is a window
+// aggregate (COUNT(*) OVER()) so the caller learns the full match count in the
+// same round-trip — used to drive the profile "Load more" pager.
+async function queryUserGames(
+  userId: string,
+  isViewer: boolean,
+  offset: number,
+  limit: number,
+): Promise<{ games: ProfileGameRecord[]; total: number }> {
+  const { rows } = await getPool().query<{
     room_id: string;
     player_color: GameParticipantColor;
     variant: string;
@@ -369,23 +385,26 @@ export async function getUserProfileByHandle(
     corpus_id: string | null;
     rated: boolean;
     visibility: GameVisibility;
+    total_count: string;
   }>(
     `SELECT games.room_id, game_participants.color AS player_color,
             games.variant, games.mode, games.result, games.termination,
             games.ply_count, games.started_at, games.ended_at,
             games.white_name, games.black_name, games.corpus_id,
-            COALESCE(games.rated, true) AS rated, games.visibility
+            COALESCE(games.rated, true) AS rated, games.visibility,
+            COUNT(*) OVER() AS total_count
      FROM game_participants
      JOIN games ON games.room_id = game_participants.game_id
      WHERE game_participants.subject_type = 'user'
        AND game_participants.subject_id = $1
        AND games.status = 'completed'
-       ${visibilityClause}
+       ${profileVisibilityClause(isViewer)}
      ORDER BY games.ended_at DESC, games.room_id DESC
-     LIMIT $2`,
-    [user.id, boundedLimit],
+     LIMIT $2 OFFSET $3`,
+    [userId, limit, offset],
   );
-  const games = gameRows.map(
+  const total = rows.length > 0 ? Number(rows[0].total_count) : 0;
+  const games = rows.map(
     (row): ProfileGameRecord => ({
       roomId: row.room_id,
       playerColor: row.player_color,
@@ -404,7 +423,29 @@ export async function getUserProfileByHandle(
       participants: [],
     }),
   );
+  return { games: await attachGameParticipants(games), total };
+}
 
+// First page of a profile: identity, bucketed ratings, and the newest games.
+// Older game pages load lazily via getUserGamesPage.
+export async function getUserProfileByHandle(
+  handle: string,
+  viewerUserId: string | null,
+): Promise<UserProfile | null> {
+  const user = await loadProfileUser(handle);
+  if (!user) return null;
+
+  const isViewer = viewerUserId === user.id;
+  if (user.profileVisibility === 'private' && !isViewer) return null;
+
+  const { games, total: gamesTotal } = await queryUserGames(
+    user.id,
+    isViewer,
+    0,
+    PROFILE_GAMES_PAGE,
+  );
+
+  const visibilityClause = profileVisibilityClause(isViewer);
   const { rows: ratingRows } = await getPool().query<{
     variant: RatingVariant;
     time_class: RatingTimeClass;
@@ -482,8 +523,27 @@ export async function getUserProfileByHandle(
       createdAt: user.createdAt,
     },
     ratings,
-    games: await attachGameParticipants(games),
+    games,
+    gamesTotal,
   };
+}
+
+// A page of a user's games for the profile "Load more" pager. Returns null when
+// the profile is missing or private to a non-viewer (same gate as the full
+// profile), so the endpoint can 404 without leaking existence.
+export async function getUserGamesPage(
+  handle: string,
+  viewerUserId: string | null,
+  offset: number,
+  limit: number,
+): Promise<{ games: ProfileGameRecord[]; total: number } | null> {
+  const user = await loadProfileUser(handle);
+  if (!user) return null;
+  const isViewer = viewerUserId === user.id;
+  if (user.profileVisibility === 'private' && !isViewer) return null;
+  const boundedLimit = Math.max(1, Math.min(limit, 50));
+  const boundedOffset = Math.max(0, offset);
+  return queryUserGames(user.id, isViewer, boundedOffset, boundedLimit);
 }
 
 export async function getLeaderboard(query: LeaderboardQuery): Promise<LeaderboardEntry[]> {

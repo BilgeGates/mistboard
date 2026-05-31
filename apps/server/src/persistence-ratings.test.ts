@@ -3,6 +3,7 @@ import {
   createUser,
   getGameSummary,
   getLeaderboard,
+  getUserGamesPage,
   getUserProfileByHandle,
   recordGameEnd,
   recordGameStart,
@@ -341,8 +342,69 @@ definePersistenceTests('ratings', () => {
     const profile = await getUserProfileByHandle('profile-player', null);
     assert.equal(profile?.user.handle, 'profile-player');
     assert.equal(profile?.games.length, 1);
+    assert.equal(profile?.gamesTotal, 1);
     assert.equal(profile?.games[0]?.roomId, 'profile-game');
     assert.equal(profile?.games[0]?.playerColor, 'white');
     assert.equal(profile?.games[0]?.participants[0]?.subjectType, 'user');
+  });
+
+  test('getUserGamesPage paginates a user games newest-first with a stable total', async () => {
+    const now = new Date('2026-05-09T10:00:00.000Z');
+    await createUser({
+      id: 'user_pager',
+      email: 'pager@example.com',
+      emailVerifiedAt: now,
+      handle: 'pager-player',
+      displayName: 'Pager Player',
+      profileVisibility: 'public',
+      now,
+    });
+    for (let i = 0; i < 3; i++) {
+      await recordGameEnd(`pager-game-${i}`, {
+        variant: 'dark-chess',
+        mode: 'pvp',
+        result: 'white-wins',
+        termination: 'king-captured',
+        plyCount: 9,
+        startedAt: now,
+        endedAt: new Date(now.getTime() + (i + 1) * 60_000),
+        whiteClient: 'pager-browser',
+        blackClient: 'guest-browser',
+        whiteName: null,
+        blackName: null,
+        corpusId: null,
+        participants: [
+          {
+            color: 'white',
+            displayName: 'Pager Player',
+            subjectType: 'user',
+            subjectId: 'user_pager',
+            visibility: 'public',
+          },
+          {
+            color: 'black',
+            displayName: 'Guest',
+            subjectType: 'guest',
+            subjectId: null,
+            visibility: 'public',
+          },
+        ],
+      });
+    }
+
+    // total reflects all matches regardless of the page window; rows are
+    // newest-first (pager-game-2 has the latest endedAt).
+    const page1 = await getUserGamesPage('pager-player', null, 0, 2);
+    assert.equal(page1?.total, 3);
+    assert.equal(page1?.games.length, 2);
+    assert.equal(page1?.games[0]?.roomId, 'pager-game-2');
+    assert.equal(page1?.games[1]?.roomId, 'pager-game-1');
+
+    const page2 = await getUserGamesPage('pager-player', null, 2, 2);
+    assert.equal(page2?.total, 3);
+    assert.equal(page2?.games.length, 1);
+    assert.equal(page2?.games[0]?.roomId, 'pager-game-0');
+
+    assert.equal(await getUserGamesPage('no-such-handle', null, 0, 2), null);
   });
 });
