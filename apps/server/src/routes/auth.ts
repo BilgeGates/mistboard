@@ -16,8 +16,20 @@ import {
   randomEmailLoginCode,
   sendEmailLoginCode,
 } from './../account-session.js';
+import { clientIpForRateLimit, createAuthRateLimiter } from './../auth-rate-limit.js';
 import * as persistence from './../persistence.js';
 import { readJsonBody, requireMethod, requirePersistence, writeJson } from './lib.js';
+
+// Per-IP rate limits, defense-in-depth alongside the per-challenge attempt cap.
+// confirm is the brute-force surface (code guessing); start mints challenges,
+// so a tighter bound there blunts the mint-many-challenges amplification.
+// Module-scoped so the windows persist across requests for the process.
+const authConfirmRateWindowMs = 10 * 60 * 1000;
+const authConfirmRatePerWindow = 10;
+const authStartRateWindowMs = 10 * 60 * 1000;
+const authStartRatePerWindow = 5;
+const confirmRateLimiter = createAuthRateLimiter(authConfirmRatePerWindow, authConfirmRateWindowMs);
+const startRateLimiter = createAuthRateLimiter(authStartRatePerWindow, authStartRateWindowMs);
 
 export async function tryHandle(
   _ctx: unknown,
@@ -35,6 +47,10 @@ export async function tryHandle(
   if (pathname === '/api/auth/email/start') {
     if (!requireMethod(request, response, 'POST')) return true;
     if (!requirePersistence(response)) return true;
+    if (!startRateLimiter.check(clientIpForRateLimit(request))) {
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
     if (!authEmailDeliveryEnabled && !devAuthCodesEnabled) {
       writeJson(response, 503, { error: 'email_delivery_not_configured' });
       return true;
@@ -75,6 +91,10 @@ export async function tryHandle(
   if (pathname === '/api/auth/email/confirm') {
     if (!requireMethod(request, response, 'POST')) return true;
     if (!requirePersistence(response)) return true;
+    if (!confirmRateLimiter.check(clientIpForRateLimit(request))) {
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
     const body = await readJsonBody(request);
     const loginId = typeof body.loginId === 'string' ? body.loginId.trim() : '';
     const code = typeof body.code === 'string' ? body.code.trim() : '';
