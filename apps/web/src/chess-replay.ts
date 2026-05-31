@@ -3,10 +3,7 @@
 // a compact UCI string and each position is rendered on demand. The chess
 // analogue of xiangqi-replay.ts; first used by the Chess Rules article to show
 // a full historical game.
-import {
-  boardFen,
-  mountBoard,
-} from '@mistboard/board-render/interactive';
+import { boardFen, mountBoard } from '@mistboard/board-render/interactive';
 import {
   type Color,
   darkChessVariant,
@@ -71,7 +68,13 @@ export function mountChessReplay(host: HTMLElement, spec: ChessReplaySpec): Ches
 
   const header = document.createElement('div');
   header.className = 'chess-replay-header';
-  header.textContent = `${spec.white} (White) vs ${spec.black} (Black) · ${spec.event}`;
+  const players = document.createElement('div');
+  players.className = 'chess-replay-players';
+  players.textContent = `${spec.white} (White) vs ${spec.black} (Black)`;
+  const eventLine = document.createElement('div');
+  eventLine.className = 'chess-replay-event';
+  eventLine.textContent = spec.event;
+  header.append(players, eventLine);
 
   const frame = document.createElement('div');
   frame.className = 'chess-replay-board cg-wrap';

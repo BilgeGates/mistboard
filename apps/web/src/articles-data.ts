@@ -358,7 +358,7 @@ const BASIC_BISHOP = coneState('basic-chess-bishop', {
   e4: { color: 'white', role: 'bishop' },
 });
 const BASIC_KNIGHT = coneState('basic-chess-knight', {
-  e4: { color: 'white', role: 'knight' },
+  d4: { color: 'white', role: 'knight' },
 });
 const BASIC_PAWN = coneState('basic-chess-pawn', {
   e2: { color: 'white', role: 'pawn' },
@@ -398,21 +398,7 @@ const BASIC_BISHOP_TARGETS: Square[] = [
   'h7',
 ];
 const BASIC_QUEEN_TARGETS: Square[] = [...BASIC_ROOK_TARGETS, ...BASIC_BISHOP_TARGETS];
-const BASIC_KNIGHT_TARGETS: Square[] = ['c3', 'c5', 'd2', 'd6', 'f2', 'f6', 'g3', 'g5'];
-const BASIC_PAWN_TARGETS: Square[] = ['d3', 'e3', 'e4', 'f3'];
-
-const BASIC_BLOCKERS = coneState('basic-chess-blockers', {
-  e4: { color: 'white', role: 'rook' },
-  e6: { color: 'white', role: 'pawn' },
-  b4: { color: 'black', role: 'knight' },
-  g4: { color: 'black', role: 'bishop' },
-});
-// Reachable empty squares for the rook on e4: down to e1, up to e5 (its own
-// pawn on e6 blocks further), left to c4/d4 (the knight on b4 stops it, so a4
-// is unreachable), right to f4 (the bishop on g4 stops it). b4 and g4 are the
-// captures, marked with rings rather than highlighted as empty destinations.
-const BASIC_BLOCKER_TARGETS: Square[] = ['e1', 'e2', 'e3', 'e5', 'c4', 'd4', 'f4'];
-
+const BASIC_KNIGHT_TARGETS: Square[] = ['b3', 'b5', 'c2', 'c6', 'e2', 'e6', 'f3', 'f5'];
 const BASIC_CASTLE_BEFORE: Board = {
   e1: { color: 'white', role: 'king' },
   h1: { color: 'white', role: 'rook' },
@@ -437,6 +423,14 @@ const BASIC_EN_PASSANT_BEFORE: Board = {
 const BASIC_EN_PASSANT_AFTER: Board = {
   d6: { color: 'white', role: 'pawn' },
   h8: { color: 'black', role: 'king' },
+};
+// Canonical king-and-queen stalemate. Black to move: the king on a8 is NOT in
+// check, but its only squares (a7, b7, b8) are all covered by the queen on b6,
+// and Black has no other piece to move. No legal move + no check = draw.
+const BASIC_STALEMATE: Board = {
+  a8: { color: 'black', role: 'king' },
+  a6: { color: 'white', role: 'king' },
+  b6: { color: 'white', role: 'queen' },
 };
 
 // ── Pawn capture visibility demo ─────────────────────────────────────────
@@ -2448,6 +2442,7 @@ export const articles: Article[] = [
     title: 'Chess Rules',
     summary:
       'The regular chess baseline for Mistboard: setup, turns, legal moves, captures, check, checkmate, castling, promotion, en passant, and common draws.',
+    showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-05-30',
     audience: 'Mistboard visitors who want the regular chess baseline before reading Fog of War rules.',
@@ -2459,12 +2454,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Mistboard starts from regular chess. If you already know orthodox chess, you can skip straight to the [Dark Chess rules](/rules/dark-chess). If the basics are rusty, this page is the reference baseline.',
-      },
-      {
-        kind: 'paragraph',
-        text:
-          'The handoff is simple: regular chess defines the board, pieces, captures, special moves, and draw rules. Fog of War then changes information: enemy pieces can be hidden, check warnings disappear, and the king is actually captured.',
+          'Chess is a two-player strategy game played for centuries. It descends from the Indian game chaturanga of around the 6th century and reached Europe through Persia and the Islamic world; its modern form, with the long-range queen and bishop, took shape in Europe in the late 1400s.',
       },
     ],
     sections: [
@@ -2474,7 +2464,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Chess is played on an 8 by 8 board. White moves first, then players alternate one move at a time. Each side starts with one king, one queen, two rooks, two bishops, two knights, and eight pawns.',
+              'Chess is played on an 8 by 8 board of alternating light and dark squares.',
           },
           {
             kind: 'live-boards',
@@ -2488,110 +2478,36 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'White begins on ranks 1 and 2; Black begins on ranks 8 and 7. Queens start on their own color: White queen on d1, Black queen on d8. On your turn, choose one of your pieces and move it to a legal square. You cannot land on your own piece. If you land on an enemy piece, you capture it and remove it from the board.',
+              'White moves first, then players alternate. Each side fills the two rows nearest it, with the queen starting on her own color. On your turn, move one piece to a legal square: you cannot land on your own piece, and landing on an enemy piece captures it, removing it from the board.',
           },
         ],
       },
       {
-        heading: 'Pieces, captures, and blockers',
+        heading: 'The pieces',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'Each piece has its own movement shape. Highlighted squares below are legal destinations or captures from the pictured position.',
+              'Each piece moves in its own way. In every diagram below, the highlighted squares are the legal moves and captures for the marked white piece.',
           },
-          {
-            kind: 'live-boards',
-            spec: {
-              layout: 'grid',
-              boards: [
-                { board: BASIC_KING.board, highlightSquares: BASIC_KING_TARGETS, orientation: 'white', label: 'KING' },
-                {
-                  board: BASIC_QUEEN.board,
-                  highlightSquares: BASIC_QUEEN_TARGETS,
-                  orientation: 'white',
-                  label: 'QUEEN',
-                  arrows: [
-                    { orig: 'e4' as Square, dest: 'e8' as Square },
-                    { orig: 'e4' as Square, dest: 'h7' as Square },
-                    { orig: 'e4' as Square, dest: 'a4' as Square },
-                  ],
-                },
-                {
-                  board: BASIC_ROOK.board,
-                  highlightSquares: BASIC_ROOK_TARGETS,
-                  orientation: 'white',
-                  label: 'ROOK',
-                  arrows: [
-                    { orig: 'e4' as Square, dest: 'e8' as Square },
-                    { orig: 'e4' as Square, dest: 'h4' as Square },
-                  ],
-                },
-                {
-                  board: BASIC_BISHOP.board,
-                  highlightSquares: BASIC_BISHOP_TARGETS,
-                  orientation: 'white',
-                  label: 'BISHOP',
-                  arrows: [
-                    { orig: 'e4' as Square, dest: 'a8' as Square },
-                    { orig: 'e4' as Square, dest: 'h1' as Square },
-                  ],
-                },
-                { board: BASIC_KNIGHT.board, highlightSquares: BASIC_KNIGHT_TARGETS, orientation: 'white', label: 'KNIGHT' },
-                {
-                  board: BASIC_PAWN.board,
-                  highlightSquares: BASIC_PAWN_TARGETS,
-                  orientation: 'white',
-                  label: 'PAWN',
-                  arrows: [
-                    { orig: 'e2' as Square, dest: 'e4' as Square },
-                    { orig: 'e2' as Square, dest: 'd3' as Square },
-                    { orig: 'e2' as Square, dest: 'f3' as Square },
-                  ],
-                },
-              ],
-            },
-            caption: 'Movement and capture shapes for the six chess pieces.',
-          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
               '**King:** moves one square in any direction. In regular chess, a king may not move onto a square attacked by the opponent.',
           },
           {
+            kind: 'live-boards',
+            spec: {
+              layout: 'single',
+              boards: [
+                { board: BASIC_KING.board, moveDotSquares: BASIC_KING_TARGETS, orientation: 'white', label: 'KING' },
+              ],
+            },
+          } as ArticleBlock,
+          {
             kind: 'paragraph',
             text:
               '**Queen:** moves any number of squares horizontally, vertically, or diagonally. Other pieces block her path.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Rook:** moves any number of squares horizontally or vertically. It cannot jump, so the first occupied square in a line stops it.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Bishop:** moves any number of squares diagonally. Because diagonals stay on one color, each bishop stays on light squares or dark squares for the whole game.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Knight:** moves in an L shape: two squares one way and one square sideways. The knight is the only piece that jumps over other pieces.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Pawn:** moves forward toward the opponent side of the board into empty squares. From its starting rank, it may move one or two squares if the path is empty. Pawns capture one square diagonally forward, not straight ahead.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'A capture happens when your piece moves to a square occupied by an enemy piece. Your piece stays on that square, and the captured piece leaves the board.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'Kings, queens, rooks, bishops, and pawns cannot move through occupied squares. Queens, rooks, and bishops are called sliding pieces because they move along lines until the line is blocked. Knights are the exception: a knight jumps directly to its destination.',
           },
           {
             kind: 'live-boards',
@@ -2599,15 +2515,85 @@ export const articles: Article[] = [
               layout: 'single',
               boards: [
                 {
-                  board: BASIC_BLOCKERS.board,
-                  highlightSquares: BASIC_BLOCKER_TARGETS,
-                  captureSquares: ['b4' as Square, 'g4' as Square],
+                  board: BASIC_QUEEN.board,
+                  moveDotSquares: BASIC_QUEEN_TARGETS,
                   orientation: 'white',
-                  label: 'BLOCKERS AND CAPTURES',
+                  label: 'QUEEN',
                 },
               ],
             },
-            caption: 'The rook slides until something stops it. It can capture the black pieces on b4 or g4 (green rings) but cannot move past them, and its own pawn on e6 blocks it from going further up.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Rook:** moves any number of squares horizontally or vertically. It cannot jump, so the first occupied square in a line stops it.',
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'single',
+              boards: [
+                {
+                  board: BASIC_ROOK.board,
+                  moveDotSquares: BASIC_ROOK_TARGETS,
+                  orientation: 'white',
+                  label: 'ROOK',
+                },
+              ],
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Bishop:** moves any number of squares diagonally. Because diagonals stay on one color, each bishop stays on light squares or dark squares for the whole game.',
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'single',
+              boards: [
+                {
+                  board: BASIC_BISHOP.board,
+                  moveDotSquares: BASIC_BISHOP_TARGETS,
+                  orientation: 'white',
+                  label: 'BISHOP',
+                },
+              ],
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Knight:** moves in an L shape: two squares one way and one square sideways. The knight is the only piece that jumps over other pieces.',
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'single',
+              boards: [
+                { board: BASIC_KNIGHT.board, moveDotSquares: BASIC_KNIGHT_TARGETS, orientation: 'white', label: 'KNIGHT' },
+              ],
+            },
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Pawn:** the pawn moves and captures differently from every other piece. It moves straight forward into an empty square, one square at a time, or two squares from its starting position. It can never move backward or sideways, and a piece directly in front of it blocks it completely. It captures only diagonally forward, one square (the green rings below), never straight ahead. Two further pawn rules, promotion and en passant, appear under Special moves below.',
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'single',
+              boards: [
+                {
+                  board: BASIC_PAWN.board,
+                  moveDotSquares: ['e3' as Square, 'e4' as Square],
+                  captureSquares: ['d3' as Square, 'f3' as Square],
+                  orientation: 'white',
+                  label: 'PAWN',
+                },
+              ],
+            },
           } as ArticleBlock,
         ],
       },
@@ -2627,18 +2613,13 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'In regular chess, the king is never actually captured. This is one of the biggest changes in Fog of War chess: there is no check or checkmate warning, and the game ends only when a king is captured on the board.',
+              'In regular chess the king is never actually captured: the game ends at checkmate, with the king still on the board.',
           },
         ],
       },
       {
         heading: 'Special moves',
         blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'You do not need to memorize every special case before your first game. These rules are here so the board makes sense when they appear.',
-          },
           { kind: 'sub-heading', text: 'Castling' },
           {
             kind: 'paragraph',
@@ -2652,18 +2633,13 @@ export const articles: Article[] = [
               boards: [
                 {
                   board: BASIC_CASTLE_BEFORE,
-                  highlightSquares: ['f1' as Square, 'g1' as Square],
                   orientation: 'white',
                   label: 'BEFORE',
-                  arrows: [
-                    { orig: 'e1' as Square, dest: 'g1' as Square },
-                    { orig: 'h1' as Square, dest: 'f1' as Square },
-                  ],
+                  arrows: [{ orig: 'e1' as Square, dest: 'g1' as Square }],
                 },
                 { board: BASIC_CASTLE_AFTER, orientation: 'white', label: 'AFTER' },
               ],
             },
-            caption: 'Kingside castling: the king goes to g1 and the rook lands on f1.',
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -2674,7 +2650,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'When a pawn reaches the farthest rank, it promotes into a queen, rook, bishop, or knight. Most players choose a queen because it is usually strongest.',
+              'When a pawn reaches the farthest rank, it promotes into a queen, rook, bishop, or knight.',
           },
           {
             kind: 'live-boards',
@@ -2691,7 +2667,6 @@ export const articles: Article[] = [
                 { board: BASIC_PROMOTION_AFTER, orientation: 'white', label: 'AFTER' },
               ],
             },
-            caption: 'A pawn that reaches the last rank promotes. This example shows the usual choice: a queen.',
           } as ArticleBlock,
           { kind: 'sub-heading', text: 'En passant' },
           {
@@ -2717,22 +2692,56 @@ export const articles: Article[] = [
                 { board: BASIC_EN_PASSANT_AFTER, orientation: 'white', label: 'AFTER' },
               ],
             },
-            caption: 'After Black moves d7-d5 beside the white pawn, White may answer e5xd6 en passant and remove the pawn from d5.',
           } as ArticleBlock,
         ],
       },
       {
-        heading: 'Draws and other endings',
+        heading: 'Draws',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'Some chess games end without a winner. Common regular-chess draws include stalemate, threefold repetition, the 50-move rule, agreement, and positions where checkmate is impossible.',
+              'Not every game is won. Some end in a draw, where neither side wins.',
+          },
+          { kind: 'sub-heading', text: 'Stalemate' },
+          {
+            kind: 'paragraph',
+            text:
+              'Stalemate is when the player to move has no legal move but their king is not in check. It is a draw, not a win, even if one side is far ahead. Below it is Black to move: the king on a8 is not in check, yet every square it could step to is covered by the white queen, and Black has nothing else to move. The game is drawn.',
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'single',
+              boards: [
+                {
+                  board: BASIC_STALEMATE,
+                  orientation: 'white',
+                  label: 'STALEMATE — BLACK TO MOVE',
+                },
+              ],
+            },
+          } as ArticleBlock,
+          { kind: 'sub-heading', text: 'Other draws' },
+          {
+            kind: 'paragraph',
+            text:
+              '**Threefold repetition:** the same position, with the same player to move, occurs three times. Either player can then claim a draw.',
           },
           {
             kind: 'paragraph',
             text:
-              'Mistboard Fog of War keeps the automatic draw ideas that matter for live play: repeated true positions and a no-progress clock. Checkmate-based endings change because Fog of War is decided by king capture.',
+              '**Fifty-move rule:** fifty moves by each side pass with no capture and no pawn move. The clock resets whenever a pawn moves or a piece is taken.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Insufficient material:** neither side has enough force to deliver checkmate, such as king versus king, or king and a lone bishop or knight against a bare king.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Agreement:** both players simply agree to a draw.',
           },
         ],
       },
@@ -2751,7 +2760,7 @@ export const articles: Article[] = [
               white: 'Magnus Carlsen',
               black: 'Viswanathan Anand',
               event: 'World Championship Game 11, Sochi 2014',
-              resultText: 'Anand resigns. Carlsen (White) wins and retains the title.',
+              resultText: 'Anand resigns. Carlsen (White) wins the match.',
             },
           } as ArticleBlock,
         ],
@@ -2763,11 +2772,6 @@ export const articles: Article[] = [
             kind: 'paragraph',
             text:
               'This page covers regular chess. Fog of War chess uses the same piece movement, then hides enemy pieces outside your vision and replaces checkmate with direct king capture.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'If the movement rules above feel familiar enough, the Dark Chess rules article is the next step.',
           },
           {
             kind: 'cta',

@@ -16,6 +16,9 @@ export type LiveBoardSpec = {
   label?: string;
   arrows?: LiveBoardArrow[];
   highlightSquares?: Square[];
+  // Squares to mark as a legal move to an empty square: a small filled green
+  // dot, the same move vocabulary the xiangqi rules diagrams use.
+  moveDotSquares?: Square[];
   // Squares to mark as legal captures: rendered as a green ring around the
   // piece (chessground's circle annotation), the same capture vocabulary the
   // xiangqi rules diagrams use.
@@ -46,14 +49,17 @@ function visibleBoard(board: Board, fogSquares: Square[]): Board {
 function squareClasses(
   fogSquares: Square[],
   highlightSquares: Square[],
+  moveDotSquares: Square[],
   orientation: Color,
 ): cg.SquareClasses {
   const classes = new Map<cg.Key, string>();
-  for (const sq of fogSquares) classes.set(sq as cg.Key, fogHiddenClass(sq, orientation));
-  for (const sq of highlightSquares) {
+  const add = (sq: Square, cls: string) => {
     const prior = classes.get(sq as cg.Key);
-    classes.set(sq as cg.Key, prior ? `${prior} deduction-highlight` : 'deduction-highlight');
-  }
+    classes.set(sq as cg.Key, prior ? `${prior} ${cls}` : cls);
+  };
+  for (const sq of fogSquares) classes.set(sq as cg.Key, fogHiddenClass(sq, orientation));
+  for (const sq of highlightSquares) add(sq, 'deduction-highlight');
+  for (const sq of moveDotSquares) add(sq, 'move-dot');
   return classes;
 }
 
@@ -100,7 +106,12 @@ export function mountLiveBoards(host: HTMLElement, opts: LiveBoardsOptions): Liv
       fen: boardFen(visibleBoard(spec.board, fog)),
       orientation: spec.orientation ?? 'white',
       highlight: {
-        custom: squareClasses(fog, spec.highlightSquares ?? [], spec.orientation ?? 'white'),
+        custom: squareClasses(
+          fog,
+          spec.highlightSquares ?? [],
+          spec.moveDotSquares ?? [],
+          spec.orientation ?? 'white',
+        ),
       },
       movable: { free: false, color: undefined, dests: new Map() },
       draggable: { enabled: false },

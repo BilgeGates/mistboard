@@ -443,6 +443,12 @@
   text-align: center;
 }
 
+.chess-replay-event {
+  font-weight: 500;
+  font-size: 13px;
+  color: #6b7280;
+}
+
 .chess-replay-board.cg-wrap {
   /* cap matches the xiangqi diagram width so the two replays sit at one scale */
   --cg-w: min(100%, 320px);
@@ -682,8 +688,11 @@
   width: 100%;
 }
 
+/* Single and pair boards share one target board width (260px) so a board is
+   the same size whether it sits alone or two-up. Single is chess-only; pair's
+   48% caps at 260 on the 720px article column, so the two match on desktop. */
 .live-boards[data-layout="single"] .live-boards-cell {
-  width: min(360px, 100%);
+  width: min(260px, 100%);
 }
 
 .live-boards[data-layout="pair"] .live-boards-cell {
@@ -694,6 +703,9 @@
    grid; otherwise it floors the board and leaves a fog/edge gap. Older
    browsers keep the fallback width above. */
 @supports (width: round(down, 100%, 8px)) {
+  .live-boards[data-layout="single"] .live-boards-cell {
+    width: round(down, min(260px, 100%), 8px);
+  }
   .live-boards[data-layout="pair"] .live-boards-cell {
     width: round(down, min(260px, 48%), 8px);
   }
@@ -745,6 +757,18 @@
   position: relative;
   display: block;
   overflow: hidden;
+}
+
+/* A legal move to an empty square: a small filled green dot centered on the
+   square, matching the move-dot vocabulary of the xiangqi rules diagrams. */
+.live-boards-board cg-board square.move-dot::after {
+  position: absolute;
+  content: "";
+  inset: 38%;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: rgba(21, 120, 27, 0.85);
+  pointer-events: none;
 }
 
 .live-boards-board cg-board square.fog-hidden {
