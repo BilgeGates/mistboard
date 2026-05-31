@@ -23,6 +23,7 @@ import {
   createInitialMiniXiangqiBoard,
   createInitialMiniXiangqiState,
   createInitialXiangqiState,
+  computeMiniXiangqiVision,
   computeVision as computeXiangqiVision,
   getMiniXiangqiPlayerView,
   getPlayerView as getXiangqiPlayerView,
@@ -35,6 +36,8 @@ import {
   type Chess960Start,
   type GameState,
   type MiniXiangqiBoard,
+  type MiniXiangqiColor,
+  type MiniXiangqiGameState,
   type MiniXiangqiPlayerView,
   type MiniXiangqiSquare,
   type PieceRole,
@@ -1920,6 +1923,104 @@ const MINI_XIANGQI_DARK_VIEW = getMiniXiangqiPlayerView(
 );
 const MINI_XIANGQI_DARK_THUMBNAIL = miniXqFogBoardSvg(MINI_XIANGQI_DARK_VIEW, 'mxq-fog-thumb');
 const MINI_XIANGQI_DARK_FOG_BOARD = miniXqFogBoardSvg(MINI_XIANGQI_DARK_VIEW, 'mxq-fog-body');
+
+// Blue corner brackets on the squares a cannon can capture under fog (the
+// "target revealed" half of the cannon rule), matching the full Dark Xiangqi
+// diagrams. Computed from the real vision so it cannot drift from the rules.
+function mxqCannonTargetMarkers(state: MiniXiangqiGameState, perspective: MiniXiangqiColor): string {
+  const vision = computeMiniXiangqiVision(state, perspective);
+  return [...vision.cannonTargets]
+    .map((sq) => {
+      const { file, rank } = miniXiangqiCoordOf(sq);
+      const { x, y } = mxqPoint(file, rank);
+      const outer = 16;
+      const inner = 10;
+      const stroke = 'fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"';
+      return [
+        `<path d="M ${x - outer} ${y - inner} L ${x - outer} ${y - outer} L ${x - inner} ${y - outer}" ${stroke}/>`,
+        `<path d="M ${x + inner} ${y - outer} L ${x + outer} ${y - outer} L ${x + outer} ${y - inner}" ${stroke}/>`,
+        `<path d="M ${x - outer} ${y + inner} L ${x - outer} ${y + outer} L ${x - inner} ${y + outer}" ${stroke}/>`,
+        `<path d="M ${x + inner} ${y + outer} L ${x + outer} ${y + outer} L ${x + outer} ${y + inner}" ${stroke}/>`,
+      ].join('');
+    })
+    .join('');
+}
+
+// One labeled board in a comparison pair: the fogged player view (with cannon
+// targets) when a view is given, otherwise the full server-truth board.
+function mxqBoardCell(opts: {
+  x: number;
+  label: string;
+  state: MiniXiangqiGameState;
+  view?: MiniXiangqiPlayerView;
+  fogClipId?: string;
+}): string {
+  const layers: string[] = [mxqGridLayer()];
+  if (opts.view && opts.fogClipId) {
+    layers.push(mxqFogLayer(opts.view, opts.fogClipId));
+    layers.push(mxqCannonTargetMarkers(opts.state, opts.view.perspective));
+    layers.push(mxqViewPiecesLayer(opts.view));
+  } else {
+    layers.push(mxqPiecesLayer(opts.state.board));
+  }
+  layers.push(
+    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
+  );
+  return `<g transform="translate(${opts.x} 0)"><text x="${MXQ_BOARD_W / 2}" y="11" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text><g transform="translate(0 20)">${layers.join('')}</g></g>`;
+}
+
+const MXQ_PAIR_GAP = 22;
+
+function miniXqPairSvg(
+  state: MiniXiangqiGameState,
+  view: MiniXiangqiPlayerView,
+  fogClipId: string,
+): string {
+  const totalW = MXQ_BOARD_W * 2 + MXQ_PAIR_GAP + XQ_VIEWBOX_PAD * 2;
+  const totalH = MXQ_BOARD_H + 20 + XQ_VIEWBOX_PAD * 2;
+  const cells = [
+    mxqBoardCell({ x: 0, label: "RED'S VIEW", state, view, fogClipId }),
+    mxqBoardCell({ x: MXQ_BOARD_W + MXQ_PAIR_GAP, label: 'SERVER TRUTH', state }),
+  ].join('');
+  return `<svg class="xq-article-svg" data-xq-layout="pair" style="--xq-svg-width: ${totalW}px" viewBox="0 0 ${totalW} ${totalH}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${cells}</g></svg>`;
+}
+
+function mxqDemoState(id: string, board: MiniXiangqiBoard): MiniXiangqiGameState {
+  return {
+    id,
+    board,
+    status: { type: 'playing', turn: 'red' },
+    moveNumber: 8,
+    progressClock: 0,
+    positionCounts: {},
+  };
+}
+
+// Cannon rule under fog: a Red cannon on d1 fires up the d-file. The screen on
+// d3 is shrouded, the empty gap (d4, d5) stays fogged, and the target on d6 is
+// revealed with a capture bracket.
+const MINI_XIANGQI_CANNON_STATE = mxqDemoState('dmxq-cannon-rule', {
+  d1: { color: 'red', role: 'cannon' },
+  d3: { color: 'black', role: 'soldier' },
+  d6: { color: 'black', role: 'soldier' },
+});
+const MINI_XIANGQI_CANNON_PAIR = miniXqPairSvg(
+  MINI_XIANGQI_CANNON_STATE,
+  getMiniXiangqiPlayerView(MINI_XIANGQI_CANNON_STATE, 'red'),
+  'mxq-fog-cannon',
+);
+
+// Horse leg under fog: a Red horse on d3 with the up-leg on d4 blocked. The leg
+// point is a shrouded marker and the destinations behind it (c5, e5) stay hidden.
+const MINI_XIANGQI_HORSE_STATE = mxqDemoState('dmxq-horse-leg', {
+  d3: { color: 'red', role: 'horse' },
+  d4: { color: 'black', role: 'soldier' },
+});
+const MINI_XIANGQI_HORSE_PAIR = miniXqPairSvg(
+  MINI_XIANGQI_HORSE_STATE,
+  getMiniXiangqiPlayerView(MINI_XIANGQI_HORSE_STATE, 'red'),
+  'mxq-fog-horse',
+);
 
 function xqViewWithExtraVisibleSquares(
   view: XiangqiPlayerView,
@@ -3867,12 +3968,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Dark Mini Xiangqi is Mini Xiangqi played with Fog of War. Each player sees all of their own pieces and only the enemy pieces their army can see. The board is 7 by 7, the piece set is compact, and the game ends by capturing the opposing general.',
-      },
-      {
-        kind: 'paragraph',
-        text:
-          'The smaller board is not meant to make xiangqi casual. It keeps the cannon, horse, chariot, soldier, and palace-general tactics that matter most under hidden information while reducing empty fog and making games easier to review.',
+          '[Mini Xiangqi](/rules/mini-xiangqi) played with Fog of War: each player sees only their own pieces and the enemy pieces their army can reach. The board is 7 by 7, and the game ends by capturing the opposing general. If you know Mini Xiangqi, the sections below explain only what fog changes.',
       },
     ],
     sections: [
@@ -3882,52 +3978,12 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Dark Mini Xiangqi uses the Mini Xiangqi board: 7 files by 7 ranks, with files a through g and ranks 1 through 7. Red starts on rank 1, Black starts on rank 7, and Red moves first.',
+              'The board and army are the same as [Mini Xiangqi](/rules/mini-xiangqi): a 7 by 7 grid with files a through g, one general, two chariots, two cannons, two horses, and five soldiers a side. Red starts on rank 1 and moves first; Black mirrors it on rank 7. Each general keeps a 3 by 3 palace, and there is no river.',
           },
           {
             kind: 'raw-svg',
             svg: MINI_XIANGQI_START_BOARD,
           } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text:
-              'Each side has one general, two chariots, two cannons, two horses, and five soldiers. The back rank is chariot, cannon, horse, general, horse, cannon, chariot. Soldiers start one rank ahead on files a, c, d, e, and g.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'Each general is confined to a 3 by 3 palace. There are no advisors, elephants, river, promotions, drops, or reserves.',
-          },
-        ],
-      },
-      {
-        heading: 'Piece movement',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              '**General:** moves one point orthogonally inside its own palace. If the two generals face each other on the same open file, a general may capture the opposing general across that file.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Chariot:** moves any distance horizontally or vertically. It cannot jump, and it may capture the first enemy piece it reaches.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Cannon:** moves like a chariot when it is not capturing. To capture, it jumps over exactly one intervening piece, called the screen, and lands on the first enemy piece beyond it.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Horse:** moves one point orthogonally and then one point diagonally outward, like a xiangqi horse. It cannot move if the adjacent orthogonal leg point is occupied.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Soldier:** moves and captures one point forward or sideways from the start of the game. There is no river-crossing rule because soldiers already have sideways movement.',
-          },
         ],
       },
       {
@@ -3936,7 +3992,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'A player sees all of their own pieces, the points their pieces can see, enemy pieces on visible unshrouded points, and shrouded occupancy markers for certain blockers and cannon screens.',
+              'You see your own pieces, every point they can reach, and any enemy piece standing on a point you can see. Everything else is fog. Vision is recomputed from the true position after every move, so opening a line or losing a piece immediately changes what you know.',
           },
           {
             kind: 'raw-svg',
@@ -3950,18 +4006,28 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'A player does not see enemy pieces outside visible points, whether a hidden point is empty, the role of a shrouded blocker, or empty cannon gap points between a screen and target.',
+              'You never see enemy pieces outside your vision, whether a fogged point is empty, or the identity of a shrouded blocker. Two pieces interact with fog in ways worth seeing up close.',
           },
+          { kind: 'sub-heading', text: 'Cannons' },
           {
             kind: 'paragraph',
             text:
-              'The key cannon rule is **screen shrouded, target revealed**. Empty points before the screen are visible, the screen appears occupied but unidentified, empty points between the screen and target stay fogged, and the capturable target is visible.',
+              'A cannon captures by jumping exactly one screen and landing on the first enemy piece beyond it. Under fog the rule is **screen shrouded, target revealed**: the screen shows as occupied but unidentified, the empty gap behind it stays fogged, and the capturable target is shown with a marker.',
           },
+          {
+            kind: 'raw-svg',
+            svg: MINI_XIANGQI_CANNON_PAIR,
+          } as ArticleBlock,
+          { kind: 'sub-heading', text: 'Horses' },
           {
             kind: 'paragraph',
             text:
-              'Horses follow the same privacy principle. If a horse leg is blocked, the leg point appears occupied but unidentified, and the destinations behind that leg stay hidden.',
+              'A horse moves one point orthogonally and then one diagonally outward, and cannot move if the leg point in between is occupied. If a hidden piece blocks the leg, the leg point shows as occupied but unidentified, and the destinations behind it drop out of your view.',
           },
+          {
+            kind: 'raw-svg',
+            svg: MINI_XIANGQI_HORSE_PAIR,
+          } as ArticleBlock,
         ],
       },
       {
@@ -3970,17 +4036,12 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The game ends when a general is captured. There is no separate check or checkmate rule, and check warnings are not announced.',
+              'Capture the general to win. There is no checkmate and no check warning, so you can move into danger, leave your general exposed, or let the generals face each other across an open file.',
           },
           {
             kind: 'paragraph',
             text:
-              'A player may move into danger, leave their general exposed, or allow facing generals. This follows Mistboard\'s Fog of War rule philosophy: the server should not reveal warning information that the visible position may not justify.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'If the side to move has no legal move, that side loses by immobilization. Draws are adjudicated from the true position, not either player\'s view: threefold repetition is an automatic draw, and a no-capture progress clock can also draw the game.',
+              'If the side to move has no legal move, it loses. Draws are judged from the true position, not either player\'s view: threefold repetition and a no-capture limit.',
           },
         ],
       },
@@ -3990,12 +4051,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Dark Mini Xiangqi is an experimental launch candidate, not a public Mistboard game mode yet. The intended game spec id is dark-mini-xiangqi.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'The conservative path is rules and fog tests first, a hidden local play lab second, live runtime only after privacy tests pass, and public launch only after mobile play, invite/share, and postgame behavior are ready.',
+              'Dark Mini Xiangqi is an experimental launch candidate, not yet a public game mode. Play and invite links will appear here soon.',
           },
           {
             kind: 'cta',
