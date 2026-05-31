@@ -20,15 +20,19 @@ import {
   applyMove as applyXiangqiMove,
   createChess960CastlingRightsForSides,
   createChess960InitialBoardForSides,
+  createInitialMiniXiangqiBoard,
   createInitialXiangqiState,
   computeVision as computeXiangqiVision,
   getPlayerView as getXiangqiPlayerView,
   darkChessVariant,
+  miniXiangqiCoordOf,
   squareOf as xiangqiSquareOf,
   type BackRankRole,
   type Board,
   type Chess960Start,
   type GameState,
+  type MiniXiangqiBoard,
+  type MiniXiangqiSquare,
   type PieceRole,
   type Square,
   type XiangqiColor,
@@ -1734,6 +1738,114 @@ function xqSvg(width: number, height: number, body: string): string {
   const layout = width <= XQ_BOARD_W ? 'single' : width <= XQ_BOARD_W * 2 + 28 ? 'pair' : 'wide';
   return `<svg class="xq-article-svg" data-xq-layout="${layout}" style="--xq-svg-width: ${paddedWidth}px" viewBox="0 0 ${paddedWidth} ${paddedHeight}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
+
+// ── Mini Xiangqi rules diagrams ────────────────────────────────────────────
+// A self-contained 7x7 board SVG, reusing the Xiangqi rules-diagram scale
+// (XQ_CELL / XQ_MARGIN / XQ_PIECE_SIZE) and marker vocabulary so the Mini
+// Xiangqi page reads as a sibling of the full Xiangqi page. There is no river;
+// each palace is a 3x3 box spanning ranks 1-3 (Red) and 5-7 (Black). Boards are
+// drawn from Red's perspective with rank 1 at the bottom.
+const MXQ_FILES = 7;
+const MXQ_RANKS = 7;
+const MXQ_BOARD_W = XQ_MARGIN * 2 + (MXQ_FILES - 1) * XQ_CELL;
+const MXQ_BOARD_H = XQ_MARGIN * 2 + (MXQ_RANKS - 1) * XQ_CELL;
+
+function mxqPoint(file: number, rank: number): { x: number; y: number } {
+  return {
+    x: XQ_MARGIN + file * XQ_CELL,
+    y: XQ_MARGIN + (MXQ_RANKS - rank) * XQ_CELL,
+  };
+}
+
+function mxqGridLayer(): string {
+  const parts: string[] = [
+    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="#f5dca8"/>`,
+  ];
+  const left = XQ_MARGIN;
+  const right = XQ_MARGIN + (MXQ_FILES - 1) * XQ_CELL;
+  const top = XQ_MARGIN;
+  const bottom = XQ_MARGIN + (MXQ_RANKS - 1) * XQ_CELL;
+  for (let r = 0; r < MXQ_RANKS; r += 1) {
+    const y = top + r * XQ_CELL;
+    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" stroke="#5a3a14" stroke-width="1"/>`);
+  }
+  for (let f = 0; f < MXQ_FILES; f += 1) {
+    const x = left + f * XQ_CELL;
+    parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" stroke="#5a3a14" stroke-width="1"/>`);
+  }
+  // Palace diagonals: files c-e (indices 2-4), ranks 1-3 (Red) and 5-7 (Black).
+  for (const [loRank, hiRank] of [[1, 3], [5, 7]] as const) {
+    const a = mxqPoint(2, hiRank);
+    const b = mxqPoint(4, loRank);
+    const c = mxqPoint(4, hiRank);
+    const d = mxqPoint(2, loRank);
+    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#5a3a14" stroke-width="1"/>`);
+    parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" stroke="#5a3a14" stroke-width="1"/>`);
+  }
+  return parts.join('');
+}
+
+function mxqMarkerLayer(dots: MiniXiangqiSquare[], captures: MiniXiangqiSquare[]): string {
+  const parts: string[] = [];
+  for (const sq of captures) {
+    const { file, rank } = miniXiangqiCoordOf(sq);
+    const { x, y } = mxqPoint(file, rank);
+    parts.push(`<circle cx="${x}" cy="${y}" r="16" fill="none" stroke="#15781B" stroke-width="2.5"/>`);
+  }
+  for (const sq of dots) {
+    const { file, rank } = miniXiangqiCoordOf(sq);
+    const { x, y } = mxqPoint(file, rank);
+    parts.push(`<circle cx="${x}" cy="${y}" r="6.5" fill="#15781B" opacity="0.85"/>`);
+  }
+  return parts.join('');
+}
+
+function mxqPiecesLayer(board: MiniXiangqiBoard): string {
+  return Object.entries(board)
+    .map(([sq, piece]) => {
+      if (!piece) return '';
+      const { file, rank } = miniXiangqiCoordOf(sq as MiniXiangqiSquare);
+      const { x, y } = mxqPoint(file, rank);
+      return renderXiangqiPiece(piece as XiangqiPiece, {
+        x: x - XQ_PIECE_SIZE / 2,
+        y: y - XQ_PIECE_SIZE / 2,
+        size: XQ_PIECE_SIZE,
+      });
+    })
+    .join('');
+}
+
+function miniXqBoardSvg(opts: {
+  board: MiniXiangqiBoard;
+  dots?: MiniXiangqiSquare[];
+  captures?: MiniXiangqiSquare[];
+}): string {
+  const w = MXQ_BOARD_W + XQ_VIEWBOX_PAD * 2;
+  const h = MXQ_BOARD_H + XQ_VIEWBOX_PAD * 2;
+  const body = [
+    mxqGridLayer(),
+    mxqMarkerLayer(opts.dots ?? [], opts.captures ?? []),
+    mxqPiecesLayer(opts.board),
+    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
+  ].join('');
+  return `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: ${w}px" viewBox="0 0 ${w} ${h}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Mini Xiangqi board"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
+}
+
+// Clean fog-free starting position, used as both the page board and card image.
+const MINI_XIANGQI_START_BOARD = miniXqBoardSvg({ board: createInitialMiniXiangqiBoard() });
+
+// Soldier movement: a Red soldier in the open moves and captures one point
+// forward or sideways (never backward) from the very first move, because Mini
+// Xiangqi has no river. Dots are quiet moves; the ring is a sideways capture.
+const MINI_XIANGQI_SOLDIER_BOARD: MiniXiangqiBoard = {
+  d4: { color: 'red', role: 'soldier' },
+  c4: { color: 'black', role: 'soldier' },
+};
+const MINI_XIANGQI_SOLDIER_DIAGRAM = miniXqBoardSvg({
+  board: MINI_XIANGQI_SOLDIER_BOARD,
+  dots: ['d5', 'e4'],
+  captures: ['c4'],
+});
 
 function xqViewWithExtraVisibleSquares(
   view: XiangqiPlayerView,
@@ -3594,12 +3706,13 @@ export const articles: Article[] = [
     kind: 'rules',
     title: 'Mini Xiangqi',
     summary:
-      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: fewer pieces, no river, sideways soldiers from move one, checkmate wins, and perpetual check loses.',
+      'The compact 7 by 7 xiangqi ruleset behind Dark Mini Xiangqi: no advisors or elephants, no river, soldiers that move sideways from the first move, checkmate to win, and no stalemate draw.',
     showSummaryOnPage: false,
-    status: 'draft',
+    status: 'published',
+    publishedAt: '2026-05-31',
     audience:
-      'Mistboard readers reviewing the non-fog base rules before Dark Mini Xiangqi is promoted.',
-    thumbnail: { kind: 'svg', svg: DARK_MINI_XIANGQI_THUMBNAIL },
+      'Mistboard readers who want the open-information Mini Xiangqi baseline before adding fog.',
+    thumbnail: { kind: 'svg', svg: MINI_XIANGQI_START_BOARD },
     intro: [
       {
         kind: 'paragraph',
@@ -3608,8 +3721,7 @@ export const articles: Article[] = [
       },
       {
         kind: 'paragraph',
-        text:
-          'This page describes the open-information base game. Dark Mini Xiangqi starts here, then adds fog and general capture.',
+        text: 'This page describes the open-information base game.',
       },
     ],
     sections: [
@@ -3619,11 +3731,11 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Mini Xiangqi is xiangqi compressed to a 7 by 7 board, with a simplified army: guards and elephants are dropped. The palace remains a 3 by 3 box for each general, but the board has no river.',
+              'Mini Xiangqi is xiangqi compressed onto a 7 by 7 board with a smaller army. The advisors and elephants are dropped and there is no river, but each general still keeps a 3 by 3 palace.',
           },
           {
             kind: 'raw-svg',
-            svg: DARK_MINI_XIANGQI_THUMBNAIL,
+            svg: MINI_XIANGQI_START_BOARD,
           } as ArticleBlock,
         ],
       },
@@ -3633,17 +3745,21 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'General, chariot, cannon, and horse movement is the same as in xiangqi.',
+              'Every piece except the soldier moves exactly as it does in [xiangqi](/rules/xiangqi).',
           },
           {
             kind: 'paragraph',
             text:
-              'The only important movement change is the soldier: because there is no river, soldiers may move and capture forward or sideways from the start. They still never move backward.',
+              '**Soldier:** a soldier moves and captures one point forward or sideways, never backward. With no river to cross, it has that sideways freedom from its very first move, unlike a soldier on the full xiangqi board.',
           },
+          {
+            kind: 'raw-svg',
+            svg: MINI_XIANGQI_SOLDIER_DIAGRAM,
+          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
-              'Facing generals are still illegal.',
+              'Facing generals are illegal here too. The two generals may never sit on the same open file with nothing between them, so a move that would expose that line is not allowed.',
           },
         ],
       },
@@ -3653,37 +3769,25 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Checkmate wins. As in xiangqi, a player with no legal move loses instead of drawing by stalemate.',
+              'Checkmate wins. As in xiangqi, a player who has no legal move loses rather than drawing by stalemate, and perpetual check or perpetual chase is not a free draw: a player who repeats an endless attack loses instead.',
           },
           {
             kind: 'paragraph',
             text:
-              'Mistboard Mini Xiangqi uses a fourth-repetition rule. If the same true position with the same side to move appears for a fourth time, the game ends. If the repeating move gives check, the checking player loses. Otherwise, the game is a draw.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'The game is also drawn after 60 plies without a capture.',
+              'A game is drawn when neither side has enough material to checkmate, when a long run of moves passes with no capture (xiangqi caps this much like chess’s fifty-move rule), or by a repetition that breaks none of the perpetual rules. These outcomes follow from the position, not from one player choosing to stop.',
           },
         ],
       },
-      {
-        heading: 'Next: add fog',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'Dark Mini Xiangqi uses this smaller board and piece set, then turns the game into a Fog of War variant. The compact board makes cannon screens, horse legs, and palace threats appear faster than they do on the full xiangqi board.',
-          },
-          {
-            kind: 'cta',
-            buttons: [
-              { label: 'Read Dark Mini Xiangqi', href: '/rules/dark-mini-xiangqi', emphasis: 'primary' },
-              { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
-            ],
-          } as ArticleBlock,
+      relatedClosing({
+        heading: 'Where to next',
+        lead: 'Mini Xiangqi is the open-information base game. Dark Mini Xiangqi adds Fog of War, where enemy pieces outside your vision disappear and the general falls by capture rather than checkmate. Or step up to the full board.',
+        links: [
+          { label: 'Read Dark Mini Xiangqi', href: '/rules/dark-mini-xiangqi', emphasis: 'primary' },
+          { label: 'Xiangqi', href: '/rules/xiangqi', emphasis: 'secondary' },
+          { label: 'Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'secondary' },
+          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
-      },
+      }),
     ],
   },
   {

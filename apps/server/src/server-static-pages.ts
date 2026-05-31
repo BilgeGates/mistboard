@@ -104,7 +104,7 @@ export const ARTICLE_META: Record<
     title: 'Mini Xiangqi',
     kind: 'rules',
     description:
-      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: fewer pieces, no river, sideways soldiers from move one, checkmate wins, and perpetual check loses.',
+      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: no advisors or elephants, no river, soldiers that move sideways from the first move, checkmate to win, and no stalemate draw.',
   },
   'dark-mini-xiangqi': {
     title: 'Dark Mini Xiangqi',
