@@ -88,8 +88,8 @@ from M1, say that explicitly instead of leaving it as stale open work.
 
 ### Tier B — Share surface
 
-- [ ] Per-game OG Phase 2 shipped (loser-view + truth boards rendered, not the Phase 1 stub). _Open question since 2026-05-18: keep the Phase 1 stub, redesign, or drop from M1. This is a decision, not a build — settle it._
-- [ ] OG scraper sanity: Discord, iMessage, Twitter, Slack all render the right card. _Deferred; manual, not yet run._
+- Per-game OG Phase 2 (loser-view + truth boards) — **moved to M3.** Cut from M1 by decision (2026-05-30): rich per-game share cards only pay off at share volume (M3 hard launch), and there'll be real games to render by then. M1 keeps the Phase 1 stub. The truth-board reveal is strong FoW-specific share bait — revisit it as an M3 distribution asset, not a launch gate.
+- [ ] OG scraper sanity: Discord, iMessage, Twitter, Slack all render the right card (Phase 1 stub is fine). _Manual, not yet run. This is the actual M1 OG bar._
 - [x] Dark chess rules article published and linked from landing. _`dark-chess-rules` in `articles-data.ts`; surfaced via landing thumbnails + `/articles`._
 - [x] Draft960 article published and linked from landing. _`draft960` in `articles-data.ts`; same surface._
 - [ ] Article mobile pass (TOC sidebar, stepper, board composition all readable on phone). _Deferred pending article content/polish._

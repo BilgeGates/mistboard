@@ -32,8 +32,6 @@ Recent shipped work:
 Still open against M1:
 - Record mobile gameplay end-to-end evidence for iPhone Safari + Android Chrome
 - Record empty-lobby engine fallback verification in production
-- Decide whether per-game OG Phase 2 stays in M1; if it stays, ship loser-view
-  + truth boards and run scraper sanity checks
 - Record PostHog funnel verification from real traffic
 - Record article mobile pass evidence (TOC, stepper, board composition)
 - Confirm the current playable engine clears the M1 beginner bar
@@ -42,6 +40,10 @@ Moved out of M1:
 - Draft960 lobby and Draft960 rated work are M4. The Draft960 article exists,
   but the launch surface stays standard Fog of War to avoid splitting the pool.
 - Dark Xiangqi is a hidden dev spike, not an M1 public launch surface.
+- Per-game OG Phase 2 (loser-view + truth boards) is M3. Cut from M1 by
+  decision (2026-05-30): rich per-game share cards only pay off at share
+  volume (M3 hard launch), and there'll be real games to render by then. M1
+  keeps the Phase 1 stub; the M1 OG bar is just "OG scraper sanity."
 
 Release confidence work now active:
 - Local production-like release smoke: build, local Postgres, migrations, server
