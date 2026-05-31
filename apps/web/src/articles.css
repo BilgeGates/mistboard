@@ -390,6 +390,42 @@
   display: block;
 }
 
+/* Single xiangqi board: cap at its natural width instead of stretching to
+   fill the article column. The SVG carries its natural width as the inline
+   --xq-svg-width custom property. */
+.article-figure-xq > .xq-article-svg[data-xq-layout="single"] {
+  width: min(var(--xq-svg-width, 292px), 100%);
+  margin-inline: auto;
+}
+
+/* Xiangqi game replay widget: reuses the stepper controls; only the header
+   (players + event) needs its own styling. */
+.xq-replay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.xq-replay-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+  text-align: center;
+}
+
+.xq-replay .raw-svg-stepper-frame-xq > .xq-article-svg[data-xq-layout="single"] {
+  width: min(var(--xq-svg-width, 292px), 100%);
+  margin-inline: auto;
+}
+
+.xq-replay-slider {
+  width: min(292px, 100%);
+  accent-color: #15781b;
+  cursor: pointer;
+}
+
 .article-figure-caption {
   color: #4b5563;
   font-size: 14px;

@@ -16,6 +16,10 @@ export type LiveBoardSpec = {
   label?: string;
   arrows?: LiveBoardArrow[];
   highlightSquares?: Square[];
+  // Squares to mark as legal captures: rendered as a green ring around the
+  // piece (chessground's circle annotation), the same capture vocabulary the
+  // xiangqi rules diagrams use.
+  captureSquares?: Square[];
 };
 
 export type LiveBoardsLayout = 'single' | 'pair' | 'triptych' | 'grid';
@@ -77,11 +81,18 @@ export function mountLiveBoards(host: HTMLElement, opts: LiveBoardsOptions): Liv
     host.append(cell);
 
     const fog = spec.fogSquares ?? [];
-    const shapes = (spec.arrows ?? []).map((a) => ({
-      orig: a.orig as cg.Key,
-      dest: a.dest as cg.Key,
-      brush: a.brush ?? 'green',
-    }));
+    const shapes = [
+      ...(spec.arrows ?? []).map((a) => ({
+        orig: a.orig as cg.Key,
+        dest: a.dest as cg.Key,
+        brush: a.brush ?? 'green',
+      })),
+      // A shape with an orig but no dest renders as a circle on that square.
+      ...(spec.captureSquares ?? []).map((sq) => ({
+        orig: sq as cg.Key,
+        brush: 'green',
+      })),
+    ];
     const api = mountBoard(boardEl, {
       animation: { enabled: false },
       coordinates: false,

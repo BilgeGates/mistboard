@@ -40,6 +40,7 @@ import {
 import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
 import articleSnapshotFogBlack from './article-snapshot-fog-black.json' with { type: 'json' };
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
+import type { XiangqiReplaySpec } from './xiangqi-replay.js';
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
 
@@ -80,6 +81,14 @@ export type InteractiveBlock = {
 export type LiveBoardsBlock = {
   kind: 'live-boards';
   spec: LiveBoardsOptions;
+  caption?: string;
+};
+
+// Client-side game replay: one board stepped through a move list. The move
+// record ships as a compact ICCS string; positions render on demand.
+export type XiangqiReplayBlock = {
+  kind: 'xq-replay';
+  spec: XiangqiReplaySpec;
   caption?: string;
 };
 
@@ -139,6 +148,7 @@ export type ArticleBlock =
   | CtaBlock
   | RawSvgBlock
   | RawSvgStepperBlock
+  | XiangqiReplayBlock
   | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body
@@ -185,6 +195,50 @@ export type Article = {
   thumbnail?: ArticleThumbnail;
   sections: ArticleSection[];
 };
+
+// ── Standardized rules-article closings ───────────────────────────────────
+// Two kinds, picked by whether *this article's* game is playable on Mistboard
+// today:
+//   relatedClosing — the game is not hosted (base games, or fog variants not
+//     yet public). Links onward to related rules articles.
+//   playClosing — the game is live. Deep-links into the homepage play modal
+//     (`/?play=lobby` etc.), so a reader drops straight into starting a game.
+// A not-yet-public fog variant flips from related to play by swapping the call.
+function relatedClosing(opts: {
+  heading: string;
+  lead: string;
+  links: CtaButton[];
+}): ArticleSection {
+  return {
+    heading: opts.heading,
+    blocks: [
+      { kind: 'paragraph', text: opts.lead },
+      { kind: 'cta', buttons: opts.links },
+    ],
+  };
+}
+
+function playClosing(opts: {
+  heading: string;
+  lead: string;
+  playLabel: string;
+  playHref: string;
+  secondary?: CtaButton[];
+}): ArticleSection {
+  return {
+    heading: opts.heading,
+    blocks: [
+      { kind: 'paragraph', text: opts.lead },
+      {
+        kind: 'cta',
+        buttons: [
+          { label: opts.playLabel, href: opts.playHref, emphasis: 'primary' },
+          ...(opts.secondary ?? []),
+        ],
+      },
+    ],
+  };
+}
 
 // Three distinct Chess960 back ranks per side for the Draft960 draft section.
 // Each is valid (bishops on opposite-colored squares, king between rooks) and
@@ -343,7 +397,11 @@ const BASIC_BLOCKERS = coneState('basic-chess-blockers', {
   b4: { color: 'black', role: 'knight' },
   g4: { color: 'black', role: 'bishop' },
 });
-const BASIC_BLOCKER_TARGETS: Square[] = ['e1', 'e2', 'e3', 'a4', 'b4', 'c4', 'd4', 'f4', 'g4'];
+// Reachable empty squares for the rook on e4: down to e1, up to e5 (its own
+// pawn on e6 blocks further), left to c4/d4 (the knight on b4 stops it, so a4
+// is unreachable), right to f4 (the bishop on g4 stops it). b4 and g4 are the
+// captures, marked with rings rather than highlighted as empty destinations.
+const BASIC_BLOCKER_TARGETS: Square[] = ['e1', 'e2', 'e3', 'e5', 'c4', 'd4', 'f4'];
 
 const BASIC_CASTLE_BEFORE: Board = {
   e1: { color: 'white', role: 'king' },
@@ -1526,6 +1584,42 @@ function xqCannonTargets(
     .join('');
 }
 
+// Movement-diagram destination markers, following the standard board-UI
+// vocabulary:
+//   - filled green dot  = a legal move to an empty point
+//   - green ring        = a legal capture (drawn around the enemy piece)
+//   - red X             = a point the piece would reach on an open board but
+//                         cannot, because something blocks the path (a horse's
+//                         leg, an elephant's eye, the river)
+// Green matches the existing arrow colour so diagrams read consistently with
+// the live UI. The capture ring sits just outside the piece disc (radius ~13),
+// so it stays visible even though markers render beneath the pieces.
+function xqMoveDots(
+  dots: Array<{ square: XiangqiSquare; blocked?: boolean; capture?: boolean }> | undefined,
+  x0: number,
+  y0: number,
+  perspective: XiangqiColor,
+): string {
+  if (!dots || dots.length === 0) return '';
+  return dots
+    .map(({ square, blocked, capture }) => {
+      const { file, rank } = xqCoord(square);
+      const { x, y } = xqPoint(file, rank, perspective, x0, y0);
+      if (blocked) {
+        const r = 7;
+        return [
+          `<line x1="${x - r}" y1="${y - r}" x2="${x + r}" y2="${y + r}" stroke="#d4351c" stroke-width="2.75" stroke-linecap="round"/>`,
+          `<line x1="${x - r}" y1="${y + r}" x2="${x + r}" y2="${y - r}" stroke="#d4351c" stroke-width="2.75" stroke-linecap="round"/>`,
+        ].join('');
+      }
+      if (capture) {
+        return `<circle cx="${x}" cy="${y}" r="16" fill="none" stroke="#15781B" stroke-width="2.5"/>`;
+      }
+      return `<circle cx="${x}" cy="${y}" r="6.5" fill="#15781B" opacity="0.85"/>`;
+    })
+    .join('');
+}
+
 function xqPiecesLayer(
   state: XiangqiGameState,
   view: XiangqiPlayerView | null,
@@ -1573,6 +1667,31 @@ function xqArrowLayer(
     .join('');
 }
 
+// Translucent callouts for the board's two structural zones: the two palaces
+// (the 3x3 boxes the general and advisors never leave) and the river band.
+// Used by the board-anatomy diagram so the prose's palace/river have a visual.
+function xqZoneHighlights(x0: number, y0: number, perspective: XiangqiColor): string {
+  const parts: string[] = [];
+  const pad = 6;
+  for (const [rLo, rHi] of [[1, 3], [8, 10]] as const) {
+    const lo = xqPoint(3, rLo, perspective, x0, y0);
+    const hi = xqPoint(5, rHi, perspective, x0, y0);
+    const x = Math.min(lo.x, hi.x) - pad;
+    const y = Math.min(lo.y, hi.y) - pad;
+    const w = Math.abs(hi.x - lo.x) + pad * 2;
+    const h = Math.abs(hi.y - lo.y) + pad * 2;
+    parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#2563eb" opacity="0.13" rx="5"/>`);
+  }
+  const left = x0 + XQ_MARGIN;
+  const right = left + 8 * XQ_CELL;
+  const ya = xqPoint(0, 5, perspective, x0, y0).y;
+  const yb = xqPoint(0, 6, perspective, x0, y0).y;
+  parts.push(
+    `<rect x="${left}" y="${Math.min(ya, yb)}" width="${right - left}" height="${Math.abs(yb - ya)}" fill="#2563eb" opacity="0.09"/>`,
+  );
+  return parts.join('');
+}
+
 function xqBoardSvg(opts: {
   state: XiangqiGameState;
   view?: XiangqiPlayerView;
@@ -1581,6 +1700,11 @@ function xqBoardSvg(opts: {
   label: string;
   perspective?: XiangqiColor;
   arrows?: Array<{ from: XiangqiSquare; to: XiangqiSquare }>;
+  dots?: Array<{ square: XiangqiSquare; blocked?: boolean; capture?: boolean }>;
+  zones?: boolean;
+  // Raw SVG drawn on top of the pieces (a confrontation line, etc.). The
+  // caller positions it with xqPoint using the same x and boardY (y + 28).
+  overlay?: string;
 }): string {
   const perspective = opts.perspective ?? opts.view?.perspective ?? 'red';
   const view = opts.view ?? null;
@@ -1589,10 +1713,13 @@ function xqBoardSvg(opts: {
   return [
     `<text x="${opts.x + XQ_BOARD_W / 2}" y="${opts.y + 14}" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text>`,
     xqBoardGrid(opts.x, boardY, perspective),
+    opts.zones ? xqZoneHighlights(opts.x, boardY, perspective) : '',
     xqFogLayer(view, opts.x, boardY, perspective, clipId),
     xqCannonTargets(opts.state, view, opts.x, boardY, perspective),
+    xqMoveDots(opts.dots, opts.x, boardY, perspective),
     xqPiecesLayer(opts.state, view, opts.x, boardY, perspective),
     xqArrowLayer(opts.arrows, opts.x, boardY, perspective),
+    opts.overlay ?? '',
     xqBoardBorder(opts.x, boardY),
   ].join('');
 }
@@ -1635,7 +1762,7 @@ const XQ_START_TRIPTYCH = xqSvg(
 const XQ_RULES_PRIMER_START_BOARD = xqSvg(
   XQ_BOARD_W,
   XQ_BOARD_H + 52,
-  xqBoardSvg({ state: XQ_START, x: 0, y: 0, label: 'STARTING POSITION', perspective: 'red' }),
+  xqBoardSvg({ state: XQ_START, x: 0, y: 0, label: 'STARTING POSITION', perspective: 'red', zones: true }),
 );
 const XQ_RULES_PRIMER_THUMBNAIL = xqSvg(
   XQ_BOARD_W,
@@ -1653,6 +1780,260 @@ function xqVisionDemoState(id: string, board: Partial<Record<XiangqiSquare, Xian
     positionCounts: {},
   };
 }
+
+// Open-information movement diagram for the Horse (rules primer). Left board:
+// a horse on a clear central point reaches all eight L-shaped destinations.
+// Right board: a single blocker on the point directly ahead (the "leg") kills
+// the two destinations that step through it, shown as red X marks.
+function xqDots(squares: string[]): Array<{ square: XiangqiSquare; blocked?: boolean }> {
+  return squares.map((s) => ({ square: s as XiangqiSquare }));
+}
+const XQ_PRIMER_HORSE_OPEN = xqVisionDemoState('xq-primer-horse-open', {
+  e5: { color: 'red', role: 'horse' },
+});
+const XQ_PRIMER_HORSE_BLOCKED = xqVisionDemoState('xq-primer-horse-blocked', {
+  e5: { color: 'red', role: 'horse' },
+  e6: { color: 'black', role: 'soldier' },
+});
+const XQ_PRIMER_HORSE_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_PRIMER_HORSE_OPEN,
+      x: 0,
+      y: 0,
+      label: 'UNOBSTRUCTED',
+      perspective: 'red',
+      dots: xqDots(['c4', 'c6', 'd3', 'd7', 'f3', 'f7', 'g4', 'g6']),
+    }),
+    xqBoardSvg({
+      state: XQ_PRIMER_HORSE_BLOCKED,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'LEG BLOCKED',
+      perspective: 'red',
+      dots: [
+        ...xqDots(['c4', 'c6', 'd3', 'f3', 'g4', 'g6']),
+        { square: 'd7' as XiangqiSquare, blocked: true },
+        { square: 'f7' as XiangqiSquare, blocked: true },
+      ],
+    }),
+  ].join(''),
+);
+
+// General: one orthogonal step, confined to the palace.
+const XQ_PRIMER_GENERAL = xqVisionDemoState('xq-primer-general', {
+  e2: { color: 'red', role: 'general' },
+});
+const XQ_PRIMER_GENERAL_BOARD = xqSvg(
+  XQ_BOARD_W,
+  XQ_BOARD_H + 52,
+  xqBoardSvg({
+    state: XQ_PRIMER_GENERAL,
+    x: 0,
+    y: 0,
+    label: 'GENERAL',
+    perspective: 'red',
+    dots: xqDots(['d2', 'f2', 'e1', 'e3']),
+  }),
+);
+
+// The flying-general rule: two generals may not sit on the same open file with
+// nothing between them. Left board is the forbidden facing (dashed red axis);
+// right board is legal because a piece screens the file.
+const XQ_PRIMER_FACING_ILLEGAL = xqVisionDemoState('xq-primer-facing-illegal', {
+  e1: { color: 'red', role: 'general' },
+  e10: { color: 'black', role: 'general' },
+});
+const XQ_PRIMER_FACING_LEGAL = xqVisionDemoState('xq-primer-facing-legal', {
+  e1: { color: 'red', role: 'general' },
+  e10: { color: 'black', role: 'general' },
+  e5: { color: 'black', role: 'soldier' },
+});
+function xqFacingLine(x0: number): string {
+  const a = xqPoint(4, 1, 'red', x0, 28);
+  const b = xqPoint(4, 10, 'red', x0, 28);
+  const yTop = Math.min(a.y, b.y) + 16;
+  const yBottom = Math.max(a.y, b.y) - 16;
+  return `<line x1="${a.x}" y1="${yTop}" x2="${a.x}" y2="${yBottom}" stroke="#d4351c" stroke-width="3" stroke-linecap="round" opacity="0.6" stroke-dasharray="3 5"/>`;
+}
+const XQ_PRIMER_FACING_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_PRIMER_FACING_ILLEGAL,
+      x: 0,
+      y: 0,
+      label: 'FACING: FORBIDDEN',
+      perspective: 'red',
+      overlay: xqFacingLine(0),
+    }),
+    xqBoardSvg({
+      state: XQ_PRIMER_FACING_LEGAL,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'SCREENED: ALLOWED',
+      perspective: 'red',
+    }),
+  ].join(''),
+);
+
+// Advisor: one diagonal step, confined to the palace.
+const XQ_PRIMER_ADVISOR = xqVisionDemoState('xq-primer-advisor', {
+  e2: { color: 'red', role: 'advisor' },
+});
+const XQ_PRIMER_ADVISOR_BOARD = xqSvg(
+  XQ_BOARD_W,
+  XQ_BOARD_H + 52,
+  xqBoardSvg({
+    state: XQ_PRIMER_ADVISOR,
+    x: 0,
+    y: 0,
+    label: 'ADVISOR',
+    perspective: 'red',
+    dots: xqDots(['d1', 'f1', 'd3', 'f3']),
+  }),
+);
+
+// Elephant: two points diagonally, never crossing the river and never passing
+// a piece on the midpoint "eye" of the diagonal. Left board shows the river
+// limit (a7, e7 unreachable from c5); right board shows an eye block: a piece
+// on d4 cuts off the c5 diagonal from an elephant on e3.
+const XQ_PRIMER_ELEPHANT_RIVER = xqVisionDemoState('xq-primer-elephant-river', {
+  c5: { color: 'red', role: 'elephant' },
+});
+const XQ_PRIMER_ELEPHANT_EYE = xqVisionDemoState('xq-primer-elephant-eye', {
+  e3: { color: 'red', role: 'elephant' },
+  d4: { color: 'black', role: 'soldier' },
+});
+const XQ_PRIMER_ELEPHANT_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_PRIMER_ELEPHANT_RIVER,
+      x: 0,
+      y: 0,
+      label: 'THE RIVER',
+      perspective: 'red',
+      dots: [
+        ...xqDots(['a3', 'e3']),
+        { square: 'a7' as XiangqiSquare, blocked: true },
+        { square: 'e7' as XiangqiSquare, blocked: true },
+      ],
+    }),
+    xqBoardSvg({
+      state: XQ_PRIMER_ELEPHANT_EYE,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'THE EYE',
+      perspective: 'red',
+      dots: [
+        ...xqDots(['c1', 'g1', 'g5']),
+        { square: 'c5' as XiangqiSquare, blocked: true },
+      ],
+    }),
+  ].join(''),
+);
+
+// Chariot: slides any distance along open lines, cannot jump. On the e-file it
+// is stopped by the soldier (which it may capture); the other rays run free.
+const XQ_PRIMER_CHARIOT = xqVisionDemoState('xq-primer-chariot', {
+  e4: { color: 'red', role: 'chariot' },
+  e8: { color: 'black', role: 'soldier' },
+});
+const XQ_PRIMER_CHARIOT_BOARD = xqSvg(
+  XQ_BOARD_W,
+  XQ_BOARD_H + 52,
+  xqBoardSvg({
+    state: XQ_PRIMER_CHARIOT,
+    x: 0,
+    y: 0,
+    label: 'CHARIOT',
+    perspective: 'red',
+    dots: [
+      ...xqDots([
+        'e5', 'e6', 'e7',
+        'e3', 'e2', 'e1',
+        'd4', 'c4', 'b4', 'a4',
+        'f4', 'g4', 'h4', 'i4',
+      ]),
+      { square: 'e8' as XiangqiSquare, capture: true },
+    ],
+  }),
+);
+
+// Cannon: moves like a chariot, but captures only by leaping exactly one
+// screen. Left board shows free movement; right board jumps the screen on e5
+// to capture the chariot on e8.
+const XQ_PRIMER_CANNON_MOVE = xqVisionDemoState('xq-primer-cannon-move', {
+  e4: { color: 'red', role: 'cannon' },
+});
+const XQ_PRIMER_CANNON_CAPTURE = xqVisionDemoState('xq-primer-cannon-capture', {
+  e2: { color: 'red', role: 'cannon' },
+  e5: { color: 'red', role: 'soldier' },
+  e8: { color: 'black', role: 'chariot' },
+});
+const XQ_PRIMER_CANNON_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_PRIMER_CANNON_MOVE,
+      x: 0,
+      y: 0,
+      label: 'MOVE',
+      perspective: 'red',
+      dots: xqDots([
+        'e5', 'e6', 'e7', 'e8', 'e9', 'e10',
+        'e3', 'e2', 'e1',
+        'd4', 'c4', 'b4', 'a4',
+        'f4', 'g4', 'h4', 'i4',
+      ]),
+    }),
+    xqBoardSvg({
+      state: XQ_PRIMER_CANNON_CAPTURE,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'CAPTURE',
+      perspective: 'red',
+      dots: [{ square: 'e8' as XiangqiSquare, capture: true }],
+    }),
+  ].join(''),
+);
+
+// Soldier: one point straight forward; after crossing the river it may also
+// step sideways. Never backward.
+const XQ_PRIMER_SOLDIER_BEFORE = xqVisionDemoState('xq-primer-soldier-before', {
+  e4: { color: 'red', role: 'soldier' },
+});
+const XQ_PRIMER_SOLDIER_AFTER = xqVisionDemoState('xq-primer-soldier-after', {
+  e6: { color: 'red', role: 'soldier' },
+});
+const XQ_PRIMER_SOLDIER_PAIR = xqSvg(
+  XQ_BOARD_W * 2 + 28,
+  XQ_BOARD_H + 52,
+  [
+    xqBoardSvg({
+      state: XQ_PRIMER_SOLDIER_BEFORE,
+      x: 0,
+      y: 0,
+      label: 'BEFORE THE RIVER',
+      perspective: 'red',
+      dots: xqDots(['e5']),
+    }),
+    xqBoardSvg({
+      state: XQ_PRIMER_SOLDIER_AFTER,
+      x: XQ_BOARD_W + 28,
+      y: 0,
+      label: 'ACROSS THE RIVER',
+      perspective: 'red',
+      dots: xqDots(['e7', 'd6', 'f6']),
+    }),
+  ].join(''),
+);
 
 const XQ_VISION_STATES = [
   {
@@ -2210,17 +2591,13 @@ export const articles: Article[] = [
                 {
                   board: BASIC_BLOCKERS.board,
                   highlightSquares: BASIC_BLOCKER_TARGETS,
+                  captureSquares: ['b4' as Square, 'g4' as Square],
                   orientation: 'white',
                   label: 'BLOCKERS AND CAPTURES',
-                  arrows: [
-                    { orig: 'e4' as Square, dest: 'b4' as Square, brush: 'red' as const },
-                    { orig: 'e4' as Square, dest: 'g4' as Square, brush: 'red' as const },
-                    { orig: 'e4' as Square, dest: 'e6' as Square, brush: 'yellow' as const },
-                  ],
                 },
               ],
             },
-            caption: 'The rook can capture the black pieces on b4 or g4, but it cannot move past them. The white pawn on e6 blocks the rook upward.',
+            caption: 'The rook slides until something stops it. It can capture the black pieces on b4 or g4 (green rings) but cannot move past them, and its own pawn on e6 blocks it from going further up.',
           } as ArticleBlock,
         ],
       },
@@ -2870,7 +3247,7 @@ export const articles: Article[] = [
     kind: 'rules',
     title: 'Xiangqi Rules',
     summary:
-      'The regular xiangqi baseline for Mistboard: intersections, palaces, river rules, piece movement, cannon screens, checks, facing generals, and endings.',
+      'The regular xiangqi baseline for Mistboard: intersections, palaces, river rules, piece movement, cannon screens, checks, facing generals, endings, and a famous master game to step through.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-05-26',
@@ -2882,42 +3259,22 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Xiangqi is the game underneath Dark Xiangqi. If you already play xiangqi, you can skip this page and go straight to the [Dark Xiangqi rules](/articles/dark-xiangqi-rules). If you know Western chess but not xiangqi, this page gives you the board, pieces, and rule details you need before fog is added.',
+          'Xiangqi, or Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).',
       },
       {
         kind: 'paragraph',
         text:
-          'The big differences are practical: pieces sit on line intersections, generals live inside palaces, elephants cannot cross the river, horses can be blocked, cannons need screens to capture, and stalemate is not a draw.',
+          'Red and Black alternate moves, with Red first. Each side begins with 16 pieces: one general, two advisors, two elephants, two horses, two chariots, two cannons, and five soldiers. The goal is to checkmate the opposing general.',
       },
     ],
     sections: [
-      {
-        heading: 'Xiangqi in one minute',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'Xiangqi is played by two players: Red and Black. Red moves first. Each side starts with 16 pieces: one general, two advisors, two elephants, two horses, two chariots, two cannons, and five soldiers.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'In normal xiangqi, the goal is to checkmate the opposing general. If a player has no legal move, that player loses. That is different from Western chess, where stalemate is a draw.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'A move either goes to an empty point or captures an enemy piece on the destination point. There are no promotions, castling, en passant captures, or drops.',
-          },
-        ],
-      },
       {
         heading: 'The board',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares. Pieces capture by moving to an enemy-occupied point. You cannot land on your own piece.',
+              'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares.',
           },
           {
             kind: 'raw-svg',
@@ -2936,107 +3293,127 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              '**General:** moves one point horizontally or vertically inside its own palace. The two generals may not face each other on the same open file.',
+              'A piece captures by landing on an enemy-occupied point, and no piece may move through an occupied point. The cannon\'s capturing jump is the only exception. The pieces are listed below in the traditional order.',
           },
           {
             kind: 'paragraph',
             text:
-              '**Advisor:** moves one point diagonally inside its own palace.',
+              '**General:** moves one point horizontally or vertically and can never leave its own palace. The two generals may never face each other along an open file with nothing between them: a move that would expose that line is illegal. In effect, a general guards the file in front of it like a chariot.',
           },
+          {
+            kind: 'raw-svg',
+            svg: XQ_PRIMER_GENERAL_BOARD,
+          } as ArticleBlock,
+          {
+            kind: 'raw-svg',
+            svg: XQ_PRIMER_FACING_PAIR,
+          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
-              '**Elephant:** moves exactly two points diagonally. It cannot cross the river. If another piece sits on the midpoint of that diagonal, the elephant is blocked.',
+              '**Advisor:** moves one point diagonally and, like the general, stays inside the palace.',
           },
+          {
+            kind: 'raw-svg',
+            svg: XQ_PRIMER_ADVISOR_BOARD,
+          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
-              '**Horse:** moves one point orthogonally and then one point diagonally outward, similar to a chess knight. It does not jump: if the adjacent leg point is occupied, the horse cannot move in that direction.',
+              '**Elephant:** moves exactly two points diagonally and cannot cross the river, so it never leaves its own half. It does not jump: a piece on the midpoint of the diagonal, the elephant\'s eye, blocks the move.',
           },
+          {
+            kind: 'raw-svg',
+            svg: XQ_PRIMER_ELEPHANT_PAIR,
+          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
-              '**Chariot:** moves any distance horizontally or vertically, like a rook. It cannot jump over pieces.',
+              '**Horse:** moves one point orthogonally and then one point diagonally outward, like a chess knight, but it does not jump. If the orthogonal point it steps through, the horse\'s leg, is occupied, the horse cannot move in that direction.',
           },
+          {
+            kind: 'raw-svg',
+            svg: XQ_PRIMER_HORSE_PAIR,
+          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
-              '**Cannon:** moves like a chariot when it is not capturing. To capture, it must jump over exactly one intervening piece, called the screen, and land on an enemy piece beyond it.',
+              '**Chariot:** moves any distance horizontally or vertically and cannot jump, exactly like a rook. It is the strongest piece on the board.',
           },
+          {
+            kind: 'raw-svg',
+            svg: XQ_PRIMER_CHARIOT_BOARD,
+          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
-              '**Soldier:** moves one point forward. After crossing the river, it may also move one point sideways. It never moves backward and never promotes.',
+              '**Cannon:** moves like a chariot when it is not capturing. To capture, it jumps over exactly one piece, friend or foe, called the screen, and lands on an enemy piece beyond it.',
           },
-        ],
-      },
-      {
-        heading: 'Rules chess players usually miss',
-        blocks: [
+          {
+            kind: 'raw-svg',
+            svg: XQ_PRIMER_CANNON_PAIR,
+          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
-              'A horse can be blocked. Unlike a knight, it cannot jump over the adjacent leg point.',
+              '**Soldier:** moves one point straight forward and never backward. After crossing the river it may also move one point sideways. It never promotes.',
           },
           {
-            kind: 'paragraph',
-            text:
-              'An elephant can be blocked, and it never crosses the river.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'A cannon does not capture like a rook. It needs exactly one screen between itself and the target.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'The two generals cannot face each other on the same open file in normal xiangqi. A move that exposes that direct line is illegal, and an exposed general can be captured along the file.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'Stalemate is a loss for the player with no legal move, not a draw.',
-          },
-        ],
-      },
-      {
-        heading: 'Checks and endings',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'In normal xiangqi, a general is in check when an enemy piece attacks it. The checked player must answer the threat. If there is no legal answer, the game ends by checkmate.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'Normal xiangqi also has rules for repetition, perpetual check, and perpetual chase. Those rules can get detailed in tournament play. For this rules page, the useful takeaway is simple: normal xiangqi does not allow endless forcing cycles as a free drawing weapon.',
-          },
-        ],
-      },
-      {
-        heading: 'Next: Dark Xiangqi',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'Dark Xiangqi keeps the board, setup, and piece movement above. Then it changes the information and the ending: enemy pieces outside your vision are hidden, check warnings disappear, facing generals are allowed, and the game ends when a general is captured.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'That means the same xiangqi tactics still matter, but under fog. Horse legs, elephant eyes, cannon screens, palace geometry, and river-crossed soldiers all become information signals as well as movement rules.',
-          },
-          {
-            kind: 'cta',
-            buttons: [
-              { label: 'Read Dark Xiangqi', href: '/articles/dark-xiangqi-rules', emphasis: 'primary' },
-              { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
-            ],
+            kind: 'raw-svg',
+            svg: XQ_PRIMER_SOLDIER_PAIR,
           } as ArticleBlock,
         ],
       },
+      {
+        heading: 'Check, checkmate, and endings',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'A general is in check when an enemy piece attacks it, and the player in check must answer the threat. If there is no legal answer, it is checkmate and the checked player loses.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'A player who has no legal move at all also loses. This is the opposite of Western chess, where having no legal move is a stalemate draw.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Xiangqi also restricts endless forcing cycles. Perpetual check and perpetual chase are not allowed, and tournament rules spell out detailed repetition procedures. The practical takeaway: you cannot use an endless check or chase as a free way to force a draw.',
+          },
+        ],
+      },
+      {
+        heading: 'A famous game',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi\'s greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.',
+          },
+          {
+            kind: 'xq-replay',
+            spec: {
+              iccs: 'h2e2 h9g7 h0g2 i9h9 c3c4 g6g5 b0c2 c9e7 i0i1 b9c7 i1f1 h7i7 f1f4 d9e8 b2a2 a9b9 a0b0 h9h3 e2d2 h3g3 c0e2 g5g4 f4g4 g3g4 e2g4 b7b5 g4e2 g7f5 b0b4 c6c5 c4c5 e7c5 a3a4 c5e7 d0e1 b9d9 a2a0 i7f7 a0d0 d9b9 g2f4 b5c5 b4b9 c7b9 f4d5 b9c7 c2b4 c7d5 b4d5 c5c1 d2a2 c1a1 e2c4 f7g7 d0d1 g7g5 d5b6 g5g8 a2e2 f5g7 i3i4 g8g0',
+              red: 'Hu Ronghua',
+              black: 'Liu Dahua',
+              event: '5 Ram Cup, 1990',
+              resultText: 'Checkmate. Liu Dahua (Black) defeats Hu Ronghua.',
+            },
+          } as ArticleBlock,
+        ],
+      },
+      relatedClosing({
+        heading: 'Where to next',
+        lead: 'Xiangqi is the open-information base game. Add Fog of War for the hidden-information version, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.',
+        links: [
+          { label: 'Read Dark Xiangqi', href: '/articles/dark-xiangqi-rules', emphasis: 'primary' },
+          { label: 'Mini Xiangqi', href: '/articles/mini-xiangqi-rules', emphasis: 'secondary' },
+          { label: 'Dark Mini Xiangqi', href: '/articles/dark-mini-xiangqi-rules', emphasis: 'secondary' },
+          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+        ],
+      }),
     ],
   },
   {
