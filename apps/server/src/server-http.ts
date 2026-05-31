@@ -203,6 +203,27 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       const slug = decodeURIComponent(articleRouteMatch[2]!);
       void serveArticlePage({
         slug,
+        base: 'articles',
+        response,
+        publicHost: options.publicHost,
+        staticDir: options.staticDir,
+        langPrefix,
+      }).catch(() => {
+        request.url = '/';
+        void serveHandler(request, response, { public: options.staticDir });
+      });
+      return;
+    }
+
+    // Rules docs are canonical under /rules/<slug>; same renderer as articles,
+    // with serveArticlePage 301ing any base/slug mismatch to the canonical path.
+    const rulesArticleRouteMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/rules\/([^/]+)$/);
+    if (rulesArticleRouteMatch) {
+      const langPrefix = rulesArticleRouteMatch[1];
+      const slug = decodeURIComponent(rulesArticleRouteMatch[2]!);
+      void serveArticlePage({
+        slug,
+        base: 'rules',
         response,
         publicHost: options.publicHost,
         staticDir: options.staticDir,

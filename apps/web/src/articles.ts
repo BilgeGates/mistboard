@@ -786,7 +786,8 @@ function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
 
   const link = document.createElement('a');
   link.className = 'articles-index-card';
-  link.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/articles/${article.slug}`;
+  const base = article.kind === 'rules' ? 'rules' : 'articles';
+  link.href = `${lang ? ARTICLE_LANG_PREFIX[lang] : ''}/${base}/${article.slug}`;
 
   if (article.thumbnail) {
     link.append(renderArticleThumbnail(article.thumbnail));

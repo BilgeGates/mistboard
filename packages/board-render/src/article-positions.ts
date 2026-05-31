@@ -80,7 +80,7 @@ const DISCOVERY_BEFORE = demoState('dark-chess-rules-discovery', DISCOVERY_BOARD
 const DARK_CHESS_CONCEPTS = demoState('dark-chess-concepts-deduction', DARK_CHESS_CONCEPTS_BOARD);
 
 export const ARTICLE_OG_POSITIONS: Record<string, ArticleOgPosition> = {
-  'dark-chess-rules': {
+  'dark-chess': {
     pieces: boardToPieces(DARK_CHESS_START.board),
     fogSquares: fogFor(DARK_CHESS_START, 'white'),
     orientation: 'white',

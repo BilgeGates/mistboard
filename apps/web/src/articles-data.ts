@@ -2443,7 +2443,7 @@ const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
 
 export const articles: Article[] = [
   {
-    slug: 'chess-rules',
+    slug: 'chess',
     kind: 'rules',
     title: 'Chess Rules',
     summary:
@@ -2459,7 +2459,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Mistboard starts from regular chess. If you already know orthodox chess, you can skip straight to the [Dark Chess rules](/articles/dark-chess-rules). If the basics are rusty, this page is the reference baseline.',
+          'Mistboard starts from regular chess. If you already know orthodox chess, you can skip straight to the [Dark Chess rules](/rules/dark-chess). If the basics are rusty, this page is the reference baseline.',
       },
       {
         kind: 'paragraph',
@@ -2772,7 +2772,7 @@ export const articles: Article[] = [
           {
             kind: 'cta',
             buttons: [
-              { label: 'Read Dark Chess Rules', href: '/articles/dark-chess-rules', emphasis: 'primary' },
+              { label: 'Read Dark Chess Rules', href: '/rules/dark-chess', emphasis: 'primary' },
               { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
             ],
           } as ArticleBlock,
@@ -2781,7 +2781,7 @@ export const articles: Article[] = [
     ],
   },
   {
-    slug: 'dark-chess-rules',
+    slug: 'dark-chess',
     kind: 'rules',
     title: 'Dark Chess Rules',
     summary:
@@ -2791,7 +2791,7 @@ export const articles: Article[] = [
     updatedAt: '2026-05-25',
     audience:
       'Any chess player who has heard of dark chess (or Fog of War) and wants to understand it from scratch.',
-    thumbnail: ARTICLE_OG_POSITIONS['dark-chess-rules'],
+    thumbnail: ARTICLE_OG_POSITIONS['dark-chess'],
     intro: [
       {
         kind: 'paragraph',
@@ -3178,7 +3178,7 @@ export const articles: Article[] = [
           {
             kind: 'cta',
             buttons: [
-              { label: 'Read the rules', href: '/articles/dark-chess-rules', emphasis: 'secondary' },
+              { label: 'Read the rules', href: '/rules/dark-chess', emphasis: 'secondary' },
               { label: 'Play dark chess', href: '/?play=lobby', emphasis: 'primary' },
             ],
           } as ArticleBlock,
@@ -3273,7 +3273,7 @@ export const articles: Article[] = [
     ],
   },
   {
-    slug: 'xiangqi-rules',
+    slug: 'xiangqi',
     kind: 'rules',
     title: 'Xiangqi Rules',
     summary:
@@ -3438,16 +3438,16 @@ export const articles: Article[] = [
         heading: 'Where to next',
         lead: 'Xiangqi is the open-information base game. Add Fog of War for the hidden-information version, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.',
         links: [
-          { label: 'Read Dark Xiangqi', href: '/articles/dark-xiangqi-rules', emphasis: 'primary' },
-          { label: 'Mini Xiangqi', href: '/articles/mini-xiangqi-rules', emphasis: 'secondary' },
-          { label: 'Dark Mini Xiangqi', href: '/articles/dark-mini-xiangqi-rules', emphasis: 'secondary' },
+          { label: 'Read Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'primary' },
+          { label: 'Mini Xiangqi', href: '/rules/mini-xiangqi', emphasis: 'secondary' },
+          { label: 'Dark Mini Xiangqi', href: '/rules/dark-mini-xiangqi', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),
     ],
   },
   {
-    slug: 'dark-xiangqi-rules',
+    slug: 'dark-xiangqi',
     kind: 'rules',
     title: 'Dark Xiangqi',
     summary:
@@ -3462,12 +3462,12 @@ export const articles: Article[] = [
     intro: [
       {
         kind: 'paragraph',
-        text: 'Dark Xiangqi is the modern Fog of War version of [xiangqi](/articles/xiangqi-rules): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
+        text: 'Dark Xiangqi is the modern Fog of War version of [xiangqi](/rules/xiangqi): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
       },
       {
         kind: 'paragraph',
         text:
-          'If xiangqi is new to you, start with [Xiangqi Rules](/articles/xiangqi-rules). If you already play xiangqi, the sections below explain only what fog changes.',
+          'If xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.',
       },
     ],
     sections: [
@@ -3586,7 +3586,7 @@ export const articles: Article[] = [
     ],
   },
   {
-    slug: 'mini-xiangqi-rules',
+    slug: 'mini-xiangqi',
     kind: 'rules',
     title: 'Mini Xiangqi',
     summary:
@@ -3600,7 +3600,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Mini Xiangqi was invented in 1973 by Shigenobu Kusumoto of Osaka, Japan. It is a simplified, reduced version of [xiangqi](/articles/xiangqi-rules): a smaller board, fewer pieces, and no river.',
+          'Mini Xiangqi was invented in 1973 by Shigenobu Kusumoto of Osaka, Japan. It is a simplified, reduced version of [xiangqi](/rules/xiangqi): a smaller board, fewer pieces, and no river.',
       },
       {
         kind: 'paragraph',
@@ -3674,7 +3674,7 @@ export const articles: Article[] = [
           {
             kind: 'cta',
             buttons: [
-              { label: 'Read Dark Mini Xiangqi', href: '/articles/dark-mini-xiangqi-rules', emphasis: 'primary' },
+              { label: 'Read Dark Mini Xiangqi', href: '/rules/dark-mini-xiangqi', emphasis: 'primary' },
               { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
             ],
           } as ArticleBlock,
@@ -3683,7 +3683,7 @@ export const articles: Article[] = [
     ],
   },
   {
-    slug: 'dark-mini-xiangqi-rules',
+    slug: 'dark-mini-xiangqi',
     kind: 'rules',
     title: 'Dark Mini Xiangqi',
     summary:

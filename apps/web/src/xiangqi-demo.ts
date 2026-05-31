@@ -151,7 +151,7 @@ function rerender(): void {
           <p class="xqd-kicker">Private demo</p>
           <h1>Dark Xiangqi</h1>
         </div>
-        <a class="xqd-rules-link" href="/articles/dark-xiangqi-rules">Rules</a>
+        <a class="xqd-rules-link" href="/rules/dark-xiangqi">Rules</a>
       </header>
       <section class="xqd-game" aria-label="Dark Xiangqi game">
         <aside class="xqd-sidebar">

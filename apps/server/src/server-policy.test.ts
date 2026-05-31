@@ -331,11 +331,13 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/dark-mini-xiangqi/game/dmxq_abc123'), true);
   assert.equal(isClientRoute('/room/abc123'), true);
   assert.equal(isClientRoute('/@/brianhliou'), true);
-  assert.equal(isClientRoute('/articles/draft960'), true);
+  assert.equal(isClientRoute('/articles/dark-chess-concepts'), true);
   assert.equal(isClientRoute('/zh-hans/articles'), true);
   assert.equal(isClientRoute('/zh-hant/articles'), true);
-  assert.equal(isClientRoute('/zh-hans/articles/dark-chess-rules'), true);
-  assert.equal(isClientRoute('/zh-hant/articles/dark-chess-rules'), true);
+  assert.equal(isClientRoute('/rules/dark-chess'), true);
+  assert.equal(isClientRoute('/rules/draft960'), true);
+  assert.equal(isClientRoute('/zh-hans/rules/dark-chess'), true);
+  assert.equal(isClientRoute('/zh-hant/rules/dark-chess'), true);
 });
 
 test('isClientRoute rejects unknown paths', () => {

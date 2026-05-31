@@ -78,12 +78,13 @@ try {
   const { articles } = await server.ssrLoadModule('/src/articles-data.ts');
   const { translateArticle } = await server.ssrLoadModule('/src/article-i18n.ts');
 
-  // en + the two zh scripts. urlPrefix feeds canonical/hreflang URLs and output
-  // dir; htmlLang sets <html lang> and JSON-LD inLanguage.
+  // en + the two zh scripts. urlPrefix feeds canonical/hreflang URLs; htmlLang
+  // sets <html lang> and JSON-LD inLanguage; langDir is the output-path segment.
+  // The base segment (articles vs rules) is chosen per-article from its kind.
   const variants = [
-    { lang: null, urlPrefix: '', htmlLang: 'en', outDir: ['articles'] },
-    { lang: 'zh-Hans', urlPrefix: '/zh-hans', htmlLang: 'zh-Hans', outDir: ['zh-hans', 'articles'] },
-    { lang: 'zh-Hant', urlPrefix: '/zh-hant', htmlLang: 'zh-Hant', outDir: ['zh-hant', 'articles'] },
+    { lang: null, urlPrefix: '', htmlLang: 'en', langDir: null },
+    { lang: 'zh-Hans', urlPrefix: '/zh-hans', htmlLang: 'zh-Hans', langDir: 'zh-hans' },
+    { lang: 'zh-Hant', urlPrefix: '/zh-hant', htmlLang: 'zh-Hant', langDir: 'zh-hant' },
   ];
 
   const shell = await fs.readFile(resolve(distDir, 'index.html'), 'utf-8');
@@ -96,21 +97,23 @@ try {
 
   for (const article of published) {
     const slug = encodeURIComponent(article.slug);
+    // Rules docs are canonical under /rules/<slug>, everything else /articles/<slug>.
+    const base = article.kind === 'rules' ? 'rules' : 'articles';
     // OG card stays English for all variants for now (the card renderer has no
     // CJK font; baking zh titles would render tofu). hreflang is identical on
     // every variant: all three point at each other + x-default → English.
     const imageUrl = `${host}/og/article/${slug}.png`;
     const hreflang = [
-      `<link rel="alternate" hreflang="en" href="${host}/articles/${slug}" />`,
-      `<link rel="alternate" hreflang="zh-Hans" href="${host}/zh-hans/articles/${slug}" />`,
-      `<link rel="alternate" hreflang="zh-Hant" href="${host}/zh-hant/articles/${slug}" />`,
-      `<link rel="alternate" hreflang="x-default" href="${host}/articles/${slug}" />`,
+      `<link rel="alternate" hreflang="en" href="${host}/${base}/${slug}" />`,
+      `<link rel="alternate" hreflang="zh-Hans" href="${host}/zh-hans/${base}/${slug}" />`,
+      `<link rel="alternate" hreflang="zh-Hant" href="${host}/zh-hant/${base}/${slug}" />`,
+      `<link rel="alternate" hreflang="x-default" href="${host}/${base}/${slug}" />`,
     ].join('');
 
     for (const v of variants) {
       const localized = v.lang ? translateArticle(article, v.lang) : article;
       const main = buildArticlePage(article.slug, v.lang ?? undefined);
-      const url = `${host}${v.urlPrefix}/articles/${slug}`;
+      const url = `${host}${v.urlPrefix}/${base}/${slug}`;
       let html = shell
         .replace('<html lang="en">', `<html lang="${v.htmlLang}">`)
         .replace('<div id="app"></div>', `<div id="app">${main.outerHTML}</div>`);
@@ -136,11 +139,11 @@ try {
       const ldScript = `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`;
       html = html.replace('</head>', `${hreflang}${ldScript}</head>`);
 
-      const dir = resolve(distDir, ...v.outDir);
+      const dir = resolve(distDir, ...(v.langDir ? [v.langDir, base] : [base]));
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(resolve(dir, `${article.slug}.html`), html, 'utf-8');
       count += 1;
-      console.log(`prerendered ${v.urlPrefix}/articles/${article.slug} (lang=${v.htmlLang})`);
+      console.log(`prerendered ${v.urlPrefix}/${base}/${article.slug} (lang=${v.htmlLang})`);
     }
   }
   console.log(`done: ${count} page(s) across ${published.length} article(s) × ${variants.length} langs`);

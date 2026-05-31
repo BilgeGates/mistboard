@@ -290,16 +290,19 @@ function profileHandleFromPath(value: string): string | null {
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
-// Article routes accept an optional language prefix: /zh-hans/articles/<slug>,
-// /zh-hant/articles/<slug>. The slug parser strips it; the lang parser reports it.
+// Article + rules-doc routes accept an optional language prefix:
+// /zh-han[st]/{articles,rules}/<slug>. Rules docs and articles share the same
+// renderer; only the URL base differs. The slug parser strips the lang prefix
+// and matches either base (but NOT the bare /rules or /articles index, which
+// have no slug segment); the lang parser reports the prefix.
 function articleSlugFromPath(value: string): string | null {
-  const match = value.replace(/^\/zh-han[st]/, '').match(/^\/articles\/([^/]+)$/);
+  const match = value.replace(/^\/zh-han[st]/, '').match(/^\/(?:articles|rules)\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
 function articleLangFromPath(value: string): ArticleLang | null {
-  if (value === '/zh-hans/rules') return 'zh-Hans';
-  if (value === '/zh-hant/rules') return 'zh-Hant';
+  if (value === '/zh-hans/rules' || value.startsWith('/zh-hans/rules/')) return 'zh-Hans';
+  if (value === '/zh-hant/rules' || value.startsWith('/zh-hant/rules/')) return 'zh-Hant';
   if (value === '/zh-hans/articles' || value.startsWith('/zh-hans/articles/')) return 'zh-Hans';
   if (value === '/zh-hant/articles' || value.startsWith('/zh-hant/articles/')) return 'zh-Hant';
   return null;

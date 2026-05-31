@@ -56,61 +56,87 @@ const RULES_INDEX_META: Record<
 
 // Article slug -> page meta. Content source of truth is
 // apps/web/src/articles-data.ts; this map duplicates only the share-card
-// surface (title + description) so the server can inject per-route meta
-// without importing the web bundle. Keep in sync when titles/summaries change.
-export const ARTICLE_META: Record<string, { title: string; description: string }> = {
-  'chess-rules': {
+// surface (title + description) plus `kind`, which decides the canonical URL
+// space: kind 'rules' lives under /rules/<slug>, everything else under
+// /articles/<slug>. Keep in sync when titles/summaries/kind change.
+type ArticleKind = 'rules' | 'article';
+export const ARTICLE_META: Record<
+  string,
+  { title: string; description: string; kind: ArticleKind }
+> = {
+  chess: {
     title: 'Chess Rules',
+    kind: 'rules',
     description:
       'The regular chess baseline for Mistboard: setup, turns, legal moves, captures, check, checkmate, castling, promotion, en passant, and common draws.',
   },
-  'dark-chess-rules': {
+  'dark-chess': {
     title: 'Dark Chess Rules',
+    kind: 'rules',
     description:
       'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
   },
   'dark-chess-concepts': {
     title: 'Dark Chess Concepts',
+    kind: 'article',
     description:
       'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
   },
   draft960: {
     title: 'Draft960: dark chess with a hidden draft',
+    kind: 'rules',
     description:
       "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
   },
-  'xiangqi-rules': {
+  xiangqi: {
     title: 'Xiangqi Rules',
+    kind: 'rules',
     description:
       'The regular xiangqi baseline for Mistboard: intersections, palaces, river rules, piece movement, cannon screens, checks, facing generals, and endings.',
   },
-  'dark-xiangqi-rules': {
+  'dark-xiangqi': {
     title: 'Dark Xiangqi',
+    kind: 'rules',
     description:
       'Xiangqi under Fog of War: each side sees only what its pieces can reach, hidden blockers matter, check warnings disappear, and the general falls by capture.',
   },
-  'mini-xiangqi-rules': {
+  'mini-xiangqi': {
     title: 'Mini Xiangqi',
+    kind: 'rules',
     description:
       'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: fewer pieces, no river, sideways soldiers from move one, checkmate wins, and perpetual check loses.',
   },
-  'dark-mini-xiangqi-rules': {
+  'dark-mini-xiangqi': {
     title: 'Dark Mini Xiangqi',
+    kind: 'rules',
     description:
       'Mini Xiangqi under Fog of War: a compact 7x7 variant with generals, chariots, cannons, horses, soldiers, shrouded blockers, and general capture.',
   },
   'engine-belief-state': {
     title: 'Building an engine for hidden-information chess',
+    kind: 'article',
     description:
       "Stockfish-class engines don't transfer to dark chess because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
   },
 };
 
-// Articles renamed for cleaner URLs (old slug -> new slug). serveArticlePage
-// 301s these so previously-published links and crawler-cached URLs don't 404.
+export function canonicalArticleBase(slug: string): 'articles' | 'rules' {
+  return ARTICLE_META[slug]?.kind === 'rules' ? 'rules' : 'articles';
+}
+
+// Articles renamed for cleaner URLs (old slug -> new clean slug). serveArticlePage
+// 301s these to the new slug's canonical base so previously-published links and
+// crawler-cached URLs don't 404. The rules docs also moved from /articles/<slug>
+// to /rules/<slug>, so every legacy rules slug redirects here too.
 const RENAMED_ARTICLE_SLUGS: Record<string, string> = {
-  'chess-rules-primer': 'chess-rules',
-  'xiangqi-rules-primer': 'xiangqi-rules',
+  'chess-rules-primer': 'chess',
+  'xiangqi-rules-primer': 'xiangqi',
+  'chess-rules': 'chess',
+  'dark-chess-rules': 'dark-chess',
+  'xiangqi-rules': 'xiangqi',
+  'dark-xiangqi-rules': 'dark-xiangqi',
+  'mini-xiangqi-rules': 'mini-xiangqi',
+  'dark-mini-xiangqi-rules': 'dark-mini-xiangqi',
 };
 
 export function injectPageMeta(html: string, meta: PageMeta): string {
@@ -211,6 +237,9 @@ export async function serveSitemap(params: {
     ['articles', '/articles'],
     ['zh-hans/articles', '/zh-hans/articles'],
     ['zh-hant/articles', '/zh-hant/articles'],
+    ['rules', '/rules'],
+    ['zh-hans/rules', '/zh-hans/rules'],
+    ['zh-hant/rules', '/zh-hant/rules'],
   ];
   const articleUrls: string[] = [];
   for (const [dir, urlBase] of langDirs) {
@@ -227,17 +256,24 @@ export async function serveSitemap(params: {
 
 export async function serveArticlePage(params: {
   slug: string;
+  // Which URL space the request arrived on. Rules docs are canonical under
+  // /rules/<slug>, everything else under /articles/<slug>; a mismatch 301s.
+  base: 'articles' | 'rules';
   response: ServerResponse;
   publicHost: string;
   staticDir: string;
   langPrefix?: string;
 }): Promise<void> {
-  // 301 renamed legacy slugs to their clean path, preserving any language
-  // prefix, before any serving work.
-  const renamed = RENAMED_ARTICLE_SLUGS[params.slug];
-  if (renamed) {
-    const prefix = params.langPrefix ? `/${params.langPrefix}` : '';
-    params.response.writeHead(301, { location: `${prefix}/articles/${renamed}` });
+  // Resolve any renamed legacy slug, then 301 if the slug was renamed or the URL
+  // space doesn't match the article's canonical base (rules vs articles),
+  // preserving the language prefix. This single redirect covers /articles/<rules>
+  // -> /rules/<rules>, the old *-rules / *-rules-primer slugs, and the reverse
+  // /rules/<article> -> /articles/<article>.
+  const resolved = RENAMED_ARTICLE_SLUGS[params.slug] ?? params.slug;
+  const canonicalBase = canonicalArticleBase(resolved);
+  const prefix = params.langPrefix ? `/${params.langPrefix}` : '';
+  if (resolved !== params.slug || params.base !== canonicalBase) {
+    params.response.writeHead(301, { location: `${prefix}/${canonicalBase}/${resolved}` });
     params.response.end();
     return;
   }
@@ -245,7 +281,7 @@ export async function serveArticlePage(params: {
   // Published articles are pre-rendered at build time (apps/web/scripts/
   // prerender-articles.mjs): prose + meta baked into the document so crawlers
   // and LLMs see real content, not an empty #app. Translated variants live under
-  // dist/<lang>/articles/<slug>.html. Serve the file when present; the client SPA
+  // dist/<lang>/<base>/<slug>.html. Serve the file when present; the client SPA
   // still boots and rebuilds #app on takeover. Slug + lang are charset-validated
   // so a decoded path can't escape the dist root.
   if (
@@ -253,8 +289,8 @@ export async function serveArticlePage(params: {
     (params.langPrefix === undefined || /^zh-han[st]$/.test(params.langPrefix))
   ) {
     const segments = params.langPrefix
-      ? [params.staticDir, params.langPrefix, 'articles', `${params.slug}.html`]
-      : [params.staticDir, 'articles', `${params.slug}.html`];
+      ? [params.staticDir, params.langPrefix, canonicalBase, `${params.slug}.html`]
+      : [params.staticDir, canonicalBase, `${params.slug}.html`];
     const prerendered = await fs.readFile(resolve(...segments), 'utf-8').catch(() => null);
     if (prerendered !== null) {
       params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
@@ -270,7 +306,7 @@ export async function serveArticlePage(params: {
   let html = await fs.readFile(indexPath, 'utf-8');
   const article = ARTICLE_META[params.slug];
   if (article) {
-    const url = `${params.publicHost}/articles/${encodeURIComponent(params.slug)}`;
+    const url = `${params.publicHost}/${canonicalBase}/${encodeURIComponent(params.slug)}`;
     html = injectPageMeta(html, {
       title: `${article.title} | Mistboard`,
       description: article.description,
