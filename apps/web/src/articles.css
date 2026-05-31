@@ -426,6 +426,38 @@
   cursor: pointer;
 }
 
+/* Chess game replay widget: chessground board + the shared stepper controls.
+   Mirrors the xiangqi replay layout. */
+.chess-replay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.chess-replay-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+  text-align: center;
+}
+
+.chess-replay-board.cg-wrap {
+  /* cap matches the xiangqi diagram width so the two replays sit at one scale */
+  --cg-w: min(100%, 320px);
+  height: auto;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  margin-inline: auto;
+}
+
+.chess-replay-slider {
+  width: min(320px, 100%);
+  accent-color: #15781b;
+  cursor: pointer;
+}
+
 .article-figure-caption {
   color: #4b5563;
   font-size: 14px;

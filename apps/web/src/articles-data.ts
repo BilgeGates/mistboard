@@ -39,6 +39,7 @@ import {
 } from '@mistboard/game';
 import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
 import articleSnapshotFogBlack from './article-snapshot-fog-black.json' with { type: 'json' };
+import type { ChessReplaySpec } from './chess-replay.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
 import type { XiangqiReplaySpec } from './xiangqi-replay.js';
 
@@ -89,6 +90,14 @@ export type LiveBoardsBlock = {
 export type XiangqiReplayBlock = {
   kind: 'xq-replay';
   spec: XiangqiReplaySpec;
+  caption?: string;
+};
+
+// Chess analogue of XiangqiReplayBlock: the game ships as a compact UCI string
+// and each position renders on demand on a chessground board.
+export type ChessReplayBlock = {
+  kind: 'chess-replay';
+  spec: ChessReplaySpec;
   caption?: string;
 };
 
@@ -149,6 +158,7 @@ export type ArticleBlock =
   | RawSvgBlock
   | RawSvgStepperBlock
   | XiangqiReplayBlock
+  | ChessReplayBlock
   | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body
@@ -2724,6 +2734,26 @@ export const articles: Article[] = [
             text:
               'Mistboard Fog of War keeps the automatic draw ideas that matter for live play: repeated true positions and a no-progress clock. Checkmate-based endings change because Fog of War is decided by king capture.',
           },
+        ],
+      },
+      {
+        heading: 'A famous game',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'To see the pieces work together in a real game, step through Game 11 of the 2014 World Championship in Sochi. Playing White, Magnus Carlsen grinds down Viswanathan Anand in a Berlin endgame to clinch the title; Anand resigns on move 45.',
+          },
+          {
+            kind: 'chess-replay',
+            spec: {
+              uci: 'e2e4 e7e5 g1f3 b8c6 f1b5 g8f6 e1g1 f6e4 d2d4 e4d6 b5c6 d7c6 d4e5 d6f5 d1d8 e8d8 h2h3 c8d7 b1c3 h7h6 b2b3 d8c8 c1b2 c6c5 a1d1 b7b6 f1e1 d7e6 c3d5 g7g5 c2c4 c8b7 g1h2 a7a5 a2a4 f5e7 g2g4 e7g6 h2g3 f8e7 f3d2 h8d8 d2e4 e7f8 e4f6 b6b5 b2c3 b5a4 b3a4 b7c6 g3f3 d8b8 f3e4 b8b4 c3b4 c5b4 f6h5 c6b7 f2f4 g5f4 h5f4 g6f4 d5f4 e6c4 d1d7 a8a6 f4d5 a6c6 d7f7 f8c5 f7c7 c6c7 d5c7 b7c6 c7b5 c4b5 a4b5 c6b5 e5e6 b4b3 e4d3 c5e7 h3h4 a5a4 g4g5 h6g5 h4g5 a4a3 d3c3',
+              white: 'Magnus Carlsen',
+              black: 'Viswanathan Anand',
+              event: 'World Championship Game 11, Sochi 2014',
+              resultText: 'Anand resigns. Carlsen (White) wins and retains the title.',
+            },
+          } as ArticleBlock,
         ],
       },
       {

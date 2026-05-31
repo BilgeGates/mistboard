@@ -429,6 +429,7 @@
 .belief-mini-board cg-board,
 .stepper-board cg-board,
 .live-boards-board cg-board,
+.chess-replay-board cg-board,
 .articles-thumb-board cg-board {
   background-color: var(--board-light);
   /* Conic-gradient tile produces a 2x2 checker. The 2x2 tile is laid out as
@@ -447,14 +448,20 @@
 
 .stepper-board cg-board square.white,
 .live-boards-board cg-board square.white,
+.chess-replay-board cg-board square.white,
 .articles-thumb-board cg-board square.white {
   background-color: var(--board-light);
 }
 
 .stepper-board cg-board square.black,
 .live-boards-board cg-board square.black,
+.chess-replay-board cg-board square.black,
 .articles-thumb-board cg-board square.black {
   background-color: var(--board-dark);
+}
+
+.chess-replay-board cg-board square.last-move {
+  background-color: var(--board-last-move);
 }
 
 .board coords {

@@ -15,6 +15,7 @@ import {
   type ArticleSection,
   type ArticleThumbnail,
   articles,
+  type ChessReplayBlock,
   type CodeBlock,
   type CtaBlock,
   findArticle,
@@ -26,6 +27,7 @@ import {
   type SubHeadingBlock,
   type XiangqiReplayBlock,
 } from './articles-data.js';
+import { mountChessReplay, type ChessReplayController } from './chess-replay.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
 
 // Nav + footer come from landing.ts. We avoid re-implementing them by accepting
@@ -384,7 +386,7 @@ function renderSectionBody(section: ArticleSection): HTMLElement[] {
 // boots, so we defer the actual mount until the article element is attached.
 // renderBlock stamps the wrapper with a `data-pending-widget` marker that
 // mountPendingWidgets() picks up and dispatches by widget kind.
-type PendingBlock = InteractiveBlock | LiveBoardsBlock | XiangqiReplayBlock;
+type PendingBlock = InteractiveBlock | LiveBoardsBlock | XiangqiReplayBlock | ChessReplayBlock;
 const pendingMounts = new WeakMap<HTMLElement, PendingBlock>();
 
 function renderBlock(block: ArticleBlock): HTMLElement {
@@ -397,7 +399,28 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'code') return renderCodeBlock(block);
   if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
   if (block.kind === 'xq-replay') return renderXiangqiReplayBlock(block);
+  if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
   return renderInteractiveBlock(block);
+}
+
+function renderChessReplayBlock(block: ChessReplayBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive';
+  figure.dataset.pendingWidget = 'chess-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  pendingMounts.set(figure, block);
+  return figure;
 }
 
 function renderXiangqiReplayBlock(block: XiangqiReplayBlock): HTMLElement {
@@ -691,8 +714,12 @@ function renderInteractiveBlock(block: InteractiveBlock): HTMLElement {
 
 export function mountPendingWidgets(
   root: HTMLElement,
-): Array<StepperController | LiveBoardsController> {
-  const controllers: Array<StepperController | LiveBoardsController | XiangqiReplayController> = [];
+): Array<
+  StepperController | LiveBoardsController | XiangqiReplayController | ChessReplayController
+> {
+  const controllers: Array<
+    StepperController | LiveBoardsController | XiangqiReplayController | ChessReplayController
+  > = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
     const block = pendingMounts.get(figure);
@@ -705,6 +732,8 @@ export function mountPendingWidgets(
       controllers.push(mountLiveBoards(target, block.spec));
     } else if (block.kind === 'xq-replay') {
       controllers.push(mountXiangqiReplay(target, block.spec));
+    } else if (block.kind === 'chess-replay') {
+      controllers.push(mountChessReplay(target, block.spec));
     }
     pendingMounts.delete(figure);
     delete figure.dataset.pendingWidget;
