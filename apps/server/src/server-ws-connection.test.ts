@@ -81,6 +81,21 @@ test('WebSocket runtime resolver routes existing Dark Mini Xiangqi rooms before 
   }
 });
 
+test('WebSocket runtime resolver hydrates flagged Dark Mini Xiangqi rooms', async () => {
+  const room = darkMiniXiangqiRoomFixture('dmxq_hydrate');
+  const ctx = resolverContext({ loadMiniRoom: room });
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    const runtime = await resolveWebSocketLiveRuntime(ctx, 'dmxq_hydrate');
+    assert.equal(runtime.kind, 'dark-mini-xiangqi');
+    assert.equal(runtime.kind === 'dark-mini-xiangqi' ? runtime.room : null, room);
+    assert.equal(ctx.loadCalls, 1);
+  } finally {
+    restoreEnv(darkMiniXiangqiFlag, before);
+  }
+});
+
 test('WebSocket runtime resolver rejects Dark Mini Xiangqi ids while the flag is off', async () => {
   const ctx = resolverContext({});
   const before = process.env[darkMiniXiangqiFlag];
@@ -97,7 +112,7 @@ test('WebSocket runtime resolver rejects Dark Mini Xiangqi ids while the flag is
   }
 });
 
-test('WebSocket runtime resolver does not fall through to chess for flagged Dark Mini Xiangqi ids', async () => {
+test('WebSocket runtime resolver rejects missing flagged Dark Mini Xiangqi rooms', async () => {
   const ctx = resolverContext({});
   const before = process.env[darkMiniXiangqiFlag];
   process.env[darkMiniXiangqiFlag] = 'true';
@@ -105,9 +120,9 @@ test('WebSocket runtime resolver does not fall through to chess for flagged Dark
     const runtime = await resolveWebSocketLiveRuntime(ctx, 'dmxq_created');
     assert.deepEqual(runtime, {
       kind: 'dark-mini-xiangqi-unavailable',
-      reason: 'game spec not integrated',
+      reason: 'room unavailable',
     });
-    assert.equal(ctx.loadCalls, 0);
+    assert.equal(ctx.loadCalls, 1);
   } finally {
     restoreEnv(darkMiniXiangqiFlag, before);
   }
@@ -129,6 +144,7 @@ test('WebSocket runtime resolver rejects missing flagged Dark Xiangqi rooms', as
 type ResolverTestContext = WebSocketRuntimeResolverContext & { loadCalls: number };
 
 function resolverContext(options: {
+  loadMiniRoom?: DarkMiniXiangqiRuntimeRoom | null;
   loadRoom?: DarkXiangqiLiveRoom | null;
   miniRoom?: DarkMiniXiangqiRuntimeRoom;
   room?: DarkXiangqiLiveRoom;
@@ -140,6 +156,10 @@ function resolverContext(options: {
       options.miniRoom ? [[options.miniRoom.id, options.miniRoom]] : [],
     ),
     darkXiangqiRooms: rooms,
+    getOrLoadDarkMiniXiangqiRoom: async () => {
+      ctx.loadCalls += 1;
+      return options.loadMiniRoom ?? null;
+    },
     getOrLoadDarkXiangqiRoom: async () => {
       ctx.loadCalls += 1;
       return options.loadRoom ?? null;

@@ -125,6 +125,8 @@ test('Dark Mini Xiangqi WebSocket handler appends legal moves without leaking op
     black.messages.length = 0;
 
     red.emit('message', JSON.stringify({ type: 'move', from: 'a2', to: 'a3' }));
+    await room.pendingWrites;
+    await Promise.resolve();
 
     assert.equal(room.events.at(-1)?.type, 'move-played');
     assert.deepEqual(room.projection.state.lastMove, { from: 'a2', to: 'a3' });

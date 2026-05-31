@@ -1,11 +1,22 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import type { Color, GameEvent, RoomTimeControl, XiangqiColor } from '@mistboard/game';
+import type {
+  Color,
+  GameEvent,
+  MiniXiangqiColor,
+  RoomTimeControl,
+  XiangqiColor,
+} from '@mistboard/game';
 import pg from 'pg';
 import { WebSocketServer } from 'ws';
 import type {
   DarkMiniXiangqiCreatorPreference,
   DarkMiniXiangqiRuntimeRoom,
+  DarkMiniXiangqiSeatTokenState,
+} from './dark-mini-xiangqi-runtime.js';
+import {
+  createDarkMiniXiangqiRuntimeRoomFromEvents,
+  isDarkMiniXiangqiEventLog,
 } from './dark-mini-xiangqi-runtime.js';
 import {
   createDarkXiangqiRuntimeRoomFromEvents,
@@ -185,6 +196,7 @@ const wsConnectionCtx: WebSocketConnectionContext = {
   darkXiangqiRooms,
   darkMiniXiangqiRooms,
   enableRandomEngine,
+  getOrLoadDarkMiniXiangqiRoom,
   getOrLoadDarkXiangqiRoom,
   getOrCreateRoom: roomLifecycle.getOrCreateRoom,
   handleAbort,
@@ -416,6 +428,76 @@ async function createDarkMiniXiangqiRoom(
     },
     creatorPreference,
   );
+}
+
+async function getOrLoadDarkMiniXiangqiRoom(
+  roomId: string,
+): Promise<DarkMiniXiangqiRuntimeRoom | null> {
+  const existing = darkMiniXiangqiRooms.get(roomId);
+  if (existing) return existing;
+  if (!persistence.isInitialized()) return null;
+
+  let events: persistence.PersistedRoomEvent[] | null = null;
+  try {
+    events = await persistence.loadRoomEvents<persistence.PersistedRoomEvent>(roomId);
+  } catch (err) {
+    recordDarkMiniXiangqiPersistenceError(roomId, -1, 'load-room', err as Error);
+    return null;
+  }
+  if (!events) return null;
+  if (!isDarkMiniXiangqiEventLog(events, roomId)) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'dark_mini_xiangqi_invalid_event_log',
+        roomId,
+        eventCount: events.length,
+        at: Date.now(),
+      }),
+    );
+    return null;
+  }
+
+  const hydrated = createDarkMiniXiangqiRuntimeRoomFromEvents(events);
+  if (!hydrated.ok) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'dark_mini_xiangqi_hydration_failure',
+        roomId,
+        error: hydrated.error,
+        at: Date.now(),
+      }),
+    );
+    return null;
+  }
+  const room = hydrated.room;
+  room.seatTokens = darkMiniXiangqiSeatTokenStatesFromPersistence(
+    await persistence.loadRoomSeatTokens<MiniXiangqiColor>(roomId),
+  );
+  darkMiniXiangqiRooms.set(roomId, room);
+  return room;
+}
+
+function darkMiniXiangqiSeatTokenStatesFromPersistence(
+  tokens: Partial<Record<MiniXiangqiColor, persistence.RoomSeatTokenRecord<MiniXiangqiColor>>>,
+): Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>> {
+  const states: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>> = {};
+  for (const token of Object.values(tokens)) {
+    if (!token || token.revokedAt) continue;
+    states[token.seat] = {
+      clientId: token.clientId,
+      seat: token.seat,
+      tokenHash: token.tokenHash,
+      userId: token.userId,
+      userHandle: token.userHandle,
+      userDisplayName: token.userDisplayName,
+      issuedAt: token.issuedAt,
+      lastSeenAt: token.lastSeenAt,
+      revokedAt: token.revokedAt,
+    };
+  }
+  return states;
 }
 
 async function getOrLoadDarkXiangqiRoom(roomId: string): Promise<DarkXiangqiLiveRoom | null> {

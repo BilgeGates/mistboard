@@ -8,7 +8,6 @@ import {
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
 import {
-  appendDarkMiniXiangqiRuntimeEvent,
   type DarkMiniXiangqiEvent,
   type DarkMiniXiangqiRuntimeRoom,
   darkMiniXiangqiClientEventFor,
@@ -18,8 +17,14 @@ import {
 } from './dark-mini-xiangqi-runtime.js';
 import { wsCounters } from './obs.js';
 import {
+  appendDarkMiniXiangqiEvent,
+  appendDarkMiniXiangqiSeatAssigned,
+  recordDarkMiniXiangqiPersistenceError,
+} from './server-dark-mini-xiangqi-events.js';
+import {
   assignDarkMiniXiangqiSeat,
   displaceOlderDarkMiniXiangqiSeatClients,
+  rollbackDarkMiniXiangqiSeatAssignment,
 } from './server-dark-mini-xiangqi-seat-session.js';
 import { recordMessageTimestamp, seatTokenFromProtocolHeader } from './server-policy.js';
 import { parseClientMessage } from './server-ws-messages.js';
@@ -62,13 +67,28 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
     return;
   }
 
-  appendDarkMiniXiangqiRuntimeEvent(room, {
-    type: 'seat-assigned',
-    at: Date.now(),
-    roomId: room.id,
-    clientId,
-    seat: assignment.seat,
-  });
+  try {
+    await appendDarkMiniXiangqiSeatAssigned(room, {
+      event: {
+        type: 'seat-assigned',
+        at: Date.now(),
+        roomId: room.id,
+        clientId,
+        seat: assignment.seat,
+      },
+      tokenState: assignment.tokenState,
+    });
+  } catch (err) {
+    rollbackDarkMiniXiangqiSeatAssignment(room, assignment);
+    recordDarkMiniXiangqiPersistenceError(
+      room.id,
+      room.events.length,
+      'seat-assigned',
+      err as Error,
+    );
+    socket.close(1011, 'persistence failure');
+    return;
+  }
 
   const client: DarkMiniXiangqiLiveClient = {
     debugRequested: false,
@@ -105,7 +125,7 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
       socket.close(1008, 'rate limit');
       return;
     }
-    handleDarkMiniXiangqiMessage(room, client, raw.toString());
+    void handleDarkMiniXiangqiMessage(room, client, raw.toString());
   });
 
   socket.on('close', () => {
@@ -114,11 +134,11 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
   });
 }
 
-function handleDarkMiniXiangqiMessage(
+async function handleDarkMiniXiangqiMessage(
   room: DarkMiniXiangqiLiveRoom,
   client: DarkMiniXiangqiLiveClient,
   raw: string,
-): void {
+): Promise<void> {
   const message = parseClientMessage(raw);
   if (!message) {
     wsCounters.recordParseFailure();
@@ -150,7 +170,14 @@ function handleDarkMiniXiangqiMessage(
     color: client.seat,
     move,
   };
-  const seq = appendDarkMiniXiangqiRuntimeEvent(room, event);
+  let seq: number;
+  try {
+    seq = await appendDarkMiniXiangqiEvent(room, event);
+  } catch (err) {
+    recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
+    client.socket.close(1011, 'persistence failure');
+    return;
+  }
   broadcastDarkMiniXiangqiEventAppended(room, event, seq);
 }
 

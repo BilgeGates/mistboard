@@ -64,6 +64,7 @@ export type WebSocketConnectionContext = {
   darkMiniXiangqiRooms: Map<string, DarkMiniXiangqiRuntimeRoom>;
   darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
   enableRandomEngine: (room: Room) => Promise<void>;
+  getOrLoadDarkMiniXiangqiRoom: (roomId: string) => Promise<DarkMiniXiangqiRuntimeRoom | null>;
   getOrLoadDarkXiangqiRoom: (roomId: string) => Promise<DarkXiangqiLiveRoom | null>;
   getOrCreateRoom: (roomId: string, variant: VariantId, hiddenDraft960?: boolean) => Promise<Room>;
   handleAbort: (room: Room, client: Client) => Promise<void>;
@@ -82,7 +83,10 @@ export type WebSocketConnectionContext = {
 
 export type WebSocketRuntimeResolverContext = Pick<
   WebSocketConnectionContext,
-  'darkMiniXiangqiRooms' | 'darkXiangqiRooms' | 'getOrLoadDarkXiangqiRoom'
+  | 'darkMiniXiangqiRooms'
+  | 'darkXiangqiRooms'
+  | 'getOrLoadDarkMiniXiangqiRoom'
+  | 'getOrLoadDarkXiangqiRoom'
 >;
 
 export type WebSocketLiveRuntime =
@@ -92,7 +96,7 @@ export type WebSocketLiveRuntime =
   | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' }
   | {
       kind: 'dark-mini-xiangqi-unavailable';
-      reason: 'game spec disabled' | 'game spec not integrated';
+      reason: 'game spec disabled' | 'room unavailable';
     };
 
 export function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
@@ -116,7 +120,14 @@ export async function resolveWebSocketLiveRuntime(
     if (!darkMiniXiangqiEnabled()) {
       return { kind: 'dark-mini-xiangqi-unavailable', reason: 'game spec disabled' };
     }
-    return { kind: 'dark-mini-xiangqi-unavailable', reason: 'game spec not integrated' };
+    const hydratedDarkMiniXiangqiRoom = await ctx.getOrLoadDarkMiniXiangqiRoom(roomId);
+    if (hydratedDarkMiniXiangqiRoom) {
+      return {
+        kind: 'dark-mini-xiangqi',
+        room: hydratedDarkMiniXiangqiRoom as DarkMiniXiangqiLiveRoom,
+      };
+    }
+    return { kind: 'dark-mini-xiangqi-unavailable', reason: 'room unavailable' };
   }
   if (!isDarkXiangqiRoomId(roomId)) return { kind: 'chess' };
   if (!darkXiangqiEnabled())
