@@ -14,8 +14,12 @@ describe('Dark Mini Xiangqi board renderer', () => {
     const svg = renderMiniXiangqiBoardSvg(view, 'red');
 
     expect(svg).toContain('class="mini-xq-board"');
-    expect(svg).toContain('<mask id="mini-xq-fog-render-test-red"');
-    expect(svg).toContain('mask="url(#mini-xq-fog-render-test-red)"');
+    // The fog mask id is a module-global counter (mini-xq-fog-N), so the exact
+    // number is non-deterministic across runs. Assert the <mask> declaration and
+    // its url(#...) reference share one id under the expected prefix.
+    const maskId = svg.match(/<mask id="(mini-xq-fog-\d+)"/)?.[1];
+    expect(maskId).toBeTruthy();
+    expect(svg).toContain(`mask="url(#${maskId})"`);
 
     // One black cutout rect per visible intersection; nothing else uses
     // fill="black", so the counts must match.
