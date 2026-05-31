@@ -120,6 +120,51 @@ describe('Dark Mini Xiangqi live room', () => {
     expect(refs.actionStatus.textContent).toContain('Game aborted');
     expect(refs.gameControlsSection.hidden).toBe(true);
   });
+
+  it('scrubs back through snapshots and returns to live', () => {
+    const refs = refsFixture();
+    const callbacks = { reconnectNow: () => {}, sendSocket: () => true };
+
+    liveState.state = viewFixture() as never;
+    renderDarkMiniXiangqiRoom(refs, callbacks);
+    liveState.state = {
+      ...viewFixture(),
+      board: {
+        b2: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+        b7: { color: 'black', shrouded: true },
+      },
+      lastMove: { from: 'b1', to: 'b2' },
+      status: { type: 'playing', turn: 'black' },
+      visibleSquares: ['b2', 'b7'],
+    } as never;
+    renderDarkMiniXiangqiRoom(refs, callbacks);
+
+    expect(refs.replayMeta.textContent).toBe('Live · ply 1 of 1');
+    refs.replayControls[0]!.dispatchEvent(clickEvent()); // first
+    expect(refs.replayMeta.textContent).toBe('Replay · ply 0 of 1');
+    refs.replayControls[1]!.dispatchEvent(clickEvent()); // next
+    expect(refs.replayMeta.textContent).toBe('Live · ply 1 of 1');
+  });
+
+  it('renders visible moves in full-move rows with hidden opponent plies', () => {
+    const refs = refsFixture();
+    liveState.state = {
+      ...viewFixture(),
+      moveNumber: 2,
+      status: { type: 'playing', turn: 'black' },
+    } as never;
+    liveState.events = [
+      { type: 'move-played', at: 2, color: 'red', move: { from: 'b1', to: 'b2' }, ply: 1 },
+      { type: 'move-played', at: 4, color: 'red', move: { from: 'b2', to: 'b3' }, ply: 3 },
+    ] as never;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    const rows = [...refs.moveList.querySelectorAll('.xiangqi-move-row')].map((row) =>
+      row.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(rows).toEqual(['1.b1-b2...', '2.b2-b3']);
+  });
 });
 
 function viewFixture(): MiniView {
