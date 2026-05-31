@@ -5,11 +5,16 @@
 //     --dir <path-to-jsonl-dir> \
 //     --corpus <corpus-id> \
 //     --white-name "<engine name>" \
-//     --black-name "<engine name>"
+//     --black-name "<engine name>" \
+//     [--mode <imported|eve|pve|pvp|manual>]   # default: imported
 //
 // Reads every *.jsonl in --dir, replays its events to derive a game summary,
 // inserts events + a games row per file. Idempotent: ON CONFLICT DO NOTHING
 // at both the events PK (room_id, seq) and games PK (room_id).
+//
+// --mode controls how the imported games surface. The default 'imported' keeps
+// them out of the watch feed (which filters mode IN pvp/pve/eve); pass
+// '--mode eve' to seed a scrubable local /watch feed from committed samples.
 
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -17,12 +22,16 @@ import { type GameEvent, isGameEndReason, replayGameEvents } from '@mistboard/ga
 import pg from 'pg';
 import { runMigrations } from './migrate.js';
 import { appendEvent, close, type GameSummary, init, recordGameEnd } from './persistence.js';
+import type { GameMode } from './persistence-game-lifecycle.js';
+
+const IMPORT_MODES: readonly GameMode[] = ['imported', 'eve', 'pve', 'pvp', 'manual'];
 
 type Args = {
   dir: string;
   corpus: string;
   whiteName: string;
   blackName: string;
+  mode: GameMode;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -42,14 +51,22 @@ function parseArgs(argv: string[]): Args {
     } else if (arg === '--black-name' && next) {
       args.blackName = next;
       i++;
+    } else if (arg === '--mode' && next) {
+      if (!IMPORT_MODES.includes(next as GameMode)) {
+        console.error(`invalid --mode "${next}"; expected one of ${IMPORT_MODES.join(', ')}`);
+        process.exit(1);
+      }
+      args.mode = next as GameMode;
+      i++;
     }
   }
   if (!args.dir || !args.corpus || !args.whiteName || !args.blackName) {
     console.error(
-      'usage: import-corpus --dir <path> --corpus <id> --white-name <name> --black-name <name>',
+      'usage: import-corpus --dir <path> --corpus <id> --white-name <name> --black-name <name> [--mode <imported|eve|pve|pvp|manual>]',
     );
     process.exit(1);
   }
+  args.mode ??= 'imported';
   return args as Args;
 }
 
@@ -58,6 +75,7 @@ async function importFile(
   corpusId: string,
   whiteName: string,
   blackName: string,
+  mode: GameMode,
 ): Promise<{ roomId: string; plyCount: number; status: string }> {
   const raw = await readFile(filePath, 'utf-8');
   const events: GameEvent[] = raw
@@ -101,7 +119,7 @@ async function importFile(
 
   const summary: GameSummary = {
     variant: projection.variant,
-    mode: 'imported',
+    mode,
     result,
     termination,
     plyCount: moveEvents.length,
@@ -142,7 +160,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `importing ${files.length} file(s) from ${args.dir} as corpus="${args.corpus}", names=("${args.whiteName}" / "${args.blackName}")`,
+    `importing ${files.length} file(s) from ${args.dir} as corpus="${args.corpus}", mode="${args.mode}", names=("${args.whiteName}" / "${args.blackName}")`,
   );
   for (const file of files) {
     const result = await importFile(
@@ -150,6 +168,7 @@ async function main(): Promise<void> {
       args.corpus,
       args.whiteName,
       args.blackName,
+      args.mode,
     );
     console.log(`  ${file} → room=${result.roomId} plies=${result.plyCount} ${result.status}`);
   }

@@ -127,7 +127,8 @@ Local dev DB:
 ```bash
 npm run db:up
 npm run db:migrate
-npm run db:seed:profiles
+npm run db:seed:profiles   # public profiles + game-list rows
+npm run db:seed:watch      # scrubable /watch feed from committed replay samples
 npm run dev:persistent
 npm run test:persistent
 ```
@@ -135,6 +136,16 @@ npm run test:persistent
 The local Postgres URL is `postgres://mistboard:mistboard@localhost:5435/mistboard`.
 Migrations run via a tiny in-repo script — no ORM, no migration framework. Raw
 SQL files in `apps/server/migrations/` are applied in order.
+
+Without a DB (`npm run dev`), DB-backed pages are dark: `/watch`, `/game/:id`
+review, profiles, and the public-games surfaces all show empty/"unavailable"
+states. Two ways to exercise them:
+
+- **Replay component only** (no DB): open `/?replay=<sample-name>`, where
+  `<sample-name>` is any file under `apps/web/public/replay-samples/` (without
+  the `.jsonl`). Mounts the exact replay widget — boards, controls, ply line —
+  the watch and review pages embed. Fastest loop for replay-UI work.
+- **Full page** (DB): `db:seed:watch` + `dev:persistent`, then load `/watch`.
 
 `npm run db:seed:profiles` adds deterministic local public profile fixtures.
 The seed is idempotent and only replaces `seed-*` users and games:
@@ -145,6 +156,13 @@ The seed is idempotent and only replaces `seed-*` users and games:
 
 The seed command refuses non-local database URLs unless
 `MISTBOARD_ALLOW_NONLOCAL_SEED=true` is set.
+
+`npm run db:seed:watch` imports every committed `apps/web/public/replay-samples/*.jsonl`
+as a completed `eve` game (corpus `local-watch-fixture`), so `/watch` shows real,
+scrubable replays locally. It is a thin wrapper over `import-corpus` with
+`--mode eve` (the default `imported` mode is excluded from the watch feed, which
+filters `mode IN (pvp, pve, eve)`). Idempotent on `(room_id)`; safe to re-run.
+Both seed commands hardcode the local Postgres URL.
 
 Minimal account auth is passwordless email:
 
