@@ -4,6 +4,7 @@ import test from 'node:test';
 import type { WebSocket } from 'ws';
 import { createDarkMiniXiangqiRuntimeRoom } from './dark-mini-xiangqi-runtime.js';
 import {
+  clearDarkMiniXiangqiRuntimeTimers,
   type DarkMiniXiangqiLiveRoom,
   handleDarkMiniXiangqiWebSocketConnection,
 } from './server-ws-dark-mini-xiangqi.js';
@@ -314,6 +315,64 @@ test('Dark Mini Xiangqi WebSocket handler rejects abort after both sides have mo
 
     assert.equal(room.events.length, eventCountBefore);
     assert.equal(room.projection.state.status.type, 'playing');
+  });
+});
+
+test('Dark Mini Xiangqi WebSocket handler arms a forfeit timer when a seat disconnects mid-game', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dmxq_forfeit_arm');
+    const red = new FakeSocket();
+    const black = new FakeSocket();
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      red.socket,
+      request('dmxq_forfeit_arm', 'red-client'),
+      room,
+    );
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      black.socket,
+      request('dmxq_forfeit_arm', 'black-client'),
+      room,
+    );
+
+    red.emit('message', JSON.stringify({ type: 'move', from: 'a2', to: 'a3' }));
+    await room.pendingWrites;
+    black.emit('message', JSON.stringify({ type: 'move', from: 'a6', to: 'a5' }));
+    await room.pendingWrites;
+    assert.equal(room.forfeitSeat, null);
+
+    black.emit('close');
+
+    assert.equal(room.forfeitSeat, 'black');
+    assert.notEqual(room.forfeitTimer, null);
+    clearDarkMiniXiangqiRuntimeTimers(room);
+  });
+});
+
+test('Dark Mini Xiangqi WebSocket handler does not arm a forfeit timer during the pregame', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dmxq_forfeit_pregame');
+    const red = new FakeSocket();
+    const black = new FakeSocket();
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      red.socket,
+      request('dmxq_forfeit_pregame', 'red-client'),
+      room,
+    );
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      black.socket,
+      request('dmxq_forfeit_pregame', 'black-client'),
+      room,
+    );
+
+    black.emit('close');
+
+    assert.equal(room.forfeitSeat, null);
+    assert.equal(room.forfeitTimer, null);
+    clearDarkMiniXiangqiRuntimeTimers(room);
   });
 });
 

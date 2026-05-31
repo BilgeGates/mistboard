@@ -27,6 +27,7 @@ export type DarkMiniXiangqiEventWriterPersistence = {
 export type DarkMiniXiangqiEventWriterContext = {
   logGameEndRecordFailure?(roomId: string, err: Error): void;
   persistence?: DarkMiniXiangqiEventWriterPersistence;
+  scheduleLifecycleTimers?(room: DarkMiniXiangqiEventRoom): void;
 };
 
 export async function appendDarkMiniXiangqiEvent(
@@ -41,6 +42,7 @@ export async function appendDarkMiniXiangqiEvent(
       await writer.persistence.appendRoomEvent(room.id, seq, event);
     }
     const appendedSeq = appendDarkMiniXiangqiRuntimeEvent(room, event);
+    writer.scheduleLifecycleTimers(room);
     if (
       writer.persistence.isInitialized() &&
       room.projection.state.status.type === 'finished' &&
@@ -85,6 +87,7 @@ export async function appendDarkMiniXiangqiSeatAssigned(
     }
     const appendedSeq = appendDarkMiniXiangqiRuntimeEvent(room, args.event);
     room.seatTokens[args.event.seat] = args.tokenState;
+    writer.scheduleLifecycleTimers(room);
     return appendedSeq;
   });
   room.pendingWrites = write.then(
@@ -150,6 +153,7 @@ function contextWithDefaults(
   return {
     logGameEndRecordFailure: logDarkMiniXiangqiGameEndRecordFailure,
     persistence,
+    scheduleLifecycleTimers: () => {},
     ...ctx,
   };
 }

@@ -51,6 +51,12 @@ export type DarkMiniXiangqiEvent =
       at: number;
       roomId: string;
       reason: AbortReason;
+    }
+  | {
+      type: 'seat-forfeited';
+      at: number;
+      roomId: string;
+      color: MiniXiangqiColor;
     };
 
 export type DarkMiniXiangqiClientEvent =
@@ -90,6 +96,13 @@ export type DarkMiniXiangqiRuntimeRoom = {
   events: DarkMiniXiangqiEvent[];
   projection: DarkMiniXiangqiProjection;
   gameSpecId: typeof DARK_MINI_XIANGQI_SPEC_ID;
+  abortTimer: ReturnType<typeof setTimeout> | null;
+  abortDeadline: number | null;
+  abortPhase: 'red-1' | 'black-1' | null;
+  clockTimer: ReturnType<typeof setTimeout> | null;
+  forfeitTimer: ReturnType<typeof setTimeout> | null;
+  forfeitDeadline: number | null;
+  forfeitSeat: MiniXiangqiColor | null;
   gameEndRecorded: boolean;
   pendingWrites: Promise<void>;
   seatTokens: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>>;
@@ -153,6 +166,13 @@ export function createDarkMiniXiangqiRuntimeRoomFromEvents(
       events: [...events],
       projection,
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      abortTimer: null,
+      abortDeadline: null,
+      abortPhase: null,
+      clockTimer: null,
+      forfeitTimer: null,
+      forfeitDeadline: null,
+      forfeitSeat: null,
       gameEndRecorded: projection.state.status.type !== 'playing',
       pendingWrites: Promise.resolve(),
       seatTokens: {},
@@ -226,6 +246,20 @@ export function applyDarkMiniXiangqiEvent(
       state: {
         ...projection.state,
         status: { type: 'aborted', reason: event.reason },
+      },
+    };
+  }
+  if (event.type === 'seat-forfeited') {
+    if (projection.state.status.type !== 'playing') return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: {
+          type: 'finished',
+          winner: oppositeMiniXiangqiColor(event.color),
+          reason: 'abandonment',
+        },
       },
     };
   }
@@ -354,6 +388,9 @@ export function isDarkMiniXiangqiEvent(
   }
   if (event.type === 'game-aborted') {
     return isAbortReason(event.reason);
+  }
+  if (event.type === 'seat-forfeited') {
+    return isMiniXiangqiColor(event.color);
   }
   return false;
 }

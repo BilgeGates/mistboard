@@ -326,6 +326,42 @@ test('Dark Mini Xiangqi event validation accepts aborts and rejects unknown abor
   );
 });
 
+test('Dark Mini Xiangqi runtime finishes the game when a seat is forfeited', () => {
+  const projection = replayDarkMiniXiangqiEvents([
+    { type: 'room-created', at: 100, roomId: 'dmxq_ff', gameSpecId: 'dark-mini-xiangqi' },
+    { type: 'seat-forfeited', at: 200, roomId: 'dmxq_ff', color: 'black' },
+  ]);
+
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'red',
+    reason: 'abandonment',
+  });
+});
+
+test('Dark Mini Xiangqi event validation accepts forfeits and rejects malformed colors', () => {
+  assert.equal(
+    isDarkMiniXiangqiEventLog(
+      [
+        { type: 'room-created', at: 100, roomId: 'dmxq_vf', gameSpecId: 'dark-mini-xiangqi' },
+        { type: 'seat-forfeited', at: 200, roomId: 'dmxq_vf', color: 'red' },
+      ],
+      'dmxq_vf',
+    ),
+    true,
+  );
+  assert.equal(
+    isDarkMiniXiangqiEventLog(
+      [
+        { type: 'room-created', at: 100, roomId: 'dmxq_vf', gameSpecId: 'dark-mini-xiangqi' },
+        { type: 'seat-forfeited', at: 200, roomId: 'dmxq_vf', color: 'purple' },
+      ],
+      'dmxq_vf',
+    ),
+    false,
+  );
+});
+
 function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) {
     delete process.env[key];

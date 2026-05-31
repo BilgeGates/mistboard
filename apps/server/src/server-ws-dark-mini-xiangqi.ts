@@ -19,8 +19,14 @@ import { wsCounters } from './obs.js';
 import {
   appendDarkMiniXiangqiEvent,
   appendDarkMiniXiangqiSeatAssigned,
+  type DarkMiniXiangqiEventWriterContext,
   recordDarkMiniXiangqiPersistenceError,
 } from './server-dark-mini-xiangqi-events.js';
+import {
+  clearDarkMiniXiangqiRuntimeTimers,
+  type DarkMiniXiangqiLifecycleContext,
+  scheduleDarkMiniXiangqiLifecycleTimers as scheduleDarkMiniXiangqiLifecycleTimersWithContext,
+} from './server-dark-mini-xiangqi-lifecycle.js';
 import {
   assignDarkMiniXiangqiSeat,
   displaceOlderDarkMiniXiangqiSeatClients,
@@ -51,6 +57,25 @@ export type DarkMiniXiangqiWebSocketContext = {
   wsMessageWindowMs: number;
 };
 
+let darkMiniXiangqiEventWriterCtx: DarkMiniXiangqiEventWriterContext;
+
+const darkMiniXiangqiLifecycleCtx: DarkMiniXiangqiLifecycleContext<DarkMiniXiangqiLiveRoom> = {
+  appendEvent: (room, event) =>
+    appendDarkMiniXiangqiEvent(room, event, darkMiniXiangqiEventWriterCtx),
+  broadcastEventAppended: broadcastDarkMiniXiangqiEventAppended,
+};
+
+darkMiniXiangqiEventWriterCtx = {
+  scheduleLifecycleTimers: (room) =>
+    scheduleDarkMiniXiangqiLifecycleTimers(room as DarkMiniXiangqiLiveRoom),
+};
+
+export function scheduleDarkMiniXiangqiLifecycleTimers(room: DarkMiniXiangqiLiveRoom): void {
+  scheduleDarkMiniXiangqiLifecycleTimersWithContext(room, darkMiniXiangqiLifecycleCtx);
+}
+
+export { clearDarkMiniXiangqiRuntimeTimers };
+
 export async function handleDarkMiniXiangqiWebSocketConnection(
   ctx: DarkMiniXiangqiWebSocketContext,
   socket: WebSocket,
@@ -68,16 +93,20 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
   }
 
   try {
-    await appendDarkMiniXiangqiSeatAssigned(room, {
-      event: {
-        type: 'seat-assigned',
-        at: Date.now(),
-        roomId: room.id,
-        clientId,
-        seat: assignment.seat,
+    await appendDarkMiniXiangqiSeatAssigned(
+      room,
+      {
+        event: {
+          type: 'seat-assigned',
+          at: Date.now(),
+          roomId: room.id,
+          clientId,
+          seat: assignment.seat,
+        },
+        tokenState: assignment.tokenState,
       },
-      tokenState: assignment.tokenState,
-    });
+      darkMiniXiangqiEventWriterCtx,
+    );
   } catch (err) {
     rollbackDarkMiniXiangqiSeatAssignment(room, assignment);
     recordDarkMiniXiangqiPersistenceError(
@@ -104,6 +133,7 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
   };
   room.clients.add(client);
   displaceOlderDarkMiniXiangqiSeatClients(room, client);
+  scheduleDarkMiniXiangqiLifecycleTimers(room);
 
   sendDarkMiniXiangqiPayload(client, {
     ...darkMiniXiangqiTransportSnapshotPayload(room, client),
@@ -130,7 +160,10 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
 
   socket.on('close', () => {
     room.clients.delete(client);
-    if (!client.displaced) broadcastDarkMiniXiangqiSnapshot(room);
+    if (!client.displaced) {
+      scheduleDarkMiniXiangqiLifecycleTimers(room);
+      broadcastDarkMiniXiangqiSnapshot(room);
+    }
   });
 }
 
@@ -180,7 +213,7 @@ async function handleDarkMiniXiangqiMessage(
   };
   let seq: number;
   try {
-    seq = await appendDarkMiniXiangqiEvent(room, event);
+    seq = await appendDarkMiniXiangqiEvent(room, event, darkMiniXiangqiEventWriterCtx);
   } catch (err) {
     recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
     client.socket.close(1011, 'persistence failure');
@@ -203,7 +236,7 @@ async function handleDarkMiniXiangqiResign(
   };
   let seq: number;
   try {
-    seq = await appendDarkMiniXiangqiEvent(room, event);
+    seq = await appendDarkMiniXiangqiEvent(room, event, darkMiniXiangqiEventWriterCtx);
   } catch (err) {
     recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
     client.socket.close(1011, 'persistence failure');
@@ -228,7 +261,7 @@ async function handleDarkMiniXiangqiAbort(
   };
   let seq: number;
   try {
-    seq = await appendDarkMiniXiangqiEvent(room, event);
+    seq = await appendDarkMiniXiangqiEvent(room, event, darkMiniXiangqiEventWriterCtx);
   } catch (err) {
     recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
     client.socket.close(1011, 'persistence failure');
