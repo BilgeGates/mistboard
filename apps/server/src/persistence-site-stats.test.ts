@@ -44,9 +44,9 @@ definePersistenceTests('site stats', () => {
     const stats = await getPublicSiteStats({ now });
 
     assert.equal(stats.generatedAt, now.toISOString());
-    assert.equal(stats.totalCompletedGames, 5);
-    assert.equal(stats.last30dCompletedGames, 3);
-    assert.equal(stats.publicGames, 2);
+    assert.equal(stats.totalCompletedGames, 3);
+    assert.equal(stats.last30dCompletedGames, 1);
+    assert.equal(stats.publicGames, 1);
     assert.deepEqual(stats.modeTotals, { pvp: 2, pve: 1, eve: 1 });
     assert.equal(stats.dailyCompletedGames.length, 54);
     assert.deepEqual(stats.dailyCompletedGames[0], {
@@ -56,13 +56,13 @@ definePersistenceTests('site stats', () => {
     });
     assert.deepEqual(stats.dailyCompletedGames[36], {
       date: '2026-05-12',
-      completedGames: 1,
-      cumulativeGames: 3,
+      completedGames: 0,
+      cumulativeGames: 2,
     });
     assert.deepEqual(stats.dailyCompletedGames.at(-1), {
       date: '2026-05-29',
-      completedGames: 2,
-      cumulativeGames: 5,
+      completedGames: 1,
+      cumulativeGames: 3,
     });
   });
 });

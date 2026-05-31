@@ -40,20 +40,29 @@ describe('about page platform activity', () => {
     await flushPromises();
 
     expect(fetchMock).toHaveBeenCalledWith('/api/stats/public', { credentials: 'same-origin' });
-    expect(root.textContent).toContain('Platform activity');
+    expect(root.textContent).toContain('Player game activity');
+    expect(root.textContent).toContain('player-facing completed games tracked');
     expect(root.textContent).toContain('1,234');
     expect(root.textContent).toContain('last 30 days');
     expect(root.textContent).toContain('Player vs player');
     expect(root.textContent).toContain('Engine lab');
     const pageText = root.textContent ?? '';
     expect(pageText.indexOf('Open source foundation')).toBeLessThan(
-      pageText.indexOf('Platform activity'),
+      pageText.indexOf('Player game activity'),
     );
     expect(root.querySelectorAll('.platform-activity-metric')).toHaveLength(0);
     expect(root.querySelector('.platform-activity-chart svg')).not.toBeNull();
     expect(root.querySelectorAll('.platform-activity-y-axis text').length).toBeGreaterThan(1);
     expect(root.querySelectorAll('.platform-activity-x-axis text').length).toBeGreaterThan(2);
-    expect(root.querySelectorAll('.platform-activity-mode-inline-item')).toHaveLength(3);
+    const modeItems = root.querySelectorAll('.platform-activity-mode-item');
+    expect(modeItems).toHaveLength(3);
+    expect(modeItems[0]?.textContent).toBe('Player vs player 42');
+    expect(modeItems[1]?.textContent).toBe('Player vs engine 31');
+    expect(modeItems[2]?.textContent).toBe('Engine lab 9');
+    expect(root.querySelector('.platform-activity-mode-list')?.getAttribute('aria-label')).toBe(
+      'Mode split',
+    );
+    expect(root.querySelector('.platform-activity-mode-heading')).toBeNull();
     expect(root.querySelector('.platform-activity-markers')).toBeNull();
   });
 

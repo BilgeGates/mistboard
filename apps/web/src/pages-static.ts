@@ -190,10 +190,10 @@ function buildPlatformActivity(): HTMLElement {
   const heading = document.createElement('h2');
   heading.id = 'platform-activity-heading';
   heading.className = 'about-subheading';
-  heading.textContent = 'Platform activity';
+  heading.textContent = 'Player game activity';
 
   const intro = aboutParagraph([
-    'Mistboard tracks completed games as durable replay records. These aggregate counts show the platform history without exposing private game details.',
+    'Mistboard tracks completed games as durable replay records. The main totals count player-facing games only: player vs player and player vs engine. Engine lab games are shown separately because they can be generated in batches.',
   ]);
 
   const body = document.createElement('div');
@@ -241,7 +241,7 @@ function renderPlatformActivityStats(body: HTMLElement, stats: PublicSiteStats):
   summary.className = 'platform-activity-summary';
   summary.append(
     document.createTextNode(
-      `${numberFormat.format(stats.totalCompletedGames)} completed games tracked`,
+      `${numberFormat.format(stats.totalCompletedGames)} player-facing completed games tracked`,
     ),
   );
   if (stats.last30dCompletedGames > 0) {
@@ -261,7 +261,7 @@ function buildActivityChart(days: PublicStatsDay[]): HTMLElement {
   panel.className = 'platform-activity-chart';
 
   const label = document.createElement('h3');
-  label.textContent = 'Cumulative completed games';
+  label.textContent = 'Cumulative player-facing games';
 
   if (days.length === 0) {
     const empty = document.createElement('p');
@@ -407,20 +407,24 @@ function xAxisTicks(days: PublicStatsDay[]): Array<{ position: number; date: str
 }
 
 function buildModeSplit(modeTotals: Record<PublicStatsMode, number>): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = 'platform-activity-mode-split';
-
-  const label = document.createElement('p');
-  label.append(document.createTextNode('Mode split: '));
+  const list = document.createElement('ul');
+  list.className = 'platform-activity-mode-list';
+  list.setAttribute('aria-label', 'Mode split');
   for (const mode of publicStatsModes) {
-    const item = document.createElement('span');
-    item.className = `platform-activity-mode-inline-item mode-${mode.key}`;
-    item.textContent = `${mode.label} ${numberFormat.format(modeTotals[mode.key] ?? 0)}`;
-    label.append(item);
+    const item = document.createElement('li');
+    item.className = `platform-activity-mode-item mode-${mode.key}`;
+
+    const name = document.createElement('span');
+    name.textContent = `${mode.label} `;
+
+    const value = document.createElement('strong');
+    value.textContent = numberFormat.format(modeTotals[mode.key] ?? 0);
+
+    item.append(name, value);
+    list.append(item);
   }
 
-  wrap.append(label);
-  return wrap;
+  return list;
 }
 
 function formatDateLabel(value: string | undefined): string {

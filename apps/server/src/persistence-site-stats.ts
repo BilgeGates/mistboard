@@ -76,13 +76,18 @@ export async function getPublicSiteStats(
     public_games: number;
   }>(
     `SELECT
-       count(*) FILTER (WHERE status = 'completed')::int AS total_completed_games,
        count(*) FILTER (
          WHERE status = 'completed'
+           AND mode IN ('pvp', 'pve')
+       )::int AS total_completed_games,
+       count(*) FILTER (
+         WHERE status = 'completed'
+           AND mode IN ('pvp', 'pve')
            AND ended_at > $1::timestamptz - INTERVAL '30 days'
        )::int AS last30d_completed_games,
        count(*) FILTER (
          WHERE status = 'completed'
+           AND mode IN ('pvp', 'pve')
            AND visibility = 'public'
        )::int AS public_games
      FROM games`,
@@ -104,6 +109,7 @@ export async function getPublicSiteStats(
          $1::timestamptz::date AS today
        FROM games
        WHERE status = 'completed'
+         AND mode IN ('pvp', 'pve')
      ),
      days AS (
        SELECT generate_series(bounds.first_day, bounds.today, INTERVAL '1 day')::date AS day
@@ -114,6 +120,7 @@ export async function getPublicSiteStats(
        SELECT ended_at::date AS day, count(*)::int AS n
        FROM games
        WHERE status = 'completed'
+         AND mode IN ('pvp', 'pve')
        GROUP BY day
      )
      SELECT days.day, COALESCE(completed.n, 0)::int AS n
