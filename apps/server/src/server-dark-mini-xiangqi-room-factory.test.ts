@@ -30,6 +30,7 @@ test('Dark Mini Xiangqi live room factory creates and stores a flagged room', as
         createRoomId: () => 'dmxq_created',
         darkMiniXiangqiRooms,
       }),
+      undefined,
       'black',
     );
 

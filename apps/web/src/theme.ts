@@ -1,22 +1,38 @@
 import './theme.css';
+import {
+  DEFAULT_XIANGQI_PIECE_SET,
+  XIANGQI_PIECE_SETS,
+  type XiangqiPieceSet,
+  xiangqiPreviewGlyph,
+} from './xiangqi-piece-sets.js';
 
 type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
 type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
 type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';
+type XiangqiBoardTheme = 'tournament' | 'blue' | 'mono';
 export type SiteTheme = 'system' | 'light' | 'dark';
+export type BoardFamily = 'chess' | 'xiangqi';
 
 const siteThemeStorageKey = 'mistboard.siteTheme';
 const boardStorageKey = 'mistboard.boardTheme';
 const fogStorageKey = 'mistboard.fogTheme';
 const pieceSetStorageKey = 'mistboard.pieceSet';
+const xiangqiBoardStorageKey = 'mistboard.xiangqiBoardTheme';
+const xiangqiPieceSetStorageKey = 'mistboard.xiangqiPieceSet';
 const soundVolumeStorageKey = 'mistboard.soundVolume';
 const soundMutedStorageKey = 'mistboard.soundMuted';
 export const soundSettingsChangedEvent = 'mistboard:sound-settings-changed';
 export const siteThemeChangedEvent = 'mistboard:site-theme-changed';
+// Fired when a xiangqi-family appearance setting (board theme or piece set)
+// changes. The xiangqi board renders pieces as inline SVG, so unlike the
+// CSS-driven chess board it must re-render to pick up a new piece set.
+export const xiangqiAppearanceChangedEvent = 'mistboard:xiangqi-appearance-changed';
 const defaultSiteTheme: SiteTheme = 'system';
 const defaultTheme: BoardTheme = 'green';
 const defaultFogTheme: FogTheme = 'solid';
 const defaultPieceSet: PieceSet = 'cburnett';
+const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'tournament';
+const defaultXiangqiPieceSet: XiangqiPieceSet = DEFAULT_XIANGQI_PIECE_SET;
 const defaultSoundVolume = 0.7;
 let cachedSoundVolume = defaultSoundVolume;
 let cachedSoundMuted = false;
@@ -48,6 +64,12 @@ const pieceSets: Array<{ id: PieceSet; label: string }> = [
   { id: 'fantasy', label: 'Fantasy' },
   { id: 'letter', label: 'Letter' },
 ];
+const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
+  { id: 'tournament', label: 'Tournament' },
+  { id: 'blue', label: 'Blue' },
+  { id: 'mono', label: 'Monochrome' },
+];
+const xiangqiPieceSets = XIANGQI_PIECE_SETS;
 let navObserver: MutationObserver | null = null;
 let systemThemeWatcherBound = false;
 
@@ -56,9 +78,20 @@ export function initializeThemeSettings(): void {
   applyBoardTheme(readStoredTheme());
   applyFogTheme(readStoredFogTheme());
   applyPieceSet(readStoredPieceSet());
+  applyXiangqiBoardTheme(readStoredXiangqiBoardTheme());
+  applyXiangqiPieceSet(readStoredXiangqiPieceSet());
+  if (!document.documentElement.dataset.boardFamily) {
+    document.documentElement.dataset.boardFamily = 'chess';
+  }
   watchForSystemThemeChanges();
   mountThemeControls();
   watchForNavChanges();
+}
+
+// Set by the active route so the settings panel shows the right board/piece
+// pickers (chess vs xiangqi). The fog picker is shared across both families.
+export function setBoardFamily(family: BoardFamily): void {
+  document.documentElement.dataset.boardFamily = family;
 }
 
 function applySiteTheme(theme: SiteTheme): void {
@@ -79,6 +112,14 @@ function applyFogTheme(theme: FogTheme): void {
 
 function applyPieceSet(pieceSet: PieceSet): void {
   document.documentElement.dataset.pieceSet = pieceSet;
+}
+
+function applyXiangqiBoardTheme(theme: XiangqiBoardTheme): void {
+  document.documentElement.dataset.xiangqiBoardTheme = theme;
+}
+
+function applyXiangqiPieceSet(pieceSet: XiangqiPieceSet): void {
+  document.documentElement.dataset.xiangqiPieceSet = pieceSet;
 }
 
 function mountThemeControls(): void {
@@ -133,6 +174,21 @@ function mountThemeControl(nav: HTMLElement): void {
       writeStoredTheme(value);
       syncThemeControls();
     },
+    'chess',
+  );
+  const xiangqiBoardField = createTileField(
+    'xqboard',
+    'Board colors',
+    'Xiangqi board color scheme',
+    xiangqiBoardThemes,
+    readStoredXiangqiBoardTheme(),
+    (value) => {
+      applyXiangqiBoardTheme(value);
+      writeStoredXiangqiBoardTheme(value);
+      syncThemeControls();
+      dispatchXiangqiAppearanceChanged();
+    },
+    'xiangqi',
   );
   const fogField = createTileField(
     'fog',
@@ -157,6 +213,21 @@ function mountThemeControl(nav: HTMLElement): void {
       writeStoredPieceSet(value);
       syncThemeControls();
     },
+    'chess',
+  );
+  const xiangqiPieceField = createTileField(
+    'xqpiece',
+    'Pieces',
+    'Xiangqi piece set',
+    xiangqiPieceSets,
+    readStoredXiangqiPieceSet(),
+    (value) => {
+      applyXiangqiPieceSet(value);
+      writeStoredXiangqiPieceSet(value);
+      syncThemeControls();
+      dispatchXiangqiAppearanceChanged();
+    },
+    'xiangqi',
   );
   const volumeField = createVolumeField();
   const muteField = createMuteField();
@@ -167,7 +238,16 @@ function mountThemeControl(nav: HTMLElement): void {
     if (!expanded) openThemeMenu(control);
   });
 
-  panel.append(siteThemeField, boardField, fogField, pieceField, volumeField, muteField);
+  panel.append(
+    siteThemeField,
+    boardField,
+    xiangqiBoardField,
+    fogField,
+    pieceField,
+    xiangqiPieceField,
+    volumeField,
+    muteField,
+  );
   control.append(trigger, panel);
   target.prepend(control);
 }
@@ -205,16 +285,20 @@ export function createSiteThemeButton(theme: SiteTheme, label: string): HTMLButt
   return button;
 }
 
+type TileKind = 'board' | 'fog' | 'piece' | 'xqboard' | 'xqpiece';
+
 function createTileField<T extends string>(
-  kind: 'board' | 'fog' | 'piece',
+  kind: TileKind,
   label: string,
   ariaLabel: string,
-  options: Array<{ id: T; label: string }>,
+  options: ReadonlyArray<{ id: T; label: string }>,
   value: T,
   onChange: (value: T) => void,
+  family?: BoardFamily,
 ): HTMLDivElement {
   const field = document.createElement('div');
   field.className = 'theme-control-field';
+  if (family) field.dataset.appearanceFamily = family;
   const text = document.createElement('span');
   text.textContent = label;
 
@@ -239,6 +323,11 @@ function createTileField<T extends string>(
     const preview = document.createElement('span');
     preview.className = `theme-tile-preview theme-tile-preview-${kind}`;
     preview.dataset.id = option.id;
+    // Xiangqi piece tiles show a representative glyph; the board tiles use a CSS
+    // color swatch like the chess board tiles.
+    if (kind === 'xqpiece') {
+      preview.textContent = xiangqiPreviewGlyph(option.id as XiangqiPieceSet);
+    }
     tile.append(preview);
 
     tile.addEventListener('click', () => onChange(option.id));
@@ -342,8 +431,10 @@ function syncThemeControls(): void {
   const effectiveVolume = readEffectiveSoundVolume();
   syncSiteThemeControls(siteTheme);
   syncTileRow('board', boardTheme);
+  syncTileRow('xqboard', readStoredXiangqiBoardTheme());
   syncTileRow('fog', fogTheme);
   syncTileRow('piece', pieceSet);
+  syncTileRow('xqpiece', readStoredXiangqiPieceSet());
   document.querySelectorAll<HTMLInputElement>('input[data-sound-volume]').forEach((input) => {
     input.value = String(Math.round(effectiveVolume * 100));
   });
@@ -370,7 +461,7 @@ function syncSiteThemeControls(activeTheme: SiteTheme): void {
     });
 }
 
-function syncTileRow(kind: 'board' | 'fog' | 'piece', activeId: string): void {
+function syncTileRow(kind: TileKind, activeId: string): void {
   document
     .querySelectorAll<HTMLButtonElement>(`button[data-theme-tile="${kind}"]`)
     .forEach((tile) => {
@@ -450,6 +541,42 @@ function writeStoredPieceSet(pieceSet: PieceSet): void {
   } catch {
     // The data attribute still updates for the current page.
   }
+}
+
+function readStoredXiangqiBoardTheme(): XiangqiBoardTheme {
+  try {
+    return normalizeXiangqiBoardTheme(window.localStorage.getItem(xiangqiBoardStorageKey));
+  } catch {
+    return defaultXiangqiBoardTheme;
+  }
+}
+
+function writeStoredXiangqiBoardTheme(theme: XiangqiBoardTheme): void {
+  try {
+    window.localStorage.setItem(xiangqiBoardStorageKey, theme);
+  } catch {
+    // The data attribute still updates for the current page.
+  }
+}
+
+export function readStoredXiangqiPieceSet(): XiangqiPieceSet {
+  try {
+    return normalizeXiangqiPieceSet(window.localStorage.getItem(xiangqiPieceSetStorageKey));
+  } catch {
+    return defaultXiangqiPieceSet;
+  }
+}
+
+function writeStoredXiangqiPieceSet(pieceSet: XiangqiPieceSet): void {
+  try {
+    window.localStorage.setItem(xiangqiPieceSetStorageKey, pieceSet);
+  } catch {
+    // The data attribute still updates for the current page.
+  }
+}
+
+function dispatchXiangqiAppearanceChanged(): void {
+  window.dispatchEvent(new Event(xiangqiAppearanceChangedEvent));
 }
 
 export function readEffectiveSoundVolume(): number {
@@ -540,6 +667,18 @@ function normalizeFogTheme(value: string | null): FogTheme {
 
 function normalizePieceSet(value: string | null): PieceSet {
   return pieceSets.some((set) => set.id === value) ? (value as PieceSet) : defaultPieceSet;
+}
+
+function normalizeXiangqiBoardTheme(value: string | null): XiangqiBoardTheme {
+  return xiangqiBoardThemes.some((theme) => theme.id === value)
+    ? (value as XiangqiBoardTheme)
+    : defaultXiangqiBoardTheme;
+}
+
+function normalizeXiangqiPieceSet(value: string | null): XiangqiPieceSet {
+  return xiangqiPieceSets.some((set) => set.id === value)
+    ? (value as XiangqiPieceSet)
+    : defaultXiangqiPieceSet;
 }
 
 function normalizeVolume(value: string | number | null): number {

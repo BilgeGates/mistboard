@@ -7,6 +7,7 @@ import {
   type MiniXiangqiSquare,
   oppositeMiniXiangqiColor,
 } from '@mistboard/game';
+import { buildDarkMiniXiangqiPublicationJson } from './../dark-mini-xiangqi-export.js';
 import {
   applyDarkMiniXiangqiEvent,
   type DarkMiniXiangqiEvent,
@@ -63,6 +64,32 @@ export async function tryHandle(
   pathname: string,
   _parsedUrl: URL,
 ): Promise<boolean> {
+  const exportMatch = pathname.match(/^\/api\/dark-mini-xiangqi\/games\/([^/]+)\/export\.json$/);
+  if (exportMatch) {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!darkMiniXiangqiEnabled()) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    if (!requirePersistence(response)) return true;
+    const roomId = decodeURIComponent(exportMatch[1]!);
+    const [game, events] = await Promise.all([
+      persistence.getGameSummary(roomId),
+      persistence.loadRoomEvents<DarkMiniXiangqiEvent>(roomId),
+    ]);
+    if (!game || game.variant !== DARK_MINI_XIANGQI_SPEC_ID || !events) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    const payload = buildDarkMiniXiangqiPublicationJson(game, events);
+    response.writeHead(200, {
+      'content-type': 'application/json; charset=utf-8',
+      'content-disposition': `inline; filename="mistboard-${roomId}.json"`,
+    });
+    response.end(JSON.stringify(payload));
+    return true;
+  }
+
   const postgameMatch = pathname.match(/^\/api\/dark-mini-xiangqi\/games\/([^/]+)$/);
   if (!postgameMatch) return false;
 
@@ -110,10 +137,13 @@ export async function darkMiniXiangqiPostgameForApi(
       endedAt: game.endedAt.toISOString(),
       rated: game.rated,
       visibility: game.visibility,
+      ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
     },
     state: {
       status: projection.state.status,
       moveNumber: projection.state.moveNumber,
+      ...(projection.clock ? { clock: projection.clock } : {}),
+      ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
     },
     timeline: darkMiniXiangqiPostgameTimeline(events),
     view: darkMiniXiangqiTruthView(projection.state),

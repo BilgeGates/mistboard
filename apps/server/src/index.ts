@@ -409,6 +409,7 @@ async function createDarkXiangqiRoom(
 }
 
 async function createDarkMiniXiangqiRoom(
+  timeControl?: RoomTimeControl,
   creatorPreference?: DarkMiniXiangqiCreatorPreference,
 ): Promise<
   | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
@@ -426,6 +427,7 @@ async function createDarkMiniXiangqiRoom(
       isPersistenceEnabled: persistence.isInitialized,
       recordPersistenceError: recordDarkMiniXiangqiPersistenceError,
     },
+    timeControl,
     creatorPreference,
   );
 }

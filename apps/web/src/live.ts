@@ -8,6 +8,12 @@ import './styles.css';
 import './site-shell.css';
 import type { GameEvent, PlayerView } from '@mistboard/game';
 import {
+  isDarkMiniXiangqiLiveRoom,
+  tickDarkMiniXiangqiClocks,
+  tickDarkMiniXiangqiCountdowns,
+} from './live-mini-xiangqi-room.js';
+import { maybePlayDarkMiniXiangqiSnapshotSound } from './live-mini-xiangqi-sound.js';
+import {
   initRender,
   reconcileInteractionState,
   render,
@@ -27,6 +33,7 @@ import {
   resolveWebSocketBaseUrl,
 } from './live-state.js';
 import { currentView } from './live-view.js';
+import { xiangqiAppearanceChangedEvent } from './theme.js';
 
 declare global {
   interface Window {
@@ -94,7 +101,12 @@ liveState.roomMode = engineRequested ? 'pve' : 'pvp';
 // ── Initialize render + socket modules ───────────────────────────────────────
 
 initRender(app, { sendSocket, reconnectNow });
-initSocket({ render, reconcileInteractionState, maybePlaySnapshotSound });
+initSocket({
+  render,
+  reconcileInteractionState,
+  maybePlaySnapshotSound,
+  maybePlayDarkMiniXiangqiSound: maybePlayDarkMiniXiangqiSnapshotSound,
+});
 
 // ── Dev-only: ?conn= override for static visual checks of connection states ──
 
@@ -127,6 +139,9 @@ if (connOverride) {
 
 if (!connOverride) connectSocket();
 window.addEventListener('keydown', handleReplayKeyboard);
+// The xiangqi board renders pieces as inline SVG, so a piece-set change needs a
+// re-render (the chess board picks up its set via CSS and does not).
+window.addEventListener(xiangqiAppearanceChangedEvent, () => render());
 
 if (!connOverride) {
   window.setInterval(() => {
@@ -135,9 +150,14 @@ if (!connOverride) {
 }
 
 window.setInterval(() => {
-  const view = currentView();
-  if (view?.clock) tickClockTimers(view);
-  updateAbortCountdown();
+  if (isDarkMiniXiangqiLiveRoom()) {
+    tickDarkMiniXiangqiClocks();
+    tickDarkMiniXiangqiCountdowns();
+  } else {
+    const view = currentView();
+    if (view?.clock) tickClockTimers(view);
+    updateAbortCountdown();
+  }
 }, 100);
 
 window.__MISTBOARD_DEBUG__ = () => ({

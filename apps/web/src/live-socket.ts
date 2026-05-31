@@ -19,6 +19,7 @@ import type {
   PauseReason,
   RoomMode,
   Seat,
+  XiangqiFamilyClock,
 } from './live-state.js';
 
 type ServerMessage =
@@ -50,6 +51,8 @@ type ServerMessage =
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
       connectedSeats?: ConnectedSeats;
+      clock?: XiangqiFamilyClock | null;
+      timeControl?: { initialMs: number; incrementMs: number } | null;
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
@@ -80,6 +83,8 @@ type ServerMessage =
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
       connectedSeats?: ConnectedSeats;
+      clock?: XiangqiFamilyClock | null;
+      timeControl?: { initialMs: number; incrementMs: number } | null;
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
@@ -114,6 +119,8 @@ type ServerMessage =
       abortDeadline?: number | null;
       forfeitDeadline?: number | null;
       connectedSeats?: ConnectedSeats;
+      clock?: XiangqiFamilyClock | null;
+      timeControl?: { initialMs: number; incrementMs: number } | null;
       rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
@@ -150,6 +157,7 @@ let lastSeenServerSeq: number | null = null;
 let _render: () => void = () => {};
 let _reconcileInteractionState: () => void = () => {};
 let _maybePlaySnapshotSound: (events: GameEvent[], state: PlayerView | null) => void = () => {};
+let _maybePlayDarkMiniXiangqiSound: () => void = () => {};
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -157,10 +165,12 @@ export function initSocket(callbacks: {
   render: () => void;
   reconcileInteractionState: () => void;
   maybePlaySnapshotSound: (events: GameEvent[], state: PlayerView | null) => void;
+  maybePlayDarkMiniXiangqiSound: () => void;
 }): void {
   _render = callbacks.render;
   _reconcileInteractionState = callbacks.reconcileInteractionState;
   _maybePlaySnapshotSound = callbacks.maybePlaySnapshotSound;
+  _maybePlayDarkMiniXiangqiSound = callbacks.maybePlayDarkMiniXiangqiSound;
 }
 
 // ── Socket management ─────────────────────────────────────────────────────────
@@ -277,7 +287,9 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   } else if (message.type === 'event-appended') {
     if (!applyEventAppended(message)) return;
   }
-  if (liveState.gameSpecId !== 'dark-xiangqi' && liveState.gameSpecId !== 'dark-mini-xiangqi') {
+  if (liveState.gameSpecId === 'dark-mini-xiangqi') {
+    _maybePlayDarkMiniXiangqiSound();
+  } else if (liveState.gameSpecId !== 'dark-xiangqi') {
     _maybePlaySnapshotSound(liveState.events, liveState.state);
   }
   _reconcileInteractionState();
@@ -313,6 +325,8 @@ function applyFullFrame(message: FullFrameSource): void {
   liveState.abortDeadline = message.abortDeadline ?? null;
   liveState.forfeitDeadline = message.forfeitDeadline ?? null;
   liveState.state = message.state;
+  liveState.clock = message.clock ?? null;
+  liveState.timeControl = message.timeControl ?? null;
   if (message.connectedSeats) liveState.connectedSeats = message.connectedSeats;
   if (message.rematch) liveState.rematch = message.rematch;
   if (message.seatDisplayNames) liveState.seatDisplayNames = message.seatDisplayNames;

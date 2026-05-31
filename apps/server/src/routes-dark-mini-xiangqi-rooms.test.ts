@@ -66,11 +66,6 @@ test('Dark Mini Xiangqi room route rejects unsupported create surfaces before ro
       { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pve' },
       { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pvp', rated: true },
       { engineId: 'engine', gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pvp' },
-      {
-        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
-        mode: 'pvp',
-        timeControl: { initialMs: 180_000, incrementMs: 2_000 },
-      },
     ]) {
       let createCalls = 0;
       const response = captureResponse();
@@ -104,7 +99,7 @@ test('Dark Mini Xiangqi room route creates a direct PvP room response', async ()
     const response = captureResponse();
     await handleDarkMiniXiangqiCreate(
       testContext({
-        createDarkMiniXiangqiRoom: async (creatorPreference) => {
+        createDarkMiniXiangqiRoom: async (_timeControl, creatorPreference) => {
           requestedPreference = creatorPreference;
           return { ok: true, room: darkMiniXiangqiRoom('dmxq_route') };
         },
@@ -126,6 +121,71 @@ test('Dark Mini Xiangqi room route creates a direct PvP room response', async ()
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
       region: 'global',
     });
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Mini Xiangqi room route forwards a valid time control and echoes it', async () => {
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    let requestedTimeControl: unknown;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        createDarkMiniXiangqiRoom: async (timeControl) => {
+          requestedTimeControl = timeControl;
+          return { ok: true, room: darkMiniXiangqiRoom('dmxq_timed') };
+        },
+      }),
+      response,
+      {
+        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+        mode: 'pvp',
+        timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      },
+    );
+
+    assert.deepEqual(requestedTimeControl, { initialMs: 180_000, incrementMs: 2_000 });
+    assert.equal(response.status, 201);
+    assert.deepEqual(responseJson(response), {
+      roomId: 'dmxq_timed',
+      url: '/room/dmxq_timed',
+      mode: 'pvp',
+      gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      region: 'global',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Mini Xiangqi room route rejects an invalid time control', async () => {
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    let createCalls = 0;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        createDarkMiniXiangqiRoom: async () => {
+          createCalls += 1;
+          return { ok: true, room: darkMiniXiangqiRoom('dmxq_unreachable') };
+        },
+      }),
+      response,
+      {
+        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+        mode: 'pvp',
+        timeControl: { initialMs: 'lots', incrementMs: 2_000 },
+      },
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(responseJson(response), { error: 'invalid_time_control' });
+    assert.equal(createCalls, 0);
   } finally {
     restoreFlag(before);
   }

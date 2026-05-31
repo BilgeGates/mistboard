@@ -3,7 +3,7 @@ import { DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
 import type { HttpApiContext } from './lib.js';
-import { writeJson } from './lib.js';
+import { parseRoomTimeControl, writeJson } from './lib.js';
 
 export function requestsDarkMiniXiangqi(body: Record<string, unknown>): boolean {
   return body.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID;
@@ -32,12 +32,13 @@ export async function handleDarkMiniXiangqiCreate(
   }
   const mode = parseDarkMiniXiangqiRoomMode(body);
   const preferredColor = parseDarkMiniXiangqiPreferredColor(body.preferredColor);
-  if (
-    mode !== 'pvp' ||
-    body.rated === true ||
-    body.engineId !== undefined ||
-    body.timeControl !== undefined
-  ) {
+  const timeControl =
+    body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
+  if (body.timeControl !== undefined && !timeControl) {
+    writeJson(response, 400, { error: 'invalid_time_control' });
+    return;
+  }
+  if (mode !== 'pvp' || body.rated === true || body.engineId !== undefined) {
     writeJson(response, 501, { error: 'dark_mini_xiangqi_unsupported_surface' });
     return;
   }
@@ -50,7 +51,7 @@ export async function handleDarkMiniXiangqiCreate(
     return;
   }
 
-  const created = await ctx.createDarkMiniXiangqiRoom(preferredColor);
+  const created = await ctx.createDarkMiniXiangqiRoom(timeControl ?? undefined, preferredColor);
   if (!created.ok) {
     const status =
       created.error === 'dark_mini_xiangqi_disabled'
@@ -67,6 +68,7 @@ export async function handleDarkMiniXiangqiCreate(
     mode: 'pvp',
     gameSpecId: created.room.gameSpecId,
     region: 'global',
+    ...(timeControl ? { timeControl } : {}),
   });
 }
 

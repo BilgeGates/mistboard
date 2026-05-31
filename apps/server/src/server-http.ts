@@ -65,7 +65,10 @@ type ServerHttpHandlerOptions = {
     | { ok: true; room: DarkXiangqiRuntimeRoom }
     | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
   >;
-  createDarkMiniXiangqiRoom(creatorPreference?: DarkMiniXiangqiCreatorPreference): Promise<
+  createDarkMiniXiangqiRoom(
+    timeControl?: RoomTimeControl,
+    creatorPreference?: DarkMiniXiangqiCreatorPreference,
+  ): Promise<
     | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
     | {
         ok: false;

@@ -36,6 +36,11 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Play again');
+    const download = root.querySelector<HTMLAnchorElement>(
+      'a[href="/api/dark-mini-xiangqi/games/dmxq_postgame/export.json"]',
+    );
+    expect(download?.textContent).toBe('Download JSON');
+    expect(download?.getAttribute('download')).toBe('mistboard-dmxq_postgame.json');
     expect(root.textContent).toContain('Untimed');
     expect(root.textContent).toContain('Red b1-b2');
     expect(root.textContent).toContain('Black b7-b6');

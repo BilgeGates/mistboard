@@ -94,7 +94,7 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/dxq_home');
   });
 
-  it('creates an untimed Dark Mini Xiangqi room from the flagged challenge variant', async () => {
+  it('creates a timed Dark Mini Xiangqi room from the flagged challenge variant', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
@@ -115,11 +115,11 @@ describe('landing play panel', () => {
     variantSelect!.value = 'dark-mini-xiangqi';
     variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
     expect(document.body.textContent).toContain('Red');
-    // Mini is untimed: the time-control section is hidden so it can't mislead.
+    // Mini is timed: the time-control section is shown like the other variants.
     const timeSection = document
       .querySelector('.landing-time-presets')
       ?.closest('.landing-setup-section') as HTMLElement | null;
-    expect(timeSection?.hidden).toBe(true);
+    expect(timeSection?.hidden).toBe(false);
     const createButton = [...document.querySelectorAll('button')].find(
       (candidate) => candidate.textContent === 'Create room',
     );
@@ -131,6 +131,7 @@ describe('landing play panel', () => {
     expect(JSON.parse(String(roomCall?.[1]?.body))).toEqual({
       mode: 'pvp',
       gameSpecId: 'dark-mini-xiangqi',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
       preferredColor: 'random',
     });
     expect(window.location.pathname).toBe('/room/dmxq_home');

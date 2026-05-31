@@ -420,8 +420,16 @@ export async function mountReplay(
   if (showControls && controlsMode === 'bar') {
     const controls = document.createElement('div');
     controls.className = 'replay-control-bar';
-    controls.append(firstBtn, prevBtn, playBtn, nextBtn, lastBtn, flipBtn, plyLabel);
-    root.append(controls);
+    controls.append(firstBtn, prevBtn, playBtn, nextBtn, lastBtn, flipBtn);
+    // Keep the ply / result caption on its own line below the buttons. Its text
+    // length varies by ply (e.g. "Ply 0 / 31" vs "Ply 31 / 31 — white wins
+    // (king-captured)"), so inlining it in the centered button row would shift
+    // the buttons as you scrub. A dedicated line with reserved height holds the
+    // buttons steady.
+    const plyLine = document.createElement('div');
+    plyLine.className = 'replay-ply-line';
+    plyLine.append(plyLabel);
+    root.append(controls, plyLine);
   }
 
   const whiteCg = createBoard(whitePane.boardEl, boardOrientation);

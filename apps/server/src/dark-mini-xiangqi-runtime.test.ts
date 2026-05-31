@@ -247,6 +247,188 @@ test('Dark Mini Xiangqi runtime ignores a resignation once the game is over', ()
   });
 });
 
+test('Dark Mini Xiangqi runtime seeds a frozen clock and clock-started event when timed', () => {
+  const before = process.env[darkMiniXiangqiKey];
+  process.env[darkMiniXiangqiKey] = 'true';
+  try {
+    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_clock', {
+      now: 1000,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const { room } = result;
+
+    assert.equal(
+      room.events.some((event) => event.type === 'clock-started'),
+      true,
+    );
+    assert.deepEqual(room.projection.timeControl, { initialMs: 180_000, incrementMs: 2_000 });
+    assert.deepEqual(room.projection.clock, {
+      activeColor: null,
+      incrementMs: 2_000,
+      initialMs: 180_000,
+      remainingMs: { black: 180_000, red: 180_000 },
+      runningSince: null,
+    });
+
+    const snapshot = darkMiniXiangqiSnapshotPayload(room, {
+      id: 'red-client',
+      seat: 'red',
+      solo: false,
+    });
+    assert.deepEqual(snapshot.timeControl, { initialMs: 180_000, incrementMs: 2_000 });
+    assert.ok(snapshot.clock);
+  } finally {
+    restoreEnv(darkMiniXiangqiKey, before);
+  }
+});
+
+test('Dark Mini Xiangqi runtime arms and advances the clock across the opening moves', () => {
+  const before = process.env[darkMiniXiangqiKey];
+  process.env[darkMiniXiangqiKey] = 'true';
+  try {
+    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_clock_run', {
+      now: 1000,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const { room } = result;
+
+    // Red's first move adds the increment but does not arm the clock.
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'move-played',
+      at: 1_000,
+      roomId: room.id,
+      color: 'red',
+      move: { from: 'a2', to: 'a3' },
+    });
+    assert.equal(room.projection.clock?.runningSince, null);
+    assert.equal(room.projection.clock?.remainingMs.red, 182_000);
+
+    // Black's first move arms the clock for Red.
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'move-played',
+      at: 2_000,
+      roomId: room.id,
+      color: 'black',
+      move: { from: 'a6', to: 'a5' },
+    });
+    assert.deepEqual(room.projection.clock, {
+      activeColor: 'red',
+      incrementMs: 2_000,
+      initialMs: 180_000,
+      remainingMs: { black: 182_000, red: 182_000 },
+      runningSince: 2_000,
+    });
+
+    // Red spends 3s, gets the increment, hands the active clock to Black.
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'move-played',
+      at: 5_000,
+      roomId: room.id,
+      color: 'red',
+      move: { from: 'a3', to: 'a4' },
+    });
+    assert.deepEqual(room.projection.clock, {
+      activeColor: 'black',
+      incrementMs: 2_000,
+      initialMs: 180_000,
+      remainingMs: { black: 182_000, red: 181_000 },
+      runningSince: 5_000,
+    });
+  } finally {
+    restoreEnv(darkMiniXiangqiKey, before);
+  }
+});
+
+test('Dark Mini Xiangqi runtime ends the game on a clock-expired event', () => {
+  const projection = replayDarkMiniXiangqiEvents([
+    {
+      type: 'room-created',
+      at: 100,
+      roomId: 'dmxq_flag',
+      gameSpecId: 'dark-mini-xiangqi',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    },
+    {
+      type: 'clock-started',
+      at: 100,
+      roomId: 'dmxq_flag',
+      clock: {
+        activeColor: null,
+        incrementMs: 2_000,
+        initialMs: 180_000,
+        remainingMs: { black: 180_000, red: 180_000 },
+        runningSince: null,
+      },
+    },
+    { type: 'move-played', at: 100, roomId: 'dmxq_flag', color: 'red', move: { from: 'a2', to: 'a3' } },
+    { type: 'move-played', at: 200, roomId: 'dmxq_flag', color: 'black', move: { from: 'a6', to: 'a5' } },
+    {
+      type: 'clock-expired',
+      at: 300,
+      roomId: 'dmxq_flag',
+      color: 'red',
+      clock: {
+        activeColor: null,
+        incrementMs: 2_000,
+        initialMs: 180_000,
+        remainingMs: { black: 182_000, red: 0 },
+        runningSince: null,
+      },
+    },
+  ]);
+
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'timeout',
+  });
+  assert.equal(projection.clock?.remainingMs.red, 0);
+});
+
+test('Dark Mini Xiangqi event validation accepts clock events and a timed room-created', () => {
+  assert.equal(
+    isDarkMiniXiangqiEventLog(
+      [
+        {
+          type: 'room-created',
+          at: 100,
+          roomId: 'dmxq_cv',
+          gameSpecId: 'dark-mini-xiangqi',
+          timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+        },
+        {
+          type: 'clock-started',
+          at: 100,
+          roomId: 'dmxq_cv',
+          clock: {
+            activeColor: null,
+            incrementMs: 2_000,
+            initialMs: 180_000,
+            remainingMs: { black: 180_000, red: 180_000 },
+            runningSince: null,
+          },
+        },
+      ],
+      'dmxq_cv',
+    ),
+    true,
+  );
+  assert.equal(
+    isDarkMiniXiangqiEventLog(
+      [
+        { type: 'room-created', at: 100, roomId: 'dmxq_cv', gameSpecId: 'dark-mini-xiangqi' },
+        { type: 'clock-expired', at: 200, roomId: 'dmxq_cv', color: 'red', clock: { bogus: true } },
+      ],
+      'dmxq_cv',
+    ),
+    false,
+  );
+});
+
 test('Dark Mini Xiangqi event validation accepts resignations and rejects malformed colors', () => {
   assert.equal(
     isDarkMiniXiangqiEventLog(

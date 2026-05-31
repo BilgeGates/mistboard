@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { RoomTimeControl } from '@mistboard/game';
 import {
   createDarkMiniXiangqiRuntimeRoom,
   DARK_MINI_XIANGQI_ROOM_ID_PREFIX,
@@ -26,6 +27,7 @@ export type DarkMiniXiangqiLiveRoomFactoryContext = {
 
 export async function createDarkMiniXiangqiLiveRoom(
   ctx: DarkMiniXiangqiLiveRoomFactoryContext,
+  timeControl?: RoomTimeControl,
   creatorPreference?: DarkMiniXiangqiCreatorPreference,
 ): Promise<DarkMiniXiangqiLiveRoomCreation> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -37,7 +39,7 @@ export async function createDarkMiniXiangqiLiveRoom(
     ) {
       continue;
     }
-    const created = createDarkMiniXiangqiRuntimeRoom(roomId, { creatorPreference });
+    const created = createDarkMiniXiangqiRuntimeRoom(roomId, { creatorPreference, timeControl });
     if (!created.ok) return created;
     const room = created.room;
     if (ctx.isPersistenceEnabled()) {

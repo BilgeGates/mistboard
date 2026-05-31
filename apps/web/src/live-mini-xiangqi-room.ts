@@ -11,8 +11,15 @@ import {
   installMiniXiangqiBoardStyles,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
-import type { LiveRefs } from './live-state.js';
+import {
+  resetDarkMiniXiangqiSoundState,
+  soundForOwnMiniXiangqiMove,
+} from './live-mini-xiangqi-sound.js';
+import { playSound } from './live-sound.js';
+import type { LiveRefs, XiangqiFamilyClock } from './live-state.js';
 import { liveState } from './live-state.js';
+import { setBoardFamily } from './theme.js';
+import { formatClock } from './web-utils.js';
 
 // Live-room shell for Dark Mini Xiangqi. The board SVG is delegated to
 // live-mini-xiangqi-render.ts; this module owns the room chrome, the seat
@@ -34,6 +41,9 @@ type MiniXiangqiReplaySnapshot = { ply: number; view: MiniXiangqiPlayerView };
 
 let selectedSquare: MiniXiangqiSquare | null = null;
 let playAgainStatus: 'idle' | 'creating' | 'failed' = 'idle';
+// Previous active clock color across full clock renders, used to flash the seated
+// player's clock on the turn flip (mirrors the chess clock; see live-clocks.ts).
+let lastActiveMiniClockColor: MiniXiangqiColor | null = null;
 let replayIndex: number | null = null;
 let viewHistory: MiniXiangqiReplaySnapshot[] = [];
 let lastCapturedView: MiniXiangqiPlayerView | null = null;
@@ -43,6 +53,9 @@ let renderCallbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) 
   reconnectNow: () => {},
   sendSocket: () => false,
 };
+// Last refs handed to renderDarkMiniXiangqiRoom, so the 100ms clock tick can
+// refresh the clock text without a full re-render.
+let lastRefs: LiveRefs | null = null;
 
 export function isDarkMiniXiangqiLiveRoom(): boolean {
   return liveState.gameSpecId === 'dark-mini-xiangqi';
@@ -56,6 +69,8 @@ export function resetDarkMiniXiangqiReplayState(): void {
   lastCapturedView = null;
   lastCapturedPositionKey = null;
   latestCapturedPly = 0;
+  lastActiveMiniClockColor = null;
+  resetDarkMiniXiangqiSoundState();
 }
 
 export function reconcileDarkMiniXiangqiInteractionState(): void {
@@ -77,9 +92,12 @@ export function renderDarkMiniXiangqiRoom(
     refs.board.closest('#app') ?? refs.board.ownerDocument.body,
     'dark-mini-xiangqi',
   );
+  setBoardFamily('xiangqi');
   installMiniXiangqiBoardStyles();
   renderCallbacks = callbacks;
+  lastRefs = refs;
   resetChessOnlyPanels(refs);
+  renderMiniXiangqiClocks(refs);
   renderMeta(refs);
   renderRoomActions(refs);
 
@@ -121,6 +139,142 @@ function resetChessOnlyPanels(refs: LiveRefs): void {
   refs.clockNote.hidden = true;
 }
 
+// Renders the two-seat clock into the shared clock slots. The board SVG owns
+// no clock; this is room chrome reusing the same layout/CSS as the chess clock.
+// Top slot is the opponent (relative to the viewer's orientation), bottom is
+// the viewer. Untimed games render nothing.
+function renderMiniXiangqiClocks(refs: LiveRefs): void {
+  refs.clockTop.replaceChildren();
+  refs.clockBottom.replaceChildren();
+  refs.clockNote.hidden = true;
+  refs.clockNote.textContent = '';
+
+  const timeControl = liveState.timeControl;
+  if (!timeControl) return;
+
+  const clock = liveState.clock;
+  const view = currentMiniView();
+  const perspective = view
+    ? orientationFor(view)
+    : isMiniColor(liveState.seat)
+      ? liveState.seat
+      : 'red';
+  const colors: MiniXiangqiColor[] = perspective === 'red' ? ['black', 'red'] : ['red', 'black'];
+  const armed = !!clock && (clock.activeColor !== null || clock.runningSince !== null);
+
+  if (!clock || !armed) {
+    const incrementSec = Math.round(timeControl.incrementMs / 1000);
+    const tcLabel =
+      incrementSec > 0
+        ? `${formatClock(timeControl.initialMs)}+${incrementSec}`
+        : formatClock(timeControl.initialMs);
+    colors.forEach((color, index) => {
+      const row = document.createElement('div');
+      row.className = 'pregame';
+      row.dataset.color = color;
+      const label = document.createElement('span');
+      label.textContent = capitalize(color);
+      const time = document.createElement('strong');
+      time.textContent = formatClock(clock ? clock.remainingMs[color] : timeControl.initialMs);
+      row.append(label, time);
+      (index === 0 ? refs.clockTop : refs.clockBottom).append(row);
+    });
+    refs.clockNote.textContent = `${tcLabel} · clock starts after the opening moves`;
+    refs.clockNote.hidden = false;
+    lastActiveMiniClockColor = null;
+    return;
+  }
+
+  const displayAt = isReplayLive() ? Date.now() : (clock.runningSince ?? Date.now());
+  const playing = view?.status.type === 'playing';
+  const activeColor = playing ? clock.activeColor : null;
+  const humanColor = isMiniColor(liveState.seat) ? liveState.seat : null;
+  // Flash fires once on the turn flip into the seated player's clock; skip the
+  // first armed render so the initial activation does not flash.
+  const flashThisRender =
+    playing &&
+    humanColor !== null &&
+    activeColor === humanColor &&
+    lastActiveMiniClockColor !== null &&
+    lastActiveMiniClockColor !== humanColor;
+  colors.forEach((color, index) => {
+    const isActive = activeColor === color;
+    const row = document.createElement('div');
+    row.dataset.color = color;
+    row.className = isActive
+      ? flashThisRender
+        ? 'clock-time-row active just-activated'
+        : 'clock-time-row active'
+      : 'clock-time-row';
+    const playerLine = document.createElement('span');
+    playerLine.className = isActive ? 'clock-player-line active' : 'clock-player-line';
+    playerLine.append(presenceDot(liveState.connectedSeats[color] ?? false));
+    const nameEl = document.createElement('span');
+    nameEl.className = 'clock-name';
+    const name = color === liveState.seat ? 'You' : capitalize(color);
+    nameEl.textContent = name;
+    nameEl.title = name;
+    playerLine.append(nameEl);
+    const toMove = document.createElement('span');
+    toMove.className = 'clock-to-move';
+    toMove.textContent = 'to move';
+    toMove.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    playerLine.append(toMove);
+    const time = document.createElement('strong');
+    const remainingMs = miniClockRemainingMs(clock, color, displayAt);
+    time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
+    row.append(time);
+    const slot = index === 0 ? refs.clockTop : refs.clockBottom;
+    if (index === 0) slot.append(playerLine, row);
+    else slot.append(row, playerLine);
+  });
+  lastActiveMiniClockColor = activeColor;
+}
+
+// Lightweight per-tick refresh (100ms). Updates only the time text and low-time
+// emphasis on existing rows; falls back to a full clock render if the rows have
+// not been built yet.
+export function tickDarkMiniXiangqiClocks(): void {
+  const refs = lastRefs;
+  if (!refs) return;
+  const clock = liveState.clock;
+  const view = currentMiniView();
+  if (!clock || !liveState.timeControl || view?.status.type !== 'playing') return;
+  if (clock.activeColor === null && clock.runningSince === null) return;
+  if (refs.clockTop.children.length === 0 || refs.clockBottom.children.length === 0) {
+    renderMiniXiangqiClocks(refs);
+    return;
+  }
+  const displayAt = isReplayLive() ? Date.now() : (clock.runningSince ?? Date.now());
+  const rows = [...Array.from(refs.clockTop.children), ...Array.from(refs.clockBottom.children)];
+  for (const row of rows as HTMLDivElement[]) {
+    const color = row.dataset.color;
+    if (color !== 'red' && color !== 'black') continue;
+    const isActive = clock.activeColor === color;
+    const remainingMs = miniClockRemainingMs(clock, color, displayAt);
+    const strong = row.querySelector('strong');
+    if (strong) strong.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
+  }
+}
+
+function miniClockRemainingMs(
+  clock: XiangqiFamilyClock,
+  color: MiniXiangqiColor,
+  at: number,
+): number {
+  const remaining = clock.remainingMs[color];
+  if (clock.activeColor !== color || clock.runningSince === null) return remaining;
+  return Math.max(0, remaining - Math.max(0, at - clock.runningSince));
+}
+
+function presenceDot(connected: boolean): HTMLSpanElement {
+  const dot = document.createElement('span');
+  dot.className = `presence-dot ${connected ? 'is-online' : 'is-offline'}`;
+  dot.setAttribute('aria-label', connected ? 'Connected' : 'Disconnected');
+  dot.title = connected ? 'Connected' : 'Disconnected';
+  return dot;
+}
+
 function renderMeta(refs: LiveRefs): void {
   const seat = isMiniColor(liveState.seat) ? liveState.seat : null;
   refs.gameInfo.replaceChildren(
@@ -140,19 +294,42 @@ function renderRoomActions(refs: LiveRefs): void {
   const view = currentMiniView();
 
   if (view?.status.type === 'finished' || view?.status.type === 'aborted') {
+    // Only finished games have a postgame review (the endpoint 404s otherwise).
+    if (view.status.type === 'finished') row.append(reviewLink());
     row.append(playAgainButton(refs), roomLink('Home', '/'));
     refs.roomActions.append(row);
     return;
   }
 
+  row.append(copyInviteButton());
+  refs.roomActions.append(row);
+}
+
+function reviewLink(): HTMLAnchorElement {
+  const link = roomLink(
+    'Review game',
+    `/dark-mini-xiangqi/game/${encodeURIComponent(liveState.room)}`,
+  );
+  link.className = 'primary';
+  return link;
+}
+
+function copyInviteButton(): HTMLButtonElement {
   const copy = document.createElement('button');
   copy.type = 'button';
   copy.textContent = 'Copy invite';
   copy.addEventListener('click', () => {
-    void navigator.clipboard?.writeText(window.location.href);
+    navigator.clipboard
+      ?.writeText(window.location.href)
+      .then(() => {
+        copy.textContent = 'Link copied!';
+        setTimeout(() => {
+          copy.textContent = 'Copy invite';
+        }, 2000);
+      })
+      .catch(() => {});
   });
-  row.append(copy);
-  refs.roomActions.append(row);
+  return copy;
 }
 
 function roomLink(label: string, href: string): HTMLAnchorElement {
@@ -190,6 +367,7 @@ async function createPlayAgainRoom(refs: LiveRefs): Promise<void> {
         mode: 'pvp',
         gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
         preferredColor: 'random',
+        ...(liveState.timeControl ? { timeControl: liveState.timeControl } : {}),
       }),
     });
     if (!response.ok) throw new Error(`play-again failed: ${response.status}`);
@@ -212,26 +390,49 @@ function renderGameControls(
   refs.gameControlsSection.hidden = true;
   if (!view || view.status.type !== 'playing' || !isMiniColor(liveState.seat)) return;
 
+  const children: HTMLElement[] = [];
+  const isSideToMove = view.status.turn === liveState.seat;
+
   if (view.moveNumber < 2) {
-    if (view.status.turn !== liveState.seat) return;
-    const abort = document.createElement('button');
-    abort.type = 'button';
-    abort.className = 'danger';
-    abort.textContent = 'Abort';
-    abort.addEventListener('click', () => {
-      openConfirmDialog({
-        title: 'Abort this game?',
-        body: 'This ends the room without recording a result.',
-        confirmLabel: 'Abort',
-        confirmTone: 'danger',
-        onConfirm: () => sendSocket({ type: 'abort' }),
+    // The abort countdown shows to both seats (timing only, no board state) so the
+    // waiting side understands the pause; only the side to move gets the button.
+    if (liveState.abortDeadline !== null) {
+      const countdown = document.createElement('span');
+      countdown.className = 'abort-countdown';
+      countdown.dataset.abortCountdown = '';
+      countdown.textContent = miniXiangqiAbortCountdownText(isSideToMove);
+      children.push(countdown);
+    }
+    if (isSideToMove) {
+      const abort = document.createElement('button');
+      abort.type = 'button';
+      abort.className = 'danger';
+      abort.textContent = 'Abort';
+      abort.addEventListener('click', () => {
+        openConfirmDialog({
+          title: 'Abort this game?',
+          body: 'This ends the room without recording a result.',
+          confirmLabel: 'Abort',
+          confirmTone: 'danger',
+          onConfirm: () => sendSocket({ type: 'abort' }),
+        });
       });
-    });
-    refs.gameControls.append(abort);
-    refs.gameControlsSection.hidden = false;
+      children.push(abort);
+    }
+    refs.gameControls.replaceChildren(...children);
+    refs.gameControlsSection.hidden = children.length === 0;
     return;
   }
 
+  // Post-move-1: only the present winning seat receives forfeitDeadline, so this
+  // banner always reads from the beneficiary's point of view.
+  if (liveState.forfeitDeadline !== null) {
+    const banner = document.createElement('span');
+    banner.className = 'forfeit-countdown';
+    banner.dataset.forfeitCountdown = '';
+    banner.textContent = miniXiangqiForfeitCountdownText();
+    children.push(banner);
+  }
   const resign = document.createElement('button');
   resign.type = 'button';
   resign.className = 'danger';
@@ -245,8 +446,39 @@ function renderGameControls(
       onConfirm: () => sendSocket({ type: 'resign' }),
     });
   });
-  refs.gameControls.append(resign);
+  children.push(resign);
+  refs.gameControls.replaceChildren(...children);
   refs.gameControlsSection.hidden = false;
+}
+
+// Driven by the 100ms tick loop so the abort/forfeit countdowns advance without a
+// full re-render. Only touches existing text; renderGameControls owns creation.
+export function tickDarkMiniXiangqiCountdowns(): void {
+  const refs = lastRefs;
+  if (!refs) return;
+  const view = currentMiniView();
+  const abortEl = refs.gameControls.querySelector<HTMLElement>('[data-abort-countdown]');
+  if (abortEl && view?.status.type === 'playing' && view.moveNumber < 2) {
+    abortEl.textContent = miniXiangqiAbortCountdownText(view.status.turn === liveState.seat);
+  }
+  const forfeitEl = refs.gameControls.querySelector<HTMLElement>('[data-forfeit-countdown]');
+  if (forfeitEl && liveState.forfeitDeadline !== null) {
+    forfeitEl.textContent = miniXiangqiForfeitCountdownText();
+  }
+}
+
+function miniXiangqiAbortCountdownText(isSideToMove: boolean): string {
+  const remaining = liveState.abortDeadline === null ? 0 : liveState.abortDeadline - Date.now();
+  const seconds = Math.max(0, Math.ceil(remaining / 1000));
+  return isSideToMove
+    ? `Make your first move, aborting in ${seconds}s`
+    : `Waiting for first move, aborting in ${seconds}s`;
+}
+
+function miniXiangqiForfeitCountdownText(): string {
+  const remaining = liveState.forfeitDeadline === null ? 0 : liveState.forfeitDeadline - Date.now();
+  const seconds = Math.max(0, Math.ceil(remaining / 1000));
+  return `Opponent left, you win in ${seconds}s`;
 }
 
 function renderReplayShell(refs: LiveRefs): void {
@@ -391,7 +623,9 @@ function handleSquareClick(
   );
   if (move) {
     selectedSquare = null;
-    sendSocket({ type: 'move', from: move.from, to: move.to });
+    if (sendSocket({ type: 'move', from: move.from, to: move.to })) {
+      playSound(soundForOwnMiniXiangqiMove(view, move));
+    }
     return;
   }
   selectedSquare = canSelect(view, square) ? square : null;

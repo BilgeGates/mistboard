@@ -8,7 +8,8 @@ import {
   miniXiangqiCoordOf,
   miniXiangqiSquareOf,
 } from '@mistboard/game';
-import { renderXiangqiPiece } from './xiangqi-pieces.js';
+import { readStoredXiangqiPieceSet } from './theme.js';
+import { type XiangqiPieceSet, renderXiangqiPieceGlyphed } from './xiangqi-piece-sets.js';
 
 // Bespoke SVG renderer for the 7x7 Dark Mini Xiangqi board. Pieces sit on
 // intersections (xiangqi convention) and Fog of War is drawn as an inverse
@@ -30,6 +31,7 @@ export type MiniXiangqiBoardRenderOptions = {
   showFog?: boolean;
   selectedSquare?: MiniXiangqiSquare | null;
   legalMoves?: readonly MiniXiangqiMove[];
+  pieceSet?: XiangqiPieceSet;
 };
 
 export function renderMiniXiangqiBoardSvg(
@@ -38,6 +40,7 @@ export function renderMiniXiangqiBoardSvg(
   options: MiniXiangqiBoardRenderOptions = {},
 ): string {
   const showFog = options.showFog ?? true;
+  const pieceSet = options.pieceSet ?? readStoredXiangqiPieceSet();
   const maskId = `mini-xq-fog-${view.id.replace(/[^a-zA-Z0-9_-]/g, '')}-${perspective}`;
   const fog = showFog ? fogLayer(view, perspective, maskId) : '';
   return `
@@ -49,7 +52,7 @@ export function renderMiniXiangqiBoardSvg(
       ${lastMoveMarkers(view, perspective)}
       ${selectionRing(options.selectedSquare ?? null, perspective)}
       ${moveHints(view, options.legalMoves ?? [], perspective)}
-      ${pieceLayer(view, perspective)}
+      ${pieceLayer(view, perspective, pieceSet)}
       ${options.interactive ? hitLayer(perspective) : ''}
     </svg>
   `;
@@ -125,7 +128,11 @@ function palaceCrosses(perspective: MiniXiangqiColor): string {
   return parts.join('');
 }
 
-function pieceLayer(view: MiniXiangqiPlayerView, perspective: MiniXiangqiColor): string {
+function pieceLayer(
+  view: MiniXiangqiPlayerView,
+  perspective: MiniXiangqiColor,
+  pieceSet: XiangqiPieceSet,
+): string {
   return Object.entries(view.board)
     .map(([square, entry]) => {
       if (!entry) return '';
@@ -135,7 +142,7 @@ function pieceLayer(view: MiniXiangqiPlayerView, perspective: MiniXiangqiColor):
         entry.shrouded === true
           ? ({ color: entry.color, role: 'soldier' } satisfies MiniXiangqiPiece)
           : entry.piece;
-      return renderXiangqiPiece(piece, {
+      return renderXiangqiPieceGlyphed(piece, pieceSet, {
         ariaLabel: entry.shrouded ? `${entry.color} hidden piece` : `${piece.color} ${piece.role}`,
         className: 'mini-xq-piece',
         shrouded: entry.shrouded,
@@ -261,6 +268,30 @@ export function installMiniXiangqiBoardStyles(): void {
   stylesInstalled = true;
   const style = document.createElement('style');
   style.textContent = `
+    /* Board color schemes (data-xiangqi-board-theme) and fog shading
+       (data-fog-theme, shared with chess) drive the board via CSS vars; the
+       defaults below match the original Tournament + Solid look. */
+    :root[data-xiangqi-board-theme="tournament"] {
+      --mini-xq-board-bg: #d9bd82;
+      --mini-xq-palace-band: rgba(255, 255, 255, 0.17);
+      --mini-xq-grid: #4b3c2a;
+    }
+    :root[data-xiangqi-board-theme="blue"] {
+      --mini-xq-board-bg: #cdddea;
+      --mini-xq-palace-band: rgba(255, 255, 255, 0.3);
+      --mini-xq-grid: #2c4a63;
+    }
+    :root[data-xiangqi-board-theme="mono"] {
+      --mini-xq-board-bg: #e6e2d9;
+      --mini-xq-palace-band: rgba(0, 0, 0, 0.06);
+      --mini-xq-grid: #555150;
+    }
+    :root[data-fog-theme="solid"] { --mini-xq-fog-fill: rgba(46, 43, 37, 0.82); }
+    :root[data-fog-theme="veil"] { --mini-xq-fog-fill: rgba(46, 43, 37, 0.6); }
+    :root[data-fog-theme="mistveil"] { --mini-xq-fog-fill: rgba(58, 52, 44, 0.72); }
+    :root[data-fog-theme="drift"] { --mini-xq-fog-fill: rgba(46, 43, 37, 0.5); }
+    :root[data-fog-theme="void"] { --mini-xq-fog-fill: rgba(18, 16, 13, 0.94); }
+    :root[data-fog-theme="invisible"] { --mini-xq-fog-fill: rgba(46, 43, 37, 0); }
     .mini-xq-board {
       display: block;
       width: 100%;
@@ -268,18 +299,18 @@ export function installMiniXiangqiBoardStyles(): void {
       touch-action: manipulation;
     }
     .mini-xq-board-bg {
-      fill: #d9bd82;
+      fill: var(--mini-xq-board-bg, #d9bd82);
     }
     .mini-xq-palace-band {
-      fill: rgba(255, 255, 255, 0.17);
+      fill: var(--mini-xq-palace-band, rgba(255, 255, 255, 0.17));
     }
     .mini-xq-grid line {
-      stroke: #4b3c2a;
+      stroke: var(--mini-xq-grid, #4b3c2a);
       stroke-width: 2;
       stroke-linecap: round;
     }
     .mini-xq-fog-mask {
-      fill: rgba(46, 43, 37, 0.82);
+      fill: var(--mini-xq-fog-fill, rgba(46, 43, 37, 0.82));
       pointer-events: none;
     }
     .mini-xq-selection {

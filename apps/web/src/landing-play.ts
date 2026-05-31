@@ -149,7 +149,7 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<LandingGameSpecId, LandingGameSpecC
     glyphClass: 'xiangqi',
     supportsRated: false,
     supportsStartFormat: false,
-    supportsTimeControl: false,
+    supportsTimeControl: true,
   },
 };
 
@@ -1068,20 +1068,10 @@ function roomCreationRequestBody(
   engineId?: string,
 ): Record<string, unknown> {
   const gameSpecId = roomCreationGameSpecId(setup);
-  if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
-    // Dark Mini Xiangqi is untimed for now; its room route rejects timeControl.
-    return {
-      mode: 'pvp',
-      gameSpecId,
-      preferredColor:
-        setup.preferredColor === 'white'
-          ? 'red'
-          : setup.preferredColor === 'red' || setup.preferredColor === 'black'
-            ? setup.preferredColor
-            : 'random',
-    };
-  }
-  if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) {
+  if (
+    setup.gameSpecId === DARK_XIANGQI_SPEC_ID ||
+    setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID
+  ) {
     return {
       mode: 'pvp',
       gameSpecId,

@@ -11,10 +11,13 @@ import {
   installMiniXiangqiBoardStyles,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
+import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
 
 type DarkMiniXiangqiPostgameViewKey = MiniXiangqiColor | 'truth';
 
 const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
+
+type DarkMiniXiangqiTimeControl = { initialMs: number; incrementMs: number };
 
 type DarkMiniXiangqiPostgameResponse = {
   game: {
@@ -28,8 +31,13 @@ type DarkMiniXiangqiPostgameResponse = {
     endedAt: string;
     rated: boolean;
     visibility: string;
+    timeControl?: DarkMiniXiangqiTimeControl;
   };
-  state: { status: MiniXiangqiGameStatus; moveNumber: number };
+  state: {
+    status: MiniXiangqiGameStatus;
+    moveNumber: number;
+    timeControl?: DarkMiniXiangqiTimeControl;
+  };
   timeline: Array<{
     type: string;
     at: number;
@@ -52,6 +60,7 @@ type LoadResult =
 
 export function mountDarkMiniXiangqiPostgame(root: HTMLElement, roomId: string): void {
   root.classList.add('landing-page', 'dark-xiangqi-postgame-route');
+  setBoardFamily('xiangqi');
   installMiniXiangqiBoardStyles();
   root.replaceChildren(loadingView());
   if (!darkMiniXiangqiEnabled()) {
@@ -100,6 +109,12 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
   if (priorAbort) priorAbort.abort();
   const abortController = new AbortController();
   postgameAbortControllers.set(root, abortController);
+  // Re-render the review (resetting to the final ply) when the xiangqi piece set
+  // changes, so a settings switch updates the boards live. The signal removes this
+  // listener on the next render, so re-renders never stack.
+  window.addEventListener(xiangqiAppearanceChangedEvent, () => renderPostgame(root, postgame), {
+    signal: abortController.signal,
+  });
 
   root.replaceChildren();
   const page = document.createElement('main');
@@ -311,7 +326,14 @@ function postgameActions(postgame: DarkMiniXiangqiPostgameResponse): HTMLElement
   room.className = 'dxq-postgame__link';
   room.href = `/room/${encodeURIComponent(postgame.game.roomId)}`;
   room.textContent = 'Room';
-  actions.append(playAgain, home, room);
+  // JSON only: xiangqi has no SAN/PGN standard, so PGN export is not offered.
+  const encodedRoom = encodeURIComponent(postgame.game.roomId);
+  const download = document.createElement('a');
+  download.className = 'dxq-postgame__link';
+  download.href = `/api/dark-mini-xiangqi/games/${encodedRoom}/export.json`;
+  download.textContent = 'Download JSON';
+  download.setAttribute('download', `mistboard-${postgame.game.roomId}.json`);
+  actions.append(playAgain, home, room, download);
   return actions;
 }
 
@@ -341,7 +363,7 @@ function detailsPanel(postgame: DarkMiniXiangqiPostgameResponse): HTMLElement {
   details.append(
     detailRow('Result', resultLabel(postgame.game.result)),
     detailRow('Ending', labelize(postgame.game.termination)),
-    detailRow('Clock', 'Untimed'),
+    detailRow('Clock', timeControlLabel(postgame)),
     detailRow('Ended', dateLabel(postgame.game.endedAt)),
   );
   panel.append(heading, details);
@@ -433,6 +455,19 @@ function resultLabel(result: string): string {
   if (result === 'black-wins') return 'Black wins';
   if (result === 'draw') return 'Draw';
   return labelize(result);
+}
+
+function timeControlLabel(postgame: DarkMiniXiangqiPostgameResponse): string {
+  const timeControl = postgame.game.timeControl ?? postgame.state.timeControl ?? null;
+  if (!timeControl) return 'Untimed';
+  return `${clockLabel(timeControl.initialMs)}+${Math.round(timeControl.incrementMs / 1000)}`;
+}
+
+function clockLabel(ms: number): string {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function dateLabel(value: string): string {

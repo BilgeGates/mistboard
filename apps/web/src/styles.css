@@ -2355,10 +2355,20 @@ a.replay-game-id:focus-visible {
   cursor: not-allowed;
 }
 
+.replay-ply-line {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* Reserve a line so the buttons above never shift when the caption changes
+     length (ply count + end-of-game suffix vary by position). */
+  min-height: 1.4em;
+  margin-top: 6px;
+}
+
 .replay-ply-label {
   font-variant-numeric: tabular-nums;
-  margin-left: 8px;
   color: #2e332f;
+  text-align: center;
 }
 
 .replay-tools-row {

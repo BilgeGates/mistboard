@@ -1,10 +1,10 @@
 import { algebraicMoveLabels, type Color, type GameEvent, type Move } from '@mistboard/game';
 import type { GameParticipant, RecentEveGameRecord } from './persistence.js';
 
-const SCHEMA_VERSION = '1.0';
-const LICENSE = 'CC BY 4.0';
-const DEFAULT_SITE_HOST = 'https://mistboard.com';
-const SITE_NAME = 'Mistboard';
+export const SCHEMA_VERSION = '1.0';
+export const LICENSE = 'CC BY 4.0';
+export const DEFAULT_SITE_HOST = 'https://mistboard.com';
+export const SITE_NAME = 'Mistboard';
 
 export type PublicationPly = {
   ply: number;

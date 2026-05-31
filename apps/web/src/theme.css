@@ -205,6 +205,38 @@
   border-radius: 4px;
 }
 
+/* Family-scoped appearance fields: chess pickers in chess contexts, xiangqi
+   pickers in xiangqi contexts. The fog field is untagged and always shows. */
+:root[data-board-family="xiangqi"] .theme-control-field[data-appearance-family="chess"] {
+  display: none;
+}
+:root:not([data-board-family="xiangqi"]) .theme-control-field[data-appearance-family="xiangqi"] {
+  display: none;
+}
+
+/* Xiangqi board swatches (solid wood/paper tone per scheme). */
+.theme-tile-preview-xqboard[data-id="tournament"] {
+  background: #d9bd82;
+}
+.theme-tile-preview-xqboard[data-id="blue"] {
+  background: #cdddea;
+}
+.theme-tile-preview-xqboard[data-id="mono"] {
+  background: #e6e2d9;
+}
+
+/* Xiangqi piece tiles show a representative glyph centered on a neutral disc. */
+.theme-tile-preview-xqpiece {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3e6c4;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 /* Board palette previews: diagonal split of light + dark squares. Values
    mirror the --board-light/--board-dark pairs in the :root theme blocks
    above. If a palette changes, update both. */

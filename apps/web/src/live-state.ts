@@ -54,6 +54,17 @@ export type StoredSeatToken = {
 };
 export type ConnectedSeats = Partial<Record<PlayableSeat, boolean>>;
 
+// Top-level clock for the xiangqi-family runtimes (Dark Mini Xiangqi, Dark
+// Xiangqi). Standard chess carries its clock inside the PlayerView; these
+// runtimes deliver it alongside the view in the snapshot, so it lives here.
+export type XiangqiFamilyClock = {
+  activeColor: XiangqiColor | null;
+  incrementMs: number;
+  initialMs: number;
+  remainingMs: Record<XiangqiColor, number>;
+  runningSince: number | null;
+};
+
 export type LiveRefs = {
   board: HTMLDivElement;
   boardPaused: HTMLDivElement;
@@ -144,6 +155,10 @@ export const liveState = {
   resolvedStartId: null as number | null,
   resolvedStartIds: {} as DraftResolvedStartIds,
   state: null as PlayerView | null,
+  // Top-level clock + time control for the xiangqi-family runtimes (null for
+  // chess, which embeds its clock in the PlayerView, and for untimed games).
+  clock: null as XiangqiFamilyClock | null,
+  timeControl: null as { initialMs: number; incrementMs: number } | null,
   events: [] as GameEvent[],
   reconnectAttempt: 0,
   rematch: { offers: { white: false, black: false }, finalizedRoomId: null as string | null },

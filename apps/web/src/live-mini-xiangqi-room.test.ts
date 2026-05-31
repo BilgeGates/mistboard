@@ -31,6 +31,8 @@ describe('Dark Mini Xiangqi live room', () => {
     liveState.seat = 'red';
     liveState.events = [];
     liveState.state = viewFixture() as never;
+    liveState.abortDeadline = null;
+    liveState.forfeitDeadline = null;
     resetDarkMiniXiangqiReplayState();
   });
 
@@ -228,6 +230,45 @@ describe('Dark Mini Xiangqi live room', () => {
         preferredColor: 'random',
       }),
     });
+  });
+
+  it('links to the postgame review from a finished game', () => {
+    const refs = refsFixture();
+    liveState.state = {
+      ...viewFixture(),
+      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      legalMoves: [],
+    } as never;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    const review = [...refs.roomActions.querySelectorAll('a')].find(
+      (anchor) => anchor.textContent === 'Review game',
+    );
+    expect(review?.getAttribute('href')).toBe('/dark-mini-xiangqi/game/dmxq_test');
+  });
+
+  it('shows the abort countdown to the waiting seat during the first-move window', () => {
+    const refs = refsFixture();
+    liveState.seat = 'black'; // red is to move, so black is waiting
+    liveState.abortDeadline = Date.now() + 20_000;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    const countdown = refs.gameControls.querySelector('[data-abort-countdown]');
+    expect(countdown?.textContent).toContain('Waiting for first move');
+    expect(countdown?.textContent).toContain('aborting in');
+  });
+
+  it('shows the forfeit countdown banner to the beneficiary after the first move', () => {
+    const refs = refsFixture();
+    liveState.state = { ...viewFixture(), moveNumber: 2 } as never;
+    liveState.forfeitDeadline = Date.now() + 30_000;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+
+    const banner = refs.gameControls.querySelector('[data-forfeit-countdown]');
+    expect(banner?.textContent).toContain('Opponent left, you win in');
   });
 });
 
