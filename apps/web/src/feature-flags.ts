@@ -4,3 +4,7 @@
 export function darkXiangqiEnabled(): boolean {
   return import.meta.env.VITE_DARK_XIANGQI_ENABLED === 'true';
 }
+
+export function darkMiniXiangqiEnabled(): boolean {
+  return import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
+}

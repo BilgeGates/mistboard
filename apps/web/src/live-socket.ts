@@ -277,7 +277,7 @@ function handleSocketMessage(event: MessageEvent<string>): void {
   } else if (message.type === 'event-appended') {
     if (!applyEventAppended(message)) return;
   }
-  if (liveState.gameSpecId !== 'dark-xiangqi') {
+  if (liveState.gameSpecId !== 'dark-xiangqi' && liveState.gameSpecId !== 'dark-mini-xiangqi') {
     _maybePlaySnapshotSound(liveState.events, liveState.state);
   }
   _reconcileInteractionState();

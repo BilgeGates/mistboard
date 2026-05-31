@@ -3,8 +3,12 @@ import type { IncomingMessage } from 'node:http';
 import type { VariantId } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import {
+  type DarkMiniXiangqiRuntimeRoom,
+  isDarkMiniXiangqiRoomId,
+} from './dark-mini-xiangqi-runtime.js';
 import { isDarkXiangqiRoomId } from './dark-xiangqi-runtime.js';
-import { darkXiangqiEnabled } from './feature-flags.js';
+import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import { logger, wsCounters } from './obs.js';
@@ -41,6 +45,10 @@ import {
 import { assignSeat, displaceOlderSeatClients } from './server-seat-session.js';
 import type { Client, Room, SeatAssignment } from './server-types.js';
 import {
+  type DarkMiniXiangqiLiveRoom,
+  handleDarkMiniXiangqiWebSocketConnection,
+} from './server-ws-dark-mini-xiangqi.js';
+import {
   type DarkXiangqiLiveRoom,
   handleDarkXiangqiWebSocketConnection,
 } from './server-ws-dark-xiangqi.js';
@@ -53,8 +61,10 @@ export type WebSocketConnectionContext = {
   wsMessageLimit: number;
   wsMessageWindowMs: number;
   clearPendingVacate: (room: Room, seat: Client['seat']) => void;
+  darkMiniXiangqiRooms: Map<string, DarkMiniXiangqiRuntimeRoom>;
   darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
   enableRandomEngine: (room: Room) => Promise<void>;
+  getOrLoadDarkMiniXiangqiRoom: (roomId: string) => Promise<DarkMiniXiangqiRuntimeRoom | null>;
   getOrLoadDarkXiangqiRoom: (roomId: string) => Promise<DarkXiangqiLiveRoom | null>;
   getOrCreateRoom: (roomId: string, variant: VariantId, hiddenDraft960?: boolean) => Promise<Room>;
   handleAbort: (room: Room, client: Client) => Promise<void>;
@@ -73,13 +83,21 @@ export type WebSocketConnectionContext = {
 
 export type WebSocketRuntimeResolverContext = Pick<
   WebSocketConnectionContext,
-  'darkXiangqiRooms' | 'getOrLoadDarkXiangqiRoom'
+  | 'darkMiniXiangqiRooms'
+  | 'darkXiangqiRooms'
+  | 'getOrLoadDarkMiniXiangqiRoom'
+  | 'getOrLoadDarkXiangqiRoom'
 >;
 
 export type WebSocketLiveRuntime =
   | { kind: 'chess' }
+  | { kind: 'dark-mini-xiangqi'; room: DarkMiniXiangqiLiveRoom }
   | { kind: 'dark-xiangqi'; room: DarkXiangqiLiveRoom }
-  | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' };
+  | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' }
+  | {
+      kind: 'dark-mini-xiangqi-unavailable';
+      reason: 'game spec disabled' | 'room unavailable';
+    };
 
 export function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
   return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
@@ -91,6 +109,26 @@ export async function resolveWebSocketLiveRuntime(
 ): Promise<WebSocketLiveRuntime> {
   const existingDarkXiangqiRoom = ctx.darkXiangqiRooms.get(roomId);
   if (existingDarkXiangqiRoom) return { kind: 'dark-xiangqi', room: existingDarkXiangqiRoom };
+  const existingDarkMiniXiangqiRoom = ctx.darkMiniXiangqiRooms.get(roomId);
+  if (existingDarkMiniXiangqiRoom) {
+    return {
+      kind: 'dark-mini-xiangqi',
+      room: existingDarkMiniXiangqiRoom as DarkMiniXiangqiLiveRoom,
+    };
+  }
+  if (isDarkMiniXiangqiRoomId(roomId)) {
+    if (!darkMiniXiangqiEnabled()) {
+      return { kind: 'dark-mini-xiangqi-unavailable', reason: 'game spec disabled' };
+    }
+    const hydratedDarkMiniXiangqiRoom = await ctx.getOrLoadDarkMiniXiangqiRoom(roomId);
+    if (hydratedDarkMiniXiangqiRoom) {
+      return {
+        kind: 'dark-mini-xiangqi',
+        room: hydratedDarkMiniXiangqiRoom as DarkMiniXiangqiLiveRoom,
+      };
+    }
+    return { kind: 'dark-mini-xiangqi-unavailable', reason: 'room unavailable' };
+  }
   if (!isDarkXiangqiRoomId(roomId)) return { kind: 'chess' };
   if (!darkXiangqiEnabled())
     return { kind: 'dark-xiangqi-unavailable', reason: 'game spec disabled' };
@@ -111,7 +149,15 @@ export async function handleWebSocketConnection(
     await handleDarkXiangqiWebSocketConnection(ctx, socket, request, runtime.room);
     return;
   }
+  if (runtime.kind === 'dark-mini-xiangqi') {
+    await handleDarkMiniXiangqiWebSocketConnection(ctx, socket, request, runtime.room);
+    return;
+  }
   if (runtime.kind === 'dark-xiangqi-unavailable') {
+    socket.close(1008, runtime.reason);
+    return;
+  }
+  if (runtime.kind === 'dark-mini-xiangqi-unavailable') {
     socket.close(1008, runtime.reason);
     return;
   }

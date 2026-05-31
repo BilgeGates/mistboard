@@ -2,6 +2,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RoomTimeControl, VariantId } from '@mistboard/game';
 import serveHandler from 'serve-handler';
 import type {
+  DarkMiniXiangqiCreatorPreference,
+  DarkMiniXiangqiRuntimeRoom,
+} from './dark-mini-xiangqi-runtime.js';
+import type {
   DarkXiangqiCreatorPreference,
   DarkXiangqiRuntimeRoom,
 } from './dark-xiangqi-runtime.js';
@@ -60,6 +64,13 @@ type ServerHttpHandlerOptions = {
   ): Promise<
     | { ok: true; room: DarkXiangqiRuntimeRoom }
     | { ok: false; error: 'dark_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
+  >;
+  createDarkMiniXiangqiRoom(creatorPreference?: DarkMiniXiangqiCreatorPreference): Promise<
+    | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
+    | {
+        ok: false;
+        error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
+      }
   >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;
@@ -274,6 +285,7 @@ function buildApiContext(options: ServerHttpHandlerOptions): HttpApiContext {
     liveClockIncrementMs: options.liveClockIncrementMs,
     createRoom: options.createRoom,
     createDarkXiangqiRoom: options.createDarkXiangqiRoom,
+    createDarkMiniXiangqiRoom: options.createDarkMiniXiangqiRoom,
     reserveLiveEngineSeat: options.reserveLiveEngineSeat,
     releaseLiveEngineReservation: options.releaseLiveEngineReservation,
     abandonRoom: options.abandonRoom,

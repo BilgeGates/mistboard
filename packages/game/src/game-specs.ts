@@ -3,13 +3,20 @@ import type { VariantId } from './types.js';
 export type GameFamilyId = 'chess' | 'xiangqi' | 'shogi' | 'omega-chess';
 export type BoardGeometryId =
   | 'chess-8x8'
+  | 'xiangqi-7x7'
   | 'xiangqi-9x10'
   | 'shogi-9x9'
   | 'omega-10x10-plus-corners';
-export type MovementRulesId = 'orthodox-chess' | 'xiangqi' | 'shogi' | 'omega' | 'seirawan';
+export type MovementRulesId =
+  | 'orthodox-chess'
+  | 'mini-xiangqi'
+  | 'xiangqi'
+  | 'shogi'
+  | 'omega'
+  | 'seirawan';
 export type ObjectiveRulesId = 'king-capture' | 'general-capture' | 'suicide';
 export type VisibilityRulesId = 'dark';
-export type SetupRulesId = 'standard' | 'draft960' | 'double-fischer-random';
+export type SetupRulesId = 'standard' | 'draft960' | 'mini-standard' | 'double-fischer-random';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId = 'none' | 'any-legal-square' | 'seen-squares-only' | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
@@ -23,6 +30,7 @@ export type RatingPoolBaseId =
   | 'sun_tzu'
   | 'lao_tzu'
   | 'dark_seirawan'
+  | 'dark_mini_xiangqi'
   | 'dark_xiangqi'
   | 'dark_shogi'
   | 'dark_omega';
@@ -35,6 +43,7 @@ export type GameSpecId =
   | 'sun-tzu'
   | 'lao-tzu'
   | 'dark-seirawan'
+  | 'dark-mini-xiangqi'
   | 'dark-xiangqi'
   | 'dark-shogi'
   | 'dark-omega';
@@ -66,6 +75,7 @@ export const DARK_DRAFT960_SPEC_ID = 'dark-draft960' satisfies GameSpecId;
 // Compatibility alias for pre-taxonomy code and URLs. New code should use
 // DARK_DRAFT960_SPEC_ID; "fog" remains only in legacy rating/API vocabulary.
 export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
+export const DARK_MINI_XIANGQI_SPEC_ID = 'dark-mini-xiangqi' satisfies GameSpecId;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
 export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
 
@@ -176,6 +186,21 @@ export const GAME_SPECS: readonly GameSpec[] = [
     ratingPoolBase: 'dark_seirawan',
     publicSurface: 'hidden',
     runtimeStatus: 'future',
+  },
+  {
+    id: DARK_MINI_XIANGQI_SPEC_ID,
+    publicName: 'Dark Mini Xiangqi',
+    family: 'xiangqi',
+    board: 'xiangqi-7x7',
+    movement: 'mini-xiangqi',
+    objective: 'general-capture',
+    visibility: 'dark',
+    setup: 'mini-standard',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'dark_mini_xiangqi',
+    publicSurface: 'hidden',
+    runtimeStatus: 'dev-spike',
   },
   {
     id: DARK_XIANGQI_SPEC_ID,

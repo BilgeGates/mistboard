@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   FOG_DRAFT960_SPEC_ID,
@@ -68,6 +69,24 @@ test('Dark Xiangqi is representable as a separate family without live-room mappi
   assert.equal(spec.legacyLiveRoom, undefined);
 });
 
+test('Dark Mini Xiangqi is a separate xiangqi-family spike spec', () => {
+  const spec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
+
+  assert.equal(spec.publicName, 'Dark Mini Xiangqi');
+  assert.equal(spec.family, 'xiangqi');
+  assert.equal(spec.board, 'xiangqi-7x7');
+  assert.equal(spec.movement, 'mini-xiangqi');
+  assert.equal(spec.objective, 'general-capture');
+  assert.equal(spec.visibility, 'dark');
+  assert.equal(spec.setup, 'mini-standard');
+  assert.equal(spec.reserves, 'none');
+  assert.equal(spec.dropPolicy, 'none');
+  assert.equal(spec.ratingPoolBase, 'dark_mini_xiangqi');
+  assert.equal(spec.publicSurface, 'hidden');
+  assert.equal(spec.runtimeStatus, 'dev-spike');
+  assert.equal(spec.legacyLiveRoom, undefined);
+});
+
 test('Dark Shogi is reserved as a future shogi family spec', () => {
   const spec = gameSpecForId(DARK_SHOGI_SPEC_ID);
 
@@ -116,6 +135,7 @@ test('game spec ids are unique and discoverable', () => {
   assert.equal(isGameSpecId('dark-chess'), true);
   assert.equal(isGameSpecId('dark-draft960'), true);
   assert.equal(isGameSpecId('fog-draft960'), false);
+  assert.equal(isGameSpecId('dark-mini-xiangqi'), true);
   assert.equal(isGameSpecId('dark-xiangqi'), true);
   assert.equal(isGameSpecId('dark-shogi'), true);
   assert.equal(isGameSpecId('not-a-spec'), false);
@@ -154,6 +174,7 @@ test('current live specs can be converted back to the existing room wire shape',
     variant: 'dark-chess',
     hiddenDraft960: true,
   });
+  assert.equal(legacyLiveRoomForGameSpec(DARK_MINI_XIANGQI_SPEC_ID), null);
   assert.equal(legacyLiveRoomForGameSpec(DARK_XIANGQI_SPEC_ID), null);
   assert.equal(legacyLiveRoomForGameSpec(DARK_SHOGI_SPEC_ID), null);
 });

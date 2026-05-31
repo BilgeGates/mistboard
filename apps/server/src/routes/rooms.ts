@@ -7,6 +7,7 @@ import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import { InternalEngineClientError } from './../internal-engine-client.js';
 import { engineCounters, logger } from './../obs.js';
 import * as persistence from './../persistence.js';
+import { handleDarkMiniXiangqiCreate, requestsDarkMiniXiangqi } from './dark-mini-xiangqi-rooms.js';
 import { handleDarkXiangqiCreate, requestsDarkXiangqi } from './dark-xiangqi-rooms.js';
 import {
   type HttpApiContext,
@@ -28,6 +29,10 @@ export async function tryHandle(
   if (pathname === '/api/rooms') {
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
+    if (requestsDarkMiniXiangqi(body)) {
+      await handleDarkMiniXiangqiCreate(ctx, response, body);
+      return true;
+    }
     if (requestsDarkXiangqi(body)) {
       await handleDarkXiangqiCreate(ctx, response, body);
       return true;

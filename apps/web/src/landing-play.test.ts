@@ -94,6 +94,68 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/dxq_home');
   });
 
+  it('creates an untimed Dark Mini Xiangqi room from the flagged challenge variant', async () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_home' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    const challengeButton = [...panel.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Challenge a friend',
+    );
+
+    challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
+    expect(variantSelect).not.toBeNull();
+    expect([...variantSelect!.options].map((option) => option.value)).toContain('dark-mini-xiangqi');
+    variantSelect!.value = 'dark-mini-xiangqi';
+    variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(document.body.textContent).toContain('Red');
+    // Mini is untimed: the time-control section is hidden so it can't mislead.
+    const timeSection = document
+      .querySelector('.landing-time-presets')
+      ?.closest('.landing-setup-section') as HTMLElement | null;
+    expect(timeSection?.hidden).toBe(true);
+    const createButton = [...document.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Create room',
+    );
+    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    const roomCall = fetchSpy.mock.calls.find(([input]) => String(input) === '/api/rooms');
+    expect(roomCall).toBeDefined();
+    expect(JSON.parse(String(roomCall?.[1]?.body))).toEqual({
+      mode: 'pvp',
+      gameSpecId: 'dark-mini-xiangqi',
+      preferredColor: 'random',
+    });
+    expect(window.location.pathname).toBe('/room/dmxq_home');
+  });
+
+  it('keeps Dark Mini Xiangqi hidden unless its client flag is enabled', () => {
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    const challengeButton = [...panel.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === 'Challenge a friend',
+    );
+
+    challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
+    expect(variantSelect).not.toBeNull();
+    expect([...variantSelect!.options].map((option) => option.value)).not.toContain(
+      'dark-mini-xiangqi',
+    );
+  });
+
   it('uses gameSpecId, not variant, to deep-link the challenge variant projection', () => {
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
     vi.stubGlobal(

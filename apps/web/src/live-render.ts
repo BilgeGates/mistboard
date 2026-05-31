@@ -32,6 +32,12 @@ import {
   updateAbortCountdown as updateGameControlCountdown,
 } from './live-game-controls.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
+import {
+  isDarkMiniXiangqiLiveRoom,
+  reconcileDarkMiniXiangqiInteractionState,
+  renderDarkMiniXiangqiRoom,
+  resetDarkMiniXiangqiReplayState,
+} from './live-mini-xiangqi-room.js';
 import { renderReplay, resetMoveListState } from './live-move-list.js';
 import { captureFogView, initReplay, isLive, resetReplayState } from './live-replay.js';
 import {
@@ -178,6 +184,7 @@ export function initRender(
   reconnectNow = callbacks.reconnectNow;
   resetReplayState();
   resetDarkXiangqiReplayState();
+  resetDarkMiniXiangqiReplayState();
   initReplay({
     onStateChange: () => {
       reconcileInteractionState();
@@ -201,6 +208,12 @@ export function render(): void {
     destroyChessBoardForAlternateRenderer();
     captureFogView();
     renderDarkXiangqiRoom(refs, { sendSocket, reconnectNow });
+    return;
+  }
+  if (isDarkMiniXiangqiLiveRoom()) {
+    destroyChessBoardForAlternateRenderer();
+    captureFogView();
+    renderDarkMiniXiangqiRoom(refs, { sendSocket, reconnectNow });
     return;
   }
   captureFogView();
@@ -750,6 +763,10 @@ function renderBoardResult(view: PlayerView | null): void {
 export function reconcileInteractionState(): void {
   if (isDarkXiangqiLiveRoom()) {
     reconcileDarkXiangqiInteractionState();
+    return;
+  }
+  if (isDarkMiniXiangqiLiveRoom()) {
+    reconcileDarkMiniXiangqiInteractionState();
     return;
   }
   const view = currentView();
