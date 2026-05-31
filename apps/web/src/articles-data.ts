@@ -1915,15 +1915,6 @@ function miniXqFogBoardSvg(view: MiniXiangqiPlayerView, clipId: string): string 
   return `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: ${w}px" viewBox="0 0 ${w} ${h}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Dark Mini Xiangqi board"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
 
-// Red's fogged view of the opening position: own army visible, most of Black's
-// half under fog. Used for the Dark Mini Xiangqi card and the Fog of War diagram.
-const MINI_XIANGQI_DARK_VIEW = getMiniXiangqiPlayerView(
-  createInitialMiniXiangqiState('dark-mini-xiangqi-diagram'),
-  'red',
-);
-const MINI_XIANGQI_DARK_THUMBNAIL = miniXqFogBoardSvg(MINI_XIANGQI_DARK_VIEW, 'mxq-fog-thumb');
-const MINI_XIANGQI_DARK_FOG_BOARD = miniXqFogBoardSvg(MINI_XIANGQI_DARK_VIEW, 'mxq-fog-body');
-
 // Blue corner brackets on the squares a cannon can capture under fog (the
 // "target revealed" half of the cannon rule), matching the full Dark Xiangqi
 // diagrams. Computed from the real vision so it cannot drift from the rules.
@@ -1969,21 +1960,62 @@ function mxqBoardCell(opts: {
   return `<g transform="translate(${opts.x} 0)"><text x="${MXQ_BOARD_W / 2}" y="11" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text><g transform="translate(0 20)">${layers.join('')}</g></g>`;
 }
 
-const MXQ_PAIR_GAP = 22;
+const MXQ_BOARD_GAP = 22;
+
+// A horizontal row of labeled boards: two for a view/truth pair, three for a
+// red-view / server-truth / black-view triptych.
+function mxqBoardRowSvg(
+  state: MiniXiangqiGameState,
+  cells: Array<{ label: string; view?: MiniXiangqiPlayerView; fogClipId?: string }>,
+): string {
+  const n = cells.length;
+  const totalW = MXQ_BOARD_W * n + MXQ_BOARD_GAP * (n - 1) + XQ_VIEWBOX_PAD * 2;
+  const totalH = MXQ_BOARD_H + 20 + XQ_VIEWBOX_PAD * 2;
+  const body = cells
+    .map((cell, i) =>
+      mxqBoardCell({
+        x: i * (MXQ_BOARD_W + MXQ_BOARD_GAP),
+        label: cell.label,
+        state,
+        view: cell.view,
+        fogClipId: cell.fogClipId,
+      }),
+    )
+    .join('');
+  return `<svg class="xq-article-svg" data-xq-layout="${n >= 3 ? 'wide' : 'pair'}" style="--xq-svg-width: ${totalW}px" viewBox="0 0 ${totalW} ${totalH}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
+}
 
 function miniXqPairSvg(
   state: MiniXiangqiGameState,
   view: MiniXiangqiPlayerView,
   fogClipId: string,
 ): string {
-  const totalW = MXQ_BOARD_W * 2 + MXQ_PAIR_GAP + XQ_VIEWBOX_PAD * 2;
-  const totalH = MXQ_BOARD_H + 20 + XQ_VIEWBOX_PAD * 2;
-  const cells = [
-    mxqBoardCell({ x: 0, label: "RED'S VIEW", state, view, fogClipId }),
-    mxqBoardCell({ x: MXQ_BOARD_W + MXQ_PAIR_GAP, label: 'SERVER TRUTH', state }),
-  ].join('');
-  return `<svg class="xq-article-svg" data-xq-layout="pair" style="--xq-svg-width: ${totalW}px" viewBox="0 0 ${totalW} ${totalH}" role="img" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${cells}</g></svg>`;
+  return mxqBoardRowSvg(state, [
+    { label: "RED'S VIEW", view, fogClipId },
+    { label: 'SERVER TRUTH' },
+  ]);
 }
+
+// The opening position under fog. The card thumbnail shows Red's view; the page
+// shows all three angles side by side (Red's view, the true board, Black's view).
+const MINI_XIANGQI_DARK_STATE = createInitialMiniXiangqiState('dark-mini-xiangqi-diagram');
+const MINI_XIANGQI_DARK_THUMBNAIL = miniXqFogBoardSvg(
+  getMiniXiangqiPlayerView(MINI_XIANGQI_DARK_STATE, 'red'),
+  'mxq-fog-thumb',
+);
+const MINI_XIANGQI_DARK_TRIPTYCH = mxqBoardRowSvg(MINI_XIANGQI_DARK_STATE, [
+  {
+    label: "RED'S VIEW",
+    view: getMiniXiangqiPlayerView(MINI_XIANGQI_DARK_STATE, 'red'),
+    fogClipId: 'mxq-fog-tri-r',
+  },
+  { label: 'SERVER TRUTH' },
+  {
+    label: "BLACK'S VIEW",
+    view: getMiniXiangqiPlayerView(MINI_XIANGQI_DARK_STATE, 'black'),
+    fogClipId: 'mxq-fog-tri-b',
+  },
+]);
 
 function mxqDemoState(id: string, board: MiniXiangqiBoard): MiniXiangqiGameState {
   return {
@@ -3973,40 +4005,50 @@ export const articles: Article[] = [
     ],
     sections: [
       {
-        heading: 'Board and setup',
+        heading: 'Board and fog',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'The board and army are the same as [Mini Xiangqi](/rules/mini-xiangqi): a 7 by 7 grid with files a through g, one general, two chariots, two cannons, two horses, and five soldiers a side. Red starts on rank 1 and moves first; Black mirrors it on rank 7. Each general keeps a 3 by 3 palace, and there is no river.',
+              'The board and army are the same as [Mini Xiangqi](/rules/mini-xiangqi): a 7 by 7 grid with files a through g, one general, two chariots, two cannons, two horses, and five soldiers a side, each general in a 3 by 3 palace. Red moves first. Fog of War then hides the board: you see your own pieces and every point they can reach, and everything else is fog.',
           },
           {
             kind: 'raw-svg',
-            svg: MINI_XIANGQI_START_BOARD,
+            svg: MINI_XIANGQI_DARK_TRIPTYCH,
           } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'The opening position from three angles. Red and Black each see only their own side clearly, while the server holds the true board in the middle. Vision is recomputed after every move, so opening a line or losing a piece immediately changes what each player knows.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'You never see enemy pieces outside your vision, whether a fogged point is empty, or the identity of a shrouded blocker.',
+          },
         ],
       },
       {
-        heading: 'Fog of War',
+        heading: 'Winning and draws',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'You see your own pieces, every point they can reach, and any enemy piece standing on a point you can see. Everything else is fog. Vision is recomputed from the true position after every move, so opening a line or losing a piece immediately changes what you know.',
-          },
-          {
-            kind: 'raw-svg',
-            svg: MINI_XIANGQI_DARK_FOG_BOARD,
-          } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text:
-              'Red\'s view of the opening position: Red\'s own army and the points it can reach are clear, while the far side of the board stays under fog.',
+              'Capture the general to win. There is no checkmate and no check warning, so you can move into danger, leave your general exposed, or let the generals face each other across an open file.',
           },
           {
             kind: 'paragraph',
             text:
-              'You never see enemy pieces outside your vision, whether a fogged point is empty, or the identity of a shrouded blocker. Two pieces interact with fog in ways worth seeing up close.',
+              'If the side to move has no legal move, it loses. Draws are judged from the true position, not either player\'s view: the game draws on threefold repetition, and also after 60 plies (30 moves by each side) without a capture.',
+          },
+        ],
+      },
+      {
+        heading: 'Edge cases',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: 'Two pieces interact with fog in ways worth seeing up close.',
           },
           { kind: 'sub-heading', text: 'Cannons' },
           {
@@ -4028,21 +4070,6 @@ export const articles: Article[] = [
             kind: 'raw-svg',
             svg: MINI_XIANGQI_HORSE_PAIR,
           } as ArticleBlock,
-        ],
-      },
-      {
-        heading: 'Winning and draws',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'Capture the general to win. There is no checkmate and no check warning, so you can move into danger, leave your general exposed, or let the generals face each other across an open file.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'If the side to move has no legal move, it loses. Draws are judged from the true position, not either player\'s view: threefold repetition and a no-capture limit.',
-          },
         ],
       },
       {
