@@ -270,6 +270,62 @@ test('Dark Mini Xiangqi event validation accepts resignations and rejects malfor
   );
 });
 
+test('Dark Mini Xiangqi runtime aborts a pregame room', () => {
+  const projection = replayDarkMiniXiangqiEvents([
+    { type: 'room-created', at: 100, roomId: 'dmxq_abort', gameSpecId: 'dark-mini-xiangqi' },
+    { type: 'game-aborted', at: 200, roomId: 'dmxq_abort', reason: 'user-abort' },
+  ]);
+
+  assert.deepEqual(projection.state.status, { type: 'aborted', reason: 'user-abort' });
+});
+
+test('Dark Mini Xiangqi runtime ignores an abort once both sides have moved', () => {
+  const projection = replayDarkMiniXiangqiEvents([
+    { type: 'room-created', at: 100, roomId: 'dmxq_abort2', gameSpecId: 'dark-mini-xiangqi' },
+    {
+      type: 'move-played',
+      at: 110,
+      roomId: 'dmxq_abort2',
+      color: 'red',
+      move: { from: 'a2', to: 'a3' },
+    },
+    {
+      type: 'move-played',
+      at: 120,
+      roomId: 'dmxq_abort2',
+      color: 'black',
+      move: { from: 'a6', to: 'a5' },
+    },
+    { type: 'game-aborted', at: 200, roomId: 'dmxq_abort2', reason: 'user-abort' },
+  ]);
+
+  assert.equal(projection.state.moveNumber, 2);
+  assert.deepEqual(projection.state.status, { type: 'playing', turn: 'red' });
+});
+
+test('Dark Mini Xiangqi event validation accepts aborts and rejects unknown abort reasons', () => {
+  assert.equal(
+    isDarkMiniXiangqiEventLog(
+      [
+        { type: 'room-created', at: 100, roomId: 'dmxq_va', gameSpecId: 'dark-mini-xiangqi' },
+        { type: 'game-aborted', at: 200, roomId: 'dmxq_va', reason: 'pregame-timeout' },
+      ],
+      'dmxq_va',
+    ),
+    true,
+  );
+  assert.equal(
+    isDarkMiniXiangqiEventLog(
+      [
+        { type: 'room-created', at: 100, roomId: 'dmxq_va', gameSpecId: 'dark-mini-xiangqi' },
+        { type: 'game-aborted', at: 200, roomId: 'dmxq_va', reason: 'made-up' },
+      ],
+      'dmxq_va',
+    ),
+    false,
+  );
+});
+
 function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) {
     delete process.env[key];

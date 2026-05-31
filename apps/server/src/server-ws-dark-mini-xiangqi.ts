@@ -161,6 +161,10 @@ async function handleDarkMiniXiangqiMessage(
     await handleDarkMiniXiangqiResign(room, client);
     return;
   }
+  if (message.type === 'abort') {
+    await handleDarkMiniXiangqiAbort(room, client);
+    return;
+  }
   if (message.type !== 'move') return;
   if (!isMiniXiangqiSquare(message.from) || !isMiniXiangqiSquare(message.to)) return;
   if (room.projection.state.status.type !== 'playing') return;
@@ -196,6 +200,31 @@ async function handleDarkMiniXiangqiResign(
     at: Date.now(),
     roomId: room.id,
     color: client.seat,
+  };
+  let seq: number;
+  try {
+    seq = await appendDarkMiniXiangqiEvent(room, event);
+  } catch (err) {
+    recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
+    client.socket.close(1011, 'persistence failure');
+    return;
+  }
+  broadcastDarkMiniXiangqiEventAppended(room, event, seq);
+}
+
+async function handleDarkMiniXiangqiAbort(
+  room: DarkMiniXiangqiLiveRoom,
+  client: DarkMiniXiangqiLiveClient,
+): Promise<void> {
+  const status = room.projection.state.status;
+  if (status.type !== 'playing') return;
+  if (room.projection.state.moveNumber >= 2) return;
+  if (status.turn !== client.seat) return;
+  const event: DarkMiniXiangqiEvent = {
+    type: 'game-aborted',
+    at: Date.now(),
+    roomId: room.id,
+    reason: 'user-abort',
   };
   let seq: number;
   try {

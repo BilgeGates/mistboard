@@ -1,8 +1,10 @@
 import {
+  type AbortReason,
   applyMiniXiangqiMove,
   createInitialMiniXiangqiState,
   DARK_MINI_XIANGQI_SPEC_ID,
   getMiniXiangqiPlayerView,
+  isAbortReason,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
   type MiniXiangqiMove,
@@ -43,6 +45,12 @@ export type DarkMiniXiangqiEvent =
       at: number;
       roomId: string;
       color: MiniXiangqiColor;
+    }
+  | {
+      type: 'game-aborted';
+      at: number;
+      roomId: string;
+      reason: AbortReason;
     };
 
 export type DarkMiniXiangqiClientEvent =
@@ -210,6 +218,17 @@ export function applyDarkMiniXiangqiEvent(
       },
     };
   }
+  if (event.type === 'game-aborted') {
+    if (projection.state.status.type !== 'playing') return projection;
+    if (projection.state.moveNumber !== 1) return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: { type: 'aborted', reason: event.reason },
+      },
+    };
+  }
   return projection;
 }
 
@@ -332,6 +351,9 @@ export function isDarkMiniXiangqiEvent(
   }
   if (event.type === 'seat-resigned') {
     return isMiniXiangqiColor(event.color);
+  }
+  if (event.type === 'game-aborted') {
+    return isAbortReason(event.reason);
   }
   return false;
 }

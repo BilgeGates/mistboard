@@ -221,6 +221,102 @@ test('Dark Mini Xiangqi WebSocket handler ignores resignation before both sides 
   });
 });
 
+test('Dark Mini Xiangqi WebSocket handler aborts a pregame room for the player to move', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dmxq_abort');
+    const red = new FakeSocket();
+    const black = new FakeSocket();
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      red.socket,
+      request('dmxq_abort', 'red-client'),
+      room,
+    );
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      black.socket,
+      request('dmxq_abort', 'black-client'),
+      room,
+    );
+
+    red.messages.length = 0;
+    black.messages.length = 0;
+    red.emit('message', JSON.stringify({ type: 'abort' }));
+    await room.pendingWrites;
+    await Promise.resolve();
+
+    assert.equal(room.events.at(-1)?.type, 'game-aborted');
+    assert.deepEqual(room.projection.state.status, { type: 'aborted', reason: 'user-abort' });
+    const redFrame = red.messages.at(-1) as Record<string, unknown>;
+    assert.deepEqual((redFrame.state as Record<string, unknown>).status, {
+      type: 'aborted',
+      reason: 'user-abort',
+    });
+  });
+});
+
+test('Dark Mini Xiangqi WebSocket handler ignores abort from the player not on the move', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dmxq_abort_turn');
+    const red = new FakeSocket();
+    const black = new FakeSocket();
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      red.socket,
+      request('dmxq_abort_turn', 'red-client'),
+      room,
+    );
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      black.socket,
+      request('dmxq_abort_turn', 'black-client'),
+      room,
+    );
+
+    const eventCountBefore = room.events.length;
+    black.emit('message', JSON.stringify({ type: 'abort' }));
+    await room.pendingWrites;
+    await Promise.resolve();
+
+    assert.equal(room.events.length, eventCountBefore);
+    assert.equal(room.projection.state.status.type, 'playing');
+  });
+});
+
+test('Dark Mini Xiangqi WebSocket handler rejects abort after both sides have moved', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dmxq_abort_late');
+    const red = new FakeSocket();
+    const black = new FakeSocket();
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      red.socket,
+      request('dmxq_abort_late', 'red-client'),
+      room,
+    );
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      black.socket,
+      request('dmxq_abort_late', 'black-client'),
+      room,
+    );
+
+    red.emit('message', JSON.stringify({ type: 'move', from: 'a2', to: 'a3' }));
+    await room.pendingWrites;
+    black.emit('message', JSON.stringify({ type: 'move', from: 'a6', to: 'a5' }));
+    await room.pendingWrites;
+    assert.equal(room.projection.state.moveNumber, 2);
+
+    const eventCountBefore = room.events.length;
+    red.emit('message', JSON.stringify({ type: 'abort' }));
+    await room.pendingWrites;
+    await Promise.resolve();
+
+    assert.equal(room.events.length, eventCountBefore);
+    assert.equal(room.projection.state.status.type, 'playing');
+  });
+});
+
 function testContext() {
   return {
     wsMessageLimit: 20,
