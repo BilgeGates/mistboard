@@ -141,6 +141,86 @@ test('Dark Mini Xiangqi WebSocket handler appends legal moves without leaking op
   });
 });
 
+test('Dark Mini Xiangqi WebSocket handler ends the game when a seat resigns after both sides move', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dmxq_resign');
+    const red = new FakeSocket();
+    const black = new FakeSocket();
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      red.socket,
+      request('dmxq_resign', 'red-client'),
+      room,
+    );
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      black.socket,
+      request('dmxq_resign', 'black-client'),
+      room,
+    );
+
+    red.emit('message', JSON.stringify({ type: 'move', from: 'a2', to: 'a3' }));
+    await room.pendingWrites;
+    black.emit('message', JSON.stringify({ type: 'move', from: 'a6', to: 'a5' }));
+    await room.pendingWrites;
+    assert.equal(room.projection.state.moveNumber, 2);
+
+    red.messages.length = 0;
+    black.messages.length = 0;
+    red.emit('message', JSON.stringify({ type: 'resign' }));
+    await room.pendingWrites;
+    await Promise.resolve();
+
+    assert.equal(room.events.at(-1)?.type, 'seat-resigned');
+    assert.deepEqual(room.projection.state.status, {
+      type: 'finished',
+      winner: 'black',
+      reason: 'resignation',
+    });
+    const redFrame = red.messages.at(-1) as Record<string, unknown>;
+    const blackFrame = black.messages.at(-1) as Record<string, unknown>;
+    assert.equal(redFrame.type, 'snapshot');
+    assert.deepEqual((redFrame.state as Record<string, unknown>).status, {
+      type: 'finished',
+      winner: 'black',
+      reason: 'resignation',
+    });
+    assert.deepEqual((blackFrame.state as Record<string, unknown>).status, {
+      type: 'finished',
+      winner: 'black',
+      reason: 'resignation',
+    });
+  });
+});
+
+test('Dark Mini Xiangqi WebSocket handler ignores resignation before both sides have moved', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dmxq_early');
+    const red = new FakeSocket();
+    const black = new FakeSocket();
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      red.socket,
+      request('dmxq_early', 'red-client'),
+      room,
+    );
+    await handleDarkMiniXiangqiWebSocketConnection(
+      testContext(),
+      black.socket,
+      request('dmxq_early', 'black-client'),
+      room,
+    );
+
+    const eventCountBefore = room.events.length;
+    red.emit('message', JSON.stringify({ type: 'resign' }));
+    await room.pendingWrites;
+    await Promise.resolve();
+
+    assert.equal(room.events.length, eventCountBefore);
+    assert.equal(room.projection.state.status.type, 'playing');
+  });
+});
+
 function testContext() {
   return {
     wsMessageLimit: 20,

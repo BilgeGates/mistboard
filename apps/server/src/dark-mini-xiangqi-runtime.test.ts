@@ -220,6 +220,56 @@ test('Dark Mini Xiangqi replay ignores mismatched-room events', () => {
   assert.equal(projection.creatorPreference, undefined);
 });
 
+test('Dark Mini Xiangqi runtime finishes the game when a seat resigns', () => {
+  const projection = replayDarkMiniXiangqiEvents([
+    { type: 'room-created', at: 100, roomId: 'dmxq_resign', gameSpecId: 'dark-mini-xiangqi' },
+    { type: 'seat-resigned', at: 200, roomId: 'dmxq_resign', color: 'red' },
+  ]);
+
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'resignation',
+  });
+});
+
+test('Dark Mini Xiangqi runtime ignores a resignation once the game is over', () => {
+  const projection = replayDarkMiniXiangqiEvents([
+    { type: 'room-created', at: 100, roomId: 'dmxq_resign2', gameSpecId: 'dark-mini-xiangqi' },
+    { type: 'seat-resigned', at: 200, roomId: 'dmxq_resign2', color: 'red' },
+    { type: 'seat-resigned', at: 300, roomId: 'dmxq_resign2', color: 'black' },
+  ]);
+
+  assert.deepEqual(projection.state.status, {
+    type: 'finished',
+    winner: 'black',
+    reason: 'resignation',
+  });
+});
+
+test('Dark Mini Xiangqi event validation accepts resignations and rejects malformed colors', () => {
+  assert.equal(
+    isDarkMiniXiangqiEventLog(
+      [
+        { type: 'room-created', at: 100, roomId: 'dmxq_v', gameSpecId: 'dark-mini-xiangqi' },
+        { type: 'seat-resigned', at: 200, roomId: 'dmxq_v', color: 'black' },
+      ],
+      'dmxq_v',
+    ),
+    true,
+  );
+  assert.equal(
+    isDarkMiniXiangqiEventLog(
+      [
+        { type: 'room-created', at: 100, roomId: 'dmxq_v', gameSpecId: 'dark-mini-xiangqi' },
+        { type: 'seat-resigned', at: 200, roomId: 'dmxq_v', color: 'green' },
+      ],
+      'dmxq_v',
+    ),
+    false,
+  );
+});
+
 function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) {
     delete process.env[key];

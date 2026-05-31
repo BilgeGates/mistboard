@@ -157,6 +157,10 @@ async function handleDarkMiniXiangqiMessage(
     sendDarkMiniXiangqiPayload(client, darkMiniXiangqiTransportSnapshotPayload(room, client));
     return;
   }
+  if (message.type === 'resign') {
+    await handleDarkMiniXiangqiResign(room, client);
+    return;
+  }
   if (message.type !== 'move') return;
   if (!isMiniXiangqiSquare(message.from) || !isMiniXiangqiSquare(message.to)) return;
   if (room.projection.state.status.type !== 'playing') return;
@@ -169,6 +173,29 @@ async function handleDarkMiniXiangqiMessage(
     roomId: room.id,
     color: client.seat,
     move,
+  };
+  let seq: number;
+  try {
+    seq = await appendDarkMiniXiangqiEvent(room, event);
+  } catch (err) {
+    recordDarkMiniXiangqiPersistenceError(room.id, room.events.length, event.type, err as Error);
+    client.socket.close(1011, 'persistence failure');
+    return;
+  }
+  broadcastDarkMiniXiangqiEventAppended(room, event, seq);
+}
+
+async function handleDarkMiniXiangqiResign(
+  room: DarkMiniXiangqiLiveRoom,
+  client: DarkMiniXiangqiLiveClient,
+): Promise<void> {
+  if (room.projection.state.status.type !== 'playing') return;
+  if (room.projection.state.moveNumber < 2) return;
+  const event: DarkMiniXiangqiEvent = {
+    type: 'seat-resigned',
+    at: Date.now(),
+    roomId: room.id,
+    color: client.seat,
   };
   let seq: number;
   try {

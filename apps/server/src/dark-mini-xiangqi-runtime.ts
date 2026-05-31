@@ -7,6 +7,7 @@ import {
   type MiniXiangqiGameState,
   type MiniXiangqiMove,
   type MiniXiangqiPlayerView,
+  oppositeMiniXiangqiColor,
 } from '@mistboard/game';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
 
@@ -36,6 +37,12 @@ export type DarkMiniXiangqiEvent =
       roomId: string;
       color: MiniXiangqiColor;
       move: MiniXiangqiMove;
+    }
+  | {
+      type: 'seat-resigned';
+      at: number;
+      roomId: string;
+      color: MiniXiangqiColor;
     };
 
 export type DarkMiniXiangqiClientEvent =
@@ -189,6 +196,20 @@ export function applyDarkMiniXiangqiEvent(
       state: applyMiniXiangqiMove(projection.state, event.move),
     };
   }
+  if (event.type === 'seat-resigned') {
+    if (projection.state.status.type !== 'playing') return projection;
+    return {
+      ...projection,
+      state: {
+        ...projection.state,
+        status: {
+          type: 'finished',
+          winner: oppositeMiniXiangqiColor(event.color),
+          reason: 'resignation',
+        },
+      },
+    };
+  }
   return projection;
 }
 
@@ -308,6 +329,9 @@ export function isDarkMiniXiangqiEvent(
   }
   if (event.type === 'move-played') {
     return isMiniXiangqiColor(event.color) && isMiniXiangqiMove(event.move);
+  }
+  if (event.type === 'seat-resigned') {
+    return isMiniXiangqiColor(event.color);
   }
   return false;
 }
