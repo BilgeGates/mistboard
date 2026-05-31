@@ -48,7 +48,7 @@ export function renderMiniXiangqiBoardSvg(
       <g class="mini-xq-fog">${fog}</g>
       ${lastMoveMarkers(view, perspective)}
       ${selectionRing(options.selectedSquare ?? null, perspective)}
-      ${moveHints(options.legalMoves ?? [], perspective)}
+      ${moveHints(view, options.legalMoves ?? [], perspective)}
       ${pieceLayer(view, perspective)}
       ${options.interactive ? hitLayer(perspective) : ''}
     </svg>
@@ -182,12 +182,22 @@ function selectionRing(selection: MiniXiangqiSquare | null, perspective: MiniXia
   return `<circle class="mini-xq-selection" cx="${x}" cy="${y}" r="33"/>`;
 }
 
-function moveHints(moves: readonly MiniXiangqiMove[], perspective: MiniXiangqiColor): string {
+function moveHints(
+  view: MiniXiangqiPlayerView,
+  moves: readonly MiniXiangqiMove[],
+  perspective: MiniXiangqiColor,
+): string {
   return moves
     .map((move) => {
       const { file, rank } = miniXiangqiCoordOf(move.to);
       const { x, y } = intersection(file, rank, perspective);
-      return `<circle class="mini-xq-hint" cx="${x}" cy="${y}" r="10"/>`;
+      // A visibly occupied destination is a capture (including a cannon firing
+      // over a screen onto a revealed target); a fogged destination stays a quiet
+      // dot so a hidden piece is never implied.
+      const capture = view.board[move.to] !== undefined;
+      return capture
+        ? `<circle class="mini-xq-hint-capture" cx="${x}" cy="${y}" r="28"/>`
+        : `<circle class="mini-xq-hint" cx="${x}" cy="${y}" r="10"/>`;
     })
     .join('');
 }
@@ -281,6 +291,13 @@ export function installMiniXiangqiBoardStyles(): void {
     .mini-xq-hint {
       fill: #1d4ed8;
       opacity: 0.78;
+      pointer-events: none;
+    }
+    .mini-xq-hint-capture {
+      fill: none;
+      stroke: #b91c1c;
+      stroke-dasharray: 6 4;
+      stroke-width: 3;
       pointer-events: none;
     }
     .mini-xq-last {

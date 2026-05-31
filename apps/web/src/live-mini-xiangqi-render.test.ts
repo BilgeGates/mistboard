@@ -61,4 +61,31 @@ describe('Dark Mini Xiangqi board renderer', () => {
       'data-square=',
     );
   });
+
+  it('rings visible capture destinations and dots quiet ones', () => {
+    const view = {
+      id: 'hint-test',
+      perspective: 'red',
+      board: {
+        b1: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+        b4: { piece: { color: 'black', role: 'soldier' }, shrouded: false },
+      },
+      visibleSquares: ['b1', 'b2', 'b4'],
+      legalMoves: [
+        { from: 'b1', to: 'b2' },
+        { from: 'b1', to: 'b4' },
+      ],
+      status: { type: 'playing', turn: 'red' },
+      moveNumber: 1,
+    };
+
+    const svg = renderMiniXiangqiBoardSvg(view as never, 'red', {
+      selectedSquare: 'b1' as never,
+      legalMoves: view.legalMoves as never,
+    });
+
+    // b4 holds a visible Black piece -> capture ring; b2 is empty -> quiet dot.
+    expect(svg).toContain('class="mini-xq-hint-capture"');
+    expect(svg).toContain('class="mini-xq-hint"');
+  });
 });
