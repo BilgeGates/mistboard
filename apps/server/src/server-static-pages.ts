@@ -92,7 +92,7 @@ export const ARTICLE_META: Record<string, { title: string; description: string }
   'mini-xiangqi-rules': {
     title: 'Mini Xiangqi',
     description:
-      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: palaces, generals, chariots, cannons, horses, soldiers, immobilization losses, and no river.',
+      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: fewer pieces, no river, sideways soldiers from move one, checkmate wins, and perpetual check loses.',
   },
   'dark-mini-xiangqi-rules': {
     title: 'Dark Mini Xiangqi',

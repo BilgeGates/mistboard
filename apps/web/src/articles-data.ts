@@ -3183,7 +3183,7 @@ export const articles: Article[] = [
     kind: 'rules',
     title: 'Mini Xiangqi',
     summary:
-      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: palaces, generals, chariots, cannons, horses, soldiers, immobilization losses, and no river.',
+      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: fewer pieces, no river, sideways soldiers from move one, checkmate wins, and perpetual check loses.',
     showSummaryOnPage: false,
     status: 'draft',
     audience:
@@ -3193,12 +3193,12 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Mini Xiangqi is the compact ruleset underneath Dark Mini Xiangqi. It keeps the tactical pieces that matter most for hidden-information play while removing advisors, elephants, the river, and the full 9 by 10 board.',
+          'Mini Xiangqi was invented in 1973 by [Shigenobu Kusumoto of Osaka, Japan](https://playstrategy.org/variant/minixiangqi). It is a simplified, reduced version of [xiangqi](/articles/xiangqi-rules-primer): a smaller board, fewer pieces, and no river.',
       },
       {
         kind: 'paragraph',
         text:
-          'This page describes the open-information base game. Dark Mini Xiangqi adds fog, shrouded blockers, hidden cannon screens, no check warnings, and general capture as the public win condition.',
+          'This page describes the open-information base game. Dark Mini Xiangqi starts here, then adds fog and general capture.',
       },
     ],
     sections: [
@@ -3208,22 +3208,12 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Mini Xiangqi uses a 7 file by 7 rank board. Coordinates use files a through g and ranks 1 through 7. Red starts on rank 1, Black starts on rank 7, and Red moves first.',
+              'Mini Xiangqi is xiangqi compressed to a 7 by 7 board, with a simplified army: guards and elephants are dropped. The palace remains a 3 by 3 box for each general, but the board has no river.',
           },
           {
             kind: 'raw-svg',
             svg: DARK_MINI_XIANGQI_THUMBNAIL,
           } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text:
-              'Each side has one general, two chariots, two cannons, two horses, and five soldiers. The back rank is chariot, cannon, horse, general, horse, cannon, chariot. Soldiers start one rank ahead on files a, c, d, e, and g.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'Each general is confined to a 3 by 3 palace on its own back side. There are no advisors, elephants, river, promotions, drops, or reserves.',
-          },
         ],
       },
       {
@@ -3232,27 +3222,17 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              '**General:** moves one point orthogonally inside its own palace. If the two generals face each other on the same open file, a general may capture the opposing general across that file.',
+              'General, chariot, cannon, and horse movement is the same as in xiangqi.',
           },
           {
             kind: 'paragraph',
             text:
-              '**Chariot:** moves any distance horizontally or vertically. It cannot jump, and it may capture the first enemy piece it reaches.',
+              'The only important movement change is the soldier: because there is no river, soldiers may move and capture forward or sideways from the start. They still never move backward.',
           },
           {
             kind: 'paragraph',
             text:
-              '**Cannon:** moves like a chariot when it is not capturing. To capture, it jumps over exactly one intervening piece, called the screen, and lands on the first enemy piece beyond it.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Horse:** moves one point orthogonally and then one point diagonally outward, like a xiangqi horse. It cannot move if the adjacent orthogonal leg point is occupied.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              '**Soldier:** moves and captures one point forward or sideways from the start of the game. There is no river-crossing rule because soldiers already have sideways movement.',
+              'Facing generals are still illegal.',
           },
         ],
       },
@@ -3262,12 +3242,17 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The open-information game is won by checkmate, by capturing an exposed general where the ruleset allows direct general capture, or by immobilizing the side to move. A player with no legal move loses.',
+              'Checkmate wins. As in xiangqi, a player with no legal move loses instead of drawing by stalemate.',
           },
           {
             kind: 'paragraph',
             text:
-              'Draw adjudication should be handled from the true position: repeated positions can draw, and a no-capture progress clock can also draw the game.',
+              'Mistboard Mini Xiangqi uses a fourth-repetition rule. If the same true position with the same side to move appears for a fourth time, the game ends. If the repeating move gives check, the checking player loses. Otherwise, the game is a draw.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'The game is also drawn after 60 plies without a capture.',
           },
         ],
       },
