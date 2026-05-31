@@ -362,6 +362,54 @@ test('Dark Mini Xiangqi event validation accepts forfeits and rejects malformed 
   );
 });
 
+test('Dark Mini Xiangqi snapshots never send a seat the opponent last move', () => {
+  const before = process.env[darkMiniXiangqiKey];
+  process.env[darkMiniXiangqiKey] = 'true';
+  try {
+    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_lastmove');
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const { room } = result;
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'seat-assigned',
+      at: 1,
+      roomId: room.id,
+      clientId: 'R',
+      seat: 'red',
+    });
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'seat-assigned',
+      at: 2,
+      roomId: room.id,
+      clientId: 'B',
+      seat: 'black',
+    });
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'move-played',
+      at: 3,
+      roomId: room.id,
+      color: 'red',
+      move: { from: 'a2', to: 'a3' },
+    });
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'move-played',
+      at: 4,
+      roomId: room.id,
+      color: 'black',
+      move: { from: 'a6', to: 'a5' },
+    });
+
+    // Black just moved: the mover (black) keeps its own lastMove, but red — the
+    // opponent — must never receive it.
+    const red = darkMiniXiangqiSnapshotPayload(room, { id: 'R', seat: 'red', solo: false });
+    const black = darkMiniXiangqiSnapshotPayload(room, { id: 'B', seat: 'black', solo: false });
+    assert.equal(red.state.lastMove, undefined);
+    assert.deepEqual(black.state.lastMove, { from: 'a6', to: 'a5' });
+  } finally {
+    restoreEnv(darkMiniXiangqiKey, before);
+  }
+});
+
 function restoreEnv(key: string, value: string | undefined): void {
   if (value === undefined) {
     delete process.env[key];
