@@ -21,17 +21,21 @@ import {
   createChess960CastlingRightsForSides,
   createChess960InitialBoardForSides,
   createInitialMiniXiangqiBoard,
+  createInitialMiniXiangqiState,
   createInitialXiangqiState,
   computeVision as computeXiangqiVision,
+  getMiniXiangqiPlayerView,
   getPlayerView as getXiangqiPlayerView,
   darkChessVariant,
   miniXiangqiCoordOf,
+  miniXiangqiSquareOf,
   squareOf as xiangqiSquareOf,
   type BackRankRole,
   type Board,
   type Chess960Start,
   type GameState,
   type MiniXiangqiBoard,
+  type MiniXiangqiPlayerView,
   type MiniXiangqiSquare,
   type PieceRole,
   type Square,
@@ -1847,6 +1851,76 @@ const MINI_XIANGQI_SOLDIER_DIAGRAM = miniXqBoardSvg({
   captures: ['c4'],
 });
 
+// Fog overlay for the Dark Mini Xiangqi boards: a dark path over every point
+// the player cannot see, clipped to the rounded board, the same inverse-fog
+// look the full Dark Xiangqi diagrams use.
+const MXQ_FOG_OVERLAP = 0.5;
+
+function mxqFogLayer(view: MiniXiangqiPlayerView, clipId: string): string {
+  const visible = new Set(view.visibleSquares);
+  const parts: string[] = [];
+  for (let file = 0; file < MXQ_FILES; file += 1) {
+    for (let rank = 1; rank <= MXQ_RANKS; rank += 1) {
+      const sq = miniXiangqiSquareOf(file, rank);
+      if (visible.has(sq)) continue;
+      const { x, y } = mxqPoint(file, rank);
+      const row = MXQ_RANKS - rank;
+      const left = file === 0 ? 0 : x - XQ_CELL / 2 - MXQ_FOG_OVERLAP;
+      const right = file === MXQ_FILES - 1 ? MXQ_BOARD_W : x + XQ_CELL / 2 + MXQ_FOG_OVERLAP;
+      const top = row === 0 ? 0 : y - XQ_CELL / 2 - MXQ_FOG_OVERLAP;
+      const bottom = row === MXQ_RANKS - 1 ? MXQ_BOARD_H : y + XQ_CELL / 2 + MXQ_FOG_OVERLAP;
+      parts.push(`M ${left} ${top} H ${right} V ${bottom} H ${left} Z`);
+    }
+  }
+  if (parts.length === 0) return '';
+  return [
+    `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}"/></clipPath></defs>`,
+    `<path d="${parts.join(' ')}" fill="#24190f" opacity="0.55" clip-path="url(#${clipId})"/>`,
+  ].join('');
+}
+
+// Pieces as the viewer sees them: own and visible pieces by glyph, shrouded
+// blockers as a neutral ? marker in the owner's color.
+function mxqViewPiecesLayer(view: MiniXiangqiPlayerView): string {
+  return Object.entries(view.board)
+    .map(([sq, entry]) => {
+      if (!entry) return '';
+      const { file, rank } = miniXiangqiCoordOf(sq as MiniXiangqiSquare);
+      const { x, y } = mxqPoint(file, rank);
+      const piece = (
+        entry.shrouded ? { color: entry.color, role: 'soldier' } : entry.piece
+      ) as XiangqiPiece;
+      return renderXiangqiPiece(piece, {
+        x: x - XQ_PIECE_SIZE / 2,
+        y: y - XQ_PIECE_SIZE / 2,
+        size: XQ_PIECE_SIZE,
+        shrouded: entry.shrouded,
+      });
+    })
+    .join('');
+}
+
+function miniXqFogBoardSvg(view: MiniXiangqiPlayerView, clipId: string): string {
+  const w = MXQ_BOARD_W + XQ_VIEWBOX_PAD * 2;
+  const h = MXQ_BOARD_H + XQ_VIEWBOX_PAD * 2;
+  const body = [
+    mxqGridLayer(),
+    mxqFogLayer(view, clipId),
+    mxqViewPiecesLayer(view),
+    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
+  ].join('');
+  return `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: ${w}px" viewBox="0 0 ${w} ${h}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Dark Mini Xiangqi board"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
+}
+
+// Red's fogged view of the opening position: own army visible, most of Black's
+// half under fog. Used for the Dark Mini Xiangqi card and the Fog of War diagram.
+const MINI_XIANGQI_DARK_VIEW = getMiniXiangqiPlayerView(
+  createInitialMiniXiangqiState('dark-mini-xiangqi-diagram'),
+  'red',
+);
+const MINI_XIANGQI_DARK_THUMBNAIL = miniXqFogBoardSvg(MINI_XIANGQI_DARK_VIEW, 'mxq-fog-thumb');
+const MINI_XIANGQI_DARK_FOG_BOARD = miniXqFogBoardSvg(MINI_XIANGQI_DARK_VIEW, 'mxq-fog-body');
+
 function xqViewWithExtraVisibleSquares(
   view: XiangqiPlayerView,
   squares: XiangqiSquare[],
@@ -2314,24 +2388,6 @@ const XQ_DARK_XIANGQI_THUMBNAIL = xqSvg(
     xqBoardBorder(0, 0),
   ].join(''),
 );
-
-const DARK_MINI_XIANGQI_THUMBNAIL = `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: 276px" viewBox="0 0 276 276" role="img" xmlns="http://www.w3.org/2000/svg">
-  <rect x="8" y="8" width="260" height="260" rx="10" fill="#f5dca8" stroke="#8b5a24" stroke-width="1.5"/>
-  ${Array.from({ length: 7 }, (_, i) => {
-    const p = 36 + i * 34;
-    return `<line x1="36" y1="${p}" x2="240" y2="${p}" stroke="#5a3a14" stroke-width="1"/><line x1="${p}" y1="36" x2="${p}" y2="240" stroke="#5a3a14" stroke-width="1"/>`;
-  }).join('')}
-  <rect x="88" y="36" width="102" height="68" fill="#fff7df" opacity="0.45"/>
-  <rect x="88" y="172" width="102" height="68" fill="#fff7df" opacity="0.45"/>
-  <path d="M88 36 L190 104 M190 36 L88 104 M88 172 L190 240 M190 172 L88 240" stroke="#5a3a14" stroke-width="1"/>
-  <g font-family="system-ui, sans-serif" font-size="16" font-weight="800" text-anchor="middle" dominant-baseline="central">
-    <text x="36" y="240" fill="#a12721">R</text><text x="70" y="240" fill="#a12721">C</text><text x="104" y="240" fill="#a12721">H</text><text x="138" y="240" fill="#a12721">G</text><text x="172" y="240" fill="#a12721">H</text><text x="206" y="240" fill="#a12721">C</text><text x="240" y="240" fill="#a12721">R</text>
-    <text x="36" y="206" fill="#a12721">S</text><text x="104" y="206" fill="#a12721">S</text><text x="138" y="206" fill="#a12721">S</text><text x="172" y="206" fill="#a12721">S</text><text x="240" y="206" fill="#a12721">S</text>
-    <text x="36" y="36" fill="#111827">R</text><text x="70" y="36" fill="#111827">C</text><text x="104" y="36" fill="#111827">H</text><text x="138" y="36" fill="#111827">G</text><text x="172" y="36" fill="#111827">H</text><text x="206" y="36" fill="#111827">C</text><text x="240" y="36" fill="#111827">R</text>
-    <text x="36" y="70" fill="#111827">S</text><text x="104" y="70" fill="#111827">S</text><text x="138" y="70" fill="#111827">S</text><text x="172" y="70" fill="#111827">S</text><text x="240" y="70" fill="#111827">S</text>
-  </g>
-  <path d="M8 8 H268 V132 H8 Z M8 178 H268 V268 H8 Z" fill="#24190f" opacity="0.26"/>
-</svg>`;
 
 const XQ_FACING_GENERAL_BEFORE: XiangqiGameState = {
   id: 'xq-facing-general-before',
@@ -3806,7 +3862,7 @@ export const articles: Article[] = [
     publishedAt: '2026-05-30',
     audience:
       'Dark Xiangqi readers who want the smaller experimental ruleset Mistboard is testing first.',
-    thumbnail: { kind: 'svg', svg: DARK_MINI_XIANGQI_THUMBNAIL },
+    thumbnail: { kind: 'svg', svg: MINI_XIANGQI_DARK_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
@@ -3830,7 +3886,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: DARK_MINI_XIANGQI_THUMBNAIL,
+            svg: MINI_XIANGQI_START_BOARD,
           } as ArticleBlock,
           {
             kind: 'paragraph',
@@ -3881,6 +3937,15 @@ export const articles: Article[] = [
             kind: 'paragraph',
             text:
               'A player sees all of their own pieces, the points their pieces can see, enemy pieces on visible unshrouded points, and shrouded occupancy markers for certain blockers and cannon screens.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: MINI_XIANGQI_DARK_FOG_BOARD,
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'Red\'s view of the opening position: Red\'s own army and the points it can reach are clear, while the far side of the board stays under fog.',
           },
           {
             kind: 'paragraph',
