@@ -25,6 +25,8 @@
     "engine:enqueue-tournament": "tsx src/enqueue-engine-tournament.ts",
     "engine:elo-report": "tsx src/engine-elo-report.ts",
     "engine:queue-status": "tsx src/engine-queue-status.ts",
+    "accounts:count": "tsx src/accounts-count.ts",
+    "accounts:list": "tsx src/accounts-list.ts",
     "engine:tournament-status": "tsx src/engine-tournament-status.ts",
     "ops:test-engine-alert": "node --import tsx src/engine-alert-email-cli.ts",
     "worker": "node dist/worker.js",
