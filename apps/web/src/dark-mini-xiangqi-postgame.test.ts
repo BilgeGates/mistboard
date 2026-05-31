@@ -1,0 +1,199 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  darkMiniXiangqiPostgameApiUrl,
+  mountDarkMiniXiangqiPostgame,
+} from './dark-mini-xiangqi-postgame.js';
+
+describe('Dark Mini Xiangqi postgame page', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    window.history.replaceState(null, '', '/');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('builds the public postgame API URL', () => {
+    expect(darkMiniXiangqiPostgameApiUrl('dmxq room')).toBe(
+      '/api/dark-mini-xiangqi/games/dmxq%20room',
+    );
+  });
+
+  it('renders the review triptych with server truth, fogged seats, and all moves', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    mountDarkMiniXiangqiPostgame(root, 'dmxq_postgame');
+    await flushPromises();
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/dark-mini-xiangqi/games/dmxq_postgame');
+    expect(root.textContent).toContain('Game review');
+    expect(root.textContent).toContain('Red wins');
+    expect(root.textContent).toContain('Red view');
+    expect(root.textContent).toContain('Server truth');
+    expect(root.textContent).toContain('Black view');
+    expect(root.textContent).toContain('Play again');
+    expect(root.textContent).toContain('Untimed');
+    expect(root.textContent).toContain('Red b1-b2');
+    expect(root.textContent).toContain('Black b7-b6');
+    expect(root.textContent).toContain('Ply 2 of 2');
+    expect(root.querySelectorAll('.mini-xq-board')).toHaveLength(3);
+
+    // Fog-safety: a seat view shrouds the opponent; the truth board reveals all.
+    expect(root.innerHTML).toContain('aria-label="black hidden piece"');
+    expect(boardWrap(root, 'Server truth').querySelector('.mini-xq-fog-mask')).toBeNull();
+    expect(boardWrap(root, 'Server truth').innerHTML).not.toContain('hidden piece');
+
+    // Flip re-renders all boards; scrubbing back steps the ply counter.
+    root.querySelector<HTMLButtonElement>('[aria-label="Flip all boards"]')?.click();
+    expect(root.querySelectorAll('.mini-xq-board')).toHaveLength(3);
+    root
+      .querySelector<HTMLButtonElement>('.dxq-postgame__replay-button[aria-label="Previous ply"]')
+      ?.click();
+    expect(root.textContent).toContain('Ply 1 of 2');
+  });
+});
+
+function boardWrap(root: HTMLElement, label: string): HTMLElement {
+  const wrap = [...root.querySelectorAll<HTMLElement>('.dxq-postgame__board-wrap')].find((el) =>
+    el.textContent?.includes(label),
+  );
+  if (!wrap) throw new Error(`Missing board wrap: ${label}`);
+  return wrap;
+}
+
+function postgameFixture() {
+  return {
+    game: {
+      roomId: 'dmxq_postgame',
+      variant: 'dark-mini-xiangqi',
+      mode: 'pvp',
+      result: 'red-wins',
+      termination: 'resignation',
+      plyCount: 2,
+      startedAt: '2026-05-30T12:00:00.000Z',
+      endedAt: '2026-05-30T12:05:00.000Z',
+      rated: false,
+      visibility: 'private',
+    },
+    state: {
+      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      moveNumber: 2,
+    },
+    timeline: [
+      { type: 'move-played', at: 2, color: 'red', move: { from: 'b1', to: 'b2' }, ply: 1 },
+      { type: 'move-played', at: 3, color: 'black', move: { from: 'b7', to: 'b6' }, ply: 2 },
+      { type: 'seat-resigned', at: 4, color: 'black', winner: 'red' },
+    ],
+    view: truthView('dmxq_truth', {
+      b2: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+      b6: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+    }),
+    views: {
+      red: {
+        id: 'dmxq_red',
+        perspective: 'red',
+        board: {
+          b2: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+          b7: { color: 'black', shrouded: true },
+        },
+        visibleSquares: ['b2', 'b7'],
+        legalMoves: [],
+        status: { type: 'finished', winner: 'red', reason: 'resignation' },
+        moveNumber: 2,
+      },
+      truth: truthView('dmxq_truth_v', {
+        b2: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
+        b6: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+      }),
+      black: {
+        id: 'dmxq_black',
+        perspective: 'black',
+        board: {
+          b2: { color: 'red', shrouded: true },
+          b6: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
+        },
+        visibleSquares: ['b2', 'b6'],
+        legalMoves: [],
+        status: { type: 'finished', winner: 'red', reason: 'resignation' },
+        moveNumber: 2,
+      },
+    },
+    history: {
+      red: [
+        { ply: 1, view: seatView('dmxq_red_1', 'red', { b2: redCannon(), b7: blackShroud() }) },
+        { ply: 2, view: seatView('dmxq_red_2', 'red', { b2: redCannon(), b6: blackShroud() }) },
+      ],
+      truth: [
+        { ply: 1, view: truthView('dmxq_truth_1', { b2: redCannon(), b7: blackCannon() }) },
+        { ply: 2, view: truthView('dmxq_truth_2', { b2: redCannon(), b6: blackCannon() }) },
+      ],
+      black: [
+        { ply: 1, view: seatView('dmxq_black_1', 'black', { b2: redShroud(), b7: blackCannon() }) },
+        { ply: 2, view: seatView('dmxq_black_2', 'black', { b2: redShroud(), b6: blackCannon() }) },
+      ],
+    },
+  };
+}
+
+function redCannon() {
+  return { piece: { color: 'red', role: 'cannon' }, shrouded: false };
+}
+function blackCannon() {
+  return { piece: { color: 'black', role: 'cannon' }, shrouded: false };
+}
+function redShroud() {
+  return { color: 'red', shrouded: true };
+}
+function blackShroud() {
+  return { color: 'black', shrouded: true };
+}
+
+function seatView(id: string, perspective: 'red' | 'black', board: Record<string, unknown>) {
+  return {
+    id,
+    perspective,
+    board,
+    visibleSquares: Object.keys(board),
+    legalMoves: [],
+    status: { type: 'finished', winner: 'red', reason: 'resignation' },
+    moveNumber: 2,
+  };
+}
+
+function truthView(id: string, board: Record<string, unknown>) {
+  return {
+    id,
+    perspective: 'red',
+    board,
+    visibleSquares: allFixtureSquares(),
+    legalMoves: [],
+    status: { type: 'finished', winner: 'red', reason: 'resignation' },
+    moveNumber: 2,
+  };
+}
+
+function allFixtureSquares(): string[] {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+  const squares: string[] = [];
+  for (let rank = 1; rank <= 7; rank += 1) {
+    for (const file of files) squares.push(`${file}${rank}`);
+  }
+  return squares;
+}
+
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'content-type': 'application/json' },
+    status: init.status ?? 200,
+  });
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}

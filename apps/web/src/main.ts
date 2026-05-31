@@ -4,7 +4,7 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
-import { darkXiangqiEnabled } from './feature-flags.js';
+import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
@@ -54,6 +54,7 @@ const wantsLive =
 const page = params.get('page');
 const gameRoomId = gameRoomIdFromPath(path);
 const darkXiangqiGameRoomId = darkXiangqiGameRoomIdFromPath(path);
+const darkMiniXiangqiGameRoomId = darkMiniXiangqiGameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsSource = path === '/source' || page === 'source';
@@ -104,6 +105,13 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./dark-xiangqi-postgame.js').then(({ mountDarkXiangqiPostgame }) =>
       mountDarkXiangqiPostgame(appRoot, darkXiangqiGameRoomId),
+    ),
+  );
+} else if (darkMiniXiangqiGameRoomId && darkMiniXiangqiEnabled()) {
+  setTitle('Dark Mini Xiangqi');
+  void mountOrReport(() =>
+    import('./dark-mini-xiangqi-postgame.js').then(({ mountDarkMiniXiangqiPostgame }) =>
+      mountDarkMiniXiangqiPostgame(appRoot, darkMiniXiangqiGameRoomId),
     ),
   );
 } else if (gameRoomId) {
@@ -263,6 +271,11 @@ function gameRoomIdFromPath(value: string): string | null {
 
 function darkXiangqiGameRoomIdFromPath(value: string): string | null {
   const match = value.match(/^\/dark-xiangqi\/game\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function darkMiniXiangqiGameRoomIdFromPath(value: string): string | null {
+  const match = value.match(/^\/dark-mini-xiangqi\/game\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
