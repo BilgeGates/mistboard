@@ -12,6 +12,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import * as accountRoute from './routes/account.js';
 import * as annotationsRoute from './routes/annotations.js';
 import * as authRoute from './routes/auth.js';
+import * as darkMiniXiangqiGamesRoute from './routes/dark-mini-xiangqi-games.js';
 import * as darkXiangqiGamesRoute from './routes/dark-xiangqi-games.js';
 import * as enginesRoute from './routes/engines.js';
 import * as feedbackRoute from './routes/feedback.js';
@@ -57,6 +58,7 @@ const routes: RouteModule[] = [
   metaRoute,
   roomsRoute,
   lobbyRoute,
+  darkMiniXiangqiGamesRoute,
   darkXiangqiGamesRoute,
   gamesRoute,
   usersRoute,
