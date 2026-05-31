@@ -36,6 +36,7 @@ describe('Dark Mini Xiangqi live room', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     document.body.classList.remove('live-route--mini-xiangqi');
     liveState.gameSpecId = null;
     liveState.connectionState = 'connecting';
@@ -199,6 +200,35 @@ describe('Dark Mini Xiangqi live room', () => {
 
     expect(refs.board.querySelector('.mini-xq-last')).toBeNull();
   });
+
+  it('creates an untimed play-again room from a finished game', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse({ url: '/room/dmxq_again' }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const refs = refsFixture();
+    liveState.state = {
+      ...viewFixture(),
+      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      legalMoves: [],
+    } as never;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+    const playAgain = [...refs.roomActions.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Play again',
+    );
+    expect(playAgain).toBeDefined();
+    playAgain?.dispatchEvent(clickEvent());
+    await flushPromises();
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'pvp',
+        gameSpecId: 'dark-mini-xiangqi',
+        preferredColor: 'random',
+      }),
+    });
+  });
 });
 
 function viewFixture(): MiniView {
@@ -255,4 +285,17 @@ function el<K extends keyof HTMLElementTagNameMap>(tagName: K): HTMLElementTagNa
 
 function clickEvent(): MouseEvent {
   return new MouseEvent('click', { bubbles: true });
+}
+
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'content-type': 'application/json' },
+    status: init.status ?? 200,
+  });
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }

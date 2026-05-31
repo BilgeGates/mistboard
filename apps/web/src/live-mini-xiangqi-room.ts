@@ -1,4 +1,9 @@
-import type { MiniXiangqiColor, MiniXiangqiMove, MiniXiangqiPlayerView } from '@mistboard/game';
+import {
+  DARK_MINI_XIANGQI_SPEC_ID,
+  type MiniXiangqiColor,
+  type MiniXiangqiMove,
+  type MiniXiangqiPlayerView,
+} from '@mistboard/game';
 import { openConfirmDialog } from './confirm-dialog.js';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
 import { setLiveLayoutGameSpec } from './live-layout.js';
@@ -28,6 +33,7 @@ type MiniXiangqiVisibleMoveRow = { fullMove: number; red?: string; black?: strin
 type MiniXiangqiReplaySnapshot = { ply: number; view: MiniXiangqiPlayerView };
 
 let selectedSquare: MiniXiangqiSquare | null = null;
+let playAgainStatus: 'idle' | 'creating' | 'failed' = 'idle';
 let replayIndex: number | null = null;
 let viewHistory: MiniXiangqiReplaySnapshot[] = [];
 let lastCapturedView: MiniXiangqiPlayerView | null = null;
@@ -44,6 +50,7 @@ export function isDarkMiniXiangqiLiveRoom(): boolean {
 
 export function resetDarkMiniXiangqiReplayState(): void {
   selectedSquare = null;
+  playAgainStatus = 'idle';
   replayIndex = null;
   viewHistory = [];
   lastCapturedView = null;
@@ -133,7 +140,7 @@ function renderRoomActions(refs: LiveRefs): void {
   const view = currentMiniView();
 
   if (view?.status.type === 'finished' || view?.status.type === 'aborted') {
-    row.append(roomLink('Home', '/'));
+    row.append(playAgainButton(refs), roomLink('Home', '/'));
     refs.roomActions.append(row);
     return;
   }
@@ -153,6 +160,47 @@ function roomLink(label: string, href: string): HTMLAnchorElement {
   link.href = href;
   link.textContent = label;
   return link;
+}
+
+function playAgainButton(refs: LiveRefs): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = playAgainStatus === 'failed' ? 'danger' : 'primary';
+  button.disabled = playAgainStatus === 'creating';
+  button.textContent =
+    playAgainStatus === 'creating'
+      ? 'Creating'
+      : playAgainStatus === 'failed'
+        ? 'Try play again'
+        : 'Play again';
+  button.addEventListener('click', () => {
+    void createPlayAgainRoom(refs);
+  });
+  return button;
+}
+
+async function createPlayAgainRoom(refs: LiveRefs): Promise<void> {
+  playAgainStatus = 'creating';
+  renderRoomActions(refs);
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'pvp',
+        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+        preferredColor: 'random',
+      }),
+    });
+    if (!response.ok) throw new Error(`play-again failed: ${response.status}`);
+    const data = (await response.json()) as { url?: string };
+    if (!data.url) throw new Error('play-again did not return a URL');
+    window.location.assign(data.url);
+  } catch (err) {
+    console.warn(err);
+    playAgainStatus = 'failed';
+    renderRoomActions(refs);
+  }
 }
 
 function renderGameControls(
