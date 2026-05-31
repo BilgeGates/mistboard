@@ -349,7 +349,7 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
 
   const primary = document.createElement('span');
   const ratedLabel = request.rated === false ? 'Casual' : 'Rated';
-  primary.textContent = `${formatTimeControl(request.timeControl)} ${request.hiddenDraft960 ? 'Draft960' : 'Standard'} · ${ratedLabel}`;
+  primary.textContent = `${formatTimeControl(request.timeControl)} ${request.hiddenDraft960 ? 'Dark Draft960' : 'Standard'} · ${ratedLabel}`;
   const secondary = document.createElement('small');
   secondary.textContent = `${formatWaitAge(request.waitingMs)} waiting`;
   details.append(primary, secondary);
@@ -530,7 +530,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   let startGroup: HTMLDivElement | null = null;
   const standardButton = startOptionButton('Standard', true);
   const draftButton = startOptionButton(
-    draft960Selectable ? 'Draft960' : 'Draft960 (coming soon)',
+    draft960Selectable ? 'Dark Draft960' : 'Dark Draft960 (coming soon)',
     false,
   );
   if (draft960Enabled) {

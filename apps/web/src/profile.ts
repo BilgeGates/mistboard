@@ -65,7 +65,7 @@ const LEADERBOARD_BUCKETS: {
 
 const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   fog: 'Dark Chess',
-  fog_draft960: 'Draft960',
+  fog_draft960: 'Dark Draft960',
 };
 
 // Profile rating grid shows the same variants as the leaderboard (registry-driven),

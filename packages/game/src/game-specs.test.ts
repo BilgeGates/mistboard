@@ -37,7 +37,7 @@ test('Draft960 is modeled as a dark chess setup module, not a family', () => {
   const spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 
   assert.equal(spec.id, 'dark-draft960');
-  assert.equal(spec.publicName, 'Draft960');
+  assert.equal(spec.publicName, 'Dark Draft960');
   assert.equal(spec.family, 'chess');
   assert.equal(spec.board, 'chess-8x8');
   assert.equal(spec.movement, 'orthodox-chess');

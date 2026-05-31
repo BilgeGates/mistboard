@@ -47,7 +47,7 @@ export const VARIANT_MARKS: readonly VariantMarkDef[] = [
   },
   {
     id: 'draft960',
-    label: 'Draft960',
+    label: 'Dark Draft960',
     shortLabel: '960',
     description: 'A back-rank strip crossed by one unmistakable shuffle gesture.',
     accent: '#8a5a18',

@@ -99,7 +99,7 @@ export const ARTICLE_OG_POSITIONS: Record<string, ArticleOgPosition> = {
     fogSquares: fogFor(DARK_CHESS_CONCEPTS, 'white'),
     orientation: 'white',
   },
-  draft960: {
+  'dark-draft960': {
     pieces: startingPositionFromBackRank(DRAFT960_OFFER_A),
     fogSquares: fogFor(DRAFT960_START, 'white'),
     orientation: 'white',

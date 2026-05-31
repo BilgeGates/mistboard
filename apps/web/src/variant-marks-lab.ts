@@ -30,7 +30,7 @@ function buildIntro(): HTMLElement {
   const copy = document.createElement('p');
   copy.className = 'site-section-copy';
   copy.textContent =
-    'First-pass SVG marks for Dark chess, Draft960, and Dark Xiangqi. Each keeps the same square badge, line weight, and hidden-information mask so the family reads together at small UI sizes.';
+    'First-pass SVG marks for Dark chess, Dark Draft960, and Dark Xiangqi. Each keeps the same square badge, line weight, and hidden-information mask so the family reads together at small UI sizes.';
 
   header.append(eyebrow, title, copy);
   return header;

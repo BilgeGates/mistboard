@@ -98,7 +98,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
   },
   {
     id: DARK_DRAFT960_SPEC_ID,
-    publicName: 'Draft960',
+    publicName: 'Dark Draft960',
     family: 'chess',
     board: 'chess-8x8',
     movement: 'orthodox-chess',

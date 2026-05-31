@@ -335,7 +335,7 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/zh-hans/articles'), true);
   assert.equal(isClientRoute('/zh-hant/articles'), true);
   assert.equal(isClientRoute('/rules/dark-chess'), true);
-  assert.equal(isClientRoute('/rules/draft960'), true);
+  assert.equal(isClientRoute('/rules/dark-draft960'), true);
   assert.equal(isClientRoute('/zh-hans/rules/dark-chess'), true);
   assert.equal(isClientRoute('/zh-hant/rules/dark-chess'), true);
 });

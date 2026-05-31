@@ -82,7 +82,7 @@ export const ARTICLE_META: Record<
     description:
       'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
   },
-  draft960: {
+  'dark-draft960': {
     title: 'Dark Draft960',
     kind: 'rules',
     description:
@@ -137,6 +137,7 @@ const RENAMED_ARTICLE_SLUGS: Record<string, string> = {
   'dark-xiangqi-rules': 'dark-xiangqi',
   'mini-xiangqi-rules': 'mini-xiangqi',
   'dark-mini-xiangqi-rules': 'dark-mini-xiangqi',
+  draft960: 'dark-draft960',
 };
 
 export function injectPageMeta(html: string, meta: PageMeta): string {

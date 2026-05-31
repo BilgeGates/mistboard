@@ -44,7 +44,7 @@ export function createLiveLayout(
               <div data-game-controls class="game-controls"></div>
             </section>
             <section data-offer-section class="panel-section">
-              <h2>Draft960 Offer</h2>
+              <h2>Dark Draft960 Offer</h2>
               <div data-starts class="starts"></div>
             </section>
             <section data-selection-section class="panel-section">

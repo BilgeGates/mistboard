@@ -581,7 +581,7 @@ function renderGameInfo(view: PlayerView | null): void {
 function formatLabel(view: PlayerView | null): string {
   const variant = view?.variant ?? liveState.state?.variant ?? liveState.variantRequested;
   if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960') {
-    return 'Draft960';
+    return 'Dark Draft960';
   }
   const base = variant === 'dark-chess' ? 'Dark chess' : capitalize(variant ?? 'dark chess');
   const isDraft960 =
@@ -589,7 +589,7 @@ function formatLabel(view: PlayerView | null): string {
     liveState.variantRequested === 'dark-draft960' ||
     Object.values(liveState.offers).some((arr) => arr && arr.length > 0) ||
     Object.keys(liveState.resolvedStartIds).length > 0;
-  return isDraft960 ? `${base} · Draft960` : base;
+  return isDraft960 ? `${base} · Dark Draft960` : base;
 }
 
 function timeControlLabel(view: PlayerView | null): string | null {

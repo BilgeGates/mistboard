@@ -3492,7 +3492,7 @@ export const articles: Article[] = [
     ],
   },
   {
-    slug: 'draft960',
+    slug: 'dark-draft960',
     kind: 'rules',
     title: 'Dark Draft960',
     summary:
@@ -3500,7 +3500,7 @@ export const articles: Article[] = [
     status: 'draft',
     audience:
       'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Dark Draft960 unique.',
-    thumbnail: ARTICLE_OG_POSITIONS.draft960,
+    thumbnail: ARTICLE_OG_POSITIONS['dark-draft960'],
     sections: [
       {
         heading: 'The draft',
