@@ -25,9 +25,12 @@ import {
   type RawSvgStepperBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,
+  withXiangqiPieceSet,
   type XiangqiReplayBlock,
 } from './articles-data.js';
 import { mountChessReplay, type ChessReplayController } from './chess-replay.js';
+import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
+import { type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
 
 // Nav + footer come from landing.ts. We avoid re-implementing them by accepting
@@ -131,6 +134,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
 
   const main = document.createElement('main');
   main.className = 'site-section article-page';
+  main.dataset.articleSlug = article.slug;
 
   const breadcrumb = document.createElement('p');
   breadcrumb.className = 'article-breadcrumb';
@@ -463,12 +467,75 @@ function renderLiveBoardsBlock(block: LiveBoardsBlock): HTMLElement {
   return figure;
 }
 
+// Xiangqi diagrams draw pieces as inline SVG glyphs, so — unlike chess diagrams,
+// which restyle through chessground CSS sprites — they must be re-rendered when
+// the piece-set picker changes. Each reactive holder keeps its render thunk; a
+// single app-life listener repaints every in-document holder on appearance
+// change. Holders detached by SPA navigation drop out of the query and are
+// garbage-collected with their WeakMap entry, so there is no per-figure listener
+// and no leak. Board theme + fog react through CSS vars, so they need no JS.
+const xqDiagramThunks = new WeakMap<HTMLElement, () => string>();
+let xqDiagramListenerInstalled = false;
+
+// Replace the holder's <svg> in place so the diagram stays a direct child (the
+// article CSS targets `.article-figure-xq > .xq-article-svg`) and any caption is
+// preserved. Each diagram thunk returns exactly one <svg> root.
+function paintXqDiagram(holder: HTMLElement, set: XiangqiPieceSet): void {
+  const thunk = xqDiagramThunks.get(holder);
+  if (!thunk) return;
+  const caption =
+    Array.from(holder.children).find((child) =>
+      child.classList.contains('article-figure-caption'),
+    ) ?? null;
+  for (const child of Array.from(holder.children)) {
+    if (child.classList.contains('xq-article-svg')) child.remove();
+  }
+  const scratch = document.createElement('div');
+  scratch.innerHTML = withXiangqiPieceSet(set, thunk);
+  for (const node of Array.from(scratch.childNodes)) {
+    holder.insertBefore(node, caption);
+  }
+}
+
+// Index/announcement card thumbnails are also xiangqi SVGs, but they re-apply
+// their own sizing attributes, so they carry a bespoke painter rather than the
+// in-place diagram repaint. Same single listener drives both.
+const xqThumbPainters = new WeakMap<HTMLElement, () => void>();
+
+function ensureXqDiagramListener(): void {
+  if (xqDiagramListenerInstalled) return;
+  xqDiagramListenerInstalled = true;
+  window.addEventListener(xiangqiAppearanceChangedEvent, () => {
+    const set = readStoredXiangqiPieceSet();
+    document
+      .querySelectorAll<HTMLElement>('[data-xq-diagram]')
+      .forEach((holder) => paintXqDiagram(holder, set));
+    document
+      .querySelectorAll<HTMLElement>('[data-xq-thumb]')
+      .forEach((wrap) => xqThumbPainters.get(wrap)?.());
+  });
+}
+
+function trackXqDiagram(holder: HTMLElement, thunk: () => string): void {
+  holder.dataset.xqDiagram = '';
+  xqDiagramThunks.set(holder, thunk);
+  ensureXqDiagramListener();
+}
+
 function renderRawSvgBlock(block: RawSvgBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-static';
-  figure.innerHTML = block.svg;
-  if (figure.querySelector('.xq-article-svg')) {
-    figure.classList.add('article-figure-xq');
+  if (typeof block.svg === 'function') {
+    trackXqDiagram(figure, block.svg);
+    paintXqDiagram(figure, readStoredXiangqiPieceSet());
+    if (figure.querySelector('.xq-article-svg')) {
+      figure.classList.add('article-figure-xq');
+    }
+  } else {
+    figure.innerHTML = block.svg;
+    if (figure.querySelector('.xq-article-svg')) {
+      figure.classList.add('article-figure-xq');
+    }
   }
   if (block.caption) {
     const cap = document.createElement('figcaption');
@@ -527,7 +594,10 @@ function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
   function render(): void {
     const step = block.steps[stepIdx];
     if (!step) return;
-    frame.innerHTML = step.svg;
+    frame.innerHTML =
+      typeof step.svg === 'function'
+        ? withXiangqiPieceSet(readStoredXiangqiPieceSet(), step.svg)
+        : step.svg;
     const hasXiangqiDiagram = Boolean(frame.querySelector('.xq-article-svg'));
     frame.classList.toggle('raw-svg-stepper-frame-xq', hasXiangqiDiagram);
     figure.classList.toggle('article-figure-xq', hasXiangqiDiagram);
@@ -578,6 +648,16 @@ function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
   next.addEventListener('click', onNext);
   host.addEventListener('keydown', onKeyDown);
   render();
+
+  // Reactive piece set: repaint the frame's current step when the picker
+  // changes. render() already painted it; the global listener handles changes.
+  if (block.steps.some((step) => typeof step.svg === 'function')) {
+    trackXqDiagram(frame, () => {
+      const step = block.steps[stepIdx];
+      if (!step) return '';
+      return typeof step.svg === 'function' ? step.svg() : step.svg;
+    });
+  }
 
   return figure;
 }
@@ -850,15 +930,27 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
   wrap.className = 'articles-index-card-thumb';
   wrap.setAttribute('aria-hidden', 'true');
   if (thumb.kind === 'svg') {
-    const template = document.createElement('template');
-    template.innerHTML = thumb.svg.trim();
-    const svg = template.content.firstElementChild;
-    if (svg instanceof SVGSVGElement) {
-      svg.setAttribute('width', '100%');
-      svg.setAttribute('height', '100%');
-      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-      svg.style.display = 'block';
-      wrap.append(svg);
+    const applySvg = (raw: string): void => {
+      const template = document.createElement('template');
+      template.innerHTML = raw.trim();
+      const svg = template.content.firstElementChild;
+      if (svg instanceof SVGSVGElement) {
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        svg.style.display = 'block';
+        wrap.replaceChildren(svg);
+      }
+    };
+    if (typeof thumb.svg === 'function') {
+      const svgThunk = thumb.svg;
+      const paint = () => applySvg(withXiangqiPieceSet(readStoredXiangqiPieceSet(), svgThunk));
+      paint();
+      wrap.dataset.xqThumb = '';
+      xqThumbPainters.set(wrap, paint);
+      ensureXqDiagramListener();
+    } else {
+      applySvg(thumb.svg);
     }
     return wrap;
   }

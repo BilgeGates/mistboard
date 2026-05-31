@@ -398,6 +398,75 @@
   margin-inline: auto;
 }
 
+/* Dark Mini Xiangqi: shrink its two-board fog examples so each board renders at
+   the same scale as the three-board triptych above them (which fills the
+   column). The pair SVG is ~474px wide, the triptych ~718px, so 474/718 ≈ 66%
+   of the column lines the per-board sizes up. Higher specificity than the
+   mobile `pair` rule below, so it holds at every breakpoint; scoped to this
+   slug so the dark-xiangqi pairs keep their larger size. */
+[data-article-slug="dark-mini-xiangqi"]
+  .article-figure-xq
+  > .xq-article-svg[data-xq-layout="pair"] {
+  width: 66%;
+  margin-inline: auto;
+}
+
+/* Xiangqi diagram theming. The diagrams draw their own board (chessground can't
+   render a xiangqi grid), so their colors come from CSS vars driven by the same
+   data-xiangqi-board-theme / data-fog-theme attributes the live xiangqi board
+   uses. Changing the board/fog picker restyles every diagram with no re-render,
+   the xiangqi equivalent of chess board-theme CSS. Defaults match the live
+   board's Tournament + Solid look so a diagram reads as a sibling of a live
+   game. (Piece sets are inline glyphs, so they re-render in JS instead.) */
+:root {
+  --xq-diagram-bg: #d9bd82;
+  --xq-diagram-ink: #4b3c2a;
+  --xq-diagram-fog: rgba(36, 25, 15, 0.55);
+}
+:root[data-xiangqi-board-theme="tournament"] {
+  --xq-diagram-bg: #d9bd82;
+  --xq-diagram-ink: #4b3c2a;
+}
+:root[data-xiangqi-board-theme="blue"] {
+  --xq-diagram-bg: #cdddea;
+  --xq-diagram-ink: #2c4a63;
+}
+:root[data-xiangqi-board-theme="mono"] {
+  --xq-diagram-bg: #e6e2d9;
+  --xq-diagram-ink: #555150;
+}
+:root[data-fog-theme="solid"] {
+  --xq-diagram-fog: rgba(36, 25, 15, 0.62);
+}
+:root[data-fog-theme="veil"] {
+  --xq-diagram-fog: rgba(36, 25, 15, 0.48);
+}
+:root[data-fog-theme="mistveil"] {
+  --xq-diagram-fog: rgba(48, 40, 30, 0.55);
+}
+:root[data-fog-theme="drift"] {
+  --xq-diagram-fog: rgba(36, 25, 15, 0.4);
+}
+:root[data-fog-theme="void"] {
+  --xq-diagram-fog: rgba(16, 12, 8, 0.82);
+}
+:root[data-fog-theme="invisible"] {
+  --xq-diagram-fog: rgba(36, 25, 15, 0);
+}
+
+.xq-article-svg .xq-diagram-bg {
+  fill: var(--xq-diagram-bg, #d9bd82);
+}
+.xq-article-svg .xq-diagram-line {
+  stroke: var(--xq-diagram-ink, #4b3c2a);
+}
+.xq-article-svg .xq-diagram-ink {
+  fill: var(--xq-diagram-ink, #4b3c2a);
+}
+.xq-article-svg .xq-diagram-fog {
+  fill: var(--xq-diagram-fog, rgba(36, 25, 15, 0.55));
+}
+
 /* Xiangqi game replay widget: reuses the stepper controls; only the header
    (players + event) needs its own styling. */
 .xq-replay {

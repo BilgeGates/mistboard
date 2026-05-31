@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readStoredSiteTheme, setSiteThemePreference, siteThemeOptions } from './theme.js';
+import {
+  initializeThemeSettings,
+  readStoredSiteTheme,
+  setSiteThemePreference,
+  siteThemeOptions,
+} from './theme.js';
 
 describe('site appearance preference', () => {
   beforeEach(() => {
@@ -78,4 +83,49 @@ function memoryStorage(): Storage {
     removeItem: (key) => values.delete(key),
     setItem: (key, value) => values.set(key, value),
   };
+}
+
+describe('appearance family gating', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'localStorage', { configurable: true, value: memoryStorage() });
+    document.body.innerHTML = '<nav class="site-nav"><div class="site-nav-utilities"></div></nav>';
+    document.documentElement.removeAttribute('data-board-family');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    document.body.innerHTML = '';
+  });
+
+  it('keeps Settings chess-only when no xiangqi variant is enabled', () => {
+    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'false');
+
+    rebuildThemePanel();
+
+    expect(document.querySelector('select[data-board-family-select]')).toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqboard"]')).toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqpiece"]')).toBeNull();
+    // Chess pickers + the shared fog picker stay.
+    expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
+  });
+
+  it('surfaces the Game dropdown + xiangqi pickers when a xiangqi flag is on', () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+
+    rebuildThemePanel();
+
+    expect(document.querySelector('select[data-board-family-select]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
+  });
+});
+
+// Drop any panel the persistent nav observer mounted before the flag stub, then
+// rebuild from scratch so the panel reflects the env stubbed in this test.
+function rebuildThemePanel(): void {
+  for (const control of document.querySelectorAll('[data-theme-control]')) control.remove();
+  initializeThemeSettings();
 }

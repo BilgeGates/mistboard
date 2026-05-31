@@ -60,7 +60,62 @@
   accent-color: var(--site-accent);
 }
 
+/* Inline field: label on the left, control on the right. */
+.theme-control-field-inline {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+/* The Game family dropdown. Neutral background + chevron so it reads on both
+   the light and dark site themes. */
+.theme-control-select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 108px;
+  border: 1px solid var(--site-border);
+  border-radius: 6px;
+  background-color: rgba(127, 127, 127, 0.12);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 26px 5px 9px;
+}
+
+.theme-control-select:focus-visible {
+  outline: 2px solid var(--site-focus);
+  outline-offset: 1px;
+}
+
+/* Section separator with a centered label ("── Game board & pieces ──"). */
+.theme-control-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.theme-control-divider::before,
+.theme-control-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--site-border);
+}
+
 .theme-control-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -73,6 +128,15 @@
   transition:
     background 140ms ease,
     color 140ms ease;
+}
+
+/* Down caret matching the nav menu dropdowns (e.g. Learn). */
+.theme-control-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
 }
 
 .theme-control-trigger:hover,

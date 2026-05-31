@@ -1,4 +1,6 @@
 import './theme.css';
+import type { GameFamilyId } from '@mistboard/game';
+import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import {
   DEFAULT_XIANGQI_PIECE_SET,
   XIANGQI_PIECE_SETS,
@@ -11,7 +13,9 @@ type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
 type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';
 type XiangqiBoardTheme = 'tournament' | 'blue' | 'mono';
 export type SiteTheme = 'system' | 'light' | 'dark';
-export type BoardFamily = 'chess' | 'xiangqi';
+// The appearance "family" is the GameSpec family (chess-family games share board
+// themes + piece sets; likewise for xiangqi). Driven by gameSpecForId(id).family.
+export type BoardFamily = GameFamilyId;
 
 const siteThemeStorageKey = 'mistboard.siteTheme';
 const boardStorageKey = 'mistboard.boardTheme';
@@ -70,6 +74,22 @@ const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'mono', label: 'Monochrome' },
 ];
 const xiangqiPieceSets = XIANGQI_PIECE_SETS;
+const defaultBoardFamily: BoardFamily = 'chess';
+
+// Xiangqi appearance (board themes + piece sets) is shared by full Dark Xiangqi
+// and Dark Mini Xiangqi, so either flag surfaces it. Gated so the hidden variants
+// don't leak a "Xiangqi" option into Settings on production. Evaluated at panel-
+// build time (flags are build-time constants, so this is stable per build).
+export function xiangqiAppearanceEnabled(): boolean {
+  return darkXiangqiEnabled() || darkMiniXiangqiEnabled();
+}
+
+function enabledAppearanceFamilies(): Array<{ id: BoardFamily; label: string }> {
+  return [
+    { id: 'chess', label: 'Chess' },
+    ...(xiangqiAppearanceEnabled() ? [{ id: 'xiangqi' as BoardFamily, label: 'Xiangqi' }] : []),
+  ];
+}
 let navObserver: MutationObserver | null = null;
 let systemThemeWatcherBound = false;
 
@@ -92,6 +112,14 @@ export function initializeThemeSettings(): void {
 // pickers (chess vs xiangqi). The fog picker is shared across both families.
 export function setBoardFamily(family: BoardFamily): void {
   document.documentElement.dataset.boardFamily = family;
+  syncBoardFamilyControls();
+}
+
+function currentBoardFamily(): BoardFamily {
+  const value = document.documentElement.dataset.boardFamily;
+  return enabledAppearanceFamilies().some((family) => family.id === value)
+    ? (value as BoardFamily)
+    : defaultBoardFamily;
 }
 
 function applySiteTheme(theme: SiteTheme): void {
@@ -156,6 +184,10 @@ function mountThemeControl(nav: HTMLElement): void {
   trigger.type = 'button';
   trigger.setAttribute('aria-expanded', 'false');
   trigger.textContent = 'Settings';
+  const triggerCaret = document.createElement('span');
+  triggerCaret.className = 'theme-control-caret';
+  triggerCaret.setAttribute('aria-hidden', 'true');
+  trigger.append(triggerCaret);
 
   const panel = document.createElement('div');
   panel.className = 'theme-control-panel';
@@ -163,6 +195,7 @@ function mountThemeControl(nav: HTMLElement): void {
   panel.setAttribute('aria-label', 'Display and sound settings');
 
   const siteThemeField = createSiteThemeField();
+  const boardFamilyField = createBoardFamilyField();
   const boardField = createTileField(
     'board',
     'Board colors',
@@ -238,15 +271,22 @@ function mountThemeControl(nav: HTMLElement): void {
     if (!expanded) openThemeMenu(control);
   });
 
+  // Global/shared settings up top; the board + piece pickers live in their own
+  // section at the bottom. The Game family dropdown and the xiangqi pickers only
+  // appear when a xiangqi variant is enabled (otherwise it's chess-only).
+  const perGame: HTMLElement[] = [];
+  if (xiangqiAppearanceEnabled()) perGame.push(boardFamilyField);
+  perGame.push(boardField);
+  if (xiangqiAppearanceEnabled()) perGame.push(xiangqiBoardField);
+  perGame.push(pieceField);
+  if (xiangqiAppearanceEnabled()) perGame.push(xiangqiPieceField);
   panel.append(
     siteThemeField,
-    boardField,
-    xiangqiBoardField,
     fogField,
-    pieceField,
-    xiangqiPieceField,
     volumeField,
     muteField,
+    createSectionDivider('Board & pieces'),
+    ...perGame,
   );
   control.append(trigger, panel);
   target.prepend(control);
@@ -283,6 +323,50 @@ export function createSiteThemeButton(theme: SiteTheme, label: string): HTMLButt
   if (readStoredSiteTheme() === theme) button.classList.add('selected');
   button.addEventListener('click', () => setSiteThemePreference(theme));
   return button;
+}
+
+// Picks which game family's board + piece pickers are shown, as a dropdown.
+// Defaults to the active page's family (set by the route via setBoardFamily);
+// switching it lets you configure another family's appearance.
+function createBoardFamilyField(): HTMLDivElement {
+  const field = document.createElement('div');
+  field.className = 'theme-control-field theme-control-field-inline';
+  const text = document.createElement('span');
+  text.textContent = 'Game';
+
+  const select = document.createElement('select');
+  select.className = 'theme-control-select';
+  select.dataset.boardFamilySelect = '';
+  select.setAttribute('aria-label', 'Board and piece game family');
+  for (const family of enabledAppearanceFamilies()) {
+    const option = document.createElement('option');
+    option.value = family.id;
+    option.textContent = family.label;
+    select.append(option);
+  }
+  select.value = currentBoardFamily();
+  select.addEventListener('change', () => setBoardFamily(select.value as BoardFamily));
+
+  field.append(text, select);
+  return field;
+}
+
+function createSectionDivider(label: string): HTMLDivElement {
+  const divider = document.createElement('div');
+  divider.className = 'theme-control-divider';
+  const text = document.createElement('span');
+  text.textContent = label;
+  divider.append(text);
+  return divider;
+}
+
+function syncBoardFamilyControls(): void {
+  const active = currentBoardFamily();
+  document
+    .querySelectorAll<HTMLSelectElement>('select[data-board-family-select]')
+    .forEach((select) => {
+      select.value = active;
+    });
 }
 
 type TileKind = 'board' | 'fog' | 'piece' | 'xqboard' | 'xqpiece';
@@ -430,6 +514,7 @@ function syncThemeControls(): void {
   const soundMuted = readStoredSoundMuted();
   const effectiveVolume = readEffectiveSoundVolume();
   syncSiteThemeControls(siteTheme);
+  syncBoardFamilyControls();
   syncTileRow('board', boardTheme);
   syncTileRow('xqboard', readStoredXiangqiBoardTheme());
   syncTileRow('fog', fogTheme);

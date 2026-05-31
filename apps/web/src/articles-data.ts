@@ -51,7 +51,11 @@ import {
 import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
 import articleSnapshotFogBlack from './article-snapshot-fog-black.json' with { type: 'json' };
 import type { ChessReplaySpec } from './chess-replay.js';
-import { renderXiangqiPiece } from './xiangqi-pieces.js';
+import {
+  DEFAULT_XIANGQI_PIECE_SET,
+  renderXiangqiPieceGlyphed,
+  type XiangqiPieceSet,
+} from './xiangqi-piece-sets.js';
 import type { XiangqiReplaySpec } from './xiangqi-replay.js';
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
@@ -130,12 +134,17 @@ export type CtaBlock = {
 // with an optional caption.
 export type RawSvgBlock = {
   kind: 'raw-svg';
-  svg: string;
+  // A string is baked once (chess timelines, axis plots). A render thunk is
+  // re-run when the xiangqi appearance picker changes (piece set) and reflects
+  // the active board theme via CSS — the xiangqi-diagram equivalent of how
+  // chess diagrams restyle through chessground sprites + board-theme CSS.
+  svg: string | (() => string);
   caption?: string;
 };
 
 export type RawSvgStepperStep = {
-  svg: string;
+  // String, or a render thunk re-run on xiangqi appearance change (see RawSvgBlock).
+  svg: string | (() => string);
   narrative?: string;
 };
 
@@ -194,7 +203,9 @@ export type BoardArticleThumbnail = {
 
 export type SvgArticleThumbnail = {
   kind: 'svg';
-  svg: string;
+  // String is baked once; a render thunk re-runs on xiangqi appearance change so
+  // the index/announcement card tracks the picked piece set (board theme is CSS).
+  svg: string | (() => string);
 };
 
 export type ArticleThumbnail = BoardArticleThumbnail | SvgArticleThumbnail;
@@ -214,6 +225,10 @@ export type Article = {
   tldr?: string[];
   intro?: ArticleBlock[];
   thumbnail?: ArticleThumbnail;
+  // Which appearance family this article's diagrams belong to. Drives the
+  // Settings board/piece pickers while the article is open (xiangqi diagrams
+  // react to the xiangqi pickers). Defaults to chess when unset.
+  boardFamily?: 'chess' | 'xiangqi';
   sections: ArticleSection[];
 };
 
@@ -1495,9 +1510,28 @@ function xqVisualRow(rank: number, perspective: XiangqiColor): number {
   return perspective === 'red' ? 10 - rank : rank - 1;
 }
 
+// Render context for the xiangqi piece set. The diagram SVGs are produced by
+// synchronous render thunks; the piece layers read whichever set is active for
+// the current render. A diagram block re-runs its thunk inside
+// `withXiangqiPieceSet` to switch sets (the appearance picker), the same way
+// chess diagrams restyle via CSS sprites. Safe because rendering is synchronous
+// and single-threaded (build prerender and browser both); the previous set is
+// always restored.
+let activeXiangqiPieceSet: XiangqiPieceSet = DEFAULT_XIANGQI_PIECE_SET;
+
+export function withXiangqiPieceSet(set: XiangqiPieceSet, render: () => string): string {
+  const previous = activeXiangqiPieceSet;
+  activeXiangqiPieceSet = set;
+  try {
+    return render();
+  } finally {
+    activeXiangqiPieceSet = previous;
+  }
+}
+
 function xqBoardGrid(x0: number, y0: number, perspective: XiangqiColor): string {
   const parts: string[] = [
-    `<rect x="${x0}" y="${y0}" width="${XQ_BOARD_W}" height="${XQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="#f5dca8"/>`,
+    `<rect x="${x0}" y="${y0}" width="${XQ_BOARD_W}" height="${XQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
   ];
   const left = x0 + XQ_MARGIN;
   const right = left + 8 * XQ_CELL;
@@ -1507,15 +1541,15 @@ function xqBoardGrid(x0: number, y0: number, perspective: XiangqiColor): string 
   const riverBottom = top + 5 * XQ_CELL;
   for (let r = 0; r < 10; r += 1) {
     const y = top + r * XQ_CELL;
-    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" stroke="#5a3a14" stroke-width="1"/>`);
+    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`);
   }
   for (let f = 0; f < 9; f += 1) {
     const x = left + f * XQ_CELL;
     if (f === 0 || f === 8) {
-      parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" stroke="#5a3a14" stroke-width="1"/>`);
+      parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`);
     } else {
-      parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${riverTop}" stroke="#5a3a14" stroke-width="1"/>`);
-      parts.push(`<line x1="${x}" y1="${riverBottom}" x2="${x}" y2="${bottom}" stroke="#5a3a14" stroke-width="1"/>`);
+      parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${riverTop}" class="xq-diagram-line" stroke-width="1"/>`);
+      parts.push(`<line x1="${x}" y1="${riverBottom}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`);
     }
   }
   for (const palace of [
@@ -1528,11 +1562,11 @@ function xqBoardGrid(x0: number, y0: number, perspective: XiangqiColor): string 
     const b = xqPoint(palace.fileMax, bottomRank, perspective, x0, y0);
     const c = xqPoint(palace.fileMax, topRank, perspective, x0, y0);
     const d = xqPoint(palace.fileMin, bottomRank, perspective, x0, y0);
-    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#5a3a14" stroke-width="1"/>`);
-    parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" stroke="#5a3a14" stroke-width="1"/>`);
+    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="xq-diagram-line" stroke-width="1"/>`);
+    parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" class="xq-diagram-line" stroke-width="1"/>`);
   }
   parts.push(
-    `<text x="${left + 4 * XQ_CELL}" y="${(riverTop + riverBottom) / 2 + 1}" font-family="serif" font-size="16" fill="#5a3a14" text-anchor="middle" dominant-baseline="central">楚 河   漢 界</text>`,
+    `<text x="${left + 4 * XQ_CELL}" y="${(riverTop + riverBottom) / 2 + 1}" font-family="serif" font-size="16" class="xq-diagram-ink" text-anchor="middle" dominant-baseline="central">楚 河   漢 界</text>`,
   );
   return parts.join('');
 }
@@ -1567,7 +1601,7 @@ function xqFogLayer(
   if (parts.length === 0) return '';
   return [
     `<defs><clipPath id="${clipId}"><rect x="${x0}" y="${y0}" width="${XQ_BOARD_W}" height="${XQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}"/></clipPath></defs>`,
-    `<path d="${parts.join(' ')}" fill="#24190f" opacity="0.55" clip-path="url(#${clipId})"/>`,
+    `<path d="${parts.join(' ')}" class="xq-diagram-fog" clip-path="url(#${clipId})"/>`,
   ].join('');
 }
 
@@ -1650,7 +1684,7 @@ function xqPiecesLayer(
       if (!piece) return '';
       const { file, rank } = xqCoord(sq as XiangqiSquare);
       const { x, y } = xqPoint(file, rank, perspective, x0, y0);
-      return renderXiangqiPiece(piece as XiangqiPiece, {
+      return renderXiangqiPieceGlyphed(piece as XiangqiPiece, activeXiangqiPieceSet, {
         x: x - XQ_PIECE_SIZE / 2,
         y: y - XQ_PIECE_SIZE / 2,
         size: XQ_PIECE_SIZE,
@@ -1766,7 +1800,7 @@ function mxqPoint(file: number, rank: number): { x: number; y: number } {
 
 function mxqGridLayer(): string {
   const parts: string[] = [
-    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="#f5dca8"/>`,
+    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
   ];
   const left = XQ_MARGIN;
   const right = XQ_MARGIN + (MXQ_FILES - 1) * XQ_CELL;
@@ -1774,11 +1808,11 @@ function mxqGridLayer(): string {
   const bottom = XQ_MARGIN + (MXQ_RANKS - 1) * XQ_CELL;
   for (let r = 0; r < MXQ_RANKS; r += 1) {
     const y = top + r * XQ_CELL;
-    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" stroke="#5a3a14" stroke-width="1"/>`);
+    parts.push(`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="xq-diagram-line" stroke-width="1"/>`);
   }
   for (let f = 0; f < MXQ_FILES; f += 1) {
     const x = left + f * XQ_CELL;
-    parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" stroke="#5a3a14" stroke-width="1"/>`);
+    parts.push(`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" class="xq-diagram-line" stroke-width="1"/>`);
   }
   // Palace diagonals: files c-e (indices 2-4), ranks 1-3 (Red) and 5-7 (Black).
   for (const [loRank, hiRank] of [[1, 3], [5, 7]] as const) {
@@ -1786,8 +1820,8 @@ function mxqGridLayer(): string {
     const b = mxqPoint(4, loRank);
     const c = mxqPoint(4, hiRank);
     const d = mxqPoint(2, loRank);
-    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#5a3a14" stroke-width="1"/>`);
-    parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" stroke="#5a3a14" stroke-width="1"/>`);
+    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="xq-diagram-line" stroke-width="1"/>`);
+    parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}" class="xq-diagram-line" stroke-width="1"/>`);
   }
   return parts.join('');
 }
@@ -1813,7 +1847,7 @@ function mxqPiecesLayer(board: MiniXiangqiBoard): string {
       if (!piece) return '';
       const { file, rank } = miniXiangqiCoordOf(sq as MiniXiangqiSquare);
       const { x, y } = mxqPoint(file, rank);
-      return renderXiangqiPiece(piece as XiangqiPiece, {
+      return renderXiangqiPieceGlyphed(piece as XiangqiPiece, activeXiangqiPieceSet, {
         x: x - XQ_PIECE_SIZE / 2,
         y: y - XQ_PIECE_SIZE / 2,
         size: XQ_PIECE_SIZE,
@@ -1839,7 +1873,7 @@ function miniXqBoardSvg(opts: {
 }
 
 // Clean fog-free starting position, used as both the page board and card image.
-const MINI_XIANGQI_START_BOARD = miniXqBoardSvg({ board: createInitialMiniXiangqiBoard() });
+const MINI_XIANGQI_START_BOARD = () => miniXqBoardSvg({ board: createInitialMiniXiangqiBoard() });
 
 // Soldier movement: a Red soldier in the open moves and captures one point
 // forward or sideways (never backward) from the very first move, because Mini
@@ -1848,7 +1882,7 @@ const MINI_XIANGQI_SOLDIER_BOARD: MiniXiangqiBoard = {
   d4: { color: 'red', role: 'soldier' },
   c4: { color: 'black', role: 'soldier' },
 };
-const MINI_XIANGQI_SOLDIER_DIAGRAM = miniXqBoardSvg({
+const MINI_XIANGQI_SOLDIER_DIAGRAM = () => miniXqBoardSvg({
   board: MINI_XIANGQI_SOLDIER_BOARD,
   dots: ['d5', 'e4'],
   captures: ['c4'],
@@ -1878,7 +1912,7 @@ function mxqFogLayer(view: MiniXiangqiPlayerView, clipId: string): string {
   if (parts.length === 0) return '';
   return [
     `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}"/></clipPath></defs>`,
-    `<path d="${parts.join(' ')}" fill="#24190f" opacity="0.55" clip-path="url(#${clipId})"/>`,
+    `<path d="${parts.join(' ')}" class="xq-diagram-fog" clip-path="url(#${clipId})"/>`,
   ].join('');
 }
 
@@ -1893,7 +1927,7 @@ function mxqViewPiecesLayer(view: MiniXiangqiPlayerView): string {
       const piece = (
         entry.shrouded ? { color: entry.color, role: 'soldier' } : entry.piece
       ) as XiangqiPiece;
-      return renderXiangqiPiece(piece, {
+      return renderXiangqiPieceGlyphed(piece, activeXiangqiPieceSet, {
         x: x - XQ_PIECE_SIZE / 2,
         y: y - XQ_PIECE_SIZE / 2,
         size: XQ_PIECE_SIZE,
@@ -1999,11 +2033,11 @@ function miniXqPairSvg(
 // The opening position under fog. The card thumbnail shows Red's view; the page
 // shows all three angles side by side (Red's view, the true board, Black's view).
 const MINI_XIANGQI_DARK_STATE = createInitialMiniXiangqiState('dark-mini-xiangqi-diagram');
-const MINI_XIANGQI_DARK_THUMBNAIL = miniXqFogBoardSvg(
+const MINI_XIANGQI_DARK_THUMBNAIL = () => miniXqFogBoardSvg(
   getMiniXiangqiPlayerView(MINI_XIANGQI_DARK_STATE, 'red'),
   'mxq-fog-thumb',
 );
-const MINI_XIANGQI_DARK_TRIPTYCH = mxqBoardRowSvg(MINI_XIANGQI_DARK_STATE, [
+const MINI_XIANGQI_DARK_TRIPTYCH = () => mxqBoardRowSvg(MINI_XIANGQI_DARK_STATE, [
   {
     label: "RED'S VIEW",
     view: getMiniXiangqiPlayerView(MINI_XIANGQI_DARK_STATE, 'red'),
@@ -2036,7 +2070,7 @@ const MINI_XIANGQI_CANNON_STATE = mxqDemoState('dmxq-cannon-rule', {
   d3: { color: 'black', role: 'soldier' },
   d6: { color: 'black', role: 'soldier' },
 });
-const MINI_XIANGQI_CANNON_PAIR = miniXqPairSvg(
+const MINI_XIANGQI_CANNON_PAIR = () => miniXqPairSvg(
   MINI_XIANGQI_CANNON_STATE,
   getMiniXiangqiPlayerView(MINI_XIANGQI_CANNON_STATE, 'red'),
   'mxq-fog-cannon',
@@ -2048,7 +2082,7 @@ const MINI_XIANGQI_HORSE_STATE = mxqDemoState('dmxq-horse-leg', {
   d3: { color: 'red', role: 'horse' },
   d4: { color: 'black', role: 'soldier' },
 });
-const MINI_XIANGQI_HORSE_PAIR = miniXqPairSvg(
+const MINI_XIANGQI_HORSE_PAIR = () => miniXqPairSvg(
   MINI_XIANGQI_HORSE_STATE,
   getMiniXiangqiPlayerView(MINI_XIANGQI_HORSE_STATE, 'red'),
   'mxq-fog-horse',
@@ -2066,7 +2100,7 @@ function xqViewWithExtraVisibleSquares(
 
 const XQ_START_RED = getXiangqiPlayerView(XQ_START, 'red', 'D');
 const XQ_START_BLACK = getXiangqiPlayerView(XQ_START, 'black', 'D');
-const XQ_START_TRIPTYCH = xqSvg(
+const XQ_START_TRIPTYCH = () => xqSvg(
   XQ_BOARD_W * 3 + 56,
   XQ_BOARD_H + 52,
   [
@@ -2082,12 +2116,12 @@ const XQ_START_TRIPTYCH = xqSvg(
     }),
   ].join(''),
 );
-const XQ_RULES_PRIMER_START_BOARD = xqSvg(
+const XQ_RULES_PRIMER_START_BOARD = () => xqSvg(
   XQ_BOARD_W,
   XQ_BOARD_H + 52,
   xqBoardSvg({ state: XQ_START, x: 0, y: 0, label: 'STARTING POSITION', perspective: 'red', zones: true }),
 );
-const XQ_RULES_PRIMER_THUMBNAIL = xqSvg(
+const XQ_RULES_PRIMER_THUMBNAIL = () => xqSvg(
   XQ_BOARD_W,
   XQ_BOARD_H,
   [xqBoardGrid(0, 0, 'red'), xqPiecesLayer(XQ_START, null, 0, 0, 'red')].join(''),
@@ -2118,7 +2152,7 @@ const XQ_PRIMER_HORSE_BLOCKED = xqVisionDemoState('xq-primer-horse-blocked', {
   e5: { color: 'red', role: 'horse' },
   e6: { color: 'black', role: 'soldier' },
 });
-const XQ_PRIMER_HORSE_PAIR = xqSvg(
+const XQ_PRIMER_HORSE_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2149,7 +2183,7 @@ const XQ_PRIMER_HORSE_PAIR = xqSvg(
 const XQ_PRIMER_GENERAL = xqVisionDemoState('xq-primer-general', {
   e2: { color: 'red', role: 'general' },
 });
-const XQ_PRIMER_GENERAL_BOARD = xqSvg(
+const XQ_PRIMER_GENERAL_BOARD = () => xqSvg(
   XQ_BOARD_W,
   XQ_BOARD_H + 52,
   xqBoardSvg({
@@ -2181,7 +2215,7 @@ function xqFacingLine(x0: number): string {
   const yBottom = Math.max(a.y, b.y) - 16;
   return `<line x1="${a.x}" y1="${yTop}" x2="${a.x}" y2="${yBottom}" stroke="#d4351c" stroke-width="3" stroke-linecap="round" opacity="0.6" stroke-dasharray="3 5"/>`;
 }
-const XQ_PRIMER_FACING_PAIR = xqSvg(
+const XQ_PRIMER_FACING_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2207,7 +2241,7 @@ const XQ_PRIMER_FACING_PAIR = xqSvg(
 const XQ_PRIMER_ADVISOR = xqVisionDemoState('xq-primer-advisor', {
   e2: { color: 'red', role: 'advisor' },
 });
-const XQ_PRIMER_ADVISOR_BOARD = xqSvg(
+const XQ_PRIMER_ADVISOR_BOARD = () => xqSvg(
   XQ_BOARD_W,
   XQ_BOARD_H + 52,
   xqBoardSvg({
@@ -2231,7 +2265,7 @@ const XQ_PRIMER_ELEPHANT_EYE = xqVisionDemoState('xq-primer-elephant-eye', {
   e3: { color: 'red', role: 'elephant' },
   d4: { color: 'black', role: 'soldier' },
 });
-const XQ_PRIMER_ELEPHANT_PAIR = xqSvg(
+const XQ_PRIMER_ELEPHANT_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2267,7 +2301,7 @@ const XQ_PRIMER_CHARIOT = xqVisionDemoState('xq-primer-chariot', {
   e4: { color: 'red', role: 'chariot' },
   e8: { color: 'black', role: 'soldier' },
 });
-const XQ_PRIMER_CHARIOT_BOARD = xqSvg(
+const XQ_PRIMER_CHARIOT_BOARD = () => xqSvg(
   XQ_BOARD_W,
   XQ_BOARD_H + 52,
   xqBoardSvg({
@@ -2299,7 +2333,7 @@ const XQ_PRIMER_CANNON_CAPTURE = xqVisionDemoState('xq-primer-cannon-capture', {
   e5: { color: 'red', role: 'soldier' },
   e8: { color: 'black', role: 'chariot' },
 });
-const XQ_PRIMER_CANNON_PAIR = xqSvg(
+const XQ_PRIMER_CANNON_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2335,7 +2369,7 @@ const XQ_PRIMER_SOLDIER_BEFORE = xqVisionDemoState('xq-primer-soldier-before', {
 const XQ_PRIMER_SOLDIER_AFTER = xqVisionDemoState('xq-primer-soldier-after', {
   e6: { color: 'red', role: 'soldier' },
 });
-const XQ_PRIMER_SOLDIER_PAIR = xqSvg(
+const XQ_PRIMER_SOLDIER_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2415,7 +2449,7 @@ const XQ_VISION_STATES = [
 const XQ_VISIBILITY_GRID_COLUMNS = 3;
 const XQ_VISIBILITY_GRID_GAP = 28;
 const XQ_VISIBILITY_GRID_ROW_H = XQ_BOARD_H + 52;
-const XQ_VISIBILITY_GRID = xqSvg(
+const XQ_VISIBILITY_GRID = () => xqSvg(
   XQ_BOARD_W * XQ_VISIBILITY_GRID_COLUMNS + XQ_VISIBILITY_GRID_GAP * (XQ_VISIBILITY_GRID_COLUMNS - 1),
   XQ_VISIBILITY_GRID_ROW_H * Math.ceil(XQ_VISION_STATES.length / XQ_VISIBILITY_GRID_COLUMNS),
   XQ_VISION_STATES.map(({ state, label }, index) => {
@@ -2451,7 +2485,7 @@ const XQ_VISION_MOVE_AFTER: XiangqiGameState = {
   },
   lastMove: { from: 'b2' as XiangqiSquare, to: 'b9' as XiangqiSquare },
 };
-const XQ_VISION_MOVE_PAIR = xqSvg(
+const XQ_VISION_MOVE_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2490,7 +2524,7 @@ const XQ_CANNON_RULE_STATE: XiangqiGameState = {
   positionCounts: {},
 };
 const XQ_CANNON_RULE_RED = getXiangqiPlayerView(XQ_CANNON_RULE_STATE, 'red', 'D');
-const XQ_CANNON_RULE_PAIR = xqSvg(
+const XQ_CANNON_RULE_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2511,7 +2545,7 @@ const XQ_CANNON_RULE_PAIR = xqSvg(
     }),
   ].join(''),
 );
-const XQ_DARK_XIANGQI_THUMBNAIL = xqSvg(
+const XQ_DARK_XIANGQI_THUMBNAIL = () => xqSvg(
   XQ_BOARD_W,
   XQ_BOARD_H,
   [
@@ -2547,7 +2581,7 @@ const XQ_FACING_GENERAL_CAPTURED_RED = xqViewWithExtraVisibleSquares(
 );
 const XQ_FACING_GENERAL_STEPS = [
   {
-    svg: xqSvg(
+    svg: () => xqSvg(
       XQ_BOARD_W * 2 + 28,
       XQ_BOARD_H + 52,
       [
@@ -2570,7 +2604,7 @@ const XQ_FACING_GENERAL_STEPS = [
     ),
   },
   {
-    svg: xqSvg(
+    svg: () => xqSvg(
       XQ_BOARD_W * 2 + 28,
       XQ_BOARD_H + 52,
       [
@@ -2594,7 +2628,7 @@ const XQ_FACING_GENERAL_STEPS = [
     ),
   },
   {
-    svg: xqSvg(
+    svg: () => xqSvg(
       XQ_BOARD_W * 2 + 28,
       XQ_BOARD_H + 52,
       [
@@ -2627,7 +2661,7 @@ const XQ_BLOCKED_HORSE_LEGS_STATE = xqVisionDemoState('xq-blocked-horse-legs', {
   f9: { color: 'black', role: 'general' },
   g8: { color: 'black', role: 'horse' },
 });
-const XQ_BLOCKED_HORSE_LEGS_PAIR = xqSvg(
+const XQ_BLOCKED_HORSE_LEGS_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2655,7 +2689,7 @@ const XQ_BLOCKED_ELEPHANT_EYES_STATE = xqVisionDemoState('xq-blocked-elephant-ey
   b4: { color: 'black', role: 'soldier' },
   f4: { color: 'black', role: 'soldier' },
 });
-const XQ_BLOCKED_ELEPHANT_EYES_PAIR = xqSvg(
+const XQ_BLOCKED_ELEPHANT_EYES_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -2712,7 +2746,7 @@ const XQ_GENERAL_CAPTURE_AFTER = applyXiangqiMove(XQ_GENERAL_CAPTURE_BEFORE, {
 });
 const XQ_GENERAL_CAPTURE_BEFORE_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_BEFORE, 'red', 'D');
 const XQ_GENERAL_CAPTURE_AFTER_RED = getXiangqiPlayerView(XQ_GENERAL_CAPTURE_AFTER, 'red', 'D');
-const XQ_GENERAL_CAPTURE_PAIR = xqSvg(
+const XQ_GENERAL_CAPTURE_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
   XQ_BOARD_H + 52,
   [
@@ -3497,7 +3531,8 @@ export const articles: Article[] = [
     title: 'Dark Draft960',
     summary:
       "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
-    status: 'draft',
+    status: 'published',
+    publishedAt: '2026-05-31',
     audience:
       'Readers who have grokked dark chess (start with the rules article if not). Curious chess players following the Mistboard OG card to learn what makes Dark Draft960 unique.',
     thumbnail: ARTICLE_OG_POSITIONS['dark-draft960'],
@@ -3579,6 +3614,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'xiangqi',
+    boardFamily: 'xiangqi',
     kind: 'rules',
     title: 'Xiangqi Rules',
     summary:
@@ -3758,6 +3794,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'dark-xiangqi',
+    boardFamily: 'xiangqi',
     kind: 'rules',
     title: 'Dark Xiangqi',
     summary:
@@ -3849,15 +3886,6 @@ export const articles: Article[] = [
             kind: 'raw-svg',
             svg: XQ_CANNON_RULE_PAIR,
           } as ArticleBlock,
-          { kind: 'sub-heading', text: 'Facing generals' },
-          {
-            kind: 'paragraph',
-            text: 'Orthodox xiangqi forbids facing generals. Dark Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.',
-          },
-          {
-            kind: 'raw-svg-stepper',
-            steps: XQ_FACING_GENERAL_STEPS,
-          } as ArticleBlock,
           { kind: 'sub-heading', text: 'Horse legs' },
           {
             kind: 'paragraph',
@@ -3876,6 +3904,15 @@ export const articles: Article[] = [
             kind: 'raw-svg',
             svg: XQ_BLOCKED_ELEPHANT_EYES_PAIR,
           } as ArticleBlock,
+          { kind: 'sub-heading', text: 'Facing generals' },
+          {
+            kind: 'paragraph',
+            text: 'Orthodox xiangqi forbids facing generals. Dark Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.',
+          },
+          {
+            kind: 'raw-svg-stepper',
+            steps: XQ_FACING_GENERAL_STEPS,
+          } as ArticleBlock,
         ],
       },
       {
@@ -3883,7 +3920,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Playable Dark Xiangqi games are not public yet. These rules are published first so players can review the variant before live play opens.',
+            text: 'Playable Dark Xiangqi games are not public yet.',
           },
           {
             kind: 'cta',
@@ -3897,6 +3934,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'mini-xiangqi',
+    boardFamily: 'xiangqi',
     kind: 'rules',
     title: 'Mini Xiangqi',
     summary:
@@ -3974,7 +4012,7 @@ export const articles: Article[] = [
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: 'Mini Xiangqi is the open-information base game. Dark Mini Xiangqi adds Fog of War, where enemy pieces outside your vision disappear and the general falls by capture rather than checkmate. Or step up to the full board.',
+        lead: 'Mini Xiangqi is the open-information base game. Dark Mini Xiangqi adds Fog of War, where enemy pieces outside your vision disappear and the general falls by capture rather than checkmate.',
         links: [
           { label: 'Read Dark Mini Xiangqi', href: '/rules/dark-mini-xiangqi', emphasis: 'primary' },
           { label: 'Xiangqi', href: '/rules/xiangqi', emphasis: 'secondary' },
@@ -3986,6 +4024,7 @@ export const articles: Article[] = [
   },
   {
     slug: 'dark-mini-xiangqi',
+    boardFamily: 'xiangqi',
     kind: 'rules',
     title: 'Dark Mini Xiangqi',
     summary:
