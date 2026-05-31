@@ -392,6 +392,14 @@
   pointer-events: none;
 }
 
+:root[data-effective-theme="dark"] .captures-strip .captures-piece > piece.black {
+  border-radius: 50%;
+  background-color: rgba(238, 243, 235, 0.88);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.62),
+    0 1px 4px rgba(0, 0, 0, 0.28);
+}
+
 .captures-count-badge {
   position: absolute;
   right: -1px;
