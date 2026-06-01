@@ -1,5 +1,11 @@
-import type { IncomingMessage } from 'node:http';
-import { recordMessageTimestamp } from './server-policy.js';
+import { clientIpForRateLimit, recordMessageTimestamp } from './server-policy.js';
+
+// Re-exported so the auth routes keep importing the rate-limit key helper from
+// here. The implementation lives in server-policy.js alongside the proxy-trust
+// policy (trustedProxyHops) it depends on, and is shared with the feedback and
+// drain endpoints so there is one place that decides which X-Forwarded-For hop
+// to trust.
+export { clientIpForRateLimit };
 
 // In-memory, per-key sliding-window rate limiter for the auth endpoints.
 // Defense-in-depth on top of the per-challenge attempt cap: the cap stops a
@@ -31,17 +37,4 @@ export function createAuthRateLimiter(limit: number, windowMs: number): AuthRate
       return allowed;
     },
   };
-}
-
-// Client IP for rate-limit keying. Mirrors the feedback route: trust the first
-// x-forwarded-for hop when present (the deploy sits behind a proxy that sets
-// it), else fall back to the socket address. Returns a stable 'unknown' so
-// missing-IP requests still share a single bucket rather than bypassing limits.
-export function clientIpForRateLimit(request: IncomingMessage): string {
-  const xff = request.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.length > 0) {
-    const first = xff.split(',')[0]!.trim();
-    if (first.length > 0) return first;
-  }
-  return request.socket.remoteAddress ?? 'unknown';
 }

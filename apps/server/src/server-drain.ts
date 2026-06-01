@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import { readJsonBody, writeJson } from './routes/lib.js';
-import { isDrainToken, isProductionLikeRuntime } from './server-policy.js';
+import { clientIpForRateLimit, isDrainToken, isProductionLikeRuntime } from './server-policy.js';
 import type { Room } from './server-types.js';
 
 export type DrainController = {
@@ -73,7 +73,7 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
       writeJson(response, 405, { error: 'method_not_allowed' });
       return;
     }
-    const ip = requestIp(request);
+    const ip = clientIpForRateLimit(request);
     if (!drainRateAllowed(ip)) {
       writeJson(response, 429, { error: 'rate_limited' });
       return;
@@ -167,13 +167,6 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
     handleRequest,
     isDraining,
   };
-}
-
-function requestIp(request: IncomingMessage): string {
-  // X-Forwarded-For from Railway: comma-separated, first is the client.
-  const xff = request.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0]!.trim();
-  return request.socket.remoteAddress ?? 'unknown';
 }
 
 function bearerToken(request: IncomingMessage): string | undefined {

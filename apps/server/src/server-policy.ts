@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
+import type { IncomingMessage } from 'node:http';
 import { type GameEvent, type GameProjection, replayGameEvents } from '@mistboard/game';
 
 // Visibility rule: live games are visible only to seated players; finished
@@ -16,6 +17,7 @@ type RuntimeEnvKey =
   | 'MISTBOARD_DRAIN_TOKEN'
   | 'MISTBOARD_GUEST_PRESTART_ABORT_MS'
   | 'MISTBOARD_REQUIRE_DATABASE'
+  | 'MISTBOARD_TRUSTED_PROXY_HOPS'
   | 'NODE_ENV'
   | 'RAILWAY_ENVIRONMENT'
   | 'RAILWAY_ENVIRONMENT_NAME'
@@ -214,6 +216,44 @@ export function parseNonNegativeInteger(value: string | undefined): number | nul
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+// Number of proxy hops in front of the server that we trust to have appended a
+// correct client address to X-Forwarded-For. The trusted client IP is that many
+// hops from the END of the list — everything to its left is client-supplied and
+// must not be trusted. Defaults to 1, matching the Railway deployment (a single
+// edge proxy). Set MISTBOARD_TRUSTED_PROXY_HOPS to the real depth if the request
+// path changes. A value of 0 means "trust no forwarded hop" — use the socket
+// address only.
+export function trustedProxyHops(env: RuntimeEnv = process.env): number {
+  return parseNonNegativeInteger(env.MISTBOARD_TRUSTED_PROXY_HOPS) ?? 1;
+}
+
+// Resolve the client IP used as a rate-limit / abuse key. We trust only the hop
+// the proxy appended (counted from the right), never the leftmost hop, which is
+// fully attacker-controlled: a client can send any X-Forwarded-For it likes, and
+// the proxy only appends — it does not strip — so the first entry is spoofable.
+// Reading the wrong end let an attacker rotate the header to land in a fresh
+// bucket every request and bypass every per-IP limit. Falls back to the socket
+// address when the header is missing, has too few hops, or hop trust is disabled,
+// and to a stable 'unknown' so address-less requests still share one bucket
+// rather than slipping past the limiter.
+export function clientIpForRateLimit(
+  request: Pick<IncomingMessage, 'headers' | 'socket'>,
+  env: RuntimeEnv = process.env,
+): string {
+  const hops = trustedProxyHops(env);
+  const header = request.headers['x-forwarded-for'];
+  const raw = Array.isArray(header) ? header.join(',') : header;
+  if (hops > 0 && typeof raw === 'string' && raw.length > 0) {
+    const forwarded = raw
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+    const trusted = forwarded[forwarded.length - hops];
+    if (trusted) return trusted;
+  }
+  return request.socket.remoteAddress ?? 'unknown';
 }
 
 function parseBooleanEnv(value: string | undefined): boolean {

@@ -4,6 +4,7 @@ import { normalizeEmail } from './../account-identity.js';
 import { currentAccountUser } from './../account-session.js';
 import { sendFeedbackNotification } from './../feedback-notify.js';
 import * as persistence from './../persistence.js';
+import { clientIpForRateLimit } from './../server-policy.js';
 import { hashIp, readJsonBody, requireMethod, writeJson } from './lib.js';
 
 const feedbackMaxMessageLength = 5000;
@@ -22,11 +23,9 @@ export async function tryHandle(
   if (!requireMethod(request, response, 'POST')) return true;
 
   const user = await currentAccountUser(request);
-  const xff = request.headers['x-forwarded-for'];
-  const ip =
-    typeof xff === 'string' && xff.length > 0
-      ? xff.split(',')[0]!.trim()
-      : (request.socket.remoteAddress ?? 'unknown');
+  // Spam throttle keys on the proxy-appended client IP, not the spoofable
+  // leftmost X-Forwarded-For hop. See clientIpForRateLimit.
+  const ip = clientIpForRateLimit(request);
   const ipHash = user ? null : hashIp(ip);
 
   if (!user && persistence.isInitialized() && ipHash) {
