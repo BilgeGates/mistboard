@@ -195,15 +195,15 @@
 
 :root[data-effective-theme="dark"] {
   color-scheme: dark;
-  --site-bg: #101512;
-  --site-bg-soft: #151b17;
+  --site-bg: #0e1310;
+  --site-bg-soft: #141a16;
   --site-text: #e8ede6;
   --site-heading: #f5f7f0;
   --site-muted: #a6b1aa;
-  --site-panel: #171d19;
-  --site-panel-soft: #1d241f;
-  --site-border: #344139;
-  --site-border-soft: #263129;
+  --site-panel: #232d27;
+  --site-panel-soft: #2c372f;
+  --site-border: #44554b;
+  --site-border-soft: #2f3b32;
   --site-accent: #72c29f;
   --site-accent-strong: #9ad7ba;
   --site-accent-soft: #193127;
@@ -213,7 +213,7 @@
   --site-hover: #253027;
   --site-nav-bg: rgba(18, 23, 20, 0.94);
   --site-nav-border: #2a352f;
-  --site-stage-bg: linear-gradient(180deg, #111712 0, #151b17 460px, #101512 100%);
+  --site-stage-bg: linear-gradient(180deg, #0f1612 0, #141a16 460px, #0e1310 100%);
   --site-warning-bg: #2f2411;
   --site-warning-border: #725b22;
   --site-warning-text: #f0cf82;
