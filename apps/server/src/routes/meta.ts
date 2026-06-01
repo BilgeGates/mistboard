@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getBuildInfo } from '../build-info.js';
 import { darkXiangqiEnabled, ratedEnabled } from '../feature-flags.js';
 import * as persistence from '../persistence.js';
+import { getProxyTrustWarning } from '../server-policy.js';
 import {
   type HttpApiContext,
   isHttpAdminAuthorized,
@@ -25,6 +26,7 @@ export async function tryHandle(
       build: getBuildInfo(),
       darkXiangqiEnabled: darkXiangqiEnabled(),
       ratedEnabled: ratedEnabled(),
+      proxyTrust: getProxyTrustWarning(),
     });
     return true;
   }

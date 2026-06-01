@@ -229,6 +229,70 @@ export function trustedProxyHops(env: RuntimeEnv = process.env): number {
   return parseNonNegativeInteger(env.MISTBOARD_TRUSTED_PROXY_HOPS) ?? 1;
 }
 
+// True if `ip` is private, loopback, link-local, CGNAT, unspecified, or the
+// 'unknown' sentinel — i.e. not a public address. A correctly-resolved client
+// IP should be public, so a private one signals that MISTBOARD_TRUSTED_PROXY_HOPS
+// no longer matches the real proxy topology. Handles IPv4, IPv6, and IPv4-mapped
+// IPv6 (::ffff:a.b.c.d).
+export function isPrivateOrReservedIp(ip: string): boolean {
+  if (!ip || ip === 'unknown') return true;
+  let addr = ip.trim().toLowerCase();
+  if (addr.startsWith('[')) addr = addr.slice(1);
+  if (addr.endsWith(']')) addr = addr.slice(0, -1);
+  const zone = addr.indexOf('%');
+  if (zone !== -1) addr = addr.slice(0, zone);
+  const mapped = addr.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped) addr = mapped[1]!;
+
+  if (addr.includes(':')) {
+    if (addr === '::1' || addr === '::') return true; // loopback / unspecified
+    const head = Number.parseInt(addr.split(':')[0] ?? '', 16);
+    if (Number.isNaN(head)) return true; // unparseable → not a usable public addr
+    if ((head & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
+    if ((head & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
+    return false;
+  }
+
+  const octets = addr.split('.');
+  if (octets.length !== 4) return true;
+  const o = octets.map((p) => Number.parseInt(p, 10));
+  if (o.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return true;
+  const [a, b] = o as number[];
+  if (a === 10 || a === 127 || a === 0) return true; // 10/8, loopback, 0/8
+  if (a === 192 && b === 168) return true; // 192.168/16
+  if (a === 172 && b! >= 16 && b! <= 31) return true; // 172.16/12
+  if (a === 169 && b === 254) return true; // 169.254/16 link-local
+  if (a === 100 && b! >= 64 && b! <= 127) return true; // 100.64/10 CGNAT
+  return false;
+}
+
+let cachedProxyTrustWarning: string | null = null;
+
+// Returns a warning string if `ip` (resolved from X-Forwarded-For) is
+// private/reserved in a production-like runtime — the signature of a proxy-depth
+// misconfiguration — else null. Pure; the once-per-process side effect lives in
+// clientIpForRateLimit.
+export function proxyTrustWarningFor(
+  ip: string,
+  hops: number,
+  env: RuntimeEnv = process.env,
+): string | null {
+  if (!isProductionLikeRuntime(env)) return null;
+  if (!isPrivateOrReservedIp(ip)) return null;
+  return (
+    `[proxy-trust] client IP "${ip}" resolved from X-Forwarded-For is private/reserved; ` +
+    `MISTBOARD_TRUSTED_PROXY_HOPS=${hops} likely no longer matches the real proxy depth. ` +
+    `Rate-limit keys may collapse into one bucket (over-throttle), or if hops is too high the ` +
+    `spoofable X-Forwarded-For prefix is being read (GHSA-3fx7 reopened). Verify the proxy topology.`
+  );
+}
+
+// The first proxy-trust warning observed this process, or null. Exposed on
+// /api/server-status so the proxy-depth assumption can be checked without log access.
+export function getProxyTrustWarning(): string | null {
+  return cachedProxyTrustWarning;
+}
+
 // Resolve the client IP used as a rate-limit / abuse key. We trust only the hop
 // the proxy appended (counted from the right), never the leftmost hop, which is
 // fully attacker-controlled: a client can send any X-Forwarded-For it likes, and
@@ -251,7 +315,16 @@ export function clientIpForRateLimit(
       .map((part) => part.trim())
       .filter((part) => part.length > 0);
     const trusted = forwarded[forwarded.length - hops];
-    if (trusted) return trusted;
+    if (trusted) {
+      if (cachedProxyTrustWarning === null) {
+        const warning = proxyTrustWarningFor(trusted, hops, env);
+        if (warning) {
+          cachedProxyTrustWarning = warning;
+          console.warn(warning);
+        }
+      }
+      return trusted;
+    }
   }
   return request.socket.remoteAddress ?? 'unknown';
 }

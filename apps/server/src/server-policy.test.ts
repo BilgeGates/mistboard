@@ -14,6 +14,8 @@ import {
   isClientRoute,
   isDatabaseRequired,
   isDrainToken,
+  isPrivateOrReservedIp,
+  proxyTrustWarningFor,
   type RuntimeEnv,
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
@@ -343,4 +345,53 @@ test('isClientRoute matches parametric SPA routes', () => {
 test('isClientRoute rejects unknown paths', () => {
   assert.equal(isClientRoute('/does-not-exist'), false);
   assert.equal(isClientRoute('/api/games/recent'), false);
+});
+
+test('isPrivateOrReservedIp flags private, reserved, and unparseable addresses', () => {
+  for (const ip of [
+    '10.0.0.1',
+    '172.16.5.4',
+    '172.31.255.255',
+    '192.168.1.1',
+    '127.0.0.1',
+    '169.254.10.1', // link-local
+    '100.64.0.1', // CGNAT
+    '100.127.255.1', // CGNAT upper
+    '0.0.0.0',
+    '::1', // IPv6 loopback
+    'fc00::1', // unique-local
+    'fd12:3456:789a::1', // unique-local
+    'fe80::1ff:fe23:4567:890a', // link-local
+    '::ffff:10.0.0.1', // IPv4-mapped private
+    'unknown',
+    '',
+  ]) {
+    assert.equal(isPrivateOrReservedIp(ip), true, `expected private/reserved: ${ip}`);
+  }
+});
+
+test('isPrivateOrReservedIp treats real public addresses as public', () => {
+  for (const ip of [
+    '203.0.113.7',
+    '8.8.8.8',
+    '172.15.0.1', // just below 172.16/12
+    '172.32.0.1', // just above 172.31
+    '100.63.0.1', // just below CGNAT
+    '100.128.0.1', // just above CGNAT
+    '::ffff:8.8.8.8', // IPv4-mapped public
+    '2606:4700:4700::1111', // public IPv6
+  ]) {
+    assert.equal(isPrivateOrReservedIp(ip), false, `expected public: ${ip}`);
+  }
+});
+
+test('proxyTrustWarningFor warns only in production when the resolved IP is private', () => {
+  const prod: RuntimeEnv = { RAILWAY_SERVICE_NAME: 'web' };
+  // prod + private resolved IP → warns, and names the IP + hops in the message
+  const warning = proxyTrustWarningFor('10.0.0.5', 1, prod);
+  assert.ok(warning?.includes('10.0.0.5') && warning.includes('MISTBOARD_TRUSTED_PROXY_HOPS=1'));
+  // prod + public resolved IP → no warning
+  assert.equal(proxyTrustWarningFor('203.0.113.7', 1, prod), null);
+  // non-production → never warns, even for a private IP
+  assert.equal(proxyTrustWarningFor('10.0.0.5', 1, {}), null);
 });
