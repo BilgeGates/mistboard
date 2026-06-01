@@ -7,6 +7,10 @@ import {
 } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import type {
+  DarkMiniXiangqiLiveClient,
+  DarkMiniXiangqiLiveRoom,
+} from './server-dark-mini-xiangqi-live-room.js';
 import {
   type DarkMiniXiangqiEvent,
   type DarkMiniXiangqiRuntimeRoom,
@@ -43,22 +47,9 @@ import {
 import { recordMessageTimestamp, seatTokenFromProtocolHeader } from './server-policy.js';
 import { parseClientMessage } from './server-ws-messages.js';
 
-export type DarkMiniXiangqiLiveClient = {
-  debugRequested: false;
-  displaced: boolean;
-  id: string;
-  messageTimestamps: number[];
-  roomId: string;
-  seat: MiniXiangqiColor;
-  seatTokenHash?: string;
-  socket: WebSocket;
-  solo: false;
-  userId?: string | null;
-};
-
-export type DarkMiniXiangqiLiveRoom = Omit<DarkMiniXiangqiRuntimeRoom, 'clients'> & {
-  clients: Set<DarkMiniXiangqiLiveClient>;
-};
+// Re-exported (the definitions live in a leaf module so this handler and the
+// rematch module it imports don't form an import cycle).
+export type { DarkMiniXiangqiLiveClient, DarkMiniXiangqiLiveRoom };
 
 export type DarkMiniXiangqiWebSocketContext = {
   wsMessageLimit: number;

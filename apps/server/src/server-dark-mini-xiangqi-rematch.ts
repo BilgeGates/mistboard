@@ -19,7 +19,7 @@ import type {
 import type {
   DarkMiniXiangqiLiveClient,
   DarkMiniXiangqiLiveRoom,
-} from './server-ws-dark-mini-xiangqi.js';
+} from './server-dark-mini-xiangqi-live-room.js';
 
 export type DarkMiniXiangqiRematchContext = {
   send: (client: DarkMiniXiangqiLiveClient, payload: unknown) => void;
