@@ -7,7 +7,7 @@
   padding: 18px 16px 30px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .watch-header {
@@ -34,8 +34,8 @@
 
 .watch-header h1 {
   margin: 0;
-  font-size: clamp(28px, 5vw, 46px);
-  line-height: 0.96;
+  font-size: clamp(26px, 3.6vw, 34px);
+  line-height: 0.98;
 }
 
 .watch-header p {
@@ -43,7 +43,7 @@
   max-width: 58ch;
   color: var(--site-muted);
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
 .watch-channel-list {
@@ -51,6 +51,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* The `hidden` attribute (set when there is only one channel) is otherwise
+   overridden by the `display: flex` rule above, so the empty nav still
+   reserves its margin/gap. Collapse it for real. */
+.watch-channel-list[hidden] {
+  display: none;
 }
 
 .watch-channel-list a {
@@ -108,8 +115,8 @@
 
 .watch-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(216px, 256px);
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -362,25 +369,60 @@
 .watch-replay.replay-page {
   padding: 0;
   min-height: 0;
-  gap: 12px;
+  gap: 8px;
+}
+
+/* Names live in the header strip in watch mode, so the per-pane name row
+   never fills. Collapse it instead of reserving (visibility: hidden) space
+   above the top captures strip. */
+.watch-replay .replay-pane-name:empty {
+  display: none;
+}
+
+/* Tighten the label / captures / board / status stack so the controls and
+   "Ply n / n" caption clear the fixed-height container with room to spare. */
+.watch-replay .replay-pane {
+  gap: 2px;
 }
 
 .watch-replay .replay-layout {
-  gap: 12px;
-  padding: 12px 12px 0;
+  gap: 8px;
+  padding: 8px 8px 0;
   box-sizing: border-box;
 }
 
+/* The triptych boards snap to a multiple of 32px (round(down, --cg-w, 32px)),
+   so the column has to clear 288px for the board to step up from 256 -> 288.
+   The per-pane status row is empty during normal playback (it only fills with
+   WINNER/LOST at game end, which the header result chip + winner ring already
+   show), so dropping it both removes the dead space below the boards and frees
+   the vertical budget the taller board needs. */
+.watch-replay .replay-pane-status {
+  display: none;
+}
+
 .watch-replay .replay-board.cg-wrap {
-  --cg-w: min(100%, 340px);
+  /* Raise the cap so the freed horizontal/vertical room becomes board size
+     on wide screens; the triptych column still bounds it on narrower ones. */
+  --cg-w: min(100%, 460px);
+}
+
+/* Bottom controls: trim the button height and caption margin so the boards
+   can grow down into the reclaimed space. */
+.watch-replay .replay-control-bar .replay-button {
+  padding: 4px 11px;
+}
+
+.watch-replay .replay-ply-line {
+  margin-top: 2px;
 }
 
 .watch-replay .replay-game-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(210px, auto) minmax(0, 1fr);
   align-items: stretch;
-  margin: 12px 12px 0;
-  padding: 10px 12px;
+  margin: 8px 12px 0;
+  padding: 8px 12px;
   gap: 12px;
   border-radius: 8px;
 }
@@ -442,7 +484,7 @@
   .watch-shell {
     flex: 1 1 auto;
     min-height: 0;
-    padding-block: 12px;
+    padding-block: 8px;
   }
 
   .watch-stage {
@@ -452,6 +494,15 @@
 
   .watch-replay {
     overflow: hidden;
+  }
+
+  /* In the fixed-height (no-scroll) layout the board is square and its width
+     is chosen purely from the column, ignoring height. On a wide-but-short
+     monitor the column could push the board taller than the vertical budget
+     and re-clip the controls. Bound --cg-w by viewport height too; the 32px
+     snap still applies on top. Offset ~= all non-board chrome above + below. */
+  .watch-replay .replay-board.cg-wrap {
+    --cg-w: min(100%, 460px, calc(100dvh - 490px));
   }
 
   .watch-queue {
