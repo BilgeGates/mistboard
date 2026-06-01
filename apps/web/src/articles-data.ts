@@ -3547,7 +3547,6 @@ export const articles: Article[] = [
                 { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_OFFER_C).filter((p) => p.color === 'white')), fogSquares: PICK_SCREEN_FOG, orientation: 'white', label: 'C' },
               ],
             },
-            caption: 'Your three offers.',
           } as ArticleBlock,
           {
             kind: 'live-boards',
@@ -3559,13 +3558,16 @@ export const articles: Article[] = [
                 { board: piecesToBoard(startingPositionFromBackRank(DRAFT960_BLACK_OFFER_C).filter((p) => p.color === 'black')), fogSquares: BLACK_PICK_SCREEN_FOG, orientation: 'black', label: 'C' },
               ],
             },
-            caption: "Your opponent gets an independent set of three. Neither side sees the other's.",
           } as ArticleBlock,
         ],
       },
       {
         heading: 'The starting position',
         blocks: [
+          {
+            kind: 'paragraph',
+            text: "Say both players picked offer A. Each side sees only its own back rank; the opponent's stays in fog. Only the server holds both.",
+          },
           {
             kind: 'live-boards',
             spec: {
@@ -3576,7 +3578,6 @@ export const articles: Article[] = [
                 { board: D960_FULL_STATES[0]!.board, fogSquares: fogFor(D960_FULL_STATES[0]!, 'black'), orientation: 'white', label: "BLACK'S VIEW" },
               ],
             },
-            caption: "Both players picked offer A. Each sees their own back rank. The opponent's stays in fog.",
           } as ArticleBlock,
           {
             kind: 'paragraph',
