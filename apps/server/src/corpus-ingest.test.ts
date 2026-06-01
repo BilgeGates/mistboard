@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
-import type { GameEvent } from '@mistboard/game';
+import { fileURLToPath } from 'node:url';
+import { type GameEvent, isGameEndReason } from '@mistboard/game';
 import {
   namespaceRoomId,
   parseEventLog,
@@ -130,4 +133,63 @@ test('reconstructRunTimestamps falls back to ended==started without wall_seconds
   const endedAtMs = Date.UTC(2026, 4, 30, 12, 0, 0);
   const { startedAt, endedAt } = reconstructRunTimestamps(endedAtMs, undefined);
   assert.equal(startedAt.getTime(), endedAt.getTime());
+});
+
+// ── Finished-game guard against real committed samples ──────────────────────
+// The /watch replay-samples are committed bakeoff games; use them to prove the
+// finished-checker classifies by actual replay — not by metadata or filename.
+
+const SAMPLES_DIR = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  'web',
+  'public',
+  'replay-samples',
+);
+const sample = (file: string): GameEvent[] =>
+  parseEventLog(readFileSync(join(SAMPLES_DIR, file), 'utf-8'));
+
+test('summarizeReplay accepts finished samples (valid reasons), rejects ply-capped ones', () => {
+  const files = readdirSync(SAMPLES_DIR).filter((f) => f.endsWith('.jsonl'));
+  assert.ok(files.length > 0, 'expected committed replay samples');
+
+  let finished = 0;
+  for (const file of files) {
+    const result = summarizeReplay(sample(file));
+    if (result.finished) {
+      finished += 1;
+      assert.ok(
+        isGameEndReason(result.termination),
+        `${file}: finished with invalid reason ${result.termination}`,
+      );
+    }
+  }
+  assert.ok(finished > 0, 'expected at least one finished sample (positive path)');
+
+  // These two reached the 200-ply cap with no king capture — never terminal.
+  // (Their names say "truncated" for the engine's search, not the game; the
+  // check classifies by replay, so it still rejects them correctly.)
+  for (const file of [
+    'bakeoff-g21-truncated-chall-black-200p.jsonl',
+    'bakeoff-g28-truncated-chall-white-200p.jsonl',
+  ]) {
+    assert.equal(summarizeReplay(sample(file)).finished, false, `${file} must be rejected`);
+  }
+});
+
+test('a finished game cut before its terminal move is rejected (crash-in-the-middle)', () => {
+  const files = readdirSync(SAMPLES_DIR).filter((f) => f.endsWith('.jsonl'));
+  const finishedFile = files.find((f) => summarizeReplay(sample(f)).finished);
+  assert.ok(finishedFile, 'need a finished sample to truncate');
+
+  const events = sample(finishedFile);
+  assert.equal(summarizeReplay(events).finished, true);
+  // Drop the final (terminal) event — a game that stopped one move short of its
+  // ending. Must flip to not-finished, so a crashed log can never be ingested.
+  assert.equal(
+    summarizeReplay(events.slice(0, -1)).finished,
+    false,
+    'cutting the terminal move must make the game unfinished',
+  );
 });

@@ -106,23 +106,42 @@ function parseArgs(argv: string[]): Args {
   };
 }
 
+// A shard line that has no usable game record — a crashed/incomplete game
+// (e.g. {"error":"exit -9"} with no game_path) or an otherwise malformed entry.
+type SkippedShardLine = { gameId: string | undefined; error: string | undefined };
+
 // Read every shard-*.jsonl in the run dir into a de-duplicated map of per-game
-// records. The shard log is append-per-game and may repeat a game across crash
-// recoveries, so last-write-wins keyed by game_id.
-async function readShardRecords(runDir: string): Promise<Map<string, BakeoffGameRecord>> {
+// records, plus the lines that couldn't be parsed into a game (crashed games
+// have no game_path). The shard log is append-per-game and may repeat a game
+// across crash recoveries, so last-write-wins keyed by game_id.
+async function readShardRecords(
+  runDir: string,
+): Promise<{ records: Map<string, BakeoffGameRecord>; skipped: SkippedShardLine[] }> {
   const shardFiles = (await readdir(runDir))
     .filter((f) => f.startsWith('shard-') && f.endsWith('.jsonl'))
     .sort();
   const records = new Map<string, BakeoffGameRecord>();
+  const skipped: SkippedShardLine[] = [];
   for (const file of shardFiles) {
     const raw = await readFile(join(runDir, file), 'utf-8');
     for (const line of raw.split('\n')) {
       if (line.trim().length === 0) continue;
-      const record = parseShardRecord(JSON.parse(line) as Record<string, unknown>);
-      if (record) records.set(record.gameId, record);
+      const obj = JSON.parse(line) as Record<string, unknown>;
+      const record = parseShardRecord(obj);
+      if (record) {
+        records.set(record.gameId, record);
+      } else {
+        skipped.push({
+          gameId: typeof obj.game_id === 'string' ? obj.game_id : undefined,
+          error: typeof obj.error === 'string' ? obj.error : undefined,
+        });
+      }
     }
   }
-  return records;
+  // A game that crashed once but later completed has both a skipped and a valid
+  // record; report it only as imported, not crashed.
+  const crashed = skipped.filter((s) => !s.gameId || !records.has(s.gameId));
+  return { records, skipped: crashed };
 }
 
 type Tally = { imported: number; skippedMissing: number; skippedUnfinished: number };
@@ -227,8 +246,8 @@ async function main(): Promise<void> {
   }
   init(databaseUrl);
 
-  const records = await readShardRecords(args.run);
-  if (records.size === 0) {
+  const { records, skipped } = await readShardRecords(args.run);
+  if (records.size === 0 && skipped.length === 0) {
     console.error(`no shard-*.jsonl game records found in ${args.run}`);
     process.exit(1);
   }
@@ -241,11 +260,20 @@ async function main(): Promise<void> {
   for (const record of [...records.values()].sort((a, b) => a.gameId.localeCompare(b.gameId))) {
     await importGame(args.run, record, args, tally);
   }
+  for (const s of skipped) {
+    console.warn(
+      `  ${s.gameId ?? '?'}: crashed/incomplete (${s.error ?? 'no game log'}) — skipped`,
+    );
+  }
 
   await close();
+  // imported + stranded + unfinished + crashed should equal the shard's game
+  // count: every game is accounted for, none silently dropped.
+  const total = tally.imported + tally.skippedMissing + tally.skippedUnfinished + skipped.length;
   console.log(
     `done: ${tally.imported} imported, ${tally.skippedMissing} stranded (missing log), ` +
-      `${tally.skippedUnfinished} unfinished`,
+      `${tally.skippedUnfinished} unfinished, ${skipped.length} crashed/incomplete ` +
+      `(${total} shard records total)`,
   );
 }
 
