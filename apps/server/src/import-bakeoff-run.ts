@@ -21,6 +21,7 @@
 //     [--corpus <corpus-id>]        # default: run-dir basename
 //     [--mode eve]                  # default: eve
 //     [--visibility public]         # default: public
+//     [--skip-migrations]           # don't run migrations (use against an already-migrated DB, e.g. prod)
 
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
@@ -50,14 +51,22 @@ type Args = {
   opponent: EngineIdentity;
   mode: GameMode;
   visibility: GameVisibility;
+  skipMigrations: boolean;
 };
+
+const BOOLEAN_FLAGS = new Set(['skip-migrations']);
 
 function parseArgs(argv: string[]): Args {
   const raw = new Map<string, string>();
+  const flags = new Set<string>();
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]!;
-    if (arg.startsWith('--') && argv[i + 1] !== undefined) {
-      raw.set(arg.slice(2), argv[i + 1]!);
+    if (!arg.startsWith('--')) continue;
+    const key = arg.slice(2);
+    if (BOOLEAN_FLAGS.has(key)) {
+      flags.add(key);
+    } else if (argv[i + 1] !== undefined) {
+      raw.set(key, argv[i + 1]!);
       i += 1;
     }
   }
@@ -92,6 +101,7 @@ function parseArgs(argv: string[]): Args {
     opponent: { subjectId: opponentId, displayName: opponentName },
     mode,
     visibility,
+    skipMigrations: flags.has('skip-migrations'),
   };
 }
 
@@ -198,13 +208,17 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const migrationClient = new pg.Client({ connectionString: databaseUrl });
-  await migrationClient.connect();
-  try {
-    const applied = await runMigrations(migrationClient);
-    if (applied.length > 0) console.log(`migrations applied: ${applied.join(', ')}`);
-  } finally {
-    await migrationClient.end();
+  // Skip when pointed at an already-migrated DB (e.g. prod via the backup
+  // wrapper) so an ad-hoc ingest never applies schema changes as a side effect.
+  if (!args.skipMigrations) {
+    const migrationClient = new pg.Client({ connectionString: databaseUrl });
+    await migrationClient.connect();
+    try {
+      const applied = await runMigrations(migrationClient);
+      if (applied.length > 0) console.log(`migrations applied: ${applied.join(', ')}`);
+    } finally {
+      await migrationClient.end();
+    }
   }
   init(databaseUrl);
 
