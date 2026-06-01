@@ -570,6 +570,9 @@ function renderGameInfo(view: PlayerView | null): void {
     const [modeKey, modeVal] = modeEntry;
     items.push(infoItem(modeKey, modeVal));
   }
+  // Which color you're playing — shown alongside variant + mode so the meta
+  // panel matches the Dark Mini Xiangqi room.
+  items.push(infoItem('Seat', seatLabel(liveState.seat)));
   // Connection only surfaces when degraded — green-path "Connected · 1ms" is noise.
   if (liveState.connectionState !== 'connected') {
     const connLabel = connectionDetailLabel();

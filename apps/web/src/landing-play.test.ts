@@ -52,48 +52,6 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/dark_home');
   });
 
-  it('creates a Dark Xiangqi room from the flagged challenge variant', async () => {
-    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
-    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
-      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dxq_home' });
-      return jsonResponse({}, { status: 404 });
-    });
-    vi.stubGlobal('fetch', fetchSpy);
-    const panel = buildLandingPlayPanel([]);
-    document.body.append(panel);
-    const challengeButton = [...panel.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent === 'Challenge a friend',
-    );
-
-    challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    expect(variantSelect).not.toBeNull();
-    variantSelect!.value = 'dark-xiangqi';
-    variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(document.body.textContent).toContain('Red');
-    expect(document.body.textContent).not.toContain('White');
-    const glyphs = [...document.querySelectorAll('.landing-color-glyph')].map((glyph) =>
-      glyph.textContent?.trim(),
-    );
-    expect(glyphs).toEqual(['帥', '帥將', '將']);
-    const createButton = [...document.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent === 'Create room',
-    );
-    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    await flushPromises();
-
-    const roomCall = fetchSpy.mock.calls.find(([input]) => String(input) === '/api/rooms');
-    expect(roomCall).toBeDefined();
-    expect(JSON.parse(String(roomCall?.[1]?.body))).toEqual({
-      mode: 'pvp',
-      gameSpecId: 'dark-xiangqi',
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
-      preferredColor: 'random',
-    });
-    expect(window.location.pathname).toBe('/room/dxq_home');
-  });
-
   it('creates a timed Dark Mini Xiangqi room from the flagged challenge variant', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
@@ -138,6 +96,39 @@ describe('landing play panel', () => {
   });
 
   it('keeps Dark Mini Xiangqi hidden unless its client flag is enabled', () => {
+    // No DMX flag → DMX must not be offered. With no second playable variant
+    // there's no picker at all, so just assert DMX never appears as an option.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    [...panel.querySelectorAll('button')]
+      .find((candidate) => candidate.textContent === 'Challenge a friend')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
+    const options = variantSelect ? [...variantSelect.options].map((option) => option.value) : [];
+    expect(options).not.toContain('dark-mini-xiangqi');
+  });
+
+  it('uses gameSpecId, not variant, to deep-link the challenge variant projection', () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    window.history.replaceState(null, '', '/?play=friend&gameSpecId=dark-mini-xiangqi');
+
+    maybeOpenPlayDeepLink([]);
+
+    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
+    expect(variantSelect?.value).toBe('dark-mini-xiangqi');
+    expect(window.location.search).toBe('');
+  });
+
+  it('does not offer Dark Xiangqi (9x10) in the play menu — it has no runtime', () => {
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
@@ -145,33 +136,77 @@ describe('landing play panel', () => {
     );
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
-    const challengeButton = [...panel.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent === 'Challenge a friend',
-    );
+    [...panel.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Challenge a friend')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    expect(variantSelect).not.toBeNull();
-    expect([...variantSelect!.options].map((option) => option.value)).not.toContain(
-      'dark-mini-xiangqi',
-    );
+    // With only Dark Xiangqi's flag on (no DMX), there's no second variant, so no picker.
+    const options = variantSelect ? [...variantSelect.options].map((o) => o.value) : [];
+    expect(options).not.toContain('dark-xiangqi');
   });
 
-  it('uses gameSpecId, not variant, to deep-link the challenge variant projection', () => {
-    vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'true');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
-    );
-    window.history.replaceState(null, '', '/?play=friend&gameSpecId=dark-xiangqi');
+  it('sends the chess game spec id when finding a chess opponent', async () => {
+    const fetchSpy = lobbyFetchSpy();
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openLobbySetup(panel);
+    document
+      .querySelector<HTMLButtonElement>('.landing-setup-start')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
 
-    maybeOpenPlayDeepLink([]);
+    expect(lobbyPostBody(fetchSpy).gameSpecId).toBe('dark-chess');
+  });
 
+  it('sends the Dark Mini Xiangqi game spec id when finding a DMX opponent', async () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    const fetchSpy = lobbyFetchSpy();
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    openLobbySetup(panel);
     const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
-    expect(variantSelect?.value).toBe('dark-xiangqi');
-    expect(window.location.search).toBe('');
+    variantSelect!.value = 'dark-mini-xiangqi';
+    variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+    document
+      .querySelector<HTMLButtonElement>('.landing-setup-start')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(lobbyPostBody(fetchSpy).gameSpecId).toBe('dark-mini-xiangqi');
   });
 });
+
+// Resolve the lobby "Find opponent" → setup screen. The first matching button is
+// the landing action; clicking it opens the setup whose start button is
+// `.landing-setup-start`.
+function openLobbySetup(panel: HTMLElement): void {
+  [...panel.querySelectorAll('button')]
+    .find((button) => button.textContent === 'Find opponent')
+    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function lobbyFetchSpy(): ReturnType<typeof vi.fn> {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+    if (String(input) === '/api/lobby' && init?.method === 'POST') {
+      return jsonResponse({ status: 'matched', roomId: 'dmxq_lobby', url: '/room/dmxq_lobby' });
+    }
+    if (String(input) === '/api/lobby') return jsonResponse({ requests: [] });
+    return jsonResponse({}, { status: 404 });
+  });
+}
+
+function lobbyPostBody(fetchSpy: ReturnType<typeof vi.fn>): Record<string, unknown> {
+  const call = fetchSpy.mock.calls.find(
+    ([input, init]) =>
+      String(input) === '/api/lobby' && (init as RequestInit | undefined)?.method === 'POST',
+  );
+  expect(call).toBeDefined();
+  return JSON.parse(String((call?.[1] as RequestInit).body)) as Record<string, unknown>;
+}
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {

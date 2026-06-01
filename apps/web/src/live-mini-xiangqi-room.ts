@@ -283,7 +283,7 @@ function renderMeta(refs: LiveRefs): void {
   const seat = isMiniColor(liveState.seat) ? liveState.seat : null;
   refs.gameInfo.replaceChildren(
     infoItem('Variant', 'Dark Mini Xiangqi'),
-    infoItem('Mode', 'Direct challenge'),
+    infoItem('Mode', 'Casual'),
     infoItem('Seat', seat ? capitalize(seat) : 'Spectator'),
   );
   if (liveState.debugRequested) {
@@ -569,6 +569,17 @@ function renderActionStatus(
 ): void {
   refs.actionStatus.replaceChildren();
   refs.actionSection.hidden = false;
+  // During normal connected play, hide the turn notice (matches dark chess) — the
+  // board, clocks, and turn flash already convey whose move it is, so the
+  // "Your move / Red to move" banner is just noise.
+  if (
+    view?.status.type === 'playing' &&
+    isMiniColor(liveState.seat) &&
+    liveState.connectionState === 'connected'
+  ) {
+    refs.actionSection.hidden = true;
+    return;
+  }
   const notice = document.createElement('div');
 
   if (!darkMiniXiangqiEnabled()) {

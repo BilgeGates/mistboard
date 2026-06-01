@@ -1,5 +1,7 @@
 import {
   type GameSpec,
+  gameSpecForId,
+  type GameSpecId,
   gameSpecForLegacyLiveRoom,
   timeClassFromTimeControl,
   type VariantId,
@@ -29,11 +31,7 @@ export function classifyTimeControl(
   return 'classical';
 }
 
-export function gameSpecAnalyticsProps(input: {
-  variant?: VariantId | string | null;
-  hiddenDraft960?: boolean | string | null;
-}): GameSpecAnalyticsProps {
-  const spec = gameSpecForLegacyLiveRoom(input);
+function analyticsPropsFromSpec(spec: GameSpec): GameSpecAnalyticsProps {
   return {
     game_spec: spec.id,
     family: spec.family,
@@ -41,6 +39,19 @@ export function gameSpecAnalyticsProps(input: {
     visibility: spec.visibility,
     rating_pool: spec.ratingPoolBase,
   };
+}
+
+export function gameSpecAnalyticsProps(input: {
+  variant?: VariantId | string | null;
+  hiddenDraft960?: boolean | string | null;
+}): GameSpecAnalyticsProps {
+  return analyticsPropsFromSpec(gameSpecForLegacyLiveRoom(input));
+}
+
+// The legacy resolver only covers chess/draft960; this resolves any canonical
+// game spec (e.g. Dark Mini Xiangqi) so lobby analytics aren't mislabeled chess.
+export function gameSpecAnalyticsPropsForId(gameSpecId: GameSpecId): GameSpecAnalyticsProps {
+  return analyticsPropsFromSpec(gameSpecForId(gameSpecId));
 }
 
 type PostHogLike = {

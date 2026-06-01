@@ -7,8 +7,13 @@ import {
   TIME_CONTROLS,
   type TimeControlId,
 } from '@mistboard/game';
-import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
-import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
+import {
+  classifyTimeControl,
+  gameSpecAnalyticsProps,
+  gameSpecAnalyticsPropsForId,
+  track,
+} from './analytics.js';
+import { darkMiniXiangqiEnabled } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
@@ -68,6 +73,7 @@ type LobbyTicketResponse = {
   url?: string;
 };
 type OpenLobbyRequest = {
+  gameSpecId?: string;
   hiddenDraft960: boolean;
   rated?: boolean;
   timeControl: {
@@ -93,12 +99,9 @@ function enabledLandingVariantGameSpecs(): { gameSpecId: LandingGameSpecId; labe
   const specs: { gameSpecId: LandingGameSpecId; label: string }[] = [
     { gameSpecId: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
   ];
-  if (darkXiangqiEnabled()) {
-    specs.push({
-      gameSpecId: DARK_XIANGQI_SPEC_ID,
-      label: gameSpecForId(DARK_XIANGQI_SPEC_ID).publicName,
-    });
-  }
+  // Full Dark Xiangqi (9x10) has no live room/lobby integration yet — creating
+  // one 501s — so it is NOT offered in the play menu even when its appearance/
+  // spike flag is on. Re-add when the runtime lands (as Dark Mini Xiangqi did).
   if (darkMiniXiangqiEnabled()) {
     specs.push({
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
@@ -115,7 +118,8 @@ function parseLandingGameSpecId(value: string): LandingGameSpecId {
 }
 
 function deepLinkInitialVariant(variant: string | null): LandingGameSpecId | undefined {
-  if (variant === DARK_XIANGQI_SPEC_ID && darkXiangqiEnabled()) return DARK_XIANGQI_SPEC_ID;
+  // Dark Xiangqi (9x10) is intentionally omitted — it has no playable runtime,
+  // so it must not be reachable from the play menu or a deep link.
   if (variant === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiEnabled()) {
     return DARK_MINI_XIANGQI_SPEC_ID;
   }
@@ -256,10 +260,14 @@ function startLiveStatsPolling(stats: HTMLElement): void {
   }, 5_000);
 }
 
+// Lucide icons (ISC), inlined and unified to a single spec: 24-grid, 2px round
+// stroke, outline-only. Consistency is what makes the row read as a designed set
+// rather than three ad-hoc glyphs. swords = matchmaking/versus, link =
+// link-based challenge, bot = engine.
 const LANDING_PLAY_ICON_SVG: Record<'computer' | 'friend' | 'lobby', string> = {
-  lobby: `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="5.5" cy="5.5" r="2"/><path d="M2.5 16.5 4 9.5h3l1.5 7z"/><rect x="2" y="16.5" width="7" height="2" rx="0.5"/><circle cx="18.5" cy="5.5" r="2"/><path d="M15.5 16.5 17 9.5h3l1.5 7z"/><rect x="15" y="16.5" width="7" height="2" rx="0.5"/><path d="M10 11.5q1-1 2 0t2 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/><path d="M9.5 14q1-1 2 0t2 0 1 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.55"/></svg>`,
-  friend: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.5 14.5l-2 2a3.5 3.5 0 1 1-5-5l2-2"/><path d="M14.5 9.5l2-2a3.5 3.5 0 1 1 5 5l-2 2"/><path d="M9 15l6-6"/></svg>`,
-  computer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="3.2" r="1" fill="currentColor" stroke="none"/><path d="M12 4.2v2"/><rect x="2" y="11" width="2" height="4" rx="0.5"/><rect x="20" y="11" width="2" height="4" rx="0.5"/><rect x="4.5" y="6.5" width="15" height="13" rx="2.5"/><circle cx="9.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="14.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><path d="M9.5 16h5"/></svg>`,
+  lobby: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></svg>`,
+  friend: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+  computer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`,
 };
 
 function landingPlayAction(
@@ -347,11 +355,23 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
   const details = document.createElement('div');
   details.className = 'landing-lobby-request-details';
 
+  const requestSpecId = parseLandingGameSpecId(request.gameSpecId ?? DARK_CHESS_SPEC_ID);
   const primary = document.createElement('span');
   const ratedLabel = request.rated === false ? 'Casual' : 'Rated';
-  primary.textContent = `${formatTimeControl(request.timeControl)} ${request.hiddenDraft960 ? 'Dark Draft960' : 'Standard'} · ${ratedLabel}`;
+  // Chess shows its start format; other variants show the game name (a DMX open
+  // request isn't "Standard/Draft960").
+  const formatLabel =
+    requestSpecId === DARK_CHESS_SPEC_ID
+      ? request.hiddenDraft960
+        ? 'Dark Draft960'
+        : 'Standard'
+      : gameSpecForId(requestSpecId).publicName;
+  // Time control + game on the bold line; the casual/rated tag drops to the
+  // meta line with the wait age so a long variant name (Dark Mini Xiangqi)
+  // doesn't orphan "· Casual" onto its own wrapped line.
+  primary.textContent = `${formatTimeControl(request.timeControl)} ${formatLabel}`;
   const secondary = document.createElement('small');
-  secondary.textContent = `${formatWaitAge(request.waitingMs)} waiting`;
+  secondary.textContent = `${ratedLabel} · ${formatWaitAge(request.waitingMs)} waiting`;
   details.append(primary, secondary);
 
   const join = document.createElement('button');
@@ -362,12 +382,14 @@ function lobbyRequestRow(request: OpenLobbyRequest): HTMLElement {
     join.textContent = 'Joining';
     const status = document.createElement('span');
     const setup: LandingRoomSetup = {
-      gameSpecId: DARK_CHESS_SPEC_ID,
+      gameSpecId: requestSpecId,
       startFormat: request.hiddenDraft960 ? 'draft960' : 'standard',
       rated: request.rated ?? true,
       timeControl: request.timeControl,
       preferredColor: 'random',
     };
+    // Joining an open request matches instantly, so no engine offer is involved
+    // (unchanged from chess) — the offer only arms while waiting.
     joinLobbyFromPlay(join, setup, status);
   });
 
@@ -487,13 +509,17 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantSection.className = 'landing-setup-section';
   variantSection.append(setupSectionLabel('Variant'));
 
+  // The picker appears only when a second playable variant exists beyond chess.
+  // Dark Mini Xiangqi is currently the only one (full Dark Xiangqi has no
+  // runtime), so PvP and the lobby offer the same list.
   const variantSelectable =
-    choice.mode === 'pvp' && (darkXiangqiEnabled() || darkMiniXiangqiEnabled());
+    (choice.mode === 'pvp' || choice.mode === 'lobby') && darkMiniXiangqiEnabled();
   if (variantSelectable) {
+    const variantOptions = enabledLandingVariantGameSpecs();
     const gameSpecSelect = document.createElement('select');
     gameSpecSelect.className = 'landing-variant-select landing-engine-select';
     gameSpecSelect.setAttribute('aria-label', 'Variant');
-    for (const { gameSpecId, label } of enabledLandingVariantGameSpecs()) {
+    for (const { gameSpecId, label } of variantOptions) {
       const option = document.createElement('option');
       option.value = gameSpecId;
       option.textContent = label;
@@ -629,7 +655,11 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     );
     if (choice.mode === 'lobby') {
       cancelLobbyWait?.();
-      cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status, selectedEngineId);
+      // The empty-lobby "play the engine" offer is chess-only (no engine plays
+      // the xiangqi family yet), so DMX seekers wait without it.
+      const lobbyEngineId =
+        setup.gameSpecId === DARK_CHESS_SPEC_ID ? selectedEngineId : undefined;
+      cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status, lobbyEngineId);
       return;
     }
     void createRoomFromPlay(startButton, choice.mode, selectedEngineId, setup, status);
@@ -1144,10 +1174,14 @@ function joinLobbyFromPlay(
   const queueJoinedAt = Date.now();
   const bucketProps = {
     variant: setup.startFormat,
-    ...gameSpecAnalyticsProps({
-      variant: DARK_CHESS_SPEC_ID,
-      hiddenDraft960: setup.startFormat === 'draft960',
-    }),
+    // Chess keeps the legacy resolver (so draft960 stays tagged dark-draft960);
+    // other variants resolve straight from their spec id.
+    ...(setup.gameSpecId === DARK_CHESS_SPEC_ID
+      ? gameSpecAnalyticsProps({
+          variant: DARK_CHESS_SPEC_ID,
+          hiddenDraft960: setup.startFormat === 'draft960',
+        })
+      : gameSpecAnalyticsPropsForId(setup.gameSpecId)),
     initialMs: setup.timeControl.initialMs,
     incrementMs: setup.timeControl.incrementMs,
     time_class: classifyTimeControl(setup.timeControl.initialMs, setup.timeControl.incrementMs),
@@ -1293,6 +1327,7 @@ function joinLobbyFromPlay(
       headers: { 'content-type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
+        gameSpecId: setup.gameSpecId,
         hiddenDraft960: setup.startFormat === 'draft960',
         timeControl: setup.timeControl,
         rated: setup.rated,

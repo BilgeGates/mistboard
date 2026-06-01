@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { gameSpecForLegacyLiveRoom, type RoomTimeControl } from '@mistboard/game';
+import {
+  DARK_MINI_XIANGQI_SPEC_ID,
+  type GameSpecId,
+  gameSpecForLegacyLiveRoom,
+  type RoomTimeControl,
+} from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
-import { ratedEnabled } from './../feature-flags.js';
+import { darkMiniXiangqiEnabled, ratedEnabled } from './../feature-flags.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
 import type { LobbyTicket, Room } from './../server-types.js';
@@ -34,22 +39,34 @@ export async function tryHandle(
     }
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
-    const gameSpecGate = gateGameSpecRequest({
-      gameSpecId: body.gameSpecId,
-      variant: body.variant,
-    });
-    if (gameSpecGate.type === 'reject') {
-      writeJson(response, gameSpecGate.httpStatus, { error: gameSpecGate.error });
-      return true;
+    // Dark Mini Xiangqi joins the lobby on its own (casual-only) path; the chess
+    // gate would 501 it as not-integrated, so it's handled before the gate.
+    const isDarkMiniXiangqi = body.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID;
+    if (isDarkMiniXiangqi) {
+      if (!darkMiniXiangqiEnabled()) {
+        writeJson(response, 404, { error: 'dark_mini_xiangqi_disabled' });
+        return true;
+      }
+    } else {
+      const gameSpecGate = gateGameSpecRequest({
+        gameSpecId: body.gameSpecId,
+        variant: body.variant,
+      });
+      if (gameSpecGate.type === 'reject') {
+        writeJson(response, gameSpecGate.httpStatus, { error: gameSpecGate.error });
+        return true;
+      }
     }
-    const hiddenDraft960 = parseHiddenDraft960(body.hiddenDraft960);
+    const hiddenDraft960 = isDarkMiniXiangqi ? false : parseHiddenDraft960(body.hiddenDraft960);
     const timeControl =
       body.timeControl === undefined ? undefined : parseRoomTimeControl(body.timeControl);
     // Rated requires the flag on AND a signed-in requester. A guest (or anyone
     // when the flag is off) silently gets a casual ticket. Both sides of a match
     // are rated tickets, and the game-end account-gate is the final backstop.
-    const lobbyRated =
-      ratedEnabled() && body.rated === true && (await currentAccountUser(request)) !== null;
+    // Dark Mini Xiangqi has no rating system yet, so it is always casual.
+    const lobbyRated = isDarkMiniXiangqi
+      ? false
+      : ratedEnabled() && body.rated === true && (await currentAccountUser(request)) !== null;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
@@ -65,7 +82,16 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'server_draining', restartAt: ctx.drainDeadlineMs() }));
       return true;
     }
-    const ticket = await joinLobby(ctx, hiddenDraft960, timeControl ?? undefined, lobbyRated);
+    const gameSpecId = isDarkMiniXiangqi
+      ? DARK_MINI_XIANGQI_SPEC_ID
+      : gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960 }).id;
+    const ticket = await joinLobby(
+      ctx,
+      gameSpecId,
+      hiddenDraft960,
+      timeControl ?? undefined,
+      lobbyRated,
+    );
     writeJson(response, ticket.roomId ? 201 : 202, lobbyTicketResponse(ticket));
     return true;
   }
@@ -98,13 +124,15 @@ export async function tryHandle(
 
 async function joinLobby(
   ctx: HttpApiContext,
+  gameSpecId: GameSpecId,
   hiddenDraft960: boolean,
   timeControl: RoomTimeControl | undefined,
   rated = false,
 ): Promise<LobbyTicket> {
   pruneLobbyTickets(ctx);
   const timeKey = timeControlKey(timeControl);
-  const gameSpecId = gameSpecForLegacyLiveRoom({ variant: 'dark-chess', hiddenDraft960 }).id;
+  // Tickets only match within the same game spec, so chess and Dark Mini Xiangqi
+  // seekers never pair with each other even at the same time control.
   const matchedTicket = ctx.lobbyQueue.find(
     (ticket) =>
       ticket.roomId === null &&
@@ -131,17 +159,9 @@ async function joinLobby(
     return ticket;
   }
 
-  let room: Room;
+  let room: { id: string; region: string };
   try {
-    room = await ctx.createRoom(
-      'pvp',
-      'dark-chess',
-      ctx.pveBuiltinEngineClientId,
-      hiddenDraft960,
-      timeControl,
-      rated,
-      { randomSeating: true },
-    );
+    room = await createLobbyRoom(ctx, gameSpecId, hiddenDraft960, timeControl, rated);
   } catch (err) {
     ctx.lobbyTickets.delete(ticket.id);
     throw err;
@@ -149,13 +169,40 @@ async function joinLobby(
   const matchedAt = Date.now();
   matchedTicket.matchedAt = matchedAt;
   matchedTicket.roomId = room.id;
-  matchedTicket.region = room.region ?? 'global';
+  matchedTicket.region = room.region;
   ticket.matchedAt = matchedAt;
   ticket.roomId = room.id;
-  ticket.region = room.region ?? 'global';
+  ticket.region = room.region;
   const matchedIndex = ctx.lobbyQueue.findIndex((candidate) => candidate.id === matchedTicket.id);
   if (matchedIndex >= 0) ctx.lobbyQueue.splice(matchedIndex, 1);
   return ticket;
+}
+
+// Dispatch lobby room creation by game spec. Chess goes through the shared room
+// factory exactly as before; Dark Mini Xiangqi uses its own factory (PvP, random
+// seating, casual). A failure throws so the caller deletes the unmatched ticket.
+async function createLobbyRoom(
+  ctx: HttpApiContext,
+  gameSpecId: GameSpecId,
+  hiddenDraft960: boolean,
+  timeControl: RoomTimeControl | undefined,
+  rated: boolean,
+): Promise<{ id: string; region: string }> {
+  if (gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
+    const created = await ctx.createDarkMiniXiangqiRoom(timeControl, 'random');
+    if (!created.ok) throw new Error(`dark_mini_xiangqi_room_create_failed:${created.error}`);
+    return { id: created.room.id, region: 'global' };
+  }
+  const room: Room = await ctx.createRoom(
+    'pvp',
+    'dark-chess',
+    ctx.pveBuiltinEngineClientId,
+    hiddenDraft960,
+    timeControl,
+    rated,
+    { randomSeating: true },
+  );
+  return { id: room.id, region: room.region ?? 'global' };
 }
 
 function cancelLobbyTicket(ctx: HttpApiContext, ticketId: string): void {
