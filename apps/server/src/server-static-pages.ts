@@ -68,13 +68,13 @@ export const ARTICLE_META: Record<
     title: 'Chess Rules',
     kind: 'rules',
     description:
-      'The regular chess baseline for Mistboard: setup, turns, legal moves, captures, check, checkmate, castling, promotion, en passant, and common draws.',
+      'Standard chess rules, the primer behind Dark Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.',
   },
   'dark-chess': {
     title: 'Dark Chess Rules',
     kind: 'rules',
     description:
-      'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.',
+      'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
   },
   'dark-chess-concepts': {
     title: 'Dark Chess Concepts',
@@ -86,31 +86,31 @@ export const ARTICLE_META: Record<
     title: 'Dark Draft960',
     kind: 'rules',
     description:
-      "Each player drafts one of three Chess960 setups, sealed. From move zero, you don't know your opponent's back rank. Everything else is regular dark chess.",
+      "Dark Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.",
   },
   xiangqi: {
     title: 'Xiangqi Rules',
     kind: 'rules',
     description:
-      'The regular xiangqi baseline for Mistboard: intersections, palaces, river rules, piece movement, cannon screens, checks, facing generals, and endings.',
+      'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.',
   },
   'dark-xiangqi': {
     title: 'Dark Xiangqi',
     kind: 'rules',
     description:
-      'Xiangqi under Fog of War: each side sees only what its pieces can reach, hidden blockers matter, check warnings disappear, and the general falls by capture.',
+      'Xiangqi under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.',
   },
   'mini-xiangqi': {
     title: 'Mini Xiangqi',
     kind: 'rules',
     description:
-      'The compact 7x7 xiangqi ruleset behind Dark Mini Xiangqi: no advisors or elephants, no river, soldiers that move sideways from the first move, checkmate to win, and no stalemate draw.',
+      'Mini Xiangqi rules, the 7×7 primer behind Dark Mini Xiangqi: no advisors or elephants, no river, sideways soldiers, and checkmate to win.',
   },
   'dark-mini-xiangqi': {
     title: 'Dark Mini Xiangqi',
     kind: 'rules',
     description:
-      'Mini Xiangqi under Fog of War: a compact 7x7 variant with generals, chariots, cannons, horses, soldiers, shrouded blockers, and general capture.',
+      'Mini Xiangqi under Fog of War: each side sees only the points its pieces reach on the 7×7 board, and the general falls by capture.',
   },
   'engine-belief-state': {
     title: 'Building an engine for hidden-information chess',
