@@ -17,6 +17,28 @@ import { isColor } from './web-utils.js';
 export type PlayableSeat = Color | XiangqiColor;
 export type Seat = PlayableSeat | 'spectator';
 export type RoomMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
+
+// Shared rematch state for chess (white/black) and Dark Mini Xiangqi (red/black).
+// `declined` is a transient, client-only cue (the server doesn't send it); see the
+// rematch:state handling in live-socket.ts.
+export type RematchClientState = {
+  offers: { white?: boolean; black?: boolean; red?: boolean };
+  finalizedRoomId: string | null;
+  declined?: boolean;
+};
+
+// Set when the local player clicks "Cancel rematch", consumed by the next
+// rematch:state frame so the socket can distinguish a self-cancel from an
+// opponent decline (both clear the pending offer the same way on the wire).
+let pendingRematchCancel = false;
+export function noteRematchCancel(): void {
+  pendingRematchCancel = true;
+}
+export function takeRematchCancel(): boolean {
+  const was = pendingRematchCancel;
+  pendingRematchCancel = false;
+  return was;
+}
 export type PauseReason = 'shutdown' | 'admin' | 'engine-error';
 export type ConnectionState =
   | 'connecting'
@@ -161,16 +183,10 @@ export const liveState = {
   timeControl: null as { initialMs: number; incrementMs: number } | null,
   events: [] as GameEvent[],
   reconnectAttempt: 0,
-  rematch: {
-    // Dark Mini Xiangqi reuses this shared rematch state over red/black, so the
-    // offers map carries an optional `red` alongside chess's white/black.
-    offers: { white: false, black: false } as {
-      white?: boolean;
-      black?: boolean;
-      red?: boolean;
-    },
-    finalizedRoomId: null as string | null,
-  },
+  // Dark Mini Xiangqi reuses this shared rematch state over red/black, so the
+  // offers map carries an optional `red` alongside chess's white/black. `declined`
+  // is a transient client-only cue set when the opponent declines our offer.
+  rematch: { offers: { white: false, black: false }, finalizedRoomId: null } as RematchClientState,
   connectedSeats: { white: false, black: false } as ConnectedSeats,
 
   // Chessground instance — owned by live-render, typed here for cross-module access

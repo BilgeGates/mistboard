@@ -2,6 +2,7 @@ import type { Color, PlayerView } from '@mistboard/game';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
 import { currentView } from './live-view.js';
+import { rematchControls } from './rematch-controls.js';
 import { isColor, oppositeColor } from './web-utils.js';
 
 type RoomActionRefs = Pick<LiveRefs, 'roomActions'>;
@@ -26,8 +27,9 @@ export function renderRoomActions(refs: RoomActionRefs, deps: RoomActionDeps): v
   const view = currentView();
   const actions: HTMLElement[] = [roomAction('Back home', '/')];
   if (shouldShowPostGameRoomActions(view)) {
-    if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
-      for (const el of rematchButtons(deps.sendSocket)) actions.unshift(el);
+    const seat = liveState.seat;
+    if (liveState.roomMode === 'pvp' && isColor(seat)) {
+      actions.unshift(rematchControls(seat, oppositeColor(seat), deps.sendSocket));
     } else if (liveState.roomMode === 'pve') {
       actions.unshift(playAgainButton(refs, deps));
     }
@@ -67,59 +69,6 @@ function copyLinkButton(): HTMLButtonElement {
   return btn;
 }
 
-function rematchButtons(sendSocket: SendSocket): HTMLElement[] {
-  const mySeat = liveState.seat;
-  if (mySeat !== 'white' && mySeat !== 'black') return [];
-  const theirSeat: 'white' | 'black' = mySeat === 'white' ? 'black' : 'white';
-  const offers = liveState.rematch.offers;
-  const iOffered = offers[mySeat];
-  const theyOffered = offers[theirSeat];
-
-  if (iOffered && theyOffered) {
-    // Both confirmed; redirect is imminent. Show a brief affordance.
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.disabled = true;
-    btn.textContent = 'Starting rematch…';
-    return [btn];
-  }
-  if (iOffered) {
-    const cancel = document.createElement('button');
-    cancel.type = 'button';
-    cancel.className = '';
-    cancel.textContent = 'Cancel rematch';
-    cancel.addEventListener('click', () => {
-      sendSocket({ type: 'rematch:cancel' });
-    });
-    const waiting = document.createElement('span');
-    waiting.className = 'room-actions-note';
-    waiting.textContent = 'Waiting for opponent…';
-    return [waiting, cancel];
-  }
-  if (theyOffered) {
-    const accept = document.createElement('button');
-    accept.type = 'button';
-    accept.className = 'primary';
-    accept.textContent = 'Accept rematch';
-    accept.addEventListener('click', () => {
-      sendSocket({ type: 'rematch:offer' });
-    });
-    const decline = document.createElement('button');
-    decline.type = 'button';
-    decline.textContent = 'Decline';
-    decline.addEventListener('click', () => {
-      sendSocket({ type: 'rematch:decline' });
-    });
-    return [decline, accept];
-  }
-  const offer = document.createElement('button');
-  offer.type = 'button';
-  offer.textContent = 'Rematch';
-  offer.addEventListener('click', () => {
-    sendSocket({ type: 'rematch:offer' });
-  });
-  return [offer];
-}
 
 function roomAction(
   label: string,

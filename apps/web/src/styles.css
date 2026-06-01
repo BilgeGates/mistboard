@@ -1312,6 +1312,30 @@
   padding: 0 2px;
 }
 
+/* Rematch controls sit in one slot of the room-action stack (a label line above
+   a button group) so the layout doesn't reshuffle as the offer state changes —
+   Decline/Accept share the row the lone Rematch button held. Shared by chess and
+   Dark Mini Xiangqi; the buttons inherit the .room-actions button styling. */
+.room-rematch {
+  display: grid;
+  gap: 6px;
+}
+
+.room-rematch-note {
+  margin: 0;
+  color: #5a6960;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.room-rematch-buttons {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
 .share-room input,
 .share-room button {
   min-height: 38px;

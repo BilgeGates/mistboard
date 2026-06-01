@@ -4,6 +4,7 @@ import {
   liveState,
   normalizedOffers,
   seatTokenForRoom,
+  takeRematchCancel,
   writeSeatTokenForRoom,
 } from './live-state.js';
 import { setRestartBanner } from './restart-banner.js';
@@ -256,9 +257,25 @@ function handleSocketMessage(event: MessageEvent<string>): void {
     return;
   }
   if (message.type === 'rematch:state') {
+    const mySeat = liveState.seat;
+    const hadMyOffer = isPlayableSeat(mySeat) && Boolean(liveState.rematch.offers[mySeat]);
+    const stillMyOffer = isPlayableSeat(mySeat) && Boolean(message.offers[mySeat]);
+    const anyOffer = Boolean(message.offers.white || message.offers.black || message.offers.red);
+    // Decline and self-cancel both clear my offer on the wire, so they're only
+    // distinguishable by intent: if my pending offer vanished without a redirect
+    // and I didn't click Cancel, the opponent declined. Keep the cue until either
+    // side has an active offer again.
+    const iCancelled = takeRematchCancel();
+    const declined =
+      hadMyOffer && !stillMyOffer && !message.finalizedRoomId && !iCancelled
+        ? true
+        : anyOffer
+          ? false
+          : liveState.rematch.declined;
     liveState.rematch = {
       offers: message.offers,
       finalizedRoomId: message.finalizedRoomId,
+      declined,
     };
     _render();
     return;
