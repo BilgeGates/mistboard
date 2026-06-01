@@ -1,3 +1,4 @@
+import type { GameEvent } from '@mistboard/game';
 import { formatClock } from './web-utils.js';
 
 export type GameMeta = {
@@ -273,6 +274,29 @@ export function thinkingBudgetMsFromMeta(
   if (seconds !== null && seconds > 0) return seconds * 1000;
 
   return null;
+}
+
+// Engine self-play games carry no clock; their per-move compute budget lives on
+// the move events as `compute_ms`/`thinkTimeMs`. Recover it so the replay can
+// render the per-move count-up (e.g. "3.2s / 5s") for clockless games whose
+// stored metadata has no time control. The budget varies by run (5s, 13s, ...),
+// so derive it from the data rather than assuming a constant: take the median of
+// the moves that actually consumed time (ignoring instant/forced 0ms moves) and
+// round to the nearest second. That lands on the run's true cap because the
+// engine spends ~all of its allowance on most moves, while the median shrugs off
+// both the fast moves and the occasional overshoot.
+export function deriveThinkingBudgetMsFromEvents(events: readonly GameEvent[]): number | null {
+  const spent: number[] = [];
+  for (const event of events) {
+    if (event.type !== 'move-played') continue;
+    const ext = event as { compute_ms?: unknown; thinkTimeMs?: unknown };
+    const ms = numericValue(ext.compute_ms) ?? numericValue(ext.thinkTimeMs);
+    if (ms !== null && ms > 0) spent.push(ms);
+  }
+  if (spent.length === 0) return null;
+  spent.sort((a, b) => a - b);
+  const median = spent[Math.floor(spent.length / 2)]!;
+  return Math.max(1000, Math.round(median / 1000) * 1000);
 }
 
 function winningSideFromResult(result: string): 'white' | 'black' | 'draw' {

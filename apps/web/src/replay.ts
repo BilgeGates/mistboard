@@ -59,6 +59,7 @@ import {
   createGameHeaderStrip,
   createGameMetaPanel,
   createShareButton,
+  deriveThinkingBudgetMsFromEvents,
   type GameMeta,
   playerViewLabel,
   renderGameHeader,
@@ -495,6 +496,11 @@ export async function mountReplay(
   let lastNotifiedPly: number | null = null;
   let renderedClockState: GameState | null = null;
   let renderedClockEvents: GameEvent[] | null = null;
+  // Per-move budget recovered from a clockless game's move events when its
+  // stored metadata carries no time control (e.g. imported engine bakeoff
+  // games). Cached per sample so the count-up denominator is the run's real
+  // budget (5s, 13s, ...) instead of a blank or an assumed constant.
+  const derivedTimeControlByRoomId: Record<string, Record<string, unknown>> = {};
 
   function render(): void {
     root.dataset.sampleId = activeSample;
@@ -1043,6 +1049,7 @@ export async function mountReplay(
     annotationsForGame = [];
     events = nextEvents;
     moveCount = events.filter((e) => e.type === 'move-played').length;
+    maybeDeriveThinkingBudget(sampleId);
     beliefPanel?.setRows(belief?.rowsForSampleId(sampleId) ?? []);
     beliefPanel?.setTraceRows(belief?.traceRowsForSampleId?.(sampleId) ?? []);
     if (typeof loadOptions.initialPly === 'number') {
@@ -1137,8 +1144,24 @@ export async function mountReplay(
     truthPane.statusEl.textContent = '';
   }
 
+  // Recover a clockless engine game's per-move budget from its events when the
+  // stored metadata has none. Real games (with clock state) and games whose
+  // metadata already carries a budget are skipped; PvP move events have no
+  // `compute_ms`, so the derivation no-ops for them anyway.
+  function maybeDeriveThinkingBudget(sampleId: string): void {
+    if (derivedTimeControlByRoomId[sampleId]) return;
+    const baseMeta = metadataByRoomId?.[sampleId];
+    if (thinkingBudgetMsFromMeta(baseMeta?.timeControl) !== null) return;
+    const budgetMs = deriveThinkingBudgetMsFromEvents(events);
+    if (budgetMs !== null) {
+      derivedTimeControlByRoomId[sampleId] = { kind: 'per-move', milliseconds: budgetMs };
+    }
+  }
+
   function currentMeta(): GameMeta | undefined {
-    return metadataByRoomId?.[activeSample];
+    const meta = metadataByRoomId?.[activeSample];
+    const derived = derivedTimeControlByRoomId[activeSample];
+    return meta && derived ? { ...meta, timeControl: derived } : meta;
   }
 
   function applyEndGameState(state: GameState): void {
