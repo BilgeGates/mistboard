@@ -80,6 +80,17 @@ export function parseShardRecord(line: Record<string, unknown>): BakeoffGameReco
   return { gameId, tier1Color: color, gamePath, wallSeconds };
 }
 
+// Make a globally-unique room id for an ingested game. Bakeoff game ids
+// (v2bakeoff-gNNNN) are only unique within a run, so two runs collide on shared
+// indices and the later run's overlapping games are silently dropped. Prefixing
+// with the corpus (the run's identity) makes ids unique across runs while
+// staying deterministic, so re-ingesting the same run is still idempotent.
+// Already-namespaced ids pass through unchanged.
+export function namespaceRoomId(corpus: string, rawRoomId: string): string {
+  const prefix = `${corpus}--`;
+  return rawRoomId.startsWith(prefix) ? rawRoomId : `${prefix}${rawRoomId}`;
+}
+
 export type EngineIdentity = { subjectId: string; displayName: string };
 
 // Assign the two engine identities to white/black for one game. The bakeoff

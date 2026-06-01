@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { GameEvent } from '@mistboard/game';
 import {
+  namespaceRoomId,
   parseEventLog,
   parseShardRecord,
   participantsForBakeoffGame,
@@ -73,6 +74,26 @@ test('parseShardRecord rejects records missing id, color, or path', () => {
   assert.equal(parseShardRecord({ game_id: 'g', game_path: 'g.jsonl' }), null);
   assert.equal(parseShardRecord({ game_id: 'g', v2_color: 'green', game_path: 'g.jsonl' }), null);
   assert.equal(parseShardRecord({ game_id: 'g', v2_color: 'white' }), null);
+});
+
+// ── Room-id namespacing (cross-run collision guard) ─────────────────────────
+
+test('namespaceRoomId prefixes the corpus so different runs cannot collide', () => {
+  // Both runs name a game v2bakeoff-g0000; the corpus prefix keeps them distinct.
+  assert.equal(namespaceRoomId('two-step', 'v2bakeoff-g0000'), 'two-step--v2bakeoff-g0000');
+  assert.equal(
+    namespaceRoomId('mirror-robustness', 'v2bakeoff-g0000'),
+    'mirror-robustness--v2bakeoff-g0000',
+  );
+  assert.notEqual(
+    namespaceRoomId('two-step', 'v2bakeoff-g0000'),
+    namespaceRoomId('mirror-robustness', 'v2bakeoff-g0000'),
+  );
+});
+
+test('namespaceRoomId is idempotent — re-prefixing an already-namespaced id is a no-op', () => {
+  const once = namespaceRoomId('two-step', 'v2bakeoff-g0000');
+  assert.equal(namespaceRoomId('two-step', once), once);
 });
 
 // ── Per-game attribution ─────────────────────────────────────────────────────

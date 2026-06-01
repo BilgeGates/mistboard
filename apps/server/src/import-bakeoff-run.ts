@@ -30,6 +30,7 @@ import pg from 'pg';
 import {
   type BakeoffGameRecord,
   type EngineIdentity,
+  namespaceRoomId,
   parseEventLog,
   parseShardRecord,
   participantsForBakeoffGame,
@@ -146,7 +147,10 @@ async function importGame(
   }
 
   const events = parseEventLog(raw);
-  const roomId = roomIdFromEvents(events, record.gamePath);
+  // Namespace the room id by corpus so games from different runs (which reuse
+  // v2bakeoff-gNNNN ids) don't collide. Rewrite each event's roomId to match the
+  // stored column so the persisted events stay internally consistent.
+  const roomId = namespaceRoomId(args.corpus, roomIdFromEvents(events, record.gamePath));
   const summary = summarizeReplay(events);
   if (!summary.finished) {
     console.warn(`  ${record.gameId}: not finished (${summary.plyCount} plies) — skipped`);
@@ -155,6 +159,7 @@ async function importGame(
   }
 
   for (let seq = 0; seq < events.length; seq += 1) {
+    (events[seq] as { roomId?: string }).roomId = roomId;
     try {
       await appendEvent(roomId, seq, events[seq]!);
     } catch (err) {
