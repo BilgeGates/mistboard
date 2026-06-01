@@ -13,6 +13,8 @@ import {
   miniXiangqiTruthView,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
+import { buildNav } from './site-shell.js';
+import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
 
 type Perspective = MiniXiangqiColor | 'god';
 
@@ -21,12 +23,28 @@ let stylesInstalled = false;
 export function mountMiniXiangqiSpike(root: HTMLElement): void {
   installMiniXiangqiSpikeStyles();
 
+  // Site nav so the fog skin (and other appearance) settings are reachable here.
+  // render() replaces root.innerHTML, so the nav lives as a sibling before root
+  // and survives re-renders; the theme observer injects the Settings control.
+  if (root.parentElement && !document.querySelector('.site-nav')) {
+    root.before(buildNav());
+  }
+  setBoardFamily('xiangqi');
+
   let state = createInitialMiniXiangqiState('mini-xiangqi-spike');
   let perspective: Perspective = 'red';
   let selection: MiniXiangqiSquare | null = null;
+  // Flip rotates the board + fog to the far side while keeping the active POV's
+  // fog, so you can see a player's view from the opponent's orientation.
+  let flipped = false;
 
   const render = (): void => {
     const activePerspective = perspective === 'god' ? currentTurnOrRed(state) : perspective;
+    const renderOrientation: MiniXiangqiColor = flipped
+      ? activePerspective === 'red'
+        ? 'black'
+        : 'red'
+      : activePerspective;
     const view =
       perspective === 'god'
         ? miniXiangqiTruthView(state)
@@ -47,11 +65,12 @@ export function mountMiniXiangqiSpike(root: HTMLElement): void {
             ${perspectiveButton('red', perspective)}
             ${perspectiveButton('black', perspective)}
             ${perspectiveButton('god', perspective)}
+            <button type="button" class="mini-xq-button" data-action="flip" aria-pressed="${flipped}">Flip board</button>
             <button type="button" class="mini-xq-button" data-action="random">Random move</button>
             <button type="button" class="mini-xq-button" data-action="reset">Reset</button>
           </div>
           <div class="mini-xq-board-wrap">
-            ${renderMiniXiangqiBoardSvg(view, activePerspective, {
+            ${renderMiniXiangqiBoardSvg(view, renderOrientation, {
               interactive: true,
               showFog: perspective !== 'god',
               selectedSquare: selection,
@@ -76,6 +95,10 @@ export function mountMiniXiangqiSpike(root: HTMLElement): void {
           render();
         }
       });
+    });
+    root.querySelector<HTMLButtonElement>('[data-action="flip"]')?.addEventListener('click', () => {
+      flipped = !flipped;
+      render();
     });
     root
       .querySelector<HTMLButtonElement>('[data-action="reset"]')
@@ -114,8 +137,18 @@ export function mountMiniXiangqiSpike(root: HTMLElement): void {
     });
   };
 
+  // Xiangqi piece glyphs are baked into the SVG, so a piece-set change in
+  // Settings needs an explicit re-render (board-color + fog skins hot-swap via
+  // CSS and don't). Bind once per page.
+  if (!miniAppearanceBound) {
+    miniAppearanceBound = true;
+    window.addEventListener(xiangqiAppearanceChangedEvent, () => render());
+  }
+
   render();
 }
+
+let miniAppearanceBound = false;
 
 function perspectiveButton(value: Perspective, selected: Perspective): string {
   const active = value === selected ? ' aria-pressed="true"' : ' aria-pressed="false"';

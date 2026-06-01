@@ -26,7 +26,10 @@ import {
   type XiangqiPlayerView,
   type XiangqiSquare,
 } from '@mistboard/game';
+import { buildNav } from './site-shell.js';
+import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
 import { chooseHandTunedMove } from './xiangqi-bot.js';
+import { xiangqiFogRegion } from './xiangqi-fog.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
 
 // ── Geometry ───────────────────────────────────────────────────────────────
@@ -175,15 +178,12 @@ function fogLayerMask(view: XiangqiPlayerView, perspective: XiangqiColor, maskKe
     const y1 = rDisplay === RANKS - 1 ? HEIGHT : y + half;
     cutouts.push(`<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="black"/>`);
   }
-  return `
-    <defs>
-      <mask id="xq-fog-mask-${maskKey}">
-        <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="white"/>
-        ${cutouts.join('')}
-      </mask>
-    </defs>
-    <rect class="xq-fog-mask" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" mask="url(#xq-fog-mask-${maskKey})"/>
-  `;
+  return xiangqiFogRegion(
+    { width: WIDTH, height: HEIGHT, cell: CELL, margin: MARGIN, rx: 8 },
+    `xq-fog-mask-${maskKey}`,
+    'xq-fog-mask',
+    cutouts.join(''),
+  );
 }
 
 function selectionRing(selection: XiangqiSquare | null, perspective: XiangqiColor): string {
@@ -446,15 +446,12 @@ function gridFogMask(view: XiangqiPlayerView, perspective: XiangqiColor, maskKey
     const { x, y, w, h } = cellRect(file, rank, perspective);
     cutouts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black"/>`);
   }
-  return `
-    <defs>
-      <mask id="xq-grid-fog-${maskKey}">
-        <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="white"/>
-        ${cutouts.join('')}
-      </mask>
-    </defs>
-    <rect class="xq-fog-mask" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" mask="url(#xq-grid-fog-${maskKey})"/>
-  `;
+  return xiangqiFogRegion(
+    { width: WIDTH, height: HEIGHT, cell: CELL, margin: MARGIN, rx: 8 },
+    `xq-grid-fog-${maskKey}`,
+    'xq-fog-mask',
+    cutouts.join(''),
+  );
 }
 
 function gridPiecesLayer(view: XiangqiPlayerView, perspective: XiangqiColor): string {
@@ -743,6 +740,9 @@ interface SpikeState {
   boardStyle: BoardStyle;
   cannonMarker: CannonTargetMarker;
   serverRoomStatus: 'idle' | 'creating' | 'failed';
+  // Flip rotates the board (and its fog) to the opposite orientation while the
+  // POV's fog stays the same, so you can inspect a player's view from the far side.
+  flipped: boolean;
 }
 
 function freshState(): SpikeState {
@@ -757,7 +757,12 @@ function freshState(): SpikeState {
     boardStyle: 'intersection',
     cannonMarker: 'corners',
     serverRoomStatus: 'idle',
+    flipped: false,
   };
+}
+
+function flipColor(c: XiangqiColor): XiangqiColor {
+  return c === 'red' ? 'black' : 'red';
 }
 
 function gameAtCursor(history: XiangqiMove[], cursor: number): XiangqiGameState {
@@ -881,6 +886,7 @@ function controlsHtml(s: SpikeState): string {
         ${povBtn('red', 'Red')}
         ${povBtn('black', 'Black')}
         ${povBtn('god', 'God')}
+        <button data-action="flip" class="xq-btn${s.flipped ? ' on' : ''}">Flip board</button>
       </div>
       <div class="xq-control-row">
         <span class="xq-control-label">Cannon vision</span>
@@ -953,11 +959,13 @@ function statusHtml(s: SpikeState): string {
 }
 
 let active: { root: HTMLElement; state: SpikeState } | null = null;
+let xqSpikeAppearanceBound = false;
 
 function rerender(): void {
   if (!active) return;
   const { root, state } = active;
   const { view, orient } = viewForState(state);
+  const drawOrient = state.flipped ? flipColor(orient) : orient;
 
   root.replaceChildren();
   const container = document.createElement('div');
@@ -970,10 +978,10 @@ function rerender(): void {
     ${statusHtml(state)}
     <div class="xq-board-wrap">${
       state.boardStyle === 'grid'
-        ? renderBoardSvgGrid(view, orient, state.game, state.selection, 'main', state.cannonMarker)
+        ? renderBoardSvgGrid(view, drawOrient, state.game, state.selection, 'main', state.cannonMarker)
         : renderBoardSvg(
             view,
-            orient,
+            drawOrient,
             state.game,
             state.selection,
             state.fogStyle,
@@ -1013,6 +1021,11 @@ function attachHandlers(container: HTMLElement): void {
       active.state = { ...active.state, perspective: pov, selection: null };
       rerender();
     });
+  });
+  container.querySelector<HTMLElement>('[data-action="flip"]')?.addEventListener('click', () => {
+    if (!active) return;
+    active.state = { ...active.state, flipped: !active.state.flipped };
+    rerender();
   });
   container.querySelectorAll<HTMLElement>('[data-mode]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1242,7 +1255,7 @@ const STYLE = `
     letter-spacing: 4px;
   }
   .xq-fog { fill: #2a2218; opacity: 0.55; }
-  .xq-fog-mask { fill: #2a2218; opacity: 0.7; }
+  .xq-fog-mask { fill: var(--xq-fog-fill, rgba(42, 34, 24, 0.7)); }
   .xq-grid-cell { fill: #f5dca8; stroke: #5a3a14; stroke-width: 0.8; }
   .xq-grid-palace { fill: #ecc888; opacity: 0.55; }
   .xq-grid-palace-line { stroke: #5a3a14; stroke-width: 0.8; opacity: 0.7; }
@@ -1287,6 +1300,21 @@ const STYLE = `
 `;
 
 export function mountXiangqiSpike(root: HTMLElement): void {
+  // Site nav so the fog skin (and other appearance) settings are reachable while
+  // on this page. rerender() only replaces `root`, so the nav lives as a sibling
+  // before it and survives re-renders; the theme observer injects Settings.
+  if (root.parentElement && !document.querySelector('.site-nav')) {
+    root.before(buildNav());
+  }
+  setBoardFamily('xiangqi');
+  // Xiangqi pieces are baked into the SVG at render time, so a piece-set change
+  // in Settings needs an explicit re-render (the fog/board-color skins hot-swap
+  // via CSS, but the piece glyphs do not).
+  if (!xqSpikeAppearanceBound) {
+    xqSpikeAppearanceBound = true;
+    window.addEventListener(xiangqiAppearanceChangedEvent, () => rerender());
+  }
+
   // Auto-load a tuned-vs-tuned game so the triptych lands on real positions
   // immediately. Cursor at 0 = initial position; step forward to walk through.
   const history = runBotGame('hand-tuned', 'hand-tuned');

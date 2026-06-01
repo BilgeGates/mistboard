@@ -9,6 +9,7 @@ import {
   miniXiangqiSquareOf,
 } from '@mistboard/game';
 import { readStoredXiangqiPieceSet } from './theme.js';
+import { xiangqiFogRegion } from './xiangqi-fog.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
 // Bespoke SVG renderer for the 7x7 Dark Mini Xiangqi board. Pieces sit on
@@ -178,15 +179,12 @@ function fogLayer(
       return `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="black"/>`;
     })
     .join('');
-  return `
-    <defs>
-      <mask id="${maskId}">
-        <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="white"/>
-        ${cutouts}
-      </mask>
-    </defs>
-    <rect class="mini-xq-fog-mask" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10" mask="url(#${maskId})"/>
-  `;
+  return xiangqiFogRegion(
+    { width: WIDTH, height: HEIGHT, cell: CELL, margin: MARGIN, rx: 10 },
+    maskId,
+    'mini-xq-fog-mask',
+    cutouts,
+  );
 }
 
 function selectionRing(selection: MiniXiangqiSquare | null, perspective: MiniXiangqiColor): string {
@@ -293,12 +291,8 @@ export function installMiniXiangqiBoardStyles(): void {
       --mini-xq-palace-band: rgba(0, 0, 0, 0.06);
       --mini-xq-grid: #555150;
     }
-    :root[data-fog-theme="solid"] { --mini-xq-fog-fill: rgba(46, 43, 37, 0.82); }
-    :root[data-fog-theme="veil"] { --mini-xq-fog-fill: rgba(46, 43, 37, 0.6); }
-    :root[data-fog-theme="mistveil"] { --mini-xq-fog-fill: rgba(58, 52, 44, 0.72); }
-    :root[data-fog-theme="drift"] { --mini-xq-fog-fill: rgba(46, 43, 37, 0.5); }
-    :root[data-fog-theme="void"] { --mini-xq-fog-fill: rgba(18, 16, 13, 0.94); }
-    :root[data-fog-theme="invisible"] { --mini-xq-fog-fill: rgba(46, 43, 37, 0); }
+    /* Per-skin fog tints + texture toggles are shared with the full board and
+       live in app-base.css (--xq-fog-fill, .xq-fog-tex). */
     .mini-xq-board {
       display: block;
       width: 100%;
@@ -317,7 +311,7 @@ export function installMiniXiangqiBoardStyles(): void {
       stroke-linecap: round;
     }
     .mini-xq-fog-mask {
-      fill: var(--mini-xq-fog-fill, rgba(46, 43, 37, 0.82));
+      fill: var(--xq-fog-fill, rgba(46, 43, 37, 0.82));
       pointer-events: none;
     }
     .mini-xq-selection {

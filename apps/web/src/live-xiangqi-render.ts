@@ -14,6 +14,7 @@ import { darkXiangqiEnabled } from './feature-flags.js';
 import { setLiveLayoutGameSpec } from './live-layout.js';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
+import { xiangqiFogRegion } from './xiangqi-fog.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
 
 type DarkXiangqiWireBoardEntry =
@@ -477,15 +478,12 @@ function fogLayer(view: DarkXiangqiWireView, perspective: XiangqiColor, maskId: 
       return `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="black"/>`;
     })
     .join('');
-  return `
-    <defs>
-      <mask id="${maskId}">
-        <rect x="0" y="0" width="${WIDTH}" height="${HEIGHT}" fill="white"/>
-        ${cutouts}
-      </mask>
-    </defs>
-    <rect class="xq-live-fog-mask" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" mask="url(#${maskId})"/>
-  `;
+  return xiangqiFogRegion(
+    { width: WIDTH, height: HEIGHT, cell: CELL, margin: MARGIN, rx: 8 },
+    maskId,
+    'xq-live-fog-mask',
+    cutouts,
+  );
 }
 
 function lastMoveLayer(view: DarkXiangqiWireView, perspective: XiangqiColor): string {

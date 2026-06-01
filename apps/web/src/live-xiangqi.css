@@ -56,8 +56,10 @@
 }
 
 .xq-live-fog-mask {
-  fill: #24190f;
-  opacity: 0.55;
+  /* Shared global fog tint (app-base.css). Was hardcoded #24190f @ 0.55, which
+     made the fog skin picker dead on this board; the rgba alpha now carries the
+     opacity per skin. */
+  fill: var(--xq-fog-fill, rgba(36, 25, 15, 0.55));
 }
 
 .xq-live-lastmove-cell {

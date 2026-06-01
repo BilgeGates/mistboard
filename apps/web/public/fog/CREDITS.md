@@ -28,3 +28,11 @@
   3. Tiles encoded as WebP at q85 (~4 KB each, ~256 KB total).
 - License: CC-BY 4.0 — free for any use with attribution to Mistboard.
   Prompts + pipeline documented in the repo for full reproducibility.
+
+## mistveil.webp (full image)
+
+- The 64 tiles restitched back into the original continuous 1024×1024 image via
+  `scripts/assemble-fog.py` (inverse of `slice-fog.py`). The xiangqi boards
+  render fog as one masked SVG region, not per square, so they overlay this
+  single texture instead of the per-square tiles. Same art, same license; lets
+  fog stay one global setting that renders on every board size.

@@ -255,6 +255,47 @@
   --board-fog-dark-background: var(--board-fog-dark-fill);
 }
 
+/* Xiangqi fog (shared by the 7x7 Dark Mini and 9x10 full boards). Fog there is
+   one masked SVG region, not per-square tiles, so each skin reduces to a flat
+   tint (--xq-fog-fill) plus an optional texture <image> layer toggled below.
+   This keeps fog a single GLOBAL setting that renders thematically on every
+   board size, rather than a per-variant lookalike. */
+:root {
+  --xq-fog-fill: rgba(46, 43, 37, 0.82);
+}
+:root[data-fog-theme="solid"] {
+  --xq-fog-fill: rgba(46, 43, 37, 0.82);
+}
+:root[data-fog-theme="veil"] {
+  --xq-fog-fill: rgba(46, 43, 37, 0.6);
+}
+:root[data-fog-theme="mistveil"] {
+  --xq-fog-fill: rgba(40, 44, 56, 0.6);
+}
+:root[data-fog-theme="drift"] {
+  --xq-fog-fill: rgba(46, 43, 37, 0.5);
+}
+:root[data-fog-theme="void"] {
+  --xq-fog-fill: rgba(18, 16, 13, 0.94);
+}
+:root[data-fog-theme="invisible"] {
+  --xq-fog-fill: rgba(46, 43, 37, 0);
+}
+
+/* Texture layers inside the xiangqi fog region. The same full-board art that
+   drives chess drives these: fog.webp for drift, the reassembled mistveil.webp
+   (the 64 chess tiles restitched) for mistveil. Hidden by default; each shows
+   only under its own skin, masked to the fog region by the board's fog mask. */
+.xq-fog-tex {
+  display: none;
+}
+:root[data-fog-theme="drift"] .xq-fog-tex-drift {
+  display: block;
+}
+:root[data-fog-theme="mistveil"] .xq-fog-tex-mist {
+  display: block;
+}
+
 * {
   box-sizing: border-box;
 }
