@@ -3859,7 +3859,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. If the side to move has no legal move, that side loses; there are no stalemate draws.',
+            text: 'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. There is no stalemate draw: if the side to move has no legal move, it loses, and with no check to freeze you, this almost never happens.',
           },
         ],
       },
@@ -4067,7 +4067,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'If the side to move has no legal move, it loses. Draws are judged from the true position, not either player\'s view: the game draws on threefold repetition, and also after 60 plies (30 moves by each side) without a capture.',
+              'There is no stalemate draw: if the side to move has no legal move, it loses. With no check to freeze you, this almost never happens. Draws are judged from the true position, not either player\'s view: the game draws on threefold repetition, and also after 60 plies (30 moves by each side) without a capture.',
           },
         ],
       },
