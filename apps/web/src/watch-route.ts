@@ -2,8 +2,19 @@ import type { GameEvent } from '@mistboard/game';
 import './watch-route.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
-import { type GameMeta, type ReplayHandle, mountReplay } from './replay.js';
+import type { GameMeta, ReplayHandle } from './replay.js';
 import { buildFooter, buildLoadingState, buildNav } from './site-shell.js';
+
+// replay.js statically pulls in chessground (~64KB). Importing it dynamically
+// keeps it out of watch-route's module-init path, so mountWatch can fire
+// /api/watch before that bundle parses. loadReplayModule() is kicked off at the
+// top of mountWatch to prefetch the chunk in parallel with the feed fetch, so
+// the dynamic import costs no extra round trip by the time the board mounts.
+let replayModulePromise: Promise<typeof import('./replay.js')> | null = null;
+function loadReplayModule(): Promise<typeof import('./replay.js')> {
+  replayModulePromise ??= import('./replay.js');
+  return replayModulePromise;
+}
 
 type WatchChannelSummary = {
   family: string;
@@ -35,6 +46,10 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'watch-route');
   root.append(buildNav(), buildLoadingState('Loading replays'), buildFooter());
+
+  // Start downloading the replay/chessground chunk now, in parallel with the
+  // feed fetch below, rather than serializing it behind /api/watch.
+  void loadReplayModule();
 
   let currentFeed = await fetchWatchFeed().catch((err) => {
     console.warn(err);
@@ -232,6 +247,7 @@ async function mountWatchReplay(
   metadataByRoomId: Record<string, GameMeta>,
   seed?: WatchInitialReplay,
 ): Promise<ReplayHandle> {
+  const { mountReplay } = await loadReplayModule();
   return await mountReplay(root, roomId, {
     autoplay: true,
     captureLayout: 'split',
