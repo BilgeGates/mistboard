@@ -431,3 +431,11 @@ function deepTranslate<T>(value: T, dict: Record<string, string>): T {
 export function translateArticle(article: Article, lang: ArticleLang): Article {
   return deepTranslate(article, ARTICLE_DICTS[lang]);
 }
+
+// True when `text` has an authored translation for `lang`. The translation
+// coverage test uses this to assert that every prose string in a locked
+// article resolves in both zh scripts, so an English edit that orphans a
+// dictionary key fails the build instead of silently rendering English.
+export function hasTranslation(lang: ArticleLang, text: string): boolean {
+  return Object.prototype.hasOwnProperty.call(ARTICLE_DICTS[lang], text);
+}
