@@ -185,7 +185,7 @@ function fogLayer(
         ${cutouts}
       </mask>
     </defs>
-    <rect class="mini-xq-fog-mask" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" mask="url(#${maskId})"/>
+    <rect class="mini-xq-fog-mask" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10" mask="url(#${maskId})"/>
   `;
 }
 
