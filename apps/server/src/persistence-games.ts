@@ -240,6 +240,70 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
+// Homepage hero pool. Aim for recent, substantial PvP — real people are the
+// "alive" signal — using a watch-style filter (any real finish, since human
+// games end by timeout/resignation far more than king-capture). Fall back to
+// decisive engine games, one per run for variety, when there isn't enough
+// quality PvP yet. Both tiers require >= 30 plies so the hero never opens on a
+// short or abandoned game.
+const SHOWCASE_MIN_PLY = 30;
+
+export async function listShowcaseGames(limit = 8): Promise<RecentEveGameRecord[]> {
+  const bounded = Math.max(1, Math.min(limit, 24));
+  const pvp = await queryShowcasePvp(bounded);
+  if (pvp.length >= bounded) return pvp;
+  const engine = await queryShowcaseEngine();
+  return [...pvp, ...engine].slice(0, bounded);
+}
+
+// Recent substantial PvP, watch-style: any real finish except a forfeit/abandon.
+async function queryShowcasePvp(limit: number): Promise<RecentEveGameRecord[]> {
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
+     FROM games
+     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     WHERE games.status = 'completed'
+       AND games.visibility = 'public'
+       AND games.variant IN ('dark-chess', 'fog')
+       AND games.mode = 'pvp'
+       AND games.termination <> 'abandonment'
+       AND games.ply_count >= $1
+       AND EXISTS (
+         SELECT 1 FROM events WHERE events.room_id = games.room_id LIMIT 1
+       )
+     ORDER BY games.ended_at DESC, games.room_id DESC
+     LIMIT $2`,
+    [SHOWCASE_MIN_PLY, limit],
+  );
+  return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
+}
+
+// Decisive engine-vs-engine games, one per run (the most recent in each),
+// newest run first — so the fallback shows varied matchups, not N games from one
+// bakeoff. EvE only (PvE human-vs-engine is excluded by design). COALESCE keeps
+// corpus-less games (e.g. live EvE) individually distinct.
+async function queryShowcaseEngine(): Promise<RecentEveGameRecord[]> {
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT DISTINCT ON (COALESCE(games.corpus_id, games.room_id)) ${RECENT_EVE_SELECT_COLUMNS}
+     FROM games
+     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     WHERE games.status = 'completed'
+       AND games.visibility = 'public'
+       AND games.variant IN ('dark-chess', 'fog')
+       AND games.mode = 'eve'
+       AND games.termination IN ('king-captured', 'checkmate')
+       AND games.ply_count >= $1
+       AND EXISTS (
+         SELECT 1 FROM events WHERE events.room_id = games.room_id LIMIT 1
+       )
+     ORDER BY COALESCE(games.corpus_id, games.room_id), games.ended_at DESC`,
+    [SHOWCASE_MIN_PLY],
+  );
+  const records = await attachGameParticipants(rows.map(recentEveGameRecordFromRow));
+  records.sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime());
+  return records;
+}
+
 export async function listWatchUnlockedGames(
   options: WatchUnlockedGameOptions = {},
 ): Promise<RecentEveGameRecord[]> {

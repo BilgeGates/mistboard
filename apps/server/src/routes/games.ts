@@ -86,6 +86,15 @@ export async function tryHandle(
     return true;
   }
 
+  // Homepage hero pool — quality-filtered, PvP-first dark-chess games.
+  if (pathname === '/api/games/showcase') {
+    if (!requirePersistence(response)) return true;
+    const games = await persistence.listShowcaseGames(8);
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ games }));
+    return true;
+  }
+
   // Admin game browser: faceted query + win-rate aggregates over completed
   // games. Session-admin gated (works from a logged-in admin browser); open in
   // local dev. Powers the unlisted /database surface.

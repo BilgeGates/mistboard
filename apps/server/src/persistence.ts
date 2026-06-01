@@ -91,6 +91,7 @@ export {
   listCorpusGames,
   listRecentEveGames,
   listRecentPublicGames,
+  listShowcaseGames,
   listWatchUnlockedGames,
   queryGames,
   recordGameEnd,

@@ -32,7 +32,20 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     console.warn(err);
     return fallbackPlayableEngines();
   });
-  const games = homepageShowcaseGames();
+  // Prefer recent real games (quality-filtered, PvP-first) so the hero reads as
+  // a live place; fall back to the static engine showcase if the API is thin or
+  // unreachable, so the hero is never empty.
+  let usingRealGames = false;
+  let games = homepageShowcaseGames();
+  try {
+    const showcase = await fetchShowcaseGames();
+    if (showcase.length >= 3) {
+      games = showcase;
+      usingRealGames = true;
+    }
+  } catch (err) {
+    console.warn('showcase games unavailable; using engine fallback', err);
+  }
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('demo');
   const sampleIds = games.map((g) => g.roomId);
@@ -53,6 +66,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren(buildNav(), stage.el, buildFooter());
   mountArticleThumbnails(stage.el);
   maybeOpenPlayDeepLink(engines);
+  void renderHeroActivity(stage.activity);
 
   const metadataByRoomId: Record<string, GameMeta> = {};
   const povByRoomId: Record<string, 'white' | 'black'> = {};
@@ -61,7 +75,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     povByRoomId[g.roomId] = pickHeroPovForGame(g);
   }
 
-  await mountReplay(stage.replayRoot, currentSample, {
+  const replay = await mountReplay(stage.replayRoot, currentSample, {
     autoplay: forcedSample !== null,
     showControls: false,
     revealOnFinish: false,
@@ -78,6 +92,56 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     endStatusMode: 'clock',
     panes: { resolver: (sampleId) => povByRoomId[sampleId] ?? 'white' },
   });
+
+  // Click the hero → open the game currently showing. Only for real games:
+  // the static engine fallback samples have no /game/:id replay page.
+  if (usingRealGames) {
+    stage.replayRoot.classList.add('landing-replay-clickable');
+    stage.replayRoot.setAttribute('role', 'link');
+    stage.replayRoot.tabIndex = 0;
+    stage.replayRoot.title = 'Watch this game';
+    const openCurrent = () => {
+      const id = replay.activeSampleId();
+      if (id) window.location.assign(`/game/${encodeURIComponent(id)}`);
+    };
+    stage.replayRoot.addEventListener('click', openCurrent);
+    stage.replayRoot.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openCurrent();
+      }
+    });
+  }
+}
+
+async function fetchShowcaseGames(): Promise<FeaturedGame[]> {
+  const resp = await fetch('/api/games/showcase');
+  if (!resp.ok) throw new Error(`failed to load showcase games: ${resp.status}`);
+  const data = (await resp.json()) as { games: FeaturedGame[] };
+  return data.games;
+}
+
+// Hero activity line: always-present "N games played" (credibility, from public
+// stats) plus "M playing now" when there's live play. Conveys "this place is
+// alive" even in a quiet beta moment.
+async function renderHeroActivity(el: HTMLElement): Promise<void> {
+  try {
+    const [stats, live] = await Promise.all([
+      fetch('/api/stats/public').then((r) => (r.ok ? r.json() : null)),
+      fetch('/api/live-stats').then((r) => (r.ok ? r.json() : null)),
+    ]);
+    const total = stats?.totalCompletedGames as number | undefined;
+    const playing = live?.playing as number | undefined;
+    const parts: string[] = [];
+    if (typeof total === 'number' && total > 0)
+      parts.push(`${total.toLocaleString()} games played`);
+    if (typeof playing === 'number' && playing > 0) parts.push(`${playing} playing now`);
+    if (parts.length === 0) return;
+    el.textContent = parts.join(' · ');
+    el.hidden = false;
+  } catch (err) {
+    console.warn(err);
+  }
 }
 
 export async function mountGame(root: HTMLElement, roomId: string): Promise<void> {
@@ -215,6 +279,7 @@ export function mountContact(root: HTMLElement): void {
 function buildLandingStage(engines: PlayableEngine[]): {
   el: HTMLElement;
   replayRoot: HTMLElement;
+  activity: HTMLElement;
 } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
@@ -237,19 +302,27 @@ function buildLandingStage(engines: PlayableEngine[]): {
   subtagline.textContent =
     'Server-enforced hidden information. Play people or the Mistboard engine.';
 
-  heroHeader.append(tagline, subtagline);
+  const activity = document.createElement('p');
+  activity.className = 'landing-hero-activity';
+  activity.hidden = true;
+
+  heroHeader.append(tagline, subtagline, activity);
 
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
 
-  boardColumn.append(replayRoot);
+  const fogNote = document.createElement('p');
+  fogNote.className = 'landing-hero-fog-note';
+  fogNote.textContent = 'One player’s view — the rest is hidden in the fog.';
+
+  boardColumn.append(replayRoot, fogNote);
 
   const announcements = buildLandingAnnouncements();
   const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
   section.append(heroHeader, announcements, boardColumn, playPanel);
   stage.append(section);
-  return { el: stage, replayRoot };
+  return { el: stage, replayRoot, activity };
 }
 
 function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
