@@ -1349,8 +1349,10 @@ function pickNextSample(pool: string[], current: string): string {
   return others[Math.floor(Math.random() * others.length)] ?? pool[0];
 }
 
+// Lucide arrow-down-up (ISC): swap-orientation glyph, same 24-grid / 2px round
+// spec as the share icon and landing CTAs so every outline icon is one family.
 const ICON_FLIP =
-  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 5h7.5L8.5 3M13 11H5.5L7.5 13" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>';
 
 function controlButton(text: string, title: string): HTMLButtonElement {
   const btn = document.createElement('button');

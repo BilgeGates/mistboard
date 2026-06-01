@@ -311,5 +311,8 @@ function infoItem(labelText: string, valueText: string): HTMLDivElement {
   return item;
 }
 
+// Lucide share-2 (ISC): three-node share graph (the shape the old hand-rolled
+// icon approximated), unified to the 24-grid / 2px round spec shared with the
+// flip icon and landing CTAs.
 const ICON_SHARE =
-  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5.5 9 10 4.5M5.5 7l4.5 4.5M11.5 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm0 7a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM5.5 8a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>';
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>';
