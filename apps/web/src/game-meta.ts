@@ -20,10 +20,19 @@ export function gameMetaForGame(game: FeaturedGame): GameMeta {
     gameUrl: reviewUrlForGame(game),
     modeLabel: sourceLabel(game.mode),
     result: game.result,
-    timeControl: game.timeControl,
+    timeControl: game.timeControl ?? clockTimeControlFromGame(game),
     termination: game.termination,
     plyCount: game.plyCount,
   };
+}
+
+// Clocked games (PvP/PvE) store their time control in initialMs/incrementMs, not
+// the legacy `timeControl` blob (null for them). Rebuild a time-control object so
+// the clock label renders and maybeDeriveThinkingBudget treats the game as
+// clocked rather than synthesizing a phantom per-move budget from think times.
+function clockTimeControlFromGame(game: FeaturedGame): Record<string, unknown> | null {
+  if (typeof game.initialMs !== 'number') return null;
+  return { initialMs: game.initialMs, incrementMs: game.incrementMs ?? 0 };
 }
 
 export function reviewUrlForGame(game: FeaturedGame): string | null {

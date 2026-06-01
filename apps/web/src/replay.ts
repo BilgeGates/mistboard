@@ -1145,13 +1145,19 @@ export async function mountReplay(
   }
 
   // Recover a clockless engine game's per-move budget from its events when the
-  // stored metadata has none. Real games (with clock state) and games whose
-  // metadata already carries a budget are skipped; PvP move events have no
-  // `compute_ms`, so the derivation no-ops for them anyway.
+  // stored metadata has none. Games with a real clock (PvP/PvE) and games whose
+  // metadata already carries a budget are skipped. A clocked game tracks time as
+  // remaining time, and its first two plies sit frozen (clock unarmed) until both
+  // sides have moved; synthesizing a per-move budget for one made those frozen
+  // plies animate a phantom "0.x / 1s" count-up (PvE move events carry the
+  // engine's `thinkTimeMs`, so the derivation does NOT no-op for them — only the
+  // clock check below excludes them). Only clockless engine self-play (EvE, which
+  // has no clock state) should derive a budget.
   function maybeDeriveThinkingBudget(sampleId: string): void {
     if (derivedTimeControlByRoomId[sampleId]) return;
     const baseMeta = metadataByRoomId?.[sampleId];
     if (thinkingBudgetMsFromMeta(baseMeta?.timeControl) !== null) return;
+    if (replayGameEvents(events).state.clock) return;
     const budgetMs = deriveThinkingBudgetMsFromEvents(events);
     if (budgetMs !== null) {
       derivedTimeControlByRoomId[sampleId] = { kind: 'per-move', milliseconds: budgetMs };

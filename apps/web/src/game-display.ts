@@ -39,6 +39,11 @@ export type FeaturedGame = {
   whiteEngineId?: string | null;
   blackEngineId?: string | null;
   timeControl?: Record<string, unknown> | null;
+  // Real-clock games (PvP/PvE) carry their time control in these columns; the
+  // legacy `timeControl` blob is null for them. gameMetaForGame rebuilds a
+  // time-control object from these when `timeControl` is absent.
+  initialMs?: number | null;
+  incrementMs?: number | null;
   participants?: GameParticipant[];
   playerColor?: 'white' | 'black';
 };
