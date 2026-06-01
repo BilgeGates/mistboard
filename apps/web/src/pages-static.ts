@@ -671,8 +671,6 @@ function buildPrivacy(): HTMLElement {
   const p3 = aboutParagraph([
     'Finished games are published under ',
     aboutExternalLink('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
-    '. To take down a specific game, use ',
-    aboutLink('Contact', '/contact'),
     '.',
   ]);
 
