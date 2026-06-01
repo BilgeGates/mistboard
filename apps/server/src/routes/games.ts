@@ -59,6 +59,11 @@ export async function tryHandle(
       }),
     );
     const active = channelResults.find((result) => result.channel.id === channel.id)!;
+    // Embed the events for the first replay so the client paints pieces on the
+    // initial board without a second round trip to /api/games/:id/events. Only
+    // the default (unlocked[0]) board is seeded; deep links to other games fall
+    // back to the per-game fetch.
+    const initialReplay = await watchInitialReplay(ctx, active.unlocked);
     writeJson(response, 200, {
       activeChannel: channel.id,
       channels: channelResults.map((result) => ({
@@ -74,6 +79,7 @@ export async function tryHandle(
       unlockLimit: WATCH_REPLAY_LIMIT,
       sealedCount: active.sealedCount,
       unlocked: active.unlocked,
+      ...(initialReplay ? { initialReplay } : {}),
     });
     return true;
   }
@@ -294,6 +300,20 @@ async function gameSummaryForApi(
 async function gameEventsForApi(ctx: HttpApiContext, roomId: string): Promise<GameEvent[] | null> {
   const persisted = persistence.isInitialized() ? await persistence.loadRoom(roomId) : null;
   return persisted ?? ctx.rooms.get(roomId)?.events ?? null;
+}
+
+// Events for the first unlocked watch replay, gated by the same public/finished
+// policy as /api/games/:id/events. Returns null when there is nothing to seed
+// or the game is not exposable, in which case the client fetches per-game.
+async function watchInitialReplay(
+  ctx: HttpApiContext,
+  unlocked: readonly persistence.RecentEveGameRecord[],
+): Promise<{ events: GameEvent[]; roomId: string } | null> {
+  const first = unlocked[0];
+  if (!first) return null;
+  const events = await gameEventsForApi(ctx, first.roomId);
+  if (!events || eventReplayResponse(events).status !== 200) return null;
+  return { events, roomId: first.roomId };
 }
 
 async function gameReviewForApi(

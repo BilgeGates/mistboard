@@ -13,6 +13,10 @@ type WatchChannelSummary = {
   sealedCount: number;
   unlockedCount: number;
 };
+type WatchInitialReplay = {
+  events: GameEvent[];
+  roomId: string;
+};
 type WatchFeed = {
   activeChannel: string;
   channels: WatchChannelSummary[];
@@ -21,6 +25,7 @@ type WatchFeed = {
   unlockLimit: number;
   sealedCount: number;
   unlocked: FeaturedGame[];
+  initialReplay?: WatchInitialReplay;
 };
 
 const WATCH_ACTIVE_POLL_MS = 15_000;
@@ -83,7 +88,12 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
 
     try {
       if (!replayHandle) {
-        replayHandle = await mountWatchReplay(watch.replayRoot, nextRoomId, metadataByRoomId);
+        replayHandle = await mountWatchReplay(
+          watch.replayRoot,
+          nextRoomId,
+          metadataByRoomId,
+          nextFeed.initialReplay,
+        );
       } else if (replayHandle.activeSampleId() !== nextRoomId) {
         await replayHandle.loadGame(nextRoomId);
       }
@@ -177,7 +187,12 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     updateWatchQueueActive(watch.queueRoot, activeRoomId);
     try {
       if (!replayHandle) {
-        replayHandle = await mountWatchReplay(watch.replayRoot, roomId, metadataByRoomId);
+        replayHandle = await mountWatchReplay(
+          watch.replayRoot,
+          roomId,
+          metadataByRoomId,
+          currentFeed.initialReplay,
+        );
       } else {
         await replayHandle.loadGame(roomId);
       }
@@ -215,6 +230,7 @@ async function mountWatchReplay(
   root: HTMLElement,
   roomId: string,
   metadataByRoomId: Record<string, GameMeta>,
+  seed?: WatchInitialReplay,
 ): Promise<ReplayHandle> {
   return await mountReplay(root, roomId, {
     autoplay: true,
@@ -222,9 +238,27 @@ async function mountWatchReplay(
     showControls: true,
     metadataMode: 'header',
     revealOnFinish: false,
-    loaderForId: apiEventLoader,
+    loaderForId: makeWatchEventLoader(seed),
     metadataByRoomId,
   });
+}
+
+// The initial replay's events ride along in the /api/watch response, so the
+// first board paints pieces without a second round trip. The seed is consumed
+// once: a later reload of the same game (after polling or queue navigation)
+// refetches fresh events, and every other game uses the per-game loader.
+function makeWatchEventLoader(
+  seed?: WatchInitialReplay,
+): (roomId: string) => Promise<GameEvent[]> {
+  let pending = seed;
+  return async (roomId: string) => {
+    if (pending && pending.roomId === roomId) {
+      const events = pending.events;
+      pending = undefined;
+      return events;
+    }
+    return apiEventLoader(roomId);
+  };
 }
 
 async function fetchWatchFeed(channelOverride?: string | null): Promise<WatchFeed> {
