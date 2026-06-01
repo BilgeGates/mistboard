@@ -119,6 +119,31 @@ export type DarkMiniXiangqiSeatTokenState = {
   revokedAt: Date | null;
 };
 
+// Mutual-confirm rematch state, mirroring the chess RematchState (server-types)
+// but over red/black seats. An offer records the offering seat's token hash +
+// account so finalize can verify the same players still hold the seats; once
+// both seats have offered, a swapped-color room is created and each side gets a
+// pre-issued seat token + redirect. pendingRedirects is keyed by OLD-room seat
+// so a player who reconnects after finalize still gets routed forward.
+export type DarkMiniXiangqiRematchOffer = {
+  tokenHash: string;
+  userId: string | null;
+  at: number;
+};
+
+export type DarkMiniXiangqiRematchPendingRedirect = {
+  roomId: string;
+  seat: MiniXiangqiColor;
+  rawToken: string;
+  url: string;
+};
+
+export type DarkMiniXiangqiRematchState = {
+  offers: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiRematchOffer>>;
+  finalizedRoomId?: string;
+  pendingRedirects?: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiRematchPendingRedirect>>;
+};
+
 export type DarkMiniXiangqiRuntimeRoom = {
   kind: 'dark-mini-xiangqi';
   id: string;
@@ -136,6 +161,7 @@ export type DarkMiniXiangqiRuntimeRoom = {
   gameEndRecorded: boolean;
   pendingWrites: Promise<void>;
   seatTokens: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>>;
+  rematch: DarkMiniXiangqiRematchState;
 };
 
 export type DarkMiniXiangqiSnapshotClient = {
@@ -314,6 +340,7 @@ export function createDarkMiniXiangqiRuntimeRoomFromEvents(
       gameEndRecorded: projection.state.status.type !== 'playing',
       pendingWrites: Promise.resolve(),
       seatTokens: {},
+      rematch: { offers: {} },
     },
   };
 }
@@ -471,6 +498,13 @@ export function darkMiniXiangqiSnapshotPayload(
     seats: room.projection.seats,
     state,
     timeControl: room.projection.timeControl,
+    rematch: {
+      offers: {
+        red: room.rematch.offers.red !== undefined,
+        black: room.rematch.offers.black !== undefined,
+      },
+      finalizedRoomId: room.rematch.finalizedRoomId ?? null,
+    },
   };
 }
 

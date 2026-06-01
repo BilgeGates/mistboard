@@ -32,6 +32,14 @@ import {
   displaceOlderDarkMiniXiangqiSeatClients,
   rollbackDarkMiniXiangqiSeatAssignment,
 } from './server-dark-mini-xiangqi-seat-session.js';
+import {
+  cancelDarkMiniXiangqiRematch,
+  type DarkMiniXiangqiRematchContext,
+  declineDarkMiniXiangqiRematch,
+  finalizeDarkMiniXiangqiRematchIfReady,
+  maybeReplayDarkMiniXiangqiRematchRedirect,
+  offerDarkMiniXiangqiRematch,
+} from './server-dark-mini-xiangqi-rematch.js';
 import { recordMessageTimestamp, seatTokenFromProtocolHeader } from './server-policy.js';
 import { parseClientMessage } from './server-ws-messages.js';
 
@@ -55,6 +63,7 @@ export type DarkMiniXiangqiLiveRoom = Omit<DarkMiniXiangqiRuntimeRoom, 'clients'
 export type DarkMiniXiangqiWebSocketContext = {
   wsMessageLimit: number;
   wsMessageWindowMs: number;
+  darkMiniXiangqiRematch: DarkMiniXiangqiRematchContext;
 };
 
 let darkMiniXiangqiEventWriterCtx: DarkMiniXiangqiEventWriterContext;
@@ -142,6 +151,9 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
   broadcastDarkMiniXiangqiSnapshot(room);
+  // A player reconnecting after a rematch was finalized (while they were
+  // offline) still gets routed to the new swapped-color room.
+  maybeReplayDarkMiniXiangqiRematchRedirect(ctx.darkMiniXiangqiRematch, room, client);
 
   socket.on('message', (raw) => {
     if (
@@ -155,7 +167,7 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
       socket.close(1008, 'rate limit');
       return;
     }
-    void handleDarkMiniXiangqiMessage(room, client, raw.toString());
+    void handleDarkMiniXiangqiMessage(ctx, room, client, raw.toString());
   });
 
   socket.on('close', () => {
@@ -168,6 +180,7 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
 }
 
 async function handleDarkMiniXiangqiMessage(
+  ctx: DarkMiniXiangqiWebSocketContext,
   room: DarkMiniXiangqiLiveRoom,
   client: DarkMiniXiangqiLiveClient,
   raw: string,
@@ -196,6 +209,19 @@ async function handleDarkMiniXiangqiMessage(
   }
   if (message.type === 'abort') {
     await handleDarkMiniXiangqiAbort(room, client);
+    return;
+  }
+  if (message.type === 'rematch:offer') {
+    offerDarkMiniXiangqiRematch(ctx.darkMiniXiangqiRematch, room, client);
+    await finalizeDarkMiniXiangqiRematchIfReady(ctx.darkMiniXiangqiRematch, room);
+    return;
+  }
+  if (message.type === 'rematch:cancel') {
+    cancelDarkMiniXiangqiRematch(ctx.darkMiniXiangqiRematch, room, client);
+    return;
+  }
+  if (message.type === 'rematch:decline') {
+    declineDarkMiniXiangqiRematch(ctx.darkMiniXiangqiRematch, room, client);
     return;
   }
   if (message.type !== 'move') return;

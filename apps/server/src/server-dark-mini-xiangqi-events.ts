@@ -203,7 +203,7 @@ function darkMiniXiangqiParticipant(
   };
 }
 
-function persistenceRecordForDarkMiniXiangqiSeatToken(
+export function persistenceRecordForDarkMiniXiangqiSeatToken(
   token: DarkMiniXiangqiSeatTokenState,
 ): persistence.RoomSeatTokenRecord<MiniXiangqiColor> {
   return {

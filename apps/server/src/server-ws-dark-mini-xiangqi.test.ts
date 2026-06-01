@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'node:http';
 import test from 'node:test';
 import type { WebSocket } from 'ws';
 import { createDarkMiniXiangqiRuntimeRoom } from './dark-mini-xiangqi-runtime.js';
+import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import {
   clearDarkMiniXiangqiRuntimeTimers,
   type DarkMiniXiangqiLiveRoom,
@@ -380,6 +381,30 @@ function testContext() {
   return {
     wsMessageLimit: 20,
     wsMessageWindowMs: 1000,
+    darkMiniXiangqiRematch: stubRematchContext(),
+  };
+}
+
+// These tests don't exercise rematch; a no-op context just satisfies the type.
+function stubRematchContext(): DarkMiniXiangqiRematchContext {
+  return {
+    send: () => {},
+    createRoom: async () => ({ ok: false, error: 'dark_mini_xiangqi_disabled' }),
+    issueSeatToken: async (_room, seat) => ({
+      rawToken: 'stub-token',
+      state: {
+        clientId: 'stub',
+        seat,
+        tokenHash: 'stub',
+        userId: null,
+        userHandle: null,
+        userDisplayName: null,
+        issuedAt: new Date(),
+        lastSeenAt: new Date(),
+        revokedAt: null,
+      },
+    }),
+    buildRoomUrl: (roomId) => `/room/${roomId}`,
   };
 }
 

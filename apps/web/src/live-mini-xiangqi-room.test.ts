@@ -203,13 +203,58 @@ describe('Dark Mini Xiangqi live room', () => {
     expect(refs.board.querySelector('.mini-xq-last')).toBeNull();
   });
 
-  it('creates an untimed play-again room from a finished game', async () => {
+  it('offers a mutual-confirm rematch from a finished game (seated)', () => {
+    const sendSocket = vi.fn(() => true);
+    const refs = refsFixture();
+    liveState.seat = 'red';
+    liveState.rematch = { offers: {}, finalizedRoomId: null };
+    liveState.state = {
+      ...viewFixture(),
+      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      legalMoves: [],
+    } as never;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket });
+    const rematch = [...refs.roomActions.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Rematch',
+    );
+    expect(rematch).toBeDefined();
+    // No instant play-again room is created for a seated finished game.
+    expect(
+      [...refs.roomActions.querySelectorAll('button')].some((b) => b.textContent === 'Play again'),
+    ).toBe(false);
+    rematch?.dispatchEvent(clickEvent());
+    expect(sendSocket).toHaveBeenCalledWith({ type: 'rematch:offer' });
+  });
+
+  it('shows the opponent rematch offer with accept/decline', () => {
+    const sendSocket = vi.fn(() => true);
+    const refs = refsFixture();
+    liveState.seat = 'red';
+    liveState.rematch = { offers: { black: true }, finalizedRoomId: null };
+    liveState.state = {
+      ...viewFixture(),
+      status: { type: 'finished', winner: 'black', reason: 'resignation' },
+      legalMoves: [],
+    } as never;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket });
+    const labels = [...refs.roomActions.querySelectorAll('button')].map((b) => b.textContent);
+    expect(labels).toContain('Accept rematch');
+    expect(labels).toContain('Decline');
+    [...refs.roomActions.querySelectorAll('button')]
+      .find((b) => b.textContent === 'Accept rematch')
+      ?.dispatchEvent(clickEvent());
+    expect(sendSocket).toHaveBeenCalledWith({ type: 'rematch:offer' });
+  });
+
+  it('creates an untimed play-again room from an aborted game', async () => {
     const fetchSpy = vi.fn(async () => jsonResponse({ url: '/room/dmxq_again' }));
     vi.stubGlobal('fetch', fetchSpy);
     const refs = refsFixture();
     liveState.state = {
       ...viewFixture(),
-      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      status: { type: 'aborted' },
       legalMoves: [],
     } as never;
 

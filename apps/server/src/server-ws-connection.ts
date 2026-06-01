@@ -43,6 +43,7 @@ import {
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
 import { assignSeat, displaceOlderSeatClients } from './server-seat-session.js';
+import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import type { Client, Room, SeatAssignment } from './server-types.js';
 import {
   type DarkMiniXiangqiLiveRoom,
@@ -57,6 +58,7 @@ import { isKnownClientMessageType, parseClientMessage } from './server-ws-messag
 export type WebSocketConnectionContext = {
   roomMgrCtx: RoomManagerContext;
   rematchOrch: RematchOrchestrator;
+  darkMiniXiangqiRematch: DarkMiniXiangqiRematchContext;
   defaultRoomRegion: string;
   wsMessageLimit: number;
   wsMessageWindowMs: number;

@@ -307,6 +307,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     gameEndRecorded: false,
     pendingWrites: Promise.resolve(),
     seatTokens: {},
+    rematch: { offers: {} },
   };
 }
 

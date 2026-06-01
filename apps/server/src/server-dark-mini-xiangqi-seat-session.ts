@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { MiniXiangqiColor } from '@mistboard/game';
 import type { DarkMiniXiangqiSeatTokenState } from './dark-mini-xiangqi-runtime.js';
 import type { UserAccount } from './persistence.js';
@@ -101,6 +101,33 @@ export function assignDarkMiniXiangqiSeat(
   };
   room.seatTokens[seat] = tokenState;
   return { ok: true, seat, seatToken, seatTokenHash, tokenState };
+}
+
+// Pre-issue a fresh seat token for a specific seat (used by rematch finalize to
+// reserve the swapped-color seats on the new room before either player
+// connects). Mirrors the mint in assignDarkMiniXiangqiSeat but for a chosen seat
+// and identity. The caller persists the token; this only sets the in-memory
+// reservation so a connecting client with the raw token re-attaches to the seat.
+export function mintDarkMiniXiangqiSeatToken(
+  room: Pick<DarkMiniXiangqiSeatRoom, 'seatTokens'>,
+  seat: MiniXiangqiColor,
+  identity: { userId: string | null; userHandle: string | null; userDisplayName: string | null },
+): { rawToken: string; state: DarkMiniXiangqiSeatTokenState } {
+  const rawToken = randomBytes(32).toString('base64url');
+  const now = new Date();
+  const state: DarkMiniXiangqiSeatTokenState = {
+    clientId: randomUUID(),
+    seat,
+    tokenHash: hashSeatToken(rawToken),
+    userId: identity.userId,
+    userHandle: identity.userHandle,
+    userDisplayName: identity.userDisplayName,
+    issuedAt: now,
+    lastSeenAt: now,
+    revokedAt: null,
+  };
+  room.seatTokens[seat] = state;
+  return { rawToken, state };
 }
 
 function nextAvailableSeat(

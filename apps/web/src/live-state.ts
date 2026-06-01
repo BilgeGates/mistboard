@@ -161,7 +161,16 @@ export const liveState = {
   timeControl: null as { initialMs: number; incrementMs: number } | null,
   events: [] as GameEvent[],
   reconnectAttempt: 0,
-  rematch: { offers: { white: false, black: false }, finalizedRoomId: null as string | null },
+  rematch: {
+    // Dark Mini Xiangqi reuses this shared rematch state over red/black, so the
+    // offers map carries an optional `red` alongside chess's white/black.
+    offers: { white: false, black: false } as {
+      white?: boolean;
+      black?: boolean;
+      red?: boolean;
+    },
+    finalizedRoomId: null as string | null,
+  },
   connectedSeats: { white: false, black: false } as ConnectedSeats,
 
   // Chessground instance — owned by live-render, typed here for cross-module access

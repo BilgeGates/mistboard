@@ -300,13 +300,77 @@ function renderRoomActions(refs: LiveRefs): void {
   if (view?.status.type === 'finished' || view?.status.type === 'aborted') {
     // Only finished games have a postgame review (the endpoint 404s otherwise).
     if (view.status.type === 'finished') row.append(reviewLink());
-    row.append(playAgainButton(refs), roomLink('Home', '/'));
+    // Finished games offer a mutual-confirm rematch with colors swapped (same as
+    // dark chess). Aborted games — or a viewer who isn't seated — fall back to
+    // the instant new-room button.
+    const seat = liveState.seat;
+    if (view.status.type === 'finished' && (seat === 'red' || seat === 'black')) {
+      for (const el of rematchButtons(renderCallbacks.sendSocket)) row.append(el);
+    } else {
+      row.append(playAgainButton(refs));
+    }
+    row.append(roomLink('Home', '/'));
     refs.roomActions.append(row);
     return;
   }
 
   row.append(copyInviteButton());
   refs.roomActions.append(row);
+}
+
+// Mutual-confirm rematch over red/black, mirroring the chess rematchButtons in
+// live-room-actions.ts. The server tracks offers per seat and, once both seats
+// have offered, finalizes a swapped-color room and redirects both clients.
+function rematchButtons(sendSocket: (payload: unknown) => boolean): HTMLElement[] {
+  const mySeat = liveState.seat;
+  if (mySeat !== 'red' && mySeat !== 'black') return [];
+  const theirSeat: 'red' | 'black' = mySeat === 'red' ? 'black' : 'red';
+  const offers = liveState.rematch.offers;
+  const iOffered = offers[mySeat];
+  const theyOffered = offers[theirSeat];
+
+  if (iOffered && theyOffered) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.disabled = true;
+    btn.textContent = 'Starting rematch…';
+    return [btn];
+  }
+  if (iOffered) {
+    const waiting = document.createElement('span');
+    waiting.className = 'room-actions-note';
+    waiting.textContent = 'Waiting for opponent…';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = 'Cancel rematch';
+    cancel.addEventListener('click', () => {
+      sendSocket({ type: 'rematch:cancel' });
+    });
+    return [waiting, cancel];
+  }
+  if (theyOffered) {
+    const decline = document.createElement('button');
+    decline.type = 'button';
+    decline.textContent = 'Decline';
+    decline.addEventListener('click', () => {
+      sendSocket({ type: 'rematch:decline' });
+    });
+    const accept = document.createElement('button');
+    accept.type = 'button';
+    accept.className = 'primary';
+    accept.textContent = 'Accept rematch';
+    accept.addEventListener('click', () => {
+      sendSocket({ type: 'rematch:offer' });
+    });
+    return [decline, accept];
+  }
+  const offer = document.createElement('button');
+  offer.type = 'button';
+  offer.textContent = 'Rematch';
+  offer.addEventListener('click', () => {
+    sendSocket({ type: 'rematch:offer' });
+  });
+  return [offer];
 }
 
 function reviewLink(): HTMLAnchorElement {

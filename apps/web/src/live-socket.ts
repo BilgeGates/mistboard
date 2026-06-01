@@ -17,6 +17,7 @@ import type {
   DraftOffers,
   DraftResolvedStartIds,
   PauseReason,
+  PlayableSeat,
   RoomMode,
   Seat,
   XiangqiFamilyClock,
@@ -53,7 +54,7 @@ type ServerMessage =
       connectedSeats?: ConnectedSeats;
       clock?: XiangqiFamilyClock | null;
       timeControl?: { initialMs: number; incrementMs: number } | null;
-      rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+      rematch?: { offers: { white?: boolean; black?: boolean; red?: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
   | {
@@ -85,7 +86,7 @@ type ServerMessage =
       connectedSeats?: ConnectedSeats;
       clock?: XiangqiFamilyClock | null;
       timeControl?: { initialMs: number; incrementMs: number } | null;
-      rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+      rematch?: { offers: { white?: boolean; black?: boolean; red?: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
   | {
@@ -121,19 +122,19 @@ type ServerMessage =
       connectedSeats?: ConnectedSeats;
       clock?: XiangqiFamilyClock | null;
       timeControl?: { initialMs: number; incrementMs: number } | null;
-      rematch?: { offers: { white: boolean; black: boolean }; finalizedRoomId: string | null };
+      rematch?: { offers: { white?: boolean; black?: boolean; red?: boolean }; finalizedRoomId: string | null };
       seatDisplayNames?: Partial<Record<Color, string>>;
     }
   | {
       type: 'rematch:state';
-      offers: { white: boolean; black: boolean };
+      offers: { white?: boolean; black?: boolean; red?: boolean };
       finalizedRoomId: string | null;
     }
   | {
       type: 'rematch:redirect';
       url: string;
       roomId: string;
-      seat: Color;
+      seat: PlayableSeat;
       seatToken: string;
     }
   | { type: 'server_restart_scheduled'; restartAt: number }

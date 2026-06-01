@@ -40,7 +40,11 @@ import {
   selectEngineDraftStart,
 } from './room-manager.js';
 import { loadServerRuntimeConfig, serverConfig } from './server-config.js';
+import { persistenceRecordForDarkMiniXiangqiSeatToken } from './server-dark-mini-xiangqi-events.js';
+import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import { createDarkMiniXiangqiLiveRoom } from './server-dark-mini-xiangqi-room-factory.js';
+import { mintDarkMiniXiangqiSeatToken } from './server-dark-mini-xiangqi-seat-session.js';
+import { sendDarkMiniXiangqiPayload } from './server-ws-dark-mini-xiangqi.js';
 import { clearDarkXiangqiRuntimeTimers } from './server-dark-xiangqi-lifecycle.js';
 import { createDarkXiangqiLiveRoom } from './server-dark-xiangqi-room-factory.js';
 import { createDrainController } from './server-drain.js';
@@ -186,9 +190,30 @@ const rematchOrch: RematchOrchestrator = {
   },
 };
 
+// Dark Mini Xiangqi rematch: sibling of the chess orchestrator over red/black.
+// createRoom carries the time control forward; issueSeatToken pre-issues a
+// swapped-color seat token and persists it (same durability as live seating) so
+// a reconnecting player still re-attaches after a server restart.
+const darkMiniXiangqiRematchCtx: DarkMiniXiangqiRematchContext = {
+  send: (client, payload) => sendDarkMiniXiangqiPayload(client, payload),
+  createRoom: (timeControl) => createDarkMiniXiangqiRoom(timeControl),
+  buildRoomUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
+  issueSeatToken: async (room, seat, identity) => {
+    const minted = mintDarkMiniXiangqiSeatToken(room, seat, identity);
+    if (persistence.isInitialized()) {
+      await persistence.upsertRoomSeatToken(
+        room.id,
+        persistenceRecordForDarkMiniXiangqiSeatToken(minted.state),
+      );
+    }
+    return minted;
+  },
+};
+
 const wsConnectionCtx: WebSocketConnectionContext = {
   roomMgrCtx,
   rematchOrch,
+  darkMiniXiangqiRematch: darkMiniXiangqiRematchCtx,
   defaultRoomRegion,
   wsMessageLimit,
   wsMessageWindowMs,
