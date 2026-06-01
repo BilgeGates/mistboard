@@ -3102,23 +3102,14 @@ export const articles: Article[] = [
           } as ArticleBlock,
         ],
       },
-      {
-        heading: 'Next: Fog of War chess',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'This page covers regular chess. Fog of War chess uses the same piece movement, then hides enemy pieces outside your vision and replaces checkmate with direct king capture.',
-          },
-          {
-            kind: 'cta',
-            buttons: [
-              { label: 'Read Dark Chess Rules', href: '/rules/dark-chess', emphasis: 'primary' },
-              { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
-            ],
-          } as ArticleBlock,
+      relatedClosing({
+        heading: 'Where to next',
+        lead: 'Chess is the open-information base game. Add Fog of War for dark chess, where enemy pieces outside your vision disappear and the king falls by capture.',
+        links: [
+          { label: 'Read Dark Chess', href: '/rules/dark-chess', emphasis: 'primary' },
+          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],
-      },
+      }),
     ],
   },
   {
@@ -3594,22 +3585,18 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'Try it',
+        heading: 'Play status',
         blocks: [
           {
             kind: 'paragraph',
-            text: "Open a board, pick Dark Draft960, share the link. No account required.",
+            text: 'Dark Draft960 is a future variant, not playable yet. There is no set release date.',
           },
           {
             kind: 'cta',
             buttons: [
-              { label: 'Play Dark Draft960', href: '/', emphasis: 'primary' },
+              { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
             ],
           } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text: "The full source is AGPL-3.0. The variant runs on the same dark chess code path used everywhere on Mistboard.",
-          },
         ],
       },
     ],
@@ -3784,7 +3771,7 @@ export const articles: Article[] = [
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: 'Xiangqi is the open-information base game. Add Fog of War for the hidden-information version, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.',
+        lead: 'Xiangqi is the open-information base game. Add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.',
         links: [
           { label: 'Read Dark Xiangqi', href: '/rules/dark-xiangqi', emphasis: 'primary' },
           { label: 'Mini Xiangqi', href: '/rules/mini-xiangqi', emphasis: 'secondary' },
@@ -3922,7 +3909,7 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Playable Dark Xiangqi games are not public yet.',
+            text: 'Dark Xiangqi is a future variant, not playable yet. There is no set release date.',
           },
           {
             kind: 'cta',
