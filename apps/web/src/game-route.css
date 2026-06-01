@@ -66,6 +66,13 @@
   min-height: 0;
 }
 
+/* In header mode the player names live in the header strip, so the per-pane
+   name row is always empty. visibility:hidden still reserves ~18px above the
+   top captures; collapse it instead. */
+.game-replay.replay-meta-header .replay-pane-name:empty {
+  display: none;
+}
+
 .game-replay .replay-board.cg-wrap,
 .game-replay .replay-pane-clock-slot {
   transition:
@@ -296,7 +303,14 @@
     justify-self: stretch;
     align-self: start;
     gap: 10px;
+    /* Trim the triptych card frame (base is 14px) to claw back a little
+       vertical headroom so the page clears the viewport with slack. */
+    padding: 10px;
     max-width: none;
+  }
+
+  .game-replay.replay-meta-header .replay-pane {
+    gap: 2px;
   }
 
   .game-replay.replay-meta-header .replay-board.cg-wrap {
@@ -327,7 +341,26 @@
   }
 
   .game-replay.replay-meta-header .replay-moves-panel .move-list {
-    height: clamp(260px, 52vh, 520px);
+    /* The move list scrolls internally, so a shorter visible window is the
+       cheapest way to keep the review page within one viewport. */
+    height: clamp(220px, 36vh, 420px);
+  }
+
+  /* Tighten the in-replay header strip: the default 16px/20px padding, 42px
+     clock rows, and 6px center gap make it ~150px tall and push the page into
+     a vertical scroll. */
+  .game-replay.replay-meta-header .replay-game-header {
+    padding: 10px 16px;
+    gap: 14px;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-center {
+    gap: 4px;
+  }
+
+  .game-replay.replay-meta-header .replay-game-header-cell .replay-clock-row {
+    min-height: 36px;
+    padding: 6px 12px;
   }
 
   .game-replay.replay-meta-header .replay-tools-row {
@@ -340,8 +373,8 @@
   display: flex;
   gap: 14px;
   align-items: center;
-  margin: 18px auto 0;
-  padding: 10px 14px;
+  margin: 10px auto 0;
+  padding: 6px 14px;
   font-size: 13px;
   color: #4a544e;
   max-width: max-content;
