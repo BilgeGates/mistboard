@@ -2062,13 +2062,15 @@ function mxqDemoState(id: string, board: MiniXiangqiBoard): MiniXiangqiGameState
   };
 }
 
-// Cannon rule under fog: a Red cannon on d1 fires up the d-file. The screen on
-// d3 is shrouded, the empty gap (d4, d5) stays fogged, and the target on d6 is
-// revealed with a capture bracket.
+// Cannon rule under fog: a Red cannon on d3 fires up the d-file. The screen on
+// d5 is shrouded, the empty gap (d6) stays fogged, and the target on d7 (the
+// Black general) is revealed with a capture bracket. A Black horse sits
+// off-file on f3.
 const MINI_XIANGQI_CANNON_STATE = mxqDemoState('dmxq-cannon-rule', {
-  d1: { color: 'red', role: 'cannon' },
-  d3: { color: 'black', role: 'soldier' },
-  d6: { color: 'black', role: 'soldier' },
+  d3: { color: 'red', role: 'cannon' },
+  d5: { color: 'black', role: 'soldier' },
+  d7: { color: 'black', role: 'general' },
+  f3: { color: 'black', role: 'horse' },
 });
 const MINI_XIANGQI_CANNON_PAIR = () => miniXqPairSvg(
   MINI_XIANGQI_CANNON_STATE,
@@ -4049,7 +4051,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The board and army are the same as [Mini Xiangqi](/rules/mini-xiangqi): a 7 by 7 grid with files a through g, one general, two chariots, two cannons, two horses, and five soldiers a side, each general in a 3 by 3 palace. Red moves first. Fog of War then hides the board: you see your own pieces and every point they can reach, and everything else is fog.',
+              'The board and army are the same as Mini Xiangqi. Fog of War then hides the board: you see your own pieces and every point they can reach, and everything else is fog.',
           },
           {
             kind: 'raw-svg',
