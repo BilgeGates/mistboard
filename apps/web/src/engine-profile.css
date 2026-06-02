@@ -1,36 +1,11 @@
-.engine-profile-shell {
-  max-width: 720px;
-}
-
-.engine-profile-header {
-  margin-bottom: 20px;
-}
-
-.engine-profile-name {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
-.engine-profile-id {
-  margin: 2px 0 0;
-  font-size: 0.82rem;
-  color: var(--site-muted, #8a8f98);
-}
-
-.engine-profile-badge {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  color: var(--site-muted, #8a8f98);
-  border: 1px solid var(--site-border, rgba(255, 255, 255, 0.12));
-}
+/* Engine profile reuses the player-profile surface (profile-shell, profile-header,
+   profile-games, profile-game-row) from account-profile.css. Only the middle
+   records block (PvE headline + EvE secondary) is engine-specific. */
 
 .engine-records {
   display: flex;
   gap: 12px;
-  margin-bottom: 24px;
+  margin: 16px 0 24px;
   flex-wrap: wrap;
 }
 
@@ -63,78 +38,4 @@
   margin: 4px 0 0;
   font-size: 0.8rem;
   color: var(--site-muted, #8a8f98);
-}
-
-.engine-recent-heading {
-  font-size: 1rem;
-  margin: 0 0 10px;
-}
-
-.engine-recent-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.engine-game-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--site-border, rgba(255, 255, 255, 0.08));
-  color: inherit;
-  text-decoration: none;
-}
-
-.engine-game-row:hover {
-  background: var(--site-panel, rgba(255, 255, 255, 0.03));
-}
-
-.engine-game-result {
-  width: 1.4rem;
-  height: 1.4rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.engine-game-win {
-  background: color-mix(in srgb, #4caf50 22%, transparent);
-  color: #7bd685;
-}
-
-.engine-game-loss {
-  background: color-mix(in srgb, #d4645d 22%, transparent);
-  color: #e08a85;
-}
-
-.engine-game-draw {
-  background: color-mix(in srgb, #8a8f98 22%, transparent);
-  color: #b6bbc4;
-}
-
-.engine-game-opp {
-  flex: 1;
-  font-weight: 600;
-}
-
-.engine-game-meta {
-  font-size: 0.8rem;
-  color: var(--site-muted, #8a8f98);
-}
-
-.engine-profile-status {
-  color: var(--site-muted, #8a8f98);
-  padding: 16px 0;
-}
-
-.engines-name-link {
-  color: inherit;
-  text-decoration: none;
-}
-
-.engines-name-link:hover {
-  text-decoration: underline;
 }

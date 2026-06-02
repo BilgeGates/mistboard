@@ -5,13 +5,14 @@
 // not linked yet.
 import './engines.css';
 
+type ModeRecord = { games: number; wins: number; losses: number; draws: number };
+
 type EngineRow = {
   engineId: string;
   name: string | null;
-  games: number;
-  wins: number;
-  losses: number;
-  draws: number;
+  pve: ModeRecord;
+  eve: ModeRecord;
+  totalGames: number;
   lastPlayedAt: string | null;
 };
 
@@ -31,7 +32,7 @@ export async function mountEngines(root: HTMLElement): Promise<void> {
   const sub = document.createElement('p');
   sub.className = 'engines-sub';
   sub.textContent =
-    'Internal · admin only. Win/loss/draw record per engine version across completed engine-vs-engine games.';
+    'Internal · admin only. Per engine version: record vs humans (PvE) and vs other engines (EvE) across completed games.';
 
   const body = document.createElement('section');
   body.className = 'engines-body';
@@ -72,7 +73,7 @@ function buildTable(engines: EngineRow[]): HTMLElement {
 
   const thead = document.createElement('thead');
   const headRow = document.createElement('tr');
-  for (const label of ['#', 'Engine', 'Games', 'W–L–D', 'Win %', 'Last played']) {
+  for (const label of ['#', 'Engine', 'vs Humans', 'vs Engines', 'Games', 'Last played']) {
     const th = document.createElement('th');
     th.textContent = label;
     headRow.append(th);
@@ -101,16 +102,12 @@ function buildTable(engines: EngineRow[]): HTMLElement {
       name.append(id);
     }
 
-    // Win % over decided games (draws excluded from the denominator).
-    const decided = engine.wins + engine.losses;
-    const winPct = decided > 0 ? `${Math.round((engine.wins / decided) * 100)}%` : '—';
-
     tr.append(
       rank,
       name,
-      cell(String(engine.games)),
-      cell(`${engine.wins}–${engine.losses}–${engine.draws}`),
-      cell(winPct),
+      recordCell(engine.pve),
+      recordCell(engine.eve),
+      cell(String(engine.totalGames)),
       cell(formatDate(engine.lastPlayedAt)),
     );
     tbody.append(tr);
@@ -123,6 +120,16 @@ function cell(text: string): HTMLTableCellElement {
   const td = document.createElement('td');
   td.textContent = text;
   return td;
+}
+
+// A win-loss-draw cell, or an em-free dash when the engine has no games in that mode.
+function recordCell(record: ModeRecord): HTMLTableCellElement {
+  if (record.games === 0) {
+    const td = cell('-');
+    td.classList.add('engines-empty');
+    return td;
+  }
+  return cell(`${record.wins}–${record.losses}–${record.draws}`);
 }
 
 function statusLine(text: string): HTMLElement {

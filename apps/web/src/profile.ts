@@ -1,7 +1,8 @@
 // Profile + leaderboard pages — extracted from landing.ts.
 
 import './account-profile.css';
-import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
+import { type FeaturedGame } from './game-display.js';
+import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { leaderboardVariants } from './variants.js';
 
@@ -264,48 +265,33 @@ async function fetchUserProfile(handle: string): Promise<UserProfile | null> {
 }
 
 function buildProfileHeader(profile: UserProfile): HTMLElement {
-  const header = document.createElement('section');
-  header.className = 'profile-header';
-
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = profile.isViewer ? 'Your profile' : 'Player profile';
-
-  const title = document.createElement('h1');
-  title.className = 'site-section-heading';
-  title.textContent = profile.user.displayName;
-
-  const meta = document.createElement('p');
-  meta.className = 'account-copy profile-header-meta';
-
   const handlePart = document.createElement('span');
   handlePart.className = 'profile-handle';
   handlePart.textContent = `@${profile.user.handle}`;
-  meta.append(handlePart);
+
+  const metaParts: HTMLElement[] = [handlePart];
 
   const joinedLabel = formatJoinedDate(profile.user.createdAt);
   if (joinedLabel) {
-    meta.append(document.createTextNode(' · '));
     const joined = document.createElement('span');
     joined.className = 'profile-joined';
     joined.textContent = `Joined ${joinedLabel}`;
-    meta.append(joined);
+    metaParts.push(joined);
   }
 
-  meta.append(document.createTextNode(' · '));
   const gameCount = document.createElement('span');
   gameCount.className = 'profile-game-count';
   gameCount.textContent = `${profile.gamesTotal} ${profile.gamesTotal === 1 ? 'game' : 'games'}`;
-  meta.append(gameCount);
+  metaParts.push(gameCount);
 
   const roleBadge = buildRoleBadge(profile.user.accountRole);
-  if (roleBadge) {
-    meta.append(document.createTextNode(' · '));
-    meta.append(roleBadge);
-  }
+  if (roleBadge) metaParts.push(roleBadge);
 
-  header.append(eyebrow, title, meta);
-  return header;
+  return buildProfileHeaderShell({
+    eyebrow: profile.isViewer ? 'Your profile' : 'Player profile',
+    title: profile.user.displayName,
+    metaParts,
+  });
 }
 
 function buildRoleBadge(role: UserProfile['user']['accountRole']): HTMLElement | null {
@@ -481,64 +467,6 @@ function buildProfileGames(profile: UserProfile): HTMLElement {
   return section;
 }
 
-function buildProfileGameRow(game: FeaturedGame): HTMLElement {
-  const item = document.createElement('li');
-  const link = document.createElement('a');
-  link.href = `/game/${encodeURIComponent(game.roomId)}`;
-  link.className = 'profile-game-row';
-  const tone = profileResultTone(game);
-  link.classList.add(`profile-game-row-${tone}`);
-
-  const outcome = document.createElement('span');
-  outcome.className = `profile-game-outcome profile-game-outcome-${tone}`;
-  outcome.textContent = profileResultLabel(game);
-
-  const body = document.createElement('span');
-  body.className = 'profile-game-body';
-
-  const topLine = document.createElement('span');
-  topLine.className = 'profile-game-topline';
-
-  const opponent = document.createElement('span');
-  opponent.className = 'profile-game-opponent';
-  opponent.textContent = `vs ${profileOpponentName(game)}`;
-
-  const date = document.createElement('span');
-  date.className = 'profile-game-date';
-  date.textContent = formatGameDate(game.endedAt);
-
-  topLine.append(opponent, date);
-
-  // Only a head-to-head human (pvp) game can ever be rated; anything vs an
-  // engine, EvE, or imported is casual by definition. Gate on mode first so a
-  // stray rated=true on a non-pvp row (e.g. legacy games backfilled by the
-  // rated migration's DEFAULT true) never mislabels it. For pvp, trust the flag.
-  const isCasual = game.mode !== 'pvp' || game.rated === false;
-  const details = document.createElement('span');
-  details.className = 'profile-game-details';
-  details.append(
-    buildGameDetail(profileSideLabel(game), 'profile-game-side'),
-    buildGameDetail(
-      isCasual ? 'Casual' : 'Rated',
-      isCasual ? 'profile-game-casual' : 'profile-game-rated',
-    ),
-    buildGameDetail(sourceLabel(game.mode)),
-    buildGameDetail(`${game.plyCount} plies`),
-  );
-
-  body.append(topLine, details);
-  link.append(outcome, body);
-  item.append(link);
-  return item;
-}
-
-function buildGameDetail(label: string, extraClass?: string): HTMLElement {
-  const pill = document.createElement('span');
-  pill.className = extraClass ? `profile-game-detail ${extraClass}` : 'profile-game-detail';
-  pill.textContent = label;
-  return pill;
-}
-
 async function fetchUserGamesPage(
   handle: string,
   offset: number,
@@ -551,34 +479,3 @@ async function fetchUserGamesPage(
   return (await resp.json()) as { games: FeaturedGame[]; total: number };
 }
 
-function profileOpponentName(game: FeaturedGame): string {
-  const color = game.playerColor ?? 'white';
-  return displayParticipantName(game, color === 'white' ? 'black' : 'white');
-}
-
-function profileSideLabel(game: FeaturedGame): string {
-  if (game.playerColor === 'black') return 'Black';
-  return 'White';
-}
-
-function profileResultLabel(game: FeaturedGame): string {
-  if (game.result === 'draw') return 'Draw';
-  if (game.playerColor === 'black') return game.result === 'black-wins' ? 'Win' : 'Loss';
-  return game.result === 'white-wins' ? 'Win' : 'Loss';
-}
-
-function profileResultTone(game: FeaturedGame): 'win' | 'loss' | 'draw' {
-  const result = profileResultLabel(game);
-  if (result === 'Win') return 'win';
-  if (result === 'Loss') return 'loss';
-  return 'draw';
-}
-
-function formatGameDate(value: string | undefined): string {
-  if (!value) return 'Finished game';
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return 'Finished game';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-    date,
-  );
-}

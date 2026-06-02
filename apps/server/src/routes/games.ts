@@ -147,7 +147,7 @@ export async function tryHandle(
     return true;
   }
 
-  // Per-engine profile: PvE (vs-humans) headline record + EvE (self-play)
+  // Per-engine profile: PvE (vs-humans) headline record + EvE (vs other engines)
   // secondary + recent PvE games. Same admin gate as the roster.
   const engineProfileMatch = pathname.match(/^\/api\/admin\/engines\/([^/]+)$/);
   if (engineProfileMatch) {

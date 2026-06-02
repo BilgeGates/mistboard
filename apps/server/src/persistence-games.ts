@@ -200,69 +200,83 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
 export type EngineVersionStats = {
   engineId: string;
   name: string | null;
-  games: number;
-  wins: number;
-  losses: number;
-  draws: number;
+  // vs-humans (headline) and vs other engines / bakeoff (secondary), per engine.
+  pve: EngineModeRecord;
+  eve: EngineModeRecord;
+  totalGames: number;
   lastPlayedAt: string | null;
 };
 
-// Per-engine-version record across all completed engine-vs-engine games. Each
-// game contributes one row per side via the UNION, so a version is credited for
-// every seat it occupied. Names come from the engine_versions registry
-// (LEFT JOIN, so an id with no registry row still appears under its raw id).
+// Per-engine-version record across all completed games, split by mode. Sources
+// from game_participants (subject_type 'engine-version') — the canonical engine
+// attribution, written for every engine game (PvE and EvE) — so the roster stays
+// consistent with the per-engine profile (the eve_games sidecar is not written
+// by every path). Names come from the engine_versions registry (LEFT JOIN, so an
+// id with no registry row still appears under its raw id).
 export async function listEngineVersionStats(): Promise<EngineVersionStats[]> {
   const { rows } = await getPool().query<{
     engine_id: string;
     name: string | null;
-    games: string;
-    wins: string;
-    losses: string;
-    draws: string;
+    total_games: string;
+    pve_games: string;
+    pve_wins: string;
+    pve_losses: string;
+    pve_draws: string;
+    eve_games: string;
+    eve_wins: string;
+    eve_losses: string;
+    eve_draws: string;
     last_played_at: Date | null;
   }>(
-    `WITH sides AS (
-       SELECT eve_games.white_engine_id AS engine_id,
-              CASE games.result
-                WHEN 'white-wins' THEN 'win'
-                WHEN 'black-wins' THEN 'loss'
-                WHEN 'draw' THEN 'draw'
-              END AS outcome,
-              games.ended_at
-       FROM eve_games
-       JOIN games ON games.room_id = eve_games.game_id
-       WHERE games.status = 'completed' AND eve_games.white_engine_id IS NOT NULL
-       UNION ALL
-       SELECT eve_games.black_engine_id AS engine_id,
-              CASE games.result
-                WHEN 'black-wins' THEN 'win'
-                WHEN 'white-wins' THEN 'loss'
-                WHEN 'draw' THEN 'draw'
-              END AS outcome,
-              games.ended_at
-       FROM eve_games
-       JOIN games ON games.room_id = eve_games.game_id
-       WHERE games.status = 'completed' AND eve_games.black_engine_id IS NOT NULL
-     )
-     SELECT sides.engine_id,
+    `SELECT game_participants.subject_id AS engine_id,
             engine_versions.name,
-            COUNT(*) AS games,
-            COUNT(*) FILTER (WHERE sides.outcome = 'win') AS wins,
-            COUNT(*) FILTER (WHERE sides.outcome = 'loss') AS losses,
-            COUNT(*) FILTER (WHERE sides.outcome = 'draw') AS draws,
-            MAX(sides.ended_at) AS last_played_at
-     FROM sides
-     LEFT JOIN engine_versions ON engine_versions.id = sides.engine_id
-     GROUP BY sides.engine_id, engine_versions.name
-     ORDER BY COUNT(*) DESC, sides.engine_id`,
+            COUNT(*) AS total_games,
+            COUNT(*) FILTER (WHERE games.mode = 'pve') AS pve_games,
+            COUNT(*) FILTER (WHERE games.mode = 'pve' AND (
+              (game_participants.color = 'white' AND games.result = 'white-wins')
+              OR (game_participants.color = 'black' AND games.result = 'black-wins')
+            )) AS pve_wins,
+            COUNT(*) FILTER (WHERE games.mode = 'pve' AND (
+              (game_participants.color = 'white' AND games.result = 'black-wins')
+              OR (game_participants.color = 'black' AND games.result = 'white-wins')
+            )) AS pve_losses,
+            COUNT(*) FILTER (WHERE games.mode = 'pve' AND games.result = 'draw') AS pve_draws,
+            COUNT(*) FILTER (WHERE games.mode = 'eve') AS eve_games,
+            COUNT(*) FILTER (WHERE games.mode = 'eve' AND (
+              (game_participants.color = 'white' AND games.result = 'white-wins')
+              OR (game_participants.color = 'black' AND games.result = 'black-wins')
+            )) AS eve_wins,
+            COUNT(*) FILTER (WHERE games.mode = 'eve' AND (
+              (game_participants.color = 'white' AND games.result = 'black-wins')
+              OR (game_participants.color = 'black' AND games.result = 'white-wins')
+            )) AS eve_losses,
+            COUNT(*) FILTER (WHERE games.mode = 'eve' AND games.result = 'draw') AS eve_draws,
+            MAX(games.ended_at) AS last_played_at
+     FROM game_participants
+     JOIN games ON games.room_id = game_participants.game_id
+     LEFT JOIN engine_versions ON engine_versions.id = game_participants.subject_id
+     WHERE game_participants.subject_type = 'engine-version'
+       AND game_participants.subject_id IS NOT NULL
+       AND games.status = 'completed'
+     GROUP BY game_participants.subject_id, engine_versions.name
+     ORDER BY COUNT(*) DESC, game_participants.subject_id`,
   );
   return rows.map((row) => ({
     engineId: row.engine_id,
     name: row.name,
-    games: Number(row.games),
-    wins: Number(row.wins),
-    losses: Number(row.losses),
-    draws: Number(row.draws),
+    pve: {
+      games: Number(row.pve_games),
+      wins: Number(row.pve_wins),
+      losses: Number(row.pve_losses),
+      draws: Number(row.pve_draws),
+    },
+    eve: {
+      games: Number(row.eve_games),
+      wins: Number(row.eve_wins),
+      losses: Number(row.eve_losses),
+      draws: Number(row.eve_draws),
+    },
+    totalGames: Number(row.total_games),
     lastPlayedAt: row.last_played_at ? row.last_played_at.toISOString() : null,
   }));
 }
@@ -277,7 +291,7 @@ export type EngineModeRecord = {
 export type EngineProfile = {
   engineId: string;
   name: string | null;
-  // vs-humans record — the headline. EvE (self-play / bakeoff) is secondary.
+  // vs-humans record is the headline. EvE (vs other engines / bakeoff) is secondary.
   pve: EngineModeRecord;
   eve: EngineModeRecord;
   recentPveGames: ProfileGameRecord[];
