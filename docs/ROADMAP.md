@@ -9,8 +9,11 @@ Mistboard has two public product pillars:
 - **Human ladder:** server-enforced dark chess, calibrated rated games, and a
   serious ranked ladder.
 - **Engine ecosystem:** a public engine protocol, public baseline engines,
-  reproducible benchmarks, and a first-party dark-chess engine that competes
-  through the same auditable information boundary as every other engine.
+  reproducible benchmarks, a first-party dark-chess engine that competes
+  through the same auditable information boundary as every other engine, and
+  **engine-derived analysis** (game review, training) that a perfect-information
+  engine structurally cannot offer — the differentiator and the monetization
+  wedge. See `docs-private/differentiation-thesis.md`.
 
 The landing-page promise should keep the umbrella legible without hiding the
 first playable game: hidden-information games, starting with dark chess. The
@@ -48,6 +51,15 @@ information, ranked integrity, and a serious engine track.
   `elephantops`-backed rules wrapper before putting it in an engine hot path:
   the live-room layer is acceptable for play, but engine search should review
   kernel performance, allocation patterns, and the GPL dependency boundary.
+- [ ] **M6 — Engine analysis (game review).** Post-game review that surfaces what
+  the engine *believed*: the information-revealing moves, the blunders relative to
+  a belief-aware eval, "here's what the engine thought your opponent had." This is
+  the concrete form of the differentiation thesis — a surface a perfect-information
+  engine (Fairy-Stockfish, what pychess/chess.com run) categorically cannot build,
+  and the paid monetization wedge. **Gated on the engine reaching real strength**
+  (Obscuro replication track, post-M5); do not conflate with the M1-bar empty-lobby
+  engine. Free PvP stays free; analysis is the wedge. See
+  `docs-private/differentiation-thesis.md` and the monetization roadmap.
 - [ ] **Future hidden-information variants.** Current game-spec taxonomy and
   hidden Dark Xiangqi spike prove the platform can represent non-chess families,
   but they are not launch-surface commitments. Keep new families hidden or
