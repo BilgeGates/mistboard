@@ -19,9 +19,7 @@ import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 
-const HOMEPAGE_CORPUS_PLY_MS = 900;
 const HOMEPAGE_CORPUS_HOLD_MS = 8000;
-const HOMEPAGE_CORPUS_CLOCK_TICK_MS = 16;
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -51,17 +49,6 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const sampleIds = games.map((g) => g.roomId);
   const forcedSample = requested && sampleIds.includes(requested) ? requested : null;
   const currentSample = forcedSample ?? sampleIds[0]!;
-  const wallClockLoop = forcedSample
-    ? undefined
-    : {
-        holdMs: HOMEPAGE_CORPUS_HOLD_MS,
-        plyMs: HOMEPAGE_CORPUS_PLY_MS,
-        samples: games.map((game) => ({
-          plyCount: game.plyCount,
-          sampleId: game.roomId,
-        })),
-        tickMs: HOMEPAGE_CORPUS_CLOCK_TICK_MS,
-      };
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el, buildFooter());
   mountArticleThumbnails(stage.el);
@@ -76,12 +63,17 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   }
 
   const replay = await mountReplay(stage.replayRoot, currentSample, {
-    autoplay: forcedSample !== null,
+    autoplay: true,
     showControls: false,
     revealOnFinish: false,
     orientationForId: (sampleId) => povByRoomId[sampleId] ?? 'white',
-    loopSamples: forcedSample ? sampleIds : undefined,
-    wallClockLoop,
+    // Cycle the corpus per-visitor, pacing each game by its real per-move
+    // timing: PvP uses recorded move deltas, EvE uses engine think time.
+    // clampPace bounds the raw think-time path so flat-budget EvE fallback
+    // games don't play as a 5s/move metronome.
+    loopSamples: sampleIds,
+    clampPace: true,
+    betweenGameDelayMs: HOMEPAGE_CORPUS_HOLD_MS,
     loaderForId: landingEventLoader,
     metadataMode: 'compact',
     metadataByRoomId,

@@ -126,6 +126,15 @@ export type ReplayOptions = {
   blackOrientation?: Color;
   /** When set, after each game finishes the next sample loads automatically. */
   loopSamples?: string[];
+  /**
+   * When true, clamp every per-move autoplay delay to the watchable
+   * [MIN_PLAY_MS, MAX_PLAY_MS] band. PvP (recorded `at`-deltas) and the
+   * `compute_ms` path are already clamped; this only bounds the raw
+   * `thinkTimeMs` path so flat-budget EvE games (literal 5s/move) play back
+   * as a bounded pace instead of a slow metronome. Used by the landing hero;
+   * the full game viewer leaves it off to keep faithful think times.
+   */
+  clampPace?: boolean;
   /** When set, replay position is derived from wall-clock time across the sample corpus. */
   wallClockLoop?: WallClockReplayLoop;
   /** Pause length on the reveal frame before cycling to the next loop sample. */
@@ -211,6 +220,7 @@ export async function mountReplay(
   let wallClockPosition = wallClockInitial;
   const loopSamples = wallClockLoop ? undefined : options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
+  const clampPace = options.clampPace === true;
   const autoplay = !wallClockLoop && (options.autoplay === true || loopSamples !== undefined);
   const urlForId = options.urlForId ?? defaultUrlForId;
   const loaderForId = options.loaderForId;
@@ -966,12 +976,12 @@ export async function mountReplay(
   }
 
   function delayForPly(ply: number): number {
-    return (
+    const raw =
       thinkTimeDelayForPly(ply) ??
       recordedDelayForPly(ply) ??
       computeDelayForPly(ply) ??
-      FALLBACK_PLAY_MS
-    );
+      FALLBACK_PLAY_MS;
+    return clampPace ? clampPlay(raw) : raw;
   }
 
   function thinkTimeDelayForPly(ply: number): number | null {
