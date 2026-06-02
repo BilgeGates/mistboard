@@ -1,0 +1,48 @@
+.engines-shell {
+  max-width: 880px;
+}
+
+.engines-sub {
+  margin: 0 0 16px;
+  color: var(--site-muted, #8a8f98);
+  font-size: 0.9rem;
+}
+
+.engines-status {
+  color: var(--site-muted, #8a8f98);
+  padding: 16px 0;
+}
+
+.engines-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.engines-table th,
+.engines-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--site-border, rgba(255, 255, 255, 0.08));
+}
+
+.engines-table th {
+  font-weight: 600;
+  color: var(--site-muted, #8a8f98);
+}
+
+.engines-rank {
+  width: 2.5rem;
+  color: var(--site-muted, #8a8f98);
+}
+
+.engines-name {
+  font-weight: 600;
+}
+
+.engines-id {
+  display: block;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--site-muted, #8a8f98);
+}

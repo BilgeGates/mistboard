@@ -132,6 +132,21 @@ export async function tryHandle(
     return true;
   }
 
+  // Admin engine tracker: win/loss/draw record per engine version across
+  // completed engine-vs-engine games. Session-admin gated; open in local dev.
+  // Powers the unlisted /engines surface.
+  if (pathname === '/api/admin/engines') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    if (!(await isHttpAdminSession(request))) {
+      writeJson(response, 403, { error: 'admin_required' });
+      return true;
+    }
+    const engines = await persistence.listEngineVersionStats();
+    writeJson(response, 200, { engines });
+    return true;
+  }
+
   const reviewMatch = url.match(/^\/api\/games\/([^/]+)\/review$/);
   if (reviewMatch) {
     if (!requireMethod(request, response, 'GET')) return true;

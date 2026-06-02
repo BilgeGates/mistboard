@@ -197,6 +197,76 @@ export async function listCorpusGames(corpusId: string, limit = 100): Promise<Ga
   return attachGameParticipants(rows.map(gameRecordFromRow));
 }
 
+export type EngineVersionStats = {
+  engineId: string;
+  name: string | null;
+  games: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  lastPlayedAt: string | null;
+};
+
+// Per-engine-version record across all completed engine-vs-engine games. Each
+// game contributes one row per side via the UNION, so a version is credited for
+// every seat it occupied. Names come from the engine_versions registry
+// (LEFT JOIN, so an id with no registry row still appears under its raw id).
+export async function listEngineVersionStats(): Promise<EngineVersionStats[]> {
+  const { rows } = await getPool().query<{
+    engine_id: string;
+    name: string | null;
+    games: string;
+    wins: string;
+    losses: string;
+    draws: string;
+    last_played_at: Date | null;
+  }>(
+    `WITH sides AS (
+       SELECT eve_games.white_engine_id AS engine_id,
+              CASE games.result
+                WHEN 'white-wins' THEN 'win'
+                WHEN 'black-wins' THEN 'loss'
+                WHEN 'draw' THEN 'draw'
+              END AS outcome,
+              games.ended_at
+       FROM eve_games
+       JOIN games ON games.room_id = eve_games.game_id
+       WHERE games.status = 'completed' AND eve_games.white_engine_id IS NOT NULL
+       UNION ALL
+       SELECT eve_games.black_engine_id AS engine_id,
+              CASE games.result
+                WHEN 'black-wins' THEN 'win'
+                WHEN 'white-wins' THEN 'loss'
+                WHEN 'draw' THEN 'draw'
+              END AS outcome,
+              games.ended_at
+       FROM eve_games
+       JOIN games ON games.room_id = eve_games.game_id
+       WHERE games.status = 'completed' AND eve_games.black_engine_id IS NOT NULL
+     )
+     SELECT sides.engine_id,
+            engine_versions.name,
+            COUNT(*) AS games,
+            COUNT(*) FILTER (WHERE sides.outcome = 'win') AS wins,
+            COUNT(*) FILTER (WHERE sides.outcome = 'loss') AS losses,
+            COUNT(*) FILTER (WHERE sides.outcome = 'draw') AS draws,
+            MAX(sides.ended_at) AS last_played_at
+     FROM sides
+     LEFT JOIN engine_versions ON engine_versions.id = sides.engine_id
+     GROUP BY sides.engine_id, engine_versions.name
+     ORDER BY COUNT(*) DESC, sides.engine_id`,
+  );
+  return rows.map((row) => ({
+    engineId: row.engine_id,
+    name: row.name,
+    games: Number(row.games),
+    wins: Number(row.wins),
+    losses: Number(row.losses),
+    draws: Number(row.draws),
+    lastPlayedAt: row.last_played_at ? row.last_played_at.toISOString() : null,
+  }));
+}
+
 export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecord[]> {
   const { rows } = await getPool().query<RecentEveGameRow>(
     `SELECT ${RECENT_EVE_SELECT_COLUMNS}

@@ -67,6 +67,7 @@ export {
 } from './persistence-game-lifecycle.js';
 export type {
   CompletedGameFilters,
+  EngineVersionStats,
   GameAggregates,
   GameFacets,
   GameParticipant,
@@ -88,6 +89,7 @@ export {
   gameFacets,
   getGameSummary,
   listCompletedGames,
+  listEngineVersionStats,
   listCorpusGames,
   listRecentEveGames,
   listRecentPublicGames,

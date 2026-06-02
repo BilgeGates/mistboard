@@ -1,0 +1,135 @@
+// Unlisted admin engine tracker (/engines). A roster of every engine version
+// that has played, with its win/loss/draw record across completed engine-vs-
+// engine games. Admin-gated by /api/admin/engines (open in local dev). No nav
+// entry. The per-engine profile (/engine/:id) is a planned follow-up; rows are
+// not linked yet.
+import './engines.css';
+
+type EngineRow = {
+  engineId: string;
+  name: string | null;
+  games: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  lastPlayedAt: string | null;
+};
+
+class AdminRequiredError extends Error {}
+
+export async function mountEngines(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('engines-page');
+
+  const shell = document.createElement('main');
+  shell.className = 'site-section engines-shell';
+
+  const heading = document.createElement('h1');
+  heading.className = 'site-section-heading';
+  heading.textContent = 'Engines';
+
+  const sub = document.createElement('p');
+  sub.className = 'engines-sub';
+  sub.textContent =
+    'Internal · admin only. Win/loss/draw record per engine version across completed engine-vs-engine games.';
+
+  const body = document.createElement('section');
+  body.className = 'engines-body';
+  body.append(statusLine('Loading…'));
+
+  shell.append(heading, sub, body);
+  root.append(shell);
+
+  let engines: EngineRow[];
+  try {
+    engines = await fetchEngines();
+  } catch (err) {
+    body.replaceChildren(
+      statusLine(err instanceof AdminRequiredError ? err.message : 'Could not load engines.'),
+    );
+    return;
+  }
+  if (engines.length === 0) {
+    body.replaceChildren(statusLine('No engine games recorded yet.'));
+    return;
+  }
+  body.replaceChildren(buildTable(engines));
+}
+
+async function fetchEngines(): Promise<EngineRow[]> {
+  const resp = await fetch('/api/admin/engines', { headers: { accept: 'application/json' } });
+  if (resp.status === 403) {
+    throw new AdminRequiredError('Admin access required. Sign in with an admin account.');
+  }
+  if (!resp.ok) throw new Error(`engines_query_failed_${resp.status}`);
+  const data = (await resp.json()) as { engines: EngineRow[] };
+  return data.engines;
+}
+
+function buildTable(engines: EngineRow[]): HTMLElement {
+  const table = document.createElement('table');
+  table.className = 'engines-table';
+
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  for (const label of ['#', 'Engine', 'Games', 'W–L–D', 'Win %', 'Last played']) {
+    const th = document.createElement('th');
+    th.textContent = label;
+    headRow.append(th);
+  }
+  thead.append(headRow);
+  table.append(thead);
+
+  const tbody = document.createElement('tbody');
+  engines.forEach((engine, index) => {
+    const tr = document.createElement('tr');
+
+    const rank = cell(String(index + 1));
+    rank.classList.add('engines-rank');
+
+    const name = cell(engine.name ?? engine.engineId);
+    name.classList.add('engines-name');
+    if (engine.name && engine.name !== engine.engineId) {
+      const id = document.createElement('span');
+      id.className = 'engines-id';
+      id.textContent = engine.engineId;
+      name.append(id);
+    }
+
+    // Win % over decided games (draws excluded from the denominator).
+    const decided = engine.wins + engine.losses;
+    const winPct = decided > 0 ? `${Math.round((engine.wins / decided) * 100)}%` : '—';
+
+    tr.append(
+      rank,
+      name,
+      cell(String(engine.games)),
+      cell(`${engine.wins}–${engine.losses}–${engine.draws}`),
+      cell(winPct),
+      cell(formatDate(engine.lastPlayedAt)),
+    );
+    tbody.append(tr);
+  });
+  table.append(tbody);
+  return table;
+}
+
+function cell(text: string): HTMLTableCellElement {
+  const td = document.createElement('td');
+  td.textContent = text;
+  return td;
+}
+
+function statusLine(text: string): HTMLElement {
+  const p = document.createElement('p');
+  p.className = 'engines-status';
+  p.textContent = text;
+  return p;
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}

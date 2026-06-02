@@ -80,6 +80,9 @@ const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
 // Unlisted admin game browser. No nav entry; the page itself is admin-gated by
 // the /api/admin/games/query endpoint (open in local dev). Direct-URL only.
 const wantsDatabase = path === '/database';
+// Unlisted admin engine tracker. No nav entry; admin-gated by /api/admin/engines
+// (open in local dev). Direct-URL only.
+const wantsEngines = path === '/engines';
 const profileHandle = profileHandleFromPath(path);
 // Hidden spike: FoW Xiangqi Phase A. No nav entry, no landing link, and no
 // dev default; enabling it is an explicit build-time flag.
@@ -131,6 +134,11 @@ if (replaySample) {
   setTitle('Game database');
   void mountOrReport(() =>
     import('./database.js').then(({ mountDatabase }) => mountDatabase(appRoot)),
+  );
+} else if (wantsEngines) {
+  setTitle('Engines');
+  void mountOrReport(() =>
+    import('./engines.js').then(({ mountEngines }) => mountEngines(appRoot)),
   );
 } else if (profileHandle) {
   setTitle(`@${profileHandle}`);
