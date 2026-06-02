@@ -206,11 +206,16 @@ export function buildLandingPlayPanel(
     });
   });
 
-  panel.append(lobbyButton, challengeButton, engineButton);
+  // Engine-led order: "Play the engine" leads because it's the always-available,
+  // differentiated action with no human-liquidity dependency. Challenge-by-link
+  // is next; "Find opponent" (lobby matchmaking, with an engine-fallback offer on
+  // timeout) is last. Order is static — only the primary (green) emphasis swaps
+  // with live presence (below), so the row never reshuffles as stats poll.
+  panel.append(engineButton, challengeButton, lobbyButton);
 
   // Cold-start default: assume an empty lobby until live-stats says otherwise,
   // so the always-available engine carries the primary (green) CTA on first
-  // paint. The poll below hands it back to "Find opponent" once players appear.
+  // paint. The poll below hands the green to "Find opponent" once players appear.
   engineButton.classList.add('landing-play-action-primary');
 
   const anonNote = document.createElement('p');
