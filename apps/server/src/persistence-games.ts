@@ -267,6 +267,142 @@ export async function listEngineVersionStats(): Promise<EngineVersionStats[]> {
   }));
 }
 
+export type EngineModeRecord = {
+  games: number;
+  wins: number;
+  losses: number;
+  draws: number;
+};
+
+export type EngineProfile = {
+  engineId: string;
+  name: string | null;
+  // vs-humans record — the headline. EvE (self-play / bakeoff) is secondary.
+  pve: EngineModeRecord;
+  eve: EngineModeRecord;
+  recentPveGames: ProfileGameRecord[];
+};
+
+const EMPTY_ENGINE_RECORD: EngineModeRecord = { games: 0, wins: 0, losses: 0, draws: 0 };
+
+// Per-engine-version profile. Sources from game_participants (subject_type
+// 'engine-version'), the same polymorphic seat model the user profile reads —
+// so it works for PvE (one engine seat) and EvE (two) alike, split by mode.
+// PvE is the meaningful competitive record; EvE is internal calibration.
+export async function getEngineProfile(engineId: string): Promise<EngineProfile | null> {
+  const pool = getPool();
+
+  const nameResult = await pool.query<{ name: string | null }>(
+    'SELECT name FROM engine_versions WHERE id = $1',
+    [engineId],
+  );
+
+  // Per-mode W/L/D from the engine's own perspective (its seat colour vs result).
+  const recordResult = await pool.query<{
+    mode: GameMode;
+    games: string;
+    wins: string;
+    losses: string;
+    draws: string;
+  }>(
+    `SELECT games.mode,
+            COUNT(*) AS games,
+            COUNT(*) FILTER (
+              WHERE (game_participants.color = 'white' AND games.result = 'white-wins')
+                 OR (game_participants.color = 'black' AND games.result = 'black-wins')
+            ) AS wins,
+            COUNT(*) FILTER (
+              WHERE (game_participants.color = 'white' AND games.result = 'black-wins')
+                 OR (game_participants.color = 'black' AND games.result = 'white-wins')
+            ) AS losses,
+            COUNT(*) FILTER (WHERE games.result = 'draw') AS draws
+     FROM game_participants
+     JOIN games ON games.room_id = game_participants.game_id
+     WHERE game_participants.subject_type = 'engine-version'
+       AND game_participants.subject_id = $1
+       AND games.status = 'completed'
+     GROUP BY games.mode`,
+    [engineId],
+  );
+
+  if (recordResult.rows.length === 0 && nameResult.rows.length === 0) return null;
+
+  const byMode = new Map<string, EngineModeRecord>();
+  for (const row of recordResult.rows) {
+    byMode.set(row.mode, {
+      games: Number(row.games),
+      wins: Number(row.wins),
+      losses: Number(row.losses),
+      draws: Number(row.draws),
+    });
+  }
+
+  const recentResult = await pool.query<RecentEngineGameRow>(
+    `SELECT games.room_id, game_participants.color AS player_color,
+            games.variant, games.mode, games.result, games.termination,
+            games.ply_count, games.started_at, games.ended_at,
+            games.white_name, games.black_name, games.corpus_id,
+            COALESCE(games.rated, true) AS rated, games.visibility
+     FROM game_participants
+     JOIN games ON games.room_id = game_participants.game_id
+     WHERE game_participants.subject_type = 'engine-version'
+       AND game_participants.subject_id = $1
+       AND games.mode = 'pve'
+       AND games.status = 'completed'
+     ORDER BY games.ended_at DESC, games.room_id DESC
+     LIMIT 15`,
+    [engineId],
+  );
+  const recentPveGames = await attachGameParticipants(
+    recentResult.rows.map(engineProfileGameFromRow),
+  );
+
+  return {
+    engineId,
+    name: nameResult.rows[0]?.name ?? null,
+    pve: byMode.get('pve') ?? EMPTY_ENGINE_RECORD,
+    eve: byMode.get('eve') ?? EMPTY_ENGINE_RECORD,
+    recentPveGames,
+  };
+}
+
+type RecentEngineGameRow = {
+  room_id: string;
+  player_color: GameParticipantColor;
+  variant: string;
+  mode: GameMode;
+  result: string;
+  termination: string;
+  ply_count: number;
+  started_at: Date;
+  ended_at: Date;
+  white_name: string | null;
+  black_name: string | null;
+  corpus_id: string | null;
+  rated: boolean;
+  visibility: GameVisibility;
+};
+
+function engineProfileGameFromRow(row: RecentEngineGameRow): ProfileGameRecord {
+  return {
+    roomId: row.room_id,
+    playerColor: row.player_color,
+    variant: row.variant,
+    mode: row.mode,
+    result: row.result as GameResult,
+    termination: row.termination as GameTermination,
+    plyCount: row.ply_count,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    whiteName: row.white_name,
+    blackName: row.black_name,
+    corpusId: row.corpus_id,
+    rated: row.rated,
+    visibility: row.visibility,
+    participants: [],
+  };
+}
+
 export async function listRecentEveGames(limit = 12): Promise<RecentEveGameRecord[]> {
   const { rows } = await getPool().query<RecentEveGameRow>(
     `SELECT ${RECENT_EVE_SELECT_COLUMNS}

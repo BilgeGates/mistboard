@@ -67,6 +67,8 @@ export {
 } from './persistence-game-lifecycle.js';
 export type {
   CompletedGameFilters,
+  EngineModeRecord,
+  EngineProfile,
   EngineVersionStats,
   GameAggregates,
   GameFacets,
@@ -87,6 +89,7 @@ export {
   countWatchSealedGames,
   gameAggregates,
   gameFacets,
+  getEngineProfile,
   getGameSummary,
   listCompletedGames,
   listEngineVersionStats,

@@ -83,6 +83,10 @@ const wantsDatabase = path === '/database';
 // Unlisted admin engine tracker. No nav entry; admin-gated by /api/admin/engines
 // (open in local dev). Direct-URL only.
 const wantsEngines = path === '/engines';
+// Unlisted admin per-engine profile (/engine/:id). Same admin gate as /engines.
+const engineProfileId = path.startsWith('/engine/')
+  ? decodeURIComponent(path.slice('/engine/'.length))
+  : null;
 const profileHandle = profileHandleFromPath(path);
 // Hidden spike: FoW Xiangqi Phase A. No nav entry, no landing link, and no
 // dev default; enabling it is an explicit build-time flag.
@@ -139,6 +143,13 @@ if (replaySample) {
   setTitle('Engines');
   void mountOrReport(() =>
     import('./engines.js').then(({ mountEngines }) => mountEngines(appRoot)),
+  );
+} else if (engineProfileId) {
+  setTitle('Engine');
+  void mountOrReport(() =>
+    import('./engine-profile.js').then(({ mountEngineProfile }) =>
+      mountEngineProfile(appRoot, engineProfileId),
+    ),
   );
 } else if (profileHandle) {
   setTitle(`@${profileHandle}`);

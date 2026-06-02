@@ -147,6 +147,26 @@ export async function tryHandle(
     return true;
   }
 
+  // Per-engine profile: PvE (vs-humans) headline record + EvE (self-play)
+  // secondary + recent PvE games. Same admin gate as the roster.
+  const engineProfileMatch = pathname.match(/^\/api\/admin\/engines\/([^/]+)$/);
+  if (engineProfileMatch) {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    if (!(await isHttpAdminSession(request))) {
+      writeJson(response, 403, { error: 'admin_required' });
+      return true;
+    }
+    const engineId = decodeURIComponent(engineProfileMatch[1]!);
+    const profile = await persistence.getEngineProfile(engineId);
+    if (!profile) {
+      writeJson(response, 404, { error: 'engine_not_found' });
+      return true;
+    }
+    writeJson(response, 200, { profile });
+    return true;
+  }
+
   const reviewMatch = url.match(/^\/api\/games\/([^/]+)\/review$/);
   if (reviewMatch) {
     if (!requireMethod(request, response, 'GET')) return true;

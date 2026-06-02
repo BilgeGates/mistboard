@@ -87,8 +87,13 @@ function buildTable(engines: EngineRow[]): HTMLElement {
     const rank = cell(String(index + 1));
     rank.classList.add('engines-rank');
 
-    const name = cell(engine.name ?? engine.engineId);
-    name.classList.add('engines-name');
+    const name = document.createElement('td');
+    name.className = 'engines-name';
+    const nameLink = document.createElement('a');
+    nameLink.className = 'engines-name-link';
+    nameLink.href = `/engine/${encodeURIComponent(engine.engineId)}`;
+    nameLink.textContent = engine.name ?? engine.engineId;
+    name.append(nameLink);
     if (engine.name && engine.name !== engine.engineId) {
       const id = document.createElement('span');
       id.className = 'engines-id';
