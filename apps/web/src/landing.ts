@@ -288,7 +288,7 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const subtagline = document.createElement('p');
   subtagline.className = 'landing-hero-subtagline';
   subtagline.textContent =
-    'Server-enforced hidden information. Play people or the Mistboard engine.';
+    'Server-enforced hidden information. Play the engine, or challenge a friend.';
 
   const activity = document.createElement('p');
   activity.className = 'landing-hero-activity';
