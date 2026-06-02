@@ -17,22 +17,22 @@
   min-height: 0;
   gap: clamp(8px, 1.2vw, 12px);
   padding: clamp(6px, 1vw, 12px) clamp(10px, 1.6vw, 20px);
-  align-content: center;
+  align-content: start;
 }
 
 .landing-demo {
   display: grid;
   grid-template-columns:
-    clamp(240px, 20vw, 300px)
-    minmax(520px, 1fr)
-    clamp(260px, 22vw, 320px);
+    minmax(0, 460px)
+    clamp(280px, 24vw, 340px);
   grid-template-areas:
-    "hero board play"
-    "announcements board play";
-  grid-template-rows: auto auto;
+    "hero hero"
+    "board play"
+    "announcements announcements";
+  grid-template-rows: auto auto auto;
   column-gap: clamp(14px, 2vw, 28px);
   row-gap: clamp(10px, 1.4vw, 16px);
-  align-items: stretch;
+  align-items: start;
   justify-content: center;
   width: 100%;
   max-width: 1480px;
