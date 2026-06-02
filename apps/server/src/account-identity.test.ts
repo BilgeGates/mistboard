@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  displayNameForEmail,
   handleBaseForEmail,
   normalizeDisplayName,
   normalizeEmail,
   normalizeProfileHandle,
+  randomFallbackHandle,
 } from './account-identity.js';
 
 test('normalizeEmail trims and lowercases ASCII email addresses', () => {
@@ -29,10 +29,12 @@ test('handleBaseForEmail falls back when the email local part has no safe handle
   assert.match(handleBaseForEmail('ab@example.com'), /^player-[a-z0-9]{5}$/);
 });
 
-test('displayNameForEmail strips plus tags and keeps human-facing spacing', () => {
-  assert.equal(displayNameForEmail('first.last+tag@example.com'), 'first last');
-  assert.equal(displayNameForEmail('++@example.com'), 'Player');
-  assert.equal(displayNameForEmail(`${'a'.repeat(60)}@example.com`).length, 40);
+test('randomFallbackHandle yields a valid random player handle', () => {
+  for (let i = 0; i < 20; i += 1) {
+    const handle = randomFallbackHandle();
+    assert.match(handle, /^player-[a-z0-9]{5}$/);
+    assert.equal(normalizeProfileHandle(handle), handle);
+  }
 });
 
 test('normalizeProfileHandle accepts public handle syntax', () => {

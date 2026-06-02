@@ -10,5 +10,12 @@ test('handleCollisionAttempt keeps signup retry handles within the public handle
     const handle = handleCollisionAttempt(baseHandle);
     assert.equal(handle.length, maxHandleLength);
     assert.equal(normalizeProfileHandle(handle), handle);
+    assert.match(handle, /^a+-\d{5}$/);
+  }
+});
+
+test('handleCollisionAttempt separates the suffix from a short base with a hyphen', () => {
+  for (let i = 0; i < 20; i += 1) {
+    assert.match(handleCollisionAttempt('brian'), /^brian-\d{5}$/);
   }
 });

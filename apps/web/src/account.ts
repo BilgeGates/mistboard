@@ -82,11 +82,7 @@ function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
 
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
-  title.textContent = user.displayName;
-
-  const meta = document.createElement('p');
-  meta.className = 'account-copy';
-  meta.textContent = `@${user.handle}`;
+  title.textContent = `@${user.handle}`;
 
   const actions = document.createElement('div');
   actions.className = 'account-actions';
@@ -114,7 +110,7 @@ function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
   });
 
   actions.append(profile, settings, logout);
-  panel.append(eyebrow, title, meta, actions);
+  panel.append(eyebrow, title, actions);
   return panel;
 }
 
@@ -140,17 +136,12 @@ function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
 
   const copy = document.createElement('p');
   copy.className = 'account-copy';
-  copy.textContent = 'Email signs you in. Your handle and display name are public.';
+  copy.textContent = 'Email signs you in. Your username is public.';
 
   const form = document.createElement('form');
   form.className = 'account-settings-form';
 
-  const displayName = labeledInput('Display name', 'displayName', user.displayName, 'Brian Hliou');
-  displayName.input.maxLength = 40;
-  displayName.input.required = true;
-  displayName.help.textContent = 'Shown on your public profile and game history.';
-
-  const handle = labeledInput('Handle', 'handle', user.handle, 'brianhliou');
+  const handle = labeledInput('Username', 'handle', user.handle, 'brianhliou');
   handle.input.maxLength = 24;
   handle.input.pattern = '[a-zA-Z0-9][a-zA-Z0-9_-]{1,22}[a-zA-Z0-9]';
   handle.input.required = true;
@@ -183,7 +174,7 @@ function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
   profile.textContent = 'View profile';
 
   actions.append(save, profile, account);
-  form.append(displayName.wrap, handle.wrap, email.wrap, actions, status);
+  form.append(handle.wrap, email.wrap, actions, status);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -193,7 +184,6 @@ function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          displayName: displayName.input.value,
           handle: handle.input.value,
         }),
       });
@@ -201,7 +191,6 @@ function buildAccountSettings(user: AuthUser, shell: HTMLElement): HTMLElement {
       if (!resp.ok || !data.user) {
         throw new Error(accountSettingsErrorMessage(data.error, data.availableAt));
       }
-      displayName.input.value = data.user.displayName;
       handle.input.value = data.user.handle;
       handle.help.textContent = handleHelpText(data.user);
       email.input.value = data.user.email;
@@ -245,13 +234,12 @@ function accountSettingsErrorMessage(
   availableAt: string | undefined,
 ): string {
   if (error === 'invalid_handle') return 'Use 3-24 letters, numbers, underscores, or dashes.';
-  if (error === 'invalid_display_name') return 'Display name must be 1-40 characters.';
-  if (error === 'handle_taken') return 'That handle is not available.';
+  if (error === 'handle_taken') return 'That username is not available.';
   if (error === 'handle_change_cooldown') {
     const date = availableAt ? new Date(availableAt) : null;
     return date && Number.isFinite(date.getTime())
-      ? `Handle can be changed again on ${date.toLocaleDateString()}.`
-      : 'Handle cannot be changed again yet.';
+      ? `Username can be changed again on ${date.toLocaleDateString()}.`
+      : 'Username cannot be changed again yet.';
   }
   if (error === 'not_signed_in') return 'Sign in before editing your profile.';
   return 'Could not save profile.';
@@ -259,15 +247,15 @@ function accountSettingsErrorMessage(
 
 function handleHelpText(user: AuthUser): string {
   if (!user.handleChangedAt) {
-    return 'Used in your profile URL. Your first handle change is available now.';
+    return 'Used in your profile URL. Your first username change is available now.';
   }
   const nextChangeAt = new Date(
     new Date(user.handleChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000,
   );
   if (!Number.isFinite(nextChangeAt.getTime())) {
-    return 'Used in your profile URL. Later handle changes are limited.';
+    return 'Used in your profile URL. Later username changes are limited.';
   }
-  return `Used in your profile URL. Next handle change: ${nextChangeAt.toLocaleDateString()}.`;
+  return `Used in your profile URL. Next username change: ${nextChangeAt.toLocaleDateString()}.`;
 }
 
 // ── Login / register form ────────────────────────────────────────────────────

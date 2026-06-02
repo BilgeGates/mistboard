@@ -1,7 +1,7 @@
 // Profile + leaderboard pages — extracted from landing.ts.
 
 import './account-profile.css';
-import { type FeaturedGame } from './game-display.js';
+import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { leaderboardVariants } from './variants.js';
@@ -265,11 +265,7 @@ async function fetchUserProfile(handle: string): Promise<UserProfile | null> {
 }
 
 function buildProfileHeader(profile: UserProfile): HTMLElement {
-  const handlePart = document.createElement('span');
-  handlePart.className = 'profile-handle';
-  handlePart.textContent = `@${profile.user.handle}`;
-
-  const metaParts: HTMLElement[] = [handlePart];
+  const metaParts: HTMLElement[] = [];
 
   const joinedLabel = formatJoinedDate(profile.user.createdAt);
   if (joinedLabel) {
@@ -289,7 +285,7 @@ function buildProfileHeader(profile: UserProfile): HTMLElement {
 
   return buildProfileHeaderShell({
     eyebrow: profile.isViewer ? 'Your profile' : 'Player profile',
-    title: profile.user.displayName,
+    title: `@${profile.user.handle}`,
     metaParts,
   });
 }
@@ -478,4 +474,3 @@ async function fetchUserGamesPage(
   if (!resp.ok) throw new Error(`failed to load games: ${resp.status}`);
   return (await resp.json()) as { games: FeaturedGame[]; total: number };
 }
-

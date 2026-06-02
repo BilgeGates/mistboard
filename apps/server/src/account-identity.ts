@@ -52,14 +52,14 @@ export function handleBaseForEmail(email: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, maxHandleLength)
     .replace(/-+$/g, '');
-  return normalized.length >= 3 ? normalized : `${fallbackHandlePrefix}-${randomHandleSuffix()}`;
+  return normalized.length >= 3 ? normalized : randomFallbackHandle();
 }
 
-export function displayNameForEmail(email: string): string {
-  const local = email.split('@', 1)[0] ?? '';
-  const publicStem = local.split('+', 1)[0] ?? '';
-  const words = publicStem.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
-  return (words || 'Player').slice(0, maxDisplayNameLength);
+// A fully-random `player-xxxxx` handle (36^5 ≈ 60M space). Used both when an
+// email yields no safe stem and as the last-resort signup fallback so handle
+// congestion alone can never hard-fail account creation.
+export function randomFallbackHandle(): string {
+  return `${fallbackHandlePrefix}-${randomHandleSuffix()}`;
 }
 
 export function normalizeProfileHandle(value: string | null): string | null {

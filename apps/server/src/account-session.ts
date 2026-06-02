@@ -1,6 +1,6 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import { displayNameForEmail, handleBaseForEmail, maxHandleLength } from './account-identity.js';
+import { handleBaseForEmail, maxHandleLength, randomFallbackHandle } from './account-identity.js';
 import * as persistence from './persistence.js';
 import { isProductionLikeRuntime } from './server-policy.js';
 
@@ -35,15 +35,25 @@ export async function ensureUserForEmail(
     return { user: await persistence.markUserEmailVerified(existing.id, now), isNew: false };
 
   const baseHandle = handleBaseForEmail(email);
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const handle = attempt === 0 ? baseHandle : handleCollisionAttempt(baseHandle);
+  // Candidate handle per attempt: the email-derived base first, then numeric
+  // suffixes on that base, then fully-random `player-xxxxx` fallbacks. The
+  // random tail (≈60M space) means handle congestion alone can never exhaust
+  // the loop and hard-fail signup.
+  const candidateHandle = (attempt: number): string => {
+    if (attempt === 0) return baseHandle;
+    if (attempt < 8) return handleCollisionAttempt(baseHandle);
+    return randomFallbackHandle();
+  };
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const handle = candidateHandle(attempt);
     try {
       const user = await persistence.createUser({
         id: `user_${randomUUID()}`,
         email,
         emailVerifiedAt: now,
         handle,
-        displayName: displayNameForEmail(email),
+        // Single-username model: display name always mirrors the handle.
+        displayName: handle,
         now,
       });
       return { user, isNew: true };
@@ -59,7 +69,10 @@ export async function ensureUserForEmail(
 
 export function handleCollisionAttempt(baseHandle: string): string {
   const suffix = String(randomInt(10_000, 99_999));
-  return `${baseHandle.slice(0, maxHandleLength - suffix.length)}${suffix}`;
+  // Reserve room for the "-" separator and strip any trailing hyphen the slice
+  // exposes, so we never produce "foo--12345" or a hyphen butting the suffix.
+  const stem = baseHandle.slice(0, maxHandleLength - suffix.length - 1).replace(/-+$/g, '');
+  return `${stem}-${suffix}`;
 }
 
 export function publicUser(user: persistence.UserAccount): Record<string, unknown> {
