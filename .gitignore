@@ -52,6 +52,14 @@ research/python-fow-lab/tournaments/
 docs-private/
 .claude/
 
+# Agent-instruction layer is local-only as of 2026-06-01. Keeping CLAUDE.md
+# (Claude Code) and AGENTS.md (Codex) unpublished frees them from the
+# public-safe constraint so they can hold real operating detail. Both still
+# load from disk every session; only publication stops. Anchored to repo root
+# so the docs-private/ draft and any nested copies are unaffected.
+/CLAUDE.md
+/AGENTS.md
+
 # Repo uses npm, not pnpm. Stray pnpm-lock files are accidental artifacts.
 pnpm-lock.yaml
 
