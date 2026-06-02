@@ -15,7 +15,7 @@ const TIME_CLASS_CASE_SQL = `CASE\n${TIME_CONTROLS.map(
     `         WHEN games.initial_ms = ${tc.initialMs} AND games.increment_ms = ${tc.incrementMs} THEN '${tc.timeClass}'`,
 ).join('\n')}\n         ELSE NULL\n       END`;
 
-export type AccountRole = 'player' | 'test' | 'admin';
+export type AccountRole = 'player' | 'admin';
 
 export type UserAccount = {
   id: string;

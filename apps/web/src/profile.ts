@@ -22,7 +22,7 @@ type UserProfile = {
     handle: string;
     displayName: string;
     profileVisibility: 'private' | 'unlisted' | 'public';
-    accountRole: 'player' | 'test' | 'admin';
+    accountRole: 'player' | 'admin';
     createdAt: string;
   };
   ratings: ProfileBucketRating[];
@@ -313,12 +313,6 @@ function buildRoleBadge(role: UserProfile['user']['accountRole']): HTMLElement |
     const badge = document.createElement('span');
     badge.className = 'profile-role-badge profile-role-admin';
     badge.textContent = 'Admin';
-    return badge;
-  }
-  if (role === 'test') {
-    const badge = document.createElement('span');
-    badge.className = 'profile-role-badge profile-role-test';
-    badge.textContent = 'Test';
     return badge;
   }
   return null;

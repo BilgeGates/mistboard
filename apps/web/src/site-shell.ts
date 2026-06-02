@@ -12,7 +12,7 @@ export type AuthUser = {
   displayName: string;
   displayNameChangedAt: string | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
-  accountRole: 'player' | 'test' | 'admin';
+  accountRole: 'player' | 'admin';
 };
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
