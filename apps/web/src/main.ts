@@ -102,9 +102,14 @@ const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 
 if (replaySample) {
   setTitle('Replay');
+  // Honor &ply=N as a start cursor (mirrors the /game/:id review route). Lets a
+  // deep-link drop straight onto a position of interest in a long replay.
+  const replayPlyRaw = params.get('ply');
+  const replayPly = replayPlyRaw ? Number.parseInt(replayPlyRaw, 10) : NaN;
+  const replayOpts = Number.isFinite(replayPly) ? { initialPly: replayPly } : undefined;
   void mountOrReport(() =>
     import('./replay.js').then(({ mountReplay }) =>
-      mountReplay(appRoot, replaySample).then(() => undefined),
+      mountReplay(appRoot, replaySample, replayOpts).then(() => undefined),
     ),
   );
 } else if (liveRoomId || wantsLive) {
