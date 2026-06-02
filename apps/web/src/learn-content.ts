@@ -428,7 +428,7 @@ export const learnModules: LearnModule[] = [
       'Player-facing intuition',
     ],
     cta: 'Open preview',
-    source: 'Engine belief-state article outline',
+    source: 'Engine research preview',
   },
   {
     id: 'particle-filters',
@@ -445,7 +445,7 @@ export const learnModules: LearnModule[] = [
       'Degeneracy late game',
     ],
     cta: 'Open preview',
-    source: 'Engine belief-state article outline',
+    source: 'Engine research preview',
   },
   {
     id: 'move-selection-under-uncertainty',
@@ -462,7 +462,7 @@ export const learnModules: LearnModule[] = [
       'Information gain',
     ],
     cta: 'Open preview',
-    source: 'Engine roadmap and belief bug notes',
+    source: 'Engine research preview',
   },
   {
     id: 'latent-slider-danger',
@@ -479,7 +479,7 @@ export const learnModules: LearnModule[] = [
       'Danger-probe particles',
     ],
     cta: 'Open preview',
-    source: 'Belief Particle Engine rung-3 notes',
+    source: 'Engine research preview',
   },
   {
     id: 'engine-lab-loop',
@@ -496,7 +496,7 @@ export const learnModules: LearnModule[] = [
       'Failure class becomes a test',
     ],
     cta: 'Open preview',
-    source: 'Engine architecture roadmap',
+    source: 'Engine research preview',
   },
 ];
 

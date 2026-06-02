@@ -2,9 +2,11 @@
 
 Engine experiments are the generalized system behind EvE mining, bake-offs, calibration, and regression checks. EvE remains the game mode for engine-vs-engine games; the experiment layer is the provider-neutral orchestration around those games.
 
-The local learning loop is documented in `docs/fog-of-war/engine-lab-loop.md`.
-That loop governs how bake-offs become trace artifacts, annotation queues, and
-next-engine hypotheses before the workflow is promoted into EvE.
+The engine's local learning loop (bake-offs, trace artifacts, annotation
+queues, and next-engine hypotheses) lives in the private `mistboard-engine`
+repo; see [`engine-lab-loop.md`](engine-lab-loop.md) for the public boundary
+note. This page covers only the EvE orchestration layer that lives in this
+repo.
 
 ## Use Cases
 

@@ -1,6 +1,6 @@
 # Status
 
-_Last updated: 2026-05-30_
+_Last updated: 2026-06-01_
 
 **State:** active
 **Launched:** https://mistboard.com
@@ -27,6 +27,8 @@ Recent shipped work:
 - Game-spec taxonomy for current and future hidden-information variants
 - Hidden Dark Xiangqi live-room/postgame/review spike behind explicit flags
 - Public platform activity stats and watch/replay polish
+- Homepage hero showcase: PvP-first with an engine-vs-engine fallback
+- Unlisted admin engine tracker: `/engines` version roster + `/engine/:id` per-engine profile (PvE-first record, sourced from `game_participants`)
 - Rated-mode plumbing remains off by default and account-gated
 
 Still open against M1:

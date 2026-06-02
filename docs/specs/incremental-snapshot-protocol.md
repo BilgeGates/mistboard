@@ -1,6 +1,6 @@
 # Incremental snapshot protocol
 
-**Status:** approved 2026-05-22 — implementation pending. Two open design questions resolved in the review (see "Decisions locked in review" below); one wording fix to "Server changes" applied.
+**Status:** SHIPPED. This snapshot→delta migration was implemented across three phases and is live; this spec is retained as the original design record. Note: the `apps/server/src/privacy-ws.test.ts` referenced below was renamed/split into `delta-ws.test.ts` + `payloads.test.ts` during implementation, and the "picking-up agent" brief at the end is historical. _(Originally: approved 2026-05-22, implementation pending.)_
 **Author:** initial draft 2026-05-22; review pass + lock-ins 2026-05-22
 **Owner:** unassigned
 

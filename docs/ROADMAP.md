@@ -1,6 +1,6 @@
 # Roadmap
 
-_Last updated: 2026-05-30_
+_Last updated: 2026-06-01_
 
 ## Product Pillars
 
@@ -38,8 +38,11 @@ information, ranked integrity, and a serious engine track.
   **Engine Identity & Discovery** subtrack: stable public engine
   identities/slugs, engine participation metadata in persisted games,
   Mistboard TV engine channels, engine profile pages linked from replay
-  headers, and public recent-game/version/benchmark records. Engine profiles
-  are public records for engines and games, not a social network surface;
+  headers, and public recent-game/version/benchmark records. An unlisted,
+  admin-only version of this subtrack (engine version roster at `/engines` +
+  per-engine `/engine/:id` profile, sourced from `game_participants`) already
+  shipped as internal scaffolding; the public M5+ surface remains gated. Engine
+  profiles are public records for engines and games, not a social network surface;
   follows, comments, chat, and moderation remain separately gate-cleared. For
   future Dark Xiangqi engine work, revisit the current TypeScript
   `elephantops`-backed rules wrapper before putting it in an engine hot path:
@@ -72,7 +75,7 @@ Outreach is one-shot for HN reputation and streamer credibility. Every item is p
 3. M3 hard launch (HN, r/chess, streamers)
 4. M4 Draft960 rated flip once its own ~200-game volume hits
 
-**Legend:** `[x]` done/verified · `[~]` code shipped, needs a runtime/manual check before it counts · `[ ]` open. Reconciled against the tree 2026-05-30.
+**Legend:** `[x]` done/verified · `[~]` code shipped, needs a runtime/manual check before it counts · `[ ]` open. Reconciled against the tree 2026-06-01.
 
 Manual gates should not be closed from memory. When a gate is verified, record
 the evidence in the item text: date, target environment, device/browser when

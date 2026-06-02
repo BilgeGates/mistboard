@@ -182,9 +182,9 @@ runtime server paths remain deploy-triggering.
 - Generated research corpora and model checkpoints should stay ignored unless a
   reviewed result is intentionally promoted into docs or docs-private. Large
   untracked trees make dirty-state scans and hooks slower for every session.
-  Local Python feedback runs, lab run output, Rust build output, pytest caches,
-  and `__pycache__` directories under `research/python-fow-lab/` are ignored for
-  this reason.
+  Generated corpora, model checkpoints, lab run output, and pytest/`__pycache__`
+  caches stay ignored for this reason. (The engine lab tree itself moved to the
+  private `mistboard-engine` repo, so this repo no longer carries one.)
 
 ## Working rules
 
@@ -267,9 +267,10 @@ runtime server paths remain deploy-triggering.
   `apps/server/src/server-live-engine-reservations.ts`; `apps/server/src/index.ts`
   should request or release reservations without owning engine-worker protocol
   logging or legacy engine-id normalization.
-- Keep engine lab layout styles in `apps/web/src/bakeoff.css` and replay
-  belief/annotation panel styles in `apps/web/src/replay-analysis.css`; do not
-  add new lab-only selectors back into the global stylesheet.
+- Keep replay belief/annotation panel styles in
+  `apps/web/src/replay-analysis.css`; do not add new lab-only selectors back
+  into the global stylesheet. (The standalone bakeoff/lab CSS surface was
+  dropped; lab UI now reuses the replay analysis panels.)
 - Keep account, profile, and leaderboard route styles in
   `apps/web/src/account-profile.css`; do not add new account/profile table or
   form selectors back into the global stylesheet.

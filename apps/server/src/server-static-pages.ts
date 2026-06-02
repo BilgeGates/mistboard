@@ -112,12 +112,6 @@ export const ARTICLE_META: Record<
     description:
       'Mini Xiangqi under Fog of War: each side sees only the points its pieces reach on the 7×7 board, and the general falls by capture.',
   },
-  'engine-belief-state': {
-    title: 'Building an engine for hidden-information chess',
-    kind: 'article',
-    description:
-      "Stockfish-class engines don't transfer to dark chess because they assume perfect information. The right technique is belief-state search with particle-filter approximations.",
-  },
 };
 
 export function canonicalArticleBase(slug: string): 'articles' | 'rules' {

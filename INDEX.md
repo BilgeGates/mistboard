@@ -249,8 +249,6 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `restart-banner.css` | Server restart countdown banner styles loaded by `restart-banner.ts` |
 | `theme.ts` | Settings panel (board / fog / piece-set picker + volume slider, localStorage-backed). Loads `theme.css` for settings controls and dark-mode overrides |
 | `theme.css` | Site appearance/settings control styles and dark-mode overrides loaded by `theme.ts` |
-| `bakeoff.ts` | Engine lab bakeoff view (DEV) |
-| `bakeoff.css` | Engine lab bakeoff layout and bakeoff-specific replay panel sizing loaded by `bakeoff.ts` |
 | `pixel-lab.ts` | `/pixel-lab` AI piece-art/fog lab (DEV) |
 | `variant-marks.ts` | Variant mark/glyph definitions for current and candidate variants |
 | `variant-marks-lab.ts` | DEV-only route for candidate variant marks |
@@ -266,12 +264,12 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `announcements.ts` | Card list for /announcements + landing widget |
 | `annotations.ts` | Annotation read/write for the research feedback workflow |
 | `analytics.ts` | PostHog wrapper + time-class inference (client-side) |
-| `video.ts` | `/video` page (parked; removal in flight this session). Loads `video.css` |
+| `video.ts` | `/video` page (parked, route + nav removed). Loads `video.css` |
 | `video.css` | Parked `/video` page styles loaded by `video.ts` |
 
 ## apps/server/migrations/ — Postgres schema migrations
 
-30 files (`001_init.sql` through `030_family_aware_game_results.sql`). Runner: `migrate.ts` — Postgres advisory-lock + `_migrations` table. Add schema changes as new numbered migrations only.
+34 files (`001_init.sql` through `034_drop_test_account_role.sql`). Runner: `migrate.ts` — Postgres advisory-lock + `_migrations` table. Add schema changes as new numbered migrations only.
 
 **Change schema** → add a new `0NN_*.sql` (never modify a landed migration). Constraint rewrites: drop-then-readd in a new file (see `018_add_resignation_termination.sql`).
 

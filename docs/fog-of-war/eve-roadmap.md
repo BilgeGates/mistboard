@@ -48,7 +48,7 @@ If the worker aborts for infrastructure reasons, update the row to `status = 'ab
 
 ## Annotations
 
-Lab annotations are first-class state, not a debug artifact. Local development has been accumulating them as `research/python-fow-lab/feedback/annotations.jsonl`; by the time EvE ships in production, that history should be preserved as reviewed training and evaluation data rather than treated as a disposable local file.
+Lab annotations are first-class state, not a debug artifact. They accumulate in the private `mistboard-engine` repo (the engine's `feedback/` corpus); by the time EvE ships in production, that history should be preserved as reviewed training and evaluation data rather than treated as a disposable local file.
 
 Migrate as a real table — at minimum:
 

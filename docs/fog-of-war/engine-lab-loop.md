@@ -1,306 +1,36 @@
 # Engine Lab Loop
 
-Engine Lab is the local learning loop for Fog of War engine work. Its job is
-to turn candidate engine changes into ranked evidence, a small annotation queue,
-and the next concrete patch.
+> **Moved.** The engine's local learning loop — bake-off runners, belief
+> snapshots, annotation queues, replay gates, and the named failure classes —
+> lives in the private **`mistboard-engine`** sibling repo, not here. This
+> public repo holds only the engine *boundary* and the engine-vs-engine
+> orchestration around it. The walkthrough that used to live here referenced
+> Python tooling (`bake_off.py`, `annotation_replay.py`, `review_queue.py`,
+> `belief_hardfact_check.py`) and private capture/inventory paths that are no
+> longer part of this repository.
 
-## Loop
+## What stays public here
 
-1. Name the experiment.
-   - Candidate version, baseline version, seed range, evaluator, opponent, and
-     expected signal.
-   - Example: v0.7.0 asks whether CSP reseed eliminates belief collapse and
-     produces plausible recovery states.
-2. Run the smallest useful validation rung.
-   - Start with a regression for the exact bug or tuning question.
-   - Expand only when the lower rung is clean.
-   - Every run should produce a manifest, saved games, trace rows, and pinned
-     engine identity.
-   - Use verbose belief snapshots when the experiment is about belief state,
-     reseeds, or hidden-position hypotheses.
-3. Auto-triage moments.
-   - The run should flag suspicious plies instead of asking a human to inspect
-     whole games.
-4. Annotate the top queue.
-   - Human review is scarce. Review 10-20 high-signal moments before expanding
-     the queue.
-5. Convert annotations into hypotheses.
-   - Each annotation should map to a belief bug, evaluator bug, tactical
-     short-circuit bug, acceptable Fog of War uncertainty, or process/UI issue.
-   - Belief bugs that contradict hard observations are blocking defects in the
-     Belief Particle Engine subtrack, not normal engine-quality misses.
-6. Promote, reject, or patch the candidate.
-   - Promotion is not just win rate. The candidate needs fewer unexplained major
-     errors, no new collapse class, and reproducible artifacts.
+The one durable, contributor-facing invariant the lab loop enforces:
 
-## Laddered Rollout
+> A Fog of War engine consumes only the same legal `PlayerView` available to the
+> side it plays, and any belief state it maintains must never contradict the
+> hard facts in that observation stream.
 
-Large bake-offs are confirmation tools, not the first discovery step. During
-active belief or evaluator work, default to this ladder:
+Belief snapshots that show an impossible own piece, miss a visible opponent
+piece, or ignore an own-capture observation are blocking defects, not normal
+engine-quality misses.
 
-1. **Rung 0 — exact regression.**
-   - Add or run a unit/replay regression for the specific bug just found.
-   - Example: after black `Re8xe2`, white belief must remove the captured bishop
-     from `e2` and represent the visible black rook.
-2. **Rung 1 — one targeted game.**
-   - Re-run the exact game, seed, or smallest corpus that exposed the bug.
-   - The goal is only to prove the previous bug is gone in artifact form.
-   - Example:
-     `.venv/bin/python scripts/bake_off.py --games 1 --start-index 8 --seed 1 --opponent tier1 --verbose-belief --save-only all --save-dir ../../apps/web/public/bakeoff-v0.7.1-q8-check`
-3. **Rung 2 — 3-5 targeted annotation games.**
-   - Generate a tiny queue with verbose belief enabled.
-   - Pick only a few critical moments per game for human review.
-4. **Rung 3 — 10-game smoke.**
-   - Use this when the first annotation set shows no obvious hard-fact bugs and
-     no immediate tuning reversal.
-5. **Rung 4 — 30+ comparable mirror.**
-   - Run this only when lower rungs show a stable candidate worth measuring.
-   - Use it for promotion confidence, not for finding the first obvious bug.
+## Where the public engine surfaces are
 
-If any rung finds a hard-observation contradiction, repeated collapse, or
-obvious tuning defect, stop the ladder and patch first. Do not spend hours on a
-30-game mirror when one targeted artifact already tells us the candidate is not
-ready.
+- **Protocol contract:** [`docs/engine-protocol.md`](../engine-protocol.md) —
+  the redacted `EngineTurnRequest` / `EngineTurnResponse` boundary every engine
+  (first-party or third-party) speaks through.
+- **Engine-vs-engine orchestration:** [`engine-experiments.md`](engine-experiments.md)
+  — the EvE jobs, queues, tournaments, and Elo reporting that DO live in this
+  repo (`apps/server/src/engine-*`, `npm run engine:*`).
+- **Public engine records:** the engine tracker (`/engines` roster,
+  `/engine/:id` profile) sourced from persisted `game_participants`.
 
-## Standard Artifacts
-
-- `manifest.json`: version, commit, run config, record, saved game list.
-- `games/*.jsonl`: replayable game events.
-- `trace.jsonl`: per-decision path, particle counts, diagnostics, and scores.
-- `belief.jsonl`: optional per-ply marginal field and top particle clusters.
-- `move_quality.csv`: optional full-info Stockfish comparison.
-- `feedback/annotations.jsonl`: durable human labels; treat this as first-class
-  training and regression data, not scratch output.
-- `docs-private/engine-track/captures/`: local-only screenshot captures of
-  annotated belief moments for later writeups, talks, and portfolio artifacts.
-
-## Artifact Retention Gate
-
-Engine Lab artifacts are evidence, not scratch output. `apps/web/public/bakeoff-*`
-directories are gitignored because they can be large, but that does not make
-them disposable. Before deleting a worktree, cleaning a bake-off directory, or
-rerunning into an existing `--save-dir`, complete this retention gate:
-
-1. Add the run to `docs-private/engine-track/artifact-source-inventory.md` with
-   its manifest URL, absolute source path, commit, command, seed, config,
-   status, and owner/session.
-2. Run the artifact closeout helper for any run with annotations or review
-   signal:
-
-   ```sh
-   npm run engine:artifact-closeout -- \
-     --manifest /bakeoff-v0.7.22-rung2-3game-codex/manifest.json \
-     --baseUrl http://127.0.0.1:3000
-   ```
-
-   This captures screenshots from annotations, archives the raw run when it can
-   find `apps/web/public/<run>`, and refreshes the private artifact audit.
-3. Keep the raw artifact directory until every important annotation from that
-   run has screenshots and a case-file entry.
-4. For any run that produced a major annotation, preserve at least:
-   `manifest.json`, `games/*.jsonl`, `trace.jsonl`, `belief.jsonl`,
-   `review_queue.*`, `hardfact_report.*`, and captured PNG indexes.
-5. If the raw directory is too large to keep in-place, move or archive it to a
-   private artifact store and update the inventory before removing the working
-   copy.
-6. If a run is deliberately disposable, write that in the inventory before
-   deletion. A run with annotations, screenshots, hard-fact findings, or a
-   build-log reference is not disposable.
-
-Worktree cleanup is blocked until this gate is complete. The expected failure
-mode is losing ignored local bake-off directories when an engine worktree is
-removed. Avoid that by treating the inventory as the handoff record for every
-engine-tuning session.
-
-## Annotation Queue Signals
-
-Flag plies when any of these fire:
-
-- game is a loss or draw;
-- `csp_reseed_fired = true`;
-- Stage A or Stage B particle count falls sharply;
-- `belief_unique_count` is low;
-- belief snapshots contradict hard visible facts or own-capture observations;
-- decision path is king capture, king defense, queen capture, queen save, or
-  visible minor/rook capture;
-- Stockfish-truth comparison shows a large disagreement;
-- material swings sharply within the next few plies;
-- king is captured soon after the move.
-
-The queue should include game index, ply, side/seat, replay sample id, reason,
-trace summary, and whether a belief snapshot exists.
-
-In mirror runs, distinguish the **reviewed Tier-1 side** from the other Tier-1
-seat. Human annotation defaults to the manifest's `tier1_color`; mirror-seat
-debugging is opt-in. Queue links should carry `beliefSeat` and `beliefKind`
-explicitly so a handoff never says "inspect ply 39" while the UI opens the
-wrong side's belief.
-
-## How The Process Has Improved
-
-- **Tier-1 vs random:** established a basic strength and latency gate, then
-  saturated.
-- **Mirror bake-offs:** exposed candidate-vs-candidate belief failures better
-  than random games.
-- **Saved corpora:** made runs replayable instead of ephemeral console output.
-- **Trace rows:** made decision paths, particle counts, and tactical shortcuts
-  inspectable.
-- **Stockfish-truth comparison:** added a useful, non-authoritative move-quality
-  diagnostic.
-- **Annotations:** turned human review into durable data.
-- **Verbose belief capture:** made hidden-state hypotheses visible enough to
-  debug reseeds and collapse recovery.
-- **Review queues:** made bake-off artifacts triageable, so humans review a
-  handful of high-signal moments instead of whole games.
-
-The next process upgrade is an annotation replay gate. Annotations that include
-`suggested_move_uci` should become executable checks: replay to the exact ply,
-run the current engine, and report whether it now chooses the suggested move,
-an equivalent move class, or the same rejected behavior.
-
-Local command:
-
-```sh
-.venv/bin/python scripts/annotation_replay.py --manifest-url /bakeoff-v0.7.0-hardobs-rung2-3game/manifest.json
-```
-
-This writes `feedback/annotation_replay.json` and
-`feedback/annotation_replay.md`. Use `--strict` when turning the current set of
-annotations into a blocking local gate.
-
-The hard-fact belief validator checks verbose belief snapshots against the
-saved game log:
-
-```sh
-.venv/bin/python scripts/belief_hardfact_check.py ../../apps/web/public/bakeoff-v0.7.0-hardobs-rung2-3game
-```
-
-This writes `hardfact_report.json` and `hardfact_report.md` next to the
-bake-off artifacts. Use `--strict` when a candidate should be blocked by any
-visible-piece or visible-empty contradiction.
-
-The current review-queue generator ranks the top moments from `trace.jsonl`,
-`belief.jsonl`, and `move_quality.csv`.
-
-Local command:
-
-```sh
-.venv/bin/python scripts/review_queue.py /path/to/bakeoff-run
-```
-
-This writes `review_queue.json` and `review_queue.md` next to the bake-off
-artifacts. The current scorer is intentionally simple and transparent: it ranks
-generic CSP reseeds, particle drops, low belief diversity, critical tactical
-decision paths, constraint pruning, slow particle updates, expensive repair
-rows, high Stage-B expansion rows, missed visible captures, chosen-move king
-risk, chosen-move piece risk, and late plies in losses/draws. Treat the score
-as a triage priority, not a verdict on the move.
-
-By default the queue only includes the manifest's reviewed side (`tier1_color`)
-so it matches the annotator UI and the way human notes are collected. For
-engineering triage across both Tier-1 seats, opt in:
-
-```sh
-.venv/bin/python scripts/review_queue.py /path/to/bakeoff-run --include-mirror-seats
-```
-
-Generated queue rows separate `Review` from `Trace`. `Trace` is where the
-decision row was emitted; `Review` is the belief snapshot to inspect. Stage-A
-events usually review `ply - 2` / `after-own-move`; Stage-B events usually
-review `ply - 1` / `after-opp-move`.
-
-Hard-observation contradictions are higher priority than score implies. If a
-belief snapshot shows an impossible own piece, misses a visible opponent piece,
-or ignores an `own_capture_square` signal, stop and fix the Belief Particle
-Engine before using that artifact for move-quality conclusions.
-
-Profiling rows are process evidence, not necessarily bad chess. If a queue item
-is ranked because of `stage-b-slow`, `stage-b-repair`, or `stage-b-expanded`,
-inspect whether the expensive update bought useful diversity. If yes, backlog
-caching/pruning. If no, tighten the particle generator before raising
-`target_n` again.
-
-## Belief Artifact Capture
-
-The belief debugger is also an evidence surface. When an annotation identifies
-a useful belief moment, capture the board + belief panel as an image while the
-artifact is still local.
-
-Direct links can target a specific game and ply:
-
-```text
-/?bakeoff=/bakeoff-v0.7.12-target-g14-transition/manifest.json&game=14&ply=28&capture=belief
-```
-
-When linking from a queue row, include the belief seat and snapshot:
-
-```text
-/?bakeoff=/bakeoff-v0.7.16-target-g19-capture-fact-expiry/manifest.json&game=19&ply=60&capture=belief&beliefSeat=tier1_a&beliefKind=decision
-```
-
-The capture script backfills screenshots from annotations for one manifest:
-
-```sh
-npm run engine:capture-beliefs -- --manifest /bakeoff-v0.7.12-target-g14-transition/manifest.json --limit 12
-```
-
-For normal session closeout, prefer the combined command:
-
-```sh
-npm run engine:artifact-closeout -- \
-  --manifest /bakeoff-v0.7.12-target-g14-transition/manifest.json \
-  --baseUrl http://127.0.0.1:3000
-```
-
-Run it immediately after the operator finishes annotating a game batch, while
-the replay server and raw bake-off directory are still present. Do not postpone
-screenshots to a later cleanup pass; that is how local-only evidence gets lost.
-
-By default it writes ignored local files under
-`docs-private/engine-track/captures/`:
-
-- one PNG per annotated moment;
-- `index.json` with annotation metadata and layout metrics;
-- `index.md` with a compact review table.
-
-The script validates that the belief board renders 64 stable, equal-size
-squares before writing a screenshot. Treat failures here as UI artifact
-regressions, because distorted belief boards make later screenshots unusable
-for communication.
-
-Before ending an engine-tuning session, run the artifact audit and update the
-private inventory:
-
-```sh
-npm run engine:artifact-audit -- \
-  --captures docs-private/engine-track/captures \
-  --out docs-private/engine-track/artifact-audit.md
-```
-
-If the audit reports unresolved manifest/game references for a run you just
-created, do not remove or abandon that worktree. Either restore the referenced
-artifact directory into the active public artifact root, or record where it was
-archived.
-
-Archive meaningful raw bake-off directories before cleanup:
-
-```sh
-npm run engine:artifact-archive -- \
-  --source apps/web/public/bakeoff-v0.7.22-rung2-3game-codex \
-  --note "v0.7.22 recovered rung2 review artifact"
-```
-
-The archive command copies the raw directory into
-`docs-private/engine-track/artifact-archives/` and writes
-`ARCHIVE-METADATA.json` with the source path, manifest URL, run config, and
-operator note.
-
-## Current Local Question
-
-v0.7.0 is a belief-recovery experiment. The expected learning is whether CSP
-reseed keeps belief alive without hiding an upstream tracker bug. Success means:
-
-- no hard Stage A or Stage B collapses;
-- CSP reseeds are occasional, not constant;
-- post-reseed particles are plausible enough for annotation;
-- losses point to tactical/evaluator work rather than opaque belief failure.
+The detailed engine internals and their development loop are documented inside
+the `mistboard-engine` repo.

@@ -1,6 +1,6 @@
 # Architecture
 
-_Last updated: 2026-05-30_
+_Last updated: 2026-06-01_
 
 ## One-line shape
 

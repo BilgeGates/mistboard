@@ -7,7 +7,7 @@
 
 Mistboard is a free, open-source platform for **dark chess** — also called Fog
 of War chess — a hidden-information variant where each player only sees what
-their own pieces can legally see, [enforced by the server](https://mistboard.com/articles/server-enforced-fog).
+their own pieces can legally see, enforced by the server.
 
 The project is building a trustworthy foundation for hidden-information games,
 starting with chess: server-authoritative play, a serious ranked ladder, and a
@@ -15,10 +15,10 @@ first-party dark-chess engine that plays through a public, auditable information
 boundary.
 
 It features low-friction [PvP rooms](https://mistboard.com), private
-[Draft960](https://mistboard.com/articles/draft960) back-rank drafting,
+[Draft960](https://mistboard.com/rules/dark-draft960) back-rank drafting,
 post-game replay from either player's perspective or full truth, per-game Open
 Graph share images, PGN/JSON export, [per-bucket Elo](https://mistboard.com/leaderboard),
-and an in-house [engine track](https://mistboard.com/articles/engine-belief-state)
+and an in-house engine track
 targeting a public engine protocol, reproducible benchmarks, and a first-party
 benchmark opponent.
 

@@ -169,8 +169,10 @@ Public annotation metadata:
 ### Lab
 
 Purpose: let authorized reviewers browse engine games, review candidates, and
-understand current engine work. The canonical route is `/lab`; the route is
-admin-gated while the tooling is still owner-operated.
+understand current engine work. The planned canonical route is `/lab` (not yet
+implemented); the shipped admin engine surfaces today are the `/engines` roster
+and the `/engine/:id` profile. These are admin-gated while the tooling is still
+owner-operated.
 
 Minimum gated surface:
 

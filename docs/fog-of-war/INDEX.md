@@ -23,8 +23,11 @@ reflects current implemented behavior or future planning.
 
 ## Planning — engine and research track
 
-These describe planned work for the engine protocol, benchmark, and first-party
-engine track. Not yet implemented in the main product.
+These cover the engine protocol, benchmark, and first-party engine track. The
+redacted protocol and the engine-vs-engine orchestration are implemented in this
+repo; the engine's internals and its development loop now live in the private
+`mistboard-engine` sibling repo, so the belief and lab-loop pages below are
+design references or boundary notes, not in-repo workflows.
 
 | File | Contents |
 |------|----------|
@@ -34,9 +37,9 @@ engine track. Not yet implemented in the main product.
 | [`engine-algorithm-family.md`](engine-algorithm-family.md) | Why FoW is structurally a poker-family problem (imperfect information) rather than a chess variant. CFR vs PIMC tradeoffs, strategy fusion, candidate research directions, what carries over from chess-family work. |
 | [`engine-deep-cfr-feasibility.md`](engine-deep-cfr-feasibility.md) | Scoping analysis: can Deep CFR be applied to FoW chess and at what level? Public-Belief-State concern, scale comparison vs poker, per-decision compute estimates. Conclusion: soft no-go on live decision-time CFR; strong yes on offline CFR for training-data generation. |
 | [`engine-equilibrium-value-corpus.md`](engine-equilibrium-value-corpus.md) | Architectural sketch for generating equilibrium-value training data via offline Deep CFR, then training a value net on that data for use as a leaf evaluator. Bootstrap loop, belief representation options, compute estimates, pre-commit validation experiment. |
-| [`belief-particle-engine.md`](belief-particle-engine.md) | Particle-based belief state specification: hard facts, soft evidence, particle budget, diversity. Detailed spec for the Tier-2+ engine. |
+| [`belief-particle-engine.md`](belief-particle-engine.md) | Particle-based belief state design reference: hard facts, soft evidence, particle budget, diversity. Implementation lives in the private `mistboard-engine` repo. |
 | [`engine-experiments.md`](engine-experiments.md) | EvE infrastructure: job queue, worker protocol, engine_versions, eve_jobs tables, claim protocol. |
-| [`engine-lab-loop.md`](engine-lab-loop.md) | Iterative development loop for the engine: annotation cycle, artifact retention, rung rollout. |
+| [`engine-lab-loop.md`](engine-lab-loop.md) | Boundary note: the engine's development loop (bake-offs, annotation, artifact retention) moved to the private `mistboard-engine` repo. |
 | [`eve-roadmap.md`](eve-roadmap.md) | Engine-vs-engine infrastructure: storage model, EvE side tables, restart semantics, fair compute rules. |
 
 ## Planning — product and learning track

@@ -1,5 +1,11 @@
 # Belief Particle Engine
 
+> **Design reference.** This page is the public-safe design sketch for the
+> belief subtrack. The actual implementation and its current internal
+> documentation live in the private **`mistboard-engine`** sibling repo and may
+> have moved past what is described here; treat this as the boundary contract
+> and original design intent, not a guarantee of the live implementation.
+
 The Belief Particle Engine is a subtrack inside the Fog of War engine track. It
 is responsible for turning a perspective-safe observation stream into a
 weighted set of possible hidden-board states.

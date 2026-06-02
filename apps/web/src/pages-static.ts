@@ -142,7 +142,7 @@ function buildAbout(): HTMLElement {
 
   const featuresHeading = aboutSubheading('Play and study');
   const featuresP = aboutParagraph([
-    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Rules and articles cover openings, engine research, and future hidden-information variants such as dark xiangqi.',
+    'Play dark chess over a link, join the lobby, or play an engine. Afterward, review the game from either player’s perspective or with the full board revealed. Rules and articles cover openings and future hidden-information variants such as dark xiangqi.',
   ]);
 
   const fairnessHeading = aboutSubheading('Trust by design');
@@ -152,7 +152,7 @@ function buildAbout(): HTMLElement {
 
   const engineHeading = aboutSubheading('Engines for hidden-information games');
   const engineP = aboutParagraph([
-    'Mistboard hosts and develops engines for hidden-information play. They compete through the same redacted view a human player receives, making engine games useful as opponents, benchmarks, and research artifacts.',
+    'Mistboard hosts and develops engines for hidden-information play. They compete through the same redacted view a human player receives, making engine games useful both as opponents and as research artifacts.',
   ]);
 
   const oss1Heading = aboutSubheading('Open source foundation');
@@ -536,9 +536,7 @@ function buildFaq(): HTMLElement {
   const a3 = aboutParagraph([
     'Mistboard is built so the hidden board is not sitting in your opponent’s browser waiting to be uncovered. The server owns the full position, computes each seat’s legal view, and sends only that redacted view over the wire. The code is ',
     aboutExternalLink('open source', GITHUB_URL),
-    ', so this trust boundary can be inspected. See ',
-    aboutLink('Server-Enforced Dark Chess', '/articles/server-enforced-fog'),
-    ' for the model and checks. Outside assistance, account abuse, and attempts to break the fog filter are still fair-play violations.',
+    ', so this trust boundary can be inspected. Outside assistance, account abuse, and attempts to break the fog filter are still fair-play violations.',
   ]);
 
   const q4 = aboutSubheading('Do Mistboard engines see the full board?');

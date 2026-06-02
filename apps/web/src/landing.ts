@@ -301,7 +301,7 @@ function buildLandingStage(engines: PlayableEngine[]): {
 
   const fogNote = document.createElement('p');
   fogNote.className = 'landing-hero-fog-note';
-  fogNote.textContent = 'One player’s view — the rest is hidden in the fog.';
+  fogNote.textContent = 'One player’s view. The rest is hidden in the fog.';
 
   // Small, explicit CTA so only this target opens the full replay — the board
   // itself is not clickable. Shown/wired only for real games (the static engine
