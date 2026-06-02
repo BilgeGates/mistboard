@@ -654,3 +654,22 @@
     padding: 10px;
   }
 }
+
+/* ── Phase 1a: hero declutter ───────────────────────────────────────────────
+   Drop the clock / engine-version rail from the homepage hero so it reads as a
+   calm live board instead of a debug readout. The stacked rail bundled the big
+   ticking clock + the engine names/versions ("Mistboard Engine v2 · KLUSS").
+   Scoped to #landing-replay (homepage-only id); /watch and /game are untouched.
+   Purely visual — the replay still ticks underneath; delete this block to revert. */
+.landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
+  display: none;
+}
+
+.landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
+.landing-page #landing-replay.replay-compact .replay-layout-single-black .replay-pane-black {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "captures-top"
+    "board"
+    "captures-bottom";
+}
