@@ -208,6 +208,11 @@ export function buildLandingPlayPanel(
 
   panel.append(lobbyButton, challengeButton, engineButton);
 
+  // Cold-start default: assume an empty lobby until live-stats says otherwise,
+  // so the always-available engine carries the primary (green) CTA on first
+  // paint. The poll below hands it back to "Find opponent" once players appear.
+  engineButton.classList.add('landing-play-action-primary');
+
   const anonNote = document.createElement('p');
   anonNote.className = 'landing-play-anon-note';
   anonNote.textContent = 'No account needed.';
@@ -217,7 +222,7 @@ export function buildLandingPlayPanel(
   stats.className = 'landing-play-stats';
   stats.hidden = true;
   panel.append(stats);
-  startLiveStatsPolling(stats);
+  startLiveStatsPolling(stats, { lobby: lobbyButton, engine: engineButton });
 
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow());
@@ -225,8 +230,20 @@ export function buildLandingPlayPanel(
   return panel;
 }
 
-function startLiveStatsPolling(stats: HTMLElement): void {
+function startLiveStatsPolling(
+  stats: HTMLElement,
+  cta?: { lobby: HTMLButtonElement; engine: HTMLButtonElement },
+): void {
   const render = (data: { playing: number; online: number } | null) => {
+    // Steer the primary (green) CTA by liquidity: with nobody around,
+    // "Find opponent" only leads to an empty queue, so the always-available
+    // engine keeps the emphasis; the moment real players appear the human
+    // game reclaims it. Emphasis swap only — button order never shifts.
+    const hasPresence = data !== null && (data.playing > 0 || data.online > 0);
+    if (cta) {
+      cta.engine.classList.toggle('landing-play-action-primary', !hasPresence);
+      cta.lobby.classList.toggle('landing-play-action-primary', hasPresence);
+    }
     if (!data || (data.playing === 0 && data.online === 0)) {
       stats.hidden = true;
       stats.textContent = '';

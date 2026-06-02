@@ -38,7 +38,11 @@
   transform: translateY(-1px);
 }
 
-.landing-play-action-lobby {
+/* Green-fill emphasis for whichever CTA is the recommended action right now.
+   Applied to "Find opponent" when players are online and to "Play the engine"
+   at cold start (empty lobby) — toggled by the live-stats poll, emphasis only,
+   never a reorder. */
+.landing-play-action-primary {
   background: var(--site-accent);
   border-color: var(--site-accent);
   color: #ffffff;
@@ -47,12 +51,12 @@
     0 10px 22px rgba(27, 31, 27, 0.14);
 }
 
-.landing-play-action-lobby .landing-play-icon {
+.landing-play-action-primary .landing-play-icon {
   color: #ffffff;
 }
 
-.landing-play-action-lobby:hover:not(:disabled),
-.landing-play-action-lobby:focus-visible {
+.landing-play-action-primary:hover:not(:disabled),
+.landing-play-action-primary:focus-visible {
   background: var(--site-accent-strong);
   border-color: var(--site-accent-strong);
   box-shadow:
