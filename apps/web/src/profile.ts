@@ -509,9 +509,11 @@ function buildProfileGameRow(game: FeaturedGame): HTMLElement {
 
   topLine.append(opponent, date);
 
-  // `rated` is absent on legacy rows; the server COALESCEs those to rated, so
-  // only an explicit `false` is treated as casual here.
-  const isCasual = game.rated === false;
+  // Only a head-to-head human (pvp) game can ever be rated; anything vs an
+  // engine, EvE, or imported is casual by definition. Gate on mode first so a
+  // stray rated=true on a non-pvp row (e.g. legacy games backfilled by the
+  // rated migration's DEFAULT true) never mislabels it. For pvp, trust the flag.
+  const isCasual = game.mode !== 'pvp' || game.rated === false;
   const details = document.createElement('span');
   details.className = 'profile-game-details';
   details.append(
