@@ -4,6 +4,7 @@
 // entry. The per-engine profile (/engine/:id) is a planned follow-up; rows are
 // not linked yet.
 import './engines.css';
+import { buildFooter, buildNav } from './site-shell.js';
 
 type ModeRecord = { games: number; wins: number; losses: number; draws: number };
 
@@ -39,7 +40,7 @@ export async function mountEngines(root: HTMLElement): Promise<void> {
   body.append(statusLine('Loading…'));
 
   shell.append(heading, sub, body);
-  root.append(shell);
+  root.append(buildNav(), shell, buildFooter());
 
   let engines: EngineRow[];
   try {
