@@ -62,10 +62,20 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     povByRoomId[g.roomId] = pickHeroPovForGame(g);
   }
 
+  // Keep the "Review this game" link pointed at whatever game the hero is
+  // currently showing. Only real games have a /game/:id page, so the static
+  // engine fallback leaves the link hidden.
+  const syncReviewLink = (sampleId: string) => {
+    if (!usingRealGames) return;
+    stage.reviewLink.href = `/game/${encodeURIComponent(sampleId)}`;
+    stage.reviewLink.hidden = false;
+  };
+
   const replay = await mountReplay(stage.replayRoot, currentSample, {
     autoplay: true,
     showControls: false,
     revealOnFinish: false,
+    onSampleChange: syncReviewLink,
     orientationForId: (sampleId) => povByRoomId[sampleId] ?? 'white',
     // Cycle the corpus per-visitor, pacing each game by its real per-move
     // timing: PvP uses recorded move deltas, EvE uses engine think time.
@@ -85,25 +95,10 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     panes: { resolver: (sampleId) => povByRoomId[sampleId] ?? 'white' },
   });
 
-  // Click the hero → open the game currently showing. Only for real games:
-  // the static engine fallback samples have no /game/:id replay page.
-  if (usingRealGames) {
-    stage.replayRoot.classList.add('landing-replay-clickable');
-    stage.replayRoot.setAttribute('role', 'link');
-    stage.replayRoot.tabIndex = 0;
-    stage.replayRoot.title = 'Watch this game';
-    const openCurrent = () => {
-      const id = replay.activeSampleId();
-      if (id) window.location.assign(`/game/${encodeURIComponent(id)}`);
-    };
-    stage.replayRoot.addEventListener('click', openCurrent);
-    stage.replayRoot.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        openCurrent();
-      }
-    });
-  }
+  // The review link is wired via onSampleChange (synced to the cycling hero);
+  // ensure it reflects the initial sample in case the first load fired before
+  // the handle returned.
+  syncReviewLink(replay.activeSampleId());
 }
 
 async function fetchShowcaseGames(): Promise<FeaturedGame[]> {
@@ -272,6 +267,7 @@ function buildLandingStage(engines: PlayableEngine[]): {
   el: HTMLElement;
   replayRoot: HTMLElement;
   activity: HTMLElement;
+  reviewLink: HTMLAnchorElement;
 } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
@@ -307,14 +303,22 @@ function buildLandingStage(engines: PlayableEngine[]): {
   fogNote.className = 'landing-hero-fog-note';
   fogNote.textContent = 'One player’s view — the rest is hidden in the fog.';
 
-  boardColumn.append(replayRoot, fogNote);
+  // Small, explicit CTA so only this target opens the full replay — the board
+  // itself is not clickable. Shown/wired only for real games (the static engine
+  // fallback samples have no /game/:id page). Href tracks the cycling hero.
+  const reviewLink = document.createElement('a');
+  reviewLink.className = 'landing-review-link';
+  reviewLink.textContent = 'Review this game →';
+  reviewLink.hidden = true;
+
+  boardColumn.append(replayRoot, fogNote, reviewLink);
 
   const announcements = buildLandingAnnouncements();
   const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
   section.append(heroHeader, announcements, boardColumn, playPanel);
   stage.append(section);
-  return { el: stage, replayRoot, activity };
+  return { el: stage, replayRoot, activity, reviewLink };
 }
 
 function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
