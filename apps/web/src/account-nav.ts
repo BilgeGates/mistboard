@@ -12,7 +12,7 @@ type AuthUser = {
   displayName: string;
   displayNameChangedAt: string | null;
   profileVisibility: 'private' | 'unlisted' | 'public';
-  accountRole: 'player' | 'test' | 'admin';
+  accountRole: 'player' | 'admin';
 };
 
 const SIGNED_IN_HINT_KEY = 'mb_signed_in';

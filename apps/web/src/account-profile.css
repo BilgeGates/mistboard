@@ -272,11 +272,6 @@
   color: #d4645d;
 }
 
-.profile-role-test {
-  background: color-mix(in srgb, #4f8edb 18%, var(--site-panel));
-  color: #4f8edb;
-}
-
 .profile-ratings {
   margin-top: 12px;
   padding: 0;

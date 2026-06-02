@@ -174,7 +174,7 @@ const users = [
     handle: 'seed-long-names',
     displayName: 'Seed Long Names',
     profileVisibility: 'public',
-    accountRole: 'test',
+    accountRole: 'player',
     createdAt: '2026-05-03T12:00:00.000Z',
   },
   {
