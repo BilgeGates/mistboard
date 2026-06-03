@@ -53,7 +53,6 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren(buildNav(), stage.el, buildFooter());
   mountArticleThumbnails(stage.el);
   maybeOpenPlayDeepLink(engines);
-  void renderHeroActivity(stage.activity);
 
   const metadataByRoomId: Record<string, GameMeta> = {};
   const povByRoomId: Record<string, 'white' | 'black'> = {};
@@ -108,28 +107,6 @@ async function fetchShowcaseGames(): Promise<FeaturedGame[]> {
   return data.games;
 }
 
-// Hero activity line: always-present "N games played" (credibility, from public
-// stats) plus "M playing now" when there's live play. Conveys "this place is
-// alive" even in a quiet beta moment.
-async function renderHeroActivity(el: HTMLElement): Promise<void> {
-  try {
-    const [stats, live] = await Promise.all([
-      fetch('/api/stats/public').then((r) => (r.ok ? r.json() : null)),
-      fetch('/api/live-stats').then((r) => (r.ok ? r.json() : null)),
-    ]);
-    const total = stats?.totalCompletedGames as number | undefined;
-    const playing = live?.playing as number | undefined;
-    const parts: string[] = [];
-    if (typeof total === 'number' && total > 0)
-      parts.push(`${total.toLocaleString()} games played`);
-    if (typeof playing === 'number' && playing > 0) parts.push(`${playing} playing now`);
-    if (parts.length === 0) return;
-    el.textContent = parts.join(' · ');
-    el.hidden = false;
-  } catch (err) {
-    console.warn(err);
-  }
-}
 
 export async function mountGame(root: HTMLElement, roomId: string): Promise<void> {
   root.replaceChildren();
@@ -266,7 +243,6 @@ export function mountContact(root: HTMLElement): void {
 function buildLandingStage(engines: PlayableEngine[]): {
   el: HTMLElement;
   replayRoot: HTMLElement;
-  activity: HTMLElement;
   reviewLink: HTMLAnchorElement;
 } {
   const stage = document.createElement('main');
@@ -277,24 +253,6 @@ function buildLandingStage(engines: PlayableEngine[]): {
 
   const boardColumn = document.createElement('div');
   boardColumn.className = 'landing-board-column';
-
-  const heroHeader = document.createElement('header');
-  heroHeader.className = 'landing-hero-header';
-
-  const tagline = document.createElement('h1');
-  tagline.className = 'landing-hero-tagline';
-  tagline.textContent = 'Dark chess';
-
-  const subtagline = document.createElement('p');
-  subtagline.className = 'landing-hero-subtagline';
-  subtagline.textContent =
-    'Server-enforced hidden information. Play the engine, or challenge a friend.';
-
-  const activity = document.createElement('p');
-  activity.className = 'landing-hero-activity';
-  activity.hidden = true;
-
-  heroHeader.append(tagline, subtagline, activity);
 
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
@@ -316,9 +274,9 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const announcements = buildLandingAnnouncements();
   const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
-  section.append(heroHeader, announcements, boardColumn, playPanel);
+  section.append(announcements, boardColumn, playPanel);
   stage.append(section);
-  return { el: stage, replayRoot, activity, reviewLink };
+  return { el: stage, replayRoot, reviewLink };
 }
 
 function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
