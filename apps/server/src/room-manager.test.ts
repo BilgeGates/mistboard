@@ -96,7 +96,7 @@ test('seatDisplayNamesForRoom uses engine family names for live seat labels', ()
   };
 
   assert.deepEqual(seatDisplayNamesForRoom(room, makeCtx()), {
-    black: 'Mistboard Engine',
+    black: 'Misty Legacy',
   });
 });
 

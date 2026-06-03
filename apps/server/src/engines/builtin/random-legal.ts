@@ -4,8 +4,8 @@ import type { EngineDefinition } from '../types.js';
 export const randomLegalEngine: EngineDefinition = {
   id: 'builtin-random-legal',
   engineId: 'random-legal',
-  engineName: 'Random Legal',
-  name: 'Random Legal v1',
+  engineName: 'Misty Random',
+  name: 'Misty Random',
   kind: 'builtin',
   configHash: 'builtin-random-legal-v1',
   playSignature: 'builtin-random-legal-v1',

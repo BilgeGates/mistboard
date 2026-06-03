@@ -25,7 +25,11 @@ export function playableBuiltinEngines(): EngineDefinition[] {
     .filter((engine) => engine.kind === 'builtin' && engine.chooseMove);
 }
 
-const PROD_PLAYABLE_ENGINE_IDS = new Set(['builtin-random-legal', 'python-tier1-v0.9.5']);
+const PROD_PLAYABLE_ENGINE_IDS = new Set([
+  'builtin-random-legal', // Misty Random
+  'python-tier1-v0.9.5', // Misty Legacy
+  'python-v2-v1.0', // Misty Max (frozen GT-CFR v2, gadget-off + early-stop)
+]);
 
 // Opt-in extras for load testing / local experimentation. Set
 // MISTBOARD_EXTRA_PLAYABLE_ENGINES=python-random-legal,foo to enable.
@@ -58,8 +62,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.9.5': {
     id: 'python-tier1-v0.9.5',
     engineId: 'tier1',
-    engineName: 'Mistboard Engine',
-    name: 'Mistboard Engine v0.9.5',
+    engineName: 'Misty Legacy',
+    name: 'Misty Legacy',
     kind: 'container',
     configHash: 'tier1-v0.9.5-372b4bb6c064',
     playSignature: '372b4bb6c064',
@@ -73,7 +77,9 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 5_000 },
     notes:
-      'Current first-party engine: draw-reduction knobs, phantom-check guard, and recapture exemption.',
+      'Misty Legacy (v0.9.5 tactical-patches): the pre-GT-CFR first-party engine, '
+      + 'kept as a legacy option alongside Misty Max. Draw-reduction knobs, '
+      + 'phantom-check guard, recapture exemption.',
   },
   // Uses current src/fow_chess/. Skipped by PROD_PLAYABLE_ENGINE_IDS — only
   // available locally via the MISTBOARD_EXTRA_PLAYABLE_ENGINES env var.
@@ -118,6 +124,34 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 120_000 },
     notes: 'GT-CFR v2 engine (use_rust_eq, |I|=16). Local-only; slow late-game (stateless replay).',
+  },
+  // Misty Max — the FROZEN, shipped GT-CFR v2 engine (first production release of
+  // the v2 line). Pinned to mistboard-engine @ a06f9a1. Config (validated
+  // 2026-06-02): STRONGEST gadget-OFF + king-aware leaf + clock-aware budget +
+  // convergence early-stop + bottom-K(16M), i=32, KLUSS k=2, mixing off. Stateful
+  // delta-feed (not stateless replay), so fast — early-stop lands moves in ~1-2s.
+  // Bump to python-v2-v1.1 (+ V2_LIVE_ENGINES) on the next engine upgrade.
+  'python-v2-v1.0': {
+    id: 'python-v2-v1.0',
+    engineId: 'v2',
+    engineName: 'Misty Max',
+    name: 'Misty Max',
+    kind: 'container',
+    configHash: 'v2-v1.0-a06f9a1',
+    playSignature: 'a06f9a1',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2',
+      version: '1.0',
+      config: 'v2-strongest-gadget-off',
+      config_hash: 'a06f9a1',
+      engine_pin: 'misty-max-v1.0@a06f9a1',
+    },
+    livePolicy: { timeoutMs: 30_000 },
+    notes:
+      'Misty Max 1.0 — GT-CFR/Obscuro v2: gadget-off + king-aware + clock-aware '
+      + 'budget + early-stop + bottom-K. Validated 2026-06-02 (30-0-0 vs Legacy, '
+      + '0 hard failures, |P| max 5.9M, ~72s/game).',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
