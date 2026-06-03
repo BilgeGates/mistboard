@@ -279,11 +279,54 @@ function setTitle(page: string): void {
   document.title = `${page} · Mistboard`;
 }
 
+// Code-split routes fetch their chunk lazily, so a transient failure — most
+// often the brief server-restart window during a deploy — rejects the dynamic
+// import with a browser-specific "module load" error. Retry once with a full
+// reload (which re-fetches index.html and the current chunk hashes) before
+// surfacing the error screen. The sessionStorage flag caps it at one retry per
+// tab session so a genuinely-missing asset can't loop; it clears on any
+// successful mount so a later deploy gets its own retry budget.
+const CHUNK_RELOAD_FLAG = 'mistboard.chunkReloadAttempted';
+
+function isChunkLoadError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return (
+    message.includes('Failed to fetch dynamically imported module') || // Chromium
+    message.includes('error loading dynamically imported module') || // Firefox
+    message.includes('Importing a module script failed') // Safari
+  );
+}
+
+function chunkReloadAlreadyAttempted(): boolean {
+  try {
+    return sessionStorage.getItem(CHUNK_RELOAD_FLAG) !== null;
+  } catch {
+    // Storage unavailable (private mode, etc.): treat as already tried so we
+    // fall through to the error screen instead of risking a reload loop.
+    return true;
+  }
+}
+
+function setChunkReloadAttempted(value: boolean): void {
+  try {
+    if (value) sessionStorage.setItem(CHUNK_RELOAD_FLAG, '1');
+    else sessionStorage.removeItem(CHUNK_RELOAD_FLAG);
+  } catch {
+    // No-op when storage is unavailable.
+  }
+}
+
 async function mountOrReport(run: () => Promise<void>): Promise<void> {
   try {
     await run();
+    setChunkReloadAttempted(false);
   } catch (err) {
     console.error(err);
+    if (isChunkLoadError(err) && !chunkReloadAlreadyAttempted()) {
+      setChunkReloadAttempted(true);
+      location.reload();
+      return;
+    }
     appRoot.replaceChildren();
     appRoot.classList.add('landing-page');
     const shell = document.createElement('main');
@@ -293,7 +336,15 @@ async function mountOrReport(run: () => Promise<void>): Promise<void> {
     heading.textContent = 'Page failed to load';
     const detail = document.createElement('pre');
     detail.textContent = err instanceof Error ? (err.stack ?? err.message) : String(err);
-    shell.append(heading, detail);
+    const reload = document.createElement('button');
+    reload.type = 'button';
+    reload.className = 'landing-cta-primary';
+    reload.textContent = 'Reload';
+    reload.addEventListener('click', () => {
+      setChunkReloadAttempted(false);
+      location.reload();
+    });
+    shell.append(heading, detail, reload);
     appRoot.append(shell);
   }
 }

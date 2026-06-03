@@ -417,3 +417,7 @@ body:has(
     monospace;
   white-space: pre-wrap;
 }
+
+.app-error-panel button {
+  margin-top: 16px;
+}
