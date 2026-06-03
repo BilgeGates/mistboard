@@ -1,5 +1,6 @@
 import './theme.css';
 import type { GameFamilyId } from '@mistboard/game';
+import { isLikelySignedIn } from './account-nav.js';
 import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import {
   DEFAULT_XIANGQI_PIECE_SET,
@@ -7,7 +8,6 @@ import {
   type XiangqiPieceSet,
   xiangqiPreviewGlyph,
 } from './xiangqi-piece-sets.js';
-import { isLikelySignedIn } from './account-nav.js';
 
 type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
 type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
@@ -201,7 +201,7 @@ function mountThemeControl(nav: HTMLElement): void {
   panel.setAttribute('role', 'group');
   panel.setAttribute('aria-label', 'Display and sound settings');
 
-  panel.append(...buildAppearancePanelFields());
+  panel.append(buildAppearanceMenu());
 
   trigger.addEventListener('click', () => {
     const expanded = trigger.getAttribute('aria-expanded') === 'true';
@@ -214,105 +214,209 @@ function mountThemeControl(nav: HTMLElement): void {
   target.append(control);
 }
 
-// The appearance controls (site theme, fog, sound, board, pieces). Shared by the
-// signed-out gear above and the signed-in profile dropdown (account-nav.ts),
-// which embeds these directly so there's no standalone gear when logged in.
-export function buildAppearancePanelFields(): HTMLElement[] {
-  const siteThemeField = createSiteThemeField();
-  const boardFamilyField = createBoardFamilyField();
-  const boardField = createTileField(
-    'board',
-    'Board colors',
-    'Board color scheme',
-    themes,
-    readStoredTheme(),
-    (value) => {
-      applyBoardTheme(value);
-      writeStoredTheme(value);
-      syncThemeControls();
-    },
-    'chess',
-  );
-  const xiangqiBoardField = createTileField(
-    'xqboard',
-    'Board colors',
-    'Xiangqi board color scheme',
-    xiangqiBoardThemes,
-    readStoredXiangqiBoardTheme(),
-    (value) => {
-      applyXiangqiBoardTheme(value);
-      writeStoredXiangqiBoardTheme(value);
-      syncThemeControls();
-      dispatchXiangqiAppearanceChanged();
-    },
-    'xiangqi',
-  );
-  const fogField = createTileField(
-    'fog',
-    'Fog',
-    'Fog shading style',
-    fogThemes,
-    readStoredFogTheme(),
-    (value) => {
-      applyFogTheme(value);
-      writeStoredFogTheme(value);
-      syncThemeControls();
-    },
-  );
-  const pieceField = createTileField(
-    'piece',
-    'Pieces',
-    'Piece set',
-    pieceSets,
-    readStoredPieceSet(),
-    (value) => {
-      applyPieceSet(value);
-      writeStoredPieceSet(value);
-      syncThemeControls();
-    },
-    'chess',
-  );
-  const xiangqiPieceField = createTileField(
-    'xqpiece',
-    'Pieces',
-    'Xiangqi piece set',
-    xiangqiPieceSets,
-    readStoredXiangqiPieceSet(),
-    (value) => {
-      applyXiangqiPieceSet(value);
-      writeStoredXiangqiPieceSet(value);
-      syncThemeControls();
-      dispatchXiangqiAppearanceChanged();
-    },
-    'xiangqi',
-  );
-  const volumeField = createVolumeField();
-  const muteField = createMuteField();
+// The appearance controls as a lichess-style drill-in menu: a compact list of
+// category rows (Appearance, Fog, Sound, Board, Pieces) that each open a
+// sub-panel with that category's controls. Shared by the signed-out gear above
+// and the signed-in profile dropdown (account-nav.ts), which embeds it directly
+// so there's no standalone gear when logged in.
+//
+// Board + piece pickers are per game family. When a xiangqi variant is enabled a
+// Game selector sits above the Board/Pieces rows and scopes which family's tiles
+// the sub-panels show (the family-gating CSS hides the inactive family). On a
+// chess-only build there's no selector and the menu mirrors a single-game setup.
+export function buildAppearanceMenu(): HTMLElement {
+  const menu = document.createElement('div');
+  menu.className = 'appearance-menu';
 
-  // Global/shared settings up top; the board + piece pickers in their own
-  // section at the bottom. The Game family dropdown and the xiangqi pickers only
-  // appear when a xiangqi variant is enabled (otherwise it's chess-only).
-  const perGame: HTMLElement[] = [];
-  if (xiangqiAppearanceEnabled()) perGame.push(boardFamilyField);
-  perGame.push(boardField);
-  if (xiangqiAppearanceEnabled()) perGame.push(xiangqiBoardField);
-  perGame.push(pieceField);
-  if (xiangqiAppearanceEnabled()) perGame.push(xiangqiPieceField);
-  return [
-    siteThemeField,
-    fogField,
-    volumeField,
-    muteField,
-    createSectionDivider('Board & pieces'),
-    ...perGame,
+  const root = document.createElement('div');
+  root.className = 'appearance-menu-root';
+  const submenus: HTMLElement[] = [];
+
+  const addCategory = (key: string, label: string, body: HTMLElement[]): void => {
+    root.append(createAppearanceRow(key, label));
+    submenus.push(createAppearanceSubmenu(key, label, body));
+  };
+
+  addCategory('theme', 'Appearance', [createSiteThemeField(false)]);
+  addCategory('fog', 'Fog', [
+    createTileField(
+      'fog',
+      'Fog',
+      'Fog shading style',
+      fogThemes,
+      readStoredFogTheme(),
+      (value) => {
+        applyFogTheme(value);
+        writeStoredFogTheme(value);
+        syncThemeControls();
+      },
+      undefined,
+      false,
+    ),
+  ]);
+  addCategory('sound', 'Sound', [createVolumeField(), createMuteField()]);
+
+  // Per-game section. The Game selector only appears when a xiangqi variant is
+  // enabled; otherwise Board/Pieces drill straight into the chess tiles.
+  if (xiangqiAppearanceEnabled()) {
+    root.append(createAppearanceDivider());
+    root.append(createBoardFamilyField());
+  }
+
+  const boardBody: HTMLElement[] = [
+    createTileField(
+      'board',
+      'Board colors',
+      'Board color scheme',
+      themes,
+      readStoredTheme(),
+      (value) => {
+        applyBoardTheme(value);
+        writeStoredTheme(value);
+        syncThemeControls();
+      },
+      'chess',
+      false,
+    ),
   ];
+  if (xiangqiAppearanceEnabled()) {
+    boardBody.push(
+      createTileField(
+        'xqboard',
+        'Board colors',
+        'Xiangqi board color scheme',
+        xiangqiBoardThemes,
+        readStoredXiangqiBoardTheme(),
+        (value) => {
+          applyXiangqiBoardTheme(value);
+          writeStoredXiangqiBoardTheme(value);
+          syncThemeControls();
+          dispatchXiangqiAppearanceChanged();
+        },
+        'xiangqi',
+        false,
+      ),
+    );
+  }
+  addCategory('board', 'Board', boardBody);
+
+  const pieceBody: HTMLElement[] = [
+    createTileField(
+      'piece',
+      'Pieces',
+      'Piece set',
+      pieceSets,
+      readStoredPieceSet(),
+      (value) => {
+        applyPieceSet(value);
+        writeStoredPieceSet(value);
+        syncThemeControls();
+      },
+      'chess',
+      false,
+    ),
+  ];
+  if (xiangqiAppearanceEnabled()) {
+    pieceBody.push(
+      createTileField(
+        'xqpiece',
+        'Pieces',
+        'Xiangqi piece set',
+        xiangqiPieceSets,
+        readStoredXiangqiPieceSet(),
+        (value) => {
+          applyXiangqiPieceSet(value);
+          writeStoredXiangqiPieceSet(value);
+          syncThemeControls();
+          dispatchXiangqiAppearanceChanged();
+        },
+        'xiangqi',
+        false,
+      ),
+    );
+  }
+  addCategory('pieces', 'Pieces', pieceBody);
+
+  menu.append(root, ...submenus);
+
+  for (const button of root.querySelectorAll<HTMLButtonElement>('[data-appearance-target]')) {
+    button.addEventListener('click', () =>
+      showAppearanceView(menu, button.dataset.appearanceTarget ?? 'root'),
+    );
+  }
+  for (const back of menu.querySelectorAll<HTMLButtonElement>('.appearance-submenu-back')) {
+    back.addEventListener('click', () => showAppearanceView(menu, 'root'));
+  }
+  showAppearanceView(menu, 'root');
+  return menu;
 }
 
-function createSiteThemeField(): HTMLDivElement {
+function createAppearanceRow(key: string, label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'appearance-menu-row';
+  button.dataset.appearanceTarget = key;
+  const text = document.createElement('span');
+  text.textContent = label;
+  const chevron = document.createElement('span');
+  chevron.className = 'appearance-menu-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  button.append(text, chevron);
+  return button;
+}
+
+function createAppearanceSubmenu(key: string, label: string, body: HTMLElement[]): HTMLDivElement {
+  const sub = document.createElement('div');
+  sub.className = 'appearance-submenu';
+  sub.dataset.key = key;
+
+  const back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'appearance-submenu-back';
+  const arrow = document.createElement('span');
+  arrow.className = 'appearance-submenu-back-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  const backText = document.createElement('span');
+  backText.textContent = label;
+  back.append(arrow, backText);
+
+  const bodyWrap = document.createElement('div');
+  bodyWrap.className = 'appearance-submenu-body';
+  bodyWrap.append(...body);
+
+  sub.append(back, bodyWrap);
+  return sub;
+}
+
+function createAppearanceDivider(): HTMLDivElement {
+  const divider = document.createElement('div');
+  divider.className = 'appearance-menu-divider';
+  divider.setAttribute('role', 'separator');
+  return divider;
+}
+
+// Drill state lives in the DOM (data-view + hidden), so multiple mounted menus
+// (mobile + desktop nav, gear + dropdown) stay independent.
+function showAppearanceView(menu: HTMLElement, view: string): void {
+  menu.dataset.view = view;
+  const root = menu.querySelector<HTMLElement>('.appearance-menu-root');
+  if (root) root.hidden = view !== 'root';
+  for (const sub of menu.querySelectorAll<HTMLElement>('.appearance-submenu')) {
+    sub.hidden = sub.dataset.key !== view;
+  }
+}
+
+// Return every mounted appearance menu to its root list. Called when a parent
+// dropdown opens so it never reopens mid-drill on a stale sub-panel.
+export function resetAppearanceMenus(root: ParentNode = document): void {
+  for (const menu of root.querySelectorAll<HTMLElement>('.appearance-menu')) {
+    showAppearanceView(menu, 'root');
+  }
+}
+
+function createSiteThemeField(showLabel = true): HTMLDivElement {
   const field = document.createElement('div');
   field.className = 'theme-control-field';
-  const text = document.createElement('span');
-  text.textContent = 'Appearance';
 
   const row = document.createElement('div');
   row.className = 'theme-mode-row';
@@ -324,7 +428,12 @@ function createSiteThemeField(): HTMLDivElement {
     row.append(button);
   }
 
-  field.append(text, row);
+  if (showLabel) {
+    const text = document.createElement('span');
+    text.textContent = 'Appearance';
+    field.append(text);
+  }
+  field.append(row);
   return field;
 }
 
@@ -367,15 +476,6 @@ function createBoardFamilyField(): HTMLDivElement {
   return field;
 }
 
-function createSectionDivider(label: string): HTMLDivElement {
-  const divider = document.createElement('div');
-  divider.className = 'theme-control-divider';
-  const text = document.createElement('span');
-  text.textContent = label;
-  divider.append(text);
-  return divider;
-}
-
 function syncBoardFamilyControls(): void {
   const active = currentBoardFamily();
   document
@@ -395,12 +495,11 @@ function createTileField<T extends string>(
   value: T,
   onChange: (value: T) => void,
   family?: BoardFamily,
+  showLabel = true,
 ): HTMLDivElement {
   const field = document.createElement('div');
   field.className = 'theme-control-field';
   if (family) field.dataset.appearanceFamily = family;
-  const text = document.createElement('span');
-  text.textContent = label;
 
   const row = document.createElement('div');
   row.className = 'theme-tile-row';
@@ -434,7 +533,12 @@ function createTileField<T extends string>(
     row.append(tile);
   }
 
-  field.append(text, row);
+  if (showLabel) {
+    const text = document.createElement('span');
+    text.textContent = label;
+    field.append(text);
+  }
+  field.append(row);
   return field;
 }
 
@@ -496,6 +600,7 @@ function createMuteField(): HTMLLabelElement {
 }
 
 function openThemeMenu(control: HTMLElement): void {
+  resetAppearanceMenus(control);
   control.classList.add('open');
   control
     .querySelector<HTMLButtonElement>('.theme-control-trigger')

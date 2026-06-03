@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getBuildInfo } from '../build-info.js';
 import { darkXiangqiEnabled, ratedEnabled } from '../feature-flags.js';
 import * as persistence from '../persistence.js';
+import { readEventLoopLagMs } from '../server-event-loop-lag.js';
 import { getProxyTrustWarning } from '../server-policy.js';
 import {
   type HttpApiContext,
@@ -28,6 +29,21 @@ export async function tryHandle(
       ratedEnabled: ratedEnabled(),
       proxyTrust: getProxyTrustWarning(),
     });
+    return true;
+  }
+
+  if (pathname === '/api/ping') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    // Round-trip probe for the account dropdown's connection footer. The client
+    // times the request for PING; `lagMs` is the server's event-loop lag for the
+    // SERVER readout. Kept trivially cheap (no DB, no allocations) and no-store
+    // so it measures live latency rather than a cached response.
+    writeJson(
+      response,
+      200,
+      { now: Date.now(), lagMs: readEventLoopLagMs() },
+      { 'cache-control': 'no-store' },
+    );
     return true;
   }
 

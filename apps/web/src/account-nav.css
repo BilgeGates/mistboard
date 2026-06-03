@@ -75,7 +75,7 @@
   right: 0;
   z-index: 30;
   display: none;
-  min-width: 180px;
+  min-width: 244px;
   flex-direction: column;
   border: 1px solid var(--site-border);
   border-radius: 8px;
@@ -92,8 +92,11 @@
 }
 
 .account-nav-item {
-  display: block;
-  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
   border-radius: 6px;
   color: var(--site-text);
   text-decoration: none;
@@ -112,18 +115,117 @@
   color: var(--site-text);
 }
 
+.account-nav-item-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--site-muted);
+}
+
+.account-nav-item-icon svg {
+  display: block;
+}
+
+.account-nav-item:hover .account-nav-item-icon,
+.account-nav-item:focus-visible .account-nav-item-icon {
+  color: var(--site-text);
+}
+
+/* Filled accent dot marking the signed-in (online) account, like lichess. */
+.account-nav-online-dot::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--site-accent);
+}
+
+.account-nav-item-label {
+  flex: 1;
+}
+
 .account-nav-divider {
   height: 1px;
   background: var(--site-border);
   margin: 4px 0;
 }
 
-/* Appearance controls embedded in the profile dropdown when signed in. */
-.account-nav-appearance {
-  display: grid;
+/* Connection footer (PING / SERVER + signal bars), lichess profile-menu style. */
+.account-nav-status {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 12px;
-  min-width: 248px;
-  padding: 6px 6px 2px;
+  padding: 6px 10px 2px;
+}
+
+.account-nav-status-rows {
+  display: grid;
+  gap: 3px;
+}
+
+.account-nav-status-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1;
+}
+
+.account-nav-status-label {
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.account-nav-status-value {
+  color: var(--site-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.account-nav-status-unit {
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.account-nav-status-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 16px;
+}
+
+.account-nav-status-bar {
+  width: 4px;
+  border-radius: 1px;
+  background: var(--site-border);
+}
+
+.account-nav-status-bar:nth-child(1) {
+  height: 5px;
+}
+.account-nav-status-bar:nth-child(2) {
+  height: 9px;
+}
+.account-nav-status-bar:nth-child(3) {
+  height: 12px;
+}
+.account-nav-status-bar:nth-child(4) {
+  height: 16px;
+}
+
+.account-nav-status-bar.lit {
+  background: var(--site-accent);
+}
+
+.account-nav-status-bar.warn {
+  background: #d98a2b;
 }
 
 @media (max-width: 600px) {

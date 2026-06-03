@@ -1,8 +1,20 @@
 import './account-nav.css';
 
 import { identify, resetIdentity } from './analytics.js';
+import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
-import { buildAppearancePanelFields } from './theme.js';
+import { buildAppearanceMenu, resetAppearanceMenus } from './theme.js';
+
+// Lucide-style outline icons, matching the nav's existing icon weight. The gear
+// mirrors the standalone settings gear (theme.ts); power marks Sign out.
+const GEAR_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>';
+const POWER_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2v10"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg>';
+
+// Each mounted dropdown owns a connection-status footer; we poll only while its
+// menu is open. Keyed by the control element so multiple navs stay independent.
+const statusByControl = new WeakMap<HTMLElement, ConnectionStatus>();
 
 type AuthUser = {
   id: string;
@@ -161,24 +173,20 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
   const profile = document.createElement('a');
   profile.className = 'account-nav-item';
   profile.href = `/@/${encodeURIComponent(user.handle)}`;
-  profile.textContent = 'Profile';
   profile.setAttribute('role', 'menuitem');
+  profile.append(createOnlineDot(), createItemLabel('Profile'));
 
   const settings = document.createElement('a');
   settings.className = 'account-nav-item';
   settings.href = '/account/settings';
-  settings.textContent = 'Preferences';
   settings.setAttribute('role', 'menuitem');
-
-  const divider = document.createElement('div');
-  divider.className = 'account-nav-divider';
-  divider.setAttribute('role', 'separator');
+  settings.append(createItemIcon(GEAR_ICON), createItemLabel('Preferences'));
 
   const logout = document.createElement('button');
   logout.type = 'button';
   logout.className = 'account-nav-item account-nav-item-button';
-  logout.textContent = 'Sign out';
   logout.setAttribute('role', 'menuitem');
+  logout.append(createItemIcon(POWER_ICON), createItemLabel('Sign out'));
   logout.addEventListener('click', () => void handleLogout(logout));
 
   trigger.addEventListener('click', () => {
@@ -187,20 +195,27 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
     if (!expanded) openAccountMenu(control);
   });
 
-  // Appearance folds into the profile menu when signed in — no standalone gear
-  // (lichess pattern). Reuses the same controls theme.ts builds for the gear.
-  const appearanceDivider = document.createElement('div');
-  appearanceDivider.className = 'account-nav-divider';
-  const appearance = document.createElement('div');
-  appearance.className = 'account-nav-appearance';
-  appearance.append(...buildAppearancePanelFields());
+  // Account actions on top, then the appearance drill-in, then the connection
+  // footer — the lichess profile-menu order. Appearance folds in here (no
+  // standalone gear when signed in); it reuses the menu theme.ts builds.
+  const appearance = buildAppearanceMenu();
+  const status = createConnectionStatus();
+  statusByControl.set(control, status);
 
-  panel.append(profile, settings, appearanceDivider, appearance, divider, logout);
+  panel.append(
+    profile,
+    settings,
+    logout,
+    createAccountDivider(),
+    appearance,
+    createAccountDivider(),
+    status.element,
+  );
   control.append(trigger, panel);
   slot.replaceWith(control);
 
   // Drop any standalone gear theme.ts may have mounted before auth resolved.
-  nav.querySelectorAll('[data-theme-control]').forEach((el) => el.remove());
+  for (const el of nav.querySelectorAll('[data-theme-control]')) el.remove();
 }
 
 async function handleLogout(button: HTMLButtonElement): Promise<void> {
@@ -235,11 +250,42 @@ async function handleLogout(button: HTMLButtonElement): Promise<void> {
   window.location.reload();
 }
 
+function createItemIcon(svg: string): HTMLSpanElement {
+  const span = document.createElement('span');
+  span.className = 'account-nav-item-icon';
+  span.setAttribute('aria-hidden', 'true');
+  span.innerHTML = svg;
+  return span;
+}
+
+function createOnlineDot(): HTMLSpanElement {
+  const span = document.createElement('span');
+  span.className = 'account-nav-item-icon account-nav-online-dot';
+  span.setAttribute('aria-hidden', 'true');
+  return span;
+}
+
+function createItemLabel(text: string): HTMLSpanElement {
+  const span = document.createElement('span');
+  span.className = 'account-nav-item-label';
+  span.textContent = text;
+  return span;
+}
+
+function createAccountDivider(): HTMLDivElement {
+  const divider = document.createElement('div');
+  divider.className = 'account-nav-divider';
+  divider.setAttribute('role', 'separator');
+  return divider;
+}
+
 function openAccountMenu(control: HTMLElement): void {
+  resetAppearanceMenus(control);
   control.classList.add('open');
   control
     .querySelector<HTMLButtonElement>('.account-nav-trigger')
     ?.setAttribute('aria-expanded', 'true');
+  statusByControl.get(control)?.start();
 }
 
 function closeAccountMenus(): void {
@@ -248,6 +294,7 @@ function closeAccountMenus(): void {
     control
       .querySelector<HTMLButtonElement>('.account-nav-trigger')
       ?.setAttribute('aria-expanded', 'false');
+    statusByControl.get(control)?.stop();
   });
 }
 

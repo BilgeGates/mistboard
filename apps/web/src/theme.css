@@ -91,27 +91,6 @@
   outline-offset: 1px;
 }
 
-/* Section separator with a centered label ("── Game board & pieces ──"). */
-.theme-control-divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2px;
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.theme-control-divider::before,
-.theme-control-divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--site-border);
-}
-
 .theme-control-trigger {
   display: inline-flex;
   align-items: center;
@@ -175,6 +154,112 @@
     left: 0;
     right: auto;
   }
+}
+
+/* Drill-in appearance menu (lichess-style): a list of category rows that each
+   open a sub-panel. Shared by the signed-out gear and the signed-in dropdown. */
+.appearance-menu {
+  display: block;
+  width: 100%;
+  min-width: 232px;
+}
+
+.appearance-menu-root {
+  display: grid;
+  gap: 2px;
+}
+
+/* `hidden` is toggled in JS to swap root list ↔ sub-panel. The author `display`
+   above outranks the UA [hidden] rule, so restore it explicitly (higher
+   specificity wins). Without this, every sub-panel renders at once. */
+.appearance-menu-root[hidden],
+.appearance-submenu[hidden] {
+  display: none;
+}
+
+.appearance-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  padding: 9px 10px;
+  transition: background 140ms ease;
+}
+
+.appearance-menu-row:hover,
+.appearance-menu-row:focus-visible {
+  background: var(--site-hover);
+}
+
+/* Right-pointing chevron in the accent color, mirroring the lichess rows. */
+.appearance-menu-chevron {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--site-accent);
+  border-top: 2px solid var(--site-accent);
+  transform: rotate(45deg);
+}
+
+.appearance-menu-divider {
+  height: 1px;
+  background: var(--site-border);
+  margin: 6px 4px;
+}
+
+/* The Game selector sits inline among the rows; pad it to align with them. */
+.appearance-menu-root .theme-control-field-inline {
+  padding: 4px 10px;
+}
+
+.appearance-submenu {
+  display: grid;
+  gap: 12px;
+}
+
+.appearance-submenu-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--site-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px;
+}
+
+.appearance-submenu-back:hover,
+.appearance-submenu-back:focus-visible {
+  color: var(--site-text);
+}
+
+.appearance-submenu-back-arrow {
+  width: 7px;
+  height: 7px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.appearance-submenu-body {
+  display: grid;
+  gap: 12px;
 }
 
 .theme-control-panel select {
