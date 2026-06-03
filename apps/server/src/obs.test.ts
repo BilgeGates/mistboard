@@ -107,4 +107,15 @@ test('engine alert fields separate critical failures from capacity pressure', ()
     engine_reservation_busy_tick: 1,
   });
   assert.equal(engineAlertFields(busyCounters.snapshot()), null);
+
+  // R1-recover: a recovered worker blip (retry, no terminal failure) is a
+  // warning — surfaced so successful recovery doesn't mask worker instability.
+  const retryCounters = new EngineCounters();
+  retryCounters.recordPythonPoolRetry();
+  retryCounters.recordPythonPoolRetry();
+  assert.deepEqual(engineAlertFields(retryCounters.snapshot()), {
+    severity: 'warning',
+    python_pool_retries_tick: 2,
+  });
+  assert.equal(engineAlertFields(retryCounters.snapshot()), null);
 });

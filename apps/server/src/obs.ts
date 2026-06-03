@@ -275,6 +275,7 @@ export type EngineAlertFields = {
   engine_turns_failed_tick?: number;
   python_pool_errors_tick?: number;
   python_pool_timeouts_tick?: number;
+  python_pool_retries_tick?: number;
 };
 
 export function engineAlertFields(engine: EngineCounterSnapshot): EngineAlertFields | null {
@@ -302,11 +303,21 @@ export function engineAlertFields(engine: EngineCounterSnapshot): EngineAlertFie
   );
   if (hasCritical) return critical;
 
-  if (engine.reservationBusyDelta > 0) {
-    return {
-      severity: 'warning',
-      engine_reservation_busy_tick: engine.reservationBusyDelta,
-    };
+  // Warning-level: no move actually failed this tick, but something is off.
+  // - reservation_busy: capacity pressure (seat cap hit).
+  // - pool_retries: a worker crashed/errored but R1-recover recovered the move
+  //   on a healthy peer. The move succeeded, so it's not critical — but recovery
+  //   MASKS worker instability, so surface it (else a crash-looping worker stays
+  //   invisible behind successful retries).
+  if (engine.reservationBusyDelta > 0 || engine.pythonPoolRetriesDelta > 0) {
+    const warning: EngineAlertFields = { severity: 'warning' };
+    if (engine.reservationBusyDelta > 0) {
+      warning.engine_reservation_busy_tick = engine.reservationBusyDelta;
+    }
+    if (engine.pythonPoolRetriesDelta > 0) {
+      warning.python_pool_retries_tick = engine.pythonPoolRetriesDelta;
+    }
+    return warning;
   }
   return null;
 }

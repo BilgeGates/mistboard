@@ -236,7 +236,8 @@ class PoolWorker {
       this.completeRequest();
     } else {
       const errMsg = msg.error ?? 'worker returned !ok';
-      engineCounters.recordPythonPoolError({ timeout: isTimeoutish(errMsg) });
+      // The pool counts this as a retry (recovered) or, if attempts are
+      // exhausted, as a terminal pool error — see handleRequestFailure.
       logger.error(
         {
           kind: 'python_pool_worker_error',
@@ -272,7 +273,8 @@ class PoolWorker {
       this.current = null;
       if (req.timeoutHandle) clearTimeout(req.timeoutHandle);
       req.timeoutHandle = null;
-      engineCounters.recordPythonPoolError({ timeout: isTimeoutish(err.message) });
+      // Counted by handleRequestFailure: a recovered failure → retry (warning),
+      // an exhausted one → terminal pool error (critical).
       logger.error(
         {
           kind: 'python_pool_request_failed',
@@ -440,6 +442,9 @@ export class PythonPool {
       this.tryDispatch();
       return;
     }
+    // Terminal: recovery exhausted (or pool disposed). NOW it's a hard pool
+    // error (critical alert), distinct from a recovered blip (retry → warning).
+    engineCounters.recordPythonPoolError({ timeout: isTimeoutish(err.message) });
     req.reject(err);
   }
 
