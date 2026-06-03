@@ -7,7 +7,7 @@ import './account-profile.css';
 import './engine-profile.css';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
-import { buildFooter, buildNav, buildNotice } from './site-shell.js';
+import { buildNav, buildNotice } from './site-shell.js';
 
 type ModeRecord = { games: number; wins: number; losses: number; draws: number };
 
@@ -28,7 +28,7 @@ export async function mountEngineProfile(root: HTMLElement, engineId: string): P
 
   const shell = document.createElement('main');
   shell.className = 'profile-shell';
-  root.append(buildNav(), shell, buildFooter());
+  root.append(buildNav(), shell);
 
   let profile: EngineProfile;
   try {

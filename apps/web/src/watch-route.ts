@@ -3,7 +3,7 @@ import './watch-route.css';
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
 import { gameMetaForGame, reviewUrlForGame } from './game-meta.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
-import { buildFooter, buildLoadingState, buildNav } from './site-shell.js';
+import { buildLoadingState, buildNav } from './site-shell.js';
 
 // replay.js statically pulls in chessground (~64KB). Importing it dynamically
 // keeps it out of watch-route's module-init path, so mountWatch can fire
@@ -45,7 +45,7 @@ const WATCH_IDLE_POLL_MS = 60_000;
 export async function mountWatch(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'watch-route');
-  root.append(buildNav(), buildLoadingState('Loading replays'), buildFooter());
+  root.append(buildNav(), buildLoadingState('Loading replays'));
 
   // Start downloading the replay/chessground chunk now, in parallel with the
   // feed fetch below, rather than serializing it behind /api/watch.
@@ -56,7 +56,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     return null;
   });
   const watch = buildWatchSection(currentFeed);
-  root.replaceChildren(buildNav(), watch.el, buildFooter());
+  root.replaceChildren(buildNav(), watch.el);
   document.title = 'Mistboard TV · Mistboard';
 
   let activeRoomId: string | null = null;

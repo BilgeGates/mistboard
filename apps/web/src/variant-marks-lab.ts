@@ -1,4 +1,4 @@
-import { buildFooter, buildNav } from './site-shell.js';
+import { buildNav } from './site-shell.js';
 import { renderVariantMark, VARIANT_MARKS, type VariantMarkDef } from './variant-marks.js';
 
 const PREVIEW_SIZES = [96, 48, 24, 16] as const;
@@ -12,7 +12,7 @@ export function mountVariantMarksLab(root: HTMLElement): void {
   main.className = 'site-section variant-marks-lab';
   main.append(buildIntro(), buildMarkGrid(), buildScaleStrip());
 
-  root.append(buildNav(), main, buildFooter());
+  root.append(buildNav(), main);
 }
 
 function buildIntro(): HTMLElement {

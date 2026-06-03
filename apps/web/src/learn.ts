@@ -28,7 +28,7 @@ import {
   buildPlannedModulePanel,
   type LearnPanelActions,
 } from './learn-panels.js';
-import { buildFooter, buildNav } from './site-shell.js';
+import { buildNav } from './site-shell.js';
 
 const boardFiles = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 
@@ -36,7 +36,7 @@ export function mountLearn(root: HTMLElement): void {
   const state = createTutorialState();
   root.replaceChildren();
   root.classList.add('landing-page', 'learn-route');
-  root.append(buildNav(), buildShell(state), buildFooter());
+  root.append(buildNav(), buildShell(state));
   applyLearnRoute(state);
   window.addEventListener('hashchange', () => applyLearnRoute(state));
 }

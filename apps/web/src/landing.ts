@@ -20,14 +20,14 @@ import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
-import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
+import { buildHomeFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 
 const HOMEPAGE_CORPUS_HOLD_MS = 8000;
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
-  root.append(buildNav(), buildLoadingState('Loading games'), buildFooter());
+  root.append(buildNav(), buildLoadingState('Loading games'));
 
   const engines = await fetchPlayableEngines().catch((err) => {
     console.warn(err);
@@ -53,7 +53,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const forcedSample = requested && sampleIds.includes(requested) ? requested : null;
   const currentSample = forcedSample ?? sampleIds[0]!;
   const stage = buildLandingStage(engines);
-  root.replaceChildren(buildNav(), stage.el, buildFooter());
+  root.replaceChildren(buildNav(), stage.el);
   mountArticleThumbnails(stage.el);
   maybeOpenPlayDeepLink(engines);
 
@@ -166,7 +166,7 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   const replayRoot = document.createElement('div');
   replayRoot.className = 'game-replay';
   shell.append(replayRoot);
-  root.append(buildNav(), shell, buildFooter());
+  root.append(buildNav(), shell);
 
   const loaded = await loadGameForReview(roomId);
   if (!loaded) {
@@ -283,7 +283,7 @@ export function mountContact(root: HTMLElement): void {
   // Reconciled below with the authoritative cached /api/auth/me result.
   const cachedUser = readCachedUser();
   const contact = buildContact(cachedUser, isLikelySignedIn());
-  root.append(buildNav(), contact.el, buildFooter());
+  root.append(buildNav(), contact.el);
   void loadCachedCurrentUser()
     .then((user) => contact.applyAuth(user))
     .catch(() => contact.applyAuth(null));
@@ -324,7 +324,9 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: true });
 
   section.append(announcements, boardColumn, playPanel);
-  stage.append(section);
+  // The footer lives only on the homepage now (stripped from interior routes),
+  // blended into the bottom of the stage rather than rendered as a separate bar.
+  stage.append(section, buildHomeFooter());
   return { el: stage, replayRoot, reviewLink };
 }
 

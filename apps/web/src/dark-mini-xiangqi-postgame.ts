@@ -15,7 +15,7 @@ import {
 import { createPane } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
 import { createReplayMovesPanel } from './replay-moves-panel.js';
-import { buildFooter, buildNav } from './site-shell.js';
+import { buildNav } from './site-shell.js';
 import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
 
 type DarkMiniXiangqiPostgameViewKey = MiniXiangqiColor | 'truth';
@@ -67,7 +67,7 @@ export function mountDarkMiniXiangqiPostgame(root: HTMLElement, roomId: string):
   root.classList.add('landing-page', 'game-route');
   setBoardFamily('xiangqi');
   installMiniXiangqiBoardStyles();
-  root.replaceChildren(buildNav(), loadingView(), buildFooter());
+  root.replaceChildren(buildNav(), loadingView());
   if (!darkMiniXiangqiEnabled()) {
     renderError(root, 'Dark Mini Xiangqi unavailable', 'This route is not enabled in this build.');
     return;
@@ -181,7 +181,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
 
   page.append(header.el, layout, movesPanel.el);
   shell.append(page);
-  root.replaceChildren(buildNav(), shell, buildFooter());
+  root.replaceChildren(buildNav(), shell);
 
   // ── Scrubber ──────────────────────────────────────────────────────────────
   const moves = postgame.timeline.filter(
@@ -430,7 +430,7 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
   const body = document.createElement('p');
   body.textContent = bodyText;
   shell.append(title, body);
-  root.replaceChildren(buildNav(), shell, buildFooter());
+  root.replaceChildren(buildNav(), shell);
 }
 
 function errorTitle(status: number): string {

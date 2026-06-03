@@ -477,10 +477,6 @@
     overflow: hidden;
   }
 
-  .landing-page.watch-route .site-footer {
-    display: none;
-  }
-
   .watch-shell {
     flex: 1 1 auto;
     min-height: 0;

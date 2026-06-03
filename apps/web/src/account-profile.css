@@ -120,6 +120,25 @@
   line-height: 1.5;
 }
 
+/* Terms/Privacy assent under the register button (footer is homepage-only). */
+.account-legal {
+  margin: 4px 0 0;
+  width: 100%;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.account-legal a {
+  color: var(--site-muted);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.account-legal a:hover {
+  color: var(--site-text);
+}
+
 .account-actions,
 .account-form,
 .account-settings-form {

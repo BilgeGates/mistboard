@@ -2,7 +2,7 @@
 
 import './pages-static.css';
 
-import { buildFooter, buildNav, GITHUB_URL } from './site-shell.js';
+import { buildNav, GITHUB_URL } from './site-shell.js';
 
 type PublicStatsMode = 'pvp' | 'pve' | 'eve';
 
@@ -35,37 +35,37 @@ const numberFormat = new Intl.NumberFormat('en-US');
 export function mountAbout(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'about-route');
-  root.append(buildNav(), buildAbout(), buildFooter());
+  root.append(buildNav(), buildAbout());
 }
 
 export function mountSource(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'source-route');
-  root.append(buildNav(), buildSource(), buildFooter());
+  root.append(buildNav(), buildSource());
 }
 
 export function mountFaq(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'faq-route');
-  root.append(buildNav(), buildFaq(), buildFooter());
+  root.append(buildNav(), buildFaq());
 }
 
 export function mountTerms(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'terms-route');
-  root.append(buildNav(), buildTerms(), buildFooter());
+  root.append(buildNav(), buildTerms());
 }
 
 export function mountPrivacy(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'privacy-route');
-  root.append(buildNav(), buildPrivacy(), buildFooter());
+  root.append(buildNav(), buildPrivacy());
 }
 
 export function mountNotFound(root: HTMLElement): void {
   root.replaceChildren();
   root.classList.add('landing-page', 'not-found-route');
-  root.append(buildNav(), buildNotFound(), buildFooter());
+  root.append(buildNav(), buildNotFound());
 }
 
 export async function mountArticlesIndex(
@@ -76,7 +76,7 @@ export async function mountArticlesIndex(
   root.classList.add('landing-page', 'articles-route');
   const { buildArticlesIndex, mountArticleThumbnails } = await import('./articles.js');
   const index = buildArticlesIndex(lang ?? undefined);
-  root.append(buildNav(), index, buildFooter());
+  root.append(buildNav(), index);
   mountArticleThumbnails(index);
 }
 
@@ -88,7 +88,7 @@ export async function mountRulesIndex(
   root.classList.add('landing-page', 'articles-route', 'rules-route');
   const { buildRulesIndex, mountArticleThumbnails } = await import('./articles.js');
   const index = buildRulesIndex(lang ?? undefined);
-  root.append(buildNav(), index, buildFooter());
+  root.append(buildNav(), index);
   mountArticleThumbnails(index);
 }
 
@@ -112,7 +112,7 @@ export async function mountArticle(
   const article = base && lang ? translateArticle(base, lang) : base;
   if (article) document.title = `${article.title} · Mistboard`;
   const articlePage = buildArticlePage(slug, lang ?? undefined);
-  root.append(buildNav(), articlePage, buildFooter());
+  root.append(buildNav(), articlePage);
   mountPendingWidgets(articlePage);
   mountArticleEnhancements(articlePage);
 }

@@ -11,7 +11,6 @@ import './account-profile.css';
 import { identify, resetIdentity, track } from './analytics.js';
 import {
   type AuthUser,
-  buildFooter,
   buildLoadingState,
   buildNav,
   fetchCurrentUser,
@@ -22,11 +21,11 @@ import {
 export async function mountAccount(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'account-route');
-  root.append(buildNav(), buildLoadingState('Loading account'), buildFooter());
+  root.append(buildNav(), buildLoadingState('Loading account'));
 
   const shell = document.createElement('main');
   shell.className = 'account-shell';
-  root.replaceChildren(buildNav(), shell, buildFooter());
+  root.replaceChildren(buildNav(), shell);
 
   const current = await fetchCurrentUser().catch((err) => {
     console.warn(err);
@@ -41,7 +40,7 @@ export async function mountAccountSettings(root: HTMLElement): Promise<void> {
 
   const shell = document.createElement('main');
   shell.className = 'account-shell account-settings-shell';
-  root.replaceChildren(buildNav(), shell, buildFooter());
+  root.replaceChildren(buildNav(), shell);
 
   const current = await fetchCurrentUser().catch((err) => {
     console.warn(err);
@@ -393,6 +392,22 @@ function buildLoginForm(
   });
 
   form.append(email, code, submit, status);
+
+  // Terms/Privacy assent at the point of account creation. The footer is now
+  // homepage-only, so the register form is the surface that surfaces these.
+  if (tab === 'register') {
+    const legal = document.createElement('p');
+    legal.className = 'account-legal';
+    const termsLink = document.createElement('a');
+    termsLink.href = '/terms';
+    termsLink.textContent = 'Terms';
+    const privacyLink = document.createElement('a');
+    privacyLink.href = '/privacy';
+    privacyLink.textContent = 'Privacy';
+    legal.append('By creating an account you agree to our ', termsLink, ' and ', privacyLink, '.');
+    form.append(legal);
+  }
+
   panel.append(eyebrow, title, copy, form);
   return panel;
 }

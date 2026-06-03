@@ -247,12 +247,16 @@ export function buildNotice(titleText: string, bodyText: string): HTMLElement {
   return notice;
 }
 
-export function buildFooter(): HTMLElement {
+// Homepage-only footer. Rendered blended into the bottom of the landing stage
+// (no `.site-footer` bar chrome) — interior routes no longer carry a footer, so
+// these links live only here. The register form independently surfaces Terms +
+// Privacy so signup still has an assent surface.
+export function buildHomeFooter(): HTMLElement {
   const footer = document.createElement('footer');
-  footer.className = 'site-footer';
+  footer.className = 'landing-footer';
 
   const links = document.createElement('div');
-  links.className = 'site-footer-links';
+  links.className = 'landing-footer-links';
 
   const about = document.createElement('a');
   about.href = '/about';
@@ -285,7 +289,7 @@ export function buildFooter(): HTMLElement {
   gh.textContent = 'GitHub';
 
   const identity = document.createElement('span');
-  identity.className = 'site-footer-identity';
+  identity.className = 'landing-footer-identity';
   identity.textContent = '© 2026 Mistboard · AGPL-3.0';
 
   links.append(about, contact, source, faq, terms, privacy, gh, identity);

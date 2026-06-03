@@ -3,7 +3,7 @@
 import './account-profile.css';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
-import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
+import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { leaderboardVariants } from './variants.js';
 
 type ProfileRatingVariant = 'fog' | 'fog_draft960';
@@ -82,11 +82,11 @@ const PROFILE_TIME_CLASS_LABEL: Record<ProfileRatingTimeClass, string> = {
 export async function mountProfile(root: HTMLElement, handle: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'profile-route');
-  root.append(buildNav(), buildLoadingState('Loading profile'), buildFooter());
+  root.append(buildNav(), buildLoadingState('Loading profile'));
 
   const shell = document.createElement('main');
   shell.className = 'profile-shell';
-  root.replaceChildren(buildNav(), shell, buildFooter());
+  root.replaceChildren(buildNav(), shell);
 
   const profile = await fetchUserProfile(handle).catch((err) => {
     console.warn(err);
@@ -111,7 +111,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
 
   const shell = document.createElement('main');
   shell.className = 'site-section leaderboard-shell';
-  root.append(buildNav(), shell, buildFooter());
+  root.append(buildNav(), shell);
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';

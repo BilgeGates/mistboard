@@ -168,16 +168,19 @@
   }
 }
 
-.site-footer {
+/* Homepage-only footer, blended into the bottom of the landing stage. It sits
+   inside `.landing-stage`, so it inherits the stage background (no bar chrome);
+   whitespace, not a border, separates it from the article cards above. */
+.landing-footer {
   display: flex;
   justify-content: center;
-  padding: 6px 24px 10px;
+  margin-top: clamp(20px, 4vw, 44px);
+  padding: clamp(16px, 2.4vw, 28px) 24px clamp(8px, 1.4vw, 14px);
   font-size: 12px;
   color: var(--site-muted);
-  margin-top: auto;
 }
 
-.site-footer-links {
+.landing-footer-links {
   display: flex;
   align-items: baseline;
   gap: 16px;
@@ -185,17 +188,17 @@
   justify-content: center;
 }
 
-.site-footer-identity {
+.landing-footer-identity {
   opacity: 0.65;
 }
 
-.site-footer a {
+.landing-footer a {
   color: var(--site-muted);
   text-decoration: none;
   font-weight: 600;
 }
 
-.site-footer a:hover {
+.landing-footer a:hover {
   color: var(--site-text);
   text-decoration: underline;
 }
@@ -219,7 +222,7 @@
     justify-content: flex-end;
   }
 
-  .site-footer {
+  .landing-footer {
     padding: 18px 16px;
   }
 }
