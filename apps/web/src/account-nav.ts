@@ -2,6 +2,7 @@ import './account-nav.css';
 
 import { identify, resetIdentity } from './analytics.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
+import { buildAppearancePanelFields } from './theme.js';
 
 type AuthUser = {
   id: string;
@@ -186,9 +187,20 @@ function mountAccountNav(nav: HTMLElement, user: AuthUser): void {
     if (!expanded) openAccountMenu(control);
   });
 
-  panel.append(profile, settings, divider, logout);
+  // Appearance folds into the profile menu when signed in — no standalone gear
+  // (lichess pattern). Reuses the same controls theme.ts builds for the gear.
+  const appearanceDivider = document.createElement('div');
+  appearanceDivider.className = 'account-nav-divider';
+  const appearance = document.createElement('div');
+  appearance.className = 'account-nav-appearance';
+  appearance.append(...buildAppearancePanelFields());
+
+  panel.append(profile, settings, appearanceDivider, appearance, divider, logout);
   control.append(trigger, panel);
   slot.replaceWith(control);
+
+  // Drop any standalone gear theme.ts may have mounted before auth resolved.
+  nav.querySelectorAll('[data-theme-control]').forEach((el) => el.remove());
 }
 
 async function handleLogout(button: HTMLButtonElement): Promise<void> {

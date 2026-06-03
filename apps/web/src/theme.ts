@@ -7,6 +7,7 @@ import {
   type XiangqiPieceSet,
   xiangqiPreviewGlyph,
 } from './xiangqi-piece-sets.js';
+import { isLikelySignedIn } from './account-nav.js';
 
 type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
 type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
@@ -168,6 +169,10 @@ function watchForNavChanges(): void {
 }
 
 function mountThemeControl(nav: HTMLElement): void {
+  // Signed in, the appearance panel folds into the profile dropdown
+  // (account-nav.ts), so the standalone gear is not shown — matches lichess.
+  if (isLikelySignedIn()) return;
+
   const target =
     nav.querySelector<HTMLElement>('.site-nav-utilities') ??
     nav.querySelector<HTMLElement>('.site-nav-links');
@@ -196,6 +201,23 @@ function mountThemeControl(nav: HTMLElement): void {
   panel.setAttribute('role', 'group');
   panel.setAttribute('aria-label', 'Display and sound settings');
 
+  panel.append(...buildAppearancePanelFields());
+
+  trigger.addEventListener('click', () => {
+    const expanded = trigger.getAttribute('aria-expanded') === 'true';
+    closeThemeMenus();
+    if (!expanded) openThemeMenu(control);
+  });
+
+  control.append(trigger, panel);
+  // Gear sits at the far right of the nav, after Sign in / Register (lichess order).
+  target.append(control);
+}
+
+// The appearance controls (site theme, fog, sound, board, pieces). Shared by the
+// signed-out gear above and the signed-in profile dropdown (account-nav.ts),
+// which embeds these directly so there's no standalone gear when logged in.
+export function buildAppearancePanelFields(): HTMLElement[] {
   const siteThemeField = createSiteThemeField();
   const boardFamilyField = createBoardFamilyField();
   const boardField = createTileField(
@@ -267,13 +289,7 @@ function mountThemeControl(nav: HTMLElement): void {
   const volumeField = createVolumeField();
   const muteField = createMuteField();
 
-  trigger.addEventListener('click', () => {
-    const expanded = trigger.getAttribute('aria-expanded') === 'true';
-    closeThemeMenus();
-    if (!expanded) openThemeMenu(control);
-  });
-
-  // Global/shared settings up top; the board + piece pickers live in their own
+  // Global/shared settings up top; the board + piece pickers in their own
   // section at the bottom. The Game family dropdown and the xiangqi pickers only
   // appear when a xiangqi variant is enabled (otherwise it's chess-only).
   const perGame: HTMLElement[] = [];
@@ -282,17 +298,14 @@ function mountThemeControl(nav: HTMLElement): void {
   if (xiangqiAppearanceEnabled()) perGame.push(xiangqiBoardField);
   perGame.push(pieceField);
   if (xiangqiAppearanceEnabled()) perGame.push(xiangqiPieceField);
-  panel.append(
+  return [
     siteThemeField,
     fogField,
     volumeField,
     muteField,
     createSectionDivider('Board & pieces'),
     ...perGame,
-  );
-  control.append(trigger, panel);
-  // Gear sits at the far right of the nav, after Sign in / Register (lichess order).
-  target.append(control);
+  ];
 }
 
 function createSiteThemeField(): HTMLDivElement {
