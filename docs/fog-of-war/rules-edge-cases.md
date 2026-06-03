@@ -110,6 +110,33 @@ Current contract:
   legal moves, event logs, and detection, with king-to-destination aliases
   accepted as input for UI compatibility.
 
+Settled decision (2026-06-03, do not revisit for standard dark-chess):
+
+We reviewed gating castling legality on the mover's vision, so that a player
+who can see an attacker on the king, through, or landing square would be barred
+from castling (closer to standard chess). Rejected. Unrestricted castling stays.
+
+Rationale:
+
+- The "no castling through check" rule is a corollary of check/checkmate, which
+  fog deletes (king-capture is the win condition). Removing the castling
+  restriction is the consistent consequence, not an oversight.
+- Restricting castling alone is ad hoc: fog already lets the king step into a
+  visible attack and lets a player ignore a visible check with any other move.
+  Patching castling only fixes the most salient instance and invites a slide
+  back toward re-implementing check inside fog.
+- It would fork the established ruleset (chess.com Fog of War, pychess, and the
+  Obscuro / Gehnen academic baselines all use "no check, castle freely"),
+  breaking engine cross-comparison and the "canonical place to play the
+  category" positioning. Our moat is the engine and analysis, not rule parity.
+
+A variant where all visible information binds like standard chess (king steps,
+leaving check, and castling together, not castling alone) is a legitimate but
+separate, clearly-labeled variant, gated post-M1. It is not a patch to the
+default ruleset. The surprise a chess player feels on castling out of visible
+check is an onboarding/legibility gap, addressed by teaching "there is no check
+in dark chess," not by changing the rule.
+
 Implementation risk: castling can diverge across TypeScript game rules, Python
 engine lab code, replay logs, and UI move input. Visibility may include the rook
 square, the king destination, or both depending on which move representation is
