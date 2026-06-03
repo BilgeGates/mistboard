@@ -73,14 +73,20 @@ export async function tryHandle(
   if (pathname === '/api/live-stats') {
     if (!requireMethod(request, response, 'GET')) return true;
     let playing = 0;
-    const uniqueClientIds = new Set<string>();
+    // "online" counts distinct humans connected, not distinct sockets. A
+    // signed-in user spanning several tabs/rooms/devices shares one userId, so
+    // collapse on that; anonymous connections fall back to the per-room client
+    // id (already shared across tabs of the same room via localStorage). The
+    // u:/c: prefixes keep the two id spaces from colliding. Engines never enter
+    // room.clients, so they don't inflate this.
+    const onlineIdentities = new Set<string>();
     for (const room of ctx.rooms.values()) {
       if (room.projection.state.status.type === 'playing') playing += 1;
       for (const client of room.clients) {
-        uniqueClientIds.add(client.id);
+        onlineIdentities.add(client.userId ? `u:${client.userId}` : `c:${client.id}`);
       }
     }
-    writeJson(response, 200, { playing, online: uniqueClientIds.size });
+    writeJson(response, 200, { playing, online: onlineIdentities.size });
     return true;
   }
 
