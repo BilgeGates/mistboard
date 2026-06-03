@@ -3,6 +3,7 @@ import './account-nav.css';
 import { identify, resetIdentity } from './analytics.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
+import { readSignedInHint, setResolvedSignedIn, writeSignedInHint } from './signed-in-state.js';
 import { buildAppearanceMenu, resetAppearanceMenus } from './theme.js';
 
 // Lucide-style outline icons, matching the nav's existing icon weight. The gear
@@ -28,7 +29,6 @@ type AuthUser = {
   accountRole: 'player' | 'admin';
 };
 
-const SIGNED_IN_HINT_KEY = 'mb_signed_in';
 const CACHED_USER_KEY = 'mb_cached_user';
 
 let cachedUser: AuthUser | null | undefined;
@@ -65,23 +65,6 @@ function mountAccountNavs(): void {
   if (cachedUser === undefined || cachedUser === null) return;
   for (const nav of document.querySelectorAll<HTMLElement>('.site-nav')) {
     mountAccountNav(nav, cachedUser as AuthUser);
-  }
-}
-
-function readSignedInHint(): boolean {
-  try {
-    return window.localStorage.getItem(SIGNED_IN_HINT_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeSignedInHint(value: boolean): void {
-  try {
-    if (value) window.localStorage.setItem(SIGNED_IN_HINT_KEY, '1');
-    else window.localStorage.removeItem(SIGNED_IN_HINT_KEY);
-  } catch {
-    // localStorage unavailable (private mode etc.) — fall through.
   }
 }
 
@@ -315,6 +298,7 @@ async function loadCurrentUser(): Promise<AuthUser | null> {
   userPromise = fetchCurrentUser()
     .then((user) => {
       cachedUser = user;
+      setResolvedSignedIn(user !== null);
       // Canonical per-load auth resolution: identify so PostHog persons map to
       // DB accounts. Idempotent for returning users.
       if (user) {
@@ -328,6 +312,7 @@ async function loadCurrentUser(): Promise<AuthUser | null> {
     })
     .catch(() => {
       cachedUser = null;
+      setResolvedSignedIn(false);
       return null;
     });
   return userPromise;
@@ -339,15 +324,6 @@ export function loadCachedCurrentUser(): Promise<AuthUser | null> {
   return loadCurrentUser();
 }
 
-// Synchronous "best guess" hint persisted from a prior signed-in load.
-// Used to pick the right initial render shape before the auth fetch resolves.
-// Stale only in edge cases (sign-out from another tab), reconciled by
-// awaiting loadCachedCurrentUser.
-export function isLikelySignedIn(): boolean {
-  if (cachedUser !== undefined) return cachedUser !== null;
-  return readSignedInHint();
-}
-
 async function fetchCurrentUser(): Promise<AuthUser | null> {
   const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
   if (!resp.ok) return null;
@@ -357,5 +333,6 @@ async function fetchCurrentUser(): Promise<AuthUser | null> {
 
 function invalidateAccountCache(): void {
   cachedUser = undefined;
+  setResolvedSignedIn(undefined);
   userPromise = null;
 }

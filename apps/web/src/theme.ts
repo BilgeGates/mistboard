@@ -1,7 +1,7 @@
 import './theme.css';
 import type { GameFamilyId } from '@mistboard/game';
-import { isLikelySignedIn } from './account-nav.js';
 import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 import {
   DEFAULT_XIANGQI_PIECE_SET,
   XIANGQI_PIECE_SETS,

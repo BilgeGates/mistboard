@@ -2,7 +2,7 @@ import type { GameEvent } from '@mistboard/game';
 import './landing-play.css';
 import './landing.css';
 import './game-route.css';
-import { isLikelySignedIn, loadCachedCurrentUser, readCachedUser } from './account-nav.js';
+import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { mountArticleThumbnails } from './articles.js';
 import { buildContact } from './contact.js';
 import type { FeaturedGame } from './game-display.js';
@@ -19,6 +19,7 @@ import {
 import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 import { buildFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 
 const HOMEPAGE_CORPUS_HOLD_MS = 8000;
