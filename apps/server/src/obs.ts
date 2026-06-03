@@ -56,6 +56,7 @@ export class EngineCounters {
   totalTurnDeadlineGuards = 0;
   totalPythonPoolErrors = 0;
   totalPythonPoolTimeouts = 0;
+  totalPythonPoolRetries = 0;
   private lastEmittedMoves = 0;
   private lastEmittedFallbacks = 0;
   private lastEmittedMoveFailures = 0;
@@ -69,6 +70,7 @@ export class EngineCounters {
   private lastEmittedTurnDeadlineGuards = 0;
   private lastEmittedPythonPoolErrors = 0;
   private lastEmittedPythonPoolTimeouts = 0;
+  private lastEmittedPythonPoolRetries = 0;
   private turnElapsedSamples: number[] = [];
   private turnQueueWaitSamples: number[] = [];
 
@@ -119,6 +121,12 @@ export class EngineCounters {
     if (input.timeout) this.totalPythonPoolTimeouts += 1;
   }
 
+  // R1-recover: a move failure that we re-dispatched to a healthy worker rather
+  // than surfacing as a failed turn. Retry rate ≈ recovery health.
+  recordPythonPoolRetry(): void {
+    this.totalPythonPoolRetries += 1;
+  }
+
   private recordTurnTiming(input: { elapsedMs?: number | null; queueWaitMs?: number | null }): void {
     if (typeof input.elapsedMs === 'number' && Number.isFinite(input.elapsedMs)) {
       this.turnElapsedSamples.push(input.elapsedMs);
@@ -141,6 +149,8 @@ export class EngineCounters {
     pythonPoolErrorsDelta: number;
     pythonPoolTimeouts: number;
     pythonPoolTimeoutsDelta: number;
+    pythonPoolRetries: number;
+    pythonPoolRetriesDelta: number;
     rate: number;
     reservationFailures: number;
     reservationFailuresDelta: number;
@@ -181,6 +191,8 @@ export class EngineCounters {
     const pythonPoolErrorsDelta = this.totalPythonPoolErrors - this.lastEmittedPythonPoolErrors;
     const pythonPoolTimeoutsDelta =
       this.totalPythonPoolTimeouts - this.lastEmittedPythonPoolTimeouts;
+    const pythonPoolRetriesDelta =
+      this.totalPythonPoolRetries - this.lastEmittedPythonPoolRetries;
     this.lastEmittedMoves = this.totalMoves;
     this.lastEmittedFallbacks = this.totalFallbacks;
     this.lastEmittedMoveFailures = this.totalMoveFailures;
@@ -194,6 +206,7 @@ export class EngineCounters {
     this.lastEmittedTurnDeadlineGuards = this.totalTurnDeadlineGuards;
     this.lastEmittedPythonPoolErrors = this.totalPythonPoolErrors;
     this.lastEmittedPythonPoolTimeouts = this.totalPythonPoolTimeouts;
+    this.lastEmittedPythonPoolRetries = this.totalPythonPoolRetries;
     const rate = movesDelta > 0 ? fallbacksDelta / movesDelta : 0;
     const elapsedStats =
       this.turnElapsedSamples.length > 0 ? latencyStats(this.turnElapsedSamples) : null;
@@ -214,6 +227,8 @@ export class EngineCounters {
       pythonPoolErrorsDelta,
       pythonPoolTimeouts: this.totalPythonPoolTimeouts,
       pythonPoolTimeoutsDelta,
+      pythonPoolRetries: this.totalPythonPoolRetries,
+      pythonPoolRetriesDelta,
       rate,
       reservationFailures: this.totalReservationFailures,
       reservationFailuresDelta,
@@ -482,6 +497,8 @@ export function startObservability(sources: ObsSources, intervalMs = 5_000): () 
         python_pool_errors_tick: engine.pythonPoolErrorsDelta,
         python_pool_timeouts_total: engine.pythonPoolTimeouts,
         python_pool_timeouts_tick: engine.pythonPoolTimeoutsDelta,
+        python_pool_retries_total: engine.pythonPoolRetries,
+        python_pool_retries_tick: engine.pythonPoolRetriesDelta,
         ws_snapshot_requests_total: ws.snapshotRequests,
         ws_snapshot_requests_tick: ws.snapshotRequestsDelta,
         ws_unknown_messages_total: ws.unknownMessages,

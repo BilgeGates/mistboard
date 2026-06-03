@@ -49,7 +49,18 @@ interface PendingRequest {
   resolve: (response: PythonPoolResponse) => void;
   reject: (err: Error) => void;
   timeoutHandle: NodeJS.Timeout | null;
+  /** Dispatch attempts so far (R1-recover: retry a transient failure once). */
+  attempts: number;
 }
+
+// R1-recover: a move that fails on one worker (crash / OOM / timeout / one-off
+// worker error) is re-enqueued and retried on a healthy worker, which cold-starts
+// the belief from the transcript — a correct continuation, not a forfeit. Bounded
+// to keep a deterministic failure from looping and to respect the move clock.
+const MAX_MOVE_ATTEMPTS = Math.max(
+  1,
+  Number.parseInt(process.env.MISTBOARD_POOL_MOVE_ATTEMPTS ?? '2', 10) || 2,
+);
 
 class PoolWorker {
   private process: ChildProcessWithoutNullStreams | null = null;
@@ -71,6 +82,9 @@ class PoolWorker {
     private readonly opts: PythonPoolOptions,
     private readonly onIdle: () => void,
     private readonly onPermanentDeath: (worker: PoolWorker, err: Error) => void,
+    // R1-recover: hand a failed request back to the pool to retry-or-reject,
+    // instead of rejecting the caller directly.
+    private readonly onRequestFailure: (req: PendingRequest, err: Error) => void,
   ) {}
 
   isReady(): boolean {
@@ -219,6 +233,7 @@ class PoolWorker {
         'python pool request completed',
       );
       this.current.resolve(msg.response);
+      this.completeRequest();
     } else {
       const errMsg = msg.error ?? 'worker returned !ok';
       engineCounters.recordPythonPoolError({ timeout: isTimeoutish(errMsg) });
@@ -232,9 +247,12 @@ class PoolWorker {
         },
         'worker returned !ok',
       );
-      this.current.reject(new Error(errMsg));
+      // Worker is alive (it reported the error) — free it, then let the pool
+      // retry the move elsewhere (cold-start) or reject if out of attempts.
+      const req = this.current;
+      this.completeRequest();
+      this.onRequestFailure(req, new Error(errMsg));
     }
-    this.completeRequest();
   }
 
   private completeRequest(): void {
@@ -252,6 +270,8 @@ class PoolWorker {
     if (this.current) {
       const req = this.current;
       this.current = null;
+      if (req.timeoutHandle) clearTimeout(req.timeoutHandle);
+      req.timeoutHandle = null;
       engineCounters.recordPythonPoolError({ timeout: isTimeoutish(err.message) });
       logger.error(
         {
@@ -265,8 +285,9 @@ class PoolWorker {
         },
         'python pool request failed',
       );
-      req.reject(err);
-      if (req.timeoutHandle) clearTimeout(req.timeoutHandle);
+      // This worker is being torn down + restarted; the pool retries the move on
+      // a healthy worker (cold-start) or rejects if out of attempts.
+      this.onRequestFailure(req, err);
     }
     this.ready = false;
     if (this.process && !this.process.killed) {
@@ -388,7 +409,38 @@ export class PythonPool {
       this.opts,
       () => this.tryDispatch(),
       (worker, err) => this.handleWorkerDeath(worker, err),
+      (req, err) => this.handleRequestFailure(req, err),
     );
+  }
+
+  // R1-recover: retry a failed move on a healthy worker (bounded), else reject.
+  // Re-enqueueing routes through tryDispatch → the next ready worker; since the
+  // failed worker is dead/restarting (or busy), the retry lands elsewhere and
+  // cold-starts the belief from the transcript (correct continuation). The
+  // dispatch timeout + the caller's outer watchdog bound the total time.
+  private handleRequestFailure(req: PendingRequest, err: Error): void {
+    req.attempts += 1;
+    if (!this.disposed && req.attempts < MAX_MOVE_ATTEMPTS) {
+      engineCounters.recordPythonPoolRetry();
+      logger.warn(
+        {
+          kind: 'python_pool_move_retry',
+          engine_id: this.opts.engineId,
+          request_id: req.requestId,
+          attempt: req.attempts,
+          max_attempts: MAX_MOVE_ATTEMPTS,
+          error: err.message,
+          ...payloadDiagnostics(req.payload),
+        },
+        'retrying move on a healthy worker',
+      );
+      req.dispatchedAt = null;
+      req.timeoutHandle = null;
+      this.queue.push(req);
+      this.tryDispatch();
+      return;
+    }
+    req.reject(err);
   }
 
   private handleWorkerDeath(dead: PoolWorker, err: Error): void {
@@ -481,6 +533,7 @@ export class PythonPool {
         resolve: resolvePromise,
         reject: rejectPromise,
         timeoutHandle: null,
+        attempts: 0,
       };
       this.queue.push(req);
       this.tryDispatch();
