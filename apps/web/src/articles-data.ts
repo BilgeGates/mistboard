@@ -2816,7 +2816,8 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Five concerns, each handling one part of playing well blind:',
+            text:
+              "A classical engine like Stockfish assumes one true board and searches it. Misty Max can't assume that, so it splits the job into five concerns:",
           },
           {
             kind: 'paragraph',
@@ -2893,7 +2894,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Obscuro (Zhang & Sandholm, ICLR 2026). The academic neighbor is Reconnaissance Blind Chess, whose engine lineage runs StrangeFish to ReBeL to Obscuro.',
+              'Obscuro (Zhang & Sandholm, ICLR 2026). The academic neighbor is Reconnaissance Blind Chess, whose engine lineage runs StrangeFish (CMU, 2018), ReBeL (FAIR, 2020), Penumbra (Georgia Tech), and Obscuro (CMU, 2026).',
           },
         ],
       },
@@ -4241,100 +4242,6 @@ export const articles: Article[] = [
               { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
             ],
           } as ArticleBlock,
-        ],
-      },
-    ],
-  },
-  {
-    slug: 'engine-belief-state',
-    kind: 'article',
-    title: 'Building an engine for hidden-information chess',
-    summary:
-      'Stockfish-class engines don’t transfer to dark chess because they assume perfect information. The right technique is belief-state search with particle-filter approximations, drawn from the Reconnaissance Blind Chess literature.',
-    status: 'outline',
-    audience:
-      'Chess engine developers, AI/ML researchers, software engineers curious about belief-state methods.',
-    thumbnail: ARTICLE_OG_POSITIONS['engine-belief-state'],
-    tldr: [
-      'Standard chess engines assume one ground-truth board. Dark chess requires reasoning over a distribution of possible truths.',
-      'Particle filters are the tractable approximation: keep N candidate positions consistent with observations, simulate moves on each, aggregate.',
-      'Public RBC engines (StrangeFish, ReBeL, Penumbra, Obscuro) form the academic family. Mistboard’s engine is an open particle filter you can play against today.',
-    ],
-    sections: [
-      {
-        heading: 'Why Stockfish doesn’t transfer',
-        paragraphs: [
-          '[VISUAL: alpha-beta search tree on the left (familiar), the same tree on the right with each move forking into 100+ hidden-info branches.]',
-          'Section TBD. Cover: standard search assumes a single ground-truth position, heuristics assume sight, "the position" in FoW isn’t one thing but a distribution, naive enumeration runs out of memory after 4 plies.',
-        ],
-      },
-      {
-        heading: 'The belief state',
-        paragraphs: [
-          '[VISUAL: mid-game board with a probability heatmap overlaid on opponent piece locations.]',
-          'Section TBD. Cover: probability distribution over true states, constraint propagation (every observed square narrows the set), how the belief evolves through a game (huge at move 1, concentrates mid-game, can collapse late-game), hand-wavy formal definition without scary equations.',
-        ],
-      },
-      {
-        heading: 'Particle filters from first principles',
-        paragraphs: [
-          '[VISUAL: 5-panel sequence — particles sampled, particles weighted by observation match, particles resampled with replacement, drift forward in time, repeat.]',
-          'Section TBD. Cover: the technique in one paragraph, one full step worked out on a sample position, why it’s tractable (bounded memory, parallelizable), the particle-count vs accuracy trade-off, degeneracy as a late-game phenomenon.',
-        ],
-      },
-      {
-        heading: 'Move selection over particles',
-        paragraphs: [
-          '[VISUAL: candidate-move tree with particle simulations branching from each.]',
-          'Section TBD. Cover: for each candidate move simulate consequences on each particle and aggregate, depth-vs-breadth trade.',
-        ],
-      },
-      {
-        heading: 'Explore the particle-count trade for yourself',
-        paragraphs: [
-          '[INTERACTIVE CENTERPIECE: live particle-count vs win-rate slider. Reader drags particle count, sees benchmark win-rate against a baseline shift in real-time.]',
-          'Section TBD. Brief framing of the experiment, what to look for, what the curve says about engineering trade-offs.',
-        ],
-      },
-      {
-        heading: 'The RBC academic family',
-        paragraphs: [
-          '[VISUAL: timeline 2017-2026 with major engines, ratings, methods, paper citations.]',
-          'Section TBD. Cover: Reconnaissance Blind Chess as the academic neighbor; StrangeFish (CMU, 2018), ReBeL (FAIR, 2020), Penumbra (Georgia Tech), Obscuro (CMU, Feb 2026 — first superhuman FoW chess engine, closed source); which methods transfer to FoW specifically.',
-        ],
-      },
-      {
-        heading: 'Mistboard’s current engine',
-        paragraphs: [
-          '[VISUAL: screenshot from the Engine Lab showing particle visualizations on a real game.]',
-          'Section TBD. Cover: implementation (particle filter, Tier-1 strategy), current strength positioning, specific failure modes encountered (filter extinction, etc.), open source under AGPL-3.',
-        ],
-      },
-      {
-        heading: 'Particle filter step-by-step',
-        paragraphs: [
-          '[INTERACTIVE CENTERPIECE: forward/back through one full particle update cycle on a real Mistboard position. Show particles concretely, watch them reweight as observations come in.]',
-          'Section TBD. The most technical centerpiece. Pair with the from-first-principles section but at a real game level of detail.',
-        ],
-      },
-      {
-        heading: 'What’s hard and what’s open',
-        paragraphs: [
-          '[VISUAL: difficulty axes diagram — what each axis costs, where the frontier is.]',
-          'Section TBD. Cover: belief representation (particles vs neural nets vs exact), search depth (1-ply vs N-ply over uncertain positions), opponent modeling (assume rational vs learn from data), transfer (can a strong FoW engine teach a stronger one?).',
-        ],
-      },
-      {
-        heading: 'The FUCI protocol',
-        paragraphs: [
-          '[VISUAL: protocol-message diagram, UCI-style.]',
-          'Section TBD. Cover: why a protocol matters (UCI’s role for Stockfish/Lc0 in regular chess), hypothetical message structure, when this will exist (planned, not yet built).',
-        ],
-      },
-      {
-        heading: 'Contribute',
-        paragraphs: [
-          'CTA: GitHub repo, public engine protocol docs, baseline engines, benchmark methods, contribution guide link.',
         ],
       },
     ],

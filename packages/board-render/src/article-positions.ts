@@ -81,7 +81,6 @@ const DARK_CHESS_CONCEPTS_BOARD: Board = {
 // ── Per-slug OG / thumbnail positions ─────────────────────────────────────────
 const DARK_CHESS_START = darkChessVariant.createInitialState('dark-chess-rules-start');
 const CONE_QUEEN = demoState('cone-queen', CONE_QUEEN_BOARD);
-const DISCOVERY_BEFORE = demoState('dark-chess-rules-discovery', DISCOVERY_BOARD);
 const DARK_CHESS_CONCEPTS = demoState('dark-chess-concepts-deduction', DARK_CHESS_CONCEPTS_BOARD);
 const DRAFT960_START = demoState(
   'dark-draft960-start',
@@ -102,11 +101,6 @@ export const ARTICLE_OG_POSITIONS: Record<string, ArticleOgPosition> = {
   'dark-draft960': {
     pieces: startingPositionFromBackRank(DRAFT960_OFFER_A),
     fogSquares: fogFor(DRAFT960_START, 'white'),
-    orientation: 'white',
-  },
-  'engine-belief-state': {
-    pieces: boardToPieces(DISCOVERY_BEFORE.board),
-    fogSquares: fogFor(DISCOVERY_BEFORE, 'white'),
     orientation: 'white',
   },
   'server-enforced-fog': {
