@@ -2774,11 +2774,11 @@ const XQ_GENERAL_CAPTURE_PAIR = () => xqSvg(
 
 export const articles: Article[] = [
   {
-    slug: 'misty-max',
+    slug: 'misty',
     kind: 'article',
-    title: 'Inside Misty Max',
+    title: 'Inside Misty 1.0',
     summary:
-      "Misty Max is the engine you play on Mistboard: an engine for Fog of War chess, guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
+      "Misty 1.0 is the engine you play on Mistboard: an engine for Fog of War chess, guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
     status: 'draft',
     publishedAt: '2026-06-03',
     audience:
@@ -2787,7 +2787,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          "Misty Max is the bot you play on Mistboard. It's an engine for Fog of War chess, guided by the Obscuro architecture.",
+          "Misty 1.0 is the bot you play on Mistboard. It's an engine for Fog of War chess, guided by the Obscuro architecture.",
       },
     ],
     sections: [
@@ -2807,7 +2807,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Obscuro (Zhang & Sandholm, ICLR 2026) is the first engine to play Fog of War chess at a superhuman level. Misty Max is guided by its published architecture. We have not matched it, and we do not claim superhuman play. This is our build of the design, and we want help measuring where it actually stands.',
+              'Obscuro (Zhang & Sandholm, ICLR 2026) is the first engine to play Fog of War chess at a superhuman level. Misty 1.0 is guided by its published architecture. We have not matched it, and we do not claim superhuman play. This is our build of the design, and we want help measuring where it actually stands.',
           },
         ],
       },
@@ -2817,7 +2817,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "A classical engine like Stockfish assumes one true board and searches it. Misty Max can't assume that, so it splits the job into five concerns:",
+              "A classical engine like Stockfish assumes one true board and searches it. Misty 1.0 can't assume that, so it splits the job into five concerns:",
           },
           {
             kind: 'paragraph',
@@ -2877,12 +2877,12 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Misty Max is live on Mistboard. Play it, and you're helping benchmark it: every serious game is a data point on where a Fog of War engine guided by the state of the art actually plays.",
+              "Misty 1.0 is live on Mistboard. Play it, and you're helping benchmark it: every serious game is a data point on where a Fog of War engine guided by the state of the art actually plays.",
           },
           {
             kind: 'cta',
             buttons: [
-              { label: 'Play Misty Max', href: '/?play=computer', emphasis: 'primary' },
+              { label: 'Play Misty 1.0', href: '/?play=computer', emphasis: 'primary' },
               { label: 'All articles', href: '/articles', emphasis: 'secondary' },
             ],
           },
