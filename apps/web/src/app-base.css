@@ -331,7 +331,7 @@ button:focus-visible {
   .account-route
 ):not(.profile-route):not(.source-route) {
   min-height: 100dvh;
-  background: var(--site-bg-soft);
+  background: var(--site-bg);
 }
 
 body:has(
