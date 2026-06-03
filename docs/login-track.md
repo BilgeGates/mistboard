@@ -151,6 +151,27 @@ Tests:
 - Expired challenges and sessions are ignored and cleaned up.
 - Delivery failures delete unusable challenges.
 
+Backlog (optional, not scheduled):
+
+- Chess-puzzle captcha at signup, lichess/playstrategy-style (mate-in-1: render
+  a position, accept a move, verify against the solution set). This is a
+  thematic delight/parity flourish, not a real security control. A chess engine
+  solves mate-in-1 trivially, so it deters naive spam bots only. If actual
+  bot-defense at signup is the goal, prefer Cloudflare Turnstile (stronger,
+  invisible); the two can coexist (Turnstile as the gate, puzzle as the charm).
+- Implementation is cheap: chessops already gives checkmate detection (the
+  draft960 path uses `position.outcome()` in `packages/game/src/variants.ts`)
+  and `packages/board-render` draws the static FEN. Roughly a half-day with a
+  small curated mate-in-1 set; skip DB-mining a generator for a first cut.
+- Must use standard full-information chess, never fog. Dark chess wins by
+  king-capture and has no checkmate concept, and a fogged position is not
+  reliably human-solvable or deterministically verifiable. Build it on the
+  plain chessops position, separate from the fog kernel.
+- Do not retrofit onto the feedback/contact form: it is already honeypot +
+  rate-limited (1 anon submission / 24h), and a puzzle there adds friction to
+  the one flow that should stay frictionless. Signup is the only surface where a
+  delight gate reads as normal.
+
 ### L4: First-Rated Fair-Play Gate
 
 Goal: set the competitive contract at the point where it matters.
