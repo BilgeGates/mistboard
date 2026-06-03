@@ -73,6 +73,21 @@
   box-shadow: inset 0 -2px 0 var(--site-accent);
 }
 
+/* Register = filled accent (green) button, like lichess's filled blue Register. */
+.site-nav-link-register {
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+  font-weight: 700;
+}
+
+.site-nav-link-register:hover,
+.site-nav-link-register:focus-visible,
+.site-nav-link-register.active {
+  background: var(--site-accent-strong);
+  color: var(--site-on-accent);
+  box-shadow: none;
+}
+
 .site-nav-menu {
   position: relative;
 }

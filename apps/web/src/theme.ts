@@ -291,7 +291,8 @@ function mountThemeControl(nav: HTMLElement): void {
     ...perGame,
   );
   control.append(trigger, panel);
-  target.prepend(control);
+  // Gear sits at the far right of the nav, after Sign in / Register (lichess order).
+  target.append(control);
 }
 
 function createSiteThemeField(): HTMLDivElement {
