@@ -1,5 +1,5 @@
 import type { GameProjection } from '@mistboard/game';
-import { isPlayableLiveEngineClientId, loadEngine } from './engine-registry.js';
+import { isKnownEngineClientId, loadEngine } from './engine-registry.js';
 import {
   InternalEngineClientError,
   releaseInternalEngineReservation,
@@ -17,8 +17,11 @@ export function pveEngineSeatForProjection(
 ): { clientId: string; color: 'white' | 'black' } | null {
   const whiteClient = projection.seats.white;
   const blackClient = projection.seats.black;
-  const whiteIsEngine = isPlayableLiveEngineClientId(whiteClient);
-  const blackIsEngine = isPlayableLiveEngineClientId(blackClient);
+  // Identify the engine seat by "is this an engine at all", not "is it currently
+  // offered in the picker" — a hydrated/recovered game may use legacy or random,
+  // which are no longer playable but are still valid engine seats to serve.
+  const whiteIsEngine = isKnownEngineClientId(whiteClient);
+  const blackIsEngine = isKnownEngineClientId(blackClient);
   if (whiteIsEngine && !blackIsEngine && whiteClient) {
     return { clientId: whiteClient, color: 'white' };
   }

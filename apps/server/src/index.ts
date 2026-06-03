@@ -114,7 +114,11 @@ const guestPrestartAbortMs = serverConfig.guestPrestartAbortMs;
 const abortPolicySweepMs = serverConfig.abortPolicySweepMs;
 const stalePauseMs = serverConfig.stalePauseMs;
 const stalePausedSweepMs = serverConfig.stalePausedSweepMs;
-const pveBuiltinEngineClientId = 'builtin-random-legal';
+// Default PvE engine. Streamlined to Misty (the only player-facing engine) —
+// no random fallback. Name kept for compat; it is no longer a builtin. If Misty
+// can't serve, room creation / reservation fails loudly (503) rather than
+// silently substituting random.
+const pveBuiltinEngineClientId = 'python-v2-v1.0';
 const persistenceErrors: Array<{ at: number; roomId: string; eventType: string }> = [];
 const PERSISTENCE_ERROR_RETENTION_MS = 3_600_000;
 

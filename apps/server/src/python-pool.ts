@@ -104,6 +104,12 @@ class PoolWorker {
       env: {
         ...process.env,
         ...(this.opts.stockfishPath ? { FOW_STOCKFISH: this.opts.stockfishPath } : {}),
+        // R1-prevent: make the worker prove it can serve a move (Stockfish +
+        // rust + search) before it signals `ready`. A worker that can't fails
+        // at spawn (ready_error) instead of forfeiting its first live move.
+        // Scoped to the live pool — bakeoff runners spawn Python directly and
+        // don't set this, so they skip the warmup.
+        FOW_WORKER_SELFTEST: '1',
       },
     });
     this.process = child;

@@ -11,11 +11,12 @@ import {
   releaseEngineGameTaskClaim,
   stopWorkerRun,
 } from './engine-experiments.js';
+import { playableLiveEngines } from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
 import { type EngineHttpService, startEngineHttpService } from './engine-service.js';
 import { runMigrations } from './migrate.js';
 import { startObservability } from './obs.js';
-import { disposeAllPythonPools } from './python-pool.js';
+import { disposeAllPythonPools, getPythonPool } from './python-pool.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -66,6 +67,13 @@ process.on('SIGTERM', () => {
 
 try {
   if (engineHttpEnabled) {
+    // R1-prevent: warm the live engine pool(s) BEFORE binding the port, so the
+    // worker self-test (FOW_WORKER_SELFTEST) runs at deploy time. If an engine
+    // can't actually serve a move (e.g. Stockfish missing — the move-1 forfeit,
+    // room 81e7b246), we refuse to come up: the port never binds, the bad deploy
+    // fails, and the previous healthy worker keeps serving. No broken config
+    // reaches a live game.
+    await warmupLiveEnginePools();
     engineHttpService = await startEngineHttpService({
       host: engineHttpHost,
       port: engineHttpPort,
@@ -186,6 +194,45 @@ try {
   await closeEngineHttpService();
   disposeAllPythonPools();
   await pool.end();
+}
+
+async function warmupLiveEnginePools(): Promise<void> {
+  // R1-prevent boot check. Eagerly spawns each player-facing python engine's
+  // pool — which forces the worker self-test (one real move: rust + Stockfish +
+  // search) — so a worker that can't serve fails at startup, not on a live game.
+  // getPythonPool() throws only when ALL workers in a pool fail to start (the
+  // global-misconfig case we want to catch); a partial failure serves degraded
+  // and is logged by the pool. Set MISTBOARD_ENGINE_WARMUP_DISABLED=1 to skip.
+  if (process.env.MISTBOARD_ENGINE_WARMUP_DISABLED === '1') {
+    log('engine_warmup_disabled', {});
+    return;
+  }
+  const pythonEngines = playableLiveEngines().filter(
+    (engine) => engine.config.kind === 'python-subprocess',
+  );
+  for (const engine of pythonEngines) {
+    try {
+      const pool = await getPythonPool(engine.id);
+      if (!pool) {
+        // Pooling is off entirely (MISTBOARD_PYTHON_POOL_SIZE unset) — nothing
+        // to warm; live moves would spawn per-request. Don't block boot.
+        log('engine_warmup_skipped', { engineId: engine.id, reason: 'pooling-disabled' });
+        return;
+      }
+      log('engine_warmup_ok', { engineId: engine.id });
+    } catch (err) {
+      const error = (err as Error).message;
+      // Loud, distinct alert event (R3 picks this up); the non-zero exit via the
+      // outer catch is what actually fails the deploy.
+      log('engine_alert', {
+        severity: 'critical',
+        kind_detail: 'boot_warmup_failed',
+        engineId: engine.id,
+        error,
+      });
+      throw new Error(`engine warmup failed for ${engine.id}: ${error}`);
+    }
+  }
 }
 
 async function migrate(connectionString: string): Promise<void> {

@@ -802,11 +802,27 @@ function buildEngineSetupSection(
   section.className = 'landing-setup-section';
   section.append(setupSectionLabel('Engine'));
 
+  const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
+
+  // Streamlined release: a single player-facing engine (Misty). Show it as a
+  // static, versioned label rather than a one-option dropdown. The <select>
+  // only appears when multiple engines are available (local dev via
+  // MISTBOARD_EXTRA_PLAYABLE_ENGINES).
+  if (availableEngines.length <= 1) {
+    const only = availableEngines[0];
+    if (only) onSelect(only.id);
+    // Reuse the single-variant static style for visual parity with the Variant row.
+    const label = document.createElement('div');
+    label.className = 'landing-variant-control';
+    label.textContent = only?.name ?? 'Misty';
+    section.append(label);
+    return section;
+  }
+
   const select = document.createElement('select');
   select.className = 'landing-engine-select';
   select.setAttribute('aria-label', 'Engine');
 
-  const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
   for (const engine of availableEngines) {
     const option = document.createElement('option');
     option.value = engine.id;

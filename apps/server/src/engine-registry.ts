@@ -6,6 +6,7 @@ export {
   type EngineMoveDecision,
   type EngineMoveScore,
   engineVersionDisplayName,
+  isKnownEngineClientId,
   isPlayableLiveEngineClientId,
   latestBuiltinEngineIds,
   loadEngine,

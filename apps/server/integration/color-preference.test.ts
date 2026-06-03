@@ -14,14 +14,23 @@ import { connectClient, startTestServer, type TestServer } from './harness.js';
 
 let serverInstance: TestServer;
 let httpBase: string;
+let priorExtraEngines: string | undefined;
 
 before(async () => {
+  // The prod PvE default is now Misty (python-v2-v1.0), which needs Stockfish +
+  // a python worker this hermetic test doesn't have. The PvE cases here only
+  // care about seat assignment, so opt the builtin random engine in and request
+  // it explicitly — a cheap, reservation-free stand-in.
+  priorExtraEngines = process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES;
+  process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES = 'builtin-random-legal';
   serverInstance = await startTestServer({ seatVacateGraceMs: 200 });
   httpBase = serverInstance.url.replace(/^ws/, 'http');
 });
 
 after(async () => {
   await serverInstance.close();
+  if (priorExtraEngines === undefined) delete process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES;
+  else process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES = priorExtraEngines;
 });
 
 async function createRoom(body: Record<string, unknown>): Promise<{ roomId: string }> {
@@ -42,6 +51,7 @@ test('PvE preferredColor=white seats the human as white', async () => {
   const { roomId } = await createRoom({
     mode: 'pve',
     variant: 'dark-chess',
+    engineId: 'builtin-random-legal',
     timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     preferredColor: 'white',
   });
@@ -53,6 +63,7 @@ test('PvE preferredColor=black seats the human as black', async () => {
   const { roomId } = await createRoom({
     mode: 'pve',
     variant: 'dark-chess',
+    engineId: 'builtin-random-legal',
     timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     preferredColor: 'black',
   });

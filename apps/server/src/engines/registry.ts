@@ -25,10 +25,12 @@ export function playableBuiltinEngines(): EngineDefinition[] {
     .filter((engine) => engine.kind === 'builtin' && engine.chooseMove);
 }
 
+// Streamlined release (2026-06-02): only Misty (versioned v2) is player-facing.
+// Legacy (v0.9.5) and Random stay in the registry for EvE/testing/historical
+// records, but are NOT offered in the live PvE picker. No random fallback in the
+// PvE serving path — if Misty can't serve it fails loudly (503), by design.
 const PROD_PLAYABLE_ENGINE_IDS = new Set([
-  'builtin-random-legal', // Misty Random
-  'python-tier1-v0.9.5', // Misty Legacy
-  'python-v2-v1.0', // Misty Max (frozen GT-CFR v2, gadget-off + early-stop)
+  'python-v2-v1.0', // Misty 1.0 (frozen GT-CFR v2, gadget-off + early-stop)
 ]);
 
 // Opt-in extras for load testing / local experimentation. Set
@@ -58,6 +60,19 @@ export function isPlayableLiveEngineClientId(clientId: string | undefined): bool
   return playableLiveEngines().some((engine) => engine.id === engineId);
 }
 
+// Broad "is this seat an engine (not a human)?" check — true for ANY engine in
+// the registry, playable or not. Use this to IDENTIFY an engine seat in an
+// existing game (hydration, recovery, historical records), as opposed to
+// isPlayableLiveEngineClientId, which gates what the live picker may OFFER. The
+// two predicates diverged when the picker was streamlined to a single engine
+// (2026-06-02): legacy/random games still exist and must be recognized, even
+// though those engines are no longer offered.
+export function isKnownEngineClientId(clientId: string | undefined): boolean {
+  if (!clientId) return false;
+  const engineId = clientId === 'random-engine' ? defaultEngineId() : clientId;
+  return engineId in KNOWN_ENGINES;
+}
+
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.9.5': {
     id: 'python-tier1-v0.9.5',
@@ -78,7 +93,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 5_000 },
     notes:
       'Misty Legacy (v0.9.5 tactical-patches): the pre-GT-CFR first-party engine, '
-      + 'kept as a legacy option alongside Misty Max. Draw-reduction knobs, '
+      + 'kept in-registry (EvE/records) but hidden from the live picker. '
+      + 'Draw-reduction knobs, '
       + 'phantom-check guard, recapture exemption.',
   },
   // Uses current src/fow_chess/. Skipped by PROD_PLAYABLE_ENGINE_IDS — only
@@ -125,8 +141,10 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     livePolicy: { timeoutMs: 120_000 },
     notes: 'GT-CFR v2 engine (use_rust_eq, |I|=16). Local-only; slow late-game (stateless replay).',
   },
-  // Misty Max — the FROZEN, shipped GT-CFR v2 engine (first production release of
-  // the v2 line). Pinned to mistboard-engine @ a06f9a1. Config (validated
+  // Misty 1.0 — the FROZEN, shipped GT-CFR v2 engine (first production release of
+  // the v2 line; the single player-facing engine). Pinned to mistboard-engine @
+  // a06f9a1. (Internal ids below keep the original "misty-max" pin/hash so
+  // already-recorded games resolve.) Config (validated
   // 2026-06-02): STRONGEST gadget-OFF + king-aware leaf + clock-aware budget +
   // convergence early-stop + bottom-K(16M), i=32, KLUSS k=2, mixing off. Stateful
   // delta-feed (not stateless replay), so fast — early-stop lands moves in ~1-2s.
@@ -134,8 +152,8 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-v2-v1.0': {
     id: 'python-v2-v1.0',
     engineId: 'v2',
-    engineName: 'Misty Max',
-    name: 'Misty Max',
+    engineName: 'Misty',
+    name: 'Misty 1.0',
     kind: 'container',
     configHash: 'v2-v1.0-a06f9a1',
     playSignature: 'a06f9a1',
@@ -149,7 +167,7 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     },
     livePolicy: { timeoutMs: 30_000 },
     notes:
-      'Misty Max 1.0 — GT-CFR/Obscuro v2: gadget-off + king-aware + clock-aware '
+      'Misty 1.0 — GT-CFR/Obscuro v2: gadget-off + king-aware + clock-aware '
       + 'budget + early-stop + bottom-K. Validated 2026-06-02 (30-0-0 vs Legacy, '
       + '0 hard failures, |P| max 5.9M, ~72s/game).',
   },

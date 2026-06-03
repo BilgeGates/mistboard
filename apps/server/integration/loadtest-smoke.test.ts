@@ -34,7 +34,16 @@ let httpBase: string;
 let baselineMoves = 0;
 let baselineFallbacks = 0;
 
+let priorExtraEngines: string | undefined;
+
 before(async () => {
+  // The prod PvE picker now offers only Misty (python-v2-v1.0), and the prod
+  // default engine is Misty — both require Stockfish + a python worker, which
+  // this hermetic web-only canary does not have. Opt the builtin random engine
+  // back in for THIS test (it's the lightweight, can't-fail stand-in the canary
+  // needs to exercise the PvE pipe) and request it explicitly in createPveRoom.
+  priorExtraEngines = process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES;
+  process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES = 'builtin-random-legal';
   serverInstance = await startTestServer();
   httpBase = `http://127.0.0.1:${serverInstance.port}`;
   // Capture counter baseline so we measure only what this test produces.
@@ -44,6 +53,8 @@ before(async () => {
 
 after(async () => {
   await serverInstance.close();
+  if (priorExtraEngines === undefined) delete process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES;
+  else process.env.MISTBOARD_EXTRA_PLAYABLE_ENGINES = priorExtraEngines;
 });
 
 interface GameResult {
@@ -77,6 +88,9 @@ async function createPveRoom(): Promise<string> {
     body: JSON.stringify({
       mode: 'pve',
       variant: 'dark-chess',
+      // Hermetic stand-in engine (opted in via MISTBOARD_EXTRA_PLAYABLE_ENGINES
+      // in before()); the prod default is now Misty, which this test can't run.
+      engineId: 'builtin-random-legal',
       // 3+2 is currently the only allowed PvE time control (see
       // isPveAllowedTimeControl in http-api.ts). Keep this synced.
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
