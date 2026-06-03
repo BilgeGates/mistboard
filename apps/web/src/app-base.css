@@ -18,7 +18,7 @@
   --site-hover: #eeeeee;
   --site-nav-bg: var(--site-bg);
   --site-nav-border: transparent;
-  --site-stage-bg: linear-gradient(180deg, #e8e2d7 0, #f4f1ea 460px, #f8f7f3 100%);
+  --site-stage-bg: linear-gradient(180deg, #f4f1ea 0, #f4f1ea 460px, #f8f7f3 100%);
   --site-warning-bg: #fff4d6;
   --site-warning-border: #e6c870;
   --site-warning-text: #5a3d05;
@@ -213,7 +213,7 @@
   --site-hover: #253027;
   --site-nav-bg: var(--site-bg);
   --site-nav-border: transparent;
-  --site-stage-bg: linear-gradient(180deg, #0f1612 0, #141a16 460px, #0e1310 100%);
+  --site-stage-bg: linear-gradient(180deg, #0e1310 0, #141a16 460px, #0e1310 100%);
   --site-warning-bg: #2f2411;
   --site-warning-border: #725b22;
   --site-warning-text: #f0cf82;
