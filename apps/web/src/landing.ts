@@ -358,11 +358,5 @@ function buildGameExportLinks(roomId: string, variant: string | undefined): HTML
 function buildGamePageTitle(game: FeaturedGame): string {
   const white = game.whiteName ?? 'White';
   const black = game.blackName ?? 'Black';
-  const result =
-    game.result === 'white-wins'
-      ? `${white} beats ${black}`
-      : game.result === 'black-wins'
-        ? `${black} beats ${white}`
-        : `${white} vs ${black} · Draw`;
-  return `${result} · Mistboard`;
+  return `${white} vs ${black} · Mistboard`;
 }
