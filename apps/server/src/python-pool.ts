@@ -96,6 +96,15 @@ class PoolWorker {
     const child = spawn(this.opts.pythonBin, args, {
       cwd: this.opts.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
+      // The v2 (EngineV2) leaf eval resolves Stockfish via FOW_STOCKFISH / PATH,
+      // NOT the worker's --stockfish arg (which it ignores). apt installs the
+      // binary at /usr/games/stockfish, which isn't on the container PATH, so v2
+      // forfeited move 1 in prod (room 81e7b246). Export the resolved path as
+      // FOW_STOCKFISH so the leaf eval finds it without a manual env or PATH.
+      env: {
+        ...process.env,
+        ...(this.opts.stockfishPath ? { FOW_STOCKFISH: this.opts.stockfishPath } : {}),
+      },
     });
     this.process = child;
 
