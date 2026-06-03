@@ -568,7 +568,7 @@ if (!TEST_DATABASE_URL) {
       },
       {
         color: 'black',
-        display_name: 'Random Legal v1',
+        display_name: 'Misty Random',
         subject_id: 'builtin-random-legal',
         subject_type: 'engine-version',
       },
