@@ -606,7 +606,7 @@ definePersistenceTests('game lists', () => {
       },
       {
         color: 'black',
-        displayName: 'Random Legal v1',
+        displayName: 'Misty Random',
         subjectType: 'engine-version',
         subjectId: 'builtin-random-legal',
         visibility: 'public',
