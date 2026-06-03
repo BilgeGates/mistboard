@@ -53,124 +53,132 @@ type DebugSnapshot = {
   state: PlayerView | null;
 };
 
-// ── Page setup ────────────────────────────────────────────────────────────────
+// Boot the live room into #app. Called both on a fresh document load (main.ts
+// route dispatch) and from an in-app SPA transition (landing -> room) so the
+// starting click's user activation carries into the room and the engine's
+// opening move can sound without a fresh in-room gesture. Reads the room from
+// the current URL, so callers pushState the room URL before invoking it.
+export function bootstrapLiveRoom(): void {
+  // ── Page setup ──────────────────────────────────────────────────────────────
 
-const app = document.querySelector<HTMLDivElement>('#app');
-if (!app) throw new Error('missing #app');
+  const app = document.querySelector<HTMLDivElement>('#app');
+  if (!app) throw new Error('missing #app');
 
-const pageParams = new URLSearchParams(window.location.search);
-const pathRoom = roomIdFromPath(window.location.pathname);
-const room = pathRoom ?? pageParams.get('room') ?? 'dev-room';
-const soloRequested = pageParams.get('dev') === 'solo';
-const engineRequested = pageParams.get('dev') === 'engine' || pageParams.get('engine') === 'random';
-const allViewsRequested = pageParams.get('views') === 'all';
-const debugRequested = engineRequested || allViewsRequested;
-const variantRequested = pageParams.get('variant');
-const gameSpecIdRequested = gameSpecIdForRoomBootstrap(room, pageParams.get('gameSpecId'));
+  const pageParams = new URLSearchParams(window.location.search);
+  const pathRoom = roomIdFromPath(window.location.pathname);
+  const room = pathRoom ?? pageParams.get('room') ?? 'dev-room';
+  const soloRequested = pageParams.get('dev') === 'solo';
+  const engineRequested =
+    pageParams.get('dev') === 'engine' || pageParams.get('engine') === 'random';
+  const allViewsRequested = pageParams.get('views') === 'all';
+  const debugRequested = engineRequested || allViewsRequested;
+  const variantRequested = pageParams.get('variant');
+  const gameSpecIdRequested = gameSpecIdForRoomBootstrap(room, pageParams.get('gameSpecId'));
 
-if (pageParams.get('reset') === '1') {
-  clearSeatTokenForRoom(room);
-  pageParams.delete('reset');
-  const nextSearch = pageParams.toString();
-  window.history.replaceState(
-    null,
-    '',
-    `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`,
-  );
-}
-
-const socketParams = new URLSearchParams({ room });
-socketParams.set('client', clientIdForRoom(room));
-if (soloRequested) socketParams.set('dev', 'solo');
-if (engineRequested) socketParams.set('dev', 'engine');
-if (allViewsRequested) socketParams.set('views', 'all');
-if (variantRequested) socketParams.set('variant', variantRequested);
-if (gameSpecIdRequested) socketParams.set('gameSpecId', gameSpecIdRequested);
-
-// ── Populate shared state ─────────────────────────────────────────────────────
-
-liveState.room = room;
-liveState.socketUrl = `${resolveWebSocketBaseUrl()}?${socketParams}`;
-liveState.engineRequested = engineRequested;
-liveState.debugRequested = debugRequested;
-liveState.variantRequested = variantRequested;
-liveState.gameSpecId = gameSpecIdRequested;
-liveState.solo = soloRequested;
-liveState.roomMode = engineRequested ? 'pve' : 'pvp';
-
-// ── Initialize render + socket modules ───────────────────────────────────────
-
-initRender(app, { sendSocket, reconnectNow });
-initSocket({
-  render,
-  reconcileInteractionState,
-  maybePlaySnapshotSound,
-  maybePlayDarkMiniXiangqiSound: maybePlayDarkMiniXiangqiSnapshotSound,
-});
-
-// ── Dev-only: ?conn= override for static visual checks of connection states ──
-
-const CONN_OVERRIDE_STATES: readonly ConnectionState[] = [
-  'connecting',
-  'connected',
-  'disconnected',
-  'reconnecting',
-  'displaced',
-  'rejected',
-];
-const connParam = pageParams.get('conn');
-const connOverride =
-  connParam && (CONN_OVERRIDE_STATES as readonly string[]).includes(connParam)
-    ? (connParam as ConnectionState)
-    : null;
-
-if (connOverride) {
-  liveState.connectionState = connOverride;
-  liveState.clientId = liveState.clientId || 'dev-client';
-  if (connOverride === 'reconnecting' || connOverride === 'disconnected') {
-    liveState.reconnectAttempt = Number(pageParams.get('attempt') ?? '3');
+  if (pageParams.get('reset') === '1') {
+    clearSeatTokenForRoom(room);
+    pageParams.delete('reset');
+    const nextSearch = pageParams.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`,
+    );
   }
-  if (connOverride === 'rejected') {
-    liveState.closeReason = pageParams.get('reason') ?? '';
+
+  const socketParams = new URLSearchParams({ room });
+  socketParams.set('client', clientIdForRoom(room));
+  if (soloRequested) socketParams.set('dev', 'solo');
+  if (engineRequested) socketParams.set('dev', 'engine');
+  if (allViewsRequested) socketParams.set('views', 'all');
+  if (variantRequested) socketParams.set('variant', variantRequested);
+  if (gameSpecIdRequested) socketParams.set('gameSpecId', gameSpecIdRequested);
+
+  // ── Populate shared state ───────────────────────────────────────────────────
+
+  liveState.room = room;
+  liveState.socketUrl = `${resolveWebSocketBaseUrl()}?${socketParams}`;
+  liveState.engineRequested = engineRequested;
+  liveState.debugRequested = debugRequested;
+  liveState.variantRequested = variantRequested;
+  liveState.gameSpecId = gameSpecIdRequested;
+  liveState.solo = soloRequested;
+  liveState.roomMode = engineRequested ? 'pve' : 'pvp';
+
+  // ── Initialize render + socket modules ─────────────────────────────────────
+
+  initRender(app, { sendSocket, reconnectNow });
+  initSocket({
+    render,
+    reconcileInteractionState,
+    maybePlaySnapshotSound,
+    maybePlayDarkMiniXiangqiSound: maybePlayDarkMiniXiangqiSnapshotSound,
+  });
+
+  // ── Dev-only: ?conn= override for static visual checks of connection states ──
+
+  const CONN_OVERRIDE_STATES: readonly ConnectionState[] = [
+    'connecting',
+    'connected',
+    'disconnected',
+    'reconnecting',
+    'displaced',
+    'rejected',
+  ];
+  const connParam = pageParams.get('conn');
+  const connOverride =
+    connParam && (CONN_OVERRIDE_STATES as readonly string[]).includes(connParam)
+      ? (connParam as ConnectionState)
+      : null;
+
+  if (connOverride) {
+    liveState.connectionState = connOverride;
+    liveState.clientId = liveState.clientId || 'dev-client';
+    if (connOverride === 'reconnecting' || connOverride === 'disconnected') {
+      liveState.reconnectAttempt = Number(pageParams.get('attempt') ?? '3');
+    }
+    if (connOverride === 'rejected') {
+      liveState.closeReason = pageParams.get('reason') ?? '';
+    }
   }
-}
 
-// ── Start ─────────────────────────────────────────────────────────────────────
+  // ── Start ───────────────────────────────────────────────────────────────────
 
-if (!connOverride) connectSocket();
-window.addEventListener('keydown', handleReplayKeyboard);
-// The xiangqi board renders pieces as inline SVG, so a piece-set change needs a
-// re-render (the chess board picks up its set via CSS and does not).
-window.addEventListener(xiangqiAppearanceChangedEvent, () => render());
+  if (!connOverride) connectSocket();
+  window.addEventListener('keydown', handleReplayKeyboard);
+  // The xiangqi board renders pieces as inline SVG, so a piece-set change needs a
+  // re-render (the chess board picks up its set via CSS and does not).
+  window.addEventListener(xiangqiAppearanceChangedEvent, () => render());
 
-if (!connOverride) {
+  if (!connOverride) {
+    window.setInterval(() => {
+      void sendSocket({ type: 'ping', at: Date.now() });
+    }, 5_000);
+  }
+
   window.setInterval(() => {
-    void sendSocket({ type: 'ping', at: Date.now() });
-  }, 5_000);
+    if (isDarkMiniXiangqiLiveRoom()) {
+      tickDarkMiniXiangqiClocks();
+      tickDarkMiniXiangqiCountdowns();
+    } else {
+      const view = currentView();
+      if (view?.clock) tickClockTimers(view);
+      updateAbortCountdown();
+    }
+  }, 100);
+
+  window.__MISTBOARD_DEBUG__ = () => ({
+    clientCount: liveState.clientCount,
+    connectionState: liveState.connectionState,
+    currentView: currentView(),
+    devViews: liveState.devViews,
+    events: liveState.events,
+    gameSpecId: liveState.gameSpecId,
+    roomRegion: liveState.roomRegion,
+    seat: liveState.seat,
+    solo: liveState.solo,
+    state: liveState.state,
+  });
+
+  render();
 }
-
-window.setInterval(() => {
-  if (isDarkMiniXiangqiLiveRoom()) {
-    tickDarkMiniXiangqiClocks();
-    tickDarkMiniXiangqiCountdowns();
-  } else {
-    const view = currentView();
-    if (view?.clock) tickClockTimers(view);
-    updateAbortCountdown();
-  }
-}, 100);
-
-window.__MISTBOARD_DEBUG__ = () => ({
-  clientCount: liveState.clientCount,
-  connectionState: liveState.connectionState,
-  currentView: currentView(),
-  devViews: liveState.devViews,
-  events: liveState.events,
-  gameSpecId: liveState.gameSpecId,
-  roomRegion: liveState.roomRegion,
-  seat: liveState.seat,
-  solo: liveState.solo,
-  state: liveState.state,
-});
-
-render();

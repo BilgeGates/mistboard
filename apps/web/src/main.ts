@@ -114,7 +114,9 @@ if (replaySample) {
   );
 } else if (liveRoomId || wantsLive) {
   setTitle('Live');
-  void mountOrReport(() => import('./live.js').then(() => undefined));
+  void mountOrReport(() =>
+    import('./live.js').then(({ bootstrapLiveRoom }) => bootstrapLiveRoom()),
+  );
 } else if (darkXiangqiGameRoomId && darkXiangqiEnabled()) {
   setTitle('Dark Xiangqi');
   void mountOrReport(() =>

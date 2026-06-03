@@ -1,5 +1,5 @@
 import type { GameEvent, PlayerView } from '@mistboard/game';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   initialOpponentMoveSoundForSnapshot,
   shouldDeferHiddenPveOpeningSound,
@@ -94,5 +94,84 @@ describe('opening opponent sound policy', () => {
     });
 
     expect(shouldDeferHiddenPveOpeningSound(previousView, nextView, 'black', 'pve')).toBe(false);
+  });
+});
+
+// The reported symptom: arriving in an engine-white PvE room via a full page
+// reload leaves the AudioContext suspended (no in-document gesture yet), so the
+// engine's opening move only sounds when the visitor first clicks. The SPA
+// landing -> room transition keeps the document alive, so the starting click's
+// sticky activation lets the room unlock its audio immediately. These tests pin
+// both halves of that contract by exercising the real sound controller against a
+// fake AudioContext.
+describe('audio unlock and sticky activation', () => {
+  function installFakeAudio(): { oscillatorCount: () => number } {
+    let count = 0;
+    class FakeAudioContext {
+      currentTime = 0;
+      destination = {};
+      state = 'suspended';
+      async resume(): Promise<void> {
+        this.state = 'running';
+      }
+      createOscillator() {
+        count += 1;
+        return {
+          type: 'sine',
+          frequency: { setValueAtTime() {} },
+          connect: (node: unknown) => node,
+          start() {},
+          stop() {},
+        };
+      }
+      createGain() {
+        return {
+          gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+          connect: (node: unknown) => node,
+        };
+      }
+    }
+    (window as unknown as { AudioContext: unknown }).AudioContext = FakeAudioContext;
+    return { oscillatorCount: () => count };
+  }
+
+  function setUserActivation(hasBeenActive: boolean): void {
+    Object.defineProperty(navigator, 'userActivation', {
+      configurable: true,
+      value: { hasBeenActive, isActive: hasBeenActive },
+    });
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(window as unknown as Record<string, unknown>, 'AudioContext');
+    Reflect.deleteProperty(navigator as unknown as Record<string, unknown>, 'userActivation');
+    vi.resetModules();
+  });
+
+  it('unlocks immediately and sounds a move when the document already has sticky activation', async () => {
+    const audio = installFakeAudio();
+    setUserActivation(true);
+    vi.resetModules();
+    const mod = await import('./live-sound.js');
+
+    mod.initLiveSound();
+    mod.playSound('move');
+
+    expect(audio.oscillatorCount()).toBeGreaterThan(0);
+  });
+
+  it('stays locked on a cold load until the first gesture, then plays', async () => {
+    const audio = installFakeAudio();
+    setUserActivation(false);
+    vi.resetModules();
+    const mod = await import('./live-sound.js');
+
+    mod.initLiveSound();
+    mod.playSound('move');
+    expect(audio.oscillatorCount()).toBe(0);
+
+    window.dispatchEvent(new Event('pointerdown'));
+    mod.playSound('move');
+    expect(audio.oscillatorCount()).toBeGreaterThan(0);
   });
 });

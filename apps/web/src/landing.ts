@@ -10,9 +10,11 @@ import { gameMetaForGame } from './game-meta.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
 import {
   buildLandingPlayPanel,
+  closeActiveLandingDialog,
   fallbackPlayableEngines,
   maybeOpenPlayDeepLink,
   type PlayableEngine,
+  setRoomNavigator,
 } from './landing-play.js';
 import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js';
 import { type GameMeta, mountReplay } from './replay.js';
@@ -98,6 +100,53 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // ensure it reflects the initial sample in case the first load fired before
   // the handle returned.
   syncReviewLink(replay.activeSampleId());
+
+  // Hand off room navigation to an in-place SPA transition so the starting
+  // click's user activation survives into the room. A full-document nav would
+  // drop it, and browser autoplay policy would then swallow the engine's
+  // opening-move sound until the visitor clicked again. The navigator is wired
+  // only after the hero replay exists, so a click before then uses the default
+  // full reload (safe, just no opening-move sound).
+  const teardownLanding = () => {
+    setRoomNavigator(null);
+    closeActiveLandingDialog();
+    replay.destroy();
+  };
+  setRoomNavigator((url) => {
+    void transitionToRoom(root, url, teardownLanding);
+  });
+}
+
+async function transitionToRoom(
+  root: HTMLElement,
+  url: string,
+  teardownLanding: () => void,
+): Promise<void> {
+  // Load the live room chunk while the landing is still on screen (no blank
+  // flash), then dispose the landing and swap the room in place. Same-document
+  // navigation preserves the click's sticky user activation.
+  const liveModule = await import('./live.js').catch((err) => {
+    console.warn('live room chunk failed to load; falling back to full reload', err);
+    return null;
+  });
+  if (!liveModule) {
+    window.location.href = url;
+    return;
+  }
+  teardownLanding();
+  window.history.pushState(null, '', url);
+  root.classList.remove('landing-page', 'game-route');
+  root.replaceChildren();
+  window.addEventListener('popstate', reloadOnPopState);
+  liveModule.bootstrapLiveRoom();
+}
+
+// After an in-place landing -> room swap, Back/Forward changes the URL without a
+// document load, leaving the live DOM stranded on a non-room URL. A full reload
+// re-runs main.ts route dispatch for whatever URL we landed on. The listener
+// dies with the document on reload, so it never needs explicit removal.
+function reloadOnPopState(): void {
+  window.location.reload();
 }
 
 async function fetchShowcaseGames(): Promise<FeaturedGame[]> {
@@ -106,7 +155,6 @@ async function fetchShowcaseGames(): Promise<FeaturedGame[]> {
   const data = (await resp.json()) as { games: FeaturedGame[] };
   return data.games;
 }
-
 
 export async function mountGame(root: HTMLElement, roomId: string): Promise<void> {
   root.replaceChildren();

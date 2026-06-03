@@ -208,6 +208,18 @@ function createSoundController(): SoundController {
       pendingKind = kind;
     },
   };
+
+  // If the document already has sticky user activation — e.g. we SPA-navigated
+  // into the room from a "Play" click in the same document — the AudioContext is
+  // allowed to resume now. Unlock immediately so the engine's opening move is
+  // audible without requiring a fresh in-room gesture. On a cold document load
+  // (pasted URL / refresh) hasBeenActive is false, so we stay locked and the
+  // first move stays deferred until the visitor interacts — the only behavior
+  // browser autoplay policy permits there.
+  if (navigator.userActivation?.hasBeenActive) {
+    unlock();
+  }
+
   return controller;
 }
 

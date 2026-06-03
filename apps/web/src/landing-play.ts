@@ -168,6 +168,28 @@ export function fallbackPlayableEngines(): PlayableEngine[] {
   ];
 }
 
+// How the play panel hands off to a freshly created/matched room. Defaults to a
+// full document navigation; mountLanding swaps in an in-place SPA transition so
+// the starting click's user activation carries into the room (lets the engine's
+// opening move sound without a fresh in-room gesture — see live-sound.ts).
+type RoomNavigator = (url: string) => void;
+const fullReloadNavigator: RoomNavigator = (url) => {
+  window.location.href = url;
+};
+let roomNavigator: RoomNavigator = fullReloadNavigator;
+export function setRoomNavigator(nav: RoomNavigator | null): void {
+  roomNavigator = nav ?? fullReloadNavigator;
+}
+
+// The currently open setup dialog's close handler, if any. An in-place room
+// transition must dismiss the dialog (it lives on document.body, outside #app,
+// so the DOM swap would otherwise strand it and its document-level keydown
+// listener).
+let activeDialogClose: (() => void) | null = null;
+export function closeActiveLandingDialog(): void {
+  activeDialogClose?.();
+}
+
 export function buildLandingPlayPanel(
   engines: PlayableEngine[],
   options: { showLobbyRequests?: boolean } = {},
@@ -462,7 +484,9 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
       break;
     case 'friend':
       openLandingSetupDialog({
-        initialGameSpecId: deepLinkInitialVariant(params.get('gameSpecId') ?? params.get('variant')),
+        initialGameSpecId: deepLinkInitialVariant(
+          params.get('gameSpecId') ?? params.get('variant'),
+        ),
         mode: 'pvp',
         title: 'Challenge a friend',
         ratedDisabled: true,
@@ -679,8 +703,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       cancelLobbyWait?.();
       // The empty-lobby "play the engine" offer is chess-only (no engine plays
       // the xiangqi family yet), so DMX seekers wait without it.
-      const lobbyEngineId =
-        setup.gameSpecId === DARK_CHESS_SPEC_ID ? selectedEngineId : undefined;
+      const lobbyEngineId = setup.gameSpecId === DARK_CHESS_SPEC_ID ? selectedEngineId : undefined;
       cancelLobbyWait = joinLobbyFromPlay(startButton, setup, status, lobbyEngineId);
       return;
     }
@@ -696,6 +719,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     cancelLobbyWait?.();
     document.removeEventListener('keydown', onKeyDown);
     overlay.remove();
+    if (activeDialogClose === close) activeDialogClose = null;
   };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') close();
@@ -762,6 +786,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   dialog.append(status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
+  activeDialogClose = close;
   (draft960Enabled && selectedGameSpecId === DARK_CHESS_SPEC_ID
     ? standardButton
     : startButton
@@ -1086,7 +1111,7 @@ async function createRoomFromPlay(
         const data = (await response.json()) as { url?: string };
         if (!data.url) throw new Error('room creation did not return a URL');
         if (status && !status.isConnected) return;
-        window.location.href = data.url;
+        roomNavigator(data.url);
         return;
       }
       const failure = await readRoomCreationFailure(response);
@@ -1120,10 +1145,7 @@ function roomCreationRequestBody(
   engineId?: string,
 ): Record<string, unknown> {
   const gameSpecId = roomCreationGameSpecId(setup);
-  if (
-    setup.gameSpecId === DARK_XIANGQI_SPEC_ID ||
-    setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID
-  ) {
+  if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
       mode: 'pvp',
       gameSpecId,
