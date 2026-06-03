@@ -2774,6 +2774,132 @@ const XQ_GENERAL_CAPTURE_PAIR = () => xqSvg(
 
 export const articles: Article[] = [
   {
+    slug: 'misty-max',
+    kind: 'article',
+    title: 'Inside Misty Max',
+    summary:
+      "Misty Max is the engine you play on Mistboard: an engine for Fog of War chess, guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
+    status: 'draft',
+    publishedAt: '2026-06-03',
+    audience:
+      'Dark chess players and chess-engine builders curious about how the Mistboard engine works.',
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          "Misty Max is the bot you play on Mistboard. It's an engine for Fog of War chess, guided by the Obscuro architecture.",
+      },
+    ],
+    sections: [
+      {
+        heading: 'It plays under the same fog you do',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'The bot never sees the true board. Each move, it receives exactly what the side to move can legally observe under Fog of War: its own pieces, the squares they can see, the captures that happen in view. No hidden opponent pieces, no hidden moves, no peek at ground truth. Everything else it infers. That single constraint is the whole problem, and it is what makes the rest of the engine necessary.',
+          },
+        ],
+      },
+      {
+        heading: 'The paper we are chasing',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Obscuro (Zhang & Sandholm, ICLR 2026) is the first engine to play Fog of War chess at a superhuman level. Misty Max is guided by its published architecture. We have not matched it, and we do not claim superhuman play. This is our build of the design, and we want help measuring where it actually stands.',
+          },
+        ],
+      },
+      {
+        heading: 'How it thinks',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: 'Five concerns, each handling one part of playing well blind:',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Belief.** Because it cannot see the board, the engine enumerates every board consistent with what it has observed. That set can run into the millions.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Search scope (KLUSS).** It bounds the subgame to what is actually knowable instead of searching the full game tree.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "**Search (CFR).** It runs game-theoretic search by regret minimization, converging toward a strategy an opponent can't easily exploit.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Evaluation.** Leaf positions get scored by Stockfish, the classical chess engine, at depth one.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Commit.** It collapses the resulting mixed strategy into the single move it plays.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "The paper's worst-case refinement (the Resolve/Maxmargin gadget) is built but currently off. In our tests it cost 10-30x the memory and doubled game length without winning more games.",
+          },
+        ],
+      },
+      {
+        heading: "What's hard",
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'The belief set explodes. A few plies into a foggy middlegame, "every consistent board" can mean millions of positions, and the engine has to rebuild that set every move inside a 5-second budget. The hot path lives in Rust, ~500x faster than our original Python. King safety is its own problem: the engine has to reason about checks from pieces it cannot see.',
+          },
+        ],
+      },
+      {
+        heading: 'Where it stands',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Against our previous baseline, the shipped config wins 30-0-0 in self-play. That's a relative-improvement number, not a strength rating. The real test is humans, and that is the part we are running now: a batch of serious games at a known rating, analyzed move by move for style, blunders, and the positions where belief breaks down. Results to come.",
+          },
+        ],
+      },
+      {
+        heading: 'Play it',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Misty Max is live on Mistboard. Play it, and you're helping benchmark it: every serious game is a data point on where a Fog of War engine guided by the state of the art actually plays.",
+          },
+          {
+            kind: 'cta',
+            buttons: [
+              { label: 'Play Misty Max', href: '/?play=computer', emphasis: 'primary' },
+              { label: 'All articles', href: '/articles', emphasis: 'secondary' },
+            ],
+          },
+        ],
+      },
+      {
+        heading: 'References',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Obscuro (Zhang & Sandholm, ICLR 2026). The academic neighbor is Reconnaissance Blind Chess, whose engine lineage runs StrangeFish to ReBeL to Obscuro.',
+          },
+        ],
+      },
+    ],
+  },
+  {
     slug: 'chess',
     kind: 'rules',
     title: 'Chess Rules',
