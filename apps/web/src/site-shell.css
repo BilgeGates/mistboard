@@ -8,7 +8,6 @@
   gap: 16px;
   padding: 12px clamp(16px, 3vw, 34px);
   background: var(--site-nav-bg);
-  backdrop-filter: saturate(130%) blur(8px);
   border-bottom: 1px solid var(--site-nav-border);
 }
 

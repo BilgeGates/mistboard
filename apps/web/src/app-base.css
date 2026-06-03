@@ -16,8 +16,8 @@
   --site-focus: rgba(31, 111, 91, 0.22);
   --site-shadow: rgba(29, 37, 34, 0.18);
   --site-hover: #eeeeee;
-  --site-nav-bg: rgba(255, 255, 255, 0.94);
-  --site-nav-border: #d8d8d8;
+  --site-nav-bg: var(--site-bg);
+  --site-nav-border: transparent;
   --site-stage-bg: linear-gradient(180deg, #e8e2d7 0, #f4f1ea 460px, #f8f7f3 100%);
   --site-warning-bg: #fff4d6;
   --site-warning-border: #e6c870;
@@ -211,8 +211,8 @@
   --site-focus: rgba(114, 194, 159, 0.28);
   --site-shadow: rgba(0, 0, 0, 0.42);
   --site-hover: #253027;
-  --site-nav-bg: rgba(18, 23, 20, 0.94);
-  --site-nav-border: #2a352f;
+  --site-nav-bg: var(--site-bg);
+  --site-nav-border: transparent;
   --site-stage-bg: linear-gradient(180deg, #0f1612 0, #141a16 460px, #0e1310 100%);
   --site-warning-bg: #2f2411;
   --site-warning-border: #725b22;
