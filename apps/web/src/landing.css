@@ -148,21 +148,16 @@
 .landing-article-card-thumb {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 1 / 1;
   background: #eef1ec;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Keep the board/diagram square (never stretched to the landscape frame); the
-   frame clips the vertical overflow so the thumb reads edge-to-edge. */
+/* The board/diagram thumbnails are designed square, so they fill the square
+   frame cleanly with no cropping. */
 .landing-article-card-thumb .articles-index-card-thumb {
-  flex: 0 0 auto;
   width: 100%;
-  height: auto;
-  aspect-ratio: 1 / 1;
+  height: 100%;
   border-radius: 0;
   box-shadow: none;
 }
