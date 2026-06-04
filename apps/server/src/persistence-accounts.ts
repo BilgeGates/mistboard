@@ -383,6 +383,8 @@ async function queryUserGames(
     white_name: string | null;
     black_name: string | null;
     corpus_id: string | null;
+    initial_ms: number | null;
+    increment_ms: number | null;
     rated: boolean;
     visibility: GameVisibility;
     total_count: string;
@@ -391,6 +393,7 @@ async function queryUserGames(
             games.variant, games.mode, games.result, games.termination,
             games.ply_count, games.started_at, games.ended_at,
             games.white_name, games.black_name, games.corpus_id,
+            games.initial_ms, games.increment_ms,
             COALESCE(games.rated, true) AS rated, games.visibility,
             COUNT(*) OVER() AS total_count
      FROM game_participants
@@ -418,6 +421,8 @@ async function queryUserGames(
       whiteName: row.white_name,
       blackName: row.black_name,
       corpusId: row.corpus_id,
+      initialMs: row.initial_ms,
+      incrementMs: row.increment_ms,
       rated: row.rated,
       visibility: row.visibility,
       participants: [],

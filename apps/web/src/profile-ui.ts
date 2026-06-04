@@ -3,6 +3,7 @@
 // shell and the game-row are identical across both subjects; only the middle
 // block (rating buckets vs engine records) differs and stays per-page.
 import { displayParticipantName, type FeaturedGame, sourceLabel } from './game-display.js';
+import { timeControlLabelForGame } from './game-meta.js';
 
 // Header shell: eyebrow + heading + a dot-separated meta line. Callers build the
 // subject-specific meta spans (handle/joined/role for a user, id/games for an
@@ -77,6 +78,12 @@ export function buildProfileGameRow(game: FeaturedGame): HTMLElement {
       isCasual ? 'Casual' : 'Rated',
       isCasual ? 'profile-game-casual' : 'profile-game-rated',
     ),
+  );
+  // Time control sits with the leading fixed-width pills (see CSS) when present;
+  // clockless games (engine self-play) simply omit it.
+  const timeControl = timeControlLabelForGame(game);
+  if (timeControl) details.append(buildGameDetail(timeControl, 'profile-game-tc'));
+  details.append(
     buildGameDetail(sourceLabel(game.mode)),
     buildGameDetail(`${game.plyCount} plies`),
   );

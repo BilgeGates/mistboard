@@ -78,6 +78,10 @@ export type GameRecord = {
 
 export type ProfileGameRecord = GameRecord & {
   playerColor: GameParticipantColor;
+  // Clock for this game (PvP/PvE store it on games.initial_ms / increment_ms;
+  // null for clockless games). Drives the time-control badge on the profile row.
+  initialMs: number | null;
+  incrementMs: number | null;
 };
 
 export type RecentEveGameRecord = GameRecord & {
@@ -356,6 +360,7 @@ export async function getEngineProfile(engineId: string): Promise<EngineProfile 
             games.variant, games.mode, games.result, games.termination,
             games.ply_count, games.started_at, games.ended_at,
             games.white_name, games.black_name, games.corpus_id,
+            games.initial_ms, games.increment_ms,
             COALESCE(games.rated, true) AS rated, games.visibility
      FROM game_participants
      JOIN games ON games.room_id = game_participants.game_id
@@ -393,6 +398,8 @@ type RecentEngineGameRow = {
   white_name: string | null;
   black_name: string | null;
   corpus_id: string | null;
+  initial_ms: number | null;
+  increment_ms: number | null;
   rated: boolean;
   visibility: GameVisibility;
 };
@@ -411,6 +418,8 @@ function engineProfileGameFromRow(row: RecentEngineGameRow): ProfileGameRecord {
     whiteName: row.white_name,
     blackName: row.black_name,
     corpusId: row.corpus_id,
+    initialMs: row.initial_ms,
+    incrementMs: row.increment_ms,
     rated: row.rated,
     visibility: row.visibility,
     participants: [],

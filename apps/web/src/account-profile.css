@@ -612,6 +612,17 @@
   min-width: 60px;
 }
 
+/* Time control joins the fixed-width leading pills so the source + ply pills
+   stay aligned across rows. Tabular figures keep "1 + 1" and "3 + 2" the same
+   visual width; the soft accent border reads it as the game's speed. */
+.profile-game-detail.profile-game-tc {
+  justify-content: center;
+  min-width: 54px;
+  border-color: var(--site-border-soft);
+  color: var(--site-heading);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Rated games get an accent-filled pill so the status reads at a glance; casual
    games get a quiet outlined pill, distinct from the solid metadata pills. */
 .profile-game-detail.profile-game-rated {

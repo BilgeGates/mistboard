@@ -1,3 +1,4 @@
+import { findTimeControl } from '@mistboard/game';
 import {
   displayParticipantName,
   type FeaturedGame,
@@ -6,6 +7,7 @@ import {
   sourceLabel,
 } from './game-display.js';
 import type { GameMeta } from './replay.js';
+import { timeControlLabelFromMeta } from './replay-meta.js';
 
 export function gameMetaForGame(game: FeaturedGame): GameMeta {
   return {
@@ -33,6 +35,16 @@ export function gameMetaForGame(game: FeaturedGame): GameMeta {
 function clockTimeControlFromGame(game: FeaturedGame): Record<string, unknown> | null {
   if (typeof game.initialMs !== 'number') return null;
   return { initialMs: game.initialMs, incrementMs: game.incrementMs ?? 0 };
+}
+
+// Compact time-control label for a finished game ("3 + 2"), or null when the
+// game carries no clock (e.g. engine self-play). Prefer the official registry
+// label so the profile badge matches the lobby/leaderboard wording; fall back to
+// the generic formatter for off-grid clocks (legacy/imported games).
+export function timeControlLabelForGame(game: FeaturedGame): string | null {
+  const spec = findTimeControl(game.initialMs, game.incrementMs);
+  if (spec) return spec.label;
+  return timeControlLabelFromMeta(game.timeControl ?? clockTimeControlFromGame(game));
 }
 
 export function reviewUrlForGame(game: FeaturedGame): string | null {

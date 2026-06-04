@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FeaturedGame } from './game-display.js';
-import { gameMetaForGame } from './game-meta.js';
+import { gameMetaForGame, timeControlLabelForGame } from './game-meta.js';
 
 function game(overrides: Partial<FeaturedGame>): FeaturedGame {
   return {
@@ -41,5 +41,30 @@ describe('gameMetaForGame timeControl', () => {
   it('leaves clockless engine self-play (EvE) without a time control', () => {
     const meta = gameMetaForGame(game({ mode: 'eve', timeControl: null, initialMs: null, incrementMs: null }));
     expect(meta.timeControl).toBeNull();
+  });
+});
+
+describe('timeControlLabelForGame', () => {
+  it('renders the official registry label for a recognized clock', () => {
+    expect(
+      timeControlLabelForGame(game({ timeControl: null, initialMs: 180_000, incrementMs: 2_000 })),
+    ).toBe('3 + 2');
+    expect(
+      timeControlLabelForGame(game({ timeControl: null, initialMs: 60_000, incrementMs: 1_000 })),
+    ).toBe('1 + 1');
+  });
+
+  it('falls back to the generic formatter for an off-grid clock', () => {
+    // A clock outside TIME_CONTROLS (e.g. a legacy/imported game) still gets a
+    // readable label rather than disappearing.
+    expect(
+      timeControlLabelForGame(game({ timeControl: null, initialMs: 120_000, incrementMs: 0 })),
+    ).toBe('2:00');
+  });
+
+  it('returns null for a clockless game so the badge is omitted', () => {
+    expect(
+      timeControlLabelForGame(game({ mode: 'eve', timeControl: null, initialMs: null, incrementMs: null })),
+    ).toBeNull();
   });
 });
