@@ -715,31 +715,17 @@
 :root[data-effective-theme="dark"] .replay-game-header-cell .replay-clock-row,
 :root[data-effective-theme="dark"] .replay-meta-header .replay-layout,
 :root[data-effective-theme="dark"] .watch-replay,
-:root[data-effective-theme="dark"] .articles-index-card,
-:root[data-effective-theme="dark"] .landing-article-card {
+:root[data-effective-theme="dark"] .articles-index-card {
   border-color: var(--site-border);
   background: var(--site-panel);
   color: var(--site-text);
   box-shadow: none;
 }
 
-/* Hero "Review this game" pill: the base style hardcodes a white background,
-   which reads as a too-bright pill with faint accent text in dark mode. Swap to
-   the dark panel + visible border; the green accent text then has real contrast. */
-:root[data-effective-theme="dark"] .landing-review-link {
-  border-color: var(--site-border);
-  background: var(--site-panel);
-  color: var(--site-accent-strong);
-}
-
 :root[data-effective-theme="dark"] .replay-clock-row.active,
 :root[data-effective-theme="dark"] .replay-game-header-cell .replay-clock-row.active,
 :root[data-effective-theme="dark"] .articles-index-card:hover,
-:root[data-effective-theme="dark"] .articles-index-card:focus-visible,
-:root[data-effective-theme="dark"] .landing-article-card:hover,
-:root[data-effective-theme="dark"] .landing-article-card:focus-visible,
-:root[data-effective-theme="dark"] .landing-review-link:hover,
-:root[data-effective-theme="dark"] .landing-review-link:focus-visible {
+:root[data-effective-theme="dark"] .articles-index-card:focus-visible {
   border-color: color-mix(in srgb, var(--site-accent) 44%, var(--site-border));
   background: var(--site-accent-soft);
   color: var(--site-accent-strong);
@@ -914,23 +900,6 @@
   background: var(--site-accent-soft);
   color: var(--site-accent-strong);
   box-shadow: inset 4px 0 0 var(--site-accent);
-}
-
-/* The captures-cell layout (homepage hero) intentionally renders the active
-   clock without a pill/bar — only the time turns accent-colored (see the
-   light-theme treatment in landing.css). The dark `.replay-clock-row.active`
-   rule above predates that layout and re-introduced an `inset 4px` accent bar
-   that lands under the left-aligned time's leading digit (e.g. the "2" in a
-   "2.1s / 5s" EvE count-up, or "2:50.1" on a PvE clock). Strip it here so dark
-   matches light: active = accent time, no bar. */
-:root[data-effective-theme="dark"]
-  .landing-page
-  #landing-replay.replay-compact
-  .replay-clock-cell
-  .replay-clock-row.active {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
 :root[data-effective-theme="dark"]

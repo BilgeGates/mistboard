@@ -1217,6 +1217,96 @@ const DEDUCE_BACK_PAWN_POSITIONS = DEDUCE_BACK_PAWN_STATES.map((state, i) => {
   };
 });
 
+// ── Concepts: one view, many worlds ───────────────────────────────────────
+// White's vision (Kg1, Rf1, Nf3, pawns no further than rank 4) tops out at
+// rank 5 in the centre, so the whole of Black's camp on ranks 6-8 is fog.
+// Three very different Black armies therefore produce a byte-identical White
+// view: the "fan" of worlds consistent with what one player can see. We vary
+// only the king's side (kingside / centre / queenside) so the clustering
+// visual can collapse the fan into two decision buckets. Verified: all three
+// share the same visibleSquares and the same visible pieces (no Black leaks).
+const WORLDS_WHITE: Board = {
+  g1: { color: 'white', role: 'king' },
+  f1: { color: 'white', role: 'rook' },
+  f3: { color: 'white', role: 'knight' },
+  a2: { color: 'white', role: 'pawn' },
+  b2: { color: 'white', role: 'pawn' },
+  c2: { color: 'white', role: 'pawn' },
+  d4: { color: 'white', role: 'pawn' },
+  e4: { color: 'white', role: 'pawn' },
+  f2: { color: 'white', role: 'pawn' },
+  g2: { color: 'white', role: 'pawn' },
+  h2: { color: 'white', role: 'pawn' },
+};
+function worldState(id: string, black: Board): GameState {
+  return {
+    id,
+    variant: 'dark-chess',
+    board: { ...WORLDS_WHITE, ...black },
+    status: { type: 'playing', turn: 'white' },
+    moveNumber: 18,
+    castlingRights: [],
+    halfmoveClock: 0,
+  };
+}
+const WORLD_KINGSIDE = worldState('worlds-kingside', {
+  g8: { color: 'black', role: 'king' },
+  f8: { color: 'black', role: 'rook' },
+  a8: { color: 'black', role: 'rook' },
+  c6: { color: 'black', role: 'knight' },
+  b6: { color: 'black', role: 'bishop' },
+  a7: { color: 'black', role: 'pawn' },
+  b7: { color: 'black', role: 'pawn' },
+  c7: { color: 'black', role: 'pawn' },
+  f7: { color: 'black', role: 'pawn' },
+  g7: { color: 'black', role: 'pawn' },
+  h7: { color: 'black', role: 'pawn' },
+});
+const WORLD_CENTER = worldState('worlds-center', {
+  e8: { color: 'black', role: 'king' },
+  a8: { color: 'black', role: 'rook' },
+  h8: { color: 'black', role: 'rook' },
+  f6: { color: 'black', role: 'knight' },
+  d6: { color: 'black', role: 'bishop' },
+  a7: { color: 'black', role: 'pawn' },
+  b7: { color: 'black', role: 'pawn' },
+  c7: { color: 'black', role: 'pawn' },
+  f7: { color: 'black', role: 'pawn' },
+  g7: { color: 'black', role: 'pawn' },
+  h7: { color: 'black', role: 'pawn' },
+});
+const WORLD_QUEENSIDE = worldState('worlds-queenside', {
+  c8: { color: 'black', role: 'king' },
+  d8: { color: 'black', role: 'rook' },
+  h8: { color: 'black', role: 'rook' },
+  f6: { color: 'black', role: 'knight' },
+  e6: { color: 'black', role: 'bishop' },
+  a7: { color: 'black', role: 'pawn' },
+  b7: { color: 'black', role: 'pawn' },
+  c7: { color: 'black', role: 'pawn' },
+  f7: { color: 'black', role: 'pawn' },
+  g7: { color: 'black', role: 'pawn' },
+  h7: { color: 'black', role: 'pawn' },
+});
+// White's view is identical for every world (Black sits entirely in the fog),
+// so the "WHAT YOU SEE" board is derived from any one of them.
+const WORLDS_VIEW_FOG = fogFor(WORLD_KINGSIDE, 'white');
+
+// ── Concepts: the move that survives every world (callback to the Bb4 line) ─
+// Reuse the 1.d4 e6 2.Nf3 Bb4 position from "Pawn moves". After 2...Bb4 the
+// b4-e1 diagonal is open (c3 and d2 are both empty) and it is White to move.
+// The greedy/oblivious move (a3, ignoring the threat) loses the king to Bxe1
+// if b4 hides a bishop; the patient move (Nb1-c3) blocks the diagonal and is
+// safe whether b4 hides a bishop, a knight, or a pawn. Verified: Bxe1 ends the
+// game (king-captured); Nc3 leaves the king on e1 with the bishop shut out.
+const SURVIVE_BB4_FINAL = DEDUCE_BB4_STATES[DEDUCE_BB4_STATES.length - 1]!;
+const SURVIVE_GREEDY_STATES = replayMoves(SURVIVE_BB4_FINAL, [
+  { from: 'a2', to: 'a3' },
+  { from: 'b4', to: 'e1' },
+]);
+const SURVIVE_GREEDY_FINAL = SURVIVE_GREEDY_STATES[SURVIVE_GREEDY_STATES.length - 1]!;
+const SURVIVE_PATIENT_STATE = darkChessVariant.applyMove(SURVIVE_BB4_FINAL, { from: 'b1', to: 'c3' });
+
 // Pre-stringified captured WS frame for the server-enforced-fog article.
 // The full snapshot artifact is retained for board data and export/debug
 // purposes. The article itself shows a smaller steady-state payload sample
@@ -3491,7 +3581,7 @@ export const articles: Article[] = [
     kind: 'article',
     title: 'Dark Chess Concepts',
     summary:
-      'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
+      'Strategy concepts for dark chess: read fogged squares and capture clues, model the hidden positions you could be facing, cluster them into the few that matter, and pick moves that survive every one.',
     status: 'draft',
     audience:
       'Players who know the dark chess rules and want to start making better decisions under fog.',
@@ -3622,17 +3712,103 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'What to do with partial proof',
+        heading: 'Thinking in worlds',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              'Dark chess deduction usually narrows the problem instead of solving it outright. Once a hidden bishop, rook, queen, or pawn capture is plausible, the practical question is whether your next move still works if that possibility is true.',
+              "Every move your opponent makes, you usually do not see. So the board in front of you is not one position. It is a fan of positions: one for every move they could have made, branching again with every move you miss. You are never really looking at the board. You are looking at a cloud of boards that all happen to match what you can see.",
           },
           {
             kind: 'paragraph',
             text:
-              'That habit is the bridge from rules to strategy: read the fog, name the dangerous possibilities, and defend against the ones that can end the game.',
+              "Here White sees only the near half. The whole enemy camp is fog. These three positions are all consistent with that one view, and there are far more than three. The pieces in your fog did not vanish: they are somewhere. The skill is holding a rough picture of where they could be.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'grid',
+              boards: [
+                { board: WORLD_KINGSIDE.board, fogSquares: WORLDS_VIEW_FOG, orientation: 'white', label: 'WHAT YOU SEE' },
+                { board: WORLD_KINGSIDE.board, orientation: 'white', label: 'WORLD A' },
+                { board: WORLD_CENTER.board, orientation: 'white', label: 'WORLD B' },
+                { board: WORLD_QUEENSIDE.board, orientation: 'white', label: 'WORLD C' },
+              ],
+            },
+            caption: 'One view, three of its many truths. Each world is filtered to the same fog, so all three look identical to the player on move.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "The signals from the last sections are how you prune the cloud. A pawn that can still push means nothing sits in front of it, so every world that put a piece there is gone. A capture you can name removes the worlds where a different piece took. Each thing you observe kills off worlds. You will never get down to one, and you do not need to.",
+          },
+        ],
+      },
+      {
+        heading: 'Clustering the worlds',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "There are too many worlds to track one by one. A computer can enumerate them all; you cannot, and you do not play like one. What you can do is group them, because most of those worlds do not change your move. The ones that do tend to fall into a handful of buckets.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "Their king is kingside or it is queenside. The piece that just landed on b4 is a bishop or a knight. You are walking into a battery or you are not. You rarely need the exact position. You need to know which bucket you are in, because the bucket is what changes your plan.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'pair',
+              boards: [
+                { board: WORLD_KINGSIDE.board, orientation: 'white', label: 'KING KINGSIDE', highlightSquares: ['g8' as Square] },
+                { board: WORLD_QUEENSIDE.board, orientation: 'white', label: 'KING QUEENSIDE', highlightSquares: ['c8' as Square] },
+              ],
+            },
+            caption: 'Dozens of exact positions, two buckets that matter: attack the kingside or attack the queenside. You plan against the bucket, not the position.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "Cluster by what would change your decision, not by what is merely different. Two worlds that point to the same best move are one world for your purposes, so collapse them. Two that demand opposite moves are the split worth naming. Most of dark chess is this: reducing a cloud you cannot count to the two or three buckets you can actually plan against.",
+          },
+        ],
+      },
+      {
+        heading: 'Patience and risk',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "Once the cloud is down to a few buckets, the question is not which one is true. You often cannot know. The question is whether your next move still works if the dangerous bucket is the real one.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "That changes what counts as a good move. A move that beats the board you see but loses to a hidden piece you cannot rule out is a gamble, not a plan. The strong move is usually the one that holds up across every live bucket, even if it wins by less when you turn out to be right. Recall the bishop on b4: you cannot prove it is a bishop, but Nc3 blocks the diagonal whether b4 hides a bishop, a knight, or a pawn. The grab only works if you guessed right; the block survives every world.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'triptych',
+              boards: [
+                { board: SURVIVE_BB4_FINAL.board, fogSquares: fogFor(SURVIVE_BB4_FINAL, 'white'), orientation: 'white', label: 'WHAT YOU SEE', highlightSquares: ['b4' as Square] },
+                { board: SURVIVE_GREEDY_FINAL.board, orientation: 'white', label: 'IGNORE IT: Bxe1', arrows: [{ orig: 'b4', dest: 'e1' }] },
+                { board: SURVIVE_PATIENT_STATE.board, orientation: 'white', label: 'BLOCK: Nc3', arrows: [{ orig: 'b1', dest: 'c3' }] },
+              ],
+            },
+            caption: 'Ignore the b4 signal and a hidden bishop ends the game on e1. Nc3 shuts the diagonal in every world. Same view, two outcomes.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "This is why patience pays. Forcing the position commits you before the fog clears. A quieter move keeps your options open, makes the opponent act first, and often makes them reveal a piece in the process. Let the board come into focus before you stake the game on it.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "That is the whole arc: read the fog, hold the worlds it could hide, cluster them down to the few that matter, and choose the move that beats the dangerous ones. Deduction narrows the problem; what you do with what is left is the game.",
           },
           {
             kind: 'cta',
