@@ -13,6 +13,7 @@ import * as persistence from './../persistence.js';
 import type { LobbyTicket, Room } from './../server-types.js';
 import {
   type HttpApiContext,
+  isAllowedTimeControl,
   parseHiddenDraft960,
   parseRoomTimeControl,
   readJsonBody,
@@ -70,6 +71,14 @@ export async function tryHandle(
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
+      return true;
+    }
+    // Dark-chess matchmaking is scoped to the official playable TCs (1+1 / 3+2)
+    // so the queue can't fragment into off-menu buckets. Mini-xiangqi sets its
+    // own pace (no engine clock constraint), so it's exempt.
+    if (!isDarkMiniXiangqi && timeControl && !isAllowedTimeControl(timeControl)) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'time_control_unsupported' }));
       return true;
     }
     if (ctx.databaseRequired && !persistence.isInitialized()) {

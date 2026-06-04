@@ -30,13 +30,14 @@ export const minRoomClockInitialMs = 10_000;
 export const maxRoomClockInitialMs = 180 * 60 * 1000;
 export const maxRoomClockIncrementMs = 60_000;
 
-// PvE time-control allowlist. References canonical TC ids from
-// packages/game/src/time-controls.ts. All three official TCs are enabled: the v2
-// engine's solvency-first time budget (FOW_V2_TIME_SOLVENT) keeps the clock
-// solvent at 1+1 — validated 0/30 flags prod-arch (engine bakeoff 2026-06-04),
-// 3+2 unchanged. (The old Tier1 worry — per-move compute exceeding the budget on
-// short TCs — no longer applies to the served v2 engine.)
-const PVE_ALLOWED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['1m1', '3m2', '5m5']);
+// Playable time-control allowlist for dark-chess (PvE + PvP + lobby matchmaking).
+// References canonical TC ids from packages/game/src/time-controls.ts. Scoped to
+// bullet + blitz: 5+5 was dropped because dark-chess is low-calculation and
+// decisive (a blunder under fog usually ends it), so rapid mostly buys idle time,
+// and fewer time controls merge players into fewer matchmaking pools. 1+1 is
+// engine-ready — the v2 solvent time budget (FOW_V2_TIME_SOLVENT) holds the clock
+// at bullet (validated 0/30 flags prod-arch, engine bakeoff 2026-06-04).
+const ALLOWED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['1m1', '3m2']);
 
 // ── Context ────────────────────────────────────────────────────────────────
 export interface HttpApiContext {
@@ -151,9 +152,9 @@ export function parseHiddenDraft960(value: unknown): boolean {
   return value === true || value === '1' || value === 'true' || value === 'yes';
 }
 
-export function isPveAllowedTimeControl(tc: RoomTimeControl): boolean {
+export function isAllowedTimeControl(tc: RoomTimeControl): boolean {
   const spec = findTimeControl(tc.initialMs, tc.incrementMs);
-  return spec !== null && PVE_ALLOWED_TIME_CONTROL_IDS.has(spec.id);
+  return spec !== null && ALLOWED_TIME_CONTROL_IDS.has(spec.id);
 }
 
 export function parseRoomTimeControl(value: unknown): RoomTimeControl | null {

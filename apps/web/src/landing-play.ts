@@ -645,9 +645,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   presetGroup.setAttribute('aria-label', 'Time control');
 
   const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
-    // All three official TCs are engine-ready (solvent time budget validated at
-    // 1+1; server allowlist in routes/lib.ts mirrors this).
-    const enabled = preset.id === '1m1' || preset.id === '3m2' || preset.id === '5m5';
+    // Bullet + blitz only (1+1 / 3+2). 5+5 is dropped: dark-chess is low-calc and
+    // decisive, so rapid mostly idles, and fewer TCs merge players into fewer
+    // pools. Server allowlist in routes/lib.ts mirrors this.
+    const enabled = preset.id === '1m1' || preset.id === '3m2';
     const button = startOptionButton(
       enabled ? preset.label : `${preset.label} (coming soon)`,
       preset.id === selectedPreset,

@@ -11,7 +11,7 @@ import { handleDarkMiniXiangqiCreate, requestsDarkMiniXiangqi } from './dark-min
 import { handleDarkXiangqiCreate, requestsDarkXiangqi } from './dark-xiangqi-rooms.js';
 import {
   type HttpApiContext,
-  isPveAllowedTimeControl,
+  isAllowedTimeControl,
   parseHiddenDraft960,
   parseRoomTimeControl,
   parseVariantId,
@@ -109,13 +109,13 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'invalid_engine' }));
       return true;
     }
-    // PvE allows all three official TCs (1+1 / 3+2 / 5+5): the served v2 engine's
-    // solvency-first time budget holds the clock at bullet (validated 0/30 flags
-    // prod-arch, 2026-06-04). The allowlist is defense in depth against direct API
-    // calls; the UI picker mirrors it. PvP keeps the full preset range.
-    if (mode === 'pve' && timeControl && !isPveAllowedTimeControl(timeControl)) {
+    // Dark-chess (PvE + PvP) is scoped to the official playable TCs (1+1 / 3+2):
+    // server-side defense in depth so a hand-crafted POST can't create an
+    // off-menu pace or matchmaking/rating bucket; the UI picker mirrors it.
+    // (Xiangqi variants are delegated above, so this only sees dark-chess.)
+    if (timeControl && !isAllowedTimeControl(timeControl)) {
       response.writeHead(400, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ error: 'time_control_unsupported_for_pve' }));
+      response.end(JSON.stringify({ error: 'time_control_unsupported' }));
       return true;
     }
     if (ctx.databaseRequired && !persistence.isInitialized()) {

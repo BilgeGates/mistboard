@@ -27,7 +27,7 @@ import * as usersRoute from './routes/users.js';
 // Public re-exports: keep import sites in index.ts and elsewhere stable.
 export {
   type HttpApiContext,
-  isPveAllowedTimeControl,
+  isAllowedTimeControl,
   parseHiddenDraft960,
   parseRoomTimeControl,
   parseVariantId,

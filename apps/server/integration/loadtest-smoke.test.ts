@@ -91,8 +91,8 @@ async function createPveRoom(): Promise<string> {
       // Hermetic stand-in engine (opted in via MISTBOARD_EXTRA_PLAYABLE_ENGINES
       // in before()); the prod default is now Misty, which this test can't run.
       engineId: 'builtin-random-legal',
-      // 3+2 is currently the only allowed PvE time control (see
-      // isPveAllowedTimeControl in http-api.ts). Keep this synced.
+      // 3+2 is an allowed PvE time control (see isAllowedTimeControl in
+      // http-api.ts; allowlist = 1+1 / 3+2). Keep this synced.
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
       // Force engine to black so the test client (which connects as white
       // by default) drives white moves. Without this, /api/rooms defaults
@@ -209,7 +209,7 @@ test('POST /api/rooms enforces the PvE official-time-control allowlist', async (
   });
   assert.equal(nonOfficial.status, 400, 'PvE non-official TC should be rejected');
   const body = (await nonOfficial.json()) as { error?: string };
-  assert.equal(body.error, 'time_control_unsupported_for_pve');
+  assert.equal(body.error, 'time_control_unsupported');
 
   // An official bullet TC (1+1) now passes the allowlist — it must NOT be
   // rejected with the allowlist error (in this engine-less test env it fails
@@ -225,7 +225,7 @@ test('POST /api/rooms enforces the PvE official-time-control allowlist', async (
   });
   assert.notEqual(bullet.status, 400, 'PvE 1+1 should pass the allowlist now');
   const bulletBody = (await bullet.json().catch(() => ({}))) as { error?: string };
-  assert.notEqual(bulletBody.error, 'time_control_unsupported_for_pve');
+  assert.notEqual(bulletBody.error, 'time_control_unsupported');
 
   // Sanity: PvP at 1+1 IS allowed (no PvE restriction; humans set their pace).
   const pvp = await fetch(`${httpBase}/api/rooms`, {
