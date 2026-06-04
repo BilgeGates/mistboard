@@ -45,6 +45,7 @@ const BLOCK_PROSE: {
     ...b.steps.map((step) => step.narrative).filter((n): n is string => Boolean(n)),
   ],
   'xq-replay': caption,
+  'mxq-replay': caption,
   'chess-replay': caption,
   code: caption,
 };

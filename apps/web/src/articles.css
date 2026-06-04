@@ -491,8 +491,15 @@
 .xq-replay-header {
   font-size: 14px;
   font-weight: 600;
-  color: #4b5563;
+  color: var(--site-muted);
   text-align: center;
+}
+
+/* Second header line (event / context): de-emphasised under the players line. */
+.xq-replay-header-event {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .xq-replay .raw-svg-stepper-frame-xq > .xq-article-svg[data-xq-layout="single"] {
@@ -747,7 +754,7 @@
 }
 
 .stepper-narrative {
-  color: #1f2521;
+  color: var(--site-text);
   font-size: 14px;
   line-height: 1.55;
   text-align: center;
@@ -871,14 +878,14 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  color: #4b5563;
+  color: var(--site-muted);
 }
 
 .stepper-button {
   appearance: none;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #1f2521;
+  border: 1px solid var(--site-border);
+  background: var(--site-panel);
+  color: var(--site-text);
   font-size: 16px;
   line-height: 1;
   padding: 6px 12px;
@@ -887,13 +894,14 @@
 }
 
 .stepper-button:hover:not(:disabled) {
-  background: #f3f4f6;
+  background: var(--site-hover);
 }
 
 .stepper-button:disabled {
-  color: #9ca3af;
+  color: var(--site-muted);
   cursor: not-allowed;
-  border-color: #e5e7eb;
+  border-color: var(--site-border-soft);
+  opacity: 0.7;
 }
 
 .stepper-counter {

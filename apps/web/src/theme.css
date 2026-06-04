@@ -528,6 +528,17 @@
   color: var(--site-text);
 }
 
+/* Xiangqi-family board figures (static diagrams + the game-replay widget) paint
+   their own board surface, so the dark-mode figure card above wraps them in a
+   greenish panel that does not blend into the page the way it does in light
+   mode (where the figure is transparent). Drop the card for these figures so
+   the board floats on the page background in both themes. Higher specificity
+   than the :is() card rule, so it wins regardless of source order. */
+:root[data-effective-theme="dark"] .article-figure.article-figure-xq {
+  background: transparent;
+  border-color: transparent;
+}
+
 :root[data-effective-theme="dark"]
   :is(
     .action-notice strong,

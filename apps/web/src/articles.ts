@@ -23,12 +23,17 @@ import {
   type LiveBoardsBlock,
   type RawSvgBlock,
   type RawSvgStepperBlock,
+  type MiniXiangqiReplayBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,
   withXiangqiPieceSet,
   type XiangqiReplayBlock,
 } from './articles-data.js';
 import { mountChessReplay, type ChessReplayController } from './chess-replay.js';
+import {
+  mountMiniXiangqiReplay,
+  type MiniXiangqiReplayController,
+} from './mini-xiangqi-replay.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
 import { type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
@@ -587,7 +592,12 @@ function renderSectionBody(section: ArticleSection): HTMLElement[] {
 // boots, so we defer the actual mount until the article element is attached.
 // renderBlock stamps the wrapper with a `data-pending-widget` marker that
 // mountPendingWidgets() picks up and dispatches by widget kind.
-type PendingBlock = InteractiveBlock | LiveBoardsBlock | XiangqiReplayBlock | ChessReplayBlock;
+type PendingBlock =
+  | InteractiveBlock
+  | LiveBoardsBlock
+  | XiangqiReplayBlock
+  | ChessReplayBlock
+  | MiniXiangqiReplayBlock;
 const pendingMounts = new WeakMap<HTMLElement, PendingBlock>();
 
 function renderBlock(block: ArticleBlock): HTMLElement {
@@ -600,6 +610,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'code') return renderCodeBlock(block);
   if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
   if (block.kind === 'xq-replay') return renderXiangqiReplayBlock(block);
+  if (block.kind === 'mxq-replay') return renderMiniXiangqiReplayBlock(block);
   if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
   return renderInteractiveBlock(block);
 }
@@ -628,6 +639,26 @@ function renderXiangqiReplayBlock(block: XiangqiReplayBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive article-figure-xq';
   figure.dataset.pendingWidget = 'xq-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  pendingMounts.set(figure, block);
+  return figure;
+}
+
+function renderMiniXiangqiReplayBlock(block: MiniXiangqiReplayBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-xq';
+  figure.dataset.pendingWidget = 'mxq-replay';
 
   const mountTarget = document.createElement('div');
   mountTarget.className = 'article-interactive-target';
@@ -992,10 +1023,18 @@ function renderInteractiveBlock(block: InteractiveBlock): HTMLElement {
 export function mountPendingWidgets(
   root: HTMLElement,
 ): Array<
-  StepperController | LiveBoardsController | XiangqiReplayController | ChessReplayController
+  | StepperController
+  | LiveBoardsController
+  | XiangqiReplayController
+  | ChessReplayController
+  | MiniXiangqiReplayController
 > {
   const controllers: Array<
-    StepperController | LiveBoardsController | XiangqiReplayController | ChessReplayController
+    | StepperController
+    | LiveBoardsController
+    | XiangqiReplayController
+    | ChessReplayController
+    | MiniXiangqiReplayController
   > = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
@@ -1009,6 +1048,8 @@ export function mountPendingWidgets(
       controllers.push(mountLiveBoards(target, block.spec));
     } else if (block.kind === 'xq-replay') {
       controllers.push(mountXiangqiReplay(target, block.spec));
+    } else if (block.kind === 'mxq-replay') {
+      controllers.push(mountMiniXiangqiReplay(target, block.spec));
     } else if (block.kind === 'chess-replay') {
       controllers.push(mountChessReplay(target, block.spec));
     }
