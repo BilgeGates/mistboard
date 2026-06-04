@@ -916,6 +916,23 @@
   box-shadow: inset 4px 0 0 var(--site-accent);
 }
 
+/* The captures-cell layout (homepage hero) intentionally renders the active
+   clock without a pill/bar — only the time turns accent-colored (see the
+   light-theme treatment in landing.css). The dark `.replay-clock-row.active`
+   rule above predates that layout and re-introduced an `inset 4px` accent bar
+   that lands under the left-aligned time's leading digit (e.g. the "2" in a
+   "2.1s / 5s" EvE count-up, or "2:50.1" on a PvE clock). Strip it here so dark
+   matches light: active = accent time, no bar. */
+:root[data-effective-theme="dark"]
+  .landing-page
+  #landing-replay.replay-compact
+  .replay-clock-cell
+  .replay-clock-row.active {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 :root[data-effective-theme="dark"]
   .landing-page
   #landing-replay.replay-compact
