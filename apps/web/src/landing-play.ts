@@ -332,7 +332,7 @@ function landingPlayAction(
   return button;
 }
 
-function buildLobbyRequestsWindow(): HTMLElement {
+export function buildLobbyRequestsWindow(): HTMLElement {
   const shell = document.createElement('section');
   shell.className = 'landing-lobby-requests';
   shell.setAttribute('aria-label', 'Open pairing requests');

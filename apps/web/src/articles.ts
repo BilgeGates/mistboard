@@ -126,6 +126,48 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
   return main;
 }
 
+// Compact article strip for the homepage center column: the first few visible
+// published articles as cards (reusing the index card styles), plus a link to
+// the full index. Returns null when there are no articles to show, so the
+// caller can omit the section entirely rather than render an empty heading.
+// Thumbnails are bound by the caller's mountArticleThumbnails pass.
+export function buildHomeArticleCards(limit = 3): HTMLElement | null {
+  const list = document.createElement('ul');
+  list.className = 'articles-index-list landing-articles-list';
+
+  let count = 0;
+  for (const article of articles) {
+    if (article.kind !== 'article') continue;
+    if (!isArticleVisibleInThisEnv(article)) continue;
+    if (article.showInIndex === false) continue;
+    list.append(articleCard(article));
+    if (++count >= limit) break;
+  }
+  if (count === 0) return null;
+
+  const section = document.createElement('section');
+  section.className = 'landing-articles';
+  section.setAttribute('aria-label', 'Articles');
+
+  const heading = document.createElement('h2');
+  heading.className = 'landing-articles-heading';
+  heading.textContent = 'Read';
+
+  const more = document.createElement('a');
+  more.className = 'landing-articles-more';
+  more.href = '/articles';
+  const moreLabel = document.createElement('span');
+  moreLabel.textContent = 'All articles';
+  const moreArrow = document.createElement('span');
+  moreArrow.className = 'landing-articles-more-arrow';
+  moreArrow.setAttribute('aria-hidden', 'true');
+  moreArrow.textContent = '→';
+  more.append(moreLabel, moreArrow);
+
+  section.append(heading, list, more);
+  return section;
+}
+
 export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement {
   const base = findArticle(slug);
   if (!base) return buildArticleNotFound();
