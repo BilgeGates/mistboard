@@ -93,6 +93,17 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   initialMs: tc.initialMs,
   incrementMs: tc.incrementMs,
 }));
+
+// Which time-control presets the picker offers, per variant. Dark chess is scoped
+// to bullet + blitz (mirrors the server allowlist in routes/lib.ts): 5+5 is hidden
+// because dark chess is low-calc and decisive, and fewer TCs merge players into
+// fewer pools. Xiangqi variants keep 3+2 only (their prior single option — no
+// engine-readiness change there). Used for PvE AND PvP/lobby alike.
+function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<LandingTimePresetId> {
+  return gameSpecId === DARK_CHESS_SPEC_ID
+    ? new Set<LandingTimePresetId>(['1m1', '3m2'])
+    : new Set<LandingTimePresetId>(['3m2']);
+}
 // Dark chess is always offered; the xiangqi-family specs appear only when their
 // own client flag is on, so each stays hidden until its launch gate clears.
 function enabledLandingVariantGameSpecs(): { gameSpecId: LandingGameSpecId; label: string }[] {
@@ -645,31 +656,27 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   presetGroup.setAttribute('aria-label', 'Time control');
 
   const presetButtons = LANDING_TIME_PRESETS.map((preset) => {
-    // Bullet + blitz only (1+1 / 3+2). 5+5 is dropped: dark-chess is low-calc and
-    // decisive, so rapid mostly idles, and fewer TCs merge players into fewer
-    // pools. Server allowlist in routes/lib.ts mirrors this.
-    const enabled = preset.id === '1m1' || preset.id === '3m2';
-    const button = startOptionButton(
-      enabled ? preset.label : `${preset.label} (coming soon)`,
-      preset.id === selectedPreset,
-    );
-    if (!enabled) {
-      button.disabled = true;
-      button.classList.add('disabled');
-      button.title = 'Coming soon';
-    } else {
-      button.addEventListener('click', () => {
-        selectedPreset = preset.id;
-        syncTimeControls();
-      });
-    }
+    const button = startOptionButton(preset.label, preset.id === selectedPreset);
+    button.addEventListener('click', () => {
+      if (button.hidden) return;
+      selectedPreset = preset.id;
+      syncTimeControls();
+    });
     presetGroup.append(button);
     return { button, preset };
   });
 
+  // Show only the presets allowed for the current variant (so 5+5 is hidden for
+  // dark chess, here AND in PvP/lobby). Re-runs on variant switch via
+  // syncGameSpecificSections; if the current pick is no longer offered, fall back
+  // to 3+2 (always available).
   const syncTimeControls = () => {
+    const allowed = allowedTimePresetIds(selectedGameSpecId);
+    if (!allowed.has(selectedPreset)) selectedPreset = '3m2';
     for (const { button, preset } of presetButtons) {
-      const selected = selectedPreset === preset.id;
+      const show = allowed.has(preset.id);
+      button.hidden = !show;
+      const selected = show && selectedPreset === preset.id;
       button.classList.toggle('selected', selected);
       button.setAttribute('aria-checked', selected ? 'true' : 'false');
     }
@@ -775,6 +782,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
     if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
     timeSection.hidden = !capabilities.supportsTimeControl;
+    syncTimeControls(); // re-scope the preset picker to the selected variant
     syncVariantControls();
     syncColorPreferenceControls();
   };
