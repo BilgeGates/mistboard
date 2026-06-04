@@ -156,6 +156,13 @@
 /* The board/diagram thumbnails are designed square, so they fill the square
    frame cleanly with no cropping. */
 .landing-article-card-thumb .articles-index-card-thumb {
+  /* Own stacking context so chessground's internal piece z-indices
+     (piece = 2, piece.anim = 8) stay contained below the date pill. Without it,
+     no ancestor contains the absolutely-positioned pieces, so they bubble up to
+     the carousel track's stacking context and out-bid the z-index:1 date — the
+     black pieces in the top-left then paint over the date label. */
+  position: relative;
+  z-index: 0;
   width: 100%;
   height: 100%;
   border-radius: 0;
