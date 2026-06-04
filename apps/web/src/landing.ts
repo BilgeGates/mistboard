@@ -94,7 +94,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     hideGameIdPill: true,
     showCaptures: true,
     captureLayout: 'split',
-    compactClockLayout: 'stacked',
+    compactClockLayout: 'captures',
     endStatusMode: 'clock',
     panes: { resolver: (sampleId) => povByRoomId[sampleId] ?? 'white' },
   });

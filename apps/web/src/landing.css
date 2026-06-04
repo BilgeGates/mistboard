@@ -675,12 +675,12 @@
 
   .landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
   .landing-page #landing-replay.replay-compact .replay-layout-single-black .replay-pane-black {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
-      "rail"
-      "captures-top"
-      "board"
-      "captures-bottom";
+      "captures-top    clock-top"
+      "board           board"
+      "captures-bottom clock-bottom";
+    column-gap: clamp(6px, 2vw, 12px);
   }
 
   .landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
@@ -774,21 +774,80 @@
   }
 }
 
-/* ── Phase 1a: hero declutter ───────────────────────────────────────────────
-   Drop the clock / engine-version rail from the homepage hero so it reads as a
-   calm live board instead of a debug readout. The stacked rail bundled the big
-   ticking clock + the engine names/versions ("Mistboard Engine v2 · KLUSS").
-   Scoped to #landing-replay (homepage-only id); /watch and /game are untouched.
-   Purely visual — the replay still ticks underneath; delete this block to revert. */
+/* ── Homepage hero: name + clock beside the captures ─────────────────────────
+   Each captures row is split: captured pieces on the inner half, that player's
+   name + clock on the outer half — a compact per-player strip above and below
+   the board, no separate side rail. Scoped to #landing-replay (homepage-only id);
+   /watch and /game are untouched. The clock rows + names live in per-row cells
+   (compactClockLayout: 'captures'), so the old clock-slot rail stays hidden. */
 .landing-page #landing-replay.replay-compact .replay-pane-clock-slot {
   display: none;
 }
 
 .landing-page #landing-replay.replay-compact .replay-layout-single-white .replay-pane-white,
 .landing-page #landing-replay.replay-compact .replay-layout-single-black .replay-pane-black {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
-    "captures-top"
-    "board"
-    "captures-bottom";
+    "captures-top    clock-top"
+    "board           board"
+    "captures-bottom clock-bottom";
+  column-gap: clamp(10px, 1.4vw, 18px);
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-cell-top {
+  grid-area: clock-top;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-cell-bottom {
+  grid-area: clock-bottom;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  padding-inline: 2px;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-cell .replay-clock-stack-name {
+  justify-content: flex-start;
+  width: 100%;
+  font-size: 12.5px;
+  font-weight: 720;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Reset the big rail clock styling (72px row / 34px time) to a compact line. */
+.landing-page #landing-replay.replay-compact .replay-clock-cell .replay-clock-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  width: auto;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.landing-page #landing-replay.replay-compact .replay-clock-cell .replay-clock-time {
+  grid-column: auto;
+  grid-row: auto;
+  font-size: clamp(18px, 2vw, 23px);
+  font-weight: 760;
+  line-height: 1.05;
+  text-align: left;
+}
+
+.landing-page
+  #landing-replay.replay-compact
+  .replay-clock-cell
+  .replay-clock-row.active
+  .replay-clock-time {
+  color: var(--site-accent-strong, #185947);
 }

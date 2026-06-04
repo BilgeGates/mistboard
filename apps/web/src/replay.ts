@@ -180,7 +180,7 @@ export type ReplayOptions = {
   /** Split captured pieces above and below POV boards instead of one strip below. */
   captureLayout?: 'single' | 'split';
   /** Compact-mode clock placement. Defaults to the historical board-edge rows. */
-  compactClockLayout?: 'board-edges' | 'stacked';
+  compactClockLayout?: 'board-edges' | 'stacked' | 'captures';
   /** End-result placement. Defaults to pane footer labels. */
   endStatusMode?: 'pane' | 'clock';
   /**
@@ -327,9 +327,16 @@ export async function mountReplay(
   compactClockTopName.className = 'replay-clock-stack-name replay-clock-stack-name-top';
   const compactClockBottomName = document.createElement('div');
   compactClockBottomName.className = 'replay-clock-stack-name replay-clock-stack-name-bottom';
+  // The 'captures' layout hosts each player's name + clock in a cell beside that
+  // player's captures row (homepage hero), instead of a single side rail.
+  const compactClockTopCell = document.createElement('div');
+  compactClockTopCell.className = 'replay-clock-cell replay-clock-cell-top';
+  const compactClockBottomCell = document.createElement('div');
+  compactClockBottomCell.className = 'replay-clock-cell replay-clock-cell-bottom';
   function relocateCompactClockRows(host: {
     boardEl: HTMLDivElement;
     clockSlot: HTMLDivElement;
+    el: HTMLDivElement;
   }): void {
     const clockSides = compactReplayClockSidesForOrientation(boardOrientation);
     if (compactClockHost === host && compactClockTopColor === clockSides.top) return;
@@ -346,6 +353,11 @@ export async function mountReplay(
       compactClockBottomName.remove();
       updateCompactClockNames(clockSides);
       host.clockSlot.append(compactClockTopName, topRow, bottomRow, compactClockBottomName);
+    } else if (compactClockLayout === 'captures') {
+      updateCompactClockNames(clockSides);
+      compactClockTopCell.replaceChildren(compactClockTopName, topRow);
+      compactClockBottomCell.replaceChildren(compactClockBottomName, bottomRow);
+      host.el.append(compactClockTopCell, compactClockBottomCell);
     } else {
       host.boardEl.before(topRow);
       host.clockSlot.append(bottomRow);
@@ -386,6 +398,7 @@ export async function mountReplay(
   function paneForChoice(choice: 'white' | 'black' | 'all'): {
     boardEl: HTMLDivElement;
     clockSlot: HTMLDivElement;
+    el: HTMLDivElement;
   } {
     return choice === 'white' ? whitePane : choice === 'black' ? blackPane : truthPane;
   }
@@ -1123,7 +1136,10 @@ export async function mountReplay(
     whitePane.nameEl.textContent = '';
     blackPane.nameEl.textContent = '';
     setClockPanelNames(clockPanel, meta);
-    if (metadataMode === 'compact' && compactClockLayout === 'stacked') {
+    if (
+      metadataMode === 'compact' &&
+      (compactClockLayout === 'stacked' || compactClockLayout === 'captures')
+    ) {
       updateCompactClockNames();
     }
     renderGameMetaPanel(gameMetaPanel, meta, activeSample);
