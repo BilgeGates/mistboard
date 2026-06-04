@@ -159,3 +159,47 @@ test('affinity: a game stays on one worker; concurrent games spread', async () =
     pool.dispose();
   }
 });
+
+// End-to-end A/B that DISTINGUISHES affinity from legacy (the prod single-game
+// trace can't — a lone game lands on worker 0 either way). Two concurrent games
+// over two waves, with the SECOND wave issued in REVERSED order. Under legacy
+// first-ready dispatch the reversed order swaps which worker each game gets
+// (they bounce → cold-replay); under affinity each game returns to its pinned
+// worker (sticks → delta-feed). Deterministic: dispatch is synchronous and
+// `find(isReady)` scans workers in index order.
+async function twoWaveWorkers(affinity: boolean) {
+  const scriptFile = join(dir, 'pid-worker.mjs');
+  writeFileSync(scriptFile, FAKE_WORKER_PID);
+  const pool = new PythonPool({
+    engineId: 'fake',
+    size: 2,
+    pythonBin: process.execPath,
+    scriptPath: scriptFile,
+    cwd: dir,
+    workerSeed: 1,
+    readyTimeoutMs: 5_000,
+    affinity,
+  });
+  await pool.start();
+  try {
+    const move = (g: string) =>
+      pool.chooseMove({ engineTurnRequest: { gameId: g, engineId: 'fake' } }, 4_000);
+    const [a1, b1] = await Promise.all([move('A'), move('B')]); // wave 1: A,B
+    const [b2, a2] = await Promise.all([move('B'), move('A')]); // wave 2: B,A (reversed)
+    return { a1: pidOf(a1), b1: pidOf(b1), a2: pidOf(a2), b2: pidOf(b2) };
+  } finally {
+    pool.dispose();
+  }
+}
+
+test('affinity A/B: ON keeps each game on its worker; OFF bounces them (reversed waves)', async () => {
+  const on = await twoWaveWorkers(true);
+  assert.notEqual(on.a1, on.b1, 'wave 1: the two games are on different workers');
+  assert.equal(on.a2, on.a1, 'affinity ON: game A returns to its pinned worker');
+  assert.equal(on.b2, on.b1, 'affinity ON: game B returns to its pinned worker');
+
+  const off = await twoWaveWorkers(false);
+  assert.notEqual(off.a1, off.b1, 'wave 1: still on different workers');
+  assert.notEqual(off.a2, off.a1, 'affinity OFF: game A bounces to the other worker under reversed order');
+  assert.notEqual(off.b2, off.b1, 'affinity OFF: game B bounces too');
+});
