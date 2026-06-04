@@ -95,7 +95,7 @@ export async function tryHandle(
   // Homepage hero pool — quality-filtered, PvP-first dark-chess games.
   if (pathname === '/api/games/showcase') {
     if (!requirePersistence(response)) return true;
-    const games = await persistence.listShowcaseGames(8);
+    const games = await persistence.listShowcaseGames();
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ games }));
     return true;

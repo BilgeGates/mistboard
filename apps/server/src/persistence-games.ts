@@ -460,20 +460,35 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
 
-// Homepage hero pool. Aim for recent, substantial PvP — real people are the
-// "alive" signal — using a watch-style filter (any real finish, since human
-// games end by timeout/resignation far more than king-capture). Fall back to
-// decisive engine games, one per run for variety, when there isn't enough
-// quality PvP yet. Both tiers require >= 30 plies so the hero never opens on a
-// short or abandoned game.
+// Homepage hero pool, newest-first by tier: PvP (two humans, the strongest
+// "alive" signal) → PvE (a real human vs the engine, which showcases the engine,
+// the product's differentiator) → EvE (synthetic, for volume). At least one PvE
+// is reserved when any exist. The human tiers use a watch-style filter (any real
+// finish except abandon, since people resign/flag far more than king-capture);
+// EvE is decisive-only, one per run. All tiers require >= 30 plies so the hero
+// never opens on a short game.
 const SHOWCASE_MIN_PLY = 30;
+// Pool size + reserved PvE slots. Defaults are anchored on "games take minutes
+// to finish, low liquidity"; tune from traffic (see also the client poller).
+const SHOWCASE_POOL_SIZE = 14;
+const SHOWCASE_GUARANTEED_PVE = 1;
 
-export async function listShowcaseGames(limit = 8): Promise<RecentEveGameRecord[]> {
+export async function listShowcaseGames(
+  limit = SHOWCASE_POOL_SIZE,
+): Promise<RecentEveGameRecord[]> {
   const bounded = Math.max(1, Math.min(limit, 24));
   const pvp = await queryShowcasePvp(bounded);
-  if (pvp.length >= bounded) return pvp;
-  const engine = await queryShowcaseEngine();
-  return [...pvp, ...engine].slice(0, bounded);
+  const pve = await queryShowcasePve(bounded);
+  // Reserve a slot for PvE so the engine always appears, even when PvP alone
+  // could fill the pool. Then fill newest-first by tier: PvP, remaining PvE, EvE.
+  const seededPve = pve.slice(0, Math.min(SHOWCASE_GUARANTEED_PVE, pve.length));
+  let pool = [...pvp.slice(0, bounded - seededPve.length), ...seededPve];
+  if (pool.length < bounded) pool = [...pool, ...pve.slice(seededPve.length)];
+  if (pool.length < bounded) {
+    const eve = await queryShowcaseEngine();
+    pool = [...pool, ...eve];
+  }
+  return pool.slice(0, bounded);
 }
 
 // Recent substantial PvP, watch-style: any real finish except a forfeit/abandon.
@@ -486,6 +501,30 @@ async function queryShowcasePvp(limit: number): Promise<RecentEveGameRecord[]> {
        AND games.visibility = 'public'
        AND games.variant IN ('dark-chess', 'fog')
        AND games.mode = 'pvp'
+       AND games.termination <> 'abandonment'
+       AND games.ply_count >= $1
+       AND EXISTS (
+         SELECT 1 FROM events WHERE events.room_id = games.room_id LIMIT 1
+       )
+     ORDER BY games.ended_at DESC, games.room_id DESC
+     LIMIT $2`,
+    [SHOWCASE_MIN_PLY, limit],
+  );
+  return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
+}
+
+// Recent human-vs-engine games — a real person playing the engine. Same
+// watch-style "any real finish except abandon" filter as PvP; PvE is
+// public-by-default (visibility <> 'private') like the watch unlocked feed.
+async function queryShowcasePve(limit: number): Promise<RecentEveGameRecord[]> {
+  const { rows } = await getPool().query<RecentEveGameRow>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}
+     FROM games
+     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     WHERE games.status = 'completed'
+       AND games.visibility <> 'private'
+       AND games.variant IN ('dark-chess', 'fog')
+       AND games.mode = 'pve'
        AND games.termination <> 'abandonment'
        AND games.ply_count >= $1
        AND EXISTS (

@@ -208,6 +208,10 @@ export type ReplayHandle = {
   activeSampleId: () => string;
   destroy: () => void;
   loadGame: (sampleId: string, options?: ReplayLoadOptions) => Promise<void>;
+  /** Replace the auto-loop pool (homepage adaptive refresh). The currently
+   *  playing game finishes; the next loop pick comes from the new pool. New
+   *  ids must already have their metadata/POV registered by the caller. */
+  updateLoopPool: (sampleIds: string[]) => void;
 };
 
 export async function mountReplay(
@@ -224,7 +228,7 @@ export async function mountReplay(
   const wallClockInitial = currentWallClockPosition();
   const initialReplaySampleId = wallClockInitial?.sampleId ?? initialSampleId;
   let wallClockPosition = wallClockInitial;
-  const loopSamples = wallClockLoop ? undefined : options.loopSamples;
+  let loopSamples = wallClockLoop ? undefined : options.loopSamples;
   const betweenGameDelayMs = options.betweenGameDelayMs ?? DEFAULT_BETWEEN_GAME_DELAY_MS;
   const clampPace = options.clampPace === true;
   const autoplay = !wallClockLoop && (options.autoplay === true || loopSamples !== undefined);
@@ -793,7 +797,11 @@ export async function mountReplay(
     if (loopTimer !== null) return;
     loopTimer = window.setTimeout(() => {
       loopTimer = null;
-      const next = pickNextSample(loopSamples, activeSample);
+      // Re-read the pool at fire time so an adaptive updateLoopPool() swap is
+      // picked up for the next pick.
+      const pool = loopSamples;
+      if (!pool || pool.length === 0) return;
+      const next = pickNextSample(pool, activeSample);
       loadGame(next).catch((err) =>
         console.warn('[replay loop] failed to load game, skipping:', next, err),
       );
@@ -1402,6 +1410,13 @@ export async function mountReplay(
     activeSampleId: () => activeSample,
     destroy: () => abortController.abort(),
     loadGame,
+    // Swap the loop pool in place. The active game keeps playing; pickNextSample
+    // reads loopSamples live, so the next pick comes from the new pool. No
+    // reschedule here — that would cut the current game short.
+    updateLoopPool: (sampleIds: string[]) => {
+      if (wallClockLoop) return;
+      loopSamples = sampleIds;
+    },
   };
 }
 

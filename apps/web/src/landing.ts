@@ -24,6 +24,12 @@ import { isLikelySignedIn } from './signed-in-state.js';
 import { buildHomeFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 
 const HOMEPAGE_CORPUS_HOLD_MS = 8000;
+// Adaptive hero-pool refresh. Poll faster while games are being played (they
+// unlock on completion, soon), slower when idle. Pool is capped. These three are
+// the only knobs — tune from traffic (mirrors the server's SHOWCASE_POOL_SIZE).
+const SHOWCASE_REFRESH_ACTIVE_MS = 45_000;
+const SHOWCASE_REFRESH_IDLE_MS = 5 * 60_000;
+const SHOWCASE_POOL_CAP = 14;
 
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -104,6 +110,70 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // the handle returned.
   syncReviewLink(replay.activeSampleId());
 
+  // Adaptively refresh the hero pool so newly finished games rotate in without a
+  // page reload. New games' metadata/POV merge into the shared maps the replay
+  // reads by reference, then the loop pool is swapped (the current game finishes
+  // first). Polls fast while games are live, slow when idle; self-clears on
+  // unmount.
+  const poolIds = new Set(sampleIds);
+  let showcaseTimer: number | null = null;
+  const stopShowcaseRefresh = () => {
+    if (showcaseTimer !== null) {
+      window.clearTimeout(showcaseTimer);
+      showcaseTimer = null;
+    }
+  };
+  const refreshShowcasePool = async () => {
+    let fresh: FeaturedGame[];
+    try {
+      fresh = await fetchShowcaseGames();
+    } catch (err) {
+      console.warn('showcase refresh failed', err);
+      return;
+    }
+    if (fresh.length < 3) return; // not enough real games yet; keep the pool
+    for (const g of fresh) {
+      metadataByRoomId[g.roomId] ??= gameMetaForGame(g);
+      povByRoomId[g.roomId] ??= pickHeroPovForGame(g);
+    }
+    const nextPool = fresh.slice(0, SHOWCASE_POOL_CAP).map((g) => g.roomId);
+    const changed =
+      nextPool.length !== poolIds.size || nextPool.some((id) => !poolIds.has(id));
+    if (!changed) return;
+    poolIds.clear();
+    for (const id of nextPool) poolIds.add(id);
+    // If we were on the static engine fallback, switch to real games so the
+    // review link can light up for the cycling hero.
+    if (!usingRealGames) {
+      usingRealGames = true;
+      syncReviewLink(replay.activeSampleId());
+    }
+    replay.updateLoopPool(nextPool);
+  };
+  const tickShowcaseRefresh = async () => {
+    if (!stage.el.isConnected) {
+      stopShowcaseRefresh();
+      return;
+    }
+    let playing = 0;
+    try {
+      const resp = await fetch('/api/live-stats');
+      if (resp.ok) playing = ((await resp.json()) as { playing?: number }).playing ?? 0;
+    } catch {
+      // ignore — treat as idle
+    }
+    await refreshShowcasePool();
+    if (!stage.el.isConnected) {
+      stopShowcaseRefresh();
+      return;
+    }
+    showcaseTimer = window.setTimeout(
+      () => void tickShowcaseRefresh(),
+      playing > 0 ? SHOWCASE_REFRESH_ACTIVE_MS : SHOWCASE_REFRESH_IDLE_MS,
+    );
+  };
+  showcaseTimer = window.setTimeout(() => void tickShowcaseRefresh(), SHOWCASE_REFRESH_ACTIVE_MS);
+
   // Hand off room navigation to an in-place SPA transition so the starting
   // click's user activation survives into the room. A full-document nav would
   // drop it, and browser autoplay policy would then swallow the engine's
@@ -113,6 +183,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const teardownLanding = () => {
     setRoomNavigator(null);
     closeActiveLandingDialog();
+    stopShowcaseRefresh();
     replay.destroy();
   };
   setRoomNavigator((url) => {
