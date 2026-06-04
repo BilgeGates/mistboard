@@ -35,7 +35,10 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  /* Single column: the announcements panel lives in the narrow left rail now,
+     so cards shrink to the rail width instead of forcing a 260px minimum that
+     overflows it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 

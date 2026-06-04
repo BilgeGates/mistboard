@@ -3,7 +3,7 @@ import './landing-play.css';
 import './landing.css';
 import './game-route.css';
 import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
-import { buildHomeArticleCards, mountArticleThumbnails } from './articles.js';
+import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
 import { buildContact } from './contact.js';
 import type { FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
@@ -56,6 +56,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const stage = buildLandingStage(engines);
   root.replaceChildren(buildNav(), stage.el);
   mountArticleThumbnails(stage.el);
+  initLandingCarousel(stage.el);
   maybeOpenPlayDeepLink(engines);
 
   const metadataByRoomId: Record<string, GameMeta> = {};
@@ -301,10 +302,10 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  // ── Left rail: announcements (top) + the open-pairing-requests browser. ──
+  // ── Left rail: announcements. ──
   const leftRail = document.createElement('div');
   leftRail.className = 'landing-rail landing-rail-left';
-  leftRail.append(buildLandingAnnouncements(), buildLobbyRequestsWindow());
+  leftRail.append(buildLandingAnnouncements());
 
   // ── Center (wide): the fog board hero, with article cards stacked beneath. ──
   const centerColumn = document.createElement('div');
@@ -333,11 +334,16 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const articleCards = buildHomeArticleCards();
   if (articleCards) centerColumn.append(articleCards);
 
-  // ── Right rail: the pairing CTAs. The lobby browser moved to the left rail,
-  // so the panel renders without its own copy. ──
-  const playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: false });
+  // ── Right rail: the pairing CTAs, with the open-pairing-requests browser
+  // stacked beneath them. ──
+  const rightRail = document.createElement('div');
+  rightRail.className = 'landing-rail landing-rail-right';
+  rightRail.append(
+    buildLandingPlayPanel(engines, { showLobbyRequests: false }),
+    buildLobbyRequestsWindow(),
+  );
 
-  section.append(leftRail, centerColumn, playPanel);
+  section.append(leftRail, centerColumn, rightRail);
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter());

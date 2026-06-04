@@ -126,28 +126,31 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
   return main;
 }
 
-// Compact article strip for the homepage center column: the first few visible
-// published articles as cards (reusing the index card styles), plus a link to
-// the full index. Returns null when there are no articles to show, so the
-// caller can omit the section entirely rather than render an empty heading.
-// Thumbnails are bound by the caller's mountArticleThumbnails pass.
-export function buildHomeArticleCards(limit = 3): HTMLElement | null {
-  const list = document.createElement('ul');
-  list.className = 'articles-index-list landing-articles-list';
-
-  let count = 0;
-  for (const article of articles) {
-    if (article.kind !== 'article') continue;
-    if (!isArticleVisibleInThisEnv(article)) continue;
-    if (article.showInIndex === false) continue;
-    list.append(articleCard(article));
-    if (++count >= limit) break;
-  }
-  if (count === 0) return null;
+// Compact article carousel for the homepage center column: a single row of
+// compact cards (thumb on top, title below) spanning the column width, that
+// auto-rotates like the lichess blog row. Returns null when there are no
+// articles, so the caller can omit it. Thumbnails are bound by the caller's
+// mountArticleThumbnails pass; rotation is started by initLandingCarousel once
+// the section is in the document (it needs measured widths).
+export function buildHomeArticleCards(limit = 8): HTMLElement | null {
+  const eligible = articles.filter(
+    (article) => isArticleVisibleInThisEnv(article) && article.showInIndex !== false,
+  );
+  // Articles first (the featured long-form), then the rules guides — enough
+  // cards that the row has something to actually rotate through.
+  const ordered = [
+    ...eligible.filter((article) => article.kind === 'article'),
+    ...eligible.filter((article) => article.kind === 'rules'),
+  ];
+  const cards = ordered.slice(0, limit).map(landingArticleCard);
+  if (cards.length === 0) return null;
 
   const section = document.createElement('section');
   section.className = 'landing-articles';
   section.setAttribute('aria-label', 'Articles');
+
+  const header = document.createElement('div');
+  header.className = 'landing-articles-header';
 
   const heading = document.createElement('h2');
   heading.className = 'landing-articles-heading';
@@ -163,9 +166,161 @@ export function buildHomeArticleCards(limit = 3): HTMLElement | null {
   moreArrow.setAttribute('aria-hidden', 'true');
   moreArrow.textContent = '→';
   more.append(moreLabel, moreArrow);
+  header.append(heading, more);
 
-  section.append(heading, list, more);
+  const carousel = document.createElement('div');
+  carousel.className = 'landing-carousel';
+
+  const track = document.createElement('div');
+  track.className = 'landing-carousel-track';
+  for (const card of cards) track.append(card);
+
+  const prev = carouselNavButton('prev', '‹');
+  const next = carouselNavButton('next', '›');
+
+  carousel.append(prev, track, next);
+  section.append(header, carousel);
   return section;
+}
+
+function carouselNavButton(dir: 'prev' | 'next', glyph: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `landing-carousel-nav landing-carousel-nav-${dir}`;
+  button.setAttribute('aria-label', dir === 'prev' ? 'Previous articles' : 'More articles');
+  button.textContent = glyph;
+  return button;
+}
+
+function landingArticleCard(article: Article): HTMLElement {
+  const link = document.createElement('a');
+  link.className = 'landing-article-card';
+  const base = article.kind === 'rules' ? 'rules' : 'articles';
+  link.href = `/${base}/${article.slug}`;
+
+  const thumb = document.createElement('div');
+  thumb.className = 'landing-article-card-thumb';
+  if (article.thumbnail) {
+    thumb.append(renderArticleThumbnail(article.thumbnail));
+  } else {
+    thumb.classList.add('is-empty');
+  }
+
+  // Date pill overlaid on the thumbnail, lichess blog-card style.
+  const dateIso = article.publishedAt ?? article.updatedAt;
+  if (dateIso) {
+    const date = document.createElement('span');
+    date.className = 'landing-article-card-date';
+    date.textContent = formatCardDate(dateIso);
+    thumb.append(date);
+  }
+
+  const title = document.createElement('strong');
+  title.className = 'landing-article-card-title';
+  title.textContent = article.title;
+
+  link.append(thumb, title);
+  return link;
+}
+
+function formatCardDate(iso: string): string {
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+// Auto-rotating horizontal carousel for the homepage article row. Ping-pongs
+// the track between its start and the point where the last card is flush right,
+// so any overflow scrolls into view without a jarring rewind. No-ops (and hides
+// the arrows) when every card already fits. Self-clears its timer once the
+// carousel leaves the DOM, matching the other landing pollers.
+export function initLandingCarousel(root: HTMLElement): void {
+  const carousel = root.querySelector<HTMLElement>('.landing-carousel');
+  const track = carousel?.querySelector<HTMLElement>('.landing-carousel-track');
+  if (!carousel || !track) return;
+  const cards = [...track.children] as HTMLElement[];
+  const prev = carousel.querySelector<HTMLButtonElement>('.landing-carousel-nav-prev');
+  const next = carousel.querySelector<HTMLButtonElement>('.landing-carousel-nav-next');
+  if (cards.length === 0) return;
+
+  let index = 0;
+  let dir = 1;
+  let timer: number | null = null;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+  const stepPx = (): number => {
+    if (cards.length < 2) return 0;
+    return cards[1]!.getBoundingClientRect().left - cards[0]!.getBoundingClientRect().left;
+  };
+  const maxIndex = (): number => {
+    const step = stepPx();
+    if (step <= 0) return 0;
+    const overflow = Math.max(0, track.scrollWidth - carousel.clientWidth);
+    return Math.round(overflow / step);
+  };
+
+  const apply = () => {
+    const mi = maxIndex();
+    carousel.classList.toggle('is-static', mi <= 0);
+    if (prev) prev.disabled = index <= 0;
+    if (next) next.disabled = index >= mi;
+    if (mi <= 0) {
+      index = 0;
+      track.style.transform = 'none';
+      return;
+    }
+    index = Math.max(0, Math.min(index, mi));
+    track.style.transform = `translateX(${-(index * stepPx())}px)`;
+  };
+
+  const tick = () => {
+    const mi = maxIndex();
+    if (mi <= 0) return;
+    if (index >= mi) dir = -1;
+    else if (index <= 0) dir = 1;
+    index += dir;
+    apply();
+  };
+
+  const stop = () => {
+    if (timer !== null) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+  };
+  const start = () => {
+    stop();
+    if (reduceMotion) return;
+    timer = window.setInterval(() => {
+      if (!document.body.contains(carousel)) {
+        stop();
+        return;
+      }
+      tick();
+    }, 5000);
+  };
+
+  const nudge = (delta: number) => {
+    const mi = maxIndex();
+    if (mi <= 0) return;
+    index = Math.max(0, Math.min(index + delta, mi));
+    dir = delta >= 0 ? 1 : -1;
+    apply();
+  };
+  prev?.addEventListener('click', () => nudge(-1));
+  next?.addEventListener('click', () => nudge(1));
+
+  carousel.addEventListener('mouseenter', stop);
+  carousel.addEventListener('mouseleave', start);
+  window.addEventListener('resize', apply);
+
+  apply();
+  start();
 }
 
 export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement {

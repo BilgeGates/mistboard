@@ -27,10 +27,9 @@ export const announcements: Announcement[] = [
     cta: 'Send feedback',
   },
   {
-    date: '2026-05-21',
-    kind: 'article',
-    headline: 'Dark Chess Rules.',
-    body: 'How visibility works, what counts as a win, and the rule quirks (castling, en passant) you will actually run into.',
-    href: '/rules/dark-chess',
+    date: '2026-06-03',
+    kind: 'release',
+    headline: 'Misty 1.0 has launched.',
+    body: 'Our Fog of War dark chess engine is now live to play.',
   },
 ];
