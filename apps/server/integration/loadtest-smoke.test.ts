@@ -193,11 +193,27 @@ function isActionable(msg: StateMessage, actedOnMove: number): boolean {
   return mn > actedOnMove;
 }
 
-test('POST /api/rooms rejects PvE rooms with non-3+2 time controls', async () => {
-  // The UI scopes PvE to 3+2; this is the server-side defense-in-depth so a
-  // hand-crafted POST can't bypass the lock and melt the engine.
-  // PvP is unconstrained on the server (humans set their own pace) — verified
-  // by the smoke test below, which uses PvE 3+2 successfully.
+test('POST /api/rooms enforces the PvE official-time-control allowlist', async () => {
+  // PvE now allows all three official TCs (1+1 / 3+2 / 5+5) — the served v2
+  // engine's solvent time budget holds the clock at bullet. The allowlist is
+  // server-side defense-in-depth: a NON-official TC must still be rejected so a
+  // hand-crafted POST can't run the engine at an unvetted pace.
+  const nonOfficial = await fetch(`${httpBase}/api/rooms`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'pve',
+      variant: 'dark-chess',
+      timeControl: { initialMs: 120_000, incrementMs: 1_000 }, // 2+1, not official
+    }),
+  });
+  assert.equal(nonOfficial.status, 400, 'PvE non-official TC should be rejected');
+  const body = (await nonOfficial.json()) as { error?: string };
+  assert.equal(body.error, 'time_control_unsupported_for_pve');
+
+  // An official bullet TC (1+1) now passes the allowlist — it must NOT be
+  // rejected with the allowlist error (in this engine-less test env it fails
+  // later at seat allocation, which is fine; we only assert the gate opened).
   const bullet = await fetch(`${httpBase}/api/rooms`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -207,11 +223,11 @@ test('POST /api/rooms rejects PvE rooms with non-3+2 time controls', async () =>
       timeControl: { initialMs: 60_000, incrementMs: 1_000 },
     }),
   });
-  assert.equal(bullet.status, 400, 'PvE 1+1 should be rejected');
-  const body = (await bullet.json()) as { error?: string };
-  assert.equal(body.error, 'time_control_unsupported_for_pve');
+  assert.notEqual(bullet.status, 400, 'PvE 1+1 should pass the allowlist now');
+  const bulletBody = (await bullet.json().catch(() => ({}))) as { error?: string };
+  assert.notEqual(bulletBody.error, 'time_control_unsupported_for_pve');
 
-  // Sanity: PvP at the same 1+1 time control IS allowed (no PvE restriction).
+  // Sanity: PvP at 1+1 IS allowed (no PvE restriction; humans set their pace).
   const pvp = await fetch(`${httpBase}/api/rooms`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

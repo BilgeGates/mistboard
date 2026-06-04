@@ -109,11 +109,10 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'invalid_engine' }));
       return true;
     }
-    // PvE is scoped to 3+2 until the engine can hold its per-move budget at
-    // shorter time controls (currently Tier1 p99 ~12s on Railway prod). UI
-    // already disables non-3+2 presets for PvE; this is defense in depth
-    // against direct API calls. PvP keeps the full preset range — humans
-    // set their own pace.
+    // PvE allows all three official TCs (1+1 / 3+2 / 5+5): the served v2 engine's
+    // solvency-first time budget holds the clock at bullet (validated 0/30 flags
+    // prod-arch, 2026-06-04). The allowlist is defense in depth against direct API
+    // calls; the UI picker mirrors it. PvP keeps the full preset range.
     if (mode === 'pve' && timeControl && !isPveAllowedTimeControl(timeControl)) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'time_control_unsupported_for_pve' }));
