@@ -28,6 +28,13 @@ export interface PythonPoolOptions {
   stockfishPath?: string;
   /** Seconds to wait for a worker's `ready` line. */
   readyTimeoutMs: number;
+  /**
+   * Session affinity: pin a game's moves to the worker that served its prior
+   * move (warm belief → delta-feed instead of an O(plies) cold-replay). Default
+   * off (legacy first-ready dispatch). Best-effort: falls back to any ready
+   * worker, so it never blocks correctness.
+   */
+  affinity?: boolean;
 }
 
 export interface PythonPoolResponse {
@@ -381,8 +388,13 @@ export class PythonPool {
   /** Last-restart timestamp per slot. */
   private lastRestartAt = new Map<number, number>();
   private disposed = false;
+  /** Soft session-affinity pins: gameId → worker slot. Bounded LRU. */
+  private readonly roomWorker = new Map<string, number>();
+  private readonly affinity: boolean;
 
-  constructor(private readonly opts: PythonPoolOptions) {}
+  constructor(private readonly opts: PythonPoolOptions) {
+    this.affinity = opts.affinity ?? false;
+  }
 
   async start(): Promise<void> {
     const workers = Array.from({ length: this.opts.size }, (_, i) => this.makeWorker(i));
@@ -451,6 +463,11 @@ export class PythonPool {
   private handleWorkerDeath(dead: PoolWorker, err: Error): void {
     if (this.disposed) return;
     const slot = dead.index;
+    // Drop affinity pins to this slot — its replacement starts cold, so those
+    // games re-pin (and cold-replay) on their next move.
+    for (const [game, idx] of this.roomWorker) {
+      if (idx === slot) this.roomWorker.delete(game);
+    }
     const now = Date.now();
     const lastAt = this.lastRestartAt.get(slot) ?? 0;
     const sinceLast = now - lastAt;
@@ -546,11 +563,44 @@ export class PythonPool {
   }
 
   private tryDispatch(): void {
-    while (this.queue.length > 0) {
-      const worker = this.workers.find((w) => w.isReady());
-      if (!worker) break;
-      const req = this.queue.shift()!;
-      worker.dispatch(req);
+    if (!this.affinity) {
+      while (this.queue.length > 0) {
+        const worker = this.workers.find((w) => w.isReady());
+        if (!worker) break;
+        const req = this.queue.shift()!;
+        worker.dispatch(req);
+      }
+      return;
+    }
+    // Session affinity: route a game's move to the worker that served its prior
+    // move (warm belief → delta-feed) when that worker is ready; otherwise any
+    // ready worker, re-pinning there (a correct cold-replay, just an O(plies)
+    // rebuild). Best-effort — never blocks correctness or starves the queue.
+    const remaining: PendingRequest[] = [];
+    for (const req of this.queue) {
+      const gameId = gameIdOf(req.payload);
+      const pinned = gameId !== null ? this.roomWorker.get(gameId) : undefined;
+      let idx = pinned !== undefined && this.workers[pinned]?.isReady() ? pinned : -1;
+      if (idx < 0) idx = this.workers.findIndex((w) => w.isReady());
+      if (idx < 0) {
+        remaining.push(req);
+        continue;
+      }
+      if (gameId !== null) this.pin(gameId, idx);
+      this.workers[idx]!.dispatch(req);
+    }
+    this.queue = remaining;
+  }
+
+  /** Soft room→worker pin with bounded insertion-order (LRU) eviction. */
+  private pin(gameId: string, workerIndex: number): void {
+    this.roomWorker.delete(gameId);
+    this.roomWorker.set(gameId, workerIndex);
+    const cap = Math.max(64, this.opts.size * 16);
+    while (this.roomWorker.size > cap) {
+      const oldest = this.roomWorker.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      this.roomWorker.delete(oldest);
     }
   }
 
@@ -571,6 +621,11 @@ function parseWorkerDebugLine(line: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+function gameIdOf(payload: Record<string, unknown>): string | null {
+  const request = isRecord(payload.engineTurnRequest) ? payload.engineTurnRequest : null;
+  return stringOrNull(request?.gameId);
 }
 
 function payloadDiagnostics(payload: Record<string, unknown>): Record<string, unknown> {
@@ -645,6 +700,7 @@ export async function getPythonPool(
       readyTimeoutMs:
         Number.parseInt(process.env.MISTBOARD_PYTHON_POOL_READY_TIMEOUT_MS ?? '30000', 10) ||
         30_000,
+      affinity: process.env.MISTBOARD_POOL_AFFINITY === '1',
     };
     const pool = new PythonPool(opts);
     try {
