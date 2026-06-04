@@ -1218,8 +1218,9 @@ const DEDUCE_BACK_PAWN_POSITIONS = DEDUCE_BACK_PAWN_STATES.map((state, i) => {
 });
 
 // ── Concepts: one view, many worlds ───────────────────────────────────────
-// White's vision (Kg1, Rf1, Nf3, pawns no further than rank 4) tops out at
-// rank 5 in the centre, so the whole of Black's camp on ranks 6-8 is fog.
+// White's vision (Kg1, two rooks d1/f1, two knights c3/f3, pawns no further
+// than rank 4) tops out at rank 5 in the centre (the c3 knight adds b5/a4),
+// so the whole of Black's camp on ranks 6-8 is fog.
 // Three very different Black armies therefore produce a byte-identical White
 // view: the "fan" of worlds consistent with what one player can see. We vary
 // only the king's side (kingside / centre / queenside) so the clustering
@@ -1228,7 +1229,9 @@ const DEDUCE_BACK_PAWN_POSITIONS = DEDUCE_BACK_PAWN_STATES.map((state, i) => {
 const WORLDS_WHITE: Board = {
   g1: { color: 'white', role: 'king' },
   f1: { color: 'white', role: 'rook' },
+  d1: { color: 'white', role: 'rook' },
   f3: { color: 'white', role: 'knight' },
+  c3: { color: 'white', role: 'knight' },
   a2: { color: 'white', role: 'pawn' },
   b2: { color: 'white', role: 'pawn' },
   c2: { color: 'white', role: 'pawn' },
@@ -3722,25 +3725,53 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Here White sees only the near half. The whole enemy camp is fog. These three positions are all consistent with that one view, and there are far more than three. The pieces in your fog did not vanish: they are somewhere. The skill is holding a rough picture of where they could be.",
+              "Here White sees only the near half. The whole enemy camp is fog. The pieces in your fog did not vanish: they are somewhere. The skill is holding a rough picture of where they could be.",
           },
           {
             kind: 'live-boards',
             spec: {
-              layout: 'grid',
+              layout: 'single',
               boards: [
                 { board: WORLD_KINGSIDE.board, fogSquares: WORLDS_VIEW_FOG, orientation: 'white', label: 'WHAT YOU SEE' },
+              ],
+            },
+            caption: 'Your view: the near half only. Everything past it is fog.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              "Each of these is a different position that fits that exact view, and there are far more than three. You cannot tell them apart from where you sit.",
+          },
+          {
+            kind: 'live-boards',
+            spec: {
+              layout: 'triptych',
+              boards: [
                 { board: WORLD_KINGSIDE.board, orientation: 'white', label: 'WORLD A' },
                 { board: WORLD_CENTER.board, orientation: 'white', label: 'WORLD B' },
                 { board: WORLD_QUEENSIDE.board, orientation: 'white', label: 'WORLD C' },
               ],
             },
-            caption: 'One view, three of its many truths. Each world is filtered to the same fog, so all three look identical to the player on move.',
+            caption: 'Three of the many truths behind that one view. Filtered to the same fog, all three collapse to the board above.',
           } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
               "The signals from the last sections are how you prune the cloud. A pawn that can still push means nothing sits in front of it, so every world that put a piece there is gone. A capture you can name removes the worlds where a different piece took. Each thing you observe kills off worlds. You will never get down to one, and you do not need to.",
+          },
+          {
+            kind: 'sub-heading',
+            text: 'How big is the cloud?',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "That cloud has a name. In game theory, the set of positions consistent with everything you have observed is your information set, and its size is a real, countable number. You feel it as a vague unease; an engine can count it exactly.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "Obscuro, the first superhuman fog-of-war chess engine, does exactly that: it enumerates the whole set rather than sampling it, and calls it P. The rough scale is worth sitting with. In a typical position P holds on the order of ten thousand boards (the Obscuro paper reports an average near 17,000), and in the sharpest, most hidden positions it climbs toward a million, the practical upper bound the paper works with. Your two or three buckets are a human compression of a set that large. You are not being imprecise. You are doing the only thing a person can do with a number that big.",
           },
         ],
       },
