@@ -84,6 +84,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const replay = await mountReplay(stage.replayRoot, currentSample, {
     autoplay: true,
     showControls: false,
+    keyboardNav: false,
     revealOnFinish: false,
     onSampleChange: syncReviewLink,
     orientationForId: (sampleId) => povByRoomId[sampleId] ?? 'white',

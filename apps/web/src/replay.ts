@@ -116,6 +116,12 @@ export type ReplayOptions = {
   revealOnFinish?: boolean;
   /** When false, the prev/next/play control bar is hidden (autoplay-only mode). */
   showControls?: boolean;
+  /**
+   * When false, the document-level keyboard handler (Arrow prev/next, `f` flip,
+   * `a` annotate) is not registered. Defaults to true. The landing hero turns
+   * this off so arrow keys don't hijack the homepage into a board scrubber.
+   */
+  keyboardNav?: boolean;
   /** Render transport as the room-page side panel or the legacy inline bar. Defaults to inline. */
   controlsMode?: 'bar' | 'panel';
   /** Initial board orientation for all replay panes. Defaults to White's perspective. */
@@ -221,6 +227,7 @@ export async function mountReplay(
 ): Promise<ReplayHandle> {
   const reveal = options.revealOnFinish !== false;
   const showControls = options.showControls !== false;
+  const keyboardNav = options.keyboardNav !== false;
   const controlsMode = options.controlsMode ?? 'bar';
   let boardOrientation = options.orientation ?? options.blackOrientation ?? 'white';
   const orientationForId = options.orientationForId;
@@ -1331,43 +1338,45 @@ export async function mountReplay(
     });
   }
 
-  document.addEventListener(
-    'keydown',
-    (e) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        stopPlay();
-        clearLoopTimer();
-        finishedAck = false;
-        if (currentPly > 0) {
-          setCurrentPly(currentPly - 1);
+  if (keyboardNav) {
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const target = e.target as HTMLElement | null;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          stopPlay();
+          clearLoopTimer();
+          finishedAck = false;
+          if (currentPly > 0) {
+            setCurrentPly(currentPly - 1);
+            render();
+          }
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          stopPlay();
+          clearLoopTimer();
+          if (currentPly < moveCount) {
+            setCurrentPly(currentPly + 1);
+            render();
+          }
+        } else if (e.key === 'a' && annotation && annotPanel) {
+          e.preventDefault();
+          stopPlay();
+          clearLoopTimer();
+          annotPanel.form.focus();
+        } else if (e.key === 'f' || e.key === 'F') {
+          e.preventDefault();
+          boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
+          applyBoardOrientation();
           render();
         }
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        stopPlay();
-        clearLoopTimer();
-        if (currentPly < moveCount) {
-          setCurrentPly(currentPly + 1);
-          render();
-        }
-      } else if (e.key === 'a' && annotation && annotPanel) {
-        e.preventDefault();
-        stopPlay();
-        clearLoopTimer();
-        annotPanel.form.focus();
-      } else if (e.key === 'f' || e.key === 'F') {
-        e.preventDefault();
-        boardOrientation = boardOrientation === 'white' ? 'black' : 'white';
-        applyBoardOrientation();
-        render();
-      }
-    },
-    { signal: abortController.signal },
-  );
+      },
+      { signal: abortController.signal },
+    );
+  }
   abortController.signal.addEventListener(
     'abort',
     () => {
