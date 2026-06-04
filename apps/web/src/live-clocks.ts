@@ -1,6 +1,7 @@
 import { type Color, clockRemainingMs, type GameEvent, type PlayerView } from '@mistboard/game';
 import { isLive } from './live-replay.js';
 import { type LiveRefs, liveState } from './live-state.js';
+import { connectionNoticeMode } from './live-status.js';
 import { formatClock, isColor } from './web-utils.js';
 
 type ClockRefs = Pick<LiveRefs, 'clockTop' | 'clockBottom' | 'clockNote'>;
@@ -70,7 +71,20 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
     const playerLine = document.createElement('span');
     playerLine.className = 'clock-player-line';
     const time = document.createElement('strong');
-    if (isPvp) playerLine.append(presenceDot(liveState.connectedSeats[color] ?? false));
+    // Presence dot. Your own seat reflects your *local* socket (connectedSeats is
+    // stale while you're disconnected, since no frames arrive): green when
+    // healthy, grey-and-pulsing once a reconnect escalates past the grace window
+    // — the calm, in-place signal the panel notice used to flash for. Shown in
+    // every mode you're seated in (PvP + PvE). The opponent's dot is the server's
+    // connectedSeats and only renders in PvP; an engine seat has no socket, so it
+    // stays dot-less rather than showing a permanent (and misleading) offline dot.
+    const isOwnSeat = color === humanColor;
+    if (isOwnSeat) {
+      const reconnecting = connectionNoticeMode() !== 'none';
+      playerLine.append(presenceDot(!reconnecting, { reconnecting }));
+    } else if (isPvp) {
+      playerLine.append(presenceDot(liveState.connectedSeats[color] ?? false));
+    }
     const serverName = liveState.seatDisplayNames[color];
     const playerName =
       serverName ??
@@ -124,11 +138,12 @@ export function tickClockTimers(refs: ClockRefs, view: PlayerView | null): void 
   }
 }
 
-function presenceDot(connected: boolean): HTMLSpanElement {
+function presenceDot(connected: boolean, opts?: { reconnecting?: boolean }): HTMLSpanElement {
   const dot = document.createElement('span');
   dot.className = `presence-dot ${connected ? 'is-online' : 'is-offline'}`;
-  dot.setAttribute('aria-label', connected ? 'Connected' : 'Disconnected');
-  dot.title = connected ? 'Connected' : 'Disconnected';
+  const label = connected ? 'Connected' : opts?.reconnecting ? 'Reconnecting' : 'Disconnected';
+  dot.setAttribute('aria-label', label);
+  dot.title = label;
   return dot;
 }
 

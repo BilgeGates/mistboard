@@ -1,18 +1,29 @@
 import type { Color, GameEndReason, PlayerView } from '@mistboard/game';
-import type { InfoTone, Seat } from './live-state.js';
+import type { ConnectionNoticeTier, InfoTone, Seat } from './live-state.js';
 import { liveState } from './live-state.js';
 import { isColor } from './web-utils.js';
 
+// Staged visibility for a connection problem. A mid-game socket drop usually
+// recovers in well under a second, so 'disconnected'/'reconnecting' only earn the
+// full notice once the live-socket timers have escalated them; until then the
+// player's own presence dot carries the signal (or, in the grace window, nothing
+// shows at all). Terminal/pre-board states ('connecting' on first load,
+// 'displaced', 'rejected') always warrant the full notice.
+export function connectionNoticeMode(): ConnectionNoticeTier {
+  const state = liveState.connectionState;
+  if (state === 'connected') return 'none';
+  if (state === 'displaced' || state === 'rejected' || state === 'connecting') return 'banner';
+  return liveState.connectionNoticeTier;
+}
+
 export function actionTone(view: PlayerView | null): InfoTone {
-  if (liveState.connectionState === 'rejected') return 'danger';
-  if (liveState.connectionState === 'displaced') return 'danger';
-  if (liveState.connectionState === 'disconnected') return 'danger';
-  if (
-    !view ||
-    liveState.connectionState === 'connecting' ||
-    liveState.connectionState === 'reconnecting'
-  )
-    return 'pending';
+  if (connectionNoticeMode() === 'banner') {
+    return liveState.connectionState === 'connecting' ||
+      liveState.connectionState === 'reconnecting'
+      ? 'pending'
+      : 'danger';
+  }
+  if (!view) return 'pending';
   if (view.status.type === 'finished') {
     const seat = liveState.seat;
     if (seat === 'white' || seat === 'black') {
@@ -28,11 +39,13 @@ export function actionTone(view: PlayerView | null): InfoTone {
 }
 
 export function actionTitle(view: PlayerView | null): string {
-  if (liveState.connectionState === 'rejected') return 'Access rejected';
-  if (liveState.connectionState === 'displaced') return 'Session moved';
-  if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting')
+  if (connectionNoticeMode() === 'banner') {
+    if (liveState.connectionState === 'rejected') return 'Access rejected';
+    if (liveState.connectionState === 'displaced') return 'Session moved';
+    if (liveState.connectionState === 'connecting') return 'Connecting';
     return 'Reconnecting';
-  if (!view || liveState.connectionState === 'connecting') return 'Connecting';
+  }
+  if (!view) return 'Connecting';
   if (view.status.type === 'finished') return finishedTitle(view.status.winner);
   if (view.status.type === 'aborted') return 'Game aborted';
   if (liveState.seat === 'spectator') return 'Watching';
@@ -53,14 +66,17 @@ export function actionBody(
   view: PlayerView | null,
   options: { hasVisibleDraftData: boolean },
 ): string {
-  if (liveState.connectionState === 'rejected') return rejectedBody();
-  if (liveState.connectionState === 'displaced') return 'A newer tab is now controlling this seat.';
-  if (liveState.connectionState === 'disconnected')
-    return 'The socket closed. Mistboard will retry automatically.';
-  if (liveState.connectionState === 'reconnecting')
-    return 'Trying to restore your room state and seat.';
-  if (!view || liveState.connectionState === 'connecting')
+  if (connectionNoticeMode() === 'banner') {
+    if (liveState.connectionState === 'rejected') return rejectedBody();
+    if (liveState.connectionState === 'displaced')
+      return 'A newer tab is now controlling this seat.';
+    if (liveState.connectionState === 'disconnected')
+      return 'The socket closed. Mistboard will retry automatically.';
+    if (liveState.connectionState === 'reconnecting')
+      return 'Trying to restore your room state and seat.';
     return 'Opening the room and loading the current server state.';
+  }
+  if (!view) return 'Opening the room and loading the current server state.';
   if (view.status.type === 'finished') {
     return finishedBody(view.status.winner, view.status.reason);
   }

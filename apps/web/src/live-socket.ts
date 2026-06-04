@@ -146,6 +146,39 @@ type ServerMessage =
 
 let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
+
+// Staged reconnect UI (see ConnectionNoticeTier). A dropped socket almost always
+// reconnects in under a second, so we say nothing for a grace window, then show
+// a subtle own-presence dot, then escalate to the full notice only once retries
+// have been failing for a while. The two timers are anchored to the *first* drop
+// of an outage (startReconnectTiers is a no-op while a window is already open),
+// so reconnect churn doesn't keep resetting the clock.
+const RECONNECT_NOTICE_GRACE_MS = 1_500;
+const RECONNECT_NOTICE_ESCALATE_MS = 5_000;
+let reconnectTierTimers: number[] = [];
+
+function startReconnectTiers(): void {
+  if (reconnectTierTimers.length > 0) return;
+  liveState.connectionNoticeTier = 'none';
+  reconnectTierTimers.push(
+    window.setTimeout(() => {
+      if (liveState.connectionState === 'connected') return;
+      liveState.connectionNoticeTier = 'dot';
+      _render();
+    }, RECONNECT_NOTICE_GRACE_MS),
+    window.setTimeout(() => {
+      if (liveState.connectionState === 'connected') return;
+      liveState.connectionNoticeTier = 'banner';
+      _render();
+    }, RECONNECT_NOTICE_ESCALATE_MS),
+  );
+}
+
+function clearReconnectTiers(): void {
+  for (const timer of reconnectTierTimers) window.clearTimeout(timer);
+  reconnectTierTimers = [];
+  liveState.connectionNoticeTier = 'none';
+}
 let lastLatencySampleSentAt = 0;
 // Last server-side event index this socket has processed. Used to detect
 // gaps in the event-appended stream and trigger snapshot:request recovery.
@@ -203,6 +236,7 @@ export function connectSocket(): void {
     if (socket !== nextSocket) return;
     liveState.reconnectAttempt = 0;
     liveState.connectionState = 'connected';
+    clearReconnectTiers();
     _render();
   });
   nextSocket.addEventListener('close', (event) => {
@@ -211,22 +245,26 @@ export function connectSocket(): void {
     if (event.code === 4000 && event.reason === 'duplicate session') {
       liveState.connectionState = 'displaced';
       socket = null;
+      clearReconnectTiers();
       _render();
       return;
     }
     if (event.code === 1008) {
       liveState.connectionState = 'rejected';
       socket = null;
+      clearReconnectTiers();
       _render();
       return;
     }
     liveState.connectionState = 'disconnected';
+    startReconnectTiers();
     _render();
     scheduleReconnect();
   });
   nextSocket.addEventListener('error', () => {
     if (socket !== nextSocket) return;
     liveState.connectionState = 'disconnected';
+    startReconnectTiers();
     _render();
   });
 }

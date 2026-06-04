@@ -136,6 +136,10 @@ export function bootstrapLiveRoom(): void {
     liveState.clientId = liveState.clientId || 'dev-client';
     if (connOverride === 'reconnecting' || connOverride === 'disconnected') {
       liveState.reconnectAttempt = Number(pageParams.get('attempt') ?? '3');
+      // The override bypasses connectSocket, so the staged-reconnect timers never
+      // run. Pin the tier to 'banner' so the dev preview shows the full notice
+      // (the whole point of the override) rather than the silent grace state.
+      liveState.connectionNoticeTier = 'banner';
     }
     if (connOverride === 'rejected') {
       liveState.closeReason = pageParams.get('reason') ?? '';

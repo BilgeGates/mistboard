@@ -47,6 +47,13 @@ export type ConnectionState =
   | 'reconnecting'
   | 'displaced'
   | 'rejected';
+// How prominently a mid-game reconnect is surfaced. A dropped socket reconnects
+// on its own in well under a second most of the time, so we stage the UI rather
+// than flashing the full notice on every blip: 'none' = stay silent during the
+// grace window, 'dot' = the player's own presence dot goes grey/pulsing, 'banner'
+// = the full notice + "Reconnect now" once retries have genuinely been failing.
+// Driven by timers in live-socket; reset to 'none' on (re)connect.
+export type ConnectionNoticeTier = 'none' | 'dot' | 'banner';
 export type PlayAgainStatus = 'creating' | 'failed' | 'idle';
 export type DraftOffers = Partial<Record<Color, Chess960Start[]>>;
 export type DraftResolvedStartIds = Partial<Record<Color, number>>;
@@ -149,6 +156,8 @@ export const liveState = {
   clientId: '',
   clientCount: 0,
   connectionState: 'connecting' as ConnectionState,
+  // See ConnectionNoticeTier: staged visibility for an in-progress reconnect.
+  connectionNoticeTier: 'none' as ConnectionNoticeTier,
   closeReason: '',
   latencyMs: null as number | null,
   lastServerAt: null as number | null,

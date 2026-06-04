@@ -58,6 +58,7 @@ import {
   actionTone,
   boardStatusLabel,
   boardStatusTone,
+  connectionNoticeMode,
   modeLabel,
   seatLabel,
 } from './live-status.js';
@@ -525,12 +526,13 @@ function renderDraftPicker(): void {
 function renderActionStatus(view: PlayerView | null): void {
   refs.actionStatus.replaceChildren();
   refs.actionSection.hidden = false;
-  if (
-    view?.status.type === 'playing' &&
-    isLive() &&
-    isColor(liveState.seat) &&
-    liveState.connectionState === 'connected'
-  ) {
+  // While the player is mid-game we keep this panel hidden and let the board +
+  // clocks carry the state. A reconnect only un-hides it once it has escalated
+  // to the 'banner' tier; below that the own-seat presence dot is the signal, so
+  // a sub-second blip never pops (and re-collapses) the panel. See
+  // connectionNoticeMode().
+  const showBanner = connectionNoticeMode() === 'banner';
+  if (view?.status.type === 'playing' && isLive() && isColor(liveState.seat) && !showBanner) {
     refs.actionSection.hidden = true;
     return;
   }
@@ -547,8 +549,8 @@ function renderActionStatus(view: PlayerView | null): void {
   notice.append(title, body);
 
   if (
-    liveState.connectionState === 'disconnected' ||
-    liveState.connectionState === 'reconnecting'
+    showBanner &&
+    (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting')
   ) {
     const reconnect = document.createElement('button');
     reconnect.type = 'button';
