@@ -44,6 +44,8 @@ export function definePersistenceTests(area: string, registerTests: () => void):
     try {
       await client.query(
         `TRUNCATE
+           engine_move_jobs,
+           live_engine_games,
            room_lifecycle_audit,
            email_login_challenges,
            account_sessions,
