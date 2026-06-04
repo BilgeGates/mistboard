@@ -10,6 +10,7 @@ afterEach(() => {
   liveState.state = null;
   liveState.variantRequested = null;
   liveState.events = [];
+  liveState.timeControl = null;
 });
 
 describe('buildPlayAgainRoomRequestBody', () => {
@@ -50,6 +51,23 @@ describe('buildPlayAgainRoomRequestBody', () => {
       mode: 'pve',
       variant: 'dark-chess',
       hiddenDraft960: false,
+    });
+  });
+
+  it('carries the current time control into the rematch (1+1 stays 1+1)', () => {
+    liveState.roomMode = 'pve';
+    liveState.seat = 'white';
+    liveState.pveEngineId = 'python-v2-v1.0';
+    liveState.state = makeView();
+    liveState.timeControl = { initialMs: 60_000, incrementMs: 1_000 };
+
+    expect(buildPlayAgainRoomRequestBody({ shouldRequestHiddenDraft960: () => false })).toEqual({
+      mode: 'pve',
+      variant: 'dark-chess',
+      hiddenDraft960: false,
+      engineId: 'python-v2-v1.0',
+      preferredColor: 'black',
+      timeControl: { initialMs: 60_000, incrementMs: 1_000 },
     });
   });
 });

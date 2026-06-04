@@ -21,6 +21,7 @@ export type PlayAgainRoomRequestBody = {
   hiddenDraft960: boolean;
   engineId?: string;
   preferredColor?: Color;
+  timeControl?: { initialMs: number; incrementMs: number };
 };
 
 export function renderRoomActions(refs: RoomActionRefs, deps: RoomActionDeps): void {
@@ -143,6 +144,10 @@ export function buildPlayAgainRoomRequestBody(opts: {
       ? { engineId: liveState.pveEngineId }
       : {}),
     ...(preferredColor ? { preferredColor } : {}),
+    // Carry the current game's time control into the rematch. Without this the
+    // server falls back to its default clock (3+2), so "play again" on a 1+1
+    // game silently started a 3+2 game (room 7bf718fa → b52b5221).
+    ...(liveState.timeControl ? { timeControl: liveState.timeControl } : {}),
   };
 }
 
