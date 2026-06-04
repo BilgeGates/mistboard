@@ -31,10 +31,12 @@ export const maxRoomClockInitialMs = 180 * 60 * 1000;
 export const maxRoomClockIncrementMs = 60_000;
 
 // PvE time-control allowlist. References canonical TC ids from
-// packages/game/src/time-controls.ts. Currently only 3+2 is enabled for PvE
-// because Tier1's per-move compute can exceed the per-move budget on shorter
-// time controls. When 1+1 is engine-ready, add '1m1' here.
-const PVE_ALLOWED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['3m2']);
+// packages/game/src/time-controls.ts. All three official TCs are enabled: the v2
+// engine's solvency-first time budget (FOW_V2_TIME_SOLVENT) keeps the clock
+// solvent at 1+1 — validated 0/30 flags prod-arch (engine bakeoff 2026-06-04),
+// 3+2 unchanged. (The old Tier1 worry — per-move compute exceeding the budget on
+// short TCs — no longer applies to the served v2 engine.)
+const PVE_ALLOWED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['1m1', '3m2', '5m5']);
 
 // ── Context ────────────────────────────────────────────────────────────────
 export interface HttpApiContext {
