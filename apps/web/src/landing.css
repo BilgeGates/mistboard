@@ -11,12 +11,15 @@
 
 .landing-demo {
   display: grid;
-  grid-template-columns: minmax(210px, 0.85fr) minmax(0, 2.4fr) minmax(250px, 0.95fr);
+  /* Cap the center track at the board width so the board fills it (no centering
+     slack), and keep a narrow slit between columns like lichess. */
+  grid-template-columns: minmax(208px, 0.9fr) minmax(0, 600px) minmax(236px, 0.95fr);
   grid-template-areas: "left center right";
-  gap: clamp(14px, 1.8vw, 28px);
+  gap: clamp(8px, 0.7vw, 11px);
   align-items: start;
+  justify-content: center;
   width: 100%;
-  max-width: 1320px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
