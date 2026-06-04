@@ -131,11 +131,22 @@ test('lobby: two matching chess requests create one dark-chess room with the exa
 
 test('lobby: chess requests with different time controls do not match', async () => {
   const { ctx, chessCalls } = testContext();
-  await post(ctx, { timeControl: tc });
-  const other = await post(ctx, { timeControl: { initialMs: 60000, incrementMs: 0 } });
+  await post(ctx, { timeControl: tc }); // 3+2
+  // 1+1 is a different allowed bucket (the allowlist now scopes chess matchmaking
+  // to 1+1 / 3+2; an off-menu TC like 1+0 is rejected — see the allowlist test).
+  const other = await post(ctx, { timeControl: { initialMs: 60000, incrementMs: 1000 } });
   assert.equal(other.status, 202);
   assert.equal(chessCalls.length, 0);
   assert.equal(ctx.lobbyQueue.length, 2);
+});
+
+test('lobby: chess request with an off-menu time control is rejected', async () => {
+  const { ctx } = testContext();
+  // 1+0 is not an official playable TC — matchmaking must reject it so the queue
+  // can't fragment into off-menu buckets.
+  const res = await post(ctx, { timeControl: { initialMs: 60000, incrementMs: 0 } });
+  assert.equal(res.status, 400);
+  assert.equal(ctx.lobbyQueue.length, 0);
 });
 
 // ── Dark Mini Xiangqi ──────────────────────────────────────────────────────
