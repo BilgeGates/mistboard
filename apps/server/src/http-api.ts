@@ -14,6 +14,7 @@ import * as annotationsRoute from './routes/annotations.js';
 import * as authRoute from './routes/auth.js';
 import * as darkMiniXiangqiGamesRoute from './routes/dark-mini-xiangqi-games.js';
 import * as darkXiangqiGamesRoute from './routes/dark-xiangqi-games.js';
+import * as dualChessRoute from './routes/dual-chess.js';
 import * as enginesRoute from './routes/engines.js';
 import * as feedbackRoute from './routes/feedback.js';
 import * as gamesRoute from './routes/games.js';
@@ -60,6 +61,7 @@ const routes: RouteModule[] = [
   lobbyRoute,
   darkMiniXiangqiGamesRoute,
   darkXiangqiGamesRoute,
+  dualChessRoute,
   gamesRoute,
   usersRoute,
   leaderboardRoute,
