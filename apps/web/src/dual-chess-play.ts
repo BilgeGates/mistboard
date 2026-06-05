@@ -1,4 +1,4 @@
-// Local perfect-information Dual Chess: a self-contained play surface.
+// Perfect-information Dual Chess play page.
 //   - Opponent: hot-seat (both sides) or vs Computer (Fairy-Stockfish, server-side).
 //   - vs Computer: pick your side (White/Red) and a difficulty (FSF Skill Level).
 // No fog — this is the "learn in the clear" mode. Bot moves come from
@@ -14,7 +14,9 @@ import {
   getDualChessOpenLegalMovesFrom,
   getDualChessOpenView,
 } from '@mistboard/game';
+import './dual-chess-play.css';
 import { renderDualChessBoardSvg } from './dual-chess-render.js';
+import { buildNav } from './site-shell.js';
 
 type Opponent = 'human' | 'computer';
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -24,8 +26,6 @@ const DIFFICULTY: Record<Difficulty, { skill: number; movetime: number }> = {
   medium: { skill: 6, movetime: 400 },
   hard: { skill: 14, movetime: 700 },
 };
-
-const ACCENT = '#3f86c4';
 
 export function mountDualChessPlay(container: HTMLElement): void {
   let opponent: Opponent = 'human';
@@ -39,28 +39,40 @@ export function mountDualChessPlay(container: HTMLElement): void {
   let botThinking = false;
   let engineError: string | null = null;
 
-  container.classList.add('dual-play');
-  container.style.cssText =
-    'max-width:380px;margin:24px auto;font-family:system-ui,sans-serif;text-align:center';
+  // Site nav above the app root (matches the other prelaunch surfaces).
+  if (container.parentNode) container.before(buildNav());
 
-  const heading = document.createElement('h2');
-  heading.textContent = 'Dual Chess';
-  heading.style.cssText = 'margin:0 0 2px;font-size:22px';
-  const subtitle = document.createElement('div');
-  subtitle.textContent = 'Perfect information · learn the pieces in the clear';
-  subtitle.style.cssText = 'color:#888;font-size:13px;margin-bottom:14px';
+  const page = document.createElement('main');
+  page.className = 'dual-play-page';
+  page.innerHTML = `
+    <div class="dual-play-head">
+      <h1>Dual Chess</h1>
+      <div class="dual-play-tagline">Perfect information · learn the pieces in the clear</div>
+    </div>
+    <div class="dual-play-layout">
+      <div class="dual-play-board" data-board></div>
+      <aside class="dual-play-side">
+        <div class="dual-play-status" data-status></div>
+        <div class="dual-play-setup" data-setup></div>
+        <div class="dual-play-moves" data-moves></div>
+        <div class="dual-play-actions" data-actions></div>
+      </aside>
+    </div>`;
+  container.append(page);
 
-  const statusEl = document.createElement('div');
-  statusEl.className = 'dual-play-status';
-  statusEl.style.cssText = 'font-size:18px;font-weight:600;margin-bottom:12px;min-height:1.4em';
-  const boardHost = document.createElement('div');
-  boardHost.className = 'dual-play-board';
-  boardHost.style.cssText = 'width:330px;margin:0 auto';
-  const controls = document.createElement('div');
-  controls.className = 'dual-play-controls';
-  controls.style.cssText = 'margin-top:14px;display:flex;flex-direction:column;gap:8px';
+  const boardHost = page.querySelector<HTMLElement>('[data-board]')!;
+  const statusEl = page.querySelector<HTMLElement>('[data-status]')!;
+  const setupEl = page.querySelector<HTMLElement>('[data-setup]')!;
+  const movesEl = page.querySelector<HTMLElement>('[data-moves]')!;
+  const actionsEl = page.querySelector<HTMLElement>('[data-actions]')!;
 
-  container.append(heading, subtitle, statusEl, boardHost, controls);
+  actionsEl.append(
+    button('New game', () => startGame()),
+    button('Flip board', () => {
+      perspective = perspective === 'white' ? 'red' : 'white';
+      render();
+    }),
+  );
 
   boardHost.addEventListener('click', (event) => {
     const hit = (event.target as Element | null)?.closest('[data-square]');
@@ -71,14 +83,11 @@ export function mountDualChessPlay(container: HTMLElement): void {
   function isVsComputer(): boolean {
     return opponent === 'computer';
   }
-  function humanColor(): DualChessColor {
-    return humanSide;
-  }
   function humanToMove(): boolean {
     return (
       state.status.type === 'playing' &&
       !botThinking &&
-      (!isVsComputer() || state.status.turn === humanColor())
+      (!isVsComputer() || state.status.turn === humanSide)
     );
   }
 
@@ -90,8 +99,7 @@ export function mountDualChessPlay(container: HTMLElement): void {
     engineError = null;
     perspective = humanSide;
     render();
-    // FSF opens when the human chose to play Red.
-    if (isVsComputer() && state.status.type === 'playing' && state.status.turn !== humanColor()) {
+    if (isVsComputer() && state.status.type === 'playing' && state.status.turn !== humanSide) {
       void botMove();
     }
   }
@@ -103,7 +111,6 @@ export function mountDualChessPlay(container: HTMLElement): void {
   function onSquareClick(square: DualChessSquare): void {
     if (!humanToMove()) return;
     const turn = state.status.type === 'playing' ? state.status.turn : null;
-
     if (selected) {
       const legal = getDualChessOpenLegalMovesFrom(state, selected).find((m) => m.to === square);
       if (legal) {
@@ -121,7 +128,7 @@ export function mountDualChessPlay(container: HTMLElement): void {
     history.push(moveToUci(move));
     selected = null;
     render();
-    if (isVsComputer() && state.status.type === 'playing' && state.status.turn !== humanColor()) {
+    if (isVsComputer() && state.status.type === 'playing' && state.status.turn !== humanSide) {
       void botMove();
     }
   }
@@ -163,17 +170,18 @@ export function mountDualChessPlay(container: HTMLElement): void {
       targets: selected ? targetsFor(selected) : [],
     });
     statusEl.textContent = engineError ?? (botThinking ? 'Computer thinking…' : statusText(state));
-    renderControls();
+    renderSetup();
+    renderMoves();
   }
 
-  function renderControls(): void {
-    controls.replaceChildren();
-    controls.append(
+  function renderSetup(): void {
+    setupEl.replaceChildren();
+    setupEl.append(
       toggleRow(
         'Opponent',
         [
-          { value: 'human', label: 'Hot-seat' },
-          { value: 'computer', label: 'vs Computer' },
+          ['human', 'Hot-seat'],
+          ['computer', 'vs Computer'],
         ],
         opponent,
         (value) => {
@@ -183,12 +191,12 @@ export function mountDualChessPlay(container: HTMLElement): void {
       ),
     );
     if (isVsComputer()) {
-      controls.append(
+      setupEl.append(
         toggleRow(
           'Your side',
           [
-            { value: 'white', label: 'White' },
-            { value: 'red', label: 'Red' },
+            ['white', 'White'],
+            ['red', 'Red'],
           ],
           humanSide,
           (value) => {
@@ -199,9 +207,9 @@ export function mountDualChessPlay(container: HTMLElement): void {
         toggleRow(
           'Level',
           [
-            { value: 'easy', label: 'Easy' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'hard', label: 'Hard' },
+            ['easy', 'Easy'],
+            ['medium', 'Medium'],
+            ['hard', 'Hard'],
           ],
           difficulty,
           (value) => {
@@ -211,16 +219,24 @@ export function mountDualChessPlay(container: HTMLElement): void {
         ),
       );
     }
-    const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex;gap:8px;justify-content:center;margin-top:4px';
-    actions.append(
-      button('New game', () => startGame()),
-      button('Flip board', () => {
-        perspective = perspective === 'white' ? 'red' : 'white';
-        render();
-      }),
-    );
-    controls.append(actions);
+  }
+
+  function renderMoves(): void {
+    movesEl.replaceChildren();
+    if (history.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'dual-play-moves-empty';
+      empty.textContent = 'No moves yet';
+      movesEl.append(empty);
+      return;
+    }
+    for (let i = 0; i < history.length; i += 2) {
+      const row = document.createElement('div');
+      row.className = 'dual-play-move-row';
+      row.innerHTML = `<span class="num">${i / 2 + 1}.</span><span class="ply">${history[i]}</span><span class="ply">${history[i + 1] ?? ''}</span>`;
+      movesEl.append(row);
+    }
+    movesEl.scrollTop = movesEl.scrollHeight;
   }
 
   render();
@@ -228,24 +244,19 @@ export function mountDualChessPlay(container: HTMLElement): void {
 
 function toggleRow(
   label: string,
-  options: { value: string; label: string }[],
+  options: [value: string, label: string][],
   active: string,
   onPick: (value: string) => void,
 ): HTMLElement {
   const row = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:8px;align-items:center;justify-content:center';
+  row.className = 'dual-play-row';
   const caption = document.createElement('span');
+  caption.className = 'dual-play-label';
   caption.textContent = label;
-  caption.style.cssText = 'color:#888;font-size:13px;min-width:64px;text-align:right';
   row.append(caption);
-  for (const option of options) {
-    const btn = button(option.label, () => onPick(option.value));
-    btn.dataset.value = option.value;
-    if (option.value === active) {
-      btn.style.background = ACCENT;
-      btn.style.color = '#fff';
-      btn.style.borderColor = ACCENT;
-    }
+  for (const [value, text] of options) {
+    const btn = button(text, () => onPick(value));
+    if (value === active) btn.classList.add('is-active');
     row.append(btn);
   }
   return row;
@@ -291,7 +302,6 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   el.type = 'button';
   el.className = 'dual-play-btn';
   el.textContent = label;
-  el.style.cssText = 'padding:5px 12px;cursor:pointer;border:1px solid #ccc;border-radius:5px';
   el.addEventListener('click', onClick);
   return el;
 }
