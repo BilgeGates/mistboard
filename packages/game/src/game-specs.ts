@@ -1,22 +1,38 @@
 import type { VariantId } from './types.js';
 
-export type GameFamilyId = 'chess' | 'xiangqi' | 'shogi' | 'omega-chess';
+export type GameFamilyId = 'chess' | 'xiangqi' | 'shogi' | 'omega-chess' | 'dual-chess';
 export type BoardGeometryId =
   | 'chess-8x8'
   | 'xiangqi-7x7'
   | 'xiangqi-9x10'
   | 'shogi-9x9'
-  | 'omega-10x10-plus-corners';
+  | 'omega-10x10-plus-corners'
+  | 'dual-6x8';
 export type MovementRulesId =
   | 'orthodox-chess'
   | 'mini-xiangqi'
   | 'xiangqi'
   | 'shogi'
   | 'omega'
-  | 'seirawan';
-export type ObjectiveRulesId = 'king-capture' | 'general-capture' | 'suicide';
-export type VisibilityRulesId = 'dark';
-export type SetupRulesId = 'standard' | 'draft960' | 'mini-standard' | 'double-fischer-random';
+  | 'seirawan'
+  | 'dual-chess';
+// 'royal-capture-or-race': capture/checkmate the royal OR race it to the enemy
+// home rank (the Dual Chess "Try"). Open mode keeps checkmate, dark switches to
+// king-capture; the visibility axis + rules module resolve which.
+export type ObjectiveRulesId =
+  | 'king-capture'
+  | 'general-capture'
+  | 'suicide'
+  | 'royal-capture-or-race';
+// 'open' = perfect-information (the Dual Chess onboarding mode); every other spec
+// is 'dark' (fog of war).
+export type VisibilityRulesId = 'dark' | 'open';
+export type SetupRulesId =
+  | 'standard'
+  | 'draft960'
+  | 'mini-standard'
+  | 'double-fischer-random'
+  | 'dual-standard';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId = 'none' | 'any-legal-square' | 'seen-squares-only' | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
@@ -33,7 +49,9 @@ export type RatingPoolBaseId =
   | 'dark_mini_xiangqi'
   | 'dark_xiangqi'
   | 'dark_shogi'
-  | 'dark_omega';
+  | 'dark_omega'
+  | 'dual_chess'
+  | 'dual_chess_open';
 
 export type GameSpecId =
   | 'dark-chess'
@@ -46,7 +64,9 @@ export type GameSpecId =
   | 'dark-mini-xiangqi'
   | 'dark-xiangqi'
   | 'dark-shogi'
-  | 'dark-omega';
+  | 'dark-omega'
+  | 'dual-chess'
+  | 'dark-dual-chess';
 export type GameSpecAliasId = 'fog-draft960';
 export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
 
@@ -78,6 +98,8 @@ export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
 export const DARK_MINI_XIANGQI_SPEC_ID = 'dark-mini-xiangqi' satisfies GameSpecId;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
 export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
+export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecId;
+export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecId;
 
 export const GAME_SPECS: readonly GameSpec[] = [
   {
@@ -244,6 +266,40 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'dark_omega',
+    publicSurface: 'hidden',
+    runtimeStatus: 'future',
+  },
+  {
+    // Dual Chess (中西象棋): a 6x8 chess x xiangqi fusion. Two modes share one
+    // family/board/movement and split on the visibility axis. Perfect-info is the
+    // onboarding ladder (keeps checkmate); dark is the real mode (king-capture).
+    // Rules engine: packages/game/src/variants-dual-chess.ts. Not yet live.
+    id: DUAL_CHESS_SPEC_ID,
+    publicName: 'Dual Chess',
+    family: 'dual-chess',
+    board: 'dual-6x8',
+    movement: 'dual-chess',
+    objective: 'royal-capture-or-race',
+    visibility: 'open',
+    setup: 'dual-standard',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'dual_chess_open',
+    publicSurface: 'hidden',
+    runtimeStatus: 'future',
+  },
+  {
+    id: DARK_DUAL_CHESS_SPEC_ID,
+    publicName: 'Dark Dual Chess',
+    family: 'dual-chess',
+    board: 'dual-6x8',
+    movement: 'dual-chess',
+    objective: 'royal-capture-or-race',
+    visibility: 'dark',
+    setup: 'dual-standard',
+    reserves: 'none',
+    dropPolicy: 'none',
+    ratingPoolBase: 'dual_chess',
     publicSurface: 'hidden',
     runtimeStatus: 'future',
   },
