@@ -33,7 +33,7 @@ describe('rematchControls', () => {
     liveState.rematch = { offers: { black: true }, finalizedRoomId: null };
     const block = rematchControls('white', 'black', noop);
     expect(noteText(block)).toBe('Your opponent wants a rematch');
-    expect(labels(block)).toEqual(['Decline', 'Accept rematch']);
+    expect(labels(block)).toEqual(['Decline', 'Accept']);
     expect(block.querySelectorAll('.room-rematch-buttons button')).toHaveLength(2);
   });
 
@@ -55,7 +55,7 @@ describe('rematchControls', () => {
     // I'm black; red (opponent) has offered.
     const block = rematchControls('black', 'red', noop);
     expect(noteText(block)).toBe('Your opponent wants a rematch');
-    expect(labels(block)).toEqual(['Decline', 'Accept rematch']);
+    expect(labels(block)).toEqual(['Decline', 'Accept']);
   });
 
   it('cancel records intent (so the next state frame is not misread as a decline)', () => {

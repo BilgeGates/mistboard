@@ -240,17 +240,15 @@ describe('Dark Mini Xiangqi live room', () => {
 
     renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket });
     const labels = [...refs.roomActions.querySelectorAll('button')].map((b) => b.textContent);
-    expect(labels).toContain('Accept rematch');
+    expect(labels).toContain('Accept');
     expect(labels).toContain('Decline');
     [...refs.roomActions.querySelectorAll('button')]
-      .find((b) => b.textContent === 'Accept rematch')
+      .find((b) => b.textContent === 'Accept')
       ?.dispatchEvent(clickEvent());
     expect(sendSocket).toHaveBeenCalledWith({ type: 'rematch:offer' });
   });
 
-  it('creates an untimed play-again room from an aborted game', async () => {
-    const fetchSpy = vi.fn(async () => jsonResponse({ url: '/room/dmxq_again' }));
-    vi.stubGlobal('fetch', fetchSpy);
+  it('offers no play-again after an abort — only Home (parity with dark chess)', () => {
     const refs = refsFixture();
     liveState.state = {
       ...viewFixture(),
@@ -259,22 +257,11 @@ describe('Dark Mini Xiangqi live room', () => {
     } as never;
 
     renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
-    const playAgain = [...refs.roomActions.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Play again',
-    );
-    expect(playAgain).toBeDefined();
-    playAgain?.dispatchEvent(clickEvent());
-    await flushPromises();
-
-    expect(fetchSpy).toHaveBeenCalledWith('/api/rooms', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        mode: 'pvp',
-        gameSpecId: 'dark-mini-xiangqi',
-        preferredColor: 'random',
-      }),
-    });
+    const labels = [...refs.roomActions.querySelectorAll('button, a')].map((el) => el.textContent);
+    // An aborted game spun up a fresh solo room (mover could play before the
+    // opponent joined, no cue to the opponent); chess shows nothing here either.
+    expect(labels).not.toContain('Play again');
+    expect(labels).toContain('Home');
   });
 
   it('links to the postgame review from a finished game', () => {
@@ -373,15 +360,3 @@ function clickEvent(): MouseEvent {
   return new MouseEvent('click', { bubbles: true });
 }
 
-function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  return new Response(JSON.stringify(body), {
-    headers: { 'content-type': 'application/json' },
-    status: init.status ?? 200,
-  });
-}
-
-async function flushPromises(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
