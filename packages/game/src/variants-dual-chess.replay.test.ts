@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applyDualChessMove,
+  applyDualChessOpenMove,
   createInitialDualChessState,
   type DualChessBoard,
   type DualChessMove,
   type DualChessPieceRole,
   type DualChessSquare,
   isDualChessLegalMove,
+  isDualChessOpenLegalMove,
 } from './variants-dual-chess.js';
 import { DUAL_CHESS_REPLAY_GAMES } from './variants-dual-chess.replay-fixtures.js';
 
@@ -102,6 +104,48 @@ for (const game of DUAL_CHESS_REPLAY_GAMES) {
         assert.equal(s.status.reason, 'race');
         assert.equal(s.status.winner, game.result === 'W' ? 'white' : 'red');
       }
+    }
+  });
+}
+
+// The same games under the PERFECT-INFORMATION referee. FSF never leaves its own
+// king in check, so every move must be open-legal (a strict subset of pseudo-legal)
+// and, crucially, the checkmate game must now terminate as 'checkmate'/'stalemate'.
+for (const game of DUAL_CHESS_REPLAY_GAMES) {
+  test(`replays game #${game.srcIndex} under the perfect-info referee (${game.reason})`, () => {
+    let s = createInitialDualChessState('open-replay');
+    for (let i = 0; i < game.frames.length; i += 1) {
+      const [uci, expected] = game.frames[i];
+      const [expectedPlacement] = expected.split(' ');
+      const ply = i + 1;
+
+      assert.equal(s.status.type, 'playing', `ply ${ply} (${uci}): engine ended the game early`);
+      const move = parseUci(uci);
+      assert.ok(
+        isDualChessOpenLegalMove(s, move),
+        `ply ${ply}: FSF move ${uci} is not perfect-info-legal in our engine`,
+      );
+      s = applyDualChessOpenMove(s, move, { progressClockLimit: 100_000 });
+      assert.equal(
+        boardToFenField(s.board),
+        expectedPlacement,
+        `ply ${ply} (${uci}): board diverged from FSF's FEN`,
+      );
+    }
+
+    assert.equal(s.status.type, 'finished', 'perfect-info referee should adjudicate a terminal');
+    if (s.status.type === 'finished') {
+      const expectedWinner = game.result === 'W' ? 'white' : 'red';
+      if (game.reason.startsWith('Try')) {
+        assert.equal(s.status.reason, 'race');
+      } else {
+        // "checkmate/stalemate" in the meerkat data.
+        assert.ok(
+          s.status.reason === 'checkmate' || s.status.reason === 'stalemate',
+          `expected checkmate/stalemate, got ${s.status.reason}`,
+        );
+      }
+      assert.equal(s.status.winner, expectedWinner);
     }
   });
 }

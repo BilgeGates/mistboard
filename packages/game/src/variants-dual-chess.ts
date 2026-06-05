@@ -7,11 +7,14 @@
 // xiangqi shape) would hide rules and privacy boundaries. The only thing shared
 // with the rest of packages/game is `AbortReason`.
 //
-// SCOPE (Phase A): this implements the DARK-mode referee — king-capture (check
-// is unenforceable under fog) plus the racing "Try" win. The perfect-information
-// mode keeps real checkmate; that is an additive layer on top of this pseudo-legal
-// generator (a self-check filter + a checkmate/stalemate terminal classifier) and
-// is intentionally NOT built here. See docs-private/dual-chess-track.md.
+// Two referees share one pseudo-legal move generator:
+//   - DARK mode (king-capture): check is unenforceable under fog, so the win is
+//     capturing the King, plus the racing "Try". See applyDualChessMove.
+//   - PERFECT-INFORMATION mode (checkmate): real chess legality (you may not
+//     leave your own King attacked); the win is checkmate or a safe Try; a side
+//     with no legal move loses (stalemate is a loss). See applyDualChessOpenMove.
+// Both are cross-checked against Fairy-Stockfish self-play in the replay test.
+// See docs-private/dual-chess-track.md.
 //
 // Pieces: King, Queen (promoted pawn only), Bishop, Knight (free leaper), Pawn
 // (chess) + Chariot (=rook), Cannon (screen-capture), Horse (blockable leaper),
@@ -60,7 +63,8 @@ export type DualChessVisibleBoardEntry =
 export type DualChessPlayerBoard = Partial<Record<DualChessSquare, DualChessVisibleBoardEntry>>;
 
 export type DualChessGameEndReason =
-  | 'king-captured'
+  | 'king-captured' // dark mode: the King is captured (check is unenforceable)
+  | 'checkmate' // perfect-info mode: the King is attacked with no legal reply
   | 'race'
   | 'stalemate'
   | 'repetition'
@@ -453,22 +457,10 @@ export function applyDualChessMove(
   if (state.status.type !== 'playing') return state;
   if (!isDualChessLegalMove(state, move)) return state;
 
-  const movingPiece = state.board[move.from];
-  if (!movingPiece) return state;
-  const capturedPiece = state.board[move.to];
+  const placement = placeDualChessMoveOnBoard(state.board, move);
+  if (!placement) return state;
+  const { board: newBoard, moved: movingPiece, captured: capturedPiece } = placement;
   const nextTurn = oppositeDualChessColor(state.status.turn);
-
-  // Mandatory Queen promotion is derived from the destination rank, so it holds
-  // even if the caller omitted `promotion`.
-  const becomesQueen =
-    movingPiece.role === 'pawn' && rankOf(move.to) === farRank(movingPiece.color);
-  const placedPiece: DualChessPiece = becomesQueen
-    ? { color: movingPiece.color, role: 'queen' }
-    : movingPiece;
-
-  const newBoard: DualChessBoard = { ...state.board };
-  delete newBoard[move.from];
-  newBoard[move.to] = placedPiece;
 
   // Soldiers and Pawns are irreversible; a capture resets the no-progress clock.
   const wasCapture = capturedPiece !== undefined;
@@ -538,6 +530,165 @@ function hasDualChessLegalMove(board: DualChessBoard, color: DualChessColor): bo
     if (pseudoLegalMovesFrom(board, sq as DualChessSquare, piece).length > 0) return true;
   }
   return false;
+}
+
+type PlacedMove = {
+  board: DualChessBoard;
+  moved: DualChessPiece;
+  captured: DualChessPiece | undefined;
+};
+
+// Apply a move to a board (with mandatory Queen promotion derived from the
+// destination rank) without any terminal/turn logic. Shared by both referees.
+function placeDualChessMoveOnBoard(board: DualChessBoard, move: DualChessMove): PlacedMove | null {
+  const moved = board[move.from];
+  if (!moved) return null;
+  const captured = board[move.to];
+  const becomesQueen = moved.role === 'pawn' && rankOf(move.to) === farRank(moved.color);
+  const placed: DualChessPiece = becomesQueen ? { color: moved.color, role: 'queen' } : moved;
+  const next: DualChessBoard = { ...board };
+  delete next[move.from];
+  next[move.to] = placed;
+  return { board: next, moved, captured };
+}
+
+// ── Perfect-information referee ─────────────────────────────────────────────
+//
+// The perfect-information ("open") mode keeps real chess legality: you may not
+// leave your own King attacked, the win is checkmate (King attacked with no
+// legal reply) or the Race, and a side with no legal move loses (stalemate is a
+// loss, not a draw, by design). The Race here is the "safe Try": a legal King
+// move can never end on an attacked square, so reaching the far rank legally
+// wins. This layer reuses the shared pseudo-legal generator; the dark referee
+// (king-capture, above) is unchanged.
+
+function findDualChessKing(board: DualChessBoard, color: DualChessColor): DualChessSquare | null {
+  for (const [sq, piece] of Object.entries(board)) {
+    if (piece && piece.color === color && piece.role === 'king') return sq as DualChessSquare;
+  }
+  return null;
+}
+
+// Is `color`'s King attacked? An enemy attacks the King's square iff one of its
+// pseudo-legal moves can capture onto it (this naturally covers Cannon
+// screen-captures, blockable-Horse legs and Pawn diagonals).
+export function isDualChessKingAttacked(board: DualChessBoard, color: DualChessColor): boolean {
+  const kingSquare = findDualChessKing(board, color);
+  if (!kingSquare) return false;
+  for (const [sq, piece] of Object.entries(board)) {
+    if (!piece || piece.color === color) continue;
+    if (
+      pseudoLegalMovesFrom(board, sq as DualChessSquare, piece).some((m) => m.to === kingSquare)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function moveLeavesOwnKingAttacked(
+  board: DualChessBoard,
+  move: DualChessMove,
+  color: DualChessColor,
+): boolean {
+  const placement = placeDualChessMoveOnBoard(board, move);
+  if (!placement) return false;
+  return isDualChessKingAttacked(placement.board, color);
+}
+
+export function getDualChessOpenLegalMovesFrom(
+  state: DualChessGameState,
+  from: DualChessSquare,
+): DualChessMove[] {
+  if (state.status.type !== 'playing') return [];
+  const piece = state.board[from];
+  if (!piece || piece.color !== state.status.turn) return [];
+  return pseudoLegalMovesFrom(state.board, from, piece).filter(
+    (move) => !moveLeavesOwnKingAttacked(state.board, move, piece.color),
+  );
+}
+
+export function getDualChessOpenLegalMoves(state: DualChessGameState): DualChessMove[] {
+  if (state.status.type !== 'playing') return [];
+  const moves: DualChessMove[] = [];
+  for (const [sq, piece] of Object.entries(state.board)) {
+    if (!piece || piece.color !== state.status.turn) continue;
+    moves.push(...getDualChessOpenLegalMovesFrom(state, sq as DualChessSquare));
+  }
+  return moves;
+}
+
+export function isDualChessOpenLegalMove(state: DualChessGameState, move: DualChessMove): boolean {
+  return getDualChessOpenLegalMovesFrom(state, move.from).some((m) => m.to === move.to);
+}
+
+function hasDualChessOpenLegalMove(board: DualChessBoard, color: DualChessColor): boolean {
+  const probe: DualChessGameState = {
+    id: 'probe',
+    board,
+    status: { type: 'playing', turn: color },
+    moveNumber: 1,
+    progressClock: 0,
+    positionCounts: {},
+  };
+  for (const [sq, piece] of Object.entries(board)) {
+    if (!piece || piece.color !== color) continue;
+    if (getDualChessOpenLegalMovesFrom(probe, sq as DualChessSquare).length > 0) return true;
+  }
+  return false;
+}
+
+export function applyDualChessOpenMove(
+  state: DualChessGameState,
+  move: DualChessMove,
+  opts: DualChessApplyMoveOptions = {},
+): DualChessGameState {
+  if (state.status.type !== 'playing') return state;
+  if (!isDualChessOpenLegalMove(state, move)) return state;
+
+  const placement = placeDualChessMoveOnBoard(state.board, move);
+  if (!placement) return state;
+  const { board: newBoard, moved, captured } = placement;
+  const nextTurn = oppositeDualChessColor(state.status.turn);
+
+  const isProgressMove =
+    captured !== undefined || moved.role === 'pawn' || moved.role === 'soldier';
+  const newProgressClock = isProgressMove ? 0 : state.progressClock + 1;
+  const newMoveNumber = state.status.turn === 'red' ? state.moveNumber + 1 : state.moveNumber;
+
+  const nextStateForKey: DualChessGameState = {
+    ...state,
+    board: newBoard,
+    status: { type: 'playing', turn: nextTurn },
+    moveNumber: newMoveNumber,
+    progressClock: newProgressClock,
+    lastMove: move,
+  };
+  const repKey = dualChessPositionRepetitionKey(nextStateForKey);
+  const newPositionCounts = { ...state.positionCounts };
+  newPositionCounts[repKey] = (newPositionCounts[repKey] ?? 0) + 1;
+
+  let nextStatus: DualChessGameStatus = { type: 'playing', turn: nextTurn };
+  if (moved.role === 'king' && rankOf(move.to) === farRank(moved.color)) {
+    nextStatus = { type: 'finished', winner: moved.color, reason: 'race' };
+  } else if (!hasDualChessOpenLegalMove(newBoard, nextTurn)) {
+    const reason = isDualChessKingAttacked(newBoard, nextTurn) ? 'checkmate' : 'stalemate';
+    nextStatus = { type: 'finished', winner: moved.color, reason };
+  } else if ((newPositionCounts[repKey] ?? 0) >= 3) {
+    nextStatus = { type: 'finished', winner: nextTurn, reason: 'repetition' };
+  } else if (newProgressClock >= (opts.progressClockLimit ?? DEFAULT_PROGRESS_CLOCK_LIMIT)) {
+    nextStatus = { type: 'finished', winner: null, reason: 'progress-clock' };
+  }
+
+  return {
+    ...state,
+    board: newBoard,
+    status: nextStatus,
+    moveNumber: newMoveNumber,
+    progressClock: newProgressClock,
+    lastMove: move,
+    positionCounts: newPositionCounts,
+  };
 }
 
 // ── Fog visibility ──────────────────────────────────────────────────────────
@@ -661,9 +812,11 @@ export function getDualChessOpenView(
     board[sq as DualChessSquare] = { piece, shrouded: false };
     visibleSquares.push(sq as DualChessSquare);
   }
+  // Perfect-information legality: self-check-filtered moves (you may not leave
+  // your own King attacked).
   const legalMoves =
     state.status.type === 'playing' && state.status.turn === color
-      ? getDualChessLegalMoves(state)
+      ? getDualChessOpenLegalMoves(state)
       : [];
   return {
     id: state.id,

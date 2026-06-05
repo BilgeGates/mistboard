@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applyDualChessMove,
+  applyDualChessOpenMove,
   computeDualChessVision,
   createInitialDualChessBoard,
   createInitialDualChessState,
@@ -11,8 +12,10 @@ import {
   type DualChessPiece,
   type DualChessSquare,
   getDualChessLegalMovesFrom,
+  getDualChessOpenLegalMovesFrom,
   getDualChessOpenView,
   getDualChessPlayerView,
+  isDualChessKingAttacked,
   oppositeDualChessColor,
 } from './variants-dual-chess.js';
 
@@ -269,3 +272,127 @@ test('computeDualChessVision is defined for finished states (no view collapse)',
   const vision = computeDualChessVision(finished, 'white');
   assert.equal(vision.directlyVisible.has('a1'), true);
 });
+
+// ── Perfect-information referee ──────────────────────────────────────────────
+
+test('isKingAttacked covers chariots, screened cannons, pawns and kings', () => {
+  // Chariot down a clear file.
+  assert.equal(
+    isDualChessKingAttacked({ e4: p('white', 'king'), e8: p('red', 'chariot') }, 'white'),
+    true,
+  );
+  // ...blocked by an intervening piece.
+  assert.equal(
+    isDualChessKingAttacked(
+      { e4: p('white', 'king'), e6: p('white', 'pawn'), e8: p('red', 'chariot') },
+      'white',
+    ),
+    false,
+  );
+  // Cannon needs a screen to attack the King.
+  assert.equal(
+    isDualChessKingAttacked(
+      { a1: p('white', 'king'), a4: p('white', 'pawn'), a8: p('red', 'cannon') },
+      'white',
+    ),
+    true,
+  );
+  assert.equal(
+    isDualChessKingAttacked({ a1: p('white', 'king'), a8: p('red', 'cannon') }, 'white'),
+    false,
+  );
+  // Red pawn attacks diagonally toward rank 1.
+  assert.equal(
+    isDualChessKingAttacked({ c4: p('white', 'king'), d5: p('red', 'pawn') }, 'white'),
+    true,
+  );
+  // Adjacent enemy King.
+  assert.equal(
+    isDualChessKingAttacked({ e4: p('white', 'king'), e5: p('red', 'king') }, 'white'),
+    true,
+  );
+});
+
+test('self-check filter: king cannot step into attack or beside the enemy king', () => {
+  // Chariot on d8 controls the d-file; the King on e4 may not step to d4.
+  const checkStep = stateWith({
+    e4: p('white', 'king'),
+    d8: p('red', 'chariot'),
+    a1: p('red', 'king'),
+  });
+  const dests = destinations2(checkStep, 'e4');
+  assert.equal(dests.has('d4'), false);
+  assert.equal(dests.has('f4'), true);
+  // Kings may not be adjacent: the c4 King cannot move to d4 beside an e4 King.
+  const kissing = stateWith({ c4: p('white', 'king'), e4: p('red', 'king') });
+  assert.equal(destinations2(kissing, 'c4').has('d4'), false);
+});
+
+test('a fully pinned piece has no legal moves', () => {
+  // Bishop on e2 is pinned to the e1 King by the chariot on e8.
+  const s = stateWith({
+    e1: p('white', 'king'),
+    e2: p('white', 'bishop'),
+    e8: p('red', 'chariot'),
+    a8: p('red', 'king'),
+  });
+  assert.equal(getDualChessOpenLegalMovesFrom(s, 'e2').length, 0);
+});
+
+test('checkmate ends the game as a perfect-info win', () => {
+  // Chariot b1 covers the b-file (b7/b8); the lone Red king on a8 is mated when
+  // White swings the second chariot to a3 and checks down the a-file.
+  const s = stateWith(
+    {
+      a8: p('red', 'king'),
+      b1: p('white', 'chariot'),
+      f3: p('white', 'chariot'),
+      f1: p('white', 'king'),
+    },
+    'white',
+  );
+  const after = applyDualChessOpenMove(s, { from: 'f3', to: 'a3' });
+  assert.equal(after.status.type, 'finished');
+  assert.equal(after.status.type === 'finished' && after.status.reason, 'checkmate');
+  assert.equal(after.status.type === 'finished' && after.status.winner, 'white');
+});
+
+test('stalemate is a perfect-info loss (not a draw)', () => {
+  // Red king boxed by its own pawns, not in check, with no legal move.
+  const trapped = stateWith(
+    {
+      a1: p('red', 'king'),
+      a2: p('red', 'pawn'),
+      b1: p('red', 'pawn'),
+      b2: p('red', 'pawn'),
+      f1: p('white', 'king'),
+      e3: p('white', 'pawn'),
+    },
+    'white',
+  );
+  const after = applyDualChessOpenMove(trapped, { from: 'e3', to: 'e4' });
+  assert.equal(after.status.type === 'finished' && after.status.reason, 'stalemate');
+  assert.equal(after.status.type === 'finished' && after.status.winner, 'white');
+});
+
+test('safe Try: the king wins by reaching the far rank but not an attacked one', () => {
+  // Clear far rank: e7 King races to e8 and wins.
+  const safe = stateWith({ e7: p('white', 'king'), a1: p('red', 'king') });
+  const won = applyDualChessOpenMove(safe, { from: 'e7', to: 'e8' });
+  assert.equal(won.status.type === 'finished' && won.status.reason, 'race');
+  assert.equal(won.status.type === 'finished' && won.status.winner, 'white');
+  // Attacked far rank: a chariot on a8 rakes rank 8, so e8 is illegal (no Try).
+  const guarded = stateWith({
+    e7: p('white', 'king'),
+    a8: p('red', 'chariot'),
+    a1: p('red', 'king'),
+  });
+  assert.equal(
+    getDualChessOpenLegalMovesFrom(guarded, 'e7').some((m) => m.to === 'e8'),
+    false,
+  );
+});
+
+function destinations2(state: DualChessGameState, from: DualChessSquare): Set<string> {
+  return new Set(getDualChessOpenLegalMovesFrom(state, from).map((m) => m.to));
+}
