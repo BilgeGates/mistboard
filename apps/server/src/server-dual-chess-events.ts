@@ -1,0 +1,219 @@
+import {
+  DUAL_CHESS_SPEC_ID,
+  type DualChessColor,
+  type DualChessGameEndReason,
+} from '@mistboard/game';
+import {
+  appendDualChessRuntimeEvent,
+  type DualChessEvent,
+  type DualChessRuntimeRoom,
+  type DualChessSeatTokenState,
+} from './dual-chess-runtime.js';
+import { logger } from './obs.js';
+import * as persistence from './persistence.js';
+
+export type DualChessEventRoom = DualChessRuntimeRoom;
+
+export type DualChessEventWriterPersistence = {
+  appendRoomEvent(roomId: string, seq: number, event: DualChessEvent): Promise<void>;
+  isInitialized(): boolean;
+  recordGameEnd(roomId: string, summary: persistence.GameSummary): Promise<void>;
+  upsertRoomSeatToken(
+    roomId: string,
+    token: persistence.RoomSeatTokenRecord<DualChessColor>,
+  ): Promise<void>;
+};
+
+export type DualChessEventWriterContext = {
+  logGameEndRecordFailure?(roomId: string, err: Error): void;
+  persistence?: DualChessEventWriterPersistence;
+  scheduleLifecycleTimers?(room: DualChessEventRoom): void;
+};
+
+// Serialize an event onto the room: persist (if enabled), apply to the
+// projection, re-arm lifecycle timers, and record the game-end summary the first
+// time the projection becomes terminal. Writes are chained on room.pendingWrites
+// so concurrent appends keep the DB sequence + projection consistent.
+export async function appendDualChessEvent(
+  room: DualChessEventRoom,
+  event: DualChessEvent,
+  ctx: DualChessEventWriterContext = {},
+): Promise<number> {
+  const writer = contextWithDefaults(ctx);
+  const write = room.pendingWrites.then(async () => {
+    const seq = room.events.length;
+    if (writer.persistence.isInitialized()) {
+      await writer.persistence.appendRoomEvent(room.id, seq, event);
+    }
+    const appendedSeq = appendDualChessRuntimeEvent(room, event);
+    writer.scheduleLifecycleTimers(room);
+    if (
+      writer.persistence.isInitialized() &&
+      room.projection.state.status.type === 'finished' &&
+      !room.gameEndRecorded
+    ) {
+      room.gameEndRecorded = true;
+      try {
+        await writer.persistence.recordGameEnd(room.id, buildDualChessGameSummary(room));
+      } catch (err) {
+        writer.logGameEndRecordFailure(room.id, err as Error);
+      }
+    }
+    if (room.projection.state.status.type === 'aborted') {
+      room.gameEndRecorded = true;
+    }
+    return appendedSeq;
+  });
+  room.pendingWrites = write.then(
+    () => undefined,
+    () => undefined,
+  );
+  return write;
+}
+
+export async function appendDualChessSeatAssigned(
+  room: DualChessEventRoom,
+  args: {
+    event: Extract<DualChessEvent, { type: 'seat-assigned' }>;
+    tokenState: DualChessSeatTokenState;
+  },
+  ctx: DualChessEventWriterContext = {},
+): Promise<number> {
+  const writer = contextWithDefaults(ctx);
+  const write = room.pendingWrites.then(async () => {
+    const seq = room.events.length;
+    if (writer.persistence.isInitialized()) {
+      await writer.persistence.appendRoomEvent(room.id, seq, args.event);
+      await writer.persistence.upsertRoomSeatToken(
+        room.id,
+        persistenceRecordForDualChessSeatToken(args.tokenState),
+      );
+    }
+    const appendedSeq = appendDualChessRuntimeEvent(room, args.event);
+    room.seatTokens[args.event.seat] = args.tokenState;
+    writer.scheduleLifecycleTimers(room);
+    return appendedSeq;
+  });
+  room.pendingWrites = write.then(
+    () => undefined,
+    () => undefined,
+  );
+  return write;
+}
+
+export function buildDualChessGameSummary(room: DualChessEventRoom): persistence.GameSummary {
+  const status = room.projection.state.status;
+  if (status.type !== 'finished') {
+    throw new Error('buildDualChessGameSummary called on non-terminal state');
+  }
+  const moveEvents = room.events.filter((event) => event.type === 'move-played');
+  const firstAt = room.events[0]?.at ?? Date.now();
+  const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
+  return {
+    variant: DUAL_CHESS_SPEC_ID,
+    mode: 'pvp',
+    result: dualChessResult(status.winner),
+    termination: dualChessTermination(status.reason),
+    plyCount: moveEvents.length,
+    startedAt: new Date(firstAt),
+    endedAt: new Date(lastAt),
+    whiteClient: null,
+    blackClient: null,
+    whiteName: null,
+    blackName: null,
+    corpusId: null,
+    rated: false,
+    visibility: 'private',
+    participants: [dualChessParticipant('white', room), dualChessParticipant('red', room)],
+  };
+}
+
+export function recordDualChessPersistenceError(
+  roomId: string,
+  seq: number,
+  eventType: string,
+  err: Error,
+): void {
+  logger.error(
+    {
+      kind: 'dual_chess_persistence_failure',
+      room_id: roomId,
+      seq,
+      event_type: eventType,
+      error: err.message,
+    },
+    'Dual Chess persistence failure',
+  );
+}
+
+function contextWithDefaults(
+  ctx: DualChessEventWriterContext,
+): Required<DualChessEventWriterContext> {
+  return {
+    logGameEndRecordFailure: logDualChessGameEndRecordFailure,
+    persistence,
+    scheduleLifecycleTimers: () => {},
+    ...ctx,
+  };
+}
+
+function logDualChessGameEndRecordFailure(roomId: string, err: Error): void {
+  logger.error(
+    {
+      kind: 'dual_chess_game_end_record_failure',
+      room_id: roomId,
+      error: err.message,
+      at: Date.now(),
+    },
+    'Dual Chess game end record failure',
+  );
+}
+
+function dualChessResult(winner: DualChessColor | null): persistence.GameResult {
+  if (winner === 'white') return 'white-wins';
+  if (winner === 'red') return 'red-wins';
+  return 'draw';
+}
+
+function dualChessTermination(reason: DualChessGameEndReason): persistence.GameTermination {
+  return reason;
+}
+
+function dualChessParticipant(
+  color: DualChessColor,
+  room: DualChessEventRoom,
+): persistence.GameParticipant {
+  const token = room.seatTokens[color];
+  if (token?.userId) {
+    return {
+      color,
+      displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
+      subjectType: 'user',
+      subjectId: token.userId,
+      visibility: 'private',
+    };
+  }
+  return {
+    color,
+    displayName: color === 'white' ? 'White' : 'Red',
+    subjectType: 'guest',
+    subjectId: null,
+    visibility: 'private',
+  };
+}
+
+export function persistenceRecordForDualChessSeatToken(
+  token: DualChessSeatTokenState,
+): persistence.RoomSeatTokenRecord<DualChessColor> {
+  return {
+    seat: token.seat,
+    clientId: token.clientId,
+    tokenHash: token.tokenHash,
+    userId: token.userId,
+    userHandle: token.userHandle,
+    userDisplayName: token.userDisplayName,
+    issuedAt: token.issuedAt,
+    lastSeenAt: token.lastSeenAt,
+    revokedAt: token.revokedAt,
+  };
+}
