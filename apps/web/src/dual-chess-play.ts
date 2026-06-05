@@ -7,6 +7,7 @@
 import {
   applyDualChessOpenMove,
   createInitialDualChessState,
+  DUAL_CHESS_SPEC_ID,
   type DualChessColor,
   type DualChessGameState,
   type DualChessMove,
@@ -72,7 +73,36 @@ export function mountDualChessPlay(container: HTMLElement): void {
       perspective = perspective === 'white' ? 'red' : 'white';
       render();
     }),
+    button('Play a friend (live)', () => void createLiveRoom()),
   );
+
+  // Create a live PvP room and walk into it. The friend joins by opening the same
+  // /room/dchess_... URL. Server-gated by MISTBOARD_DUAL_CHESS_ENABLED.
+  async function createLiveRoom(): Promise<void> {
+    statusEl.textContent = 'Creating a live room…';
+    try {
+      const res = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          gameSpecId: DUAL_CHESS_SPEC_ID,
+          mode: 'pvp',
+          timeControl: { initialMs: 300_000, incrementMs: 3_000 },
+        }),
+      });
+      if (!res.ok) {
+        statusEl.textContent =
+          res.status === 404
+            ? 'Live Dual Chess is not enabled on this server.'
+            : 'Could not create a live room.';
+        return;
+      }
+      const data = (await res.json()) as { url?: string };
+      if (data.url) window.location.assign(data.url);
+    } catch {
+      statusEl.textContent = 'Could not reach the server.';
+    }
+  }
 
   boardHost.addEventListener('click', (event) => {
     const hit = (event.target as Element | null)?.closest('[data-square]');

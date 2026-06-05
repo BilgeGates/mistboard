@@ -19,9 +19,10 @@ describe('Dual Chess hot-seat controller', () => {
     mountDualChessPlay(root);
 
     expect(root.querySelector('.dual-play-status')?.textContent).toBe('White to move');
-    // 48 click targets (one per square) and the control buttons.
+    // 48 click targets (one per square) and the control buttons: the Opponent
+    // toggle (2) + New game, Flip board, Play a friend (live).
     expect(root.querySelectorAll('[data-square]').length).toBe(48);
-    expect(root.querySelectorAll('.dual-play-btn').length).toBe(4);
+    expect(root.querySelectorAll('.dual-play-btn').length).toBe(5);
 
     // Select the d1 Knight, then move it to e3 (one of its two legal jumps).
     click(root, 'd1');
