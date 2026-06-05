@@ -18,7 +18,7 @@ const fsfAvailable = (() => {
 test('Fairy-Stockfish returns a legal-shaped move from the Dual Chess start position', {
   skip: fsfAvailable ? false : 'Fairy-Stockfish binary not installed',
 }, async () => {
-  const move = await dualChessEngineMove([], 200);
+  const move = await dualChessEngineMove([], { movetimeMs: 200 });
   assert.ok(move, 'expected a move from the start position');
   assert.match(move ?? '', UCI);
 });
@@ -26,7 +26,7 @@ test('Fairy-Stockfish returns a legal-shaped move from the Dual Chess start posi
 test('Fairy-Stockfish replies after a move history', {
   skip: fsfAvailable ? false : 'Fairy-Stockfish binary not installed',
 }, async () => {
-  const move = await dualChessEngineMove(['d2d3'], 200);
+  const move = await dualChessEngineMove(['d2d3'], { movetimeMs: 200, skill: 3 });
   assert.ok(move, 'expected a reply move');
   assert.match(move ?? '', UCI);
 });

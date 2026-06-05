@@ -36,9 +36,13 @@ export async function tryHandle(
     typeof body.movetime === 'number' && body.movetime > 0 && body.movetime <= 5000
       ? Math.floor(body.movetime)
       : 500;
+  const skill =
+    typeof body.skill === 'number' && body.skill >= 0 && body.skill <= 20
+      ? Math.floor(body.skill)
+      : undefined;
 
   try {
-    const move = await dualChessEngineMove(moves, movetime);
+    const move = await dualChessEngineMove(moves, { movetimeMs: movetime, skill });
     writeJson(response, 200, { move });
   } catch (err) {
     writeJson(response, 503, { error: 'engine_unavailable', detail: (err as Error).message });

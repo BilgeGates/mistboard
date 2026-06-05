@@ -53,9 +53,17 @@ export function dualChessVariantIniPath(): string {
  * move (game already over). Callers MUST pre-validate each move string — it is
  * written to the engine's stdin.
  */
-export function dualChessEngineMove(moves: string[], movetimeMs = 500): Promise<string | null> {
+export type DualChessEngineOptions = { movetimeMs?: number; skill?: number };
+
+export function dualChessEngineMove(
+  moves: string[],
+  opts: DualChessEngineOptions = {},
+): Promise<string | null> {
   const fsf = fairyStockfishPath();
   const ini = dualChessVariantIniPath();
+  const movetimeMs = opts.movetimeMs ?? 500;
+  // Fairy-Stockfish Skill Level: 0 (weakest) .. 20 (full strength).
+  const skill = opts.skill === undefined ? null : Math.max(0, Math.min(20, Math.floor(opts.skill)));
 
   return new Promise<string | null>((resolveMove, reject) => {
     const child = spawn(fsf, [], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -101,6 +109,7 @@ export function dualChessEngineMove(moves: string[], movetimeMs = 500): Promise<
       'uci',
       `setoption name VariantPath value ${ini}`,
       `setoption name UCI_Variant value ${VARIANT}`,
+      ...(skill === null ? [] : [`setoption name Skill Level value ${skill}`]),
       'ucinewgame',
       'isready',
       position,

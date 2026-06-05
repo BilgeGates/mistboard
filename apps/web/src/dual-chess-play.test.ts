@@ -91,4 +91,25 @@ describe('Dual Chess vs Computer', () => {
       );
     });
   });
+
+  it('lets you play Red, in which case the engine opens; difficulty is sent', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init: { body: string }) => ({
+      json: async () => ({ move: 'd2d3' }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const root = document.createElement('div');
+    mountDualChessPlay(root);
+    clickButton(root, 'vs Computer');
+    clickButton(root, 'Easy'); // pick difficulty (also restarts)
+    clickButton(root, 'Red'); // human plays Red -> White (engine) opens
+
+    await vi.waitFor(() => {
+      expect(root.querySelector('.dual-play-status')?.textContent).toBe('Red to move');
+    });
+    // The request carried the chosen difficulty's skill level (Easy -> 1).
+    const body = JSON.parse(fetchMock.mock.calls.at(-1)?.[1]?.body as string);
+    expect(body.skill).toBe(1);
+    expect(Array.isArray(body.moves)).toBe(true);
+  });
 });
