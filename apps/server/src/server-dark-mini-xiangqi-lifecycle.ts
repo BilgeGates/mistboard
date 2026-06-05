@@ -5,6 +5,7 @@ import {
   type DarkMiniXiangqiRuntimeRoom,
   expireDarkMiniXiangqiClock,
 } from './dark-mini-xiangqi-runtime.js';
+import { isDarkMiniXiangqiEngineClientId } from './engines/registry.js';
 import { logger } from './obs.js';
 import { ABORT_WINDOW_MS, FORFEIT_WINDOW_MS } from './room-manager.js';
 
@@ -77,6 +78,12 @@ export function darkMiniXiangqiForfeitingSeat(
   const { status, moveNumber } = room.projection.state;
   if (status.type !== 'playing' || moveNumber < 2) return null;
   const connected = darkMiniXiangqiConnectedSeats(room.clients);
+  // PvE: the engine seat has no WS client but is always "present" — never forfeit
+  // it for "disconnection" (else a PvE game self-forfeits to the human the moment
+  // play starts). A human who actually leaves still forfeits their own seat.
+  for (const seat of ['red', 'black'] as const) {
+    if (isDarkMiniXiangqiEngineClientId(room.projection.seats[seat])) connected[seat] = true;
+  }
   if (connected.red && !connected.black) return 'black';
   if (!connected.red && connected.black) return 'red';
   return null;

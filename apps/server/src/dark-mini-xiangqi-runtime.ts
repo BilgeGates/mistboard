@@ -13,6 +13,7 @@ import {
   oppositeMiniXiangqiColor,
   type RoomTimeControl,
 } from '@mistboard/game';
+import { isDarkMiniXiangqiEngineClientId } from './engines/registry.js';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
 
 export const DARK_MINI_XIANGQI_ROOM_ID_PREFIX = 'dmxq_';
@@ -504,7 +505,7 @@ export function darkMiniXiangqiSnapshotPayload(
         ? room.forfeitDeadline
         : null,
     clock: room.projection.clock,
-    connectedSeats: computeDarkMiniXiangqiConnectedSeats(room.clients),
+    connectedSeats: computeDarkMiniXiangqiConnectedSeats(room.clients, room.projection.seats),
     events: darkMiniXiangqiEventsForClient(room, client),
     seats: room.projection.seats,
     state,
@@ -721,12 +722,18 @@ function latestVisibleMiniXiangqiMoveColor(
 
 function computeDarkMiniXiangqiConnectedSeats(
   clients: Iterable<DarkMiniXiangqiClientRef>,
+  seats: Partial<Record<MiniXiangqiColor, string>> = {},
 ): Record<MiniXiangqiColor, boolean> {
   const connected = { red: false, black: false };
   for (const client of clients) {
     if (client.displaced) continue;
     if (client.seat === 'red') connected.red = true;
     else if (client.seat === 'black') connected.black = true;
+  }
+  // PvE: the engine seat holds no WS client but is always present — show it as
+  // connected so the human doesn't see the engine as "offline".
+  for (const seat of ['red', 'black'] as const) {
+    if (isDarkMiniXiangqiEngineClientId(seats[seat])) connected[seat] = true;
   }
   return connected;
 }
