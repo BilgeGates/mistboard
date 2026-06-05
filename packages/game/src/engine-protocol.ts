@@ -52,7 +52,12 @@ import type { Color, Move } from './types.js';
 
 export type EngineProtocolVersion = '1';
 
-export type PieceLetter = 'P' | 'N' | 'B' | 'R' | 'Q' | 'K';
+/**
+ * Piece type letters across variants. Dark chess uses P/N/B/R/Q/K; Dark Mini
+ * Xiangqi uses G/H/C/R/S (general/horse/cannon/chariot/soldier) — `R` is shared
+ * (rook ≡ chariot, same letter). Engines disambiguate by `gameSpecId`.
+ */
+export type PieceLetter = 'P' | 'N' | 'B' | 'R' | 'Q' | 'K' | 'G' | 'H' | 'C' | 'S';
 
 /**
  * Square index 0..63. a1=0, b1=1, ..., h1=7, a2=8, ..., h8=63.
@@ -127,6 +132,15 @@ export type EngineObservation = {
   opp_capture_landing_square: SquareIndex | null;
 
   /**
+   * Variant reveal channel (Dark Mini Xiangqi): squares the engine can infer
+   * are OCCUPIED by a given color WITHOUT seeing the piece type — e.g. a cannon
+   * screen or a horse's blocking leg reveals an occupant but not its identity.
+   * Square index + owner color, type hidden. Absent (omitted) for dark chess,
+   * which has no color-only-occupancy channel.
+   */
+  shrouded?: Array<[SquareIndex, Color]>;
+
+  /**
    * Terminal indicator if the game ended at this ply. Engines reading
    * this in a transcript know the game is over and should not be asked
    * for a move.
@@ -163,6 +177,14 @@ export type EngineTurnRequest = {
    * the right backing process). Engines may ignore.
    */
   engineId: string;
+
+  /**
+   * Game variant this request is for (e.g. 'dark-chess', 'dark-mini-xiangqi').
+   * Tells the engine how to interpret square geometry (board size: 8 vs 7) and
+   * piece letters. OMITTED for dark chess (engines default to it) so the chess
+   * wire payload is byte-unchanged; present for every other variant.
+   */
+  gameSpecId?: string;
 
   /**
    * Per-game-per-engine session identifier. Stable across all turns of
