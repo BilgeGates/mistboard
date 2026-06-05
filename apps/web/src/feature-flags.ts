@@ -8,3 +8,9 @@ export function darkXiangqiEnabled(): boolean {
 export function darkMiniXiangqiEnabled(): boolean {
   return import.meta.env.VITE_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
+
+// Perfect-information Dual Chess play surface. Always on in dev for convenience;
+// in prod/staging it is hidden unless the build opts in.
+export function dualChessEnabled(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_DUAL_CHESS_ENABLED === 'true';
+}

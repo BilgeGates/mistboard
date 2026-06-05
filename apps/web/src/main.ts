@@ -4,7 +4,7 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
-import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
+import { darkMiniXiangqiEnabled, darkXiangqiEnabled, dualChessEnabled } from './feature-flags.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
@@ -107,8 +107,9 @@ const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
-// Hidden DEV-only hot-seat for perfect-information Dual Chess. No nav entry.
-const wantsDualChessPlay = import.meta.env.DEV && path === '/dual-chess-play';
+// Perfect-information Dual Chess play surface, gated by VITE_DUAL_CHESS_ENABLED
+// (always on in dev). Hidden behind the flag in prod until the M1 launch gate.
+const wantsDualChessPlay = dualChessEnabled() && path === '/dual-chess-play';
 
 if (replaySample) {
   setTitle('Replay');

@@ -303,7 +303,6 @@ const PARKED_CLIENT_ROUTES = new Set<string>([
   '/xiangqi-spike', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/pixel-lab', // DEV-only; gated by import.meta.env.DEV in main.ts
   '/variant-marks', // DEV-only; gated by import.meta.env.DEV in main.ts
-  '/dual-chess-play', // DEV-only; gated by import.meta.env.DEV in main.ts
 ]);
 
 test('isClientRoute covers every literal route declared in main.ts', () => {

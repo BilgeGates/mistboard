@@ -94,6 +94,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/engines' ||
     normalized === '/mini-xiangqi-spike' ||
     normalized === '/xiangqi-demo' ||
+    normalized === '/dual-chess-play' ||
     normalized === '/articles' ||
     normalized === '/zh-hans/articles' ||
     normalized === '/zh-hant/articles' ||
