@@ -218,6 +218,9 @@ async function handleDarkMiniXiangqiMessage(
   if (message.type !== 'move') return;
   if (!isMiniXiangqiSquare(message.from) || !isMiniXiangqiSquare(message.to)) return;
   if (room.projection.state.status.type !== 'playing') return;
+  // No moves until both seats are filled (a fresh room starts in `playing`, so
+  // a seated player could otherwise move before the opponent/engine joined).
+  if (!(room.projection.seats.red && room.projection.seats.black)) return;
   if (room.projection.state.status.turn !== client.seat) return;
   const move: MiniXiangqiMove = { from: message.from, to: message.to };
   if (!isMiniXiangqiLegalMove(room.projection.state, move)) return;

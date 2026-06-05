@@ -985,6 +985,11 @@ export async function playMove(
   const moveColor = room.projection.state.status.turn;
   if (!canClientAct(room, client)) return;
   if (!client.solo && (client.seat === 'spectator' || moveColor !== client.seat)) return;
+  // Defense-in-depth: no moves until BOTH seats are filled. A freshly created
+  // room starts in `playing`, so without this a seated player could move before
+  // the opponent (or engine) joined. PvE/EvE pass (the engine holds a real
+  // seat); solo (controls both sides) bypasses, as it does the seat/turn check.
+  if (!client.solo && !bothSeatsAssigned(room)) return;
   if (
     room.projection.state.clock &&
     clockRemainingMs(room.projection.state.clock, moveColor, now) <= 0
