@@ -26,3 +26,10 @@ export function darkXiangqiEnabled(): boolean {
 export function darkMiniXiangqiEnabled(): boolean {
   return process.env.MISTBOARD_DARK_MINI_XIANGQI_ENABLED === 'true';
 }
+
+// Perfect-information Dual Chess live rooms. Server-side opt-in, separate from
+// the client VITE_DUAL_CHESS_ENABLED page flag, so live PvP cannot be exposed in
+// production by accident while the local play surface is enabled.
+export function dualChessEnabled(): boolean {
+  return process.env.MISTBOARD_DUAL_CHESS_ENABLED === 'true';
+}
