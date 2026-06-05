@@ -243,13 +243,15 @@ export function buildLandingPlayPanel(
   // Engine-led order: "Play the engine" leads because it's the always-available,
   // differentiated action with no human-liquidity dependency. Challenge-by-link
   // is next; "Find opponent" (lobby matchmaking, with an engine-fallback offer on
-  // timeout) is last. Order is static — only the primary (green) emphasis swaps
-  // with live presence (below), so the row never reshuffles as stats poll.
+  // timeout) is last. Order is static and so is the emphasis.
   panel.append(engineButton, challengeButton, lobbyButton);
 
-  // Cold-start default: assume an empty lobby until live-stats says otherwise,
-  // so the always-available engine carries the primary (green) CTA on first
-  // paint. The poll below hands the green to "Find opponent" once players appear.
+  // The always-available engine permanently carries the primary (green) CTA. We
+  // deliberately do NOT swap emphasis on live presence: the old signal counted
+  // the viewer's own open game tabs and in-progress engine games as "presence",
+  // so a lone tab (usually yours) flipped the green to "Find opponent" and it
+  // flickered on the 5s poll. The live-stats text below still surfaces real
+  // presence, but it no longer steers which action is primary.
   engineButton.classList.add('landing-play-action-primary');
 
   const anonNote = document.createElement('p');
@@ -261,7 +263,7 @@ export function buildLandingPlayPanel(
   stats.className = 'landing-play-stats';
   stats.hidden = true;
   panel.append(stats);
-  startLiveStatsPolling(stats, { lobby: lobbyButton, engine: engineButton });
+  startLiveStatsPolling(stats);
 
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow());
@@ -269,20 +271,12 @@ export function buildLandingPlayPanel(
   return panel;
 }
 
-function startLiveStatsPolling(
-  stats: HTMLElement,
-  cta?: { lobby: HTMLButtonElement; engine: HTMLButtonElement },
-): void {
+function startLiveStatsPolling(stats: HTMLElement): void {
   const render = (data: { playing: number; online: number } | null) => {
-    // Steer the primary (green) CTA by liquidity: with nobody around,
-    // "Find opponent" only leads to an empty queue, so the always-available
-    // engine keeps the emphasis; the moment real players appear the human
-    // game reclaims it. Emphasis swap only — button order never shifts.
-    const hasPresence = data !== null && (data.playing > 0 || data.online > 0);
-    if (cta) {
-      cta.engine.classList.toggle('landing-play-action-primary', !hasPresence);
-      cta.lobby.classList.toggle('landing-play-action-primary', hasPresence);
-    }
+    // Display only — this no longer steers the primary (green) CTA. The engine
+    // is pinned as primary (see buildLandingPlayPanel); the old swap counted the
+    // viewer's own open game tabs and engine games as "presence", so it flipped
+    // and flickered. We still surface real presence here as informational text.
     if (!data || (data.playing === 0 && data.online === 0)) {
       stats.hidden = true;
       stats.textContent = '';
@@ -569,9 +563,11 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   // The picker appears only when a second playable variant exists beyond chess.
   // Dark Mini Xiangqi is currently the only one (full Dark Xiangqi has no
-  // runtime), so PvP and the lobby offer the same list.
+  // runtime). It's offered in PvP, the lobby, AND vs-Computer (PvE) — DMX has a
+  // served engine (python-dmx-v1.0), defaulted server-side.
   const variantSelectable =
-    (choice.mode === 'pvp' || choice.mode === 'lobby') && darkMiniXiangqiEnabled();
+    (choice.mode === 'pvp' || choice.mode === 'lobby' || choice.mode === 'pve') &&
+    darkMiniXiangqiEnabled();
   if (variantSelectable) {
     const variantOptions = enabledLandingVariantGameSpecs();
     const gameSpecSelect = document.createElement('select');
@@ -782,6 +778,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     if (capabilities.firstColor === 'white' && preferredColor === 'red') preferredColor = 'white';
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
     if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
+    // The PvE engine picker lists chess engines; DMX serves a single dedicated
+    // engine (defaulted server-side), so hide it when DMX is the chosen variant.
+    if (engineSection) engineSection.hidden = selectedGameSpecId !== DARK_CHESS_SPEC_ID;
     timeSection.hidden = !capabilities.supportsTimeControl;
     syncTimeControls(); // re-scope the preset picker to the selected variant
     syncVariantControls();
@@ -1175,7 +1174,9 @@ function roomCreationRequestBody(
   const gameSpecId = roomCreationGameSpecId(setup);
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
-      mode: 'pvp',
+      // DMX supports PvE (the engine id is defaulted server-side, so none is
+      // sent); full Dark Xiangqi has no runtime and stays PvP-only.
+      mode: setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID ? mode : 'pvp',
       gameSpecId,
       timeControl: setup.timeControl,
       preferredColor:

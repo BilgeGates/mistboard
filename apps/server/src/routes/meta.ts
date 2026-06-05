@@ -81,7 +81,11 @@ export async function tryHandle(
     // room.clients, so they don't inflate this.
     const onlineIdentities = new Set<string>();
     for (const room of ctx.rooms.values()) {
-      if (room.projection.state.status.type === 'playing') playing += 1;
+      // EvE (engine-vs-engine) games have no human player, so they don't count as
+      // "people playing now". PvP and PvE both involve a human, so they do count.
+      if (room.projection.state.status.type === 'playing' && room.mode !== 'eve') {
+        playing += 1;
+      }
       for (const client of room.clients) {
         onlineIdentities.add(client.userId ? `u:${client.userId}` : `c:${client.id}`);
       }

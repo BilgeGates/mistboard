@@ -35,9 +35,14 @@ function client(id: string, userId: string | null = null): Client {
   return { id, userId } as unknown as Client;
 }
 
-function room(status: 'playing' | 'waiting', clients: Client[]): Room {
+function room(
+  status: 'playing' | 'waiting',
+  clients: Client[],
+  mode: Room['mode'] = 'pvp',
+): Room {
   return {
     clients: new Set(clients),
+    mode,
     projection: { state: { status: { type: status } } },
   } as unknown as Room;
 }
@@ -90,6 +95,20 @@ test('live-stats dedupes anonymous connections by per-room client id', async () 
   ]);
   const stats = await liveStats(rooms);
   assert.equal(stats.online, 2);
+});
+
+test('live-stats excludes EvE games from the playing count but keeps PvP/PvE', async () => {
+  // Engine-vs-engine has no human player, so it must not inflate "N playing".
+  // A spectator watching the EvE game is still a real human, so they count as
+  // online — only the "playing" tally drops EvE.
+  const rooms = new Map<string, Room>([
+    ['pvp', room('playing', [client('a', 'u1'), client('b', 'u2')], 'pvp')],
+    ['pve', room('playing', [client('c', 'u3')], 'pve')],
+    ['eve', room('playing', [client('spectator', 'u4')], 'eve')],
+  ]);
+  const stats = await liveStats(rooms);
+  assert.equal(stats.playing, 2); // pvp + pve, not eve
+  assert.equal(stats.online, 4); // every connected human, spectator included
 });
 
 test('live-stats keeps signed-in and anonymous id spaces separate', async () => {
