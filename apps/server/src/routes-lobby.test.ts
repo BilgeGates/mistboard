@@ -230,6 +230,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     seatTokens: {},
     rematch: { offers: {} },
     engineTimer: null,
+    engineReservationId: null,
   };
 }
 

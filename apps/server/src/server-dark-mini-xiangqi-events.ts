@@ -11,6 +11,7 @@ import {
 } from './dark-mini-xiangqi-runtime.js';
 import { logger } from './obs.js';
 import * as persistence from './persistence.js';
+import { releaseLiveEngineReservation } from './server-live-engine-reservations.js';
 
 export type DarkMiniXiangqiEventRoom = DarkMiniXiangqiRuntimeRoom;
 
@@ -43,6 +44,14 @@ export async function appendDarkMiniXiangqiEvent(
     }
     const appendedSeq = appendDarkMiniXiangqiRuntimeEvent(room, event);
     writer.scheduleLifecycleTimers(room);
+    // PvE: free the engine seat reservation the moment the game ends, so a
+    // finished/aborted game doesn't tie up a global engine seat until its TTL.
+    // Idempotent via the null guard; harmless for PvP (no reservation).
+    const endStatus = room.projection.state.status.type;
+    if ((endStatus === 'finished' || endStatus === 'aborted') && room.engineReservationId) {
+      releaseLiveEngineReservation(room.engineReservationId, `dmx-${endStatus}`);
+      room.engineReservationId = null;
+    }
     if (
       writer.persistence.isInitialized() &&
       room.projection.state.status.type === 'finished' &&

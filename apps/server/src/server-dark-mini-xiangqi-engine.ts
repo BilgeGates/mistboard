@@ -154,9 +154,12 @@ export async function playDarkMiniXiangqiEngineMoveIfReady(
 
   let response;
   try {
-    response = await requestInternalEngineTurn(request, watchdogTimeoutMs, undefined, {
-      computeBudgetMs,
-    });
+    response = await requestInternalEngineTurn(
+      request,
+      watchdogTimeoutMs,
+      room.engineReservationId ?? undefined,
+      { computeBudgetMs },
+    );
   } catch (err) {
     logger.error(
       {

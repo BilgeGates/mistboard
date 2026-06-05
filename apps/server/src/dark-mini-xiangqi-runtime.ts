@@ -167,6 +167,10 @@ export type DarkMiniXiangqiRuntimeRoom = {
   // itself is derived from projection.seats (its slot holds an engine clientId),
   // so it survives hydration without a dedicated field.
   engineTimer: ReturnType<typeof setTimeout> | null;
+  // PvE: the engine HTTP service's seat reservation for this game. Reserved at
+  // creation, sent on every engine turn (the service 409s without it), released
+  // on game end. Null for PvP and until reserved.
+  engineReservationId: string | null;
 };
 
 export type DarkMiniXiangqiSnapshotClient = {
@@ -347,6 +351,7 @@ export function createDarkMiniXiangqiRuntimeRoomFromEvents(
       seatTokens: {},
       rematch: { offers: {} },
       engineTimer: null,
+      engineReservationId: null,
     },
   };
 }

@@ -9,8 +9,13 @@ import {
   type DarkMiniXiangqiRuntimeRoom,
 } from './dark-mini-xiangqi-runtime.js';
 
-/** PvE: seat an engine in `seat` at creation (its clientId is the engine id). */
-export type DarkMiniXiangqiRoomEngineSeat = { engineId: string; seat: MiniXiangqiColor };
+/** PvE: seat an engine in `seat` at creation (its clientId is the engine id),
+ * holding the given engine-service seat reservation for the game. */
+export type DarkMiniXiangqiRoomEngineSeat = {
+  engineId: string;
+  seat: MiniXiangqiColor;
+  reservationId: string;
+};
 
 export type DarkMiniXiangqiLiveRoomCreation =
   | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
@@ -58,6 +63,7 @@ export async function createDarkMiniXiangqiLiveRoom(
         clientId: engine.engineId,
         seat: engine.seat,
       });
+      room.engineReservationId = engine.reservationId;
     }
     if (ctx.isPersistenceEnabled()) {
       let writingSeq = 0;

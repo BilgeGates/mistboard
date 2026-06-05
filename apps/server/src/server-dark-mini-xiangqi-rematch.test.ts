@@ -52,6 +52,7 @@ function makeRoom(id: string, status: 'playing' | 'finished'): DarkMiniXiangqiLi
     seatTokens: {},
     rematch: { offers: {} },
     engineTimer: null,
+    engineReservationId: null,
   };
 }
 

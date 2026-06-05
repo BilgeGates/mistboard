@@ -48,7 +48,7 @@ export async function handleDarkMiniXiangqiCreate(
     writeJson(response, 501, { error: 'dark_mini_xiangqi_unsupported_surface' });
     return;
   }
-  let engine: { engineId: string; seat: 'red' | 'black' } | undefined;
+  let engine: { engineId: string; seat: 'red' | 'black'; reservationId: string } | undefined;
   if (mode === 'pve') {
     const engineId =
       typeof body.engineId === 'string' && body.engineId.length > 0
@@ -61,7 +61,20 @@ export async function handleDarkMiniXiangqiCreate(
     // The engine takes the opposite of the human's preferred color (human red by
     // default). Pre-seated at creation; the human takes the only empty seat.
     const humanColor: 'red' | 'black' = preferredColor === 'black' ? 'black' : 'red';
-    engine = { engineId, seat: humanColor === 'red' ? 'black' : 'red' };
+    const engineSeat: 'red' | 'black' = humanColor === 'red' ? 'black' : 'red';
+    // Hold an engine-service seat (the global cap). Released on game end; the
+    // engine service 409s every turn without it. red = the protocol white slot.
+    let reservationId: string | null = null;
+    try {
+      reservationId = await ctx.reserveLiveEngineSeat(engineId, engineSeat === 'red' ? 'white' : 'black');
+    } catch {
+      reservationId = null;
+    }
+    if (!reservationId) {
+      writeJson(response, 503, { error: 'engine_unavailable' });
+      return;
+    }
+    engine = { engineId, seat: engineSeat, reservationId };
   }
   if (ctx.databaseRequired && !persistence.isInitialized()) {
     writeJson(response, 503, { error: 'persistence_disabled' });
