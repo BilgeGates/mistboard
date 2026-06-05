@@ -9,6 +9,7 @@ import {
   replayGameEvents,
 } from '@mistboard/game';
 import type { Seat } from './payloads.js';
+import type { UserAccount } from './persistence.js';
 import {
   ABORT_WINDOW_MS,
   appendEvent,
@@ -31,6 +32,7 @@ import {
   scheduleRandomEngineMove,
   seatDisplayNamesForRoom,
 } from './room-manager.js';
+import { assignSeat } from './server-seat-session.js';
 import type { Client, Room } from './server-types.js';
 import { clientFixture, roomFixture } from './test-builders.js';
 
@@ -475,6 +477,74 @@ test('seat assignment: third connection is spectator (no seat left)', async () =
   // The projection confirms no empty seat remains.
   assert.ok(room.projection.seats.white !== undefined, 'white should be filled');
   assert.ok(room.projection.seats.black !== undefined, 'black should be filled');
+});
+
+// ── assignSeat: rated account-gate ─────────────────────────────────────────────
+// A rated game must be human-vs-human between two durable accounts. The gate is
+// enforced at the moment a player takes a seat (not silently demoted at game
+// end), so a signed-out player is refused a color seat outright. See the
+// authoritative game-end gate in buildGameSummary below for the second layer.
+
+function makeAccount(overrides: Partial<UserAccount> = {}): UserAccount {
+  const now = new Date();
+  return {
+    id: 'acct-1',
+    email: 'player@example.com',
+    emailVerifiedAt: now,
+    handle: 'player',
+    handleChangedAt: null,
+    displayName: 'Player',
+    displayNameChangedAt: null,
+    profileVisibility: 'public',
+    accountRole: 'player',
+    eloRating: 1500,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+test('assignSeat: rated room refuses a guest a color seat', async () => {
+  const room = makeRoom('rated-guest'); // makeRoom sets rated: true
+  const ctx = makeCtx();
+
+  const assignment = await assignSeat(ctx, room, 'guest-client', undefined, null);
+
+  assert.equal(assignment.seat, 'spectator', 'a guest must not get a color seat');
+  assert.equal(assignment.deniedReason, 'rated-requires-account');
+  assert.equal(room.projection.seats.white, undefined, 'no seat was assigned');
+});
+
+test('assignSeat: rated room seats a signed-in account', async () => {
+  const room = makeRoom('rated-account');
+  const ctx = makeCtx();
+
+  const assignment = await assignSeat(ctx, room, 'acct-client', undefined, makeAccount());
+
+  assert.equal(assignment.seat, 'white', 'a signed-in account takes the open seat');
+  assert.equal(assignment.deniedReason, undefined);
+  assert.equal(room.projection.seats.white, 'acct-client');
+});
+
+test('assignSeat: casual room still seats a guest (gate is rated-only)', async () => {
+  const room = makeRoom('casual-guest');
+  room.rated = false;
+  const ctx = makeCtx();
+
+  const assignment = await assignSeat(ctx, room, 'guest-client', undefined, null);
+
+  assert.equal(assignment.seat, 'white', 'casual play stays account-optional');
+  assert.equal(assignment.deniedReason, undefined);
+});
+
+test('assignSeat: rated room exempts a server-engine client', async () => {
+  const room = makeRoom('rated-engine');
+  const ctx = makeCtx();
+
+  const assignment = await assignSeat(ctx, room, 'builtin-random-legal', undefined, null);
+
+  assert.equal(assignment.seat, 'white', 'an engine seat is not blocked by the account-gate');
+  assert.equal(assignment.deniedReason, undefined);
 });
 
 // ── buildGameSummary: rated policy ────────────────────────────────────────────

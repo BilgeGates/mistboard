@@ -64,6 +64,12 @@ export type SeatAssignment = {
   seat: Seat;
   seatToken?: string;
   seatTokenHash?: string;
+  // Set when the connection was refused a playing seat for a policy reason the
+  // client should surface as more than a plain spectator. Currently only the
+  // rated account-gate: a guest may not take a color seat in a rated room, so
+  // the connection layer closes with a 'rated requires account' reason instead
+  // of the generic 'private room'.
+  deniedReason?: 'rated-requires-account';
 };
 
 export type Room = {

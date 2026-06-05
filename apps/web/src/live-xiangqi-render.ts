@@ -364,6 +364,8 @@ function rejectedBody(): string {
   if (liveState.closeReason === 'game spec disabled')
     return 'Dark Xiangqi is not enabled on this server.';
   if (liveState.closeReason === 'private room') return 'This Dark Xiangqi room is full.';
+  if (liveState.closeReason === 'rated requires account')
+    return 'This is a rated game. Both players need an account. Sign in or create one, then reopen the invite to take your seat.';
   if (liveState.closeReason === 'rate limit')
     return 'The room connection was closed after too many messages.';
   return 'The Dark Xiangqi room rejected this connection.';

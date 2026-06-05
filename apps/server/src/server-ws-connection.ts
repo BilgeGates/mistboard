@@ -194,6 +194,13 @@ export async function handleWebSocketConnection(
     ? ({ seat: 'spectator' } satisfies SeatAssignment)
     : await assignSeat(ctx.roomMgrCtx, room, clientId, seatToken, accountUser);
   const seat = assignment.seat;
+  if (assignment.deniedReason === 'rated-requires-account') {
+    // Hard account-gate (assignSeat): a guest tried to take a seat in a rated
+    // room. Close with a distinct reason so the client surfaces a sign-in
+    // prompt rather than the generic 'private room' / spectator message.
+    socket.close(1008, 'rated requires account');
+    return;
+  }
   if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection)) {
     socket.close(1008, 'private room');
     return;
@@ -216,9 +223,11 @@ export async function handleWebSocketConnection(
     displaceOlderSeatClients(room, client);
     ctx.clearPendingVacate(room, seat);
     // A returning seat-holder re-derives the forfeit countdown: if this brings
-    // both sides present, the leaver's forfeit is cancelled. Runs after the
-    // auth gate (assignSeat) has already granted a color seat, so an
-    // unauthenticated client never reaches here as a seat-holder.
+    // both sides present, the leaver's forfeit is cancelled. Reached only for a
+    // resolved color seat (seat !== 'spectator'). In a casual room that seat may
+    // be an anonymous guest; in a rated room assignSeat's account-gate has
+    // already refused guests, so a rated seat-holder is always a signed-in
+    // account.
     scheduleForfeitTimeout(ctx.roomMgrCtx, room);
   }
 

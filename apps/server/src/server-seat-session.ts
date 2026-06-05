@@ -37,6 +37,19 @@ export async function assignSeat(
     // session each connect); the hash still flows so displacement can match.
     return { seat: decision.seat, seatTokenHash: decision.tokenHash };
   }
+  // Hard account-gate for rated rooms. A playing seat in a rated game must be
+  // bound to a durable account — we refuse a guest a color seat outright rather
+  // than seating them and silently demoting the game to casual at game end (a
+  // bad surprise: you accept a "rated" game and only learn afterward it didn't
+  // count). Reached only on `fallthrough`, so an account holder reclaiming their
+  // own seat by token or identity has already returned above; a logged-out
+  // reconnect that would otherwise re-derive an account seat as anonymous is
+  // caught here too. Server-engine clients are exempt (an engine seat already
+  // forces casual at game end and is never a rated participant). The caller
+  // turns this denial into a clear close so the client can prompt sign-in.
+  if (room.rated && !accountUser && !isServerEngineClient(clientId)) {
+    return { seat: 'spectator', deniedReason: 'rated-requires-account' };
+  }
   if (room.projection.seats.white === clientId) {
     await startLiveClockIfReady(ctx, room);
     return await existingSeatAssignment(ctx, room, 'white', clientId, accountUser);

@@ -188,6 +188,8 @@ function reasonPhraseLabel(reason: GameEndReason): string {
 function rejectedBody(): string {
   if (liveState.closeReason === 'private room')
     return 'This game is in progress. Mistboard never shares live game state with anyone but the seated players. The full replay will be here once the game finishes.';
+  if (liveState.closeReason === 'rated requires account')
+    return 'This is a rated game. Rated games count toward the dark chess ladder, so both players need an account. Sign in or create one, then reopen the invite to take your seat.';
   if (liveState.closeReason === 'origin not allowed')
     return 'This browser origin is not allowed to open the room.';
   if (liveState.closeReason === 'rate limit')
