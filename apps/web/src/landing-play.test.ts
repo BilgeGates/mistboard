@@ -19,6 +19,26 @@ describe('landing play panel', () => {
     expect(panel.textContent).not.toContain('Dark Xiangqi');
   });
 
+  it('shows the Misty brand placeholder, not a built-in engine name, before the roster loads', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    // Empty roster → the panel falls back to the loading placeholder. It must read
+    // as the real product, never the old "Random Legal v1" built-in name.
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+    const engineButton = [...panel.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes('Play the engine'),
+    );
+
+    engineButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const overlay = document.querySelector('.landing-setup-overlay');
+
+    expect(overlay?.textContent).toContain('Misty');
+    expect(overlay?.textContent).not.toContain('Random Legal');
+  });
+
   it('creates dark chess rooms with a canonical game spec id behind the Variant UI', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
@@ -69,7 +89,9 @@ describe('landing play panel', () => {
     challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
     expect(variantSelect).not.toBeNull();
-    expect([...variantSelect!.options].map((option) => option.value)).toContain('dark-mini-xiangqi');
+    expect([...variantSelect!.options].map((option) => option.value)).toContain(
+      'dark-mini-xiangqi',
+    );
     variantSelect!.value = 'dark-mini-xiangqi';
     variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
     expect(document.body.textContent).toContain('Red');

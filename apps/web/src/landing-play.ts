@@ -168,15 +168,16 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<LandingGameSpecId, LandingGameSpecC
   },
 };
 
+// UI-only placeholder shown in the engine picker before /api/engines/playable
+// resolves (or if every retry fails). It is NOT a real, submittable engine: the
+// id is a sentinel the server rejects with 400 invalid_engine, so it can never
+// produce a game. We label it "Misty" (the brand) instead of the old built-in
+// "Random Legal v1" so a slow or failed load never shows a wrong opponent name.
+// landing.ts retries the fetch and refetches on refocus to shrink this window to
+// near-zero; the real roster ("Misty 1.0") swaps in the moment the API lands.
+export const PENDING_ENGINE_ID = 'pending-engine';
 export function fallbackPlayableEngines(): PlayableEngine[] {
-  return [
-    {
-      id: 'builtin-random-legal',
-      name: 'Random Legal v1',
-      familyName: 'Random Legal',
-      kind: 'builtin',
-    },
-  ];
+  return [{ id: PENDING_ENGINE_ID, name: 'Misty', familyName: 'Misty', kind: 'builtin' }];
 }
 
 // How the play panel hands off to a freshly created/matched room. Defaults to a

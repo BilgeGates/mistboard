@@ -106,19 +106,43 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   syncReviewLink(replay.activeSampleId());
 
   // Upgrade the play panel + deep-link handling once the real playable engines
-  // load. The shell already rendered with the built-in fallback, so this is an
-  // in-place swap, not a blocker. fetchPlayableEngines() resolves to the real
-  // roster (or the built-in fallback if the API is empty) and throws only on a
-  // network error.
-  void fetchPlayableEngines()
-    .then((engines) => {
-      stage.applyEngines(engines);
-      maybeOpenPlayDeepLink(engines);
-    })
-    .catch((err) => {
-      console.warn(err);
+  // load. The shell already rendered with the "Misty" placeholder, so this is an
+  // in-place swap, not a blocker. The fetch is retried with backoff so a
+  // transient failure (e.g. the web service restarting mid-deploy) doesn't strand
+  // the placeholder until a manual reload; the real roster swaps in on success.
+  let enginesLoaded = false;
+  const applyRealEngines = (engines: PlayableEngine[]): void => {
+    if (enginesLoaded || !stage.el.isConnected) return;
+    enginesLoaded = true;
+    stage.applyEngines(engines);
+    maybeOpenPlayDeepLink(engines);
+  };
+  void loadPlayableEnginesWithRetry().then((engines) => {
+    if (engines) {
+      applyRealEngines(engines);
+    } else {
+      // Every retry failed. Keep the placeholder, but still honor a ?play deep
+      // link against it; the focus handler below retries when the tab returns.
       maybeOpenPlayDeepLink(fallbackPlayableEngines());
+    }
+  });
+
+  // Self-heal a stranded placeholder: if the initial load and its retries never
+  // landed the real roster (e.g. the tab was opened mid-deploy), fetch again when
+  // the tab regains focus so the visitor never has to reload to get the real
+  // engine. Self-removes once the landing unmounts (mirrors the showcase poll's
+  // isConnected guard) and is also torn down on the room transition below.
+  const refetchEnginesOnFocus = (): void => {
+    if (!stage.el.isConnected) {
+      document.removeEventListener('visibilitychange', refetchEnginesOnFocus);
+      return;
+    }
+    if (enginesLoaded || document.visibilityState !== 'visible') return;
+    void fetchPlayableEnginesOnce().then((engines) => {
+      if (engines) applyRealEngines(engines);
     });
+  };
+  document.addEventListener('visibilitychange', refetchEnginesOnFocus);
 
   // Adaptively refresh the hero pool so newly finished games rotate in without a
   // page reload. New games' metadata/POV merge into the shared maps the replay
@@ -196,6 +220,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     setRoomNavigator(null);
     closeActiveLandingDialog();
     stopShowcaseRefresh();
+    document.removeEventListener('visibilitychange', refetchEnginesOnFocus);
     replay.destroy();
   };
   setRoomNavigator((url) => {
@@ -303,11 +328,35 @@ export async function mountGame(root: HTMLElement, roomId: string): Promise<void
   });
 }
 
-async function fetchPlayableEngines(): Promise<PlayableEngine[]> {
-  const resp = await fetch('/api/engines/playable');
-  if (!resp.ok) throw new Error(`failed to load playable engines: ${resp.status}`);
-  const data = (await resp.json()) as { engines: PlayableEngine[] };
-  return data.engines.length > 0 ? data.engines : fallbackPlayableEngines();
+// One attempt at loading the real playable roster. Returns the engines on
+// success, or null if the API is unreachable, errors, or (defensively) returns
+// an empty list — callers keep the placeholder and may retry. Never throws.
+export async function fetchPlayableEnginesOnce(): Promise<PlayableEngine[] | null> {
+  try {
+    const resp = await fetch('/api/engines/playable');
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as { engines: PlayableEngine[] };
+    return data.engines.length > 0 ? data.engines : null;
+  } catch {
+    return null;
+  }
+}
+
+// Retry the engines fetch with backoff so a transient failure (a deploy/restart,
+// a cold start, a network blip) doesn't strand the placeholder until the visitor
+// manually reloads. Returns the roster, or null if every attempt failed.
+export async function loadPlayableEnginesWithRetry(): Promise<PlayableEngine[] | null> {
+  const backoffMs = [600, 1200, 2400, 4800];
+  for (let attempt = 0; ; attempt += 1) {
+    const engines = await fetchPlayableEnginesOnce();
+    if (engines) return engines;
+    if (attempt >= backoffMs.length) return null;
+    await delay(backoffMs[attempt]!);
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 async function apiEventLoader(roomId: string): Promise<GameEvent[]> {
