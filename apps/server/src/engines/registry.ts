@@ -73,6 +73,18 @@ export function isKnownEngineClientId(clientId: string | undefined): boolean {
   return engineId in KNOWN_ENGINES;
 }
 
+// True iff `clientId` is a registered engine that plays Dark Mini Xiangqi. Used
+// to (a) validate a PvE create request's engineId and (b) identify the engine
+// seat in a DMX room (its seat holds this id, set by a seat-assigned event).
+export function isDarkMiniXiangqiEngineClientId(clientId: string | undefined): boolean {
+  if (!clientId) return false;
+  return KNOWN_ENGINES[clientId]?.gameSpecId === 'dark-mini-xiangqi';
+}
+
+// The default Dark Mini Xiangqi PvE engine (the single player-facing DMX engine,
+// mirroring Misty for chess).
+export const DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID = 'python-dmx-v1.0';
+
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.9.5': {
     id: 'python-tier1-v0.9.5',

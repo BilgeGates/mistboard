@@ -26,6 +26,7 @@ import {
   type DarkMiniXiangqiEventWriterContext,
   recordDarkMiniXiangqiPersistenceError,
 } from './server-dark-mini-xiangqi-events.js';
+import { scheduleDarkMiniXiangqiEngineMove } from './server-dark-mini-xiangqi-engine.js';
 import {
   clearDarkMiniXiangqiRuntimeTimers,
   type DarkMiniXiangqiLifecycleContext,
@@ -142,6 +143,9 @@ export async function handleDarkMiniXiangqiWebSocketConnection(
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
   broadcastDarkMiniXiangqiSnapshot(room);
+  // PvE: once the human takes the empty seat, the engine (if it holds red /
+  // the side to move) plays its move. No-op for PvP or when it's the human's turn.
+  scheduleDarkMiniXiangqiEngineMove(darkMiniXiangqiLifecycleCtx, room);
   // A player reconnecting after a rematch was finalized (while they were
   // offline) still gets routed to the new swapped-color room.
   maybeReplayDarkMiniXiangqiRematchRedirect(ctx.darkMiniXiangqiRematch, room, client);
@@ -240,6 +244,8 @@ async function handleDarkMiniXiangqiMessage(
     return;
   }
   broadcastDarkMiniXiangqiEventAppended(room, event, seq);
+  // PvE: it may now be the engine's turn (no-op for PvP / engine not to move).
+  scheduleDarkMiniXiangqiEngineMove(darkMiniXiangqiLifecycleCtx, room);
 }
 
 async function handleDarkMiniXiangqiResign(

@@ -34,6 +34,8 @@ export function clearDarkMiniXiangqiRuntimeTimers(room: DarkMiniXiangqiLifecycle
   clearDarkMiniXiangqiAbortTimer(room);
   clearDarkMiniXiangqiClockTimer(room);
   clearDarkMiniXiangqiForfeitTimer(room);
+  if (room.engineTimer) clearTimeout(room.engineTimer);
+  room.engineTimer = null;
 }
 
 export function clearDarkMiniXiangqiAbortTimer(room: DarkMiniXiangqiLifecycleRoom): void {

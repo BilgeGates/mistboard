@@ -63,9 +63,8 @@ test('Dark Mini Xiangqi room route rejects unsupported create surfaces before ro
   process.env[darkMiniXiangqiFlag] = 'true';
   try {
     for (const body of [
-      { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pve' },
       { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pvp', rated: true },
-      { engineId: 'engine', gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pvp' },
+      { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'bogus' },
     ]) {
       let createCalls = 0;
       const response = captureResponse();
@@ -86,6 +85,57 @@ test('Dark Mini Xiangqi room route rejects unsupported create surfaces before ro
       });
       assert.equal(createCalls, 0);
     }
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Mini Xiangqi PvE route seats the engine opposite the human and echoes mode pve', async () => {
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    let requestedEngine: unknown;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        createDarkMiniXiangqiRoom: async (_timeControl, _creatorPreference, engine) => {
+          requestedEngine = engine;
+          return { ok: true, room: darkMiniXiangqiRoom('dmxq_pve') };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pve', preferredColor: 'red' },
+    );
+
+    // Human picked red → engine takes black; default DMX engine when none given.
+    assert.deepEqual(requestedEngine, { engineId: 'python-dmx-v1.0', seat: 'black' });
+    assert.equal(response.status, 201);
+    assert.equal(responseJson(response).mode, 'pve');
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Mini Xiangqi PvE route rejects an unknown engineId before room creation', async () => {
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    let createCalls = 0;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        createDarkMiniXiangqiRoom: async () => {
+          createCalls += 1;
+          return { ok: true, room: darkMiniXiangqiRoom('dmxq_unreachable') };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pve', engineId: 'not-a-dmx-engine' },
+    );
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(responseJson(response), { error: 'invalid_engine' });
+    assert.equal(createCalls, 0);
   } finally {
     restoreFlag(before);
   }
@@ -308,6 +358,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     pendingWrites: Promise.resolve(),
     seatTokens: {},
     rematch: { offers: {} },
+    engineTimer: null,
   };
 }
 

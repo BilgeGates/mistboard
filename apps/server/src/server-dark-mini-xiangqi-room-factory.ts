@@ -1,12 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import type { RoomTimeControl } from '@mistboard/game';
+import type { MiniXiangqiColor, RoomTimeControl } from '@mistboard/game';
 import {
+  appendDarkMiniXiangqiRuntimeEvent,
   createDarkMiniXiangqiRuntimeRoom,
   DARK_MINI_XIANGQI_ROOM_ID_PREFIX,
   type DarkMiniXiangqiCreatorPreference,
   type DarkMiniXiangqiEvent,
   type DarkMiniXiangqiRuntimeRoom,
 } from './dark-mini-xiangqi-runtime.js';
+
+/** PvE: seat an engine in `seat` at creation (its clientId is the engine id). */
+export type DarkMiniXiangqiRoomEngineSeat = { engineId: string; seat: MiniXiangqiColor };
 
 export type DarkMiniXiangqiLiveRoomCreation =
   | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
@@ -29,6 +33,7 @@ export async function createDarkMiniXiangqiLiveRoom(
   ctx: DarkMiniXiangqiLiveRoomFactoryContext,
   timeControl?: RoomTimeControl,
   creatorPreference?: DarkMiniXiangqiCreatorPreference,
+  engine?: DarkMiniXiangqiRoomEngineSeat,
 ): Promise<DarkMiniXiangqiLiveRoomCreation> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = ctx.createRoomId?.() ?? `${DARK_MINI_XIANGQI_ROOM_ID_PREFIX}${randomUUID()}`;
@@ -42,6 +47,18 @@ export async function createDarkMiniXiangqiLiveRoom(
     const created = createDarkMiniXiangqiRuntimeRoom(roomId, { creatorPreference, timeControl });
     if (!created.ok) return created;
     const room = created.room;
+    // PvE: seat the engine before persistence so the seat-assigned event is part
+    // of the room's initial event log (durable + replays on hydration). The human
+    // then takes the only empty seat on connect.
+    if (engine) {
+      appendDarkMiniXiangqiRuntimeEvent(room, {
+        type: 'seat-assigned',
+        at: Date.now(),
+        roomId,
+        clientId: engine.engineId,
+        seat: engine.seat,
+      });
+    }
     if (ctx.isPersistenceEnabled()) {
       let writingSeq = 0;
       let writingEventType = 'room-created';

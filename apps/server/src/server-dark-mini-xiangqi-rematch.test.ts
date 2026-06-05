@@ -51,6 +51,7 @@ function makeRoom(id: string, status: 'playing' | 'finished'): DarkMiniXiangqiLi
     pendingWrites: Promise.resolve(),
     seatTokens: {},
     rematch: { offers: {} },
+    engineTimer: null,
   };
 }
 

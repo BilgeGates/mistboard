@@ -229,6 +229,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     pendingWrites: Promise.resolve(),
     seatTokens: {},
     rematch: { offers: {} },
+    engineTimer: null,
   };
 }
 

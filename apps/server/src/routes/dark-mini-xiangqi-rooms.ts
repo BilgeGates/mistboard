@@ -1,5 +1,9 @@
 import type { ServerResponse } from 'node:http';
 import { DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
+import {
+  DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID,
+  isDarkMiniXiangqiEngineClientId,
+} from './../engines/registry.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import * as persistence from './../persistence.js';
 import type { HttpApiContext } from './lib.js';
@@ -38,9 +42,26 @@ export async function handleDarkMiniXiangqiCreate(
     writeJson(response, 400, { error: 'invalid_time_control' });
     return;
   }
-  if (mode !== 'pvp' || body.rated === true || body.engineId !== undefined) {
+  // Rated DMX isn't a thing yet; PvP and (now) PvE are. mode === null means the
+  // body asked for neither.
+  if (mode === null || body.rated === true) {
     writeJson(response, 501, { error: 'dark_mini_xiangqi_unsupported_surface' });
     return;
+  }
+  let engine: { engineId: string; seat: 'red' | 'black' } | undefined;
+  if (mode === 'pve') {
+    const engineId =
+      typeof body.engineId === 'string' && body.engineId.length > 0
+        ? body.engineId
+        : DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID;
+    if (!isDarkMiniXiangqiEngineClientId(engineId)) {
+      writeJson(response, 400, { error: 'invalid_engine' });
+      return;
+    }
+    // The engine takes the opposite of the human's preferred color (human red by
+    // default). Pre-seated at creation; the human takes the only empty seat.
+    const humanColor: 'red' | 'black' = preferredColor === 'black' ? 'black' : 'red';
+    engine = { engineId, seat: humanColor === 'red' ? 'black' : 'red' };
   }
   if (ctx.databaseRequired && !persistence.isInitialized()) {
     writeJson(response, 503, { error: 'persistence_disabled' });
@@ -51,7 +72,11 @@ export async function handleDarkMiniXiangqiCreate(
     return;
   }
 
-  const created = await ctx.createDarkMiniXiangqiRoom(timeControl ?? undefined, preferredColor);
+  const created = await ctx.createDarkMiniXiangqiRoom(
+    timeControl ?? undefined,
+    preferredColor,
+    engine,
+  );
   if (!created.ok) {
     const status =
       created.error === 'dark_mini_xiangqi_disabled'
@@ -65,7 +90,7 @@ export async function handleDarkMiniXiangqiCreate(
   writeJson(response, 201, {
     roomId: created.room.id,
     url: `/room/${encodeURIComponent(created.room.id)}`,
-    mode: 'pvp',
+    mode,
     gameSpecId: created.room.gameSpecId,
     region: 'global',
     ...(timeControl ? { timeControl } : {}),

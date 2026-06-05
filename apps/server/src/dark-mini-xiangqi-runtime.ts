@@ -162,6 +162,11 @@ export type DarkMiniXiangqiRuntimeRoom = {
   pendingWrites: Promise<void>;
   seatTokens: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>>;
   rematch: DarkMiniXiangqiRematchState;
+  // PvE: setTimeout handle for the pending engine move (debounces the scheduler
+  // so an engine seat schedules at most one move at a time). The engine SEAT
+  // itself is derived from projection.seats (its slot holds an engine clientId),
+  // so it survives hydration without a dedicated field.
+  engineTimer: ReturnType<typeof setTimeout> | null;
 };
 
 export type DarkMiniXiangqiSnapshotClient = {
@@ -341,6 +346,7 @@ export function createDarkMiniXiangqiRuntimeRoomFromEvents(
       pendingWrites: Promise.resolve(),
       seatTokens: {},
       rematch: { offers: {} },
+      engineTimer: null,
     },
   };
 }

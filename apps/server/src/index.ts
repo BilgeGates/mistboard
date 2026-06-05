@@ -440,6 +440,7 @@ async function createDarkXiangqiRoom(
 async function createDarkMiniXiangqiRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: DarkMiniXiangqiCreatorPreference,
+  engine?: { engineId: string; seat: 'red' | 'black' },
 ): Promise<
   | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
   | {
@@ -458,6 +459,7 @@ async function createDarkMiniXiangqiRoom(
     },
     timeControl,
     creatorPreference,
+    engine,
   );
 }
 
