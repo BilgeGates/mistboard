@@ -56,4 +56,20 @@ describe('Dual Chess board renderer', () => {
     expect(whiteSvg).toContain('x="203.5" y="364.5"');
     expect(redSvg).toContain('x="53.5" y="3.5"');
   });
+
+  it('emits a hit layer, selection highlight and target markers when interactive', () => {
+    const view = getDualChessOpenView(createInitialDualChessState('i'), 'white');
+    const svg = renderDualChessBoardSvg(view, {
+      showFog: false,
+      interactive: true,
+      selected: 'd1',
+      targets: ['c3', 'e3'],
+    });
+    // 48 transparent hit targets, one per square.
+    expect((svg.match(/data-square="/g) ?? []).length).toBe(48);
+    expect(svg).toContain('data-square="d1"');
+    // Selection highlight + two move dots (empty targets).
+    expect(svg).toContain('rgba(255,205,80,0.55)');
+    expect((svg.match(/rgba\(45,100,45,0\.62\)/g) ?? []).length).toBe(2);
+  });
 });

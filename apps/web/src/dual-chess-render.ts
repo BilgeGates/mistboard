@@ -38,6 +38,9 @@ const INK_W = '#28323c';
 const INK_R = '#1a1a1a';
 const CO = 'rgba(60,45,30,0.55)';
 const LASTMOVE = 'rgba(255,205,80,0.45)';
+const SELECTED = 'rgba(255,205,80,0.55)';
+const DOT = 'rgba(45,100,45,0.62)';
+const CAP = 'rgba(170,40,40,0.62)';
 
 const CHESS_ROLES = new Set<DualChessPieceRole>(['king', 'queen', 'bishop', 'knight', 'pawn']);
 const DISK_GLYPH: Partial<Record<DualChessPieceRole, { white: string; red: string }>> = {
@@ -54,6 +57,12 @@ export type DualChessRenderOptions = {
   // perfect-information (open) view. Defaults to true.
   showFog?: boolean;
   lastMove?: { from: DualChessSquare; to: DualChessSquare } | null;
+  // The currently selected square (highlighted).
+  selected?: DualChessSquare | null;
+  // Legal destination squares for the selection (dots / capture rings).
+  targets?: readonly DualChessSquare[];
+  // Add a transparent hit layer of <rect data-square="..."> for click handling.
+  interactive?: boolean;
 };
 
 let boardCounter = 0;
@@ -68,13 +77,17 @@ export function renderDualChessBoardSvg(
   const id = `dual-live-${boardCounter}`;
 
   const visible = new Set<DualChessSquare>(view.visibleSquares);
+  const occupied = new Set<DualChessSquare>(Object.keys(view.board) as DualChessSquare[]);
   const clipped = [
     gridLayer(perspective),
     riverLayer(),
     lastMoveLayer(options.lastMove ?? view.lastMove ?? null, perspective),
+    options.selected ? selectionLayer(options.selected, perspective) : '',
     coordsLayer(perspective),
     pieceLayer(view, perspective, id),
+    targetLayer(options.targets ?? [], occupied, perspective),
     showFog ? fogLayer(visible, perspective) : '',
+    options.interactive ? hitLayer(perspective) : '',
   ].join('');
 
   return [
@@ -122,6 +135,15 @@ function cellTopLeft(
 } {
   const { row, col } = displayRowCol(file, rank, perspective);
   return { x: col * CELL, y: row * CELL + (row >= HALF ? STRIP : 0) };
+}
+
+function cellCenter(
+  file: number,
+  rank: number,
+  perspective: DualChessColor,
+): { x: number; y: number } {
+  const { x, y } = cellTopLeft(file, rank, perspective);
+  return { x: x + CELL / 2, y: y + CELL / 2 };
 }
 
 // ── Layers ──────────────────────────────────────────────────────────────────
@@ -263,6 +285,46 @@ function silhouette(color: DualChessColor, x: number, y: number, id: string): st
     `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${grad})" stroke="${ink}" stroke-width="1.5" opacity="0.62"/>`,
     `<text x="${cx}" y="${cy + 1}" font-size="${size * 0.6}" fill="${ink}" text-anchor="middle" dominant-baseline="central" opacity="0.7">?</text>`,
   ].join('');
+}
+
+function selectionLayer(square: DualChessSquare, perspective: DualChessColor): string {
+  const { file, rank } = coordOf(square);
+  const { x, y } = cellTopLeft(file, rank, perspective);
+  return `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="${SELECTED}"/>`;
+}
+
+// A dot on an empty legal target; a ring around a capturable one.
+function targetLayer(
+  targets: readonly DualChessSquare[],
+  occupied: Set<DualChessSquare>,
+  perspective: DualChessColor,
+): string {
+  return targets
+    .map((sq) => {
+      const { file, rank } = coordOf(sq);
+      const { x, y } = cellCenter(file, rank, perspective);
+      if (occupied.has(sq)) {
+        return `<circle cx="${x}" cy="${y}" r="${CELL * 0.43}" fill="none" stroke="${CAP}" stroke-width="3.5"/>`;
+      }
+      return `<circle cx="${x}" cy="${y}" r="${CELL * 0.15}" fill="${DOT}"/>`;
+    })
+    .join('');
+}
+
+// Transparent click targets. Each carries data-square so a host can delegate
+// clicks without re-deriving geometry.
+function hitLayer(perspective: DualChessColor): string {
+  const parts: string[] = [];
+  for (let file = 0; file < FILES; file += 1) {
+    for (let rank = 1; rank <= RANKS; rank += 1) {
+      const square = `${String.fromCharCode('a'.charCodeAt(0) + file)}${rank}` as DualChessSquare;
+      const { x, y } = cellTopLeft(file, rank, perspective);
+      parts.push(
+        `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="transparent" data-square="${square}" style="cursor:pointer"/>`,
+      );
+    }
+  }
+  return parts.join('');
 }
 
 function fogLayer(visible: Set<DualChessSquare>, perspective: DualChessColor): string {

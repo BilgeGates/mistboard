@@ -107,6 +107,8 @@ const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
+// Hidden DEV-only hot-seat for perfect-information Dual Chess. No nav entry.
+const wantsDualChessPlay = import.meta.env.DEV && path === '/dual-chess-play';
 
 if (replaySample) {
   setTitle('Replay');
@@ -214,6 +216,11 @@ if (replaySample) {
     import('./variant-marks-lab.js').then(({ mountVariantMarksLab }) =>
       mountVariantMarksLab(appRoot),
     ),
+  );
+} else if (wantsDualChessPlay) {
+  setTitle('Dual Chess');
+  void mountOrReport(() =>
+    import('./dual-chess-play.js').then(({ mountDualChessPlay }) => mountDualChessPlay(appRoot)),
   );
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');
