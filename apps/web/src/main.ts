@@ -110,6 +110,14 @@ const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
 // Perfect-information Dual Chess play surface, gated by VITE_DUAL_CHESS_ENABLED
 // (always on in dev). Hidden behind the flag in prod until the M1 launch gate.
 const wantsDualChessPlay = dualChessEnabled() && path === '/dual-chess-play';
+// Perfect-information Dual Chess live room (/room/dchess_*, or ?room=dchess_* in
+// dev). Routed to its own isolated client *before* the shared live-room shell so
+// it never touches the fog-critical live.ts monolith.
+const dualChessLiveRoomCandidate = liveRoomId ?? (wantsLive ? params.get('room') : null);
+const wantsDualChessRoom =
+  dualChessEnabled() &&
+  dualChessLiveRoomCandidate !== null &&
+  dualChessLiveRoomCandidate.startsWith('dchess_');
 
 if (replaySample) {
   setTitle('Replay');
@@ -121,6 +129,13 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./replay.js').then(({ mountReplay }) =>
       mountReplay(appRoot, replaySample, replayOpts).then(() => undefined),
+    ),
+  );
+} else if (wantsDualChessRoom) {
+  setTitle('Dual Chess');
+  void mountOrReport(() =>
+    import('./live-dual-chess.js').then(({ bootstrapDualChessLiveRoom }) =>
+      bootstrapDualChessLiveRoom(),
     ),
   );
 } else if (liveRoomId || wantsLive) {
