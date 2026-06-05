@@ -1,0 +1,100 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  createGridGeometry,
+  type GridBoardDescriptor,
+  type GridPalette,
+  renderGridBoardSvg,
+} from './grid-board.js';
+
+const palette: GridPalette = {
+  lightCell: '#f0d9b5',
+  darkCell: '#b58863',
+  frameBg: '#5b4636',
+  frameInner: '#6e5743',
+  boardEdge: '#3a2c20',
+  coord: 'rgba(60,45,30,0.55)',
+  lastMove: 'rgba(255,205,80,0.45)',
+  selected: 'rgba(255,205,80,0.55)',
+  targetDot: 'rgba(45,100,45,0.62)',
+  targetRing: 'rgba(170,40,40,0.62)',
+  fog: 'rgba(22,18,14,0.66)',
+};
+
+// Dual-Chess-shaped board: 6 files x 8 ranks with a river strip at the middle.
+const dual: GridBoardDescriptor = {
+  files: 6,
+  ranks: 8,
+  cell: 50,
+  strips: [{ afterRow: 4, height: 11, fill: '#5aa0d6', highlightFill: 'rgba(255,255,255,0.4)' }],
+  palette,
+};
+
+// Chess-shaped board: 8x8, no strip — the SAME model, different data.
+const chess: GridBoardDescriptor = { files: 8, ranks: 8, cell: 50, palette };
+
+const noPieces = { id: 'b', flip: false, renderPieces: () => '' };
+
+const cellRectCount = (svg: string): number =>
+  (svg.match(/ width="50" height="50" fill="/g) ?? []).length;
+
+test('one core renders a 6x8 river board and an 8x8 board from data alone', () => {
+  const dualSvg = renderGridBoardSvg(dual, noPieces);
+  const chessSvg = renderGridBoardSvg(chess, noPieces);
+
+  // 48 vs 64 checkered cells — the only difference is the descriptor's dimensions.
+  assert.equal(cellRectCount(dualSvg), 48);
+  assert.equal(cellRectCount(chessSvg), 64);
+
+  // The river strip exists on the 6x8 board only; it pushes board height to
+  // 8*50 + 11 = 411 (vs a clean 8*50 = 400 with no strip).
+  assert.match(dualSvg, /fill="#5aa0d6"/);
+  assert.match(dualSvg, /width="300" height="411"/);
+  assert.doesNotMatch(chessSvg, /fill="#5aa0d6"/);
+  assert.match(chessSvg, /width="400" height="400"/);
+});
+
+test('geometry offsets rows past the strip and flips with orientation', () => {
+  const geom = createGridGeometry(dual, false);
+  // a1 (file 0, rank 1) is the bottom-left: display row 7, which sits past the
+  // strip, so its y is 7*50 + 11 = 361.
+  assert.deepEqual(geom.topLeft(0, 1), { x: 0, y: 361 });
+  // a8 is the top-left: display row 0, no strip offset.
+  assert.deepEqual(geom.topLeft(0, 8), { x: 0, y: 0 });
+
+  const flipped = createGridGeometry(dual, true);
+  // Flipped, a1 moves to the top-right corner column (file -> files-1-file).
+  assert.deepEqual(flipped.topLeft(0, 1), { x: 250, y: 0 });
+});
+
+test('the orientation flip changes the rendered output', () => {
+  const white = renderGridBoardSvg(dual, { ...noPieces });
+  const red = renderGridBoardSvg(dual, { ...noPieces, flip: true });
+  assert.notEqual(white, red);
+});
+
+test('interaction layers render only the data they are given', () => {
+  const svg = renderGridBoardSvg(dual, {
+    id: 'i',
+    flip: false,
+    renderPieces: () => '',
+    selected: { file: 3, rank: 1 },
+    targets: [
+      { file: 2, rank: 3, occupied: false },
+      { file: 4, rank: 3, occupied: true },
+    ],
+    fogHidden: [{ file: 5, rank: 8 }],
+    interactive: true,
+    squareName: (f, r) => `${String.fromCharCode(97 + f)}${r}`,
+  });
+
+  // 48 hit targets, each named.
+  assert.equal((svg.match(/data-square="/g) ?? []).length, 48);
+  assert.match(svg, /data-square="d1"/);
+  // Selection highlight + one move dot (empty) + one capture ring (occupied).
+  assert.match(svg, /fill="rgba\(255,205,80,0\.55\)"/);
+  assert.equal((svg.match(/fill="rgba\(45,100,45,0\.62\)"/g) ?? []).length, 1);
+  assert.equal((svg.match(/stroke="rgba\(170,40,40,0\.62\)"/g) ?? []).length, 1);
+  // The fogged square is filled with the fog colour.
+  assert.match(svg, /fill="rgba\(22,18,14,0\.66\)"/);
+});

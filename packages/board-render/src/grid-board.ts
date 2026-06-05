@@ -1,0 +1,258 @@
+// Generic descriptor-driven renderer for cell-based ("checkered square") boards.
+//
+// This is the Layer-2 platform down-payment: chess (8x8) and Dual Chess (6x8 +
+// river) are the same board MODEL — pieces sit on squares, squares alternate
+// light/dark — differing only in data (dimensions, an optional river strip,
+// palette, and how a piece glyph is drawn). This core owns the model: geometry
+// (orientation flip + strip offset), the board furniture (grid, strip, coords,
+// frame, clip), and the generic interaction layers (last-move, selection,
+// targets, fog, hit). A variant supplies a GridBoardDescriptor + a renderPieces
+// callback and gets a byte-stable SVG string back.
+//
+// Intersection-based boards (xiangqi family: pieces on grid NODES, palace
+// furniture, mask fog) are a DIFFERENT model and intentionally out of scope —
+// a future `placement: 'cell' | 'intersection'` axis, not forced through here.
+
+export type GridStrip = {
+  // The strip sits below this many display rows from the top edge (i.e. at the
+  // geometric middle), shifting every row at or past it down by `height`.
+  afterRow: number;
+  height: number;
+  fill: string;
+  // Optional thin highlight line along the strip's top edge.
+  highlightFill?: string;
+};
+
+export type GridPalette = {
+  lightCell: string;
+  darkCell: string;
+  frameBg: string;
+  frameInner: string;
+  boardEdge: string;
+  coord: string;
+  lastMove: string;
+  selected: string;
+  targetDot: string;
+  targetRing: string;
+  fog: string;
+};
+
+export type GridBoardDescriptor = {
+  files: number;
+  ranks: number;
+  cell: number;
+  strips?: readonly GridStrip[];
+  palette: GridPalette;
+  // Layout knobs — defaults match the Dual Chess board so it is a drop-in.
+  framePad?: number;
+  pad?: number;
+  frameRadius?: number;
+  frameInnerRadius?: number;
+  frameInnerWidth?: number;
+  boardRadius?: number;
+  boardEdgeWidth?: number;
+  // Square-colour polarity: when true (the default), (file+rank) even is dark.
+  darkWhenEven?: boolean;
+  // Coordinate glyphs. Defaults: files -> a,b,c…; ranks -> their number.
+  fileLabel?: (file: number) => string;
+  svgClass?: string;
+};
+
+// file is 0-based (a=0); rank is 1-based to match algebraic squares.
+export type GridCellRef = { file: number; rank: number };
+export type GridTargetRef = GridCellRef & { occupied: boolean };
+
+export interface GridGeometry {
+  cell: number;
+  topLeft(file: number, rank: number): { x: number; y: number };
+  center(file: number, rank: number): { x: number; y: number };
+}
+
+export type GridBoardLayers = {
+  // Unique id for this board's <defs> (clip path), so multiple boards on one
+  // page don't collide.
+  id: string;
+  // false: rank 1 at the bottom, file a on the left. true: 180° rotation.
+  flip: boolean;
+  // The variant draws its pieces here using the supplied geometry.
+  renderPieces: (geometry: GridGeometry) => string;
+  // Variant-specific <defs> body (gradients etc.), appended after the clip def.
+  extraDefs?: string;
+  lastMove?: readonly GridCellRef[] | null;
+  selected?: GridCellRef | null;
+  targets?: readonly GridTargetRef[];
+  // Squares to fog (hidden). Omit / null to draw no fog overlay.
+  fogHidden?: readonly GridCellRef[] | null;
+  // Names the hit-layer rects (data-square="…") so a host can delegate clicks.
+  squareName?: (file: number, rank: number) => string;
+  interactive?: boolean;
+};
+
+const DEFAULT_FILE_LABEL = (file: number): string => String.fromCharCode(97 + file);
+
+function layout(descriptor: GridBoardDescriptor) {
+  const { files, ranks, cell } = descriptor;
+  const stripTotal = (descriptor.strips ?? []).reduce((sum, s) => sum + s.height, 0);
+  const boardW = files * cell;
+  const boardH = ranks * cell + stripTotal;
+  const framePad = descriptor.framePad ?? 9;
+  const pad = descriptor.pad ?? 6;
+  const frameW = boardW + framePad * 2;
+  const frameH = boardH + framePad * 2;
+  return { boardW, boardH, framePad, pad, frameW, frameH };
+}
+
+// Total strip shift applied to a display row (sum of every strip it sits past).
+function stripOffsetForRow(strips: readonly GridStrip[], row: number): number {
+  let offset = 0;
+  for (const strip of strips) if (row >= strip.afterRow) offset += strip.height;
+  return offset;
+}
+
+export function createGridGeometry(
+  descriptor: GridBoardDescriptor,
+  flip: boolean,
+): GridGeometry {
+  const { files, ranks, cell } = descriptor;
+  const strips = descriptor.strips ?? [];
+  const fileToCol = (file: number): number => (flip ? files - 1 - file : file);
+  const rankToRow = (rank: number): number => (flip ? rank - 1 : ranks - rank);
+  const topLeft = (file: number, rank: number) => {
+    const row = rankToRow(rank);
+    return { x: fileToCol(file) * cell, y: row * cell + stripOffsetForRow(strips, row) };
+  };
+  return {
+    cell,
+    topLeft,
+    center: (file, rank) => {
+      const { x, y } = topLeft(file, rank);
+      return { x: x + cell / 2, y: y + cell / 2 };
+    },
+  };
+}
+
+export function renderGridBoardSvg(
+  descriptor: GridBoardDescriptor,
+  layers: GridBoardLayers,
+): string {
+  const { files, ranks, cell, palette } = descriptor;
+  const darkWhenEven = descriptor.darkWhenEven ?? true;
+  const fileLabel = descriptor.fileLabel ?? DEFAULT_FILE_LABEL;
+  const strips = descriptor.strips ?? [];
+  const { boardW, boardH, framePad, pad, frameW, frameH } = layout(descriptor);
+  const geom = createGridGeometry(descriptor, layers.flip);
+  const id = layers.id;
+  const frameRadius = descriptor.frameRadius ?? 14;
+  const frameInnerRadius = descriptor.frameInnerRadius ?? 12.5;
+  const frameInnerWidth = descriptor.frameInnerWidth ?? 2;
+  const boardRadius = descriptor.boardRadius ?? 5;
+  const boardEdgeWidth = descriptor.boardEdgeWidth ?? 1.5;
+
+  // ── Furniture + interaction layers (in dual-chess draw order) ──────────────
+
+  const gridLayer = (): string => {
+    const parts: string[] = [];
+    for (let file = 0; file < files; file += 1) {
+      for (let rank = 1; rank <= ranks; rank += 1) {
+        const { x, y } = geom.topLeft(file, rank);
+        const even = (file + rank) % 2 === 0;
+        const fill = (darkWhenEven ? even : !even) ? palette.darkCell : palette.lightCell;
+        parts.push(`<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${fill}"/>`);
+      }
+    }
+    return parts.join('');
+  };
+
+  const stripLayer = (): string =>
+    strips
+      .map((strip) => {
+        const y = strip.afterRow * cell + stripOffsetForRow(strips, strip.afterRow - 1);
+        const band = `<rect x="0" y="${y}" width="${boardW}" height="${strip.height}" fill="${strip.fill}"/>`;
+        const line = strip.highlightFill
+          ? `<rect x="0" y="${y}" width="${boardW}" height="1" fill="${strip.highlightFill}"/>`
+          : '';
+        return band + line;
+      })
+      .join('');
+
+  const cellRect = (ref: GridCellRef, fill: string): string => {
+    const { x, y } = geom.topLeft(ref.file, ref.rank);
+    return `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${fill}"/>`;
+  };
+
+  const lastMoveLayer = (): string =>
+    (layers.lastMove ?? []).map((ref) => cellRect(ref, palette.lastMove)).join('');
+
+  const selectionLayer = (): string =>
+    layers.selected ? cellRect(layers.selected, palette.selected) : '';
+
+  const coordsLayer = (): string => {
+    const parts: string[] = [];
+    const bottomRank = layers.flip ? ranks : 1;
+    for (let file = 0; file < files; file += 1) {
+      const { x, y } = geom.topLeft(file, bottomRank);
+      parts.push(
+        `<text x="${x + cell - 4}" y="${y + cell - 4}" font-size="9" fill="${palette.coord}" text-anchor="end">${fileLabel(file)}</text>`,
+      );
+    }
+    const leftFile = layers.flip ? files - 1 : 0;
+    for (let rank = 1; rank <= ranks; rank += 1) {
+      const { x, y } = geom.topLeft(leftFile, rank);
+      parts.push(`<text x="${x + 3}" y="${y + 11}" font-size="9" fill="${palette.coord}">${rank}</text>`);
+    }
+    return parts.join('');
+  };
+
+  const targetLayer = (): string =>
+    (layers.targets ?? [])
+      .map((ref) => {
+        const { x, y } = geom.center(ref.file, ref.rank);
+        if (ref.occupied) {
+          return `<circle cx="${x}" cy="${y}" r="${cell * 0.43}" fill="none" stroke="${palette.targetRing}" stroke-width="3.5"/>`;
+        }
+        return `<circle cx="${x}" cy="${y}" r="${cell * 0.15}" fill="${palette.targetDot}"/>`;
+      })
+      .join('');
+
+  const fogLayer = (): string =>
+    (layers.fogHidden ?? []).map((ref) => cellRect(ref, palette.fog)).join('');
+
+  const hitLayer = (): string => {
+    const name = layers.squareName ?? ((f, r) => `${fileLabel(f)}${r}`);
+    const parts: string[] = [];
+    for (let file = 0; file < files; file += 1) {
+      for (let rank = 1; rank <= ranks; rank += 1) {
+        const { x, y } = geom.topLeft(file, rank);
+        parts.push(
+          `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="transparent" data-square="${name(file, rank)}" style="cursor:pointer"/>`,
+        );
+      }
+    }
+    return parts.join('');
+  };
+
+  const clipDef = `<clipPath id="${id}-clip"><rect x="0" y="0" width="${boardW}" height="${boardH}" rx="${boardRadius}"/></clipPath>`;
+  const clipped = [
+    gridLayer(),
+    stripLayer(),
+    lastMoveLayer(),
+    selectionLayer(),
+    coordsLayer(),
+    layers.renderPieces(geom),
+    targetLayer(),
+    fogLayer(),
+    layers.interactive ? hitLayer() : '',
+  ].join('');
+
+  return [
+    `<svg${descriptor.svgClass ? ` class="${descriptor.svgClass}"` : ''} viewBox="0 0 ${frameW + pad * 2} ${frameH + pad * 2}" role="img" xmlns="http://www.w3.org/2000/svg">`,
+    `<defs>${clipDef}${layers.extraDefs ?? ''}</defs>`,
+    `<g transform="translate(${pad} ${pad})">`,
+    `<rect x="0" y="0" width="${frameW}" height="${frameH}" rx="${frameRadius}" fill="${palette.frameBg}"/>`,
+    `<rect x="1.5" y="1.5" width="${frameW - 3}" height="${frameH - 3}" rx="${frameInnerRadius}" fill="none" stroke="${palette.frameInner}" stroke-width="${frameInnerWidth}"/>`,
+    `<g transform="translate(${framePad} ${framePad})">`,
+    `<g clip-path="url(#${id}-clip)">${clipped}</g>`,
+    `<rect x="0" y="0" width="${boardW}" height="${boardH}" rx="${boardRadius}" fill="none" stroke="${palette.boardEdge}" stroke-width="${boardEdgeWidth}"/>`,
+    `</g></g></svg>`,
+  ].join('');
+}

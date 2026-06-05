@@ -9,6 +9,16 @@ export type { PieceOnBoard } from './board-svg.js';
 export { fogPatternDefs, renderBoardSvg } from './board-svg.js';
 export type { BoardSpec, CompositionOptions } from './composition.js';
 export { renderBoardComposition } from './composition.js';
+export type {
+  GridBoardDescriptor,
+  GridBoardLayers,
+  GridCellRef,
+  GridGeometry,
+  GridPalette,
+  GridStrip,
+  GridTargetRef,
+} from './grid-board.js';
+export { createGridGeometry, renderGridBoardSvg } from './grid-board.js';
 export type { CompositionLayout } from './layouts.js';
 export { boardsInLayout, layoutPlacements } from './layouts.js';
 export { PIECE_SVGS } from './pieces.js';
