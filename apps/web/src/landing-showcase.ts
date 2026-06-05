@@ -1,9 +1,7 @@
 import {
   type FeaturedGame,
-  MISTBOARD_ENGINE_V2_BASE_ID,
-  MISTBOARD_ENGINE_V2_BASE_NAME,
-  MISTBOARD_ENGINE_V2_KLUSS_ID,
-  MISTBOARD_ENGINE_V2_KLUSS_NAME,
+  MISTBOARD_ENGINE_MISTY_ID,
+  MISTBOARD_ENGINE_MISTY_NAME,
 } from './game-display.js';
 
 const HOMEPAGE_ENGINE_TIME_CONTROL = {
@@ -18,70 +16,62 @@ export function pickHeroPovForGame(game: FeaturedGame): 'white' | 'black' {
   return 'white';
 }
 
-// v2 self-play showcase: Mistboard Engine v2 with the KLUSS search-scope feature
-// (knowledge-limited subgame, k=2) vs the same engine without it. Both sides are
-// the v2 engine; `klussColor` marks which side ran KLUSS. Games are the decisive
-// (king-captured), substantial (>=33-ply) games from the kluss self-play corpus
-// (lab/runs/v2-kluss-self-play-2026-05-25); short early-blunder games are omitted.
+// Homepage cold-start showcase: Misty 1.0 (the current player-facing engine)
+// self-play. Shown only when the live /api/games/showcase pool has fewer than
+// three qualifying games. Games are the decisive (king-captured), substantial
+// (>=35-ply) games exported from the v2 self-play corpus; short early-blunder
+// games are omitted. The replay move data lives in
+// apps/web/public/replay-samples/<roomId>.jsonl, so the roomIds are stable.
 export function homepageShowcaseGames(): FeaturedGame[] {
   const specs: Array<{
     index: number;
     plyCount: number;
-    klussColor: 'white' | 'black';
     winner: 'white' | 'black';
   }> = [
-    { index: 0, plyCount: 78, klussColor: 'white', winner: 'black' },
-    { index: 1, plyCount: 62, klussColor: 'black', winner: 'black' },
-    { index: 2, plyCount: 78, klussColor: 'white', winner: 'black' },
-    { index: 3, plyCount: 35, klussColor: 'black', winner: 'white' },
-    { index: 4, plyCount: 43, klussColor: 'black', winner: 'white' },
-    { index: 5, plyCount: 98, klussColor: 'white', winner: 'black' },
-    { index: 6, plyCount: 59, klussColor: 'black', winner: 'white' },
-    { index: 7, plyCount: 67, klussColor: 'black', winner: 'white' },
-    { index: 8, plyCount: 71, klussColor: 'black', winner: 'white' },
-    { index: 9, plyCount: 69, klussColor: 'black', winner: 'white' },
-    { index: 10, plyCount: 57, klussColor: 'black', winner: 'white' },
+    { index: 0, plyCount: 78, winner: 'black' },
+    { index: 1, plyCount: 62, winner: 'black' },
+    { index: 2, plyCount: 78, winner: 'black' },
+    { index: 3, plyCount: 35, winner: 'white' },
+    { index: 4, plyCount: 43, winner: 'white' },
+    { index: 5, plyCount: 98, winner: 'black' },
+    { index: 6, plyCount: 59, winner: 'white' },
+    { index: 7, plyCount: 67, winner: 'white' },
+    { index: 8, plyCount: 71, winner: 'white' },
+    { index: 9, plyCount: 69, winner: 'white' },
+    { index: 10, plyCount: 57, winner: 'white' },
   ];
 
-  return specs.map((spec) => {
-    const klussIsWhite = spec.klussColor === 'white';
-    const whiteName = klussIsWhite ? MISTBOARD_ENGINE_V2_KLUSS_NAME : MISTBOARD_ENGINE_V2_BASE_NAME;
-    const blackName = klussIsWhite ? MISTBOARD_ENGINE_V2_BASE_NAME : MISTBOARD_ENGINE_V2_KLUSS_NAME;
-    const whiteId = klussIsWhite ? MISTBOARD_ENGINE_V2_KLUSS_ID : MISTBOARD_ENGINE_V2_BASE_ID;
-    const blackId = klussIsWhite ? MISTBOARD_ENGINE_V2_BASE_ID : MISTBOARD_ENGINE_V2_KLUSS_ID;
-    return {
-      roomId: `engine-v2-g${String(spec.index).padStart(4, '0')}`,
-      variant: 'dark-chess',
-      mode: 'eve',
-      result: spec.winner === 'white' ? 'white-wins' : 'black-wins',
-      termination: 'king-captured',
-      plyCount: spec.plyCount,
-      whiteName,
-      blackName,
-      corpusId: 'replay-samples',
-      gameIndex: spec.index,
-      playerColor: spec.klussColor,
-      whiteEngineId: whiteId,
-      blackEngineId: blackId,
-      timeControl: HOMEPAGE_ENGINE_TIME_CONTROL,
-      participants: [
-        {
-          color: 'white',
-          displayName: whiteName,
-          subjectType: 'engine-version',
-          subjectId: whiteId,
-          visibility: 'public',
-        },
-        {
-          color: 'black',
-          displayName: blackName,
-          subjectType: 'engine-version',
-          subjectId: blackId,
-          visibility: 'public',
-        },
-      ],
-      // The homepage hero is a KLUSS showcase, so the visible POV follows the
-      // KLUSS side even when the non-KLUSS baseline won the sample.
-    };
-  });
+  return specs.map((spec) => ({
+    roomId: `engine-v2-g${String(spec.index).padStart(4, '0')}`,
+    variant: 'dark-chess',
+    mode: 'eve',
+    result: spec.winner === 'white' ? 'white-wins' : 'black-wins',
+    termination: 'king-captured',
+    plyCount: spec.plyCount,
+    whiteName: MISTBOARD_ENGINE_MISTY_NAME,
+    blackName: MISTBOARD_ENGINE_MISTY_NAME,
+    corpusId: 'replay-samples',
+    gameIndex: spec.index,
+    // No playerColor: both sides are Misty 1.0, so the hero POV follows the
+    // winner (pickHeroPovForGame) rather than a fixed side.
+    whiteEngineId: MISTBOARD_ENGINE_MISTY_ID,
+    blackEngineId: MISTBOARD_ENGINE_MISTY_ID,
+    timeControl: HOMEPAGE_ENGINE_TIME_CONTROL,
+    participants: [
+      {
+        color: 'white',
+        displayName: MISTBOARD_ENGINE_MISTY_NAME,
+        subjectType: 'engine-version',
+        subjectId: MISTBOARD_ENGINE_MISTY_ID,
+        visibility: 'public',
+      },
+      {
+        color: 'black',
+        displayName: MISTBOARD_ENGINE_MISTY_NAME,
+        subjectType: 'engine-version',
+        subjectId: MISTBOARD_ENGINE_MISTY_ID,
+        visibility: 'public',
+      },
+    ],
+  }));
 }

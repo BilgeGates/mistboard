@@ -2,12 +2,11 @@ export const MISTBOARD_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
 export const MISTBOARD_ENGINE_SNAPSHOT_NAME = 'Mistboard Engine v2.0';
 export const MISTBOARD_ENGINE_BASELINE_NAME = 'Mistboard Engine v0.9.5';
 
-// Two v2 variants used in the homepage self-play showcase (KLUSS search-scope
-// on vs off). Both are the v2 engine; the label differentiates the configs.
-export const MISTBOARD_ENGINE_V2_KLUSS_ID = 'engine-v2-kluss';
-export const MISTBOARD_ENGINE_V2_KLUSS_NAME = 'Mistboard Engine v2 · KLUSS';
-export const MISTBOARD_ENGINE_V2_BASE_ID = 'engine-v2-base';
-export const MISTBOARD_ENGINE_V2_BASE_NAME = 'Mistboard Engine v2';
+// Current player-facing engine identity (the v2 engine, streamlined release
+// 2026-06-02). Used for the homepage self-play showcase and as the canonical
+// display name wherever the engine's subject id appears.
+export const MISTBOARD_ENGINE_MISTY_ID = 'python-v2-v1.0';
+export const MISTBOARD_ENGINE_MISTY_NAME = 'Misty 1.0';
 
 export type GameParticipant = {
   color: 'white' | 'black';
@@ -97,8 +96,7 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'builtin-capture-seeker': 'Capture Seeker v1',
     'builtin-random-legal': 'Random Legal v1',
     [MISTBOARD_ENGINE_SNAPSHOT_ID]: MISTBOARD_ENGINE_SNAPSHOT_NAME,
-    [MISTBOARD_ENGINE_V2_KLUSS_ID]: MISTBOARD_ENGINE_V2_KLUSS_NAME,
-    [MISTBOARD_ENGINE_V2_BASE_ID]: MISTBOARD_ENGINE_V2_BASE_NAME,
+    [MISTBOARD_ENGINE_MISTY_ID]: MISTBOARD_ENGINE_MISTY_NAME,
     'python-random-legal': 'Random Legal Python v1',
     'python-tier1-v0.7.0': 'Mistboard Engine preview',
     'python-tier1-v0.7.22': 'Mistboard Engine preview',
