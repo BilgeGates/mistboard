@@ -1,13 +1,23 @@
 // Live, fog-aware board renderer for Dual Chess (中西象棋).
 //
+// A thin variant adapter over the shared descriptor-driven cell-board core
+// (@mistboard/board-render renderGridBoardSvg). The core owns geometry
+// (orientation flip + river-strip offset), furniture (grid, river, coords,
+// frame, clip), and the generic interaction layers (last-move, selection,
+// targets, fog, hit). This file supplies only what is Dual-Chess-specific: the
+// 6x8 + river descriptor, the disk/recolour piece glyphs, and the gradient defs.
+//
 // Driven by the engine's DualChessPlayerView (packages/game/variants-dual-chess),
-// not a FEN string. It is orientation-aware (Red sees the board flipped) and
-// fog-aware (hidden squares are fogged; shrouded enemies render as color-only
-// silhouettes). The palette, geometry and piece treatment are kept identical to
-// the article diagram (apps/web/src/dual-chess-diagram.ts) so the live board and
-// the rules article look the same; the two can be unified once both are on main.
+// orientation-aware (Red sees the board flipped) and fog-aware (hidden squares
+// fogged; shrouded enemies render as colour-only silhouettes).
 
-import { PIECE_SVGS } from '@mistboard/board-render';
+import {
+  type GridBoardDescriptor,
+  type GridCellRef,
+  type GridGeometry,
+  PIECE_SVGS,
+  renderGridBoardSvg,
+} from '@mistboard/board-render';
 import type {
   DualChessColor,
   DualChessPieceRole,
@@ -17,15 +27,7 @@ import type {
 
 const FILES = 6;
 const RANKS = 8;
-const HALF = RANKS / 2;
 const CELL = 50;
-const STRIP = 11; // river strip between ranks 4 and 5
-const BOARD_W = FILES * CELL; // 300
-const BOARD_H = RANKS * CELL + STRIP; // 411
-const FRAME_PAD = 9;
-const FRAME_W = BOARD_W + FRAME_PAD * 2;
-const FRAME_H = BOARD_H + FRAME_PAD * 2;
-const PAD = 6;
 
 // meerkat palette (matches dual-chess-diagram.ts)
 const WOOD_L = '#f0d9b5';
@@ -41,6 +43,31 @@ const LASTMOVE = 'rgba(255,205,80,0.45)';
 const SELECTED = 'rgba(255,205,80,0.55)';
 const DOT = 'rgba(45,100,45,0.62)';
 const CAP = 'rgba(170,40,40,0.62)';
+const FOG = 'rgba(22,18,14,0.66)';
+
+// The 6x8 river board, expressed as data for the shared core. Its layout knobs
+// (framePad 9, pad 6, frame radius 14/12.5, board radius 5, edge 1.5) are the
+// core defaults, so they need not be restated.
+const DUAL_CHESS_DESCRIPTOR: GridBoardDescriptor = {
+  files: FILES,
+  ranks: RANKS,
+  cell: CELL,
+  strips: [{ afterRow: 4, height: 11, fill: '#5aa0d6', highlightFill: 'rgba(255,255,255,0.4)' }],
+  palette: {
+    lightCell: WOOD_L,
+    darkCell: WOOD_D,
+    frameBg: FRAME_BG,
+    frameInner: FRAME_INNER,
+    boardEdge: BOARD_EDGE,
+    coord: CO,
+    lastMove: LASTMOVE,
+    selected: SELECTED,
+    targetDot: DOT,
+    targetRing: CAP,
+    fog: FOG,
+  },
+  svgClass: 'dual-live-svg',
+};
 
 const CHESS_ROLES = new Set<DualChessPieceRole>(['king', 'queen', 'bishop', 'knight', 'pawn']);
 const DISK_GLYPH: Partial<Record<DualChessPieceRole, { white: string; red: string }>> = {
@@ -78,141 +105,53 @@ export function renderDualChessBoardSvg(
 
   const visible = new Set<DualChessSquare>(view.visibleSquares);
   const occupied = new Set<DualChessSquare>(Object.keys(view.board) as DualChessSquare[]);
-  const clipped = [
-    gridLayer(perspective),
-    riverLayer(),
-    lastMoveLayer(options.lastMove ?? view.lastMove ?? null, perspective),
-    options.selected ? selectionLayer(options.selected, perspective) : '',
-    coordsLayer(perspective),
-    pieceLayer(view, perspective, id),
-    targetLayer(options.targets ?? [], occupied, perspective),
-    showFog ? fogLayer(visible, perspective) : '',
-    options.interactive ? hitLayer(perspective) : '',
-  ].join('');
+  const lastMove = options.lastMove ?? view.lastMove ?? null;
 
-  return [
-    `<svg class="dual-live-svg" viewBox="0 0 ${FRAME_W + PAD * 2} ${FRAME_H + PAD * 2}" role="img" xmlns="http://www.w3.org/2000/svg">`,
-    `<defs>${defs(id)}</defs>`,
-    `<g transform="translate(${PAD} ${PAD})">`,
-    `<rect x="0" y="0" width="${FRAME_W}" height="${FRAME_H}" rx="14" fill="${FRAME_BG}"/>`,
-    `<rect x="1.5" y="1.5" width="${FRAME_W - 3}" height="${FRAME_H - 3}" rx="12.5" fill="none" stroke="${FRAME_INNER}" stroke-width="2"/>`,
-    `<g transform="translate(${FRAME_PAD} ${FRAME_PAD})">`,
-    `<g clip-path="url(#${id}-clip)">${clipped}</g>`,
-    `<rect x="0" y="0" width="${BOARD_W}" height="${BOARD_H}" rx="5" fill="none" stroke="${BOARD_EDGE}" stroke-width="1.5"/>`,
-    `</g></g></svg>`,
-  ].join('');
+  return renderGridBoardSvg(DUAL_CHESS_DESCRIPTOR, {
+    id,
+    flip: perspective === 'red',
+    extraDefs: dualChessDefs(id),
+    renderPieces: (geom) => pieceLayer(view, geom, id),
+    lastMove: lastMove ? [coordOf(lastMove.from), coordOf(lastMove.to)] : null,
+    selected: options.selected ? coordOf(options.selected) : null,
+    targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
+    fogHidden: showFog ? hiddenSquares(visible) : null,
+    interactive: options.interactive ?? false,
+    squareName: (file, rank) => squareAt(file, rank),
+  });
 }
 
 export const DUAL_CHESS_BOARD_PX = CELL;
 
-// ── Geometry (orientation-aware) ────────────────────────────────────────────
+// ── Coordinates ─────────────────────────────────────────────────────────────
 
-// Display row/col with the river always in the geometric middle. White sees
-// rank 8 at the top and file a on the left; Red sees a 180-degree rotation.
-function displayRowCol(
-  file: number,
-  rank: number,
-  perspective: DualChessColor,
-): {
-  row: number;
-  col: number;
-} {
-  if (perspective === 'white') return { row: RANKS - rank, col: file };
-  return { row: rank - 1, col: FILES - 1 - file };
-}
-
-function coordOf(square: DualChessSquare): { file: number; rank: number } {
+function coordOf(square: DualChessSquare): GridCellRef {
   return { file: square.charCodeAt(0) - 'a'.charCodeAt(0), rank: Number(square.slice(1)) };
 }
 
-function cellTopLeft(
-  file: number,
-  rank: number,
-  perspective: DualChessColor,
-): {
-  x: number;
-  y: number;
-} {
-  const { row, col } = displayRowCol(file, rank, perspective);
-  return { x: col * CELL, y: row * CELL + (row >= HALF ? STRIP : 0) };
+function squareAt(file: number, rank: number): DualChessSquare {
+  return `${String.fromCharCode('a'.charCodeAt(0) + file)}${rank}` as DualChessSquare;
 }
 
-function cellCenter(
-  file: number,
-  rank: number,
-  perspective: DualChessColor,
-): { x: number; y: number } {
-  const { x, y } = cellTopLeft(file, rank, perspective);
-  return { x: x + CELL / 2, y: y + CELL / 2 };
-}
-
-// ── Layers ──────────────────────────────────────────────────────────────────
-
-function defs(id: string): string {
-  return [
-    `<clipPath id="${id}-clip"><rect x="0" y="0" width="${BOARD_W}" height="${BOARD_H}" rx="5"/></clipPath>`,
-    `<linearGradient id="${id}-river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86c0ea"/><stop offset="1" stop-color="#3f86c4"/></linearGradient>`,
-    `<radialGradient id="${id}-ivory" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="#fdf6e4"/><stop offset="1" stop-color="#f3e6c4"/></radialGradient>`,
-    `<radialGradient id="${id}-red" cx="0.38" cy="0.3" r="0.85"><stop offset="0" stop-color="#c1453b"/><stop offset="1" stop-color="#a4291f"/></radialGradient>`,
-  ].join('');
-}
-
-function gridLayer(perspective: DualChessColor): string {
-  const parts: string[] = [];
+// Hidden squares, in the core's grid-iteration order (file outer, rank inner).
+function hiddenSquares(visible: Set<DualChessSquare>): GridCellRef[] {
+  const refs: GridCellRef[] = [];
   for (let file = 0; file < FILES; file += 1) {
     for (let rank = 1; rank <= RANKS; rank += 1) {
-      const { x, y } = cellTopLeft(file, rank, perspective);
-      const fill = (file + rank) % 2 === 0 ? WOOD_D : WOOD_L;
-      parts.push(`<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="${fill}"/>`);
+      if (!visible.has(squareAt(file, rank))) refs.push({ file, rank });
     }
   }
-  return parts.join('');
+  return refs;
 }
 
-function riverLayer(): string {
-  const y = HALF * CELL;
-  // The river sits at the geometric middle for both orientations.
-  return `<rect x="0" y="${y}" width="${BOARD_W}" height="${STRIP}" fill="#5aa0d6"/><rect x="0" y="${y}" width="${BOARD_W}" height="1" fill="rgba(255,255,255,0.4)"/>`;
-}
+// ── Pieces (the Dual-Chess-specific layer) ──────────────────────────────────
 
-function coordsLayer(perspective: DualChessColor): string {
-  const parts: string[] = [];
-  for (let file = 0; file < FILES; file += 1) {
-    const bottomRank = perspective === 'white' ? 1 : RANKS;
-    const { x, y } = cellTopLeft(file, bottomRank, perspective);
-    const letter = String.fromCharCode('a'.charCodeAt(0) + file);
-    parts.push(
-      `<text x="${x + CELL - 4}" y="${y + CELL - 4}" font-size="9" fill="${CO}" text-anchor="end">${letter}</text>`,
-    );
-  }
-  for (let rank = 1; rank <= RANKS; rank += 1) {
-    const leftFile = perspective === 'white' ? 0 : FILES - 1;
-    const { x, y } = cellTopLeft(leftFile, rank, perspective);
-    parts.push(`<text x="${x + 3}" y="${y + 11}" font-size="9" fill="${CO}">${rank}</text>`);
-  }
-  return parts.join('');
-}
-
-function lastMoveLayer(
-  move: { from: DualChessSquare; to: DualChessSquare } | null,
-  perspective: DualChessColor,
-): string {
-  if (!move) return '';
-  return [move.from, move.to]
-    .map((sq) => {
-      const { file, rank } = coordOf(sq);
-      const { x, y } = cellTopLeft(file, rank, perspective);
-      return `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="${LASTMOVE}"/>`;
-    })
-    .join('');
-}
-
-function pieceLayer(view: DualChessPlayerView, perspective: DualChessColor, id: string): string {
+function pieceLayer(view: DualChessPlayerView, geom: GridGeometry, id: string): string {
   const parts: string[] = [];
   for (const [square, entry] of Object.entries(view.board)) {
     if (!entry) continue;
     const { file, rank } = coordOf(square as DualChessSquare);
-    const { x, y } = cellTopLeft(file, rank, perspective);
+    const { x, y } = geom.topLeft(file, rank);
     if (entry.shrouded) {
       parts.push(silhouette(entry.color, x, y, id));
       continue;
@@ -229,6 +168,14 @@ function pieceLayer(view: DualChessPlayerView, perspective: DualChessColor, id: 
     }
   }
   return parts.join('');
+}
+
+function dualChessDefs(id: string): string {
+  return [
+    `<linearGradient id="${id}-river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86c0ea"/><stop offset="1" stop-color="#3f86c4"/></linearGradient>`,
+    `<radialGradient id="${id}-ivory" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="#fdf6e4"/><stop offset="1" stop-color="#f3e6c4"/></radialGradient>`,
+    `<radialGradient id="${id}-red" cx="0.38" cy="0.3" r="0.85"><stop offset="0" stop-color="#c1453b"/><stop offset="1" stop-color="#a4291f"/></radialGradient>`,
+  ].join('');
 }
 
 function chessPiece(
@@ -273,7 +220,7 @@ function diskPiece(
   ].join('');
 }
 
-// A shrouded enemy: color is known under fog (field of fire), identity is not.
+// A shrouded enemy: colour is known under fog (field of fire), identity is not.
 function silhouette(color: DualChessColor, x: number, y: number, id: string): string {
   const size = CELL * 0.7;
   const cx = x + CELL / 2;
@@ -285,59 +232,4 @@ function silhouette(color: DualChessColor, x: number, y: number, id: string): st
     `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${grad})" stroke="${ink}" stroke-width="1.5" opacity="0.62"/>`,
     `<text x="${cx}" y="${cy + 1}" font-size="${size * 0.6}" fill="${ink}" text-anchor="middle" dominant-baseline="central" opacity="0.7">?</text>`,
   ].join('');
-}
-
-function selectionLayer(square: DualChessSquare, perspective: DualChessColor): string {
-  const { file, rank } = coordOf(square);
-  const { x, y } = cellTopLeft(file, rank, perspective);
-  return `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="${SELECTED}"/>`;
-}
-
-// A dot on an empty legal target; a ring around a capturable one.
-function targetLayer(
-  targets: readonly DualChessSquare[],
-  occupied: Set<DualChessSquare>,
-  perspective: DualChessColor,
-): string {
-  return targets
-    .map((sq) => {
-      const { file, rank } = coordOf(sq);
-      const { x, y } = cellCenter(file, rank, perspective);
-      if (occupied.has(sq)) {
-        return `<circle cx="${x}" cy="${y}" r="${CELL * 0.43}" fill="none" stroke="${CAP}" stroke-width="3.5"/>`;
-      }
-      return `<circle cx="${x}" cy="${y}" r="${CELL * 0.15}" fill="${DOT}"/>`;
-    })
-    .join('');
-}
-
-// Transparent click targets. Each carries data-square so a host can delegate
-// clicks without re-deriving geometry.
-function hitLayer(perspective: DualChessColor): string {
-  const parts: string[] = [];
-  for (let file = 0; file < FILES; file += 1) {
-    for (let rank = 1; rank <= RANKS; rank += 1) {
-      const square = `${String.fromCharCode('a'.charCodeAt(0) + file)}${rank}` as DualChessSquare;
-      const { x, y } = cellTopLeft(file, rank, perspective);
-      parts.push(
-        `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="transparent" data-square="${square}" style="cursor:pointer"/>`,
-      );
-    }
-  }
-  return parts.join('');
-}
-
-function fogLayer(visible: Set<DualChessSquare>, perspective: DualChessColor): string {
-  const parts: string[] = [];
-  for (let file = 0; file < FILES; file += 1) {
-    for (let rank = 1; rank <= RANKS; rank += 1) {
-      const square = `${String.fromCharCode('a'.charCodeAt(0) + file)}${rank}` as DualChessSquare;
-      if (visible.has(square)) continue;
-      const { x, y } = cellTopLeft(file, rank, perspective);
-      parts.push(
-        `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="rgba(22,18,14,0.66)"/>`,
-      );
-    }
-  }
-  return parts.join('');
 }
