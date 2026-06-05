@@ -171,6 +171,35 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
       + 'budget + early-stop + bottom-K. Validated 2026-06-02 (30-0-0 vs Legacy, '
       + '0 hard failures, |P| max 5.9M, ~72s/game).',
   },
+  // Dark Mini Xiangqi (7x7) engine. Same EngineV2 core as Misty, parameterized
+  // with MiniXiangqiRules; leaf eval is Fairy-Stockfish's built-in minixiangqi
+  // variant (falls back to a material stub if the FSF binary is absent). The
+  // gameSpecId routes the worker spawn (--game dark-mini-xiangqi) and the
+  // EngineTurnRequest geometry (7-wide squares + mini piece letters). Not in the
+  // chess PvE picker — the Dark Mini Xiangqi route selects it.
+  'python-dmx-v1.0': {
+    id: 'python-dmx-v1.0',
+    engineId: 'v2',
+    engineName: 'Misty',
+    name: 'Misty (Dark Mini Xiangqi)',
+    kind: 'container',
+    gameSpecId: 'dark-mini-xiangqi',
+    configHash: 'dmx-v1.0-fsf-leaf',
+    playSignature: 'dmx-v1.0',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2-mini',
+      version: '1.0',
+      config: 'dmx-fsf-leaf',
+      config_hash: 'dmx-v1.0-fsf-leaf',
+      engine_pin: 'dmx-v1.0',
+    },
+    livePolicy: { timeoutMs: 30_000 },
+    notes:
+      'Dark Mini Xiangqi (7x7) — EngineV2(MiniXiangqiRules) + Fairy-Stockfish '
+      + 'minixiangqi leaf eval (material-stub fallback). Served via the dedicated '
+      + 'python-dmx pool (--game dark-mini-xiangqi).',
+  },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
     engineId: 'tier1',

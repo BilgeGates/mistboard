@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import type { Move } from '@mistboard/game';
 import { engineDir, enginePython, engineScript } from './engine-paths.js';
+import { loadEngine } from './engines/registry.js';
 import { engineCounters, logger } from './obs.js';
 
 export interface PythonPoolOptions {
@@ -26,6 +27,12 @@ export interface PythonPoolOptions {
   cwd: string;
   workerSeed: number;
   stockfishPath?: string;
+  /**
+   * Game variant for the worker (`--game`). Absent / 'dark-chess' ⇒ omitted, so
+   * the chess worker spawn is byte-identical; a non-chess variant (e.g.
+   * 'dark-mini-xiangqi') routes the worker to its variant engine.
+   */
+  gameSpecId?: string;
   /** Seconds to wait for a worker's `ready` line. */
   readyTimeoutMs: number;
   /**
@@ -113,6 +120,11 @@ class PoolWorker {
       String((this.opts.workerSeed + this.index) >>> 0),
     ];
     if (this.opts.stockfishPath) args.push('--stockfish', this.opts.stockfishPath);
+    // Variant routing: only emit --game for a non-chess variant so the chess
+    // worker spawn stays byte-identical (the worker defaults to dark-chess).
+    if (this.opts.gameSpecId && this.opts.gameSpecId !== 'dark-chess') {
+      args.push('--game', this.opts.gameSpecId);
+    }
 
     const child = spawn(this.opts.pythonBin, args, {
       cwd: this.opts.cwd,
@@ -693,6 +705,7 @@ export async function getPythonPool(
       scriptPath: process.env.PYTHON_ENGINE_LIVE_WORKER ?? engineScript('live_move_worker.py'),
       cwd: engineDir(),
       workerSeed: Date.now(),
+      gameSpecId: loadEngine(engineId).gameSpecId,
       stockfishPath:
         process.env.PYTHON_ENGINE_STOCKFISH_PATH ??
         process.env.STOCKFISH_PATH ??
