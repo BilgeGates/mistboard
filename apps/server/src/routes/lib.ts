@@ -21,6 +21,7 @@ import type {
   DarkXiangqiCreatorPreference,
   DarkXiangqiRuntimeRoom,
 } from './../dark-xiangqi-runtime.js';
+import type { DualChessCreatorPreference, DualChessRuntimeRoom } from './../dual-chess-runtime.js';
 import * as persistence from './../persistence.js';
 import { isAdminDebugToken, isProductionLikeRuntime } from './../server-policy.js';
 import type { LobbyTicket, Room } from './../server-types.js';
@@ -81,6 +82,13 @@ export interface HttpApiContext {
         ok: false;
         error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
       }
+  >;
+  createDualChessRoom(
+    timeControl?: RoomTimeControl,
+    creatorPreference?: DualChessCreatorPreference,
+  ): Promise<
+    | { ok: true; room: DualChessRuntimeRoom }
+    | { ok: false; error: 'dual_chess_disabled' | 'persistence_failure' | 'room_id_collision' }
   >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;

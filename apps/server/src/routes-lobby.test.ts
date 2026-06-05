@@ -3,9 +3,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import test from 'node:test';
 import { DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
 import type { DarkMiniXiangqiRuntimeRoom } from './dark-mini-xiangqi-runtime.js';
-import type { Room } from './server-types.js';
 import type { HttpApiContext } from './routes/lib.js';
 import { tryHandle } from './routes/lobby.js';
+import type { Room } from './server-types.js';
 
 const darkMiniXiangqiFlag = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
 
@@ -46,9 +46,11 @@ function lobbyPost(body: Record<string, unknown>): IncomingMessage {
 
 type CreateRoomCall = unknown[];
 
-function testContext(
-  overrides: Partial<HttpApiContext> = {},
-): { ctx: HttpApiContext; chessCalls: CreateRoomCall[]; dmxCalls: unknown[] } {
+function testContext(overrides: Partial<HttpApiContext> = {}): {
+  ctx: HttpApiContext;
+  chessCalls: CreateRoomCall[];
+  dmxCalls: unknown[];
+} {
   const chessCalls: CreateRoomCall[] = [];
   const dmxCalls: unknown[] = [];
   let chessRoomSeq = 0;
@@ -65,6 +67,7 @@ function testContext(
     createDarkXiangqiRoom: async () => {
       throw new Error('unexpected Dark Xiangqi room creation');
     },
+    createDualChessRoom: async () => ({ ok: false, error: 'dual_chess_disabled' }),
     createRoom: async (...args) => {
       chessCalls.push(args);
       chessRoomSeq += 1;
@@ -244,4 +247,4 @@ function withFlag(value: boolean, fn: () => Promise<void>): Promise<void> {
   });
 }
 
-export { testContext, post, responseJson, tc, withFlag, darkMiniXiangqiRoom };
+export { darkMiniXiangqiRoom, post, responseJson, tc, testContext, withFlag };

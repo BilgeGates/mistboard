@@ -8,7 +8,8 @@ import {
   isDarkMiniXiangqiRoomId,
 } from './dark-mini-xiangqi-runtime.js';
 import { isDarkXiangqiRoomId } from './dark-xiangqi-runtime.js';
-import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
+import { type DualChessRuntimeRoom, isDualChessRoomId } from './dual-chess-runtime.js';
+import { darkMiniXiangqiEnabled, darkXiangqiEnabled, dualChessEnabled } from './feature-flags.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import { logger, wsCounters } from './obs.js';
@@ -33,6 +34,7 @@ import {
   scheduleRandomEngineMove,
   seatDisplayNamesForRoom,
 } from './room-manager.js';
+import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import {
   adminDebugTokenFromProtocolHeader,
   canObserveLiveRoom,
@@ -43,7 +45,6 @@ import {
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
 import { assignSeat, displaceOlderSeatClients } from './server-seat-session.js';
-import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import type { Client, Room, SeatAssignment } from './server-types.js';
 import {
   type DarkMiniXiangqiLiveRoom,
@@ -53,6 +54,10 @@ import {
   type DarkXiangqiLiveRoom,
   handleDarkXiangqiWebSocketConnection,
 } from './server-ws-dark-xiangqi.js';
+import {
+  type DualChessLiveRoom,
+  handleDualChessWebSocketConnection,
+} from './server-ws-dual-chess.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
 
 export type WebSocketConnectionContext = {
@@ -65,9 +70,11 @@ export type WebSocketConnectionContext = {
   clearPendingVacate: (room: Room, seat: Client['seat']) => void;
   darkMiniXiangqiRooms: Map<string, DarkMiniXiangqiRuntimeRoom>;
   darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
+  dualChessRooms: Map<string, DualChessRuntimeRoom>;
   enableRandomEngine: (room: Room) => Promise<void>;
   getOrLoadDarkMiniXiangqiRoom: (roomId: string) => Promise<DarkMiniXiangqiRuntimeRoom | null>;
   getOrLoadDarkXiangqiRoom: (roomId: string) => Promise<DarkXiangqiLiveRoom | null>;
+  getOrLoadDualChessRoom: (roomId: string) => Promise<DualChessRuntimeRoom | null>;
   getOrCreateRoom: (roomId: string, variant: VariantId, hiddenDraft960?: boolean) => Promise<Room>;
   handleAbort: (room: Room, client: Client) => Promise<void>;
   handleResign: (room: Room, client: Client) => Promise<void>;
@@ -87,19 +94,23 @@ export type WebSocketRuntimeResolverContext = Pick<
   WebSocketConnectionContext,
   | 'darkMiniXiangqiRooms'
   | 'darkXiangqiRooms'
+  | 'dualChessRooms'
   | 'getOrLoadDarkMiniXiangqiRoom'
   | 'getOrLoadDarkXiangqiRoom'
+  | 'getOrLoadDualChessRoom'
 >;
 
 export type WebSocketLiveRuntime =
   | { kind: 'chess' }
   | { kind: 'dark-mini-xiangqi'; room: DarkMiniXiangqiLiveRoom }
   | { kind: 'dark-xiangqi'; room: DarkXiangqiLiveRoom }
+  | { kind: 'dual-chess'; room: DualChessLiveRoom }
   | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' }
   | {
       kind: 'dark-mini-xiangqi-unavailable';
       reason: 'game spec disabled' | 'room unavailable';
-    };
+    }
+  | { kind: 'dual-chess-unavailable'; reason: 'game spec disabled' | 'room unavailable' };
 
 export function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
   return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
@@ -118,6 +129,10 @@ export async function resolveWebSocketLiveRuntime(
       room: existingDarkMiniXiangqiRoom as DarkMiniXiangqiLiveRoom,
     };
   }
+  const existingDualChessRoom = ctx.dualChessRooms.get(roomId);
+  if (existingDualChessRoom) {
+    return { kind: 'dual-chess', room: existingDualChessRoom as DualChessLiveRoom };
+  }
   if (isDarkMiniXiangqiRoomId(roomId)) {
     if (!darkMiniXiangqiEnabled()) {
       return { kind: 'dark-mini-xiangqi-unavailable', reason: 'game spec disabled' };
@@ -130,6 +145,16 @@ export async function resolveWebSocketLiveRuntime(
       };
     }
     return { kind: 'dark-mini-xiangqi-unavailable', reason: 'room unavailable' };
+  }
+  if (isDualChessRoomId(roomId)) {
+    if (!dualChessEnabled()) {
+      return { kind: 'dual-chess-unavailable', reason: 'game spec disabled' };
+    }
+    const hydratedDualChessRoom = await ctx.getOrLoadDualChessRoom(roomId);
+    if (hydratedDualChessRoom) {
+      return { kind: 'dual-chess', room: hydratedDualChessRoom as DualChessLiveRoom };
+    }
+    return { kind: 'dual-chess-unavailable', reason: 'room unavailable' };
   }
   if (!isDarkXiangqiRoomId(roomId)) return { kind: 'chess' };
   if (!darkXiangqiEnabled())
@@ -155,11 +180,19 @@ export async function handleWebSocketConnection(
     await handleDarkMiniXiangqiWebSocketConnection(ctx, socket, request, runtime.room);
     return;
   }
+  if (runtime.kind === 'dual-chess') {
+    await handleDualChessWebSocketConnection(ctx, socket, request, runtime.room);
+    return;
+  }
   if (runtime.kind === 'dark-xiangqi-unavailable') {
     socket.close(1008, runtime.reason);
     return;
   }
   if (runtime.kind === 'dark-mini-xiangqi-unavailable') {
+    socket.close(1008, runtime.reason);
+    return;
+  }
+  if (runtime.kind === 'dual-chess-unavailable') {
     socket.close(1008, runtime.reason);
     return;
   }

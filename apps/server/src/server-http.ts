@@ -9,6 +9,7 @@ import type {
   DarkXiangqiCreatorPreference,
   DarkXiangqiRuntimeRoom,
 } from './dark-xiangqi-runtime.js';
+import type { DualChessCreatorPreference, DualChessRuntimeRoom } from './dual-chess-runtime.js';
 import { type HttpApiContext, handleApiRequest } from './http-api.js';
 import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
@@ -74,6 +75,13 @@ type ServerHttpHandlerOptions = {
         ok: false;
         error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
       }
+  >;
+  createDualChessRoom(
+    timeControl?: RoomTimeControl,
+    creatorPreference?: DualChessCreatorPreference,
+  ): Promise<
+    | { ok: true; room: DualChessRuntimeRoom }
+    | { ok: false; error: 'dual_chess_disabled' | 'persistence_failure' | 'room_id_collision' }
   >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;
@@ -310,6 +318,7 @@ function buildApiContext(options: ServerHttpHandlerOptions): HttpApiContext {
     createRoom: options.createRoom,
     createDarkXiangqiRoom: options.createDarkXiangqiRoom,
     createDarkMiniXiangqiRoom: options.createDarkMiniXiangqiRoom,
+    createDualChessRoom: options.createDualChessRoom,
     reserveLiveEngineSeat: options.reserveLiveEngineSeat,
     releaseLiveEngineReservation: options.releaseLiveEngineReservation,
     abandonRoom: options.abandonRoom,

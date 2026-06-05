@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type {
   Color,
+  DualChessColor,
   GameEvent,
   MiniXiangqiColor,
   RoomTimeControl,
@@ -24,6 +25,12 @@ import {
   type DarkXiangqiSeatTokenState,
   isDarkXiangqiEventLog,
 } from './dark-xiangqi-runtime.js';
+import type {
+  DualChessCreatorPreference,
+  DualChessRuntimeRoom,
+  DualChessSeatTokenState,
+} from './dual-chess-runtime.js';
+import { createDualChessRuntimeRoomFromEvents, isDualChessEventLog } from './dual-chess-runtime.js';
 import { runMigrations } from './migrate.js';
 import * as persistence from './persistence.js';
 import type { RematchOrchestrator } from './rematch.js';
@@ -44,10 +51,11 @@ import { persistenceRecordForDarkMiniXiangqiSeatToken } from './server-dark-mini
 import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import { createDarkMiniXiangqiLiveRoom } from './server-dark-mini-xiangqi-room-factory.js';
 import { mintDarkMiniXiangqiSeatToken } from './server-dark-mini-xiangqi-seat-session.js';
-import { sendDarkMiniXiangqiPayload } from './server-ws-dark-mini-xiangqi.js';
 import { clearDarkXiangqiRuntimeTimers } from './server-dark-xiangqi-lifecycle.js';
 import { createDarkXiangqiLiveRoom } from './server-dark-xiangqi-room-factory.js';
 import { createDrainController } from './server-drain.js';
+import { recordDualChessPersistenceError } from './server-dual-chess-events.js';
+import { createDualChessLiveRoom } from './server-dual-chess-room-factory.js';
 import { createHttpRequestHandler } from './server-http.js';
 import {
   clearRoomRuntimeTimers,
@@ -70,6 +78,7 @@ import {
   isAllowedWebSocketRequest,
   type WebSocketConnectionContext,
 } from './server-ws-connection.js';
+import { sendDarkMiniXiangqiPayload } from './server-ws-dark-mini-xiangqi.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 
 // Navigation index — grep for section name to jump to the right block
@@ -96,6 +105,7 @@ import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 const rooms = new Map<string, Room>();
 const darkXiangqiRooms = new Map<string, DarkXiangqiLiveRoom>();
 const darkMiniXiangqiRooms = new Map<string, DarkMiniXiangqiRuntimeRoom>();
+const dualChessRooms = new Map<string, DualChessRuntimeRoom>();
 const lobbyTickets = new Map<string, LobbyTicket>();
 const lobbyQueue: LobbyTicket[] = [];
 const databaseRequired = serverConfig.databaseRequired;
@@ -224,9 +234,11 @@ const wsConnectionCtx: WebSocketConnectionContext = {
   clearPendingVacate: roomLifecycle.clearPendingVacate,
   darkXiangqiRooms,
   darkMiniXiangqiRooms,
+  dualChessRooms,
   enableRandomEngine,
   getOrLoadDarkMiniXiangqiRoom,
   getOrLoadDarkXiangqiRoom,
+  getOrLoadDualChessRoom,
   getOrCreateRoom: roomLifecycle.getOrCreateRoom,
   handleAbort,
   handleResign,
@@ -290,6 +302,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Sta
       createRoom: roomLifecycle.createRoom,
       createDarkXiangqiRoom,
       createDarkMiniXiangqiRoom,
+      createDualChessRoom,
       reserveLiveEngineSeat,
       releaseLiveEngineReservation,
       abandonRoom: roomLifecycle.abandonRoom,
@@ -366,15 +379,18 @@ export async function stopServer(): Promise<void> {
   closeRoomClients(rooms.values());
   closeRoomClients(darkXiangqiRooms.values());
   closeDarkMiniXiangqiClients(darkMiniXiangqiRooms.values());
+  closeDualChessClients(dualChessRooms.values());
   await waitForRoomWrites(rooms.values());
   await waitForRoomWrites(darkXiangqiRooms.values());
   await waitForRoomWrites(darkMiniXiangqiRooms.values());
+  await waitForRoomWrites(dualChessRooms.values());
   await closeWebSocketServer(wss);
   await closeHttpServer(server);
   await persistence.close();
   rooms.clear();
   darkXiangqiRooms.clear();
   darkMiniXiangqiRooms.clear();
+  dualChessRooms.clear();
   lobbyTickets.clear();
   lobbyQueue.length = 0;
   persistenceErrors.length = 0;
@@ -516,6 +532,96 @@ function darkMiniXiangqiSeatTokenStatesFromPersistence(
   tokens: Partial<Record<MiniXiangqiColor, persistence.RoomSeatTokenRecord<MiniXiangqiColor>>>,
 ): Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>> {
   const states: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>> = {};
+  for (const token of Object.values(tokens)) {
+    if (!token || token.revokedAt) continue;
+    states[token.seat] = {
+      clientId: token.clientId,
+      seat: token.seat,
+      tokenHash: token.tokenHash,
+      userId: token.userId,
+      userHandle: token.userHandle,
+      userDisplayName: token.userDisplayName,
+      issuedAt: token.issuedAt,
+      lastSeenAt: token.lastSeenAt,
+      revokedAt: token.revokedAt,
+    };
+  }
+  return states;
+}
+
+async function createDualChessRoom(
+  timeControl?: RoomTimeControl,
+  creatorPreference?: DualChessCreatorPreference,
+): Promise<
+  | { ok: true; room: DualChessRuntimeRoom }
+  | { ok: false; error: 'dual_chess_disabled' | 'persistence_failure' | 'room_id_collision' }
+> {
+  return createDualChessLiveRoom(
+    {
+      appendRoomEvent: persistence.appendRoomEvent,
+      chessRooms: rooms,
+      darkMiniXiangqiRooms,
+      darkXiangqiRooms,
+      dualChessRooms,
+      isPersistenceEnabled: persistence.isInitialized,
+      recordPersistenceError: recordDualChessPersistenceError,
+    },
+    timeControl,
+    creatorPreference,
+  );
+}
+
+async function getOrLoadDualChessRoom(roomId: string): Promise<DualChessRuntimeRoom | null> {
+  const existing = dualChessRooms.get(roomId);
+  if (existing) return existing;
+  if (!persistence.isInitialized()) return null;
+
+  let events: persistence.PersistedRoomEvent[] | null = null;
+  try {
+    events = await persistence.loadRoomEvents<persistence.PersistedRoomEvent>(roomId);
+  } catch (err) {
+    recordDualChessPersistenceError(roomId, -1, 'load-room', err as Error);
+    return null;
+  }
+  if (!events) return null;
+  if (!isDualChessEventLog(events, roomId)) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'dual_chess_invalid_event_log',
+        roomId,
+        eventCount: events.length,
+        at: Date.now(),
+      }),
+    );
+    return null;
+  }
+
+  const hydrated = createDualChessRuntimeRoomFromEvents(events);
+  if (!hydrated.ok) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        kind: 'dual_chess_hydration_failure',
+        roomId,
+        error: hydrated.error,
+        at: Date.now(),
+      }),
+    );
+    return null;
+  }
+  const room = hydrated.room;
+  room.seatTokens = dualChessSeatTokenStatesFromPersistence(
+    await persistence.loadRoomSeatTokens<DualChessColor>(roomId),
+  );
+  dualChessRooms.set(roomId, room);
+  return room;
+}
+
+function dualChessSeatTokenStatesFromPersistence(
+  tokens: Partial<Record<DualChessColor, persistence.RoomSeatTokenRecord<DualChessColor>>>,
+): Partial<Record<DualChessColor, DualChessSeatTokenState>> {
+  const states: Partial<Record<DualChessColor, DualChessSeatTokenState>> = {};
   for (const token of Object.values(tokens)) {
     if (!token || token.revokedAt) continue;
     states[token.seat] = {
@@ -779,6 +885,20 @@ function isColor(value: string | undefined): value is Color {
 }
 
 function closeDarkMiniXiangqiClients(roomsToClose: Iterable<DarkMiniXiangqiRuntimeRoom>): void {
+  for (const room of roomsToClose) {
+    for (const client of room.clients) {
+      const socket = (client as { socket?: { close(code?: number, reason?: string): unknown } })
+        .socket;
+      try {
+        socket?.close(1001, 'server shutting down');
+      } catch {
+        /* socket already closed */
+      }
+    }
+  }
+}
+
+function closeDualChessClients(roomsToClose: Iterable<DualChessRuntimeRoom>): void {
   for (const room of roomsToClose) {
     for (const client of room.clients) {
       const socket = (client as { socket?: { close(code?: number, reason?: string): unknown } })

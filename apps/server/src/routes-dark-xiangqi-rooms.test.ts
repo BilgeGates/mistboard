@@ -227,6 +227,7 @@ function testContext(overrides: Partial<HttpApiContext> = {}): HttpApiContext {
       throw new Error('unexpected Dark Mini Xiangqi room creation');
     },
     createDarkXiangqiRoom: async () => ({ ok: true, room: darkXiangqiRoom('dxq_route') }),
+    createDualChessRoom: async () => ({ ok: false, error: 'dual_chess_disabled' }),
     createRoom: async () => {
       throw new Error('unexpected chess room creation');
     },
