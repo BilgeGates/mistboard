@@ -4456,6 +4456,31 @@ export const articles: Article[] = [
         ],
       },
       {
+        heading: 'A complete game under fog',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'To see the whole army work under Fog of War, step through a game where Mistboard’s engine, Misty 1.0, plays both sides. Each ply is shown three ways: what Red can see, the server’s true board, and what Black can see.',
+          },
+          {
+            kind: 'mxq-replay',
+            spec: {
+              views: 'triptych',
+              moves:
+                'b1b4 f7f5 a2b2 f5d5 b4d4 c6b6 e2e3 c7b5 e1f3 b5d4 e3e4 d4b5 e4d4 d5c5 b2b3 b6c6 b3b4 b7b4 a1b1 b4a4 b1b5 a4a3 b5b1 a6b6 g2f2 a3a1 b1a1 a7a1 f2e2 a1a3 c2b2 c5b5 g1g4 e6f6 f1f6 e7d5 d4d5 d6d5 b2b3 a3a7 b3b4 b5c5 f6e6 g6g5 g4g2 g5g4 e6e3 g4g3 g2g3 g7g3 e3g3 d7d6 g3g7 a7g7 f3e1 g7g4 b4a4 g4c4 e2e3 c5c1 d1c1 c4c1',
+              red: 'Misty 1.0',
+              black: 'Misty 1.0',
+              event: 'Misty 1.0 · Fog of War self-play',
+              resultText:
+                'Black’s cannon takes the horse on c1; the Red general must recapture, and the waiting chariot runs the open c-file to capture it. Black wins.',
+              caption:
+                'Misty 1.0 plays both sides of Dark Mini Xiangqi. Step through all 62 plies and compare the same position under Red’s fog, the server’s truth, and Black’s fog.',
+            },
+          } as ArticleBlock,
+        ],
+      },
+      {
         heading: 'Play status',
         blocks: [
           {

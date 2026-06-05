@@ -5,11 +5,14 @@
 import {
   applyMiniXiangqiMove,
   createInitialMiniXiangqiState,
+  getMiniXiangqiPlayerView,
   miniXiangqiCoordOf,
+  miniXiangqiSquareOf,
   type MiniXiangqiBoard,
   type MiniXiangqiColor,
   type MiniXiangqiGameState,
   type MiniXiangqiMove,
+  type MiniXiangqiPlayerView,
   type MiniXiangqiSquare,
   type XiangqiPiece,
 } from '@mistboard/game';
@@ -41,6 +44,10 @@ export type MiniXiangqiReplaySpec = {
   black: string;
   event: string;
   perspective?: MiniXiangqiColor;
+  // 'single' (default) shows one full-information board. 'triptych' shows the
+  // Dark Mini Xiangqi fog comparison — Red's view / server truth / Black's view
+  // — stepped together, the same three-angle layout the static fog diagrams use.
+  views?: 'single' | 'triptych';
   // Shown on the final ply. The records stop at the mating move, so the rules
   // kernel still reports "playing"; the result is supplied explicitly.
   resultText: string;
@@ -124,6 +131,99 @@ function boardSvg(
   return `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: ${pw}px" viewBox="0 0 ${pw} ${ph}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Mini Xiangqi board"><g transform="translate(${PAD} ${PAD})">${body}</g></svg>`;
 }
 
+// --- Fog triptych (Dark Mini Xiangqi) ---------------------------------------
+// All three cells share one orientation (Red at the bottom, like the static fog
+// diagrams); only the visibility and pieces differ per cell. The move arrow is
+// drawn on the server-truth board only — a view board never reveals a move its
+// side could not see.
+const TRI_LABEL_H = 20;
+const TRI_GAP = 22;
+const TRI_FOG_OVERLAP = 0.5;
+
+function fogLayerSvg(view: MiniXiangqiPlayerView, clipId: string): string {
+  const visible = new Set(view.visibleSquares);
+  const parts: string[] = [];
+  for (let file = 0; file < FILES; file += 1) {
+    for (let rank = 1; rank <= RANKS; rank += 1) {
+      const sq = miniXiangqiSquareOf(file, rank);
+      if (visible.has(sq)) continue;
+      const { x, y } = pointXY(file, rank, 'red');
+      const row = RANKS - rank;
+      const left = file === 0 ? 0 : x - CELL / 2 - TRI_FOG_OVERLAP;
+      const right = file === FILES - 1 ? BOARD_W : x + CELL / 2 + TRI_FOG_OVERLAP;
+      const top = row === 0 ? 0 : y - CELL / 2 - TRI_FOG_OVERLAP;
+      const bottom = row === RANKS - 1 ? BOARD_H : y + CELL / 2 + TRI_FOG_OVERLAP;
+      parts.push(`M ${left} ${top} H ${right} V ${bottom} H ${left} Z`);
+    }
+  }
+  if (parts.length === 0) return '';
+  return [
+    `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${BOARD_W}" height="${BOARD_H}" rx="${RADIUS}"/></clipPath></defs>`,
+    `<path d="${parts.join(' ')}" class="xq-diagram-fog" clip-path="url(#${clipId})"/>`,
+  ].join('');
+}
+
+// Pieces as the viewer sees them: own and revealed pieces by glyph, shrouded
+// blockers/screens as a neutral ? marker in the owner's colour.
+function viewPiecesSvg(view: MiniXiangqiPlayerView): string {
+  return Object.entries(view.board)
+    .map(([sq, entry]) => {
+      if (!entry) return '';
+      const { file, rank } = miniXiangqiCoordOf(sq as MiniXiangqiSquare);
+      const { x, y } = pointXY(file, rank, 'red');
+      const piece = (
+        entry.shrouded ? { color: entry.color, role: 'soldier' } : entry.piece
+      ) as XiangqiPiece;
+      return renderXiangqiPieceGlyphed(piece, readStoredXiangqiPieceSet(), {
+        x: x - PIECE / 2,
+        y: y - PIECE / 2,
+        size: PIECE,
+        shrouded: entry.shrouded,
+      });
+    })
+    .join('');
+}
+
+function triCellSvg(opts: {
+  x: number;
+  label: string;
+  key: number;
+  side: 'r' | 't' | 'b';
+  view?: MiniXiangqiPlayerView;
+  board?: MiniXiangqiBoard;
+  arrow?: MiniXiangqiMove;
+}): string {
+  const layers: string[] = [gridSvg('red')];
+  if (opts.view) {
+    layers.push(fogLayerSvg(opts.view, `mxqr-fog-${opts.side}-${opts.key}`));
+    layers.push(viewPiecesSvg(opts.view));
+  } else if (opts.board) {
+    layers.push(piecesSvg(opts.board, 'red'));
+    if (opts.arrow) layers.push(arrowSvg(opts.arrow, 'red', `mxqr-tri-arrow-${opts.key}`));
+  }
+  layers.push(
+    `<rect x="0" y="0" width="${BOARD_W}" height="${BOARD_H}" rx="${RADIUS}" fill="none" stroke="${STROKE}" stroke-width="${STROKE_WIDTH}"/>`,
+  );
+  return `<g transform="translate(${opts.x} 0)"><text x="${BOARD_W / 2}" y="11" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#5f4a2c" text-anchor="middle">${opts.label}</text><g transform="translate(0 ${TRI_LABEL_H})">${layers.join('')}</g></g>`;
+}
+
+function triptychSvg(
+  state: MiniXiangqiGameState,
+  lastMove: MiniXiangqiMove | undefined,
+  key: number,
+): string {
+  const n = 3;
+  const totalW = BOARD_W * n + TRI_GAP * (n - 1) + PAD * 2;
+  const totalH = BOARD_H + TRI_LABEL_H + PAD * 2;
+  const step = BOARD_W + TRI_GAP;
+  const body = [
+    triCellSvg({ x: 0, label: "RED'S VIEW", key, side: 'r', view: getMiniXiangqiPlayerView(state, 'red') }),
+    triCellSvg({ x: step, label: 'SERVER TRUTH', key, side: 't', board: state.board, arrow: lastMove }),
+    triCellSvg({ x: step * 2, label: "BLACK'S VIEW", key, side: 'b', view: getMiniXiangqiPlayerView(state, 'black') }),
+  ].join('');
+  return `<svg class="xq-article-svg" data-xq-layout="wide" style="--xq-svg-width: ${totalW}px" viewBox="0 0 ${totalW} ${totalH}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Dark Mini Xiangqi: Red's view, server truth, Black's view"><g transform="translate(${PAD} ${PAD})">${body}</g></svg>`;
+}
+
 function tokenToMove(tok: string): MiniXiangqiMove {
   return { from: tok.slice(0, 2) as MiniXiangqiSquare, to: tok.slice(2, 4) as MiniXiangqiSquare };
 }
@@ -133,6 +233,7 @@ export function mountMiniXiangqiReplay(
   spec: MiniXiangqiReplaySpec,
 ): MiniXiangqiReplayController {
   const perspective = spec.perspective ?? 'red';
+  const triptych = spec.views === 'triptych';
   const moves = spec.moves
     .trim()
     .split(/\s+/)
@@ -199,7 +300,9 @@ export function mountMiniXiangqiReplay(
   let index = 0;
   function render(): void {
     const lastMove = index > 0 ? moves[index - 1] : undefined;
-    frame.innerHTML = boardSvg(states[index]!.board, lastMove, perspective, index);
+    frame.innerHTML = triptych
+      ? triptychSvg(states[index]!, lastMove, index)
+      : boardSvg(states[index]!.board, lastMove, perspective, index);
     counter.textContent = index === 0 ? 'Start' : `${index} / ${total}`;
     first.disabled = index === 0;
     prev.disabled = index === 0;
