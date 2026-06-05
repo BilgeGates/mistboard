@@ -74,6 +74,12 @@ information, ranked integrity, and a serious engine track.
 - SSR exploration — server-rendered nav/pages to eliminate auth-state flash and unlock SEO for /articles + /@/handle. Current mitigation is the `mb_signed_in` localStorage hint in `account-nav.ts`. Likely trigger: wanting articles/profiles to rank in search.
 - Dark Xiangqi public launch — hidden/dev-only while the standard dark-chess
   launch gates remain open.
+- Variant generalization (live-room tenant) — adding a variant is ~40 files
+  today, ~30 of them identical live-room plumbing. The shared descriptor-driven
+  board renderer has landed (`packages/board-render`); collapsing the per-variant
+  live stack into one variant-tenant contract is deferred until ~3 variants
+  justify the interface (rule-of-three; an earlier registry-first attempt was
+  premature).
 
 ---
 
