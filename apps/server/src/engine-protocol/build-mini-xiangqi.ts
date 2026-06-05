@@ -119,24 +119,24 @@ export function buildMiniXiangqiObservationForPly(args: {
   visible_pieces.sort((a, b) => a[0] - b[0]);
   shrouded.sort((a, b) => a[0] - b[0]);
 
-  // own_capture_square: one of perspective's own pieces vanished (not the piece
-  // it moved itself) — always observable (you see your own pieces).
+  // Captures — must mirror the engine's observation_from_transition EXACTLY, or
+  // the belief filter (consistent_with) discards the true world and |P| collapses
+  // to 0. The engine's convention: own_capture_square = the single square that is
+  // own in prev but not in next — i.e. the from-square of OUR OWN move, OR a
+  // square the opponent captured. (Chess excludes the own-move from-square; the
+  // mini belief update does NOT.) opp_capture_landing_square = that square iff it
+  // now holds an opponent piece (the opponent captured us and landed there).
   let own_capture_square: SquareIndex | null = null;
-  if (prevState && move) {
-    const prevOwn = ownSquaresOf(prevState, perspective);
-    const nextOwn = new Set(ownSquaresOf(nextState, perspective));
-    const realLoss = prevOwn.filter((sq) => !nextOwn.has(sq) && sq !== move.from);
-    if (realLoss.length === 1) own_capture_square = miniSquareIndex(realLoss[0]);
-  }
-
-  // opp_capture_landing_square: opp's move landed on a visible square holding an
-  // opp piece — redacted by the visibility check.
   let opp_capture_landing_square: SquareIndex | null = null;
-  if (move && mover && mover !== perspective) {
-    const toIdx = miniSquareIndex(move.to);
-    if ((visibility_mask & (1n << BigInt(toIdx))) !== 0n) {
-      const landed = nextState.board[move.to];
-      if (landed && landed.color === mover) opp_capture_landing_square = toIdx;
+  if (prevState) {
+    const nextOwn = new Set(ownSquaresOf(nextState, perspective));
+    const vacated = ownSquaresOf(prevState, perspective).find((sq) => !nextOwn.has(sq));
+    if (vacated !== undefined) {
+      own_capture_square = miniSquareIndex(vacated);
+      const landed = nextState.board[vacated];
+      if (landed && landed.color !== perspective) {
+        opp_capture_landing_square = miniSquareIndex(vacated);
+      }
     }
   }
 

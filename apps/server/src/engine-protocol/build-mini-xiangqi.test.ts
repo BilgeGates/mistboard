@@ -63,6 +63,40 @@ test('DMX request: geometry, color mapping, and variant tag', () => {
   for (const m of req.legalMoves) assert.ok(expected.has(`${m.from}${m.to}`));
 });
 
+test('DMX own-move observation reports the from-square as own_capture (belief convention)', () => {
+  // The engine's observation_from_transition defines own_capture_square as the
+  // own square no longer own — for an OWN move that's the from-square. The belief
+  // filter requires the observed value to match, so a mismatch collapses |P| to 0
+  // (the "P is empty" bug). Lock the from-square convention here.
+  const { events } = playGame('g-owncap', 4);
+  for (const engineColor of ['red', 'black'] as const) {
+    const req = buildMiniXiangqiEngineTurnRequest({
+      gameId: 'g-owncap',
+      engineId: 'python-dmx-v1.0',
+      engineSecret: 'test-secret',
+      engineColor,
+      // state is unused for the transcript assertions; reuse the initial.
+      state: createInitialMiniXiangqiState('g-owncap'),
+      events,
+      ply: events.length,
+      clockRemainingMs: null,
+      incrementMs: 0,
+    });
+    const ownMoves = (req.observationTranscript ?? []).filter(
+      (o) => o.kind === 'own_move' && o.own_move,
+    );
+    assert.ok(ownMoves.length > 0, `expected own-move observations for ${engineColor}`);
+    for (const o of ownMoves) {
+      const fromIdx = miniIndex(o.own_move!.from as MiniXiangqiSquare);
+      assert.equal(
+        o.own_capture_square,
+        fromIdx,
+        `own_capture_square must equal the own-move from-square (${o.own_move!.from})`,
+      );
+    }
+  }
+});
+
 test('DMX request: REDACTION — no hidden enemy piece leaks; own pieces all visible', () => {
   const { events, state } = playGame('g-redact', 6);
   assert.equal(state.status.type, 'playing');
