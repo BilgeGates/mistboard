@@ -33,6 +33,14 @@ if (phKey && phHost && import.meta.env.PROD) {
       persistence: 'localStorage',
       disable_session_recording: true,
       respect_dnt: true,
+      // Real-user load timing: web vitals (LCP/CLS/FCP/INP) so we can actually
+      // see homepage load performance and catch regressions. network_timing is a
+      // session-replay feature (disabled here), so leave it off — web_vitals is
+      // independent of it.
+      capture_performance: { web_vitals: true, network_timing: false },
+      // Unhandled errors + promise rejections surface as $exception events
+      // (Error Tracking), so a broken page reports itself instead of going dark.
+      capture_exceptions: true,
     });
     posthog.capture('$pageview', { path: window.location.pathname });
     setPostHogInstance(posthog);

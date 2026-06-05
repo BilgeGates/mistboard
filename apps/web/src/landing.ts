@@ -21,7 +21,7 @@ import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
-import { buildHomeFooter, buildLoadingState, buildNav, buildNotice } from './site-shell.js';
+import { buildHomeFooter, buildNav, buildNotice } from './site-shell.js';
 
 const HOMEPAGE_CORPUS_HOLD_MS = 8000;
 // Adaptive hero-pool refresh. Poll faster while games are being played (they
@@ -34,36 +34,30 @@ const SHOWCASE_POOL_CAP = 14;
 export async function mountLanding(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
-  root.append(buildNav(), buildLoadingState('Loading games'));
 
-  const engines = await fetchPlayableEngines().catch((err) => {
-    console.warn(err);
-    return fallbackPlayableEngines();
-  });
-  // Prefer recent real games (quality-filtered, PvP-first) so the hero reads as
-  // a live place; fall back to the static engine showcase if the API is thin or
-  // unreachable, so the hero is never empty.
+  // Render the homepage shell immediately from synchronous fallbacks: the static
+  // engine showcase drives the hero board and a built-in engine seeds the play
+  // panel. First paint never waits on a network round-trip. The two homepage APIs
+  // (playable engines, recent showcase games) then upgrade both in place below.
+  //
+  // Previously these two were awaited serially before anything but the nav
+  // painted, so a slow /api/games/showcase hung the whole page behind a "Loading
+  // games" spinner (much worse over high-latency links). Shell-first also makes a
+  // hanging API non-blocking: the static content just keeps playing until real
+  // data arrives, instead of stalling the page.
+  // [render-jank: render the shell first, fill async — feedback_render_jank_prevention]
   let usingRealGames = false;
-  let games = homepageShowcaseGames();
-  try {
-    const showcase = await fetchShowcaseGames();
-    if (showcase.length >= 3) {
-      games = showcase;
-      usingRealGames = true;
-    }
-  } catch (err) {
-    console.warn('showcase games unavailable; using engine fallback', err);
-  }
+  const games = homepageShowcaseGames();
+  const sampleIds = games.map((g) => g.roomId);
+
   const params = new URLSearchParams(window.location.search);
   const requested = params.get('demo');
-  const sampleIds = games.map((g) => g.roomId);
   const forcedSample = requested && sampleIds.includes(requested) ? requested : null;
   const currentSample = forcedSample ?? sampleIds[0]!;
-  const stage = buildLandingStage(engines);
+  const stage = buildLandingStage(fallbackPlayableEngines());
   root.replaceChildren(buildNav(), stage.el);
   mountArticleThumbnails(stage.el);
   initLandingCarousel(stage.el);
-  maybeOpenPlayDeepLink(engines);
 
   const metadataByRoomId: Record<string, GameMeta> = {};
   const povByRoomId: Record<string, 'white' | 'black'> = {};
@@ -111,6 +105,21 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   // the handle returned.
   syncReviewLink(replay.activeSampleId());
 
+  // Upgrade the play panel + deep-link handling once the real playable engines
+  // load. The shell already rendered with the built-in fallback, so this is an
+  // in-place swap, not a blocker. fetchPlayableEngines() resolves to the real
+  // roster (or the built-in fallback if the API is empty) and throws only on a
+  // network error.
+  void fetchPlayableEngines()
+    .then((engines) => {
+      stage.applyEngines(engines);
+      maybeOpenPlayDeepLink(engines);
+    })
+    .catch((err) => {
+      console.warn(err);
+      maybeOpenPlayDeepLink(fallbackPlayableEngines());
+    });
+
   // Adaptively refresh the hero pool so newly finished games rotate in without a
   // page reload. New games' metadata/POV merge into the shared maps the replay
   // reads by reference, then the loop pool is swapped (the current game finishes
@@ -138,8 +147,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       povByRoomId[g.roomId] ??= pickHeroPovForGame(g);
     }
     const nextPool = fresh.slice(0, SHOWCASE_POOL_CAP).map((g) => g.roomId);
-    const changed =
-      nextPool.length !== poolIds.size || nextPool.some((id) => !poolIds.has(id));
+    const changed = nextPool.length !== poolIds.size || nextPool.some((id) => !poolIds.has(id));
     if (!changed) return;
     poolIds.clear();
     for (const id of nextPool) poolIds.add(id);
@@ -173,7 +181,10 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
       playing > 0 ? SHOWCASE_REFRESH_ACTIVE_MS : SHOWCASE_REFRESH_IDLE_MS,
     );
   };
-  showcaseTimer = window.setTimeout(() => void tickShowcaseRefresh(), SHOWCASE_REFRESH_ACTIVE_MS);
+  // Kick the first refresh promptly so real games replace the static showcase as
+  // soon as /api/games/showcase responds (the shell rendered with the static set
+  // up front). Subsequent ticks reschedule at the adaptive active/idle cadence.
+  showcaseTimer = window.setTimeout(() => void tickShowcaseRefresh(), 0);
 
   // Hand off room navigation to an in-place SPA transition so the starting
   // click's user activation survives into the room. A full-document nav would
@@ -367,6 +378,7 @@ function buildLandingStage(engines: PlayableEngine[]): {
   el: HTMLElement;
   replayRoot: HTMLElement;
   reviewLink: HTMLAnchorElement;
+  applyEngines: (engines: PlayableEngine[]) => void;
 } {
   const stage = document.createElement('main');
   stage.className = 'landing-stage';
@@ -410,16 +422,23 @@ function buildLandingStage(engines: PlayableEngine[]): {
   // stacked beneath them. ──
   const rightRail = document.createElement('div');
   rightRail.className = 'landing-rail landing-rail-right';
-  rightRail.append(
-    buildLandingPlayPanel(engines, { showLobbyRequests: false }),
-    buildLobbyRequestsWindow(),
-  );
+  let playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: false });
+  rightRail.append(playPanel, buildLobbyRequestsWindow());
+
+  // Swap the play panel in place once the real playable engines arrive (the shell
+  // renders first with a built-in fallback). The displaced panel's live-stats
+  // poll self-clears on its next tick when it finds itself detached from the DOM.
+  const applyEngines = (next: PlayableEngine[]): void => {
+    const replacement = buildLandingPlayPanel(next, { showLobbyRequests: false });
+    playPanel.replaceWith(replacement);
+    playPanel = replacement;
+  };
 
   section.append(leftRail, centerColumn, rightRail);
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter());
-  return { el: stage, replayRoot, reviewLink };
+  return { el: stage, replayRoot, reviewLink, applyEngines };
 }
 
 function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
