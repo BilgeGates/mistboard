@@ -40,7 +40,7 @@ export function rematchControls(
       note('Your opponent wants a rematch'),
       buttonRow(
         actionButton('Decline', () => sendSocket({ type: 'rematch:decline' })),
-        actionButton('Accept rematch', () => sendSocket({ type: 'rematch:offer' }), 'primary'),
+        actionButton('Accept', () => sendSocket({ type: 'rematch:offer' }), 'primary'),
       ),
     );
     return block;

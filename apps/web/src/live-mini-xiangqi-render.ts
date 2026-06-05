@@ -36,6 +36,9 @@ export type MiniXiangqiBoardRenderOptions = {
   selectedSquare?: MiniXiangqiSquare | null;
   legalMoves?: readonly MiniXiangqiMove[];
   pieceSet?: XiangqiPieceSet;
+  // While a piece is being dragged, omit it from the board so only the floating
+  // ghost is shown (no doubled piece).
+  draggingFrom?: MiniXiangqiSquare | null;
 };
 
 export function renderMiniXiangqiBoardSvg(
@@ -60,10 +63,32 @@ export function renderMiniXiangqiBoardSvg(
       ${lastMoveMarkers(view, perspective)}
       ${selectionRing(options.selectedSquare ?? null, perspective)}
       ${moveHints(view, options.legalMoves ?? [], perspective)}
-      ${pieceLayer(view, perspective, pieceSet)}
+      ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null)}
       ${options.interactive ? hitLayer(perspective) : ''}
     </svg>
   `;
+}
+
+// On-board piece footprint in px — the drag ghost matches it so the dragged
+// piece tracks the cursor at board scale.
+export const MINI_XIANGQI_PIECE_PX = PIECE_SIZE;
+
+// A standalone <svg> for one piece, used as the floating drag ghost. Rendered at
+// the same glyph/size as on the board; the caller positions it under the cursor.
+export function miniXiangqiPieceGhostSvg(
+  piece: MiniXiangqiPiece,
+  pieceSet?: XiangqiPieceSet,
+): string {
+  const set = pieceSet ?? readStoredXiangqiPieceSet();
+  const inner = renderXiangqiPieceGlyphed(piece, set, {
+    ariaLabel: `${piece.color} ${piece.role}`,
+    className: 'mini-xq-piece',
+    shrouded: false,
+    x: 0,
+    y: 0,
+    size: PIECE_SIZE,
+  });
+  return `<svg width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 ${PIECE_SIZE} ${PIECE_SIZE}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
 }
 
 // A full-information "truth" view: every piece revealed, every square visible.
@@ -140,10 +165,12 @@ function pieceLayer(
   view: MiniXiangqiPlayerView,
   perspective: MiniXiangqiColor,
   pieceSet: XiangqiPieceSet,
+  draggingFrom: MiniXiangqiSquare | null = null,
 ): string {
   return Object.entries(view.board)
     .map(([square, entry]) => {
       if (!entry) return '';
+      if (square === draggingFrom) return ''; // shown as the floating ghost instead
       const { file, rank } = miniXiangqiCoordOf(square as MiniXiangqiSquare);
       const { x, y } = intersection(file, rank, perspective);
       const piece =
@@ -293,10 +320,30 @@ export function installMiniXiangqiBoardStyles(): void {
     }
     /* Per-skin fog tints + texture toggles are shared with the full board and
        live in app-base.css (--xq-fog-fill, .xq-fog-tex). */
+    .mini-xq-drag-ghost {
+      position: fixed;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.92;
+      filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4));
+      will-change: left, top;
+    }
+    .mini-xq-board,
+    .mini-xq-drag-ghost {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+    .mini-xq-board image,
+    .mini-xq-piece,
+    .mini-xq-drag-ghost image {
+      -webkit-user-drag: none;
+    }
     .mini-xq-board {
       display: block;
       width: 100%;
       height: auto;
+      touch-action: none;
       touch-action: manipulation;
     }
     .mini-xq-board-bg {

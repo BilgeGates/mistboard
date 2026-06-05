@@ -760,7 +760,8 @@
 }
 
 .moves-panel {
-  border-left: 1px solid rgba(95, 107, 102, 0.18);
+  /* No center↔right divider: it was asymmetric (the left meta-panel has no
+     matching border). Removed for both chess and Dark Mini Xiangqi (parity). */
   padding-left: clamp(12px, 1.5vw, 18px);
 }
 

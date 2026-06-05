@@ -1,6 +1,7 @@
 import {
   DARK_MINI_XIANGQI_SPEC_ID,
   type MiniXiangqiColor,
+  type MiniXiangqiGameEndReason,
   type MiniXiangqiMove,
   type MiniXiangqiPlayerView,
 } from '@mistboard/game';
@@ -8,7 +9,9 @@ import { openConfirmDialog } from './confirm-dialog.js';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
 import { setLiveLayoutGameSpec } from './live-layout.js';
 import {
+  MINI_XIANGQI_PIECE_PX,
   installMiniXiangqiBoardStyles,
+  miniXiangqiPieceGhostSvg,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
 import {
@@ -41,6 +44,12 @@ type MiniXiangqiVisibleMoveRow = { fullMove: number; red?: string; black?: strin
 type MiniXiangqiReplaySnapshot = { ply: number; view: MiniXiangqiPlayerView };
 
 let selectedSquare: MiniXiangqiSquare | null = null;
+// Drag-and-drop state. Click-to-move stays the primary path; a real drag (moved
+// past a small threshold) commits on drop and suppresses the trailing click.
+let dragFrom: MiniXiangqiSquare | null = null;
+let dragGhost: HTMLDivElement | null = null;
+let dragMoved = false;
+let suppressNextClick = false;
 let playAgainStatus: 'idle' | 'creating' | 'failed' = 'idle';
 // Previous active clock color across full clock renders, used to flash the seated
 // player's clock on the turn flip (mirrors the chess clock; see live-clocks.ts).
@@ -302,13 +311,15 @@ function renderRoomActions(refs: LiveRefs): void {
     // Only finished games have a postgame review (the endpoint 404s otherwise).
     if (view.status.type === 'finished') row.append(reviewLink());
     // Finished games offer a mutual-confirm rematch with colors swapped (same as
-    // dark chess). Aborted games — or a viewer who isn't seated — fall back to
-    // the instant new-room button.
+    // dark chess); a non-seated viewer of a finished game gets an instant new
+    // room. Aborted games offer NO play-again — parity with dark chess. The old
+    // instant-new-room button after an abort created a fresh solo room where the
+    // mover could play before the opponent joined, and the opponent got no cue.
     const seat = liveState.seat;
     if (view.status.type === 'finished' && (seat === 'red' || seat === 'black')) {
       const theirSeat = seat === 'red' ? 'black' : 'red';
       row.append(rematchControls(seat, theirSeat, renderCallbacks.sendSocket));
-    } else {
+    } else if (view.status.type === 'finished') {
       row.append(playAgainButton(refs));
     }
     row.append(roomLink('Home', '/'));
@@ -565,6 +576,29 @@ function actionTone(
   return 'default';
 }
 
+// Human phrasing for a finished-game reason, so "Draw" always says WHY (the two
+// draw reasons are threefold repetition and the no-capture/progress rule).
+function miniXiangqiReasonPhrase(reason: MiniXiangqiGameEndReason): string {
+  switch (reason) {
+    case 'general-captured':
+      return 'general capture';
+    case 'stalemate':
+      return 'stalemate';
+    case 'timeout':
+      return 'timeout';
+    case 'resignation':
+      return 'resignation';
+    case 'abandonment':
+      return 'abandonment';
+    case 'repetition':
+      return 'threefold repetition';
+    case 'progress-clock':
+      return 'the no-capture rule';
+    default:
+      return 'the game rules';
+  }
+}
+
 function actionTitle(view: MiniXiangqiPlayerView | null): string {
   if (liveState.connectionState === 'rejected') return 'Room unavailable';
   if (liveState.connectionState === 'displaced') return 'Session moved';
@@ -582,7 +616,10 @@ function actionBody(view: MiniXiangqiPlayerView | null): string {
   if (liveState.connectionState === 'displaced') return 'Another tab reclaimed this seat.';
   if (!view) return 'Opening the room socket.';
   if (view.status.type === 'finished') {
-    return view.status.winner ? `${capitalize(view.status.winner)} wins.` : 'Draw.';
+    const reason = miniXiangqiReasonPhrase(view.status.reason);
+    return view.status.winner
+      ? `${capitalize(view.status.winner)} wins by ${reason}.`
+      : `Draw by ${reason}.`;
   }
   if (view.status.type === 'aborted') {
     return 'This game ended before both sides completed their first move.';
@@ -619,15 +656,116 @@ function renderBoard(
     showFog: true,
     selectedSquare,
     legalMoves: hints,
+    draggingFrom: dragFrom,
   });
   refs.board.querySelectorAll<SVGElement>('[data-square]').forEach((el) => {
     el.addEventListener('click', () => {
+      if (suppressNextClick) {
+        suppressNextClick = false;
+        return; // trailing click from a completed drag — already handled
+      }
       const square = el.dataset.square as MiniXiangqiSquare | undefined;
       if (!square) return;
       handleSquareClick(view, square, sendSocket);
       renderBoard(refs, view, sendSocket);
     });
+    el.addEventListener('pointerdown', (event) => {
+      beginMiniXiangqiDrag(event, refs, view, sendSocket, el);
+    });
   });
+}
+
+// Drag-to-move. Click-to-move is untouched: a pointerdown that never crosses the
+// movement threshold falls through to the click handler. Once it does cross, we
+// select the source, float a ghost piece, and commit (or re-select) on drop,
+// swallowing the trailing click so it doesn't double-handle.
+function beginMiniXiangqiDrag(
+  event: PointerEvent,
+  refs: LiveRefs,
+  view: MiniXiangqiPlayerView,
+  sendSocket: (payload: unknown) => boolean,
+  el: SVGElement,
+): void {
+  if (event.button !== 0) return;
+  const square = el.dataset.square as MiniXiangqiSquare | undefined;
+  if (!square || !canSelect(view, square)) return;
+  const entry = view.board[square];
+  if (!entry || entry.shrouded !== false) return;
+
+  const from = square;
+  const startX = event.clientX;
+  const startY = event.clientY;
+  let dragging = false;
+
+  const onMove = (move: PointerEvent) => {
+    if (!dragging) {
+      if (Math.abs(move.clientX - startX) + Math.abs(move.clientY - startY) <= 4) {
+        return; // still within tap tolerance
+      }
+      dragging = true;
+      dragFrom = from;
+      selectedSquare = from; // show selection ring + legal-move hints
+      renderBoard(refs, view, sendSocket);
+      dragGhost = document.createElement('div');
+      dragGhost.className = 'mini-xq-drag-ghost';
+      dragGhost.style.width = `${MINI_XIANGQI_PIECE_PX}px`;
+      dragGhost.style.height = `${MINI_XIANGQI_PIECE_PX}px`;
+      dragGhost.innerHTML = miniXiangqiPieceGhostSvg(entry.piece);
+      document.body.append(dragGhost);
+    }
+    move.preventDefault();
+    positionMiniXiangqiGhost(move.clientX, move.clientY);
+  };
+
+  const onUp = (up: PointerEvent) => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    if (!dragging) return; // a tap — let the click handler run click-to-move
+    removeMiniXiangqiGhost();
+    dragFrom = null;
+    suppressNextClick = true;
+    setTimeout(() => {
+      suppressNextClick = false;
+    }, 0);
+    const target = miniXiangqiSquareUnderPoint(up.clientX, up.clientY);
+    const legal =
+      target && target !== from
+        ? view.legalMoves.find((m) => m.from === from && m.to === target)
+        : undefined;
+    if (legal) {
+      selectedSquare = null;
+      if (sendSocket({ type: 'move', from: legal.from, to: legal.to })) {
+        playSound(soundForOwnMiniXiangqiMove(view, legal));
+      }
+    } else {
+      selectedSquare = from; // dropped off-target — keep selected for a follow-up click
+    }
+    renderBoard(refs, view, sendSocket);
+  };
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+
+function positionMiniXiangqiGhost(clientX: number, clientY: number): void {
+  if (!dragGhost) return;
+  dragGhost.style.left = `${clientX - MINI_XIANGQI_PIECE_PX / 2}px`;
+  dragGhost.style.top = `${clientY - MINI_XIANGQI_PIECE_PX / 2}px`;
+}
+
+function removeMiniXiangqiGhost(): void {
+  dragGhost?.remove();
+  dragGhost = null;
+}
+
+function miniXiangqiSquareUnderPoint(
+  clientX: number,
+  clientY: number,
+): MiniXiangqiSquare | null {
+  const hit = document
+    .elementFromPoint(clientX, clientY)
+    ?.closest('[data-square]') as HTMLElement | null;
+  return (hit?.dataset.square as MiniXiangqiSquare | undefined) ?? null;
 }
 
 function handleSquareClick(
