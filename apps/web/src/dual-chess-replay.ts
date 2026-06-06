@@ -68,7 +68,12 @@ export function mountDualChessReplay(
 
   const header = document.createElement('div');
   header.className = 'xq-replay-header';
-  header.textContent = `${spec.white} (White) vs ${spec.red} (Red) · ${spec.event}`;
+  const headerPlayers = document.createElement('div');
+  headerPlayers.textContent = `${spec.white} (White) vs ${spec.red} (Red)`;
+  const headerEvent = document.createElement('div');
+  headerEvent.className = 'xq-replay-header-event';
+  headerEvent.textContent = spec.event;
+  header.append(headerPlayers, headerEvent);
 
   const frame = document.createElement('div');
   frame.className = 'raw-svg-stepper-frame raw-svg-stepper-frame-dual';

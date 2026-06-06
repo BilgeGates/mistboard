@@ -4525,7 +4525,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Crossroads Chess is a game we made: chess and xiangqi on one board, six files by eight ranks, split by a river. It opens like a pawn storm and ends in a king race, and almost every game is decisive.',
+          'Crossroads Chess is a game we made: chess and xiangqi on one board, six files by eight with a river down the middle. Two armies, two kings, and a finish line behind each one. The opening is a pawn storm; the endgame is a footrace, both kings breaking for the far rank as the pieces come off. Draws almost never happen.',
       },
       {
         kind: 'paragraph',
@@ -4550,7 +4550,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The two sides are White and Red, and White moves first. Each side has twelve pieces: a king, a chariot, a cannon, a horse, a knight, a bishop, three pawns, and three soldiers. There is no queen at the start, though a pawn can earn one. The armies face each other in rotational symmetry, the way xiangqi armies do. On your turn, move one piece to a legal square. You cannot land on your own piece, and landing on an enemy piece captures it.',
+              'The two sides are White and Red, and White moves first. Each side has twelve pieces: a king, a chariot, a cannon, a horse, a knight, a bishop, three pawns, and three soldiers. There is no queen at the start, though a pawn can earn one. The two armies stand in rotational symmetry: turn the board 180 degrees and the position is unchanged. On your turn, move one piece to a legal square. You cannot land on your own piece, and landing on an enemy piece captures it.',
           },
         ],
       },
@@ -4607,9 +4607,9 @@ export const articles: Article[] = [
           {
             kind: 'raw-svg',
             svg: renderDualChessBoard({
-              fen: '6/6/6/6/6/1p1p2/2P3/6',
-              moveDots: ['c3', 'c4'],
-              captures: ['b3', 'd3'],
+              fen: '6/6/6/6/6/2n1o1/3P2/6',
+              moveDots: ['d3', 'd4'],
+              captures: ['c3', 'e3'],
             }),
           } as ArticleBlock,
           { kind: 'sub-heading', text: 'From xiangqi' },
@@ -4639,7 +4639,7 @@ export const articles: Article[] = [
                 label: 'MOVE',
               },
               {
-                fen: '6/6/2p3/6/2p3/6/6/2C3',
+                fen: '6/6/2b3/6/2o3/6/6/2C3',
                 moveDots: ['c2', 'c3'],
                 captures: ['c6'],
                 highlights: ['c4'],
@@ -4650,7 +4650,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              '**Horse:** moves like the knight, one square orthogonally and then one square diagonally outward, but it does not jump. If the square it steps through, the horse’s leg, is occupied, the horse cannot move that way. The knight and the horse trace the same shape; only the knight ignores blockers.',
+              '**Horse:** moves like the knight, one square orthogonally and then one square diagonally outward, **but it does not jump.** If the square it steps through, the horse’s leg, is occupied, the horse cannot move that way. The knight and the horse trace the same shape; only the knight ignores blockers.',
           },
           {
             kind: 'raw-svg',
@@ -4756,7 +4756,7 @@ export const articles: Article[] = [
         ],
       },
       {
-        heading: 'Why we made it',
+        heading: 'The nature of the game',
         blocks: [
           {
             kind: 'paragraph',
@@ -4767,6 +4767,11 @@ export const articles: Article[] = [
             kind: 'paragraph',
             text:
               'Almost every game ends with a winner. Between the two finish lines and rules that make stalemate and repetition a loss, there is rarely anywhere to hide, and in our engine testing draws are the exception.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'You cannot play Crossroads Chess on Mistboard yet. It is in testing now, and a playable version is coming soon.',
           },
         ],
       },
