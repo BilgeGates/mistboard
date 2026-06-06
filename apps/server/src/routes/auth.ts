@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { normalizeEmail } from './../account-identity.js';
 import {
   accountSessionCookie,
-  accountSessionFromRequest,
+  accountSessionsFromRequest,
   accountSessionTtlMs,
   authEmailDeliveryEnabled,
   currentAccountUser,
@@ -12,6 +12,7 @@ import {
   ensureUserForEmail,
   expiredAccountSessionCookie,
   hashSecret,
+  legacyHostOnlyAccountSessionEviction,
   publicUser,
   randomEmailLoginCode,
   sendEmailLoginCode,
@@ -124,7 +125,10 @@ export async function tryHandle(
       200,
       { user: publicUser(user), isNewUser: isNew },
       {
-        'set-cookie': accountSessionCookie(sessionId, sessionToken, expiresAt),
+        // Issue the canonical cookie and, when a Domain is configured, evict any
+        // legacy host-only `mistboard_session` duplicate so the browser stops
+        // sending two cookies of the same name (one of which would be stale).
+        'set-cookie': withLegacyEviction(accountSessionCookie(sessionId, sessionToken, expiresAt)),
       },
     );
     return true;
@@ -132,24 +136,35 @@ export async function tryHandle(
 
   if (pathname === '/api/auth/logout') {
     if (!requireMethod(request, response, 'POST')) return true;
-    const session = accountSessionFromRequest(request);
-    if (session && persistence.isInitialized()) {
-      await persistence.revokeAccountSession(
-        session.sessionId,
-        hashSecret(session.token),
-        new Date(),
-      );
+    if (persistence.isInitialized()) {
+      const now = new Date();
+      // Revoke every candidate, not just the first cookie: a host-only and a
+      // Domain-scoped `mistboard_session` can coexist, and leaving the live one
+      // behind would keep the account signed in after an explicit logout.
+      for (const session of accountSessionsFromRequest(request)) {
+        await persistence.revokeAccountSession(session.sessionId, hashSecret(session.token), now);
+      }
     }
     writeJson(
       response,
       200,
       { ok: true },
       {
-        'set-cookie': expiredAccountSessionCookie(),
+        // Clear the canonical (Domain-scoped) cookie and any legacy host-only
+        // duplicate so neither lingers in the browser after sign-out.
+        'set-cookie': withLegacyEviction(expiredAccountSessionCookie()),
       },
     );
     return true;
   }
 
   return false;
+}
+
+// Pairs a canonical session cookie with the legacy host-only eviction when one
+// applies, yielding a single string (no duplicate) or a two-element Set-Cookie
+// array the HTTP layer emits as separate headers.
+function withLegacyEviction(canonical: string): string | string[] {
+  const eviction = legacyHostOnlyAccountSessionEviction();
+  return eviction ? [canonical, eviction] : canonical;
 }

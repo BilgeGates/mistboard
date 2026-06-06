@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict';
+import type { IncomingMessage } from 'node:http';
 import test from 'node:test';
 import { maxHandleLength, normalizeProfileHandle } from './account-identity.js';
 import {
   accountSessionCookie,
+  accountSessionsFromRequest,
   expiredAccountSessionCookie,
   handleCollisionAttempt,
+  legacyHostOnlyAccountSessionEviction,
 } from './account-session.js';
+
+function requestWithCookie(cookie: string | undefined): IncomingMessage {
+  return { headers: cookie === undefined ? {} : { cookie } } as unknown as IncomingMessage;
+}
 
 function withCookieDomain<T>(value: string | undefined, fn: () => T): T {
   const prev = process.env.MISTBOARD_COOKIE_DOMAIN;
@@ -65,4 +72,44 @@ test('logout cookie clears across the same Domain scope so the subdomain session
   const cookie = withCookieDomain('mistboard.com', () => expiredAccountSessionCookie());
   assert.match(cookie, /(^|; )Domain=mistboard\.com(;|$)/);
   assert.match(cookie, /(^|; )Max-Age=0(;|$)/);
+});
+
+test('accountSessionsFromRequest returns every mistboard_session candidate in header order', () => {
+  // A legacy host-only cookie and the newer Domain-scoped cookie share a name;
+  // the browser sends both. We must surface both so the live one is not shadowed
+  // by a stale first match.
+  const sessions = accountSessionsFromRequest(
+    requestWithCookie('mistboard_session=sidA.tokA; other=x; mistboard_session=sidB.tokB'),
+  );
+  assert.deepEqual(sessions, [
+    { sessionId: 'sidA', token: 'tokA' },
+    { sessionId: 'sidB', token: 'tokB' },
+  ]);
+});
+
+test('accountSessionsFromRequest skips malformed candidates but keeps valid ones', () => {
+  const sessions = accountSessionsFromRequest(
+    requestWithCookie('mistboard_session=no-dot; mistboard_session=sid.tok'),
+  );
+  assert.deepEqual(sessions, [{ sessionId: 'sid', token: 'tok' }]);
+});
+
+test('accountSessionsFromRequest returns nothing when no cookie header is present', () => {
+  assert.deepEqual(accountSessionsFromRequest(requestWithCookie(undefined)), []);
+});
+
+test('legacy host-only eviction targets the no-Domain duplicate when a Domain is configured', () => {
+  const cookie = withCookieDomain('mistboard.com', () => legacyHostOnlyAccountSessionEviction());
+  assert.ok(cookie !== null);
+  assert.match(cookie, /^mistboard_session=;/);
+  assert.match(cookie, /(^|; )Max-Age=0(;|$)/);
+  assert.match(cookie, /(^|; )Path=\/(;|$)/);
+  assert.match(cookie, /(^|; )HttpOnly(;|$)/);
+  // Host-only: it must NOT carry a Domain, or it would target the wrong entry.
+  assert.doesNotMatch(cookie, /Domain=/);
+});
+
+test('legacy host-only eviction is a no-op when no Domain is configured', () => {
+  const cookie = withCookieDomain(undefined, () => legacyHostOnlyAccountSessionEviction());
+  assert.equal(cookie, null);
 });

@@ -17,13 +17,21 @@ export async function currentAccountUser(
   request: IncomingMessage,
 ): Promise<persistence.UserAccount | null> {
   if (!persistence.isInitialized()) return null;
-  const session = accountSessionFromRequest(request);
-  if (!session) return null;
-  return persistence.getUserByAccountSession(
-    session.sessionId,
-    hashSecret(session.token),
-    new Date(),
-  );
+  const now = new Date();
+  // A request can carry more than one `mistboard_session` cookie: a legacy
+  // host-only cookie (from before MISTBOARD_COOKIE_DOMAIN) coexists with the
+  // newer Domain-scoped one, and the browser sends both. First-match parsing
+  // could pick the dead one and report the user as signed out. Resolve every
+  // candidate and take the first that maps to a live session.
+  for (const session of accountSessionsFromRequest(request)) {
+    const user = await persistence.getUserByAccountSession(
+      session.sessionId,
+      hashSecret(session.token),
+      now,
+    );
+    if (user) return user;
+  }
+  return null;
 }
 
 export async function ensureUserForEmail(
@@ -165,29 +173,35 @@ export function hashSecret(secret: string): string {
   return createHash('sha256').update(secret).digest('hex');
 }
 
-export function accountSessionFromRequest(
+// Every `mistboard_session` candidate in the request, in header order. Plural
+// because a host-only and a Domain-scoped cookie of the same name can coexist
+// (see currentAccountUser); callers must consider all of them, not just the
+// first, or a stale duplicate shadows the live session.
+export function accountSessionsFromRequest(
   request: IncomingMessage,
-): { sessionId: string; token: string } | null {
-  const value = cookieValue(request, accountSessionCookieName);
-  if (!value) return null;
-  const [sessionId, token] = value.split('.', 2);
-  if (!sessionId || !token) return null;
-  return { sessionId, token };
+): Array<{ sessionId: string; token: string }> {
+  const sessions: Array<{ sessionId: string; token: string }> = [];
+  for (const value of cookieValues(request, accountSessionCookieName)) {
+    const [sessionId, token] = value.split('.', 2);
+    if (sessionId && token) sessions.push({ sessionId, token });
+  }
+  return sessions;
 }
 
-function cookieValue(request: IncomingMessage, name: string): string | null {
+function cookieValues(request: IncomingMessage, name: string): string[] {
   const header = request.headers.cookie;
-  if (!header) return null;
+  if (!header) return [];
+  const values: string[] = [];
   for (const part of header.split(';')) {
     const [rawKey, ...rawValue] = part.trim().split('=');
     if (rawKey !== name) continue;
     try {
-      return decodeURIComponent(rawValue.join('='));
+      values.push(decodeURIComponent(rawValue.join('=')));
     } catch {
-      return null;
+      // Skip a malformed encoding; other candidates may still be valid.
     }
   }
-  return null;
+  return values;
 }
 
 export function accountSessionCookie(sessionId: string, token: string, expiresAt: Date): string {
@@ -204,6 +218,28 @@ export function expiredAccountSessionCookie(): string {
     'Max-Age=0',
     'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
   ]);
+}
+
+// When a Domain is configured, the canonical cookie is Domain-scoped, but a
+// legacy host-only `mistboard_session` (issued before MISTBOARD_COOKIE_DOMAIN
+// existed) can still sit alongside it and shadow it on parse. This expires that
+// host-only duplicate — same attributes minus Domain, so it targets the
+// host-only entry specifically. Returns null when no Domain is set, since the
+// canonical cookie is already host-only and there is no duplicate to evict.
+// Emit it next to the canonical set-cookie on login and the expiry on logout so
+// the pair collapses to one over a user's next auth action.
+export function legacyHostOnlyAccountSessionEviction(): string | null {
+  if (!accountSessionCookieDomain()) return null;
+  const attrs = [
+    `${accountSessionCookieName}=`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=0',
+    'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+  ];
+  if (isProductionLikeRuntime()) attrs.push('Secure');
+  return attrs.join('; ');
 }
 
 // When set (prod), scopes the session cookie to the registrable domain (e.g.
