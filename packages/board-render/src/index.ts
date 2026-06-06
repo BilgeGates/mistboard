@@ -10,6 +10,7 @@ export { fogPatternDefs, renderBoardSvg } from './board-svg.js';
 export type { BoardSpec, CompositionOptions } from './composition.js';
 export { renderBoardComposition } from './composition.js';
 export type {
+  GridArrowRef,
   GridBoardDescriptor,
   GridBoardLayers,
   GridCellRef,

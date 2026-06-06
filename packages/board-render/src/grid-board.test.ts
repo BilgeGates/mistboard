@@ -98,3 +98,47 @@ test('interaction layers render only the data they are given', () => {
   // The fogged square is filled with the fog colour.
   assert.match(svg, /fill="rgba\(22,18,14,0\.66\)"/);
 });
+
+test('highlights fill multiple squares with the selection colour', () => {
+  const none = renderGridBoardSvg(dual, noPieces);
+  const baseSelected = (none.match(/fill="rgba\(255,205,80,0\.55\)"/g) ?? []).length;
+
+  const svg = renderGridBoardSvg(dual, {
+    ...noPieces,
+    highlights: [
+      { file: 2, rank: 4 },
+      { file: 2, rank: 5 },
+      { file: 4, rank: 7 },
+    ],
+  });
+  // Three highlight squares, drawn in the selection colour.
+  assert.equal(
+    (svg.match(/fill="rgba\(255,205,80,0\.55\)"/g) ?? []).length,
+    baseSelected + 3,
+  );
+});
+
+test('arrows draw a marker def and one line per arrow', () => {
+  const none = renderGridBoardSvg(dual, noPieces);
+  assert.doesNotMatch(none, /<marker id="b-arrow"/);
+
+  const svg = renderGridBoardSvg(dual, {
+    ...noPieces,
+    arrows: [
+      { from: { file: 4, rank: 7 }, to: { file: 4, rank: 8 } },
+      { from: { file: 0, rank: 1 }, to: { file: 0, rank: 4 } },
+    ],
+  });
+  // One shared marker def, two arrow lines pointing at it, default green.
+  assert.equal((svg.match(/<marker id="b-arrow"/g) ?? []).length, 1);
+  assert.equal((svg.match(/marker-end="url\(#b-arrow\)"/g) ?? []).length, 2);
+  assert.match(svg, /stroke="#2f7d2f"/);
+});
+
+test('a custom palette arrow colour overrides the default', () => {
+  const svg = renderGridBoardSvg(
+    { ...dual, palette: { ...palette, arrow: '#b5322b' } },
+    { ...noPieces, arrows: [{ from: { file: 0, rank: 1 }, to: { file: 1, rank: 1 } }] },
+  );
+  assert.match(svg, /stroke="#b5322b"/);
+});

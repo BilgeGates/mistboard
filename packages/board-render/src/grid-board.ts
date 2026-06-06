@@ -35,6 +35,8 @@ export type GridPalette = {
   targetDot: string;
   targetRing: string;
   fog: string;
+  // Colour for annotation arrows. Optional; defaults to a muted green.
+  arrow?: string;
 };
 
 export type GridBoardDescriptor = {
@@ -61,6 +63,7 @@ export type GridBoardDescriptor = {
 // file is 0-based (a=0); rank is 1-based to match algebraic squares.
 export type GridCellRef = { file: number; rank: number };
 export type GridTargetRef = GridCellRef & { occupied: boolean };
+export type GridArrowRef = { from: GridCellRef; to: GridCellRef };
 
 export interface GridGeometry {
   cell: number;
@@ -80,7 +83,12 @@ export type GridBoardLayers = {
   extraDefs?: string;
   lastMove?: readonly GridCellRef[] | null;
   selected?: GridCellRef | null;
+  // Squares to fill with the selection colour (study/diagram emphasis). Like
+  // `selected`, but a list; drawn under the pieces. Omit / null for none.
+  highlights?: readonly GridCellRef[] | null;
   targets?: readonly GridTargetRef[];
+  // Annotation arrows drawn over the board (analysis / didactic). Omit for none.
+  arrows?: readonly GridArrowRef[] | null;
   // Squares to fog (hidden). Omit / null to draw no fog overlay.
   fogHidden?: readonly GridCellRef[] | null;
   // Names the hit-layer rects (data-square="…") so a host can delegate clicks.
@@ -186,6 +194,9 @@ export function renderGridBoardSvg(
   const selectionLayer = (): string =>
     layers.selected ? cellRect(layers.selected, palette.selected) : '';
 
+  const highlightLayer = (): string =>
+    (layers.highlights ?? []).map((ref) => cellRect(ref, palette.selected)).join('');
+
   const coordsLayer = (): string => {
     const parts: string[] = [];
     const bottomRank = layers.flip ? ranks : 1;
@@ -217,6 +228,21 @@ export function renderGridBoardSvg(
   const fogLayer = (): string =>
     (layers.fogHidden ?? []).map((ref) => cellRect(ref, palette.fog)).join('');
 
+  const arrowColor = palette.arrow ?? '#2f7d2f';
+  const arrows = layers.arrows ?? [];
+  const arrowMarkerDef =
+    arrows.length > 0
+      ? `<marker id="${id}-arrow" markerWidth="4" markerHeight="4" refX="2.05" refY="2" orient="auto" markerUnits="strokeWidth"><path d="M0,0 V4 L3,2 Z" fill="${arrowColor}"/></marker>`
+      : '';
+  const arrowLayer = (): string =>
+    arrows
+      .map((arrow) => {
+        const a = geom.center(arrow.from.file, arrow.from.rank);
+        const b = geom.center(arrow.to.file, arrow.to.rank);
+        return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${arrowColor}" stroke-width="5" stroke-linecap="round" opacity="0.55" marker-end="url(#${id}-arrow)"/>`;
+      })
+      .join('');
+
   const hitLayer = (): string => {
     const name = layers.squareName ?? ((f, r) => `${fileLabel(f)}${r}`);
     const parts: string[] = [];
@@ -237,6 +263,7 @@ export function renderGridBoardSvg(
     stripLayer(),
     lastMoveLayer(),
     selectionLayer(),
+    highlightLayer(),
     coordsLayer(),
     layers.renderPieces(geom),
     targetLayer(),
@@ -246,12 +273,14 @@ export function renderGridBoardSvg(
 
   return [
     `<svg${descriptor.svgClass ? ` class="${descriptor.svgClass}"` : ''} viewBox="0 0 ${frameW + pad * 2} ${frameH + pad * 2}" role="img" xmlns="http://www.w3.org/2000/svg">`,
-    `<defs>${clipDef}${layers.extraDefs ?? ''}</defs>`,
+    `<defs>${clipDef}${arrowMarkerDef}${layers.extraDefs ?? ''}</defs>`,
     `<g transform="translate(${pad} ${pad})">`,
     `<rect x="0" y="0" width="${frameW}" height="${frameH}" rx="${frameRadius}" fill="${palette.frameBg}"/>`,
     `<rect x="1.5" y="1.5" width="${frameW - 3}" height="${frameH - 3}" rx="${frameInnerRadius}" fill="none" stroke="${palette.frameInner}" stroke-width="${frameInnerWidth}"/>`,
     `<g transform="translate(${framePad} ${framePad})">`,
     `<g clip-path="url(#${id}-clip)">${clipped}</g>`,
+    // Arrows ride over the board (analysis overlay), under the frame edge.
+    arrowLayer(),
     `<rect x="0" y="0" width="${boardW}" height="${boardH}" rx="${boardRadius}" fill="none" stroke="${palette.boardEdge}" stroke-width="${boardEdgeWidth}"/>`,
     `</g></g></svg>`,
   ].join('');

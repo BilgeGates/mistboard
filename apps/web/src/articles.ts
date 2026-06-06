@@ -18,6 +18,7 @@ import {
   type ChessReplayBlock,
   type CodeBlock,
   type CtaBlock,
+  type DualReplayBlock,
   findArticle,
   type InteractiveBlock,
   type LiveBoardsBlock,
@@ -30,6 +31,7 @@ import {
   type XiangqiReplayBlock,
 } from './articles-data.js';
 import { mountChessReplay, type ChessReplayController } from './chess-replay.js';
+import { type DualChessReplayController, mountDualChessReplay } from './dual-chess-replay.js';
 import {
   mountMiniXiangqiReplay,
   type MiniXiangqiReplayController,
@@ -597,7 +599,8 @@ type PendingBlock =
   | LiveBoardsBlock
   | XiangqiReplayBlock
   | ChessReplayBlock
-  | MiniXiangqiReplayBlock;
+  | MiniXiangqiReplayBlock
+  | DualReplayBlock;
 const pendingMounts = new WeakMap<HTMLElement, PendingBlock>();
 
 function renderBlock(block: ArticleBlock): HTMLElement {
@@ -612,6 +615,7 @@ function renderBlock(block: ArticleBlock): HTMLElement {
   if (block.kind === 'xq-replay') return renderXiangqiReplayBlock(block);
   if (block.kind === 'mxq-replay') return renderMiniXiangqiReplayBlock(block);
   if (block.kind === 'chess-replay') return renderChessReplayBlock(block);
+  if (block.kind === 'dual-replay') return renderDualReplayBlock(block);
   return renderInteractiveBlock(block);
 }
 
@@ -619,6 +623,26 @@ function renderChessReplayBlock(block: ChessReplayBlock): HTMLElement {
   const figure = document.createElement('figure');
   figure.className = 'article-figure article-figure-interactive';
   figure.dataset.pendingWidget = 'chess-replay';
+
+  const mountTarget = document.createElement('div');
+  mountTarget.className = 'article-interactive-target';
+  figure.append(mountTarget);
+
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+
+  pendingMounts.set(figure, block);
+  return figure;
+}
+
+function renderDualReplayBlock(block: DualReplayBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-interactive article-figure-dual';
+  figure.dataset.pendingWidget = 'dual-replay';
 
   const mountTarget = document.createElement('div');
   mountTarget.className = 'article-interactive-target';
@@ -1028,6 +1052,7 @@ export function mountPendingWidgets(
   | XiangqiReplayController
   | ChessReplayController
   | MiniXiangqiReplayController
+  | DualChessReplayController
 > {
   const controllers: Array<
     | StepperController
@@ -1035,6 +1060,7 @@ export function mountPendingWidgets(
     | XiangqiReplayController
     | ChessReplayController
     | MiniXiangqiReplayController
+    | DualChessReplayController
   > = [];
   const pending = root.querySelectorAll<HTMLElement>('[data-pending-widget]');
   pending.forEach((figure) => {
@@ -1052,6 +1078,8 @@ export function mountPendingWidgets(
       controllers.push(mountMiniXiangqiReplay(target, block.spec));
     } else if (block.kind === 'chess-replay') {
       controllers.push(mountChessReplay(target, block.spec));
+    } else if (block.kind === 'dual-replay') {
+      controllers.push(mountDualChessReplay(target, block.spec));
     }
     pendingMounts.delete(figure);
     delete figure.dataset.pendingWidget;

@@ -51,6 +51,9 @@ import {
 import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
 import articleSnapshotFogBlack from './article-snapshot-fog-black.json' with { type: 'json' };
 import type { ChessReplaySpec } from './chess-replay.js';
+import { DUAL_START_FEN, renderDualChessBoard, renderDualChessRow } from './dual-chess-diagram.js';
+import type { DualReplaySpec } from './dual-chess-replay.js';
+import { DUAL_CHESS_SAMPLE_GAME } from './dual-chess-sample-game.js';
 import type { MiniXiangqiReplaySpec } from './mini-xiangqi-replay.js';
 import {
   DEFAULT_XIANGQI_PIECE_SET,
@@ -114,6 +117,14 @@ export type XiangqiReplayBlock = {
 export type ChessReplayBlock = {
   kind: 'chess-replay';
   spec: ChessReplaySpec;
+  caption?: string;
+};
+
+// Crossroads Chess analogue: a 6x8 board stepped through a UCI move list, each
+// position replayed through the real kernel and rendered by the live renderer.
+export type DualReplayBlock = {
+  kind: 'dual-replay';
+  spec: DualReplaySpec;
   caption?: string;
 };
 
@@ -189,6 +200,7 @@ export type ArticleBlock =
   | XiangqiReplayBlock
   | ChessReplayBlock
   | MiniXiangqiReplayBlock
+  | DualReplayBlock
   | CodeBlock;
 
 // `blocks` is the structured body. `paragraphs` is the legacy outline body
@@ -4496,6 +4508,257 @@ export const articles: Article[] = [
           } as ArticleBlock,
         ],
       },
+    ],
+  },
+  {
+    slug: 'dual-chess',
+    kind: 'rules',
+    title: 'Crossroads Chess Rules',
+    summary:
+      'A modern variant that fuses chess and xiangqi on a 6 by 8 river board. The pieces you already know from both games, and two ways to win: checkmate, or race your king across.',
+    showSummaryOnPage: false,
+    showInIndex: false,
+    status: 'draft',
+    audience: 'Mistboard readers who know chess or xiangqi and want the Crossroads Chess rules.',
+    thumbnail: { kind: 'svg', svg: renderDualChessBoard({ fen: DUAL_START_FEN }) },
+    intro: [
+      {
+        kind: 'paragraph',
+        text:
+          'Crossroads Chess puts the pieces of two ancient strategy games on a single board. From chess it takes the king, bishop, knight, and pawn. From xiangqi it takes the chariot, cannon, horse, and soldier. You already know how most of them move, so there is little to learn from scratch. Crossroads Chess adds one new idea: a second way to win, by marching your own king to the far side of the board.',
+      },
+    ],
+    sections: [
+      {
+        heading: 'Board setup',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Crossroads Chess is played on a board 6 files wide and 8 ranks deep. A river runs across the middle, between the fourth and fifth ranks. As in xiangqi, the river matters only to soldiers.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessBoard({ fen: DUAL_START_FEN }),
+            caption: 'The starting position. White moves up the board, Red moves down.',
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'The two sides are White and Red, and White moves first. Each side has twelve pieces: a king, a chariot, a cannon, a horse, a knight, a bishop, three pawns, and three soldiers. There is no queen at the start, though a pawn can earn one. The armies face each other in rotational symmetry, the way xiangqi armies do. On your turn, move one piece to a legal square. You cannot land on your own piece, and landing on an enemy piece captures it.',
+          },
+        ],
+      },
+      {
+        heading: 'The pieces',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Each piece moves in its own way. In every diagram below, the highlighted squares are the legal moves and captures for the marked piece. Four pieces come from chess and four from xiangqi.',
+          },
+          { kind: 'sub-heading', text: 'From chess' },
+          {
+            kind: 'paragraph',
+            text:
+              '**King:** moves one square in any direction. It may not move onto a square attacked by the opponent. The king is also your racing piece (see How to win).',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessBoard({
+              fen: '6/6/6/6/2K3/6/6/6',
+              moveDots: ['b5', 'c5', 'd5', 'b4', 'd4', 'b3', 'c3', 'd3'],
+            }),
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Bishop:** moves any number of squares diagonally. Because diagonals stay on one color, each bishop stays on light squares or dark squares for the whole game.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessBoard({
+              fen: '6/6/6/6/2B3/6/6/6',
+              moveDots: ['a6', 'b5', 'd5', 'e6', 'f7', 'a2', 'b3', 'd3', 'e2', 'f1'],
+            }),
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Knight:** moves in an L shape, two squares one way and one square sideways. It jumps over any pieces in its path.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessBoard({
+              fen: '6/6/6/6/2N3/6/6/6',
+              moveDots: ['a5', 'b6', 'd6', 'e5', 'a3', 'b2', 'd2', 'e3'],
+            }),
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Pawn:** moves one square straight forward into an empty square, or two squares from its starting position, and never moves backward. It captures one square diagonally forward (the red rings), never straight ahead. When it reaches the far rank it promotes to a queen.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessBoard({
+              fen: '6/6/6/6/6/1p1p2/2P3/6',
+              moveDots: ['c3', 'c4'],
+              captures: ['b3', 'd3'],
+            }),
+          } as ArticleBlock,
+          { kind: 'sub-heading', text: 'From xiangqi' },
+          {
+            kind: 'paragraph',
+            text:
+              '**Chariot:** moves any number of squares horizontally or vertically and cannot jump, exactly like a rook.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessBoard({
+              fen: '6/6/6/6/2V3/6/6/6',
+              moveDots: ['c8', 'c7', 'c6', 'c5', 'c3', 'c2', 'c1', 'a4', 'b4', 'd4', 'e4', 'f4'],
+            }),
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Cannon:** moves like a chariot when it is not capturing. To capture, it jumps over exactly one piece, friend or foe, called the screen, and lands on an enemy piece beyond it.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessRow([
+              {
+                fen: '6/6/6/6/2C3/6/6/6',
+                moveDots: ['c8', 'c7', 'c6', 'c5', 'c3', 'c2', 'c1', 'a4', 'b4', 'd4', 'e4', 'f4'],
+                label: 'MOVE',
+              },
+              {
+                fen: '6/6/2p3/6/2p3/6/6/2C3',
+                moveDots: ['c2', 'c3'],
+                captures: ['c6'],
+                highlights: ['c4'],
+                label: 'CAPTURE (jump the screen)',
+              },
+            ]),
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Horse:** moves like the knight, one square orthogonally and then one square diagonally outward, but it does not jump. If the square it steps through, the horse’s leg, is occupied, the horse cannot move that way. The knight and the horse trace the same shape; only the knight ignores blockers.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessRow([
+              {
+                fen: '6/6/6/6/2H3/6/6/6',
+                moveDots: ['a5', 'b6', 'd6', 'e5', 'a3', 'b2', 'd2', 'e3'],
+                label: 'MOVES LIKE THE KNIGHT',
+              },
+              {
+                fen: '6/6/6/2P3/2H3/6/6/6',
+                moveDots: ['a5', 'e5', 'a3', 'b2', 'd2', 'e3'],
+                highlights: ['c5'],
+                label: 'A BLOCKED LEG',
+              },
+            ]),
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Soldier:** moves one square straight forward, to move or to capture, and never backward. After it crosses the river it may also move one square sideways. It never promotes.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessRow([
+              { fen: '6/6/6/6/6/2O3/6/6', moveDots: ['c4'], label: 'BEFORE THE RIVER' },
+              { fen: '6/6/2O3/6/6/6/6/6', moveDots: ['c7', 'b6', 'd6'], label: 'AFTER CROSSING' },
+            ]),
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'The pawn and the soldier are opposites worth remembering: the pawn moves straight and captures diagonally, while the soldier both moves and captures straight ahead.',
+          },
+        ],
+      },
+      {
+        heading: 'How to win',
+        blocks: [
+          { kind: 'paragraph', text: 'There are two ways to win a game of Crossroads Chess.' },
+          { kind: 'sub-heading', text: 'Checkmate' },
+          {
+            kind: 'paragraph',
+            text:
+              'The king is protected by check, as in chess and xiangqi. A king is in check when an enemy piece attacks it, and the player in check must answer by moving the king, blocking the line of attack, or capturing the attacker. If there is no legal answer, it is checkmate and the checked player loses.',
+          },
+          { kind: 'sub-heading', text: 'The race' },
+          {
+            kind: 'paragraph',
+            text:
+              'The king is also a runner. Move your king onto the enemy back rank, the far row of the board, and you win at once. Because a king can never step onto a square where it could be captured, reaching the far rank means reaching it safely. White wins by landing the king on the eighth rank, Red by landing on the first.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessRow([
+              {
+                fen: '2vV2/4Ko/kC4/2O3/p5/O5/5P/6',
+                arrows: [{ from: 'e7', to: 'e8' }],
+                label: 'THE KING RACES IN',
+              },
+              {
+                fen: '2vVK1/6/kC3o/2O3/p5/O5/5P/6',
+                highlights: ['e8'],
+                label: 'RANK 8: WHITE WINS',
+              },
+            ]),
+          } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'Draws',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: 'Crossroads Chess is built to be decisive, and almost every game ends in a win.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Having no legal move is a loss, not a draw: a stalemated player loses. Repeating the same position three times is also a loss, charged to the side that forces the repetition. The only path to a draw is the fifty-move rule, when a long run of moves passes with no capture and no pawn move, and it almost never triggers.',
+          },
+        ],
+      },
+      {
+        heading: 'A sample game',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Crossroads Chess has no famous human games yet. To see the pieces work together, step through a full game between two strong Fairy-Stockfish engines. The two sides trade down through the middlegame, then White wins the race: the king marches up the board to the eighth rank.',
+          },
+          {
+            kind: 'dual-replay',
+            spec: {
+              white: DUAL_CHESS_SAMPLE_GAME.white,
+              red: DUAL_CHESS_SAMPLE_GAME.red,
+              event: DUAL_CHESS_SAMPLE_GAME.event,
+              resultText: DUAL_CHESS_SAMPLE_GAME.result,
+              moves: DUAL_CHESS_SAMPLE_GAME.moves,
+            },
+            caption: 'Fairy-Stockfish self-play on the canonical 6 by 8 setup. White wins the race.',
+          } as ArticleBlock,
+        ],
+      },
+      relatedClosing({
+        heading: 'Where to next',
+        lead: 'Crossroads Chess borrows from two games worth knowing on their own. Read the rules of each to see where its pieces come from.',
+        links: [
+          { label: 'Read Chess Rules', href: '/rules/chess', emphasis: 'primary' },
+          { label: 'Read Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
+          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+        ],
+      }),
     ],
   },
   {

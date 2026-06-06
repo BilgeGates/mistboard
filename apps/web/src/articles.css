@@ -422,6 +422,31 @@
   margin-inline: auto;
 }
 
+/* Crossroads Chess diagrams (chess x xiangqi on a 6x8 board). The board is
+   portrait, so cap the single-board width tighter than the square diagrams;
+   pairs and the replay board fill the column. Natural width rides on
+   --dual-svg-width. */
+.article-figure > .dual-article-svg,
+.raw-svg-stepper-frame-dual > .dual-article-svg {
+  display: block;
+  height: auto;
+  margin-inline: auto;
+}
+.dual-article-svg[data-dual-layout="single"] {
+  width: min(var(--dual-svg-width, 316px), 70%);
+}
+.dual-article-svg[data-dual-layout="wide"] {
+  width: min(var(--dual-svg-width, 642px), 100%);
+}
+@media (max-width: 640px) {
+  .dual-article-svg[data-dual-layout="single"] {
+    width: min(var(--dual-svg-width, 316px), 86%);
+  }
+  .dual-article-svg[data-dual-layout="wide"] {
+    width: 100%;
+  }
+}
+
 /* Xiangqi diagram theming. The diagrams draw their own board (chessground can't
    render a xiangqi grid), so their colors come from CSS vars driven by the same
    data-xiangqi-board-theme / data-fog-theme attributes the live xiangqi board

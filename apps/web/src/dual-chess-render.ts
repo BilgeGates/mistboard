@@ -88,6 +88,10 @@ export type DualChessRenderOptions = {
   selected?: DualChessSquare | null;
   // Legal destination squares for the selection (dots / capture rings).
   targets?: readonly DualChessSquare[];
+  // Squares to emphasise under the pieces (study / diagram callouts).
+  highlights?: readonly DualChessSquare[];
+  // Annotation arrows drawn over the board (study / diagram callouts).
+  arrows?: readonly { from: DualChessSquare; to: DualChessSquare }[];
   // Add a transparent hit layer of <rect data-square="..."> for click handling.
   interactive?: boolean;
 };
@@ -114,7 +118,9 @@ export function renderDualChessBoardSvg(
     renderPieces: (geom) => pieceLayer(view, geom, id),
     lastMove: lastMove ? [coordOf(lastMove.from), coordOf(lastMove.to)] : null,
     selected: options.selected ? coordOf(options.selected) : null,
+    highlights: (options.highlights ?? []).map(coordOf),
     targets: (options.targets ?? []).map((sq) => ({ ...coordOf(sq), occupied: occupied.has(sq) })),
+    arrows: (options.arrows ?? []).map((a) => ({ from: coordOf(a.from), to: coordOf(a.to) })),
     fogHidden: showFog ? hiddenSquares(visible) : null,
     interactive: options.interactive ?? false,
     squareName: (file, rank) => squareAt(file, rank),

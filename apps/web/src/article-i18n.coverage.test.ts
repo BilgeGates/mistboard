@@ -47,6 +47,7 @@ const BLOCK_PROSE: {
   'xq-replay': caption,
   'mxq-replay': caption,
   'chess-replay': caption,
+  'dual-replay': caption,
   code: caption,
 };
 
