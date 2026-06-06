@@ -4,7 +4,7 @@ import { identify, resetIdentity } from './analytics.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
 import { clearSeatTokenForRoom, liveState } from './live-state.js';
 import { readSignedInHint, setResolvedSignedIn, writeSignedInHint } from './signed-in-state.js';
-import { buildAppearanceMenu, resetAppearanceMenus } from './theme.js';
+import { buildAppearanceMenu, initializeThemeSettings, resetAppearanceMenus } from './theme.js';
 
 // Lucide-style outline icons, matching the nav's existing icon weight. The gear
 // mirrors the standalone settings gear (theme.ts); power marks Sign out.
@@ -47,6 +47,22 @@ async function primeAccountNav(): Promise<void> {
   writeCachedUser(user);
   if (user) mountAccountNavs();
   else revealSignedOutSlots();
+}
+
+export function setAccountNavUser(user: AuthUser | null): void {
+  cachedUser = user;
+  userPromise = Promise.resolve(user);
+  setResolvedSignedIn(user !== null);
+  writeSignedInHint(user !== null);
+  writeCachedUser(user);
+
+  resetMountedAccountControls();
+  if (user) {
+    mountAccountNavs();
+  } else {
+    revealSignedOutSlots();
+    initializeThemeSettings();
+  }
 }
 
 function watchForNavChanges(): void {
@@ -110,16 +126,47 @@ function revealSignedOutSlots(): void {
     .querySelectorAll<HTMLElement>('[data-account-slot][data-account-pending="1"]')
     .forEach((slot) => {
       delete slot.dataset.accountPending;
-      const signIn = document.createElement('a');
-      signIn.href = '/account?tab=login';
-      signIn.className = 'site-nav-link site-nav-link-signin';
-      signIn.textContent = 'Sign in';
-      const register = document.createElement('a');
-      register.href = '/account?tab=register';
-      register.className = 'site-nav-link-primary';
-      register.textContent = 'Register';
-      slot.replaceChildren(signIn, register);
+      const replacement = createSignedOutAccountSlot();
+      slot.className = replacement.className;
+      slot.replaceChildren(...Array.from(replacement.childNodes));
     });
+}
+
+function resetMountedAccountControls(): void {
+  for (const control of document.querySelectorAll<HTMLElement>('[data-account-nav]')) {
+    statusByControl.get(control)?.stop();
+    control.replaceWith(createSignedOutAccountSlot());
+  }
+}
+
+function createSignedOutAccountSlot(): HTMLElement {
+  const slot = document.createElement('div');
+  slot.className = 'site-nav-auth';
+  slot.dataset.accountSlot = '';
+
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const tab = new URLSearchParams(window.location.search).get('tab');
+
+  const signIn = document.createElement('a');
+  signIn.href = '/account?tab=login';
+  signIn.className = 'site-nav-link site-nav-link-signin';
+  signIn.textContent = 'Sign in';
+  if (path === '/account' && tab !== 'register') {
+    signIn.classList.add('active');
+    signIn.setAttribute('aria-current', 'page');
+  }
+
+  const register = document.createElement('a');
+  register.href = '/account?tab=register';
+  register.className = 'site-nav-link site-nav-link-register';
+  register.textContent = 'Register';
+  if (path === '/account' && tab === 'register') {
+    register.classList.add('active');
+    register.setAttribute('aria-current', 'page');
+  }
+
+  slot.append(signIn, register);
+  return slot;
 }
 
 function mountAccountNav(nav: HTMLElement, user: AuthUser): void {

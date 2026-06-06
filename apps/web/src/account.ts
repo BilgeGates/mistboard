@@ -8,13 +8,9 @@
 // landing.ts.
 
 import './account-profile.css';
+import { setAccountNavUser } from './account-nav.js';
 import { identify, resetIdentity, track } from './analytics.js';
-import {
-  type AuthUser,
-  buildLoadingState,
-  buildNav,
-  fetchCurrentUser,
-} from './site-shell.js';
+import { type AuthUser, buildLoadingState, buildNav, fetchCurrentUser } from './site-shell.js';
 
 // ── Page mounts ──────────────────────────────────────────────────────────────
 
@@ -56,16 +52,24 @@ function renderAccountShell(
   user: AuthUser | null,
   tab: 'login' | 'register' = 'login',
 ): void {
-  shell.replaceChildren(user ? buildSignedInAccount(user) : buildLoginForm(tab));
+  shell.replaceChildren(
+    user
+      ? buildSignedInAccount(user, () => renderAccountShell(shell, null, currentAccountTab()))
+      : buildLoginForm(tab, (next) => renderAccountShell(shell, next)),
+  );
 }
 
 function renderAccountSettingsShell(shell: HTMLElement, user: AuthUser | null): void {
-  shell.replaceChildren(user ? buildAccountSettingsPage(user, shell) : buildLoginForm());
+  shell.replaceChildren(
+    user
+      ? buildAccountSettingsPage(user, shell)
+      : buildLoginForm('login', (next) => renderAccountSettingsShell(shell, next)),
+  );
 }
 
 // ── Signed-in account card ───────────────────────────────────────────────────
 
-function buildSignedInAccount(user: AuthUser): HTMLElement {
+function buildSignedInAccount(user: AuthUser, onLogout: () => void): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel';
 
@@ -98,15 +102,8 @@ function buildSignedInAccount(user: AuthUser): HTMLElement {
     logout.disabled = true;
     await fetch('/api/auth/logout', { method: 'POST' });
     resetIdentity();
-    try {
-      window.localStorage.removeItem('mb_signed_in');
-    } catch {
-      /* ignore */
-    }
-    // Reload so the top-right nav reverts to Sign in / Register. The nav (owned
-    // by account-nav.ts) resolves auth once at load, so an in-page render alone
-    // leaves it showing the stale account menu. Mirrors account-nav's own logout.
-    window.location.reload();
+    setAccountNavUser(null);
+    onLogout();
   });
 
   actions.append(profile, settings, logout);
@@ -283,7 +280,10 @@ function buildAccountAuthTab(label: string, href: string, isActive: boolean): HT
   return link;
 }
 
-function buildLoginForm(tab: 'login' | 'register' = 'login'): HTMLElement {
+function buildLoginForm(
+  tab: 'login' | 'register' = 'login',
+  onAuth: (user: AuthUser) => void = () => undefined,
+): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel';
 
@@ -337,12 +337,15 @@ function buildLoginForm(tab: 'login' | 'register' = 'login'): HTMLElement {
     submit.disabled = true;
     try {
       if (!loginId) {
-        const resp = await fetch('/api/auth/email/start', {
+        const { data, resp } = await fetchAuthJson<{
+          loginId?: string;
+          devCode?: string;
+          error?: string;
+        }>('/api/auth/email/start', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ email: email.value }),
         });
-        const data = (await resp.json()) as { loginId?: string; devCode?: string; error?: string };
         if (!resp.ok || !data.loginId)
           throw new Error(data.error ?? `start failed: ${resp.status}`);
         loginId = data.loginId;
@@ -355,35 +358,26 @@ function buildLoginForm(tab: 'login' | 'register' = 'login'): HTMLElement {
           : 'Check your email for the login code.';
         code.focus();
       } else {
-        const resp = await fetch('/api/auth/email/confirm', {
+        const { data, resp } = await fetchAuthJson<{
+          user?: AuthUser;
+          isNewUser?: boolean;
+          error?: string;
+        }>('/api/auth/email/confirm', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ loginId, code: code.value }),
         });
-        const data = (await resp.json()) as {
-          user?: AuthUser;
-          isNewUser?: boolean;
-          error?: string;
-        };
         if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
-        // Identify and fire the signup event before the reload below, so they are
-        // attributed now (account-nav re-identifies on the next boot anyway).
+        // Identify immediately; the shared account-nav cache is updated below,
+        // so there may be no full page reload before the next pageview.
         identify(data.user.id, {
           handle: data.user.handle,
           account_role: data.user.accountRole,
           email_verified: data.user.emailVerified,
         });
         if (data.isNewUser) track('signup_completed');
-        // Set the signed-in hint first so the post-reload first paint shows the
-        // account placeholder instead of flashing Sign in / Register.
-        try {
-          window.localStorage.setItem('mb_signed_in', '1');
-        } catch {
-          /* ignore */
-        }
-        // Reload so the top-right nav (account-nav.ts, resolved once at load)
-        // picks up the new session. An in-page render alone leaves the nav stale.
-        window.location.reload();
+        setAccountNavUser(data.user);
+        onAuth(data.user);
       }
     } catch (err) {
       status.textContent = err instanceof Error ? authErrorMessage(err.message) : 'Sign in failed.';
@@ -413,7 +407,28 @@ function buildLoginForm(tab: 'login' | 'register' = 'login'): HTMLElement {
   return panel;
 }
 
+async function fetchAuthJson<T>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+): Promise<{ data: T; resp: Response }> {
+  let resp: Response;
+  try {
+    resp = await fetch(input, init);
+  } catch {
+    throw new Error('auth_request_failed');
+  }
+  try {
+    return { data: (await resp.json()) as T, resp };
+  } catch {
+    throw new Error(resp.ok ? 'auth_bad_response' : `auth_http_${resp.status}`);
+  }
+}
+
 function authErrorMessage(value: string): string {
+  if (value === 'auth_request_failed')
+    return 'Auth server unavailable. For local login, run npm run db:up, npm run db:migrate, then npm run dev:persistent.';
+  if (value === 'auth_bad_response') return 'Auth server returned an unreadable response.';
+  if (value.startsWith('auth_http_')) return 'Auth server request failed. Try again in a moment.';
   if (value === 'email_delivery_not_configured')
     return 'Email login is not configured in this runtime.';
   if (value === 'email_delivery_failed') return 'Email delivery failed. Try again in a moment.';
