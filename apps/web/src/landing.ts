@@ -175,13 +175,15 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     if (!changed) return;
     poolIds.clear();
     for (const id of nextPool) poolIds.add(id);
-    // If we were on the static engine fallback, switch to real games so the
-    // review link can light up for the cycling hero.
-    if (!usingRealGames) {
-      usingRealGames = true;
-      syncReviewLink(replay.activeSampleId());
-    }
-    replay.updateLoopPool(nextPool);
+    // First time real games arrive, jump straight to one instead of letting the
+    // static Misty-vs-Misty placeholder play out — it runs ~3 min before the loop
+    // would rotate, so visitors otherwise only ever see the fallback. The jump's
+    // loadGame fires onSampleChange -> syncReviewLink with the real id (which also
+    // clears the bogus /game/engine-v2-gNNNN link), so flip usingRealGames first
+    // or syncReviewLink early-returns and the link stays hidden.
+    const leavingStaticFallback = !usingRealGames;
+    if (leavingStaticFallback) usingRealGames = true;
+    replay.updateLoopPool(nextPool, { jumpNow: leavingStaticFallback });
   };
   const tickShowcaseRefresh = async () => {
     if (!stage.el.isConnected) {

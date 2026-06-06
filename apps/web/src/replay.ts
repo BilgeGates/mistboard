@@ -214,10 +214,13 @@ export type ReplayHandle = {
   activeSampleId: () => string;
   destroy: () => void;
   loadGame: (sampleId: string, options?: ReplayLoadOptions) => Promise<void>;
-  /** Replace the auto-loop pool (homepage adaptive refresh). The currently
-   *  playing game finishes; the next loop pick comes from the new pool. New
-   *  ids must already have their metadata/POV registered by the caller. */
-  updateLoopPool: (sampleIds: string[]) => void;
+  /** Replace the auto-loop pool (homepage adaptive refresh). By default the
+   *  currently playing game finishes and the next loop pick comes from the new
+   *  pool. Pass `{ jumpNow: true }` to cut the current game short and load a
+   *  fresh pick immediately — used when the static placeholder is on screen and
+   *  real games have just arrived. New ids must already have their metadata/POV
+   *  registered by the caller. */
+  updateLoopPool: (sampleIds: string[], options?: { jumpNow?: boolean }) => void;
 };
 
 export async function mountReplay(
@@ -1419,12 +1422,23 @@ export async function mountReplay(
     activeSampleId: () => activeSample,
     destroy: () => abortController.abort(),
     loadGame,
-    // Swap the loop pool in place. The active game keeps playing; pickNextSample
-    // reads loopSamples live, so the next pick comes from the new pool. No
-    // reschedule here — that would cut the current game short.
-    updateLoopPool: (sampleIds: string[]) => {
+    // Swap the loop pool in place. By default the active game keeps playing and
+    // pickNextSample reads loopSamples live, so the next pick comes from the new
+    // pool — no reschedule, which would cut the current game short. With
+    // { jumpNow }, load a fresh pick immediately: the static placeholder plays
+    // ~3 min before the loop would rotate, so we don't make a visitor wait it out
+    // once real games exist.
+    updateLoopPool: (sampleIds: string[], options?: { jumpNow?: boolean }) => {
       if (wallClockLoop) return;
       loopSamples = sampleIds;
+      if (!options?.jumpNow || sampleIds.length === 0) return;
+      const next = pickNextSample(sampleIds, activeSample);
+      void loadGame(next).catch((err) => {
+        console.warn('[replay loop] jump-to-pool load failed, recovering:', next, err);
+        // loadGame stops play + clears the loop timer before it can throw, so the
+        // board would otherwise freeze. Reschedule the loop to pick another game.
+        scheduleLoopIfNeeded();
+      });
     },
   };
 }
