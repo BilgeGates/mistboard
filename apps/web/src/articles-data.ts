@@ -74,6 +74,7 @@ import {
   SHOGI4_START_BOARD,
   SHOGI4_WIN,
 } from './shogi4-rules-diagrams.js';
+import { SHOGI4_GAME_STEPS, SHOGI4_GAME_TITLE } from './shogi4-sample-game.js';
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
 
@@ -184,6 +185,7 @@ export type RawSvgStepperStep = {
 export type RawSvgStepperBlock = {
   kind: 'raw-svg-stepper';
   steps: RawSvgStepperStep[];
+  header?: { players: string; event: string };   // optional title above the frame (engine-game style)
   caption?: string;
 };
 
@@ -4891,7 +4893,7 @@ export const articles: Article[] = [
   {
     slug: 'shogi4',
     kind: 'rules',
-    title: 'Shogi4 Rules (4x4 Shogi)',
+    title: 'Shogi4 Rules',
     summary:
       "The complete rules of Shogi4 (4x4 Shogi), Oca Studios' public-domain animal drop-shogi on a 4×4 board: how the Carp, Tapir, Raccoon-dog, Fox, and royal move, plus the friendly-jump, evolution, drops, and king-capture wins.",
     showSummaryOnPage: false,
@@ -4920,7 +4922,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "The board is 4×4, with a farm to either side that holds captured pieces. A tile's owner is shown by its facing, not its color: the first player's tiles point up the board, the second player's point down.",
+              "The board is 4×4, with a farm to either side that holds captured pieces. A tile's owner is shown by its facing: the first player's tiles point up the board, the second player's point down.",
           },
           {
             kind: 'raw-svg',
@@ -5010,7 +5012,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Capturing the royal is the only way to win. No check, no checkmate: the game ends the moment a royal is taken, even one left sitting in the open.',
+              'Capturing the royal is the only way to win. No check, no checkmate: the game ends the moment a royal is taken.',
           },
           {
             kind: 'raw-svg',
@@ -5034,12 +5036,29 @@ export const articles: Article[] = [
         ],
       },
       {
+        heading: 'A sample game',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text: SHOGI4_GAME_TITLE,
+          },
+          {
+            kind: 'raw-svg-stepper',
+            header: {
+              players: 'Fairy-Stockfish (White) vs Fairy-Stockfish (Black)',
+              event: 'Engine self-play · 2s/move',
+            },
+            steps: SHOGI4_GAME_STEPS,
+          } as ArticleBlock,
+        ],
+      },
+      {
         heading: 'Source and license',
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "Shogi4 and its tile art are by Oca Studios, which released its whole \"Four\" series into the public domain; that release, not any third-party listing, is what puts the game in the public domain. The [BoardGameGeek entry](https://boardgamegeek.com/boardgame/146291/shogi4) is a catalog reference, not the basis for the public-domain claim.",
+              "Shogi4 and its tile art are by Oca Studios, which released its whole \"Four\" series into the public domain. The [BoardGameGeek entry](https://boardgamegeek.com/boardgame/146291/shogi4) is a catalog reference.",
           },
           {
             kind: 'paragraph',

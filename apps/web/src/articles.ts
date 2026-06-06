@@ -22,22 +22,19 @@ import {
   findArticle,
   type InteractiveBlock,
   type LiveBoardsBlock,
+  type MiniXiangqiReplayBlock,
   type RawSvgBlock,
   type RawSvgStepperBlock,
-  type MiniXiangqiReplayBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,
   withXiangqiPieceSet,
   type XiangqiReplayBlock,
 } from './articles-data.js';
-import { mountChessReplay, type ChessReplayController } from './chess-replay.js';
+import { type ChessReplayController, mountChessReplay } from './chess-replay.js';
 import { type DualChessReplayController, mountDualChessReplay } from './dual-chess-replay.js';
-import {
-  mountMiniXiangqiReplay,
-  type MiniXiangqiReplayController,
-} from './mini-xiangqi-replay.js';
+import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
-import { type XiangqiPieceSet } from './xiangqi-piece-sets.js';
+import type { XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { mountXiangqiReplay, type XiangqiReplayController } from './xiangqi-replay.js';
 
 // Nav + footer come from landing.ts. We avoid re-implementing them by accepting
@@ -759,12 +756,12 @@ function ensureXqDiagramListener(): void {
   xqDiagramListenerInstalled = true;
   window.addEventListener(xiangqiAppearanceChangedEvent, () => {
     const set = readStoredXiangqiPieceSet();
-    document
-      .querySelectorAll<HTMLElement>('[data-xq-diagram]')
-      .forEach((holder) => paintXqDiagram(holder, set));
-    document
-      .querySelectorAll<HTMLElement>('[data-xq-thumb]')
-      .forEach((wrap) => xqThumbPainters.get(wrap)?.());
+    document.querySelectorAll<HTMLElement>('[data-xq-diagram]').forEach((holder) => {
+      paintXqDiagram(holder, set);
+    });
+    document.querySelectorAll<HTMLElement>('[data-xq-thumb]').forEach((wrap) => {
+      xqThumbPainters.get(wrap)?.();
+    });
   });
 }
 
@@ -831,6 +828,17 @@ function renderRawSvgStepperBlock(block: RawSvgStepperBlock): HTMLElement {
   narrative.className = 'stepper-narrative';
 
   controls.append(prev, counter, next);
+  if (block.header) {
+    const header = document.createElement('div');
+    header.className = 'xq-replay-header';
+    const players = document.createElement('div');
+    players.textContent = block.header.players;
+    const event = document.createElement('div');
+    event.className = 'xq-replay-header-event';
+    event.textContent = block.header.event;
+    header.append(players, event);
+    host.append(header);
+  }
   host.append(frame, controls, narrative);
   figure.append(host);
 
