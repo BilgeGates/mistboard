@@ -51,108 +51,108 @@ export const SHOGI4_RULES_THUMBNAIL = `<svg xmlns="http://www.w3.org/2000/svg" v
 <image href="/shogi4/pieces/pheasant.png" x="191.2" y="13.2" width="57.6" height="57.6" transform="rotate(180 220.0 42.0)"/>
 </svg>`;
 
-export const SHOGI4_PAIR_CARP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 180" width="100%" style="max-width:600px" role="img" class="shogi4-diagram">
-<rect x="12" y="12" width="156" height="156" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="64" y1="12" x2="64" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="64" x2="168" y2="64" stroke="#ddcca6" stroke-width="1"/>
-<line x1="116" y1="12" x2="116" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="116" x2="168" y2="116" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="90.0" cy="38.0" r="6.2" fill="#15705c"/>
-<image href="/shogi4/pieces/carp.png" x="66.1" y="66.1" width="47.8" height="47.8"/>
-<rect x="214" y="12" width="156" height="156" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="266" y1="12" x2="266" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="214" y1="64" x2="370" y2="64" stroke="#ddcca6" stroke-width="1"/>
-<line x1="318" y1="12" x2="318" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="214" y1="116" x2="370" y2="116" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="292.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="240.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="344.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="240.0" cy="142.0" r="6.2" fill="#15705c"/>
-<circle cx="344.0" cy="142.0" r="6.2" fill="#15705c"/>
-<image href="/shogi4/pieces/koi.png" x="268.1" y="66.1" width="47.8" height="47.8"/>
-<line x1="176.0" y1="90.0" x2="200.0" y2="90.0" stroke="#8a7a55" stroke-width="2.5"/>
-<path d="M 198.0 85.0 L 206.0 90.0 L 198.0 95.0 Z" fill="#8a7a55"/>
+export const SHOGI4_PAIR_CARP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 406 192" width="100%" style="max-width:507px" role="img" class="shogi4-diagram">
+<rect x="12" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="68" x2="180" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="124" y1="12" x2="124" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="124" x2="180" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<circle cx="96.0" cy="40.0" r="6.7" fill="#15705c"/>
+<image href="/shogi4/pieces/carp.png" x="70.2" y="70.2" width="51.5" height="51.5"/>
+<rect x="226" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="282" y1="12" x2="282" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="226" y1="68" x2="394" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="338" y1="12" x2="338" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="226" y1="124" x2="394" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<circle cx="310.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="254.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="366.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="254.0" cy="152.0" r="6.7" fill="#15705c"/>
+<circle cx="366.0" cy="152.0" r="6.7" fill="#15705c"/>
+<image href="/shogi4/pieces/koi.png" x="284.2" y="70.2" width="51.5" height="51.5"/>
+<line x1="188.0" y1="96.0" x2="212.0" y2="96.0" stroke="#8a7a55" stroke-width="2.5"/>
+<path d="M 210.0 91.0 L 218.0 96.0 L 210.0 101.0 Z" fill="#8a7a55"/>
 </svg>`;
 
-export const SHOGI4_PAIR_TAPIR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 180" width="100%" style="max-width:600px" role="img" class="shogi4-diagram">
-<rect x="12" y="12" width="156" height="156" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="64" y1="12" x2="64" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="64" x2="168" y2="64" stroke="#ddcca6" stroke-width="1"/>
-<line x1="116" y1="12" x2="116" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="116" x2="168" y2="116" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="90.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="38.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="142.0" cy="38.0" r="6.2" fill="#15705c"/>
-<image href="/shogi4/pieces/tapir.png" x="66.1" y="66.1" width="47.8" height="47.8"/>
-<rect x="214" y="12" width="156" height="156" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="266" y1="12" x2="266" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="214" y1="64" x2="370" y2="64" stroke="#ddcca6" stroke-width="1"/>
-<line x1="318" y1="12" x2="318" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="214" y1="116" x2="370" y2="116" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="292.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="240.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="344.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="240.0" cy="142.0" r="6.2" fill="#15705c"/>
-<circle cx="344.0" cy="142.0" r="6.2" fill="#15705c"/>
-<image href="/shogi4/pieces/baku.png" x="268.1" y="66.1" width="47.8" height="47.8"/>
-<line x1="176.0" y1="90.0" x2="200.0" y2="90.0" stroke="#8a7a55" stroke-width="2.5"/>
-<path d="M 198.0 85.0 L 206.0 90.0 L 198.0 95.0 Z" fill="#8a7a55"/>
+export const SHOGI4_PAIR_TAPIR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 406 192" width="100%" style="max-width:507px" role="img" class="shogi4-diagram">
+<rect x="12" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="68" x2="180" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="124" y1="12" x2="124" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="124" x2="180" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<circle cx="96.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="40.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="152.0" cy="40.0" r="6.7" fill="#15705c"/>
+<image href="/shogi4/pieces/tapir.png" x="70.2" y="70.2" width="51.5" height="51.5"/>
+<rect x="226" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="282" y1="12" x2="282" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="226" y1="68" x2="394" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="338" y1="12" x2="338" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="226" y1="124" x2="394" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<circle cx="310.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="254.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="366.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="254.0" cy="152.0" r="6.7" fill="#15705c"/>
+<circle cx="366.0" cy="152.0" r="6.7" fill="#15705c"/>
+<image href="/shogi4/pieces/baku.png" x="284.2" y="70.2" width="51.5" height="51.5"/>
+<line x1="188.0" y1="96.0" x2="212.0" y2="96.0" stroke="#8a7a55" stroke-width="2.5"/>
+<path d="M 210.0 91.0 L 218.0 96.0 L 210.0 101.0 Z" fill="#8a7a55"/>
 </svg>`;
 
-export const SHOGI4_PAIR_RACCOON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 180" width="100%" style="max-width:600px" role="img" class="shogi4-diagram">
-<rect x="12" y="12" width="156" height="156" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="64" y1="12" x2="64" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="64" x2="168" y2="64" stroke="#ddcca6" stroke-width="1"/>
-<line x1="116" y1="12" x2="116" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="116" x2="168" y2="116" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="38.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="142.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="38.0" cy="142.0" r="6.2" fill="#15705c"/>
-<circle cx="142.0" cy="142.0" r="6.2" fill="#15705c"/>
-<image href="/shogi4/pieces/raccoon.png" x="66.1" y="66.1" width="47.8" height="47.8"/>
-<rect x="214" y="12" width="156" height="156" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="266" y1="12" x2="266" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="214" y1="64" x2="370" y2="64" stroke="#ddcca6" stroke-width="1"/>
-<line x1="318" y1="12" x2="318" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="214" y1="116" x2="370" y2="116" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="292.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="240.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="344.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="240.0" cy="142.0" r="6.2" fill="#15705c"/>
-<circle cx="344.0" cy="142.0" r="6.2" fill="#15705c"/>
-<image href="/shogi4/pieces/tanuki.png" x="268.1" y="66.1" width="47.8" height="47.8"/>
-<line x1="176.0" y1="90.0" x2="200.0" y2="90.0" stroke="#8a7a55" stroke-width="2.5"/>
-<path d="M 198.0 85.0 L 206.0 90.0 L 198.0 95.0 Z" fill="#8a7a55"/>
+export const SHOGI4_PAIR_RACCOON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 406 192" width="100%" style="max-width:507px" role="img" class="shogi4-diagram">
+<rect x="12" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="68" x2="180" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="124" y1="12" x2="124" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="124" x2="180" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<circle cx="40.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="152.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="40.0" cy="152.0" r="6.7" fill="#15705c"/>
+<circle cx="152.0" cy="152.0" r="6.7" fill="#15705c"/>
+<image href="/shogi4/pieces/raccoon.png" x="70.2" y="70.2" width="51.5" height="51.5"/>
+<rect x="226" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="282" y1="12" x2="282" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="226" y1="68" x2="394" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="338" y1="12" x2="338" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="226" y1="124" x2="394" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<circle cx="310.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="254.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="366.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="254.0" cy="152.0" r="6.7" fill="#15705c"/>
+<circle cx="366.0" cy="152.0" r="6.7" fill="#15705c"/>
+<image href="/shogi4/pieces/tanuki.png" x="284.2" y="70.2" width="51.5" height="51.5"/>
+<line x1="188.0" y1="96.0" x2="212.0" y2="96.0" stroke="#8a7a55" stroke-width="2.5"/>
+<path d="M 210.0 91.0 L 218.0 96.0 L 210.0 101.0 Z" fill="#8a7a55"/>
 </svg>`;
 
-export const SHOGI4_PAIR_FOX = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 180" width="100%" style="max-width:600px" role="img" class="shogi4-diagram">
-<rect x="12" y="12" width="156" height="156" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="64" y1="12" x2="64" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="64" x2="168" y2="64" stroke="#ddcca6" stroke-width="1"/>
-<line x1="116" y1="12" x2="116" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="116" x2="168" y2="116" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="90.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="90.0" cy="142.0" r="6.2" fill="#15705c"/>
-<circle cx="38.0" cy="90.0" r="6.2" fill="#15705c"/>
-<circle cx="142.0" cy="90.0" r="6.2" fill="#15705c"/>
-<image href="/shogi4/pieces/fox.png" x="66.1" y="66.1" width="47.8" height="47.8"/>
-<rect x="214" y="12" width="156" height="156" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="266" y1="12" x2="266" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="214" y1="64" x2="370" y2="64" stroke="#ddcca6" stroke-width="1"/>
-<line x1="318" y1="12" x2="318" y2="168" stroke="#ddcca6" stroke-width="1"/>
-<line x1="214" y1="116" x2="370" y2="116" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="292.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="240.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="344.0" cy="38.0" r="6.2" fill="#15705c"/>
-<circle cx="240.0" cy="90.0" r="6.2" fill="#15705c"/>
-<circle cx="344.0" cy="90.0" r="6.2" fill="#15705c"/>
-<circle cx="292.0" cy="142.0" r="6.2" fill="#15705c"/>
-<image href="/shogi4/pieces/kitsune.png" x="268.1" y="66.1" width="47.8" height="47.8"/>
-<line x1="176.0" y1="90.0" x2="200.0" y2="90.0" stroke="#8a7a55" stroke-width="2.5"/>
-<path d="M 198.0 85.0 L 206.0 90.0 L 198.0 95.0 Z" fill="#8a7a55"/>
+export const SHOGI4_PAIR_FOX = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 406 192" width="100%" style="max-width:507px" role="img" class="shogi4-diagram">
+<rect x="12" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="68" y1="12" x2="68" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="68" x2="180" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="124" y1="12" x2="124" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="124" x2="180" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<circle cx="96.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="96.0" cy="152.0" r="6.7" fill="#15705c"/>
+<circle cx="40.0" cy="96.0" r="6.7" fill="#15705c"/>
+<circle cx="152.0" cy="96.0" r="6.7" fill="#15705c"/>
+<image href="/shogi4/pieces/fox.png" x="70.2" y="70.2" width="51.5" height="51.5"/>
+<rect x="226" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="282" y1="12" x2="282" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="226" y1="68" x2="394" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="338" y1="12" x2="338" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<line x1="226" y1="124" x2="394" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<circle cx="310.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="254.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="366.0" cy="40.0" r="6.7" fill="#15705c"/>
+<circle cx="254.0" cy="96.0" r="6.7" fill="#15705c"/>
+<circle cx="366.0" cy="96.0" r="6.7" fill="#15705c"/>
+<circle cx="310.0" cy="152.0" r="6.7" fill="#15705c"/>
+<image href="/shogi4/pieces/kitsune.png" x="284.2" y="70.2" width="51.5" height="51.5"/>
+<line x1="188.0" y1="96.0" x2="212.0" y2="96.0" stroke="#8a7a55" stroke-width="2.5"/>
+<path d="M 210.0 91.0 L 218.0 96.0 L 210.0 101.0 Z" fill="#8a7a55"/>
 </svg>`;
 
-export const SHOGI4_MOVE_ROYAL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 192" width="100%" style="max-width:540px" role="img" class="shogi4-diagram">
+export const SHOGI4_MOVE_ROYAL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 192" width="100%" style="max-width:480px" role="img" class="shogi4-diagram">
 <rect x="12" y="12" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
 <line x1="68" y1="12" x2="68" y2="180" stroke="#ddcca6" stroke-width="1"/>
 <line x1="12" y1="68" x2="180" y2="68" stroke="#ddcca6" stroke-width="1"/>
@@ -183,13 +183,125 @@ export const SHOGI4_MOVE_ROYAL = `<svg xmlns="http://www.w3.org/2000/svg" viewBo
 <image href="/shogi4/pieces/pheasant.png" x="262.2" y="70.2" width="51.5" height="51.5"/>
 </svg>`;
 
-export const SHOGI4_JUMP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 106 204" width="100%" style="max-width:180px" role="img" class="shogi4-diagram">
-<defs><marker id="s4arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#15705c"/></marker></defs>
-<rect x="12" y="12" width="60" height="180" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
-<line x1="12" y1="72" x2="72" y2="72" stroke="#ddcca6" stroke-width="1"/>
-<line x1="12" y1="132" x2="72" y2="132" stroke="#ddcca6" stroke-width="1"/>
-<circle cx="42.0" cy="42.0" r="18.0" fill="none" stroke="#15705c" stroke-width="2" stroke-dasharray="4 4"/>
-<image href="/shogi4/pieces/raccoon.png" x="14.4" y="74.4" width="55.2" height="55.2"/>
-<image href="/shogi4/pieces/carp.png" x="14.4" y="134.4" width="55.2" height="55.2"/>
-<path d="M 66.0 156.0 Q 96.0 102.0 66.0 48.0" fill="none" stroke="#15705c" stroke-width="2.5" marker-end="url(#s4arrow)"/>
+export const SHOGI4_JUMP_CASES = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 386 448" width="100%" style="max-width:482px" role="img" class="shogi4-diagram">
+<rect x="14" y="14" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="70" y1="14" x2="70" y2="182" stroke="#ddcca6" stroke-width="1"/>
+<line x1="126" y1="14" x2="126" y2="182" stroke="#ddcca6" stroke-width="1"/>
+<line x1="14" y1="70" x2="182" y2="70" stroke="#ddcca6" stroke-width="1"/>
+<line x1="14" y1="126" x2="182" y2="126" stroke="#ddcca6" stroke-width="1"/>
+<rect x="71.5" y="127.5" width="53.0" height="53.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<rect x="71.5" y="15.5" width="53.0" height="53.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<image href="/shogi4/pieces/fox.png" x="72.2" y="128.2" width="51.5" height="51.5"/>
+<image href="/shogi4/pieces/raccoon.png" x="72.2" y="72.2" width="51.5" height="51.5"/>
+<g opacity="0.68"><line x1="98.0" y1="141.7" x2="98.0" y2="62.2" stroke="#e08220" stroke-width="5.6" stroke-linecap="round"/><polygon points="98.0,45.4 108.1,62.2 87.9,62.2" fill="#e08220"/></g>
+<text x="98.0" y="197.0" text-anchor="middle" fill="#2e7d32" font-family="system-ui,sans-serif" font-size="12">✓ straight</text>
+<text x="98.0" y="212.0" text-anchor="middle" fill="#2e7d32" font-family="system-ui,sans-serif" font-size="12">leap</text>
+<rect x="204" y="14" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="260" y1="14" x2="260" y2="182" stroke="#ddcca6" stroke-width="1"/>
+<line x1="316" y1="14" x2="316" y2="182" stroke="#ddcca6" stroke-width="1"/>
+<line x1="204" y1="70" x2="372" y2="70" stroke="#ddcca6" stroke-width="1"/>
+<line x1="204" y1="126" x2="372" y2="126" stroke="#ddcca6" stroke-width="1"/>
+<rect x="205.5" y="127.5" width="53.0" height="53.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<rect x="317.5" y="15.5" width="53.0" height="53.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<image href="/shogi4/pieces/raccoon.png" x="206.2" y="128.2" width="51.5" height="51.5"/>
+<image href="/shogi4/pieces/fox.png" x="262.2" y="72.2" width="51.5" height="51.5"/>
+<g opacity="0.68"><line x1="240.7" y1="145.3" x2="329.7" y2="56.3" stroke="#e08220" stroke-width="5.6" stroke-linecap="round"/><polygon points="341.6,44.4 336.9,63.4 322.6,49.1" fill="#e08220"/></g>
+<text x="288.0" y="197.0" text-anchor="middle" fill="#2e7d32" font-family="system-ui,sans-serif" font-size="12">✓ diagonal</text>
+<text x="288.0" y="212.0" text-anchor="middle" fill="#2e7d32" font-family="system-ui,sans-serif" font-size="12">leap</text>
+<rect x="14" y="232" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="70" y1="232" x2="70" y2="400" stroke="#ddcca6" stroke-width="1"/>
+<line x1="126" y1="232" x2="126" y2="400" stroke="#ddcca6" stroke-width="1"/>
+<line x1="14" y1="288" x2="182" y2="288" stroke="#ddcca6" stroke-width="1"/>
+<line x1="14" y1="344" x2="182" y2="344" stroke="#ddcca6" stroke-width="1"/>
+<image href="/shogi4/pieces/fox.png" x="72.2" y="346.2" width="51.5" height="51.5"/>
+<image href="/shogi4/pieces/dark/raccoon.png" x="72.2" y="290.2" width="51.5" height="51.5" transform="rotate(180 98.0 316.0)"/>
+<line x1="83.4" y1="301.4" x2="112.6" y2="330.6" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="83.4" y1="330.6" x2="112.6" y2="301.4" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<text x="98.0" y="415.0" text-anchor="middle" fill="#c0392b" font-family="system-ui,sans-serif" font-size="12">✕ not over</text>
+<text x="98.0" y="430.0" text-anchor="middle" fill="#c0392b" font-family="system-ui,sans-serif" font-size="12">an enemy</text>
+<rect x="204" y="232" width="168" height="168" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="260" y1="232" x2="260" y2="400" stroke="#ddcca6" stroke-width="1"/>
+<line x1="316" y1="232" x2="316" y2="400" stroke="#ddcca6" stroke-width="1"/>
+<line x1="204" y1="288" x2="372" y2="288" stroke="#ddcca6" stroke-width="1"/>
+<line x1="204" y1="344" x2="372" y2="344" stroke="#ddcca6" stroke-width="1"/>
+<image href="/shogi4/pieces/fox.png" x="262.2" y="346.2" width="51.5" height="51.5"/>
+<image href="/shogi4/pieces/raccoon.png" x="262.2" y="290.2" width="51.5" height="51.5"/>
+<image href="/shogi4/pieces/tapir.png" x="262.2" y="234.2" width="51.5" height="51.5"/>
+<line x1="273.4" y1="245.4" x2="302.6" y2="274.6" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="273.4" y1="274.6" x2="302.6" y2="245.4" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<text x="288.0" y="415.0" text-anchor="middle" fill="#c0392b" font-family="system-ui,sans-serif" font-size="12">✕ not onto</text>
+<text x="288.0" y="430.0" text-anchor="middle" fill="#c0392b" font-family="system-ui,sans-serif" font-size="12">your own</text>
+</svg>`;
+
+export const SHOGI4_CAPTURE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 202" width="100%" style="max-width:600px" role="img" class="shogi4-diagram">
+<rect x="12" y="12" width="160" height="160" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="52" y1="12" x2="52" y2="172" stroke="#ddcca6" stroke-width="1"/>
+<line x1="92" y1="12" x2="92" y2="172" stroke="#ddcca6" stroke-width="1"/>
+<line x1="132" y1="12" x2="132" y2="172" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="52" x2="172" y2="52" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="92" x2="172" y2="92" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="132" x2="172" y2="132" stroke="#ddcca6" stroke-width="1"/>
+<rect x="53.5" y="93.5" width="37.0" height="37.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<rect x="93.5" y="93.5" width="37.0" height="37.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<image href="/shogi4/pieces/fox.png" x="53.6" y="93.6" width="36.8" height="36.8"/>
+<image href="/shogi4/pieces/dark/raccoon.png" x="93.6" y="93.6" width="36.8" height="36.8" transform="rotate(180 112.0 112.0)"/>
+<circle cx="112.0" cy="112.0" r="17.6" fill="none" stroke="#c0392b" stroke-width="2.5" opacity="0.85"/>
+<g opacity="0.68"><line x1="80.8" y1="112.0" x2="97.6" y2="112.0" stroke="#e08220" stroke-width="4.0" stroke-linecap="round"/><polygon points="109.6,112.0 97.6,119.2 97.6,104.8" fill="#e08220"/></g>
+<rect x="178" y="12" width="46" height="160" rx="8" fill="#efe2c4" stroke="#c9b07f" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="201.0" y="162.0" text-anchor="middle" fill="#9a8c6a" font-family="system-ui,sans-serif" font-size="12">farm</text>
+<text x="92.0" y="186.0" text-anchor="middle" fill="#9a8c6a" font-family="system-ui,sans-serif" font-size="12">before</text>
+<line x1="233.0" y1="92.0" x2="249.0" y2="92.0" stroke="#8a7a55" stroke-width="2.5"/>
+<path d="M 247.0 87.0 L 255.0 92.0 L 247.0 97.0 Z" fill="#8a7a55"/>
+<rect x="264" y="12" width="160" height="160" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="304" y1="12" x2="304" y2="172" stroke="#ddcca6" stroke-width="1"/>
+<line x1="344" y1="12" x2="344" y2="172" stroke="#ddcca6" stroke-width="1"/>
+<line x1="384" y1="12" x2="384" y2="172" stroke="#ddcca6" stroke-width="1"/>
+<line x1="264" y1="52" x2="424" y2="52" stroke="#ddcca6" stroke-width="1"/>
+<line x1="264" y1="92" x2="424" y2="92" stroke="#ddcca6" stroke-width="1"/>
+<line x1="264" y1="132" x2="424" y2="132" stroke="#ddcca6" stroke-width="1"/>
+<rect x="345.5" y="93.5" width="37.0" height="37.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<image href="/shogi4/pieces/fox.png" x="345.6" y="93.6" width="36.8" height="36.8"/>
+<rect x="430" y="12" width="46" height="160" rx="8" fill="#efe2c4" stroke="#c9b07f" stroke-width="1.5" stroke-dasharray="5 4"/>
+<image href="/shogi4/pieces/raccoon.png" x="438.7" y="61.7" width="28.5" height="28.5"/>
+<text x="453.0" y="162.0" text-anchor="middle" fill="#9a8c6a" font-family="system-ui,sans-serif" font-size="12">farm</text>
+<text x="344.0" y="186.0" text-anchor="middle" fill="#9a8c6a" font-family="system-ui,sans-serif" font-size="12">after</text>
+</svg>`;
+
+export const SHOGI4_DROP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 322 224" width="100%" style="max-width:440px" role="img" class="shogi4-diagram">
+<rect x="12" y="12" width="200" height="200" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="62" y1="12" x2="62" y2="212" stroke="#ddcca6" stroke-width="1"/>
+<line x1="112" y1="12" x2="112" y2="212" stroke="#ddcca6" stroke-width="1"/>
+<line x1="162" y1="12" x2="162" y2="212" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="62" x2="212" y2="62" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="112" x2="212" y2="112" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="162" x2="212" y2="162" stroke="#ddcca6" stroke-width="1"/>
+<rect x="12" y="62" width="200" height="50" fill="rgba(45,100,45,0.10)"/>
+<rect x="12" y="112" width="200" height="50" fill="rgba(45,100,45,0.10)"/>
+<rect x="12" y="162" width="200" height="50" fill="rgba(45,100,45,0.10)"/>
+<rect x="12" y="12" width="200" height="50" fill="rgba(192,57,43,0.16)"/>
+<image href="/shogi4/pieces/pheasant.png" x="164.0" y="14.0" width="46.0" height="46.0" transform="rotate(180 187.0 37.0)"/>
+<line x1="24.0" y1="24.0" x2="50.0" y2="50.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="24.0" y1="50.0" x2="50.0" y2="24.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<line x1="74.0" y1="24.0" x2="100.0" y2="50.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="74.0" y1="50.0" x2="100.0" y2="24.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<line x1="124.0" y1="24.0" x2="150.0" y2="50.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="124.0" y1="50.0" x2="150.0" y2="24.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<rect x="63.5" y="113.5" width="47.0" height="47.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<g opacity="0.42"><image href="/shogi4/pieces/raccoon.png" x="64.0" y="114.0" width="46.0" height="46.0"/></g>
+<rect x="234" y="12" width="76" height="200" rx="8" fill="#efe2c4" stroke="#c9b07f" stroke-width="1.5" stroke-dasharray="5 4"/>
+<image href="/shogi4/pieces/raccoon.png" x="248.4" y="68.4" width="47.1" height="47.1"/>
+<text x="272.0" y="202.0" text-anchor="middle" fill="#9a8c6a" font-family="system-ui,sans-serif" font-size="12">your farm</text>
+<g opacity="0.68"><line x1="261.3" y1="94.6" x2="104.5" y2="132.7" stroke="#e08220" stroke-width="5.0" stroke-linecap="round"/><polygon points="89.9,136.3 102.4,124.0 106.6,141.5" fill="#e08220"/></g>
+</svg>`;
+
+export const SHOGI4_WIN = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 248" width="100%" style="max-width:340px" role="img" class="shogi4-diagram">
+<rect x="12" y="12" width="224" height="224" rx="8" fill="#f4ead2" stroke="#c9b07f" stroke-width="2"/>
+<line x1="68" y1="12" x2="68" y2="236" stroke="#ddcca6" stroke-width="1"/>
+<line x1="124" y1="12" x2="124" y2="236" stroke="#ddcca6" stroke-width="1"/>
+<line x1="180" y1="12" x2="180" y2="236" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="68" x2="236" y2="68" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="124" x2="236" y2="124" stroke="#ddcca6" stroke-width="1"/>
+<line x1="12" y1="180" x2="236" y2="180" stroke="#ddcca6" stroke-width="1"/>
+<rect x="181.5" y="69.5" width="53.0" height="53.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<rect x="181.5" y="13.5" width="53.0" height="53.0" rx="5" fill="#f6d873" opacity="0.55"/>
+<image href="/shogi4/pieces/crane.png" x="14.2" y="182.2" width="51.5" height="51.5"/>
+<image href="/shogi4/pieces/pheasant.png" x="182.2" y="14.2" width="51.5" height="51.5" transform="rotate(180 208.0 40.0)"/>
+<image href="/shogi4/pieces/fox.png" x="182.2" y="70.2" width="51.5" height="51.5"/>
+<circle cx="208.0" cy="40.0" r="24.6" fill="none" stroke="#c0392b" stroke-width="2.5" opacity="0.85"/>
+<g opacity="0.68"><line x1="208.0" y1="83.7" x2="208.0" y2="60.2" stroke="#e08220" stroke-width="5.6" stroke-linecap="round"/><polygon points="208.0,43.4 218.1,60.2 197.9,60.2" fill="#e08220"/></g>
 </svg>`;

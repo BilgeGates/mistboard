@@ -62,7 +62,9 @@ import {
 } from './xiangqi-piece-sets.js';
 import type { XiangqiReplaySpec } from './xiangqi-replay.js';
 import {
-  SHOGI4_JUMP,
+  SHOGI4_CAPTURE,
+  SHOGI4_DROP,
+  SHOGI4_JUMP_CASES,
   SHOGI4_MOVE_ROYAL,
   SHOGI4_PAIR_CARP,
   SHOGI4_PAIR_FOX,
@@ -70,6 +72,7 @@ import {
   SHOGI4_PAIR_TAPIR,
   SHOGI4_RULES_THUMBNAIL,
   SHOGI4_START_BOARD,
+  SHOGI4_WIN,
 } from './shogi4-rules-diagrams.js';
 
 export type ParagraphBlock = { kind: 'paragraph'; text: string };
@@ -4894,7 +4897,7 @@ export const articles: Article[] = [
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-05',
-    updatedAt: '2026-06-05',
+    updatedAt: '2026-06-06',
     audience:
       'Players and shogi-curious readers who want the full, primary-sourced rules of Shogi4, a 4×4 drop-shogi.',
     thumbnail: { kind: 'svg', svg: SHOGI4_RULES_THUMBNAIL },
@@ -4902,12 +4905,12 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Shogi4, also called 4x4 Shogi, is a drop-shogi played with animal tiles on a 4×4 board. [Oca Studios](https://ocastudios.com/four/shogi/) released it into the public domain in its "Four" series, free as a print-and-play set and as an app. As in all shogi, captured pieces change sides and return to play.',
+          'Shogi4, also called 4x4 Shogi, is a drop-shogi played with animal tiles on a 4×4 board. It plays much like ordinary shogi shrunk to sixteen squares: pieces step in marked directions, captured pieces switch sides and drop back into play, and you win by taking the king. The one rule shogi players won\'t recognize is that a piece may hop over a friendly piece, added so your own pieces don\'t jam each other on a board this small.',
       },
       {
         kind: 'paragraph',
         text:
-          'Each player has five pieces: a Carp, a Tapir, a Raccoon-dog, a Fox, and a royal (a Crane for the first player, a Pheasant for the second). You win by capturing the opposing royal.',
+          'Oca Studios released Shogi4 into the public domain in its "Four" series, free as a print-and-play set and as an app. Each player has five pieces: a Carp, a Tapir, a Raccoon-dog, a Fox, and a royal (a Crane for the first player, a Pheasant for the second).',
       },
     ],
     sections: [
@@ -4922,7 +4925,6 @@ export const articles: Article[] = [
           {
             kind: 'raw-svg',
             svg: SHOGI4_START_BOARD,
-            caption: 'Starting position. Each royal sits in a corner, its Carp one square ahead.',
           } as ArticleBlock,
         ],
       },
@@ -4932,11 +4934,11 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Every piece moves one square per turn, in the directions printed on its tile. The Fox and Raccoon-dog reach along the orthogonal and diagonal lines but step only one square; nothing slides. On reaching the far row (the opponent\'s back rank), each non-royal piece evolves: flip the tile to its evolved side, a mandatory and permanent change. The pairs below show the base piece, then its evolved form, with a dot on every square each can reach (forward is up).',
+              'Every piece moves one square per turn, in the directions printed on its tile. On reaching the far row, each non-royal piece evolves, flipping to its evolved side. The pairs below show the base piece, then its evolved form, with a dot on every square each can reach (forward is up).',
           },
           {
             kind: 'paragraph',
-            text: '**Carp → Koi.** The Carp steps one square straight forward, a pawn. It evolves into a Koi, which moves as a silver.',
+            text: '**Carp → Koi.** The Carp steps one square straight forward, a pawn. It evolves into a Koi, which moves as a silver from shogi.',
           },
           { kind: 'raw-svg', svg: SHOGI4_PAIR_CARP } as ArticleBlock,
           {
@@ -4951,14 +4953,9 @@ export const articles: Article[] = [
           { kind: 'raw-svg', svg: SHOGI4_PAIR_RACCOON } as ArticleBlock,
           {
             kind: 'paragraph',
-            text: '**Fox → Kitsune.** The Fox steps one orthogonal. It evolves into a Kitsune, which moves as a gold.',
+            text: '**Fox → Kitsune.** The Fox steps one orthogonal. It evolves into a Kitsune, which moves as a gold from shogi.',
           },
           { kind: 'raw-svg', svg: SHOGI4_PAIR_FOX } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text:
-              'A **silver** (Koi, Baku, Tanuki) is a forward step plus the four diagonals; a **gold** (Kitsune) is every direction but the two back diagonals.',
-          },
           {
             kind: 'paragraph',
             text:
@@ -4967,7 +4964,6 @@ export const articles: Article[] = [
           {
             kind: 'raw-svg',
             svg: SHOGI4_MOVE_ROYAL,
-            caption: 'The Crane (first player) and the Pheasant (second player) both move as a king.',
           } as ArticleBlock,
         ],
       },
@@ -4977,18 +4973,12 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'If a friendly piece sits on the square next to yours, in a direction your piece can move, you may leap it and land two squares away in that direction. The landing square must be empty or hold an enemy, which is captured.',
+              'A piece can leap over a friendly piece. If an ally sits on the next square in a direction the piece moves, the piece jumps it and lands on the square just beyond, empty or capturing an enemy there. It works in any direction the piece itself moves: straight for a Carp, on the diagonal for a Raccoon-dog, any of the eight for the royal.',
           },
           {
             kind: 'raw-svg',
-            svg: SHOGI4_JUMP,
-            caption: 'A Carp leaps the friendly Raccoon-dog ahead of it, landing two squares forward.',
+            svg: SHOGI4_JUMP_CASES,
           } as ArticleBlock,
-          {
-            kind: 'paragraph',
-            text:
-              'One ally, one square beyond: no chaining, and you cannot leap an enemy. A Carp leaps only forward, a Raccoon-dog only on a diagonal, the royal in any of its eight directions. Dōbutsu shōgi, the 3×4 game Shogi4 otherwise resembles, has no such rule.',
-          },
         ],
       },
       {
@@ -4997,13 +4987,21 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'A capture sends the enemy piece to your farm (your hand); if it was evolved, it reverts to its base form. The royal is never taken into hand: capturing it ends the game.',
+              'Move onto an enemy to capture it; it switches sides into your farm, reverting to its base form if it was evolved.',
           },
+          {
+            kind: 'raw-svg',
+            svg: SHOGI4_CAPTURE,
+          } as ArticleBlock,
           {
             kind: 'paragraph',
             text:
-              "Instead of moving, you may drop a piece from your farm onto any empty square, where it becomes yours. The one banned square is the far row (the opponent's back rank). There is no other restriction: two Carps may share a file, and a drop may threaten the king at once.",
+              "Instead of moving, drop a piece from your farm onto any empty square, except those on the far row (the opponent's back rank).",
           },
+          {
+            kind: 'raw-svg',
+            svg: SHOGI4_DROP,
+          } as ArticleBlock,
         ],
       },
       {
@@ -5012,7 +5010,16 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Capturing the opposing royal is the only way to win. There is no check, no checkmate, and no win for reaching the far side. A royal may move into capture range or be left in it; the game ends only when one is actually taken.',
+              'Capturing the royal is the only way to win. No check, no checkmate: the game ends the moment a royal is taken, even one left sitting in the open.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: SHOGI4_WIN,
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              'There is no stalemate. Because moving the king into capture range is legal, a lack of safe moves never ends the game: you simply make the unsafe move and play on until a king is taken. A side with no legal move at all, boxed in with nothing to drop, loses rather than draws.',
           },
         ],
       },
@@ -5022,7 +5029,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Oca's rules give no repetition rule. For competitive and solved play, this page treats endless repetition, with neither side able to force a capture, as a draw. That convention is ours, not Oca's.",
+              'The original rules address neither repetition nor a move-count limit. Our convention fills the gap: a position reached three times is an automatic draw. That rule is ours, not Oca\'s, and changes none of the rules above.',
           },
         ],
       },
@@ -5032,13 +5039,18 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Shogi4 and its artwork are by [Oca Studios](https://ocastudios.com/four/shogi/) and are in the public domain ([BoardGameGeek](https://boardgamegeek.com/boardgame/146291/shogi4)). The rules here come from Oca's rules page and starting-position graphic, confirmed against the official app, which settles the finer points: the friendly-jump geometry, the single drop ban, and king-capture as the sole win.",
+              "Shogi4 and its tile art are by Oca Studios, which released its whole \"Four\" series into the public domain; that release, not any third-party listing, is what puts the game in the public domain. The [BoardGameGeek entry](https://boardgamegeek.com/boardgame/146291/shogi4) is a catalog reference, not the basis for the public-domain claim.",
+          },
+          {
+            kind: 'paragraph',
+            text:
+              "We recovered the exact rules from Oca's official Shogi4 app, decompiling it to read the move logic directly: the friendly-jump geometry, the single drop ban, and king-capture as the sole win all come from there. Oca's public rules page and starting-position graphic (now reachable only through the [Internet Archive](https://web.archive.org/web/20240926113424/https://www.ocastudios.com/four/shogi/), since the live site is down) corroborate the board and the basic moves.",
           },
         ],
       },
       relatedClosing({
-        heading: 'Where to next',
-        lead: 'Shogi4 joins the small-shogi family. Compare it with the chess and xiangqi primers, or browse the rest of the rules.',
+        heading: 'Playing Shogi4',
+        lead: "Shogi4 isn't playable on the site yet; for now this page is the rules reference. Browse the rest of the rules, or compare it with the chess and xiangqi primers.",
         links: [
           { label: 'All rules', href: '/rules', emphasis: 'primary' },
           { label: 'Chess Rules', href: '/rules/chess', emphasis: 'secondary' },

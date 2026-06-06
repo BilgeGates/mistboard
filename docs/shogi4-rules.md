@@ -1,11 +1,13 @@
 # Shogi4 — rules
 
-Shogi4 is a 4×4 drop-shogi played with animal tiles. Oca Studios released it into
-the public domain as part of its "Four" series (classic games remixed for
-children), free as a print-and-play set and as an app. It keeps shogi's signature
-rule (captured pieces change sides and return to play) on a board small enough to
-learn in a minute.
+Shogi4 is a 4×4 drop-shogi played with animal tiles. It plays much like ordinary
+shogi shrunk to sixteen squares: pieces step in marked directions, captured pieces
+switch sides and drop back into play, and you win by taking the king. The one rule
+shogi players won't recognize is that a piece may hop over a friendly piece, added
+so your own pieces don't jam each other on a board this small.
 
+Oca Studios released Shogi4 into the public domain as part of its "Four" series
+(classic games remixed for children), free as a print-and-play set and as an app.
 These rules are recovered from Oca's own materials and the official app; see
 [Source and license](#source-and-license) for the provenance.
 
@@ -130,42 +132,57 @@ two squares away in that same direction:
  0  ●            0  .
 ```
 
-(0 is the moving piece, 1 the friendly piece it leaps, 2 the landing square.) The
-landing square must be empty or hold an enemy, which is then captured. You leap
-exactly one piece, one square beyond it: no chaining, and you can leap only your
-own, never an enemy. A Carp can jump only straight forward, a Raccoon-dog only on a
-diagonal, the royal in any of its eight directions (at the start, the royal can
-already leap the Carp in front of it).
+(0 is the moving piece, 1 the friendly piece it leaps, 2 the landing square.) A
+Carp can jump only straight forward, a Raccoon-dog only on a diagonal, the royal in
+any of its eight directions; from the opening position the royal can already leap
+the Carp in front of it.
+
+The limits are tight. You leap your own piece, never an enemy. You leap exactly
+one, with no chaining over two in a row. The landing square has to be empty or hold
+an enemy you capture, so you can't jump onto a third friendly piece. And the jump
+only exists where the piece could already step, so a Carp never hops sideways or
+backward, a Raccoon-dog never over an orthogonal neighbor, and nothing jumps off
+the edge when there is no square two beyond.
 
 This rule is Shogi4's own, absent from Dōbutsu shōgi, the 3×4 game it otherwise
 resembles. On so small a board it keeps your own pieces from boxing each other in.
 
 ## Capturing, farms, and drops
 
-Move onto an enemy piece to capture it. The captured piece goes to your farm (your
-hand), and if it was evolved it reverts to its base form. The royal is the one
-piece never captured-and-kept; taking it ends the game.
+Move onto an enemy piece to capture it. It goes to your farm (your hand) and
+becomes yours to drop later; if it was evolved, it reverts first, so a captured Koi
+returns as a plain Carp, not a silver. The royal is the one piece never
+captured-and-kept; taking it ends the game.
 
 On your turn, instead of moving a piece on the board, you may call a piece from
-your farm: place it on any empty square as your own. The only square you can't drop
-onto is the far row (the opponent's back rank). Everything else is legal: there's
-no limit on doubled Carps in a file, and a drop may set up the immediate capture of
-the king.
+your farm onto any empty square, where it joins your side. A drop never captures:
+it lands on an empty square, and the far row (the opponent's back rank) is closed
+to drops even when it sits empty. Nothing else is barred: two of your Carps may
+share a file, and since a drop is a whole move, you can set one down next to the
+enemy royal to attack it.
 
 ## Winning
 
 You win by capturing the opposing royal, the Crane or the Pheasant. That is the
 only victory condition. There is no check, no checkmate, and no win for reaching
-the far side. Moving your royal into capture range is legal, and leaving it there
-is legal; the game ends only when a royal is actually taken. You win by playing the
-capture your opponent left open.
+the far side.
+
+Nothing guards the royal for you. You may step it onto a square an enemy attacks,
+and you may leave it there; the rules never force a defensive move. A position that
+would be checkmate in ordinary shogi is only a position here until someone plays
+the capture. You win the moment the opposing royal sits where you can reach it,
+whether you take it with a plain step or by leaping a friendly piece onto it.
+
+There is no stalemate. Because moving the king into capture range is legal, a lack
+of safe moves never ends the game: you simply make the unsafe move and play on until
+a king is taken. A side with no legal move at all, boxed in with nothing to drop,
+loses rather than draws.
 
 ## Repetition and draws
 
-Oca's rules state no repetition rule. For competitive and solved play this document
-adopts the standard convention: a game that repeats forever, with neither side able
-to force a capture, is a draw. This convention is ours, not Oca's, and it changes
-none of the rules above.
+The original rules address neither repetition nor a move-count limit. Our convention
+fills the gap: a position reached three times is an automatic draw. This rule is
+ours, not Oca's, and changes none of the rules above.
 
 ## Quick reference
 
@@ -184,14 +201,18 @@ leap one adjacent friendly piece in a direction it can already move.
 
 ## Source and license
 
-Shogi4 and its artwork are by Oca Studios ("Four" series) and are in the public
-domain.
+Shogi4 and its tile art are by Oca Studios, which released its whole "Four" series
+into the public domain. That release, not any third-party listing, is what puts the
+game in the public domain. The BoardGameGeek entry is a catalog reference, not the
+basis for the public-domain claim.
 
-- Rules page: https://ocastudios.com/four/shogi/
+We recovered the exact rules from Oca's official Shogi4 app, decompiling it to read
+the move logic directly: the friendly-jump geometry, the single drop restriction,
+and king-capture as the sole win all come from there. Oca's public rules page and
+starting-position graphic — now reachable only through the Internet Archive, since
+the live site is down — corroborate the board and the basic moves. The only
+addition beyond the app is the repetition convention noted above.
+
+- Rules page (Internet Archive, captured 2024-09-26):
+  https://web.archive.org/web/20240926113424/https://www.ocastudios.com/four/shogi/
 - BoardGameGeek: https://boardgamegeek.com/boardgame/146291/shogi4
-
-The ruleset here was recovered from Oca's rules page and starting-position graphic,
-and confirmed against the official Android app, whose game logic was decompiled to
-settle the finer points: the friendly-jump geometry, the single drop restriction,
-and king-capture as the sole win. Where the app and the prose materials agree, this
-document follows them; the only addition is the repetition convention noted above.
