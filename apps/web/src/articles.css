@@ -273,6 +273,10 @@
   line-height: 1.75;
   margin: 0;
 }
+/* A lead intro can run to a second paragraph; space them like body copy. */
+.article-intro .article-paragraph + .article-paragraph {
+  margin-top: 12px;
+}
 
 .article-section-heading {
   font-size: 20px;

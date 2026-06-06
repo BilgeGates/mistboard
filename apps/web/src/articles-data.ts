@@ -4525,7 +4525,12 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Crossroads Chess puts the pieces of two ancient strategy games on a single board. From chess it takes the king, bishop, knight, and pawn. From xiangqi it takes the chariot, cannon, horse, and soldier. You already know how most of them move, so there is little to learn from scratch. Crossroads Chess adds one new idea: a second way to win, by marching your own king to the far side of the board.',
+          'Crossroads Chess is a game we made: chess and xiangqi on one board, six files by eight ranks, split by a river. It opens like a pawn storm and ends in a king race, and almost every game is decisive.',
+      },
+      {
+        kind: 'paragraph',
+        text:
+          "It borrows pieces from both games. From chess come the king, bishop, knight, and pawn; from xiangqi the chariot, cannon, horse, and soldier. You already know how most of them move, so there's little to learn from scratch. The one new idea is a second way to win: march your own king to the far side of the board.",
       },
     ],
     sections: [
@@ -4748,6 +4753,21 @@ export const articles: Article[] = [
             },
             caption: 'Fairy-Stockfish self-play on the canonical 6 by 8 setup. White wins the race.',
           } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'Why we made it',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'We made Crossroads Chess to get the sharp middlegames of chess and xiangqi without the draws that so often end them. A game opens like two opposite-side pawn storms, both armies pushing past each other up the board. As pieces come off it turns into a king race: your king is also your runner, so landing it on the enemy back rank wins at once. You usually attack and defend the same race at the same time, and the games stay tense to the last move.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'Almost every game ends with a winner. Between the two finish lines and rules that make stalemate and repetition a loss, there is rarely anywhere to hide, and in our engine testing draws are the exception.',
+          },
         ],
       },
       relatedClosing({
