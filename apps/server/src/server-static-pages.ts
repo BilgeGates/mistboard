@@ -112,6 +112,12 @@ export const ARTICLE_META: Record<
     description:
       'Mini Xiangqi under Fog of War: each side sees only the points its pieces reach on the 7×7 board, and the general falls by capture.',
   },
+  shogi4: {
+    title: 'Shogi4 Rules',
+    kind: 'rules',
+    description:
+      "The complete rules of Shogi4, Oca Studios' public-domain animal drop-shogi on a 4×4 board: how the Carp, Tapir, Raccoon-dog, Fox, and royal move, plus the friendly-jump, evolution, drops, and king-capture wins.",
+  },
 };
 
 export function canonicalArticleBase(slug: string): 'articles' | 'rules' {
