@@ -56,22 +56,16 @@ function renderAccountShell(
   user: AuthUser | null,
   tab: 'login' | 'register' = 'login',
 ): void {
-  shell.replaceChildren(
-    user ? buildSignedInAccount(user, shell) : buildLoginForm(shell, undefined, tab),
-  );
+  shell.replaceChildren(user ? buildSignedInAccount(user) : buildLoginForm(tab));
 }
 
 function renderAccountSettingsShell(shell: HTMLElement, user: AuthUser | null): void {
-  shell.replaceChildren(
-    user
-      ? buildAccountSettingsPage(user, shell)
-      : buildLoginForm(shell, renderAccountSettingsShell),
-  );
+  shell.replaceChildren(user ? buildAccountSettingsPage(user, shell) : buildLoginForm());
 }
 
 // ── Signed-in account card ───────────────────────────────────────────────────
 
-function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
+function buildSignedInAccount(user: AuthUser): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel';
 
@@ -104,8 +98,15 @@ function buildSignedInAccount(user: AuthUser, shell: HTMLElement): HTMLElement {
     logout.disabled = true;
     await fetch('/api/auth/logout', { method: 'POST' });
     resetIdentity();
-    const next = await fetchCurrentUser().catch(() => null);
-    renderAccountShell(shell, next);
+    try {
+      window.localStorage.removeItem('mb_signed_in');
+    } catch {
+      /* ignore */
+    }
+    // Reload so the top-right nav reverts to Sign in / Register. The nav (owned
+    // by account-nav.ts) resolves auth once at load, so an in-page render alone
+    // leaves it showing the stale account menu. Mirrors account-nav's own logout.
+    window.location.reload();
   });
 
   actions.append(profile, settings, logout);
@@ -282,11 +283,7 @@ function buildAccountAuthTab(label: string, href: string, isActive: boolean): HT
   return link;
 }
 
-function buildLoginForm(
-  shell: HTMLElement,
-  onAuth: (shell: HTMLElement, user: AuthUser) => void = renderAccountShell,
-  tab: 'login' | 'register' = 'login',
-): HTMLElement {
+function buildLoginForm(tab: 'login' | 'register' = 'login'): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel';
 
@@ -369,20 +366,24 @@ function buildLoginForm(
           error?: string;
         };
         if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
-        // No reload on fresh sign-in, so the boot-path identify in
-        // account-nav.ts won't fire until next load — identify here too.
+        // Identify and fire the signup event before the reload below, so they are
+        // attributed now (account-nav re-identifies on the next boot anyway).
         identify(data.user.id, {
           handle: data.user.handle,
           account_role: data.user.accountRole,
           email_verified: data.user.emailVerified,
         });
         if (data.isNewUser) track('signup_completed');
+        // Set the signed-in hint first so the post-reload first paint shows the
+        // account placeholder instead of flashing Sign in / Register.
         try {
           window.localStorage.setItem('mb_signed_in', '1');
         } catch {
           /* ignore */
         }
-        onAuth(shell, data.user);
+        // Reload so the top-right nav (account-nav.ts, resolved once at load)
+        // picks up the new session. An in-page render alone leaves the nav stale.
+        window.location.reload();
       }
     } catch (err) {
       status.textContent = err instanceof Error ? authErrorMessage(err.message) : 'Sign in failed.';
