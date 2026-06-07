@@ -277,10 +277,10 @@ export const SHOGI4_DROP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 <clipPath id="hlc8"><rect x="13" y="13" width="198" height="198" rx="7"/></clipPath><rect x="12" y="112" width="200" height="50" fill="rgba(45,100,45,0.10)" clip-path="url(#hlc8)"/>
 <clipPath id="hlc9"><rect x="13" y="13" width="198" height="198" rx="7"/></clipPath><rect x="12" y="162" width="200" height="50" fill="rgba(45,100,45,0.10)" clip-path="url(#hlc9)"/>
 <clipPath id="hlc10"><rect x="13" y="13" width="198" height="198" rx="7"/></clipPath><rect x="12" y="12" width="200" height="50" fill="rgba(192,57,43,0.16)" clip-path="url(#hlc10)"/>
-<image href="/shogi4/pieces/pheasant.png" x="164.0" y="14.0" width="46.0" height="46.0" transform="rotate(180 187.0 37.0)"/>
 <line x1="24.0" y1="24.0" x2="50.0" y2="50.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="24.0" y1="50.0" x2="50.0" y2="24.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
 <line x1="74.0" y1="24.0" x2="100.0" y2="50.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="74.0" y1="50.0" x2="100.0" y2="24.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
 <line x1="124.0" y1="24.0" x2="150.0" y2="50.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="124.0" y1="50.0" x2="150.0" y2="24.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<line x1="174.0" y1="24.0" x2="200.0" y2="50.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/><line x1="174.0" y1="50.0" x2="200.0" y2="24.0" stroke="#c0392b" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
 <clipPath id="hlc11"><rect x="13" y="13" width="198" height="198" rx="7"/></clipPath><rect x="62.0" y="112.0" width="50.0" height="50.0" fill="#f6d873" opacity="0.55" clip-path="url(#hlc11)"/>
 <g opacity="0.42"><image href="/shogi4/pieces/raccoon.png" x="64.0" y="114.0" width="46.0" height="46.0"/></g>
 <rect x="12" y="222" width="200" height="50" rx="8" fill="#efe2c4" stroke="#c9b07f" stroke-width="1.5" stroke-dasharray="5 4"/>
