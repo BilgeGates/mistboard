@@ -24,6 +24,20 @@ export const ARTICLE_LANG_PREFIX: Record<ArticleLang, string> = {
 };
 
 const ZH_HANS: Record<string, string> = {
+  // -- Dark Draft960 --
+  'Dark Draft960': '迷雾选阵960',
+  "Dark Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.":
+    '带密封开局选阵的迷雾国际象棋：每位玩家从三种国际象棋960 底线阵型中选择一种，且永远看不到对方的选择。',
+  'The draft': '选阵',
+  "The server deals each player three random Chess960 back ranks. You pick one. Your opponent independently picks one of theirs. The drafts are sealed. Neither side sees the other's offers or choice.":
+    '服务器为每位玩家发出三种随机的国际象棋960 底线阵型。你从中选一种，对手也各自从自己的三种中选一种。双方的选阵都是密封的：任何一方都看不到对方的候选阵型或最终选择。',
+  "Say both players picked offer A. Each side sees only its own back rank; the opponent's stays in fog. Only the server holds both.":
+    '假设双方都选了候选 A。每一方只能看到自己的底线阵型，对方的则隐藏在迷雾中。只有服务器同时掌握双方的阵型。',
+  '960 × 960 = **921,600** possible starts. Standard chess is one of them.':
+    '960 × 960 = **921,600** 种可能的开局。标准国际象棋只是其中之一。',
+  'Dark Draft960 is a future variant, not playable yet. There is no set release date.':
+    '迷雾选阵960 是一个未来的变体，目前尚不可对弈，也没有确定的发布日期。',
+
   // -- Xiangqi primer (rules) --
   'Xiangqi Rules': '象棋规则',
   'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.':
@@ -337,6 +351,20 @@ const ZH_HANS: Record<string, string> = {
 };
 
 const ZH_HANT: Record<string, string> = {
+  // -- Dark Draft960 --
+  'Dark Draft960': '迷霧選陣960',
+  "Dark Chess with a sealed opening draft: each player picks one of three Chess960 back ranks and never sees the other's.":
+    '帶密封開局選陣的迷霧國際象棋：每位玩家從三種國際象棋960 底線陣型中選擇一種，且永遠看不到對方的選擇。',
+  'The draft': '選陣',
+  "The server deals each player three random Chess960 back ranks. You pick one. Your opponent independently picks one of theirs. The drafts are sealed. Neither side sees the other's offers or choice.":
+    '伺服器為每位玩家發出三種隨機的國際象棋960 底線陣型。你從中選一種，對手也各自從自己的三種中選一種。雙方的選陣都是密封的：任何一方都看不到對方的候選陣型或最終選擇。',
+  "Say both players picked offer A. Each side sees only its own back rank; the opponent's stays in fog. Only the server holds both.":
+    '假設雙方都選了候選 A。每一方只能看到自己的底線陣型，對方的則隱藏在迷霧中。只有伺服器同時掌握雙方的陣型。',
+  '960 × 960 = **921,600** possible starts. Standard chess is one of them.':
+    '960 × 960 = **921,600** 種可能的開局。標準國際象棋只是其中之一。',
+  'Dark Draft960 is a future variant, not playable yet. There is no set release date.':
+    '迷霧選陣960 是一個未來的變體，目前尚不可對弈，也沒有確定的發布日期。',
+
   // -- Xiangqi primer (rules) --
   'Xiangqi Rules': '象棋規則',
   'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.':
