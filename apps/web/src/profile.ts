@@ -4,7 +4,7 @@ import './account-profile.css';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
-import { leaderboardVariants } from './variants.js';
+import { leaderboardVariants, profileRatingVariants } from './variants.js';
 
 type ProfileRatingVariant = 'fog' | 'fog_draft960' | 'dark_mini_xiangqi';
 type ProfileRatingTimeClass = 'bullet' | 'blitz' | 'rapid';
@@ -70,9 +70,9 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   dark_mini_xiangqi: 'Dark Mini Xiangqi',
 };
 
-// Profile rating grid shows the same variants as the leaderboard (registry-driven),
-// so a disabled variant doesn't surface a dead row on profiles either.
-const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = leaderboardVariants.map((v) => v.id);
+// Profile rating grid is subject-scoped: render-capable soft-launch variants can
+// show here before they are advertised on the public leaderboard.
+const PROFILE_VARIANT_ORDER: ProfileRatingVariant[] = profileRatingVariants.map((v) => v.id);
 const PROFILE_TIME_CLASS_ORDER: ProfileRatingTimeClass[] = ['bullet', 'blitz', 'rapid'];
 const PROFILE_TIME_CLASS_LABEL: Record<ProfileRatingTimeClass, string> = {
   bullet: 'Bullet',

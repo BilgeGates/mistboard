@@ -74,6 +74,7 @@ describe('landing play panel', () => {
 
   it('creates a timed Dark Mini Xiangqi room from the flagged challenge variant', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_home' });
@@ -117,9 +118,8 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/dmxq_home');
   });
 
-  it('keeps Dark Mini Xiangqi hidden unless its client flag is enabled', () => {
-    // No DMX flag → DMX must not be offered. With no second playable variant
-    // there's no picker at all, so just assert DMX never appears as an option.
+  it('keeps Dark Mini Xiangqi hidden from public entry unless its public-entry flag is enabled', () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -137,6 +137,7 @@ describe('landing play panel', () => {
 
   it('uses gameSpecId, not variant, to deep-link the challenge variant projection', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -148,6 +149,35 @@ describe('landing play panel', () => {
     const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
     expect(variantSelect?.value).toBe('dark-mini-xiangqi');
     expect(window.location.search).toBe('');
+  });
+
+  it('allows a soft-launch Dark Mini Xiangqi deep link without public picker entry', async () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_soft' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    window.history.replaceState(null, '', '/?play=friend&gameSpecId=dark-mini-xiangqi');
+
+    maybeOpenPlayDeepLink([]);
+    expect(document.querySelector('.landing-variant-select')).toBeNull();
+    expect(document.querySelector('.landing-variant-control')?.textContent).toBe(
+      'Dark Mini Xiangqi',
+    );
+    document
+      .querySelector<HTMLButtonElement>('.landing-setup-start')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    const roomCall = fetchSpy.mock.calls.find(([input]) => String(input) === '/api/rooms');
+    expect(JSON.parse(String(roomCall?.[1]?.body))).toEqual({
+      mode: 'pvp',
+      gameSpecId: 'dark-mini-xiangqi',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      preferredColor: 'random',
+    });
   });
 
   it('does not offer Dark Xiangqi (9x10) in the play menu — it has no runtime', () => {
@@ -184,6 +214,7 @@ describe('landing play panel', () => {
 
   it('sends the Dark Mini Xiangqi game spec id when finding a DMX opponent', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const fetchSpy = lobbyFetchSpy();
     vi.stubGlobal('fetch', fetchSpy);
     const panel = buildLandingPlayPanel([]);

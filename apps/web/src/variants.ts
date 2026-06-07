@@ -16,7 +16,10 @@ import {
   gameSpecForId,
   type RatingPoolBaseId,
 } from '@mistboard/game';
-import { darkMiniXiangqiEnabled } from './feature-flags.js';
+import {
+  darkMiniXiangqiEnabled,
+  darkMiniXiangqiPublicEntryEnabled,
+} from './feature-flags.js';
 
 export type RatingVariantId = Extract<
   RatingPoolBaseId,
@@ -33,10 +36,13 @@ export interface VariantDef {
   enabled: boolean;
   /** Shown on the public leaderboard + profile rating grid. */
   onLeaderboard: boolean;
+  /** Shown on subject-scoped profile rating grids. */
+  onProfile: boolean;
 }
 
 const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
 const darkMiniEnabled = darkMiniXiangqiEnabled();
+const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
@@ -49,6 +55,7 @@ export const VARIANTS: VariantDef[] = [
     label: darkChessSpec.publicName,
     enabled: true,
     onLeaderboard: true,
+    onProfile: true,
   },
   // Draft960: gated behind its flag, and temporarily hidden from the leaderboard
   // until it launches (sequenced to M4). Flip `onLeaderboard` (and the flag) when
@@ -60,19 +67,24 @@ export const VARIANTS: VariantDef[] = [
     label: draft960Spec.publicName,
     enabled: draft960Enabled,
     onLeaderboard: false,
+    onProfile: false,
   },
   {
     id: currentRatingVariantForSpec(DARK_MINI_XIANGQI_SPEC_ID),
     gameSpecId: darkMiniXiangqiSpec.id,
     apiParam: DARK_MINI_XIANGQI_SPEC_ID,
     label: darkMiniXiangqiSpec.publicName,
-    enabled: darkMiniEnabled,
-    onLeaderboard: darkMiniEnabled,
+    enabled: darkMiniPublicEntryEnabled,
+    onLeaderboard: darkMiniPublicEntryEnabled,
+    onProfile: darkMiniEnabled,
   },
 ];
 
 /** Variants shown on public rating surfaces (leaderboard + profile grid). */
 export const leaderboardVariants = VARIANTS.filter((v) => v.onLeaderboard);
+
+/** Variants shown on subject-scoped profile rating surfaces. */
+export const profileRatingVariants = VARIANTS.filter((v) => v.onProfile);
 
 /** Variants selectable in the lobby. */
 export const enabledVariants = VARIANTS.filter((v) => v.enabled);

@@ -13,7 +13,10 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
-import { darkMiniXiangqiEnabled } from './feature-flags.js';
+import {
+  darkMiniXiangqiEnabled,
+  darkMiniXiangqiPublicEntryEnabled,
+} from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
@@ -104,8 +107,9 @@ function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<Landin
     ? new Set<LandingTimePresetId>(['1m1', '3m2'])
     : new Set<LandingTimePresetId>(['3m2']);
 }
-// Dark chess is always offered; the xiangqi-family specs appear only when their
-// own client flag is on, so each stays hidden until its launch gate clears.
+// Dark chess is always offered; DMX appears in normal entry points only after
+// its public-entry flag is on. Direct soft-launch deep links can still select it
+// when the render/capability flag is on.
 function enabledLandingVariantGameSpecs(): { gameSpecId: LandingGameSpecId; label: string }[] {
   const specs: { gameSpecId: LandingGameSpecId; label: string }[] = [
     { gameSpecId: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
@@ -113,7 +117,7 @@ function enabledLandingVariantGameSpecs(): { gameSpecId: LandingGameSpecId; labe
   // Full Dark Xiangqi (9x10) has no live room/lobby integration yet — creating
   // one 501s — so it is NOT offered in the play menu even when its appearance/
   // spike flag is on. Re-add when the runtime lands (as Dark Mini Xiangqi did).
-  if (darkMiniXiangqiEnabled()) {
+  if (darkMiniXiangqiPublicEntryEnabled()) {
     specs.push({
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
       label: gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID).publicName,
@@ -561,13 +565,12 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantSection.className = 'landing-setup-section';
   variantSection.append(setupSectionLabel('Variant'));
 
-  // The picker appears only when a second playable variant exists beyond chess.
-  // Dark Mini Xiangqi is currently the only one (full Dark Xiangqi has no
-  // runtime). It's offered in PvP, the lobby, AND vs-Computer (PvE) — DMX has a
-  // served engine (python-dmx-v1.0), defaulted server-side.
+  // The picker appears only when a second public-entry variant exists beyond
+  // chess. DMX can still be selected by a soft-launch deep link when its render
+  // flag is on; in that case this section renders a static variant label.
   const variantSelectable =
     (choice.mode === 'pvp' || choice.mode === 'lobby' || choice.mode === 'pve') &&
-    darkMiniXiangqiEnabled();
+    darkMiniXiangqiPublicEntryEnabled();
   if (variantSelectable) {
     const variantOptions = enabledLandingVariantGameSpecs();
     const gameSpecSelect = document.createElement('select');
@@ -590,7 +593,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   } else {
     const variantControl = document.createElement('div');
     variantControl.className = 'landing-variant-control';
-    variantControl.textContent = gameSpecForId(DARK_CHESS_SPEC_ID).publicName;
+    variantControl.textContent = gameSpecForId(selectedGameSpecId).publicName;
     variantSection.append(variantControl);
   }
 

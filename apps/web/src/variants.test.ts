@@ -7,7 +7,12 @@ import {
   gameSpecForId,
 } from '@mistboard/game';
 import { describe, expect, it, vi } from 'vitest';
-import { enabledVariants, leaderboardVariants, VARIANTS } from './variants.js';
+import {
+  enabledVariants,
+  leaderboardVariants,
+  profileRatingVariants,
+  VARIANTS,
+} from './variants.js';
 
 describe('web variant launch registry', () => {
   it('uses shared game-spec labels for current dark chess formats', () => {
@@ -31,14 +36,29 @@ describe('web variant launch registry', () => {
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([DARK_CHESS_SPEC_ID]);
   });
 
-  it('adds Dark Mini Xiangqi leaderboard buckets behind the DMX flag', async () => {
+  it('adds Dark Mini Xiangqi profile buckets behind the DMX render flag', async () => {
     vi.resetModules();
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    const flagged = await import('./variants.js');
+    expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
+      DARK_CHESS_SPEC_ID,
+      DARK_MINI_XIANGQI_SPEC_ID,
+    ]);
+    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([DARK_CHESS_SPEC_ID]);
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('adds Dark Mini Xiangqi leaderboard buckets behind the public-entry flag', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
     const flagged = await import('./variants.js');
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
     ]);
+    expect(flagged.enabledVariants.map((v) => v.gameSpecId)).toContain(DARK_MINI_XIANGQI_SPEC_ID);
     expect(flagged.leaderboardVariants.find((v) => v.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID))
       .toEqual(
         expect.objectContaining({
@@ -56,6 +76,7 @@ describe('web variant launch registry', () => {
     expect(VARIANTS.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
     expect(leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
+    expect(profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
   });
 
   it('keeps Dark Shogi represented but not launch-enabled', () => {
