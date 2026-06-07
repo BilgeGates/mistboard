@@ -130,6 +130,9 @@ export async function darkMiniXiangqiPostgameForApi(
       roomId: game.roomId,
       variant: game.variant,
       mode: game.mode,
+      // Red occupies the white/first slot, Black the second.
+      redName: game.whiteName,
+      blackName: game.blackName,
       result: game.result,
       termination: game.termination,
       plyCount: game.plyCount,
@@ -149,7 +152,33 @@ export async function darkMiniXiangqiPostgameForApi(
     view: darkMiniXiangqiTruthView(projection.state),
     views: darkMiniXiangqiPostgameViews(projection.state, latestMoveColor),
     history: darkMiniXiangqiPostgameHistory(events),
+    clocks: darkMiniXiangqiPostgameClocks(events),
   };
+}
+
+// Per-ply remaining time, indexed by ply. The move events do not snapshot the
+// clock, but replaying them recomputes it (nextDarkMiniXiangqiClockForMove
+// decrements from each move's timestamp and respects the clock-starts-after-
+// opening delay), so this is accurate without a runtime change.
+function darkMiniXiangqiPostgameClocks(
+  events: readonly DarkMiniXiangqiEvent[],
+): Array<Record<MiniXiangqiColor, number>> {
+  const created = events[0];
+  if (!created || created.type !== 'room-created') return [];
+  let projection = replayDarkMiniXiangqiEvents([created]);
+  const clocks: Array<Record<MiniXiangqiColor, number>> = [];
+  const capture = (ply: number): void => {
+    if (projection.clock) clocks[ply] = { ...projection.clock.remainingMs };
+  };
+  let ply = 0;
+  capture(0);
+  for (const event of events.slice(1)) {
+    projection = applyDarkMiniXiangqiEvent(projection, event);
+    if (event.type !== 'move-played') continue;
+    ply += 1;
+    capture(ply);
+  }
+  return clocks;
 }
 
 function darkMiniXiangqiPostgameViews(

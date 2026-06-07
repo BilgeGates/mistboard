@@ -39,6 +39,8 @@ type WatchFeed = {
   initialReplay?: WatchInitialReplay;
 };
 
+type WatchRendererKind = 'chess' | 'mini-xiangqi';
+
 const WATCH_ACTIVE_POLL_MS = 15_000;
 const WATCH_IDLE_POLL_MS = 60_000;
 
@@ -61,11 +63,39 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
 
   let activeRoomId: string | null = null;
   let replayHandle: ReplayHandle | null = null;
+  // Which renderer the live handle is: chess (chessground) vs xiangqi (native
+  // SVG). A channel switch across families must re-mount, not loadGame.
+  let replayHandleKind: WatchRendererKind | null = null;
   let pollTimer: number | null = null;
   let refreshInFlight = false;
   const selectedRoomByChannel = new Map<string, string>();
   const metadataByRoomId: Record<string, GameMeta> = {};
   const abortController = new AbortController();
+
+  const watchRendererKind = (feed: WatchFeed): WatchRendererKind => {
+    const channel = feed.channels.find((entry) => entry.id === feed.activeChannel);
+    return channel?.family === 'xiangqi' ? 'mini-xiangqi' : 'chess';
+  };
+
+  // Mount the right-kind replay handle, re-mounting when the family changes
+  // (chess chessground vs xiangqi SVG can't loadGame across each other); else
+  // reuse the handle and just load the next game.
+  const ensureReplay = async (
+    feed: WatchFeed,
+    roomId: string,
+    seed?: WatchInitialReplay,
+  ): Promise<void> => {
+    const kind = watchRendererKind(feed);
+    if (!replayHandle || replayHandleKind !== kind) {
+      replayHandle?.destroy();
+      replayHandle = await mountWatchReplay(watch.replayRoot, roomId, metadataByRoomId, seed, kind);
+      replayHandleKind = kind;
+      return;
+    }
+    if (replayHandle.activeSampleId() !== roomId) {
+      await replayHandle.loadGame(roomId);
+    }
+  };
 
   const renderFeed = async (
     nextFeed: WatchFeed | null,
@@ -85,6 +115,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     if (!nextFeed || nextFeed.unlocked.length === 0) {
       replayHandle?.destroy();
       replayHandle = null;
+      replayHandleKind = null;
       activeRoomId = null;
       renderWatchEmptyState(watch.replayRoot, nextFeed);
       renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds });
@@ -102,16 +133,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     renderWatchQueue(watch.queueRoot, nextFeed, activeRoomId, { previousRoomIds });
 
     try {
-      if (!replayHandle) {
-        replayHandle = await mountWatchReplay(
-          watch.replayRoot,
-          nextRoomId,
-          metadataByRoomId,
-          nextFeed.initialReplay,
-        );
-      } else if (replayHandle.activeSampleId() !== nextRoomId) {
-        await replayHandle.loadGame(nextRoomId);
-      }
+      await ensureReplay(nextFeed, nextRoomId, nextFeed.initialReplay);
     } catch (err) {
       console.warn(err);
       activeRoomId = priorRoomId;
@@ -201,16 +223,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     selectedRoomByChannel.set(currentFeed.activeChannel, roomId);
     updateWatchQueueActive(watch.queueRoot, activeRoomId);
     try {
-      if (!replayHandle) {
-        replayHandle = await mountWatchReplay(
-          watch.replayRoot,
-          roomId,
-          metadataByRoomId,
-          currentFeed.initialReplay,
-        );
-      } else {
-        await replayHandle.loadGame(roomId);
-      }
+      await ensureReplay(currentFeed, roomId, currentFeed.initialReplay);
       syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
     } catch (err) {
       console.warn(err);
@@ -246,7 +259,16 @@ async function mountWatchReplay(
   roomId: string,
   metadataByRoomId: Record<string, GameMeta>,
   seed?: WatchInitialReplay,
+  kind: WatchRendererKind = 'chess',
 ): Promise<ReplayHandle> {
+  if (kind === 'mini-xiangqi') {
+    // Dynamic import keeps the xiangqi renderer out of the chess path's bundle.
+    const { mountMiniXiangqiWatchReplay } = await import('./watch-mini-xiangqi-replay.js');
+    return await mountMiniXiangqiWatchReplay(root, roomId, {
+      autoplay: true,
+      metadataByRoomId,
+    });
+  }
   const { mountReplay } = await loadReplayModule();
   return await mountReplay(root, roomId, {
     autoplay: true,
@@ -263,9 +285,7 @@ async function mountWatchReplay(
 // first board paints pieces without a second round trip. The seed is consumed
 // once: a later reload of the same game (after polling or queue navigation)
 // refetches fresh events, and every other game uses the per-game loader.
-function makeWatchEventLoader(
-  seed?: WatchInitialReplay,
-): (roomId: string) => Promise<GameEvent[]> {
+function makeWatchEventLoader(seed?: WatchInitialReplay): (roomId: string) => Promise<GameEvent[]> {
   let pending = seed;
   return async (roomId: string) => {
     if (pending && pending.roomId === roomId) {
@@ -328,11 +348,7 @@ function watchRoomFromLocation(): string | null {
   return new URLSearchParams(window.location.search).get('game');
 }
 
-function syncWatchUrl(
-  mode: 'push' | 'replace',
-  channelId: string,
-  roomId: string | null,
-): void {
+function syncWatchUrl(mode: 'push' | 'replace', channelId: string, roomId: string | null): void {
   const params = new URLSearchParams();
   params.set('channel', channelId);
   if (roomId) params.set('game', roomId);

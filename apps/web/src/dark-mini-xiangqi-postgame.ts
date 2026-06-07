@@ -18,17 +18,19 @@ import { createReplayMovesPanel } from './replay-moves-panel.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
 
-type DarkMiniXiangqiPostgameViewKey = MiniXiangqiColor | 'truth';
+export type DarkMiniXiangqiPostgameViewKey = MiniXiangqiColor | 'truth';
 
 const postgameAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
 type DarkMiniXiangqiTimeControl = { initialMs: number; incrementMs: number };
 
-type DarkMiniXiangqiPostgameResponse = {
+export type DarkMiniXiangqiPostgameResponse = {
   game: {
     roomId: string;
     variant: 'dark-mini-xiangqi';
     mode: string;
+    redName?: string | null;
+    blackName?: string | null;
     result: string;
     termination: string;
     plyCount: number;
@@ -52,6 +54,8 @@ type DarkMiniXiangqiPostgameResponse = {
     winner?: MiniXiangqiColor;
     reason?: string;
   }>;
+  // Remaining time per color, indexed by ply (0 = start). Absent when untimed.
+  clocks?: Array<Record<MiniXiangqiColor, number>>;
   view: MiniXiangqiPlayerView;
   views?: Partial<Record<DarkMiniXiangqiPostgameViewKey, MiniXiangqiPlayerView>>;
   history?: Partial<
@@ -312,7 +316,7 @@ function exportJsonUrl(roomId: string): string {
 
 // Builds the dark-chess-style move list: full-move rows with clickable red/black
 // plies (red occupies the "white" cell, black the "black" cell).
-function renderMoveRows(
+export function renderMoveRows(
   list: HTMLOListElement,
   moves: Array<{ move: MiniXiangqiMove; ply: number; color: MiniXiangqiColor }>,
   activePly: number,
@@ -363,7 +367,7 @@ function oppositeMiniColor(color: MiniXiangqiColor): MiniXiangqiColor {
   return color === 'red' ? 'black' : 'red';
 }
 
-function postgameViewEntries(
+export function postgameViewEntries(
   postgame: DarkMiniXiangqiPostgameResponse,
 ): Array<{ key: DarkMiniXiangqiPostgameViewKey; label: string; view: MiniXiangqiPlayerView }> {
   const views = postgame.views;
@@ -377,12 +381,12 @@ function postgameViewEntries(
   return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
 }
 
-function postgameReplayMaxPly(postgame: DarkMiniXiangqiPostgameResponse): number {
+export function postgameReplayMaxPly(postgame: DarkMiniXiangqiPostgameResponse): number {
   const history = Object.values(postgame.history ?? {}).flat();
   return Math.max(postgame.game.plyCount, ...history.map((snapshot) => snapshot.ply), 0);
 }
 
-function postgameViewAtPly(
+export function postgameViewAtPly(
   postgame: DarkMiniXiangqiPostgameResponse,
   key: DarkMiniXiangqiPostgameViewKey,
   ply: number,

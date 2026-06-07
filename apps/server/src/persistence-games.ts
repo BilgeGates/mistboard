@@ -589,6 +589,11 @@ export async function listWatchUnlockedGames(
        FROM events
        JOIN games ON games.room_id = events.room_id
        WHERE games.status = 'completed'
+         -- Match the last GAMEPLAY-terminal event, ignoring post-game noise such
+         -- as seat-assigned from a reconnect (DMX appends these after the final
+         -- move, which otherwise fails the termination/last-event consistency
+         -- check below and hides the game from watch).
+         AND events.type IN ('move-played', 'clock-expired', 'seat-resigned', 'seat-forfeited')
        ORDER BY events.room_id, events.seq DESC
      )
      SELECT ${RECENT_EVE_SELECT_COLUMNS}
@@ -603,7 +608,7 @@ export async function listWatchUnlockedGames(
        AND NOT (games.mode = 'pvp' AND games.ply_count < $3)
        AND NOT (games.mode = 'pve' AND games.ply_count < 2)
        AND (
-         (games.termination IN ('checkmate', 'draw', 'king-captured') AND last_events.type = 'move-played')
+         (games.termination IN ('checkmate', 'draw', 'king-captured', 'general-captured') AND last_events.type = 'move-played')
          OR (games.termination = 'timeout' AND last_events.type = 'clock-expired')
          OR (games.termination = 'resignation' AND last_events.type = 'seat-resigned')
          OR (games.termination = 'abandonment' AND last_events.type = 'seat-forfeited')

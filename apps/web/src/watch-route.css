@@ -437,6 +437,30 @@
   padding: 6px 10px;
 }
 
+/* Dark Mini Xiangqi watch board (the xiangqi half of the variant dispatch). The
+   triptych reuses the shared .replay-layout / .replay-pane chrome; the 7x7 SVG
+   (~square viewBox) just fills each pane's board slot. Scoped by .mini-xq-board,
+   which only exists in DMX panes. */
+.watch-replay .replay-board .mini-xq-board {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Captured-piece strips for the DMX triptych: small xiangqi glyphs in a row. */
+.watch-replay .replay-captures .mini-xq-captures-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px;
+}
+
+.watch-replay .replay-captures .mini-xq-capture-piece svg {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
 .watch-replay .replay-game-header-title {
   font-size: 16px;
   line-height: 1.15;
