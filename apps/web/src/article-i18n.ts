@@ -24,6 +24,115 @@ export const ARTICLE_LANG_PREFIX: Record<ArticleLang, string> = {
 };
 
 const ZH_HANS: Record<string, string> = {
+  // -- Xiangqi primer (rules) --
+  'Xiangqi Rules': '象棋规则',
+  'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.':
+    '标准象棋规则，迷雾象棋的入门基础：九宫、楚河汉界、炮架、将帅对脸，以及一盘可供逐步重演的名局。',
+  '[Xiangqi](https://en.wikipedia.org/wiki/Xiangqi), or Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).':
+    '[象棋](https://en.wikipedia.org/wiki/Xiangqi)（中国象棋）是一种双人策略游戏，其根源可追溯到中国数百年乃至更久以前。它的现代形式（包括炮在内）大约在宋代（960 至 1279 年）成形。',
+  'Red and Black alternate moves, with Red first. Each side begins with 16 pieces: one general, two advisors, two elephants, two horses, two chariots, two cannons, and five soldiers. The goal is to checkmate the opposing general.':
+    '红黑双方轮流走子，红方先行。每一方开局有 16 枚棋子：一个将（帅）、两个士（仕）、两个象（相）、两个马、两个车、两个炮（砲）和五个兵（卒）。目标是将死对方的将帅。',
+  'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares.':
+    '棋盘有 9 条纵线和 10 条横线，但棋子落在线的交叉点上，而不是格子内。',
+  'The **palace** is the 3 by 3 box on each player\'s back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers gain sideways movement after crossing it.':
+    '**九宫**是每一方底线一侧的 3×3 区域。将帅与士仕必须留在己方九宫之内。**楚河汉界**将棋盘分为两半。象（相）不能过河，而兵（卒）过河之后可以横向走子。',
+  'A piece captures by landing on an enemy-occupied point, and no piece may move through an occupied point. The cannon\'s capturing jump is the only exception. The pieces are listed below in the traditional order.':
+    '棋子通过落在敌方占据的交叉点上来吃子，而任何棋子都不能穿过被占据的交叉点。炮的吃子跳跃是唯一的例外。下面按传统顺序列出各棋子。',
+  '**General:** moves one point horizontally or vertically and can never leave its own palace. The two generals may never face each other along an open file with nothing between them: a move that would expose that line is illegal. In effect, a general guards the file in front of it like a chariot.':
+    '**将（帅）：**横向或纵向走一个交叉点，永远不能离开己方九宫。双方的将帅不能在中间无子的同一条纵线上对脸：任何让这条直线暴露出来的走法都是不合法的。实际上，将帅就像一只车那样守住它正前方的纵线。',
+  '**Advisor:** moves one point diagonally and, like the general, stays inside the palace.':
+    '**士（仕）：**斜向走一个交叉点，与将帅一样必须留在九宫之内。',
+  '**Elephant:** moves exactly two points diagonally and cannot cross the river, so it never leaves its own half. It does not jump: a piece on the midpoint of the diagonal, the elephant\'s eye, blocks the move.':
+    '**象（相）：**沿斜线正好走两个交叉点（俗称「象走田」），且不能过河，因此它永远不会离开己方半边。它不能跳越：如果斜线中点（象眼）上有棋子，这步走法就被挡住。',
+  '**Horse:** moves one point orthogonally and then one point diagonally outward, like a chess knight, but it does not jump. If the orthogonal point it steps through, the horse\'s leg, is occupied, the horse cannot move in that direction.':
+    '**马：**先沿横竖方向走一个交叉点，再斜向外走一个交叉点，走「日」字，类似国际象棋的马，但它不能跳越。如果它经过的那个横竖交叉点（马腿）被占据（蹩马腿），马便不能朝那个方向走。',
+  '**Chariot:** moves any distance horizontally or vertically and cannot jump, exactly like a rook. It is the strongest piece on the board.':
+    '**车：**横向或纵向走任意距离，不能越子，与国际象棋的车完全相同。它是棋盘上最强的棋子。',
+  '**Cannon:** moves like a chariot when it is not capturing. To capture, it jumps over exactly one piece, friend or foe, called the screen, and lands on an enemy piece beyond it.':
+    '**炮（砲）：**不吃子时走法与车相同。吃子时，它正好越过一枚棋子（不分敌我），这枚棋子称为炮架，并落在其后的一枚敌方棋子上。',
+  '**Soldier:** moves one point straight forward and never backward. After crossing the river it may also move one point sideways. It never promotes.':
+    '**兵（卒）：**向正前方走一个交叉点，永不后退。过河之后，它还可以横向走一个交叉点。它不会升变。',
+  'Check, checkmate, and endings': '将军、将死与终局',
+  'A general is in check when an enemy piece attacks it, and the player in check must answer the threat. If there is no legal answer, it is checkmate and the checked player loses.':
+    '当敌方棋子攻击将帅时，即为将军，被将军的一方必须应对这一威胁。如果没有合法的应法，便是将死，被将军的一方告负。',
+  'A player who has no legal move at all also loses. This is the opposite of Western chess, where having no legal move is a stalemate draw.':
+    '完全没有合法走法的一方同样告负。这与西洋的国际象棋相反，在那里没有合法走法算作逼和（和棋）。',
+  'Xiangqi also restricts endless forcing cycles. Perpetual check and perpetual chase are not allowed: a player who repeats an endless attack loses rather than forcing a draw. Tournament rules spell out detailed repetition procedures for exactly when a cycle counts as perpetual.':
+    '象棋还限制无止境的逼着循环。长将与长捉是不允许的：一方若不断重复同样的进攻，将被判负，而不能借此逼和。比赛规则对何时算作「长」给出了详细的重复判定程序。',
+  'A game is drawn when neither side has enough material to checkmate, by a repetition that breaks none of those rules, or when a long run of moves passes with no capture. The no-capture limit depends on the rule set: the World Xiangqi Federation rules use a fifty-move rule, while the Chinese (CXA) rules require at least sixty plies before a draw can be claimed.':
+    '当任何一方都没有足够的子力将死对方、出现不违反上述规则的重复局面，或长时间无吃子时，对局判和。无吃子的上限取决于所采用的规则：世界象棋联合会的规则采用五十回合规则，而中国象棋协会（CXA）的规则则要求至少 60 个半回合之后才能提出和棋。',
+  'To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi\'s greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.':
+    '想看棋子在实战中如何协同，可以逐步重演这盘 1990 年、由两位象棋顶尖特级大师对弈的冠军赛。执黑的柳大华用 31 个回合将死了那个时代最具统治力的冠军胡荣华。',
+  'Xiangqi is the open-information base game. Add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.':
+    '象棋是信息公开的底层游戏。为它加上战争迷雾，便得到迷雾象棋：你视野之外的敌方棋子会消失，而将帅由被吃而落败。或者也可以试试更紧凑的棋盘。',
+  'Mini Xiangqi': '迷你象棋',
+  'Dark Mini Xiangqi': '迷雾迷你象棋',
+
+  // -- Chess primer --
+  'Chess Rules': '国际象棋规则',
+  'Standard chess rules, the primer behind Dark Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.':
+    '标准国际象棋规则，迷雾国际象棋的入门基础：王车易位、升变、吃过路兵、和棋规则，以及一盘可供逐步重演的名局。',
+  'Chess is a two-player strategy game played for centuries. It descends from the Indian game chaturanga of around the 6th century and reached Europe through Persia and the Islamic world; its modern form, with the long-range queen and bishop, took shape in Europe in the late 1400s.':
+    '国际象棋是一种已有数百年历史的双人策略游戏。它源自约公元 6 世纪的印度游戏恰图兰加，经由波斯和伊斯兰世界传入欧洲；其现代形式（拥有远程的后和象）于 15 世纪末在欧洲成形。',
+  'Board setup': '棋盘布置',
+  'Chess is played on an 8 by 8 board of alternating light and dark squares.':
+    '国际象棋在 8×8 的棋盘上进行，棋盘由深浅相间的方格组成。',
+  'White moves first, then players alternate. Each side fills the two rows nearest it, with the queen starting on her own color. On your turn, move one piece to a legal square: you cannot land on your own piece, and landing on an enemy piece captures it, removing it from the board.':
+    '白方先走，之后双方轮流走子。每一方在最靠近自己的两排摆满棋子，后摆在与自身同色的格子上。轮到你时，将一枚棋子走到一个合法的格子：你不能落在自己的棋子上，而落在敌方棋子上即可将其吃掉，并把它从棋盘上移走。',
+  'Each piece moves in its own way. In every diagram below, the highlighted squares are the legal moves and captures for the marked white piece.':
+    '每种棋子都有各自的走法。在下面每一幅图中，高亮的格子表示被标记的白方棋子的合法走法与吃子。',
+  '**King:** moves one square in any direction. In regular chess, a king may not move onto a square attacked by the opponent.':
+    '**王：**可向任意方向走一格。在普通国际象棋中，王不能走到被对方攻击的格子上。',
+  '**Queen:** moves any number of squares horizontally, vertically, or diagonally. Other pieces block her path.':
+    '**后：**可沿横线、竖线或斜线走任意格数。其他棋子会挡住它的去路。',
+  '**Rook:** moves any number of squares horizontally or vertically. It cannot jump, so the first occupied square in a line stops it.':
+    '**车：**可沿横线或竖线走任意格数。它不能跳子，因此一条线上第一个被占据的格子就会挡住它。',
+  '**Bishop:** moves any number of squares diagonally. Because diagonals stay on one color, each bishop stays on light squares or dark squares for the whole game.':
+    '**象：**可沿斜线走任意格数。由于斜线始终保持同一种颜色，每个象在整盘棋中都只走浅色格或只走深色格。',
+  '**Knight:** moves in an L shape: two squares one way and one square sideways. The knight is the only piece that jumps over other pieces.':
+    '**马：**走「L」形：朝一个方向走两格，再横向走一格。马是唯一能跳过其他棋子的棋子。',
+  '**Pawn:** the pawn moves and captures differently from every other piece. It moves straight forward into an empty square, one square at a time, or two squares from its starting position. It can never move backward or sideways, and a piece directly in front of it blocks it completely. It captures only diagonally forward, one square (the green rings below), never straight ahead. Two further pawn rules, promotion and en passant, appear under Special moves below.':
+    '**兵：**兵的走法和吃法与其他所有棋子都不同。它向正前方走入一个空格，每次一格，或在起始位置时一次走两格。它永远不能后退或横走，正前方若紧挨着一枚棋子便会被完全挡住。它只能向斜前方吃子，一格（见下图的绿色圆环），绝不向正前方吃子。另有两条与兵有关的规则：升变与吃过路兵，见下文的「特殊走法」。',
+  'Check and checkmate': '将军与将死',
+  'In regular chess, the king is protected by check and checkmate. A king is **in check** when an enemy piece attacks it. The checked player must make a legal move that leaves the king safe.':
+    '在普通国际象棋中，王受到将军与将死规则的保护。当敌方棋子攻击王时，王即处于**被将军**的状态。被将军的一方必须走一步合法着法，使王重新安全。',
+  'Most checks are answered in one of three ways: move the king, block the line of attack, or capture the attacking piece. If none of those legal answers works, the game ends by **checkmate**.':
+    '应对将军通常有三种方法：移动王、挡住攻击线路，或吃掉发动攻击的棋子。如果这些合法应法都行不通，对局便以**将死**告终。',
+  'In regular chess the king is never actually captured: the game ends at checkmate, with the king still on the board.':
+    '在普通国际象棋中，王从不会真的被吃掉：对局在将死时结束，此时王仍留在棋盘上。',
+  'Special moves': '特殊走法',
+  'Castling is a one-move king-and-rook move. The king moves two squares toward a rook, and that rook moves to the square the king crossed. In regular chess, the pieces must be unmoved, the path must be empty, and the king cannot castle out of, through, or into check.':
+    '王车易位是一步同时移动王和车的走法。王朝着一只车的方向走两格，那只车则移动到王越过的格子上。在普通国际象棋中，参与易位的王与车此前都不能动过，中间的格子必须为空，且王不能在被将军时易位、不能穿过被攻击的格子易位，也不能易位到被攻击的格子上。',
+  'Queenside castling works the same way on the other side: the king moves two squares toward the rook, and the rook lands next to it.':
+    '后翼易位在另一侧以同样方式进行：王朝着车走两格，车则落到王的旁边。',
+  Promotion: '升变',
+  'When a pawn reaches the farthest rank, it promotes into a queen, rook, bishop, or knight.':
+    '当兵到达最远的一条横线时，它会升变为后、车、象或马。',
+  'En passant is the unusual pawn capture. If an enemy pawn moves two squares from its starting rank and lands beside your pawn, your pawn may capture it diagonally as if it had moved only one square. This chance exists only on the very next move.':
+    '吃过路兵是一种特殊的兵吃子。如果敌方的兵从起始横线一次走两格，并停在你的兵旁边，你的兵可以斜向吃掉它，就好像它只走了一格一样。这个机会只在紧接着的下一步存在。',
+  'Not every game is won. Some end in a draw, where neither side wins.':
+    '并非每盘棋都分出胜负。有些以和棋告终，即双方都不获胜。',
+  Stalemate: '逼和',
+  'Stalemate is when the player to move has no legal move but their king is not in check. It is a draw, not a win, even if one side is far ahead. Below it is Black to move: the king on a8 is not in check, yet every square it could step to is covered by the white queen, and Black has nothing else to move. The game is drawn.':
+    '逼和是指轮到走子的一方没有任何合法着法，但其王并未被将军。它判作和棋，而非取胜，即使一方大占优势也是如此。下图轮到黑方走子：a8 的王没有被将军，但它能走到的每一个格子都被白后控制，而黑方又无其他棋子可走。对局判和。',
+  'Other draws': '其他和棋',
+  '**Threefold repetition:** the same position, with the same player to move, occurs three times. Either player can then claim a draw.':
+    '**三次重复局面：**同一局面在同一方走子的情况下出现三次。此时任一方都可以提出和棋。',
+  '**Fifty-move rule:** fifty moves by each side pass with no capture and no pawn move. The clock resets whenever a pawn moves or a piece is taken.':
+    '**五十回合规则：**双方各走五十回合而无任何吃子、也无任何兵的走动。每当有兵走动或有棋子被吃，计数便重新归零。',
+  '**Insufficient material:** neither side has enough force to deliver checkmate, such as king versus king, or king and a lone bishop or knight against a bare king.':
+    '**子力不足：**任何一方都没有足够的子力完成将死，例如单王对单王，或一王加单象或单马对单王。',
+  '**Agreement:** both players simply agree to a draw.':
+    '**协议和棋：**双方直接同意作和。',
+  'A famous game': '一盘名局',
+  'To see the pieces work together in a real game, step through Game 11 of the 2014 World Championship in Sochi. Playing White, Magnus Carlsen grinds down Viswanathan Anand in a Berlin endgame to clinch the title; Anand resigns on move 45.':
+    '想看棋子在实战中如何协同，可以逐步重演 2014 年索契世界冠军赛的第 11 局。执白的马格努斯·卡尔森在柏林防御残局中逐步磨垮维斯瓦纳坦·阿南德，锁定冠军；阿南德在第 45 回合认输。',
+  'Where to next': '接下来去哪',
+  'Chess is the open-information base game. Add Fog of War for dark chess, where enemy pieces outside your vision disappear and the king falls by capture.':
+    '国际象棋是信息公开的底层游戏。为它加上战争迷雾，便得到迷雾国际象棋：你视野之外的敌方棋子会消失，而王由被吃而落败。',
+  'Read Dark Chess': '阅读迷雾国际象棋',
+  'All rules': '全部规则',
+
   // title + summary
   'Dark Chess (Fog of War) Rules': '迷雾国际象棋规则',
   'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.':
@@ -228,6 +337,114 @@ const ZH_HANS: Record<string, string> = {
 };
 
 const ZH_HANT: Record<string, string> = {
+  // -- Xiangqi primer (rules) --
+  'Xiangqi Rules': '象棋規則',
+  'Standard xiangqi rules, the primer behind Dark Xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through.':
+    '標準象棋規則，迷霧象棋的入門基礎：九宮、楚河漢界、炮架、將帥對臉，以及一盤可供逐步重演的名局。',
+  '[Xiangqi](https://en.wikipedia.org/wiki/Xiangqi), or Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).':
+    '[象棋](https://en.wikipedia.org/wiki/Xiangqi)（中國象棋）是一種雙人策略遊戲，其根源可追溯到中國數百年乃至更久以前。它的現代形式（包括炮在內）大約在宋代（960 至 1279 年）成形。',
+  'Red and Black alternate moves, with Red first. Each side begins with 16 pieces: one general, two advisors, two elephants, two horses, two chariots, two cannons, and five soldiers. The goal is to checkmate the opposing general.':
+    '紅黑雙方輪流走子，紅方先行。每一方開局有 16 枚棋子：一個將（帥）、兩個士（仕）、兩個象（相）、兩個馬、兩個車、兩個炮（砲）和五個兵（卒）。目標是將死對方的將帥。',
+  'The board has 9 files and 10 ranks, but pieces sit on the intersections of the lines, not inside squares.':
+    '棋盤有 9 條縱線和 10 條橫線，但棋子落在線的交叉點上，而不是格子內。',
+  'The **palace** is the 3 by 3 box on each player\'s back side. Generals and advisors must stay inside their own palace. The **river** divides the board in half. Elephants cannot cross it, and soldiers gain sideways movement after crossing it.':
+    '**九宮**是每一方底線一側的 3×3 區域。將帥與士仕必須留在己方九宮之內。**楚河漢界**將棋盤分為兩半。象（相）不能過河，而兵（卒）過河之後可以橫向走子。',
+  'A piece captures by landing on an enemy-occupied point, and no piece may move through an occupied point. The cannon\'s capturing jump is the only exception. The pieces are listed below in the traditional order.':
+    '棋子透過落在敵方佔據的交叉點上來吃子，而任何棋子都不能穿過被佔據的交叉點。炮的吃子跳躍是唯一的例外。下面按傳統順序列出各棋子。',
+  '**General:** moves one point horizontally or vertically and can never leave its own palace. The two generals may never face each other along an open file with nothing between them: a move that would expose that line is illegal. In effect, a general guards the file in front of it like a chariot.':
+    '**將（帥）：**橫向或縱向走一個交叉點，永遠不能離開己方九宮。雙方的將帥不能在中間無子的同一條縱線上對臉：任何讓這條直線暴露出來的走法都是不合法的。實際上，將帥就像一隻車那樣守住它正前方的縱線。',
+  '**Advisor:** moves one point diagonally and, like the general, stays inside the palace.':
+    '**士（仕）：**斜向走一個交叉點，與將帥一樣必須留在九宮之內。',
+  '**Elephant:** moves exactly two points diagonally and cannot cross the river, so it never leaves its own half. It does not jump: a piece on the midpoint of the diagonal, the elephant\'s eye, blocks the move.':
+    '**象（相）：**沿斜線正好走兩個交叉點（俗稱「象走田」），且不能過河，因此牠永遠不會離開己方半邊。牠不能跳越：如果斜線中點（象眼）上有棋子，這步走法就被擋住。',
+  '**Horse:** moves one point orthogonally and then one point diagonally outward, like a chess knight, but it does not jump. If the orthogonal point it steps through, the horse\'s leg, is occupied, the horse cannot move in that direction.':
+    '**馬：**先沿橫豎方向走一個交叉點，再斜向外走一個交叉點，走「日」字，類似西洋棋的騎士，但牠不能跳越。如果牠經過的那個橫豎交叉點（馬腿）被佔據（蹩馬腿），馬便不能朝那個方向走。',
+  '**Chariot:** moves any distance horizontally or vertically and cannot jump, exactly like a rook. It is the strongest piece on the board.':
+    '**車：**橫向或縱向走任意距離，不能越子，與西洋棋的城堡完全相同。牠是棋盤上最強的棋子。',
+  '**Cannon:** moves like a chariot when it is not capturing. To capture, it jumps over exactly one piece, friend or foe, called the screen, and lands on an enemy piece beyond it.':
+    '**炮（砲）：**不吃子時走法與車相同。吃子時，牠正好越過一枚棋子（不分敵我），這枚棋子稱為炮架，並落在其後的一枚敵方棋子上。',
+  '**Soldier:** moves one point straight forward and never backward. After crossing the river it may also move one point sideways. It never promotes.':
+    '**兵（卒）：**向正前方走一個交叉點，永不後退。過河之後，牠還可以橫向走一個交叉點。牠不會升變。',
+  'Check, checkmate, and endings': '將軍、將死與終局',
+  'A general is in check when an enemy piece attacks it, and the player in check must answer the threat. If there is no legal answer, it is checkmate and the checked player loses.':
+    '當敵方棋子攻擊將帥時，即為將軍，被將軍的一方必須應對這一威脅。如果沒有合法的應法，便是將死，被將軍的一方告負。',
+  'A player who has no legal move at all also loses. This is the opposite of Western chess, where having no legal move is a stalemate draw.':
+    '完全沒有合法走法的一方同樣告負。這與西洋棋相反，在那裡沒有合法走法算作逼和（和棋）。',
+  'Xiangqi also restricts endless forcing cycles. Perpetual check and perpetual chase are not allowed: a player who repeats an endless attack loses rather than forcing a draw. Tournament rules spell out detailed repetition procedures for exactly when a cycle counts as perpetual.':
+    '象棋還限制無止境的逼著循環。長將與長捉是不允許的：一方若不斷重複同樣的進攻，將被判負，而不能藉此逼和。比賽規則對何時算作「長」給出了詳細的重複判定程序。',
+  'A game is drawn when neither side has enough material to checkmate, by a repetition that breaks none of those rules, or when a long run of moves passes with no capture. The no-capture limit depends on the rule set: the World Xiangqi Federation rules use a fifty-move rule, while the Chinese (CXA) rules require at least sixty plies before a draw can be claimed.':
+    '當任何一方都沒有足夠的子力將死對方、出現不違反上述規則的重複局面，或長時間無吃子時，對局判和。無吃子的上限取決於所採用的規則：世界象棋聯合會的規則採用五十回合規則，而中國象棋協會（CXA）的規則則要求至少 60 個半回合之後才能提出和棋。',
+  'To see the pieces work together in a real game, step through this 1990 championship between two of xiangqi\'s greatest grandmasters. Playing Black, Liu Dahua checkmates Hu Ronghua, the most dominant champion of the era, in 31 moves.':
+    '想看棋子在實戰中如何協同，可以逐步重演這盤 1990 年、由兩位象棋頂尖特級大師對弈的冠軍賽。執黑的柳大華用 31 個回合將死了那個時代最具統治力的冠軍胡榮華。',
+  'Xiangqi is the open-information base game. Add Fog of War for dark xiangqi, where enemy pieces outside your vision disappear and the general falls by capture. Or try the compact board.':
+    '象棋是資訊公開的底層遊戲。為它加上戰爭迷霧，便得到迷霧象棋：你視野之外的敵方棋子會消失，而將帥由被吃而落敗。或者也可以試試更緊湊的棋盤。',
+  'Mini Xiangqi': '迷你象棋',
+  'Dark Mini Xiangqi': '迷霧迷你象棋',
+
+  // -- Chess primer --
+  'Chess Rules': '國際象棋規則',
+  'Standard chess rules, the primer behind Dark Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.':
+    '標準國際象棋規則，迷霧國際象棋的入門基礎：王車易位、升變、吃過路兵、和棋規則，以及一盤可供逐步重演的名局。',
+  'Chess is a two-player strategy game played for centuries. It descends from the Indian game chaturanga of around the 6th century and reached Europe through Persia and the Islamic world; its modern form, with the long-range queen and bishop, took shape in Europe in the late 1400s.':
+    '國際象棋是一種已有數百年歷史的雙人策略遊戲。它源自約公元 6 世紀的印度遊戲恰圖蘭加，經由波斯和伊斯蘭世界傳入歐洲；其現代形式（擁有遠程的后和象）於 15 世紀末在歐洲成形。',
+  'Board setup': '棋盤佈置',
+  'Chess is played on an 8 by 8 board of alternating light and dark squares.':
+    '國際象棋在 8×8 的棋盤上進行，棋盤由深淺相間的方格組成。',
+  'White moves first, then players alternate. Each side fills the two rows nearest it, with the queen starting on her own color. On your turn, move one piece to a legal square: you cannot land on your own piece, and landing on an enemy piece captures it, removing it from the board.':
+    '白方先走，之後雙方輪流走子。每一方在最靠近自己的兩排擺滿棋子，后擺在與自身同色的格子上。輪到你時，將一枚棋子走到一個合法的格子：你不能落在自己的棋子上，而落在敵方棋子上即可將其吃掉，並把它從棋盤上移走。',
+  'Each piece moves in its own way. In every diagram below, the highlighted squares are the legal moves and captures for the marked white piece.':
+    '每種棋子都有各自的走法。在下面每一幅圖中，高亮的格子表示被標記的白方棋子的合法走法與吃子。',
+  '**King:** moves one square in any direction. In regular chess, a king may not move onto a square attacked by the opponent.':
+    '**王：**可向任意方向走一格。在普通國際象棋中，王不能走到被對方攻擊的格子上。',
+  '**Queen:** moves any number of squares horizontally, vertically, or diagonally. Other pieces block her path.':
+    '**后：**可沿橫線、豎線或斜線走任意格數。其他棋子會擋住它的去路。',
+  '**Rook:** moves any number of squares horizontally or vertically. It cannot jump, so the first occupied square in a line stops it.':
+    '**車：**可沿橫線或豎線走任意格數。它不能跳子，因此一條線上第一個被佔據的格子就會擋住它。',
+  '**Bishop:** moves any number of squares diagonally. Because diagonals stay on one color, each bishop stays on light squares or dark squares for the whole game.':
+    '**象：**可沿斜線走任意格數。由於斜線始終保持同一種顏色，每個象在整盤棋中都只走淺色格或只走深色格。',
+  '**Knight:** moves in an L shape: two squares one way and one square sideways. The knight is the only piece that jumps over other pieces.':
+    '**馬：**走「L」形：朝一個方向走兩格，再橫向走一格。馬是唯一能跳過其他棋子的棋子。',
+  '**Pawn:** the pawn moves and captures differently from every other piece. It moves straight forward into an empty square, one square at a time, or two squares from its starting position. It can never move backward or sideways, and a piece directly in front of it blocks it completely. It captures only diagonally forward, one square (the green rings below), never straight ahead. Two further pawn rules, promotion and en passant, appear under Special moves below.':
+    '**兵：**兵的走法和吃法與其他所有棋子都不同。它向正前方走入一個空格，每次一格，或在起始位置時一次走兩格。它永遠不能後退或橫走，正前方若緊挨著一枚棋子便會被完全擋住。它只能向斜前方吃子，一格（見下圖的綠色圓環），絕不向正前方吃子。另有兩條與兵有關的規則：升變與吃過路兵，見下文的「特殊走法」。',
+  'Check and checkmate': '將軍與將死',
+  'In regular chess, the king is protected by check and checkmate. A king is **in check** when an enemy piece attacks it. The checked player must make a legal move that leaves the king safe.':
+    '在普通國際象棋中，王受到將軍與將死規則的保護。當敵方棋子攻擊王時，王即處於**被將軍**的狀態。被將軍的一方必須走一步合法著法，使王重新安全。',
+  'Most checks are answered in one of three ways: move the king, block the line of attack, or capture the attacking piece. If none of those legal answers works, the game ends by **checkmate**.':
+    '應對將軍通常有三種方法：移動王、擋住攻擊線路，或吃掉發動攻擊的棋子。如果這些合法應法都行不通，對局便以**將死**告終。',
+  'In regular chess the king is never actually captured: the game ends at checkmate, with the king still on the board.':
+    '在普通國際象棋中，王從不會真的被吃掉：對局在將死時結束，此時王仍留在棋盤上。',
+  'Special moves': '特殊走法',
+  'Castling is a one-move king-and-rook move. The king moves two squares toward a rook, and that rook moves to the square the king crossed. In regular chess, the pieces must be unmoved, the path must be empty, and the king cannot castle out of, through, or into check.':
+    '王車易位是一步同時移動王和車的走法。王朝著一隻車的方向走兩格，那隻車則移動到王越過的格子上。在普通國際象棋中，參與易位的王與車此前都不能動過，中間的格子必須為空，且王不能在被將軍時易位、不能穿過被攻擊的格子易位，也不能易位到被攻擊的格子上。',
+  'Queenside castling works the same way on the other side: the king moves two squares toward the rook, and the rook lands next to it.':
+    '后翼易位在另一側以同樣方式進行：王朝著車走兩格，車則落到王的旁邊。',
+  Promotion: '升變',
+  'When a pawn reaches the farthest rank, it promotes into a queen, rook, bishop, or knight.':
+    '當兵到達最遠的一條橫線時，它會升變為后、車、象或馬。',
+  'En passant is the unusual pawn capture. If an enemy pawn moves two squares from its starting rank and lands beside your pawn, your pawn may capture it diagonally as if it had moved only one square. This chance exists only on the very next move.':
+    '吃過路兵是一種特殊的兵吃子。如果敵方的兵從起始橫線一次走兩格，並停在你的兵旁邊，你的兵可以斜向吃掉它，就好像它只走了一格一樣。這個機會只在緊接著的下一步存在。',
+  'Not every game is won. Some end in a draw, where neither side wins.':
+    '並非每盤棋都分出勝負。有些以和棋告終，即雙方都不獲勝。',
+  Stalemate: '逼和',
+  'Stalemate is when the player to move has no legal move but their king is not in check. It is a draw, not a win, even if one side is far ahead. Below it is Black to move: the king on a8 is not in check, yet every square it could step to is covered by the white queen, and Black has nothing else to move. The game is drawn.':
+    '逼和是指輪到走子的一方沒有任何合法著法，但其王並未被將軍。它判作和棋，而非取勝，即使一方大佔優勢也是如此。下圖輪到黑方走子：a8 的王沒有被將軍，但它能走到的每一個格子都被白后控制，而黑方又無其他棋子可走。對局判和。',
+  'Other draws': '其他和棋',
+  '**Threefold repetition:** the same position, with the same player to move, occurs three times. Either player can then claim a draw.':
+    '**三次重複局面：**同一局面在同一方走子的情況下出現三次。此時任一方都可以提出和棋。',
+  '**Fifty-move rule:** fifty moves by each side pass with no capture and no pawn move. The clock resets whenever a pawn moves or a piece is taken.':
+    '**五十回合規則：**雙方各走五十回合而無任何吃子、也無任何兵的走動。每當有兵走動或有棋子被吃，計數便重新歸零。',
+  '**Insufficient material:** neither side has enough force to deliver checkmate, such as king versus king, or king and a lone bishop or knight against a bare king.':
+    '**子力不足：**任何一方都沒有足夠的子力完成將死，例如單王對單王，或一王加單象或單馬對單王。',
+  '**Agreement:** both players simply agree to a draw.':
+    '**協議和棋：**雙方直接同意作和。',
+  'A famous game': '一盤名局',
+  'To see the pieces work together in a real game, step through Game 11 of the 2014 World Championship in Sochi. Playing White, Magnus Carlsen grinds down Viswanathan Anand in a Berlin endgame to clinch the title; Anand resigns on move 45.':
+    '想看棋子在實戰中如何協同，可以逐步重演 2014 年索契世界冠軍賽的第 11 局。執白的馬格努斯·卡爾森在柏林防禦殘局中逐步磨垮維斯瓦納坦·阿南德，鎖定冠軍；阿南德在第 45 回合認輸。',
+  'Where to next': '接下來去哪',
+  'Chess is the open-information base game. Add Fog of War for dark chess, where enemy pieces outside your vision disappear and the king falls by capture.':
+    '國際象棋是資訊公開的底層遊戲。為它加上戰爭迷霧，便得到迷霧國際象棋：你視野之外的敵方棋子會消失，而王由被吃而落敗。',
+  'Read Dark Chess': '閱讀迷霧國際象棋',
+  'All rules': '全部規則',
   'Dark Chess (Fog of War) Rules': '迷霧國際象棋規則',
   'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.':
     '戰爭迷霧下的國際象棋：每一方只能看到己方棋子可及的格子，沒有將軍提示，王被吃掉即負。',

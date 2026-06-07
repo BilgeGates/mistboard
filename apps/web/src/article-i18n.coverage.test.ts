@@ -11,7 +11,7 @@ import { articles, type Article } from './articles-data.js';
 // fails this test instead of silently rendering English on the zh pages. That
 // failure is the point: it forces the dictionary update to ride along with the
 // copy change. This is the durability guarantee for the translations.
-const TRANSLATION_LOCKED_SLUGS: string[] = ['dark-chess', 'dark-xiangqi'];
+const TRANSLATION_LOCKED_SLUGS: string[] = ['dark-chess', 'dark-xiangqi', 'chess', 'xiangqi'];
 
 function truncate(text: string): string {
   return text.length > 64 ? `${text.slice(0, 61)}...` : text;
