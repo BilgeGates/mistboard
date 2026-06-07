@@ -9,7 +9,7 @@ export const MISTBOARD_ENGINE_MISTY_ID = 'python-v2-v1.0';
 export const MISTBOARD_ENGINE_MISTY_NAME = 'Misty 1.0';
 
 export type GameParticipant = {
-  color: 'white' | 'black';
+  color: 'white' | 'black' | 'red';
   displayName: string;
   subjectType: 'guest' | 'user' | 'engine-version' | 'manual' | 'imported';
   subjectId: string | null;
@@ -44,30 +44,38 @@ export type FeaturedGame = {
   initialMs?: number | null;
   incrementMs?: number | null;
   participants?: GameParticipant[];
-  playerColor?: 'white' | 'black';
+  playerColor?: GameParticipant['color'];
 };
 
-export function displayParticipantName(game: FeaturedGame, color: 'white' | 'black'): string {
+export function displayParticipantName(game: FeaturedGame, color: GameParticipant['color']): string {
   const participant = participantForColor(game, color);
   if (participant)
     return displayParticipant(
       participant.displayName,
-      color === 'white' ? 'White' : 'Black',
+      fallbackSeatName(color),
       participant.subjectId,
     );
-  const fallback = color === 'white' ? 'White' : 'Black';
+  const fallback = fallbackSeatName(color);
   const legacyName =
     color === 'white'
       ? (game.whiteEngineId ?? game.whiteName)
-      : (game.blackEngineId ?? game.blackName);
+      : color === 'black'
+        ? (game.blackEngineId ?? game.blackName)
+        : null;
   return displayParticipant(legacyName, fallback);
 }
 
 export function participantForColor(
   game: FeaturedGame,
-  color: 'white' | 'black',
+  color: GameParticipant['color'],
 ): GameParticipant | null {
   return game.participants?.find((participant) => participant.color === color) ?? null;
+}
+
+function fallbackSeatName(color: GameParticipant['color']): string {
+  if (color === 'red') return 'Red';
+  if (color === 'white') return 'White';
+  return 'Black';
 }
 
 function displayParticipant(
@@ -104,6 +112,7 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'python-tier1-v0.9.1': 'Mistboard Engine preview',
     'python-tier1-v0.9.5': MISTBOARD_ENGINE_BASELINE_NAME,
     'python-tier1-current': 'Mistboard Engine dev build',
+    'python-dmx-v1.0': 'Misty (Dark Mini Xiangqi)',
   };
   return known[name] ?? null;
 }

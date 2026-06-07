@@ -1,11 +1,12 @@
 import {
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
   DARK_SHOGI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   gameSpecForId,
 } from '@mistboard/game';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { enabledVariants, leaderboardVariants, VARIANTS } from './variants.js';
 
 describe('web variant launch registry', () => {
@@ -26,8 +27,28 @@ describe('web variant launch registry', () => {
     );
   });
 
-  it('keeps the current public leaderboard scoped to Dark chess', () => {
+  it('keeps the default public leaderboard scoped to Dark chess', () => {
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([DARK_CHESS_SPEC_ID]);
+  });
+
+  it('adds Dark Mini Xiangqi leaderboard buckets behind the DMX flag', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    const flagged = await import('./variants.js');
+    expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
+      DARK_CHESS_SPEC_ID,
+      DARK_MINI_XIANGQI_SPEC_ID,
+    ]);
+    expect(flagged.leaderboardVariants.find((v) => v.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID))
+      .toEqual(
+        expect.objectContaining({
+          id: 'dark_mini_xiangqi',
+          apiParam: DARK_MINI_XIANGQI_SPEC_ID,
+          label: gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID).publicName,
+        }),
+      );
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it('keeps Dark Xiangqi represented but not launch-enabled', () => {
@@ -48,6 +69,7 @@ describe('web variant launch registry', () => {
     expect(VARIANTS.map((v) => [v.gameSpecId, v.apiParam])).toEqual([
       [DARK_CHESS_SPEC_ID, 'fog'],
       [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
+      [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
     ]);
   });
 });

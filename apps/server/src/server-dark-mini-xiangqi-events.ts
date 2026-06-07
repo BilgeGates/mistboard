@@ -11,6 +11,10 @@ import {
 } from './dark-mini-xiangqi-runtime.js';
 import { logger } from './obs.js';
 import * as persistence from './persistence.js';
+import {
+  engineVersionDisplayName,
+  isDarkMiniXiangqiEngineClientId,
+} from './engines/registry.js';
 import { releaseLiveEngineReservation } from './server-live-engine-reservations.js';
 
 export type DarkMiniXiangqiEventRoom = DarkMiniXiangqiRuntimeRoom;
@@ -116,9 +120,10 @@ export function buildDarkMiniXiangqiGameSummary(
   const moveEvents = room.events.filter((event) => event.type === 'move-played');
   const firstAt = room.events[0]?.at ?? Date.now();
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
+  const engineSeat = darkMiniXiangqiEngineSeat(room);
   return {
     variant: DARK_MINI_XIANGQI_SPEC_ID,
-    mode: 'pvp',
+    mode: engineSeat ? 'pve' : 'pvp',
     result: darkMiniXiangqiResult(status.winner),
     termination: darkMiniXiangqiTermination(status.reason),
     plyCount: moveEvents.length,
@@ -193,6 +198,16 @@ function darkMiniXiangqiParticipant(
   color: MiniXiangqiColor,
   room: DarkMiniXiangqiEventRoom,
 ): persistence.GameParticipant {
+  const seatedClientId = room.projection.seats[color];
+  if (seatedClientId && isDarkMiniXiangqiEngineClientId(seatedClientId)) {
+    return {
+      color,
+      displayName: engineVersionDisplayName(seatedClientId),
+      subjectType: 'engine-version',
+      subjectId: seatedClientId,
+      visibility: 'private',
+    };
+  }
   const token = room.seatTokens[color];
   if (token?.userId) {
     return {
@@ -210,6 +225,15 @@ function darkMiniXiangqiParticipant(
     subjectId: null,
     visibility: 'private',
   };
+}
+
+function darkMiniXiangqiEngineSeat(
+  room: DarkMiniXiangqiEventRoom,
+): MiniXiangqiColor | null {
+  for (const color of ['red', 'black'] as const) {
+    if (isDarkMiniXiangqiEngineClientId(room.projection.seats[color])) return color;
+  }
+  return null;
 }
 
 export function persistenceRecordForDarkMiniXiangqiSeatToken(

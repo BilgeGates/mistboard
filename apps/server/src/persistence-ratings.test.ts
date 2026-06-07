@@ -338,14 +338,54 @@ definePersistenceTests('ratings', () => {
         },
       ],
     });
+    await recordGameEnd('profile-dmx-game', {
+      variant: 'dark-mini-xiangqi',
+      mode: 'pve',
+      result: 'red-wins',
+      termination: 'resignation',
+      plyCount: 12,
+      startedAt: now,
+      endedAt: new Date(now.getTime() + 120_000),
+      whiteClient: null,
+      blackClient: null,
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+      rated: false,
+      visibility: 'public',
+      initialMs: 180_000,
+      incrementMs: 2_000,
+      participants: [
+        {
+          color: 'red',
+          displayName: 'Profile Player',
+          subjectType: 'user',
+          subjectId: 'user_profile',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: 'Misty (Dark Mini Xiangqi)',
+          subjectType: 'engine-version',
+          subjectId: 'python-dmx-v1.0',
+          visibility: 'public',
+        },
+      ],
+    });
 
     const profile = await getUserProfileByHandle('profile-player', null);
     assert.equal(profile?.user.handle, 'profile-player');
-    assert.equal(profile?.games.length, 1);
-    assert.equal(profile?.gamesTotal, 1);
-    assert.equal(profile?.games[0]?.roomId, 'profile-game');
-    assert.equal(profile?.games[0]?.playerColor, 'white');
+    assert.equal(profile?.games.length, 2);
+    assert.equal(profile?.gamesTotal, 2);
+    assert.equal(profile?.games[0]?.roomId, 'profile-dmx-game');
+    assert.equal(profile?.games[0]?.playerColor, 'red');
     assert.equal(profile?.games[0]?.participants[0]?.subjectType, 'user');
+    const dmxRating = profile?.ratings.find((rating) => rating.variant === 'dark_mini_xiangqi');
+    assert.equal(dmxRating?.timeClass, 'blitz');
+    assert.equal(dmxRating?.eloRating, null);
+    assert.equal(dmxRating?.ratedGamesPlayed, 0);
+    assert.equal(dmxRating?.totalGamesPlayed, 1);
+    assert.equal(profile?.ratings.some((rating) => rating.variant === 'fog'), false);
   });
 
   test('getUserGamesPage paginates a user games newest-first with a stable total', async () => {

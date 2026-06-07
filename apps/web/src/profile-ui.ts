@@ -40,7 +40,7 @@ export function buildProfileHeaderShell(opts: {
 export function buildProfileGameRow(game: FeaturedGame): HTMLElement {
   const item = document.createElement('li');
   const link = document.createElement('a');
-  link.href = `/game/${encodeURIComponent(game.roomId)}`;
+  link.href = profileGameHref(game);
   link.className = 'profile-game-row';
   const tone = profileResultTone(game);
   link.classList.add(`profile-game-row-${tone}`);
@@ -73,6 +73,7 @@ export function buildProfileGameRow(game: FeaturedGame): HTMLElement {
   const details = document.createElement('span');
   details.className = 'profile-game-details';
   details.append(
+    buildGameDetail(profileGameSpecLabel(game), 'profile-game-variant'),
     buildGameDetail(profileSideLabel(game), 'profile-game-side'),
     buildGameDetail(
       isCasual ? 'Casual' : 'Rated',
@@ -103,16 +104,30 @@ function buildGameDetail(label: string, extraClass?: string): HTMLElement {
 
 function profileOpponentName(game: FeaturedGame): string {
   const color = game.playerColor ?? 'white';
-  return displayParticipantName(game, color === 'white' ? 'black' : 'white');
+  return displayParticipantName(game, opponentColor(game, color));
 }
 
 function profileSideLabel(game: FeaturedGame): string {
+  if (game.playerColor === 'red') return 'Red';
   if (game.playerColor === 'black') return 'Black';
   return 'White';
 }
 
+function profileGameSpecLabel(game: FeaturedGame): string {
+  if (game.variant === 'dark-mini-xiangqi') return 'Dark Mini Xiangqi';
+  if (game.variant === 'dark-xiangqi') return 'Dark Xiangqi';
+  if (
+    game.variant === 'dark-draft960' ||
+    game.variant === 'fog-draft960' ||
+    game.variant === 'draft960'
+  )
+    return 'Dark Draft960';
+  return 'Dark Chess';
+}
+
 function profileResultLabel(game: FeaturedGame): string {
   if (game.result === 'draw') return 'Draw';
+  if (game.playerColor === 'red') return game.result === 'red-wins' ? 'Win' : 'Loss';
   if (game.playerColor === 'black') return game.result === 'black-wins' ? 'Win' : 'Loss';
   return game.result === 'white-wins' ? 'Win' : 'Loss';
 }
@@ -131,4 +146,28 @@ function formatGameDate(value: string | undefined): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
     date,
   );
+}
+
+function opponentColor(
+  game: FeaturedGame,
+  color: FeaturedGame['playerColor'],
+): 'white' | 'black' | 'red' {
+  if (color === 'red') return 'black';
+  if (color === 'black' && isXiangqiVariant(game)) return 'red';
+  if (color === 'black') return 'white';
+  return 'black';
+}
+
+function profileGameHref(game: FeaturedGame): string {
+  if (game.variant === 'dark-mini-xiangqi') {
+    return `/dark-mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
+  }
+  if (game.variant === 'dark-xiangqi') {
+    return `/dark-xiangqi/game/${encodeURIComponent(game.roomId)}`;
+  }
+  return `/game/${encodeURIComponent(game.roomId)}`;
+}
+
+function isXiangqiVariant(game: FeaturedGame): boolean {
+  return game.variant === 'dark-mini-xiangqi' || game.variant === 'dark-xiangqi';
 }

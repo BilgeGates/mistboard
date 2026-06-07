@@ -6,7 +6,7 @@ import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { leaderboardVariants } from './variants.js';
 
-type ProfileRatingVariant = 'fog' | 'fog_draft960';
+type ProfileRatingVariant = 'fog' | 'fog_draft960' | 'dark_mini_xiangqi';
 type ProfileRatingTimeClass = 'bullet' | 'blitz' | 'rapid';
 type ProfileBucketRating = {
   variant: ProfileRatingVariant;
@@ -67,6 +67,7 @@ const LEADERBOARD_BUCKETS: {
 const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   fog: 'Dark Chess',
   fog_draft960: 'Dark Draft960',
+  dark_mini_xiangqi: 'Dark Mini Xiangqi',
 };
 
 // Profile rating grid shows the same variants as the leaderboard (registry-driven),

@@ -10,7 +10,7 @@ const HOMEPAGE_ENGINE_TIME_CONTROL = {
   budgetMs: 5_000,
 };
 export function pickHeroPovForGame(game: FeaturedGame): 'white' | 'black' {
-  if (game.playerColor) return game.playerColor;
+  if (game.playerColor === 'white' || game.playerColor === 'black') return game.playerColor;
   // EvE / PvP / unknown: show the winner; draws and unknown results fall back to white.
   if (game.result === 'black-wins' || game.result === '0-1') return 'black';
   return 'white';

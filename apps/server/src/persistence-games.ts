@@ -238,20 +238,26 @@ export async function listEngineVersionStats(): Promise<EngineVersionStats[]> {
             COUNT(*) FILTER (WHERE games.mode = 'pve') AS pve_games,
             COUNT(*) FILTER (WHERE games.mode = 'pve' AND (
               (game_participants.color = 'white' AND games.result = 'white-wins')
+              OR (game_participants.color = 'red' AND games.result = 'red-wins')
               OR (game_participants.color = 'black' AND games.result = 'black-wins')
             )) AS pve_wins,
             COUNT(*) FILTER (WHERE games.mode = 'pve' AND (
               (game_participants.color = 'white' AND games.result = 'black-wins')
+              OR (game_participants.color = 'red' AND games.result = 'black-wins')
+              OR (game_participants.color = 'black' AND games.result = 'red-wins')
               OR (game_participants.color = 'black' AND games.result = 'white-wins')
             )) AS pve_losses,
             COUNT(*) FILTER (WHERE games.mode = 'pve' AND games.result = 'draw') AS pve_draws,
             COUNT(*) FILTER (WHERE games.mode = 'eve') AS eve_games,
             COUNT(*) FILTER (WHERE games.mode = 'eve' AND (
               (game_participants.color = 'white' AND games.result = 'white-wins')
+              OR (game_participants.color = 'red' AND games.result = 'red-wins')
               OR (game_participants.color = 'black' AND games.result = 'black-wins')
             )) AS eve_wins,
             COUNT(*) FILTER (WHERE games.mode = 'eve' AND (
               (game_participants.color = 'white' AND games.result = 'black-wins')
+              OR (game_participants.color = 'red' AND games.result = 'black-wins')
+              OR (game_participants.color = 'black' AND games.result = 'red-wins')
               OR (game_participants.color = 'black' AND games.result = 'white-wins')
             )) AS eve_losses,
             COUNT(*) FILTER (WHERE games.mode = 'eve' AND games.result = 'draw') AS eve_draws,
@@ -327,10 +333,13 @@ export async function getEngineProfile(engineId: string): Promise<EngineProfile 
             COUNT(*) AS games,
             COUNT(*) FILTER (
               WHERE (game_participants.color = 'white' AND games.result = 'white-wins')
+                 OR (game_participants.color = 'red' AND games.result = 'red-wins')
                  OR (game_participants.color = 'black' AND games.result = 'black-wins')
             ) AS wins,
             COUNT(*) FILTER (
               WHERE (game_participants.color = 'white' AND games.result = 'black-wins')
+                 OR (game_participants.color = 'red' AND games.result = 'black-wins')
+                 OR (game_participants.color = 'black' AND games.result = 'red-wins')
                  OR (game_participants.color = 'black' AND games.result = 'white-wins')
             ) AS losses,
             COUNT(*) FILTER (WHERE games.result = 'draw') AS draws
@@ -968,6 +977,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
     }
     if (mode === 'pvp' && rated) {
       const bucket = bucketForGame({
+        variant: summary.variant,
         initialMs: summary.initialMs,
         incrementMs: summary.incrementMs,
         hiddenDraft960: summary.hiddenDraft960,

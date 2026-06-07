@@ -145,6 +145,28 @@ test('Dark Mini Xiangqi event writer records private terminal summaries once', a
   });
 });
 
+test('Dark Mini Xiangqi game summary records PvE engine participants', () => {
+  const room = roomFixture('dmxq_pve_finished');
+  room.seatTokens.red = seatTokenState('red', 'red-user');
+  room.projection.seats.black = 'python-dmx-v1.0';
+  room.projection.state = {
+    ...room.projection.state,
+    status: { type: 'finished', winner: 'red', reason: 'general-captured' },
+  };
+
+  const summary = buildDarkMiniXiangqiGameSummary(room);
+
+  assert.equal(summary.mode, 'pve');
+  assert.equal(summary.result, 'red-wins');
+  assert.deepEqual(summary.participants?.[1], {
+    color: 'black',
+    displayName: 'Misty (Dark Mini Xiangqi)',
+    subjectType: 'engine-version',
+    subjectId: 'python-dmx-v1.0',
+    visibility: 'private',
+  });
+});
+
 test('Dark Mini Xiangqi seat-assigned writer persists event and token before mutation', async () => {
   const room = roomFixture('dmxq_seat');
   const tokenState = seatTokenState('red', null);

@@ -11,12 +11,17 @@
 import {
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  DARK_MINI_XIANGQI_SPEC_ID,
   type GameSpecId,
   gameSpecForId,
   type RatingPoolBaseId,
 } from '@mistboard/game';
+import { darkMiniXiangqiEnabled } from './feature-flags.js';
 
-export type RatingVariantId = Extract<RatingPoolBaseId, 'fog' | 'fog_draft960'>;
+export type RatingVariantId = Extract<
+  RatingPoolBaseId,
+  'fog' | 'fog_draft960' | 'dark_mini_xiangqi'
+>;
 
 export interface VariantDef {
   id: RatingVariantId;
@@ -31,8 +36,10 @@ export interface VariantDef {
 }
 
 const draft960Enabled = import.meta.env.VITE_DRAFT960_ENABLED === 'true';
+const darkMiniEnabled = darkMiniXiangqiEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
+const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
 
 export const VARIANTS: VariantDef[] = [
   {
@@ -54,6 +61,14 @@ export const VARIANTS: VariantDef[] = [
     enabled: draft960Enabled,
     onLeaderboard: false,
   },
+  {
+    id: currentRatingVariantForSpec(DARK_MINI_XIANGQI_SPEC_ID),
+    gameSpecId: darkMiniXiangqiSpec.id,
+    apiParam: DARK_MINI_XIANGQI_SPEC_ID,
+    label: darkMiniXiangqiSpec.publicName,
+    enabled: darkMiniEnabled,
+    onLeaderboard: darkMiniEnabled,
+  },
 ];
 
 /** Variants shown on public rating surfaces (leaderboard + profile grid). */
@@ -67,9 +82,17 @@ export function isVariantEnabled(id: RatingVariantId): boolean {
 }
 
 function currentRatingVariantForSpec(
-  id: typeof DARK_CHESS_SPEC_ID | typeof DARK_DRAFT960_SPEC_ID,
+  id:
+    | typeof DARK_CHESS_SPEC_ID
+    | typeof DARK_DRAFT960_SPEC_ID
+    | typeof DARK_MINI_XIANGQI_SPEC_ID,
 ): RatingVariantId {
   const ratingPool = gameSpecForId(id).ratingPoolBase;
-  if (ratingPool === 'fog' || ratingPool === 'fog_draft960') return ratingPool;
+  if (
+    ratingPool === 'fog' ||
+    ratingPool === 'fog_draft960' ||
+    ratingPool === 'dark_mini_xiangqi'
+  )
+    return ratingPool;
   throw new Error(`game spec ${id} is not a current web rating variant`);
 }
