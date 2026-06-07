@@ -137,7 +137,12 @@ try {
         ...(article.updatedAt ? { dateModified: article.updatedAt } : {}),
       };
       const ldScript = `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>`;
-      html = html.replace('</head>', `${hreflang}${ldScript}</head>`);
+      // Self-referencing canonical: each language variant declares its OWN clean
+      // URL as canonical (not all three → English). hreflang expresses the
+      // language relationship; the canonical consolidates query-param, SPA-shell,
+      // and trailing-slash variants of THIS url into a single indexed page.
+      const canonical = `<link rel="canonical" href="${url}" />`;
+      html = html.replace('</head>', `${canonical}${hreflang}${ldScript}</head>`);
 
       const dir = resolve(distDir, ...(v.langDir ? [v.langDir, base] : [base]));
       await fs.mkdir(dir, { recursive: true });

@@ -25,7 +25,7 @@ export const ARTICLE_LANG_PREFIX: Record<ArticleLang, string> = {
 
 const ZH_HANS: Record<string, string> = {
   // title + summary
-  'Dark Chess Rules': '迷雾国际象棋规则',
+  'Dark Chess (Fog of War) Rules': '迷雾国际象棋规则',
   'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.':
     '每一方只能看到己方棋子合法可及的范围。吃掉国王即终局，而非将死。其余一切与普通国际象棋相同。',
   'Dark Chess Concepts': '迷雾国际象棋概念',
@@ -220,7 +220,7 @@ const ZH_HANS: Record<string, string> = {
 };
 
 const ZH_HANT: Record<string, string> = {
-  'Dark Chess Rules': '迷霧國際象棋規則',
+  'Dark Chess (Fog of War) Rules': '迷霧國際象棋規則',
   'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.':
     '每一方只能看到己方棋子合法可及的範圍。吃掉國王即終局，而非將死。其餘一切與普通國際象棋相同。',
   'Dark Chess Concepts': '迷霧國際象棋概念',

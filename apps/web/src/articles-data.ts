@@ -3360,7 +3360,7 @@ export const articles: Article[] = [
   {
     slug: 'dark-chess',
     kind: 'rules',
-    title: 'Dark Chess Rules',
+    title: 'Dark Chess (Fog of War) Rules',
     summary:
       'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
     status: 'published',
@@ -3579,6 +3579,16 @@ export const articles: Article[] = [
               positions: ENGINE_SAMPLE_POSITIONS,
             },
           } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'Is dark chess the same as fog of war chess?',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'Yes. "Dark chess" and "fog of war chess" are two names for this same variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [banqi](https://en.wikipedia.org/wiki/Banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.',
+          },
         ],
       },
       {
@@ -4893,7 +4903,7 @@ export const articles: Article[] = [
   {
     slug: 'shogi4',
     kind: 'rules',
-    title: 'Shogi4 Rules',
+    title: 'Shogi4 (4×4 Shogi) Rules',
     summary:
       "The complete rules of Shogi4 (4x4 Shogi), Oca Studios' public-domain animal drop-shogi on a 4×4 board: how the Carp, Tapir, Raccoon-dog, Fox, and royal move, plus the friendly-jump, evolution, drops, and king-capture wins.",
     showSummaryOnPage: false,

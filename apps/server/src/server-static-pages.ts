@@ -71,7 +71,7 @@ export const ARTICLE_META: Record<
       'Standard chess rules, the primer behind Dark Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.',
   },
   'dark-chess': {
-    title: 'Dark Chess Rules',
+    title: 'Dark Chess (Fog of War) Rules',
     kind: 'rules',
     description:
       'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
