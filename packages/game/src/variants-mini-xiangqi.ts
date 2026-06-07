@@ -553,10 +553,20 @@ function generalVisionInto(
   file: number,
   rank: number,
 ): void {
+  // Confine the general's reach to the palace it currently occupies. During play
+  // move-gen keeps the general in its own palace, so `palaceColor` is `color` and
+  // this is identical to the original own-palace check. The enemy-palace branch
+  // only fires after the game-ending fly-capture (status is then `finished`), so
+  // the winner gains vision around where its general landed (e.g. e7 -> d7, e6)
+  // instead of going dark. View-only: move generation and termination never call
+  // this, so the change cannot affect game logic.
+  const palaceColor = miniXiangqiInPalace(oppositeMiniXiangqiColor(color), file, rank)
+    ? oppositeMiniXiangqiColor(color)
+    : color;
   for (const [df, dr] of orthogonalDirections()) {
     const f = file + df;
     const r = rank + dr;
-    if (miniXiangqiInPalace(color, f, r)) addIfMiniXiangqiOnBoard(set, f, r);
+    if (miniXiangqiInPalace(palaceColor, f, r)) addIfMiniXiangqiOnBoard(set, f, r);
   }
   const own = miniXiangqiSquareOf(file, rank);
   const piece = board[own];

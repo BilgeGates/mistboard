@@ -173,6 +173,56 @@ test('horse blockers are visible as occupied but unidentified', () => {
   assert.equal(JSON.stringify(view.board.d5).includes('cannon'), false);
 });
 
+test('after the game-ending fly-capture, the general sees its enemy-palace neighbours', () => {
+  // Red's general flew up the d-file, captured Black's general, and landed on e7
+  // inside the Black palace. The game is over. Red should now see its general's
+  // palace-confined orthogonal neighbours (d7, e6) instead of going dark there.
+  const state: MiniXiangqiGameState = {
+    id: 'mini-fly-capture',
+    board: {
+      e7: { color: 'red', role: 'general' },
+      d7: { color: 'black', role: 'chariot' },
+      e6: { color: 'black', role: 'soldier' },
+      f7: { color: 'black', role: 'cannon' },
+    },
+    status: { type: 'finished', winner: 'red', reason: 'general-captured' },
+    moveNumber: 20,
+    progressClock: 0,
+    positionCounts: {},
+  };
+
+  const view = getMiniXiangqiPlayerView(state, 'red');
+
+  // Gains vision on its in-palace orthogonal neighbours (and its own square)...
+  assert.equal(view.visibleSquares.includes('e7'), true);
+  assert.equal(view.visibleSquares.includes('d7'), true);
+  assert.equal(view.visibleSquares.includes('e6'), true);
+  assert.deepEqual(view.board.d7, { piece: { color: 'black', role: 'chariot' }, shrouded: false });
+  assert.deepEqual(view.board.e6, { piece: { color: 'black', role: 'soldier' }, shrouded: false });
+
+  // ...but does not leak past the palace (f7 is outside the palace file range,
+  // even though it is orthogonally adjacent), nor reveal non-adjacent squares.
+  assert.equal(view.visibleSquares.includes('f7'), false);
+  assert.equal('f7' in view.board, false);
+  assert.equal(view.visibleSquares.includes('e5'), false);
+});
+
+test('during play the general stays confined to its own palace (no enemy-palace leak)', () => {
+  // Control: the fix must be a no-op during live play. A general in its own
+  // palace sees its own-palace neighbours and nothing in the enemy palace.
+  const state = playingState({
+    e1: { color: 'red', role: 'general' },
+    c7: { color: 'black', role: 'general' },
+  });
+
+  const vision = computeMiniXiangqiVision(state, 'red');
+
+  assert.equal(vision.directlyVisible.has('d1'), true); // in-palace neighbour
+  assert.equal(vision.directlyVisible.has('e2'), true); // in-palace neighbour
+  assert.equal(vision.directlyVisible.has('f1'), false); // outside palace file range
+  assert.equal(vision.directlyVisible.has('e6'), false); // enemy palace, unreachable in play
+});
+
 function destinations(moves: readonly MiniXiangqiMove[]): string[] {
   return moves.map((move) => move.to).sort();
 }
