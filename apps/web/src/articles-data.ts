@@ -245,7 +245,18 @@ export type SvgArticleThumbnail = {
   svg: string | (() => string);
 };
 
-export type ArticleThumbnail = BoardArticleThumbnail | SvgArticleThumbnail;
+export type ImageArticleThumbnail = {
+  kind: 'image';
+  // Path under apps/web/public (served at site root). Avoid folders that shadow
+  // a client route (e.g. '/articles'): use '/article-thumbs/misty.jpg'.
+  src: string;
+  alt?: string;
+};
+
+export type ArticleThumbnail =
+  | BoardArticleThumbnail
+  | SvgArticleThumbnail
+  | ImageArticleThumbnail;
 
 export type Article = {
   slug: string;
@@ -2897,6 +2908,11 @@ export const articles: Article[] = [
     title: 'How Misty Plays',
     summary:
       "Misty is the engine you play on Mistboard, built for Fog of War chess and guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
+    thumbnail: {
+      kind: 'image',
+      src: '/article-thumbs/misty.jpg',
+      alt: 'An ethereal presence rising in mist from a chessboard — the Misty engine.',
+    },
     showSummaryOnPage: false,
     status: 'draft',
     publishedAt: '2026-06-03',

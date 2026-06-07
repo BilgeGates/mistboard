@@ -1228,6 +1228,19 @@ export function renderArticleThumbnail(thumb: ArticleThumbnail): HTMLElement {
     }
     return wrap;
   }
+  if (thumb.kind === 'image') {
+    const img = document.createElement('img');
+    img.src = thumb.src;
+    img.alt = thumb.alt ?? '';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'cover';
+    img.style.display = 'block';
+    wrap.replaceChildren(img);
+    return wrap;
+  }
   const board = document.createElement('div');
   board.className = 'articles-thumb-board cg-wrap';
   wrap.append(board);
@@ -1241,7 +1254,7 @@ export function mountArticleThumbnails(root: HTMLElement): ThumbnailBoardControl
   hosts.forEach((host) => {
     const thumb = pendingThumbnails.get(host);
     if (!thumb) return;
-    if (thumb.kind === 'svg') return;
+    if (thumb.kind === 'svg' || thumb.kind === 'image') return;
     controllers.push(
       mountThumbnailBoard(host, {
         board: piecesToBoard(thumb.pieces),
