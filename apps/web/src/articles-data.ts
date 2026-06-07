@@ -4550,12 +4550,12 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          'Crossroads Chess is a game we made: chess and xiangqi on one board, six files by eight with a river down the middle. Two armies, two kings, and a finish line behind each one. The opening is a pawn storm; the endgame is a footrace, both kings breaking for the far rank as the pieces come off. Draws almost never happen.',
+          'Crossroads Chess puts chess and xiangqi on one board: six files by eight ranks, split by a river. Each side has a king, an army, and a finish line behind the enemy pieces.',
       },
       {
         kind: 'paragraph',
         text:
-          "It borrows pieces from both games. From chess come the king, bishop, knight, and pawn; from xiangqi the chariot, cannon, horse, and soldier. You already know how most of them move, so there's little to learn from scratch. The one new idea is a second way to win: march your own king to the far side of the board.",
+          'Most pieces move as they do in their parent games. The rule that changes everything is the race: checkmate wins, and so does getting your own king safely to the far rank.',
       },
     ],
     sections: [
@@ -4565,7 +4565,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Crossroads Chess is played on a board 6 files wide and 8 ranks deep. A river runs across the middle, between the fourth and fifth ranks. As in xiangqi, the river matters only to soldiers.',
+              'The river lies between the fourth and fifth ranks. As in xiangqi, only soldiers care about crossing it.',
           },
           {
             kind: 'raw-svg',
@@ -4575,7 +4575,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The two sides are White and Red, and White moves first. Each side has twelve pieces: a king, a chariot, a cannon, a horse, a knight, a bishop, three pawns, and three soldiers. There is no queen at the start, though a pawn can earn one. The two armies stand in rotational symmetry: turn the board 180 degrees and the position is unchanged. On your turn, move one piece to a legal square. You cannot land on your own piece, and landing on an enemy piece captures it.',
+              'White moves first. The armies start in rotational symmetry: turn the board 180 degrees and the position is unchanged.',
           },
         ],
       },
@@ -4585,7 +4585,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Each piece moves in its own way. In every diagram below, the highlighted squares are the legal moves and captures for the marked piece. Four pieces come from chess and four from xiangqi.',
+              'The highlighted squares below show legal moves and captures for each marked piece.',
           },
           { kind: 'sub-heading', text: 'From chess' },
           {
@@ -4631,11 +4631,58 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessBoard({
-              fen: '6/6/6/6/6/2n1o1/3P2/6',
-              moveDots: ['d3', 'd4'],
-              captures: ['c3', 'e3'],
-            }),
+            svg: renderDualChessRow([
+              {
+                fen: '6/6/6/6/6/2n1o1/3P2/6',
+                moveDots: ['d3', 'd4'],
+                captures: ['c3', 'e3'],
+                label: 'FROM START',
+              },
+              {
+                fen: '6/6/6/3P2/6/6/6/6',
+                moveDots: ['d6'],
+                label: 'AFTER MOVING',
+              },
+            ]),
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text:
+              '**Queen:** a pawn that reaches the far rank promotes to a queen. The queen moves any number of squares horizontally, vertically, or diagonally.',
+          },
+          {
+            kind: 'raw-svg',
+            svg: renderDualChessRow([
+              {
+                fen: '6/5P/6/6/6/6/6/6',
+                moveDots: ['f8'],
+                arrows: [{ from: 'f7', to: 'f8' }],
+                label: 'PROMOTE',
+              },
+              {
+                fen: '5Q/6/6/6/6/6/6/6',
+                moveDots: [
+                  'a8',
+                  'b8',
+                  'c8',
+                  'd8',
+                  'e8',
+                  'f7',
+                  'f6',
+                  'f5',
+                  'f4',
+                  'f3',
+                  'f2',
+                  'f1',
+                  'e7',
+                  'd6',
+                  'c5',
+                  'b4',
+                  'a3',
+                ],
+                label: 'QUEEN',
+              },
+            ]),
           } as ArticleBlock,
           { kind: 'sub-heading', text: 'From xiangqi' },
           {
@@ -4675,7 +4722,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              '**Horse:** moves like the knight, one square orthogonally and then one square diagonally outward, **but it does not jump.** If the square it steps through, the horse’s leg, is occupied, the horse cannot move that way. The knight and the horse trace the same shape; only the knight ignores blockers.',
+              '**Horse:** moves like the knight, one square orthogonally and then one square diagonally outward, **but it does not jump.** Only the adjacent leg square can block it. If that square is occupied, the two moves through that leg disappear; pieces farther along the line do not block by themselves.',
           },
           {
             kind: 'raw-svg',
@@ -4686,10 +4733,11 @@ export const articles: Article[] = [
                 label: 'MOVES LIKE THE KNIGHT',
               },
               {
-                fen: '6/6/6/2P3/2H3/6/6/6',
+                fen: '6/6/6/2P3/2H1o1/6/6/6',
                 moveDots: ['a5', 'e5', 'a3', 'b2', 'd2', 'e3'],
                 highlights: ['c5'],
-                label: 'A BLOCKED LEG',
+                crosses: ['b6', 'd6'],
+                label: 'ONLY THE LEG BLOCKS',
               },
             ]),
           } as ArticleBlock,
@@ -4715,7 +4763,6 @@ export const articles: Article[] = [
       {
         heading: 'How to win',
         blocks: [
-          { kind: 'paragraph', text: 'There are two ways to win a game of Crossroads Chess.' },
           { kind: 'sub-heading', text: 'Checkmate' },
           {
             kind: 'paragraph',
@@ -4734,6 +4781,7 @@ export const articles: Article[] = [
               {
                 fen: '2vV2/4Ko/kC4/2O3/p5/O5/5P/6',
                 arrows: [{ from: 'e7', to: 'e8' }],
+                highlights: ['e7', 'e8'],
                 label: 'THE KING RACES IN',
               },
               {
@@ -4750,12 +4798,8 @@ export const articles: Article[] = [
         blocks: [
           {
             kind: 'paragraph',
-            text: 'Crossroads Chess is built to be decisive, and almost every game ends in a win.',
-          },
-          {
-            kind: 'paragraph',
             text:
-              'Having no legal move is a loss, not a draw: a stalemated player loses. Repeating the same position three times is also a loss, charged to the side that forces the repetition. The only path to a draw is the fifty-move rule, when a long run of moves passes with no capture and no pawn move, and it almost never triggers.',
+              'Stalemate is a loss for the player with no legal move. Threefold repetition is also a loss, charged to the side that forces the repetition. The fifty-move rule can still draw a game after a long run with no capture and no pawn move.',
           },
         ],
       },
@@ -4765,7 +4809,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Crossroads Chess has no famous human games yet. To see the pieces work together, step through a full game between two strong Fairy-Stockfish engines. The two sides trade down through the middlegame, then White wins the race: the king marches up the board to the eighth rank.',
+              'The replay below is a Fairy-Stockfish self-play game showing the pieces in motion. The sides trade down through the middlegame, then White wins the race by marching the king to the eighth rank.',
           },
           {
             kind: 'dual-replay',
@@ -4786,25 +4830,16 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'We made Crossroads Chess to get the sharp middlegames of chess and xiangqi without the draws that so often end them. A game opens like two opposite-side pawn storms, both armies pushing past each other up the board. As pieces come off it turns into a king race: your king is also your runner, so landing it on the enemy back rank wins at once. You usually attack and defend the same race at the same time, and the games stay tense to the last move.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'Almost every game ends with a winner. Between the two finish lines and rules that make stalemate and repetition a loss, there is rarely anywhere to hide, and in our engine testing draws are the exception.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'You cannot play Crossroads Chess on Mistboard yet. It is in testing now, and a playable version is coming soon.',
+              'The early game often becomes a race of pawn and soldier advances, because both armies can cross the center quickly. The endgame is less about holding a fortress than managing king routes: your king must stay safe, but it is also the fastest way to win.',
           },
         ],
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: 'Crossroads Chess borrows from two games worth knowing on their own. Read the rules of each to see where its pieces come from.',
+        lead: 'Start a local game, or read the rules of the two games Crossroads Chess borrows from.',
         links: [
-          { label: 'Read Chess Rules', href: '/rules/chess', emphasis: 'primary' },
+          { label: 'Play Crossroads Chess', href: '/dual-chess-play', emphasis: 'primary' },
+          { label: 'Read Chess Rules', href: '/rules/chess', emphasis: 'secondary' },
           { label: 'Read Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
           { label: 'All rules', href: '/rules', emphasis: 'secondary' },
         ],

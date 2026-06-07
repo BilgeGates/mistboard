@@ -6,9 +6,10 @@
 // descriptor-driven cell-board core — so an article diagram is pixel-identical to
 // the real game. This module only adapts: it parses the article's board FEN into
 // a DualChessPlayerView, maps the didactic overlays (move dots, capture rings,
-// highlights, arrows) onto the renderer's options, and re-wraps the result in the
-// article's responsive `.dual-article-svg` shell (single board, or a labelled row
-// of boards). No board geometry or piece art lives here anymore.
+// highlights, arrows, blocked-target marks) onto the renderer's options, and
+// re-wraps the result in the article's responsive `.dual-article-svg` shell
+// (single board, or a labelled row of boards). No board geometry or piece art
+// lives here anymore.
 
 import type {
   DualChessColor,
@@ -26,6 +27,12 @@ export const DUAL_START_FEN = 'bknhcv/pppooo/6/6/6/6/OOOPPP/VCHNKB';
 const LABEL_H = 22;
 const ROW_GAP = 10;
 const LABEL_INK = '#5b4636'; // meerkat frame brown
+const CELL = 50;
+const PAD = 6;
+const FRAME_PAD = 9;
+const RIVER_AFTER_ROW = 4;
+const RIVER_H = 11;
+const CROSS_INK = 'rgba(125,20,20,0.72)';
 
 export type DualSquare = string; // file letter + rank digit, e.g. "e4"
 export type DualArrow = { from: DualSquare; to: DualSquare };
@@ -36,6 +43,7 @@ export type DualBoardOptions = {
   captures?: DualSquare[];
   highlights?: DualSquare[];
   arrows?: DualArrow[];
+  crosses?: DualSquare[];
   label?: string;
 };
 
@@ -91,17 +99,42 @@ function fenToView(fen: string): DualChessPlayerView {
 // renderer's `targets` (it picks dot vs ring from occupancy); highlights and
 // arrows are its study overlays.
 function coreBoard(opts: DualBoardOptions): string {
-  return renderDualChessBoardSvg(fenToView(opts.fen), {
+  const core = renderDualChessBoardSvg(fenToView(opts.fen), {
     showFog: false,
     targets: [...(opts.moveDots ?? []), ...(opts.captures ?? [])] as DualChessSquare[],
     highlights: opts.highlights as DualChessSquare[] | undefined,
     arrows: opts.arrows as { from: DualChessSquare; to: DualChessSquare }[] | undefined,
   });
+  return opts.crosses?.length ? addCrossMarks(core, opts.crosses) : core;
 }
 
 function viewBoxDims(coreSvg: string): { w: number; h: number } {
   const m = coreSvg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
   return { w: Number(m?.[1] ?? 0), h: Number(m?.[2] ?? 0) };
+}
+
+function squareCenter(square: DualSquare): { x: number; y: number } {
+  const file = square.charCodeAt(0) - 'a'.charCodeAt(0);
+  const rank = Number(square.slice(1));
+  const row = DUAL_RANKS - rank;
+  const riverOffset = row >= RIVER_AFTER_ROW ? RIVER_H : 0;
+  return {
+    x: PAD + FRAME_PAD + file * CELL + CELL / 2,
+    y: PAD + FRAME_PAD + row * CELL + riverOffset + CELL / 2,
+  };
+}
+
+function addCrossMarks(coreSvg: string, squares: DualSquare[]): string {
+  const marks = squares
+    .map((square) => {
+      const { x, y } = squareCenter(square);
+      const r = CELL * 0.24;
+      return `<g class="dual-article-cross" opacity="0.9"><line x1="${x - r}" y1="${y - r}" x2="${x + r}" y2="${y + r}" stroke="${CROSS_INK}" stroke-width="4" stroke-linecap="round"/><line x1="${x + r}" y1="${y - r}" x2="${x - r}" y2="${y + r}" stroke="${CROSS_INK}" stroke-width="4" stroke-linecap="round"/></g>`;
+    })
+    .join('');
+  const insertAt = coreSvg.lastIndexOf('</svg>');
+  if (insertAt < 0) return coreSvg;
+  return `${coreSvg.slice(0, insertAt)}${marks}${coreSvg.slice(insertAt)}`;
 }
 
 // Re-skin the live renderer's root <svg class="dual-live-svg"> as the article's

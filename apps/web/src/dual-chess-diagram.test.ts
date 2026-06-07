@@ -36,6 +36,16 @@ describe('Crossroads Chess article diagrams', () => {
     expect(svg).toMatch(/marker-end="url\(#dual-live-\d+-arrow\)"/);
   });
 
+  it('draws crossed-out targets for blocked moves', () => {
+    const svg = renderDualChessBoard({
+      fen: '6/6/6/2P3/2H1o1/6/6/6',
+      crosses: ['b6', 'd6'],
+    });
+    expect(svg).toContain('class="dual-article-cross"');
+    expect((svg.match(/class="dual-article-cross"/g) ?? []).length).toBe(2);
+    expect(svg.lastIndexOf('class="dual-article-cross"')).toBeGreaterThan(svg.indexOf('<g transform'));
+  });
+
   it('lays out a labelled row of boards as a wide figure', () => {
     const svg = renderDualChessRow([
       { fen: '6/6/6/6/2C3/6/6/6', label: 'MOVE' },
