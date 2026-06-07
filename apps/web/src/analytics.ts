@@ -1,7 +1,7 @@
 import {
   type GameSpec,
-  gameSpecForId,
   type GameSpecId,
+  gameSpecForId,
   gameSpecForLegacyLiveRoom,
   timeClassFromTimeControl,
   type VariantId,
@@ -85,6 +85,65 @@ export function track(name: string, props?: Record<string, unknown>): void {
     console.log('[track]', name, props ?? {});
   }
   enqueue((ph) => ph.capture(name, props));
+}
+
+export type GameLifecycleStatusType = 'pregame' | 'playing' | 'finished' | 'aborted';
+
+export type GameFinishedOutcome = {
+  winner: string | null;
+  reason: string;
+  moveNumber: number;
+};
+
+export type GameLifecycleTracker = {
+  // Call on every render with the current game status. Emits `game_started` on
+  // the first transition into `playing` and `game_finished` on entering
+  // `finished`. Repeated calls with the same status are no-ops, so it is safe to
+  // drive from a render loop. `baseProps` should carry game-spec/time-control
+  // identity (see gameSpecAnalyticsProps) so the funnel is sliceable by variant.
+  update: (
+    input: {
+      statusType: GameLifecycleStatusType;
+      baseProps: Record<string, unknown>;
+      outcome?: GameFinishedOutcome | null;
+    } | null,
+  ) => void;
+  reset: () => void;
+};
+
+// One implementation of the start/finish funnel, shared by every live runtime
+// (chess + Dark Mini Xiangqi) so the event schema can't drift between parallel
+// stacks. Each caller holds its own instance — state is per-tracker, never
+// global, so two runtimes can't bleed transitions into each other.
+export function createGameLifecycleTracker(): GameLifecycleTracker {
+  let lastStatusType: GameLifecycleStatusType | null = null;
+  let playingSinceMs: number | null = null;
+  return {
+    reset() {
+      lastStatusType = null;
+      playingSinceMs = null;
+    },
+    update(input) {
+      if (!input) return;
+      const { statusType, baseProps } = input;
+      if (statusType === lastStatusType) return;
+      if (statusType === 'playing' && lastStatusType !== 'playing') {
+        playingSinceMs = Date.now();
+        track('game_started', baseProps);
+      }
+      if (statusType === 'finished' && input.outcome) {
+        track('game_finished', {
+          ...baseProps,
+          winner: input.outcome.winner,
+          reason: input.outcome.reason,
+          moveNumber: input.outcome.moveNumber,
+          durationMs: playingSinceMs !== null ? Date.now() - playingSinceMs : null,
+        });
+        playingSinceMs = null;
+      }
+      lastStatusType = statusType;
+    },
+  };
 }
 
 // Tie subsequent events to a known account. Idempotent: safe to call on every

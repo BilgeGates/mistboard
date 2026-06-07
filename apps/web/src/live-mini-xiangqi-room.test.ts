@@ -304,6 +304,120 @@ describe('Dark Mini Xiangqi live room', () => {
   });
 });
 
+function feed(refs: LiveRefs, view: MiniView): void {
+  liveState.state = view as never;
+  renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket: () => true });
+}
+
+function clickReplay(refs: LiveRefs, action: string): void {
+  for (const button of refs.replayControls) {
+    if (button.dataset.replay === action) {
+      button.click();
+      return;
+    }
+  }
+}
+
+describe('Dark Mini Xiangqi replay scrubber', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    liveState.gameSpecId = 'dark-mini-xiangqi';
+    liveState.connectionState = 'connected';
+    liveState.seat = 'red';
+    liveState.events = [];
+    resetDarkMiniXiangqiReplayState();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    liveState.gameSpecId = null;
+  });
+
+  // bug #1: under fog an opponent's hidden move can leave this player's board,
+  // vision, lastMove, and moveNumber unchanged — only the side to move flips
+  // (Red's move does not bump moveNumber). The old position key omitted `turn`,
+  // so the hidden ply collapsed into the previous one and the back-scroll
+  // truncated. The key now includes the side to move.
+  it('records a side-to-move-only hidden ply as a distinct snapshot', () => {
+    const refs = refsFixture();
+    // Black's perspective. It is Red's turn (ply 4); Red has nothing visible here.
+    const beforeHidden: MiniView = {
+      id: 'g',
+      perspective: 'black',
+      board: { d7: { piece: { color: 'black', role: 'general' }, shrouded: false } },
+      visibleSquares: ['d7'],
+      legalMoves: [],
+      status: { type: 'playing', turn: 'red' },
+      moveNumber: 3,
+      lastMove: { from: 'd6', to: 'd7' },
+    };
+    feed(refs, beforeHidden);
+    // Red plays a hidden move: identical view except the side to move flips to
+    // Black (ply 5). moveNumber is unchanged because Red's move doesn't bump it.
+    feed(refs, { ...beforeHidden, status: { type: 'playing', turn: 'black' } });
+
+    // The hidden ply is its own snapshot (ply 5), not collapsed into ply 4.
+    expect(refs.replayMeta.textContent).toBe('Live · ply 5 of 5');
+    clickReplay(refs, 'prev');
+    expect(refs.replayMeta.textContent).toBe('Replay · ply 4 of 5');
+  });
+
+  // bug #2: the live position IS the last captured snapshot, so one back-step
+  // must move exactly one ply (no redundant duplicate of the final ply), and the
+  // scrubber must reach the starting position.
+  it('steps one ply back from live and scrolls to the start', () => {
+    const refs = refsFixture();
+    const frames: MiniView[] = [
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d1: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d1'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'red' },
+        moveNumber: 1,
+      },
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d2: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d2'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'black' },
+        moveNumber: 1,
+        lastMove: { from: 'd1', to: 'd2' },
+      },
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d3: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d3'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'red' },
+        moveNumber: 2,
+        lastMove: { from: 'd2', to: 'd3' },
+      },
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { e7: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['e7', 'd7', 'e6'],
+        legalMoves: [],
+        status: { type: 'finished', winner: 'red', reason: 'general-captured' },
+        moveNumber: 2,
+        lastMove: { from: 'd3', to: 'e7' },
+      },
+    ];
+    for (const frame of frames) feed(refs, frame);
+
+    expect(refs.replayMeta.textContent).toBe('Live · ply 3 of 3');
+    clickReplay(refs, 'prev');
+    expect(refs.replayMeta.textContent).toBe('Replay · ply 2 of 3');
+    clickReplay(refs, 'first');
+    expect(refs.replayMeta.textContent).toBe('Replay · ply 0 of 3');
+  });
+});
+
 function viewFixture(): MiniView {
   return {
     id: 'mxq-test',
@@ -321,7 +435,11 @@ function viewFixture(): MiniView {
 
 function refsFixture(): LiveRefs {
   const root = document.createElement('div');
-  root.innerHTML = '<button data-replay="first"></button><button data-replay="next"></button>';
+  // first/next stay at indices 0/1 (positionally referenced by existing tests);
+  // prev/latest are appended for the scrubber tests (which select by data-replay).
+  root.innerHTML =
+    '<button data-replay="first"></button><button data-replay="next"></button>' +
+    '<button data-replay="prev"></button><button data-replay="latest"></button>';
   return {
     actionSection: el('section'),
     actionStatus: el('div'),
@@ -359,4 +477,3 @@ function el<K extends keyof HTMLElementTagNameMap>(tagName: K): HTMLElementTagNa
 function clickEvent(): MouseEvent {
   return new MouseEvent('click', { bubbles: true });
 }
-

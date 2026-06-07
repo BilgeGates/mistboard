@@ -12,7 +12,11 @@ import type {
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type * as cg from 'chessground/types';
-import { classifyTimeControl, gameSpecAnalyticsProps, track } from './analytics.js';
+import {
+  classifyTimeControl,
+  createGameLifecycleTracker,
+  gameSpecAnalyticsProps,
+} from './analytics.js';
 import {
   boardHighlightClasses,
   boardResultClass,
@@ -172,8 +176,7 @@ function fenToPickerPieces(fenPlacement: string, color: Color): PieceOnBoard[] {
   }
   return pieces;
 }
-let lastTrackedStatusType: 'pregame' | 'playing' | 'finished' | 'aborted' | null = null;
-let playingSinceMs: number | null = null;
+const lifecycleTracker = createGameLifecycleTracker();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -192,8 +195,7 @@ export function initRender(
       render();
     },
   });
-  lastTrackedStatusType = null;
-  playingSinceMs = null;
+  lifecycleTracker.reset();
   resetMoveListState();
   resetClockState();
   refs = createLiveLayout(target, { debugRequested: liveState.debugRequested });
@@ -261,7 +263,6 @@ export function render(): void {
 function trackGameLifecycle(view: PlayerView | null): void {
   if (!view || !isLive()) return;
   const statusType = view.status.type;
-  if (statusType === lastTrackedStatusType) return;
   const baseProps = {
     gameId: view.id,
     variant: view.variant,
@@ -276,26 +277,18 @@ function trackGameLifecycle(view: PlayerView | null): void {
     time_class:
       view.clock != null ? classifyTimeControl(view.clock.initialMs, view.clock.incrementMs) : null,
   };
-  if (statusType === 'playing' && lastTrackedStatusType !== 'playing') {
-    playingSinceMs = Date.now();
-    track('game_started', baseProps);
-  }
-  if (statusType === 'finished') {
-    const finished = view.status as {
-      type: 'finished';
-      winner: 'white' | 'black' | null;
-      reason: string;
-    };
-    track('game_finished', {
-      ...baseProps,
-      winner: finished.winner,
-      reason: finished.reason,
-      moveNumber: view.moveNumber,
-      durationMs: playingSinceMs !== null ? Date.now() - playingSinceMs : null,
-    });
-    playingSinceMs = null;
-  }
-  lastTrackedStatusType = statusType;
+  const outcome =
+    statusType === 'finished'
+      ? (() => {
+          const finished = view.status as {
+            type: 'finished';
+            winner: 'white' | 'black' | null;
+            reason: string;
+          };
+          return { winner: finished.winner, reason: finished.reason, moveNumber: view.moveNumber };
+        })()
+      : null;
+  lifecycleTracker.update({ statusType, baseProps, outcome });
 }
 
 function isDraft960RoomForAnalytics(): boolean {

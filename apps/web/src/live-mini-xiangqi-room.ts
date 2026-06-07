@@ -5,12 +5,17 @@ import {
   type MiniXiangqiMove,
   type MiniXiangqiPlayerView,
 } from '@mistboard/game';
+import {
+  classifyTimeControl,
+  createGameLifecycleTracker,
+  gameSpecAnalyticsPropsForId,
+} from './analytics.js';
 import { openConfirmDialog } from './confirm-dialog.js';
 import { darkMiniXiangqiEnabled } from './feature-flags.js';
 import { setLiveLayoutGameSpec } from './live-layout.js';
 import {
-  MINI_XIANGQI_PIECE_PX,
   installMiniXiangqiBoardStyles,
+  MINI_XIANGQI_PIECE_PX,
   miniXiangqiPieceGhostSvg,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
@@ -48,7 +53,7 @@ let selectedSquare: MiniXiangqiSquare | null = null;
 // past a small threshold) commits on drop and suppresses the trailing click.
 let dragFrom: MiniXiangqiSquare | null = null;
 let dragGhost: HTMLDivElement | null = null;
-let dragMoved = false;
+const dragMoved = false;
 let suppressNextClick = false;
 let playAgainStatus: 'idle' | 'creating' | 'failed' = 'idle';
 // Previous active clock color across full clock renders, used to flash the seated
@@ -66,6 +71,9 @@ let renderCallbacks: { reconnectNow: () => void; sendSocket: (payload: unknown) 
 // Last refs handed to renderDarkMiniXiangqiRoom, so the 100ms clock tick can
 // refresh the clock text without a full re-render.
 let lastRefs: LiveRefs | null = null;
+// System-health funnel (queue -> match -> start -> finish). Own instance so the
+// chess tracker never bleeds transitions into DMX. See analytics.ts.
+const lifecycleTracker = createGameLifecycleTracker();
 
 export function isDarkMiniXiangqiLiveRoom(): boolean {
   return liveState.gameSpecId === 'dark-mini-xiangqi';
@@ -80,6 +88,7 @@ export function resetDarkMiniXiangqiReplayState(): void {
   lastCapturedPositionKey = null;
   latestCapturedPly = 0;
   lastActiveMiniClockColor = null;
+  lifecycleTracker.reset();
   resetDarkMiniXiangqiSoundState();
 }
 
@@ -112,6 +121,7 @@ export function renderDarkMiniXiangqiRoom(
   renderRoomActions(refs);
 
   const view = currentMiniView();
+  trackMiniXiangqiLifecycle(view);
   captureReplayView(view);
   const displayedView = currentReplayView(view);
   renderReplayShell(refs);
@@ -132,6 +142,29 @@ export function renderDarkMiniXiangqiRoom(
 
 function currentMiniView(): MiniXiangqiPlayerView | null {
   return liveState.state as unknown as MiniXiangqiPlayerView | null;
+}
+
+// Feeds the shared start/finish funnel from the live DMX state (never the
+// scrubbed replay view). Postgame review is a separate module, so this only ever
+// runs for a live room — no isLive() gate needed. Tagged with the DMX game spec
+// so the funnel is sliceable from the chess one in PostHog.
+function trackMiniXiangqiLifecycle(view: MiniXiangqiPlayerView | null): void {
+  if (!view) return;
+  const tc = liveState.timeControl;
+  const baseProps = {
+    gameId: view.id,
+    ...gameSpecAnalyticsPropsForId(DARK_MINI_XIANGQI_SPEC_ID),
+    rated: liveState.rated,
+    roomMode: liveState.roomMode,
+    initialMs: tc?.initialMs ?? null,
+    incrementMs: tc?.incrementMs ?? null,
+    time_class: tc ? classifyTimeControl(tc.initialMs, tc.incrementMs) : null,
+  };
+  const outcome =
+    view.status.type === 'finished'
+      ? { winner: view.status.winner, reason: view.status.reason, moveNumber: view.moveNumber }
+      : null;
+  lifecycleTracker.update({ statusType: view.status.type, baseProps, outcome });
 }
 
 function resetChessOnlyPanels(refs: LiveRefs): void {
@@ -758,10 +791,7 @@ function removeMiniXiangqiGhost(): void {
   dragGhost = null;
 }
 
-function miniXiangqiSquareUnderPoint(
-  clientX: number,
-  clientY: number,
-): MiniXiangqiSquare | null {
+function miniXiangqiSquareUnderPoint(clientX: number, clientY: number): MiniXiangqiSquare | null {
   const hit = document
     .elementFromPoint(clientX, clientY)
     ?.closest('[data-square]') as HTMLElement | null;
@@ -883,24 +913,29 @@ function captureReplayView(view: MiniXiangqiPlayerView | null): void {
   if (!view) return;
   if (view === lastCapturedView) return;
   const positionKey = replayPositionKey(view);
-  const nextPly = replayPlyForView(view, positionKey !== lastCapturedPositionKey);
-  if (positionKey === lastCapturedPositionKey && nextPly <= latestCapturedPly) {
+  // Dedup by position key alone. The key includes the side to move (and the
+  // terminal status), so every ply is a distinct snapshot even when an opponent's
+  // hidden move leaves this player's board, vision, and moveNumber unchanged —
+  // that case previously collapsed plies and truncated the back-scroll.
+  if (positionKey === lastCapturedPositionKey) {
     lastCapturedView = view;
     return;
   }
-  latestCapturedPly = nextPly;
+  latestCapturedPly = replayPlyForView(view);
   viewHistory.push({ ply: latestCapturedPly, view });
   lastCapturedView = view;
   lastCapturedPositionKey = positionKey;
 }
 
-function replayPlyForView(view: MiniXiangqiPlayerView, positionChanged: boolean): number {
+// Absolute game ply for a view. Derived from moveNumber/turn for live positions
+// (so it is correct even when the client joined mid-game), and one past the last
+// captured ply for a terminal frame (the finishing move).
+function replayPlyForView(view: MiniXiangqiPlayerView): number {
   if (view.status.type === 'playing') {
     const completedFullMoves = Math.max(0, view.moveNumber - 1);
     return completedFullMoves * 2 + (view.status.turn === 'black' ? 1 : 0);
   }
-  if (positionChanged && view.lastMove) return latestCapturedPly + 1;
-  return latestCapturedPly;
+  return latestCapturedPly + 1;
 }
 
 function replayPositionKey(view: MiniXiangqiPlayerView): string {
@@ -917,6 +952,9 @@ function replayPositionKey(view: MiniXiangqiPlayerView): string {
     moveNumber: view.moveNumber,
     perspective: view.perspective,
     visibleSquares: [...view.visibleSquares].sort(),
+    // Side to move for live positions; status type once the game is over. This is
+    // the per-ply discriminator that keeps hidden-move plies from collapsing.
+    turn: view.status.type === 'playing' ? view.status.turn : view.status.type,
   });
 }
 

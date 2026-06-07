@@ -1,9 +1,34 @@
 # Dark Mini Xiangqi Plan
 
-_Last updated: 2026-05-30_
+_Last updated: 2026-06-06_
 
-Status: launch plan for a candidate future Mistboard game spec. Dark Mini
-Xiangqi is not implemented and is not a public Mistboard game mode yet.
+Status: **implemented and at full Dark-chess parity, but hidden behind a flag.**
+Dark Mini Xiangqi (DMX) is a real `GameSpec` with a working PvP live runtime,
+private replay/postgame, family-aware appearance, variant-aware lobby, and a
+Fairy-Stockfish-backed PvE engine. It is **not yet a public Mistboard game
+mode**: the client surface is gated off in prod (`VITE_DARK_MINI_XIANGQI_ENABLED`
+is not set in `scripts/build.mjs`, so `darkMiniXiangqiEnabled()` is false). What
+remains is the launch ladder, not the build: soft-launch instrumentation (M9),
+public exposure (M10), and a rated pool (still deferred).
+
+### Milestone status (2026-06-06)
+
+| #  | Milestone               | Status |
+|----|-------------------------|--------|
+| 1  | Product Spec            | done |
+| 2  | Pure Rules Kernel       | done |
+| 3  | Fog Kernel              | done |
+| 4  | Local Play Lab          | done |
+| 5  | Hidden Live Runtime     | done |
+| 6  | Private Replay/Postgame | done |
+| 7  | UX Hardening            | done (W1–W6 + post-W6 polish, parity with Dark chess) |
+| 8  | Engine Track            | **PvE built** (Fairy-Stockfish leaf eval, variant-aware protocol, redaction-tested perspective contract, PvE move loop). Remaining: beginner strength calibration. |
+| 9  | Soft Launch             | not started: instrumentation + invite-only entry |
+| 10 | Public Launch           | not started: gated behind Mistboard's own M1 pre-distribution gates |
+
+Deferred (not on the launch ladder): DMX **rated pool / lobby ranking** (casual
+PvP only today; `dark_mini_xiangqi` rating base exists in the spec but is not
+wired to a ladder).
 
 ## Purpose
 
@@ -257,40 +282,69 @@ Gate:
 - desktop and mobile visual checks pass for first load, midgame, terminal,
   reconnect, and narrow viewport states.
 
-### 8. Engine Track
+### 8. Engine Track: PvE built (2026-06-04/05)
 
-Add engine support only after live PvP is stable.
+Engine support landed after live PvP stabilized. A Fairy-Stockfish leaf eval
+backs DMX PvE through the variant-aware engine protocol.
 
 Deliverables:
 
-- random/legal baseline,
-- capture-seeking baseline,
-- Mini Xiangqi extension to the hidden-information engine protocol,
-- beginner engine calibration,
-- self-play mining only after the perspective contract is tested.
+- ~~random/legal baseline~~ / ~~capture-seeking baseline~~, superseded by a
+  Fairy-Stockfish opponent (provisioned on engine-worker, commit `27b12a6`),
+- **done**: Mini Xiangqi extension to the hidden-information engine protocol
+  (`gameSpecId`, `shrouded`, mini piece letters; `f23b4b2`), engine registry +
+  variant-aware worker spawn (`ded93a1`), request builder (`3abefe1`), PvE
+  runtime move loop (`10f8b90`), engine-seat reservation lifecycle (`28c81b6`,
+  `e28dcf6`, `785247b`),
+- **remaining**: beginner engine calibration (tune Fairy-Stockfish down to an
+  onboarding-appropriate strength),
+- self-play mining: deferred (perspective contract is tested; mining is not on
+  the launch ladder).
 
 Gate:
 
-- engine requests never include hidden truth outside the engine's legal
-  perspective,
-- beginner play strength is stable enough for onboarding.
+- **met**: engine requests never include hidden truth outside the engine's
+  legal perspective (redaction test in `3abefe1`),
+- **remaining**: beginner play strength is stable enough for onboarding.
 
 ### 9. Soft Launch
 
 Expose narrowly before adding durable public surfaces.
 
+**Telemetry scope (decided 2026-06-06): system-health, not game-quality.** The
+soft-launch question is "does the plumbing work end to end?", not "is the game
+fun?". The funnel is queue -> match -> start -> finish, sliceable by game spec:
+
+- `lobby_queue_joined` / `lobby_match_found`: already fire for DMX (shared
+  `landing-play.ts`, tagged via `gameSpecAnalyticsPropsForId`).
+- `game_started` / `game_finished`: now emitted by the DMX live stack via the
+  shared `createGameLifecycleTracker()` in `analytics.ts` (done 2026-06-06).
+  `game_finished` carries `winner`, `reason`, `moveNumber`, `durationMs`;
+  `reason` doubles as a health signal (a `timeout`/`abandonment` spike = clock or
+  reconnect plumbing failing, not a quality issue).
+- Engine health (PvE): already covered, game-agnostic, by `EngineCounters` in
+  `apps/server/src/obs.ts` (turns started/completed/failed, timeouts, fallbacks,
+  python-pool errors) with `engineAlertFields` thresholds.
+- Client crashes: covered for free by PostHog `capture_exceptions: true`
+  (`main.ts`); `$exception` events surface a broken DMX page.
+
 Deliverables:
 
 - hidden or invite-only entry point,
 - direct PvP only,
-- instrumentation for average ply count, resignation rate, timeout rate, repeat
-  play, and rules confusion,
-- feedback loop focused on cannon and blocker comprehension.
+- the system-health funnel above (DMX inherits all of it now; remaining wiring is
+  the invite-only entry, not more events).
+
+**Deferred to post-soft-launch (game-quality, only pays off at volume):** average
+ply count, resignation/repeat-play rates read as fun-signals, and cannon/blocker
+rules-confusion instrumentation. These are product questions, not "did it work"
+questions; revisit once the plumbing is proven and there's real game volume.
 
 Gate:
 
-- observed games show that fog produces useful tension rather than excessive
-  guessing.
+- the funnel shows games reliably reaching `game_finished` with clean terminal
+  reasons (capture/resign), not stalling between match and start or dying on
+  `timeout`/`abandonment`.
 
 ### 10. Public Launch
 

@@ -1,6 +1,11 @@
 import { DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID, gameSpecForId } from '@mistboard/game';
-import { describe, expect, it } from 'vitest';
-import { classifyTimeControl, gameSpecAnalyticsProps } from './analytics.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  classifyTimeControl,
+  createGameLifecycleTracker,
+  gameSpecAnalyticsProps,
+  setPostHogInstance,
+} from './analytics.js';
 
 describe('classifyTimeControl', () => {
   it('classifies bullet (1+0)', () => {
@@ -61,5 +66,75 @@ describe('gameSpecAnalyticsProps', () => {
     expect(gameSpecAnalyticsProps({ variant: 'dark-draft960' }).game_spec).toBe(
       DARK_DRAFT960_SPEC_ID,
     );
+  });
+});
+
+describe('createGameLifecycleTracker', () => {
+  const capture = vi.fn();
+  const calls = () => capture.mock.calls as Array<[string, Record<string, unknown>]>;
+  const named = (name: string) => calls().filter(([n]) => n === name);
+  const base = { gameId: 'g1', game_spec: 'dark-mini-xiangqi' };
+
+  beforeEach(() => {
+    capture.mockReset();
+    // track() routes through the posthog instance; install a spy so emissions
+    // are observable even outside PROD (enqueue runs the action immediately).
+    setPostHogInstance({ capture, identify: vi.fn(), reset: vi.fn() });
+  });
+
+  it('emits game_started once on entering playing, and not on repeats', () => {
+    const t = createGameLifecycleTracker();
+    t.update({ statusType: 'playing', baseProps: base });
+    t.update({ statusType: 'playing', baseProps: base });
+    expect(named('game_started')).toHaveLength(1);
+    expect(named('game_started')[0][1]).toMatchObject(base);
+  });
+
+  it('emits game_finished with outcome fields and a numeric durationMs', () => {
+    const t = createGameLifecycleTracker();
+    t.update({ statusType: 'playing', baseProps: base });
+    t.update({
+      statusType: 'finished',
+      baseProps: base,
+      outcome: { winner: 'red', reason: 'general-captured', moveNumber: 12 },
+    });
+    expect(named('game_finished')).toHaveLength(1);
+    expect(named('game_finished')[0][1]).toMatchObject({
+      winner: 'red',
+      reason: 'general-captured',
+      moveNumber: 12,
+    });
+    expect(typeof named('game_finished')[0][1].durationMs).toBe('number');
+  });
+
+  it('treats null updates as no-ops', () => {
+    const t = createGameLifecycleTracker();
+    t.update(null);
+    expect(capture).not.toHaveBeenCalled();
+  });
+
+  it('does not emit game_finished without an outcome', () => {
+    const t = createGameLifecycleTracker();
+    t.update({ statusType: 'playing', baseProps: base });
+    t.update({ statusType: 'finished', baseProps: base, outcome: null });
+    expect(named('game_finished')).toHaveLength(0);
+  });
+
+  it('re-arms the start transition after reset', () => {
+    const t = createGameLifecycleTracker();
+    t.update({ statusType: 'playing', baseProps: base });
+    t.reset();
+    t.update({ statusType: 'playing', baseProps: base });
+    expect(named('game_started')).toHaveLength(2);
+  });
+
+  it('keeps separate trackers from bleeding transitions into each other', () => {
+    const chess = createGameLifecycleTracker();
+    const dmx = createGameLifecycleTracker();
+    chess.update({ statusType: 'playing', baseProps: { game_spec: 'dark-chess' } });
+    dmx.update({ statusType: 'playing', baseProps: base });
+    // Both fire independently; one tracker reaching 'playing' must not suppress
+    // the other's game_started.
+    expect(named('game_started')).toHaveLength(2);
   });
 });
