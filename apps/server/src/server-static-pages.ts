@@ -204,6 +204,19 @@ function gamePageParticipantName(game: persistence.GameRecord, color: Color): st
   );
 }
 
+// Serves the prerendered homepage (dist/home.html) for `/`, so crawlers, no-JS
+// clients, and first paint get real content instead of the empty SPA shell.
+// Throws when home.html is absent (e.g. an older build) so the caller can fall
+// back to serving index.html (the bare shell).
+export async function serveHomePage(params: {
+  response: ServerResponse;
+  staticDir: string;
+}): Promise<void> {
+  const html = await fs.readFile(resolve(params.staticDir, 'home.html'), 'utf-8');
+  params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  params.response.end(html);
+}
+
 // Sitemap of public, indexable surfaces: static content routes plus every
 // pre-rendered article (discovered from dist/articles/*.html, so the published
 // set stays the single source of truth in articles-data -> prerender output).

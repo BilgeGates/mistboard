@@ -32,7 +32,9 @@ define('document', win.document);
 define('navigator', win.navigator);
 for (const key of [
   'HTMLElement', 'HTMLHeadingElement', 'HTMLParagraphElement', 'HTMLAnchorElement',
-  'HTMLLIElement', 'HTMLUListElement', 'Element', 'Node', 'SVGElement',
+  'HTMLLIElement', 'HTMLUListElement', 'Element', 'Node', 'SVGElement', 'SVGSVGElement',
+  'SVGGElement', 'SVGPathElement', 'SVGRectElement', 'SVGCircleElement',
+  'SVGTextElement', 'SVGUseElement', 'SVGLineElement', 'SVGImageElement',
   'CustomEvent', 'Event', 'DOMParser', 'customElements',
   'IntersectionObserver', 'MutationObserver', 'ResizeObserver',
   'getComputedStyle', 'requestAnimationFrame', 'cancelAnimationFrame',
@@ -152,6 +154,18 @@ try {
     }
   }
   console.log(`done: ${count} page(s) across ${published.length} article(s) × ${variants.length} langs`);
+
+  // Homepage: bake the static landing shell so crawlers, no-JS clients, and
+  // first paint get real content (heading, play panel, article links, footer)
+  // instead of the empty SPA shell. index.html already carries the homepage meta;
+  // we add a self-referencing canonical and write a separate home.html (the bare
+  // index.html stays the empty shell that every other client route falls back to).
+  const { renderLandingShellForPrerender } = await server.ssrLoadModule('/src/landing.ts');
+  const landingInner = renderLandingShellForPrerender();
+  let homeHtml = shell.replace('<div id="app"></div>', `<div id="app">${landingInner}</div>`);
+  homeHtml = homeHtml.replace('</head>', `<link rel="canonical" href="${host}/" /></head>`);
+  await fs.writeFile(resolve(distDir, 'home.html'), homeHtml, 'utf-8');
+  console.log('prerendered / (home.html)');
 } catch (err) {
   console.error('prerender failed:', err);
   process.exitCode = 1;

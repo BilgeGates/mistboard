@@ -20,6 +20,7 @@ import {
   serveArticlePage,
   serveArticlesIndexPage,
   serveGamePage,
+  serveHomePage,
   serveRulesIndexPage,
   serveSitemap,
 } from './server-static-pages.js';
@@ -177,7 +178,9 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
 
     if (pathname === '/robots.txt') {
       response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
-      response.end(`User-agent: *\nAllow: /\nSitemap: ${options.publicHost}/sitemap.xml\n`);
+      response.end(
+        `User-agent: *\nAllow: /\nDisallow: /database\nDisallow: /engines\nSitemap: ${options.publicHost}/sitemap.xml\n`,
+      );
       return;
     }
 
@@ -269,6 +272,14 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
         langPrefix: rulesIndexMatch[1],
       }).catch(() => {
         request.url = '/';
+        void serveHandler(request, response, { public: options.staticDir });
+      });
+      return;
+    }
+
+    if (pathname === '/') {
+      void serveHomePage({ response, staticDir: options.staticDir }).catch(() => {
+        // No prerendered home.html (e.g. an older build): fall back to the shell.
         void serveHandler(request, response, { public: options.staticDir });
       });
       return;

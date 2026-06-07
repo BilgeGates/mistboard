@@ -425,7 +425,10 @@ export function mountContact(root: HTMLElement): void {
     .catch(() => contact.applyAuth(null));
 }
 
-function buildLandingStage(engines: PlayableEngine[]): {
+function buildLandingStage(
+  engines: PlayableEngine[],
+  opts: { skipLiveWidgets?: boolean } = {},
+): {
   el: HTMLElement;
   replayRoot: HTMLElement;
   reviewLink: HTMLAnchorElement;
@@ -437,10 +440,17 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  // ── Left rail: announcements. ──
+  // ── Left rail: announcements, then a small one-line "about" heading. It is the
+  // page's single h1, kept small (body-text sized) to fit the board-centered
+  // design, so the homepage still has a real heading for search + screen readers
+  // without a marketing hero. ──
   const leftRail = document.createElement('div');
   leftRail.className = 'landing-rail landing-rail-left';
-  leftRail.append(buildLandingAnnouncements());
+  const about = document.createElement('h1');
+  about.className = 'landing-about';
+  about.textContent =
+    'Play dark chess (fog of war) and other timeless games, free in your browser.';
+  leftRail.append(buildLandingAnnouncements(), about);
 
   // ── Center (wide): the fog board hero, with article cards stacked beneath. ──
   const centerColumn = document.createElement('div');
@@ -474,7 +484,10 @@ function buildLandingStage(engines: PlayableEngine[]): {
   const rightRail = document.createElement('div');
   rightRail.className = 'landing-rail landing-rail-right';
   let playPanel = buildLandingPlayPanel(engines, { showLobbyRequests: false });
-  rightRail.append(playPanel, buildLobbyRequestsWindow());
+  rightRail.append(playPanel);
+  // The lobby-requests browser fetches + polls on construction, so it is skipped
+  // when rendering the static shell at build time (the prerender path).
+  if (!opts.skipLiveWidgets) rightRail.append(buildLobbyRequestsWindow());
 
   // Swap the play panel in place once the real playable engines arrive (the shell
   // renders first with a built-in fallback). The displaced panel's live-stats
@@ -490,6 +503,17 @@ function buildLandingStage(engines: PlayableEngine[]): {
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter());
   return { el: stage, replayRoot, reviewLink, applyEngines };
+}
+
+// Build-time static render of the homepage (nav + stage), baked by the prerender
+// so crawlers, no-JS clients, and first paint get real content (the heading, play
+// panel, article links, footer) instead of the empty SPA shell. The board replay
+// and live game pool stay client-hydrated; the live lobby widget is skipped
+// because it fetches on construction. Returns the inner HTML for `#app`.
+export function renderLandingShellForPrerender(): string {
+  const nav = buildNav();
+  const stage = buildLandingStage(fallbackPlayableEngines(), { skipLiveWidgets: true });
+  return `${nav.outerHTML}${stage.el.outerHTML}`;
 }
 
 function buildGameExportLinks(roomId: string, variant: string | undefined): HTMLElement | null {
