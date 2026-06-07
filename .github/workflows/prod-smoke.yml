@@ -1,8 +1,6 @@
 name: Prod Smoke
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       full:
@@ -51,7 +49,7 @@ jobs:
         run: node scripts/time-command.mjs --label "Engine smoke" -- npm run prod:smoke:engines
 
   prod-lite-smoke:
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full != true)
+    if: github.event_name == 'workflow_dispatch' && inputs.full != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,10 +75,10 @@ jobs:
             const sha = context.sha?.slice(0, 7) ?? 'unknown';
             const commitMsg = (
               context.payload.head_commit?.message ??
-              'scheduled prod-lite smoke'
+              'manual prod-lite smoke'
             ).split('\n')[0];
             const full = context.payload.inputs?.full === true || context.payload.inputs?.full === 'true';
-            const smokeName = context.eventName === 'workflow_dispatch' && full ? 'Manual prod smoke' : 'Scheduled prod-lite smoke';
+            const smokeName = context.eventName === 'workflow_dispatch' && full ? 'Manual prod smoke' : 'Manual prod-lite smoke';
             const body = [
               `${smokeName} failed on \`main\` at \`${sha}\` — ${commitMsg}`,
               '',
@@ -98,14 +96,12 @@ jobs:
             });
 
             if (existing.length > 0) {
-              if (context.eventName !== 'schedule') {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: existing[0].number,
-                  body,
-                });
-              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body,
+              });
             } else {
               await github.rest.issues.create({
                 owner: context.repo.owner,
