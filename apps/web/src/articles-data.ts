@@ -2894,9 +2894,10 @@ export const articles: Article[] = [
   {
     slug: 'misty',
     kind: 'article',
-    title: 'Inside Misty 1.0',
+    title: 'How Misty Plays',
     summary:
-      "Misty 1.0 is the engine you play on Mistboard: an engine for Fog of War chess, guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
+      "Misty is the engine you play on Mistboard, built for Fog of War chess and guided by the Obscuro architecture. How it thinks, what's hard, and where it stands.",
+    showSummaryOnPage: false,
     status: 'draft',
     publishedAt: '2026-06-03',
     audience:
@@ -2905,7 +2906,7 @@ export const articles: Article[] = [
       {
         kind: 'paragraph',
         text:
-          "Misty 1.0 is the bot you play on Mistboard. It's an engine for Fog of War chess, guided by the Obscuro architecture.",
+          "Misty is the bot you play on Mistboard, an engine for Fog of War chess. It's our build of [Obscuro](https://arxiv.org/abs/2506.01242) (Zhang & Sandholm, ICLR 2026), the first engine to reach superhuman Fog of War play.",
       },
     ],
     sections: [
@@ -2915,17 +2916,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The bot never sees the true board. Each move, it receives exactly what the side to move can legally observe under Fog of War: its own pieces, the squares they can see, the captures that happen in view. No hidden opponent pieces, no hidden moves, no peek at ground truth. Everything else it infers. That single constraint is the whole problem, and it is what makes the rest of the engine necessary.',
-          },
-        ],
-      },
-      {
-        heading: 'The paper we are chasing',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              'Obscuro (Zhang & Sandholm, ICLR 2026) is the first engine to play Fog of War chess at a superhuman level. Misty 1.0 is guided by its published architecture. We have not matched it, and we do not claim superhuman play. This is our build of the design, and we want help measuring where it actually stands.',
+              'Misty never sees the true board. Each move, it gets only what the side to move can legally observe under Fog of War: its own pieces, the squares they see, the captures in view. Everything else it infers. It plays under the same rules you do, and you can verify that: Mistboard is open source, so anyone can audit the server code that enforces the fog before the engine sees a position.',
           },
         ],
       },
@@ -2935,12 +2926,21 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "A classical engine like Stockfish assumes one true board and searches it. Misty 1.0 can't assume that, so it splits the job into five concerns:",
+              'A classical chess engine like Stockfish has one big advantage: it can see the whole board. It picks its move by searching the game tree, looking ahead through the lines both sides could play and backing up the value of the best line (minimax). The search assumes a single true position and a single true continuation.',
           },
           {
             kind: 'paragraph',
             text:
-              '**Belief.** Because it cannot see the board, the engine enumerates every board consistent with what it has observed. That set can run into the millions.',
+              "Under fog there is no single position to search. Misty can't see the opponent's pieces, so the board it has to reason about is really a set of boards: every arrangement consistent with what it has observed. A move that's winning on one board can hang a piece on another. So Misty weighs the whole set at once and looks for a move that holds up across it, the way you'd play a hand of cards against an opponent whose cards you can't see. That's a game-theoretic problem rather than a lookahead one.",
+          },
+          {
+            kind: 'paragraph',
+            text: 'It splits that job into five concerns, the same five Obscuro uses:',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              '**Belief.** It holds that whole set of possible boards explicitly, updating it each move as new observations rule worlds in and out.',
           },
           {
             kind: 'paragraph',
@@ -2955,17 +2955,12 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              '**Evaluation.** Leaf positions get scored by Stockfish, the classical chess engine, at depth one.',
+              '**Evaluation.** Leaf positions get scored by Stockfish at depth one.',
           },
           {
             kind: 'paragraph',
             text:
               '**Commit.** It collapses the resulting mixed strategy into the single move it plays.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              "The paper's worst-case refinement (the Resolve/Maxmargin gadget) is built but currently off. In our tests it cost 10-30x the memory and doubled game length without winning more games.",
           },
         ],
       },
@@ -2975,17 +2970,37 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The belief set explodes. A few plies into a foggy middlegame, "every consistent board" can mean millions of positions, and the engine has to rebuild that set every move inside a 5-second budget. The hot path lives in Rust, ~500x faster than our original Python. King safety is its own problem: the engine has to reason about checks from pieces it cannot see.',
+              'Two things. The first is the belief set itself. A few plies into a foggy middlegame, "every consistent board" can mean millions of positions, and the worst case is far larger: the Obscuro paper estimates the space of possible boards runs to at least 4 × 10^18, four quintillion. Misty has to rebuild that set every move inside a few seconds, and a heavy fog can blow it up faster than any time budget can keep up with.',
+          },
+          {
+            kind: 'paragraph',
+            text:
+              'The second is picking a move over that set. Scoring one move means weighing it across thousands or millions of boards at once, and the obvious way to do that, averaging the outcomes, quietly buries disasters. A move that loses the king on 2% of boards barely moves the average, but it costs you 2% of your games outright. Reasoning well over a distribution of boards, rather than a single board, is most of what the engine does.',
           },
         ],
       },
       {
         heading: 'Where it stands',
+        // HELD pending the 20-game human benchmark. The benchmark runs against a
+        // RE-FROZEN strongest config (king-safety fix landed), not the current
+        // king-hanging default — don't anchor strength on lines where it hangs its
+        // king early. Finalize wording/numbers after the match; aim to imply
+        // Obscuro-class play without claiming parity. Article release blocked on this.
         blocks: [
           {
             kind: 'paragraph',
             text:
-              "Against our previous baseline, the shipped config wins 30-0-0 in self-play. That's a relative-improvement number, not a strength rating. The real test is humans, and that is the part we are running now: a batch of serious games at a known rating, analyzed move by move for style, blunders, and the positions where belief breaks down. Results to come.",
+              "As of mid-2026, Misty plays the strongest Fog of War chess we've seen. We're benchmarking it now against serious human play to pin down how strong; until then, this is our own read, not a rating.",
+          },
+        ],
+      },
+      {
+        heading: "What's next",
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "The architecture isn't chess-specific. The same machinery already plays a second game, Dark Mini Xiangqi, and we're bringing it to Mistboard next. Other hidden-information games are mostly a matter of wiring up the rules.",
           },
         ],
       },
@@ -2995,14 +3010,28 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              "Misty 1.0 is live on Mistboard. Play it, and you're helping benchmark it: every serious game is a data point on where a Fog of War engine guided by the state of the art actually plays.",
+              "Misty is live on Mistboard, and every serious game against it sharpens that estimate. Play one, and you're part of the benchmark.",
           },
           {
             kind: 'cta',
             buttons: [
-              { label: 'Play Misty 1.0', href: '/?play=computer', emphasis: 'primary' },
+              { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
               { label: 'All articles', href: '/articles', emphasis: 'secondary' },
             ],
+          },
+        ],
+      },
+      {
+        heading: 'For engine builders',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              "If you build Fog of War engines, I'd like to play yours against Misty. There's almost no public head-to-head data between engines for this variant, and engine-vs-engine games are the cleanest way to see where any of them stand. Get in touch and we'll set up a match.",
+          },
+          {
+            kind: 'cta',
+            buttons: [{ label: 'Get in touch', href: '/contact', emphasis: 'secondary' }],
           },
         ],
       },
@@ -3012,7 +3041,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Obscuro (Zhang & Sandholm, ICLR 2026). The academic neighbor is Reconnaissance Blind Chess, whose engine lineage runs StrangeFish (CMU, 2018), ReBeL (FAIR, 2020), Penumbra (Georgia Tech), and Obscuro (CMU, 2026).',
+              '[Obscuro (Zhang & Sandholm, ICLR 2026)](https://arxiv.org/abs/2506.01242). The academic neighbor is Reconnaissance Blind Chess, whose engine lineage runs StrangeFish (CMU, 2018), ReBeL (FAIR, 2020), Penumbra (Georgia Tech), and Obscuro (CMU, 2026).',
           },
         ],
       },
