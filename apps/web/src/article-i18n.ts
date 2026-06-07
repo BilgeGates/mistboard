@@ -26,8 +26,11 @@ export const ARTICLE_LANG_PREFIX: Record<ArticleLang, string> = {
 const ZH_HANS: Record<string, string> = {
   // title + summary
   'Dark Chess (Fog of War) Rules': '迷雾国际象棋规则',
-  'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.':
-    '每一方只能看到己方棋子合法可及的范围。吃掉国王即终局，而非将死。其余一切与普通国际象棋相同。',
+  'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.':
+    '战争迷雾下的国际象棋：每一方只能看到己方棋子可及的格子，没有将军提示，王被吃掉即负。',
+  'Is dark chess the same as fog of war chess?': '迷雾国际象棋和「暗棋」是同一种游戏吗？',
+  'Yes. "Dark chess" and "fog of war chess" are two names for this same variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [banqi](https://en.wikipedia.org/wiki/Banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
+    '不是。迷雾国际象棋（英文 dark chess / fog of war chess）是隐藏信息的国际象棋：你只能看到己方棋子可及的格子。它有时会和[暗棋](https://en.wikipedia.org/wiki/Banqi)（一种将象棋棋子翻面的中国游戏）混淆，但两者是不同的游戏。',
   'Dark Chess Concepts': '迷雾国际象棋概念',
   'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.':
     '迷雾国际象棋的策略概念：在理解规则之后，学习如何解读迷雾格、兵的信号、消失的走法和吃子线索。',
@@ -89,8 +92,8 @@ const ZH_HANS: Record<string, string> = {
     '迷雾国际象棋中的推理通常是缩小问题，而不是一次性解开答案。一旦隐藏的象、车、后或兵吃子变得可信，实际问题就是：如果这种可能性是真的，你下一步是否仍然成立。',
   'That habit is the bridge from rules to strategy: read the fog, name the dangerous possibilities, and defend against the ones that can end the game.':
     '这个习惯就是从规则走向策略的桥梁：读懂迷雾，说出危险的可能性，并防住那些会直接结束对局的可能。',
-  "Here is a complete engine game, shown from both player views and the server's full position.":
-    '下面是一盘完整的引擎对局，同时展示双方视野和服务器上的完整局面。',
+  "Here is a complete game between Mistboard's engine and a human, shown from both player views and the server's full position.":
+    '下面是一盘 Mistboard 引擎对阵真人的完整对局，同时展示双方视野和服务器上的完整局面。',
   'A realistic 41-move game between two decent players.': '一盘两位尚有水平的棋手之间、贴近实战的 41 回合对局。',
   'Open a board, share the link, play. No account required.': '开一局棋，分享链接，开始对弈。无需注册账号。',
   'The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard\'s servers run in production.':
@@ -183,13 +186,18 @@ const ZH_HANS: Record<string, string> = {
   // -- Dark Xiangqi --
   // title + summary
   'Dark Xiangqi': '迷雾象棋',
+  'Xiangqi under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
+    '战争迷雾下的象棋：每一方只能看到己方棋子可及的范围，隐藏的阻挡子至关重要，将帅由被吃而落败。',
+  'Dark Xiangqi is a future variant, not playable yet. There is no set release date.':
+    '迷雾象棋是一个未来的变体，目前尚不可对弈，也没有确定的发布日期。',
+  'Back to all rules': '返回全部规则',
   'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.':
     '为这门古老的棋类加上现代的迷雾：每一方只能看到己方棋子可及的范围，没有将军提示，将帅由被吃而落败。',
   // intro
-  'Dark Xiangqi is the modern Fog of War version of [xiangqi](/rules/xiangqi): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
-    '迷雾象棋是[象棋](/rules/xiangqi)的现代「战争迷雾」版本：棋子按标准象棋规则走动，而看不见的敌方棋子保持隐藏、危险也不会被告知。擒获将帅即获胜。',
-  'If xiangqi is new to you, start with the [Xiangqi Rules Primer](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
-    '如果你刚接触象棋，请先从[象棋规则入门](/rules/xiangqi)开始。如果你已经会下象棋，下面各节只讲解迷雾改变了什么。',
+  'Dark Xiangqi is the modern Fog of War version of [xiangqi](/rules/xiangqi): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
+    '迷雾象棋是[象棋](/rules/xiangqi)的现代「战争迷雾」版本：棋子保留象棋的走法，而看不见的敌方棋子保持隐藏、危险也不会被告知。擒获将帅即获胜。',
+  'If xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
+    '如果你刚接触象棋，请先从[象棋规则](/rules/xiangqi)开始。如果你已经会下象棋，下面各节只讲解迷雾改变了什么。',
   // section headings
   'Win condition: general capture': '胜负条件：擒获将帅',
   'Play status': '对弈状态',
@@ -199,18 +207,18 @@ const ZH_HANS: Record<string, string> = {
   'Horse legs': '蹩马腿',
   'Elephant eyes': '塞象眼',
   // paragraphs
-  'At the start, you see your own pieces and every legal destination they control. Everything else is fog.':
-    '开局时，你能看到己方棋子以及它们所控制的每一个合法落点。其余一切都是迷雾。',
-  'Vision is recomputed from the true position after every move, so hidden blockers, cannon screens, and newly opened lines immediately change what you know.':
-    '每走一步之后，视野都会根据真实局面重新计算，因此隐藏的阻挡子、炮架，以及新打开的线路都会立刻改变你所掌握的信息。',
-  'Capture the general to win. Checks and checkmates are not announced.':
-    '擒获将帅即获胜。将军与将死都不会被告知。',
-  'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. No stalemate draws.':
-    '对局会在三次重复局面，以及连续 60 个半回合无吃子时自动判和。两者都依据真实局面判断，而非任何一方各自的视野。不存在困毙判和。',
+  'At the start, you see your own pieces and every legal destination they control. Everything else is fog. Your opponent sees a different board from the same true position.':
+    '开局时，你能看到己方棋子以及它们所控制的每一个合法落点。其余一切都是迷雾。你的对手会从同一个真实局面看到一张不同的棋盘。',
+  'Vision is recomputed from the true position after every move, so hidden blockers, cannon screens, horse legs, elephant eyes, and newly opened lines immediately change what you know.':
+    '每走一步之后，视野都会根据真实局面重新计算，因此隐藏的阻挡子、炮架、马腿、象眼，以及新打开的线路都会立刻改变你所掌握的信息。',
+  'Capture the general to win. Checks and checkmates are not announced, and the server does not warn a player who has moved into danger.':
+    '擒获将帅即获胜。将军与将死都不会被告知，并且当一方走入危险时，服务器也不会发出警告。',
+  'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. There is no stalemate draw: if the side to move has no legal move, it loses, and with no check to freeze you, this almost never happens.':
+    '对局会在三次重复局面，以及连续 60 个半回合无吃子时自动判和。两者都依据真实局面判断，而非任何一方各自的视野。这里没有困毙判和：若轮到走子的一方没有合法着法，则判负；而由于没有将军来限制你，这种情况几乎不会发生。',
   'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as unknown occupancy.':
     '炮（砲）不吃子时走法与车相同。吃子时，它正好越过一个炮架，落在其后的第一枚敌方棋子上。在迷雾下，目标可见且会被标记，而炮架则显示为未知的占据状态。',
-  'Orthodox xiangqi forbids facing generals. Dark Xiangqi allows the position; if one general sees the other on a clear file, it can capture.':
-    '正统象棋禁止将帅对脸。迷雾象棋允许这种局面；如果一方的将帅在一条无遮挡的纵线上看到了对方将帅，便可以将其吃掉。',
+  'Orthodox xiangqi forbids facing generals. Dark Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.':
+    '正统象棋禁止将帅对脸。迷雾象棋允许这种局面；如果一方的将帅在一条无遮挡的纵线上看到了对方将帅，便可以沿该纵线将其吃掉。',
   'A horse can move only when the adjacent leg square is clear. If a hidden piece blocks that leg, the destination disappears from your visible set and the leg square appears as a ? marker.':
     '只有当相邻的马腿位置空着时，马才能走动。如果有一枚隐藏的棋子蹩住了那条马腿，落点就会从你的可见集合中消失，而马腿位置则显示为一个「?」标记。',
   'An elephant moves two points diagonally and cannot cross the river. If a hidden piece sits on the midpoint eye, the diagonal destination disappears and the eye square appears as a ? marker.':
@@ -221,8 +229,11 @@ const ZH_HANS: Record<string, string> = {
 
 const ZH_HANT: Record<string, string> = {
   'Dark Chess (Fog of War) Rules': '迷霧國際象棋規則',
-  'A side sees only what its pieces can legally see. King capture ends the game, not checkmate. Everything else is regular chess.':
-    '每一方只能看到己方棋子合法可及的範圍。吃掉國王即終局，而非將死。其餘一切與普通國際象棋相同。',
+  'Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.':
+    '戰爭迷霧下的國際象棋：每一方只能看到己方棋子可及的格子，沒有將軍提示，王被吃掉即負。',
+  'Is dark chess the same as fog of war chess?': '迷霧國際象棋和「暗棋」是同一種遊戲嗎？',
+  'Yes. "Dark chess" and "fog of war chess" are two names for this same variant: hidden-information chess where you see only the squares your pieces reach. It is sometimes confused with [banqi](https://en.wikipedia.org/wiki/Banqi), the Chinese game also nicknamed "dark chess," which plays with xiangqi pieces turned face-down. That is a different game.':
+    '不是。迷霧國際象棋（英文 dark chess / fog of war chess）是隱藏資訊的國際象棋：你只能看到己方棋子可及的格子。它有時會和[暗棋](https://en.wikipedia.org/wiki/Banqi)（一種將象棋棋子翻面的中國遊戲）混淆，但兩者是不同的遊戲。',
   'Dark Chess Concepts': '迷霧國際象棋概念',
   'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.':
     '迷霧國際象棋的策略概念：在理解規則之後，學習如何解讀迷霧格、兵的訊號、消失的走法和吃子線索。',
@@ -281,8 +292,8 @@ const ZH_HANT: Record<string, string> = {
     '迷霧國際象棋中的推理通常是縮小問題，而不是一次性解開答案。一旦隱藏的象、車、后或兵吃子變得可信，實際問題就是：如果這種可能性是真的，你下一步是否仍然成立。',
   'That habit is the bridge from rules to strategy: read the fog, name the dangerous possibilities, and defend against the ones that can end the game.':
     '這個習慣就是從規則走向策略的橋樑：讀懂迷霧，說出危險的可能性，並防住那些會直接結束對局的可能。',
-  "Here is a complete engine game, shown from both player views and the server's full position.":
-    '下面是一盤完整的引擎對局，同時展示雙方視野和伺服器上的完整局面。',
+  "Here is a complete game between Mistboard's engine and a human, shown from both player views and the server's full position.":
+    '下面是一盤 Mistboard 引擎對陣真人的完整對局，同時展示雙方視野和伺服器上的完整局面。',
   'A realistic 41-move game between two decent players.': '一盤兩位尚有水平的棋手之間、貼近實戰的 41 回合對局。',
   'Open a board, share the link, play. No account required.': '開一局棋，分享連結，開始對弈。無需註冊帳號。',
   'The full source is AGPL-3.0. The visibility logic that powers every position in this article is the same code path Mistboard\'s servers run in production.':
@@ -373,13 +384,18 @@ const ZH_HANT: Record<string, string> = {
   // -- Dark Xiangqi --
   // title + summary
   'Dark Xiangqi': '迷霧象棋',
+  'Xiangqi under Fog of War: each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
+    '戰爭迷霧下的象棋：每一方只能看到己方棋子可及的範圍，隱藏的阻擋子至關重要，將帥由被吃而落敗。',
+  'Dark Xiangqi is a future variant, not playable yet. There is no set release date.':
+    '迷霧象棋是一個未來的變體，目前尚不可對弈，也沒有確定的發布日期。',
+  'Back to all rules': '返回全部規則',
   'The ancient game with modern fog: each side sees only what its pieces can reach, no check warnings, and the general falls by capture.':
     '為這門古老的棋類加上現代的迷霧：每一方只能看到己方棋子可及的範圍，沒有將軍提示，將帥由被吃而落敗。',
   // intro
-  'Dark Xiangqi is the modern Fog of War version of [xiangqi](/rules/xiangqi): pieces move by standard xiangqi rules, while unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
-    '迷霧象棋是[象棋](/rules/xiangqi)的現代「戰爭迷霧」版本：棋子按標準象棋規則走動，而看不見的敵方棋子保持隱藏、危險也不會被告知。擒獲將帥即獲勝。',
-  'If xiangqi is new to you, start with the [Xiangqi Rules Primer](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
-    '如果你剛接觸象棋，請先從[象棋規則入門](/rules/xiangqi)開始。如果你已經會下象棋，下面各節只講解迷霧改變了什麼。',
+  'Dark Xiangqi is the modern Fog of War version of [xiangqi](/rules/xiangqi): pieces keep their xiangqi movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
+    '迷霧象棋是[象棋](/rules/xiangqi)的現代「戰爭迷霧」版本：棋子保留象棋的走法，而看不見的敵方棋子保持隱藏、危險也不會被告知。擒獲將帥即獲勝。',
+  'If xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.':
+    '如果你剛接觸象棋，請先從[象棋規則](/rules/xiangqi)開始。如果你已經會下象棋，下面各節只講解迷霧改變了什麼。',
   // section headings
   'Win condition: general capture': '勝負條件：擒獲將帥',
   'Play status': '對弈狀態',
@@ -389,18 +405,18 @@ const ZH_HANT: Record<string, string> = {
   'Horse legs': '蹩馬腿',
   'Elephant eyes': '塞象眼',
   // paragraphs
-  'At the start, you see your own pieces and every legal destination they control. Everything else is fog.':
-    '開局時，你能看到己方棋子以及它們所控制的每一個合法落點。其餘一切都是迷霧。',
-  'Vision is recomputed from the true position after every move, so hidden blockers, cannon screens, and newly opened lines immediately change what you know.':
-    '每走一步之後，視野都會根據真實局面重新計算，因此隱藏的阻擋子、炮架，以及新打開的線路都會立刻改變你所掌握的資訊。',
-  'Capture the general to win. Checks and checkmates are not announced.':
-    '擒獲將帥即獲勝。將軍與將死都不會被告知。',
-  'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. No stalemate draws.':
-    '對局會在三次重複局面，以及連續 60 個半回合無吃子時自動判和。兩者都依據真實局面判斷，而非任何一方各自的視野。不存在困斃判和。',
+  'At the start, you see your own pieces and every legal destination they control. Everything else is fog. Your opponent sees a different board from the same true position.':
+    '開局時，你能看到己方棋子以及它們所控制的每一個合法落點。其餘一切都是迷霧。你的對手會從同一個真實局面看到一張不同的棋盤。',
+  'Vision is recomputed from the true position after every move, so hidden blockers, cannon screens, horse legs, elephant eyes, and newly opened lines immediately change what you know.':
+    '每走一步之後，視野都會根據真實局面重新計算，因此隱藏的阻擋子、炮架、馬腿、象眼，以及新打開的線路都會立刻改變你所掌握的資訊。',
+  'Capture the general to win. Checks and checkmates are not announced, and the server does not warn a player who has moved into danger.':
+    '擒獲將帥即獲勝。將軍與將死都不會被告知，並且當一方走入危險時，伺服器也不會發出警告。',
+  'Games auto-draw on threefold repetition and after 60 plies with no capture. Both are judged from the true position, not either player\'s view. There is no stalemate draw: if the side to move has no legal move, it loses, and with no check to freeze you, this almost never happens.':
+    '對局會在三次重複局面，以及連續 60 個半回合無吃子時自動判和。兩者都依據真實局面判斷，而非任何一方各自的視野。這裡沒有困斃判和：若輪到走子的一方沒有合法著法，則判負；而由於沒有將軍來限制你，這種情況幾乎不會發生。',
   'A cannon moves like a chariot when it is not capturing. To capture, it jumps exactly one screen and lands on the first enemy piece beyond it. Under fog, the target is visible and marked, while the screen appears as unknown occupancy.':
     '炮（砲）不吃子時走法與車相同。吃子時，牠正好越過一個炮架，落在其後的第一枚敵方棋子上。在迷霧下，目標可見且會被標記，而炮架則顯示為未知的佔據狀態。',
-  'Orthodox xiangqi forbids facing generals. Dark Xiangqi allows the position; if one general sees the other on a clear file, it can capture.':
-    '正統象棋禁止將帥對臉。迷霧象棋允許這種局面；如果一方的將帥在一條無遮擋的縱線上看到了對方將帥，便可以將其吃掉。',
+  'Orthodox xiangqi forbids facing generals. Dark Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.':
+    '正統象棋禁止將帥對臉。迷霧象棋允許這種局面；如果一方的將帥在一條無遮擋的縱線上看到了對方將帥，便可以沿該縱線將其吃掉。',
   'A horse can move only when the adjacent leg square is clear. If a hidden piece blocks that leg, the destination disappears from your visible set and the leg square appears as a ? marker.':
     '只有當相鄰的馬腿位置空著時，馬才能走動。如果有一枚隱藏的棋子蹩住了那條馬腿，落點就會從你的可見集合中消失，而馬腿位置則顯示為一個「?」標記。',
   'An elephant moves two points diagonally and cannot cross the river. If a hidden piece sits on the midpoint eye, the diagonal destination disappears and the eye square appears as a ? marker.':
@@ -438,4 +454,11 @@ export function translateArticle(article: Article, lang: ArticleLang): Article {
 // dictionary key fails the build instead of silently rendering English.
 export function hasTranslation(lang: ArticleLang, text: string): boolean {
   return Object.prototype.hasOwnProperty.call(ARTICLE_DICTS[lang], text);
+}
+
+// Every authored dictionary key for `lang`. The coverage reporter uses this to
+// flag orphaned keys: entries that no longer match any current article string
+// (the residue of an English edit that left a stale translation behind).
+export function translationKeys(lang: ArticleLang): string[] {
+  return Object.keys(ARTICLE_DICTS[lang]);
 }

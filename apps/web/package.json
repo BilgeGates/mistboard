@@ -10,7 +10,8 @@
     "test": "node scripts/learn-interface-smoke.mjs",
     "test:dark-xiangqi:persistent": "node scripts/dark-xiangqi-persistent-smoke.mjs",
     "test:unit": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "i18n:coverage": "node scripts/i18n-coverage.mjs"
   },
   "dependencies": {
     "@mistboard/game": "0.0.0",
