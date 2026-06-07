@@ -32,6 +32,7 @@ import {
 } from './articles-data.js';
 import { type ChessReplayController, mountChessReplay } from './chess-replay.js';
 import { type DualChessReplayController, mountDualChessReplay } from './dual-chess-replay.js';
+import { darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 import { type MiniXiangqiReplayController, mountMiniXiangqiReplay } from './mini-xiangqi-replay.js';
 import { readStoredXiangqiPieceSet, xiangqiAppearanceChangedEvent } from './theme.js';
 import type { XiangqiPieceSet } from './xiangqi-piece-sets.js';
@@ -52,6 +53,20 @@ export type ChromeNodes = {
 function isArticleVisibleInThisEnv(article: Article): boolean {
   if (article.status === 'published') return true;
   return import.meta.env.DEV;
+}
+
+const DARK_MINI_XIANGQI_PRELAUNCH_RULE_SLUGS = new Set(['mini-xiangqi', 'dark-mini-xiangqi']);
+
+function isArticleListedInThisEnv(article: Article): boolean {
+  if (!isArticleVisibleInThisEnv(article)) return false;
+  if (article.showInIndex === false) return false;
+  if (
+    DARK_MINI_XIANGQI_PRELAUNCH_RULE_SLUGS.has(article.slug) &&
+    !darkMiniXiangqiPublicEntryEnabled()
+  ) {
+    return false;
+  }
+  return true;
 }
 
 const ARTICLE_INDEX_COPY: Record<
@@ -121,8 +136,7 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
 
   for (const article of articles) {
     if (article.kind !== kind) continue;
-    if (!isArticleVisibleInThisEnv(article)) continue;
-    if (article.showInIndex === false) continue;
+    if (!isArticleListedInThisEnv(article)) continue;
     list.append(articleCard(lang ? translateArticle(article, lang) : article, lang));
   }
 
@@ -137,9 +151,7 @@ function buildContentIndex(kind: Article['kind'], lang?: ArticleLang): HTMLEleme
 // mountArticleThumbnails pass; rotation is started by initLandingCarousel once
 // the section is in the document (it needs measured widths).
 export function buildHomeArticleCards(limit = 8): HTMLElement | null {
-  const eligible = articles.filter(
-    (article) => isArticleVisibleInThisEnv(article) && article.showInIndex !== false,
-  );
+  const eligible = articles.filter(isArticleListedInThisEnv);
   // Articles first (the featured long-form), then the rules guides — enough
   // cards that the row has something to actually rotate through.
   const ordered = [
