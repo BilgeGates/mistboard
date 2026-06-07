@@ -11,6 +11,14 @@ function caption(block: { caption?: string }): string[] {
   return block.caption ? [block.caption] : [];
 }
 
+// Stepper step narratives that are pure move notation ("1. c1→b2", "R@c3",
+// "d3→d1+") are language-neutral and excluded from translation coverage, the
+// same way board labels baked into specs are. Real narrative ("Starting
+// position", explanatory text) never contains a move arrow or drop marker.
+function isMoveNotation(text: string): boolean {
+  return /[→@]/.test(text);
+}
+
 // Each block kind declares the prose it contributes. The mapped type is
 // exhaustive over ArticleBlock['kind'], so adding a new block kind is a compile
 // error here until someone decides what prose (if any) it carries.
@@ -26,7 +34,10 @@ const BLOCK_PROSE: {
   'raw-svg': caption,
   'raw-svg-stepper': (b) => [
     ...caption(b),
-    ...b.steps.map((step) => step.narrative).filter((n): n is string => Boolean(n)),
+    ...b.steps.flatMap((step) => {
+      const n = step.narrative;
+      return n && !isMoveNotation(n) ? [n] : [];
+    }),
   ],
   'xq-replay': caption,
   'mxq-replay': caption,
