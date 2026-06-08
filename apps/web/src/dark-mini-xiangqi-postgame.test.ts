@@ -36,6 +36,7 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Play again');
+    expect(root.textContent).toContain('Guest');
     const download = root.querySelector<HTMLAnchorElement>(
       'a[href="/api/dark-mini-xiangqi/games/dmxq_postgame/export.json"]',
     );
@@ -63,6 +64,10 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(root.querySelectorAll('.mini-xq-board')).toHaveLength(3);
     root.querySelector<HTMLButtonElement>('[aria-label="Previous move"]')?.click();
     expect(root.textContent).toContain('ply 1 of 2');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+    expect(root.textContent).toContain('ply 0 of 2');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    expect(root.textContent).toContain('ply 2 of 2');
   });
 });
 

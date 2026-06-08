@@ -308,7 +308,7 @@ function formatJoinedDate(value: string | undefined): string | null {
   return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date);
 }
 
-function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement {
+export function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement {
   const section = document.createElement('section');
   section.className = 'profile-ratings';
 
@@ -316,11 +316,9 @@ function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement {
   heading.textContent = 'Rated';
   section.append(heading);
 
-  const variantsTouched = PROFILE_VARIANT_ORDER.filter((variant) =>
-    ratings.some((r) => r.variant === variant && r.totalGamesPlayed > 0),
-  );
+  const variantsShown = PROFILE_VARIANT_ORDER;
 
-  if (variantsTouched.length === 0) {
+  if (variantsShown.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'profile-ratings-empty';
     empty.textContent = 'No rated time controls played yet.';
@@ -342,7 +340,7 @@ function buildProfileRatings(ratings: ProfileBucketRating[]): HTMLElement {
     grid.append(th);
   }
 
-  for (const variant of variantsTouched) {
+  for (const variant of variantsShown) {
     const label = document.createElement('span');
     label.className = 'profile-ratings-variant';
     label.textContent = PROFILE_VARIANT_LABEL[variant];

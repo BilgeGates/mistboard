@@ -131,8 +131,8 @@ export async function darkMiniXiangqiPostgameForApi(
       variant: game.variant,
       mode: game.mode,
       // Red occupies the white/first slot, Black the second.
-      redName: game.whiteName,
-      blackName: game.blackName,
+      redName: participantDisplayName(game, 'red') ?? game.whiteName,
+      blackName: participantDisplayName(game, 'black') ?? game.blackName,
       result: game.result,
       termination: game.termination,
       plyCount: game.plyCount,
@@ -154,6 +154,18 @@ export async function darkMiniXiangqiPostgameForApi(
     history: darkMiniXiangqiPostgameHistory(events),
     clocks: darkMiniXiangqiPostgameClocks(events),
   };
+}
+
+function participantDisplayName(
+  game: Awaited<ReturnType<DarkMiniXiangqiPostgamePersistence['getGameSummary']>>,
+  color: MiniXiangqiColor,
+): string | null {
+  const legacyColor = color === 'red' ? 'white' : 'black';
+  return (
+    game?.participants?.find((participant) => participant.color === color)?.displayName ??
+    game?.participants?.find((participant) => participant.color === legacyColor)?.displayName ??
+    null
+  );
 }
 
 // Per-ply remaining time, indexed by ply. The move events do not snapshot the

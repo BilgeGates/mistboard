@@ -111,6 +111,37 @@ test('Dark Mini Xiangqi postgame builds a move-and-terminal timeline', async () 
   assert.equal(terminal && 'winner' in terminal ? terminal.winner : null, 'black');
 });
 
+test('Dark Mini Xiangqi postgame names seats from participants', async () => {
+  const payload = await darkMiniXiangqiPostgameForApi(
+    ROOM_ID,
+    deps(
+      gameRecord({
+        participants: [
+          {
+            color: 'red',
+            displayName: 'Guest',
+            subjectType: 'guest',
+            subjectId: null,
+            visibility: 'private',
+          },
+          {
+            color: 'black',
+            displayName: 'Misty (Dark Mini Xiangqi)',
+            subjectType: 'engine-version',
+            subjectId: 'python-dmx-v1.0',
+            visibility: 'private',
+          },
+        ],
+      }),
+      finishedResignationEvents(),
+    ),
+  );
+  assert.ok(payload);
+
+  assert.equal(payload.game.redName, 'Guest');
+  assert.equal(payload.game.blackName, 'Misty (Dark Mini Xiangqi)');
+});
+
 test('Dark Mini Xiangqi postgame exposes a per-ply history for every perspective', async () => {
   const payload = await darkMiniXiangqiPostgameForApi(
     ROOM_ID,

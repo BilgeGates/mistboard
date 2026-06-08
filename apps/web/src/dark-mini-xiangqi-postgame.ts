@@ -154,8 +154,8 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
   clock.textContent = timeControlLabel(postgame);
   header.meta.append(plies, sep, clock);
 
-  header.whiteCell.append(seatCell('Red'));
-  header.blackCell.append(seatCell('Black'));
+  header.whiteCell.append(seatCell(postgame.game.redName ?? 'Guest', 'Red'));
+  header.blackCell.append(seatCell(postgame.game.blackName ?? 'Guest', 'Black'));
 
   const flipBtn = headerAction('Flip');
   flipBtn.setAttribute('aria-label', 'Flip all boards');
@@ -254,7 +254,15 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
     (event) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return;
+      }
       if (event.key === 'f' || event.key === 'F') {
         event.preventDefault();
         flip();
@@ -264,6 +272,12 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
       } else if (event.key === 'ArrowRight') {
         event.preventDefault();
         jump(currentPly + 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        jump(0);
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        jump(maxPly);
       }
     },
     { signal },
@@ -284,12 +298,13 @@ function resultChipKind(result: string): 'white' | 'black' | 'draw' {
   return 'draw';
 }
 
-function seatCell(side: string): HTMLElement {
+function seatCell(name: string, side: string): HTMLElement {
   const row = document.createElement('div');
   row.className = 'replay-clock-row';
   const label = document.createElement('span');
   label.className = 'replay-clock-side';
-  label.textContent = side;
+  label.textContent = name;
+  label.title = side;
   row.append(label);
   return row;
 }
