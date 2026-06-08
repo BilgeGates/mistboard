@@ -43,6 +43,7 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(download?.textContent).toBe('Download JSON');
     expect(download?.getAttribute('download')).toBe('mistboard-dmxq_postgame.json');
     expect(root.textContent).toContain('Untimed');
+    expect(root.textContent).toContain('Rated');
     // Moves are grouped two plies per row, dark-chess style: number + red + black.
     expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1b1-b2b7-b6');
     expect(root.textContent).toContain('ply 2 of 2');
@@ -90,7 +91,7 @@ function postgameFixture() {
       plyCount: 2,
       startedAt: '2026-05-30T12:00:00.000Z',
       endedAt: '2026-05-30T12:05:00.000Z',
-      rated: false,
+      rated: true,
       visibility: 'private',
     },
     state: {

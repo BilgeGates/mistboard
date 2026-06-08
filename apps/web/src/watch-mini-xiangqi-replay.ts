@@ -373,7 +373,12 @@ export async function mountMiniXiangqiWatchReplay(
     sep.textContent = '·';
     const clock = document.createElement('span');
     clock.textContent = timeControlLabel(postgame);
-    header.meta.append(plies, sep, clock);
+    const sepRated = document.createElement('span');
+    sepRated.className = 'replay-game-header-sep';
+    sepRated.textContent = '·';
+    const rated = document.createElement('span');
+    rated.textContent = postgame.game.rated ? 'Rated' : 'Casual';
+    header.meta.append(plies, sep, clock, sepRated, rated);
     const redCell = seatCell(postgame.game.redName || 'Red');
     const blackCell = seatCell(postgame.game.blackName || 'Black');
     header.whiteCell.append(redCell.row);

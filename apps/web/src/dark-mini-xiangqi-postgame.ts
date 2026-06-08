@@ -147,12 +147,11 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
 
   const plies = document.createElement('span');
   plies.textContent = `${postgame.game.plyCount} plies`;
-  const sep = document.createElement('span');
-  sep.className = 'replay-game-header-sep';
-  sep.textContent = '·';
   const clock = document.createElement('span');
   clock.textContent = timeControlLabel(postgame);
-  header.meta.append(plies, sep, clock);
+  const rated = document.createElement('span');
+  rated.textContent = postgame.game.rated ? 'Rated' : 'Casual';
+  appendHeaderMeta(header.meta, [plies, clock, rated]);
 
   header.whiteCell.append(seatCell(postgame.game.redName ?? 'Guest', 'Red'));
   header.blackCell.append(seatCell(postgame.game.blackName ?? 'Guest', 'Black'));
@@ -327,6 +326,19 @@ function headerLink(label: string, href: string): HTMLAnchorElement {
 
 function exportJsonUrl(roomId: string): string {
   return `/api/dark-mini-xiangqi/games/${encodeURIComponent(roomId)}/export.json`;
+}
+
+function appendHeaderMeta(container: HTMLElement, items: HTMLElement[]): void {
+  container.replaceChildren();
+  items.forEach((item, index) => {
+    if (index > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'replay-game-header-sep';
+      sep.textContent = '·';
+      container.append(sep);
+    }
+    container.append(item);
+  });
 }
 
 // Builds the dark-chess-style move list: full-move rows with clickable red/black
