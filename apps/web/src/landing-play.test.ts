@@ -1,12 +1,21 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildLandingPlayPanel, maybeOpenPlayDeepLink } from './landing-play.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildLandingPlayPanel, maybeOpenPlayDeepLink, setRoomNavigator } from './landing-play.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 
 describe('landing play panel', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: memoryStorage(),
+    });
+  });
+
   afterEach(() => {
     document.body.replaceChildren();
     window.history.replaceState(null, '', '/');
+    window.localStorage.clear();
     setRatedModeEnabled(false);
+    setRoomNavigator(null);
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -72,6 +81,57 @@ describe('landing play panel', () => {
       preferredColor: 'random',
     });
     expect(window.location.pathname).toBe('/room/dark_home');
+  });
+
+  it('remembers start setup separately for engine, friend, and lobby entry points', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/sticky' });
+      if (String(input) === '/api/lobby' && init?.method === 'POST') {
+        return jsonResponse({ status: 'waiting', ticketId: 'sticky-ticket', pollAfterMs: 60_000 });
+      }
+      return jsonResponse({ requests: [] });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    setRoomNavigator(() => {});
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+    clickModalButton('1 + 1');
+    clickModalColor('Black');
+    clickModalButton('Start game');
+    await flushPromises();
+    document.querySelector('.landing-setup-overlay')?.remove();
+
+    openPlaySetup(panel, 'Challenge a friend');
+    expect(selectedModalTimeControl()).toBe('3 + 2');
+    expect(selectedModalColor()).toBe('Random');
+    clickModalColor('White');
+    clickModalButton('Create room');
+    await flushPromises();
+    document.querySelector('.landing-setup-overlay')?.remove();
+
+    openPlaySetup(panel, 'Find opponent');
+    expect(selectedModalTimeControl()).toBe('3 + 2');
+    expect(document.querySelector('.landing-color-label')).toBeNull();
+    clickModalButton('1 + 1');
+    clickModalButton('Find opponent');
+    await flushPromises();
+    document.querySelector('.landing-setup-overlay')?.remove();
+
+    openPlaySetup(panel, 'Play the engine');
+    expect(selectedModalTimeControl()).toBe('1 + 1');
+    expect(selectedModalColor()).toBe('Black');
+    document.querySelector('.landing-setup-overlay')?.remove();
+
+    openPlaySetup(panel, 'Challenge a friend');
+    expect(selectedModalTimeControl()).toBe('3 + 2');
+    expect(selectedModalColor()).toBe('White');
+    document.querySelector('.landing-setup-overlay')?.remove();
+
+    openPlaySetup(panel, 'Find opponent');
+    expect(selectedModalTimeControl()).toBe('1 + 1');
   });
 
   it('creates a timed Dark Mini Xiangqi room from the flagged challenge variant', async () => {
@@ -269,6 +329,36 @@ function openLobbySetup(panel: HTMLElement): void {
     ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 
+function openPlaySetup(panel: HTMLElement, label: string): void {
+  [...panel.querySelectorAll('button')]
+    .find((button) => button.textContent === label)
+    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function clickModalButton(label: string): void {
+  [...document.querySelectorAll<HTMLButtonElement>('.landing-setup-dialog button')]
+    .find((button) => button.textContent === label)
+    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function clickModalColor(label: string): void {
+  [...document.querySelectorAll<HTMLButtonElement>('.landing-color-option')]
+    .find((button) => button.querySelector('.landing-color-label')?.textContent === label)
+    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function selectedModalTimeControl(): string | undefined {
+  return [
+    ...document.querySelectorAll<HTMLButtonElement>('.landing-time-presets .selected'),
+  ][0]?.textContent?.trim();
+}
+
+function selectedModalColor(): string | undefined {
+  return document
+    .querySelector<HTMLButtonElement>('.landing-color-option.selected .landing-color-label')
+    ?.textContent?.trim();
+}
+
 function lobbyFetchSpy(): ReturnType<typeof vi.fn> {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
@@ -300,4 +390,22 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function memoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key: string) => values.get(key) ?? null,
+    key: (index: number) => [...values.keys()][index] ?? null,
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+  };
 }

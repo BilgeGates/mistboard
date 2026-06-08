@@ -29,10 +29,11 @@ type LandingPlayChoice = {
   engineId?: string;
   engines?: PlayableEngine[];
   initialGameSpecId?: LandingGameSpecId;
-  mode: 'lobby' | 'pvp' | 'pve';
+  mode: LandingPlayMode;
   ratedDisabled?: boolean;
   title: string;
 };
+type LandingPlayMode = 'lobby' | 'pvp' | 'pve';
 type LandingGameSpecId =
   | typeof DARK_CHESS_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
@@ -65,6 +66,14 @@ type LandingRoomSetup = {
     incrementMs: number;
   };
   preferredColor: LandingColorPreference;
+};
+type LandingSetupPreference = {
+  engineId?: string;
+  gameSpecId?: LandingGameSpecId;
+  preferredColor?: LandingColorPreference;
+  rated?: boolean;
+  startFormat?: LandingStartFormat;
+  timePresetId?: LandingTimePresetId;
 };
 type LobbyTicketResponse = {
   pollAfterMs?: number;
@@ -526,12 +535,16 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const existing = document.querySelector('.landing-setup-overlay');
   existing?.remove();
 
-  let startFormat: LandingStartFormat = 'standard';
-  let rated = !(choice.mode === 'pve' || choice.ratedDisabled);
-  let selectedGameSpecId: LandingGameSpecId = choice.initialGameSpecId ?? DARK_CHESS_SPEC_ID;
-  let selectedPreset: LandingTimePresetId = '3m2';
-  let selectedEngineId = choice.engineId;
-  let preferredColor: LandingColorPreference = loadStoredColorPreference();
+  const storedPreference = loadSetupPreference(choice.mode);
+  let startFormat: LandingStartFormat = storedPreference.startFormat ?? 'standard';
+  let rated =
+    choice.mode === 'pve' || choice.ratedDisabled ? false : (storedPreference.rated ?? true);
+  let selectedGameSpecId: LandingGameSpecId =
+    choice.initialGameSpecId ?? storedPreference.gameSpecId ?? DARK_CHESS_SPEC_ID;
+  let selectedPreset: LandingTimePresetId = storedPreference.timePresetId ?? '3m2';
+  let selectedEngineId = storedPreference.engineId ?? choice.engineId;
+  let preferredColor: LandingColorPreference =
+    storedPreference.preferredColor ?? loadStoredColorPreference();
   let syncGameSpecificSections = () => {};
   let syncVariantControls = () => {};
   let syncColorPreferenceControls = () => {};
@@ -709,6 +722,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       selectedPreset,
       preferredColor,
     );
+    storeSetupPreference(choice.mode, setup, selectedPreset, selectedEngineId);
     if (choice.mode === 'lobby') {
       cancelLobbyWait?.();
       // The empty-lobby "play the engine" offer is chess-only (no engine plays
@@ -760,7 +774,6 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
           () => preferredColor,
           (value) => {
             preferredColor = value;
-            storeColorPreference(value);
           },
           () => selectedGameSpecId,
           (sync) => {
@@ -771,7 +784,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   syncGameSpecificSections = () => {
     const capabilities = landingGameSpecCapabilities(selectedGameSpecId);
-    if (!capabilities.supportsStartFormat) {
+    if (!capabilities.supportsStartFormat || !draft960Selectable) {
       startFormat = 'standard';
     }
     if (!capabilities.supportsRated) {
@@ -915,6 +928,7 @@ function buildRatedToggleSection(
 }
 
 const COLOR_PREFERENCE_STORAGE_KEY = 'mistboard:setup:preferredColor';
+const SETUP_PREFERENCE_STORAGE_PREFIX = 'mistboard:setup:';
 
 function loadStoredColorPreference(): LandingColorPreference {
   try {
@@ -926,12 +940,72 @@ function loadStoredColorPreference(): LandingColorPreference {
   return 'random';
 }
 
-function storeColorPreference(value: LandingColorPreference): void {
+function setupPreferenceStorageKey(mode: LandingPlayMode): string {
+  return `${SETUP_PREFERENCE_STORAGE_PREFIX}${mode}`;
+}
+
+function loadSetupPreference(mode: LandingPlayMode): LandingSetupPreference {
   try {
-    window.localStorage.setItem(COLOR_PREFERENCE_STORAGE_KEY, value);
+    const raw = window.localStorage.getItem(setupPreferenceStorageKey(mode));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    return {
+      engineId: typeof parsed.engineId === 'string' ? parsed.engineId : undefined,
+      gameSpecId: normalizeStoredGameSpecId(parsed.gameSpecId),
+      preferredColor: normalizeStoredColorPreference(parsed.preferredColor),
+      rated: typeof parsed.rated === 'boolean' ? parsed.rated : undefined,
+      startFormat: normalizeStoredStartFormat(parsed.startFormat),
+      timePresetId: normalizeStoredTimePresetId(parsed.timePresetId),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function storeSetupPreference(
+  mode: LandingPlayMode,
+  setup: LandingRoomSetup,
+  timePresetId: LandingTimePresetId,
+  engineId?: string,
+): void {
+  const preference: LandingSetupPreference = {
+    gameSpecId: setup.gameSpecId,
+    rated: setup.rated,
+    startFormat: setup.startFormat,
+    timePresetId,
+  };
+  if (mode !== 'lobby') preference.preferredColor = setup.preferredColor;
+  if (mode === 'pve' && engineId) preference.engineId = engineId;
+  try {
+    window.localStorage.setItem(setupPreferenceStorageKey(mode), JSON.stringify(preference));
   } catch {
     // ignore
   }
+}
+
+function normalizeStoredGameSpecId(value: unknown): LandingGameSpecId | undefined {
+  if (value === DARK_CHESS_SPEC_ID) return DARK_CHESS_SPEC_ID;
+  if (value === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiPublicEntryEnabled()) {
+    return DARK_MINI_XIANGQI_SPEC_ID;
+  }
+  return undefined;
+}
+
+function normalizeStoredColorPreference(value: unknown): LandingColorPreference | undefined {
+  if (value === 'white' || value === 'red' || value === 'black' || value === 'random') return value;
+  return undefined;
+}
+
+function normalizeStoredStartFormat(value: unknown): LandingStartFormat | undefined {
+  if (value === 'standard' || value === 'draft960') return value;
+  return undefined;
+}
+
+function normalizeStoredTimePresetId(value: unknown): LandingTimePresetId | undefined {
+  return LANDING_TIME_PRESETS.some((preset) => preset.id === value)
+    ? (value as LandingTimePresetId)
+    : undefined;
 }
 
 function buildColorPreferenceSection(
