@@ -1,3 +1,8 @@
+import {
+  createInitialMiniXiangqiBoard,
+  type MiniXiangqiBoard,
+  type MiniXiangqiSquare,
+} from '@mistboard/game';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   darkMiniXiangqiPostgameApiUrl,
@@ -44,6 +49,7 @@ describe('Dark Mini Xiangqi postgame page', () => {
     expect(download?.getAttribute('download')).toBe('mistboard-dmxq_postgame.json');
     expect(root.textContent).toContain('Untimed');
     expect(root.textContent).toContain('Rated');
+    expect(root.querySelectorAll('[aria-label="black general"]').length).toBeGreaterThan(0);
     // Moves are grouped two plies per row, dark-chess style: number + red + black.
     expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1b1-b2b7-b6');
     expect(root.textContent).toContain('ply 2 of 2');
@@ -81,13 +87,17 @@ function boardWrap(root: HTMLElement, label: string): HTMLElement {
 }
 
 function postgameFixture() {
+  const initial = createInitialMiniXiangqiBoard();
+  const redMoved = movePiece(initial, 'b1', 'b2');
+  const finalBoard = movePiece(redMoved, 'b7', 'b6');
+  delete finalBoard.d7;
   return {
     game: {
       roomId: 'dmxq_postgame',
       variant: 'dark-mini-xiangqi',
       mode: 'pvp',
       result: 'red-wins',
-      termination: 'resignation',
+      termination: 'general-captured',
       plyCount: 2,
       startedAt: '2026-05-30T12:00:00.000Z',
       endedAt: '2026-05-30T12:05:00.000Z',
@@ -95,7 +105,7 @@ function postgameFixture() {
       visibility: 'private',
     },
     state: {
-      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      status: { type: 'finished', winner: 'red', reason: 'general-captured' },
       moveNumber: 2,
     },
     timeline: [
@@ -103,10 +113,7 @@ function postgameFixture() {
       { type: 'move-played', at: 3, color: 'black', move: { from: 'b7', to: 'b6' }, ply: 2 },
       { type: 'seat-resigned', at: 4, color: 'black', winner: 'red' },
     ],
-    view: truthView('dmxq_truth', {
-      b2: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
-      b6: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
-    }),
+    view: truthView('dmxq_truth', truthBoardEntries(finalBoard)),
     views: {
       red: {
         id: 'dmxq_red',
@@ -120,10 +127,7 @@ function postgameFixture() {
         status: { type: 'finished', winner: 'red', reason: 'resignation' },
         moveNumber: 2,
       },
-      truth: truthView('dmxq_truth_v', {
-        b2: { piece: { color: 'red', role: 'cannon' }, shrouded: false },
-        b6: { piece: { color: 'black', role: 'cannon' }, shrouded: false },
-      }),
+      truth: truthView('dmxq_truth_v', truthBoardEntries(finalBoard)),
       black: {
         id: 'dmxq_black',
         perspective: 'black',
@@ -143,8 +147,9 @@ function postgameFixture() {
         { ply: 2, view: seatView('dmxq_red_2', 'red', { b2: redCannon(), b6: blackShroud() }) },
       ],
       truth: [
-        { ply: 1, view: truthView('dmxq_truth_1', { b2: redCannon(), b7: blackCannon() }) },
-        { ply: 2, view: truthView('dmxq_truth_2', { b2: redCannon(), b6: blackCannon() }) },
+        { ply: 0, view: truthView('dmxq_truth_0', truthBoardEntries(initial)) },
+        { ply: 1, view: truthView('dmxq_truth_1', truthBoardEntries(redMoved)) },
+        { ply: 2, view: truthView('dmxq_truth_2', truthBoardEntries(finalBoard)) },
       ],
       black: [
         { ply: 1, view: seatView('dmxq_black_1', 'black', { b2: redShroud(), b7: blackCannon() }) },
@@ -152,6 +157,23 @@ function postgameFixture() {
       ],
     },
   };
+}
+
+function movePiece(
+  board: MiniXiangqiBoard,
+  from: MiniXiangqiSquare,
+  to: MiniXiangqiSquare,
+): MiniXiangqiBoard {
+  const next = { ...board };
+  next[to] = next[from];
+  delete next[from];
+  return next;
+}
+
+function truthBoardEntries(board: MiniXiangqiBoard): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(board).map(([square, piece]) => [square, { piece, shrouded: false }]),
+  );
 }
 
 function redCannon() {

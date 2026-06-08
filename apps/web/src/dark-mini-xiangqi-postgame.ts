@@ -12,6 +12,10 @@ import {
   installMiniXiangqiBoardStyles,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
+import {
+  miniXiangqiCapturesFromTruthView,
+  renderMiniXiangqiPaneCaptureSplit,
+} from './mini-xiangqi-captures.js';
 import { createPane } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
 import { createReplayMovesPanel } from './replay-moves-panel.js';
@@ -174,7 +178,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
     entry: { key: DarkMiniXiangqiPostgameViewKey; label: string; view: MiniXiangqiPlayerView };
   }> = [];
   for (const entry of entries) {
-    const pane = createPane(entry.label, paneKindFor(entry.key), false);
+    const pane = createPane(entry.label, paneKindFor(entry.key), true, 'split');
     boardTargets.push({ pane, entry });
     layout.append(pane.el);
   }
@@ -205,11 +209,15 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
     sync();
   };
   const sync = () => {
+    const captures = miniXiangqiCapturesFromTruthView(
+      postgameViewAtPly(postgame, 'truth', currentPly),
+    );
     for (const { pane, entry } of boardTargets) {
       const view = postgameViewAtPly(postgame, entry.key, currentPly) ?? entry.view;
       pane.boardEl.innerHTML = renderMiniXiangqiBoardSvg(view, boardOrientation, {
         showFog: entry.key !== 'truth',
       });
+      renderMiniXiangqiPaneCaptureSplit(pane, captures, boardOrientation);
     }
     movesPanel.meta.textContent =
       moves.length === 0

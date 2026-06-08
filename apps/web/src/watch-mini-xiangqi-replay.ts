@@ -7,12 +7,7 @@
 // views (postgame `history`) rather than recomputing client-side keeps it
 // leak-safe. The shared viewer is a candidate to extract once a third variant
 // (Crossroads) needs watch; until then it stays a parallel tenant.
-import {
-  createInitialMiniXiangqiBoard,
-  type MiniXiangqiColor,
-  type MiniXiangqiPieceRole,
-  type MiniXiangqiPlayerView,
-} from '@mistboard/game';
+import type { MiniXiangqiColor } from '@mistboard/game';
 import {
   type DarkMiniXiangqiPostgameResponse,
   type DarkMiniXiangqiPostgameViewKey,
@@ -23,9 +18,12 @@ import {
 } from './dark-mini-xiangqi-postgame.js';
 import {
   installMiniXiangqiBoardStyles,
-  miniXiangqiPieceGhostSvg,
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
+import {
+  miniXiangqiCapturesFromTruthView,
+  renderMiniXiangqiPaneCaptureSplit,
+} from './mini-xiangqi-captures.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
@@ -127,99 +125,6 @@ function controlButton(symbol: string, aria: string): HTMLButtonElement {
   return button;
 }
 
-// ── Captured pieces ─────────────────────────────────────────────────────────
-// Watch only shows finished games, so (like the dark-chess watch) captures are
-// computed from the truth board and shown on all three boards. No fog concern.
-const CAPTURE_ORDER: MiniXiangqiPieceRole[] = ['chariot', 'cannon', 'horse', 'soldier', 'general'];
-
-function rolesFromBoard(
-  board: Record<string, { color: MiniXiangqiColor; role: MiniXiangqiPieceRole }>,
-  color: MiniXiangqiColor,
-): MiniXiangqiPieceRole[] {
-  return Object.values(board)
-    .filter((piece) => piece.color === color)
-    .map((piece) => piece.role);
-}
-
-const INITIAL_BOARD = createInitialMiniXiangqiBoard();
-const INITIAL_RED = rolesFromBoard(INITIAL_BOARD, 'red');
-const INITIAL_BLACK = rolesFromBoard(INITIAL_BOARD, 'black');
-
-function truthRoles(
-  view: MiniXiangqiPlayerView | null,
-  color: MiniXiangqiColor,
-): MiniXiangqiPieceRole[] {
-  if (!view) return color === 'red' ? INITIAL_RED : INITIAL_BLACK;
-  const roles: MiniXiangqiPieceRole[] = [];
-  for (const entry of Object.values(view.board)) {
-    if ('piece' in entry && entry.piece.color === color) roles.push(entry.piece.role);
-  }
-  return roles;
-}
-
-// Pieces of `initial` no longer present in `current`, i.e. captured.
-function capturedRoles(
-  initial: MiniXiangqiPieceRole[],
-  current: MiniXiangqiPieceRole[],
-): MiniXiangqiPieceRole[] {
-  const remaining = new Map<MiniXiangqiPieceRole, number>();
-  for (const role of current) remaining.set(role, (remaining.get(role) ?? 0) + 1);
-  const out: MiniXiangqiPieceRole[] = [];
-  for (const role of initial) {
-    const left = remaining.get(role) ?? 0;
-    if (left > 0) remaining.set(role, left - 1);
-    else out.push(role);
-  }
-  return out;
-}
-
-type CaptureSet = Record<MiniXiangqiColor, MiniXiangqiPieceRole[]>;
-
-function capturesAtPly(postgame: DarkMiniXiangqiPostgameResponse, ply: number): CaptureSet {
-  const truth = postgameViewAtPly(postgame, 'truth', ply);
-  return {
-    // captures[color] = the opponent pieces `color` has captured.
-    red: capturedRoles(INITIAL_BLACK, truthRoles(truth, 'black')),
-    black: capturedRoles(INITIAL_RED, truthRoles(truth, 'red')),
-  };
-}
-
-function captureRow(roles: MiniXiangqiPieceRole[], color: MiniXiangqiColor): HTMLElement | null {
-  if (roles.length === 0) return null;
-  const row = document.createElement('div');
-  row.className = 'captures-row mini-xq-captures-row';
-  const sorted = [...roles].sort((a, b) => CAPTURE_ORDER.indexOf(a) - CAPTURE_ORDER.indexOf(b));
-  for (const role of sorted) {
-    const span = document.createElement('span');
-    span.className = 'mini-xq-capture-piece';
-    span.innerHTML = miniXiangqiPieceGhostSvg({ color, role });
-    row.append(span);
-  }
-  return row;
-}
-
-function setCaptures(
-  target: HTMLElement,
-  roles: MiniXiangqiPieceRole[],
-  color: MiniXiangqiColor,
-): void {
-  const row = captureRow(roles, color);
-  target.replaceChildren(...(row ? [row] : []));
-  target.classList.toggle('has-captures', roles.length > 0);
-}
-
-// Mirror renderSplitPaneCaptures: the bottom strip shows the bottom player's
-// trophies (opponent pieces), the top strip the opponent's.
-function renderPaneCaptureSplit(
-  pane: ReplayPaneHandle,
-  captures: CaptureSet,
-  bottomColor: MiniXiangqiColor,
-): void {
-  const topColor: MiniXiangqiColor = bottomColor === 'red' ? 'black' : 'red';
-  setCaptures(pane.topCapturesEl, captures[topColor], bottomColor);
-  setCaptures(pane.capturesEl, captures[bottomColor], topColor);
-}
-
 export async function mountMiniXiangqiWatchReplay(
   root: HTMLElement,
   roomId: string,
@@ -261,7 +166,9 @@ export async function mountMiniXiangqiWatchReplay(
 
   const sync = (): void => {
     if (!activePostgame || !controls) return;
-    const captures = capturesAtPly(activePostgame, currentPly);
+    const captures = miniXiangqiCapturesFromTruthView(
+      postgameViewAtPly(activePostgame, 'truth', currentPly),
+    );
     for (const target of boardTargets) {
       const entryView = postgameViewAtPly(activePostgame, target.key, currentPly);
       if (entryView) {
@@ -269,7 +176,7 @@ export async function mountMiniXiangqiWatchReplay(
           showFog: target.key !== 'truth',
         });
       }
-      renderPaneCaptureSplit(target.pane, captures, boardOrientation);
+      renderMiniXiangqiPaneCaptureSplit(target.pane, captures, boardOrientation);
     }
     const result = currentPly >= maxPly ? ` — ${resultLabel(activePostgame.game.result)}` : '';
     controls.plyLabel.textContent = `Ply ${currentPly} / ${maxPly}${result}`;
