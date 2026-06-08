@@ -1,5 +1,5 @@
 import type { GameEvent, PlayerView } from '@mistboard/game';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   initialOpponentMoveSoundForSnapshot,
   shouldDeferHiddenPveOpeningSound,
@@ -105,8 +105,16 @@ describe('opening opponent sound policy', () => {
 // both halves of that contract by exercising the real sound controller against a
 // fake AudioContext.
 describe('audio unlock and sticky activation', () => {
-  function installFakeAudio(): { oscillatorCount: () => number } {
+  beforeEach(() => {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: memoryStorage(),
+    });
+  });
+
+  function installFakeAudio(): { oscillatorCount: () => number; peakGain: () => number } {
     let count = 0;
+    const gainTargets: number[] = [];
     class FakeAudioContext {
       currentTime = 0;
       destination = {};
@@ -126,13 +134,18 @@ describe('audio unlock and sticky activation', () => {
       }
       createGain() {
         return {
-          gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+          gain: {
+            setValueAtTime() {},
+            exponentialRampToValueAtTime(value: number) {
+              gainTargets.push(value);
+            },
+          },
           connect: (node: unknown) => node,
         };
       }
     }
     (window as unknown as { AudioContext: unknown }).AudioContext = FakeAudioContext;
-    return { oscillatorCount: () => count };
+    return { oscillatorCount: () => count, peakGain: () => Math.max(0, ...gainTargets) };
   }
 
   function setUserActivation(hasBeenActive: boolean): void {
@@ -145,6 +158,7 @@ describe('audio unlock and sticky activation', () => {
   afterEach(() => {
     Reflect.deleteProperty(window as unknown as Record<string, unknown>, 'AudioContext');
     Reflect.deleteProperty(navigator as unknown as Record<string, unknown>, 'userActivation');
+    Reflect.deleteProperty(window as unknown as Record<string, unknown>, 'localStorage');
     vi.resetModules();
   });
 
@@ -158,6 +172,20 @@ describe('audio unlock and sticky activation', () => {
     mod.playSound('move');
 
     expect(audio.oscillatorCount()).toBeGreaterThan(0);
+  });
+
+  it('drives 100% volume with the louder master gain', async () => {
+    const audio = installFakeAudio();
+    setUserActivation(true);
+    window.localStorage.setItem('mistboard.soundVolume', '1');
+    window.localStorage.setItem('mistboard.soundMuted', 'false');
+    vi.resetModules();
+    const mod = await import('./live-sound.js');
+
+    mod.initLiveSound();
+    mod.playSound('move');
+
+    expect(audio.peakGain()).toBeCloseTo(0.4125);
   });
 
   it('stays locked on a cold load until the first gesture, then plays', async () => {
@@ -175,3 +203,17 @@ describe('audio unlock and sticky activation', () => {
     expect(audio.oscillatorCount()).toBeGreaterThan(0);
   });
 });
+
+function memoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => Array.from(values.keys())[index] ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, value),
+  };
+}
