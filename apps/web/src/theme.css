@@ -648,6 +648,22 @@
   color: var(--site-heading);
 }
 
+:root[data-effective-theme="dark"] .article-tldr {
+  border-left-color: var(--site-accent-strong);
+  background: color-mix(in srgb, var(--site-accent) 10%, var(--site-panel));
+  color: var(--site-text);
+}
+
+:root[data-effective-theme="dark"] .article-tldr-list {
+  color: var(--site-text);
+}
+
+:root[data-effective-theme="dark"] :is(.article-paragraph code, .article-tldr-list code) {
+  border-color: var(--site-border);
+  background: color-mix(in srgb, var(--site-panel-soft) 72%, var(--site-bg));
+  color: var(--site-heading);
+}
+
 /* Inline article links default to near-black body text, distinguished only by
    the underline. Mirror that relationship in dark mode (heading color, not
    accent) so links read as the strongest text against the muted prose. */

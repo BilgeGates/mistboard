@@ -7,6 +7,7 @@ import {
   type StepperController,
   type ThumbnailBoardController,
 } from '@mistboard/board-render/interactive';
+import type { Color, Square } from '@mistboard/game';
 import './articles.css';
 import { ARTICLE_LANG_PREFIX, type ArticleLang, translateArticle } from './article-i18n.js';
 import {
@@ -417,7 +418,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     tldrList.className = 'article-tldr-list';
     for (const line of article.tldr) {
       const li = document.createElement('li');
-      li.textContent = line;
+      appendRichText(li, line);
       tldrList.append(li);
     }
     tldr.append(tldrHeading, tldrList);
@@ -1013,23 +1014,27 @@ function paragraphNode(text: string): HTMLParagraphElement {
   return p;
 }
 
-// Lightweight inline parser. Recognizes Markdown-style [text](href) for
-// links and **text** for bold. External link hrefs (http/https) open in a
-// new tab; internal hrefs (/foo, #foo) do not. Anything that isn't a
-// recognized token is appended as a plain text node.
-const INLINE_REGEX = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)/g;
+// Lightweight inline parser. Recognizes Markdown-style `code`, [text](href) for
+// links, and **text** for bold. External link hrefs (http/https) open in a new
+// tab; internal hrefs (/foo, #foo) do not. Anything that isn't a recognized
+// token is appended as a plain text node.
+const INLINE_REGEX = /`([^`\n]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)]+)\)/g;
 function appendRichText(el: HTMLElement, text: string): void {
   let lastIndex = 0;
   for (const match of text.matchAll(INLINE_REGEX)) {
     const start = match.index ?? 0;
     if (start > lastIndex) el.append(text.slice(lastIndex, start));
     if (match[1] !== undefined) {
+      const code = document.createElement('code');
+      code.textContent = match[1];
+      el.append(code);
+    } else if (match[2] !== undefined) {
       const strong = document.createElement('strong');
-      strong.textContent = match[1];
+      strong.textContent = match[2];
       el.append(strong);
     } else {
-      const linkText = match[2]!;
-      const href = match[3]!;
+      const linkText = match[3]!;
+      const href = match[4]!;
       const a = document.createElement('a');
       a.href = href;
       a.textContent = linkText;
@@ -1267,16 +1272,62 @@ export function mountArticleThumbnails(root: HTMLElement): ThumbnailBoardControl
     const thumb = pendingThumbnails.get(host);
     if (!thumb) return;
     if (thumb.kind === 'svg' || thumb.kind === 'image') return;
+    const orientation = thumb.orientation ?? 'white';
+    const isSplitFog = Boolean(thumb.splitFogSquares);
+    const controller = mountThumbnailBoard(host, {
+      board: piecesToBoard(thumb.pieces),
+      fogSquares: thumb.splitFogSquares
+        ? splitFogSquaresForThumbnail(thumb.splitFogSquares, orientation)
+        : thumb.fogSquares,
+      orientation,
+    });
+    if (isSplitFog) markSplitFogDivider(host);
     controllers.push(
-      mountThumbnailBoard(host, {
-        board: piecesToBoard(thumb.pieces),
-        fogSquares: thumb.fogSquares,
-        orientation: thumb.orientation ?? 'white',
-      }),
+      isSplitFog
+        ? {
+            destroy(): void {
+              unmarkSplitFogDivider(host);
+              controller.destroy();
+            },
+          }
+        : controller,
     );
     pendingThumbnails.delete(host);
   });
   return controllers;
+}
+
+function markSplitFogDivider(host: HTMLElement): void {
+  host.querySelector<HTMLElement>('cg-container')?.classList.add('article-thumb-split-board');
+}
+
+function unmarkSplitFogDivider(host: HTMLElement): void {
+  host.querySelector<HTMLElement>('cg-container')?.classList.remove('article-thumb-split-board');
+}
+
+function splitFogSquaresForThumbnail(
+  fogSquares: { left: Square[]; right: Square[] },
+  orientation: Color,
+): Square[] {
+  const leftFog = new Set<Square>(fogSquares.left);
+  const rightFog = new Set<Square>(fogSquares.right);
+  const splitFog: Square[] = [];
+
+  for (let row = 0; row < 8; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      const square = squareFromVisualPosition(col, row, orientation);
+      const sideFog = col < 4 ? leftFog : rightFog;
+      if (sideFog.has(square)) splitFog.push(square);
+    }
+  }
+
+  return splitFog;
+}
+
+function squareFromVisualPosition(col: number, row: number, orientation: Color): Square {
+  const fileIdx = orientation === 'white' ? col : 7 - col;
+  const rankIdx = orientation === 'white' ? 7 - row : row;
+  return `${String.fromCharCode('a'.charCodeAt(0) + fileIdx)}${rankIdx + 1}` as Square;
 }
 
 function buildArticleNotFound(): HTMLElement {
