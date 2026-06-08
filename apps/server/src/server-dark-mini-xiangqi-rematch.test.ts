@@ -15,7 +15,10 @@ import {
   maybeReplayDarkMiniXiangqiRematchRedirect,
   offerDarkMiniXiangqiRematch,
 } from './server-dark-mini-xiangqi-rematch.js';
-import type { DarkMiniXiangqiLiveClient, DarkMiniXiangqiLiveRoom } from './server-ws-dark-mini-xiangqi.js';
+import type {
+  DarkMiniXiangqiLiveClient,
+  DarkMiniXiangqiLiveRoom,
+} from './server-ws-dark-mini-xiangqi.js';
 
 function makeRoom(id: string, status: 'playing' | 'finished'): DarkMiniXiangqiLiveRoom {
   return {
@@ -26,6 +29,7 @@ function makeRoom(id: string, status: 'playing' | 'finished'): DarkMiniXiangqiLi
     projection: {
       roomId: id,
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      rated: false,
       state: {
         id,
         board: {},
@@ -40,6 +44,7 @@ function makeRoom(id: string, status: 'playing' | 'finished'): DarkMiniXiangqiLi
       seats: { red: 'red-client', black: 'black-client' },
     },
     gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+    rated: false,
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
@@ -95,7 +100,11 @@ type Spy = {
   issueCalls: number;
 };
 
-function makeCtx(): { ctx: DarkMiniXiangqiRematchContext; spy: Spy; newRoom: DarkMiniXiangqiLiveRoom } {
+function makeCtx(): {
+  ctx: DarkMiniXiangqiRematchContext;
+  spy: Spy;
+  newRoom: DarkMiniXiangqiLiveRoom;
+} {
   const sent: Spy['sent'] = [];
   const spy: Spy = { sent, createCalls: 0, issueCalls: 0 };
   const newRoom = makeRoom('new-room', 'playing');

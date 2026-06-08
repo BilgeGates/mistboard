@@ -1,5 +1,10 @@
-import type { Color, TimeClass, XiangqiColor } from '@mistboard/game';
-import { TIME_CONTROLS } from '@mistboard/game';
+import {
+  type Color,
+  DARK_MINI_XIANGQI_SPEC_ID,
+  TIME_CONTROLS,
+  type TimeClass,
+  type XiangqiColor,
+} from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
 import { getPool } from './persistence-db.js';
 import type {
@@ -9,7 +14,11 @@ import type {
   GameVisibility,
 } from './persistence-game-lifecycle.js';
 import { bucketForGame } from './rating-buckets.js';
-import { applyRatedGameResult, type RatedResult } from './rating-store.js';
+import {
+  applyRatedGameResult,
+  type RatedParticipantColor,
+  type RatedResult,
+} from './rating-store.js';
 
 const MIN_TIMEOUT_SOURCE_PLY_COUNT = 10;
 const MIN_TV_PVP_PLY_COUNT = 30;
@@ -982,8 +991,9 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
         incrementMs: summary.incrementMs,
         hiddenDraft960: summary.hiddenDraft960,
       });
-      const whiteParticipant = participants.find((p) => p.color === 'white');
-      const blackParticipant = participants.find((p) => p.color === 'black');
+      const colors = ratedParticipantColorsForVariant(summary.variant);
+      const whiteParticipant = participants.find((p) => p.color === colors.white);
+      const blackParticipant = participants.find((p) => p.color === colors.black);
       if (
         bucket &&
         whiteParticipant?.subjectType === 'user' &&
@@ -996,8 +1006,9 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
           roomId,
           whiteParticipant.subjectId,
           blackParticipant.subjectId,
-          summary.result as RatedResult,
+          ratedResultForGame(summary.result),
           bucket,
+          colors,
         );
       }
     }
@@ -1008,6 +1019,21 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
   } finally {
     client.release();
   }
+}
+
+function ratedParticipantColorsForVariant(variant: string): {
+  white: RatedParticipantColor;
+  black: RatedParticipantColor;
+} {
+  return variant === DARK_MINI_XIANGQI_SPEC_ID
+    ? { white: 'red', black: 'black' }
+    : { white: 'white', black: 'black' };
+}
+
+function ratedResultForGame(result: GameResult): RatedResult {
+  if (result === 'red-wins') return 'white-wins';
+  if (result === 'white-wins' || result === 'black-wins' || result === 'draw') return result;
+  return 'draw';
 }
 
 export async function attachGameParticipants<T extends GameRecord>(records: T[]): Promise<T[]> {

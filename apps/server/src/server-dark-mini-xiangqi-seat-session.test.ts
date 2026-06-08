@@ -24,6 +24,14 @@ test('Dark Mini Xiangqi seat session assigns new anonymous seats red then black'
   assert.equal(black.ok && typeof black.seatToken, 'string');
 });
 
+test('Dark Mini Xiangqi seat session refuses guests in rated rooms', () => {
+  const room = seatRoom({ rated: true });
+
+  const assignment = assignDarkMiniXiangqiSeat(room, 'guest', undefined, null);
+
+  assert.deepEqual(assignment, { ok: false, reason: 'rated requires account' });
+});
+
 test('Dark Mini Xiangqi seat session honors creator color preference for first join', () => {
   const room = seatRoom({ creatorPreference: 'black' });
 
@@ -125,11 +133,13 @@ function seatRoom(
   opts: {
     clients?: TestSeatClient[];
     creatorPreference?: MiniXiangqiColor | 'random';
+    rated?: boolean;
     seatTokens?: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>>;
   } = {},
 ): DarkMiniXiangqiSeatRoom<TestSeatClient> {
   return {
     clients: new Set(opts.clients ?? []),
+    rated: opts.rated ?? false,
     projection: {
       ...(opts.creatorPreference ? { creatorPreference: opts.creatorPreference } : {}),
       seats: {},

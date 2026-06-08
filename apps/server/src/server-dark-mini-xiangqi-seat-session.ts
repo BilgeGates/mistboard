@@ -18,6 +18,7 @@ export type DarkMiniXiangqiSeatRoom<
     creatorPreference?: MiniXiangqiColor | 'random';
     seats: Partial<Record<MiniXiangqiColor, string>>;
   };
+  rated?: boolean;
   seatTokens: Partial<Record<MiniXiangqiColor, DarkMiniXiangqiSeatTokenState>>;
 };
 
@@ -30,7 +31,7 @@ export type DarkMiniXiangqiSeatAssignment =
       tokenState: DarkMiniXiangqiSeatTokenState;
       previousTokenState?: DarkMiniXiangqiSeatTokenState;
     }
-  | { ok: false; reason: 'private room' };
+  | { ok: false; reason: 'private room' | 'rated requires account' };
 
 export function assignDarkMiniXiangqiSeat(
   room: DarkMiniXiangqiSeatRoom,
@@ -84,6 +85,7 @@ export function assignDarkMiniXiangqiSeat(
   }
   const seat = nextAvailableSeat(room.projection.creatorPreference, occupiedSeats);
   if (!seat) return { ok: false, reason: 'private room' };
+  if (room.rated && !accountUser) return { ok: false, reason: 'rated requires account' };
 
   const seatToken = randomBytes(32).toString('base64url');
   const seatTokenHash = hashSeatToken(seatToken);

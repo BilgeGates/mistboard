@@ -210,7 +210,8 @@ const rematchOrch: RematchOrchestrator = {
 // a reconnecting player still re-attaches after a server restart.
 const darkMiniXiangqiRematchCtx: DarkMiniXiangqiRematchContext = {
   send: (client, payload) => sendDarkMiniXiangqiPayload(client, payload),
-  createRoom: (timeControl) => createDarkMiniXiangqiRoom(timeControl),
+  createRoom: (timeControl, rated) =>
+    createDarkMiniXiangqiRoom(timeControl, undefined, undefined, rated),
   buildRoomUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
   issueSeatToken: async (room, seat, identity) => {
     const minted = mintDarkMiniXiangqiSeatToken(room, seat, identity);
@@ -457,6 +458,7 @@ async function createDarkMiniXiangqiRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: DarkMiniXiangqiCreatorPreference,
   engine?: { engineId: string; seat: 'red' | 'black'; reservationId: string },
+  rated?: boolean,
 ): Promise<
   | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
   | {
@@ -476,6 +478,7 @@ async function createDarkMiniXiangqiRoom(
     timeControl,
     creatorPreference,
     engine,
+    rated,
   );
 }
 

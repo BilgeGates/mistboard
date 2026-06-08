@@ -25,9 +25,8 @@ export type DarkMiniXiangqiRematchContext = {
   send: (client: DarkMiniXiangqiLiveClient, payload: unknown) => void;
   createRoom: (
     timeControl: RoomTimeControl | undefined,
-  ) => Promise<
-    { ok: true; room: DarkMiniXiangqiRuntimeRoom } | { ok: false; error: string }
-  >;
+    rated: boolean,
+  ) => Promise<{ ok: true; room: DarkMiniXiangqiRuntimeRoom } | { ok: false; error: string }>;
   issueSeatToken: (
     room: DarkMiniXiangqiRuntimeRoom,
     seat: MiniXiangqiColor,
@@ -143,7 +142,7 @@ export async function finalizeDarkMiniXiangqiRematchIfReady(
     return null;
   }
 
-  const created = await ctx.createRoom(room.projection.timeControl);
+  const created = await ctx.createRoom(room.projection.timeControl, room.rated);
   if (!created.ok) return null;
   const newRoom = created.room;
 

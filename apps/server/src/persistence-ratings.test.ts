@@ -118,6 +118,92 @@ definePersistenceTests('ratings', () => {
     assert.ok((wp?.ratingAfter ?? 0) > 1500, 'summary exposes ratingAfter');
   });
 
+  test('rated Dark Mini Xiangqi PvP game rates red and black users in the DMX bucket', async () => {
+    const now = new Date();
+    await createUser({
+      id: 'user_dmx_red',
+      email: 'dmx-red@example.com',
+      emailVerifiedAt: now,
+      handle: 'dmxred',
+      displayName: 'DMX Red',
+      now,
+    });
+    await createUser({
+      id: 'user_dmx_black',
+      email: 'dmx-black@example.com',
+      emailVerifiedAt: now,
+      handle: 'dmxblack',
+      displayName: 'DMX Black',
+      now,
+    });
+
+    await recordGameEnd('rated-dmx-1', {
+      variant: 'dark-mini-xiangqi',
+      mode: 'pvp',
+      rated: true,
+      result: 'red-wins',
+      termination: 'general-captured',
+      plyCount: 17,
+      startedAt: now,
+      endedAt: now,
+      initialMs: 180000,
+      incrementMs: 2000,
+      whiteClient: null,
+      blackClient: null,
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+      participants: [
+        {
+          color: 'red',
+          displayName: 'DMX Red',
+          subjectType: 'user',
+          subjectId: 'user_dmx_red',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: 'DMX Black',
+          subjectType: 'user',
+          subjectId: 'user_dmx_black',
+          visibility: 'public',
+        },
+      ],
+      visibility: 'public',
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query<{
+        user_id: string;
+        elo_rating: number;
+        games_played: number;
+      }>(
+        `SELECT user_id, elo_rating, games_played
+         FROM user_ratings WHERE variant = 'dark_mini_xiangqi' AND time_class = 'blitz'`,
+      );
+      assert.equal(rows.length, 2, 'both DMX players got a rating row');
+      const red = rows.find((r) => r.user_id === 'user_dmx_red')!;
+      const black = rows.find((r) => r.user_id === 'user_dmx_black')!;
+      assert.ok(red.elo_rating > 1500, `red rating ${red.elo_rating}`);
+      assert.ok(black.elo_rating < 1500, `black rating ${black.elo_rating}`);
+      assert.equal(red.games_played, 1);
+
+      const { rows: parts } = await client.query<{
+        elo_before: number;
+        elo_after: number;
+      }>(
+        `SELECT elo_before, elo_after FROM game_participants
+         WHERE game_id = 'rated-dmx-1' AND color = 'red'`,
+      );
+      assert.equal(parts[0]!.elo_before, 1500);
+      assert.ok(parts[0]!.elo_after > 1500);
+    } finally {
+      await client.end();
+    }
+  });
+
   test('rated game rates on a forfeit (abandonment) termination', async () => {
     // Rating is termination-independent: any completed rated PvP game rates.
     // Forfeit (abandonment) is a real win, so it must move ratings like any other.
@@ -385,7 +471,10 @@ definePersistenceTests('ratings', () => {
     assert.equal(dmxRating?.eloRating, null);
     assert.equal(dmxRating?.ratedGamesPlayed, 0);
     assert.equal(dmxRating?.totalGamesPlayed, 1);
-    assert.equal(profile?.ratings.some((rating) => rating.variant === 'fog'), false);
+    assert.equal(
+      profile?.ratings.some((rating) => rating.variant === 'fog'),
+      false,
+    );
   });
 
   test('getUserGamesPage paginates a user games newest-first with a stable total', async () => {

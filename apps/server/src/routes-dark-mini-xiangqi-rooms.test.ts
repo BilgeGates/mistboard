@@ -3,6 +3,7 @@ import type { ServerResponse } from 'node:http';
 import test from 'node:test';
 import { DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
 import type { DarkMiniXiangqiRuntimeRoom } from './dark-mini-xiangqi-runtime.js';
+import type { UserAccount } from './persistence.js';
 import {
   handleDarkMiniXiangqiCreate,
   requestsDarkMiniXiangqi,
@@ -10,6 +11,7 @@ import {
 import type { HttpApiContext } from './routes/lib.js';
 
 const darkMiniXiangqiFlag = 'MISTBOARD_DARK_MINI_XIANGQI_ENABLED';
+const ratedFlag = 'MISTBOARD_RATED_ENABLED';
 
 type ResponseCapture = {
   body: string;
@@ -62,31 +64,87 @@ test('Dark Mini Xiangqi room route rejects unsupported create surfaces before ro
   const before = process.env[darkMiniXiangqiFlag];
   process.env[darkMiniXiangqiFlag] = 'true';
   try {
-    for (const body of [
-      { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pvp', rated: true },
+    let createCalls = 0;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        createDarkMiniXiangqiRoom: async () => {
+          createCalls += 1;
+          return { ok: true, room: darkMiniXiangqiRoom('dmxq_unreachable') };
+        },
+      }),
+      response,
       { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'bogus' },
-    ]) {
-      let createCalls = 0;
-      const response = captureResponse();
-      await handleDarkMiniXiangqiCreate(
-        testContext({
-          createDarkMiniXiangqiRoom: async () => {
-            createCalls += 1;
-            return { ok: true, room: darkMiniXiangqiRoom('dmxq_unreachable') };
-          },
-        }),
-        response,
-        body,
-      );
+    );
 
-      assert.equal(response.status, 501);
-      assert.deepEqual(responseJson(response), {
-        error: 'dark_mini_xiangqi_unsupported_surface',
-      });
-      assert.equal(createCalls, 0);
-    }
+    assert.equal(response.status, 501);
+    assert.deepEqual(responseJson(response), {
+      error: 'dark_mini_xiangqi_unsupported_surface',
+    });
+    assert.equal(createCalls, 0);
   } finally {
     restoreFlag(before);
+  }
+});
+
+test('Dark Mini Xiangqi room route rejects rated requests while rated is disabled', async () => {
+  const beforeDmx = process.env[darkMiniXiangqiFlag];
+  const beforeRated = process.env[ratedFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  delete process.env[ratedFlag];
+  try {
+    let createCalls = 0;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        createDarkMiniXiangqiRoom: async () => {
+          createCalls += 1;
+          return { ok: true, room: darkMiniXiangqiRoom('dmxq_unreachable') };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pvp', rated: true },
+      testUser(),
+    );
+
+    assert.equal(response.status, 403);
+    assert.deepEqual(responseJson(response), { error: 'rated_disabled' });
+    assert.equal(createCalls, 0);
+  } finally {
+    restoreFlag(beforeDmx);
+    restoreRatedFlag(beforeRated);
+  }
+});
+
+test('Dark Mini Xiangqi room route creates a rated PvP room for a signed-in player', async () => {
+  const beforeDmx = process.env[darkMiniXiangqiFlag];
+  const beforeRated = process.env[ratedFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  process.env[ratedFlag] = 'true';
+  try {
+    let requestedRated: boolean | undefined;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        createDarkMiniXiangqiRoom: async (_timeControl, _creatorPreference, _engine, rated) => {
+          requestedRated = rated;
+          return {
+            ok: true,
+            room: { ...darkMiniXiangqiRoom('dmxq_rated'), rated: rated === true },
+          };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pvp', rated: true },
+      testUser(),
+    );
+
+    assert.equal(requestedRated, true);
+    assert.equal(response.status, 201);
+    assert.equal(responseJson(response).rated, true);
+  } finally {
+    restoreFlag(beforeDmx);
+    restoreRatedFlag(beforeRated);
   }
 });
 
@@ -206,6 +264,7 @@ test('Dark Mini Xiangqi room route creates a direct PvP room response', async ()
       url: '/room/dmxq_route',
       mode: 'pvp',
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      rated: false,
       region: 'global',
     });
   } finally {
@@ -241,6 +300,7 @@ test('Dark Mini Xiangqi room route forwards a valid time control and echoes it',
       url: '/room/dmxq_timed',
       mode: 'pvp',
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      rated: false,
       region: 'global',
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     });
@@ -374,6 +434,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     projection: {
       roomId,
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      rated: false,
       state: {
         id: roomId,
         board: {},
@@ -385,6 +446,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
       seats: {},
     },
     gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+    rated: false,
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
@@ -398,6 +460,32 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     rematch: { offers: {} },
     engineTimer: null,
     engineReservationId: null,
+  };
+}
+
+function restoreRatedFlag(value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[ratedFlag];
+  } else {
+    process.env[ratedFlag] = value;
+  }
+}
+
+function testUser(): UserAccount {
+  const now = new Date('2026-06-07T00:00:00.000Z');
+  return {
+    id: 'user_dmx_rated',
+    email: 'rated@example.com',
+    emailVerifiedAt: now,
+    handle: 'rated-player',
+    handleChangedAt: null,
+    displayName: 'Rated Player',
+    displayNameChangedAt: null,
+    profileVisibility: 'public',
+    accountRole: 'player',
+    eloRating: 1500,
+    createdAt: now,
+    updatedAt: now,
   };
 }
 

@@ -167,6 +167,39 @@ test('Dark Mini Xiangqi game summary records PvE engine participants', () => {
   });
 });
 
+test('Dark Mini Xiangqi game summary preserves rated account PvP metadata', () => {
+  const created = createDarkMiniXiangqiRuntimeRoomFromEvents([
+    {
+      type: 'room-created',
+      at: 1,
+      roomId: 'dmxq_rated_summary',
+      gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      rated: true,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    },
+  ]);
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const room = created.room;
+  room.seatTokens.red = seatTokenState('red', 'red-user');
+  room.seatTokens.black = seatTokenState('black', 'black-user');
+  room.projection.seats.red = 'red-client';
+  room.projection.seats.black = 'black-client';
+  room.projection.state = {
+    ...room.projection.state,
+    status: { type: 'finished', winner: 'red', reason: 'general-captured' },
+  };
+
+  const summary = buildDarkMiniXiangqiGameSummary(room);
+
+  assert.equal(summary.mode, 'pvp');
+  assert.equal(summary.rated, true);
+  assert.equal(summary.initialMs, 180_000);
+  assert.equal(summary.incrementMs, 2_000);
+  assert.equal(summary.participants?.[0]?.subjectType, 'user');
+  assert.equal(summary.participants?.[1]?.subjectType, 'user');
+});
+
 test('Dark Mini Xiangqi game summary records guests as guests, not seat labels', () => {
   const room = roomFixture('dmxq_guest_finished');
   room.projection.state = {

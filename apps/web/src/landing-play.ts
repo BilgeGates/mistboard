@@ -13,10 +13,7 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
-import {
-  darkMiniXiangqiEnabled,
-  darkMiniXiangqiPublicEntryEnabled,
-} from './feature-flags.js';
+import { darkMiniXiangqiEnabled, darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
@@ -166,7 +163,7 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<LandingGameSpecId, LandingGameSpecC
     firstGlyph: '帥',
     firstLabel: 'Red',
     glyphClass: 'xiangqi',
-    supportsRated: false,
+    supportsRated: true,
     supportsStartFormat: false,
     supportsTimeControl: true,
   },
@@ -487,6 +484,9 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
     case 'lobby':
       openLandingSetupDialog({
         engineId: defaultEngineId,
+        initialGameSpecId: deepLinkInitialVariant(
+          params.get('gameSpecId') ?? params.get('variant'),
+        ),
         mode: 'lobby',
         title: 'Find opponent',
         ratedDisabled: !isRatedModeEnabled(),
@@ -903,7 +903,7 @@ function buildRatedToggleSection(
   helper.append(
     ratedDisabled
       ? 'Rated beta is not launched yet. Casual games are open anytime. '
-      : 'Rated games require an account and count toward the dark chess ladder. During beta, ratings may be recalibrated. ',
+      : 'Rated games require an account and count toward the selected ladder. During beta, ratings may be recalibrated. ',
   );
   const link = document.createElement('a');
   link.href = '/faq';
@@ -1182,6 +1182,7 @@ function roomCreationRequestBody(
       mode: setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID ? mode : 'pvp',
       gameSpecId,
       timeControl: setup.timeControl,
+      ...(mode === 'pvp' ? { rated: setup.rated } : {}),
       preferredColor:
         setup.preferredColor === 'white'
           ? 'red'

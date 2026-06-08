@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildLandingPlayPanel, maybeOpenPlayDeepLink } from './landing-play.js';
+import { setRatedModeEnabled } from './rated-flag.js';
 
 describe('landing play panel', () => {
   afterEach(() => {
     document.body.replaceChildren();
     window.history.replaceState(null, '', '/');
+    setRatedModeEnabled(false);
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
@@ -113,6 +115,7 @@ describe('landing play panel', () => {
       mode: 'pvp',
       gameSpecId: 'dark-mini-xiangqi',
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      rated: false,
       preferredColor: 'random',
     });
     expect(window.location.pathname).toBe('/room/dmxq_home');
@@ -176,7 +179,32 @@ describe('landing play panel', () => {
       mode: 'pvp',
       gameSpecId: 'dark-mini-xiangqi',
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      rated: false,
       preferredColor: 'random',
+    });
+  });
+
+  it('allows a rated soft-launch Dark Mini Xiangqi lobby deep link without public picker entry', async () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    setRatedModeEnabled(true);
+    const fetchSpy = lobbyFetchSpy();
+    vi.stubGlobal('fetch', fetchSpy);
+    window.history.replaceState(null, '', '/?play=lobby&gameSpecId=dark-mini-xiangqi');
+
+    maybeOpenPlayDeepLink([]);
+    expect(document.querySelector('.landing-variant-select')).toBeNull();
+    expect(document.querySelector('.landing-variant-control')?.textContent).toBe(
+      'Dark Mini Xiangqi',
+    );
+    document
+      .querySelector<HTMLButtonElement>('.landing-setup-start')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(lobbyPostBody(fetchSpy)).toMatchObject({
+      gameSpecId: 'dark-mini-xiangqi',
+      rated: true,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     });
   });
 

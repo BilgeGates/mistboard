@@ -76,6 +76,7 @@ export interface HttpApiContext {
     timeControl?: RoomTimeControl,
     creatorPreference?: DarkMiniXiangqiCreatorPreference,
     engine?: { engineId: string; seat: 'red' | 'black'; reservationId: string },
+    rated?: boolean,
   ): Promise<
     | { ok: true; room: DarkMiniXiangqiRuntimeRoom }
     | {

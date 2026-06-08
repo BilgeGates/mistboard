@@ -31,7 +31,8 @@ export async function tryHandle(
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
     if (requestsDarkMiniXiangqi(body)) {
-      await handleDarkMiniXiangqiCreate(ctx, response, body);
+      const accountUser = body.rated === true ? await currentAccountUser(request) : null;
+      await handleDarkMiniXiangqiCreate(ctx, response, body, accountUser);
       return true;
     }
     if (requestsDarkXiangqi(body)) {

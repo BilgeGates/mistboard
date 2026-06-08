@@ -39,6 +39,7 @@ export async function createDarkMiniXiangqiLiveRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: DarkMiniXiangqiCreatorPreference,
   engine?: DarkMiniXiangqiRoomEngineSeat,
+  rated = false,
 ): Promise<DarkMiniXiangqiLiveRoomCreation> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const roomId = ctx.createRoomId?.() ?? `${DARK_MINI_XIANGQI_ROOM_ID_PREFIX}${randomUUID()}`;
@@ -49,7 +50,11 @@ export async function createDarkMiniXiangqiLiveRoom(
     ) {
       continue;
     }
-    const created = createDarkMiniXiangqiRuntimeRoom(roomId, { creatorPreference, timeControl });
+    const created = createDarkMiniXiangqiRuntimeRoom(roomId, {
+      creatorPreference,
+      rated,
+      timeControl,
+    });
     if (!created.ok) return created;
     const room = created.room;
     // PvE: seat the engine before persistence so the seat-assigned event is part

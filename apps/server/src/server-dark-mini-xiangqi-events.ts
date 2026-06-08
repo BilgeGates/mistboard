@@ -118,6 +118,14 @@ export function buildDarkMiniXiangqiGameSummary(
   const firstAt = room.events[0]?.at ?? Date.now();
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
   const engineSeat = darkMiniXiangqiEngineSeat(room);
+  const participants = [
+    darkMiniXiangqiParticipant('red', room),
+    darkMiniXiangqiParticipant('black', room),
+  ];
+  const rated =
+    room.rated &&
+    !engineSeat &&
+    participants.every((participant) => participant.subjectType === 'user');
   return {
     variant: DARK_MINI_XIANGQI_SPEC_ID,
     mode: engineSeat ? 'pve' : 'pvp',
@@ -131,12 +139,11 @@ export function buildDarkMiniXiangqiGameSummary(
     whiteName: null,
     blackName: null,
     corpusId: null,
-    rated: false,
+    initialMs: room.projection.timeControl?.initialMs ?? null,
+    incrementMs: room.projection.timeControl?.incrementMs ?? null,
+    rated,
     visibility: 'private',
-    participants: [
-      darkMiniXiangqiParticipant('red', room),
-      darkMiniXiangqiParticipant('black', room),
-    ],
+    participants,
   };
 }
 

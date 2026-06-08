@@ -40,7 +40,7 @@ export async function tryHandle(
     }
     if (!requireMethod(request, response, 'POST')) return true;
     const body = await readJsonBody(request);
-    // Dark Mini Xiangqi joins the lobby on its own (casual-only) path; the chess
+    // Dark Mini Xiangqi joins the lobby on its own path; the chess
     // gate would 501 it as not-integrated, so it's handled before the gate.
     const isDarkMiniXiangqi = body.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID;
     if (isDarkMiniXiangqi) {
@@ -64,10 +64,8 @@ export async function tryHandle(
     // Rated requires the flag on AND a signed-in requester. A guest (or anyone
     // when the flag is off) silently gets a casual ticket. Both sides of a match
     // are rated tickets, and the game-end account-gate is the final backstop.
-    // Dark Mini Xiangqi has no rating system yet, so it is always casual.
-    const lobbyRated = isDarkMiniXiangqi
-      ? false
-      : ratedEnabled() && body.rated === true && (await currentAccountUser(request)) !== null;
+    const lobbyRated =
+      ratedEnabled() && body.rated === true && (await currentAccountUser(request)) !== null;
     if (body.timeControl !== undefined && !timeControl) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'invalid_time_control' }));
@@ -189,7 +187,7 @@ async function joinLobby(
 
 // Dispatch lobby room creation by game spec. Chess goes through the shared room
 // factory exactly as before; Dark Mini Xiangqi uses its own factory (PvP, random
-// seating, casual). A failure throws so the caller deletes the unmatched ticket.
+// seating). A failure throws so the caller deletes the unmatched ticket.
 async function createLobbyRoom(
   ctx: HttpApiContext,
   gameSpecId: GameSpecId,
@@ -198,7 +196,7 @@ async function createLobbyRoom(
   rated: boolean,
 ): Promise<{ id: string; region: string }> {
   if (gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
-    const created = await ctx.createDarkMiniXiangqiRoom(timeControl, 'random');
+    const created = await ctx.createDarkMiniXiangqiRoom(timeControl, 'random', undefined, rated);
     if (!created.ok) throw new Error(`dark_mini_xiangqi_room_create_failed:${created.error}`);
     return { id: created.room.id, region: 'global' };
   }

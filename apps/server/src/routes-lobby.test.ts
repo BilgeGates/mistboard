@@ -174,8 +174,29 @@ test('lobby: two Dark Mini Xiangqi requests match into a DMX room', async () => 
     assert.equal(responseJson(second).status, 'matched');
     assert.equal(responseJson(second).roomId, 'dmxq_lobby_1');
     assert.equal(dmxCalls.length, 1);
-    assert.deepEqual(dmxCalls[0], [tc, 'random']);
+    assert.deepEqual(dmxCalls[0], [tc, 'random', undefined, false]);
     assert.equal(chessCalls.length, 0, 'chess factory must not be touched');
+  });
+});
+
+test('lobby: guest Dark Mini Xiangqi rated requests match as casual tickets', async () => {
+  await withFlag(true, async () => {
+    await withRatedFlag(true, async () => {
+      const { ctx, dmxCalls } = testContext();
+      const first = await post(ctx, {
+        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+        rated: true,
+        timeControl: tc,
+      });
+      assert.equal(first.status, 202);
+      const second = await post(ctx, {
+        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+        rated: true,
+        timeControl: tc,
+      });
+      assert.equal(second.status, 201);
+      assert.deepEqual(dmxCalls[0], [tc, 'random', undefined, false]);
+    });
   });
 });
 
@@ -210,6 +231,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     projection: {
       roomId,
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      rated: false,
       state: {
         id: roomId,
         board: {},
@@ -221,6 +243,7 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
       seats: {},
     },
     gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+    rated: false,
     abortTimer: null,
     abortDeadline: null,
     abortPhase: null,
@@ -235,6 +258,16 @@ function darkMiniXiangqiRoom(roomId: string): DarkMiniXiangqiRuntimeRoom {
     engineTimer: null,
     engineReservationId: null,
   };
+}
+
+function withRatedFlag(value: boolean, fn: () => Promise<void>): Promise<void> {
+  const before = process.env.MISTBOARD_RATED_ENABLED;
+  if (value) process.env.MISTBOARD_RATED_ENABLED = 'true';
+  else delete process.env.MISTBOARD_RATED_ENABLED;
+  return fn().finally(() => {
+    if (before === undefined) delete process.env.MISTBOARD_RATED_ENABLED;
+    else process.env.MISTBOARD_RATED_ENABLED = before;
+  });
 }
 
 function withFlag(value: boolean, fn: () => Promise<void>): Promise<void> {

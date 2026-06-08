@@ -4,7 +4,9 @@ import {
   DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID,
   isDarkMiniXiangqiEngineClientId,
 } from './../engines/registry.js';
+import { ratedEnabled } from './../feature-flags.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
+import type { UserAccount } from './../persistence.js';
 import * as persistence from './../persistence.js';
 import type { HttpApiContext } from './lib.js';
 import { parseRoomTimeControl, writeJson } from './lib.js';
@@ -17,6 +19,7 @@ export async function handleDarkMiniXiangqiCreate(
   ctx: HttpApiContext,
   response: ServerResponse,
   body: Record<string, unknown>,
+  accountUser: UserAccount | null = null,
 ): Promise<void> {
   const gameSpecGate = gateGameSpecRequest({
     gameSpecId: body.gameSpecId,
@@ -42,12 +45,24 @@ export async function handleDarkMiniXiangqiCreate(
     writeJson(response, 400, { error: 'invalid_time_control' });
     return;
   }
-  // Rated DMX isn't a thing yet; PvP and (now) PvE are. mode === null means the
-  // body asked for neither.
-  if (mode === null || body.rated === true) {
+  if (mode === null) {
     writeJson(response, 501, { error: 'dark_mini_xiangqi_unsupported_surface' });
     return;
   }
+  const wantsRated = body.rated === true;
+  if (wantsRated && mode !== 'pvp') {
+    writeJson(response, 501, { error: 'dark_mini_xiangqi_unsupported_surface' });
+    return;
+  }
+  if (wantsRated && !ratedEnabled()) {
+    writeJson(response, 403, { error: 'rated_disabled' });
+    return;
+  }
+  if (wantsRated && !accountUser) {
+    writeJson(response, 401, { error: 'rated_requires_account' });
+    return;
+  }
+  const rated = wantsRated && mode === 'pvp';
   let engine: { engineId: string; seat: 'red' | 'black'; reservationId: string } | undefined;
   if (mode === 'pve') {
     const engineId =
@@ -66,7 +81,10 @@ export async function handleDarkMiniXiangqiCreate(
     // engine service 409s every turn without it. red = the protocol white slot.
     let reservationId: string | null = null;
     try {
-      reservationId = await ctx.reserveLiveEngineSeat(engineId, engineSeat === 'red' ? 'white' : 'black');
+      reservationId = await ctx.reserveLiveEngineSeat(
+        engineId,
+        engineSeat === 'red' ? 'white' : 'black',
+      );
     } catch {
       reservationId = null;
     }
@@ -89,6 +107,7 @@ export async function handleDarkMiniXiangqiCreate(
     timeControl ?? undefined,
     preferredColor,
     engine,
+    rated,
   );
   if (!created.ok) {
     const status =
@@ -105,6 +124,7 @@ export async function handleDarkMiniXiangqiCreate(
     url: `/room/${encodeURIComponent(created.room.id)}`,
     mode,
     gameSpecId: created.room.gameSpecId,
+    rated: created.room.rated,
     region: 'global',
     ...(timeControl ? { timeControl } : {}),
   });

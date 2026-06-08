@@ -36,6 +36,7 @@ export type DarkMiniXiangqiEvent =
       roomId: string;
       gameSpecId: typeof DARK_MINI_XIANGQI_SPEC_ID;
       creatorPreference?: DarkMiniXiangqiCreatorPreference;
+      rated?: boolean;
       timeControl?: RoomTimeControl;
     }
   | {
@@ -96,6 +97,7 @@ export type DarkMiniXiangqiProjection = {
   roomId: string;
   creatorPreference?: DarkMiniXiangqiCreatorPreference;
   gameSpecId: typeof DARK_MINI_XIANGQI_SPEC_ID;
+  rated: boolean;
   state: MiniXiangqiGameState;
   seats: Partial<Record<MiniXiangqiColor, string>>;
   clock?: DarkMiniXiangqiClockState;
@@ -152,6 +154,7 @@ export type DarkMiniXiangqiRuntimeRoom = {
   events: DarkMiniXiangqiEvent[];
   projection: DarkMiniXiangqiProjection;
   gameSpecId: typeof DARK_MINI_XIANGQI_SPEC_ID;
+  rated: boolean;
   abortTimer: ReturnType<typeof setTimeout> | null;
   abortDeadline: number | null;
   abortPhase: 'red-1' | 'black-1' | null;
@@ -291,6 +294,7 @@ export function createDarkMiniXiangqiRuntimeRoom(
   options: {
     creatorPreference?: DarkMiniXiangqiCreatorPreference;
     now?: number;
+    rated?: boolean;
     timeControl?: RoomTimeControl;
   } = {},
 ): DarkMiniXiangqiRoomCreation {
@@ -304,6 +308,7 @@ export function createDarkMiniXiangqiRuntimeRoom(
       roomId,
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
       ...(options.creatorPreference ? { creatorPreference: options.creatorPreference } : {}),
+      ...(options.rated ? { rated: true } : {}),
       ...(options.timeControl ? { timeControl: options.timeControl } : {}),
     },
   ];
@@ -340,6 +345,7 @@ export function createDarkMiniXiangqiRuntimeRoomFromEvents(
       events: [...events],
       projection,
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+      rated: projection.rated,
       abortTimer: null,
       abortDeadline: null,
       abortPhase: null,
@@ -386,6 +392,7 @@ export function applyDarkMiniXiangqiEvent(
       event.roomId,
       event.timeControl,
       event.creatorPreference,
+      event.rated === true,
     );
   }
   if (event.type === 'seat-assigned') {
@@ -497,6 +504,7 @@ export function darkMiniXiangqiSnapshotPayload(
     clients: room.clients.size,
     seat: client.seat,
     solo: client.solo,
+    rated: room.rated,
     abortDeadline: room.abortDeadline,
     // Only the present winning seat (opposite the forfeiting seat) learns the
     // forfeit deadline, so the "you win in Ns" banner never leaks to the leaver.
@@ -605,6 +613,7 @@ export function isDarkMiniXiangqiEvent(
         event.creatorPreference === 'red' ||
         event.creatorPreference === 'black' ||
         event.creatorPreference === 'random') &&
+      (event.rated === undefined || typeof event.rated === 'boolean') &&
       (event.timeControl === undefined || isRoomTimeControl(event.timeControl))
     );
   }
@@ -649,11 +658,13 @@ function initialDarkMiniXiangqiProjection(
   roomId: string,
   timeControl?: RoomTimeControl,
   creatorPreference?: DarkMiniXiangqiCreatorPreference,
+  rated = false,
 ): DarkMiniXiangqiProjection {
   return {
     roomId,
     ...(creatorPreference ? { creatorPreference } : {}),
     gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+    rated,
     state: createInitialMiniXiangqiState(roomId),
     seats: {},
     ...(timeControl ? { timeControl } : {}),

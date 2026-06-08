@@ -11,6 +11,7 @@ import { defaultRating, type Glicko2, rate } from './glicko.js';
 import type { RatingBucket } from './rating-buckets.js';
 
 export type RatedResult = 'white-wins' | 'black-wins' | 'draw';
+export type RatedParticipantColor = 'white' | 'black' | 'red';
 
 /**
  * Apply one finished rated PvP game to both players' Glicko-2 ratings, inside
@@ -28,6 +29,10 @@ export async function applyRatedGameResult(
   blackUserId: string,
   result: RatedResult,
   bucket: RatingBucket,
+  participantColors: {
+    white: RatedParticipantColor;
+    black: RatedParticipantColor;
+  } = { white: 'white', black: 'black' },
 ): Promise<void> {
   const { rows } = await client.query<{
     user_id: string;
@@ -63,8 +68,8 @@ export async function applyRatedGameResult(
   await upsertRating(client, whiteUserId, bucket, newWhite);
   await upsertRating(client, blackUserId, bucket, newBlack);
 
-  await recordParticipantRating(client, roomId, 'white', white, newWhite);
-  await recordParticipantRating(client, roomId, 'black', black, newBlack);
+  await recordParticipantRating(client, roomId, participantColors.white, white, newWhite);
+  await recordParticipantRating(client, roomId, participantColors.black, black, newBlack);
 }
 
 async function upsertRating(
@@ -92,7 +97,7 @@ async function upsertRating(
 async function recordParticipantRating(
   client: pg.PoolClient,
   roomId: string,
-  color: 'white' | 'black',
+  color: RatedParticipantColor,
   before: Glicko2,
   after: Glicko2,
 ): Promise<void> {
