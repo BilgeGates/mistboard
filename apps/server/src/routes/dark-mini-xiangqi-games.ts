@@ -131,8 +131,8 @@ export async function darkMiniXiangqiPostgameForApi(
       variant: game.variant,
       mode: game.mode,
       // Red occupies the white/first slot, Black the second.
-      redName: participantDisplayName(game, 'red') ?? game.whiteName,
-      blackName: participantDisplayName(game, 'black') ?? game.blackName,
+      redName: postgameSeatDisplayName(game, 'red'),
+      blackName: postgameSeatDisplayName(game, 'black'),
       result: game.result,
       termination: game.termination,
       plyCount: game.plyCount,
@@ -154,6 +154,17 @@ export async function darkMiniXiangqiPostgameForApi(
     history: darkMiniXiangqiPostgameHistory(events),
     clocks: darkMiniXiangqiPostgameClocks(events),
   };
+}
+
+function postgameSeatDisplayName(
+  game: Awaited<ReturnType<DarkMiniXiangqiPostgamePersistence['getGameSummary']>>,
+  color: MiniXiangqiColor,
+): string {
+  const persistedName =
+    participantDisplayName(game, color) ?? (color === 'red' ? game?.whiteName : game?.blackName);
+  if (!persistedName) return 'Guest';
+  if (persistedName === (color === 'red' ? 'Red' : 'Black')) return 'Guest';
+  return persistedName;
 }
 
 function participantDisplayName(

@@ -9,12 +9,9 @@ import {
   type DarkMiniXiangqiRuntimeRoom,
   type DarkMiniXiangqiSeatTokenState,
 } from './dark-mini-xiangqi-runtime.js';
+import { engineVersionDisplayName, isDarkMiniXiangqiEngineClientId } from './engines/registry.js';
 import { logger } from './obs.js';
 import * as persistence from './persistence.js';
-import {
-  engineVersionDisplayName,
-  isDarkMiniXiangqiEngineClientId,
-} from './engines/registry.js';
 import { releaseLiveEngineReservation } from './server-live-engine-reservations.js';
 
 export type DarkMiniXiangqiEventRoom = DarkMiniXiangqiRuntimeRoom;
@@ -220,16 +217,14 @@ function darkMiniXiangqiParticipant(
   }
   return {
     color,
-    displayName: color === 'red' ? 'Red' : 'Black',
+    displayName: 'Guest',
     subjectType: 'guest',
     subjectId: null,
     visibility: 'private',
   };
 }
 
-function darkMiniXiangqiEngineSeat(
-  room: DarkMiniXiangqiEventRoom,
-): MiniXiangqiColor | null {
+function darkMiniXiangqiEngineSeat(room: DarkMiniXiangqiEventRoom): MiniXiangqiColor | null {
   for (const color of ['red', 'black'] as const) {
     if (isDarkMiniXiangqiEngineClientId(room.projection.seats[color])) return color;
   }

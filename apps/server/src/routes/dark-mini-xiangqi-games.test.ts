@@ -142,6 +142,24 @@ test('Dark Mini Xiangqi postgame names seats from participants', async () => {
   assert.equal(payload.game.blackName, 'Misty (Dark Mini Xiangqi)');
 });
 
+test('Dark Mini Xiangqi postgame maps legacy seat labels to Guest names', async () => {
+  const payload = await darkMiniXiangqiPostgameForApi(
+    ROOM_ID,
+    deps(
+      gameRecord({
+        whiteName: 'Red',
+        blackName: 'Black',
+        participants: [],
+      }),
+      finishedResignationEvents(),
+    ),
+  );
+  assert.ok(payload);
+
+  assert.equal(payload.game.redName, 'Guest');
+  assert.equal(payload.game.blackName, 'Guest');
+});
+
 test('Dark Mini Xiangqi postgame exposes a per-ply history for every perspective', async () => {
   const payload = await darkMiniXiangqiPostgameForApi(
     ROOM_ID,

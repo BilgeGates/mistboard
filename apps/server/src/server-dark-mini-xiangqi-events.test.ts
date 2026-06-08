@@ -167,6 +167,21 @@ test('Dark Mini Xiangqi game summary records PvE engine participants', () => {
   });
 });
 
+test('Dark Mini Xiangqi game summary records guests as guests, not seat labels', () => {
+  const room = roomFixture('dmxq_guest_finished');
+  room.projection.state = {
+    ...room.projection.state,
+    status: { type: 'finished', winner: 'red', reason: 'resignation' },
+  };
+
+  const summary = buildDarkMiniXiangqiGameSummary(room);
+
+  assert.deepEqual(
+    summary.participants?.map((participant) => participant.displayName),
+    ['Guest', 'Guest'],
+  );
+});
+
 test('Dark Mini Xiangqi seat-assigned writer persists event and token before mutation', async () => {
   const room = roomFixture('dmxq_seat');
   const tokenState = seatTokenState('red', null);
