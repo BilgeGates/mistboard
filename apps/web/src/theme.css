@@ -902,7 +902,13 @@
   color: var(--site-muted);
 }
 
-:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-clock-row.active,
+:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-clock-row.active {
+  border-color: var(--site-border);
+  background: var(--site-panel);
+  color: var(--site-text);
+  box-shadow: none;
+}
+
 :root[data-effective-theme="dark"]
   .landing-page
   #landing-replay.replay-compact
