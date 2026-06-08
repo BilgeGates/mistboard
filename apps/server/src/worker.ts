@@ -11,7 +11,12 @@ import {
   releaseEngineGameTaskClaim,
   stopWorkerRun,
 } from './engine-experiments.js';
-import { playableLiveEngines } from './engine-registry.js';
+import { darkMiniXiangqiEnabled } from './feature-flags.js';
+import {
+  DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID,
+  loadEngine,
+  playableLiveEngines,
+} from './engine-registry.js';
 import { runRandomLegalEngineGame } from './engine-runner.js';
 import { type EngineHttpService, startEngineHttpService } from './engine-service.js';
 import { runMigrations } from './migrate.js';
@@ -207,7 +212,11 @@ async function warmupLiveEnginePools(): Promise<void> {
     log('engine_warmup_disabled', {});
     return;
   }
-  const pythonEngines = playableLiveEngines().filter(
+  const warmupEngines = [...playableLiveEngines()];
+  if (darkMiniXiangqiEnabled()) {
+    warmupEngines.push(loadEngine(DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID));
+  }
+  const pythonEngines = warmupEngines.filter(
     (engine) => engine.config.kind === 'python-subprocess',
   );
   for (const engine of pythonEngines) {

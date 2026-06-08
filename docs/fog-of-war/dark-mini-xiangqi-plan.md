@@ -1,15 +1,16 @@
 # Dark Mini Xiangqi Plan
 
-_Last updated: 2026-06-06_
+_Last updated: 2026-06-08_
 
 Status: **implemented and at full Dark-chess parity, but hidden behind a flag.**
 Dark Mini Xiangqi (DMX) is a real `GameSpec` with a working PvP live runtime,
 private replay/postgame, family-aware appearance, variant-aware lobby, and a
-Fairy-Stockfish-backed PvE engine. It is **not yet a public Mistboard game
-mode**: the client surface is gated off in prod (`VITE_DARK_MINI_XIANGQI_ENABLED`
-is not set in `scripts/build.mjs`, so `darkMiniXiangqiEnabled()` is false). What
-remains is the launch ladder, not the build: soft-launch instrumentation (M9),
-public exposure (M10), and a rated pool (still deferred).
+Misty/EngineV2-backed PvE engine. It is **not yet a public Mistboard game
+mode**: production must explicitly opt in with `MISTBOARD_DARK_MINI_XIANGQI_ENABLED`
+and `VITE_DARK_MINI_XIANGQI_ENABLED`; normal public entry points remain hidden
+unless `VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED` is also set. What remains is
+the launch ladder, not the build: deep-link soft launch, public exposure, and a
+rated pool (still deferred).
 
 ### Milestone status (2026-06-06)
 
@@ -22,8 +23,8 @@ public exposure (M10), and a rated pool (still deferred).
 | 5  | Hidden Live Runtime     | done |
 | 6  | Private Replay/Postgame | done |
 | 7  | UX Hardening            | done (W1–W6 + post-W6 polish, parity with Dark chess) |
-| 8  | Engine Track            | **PvE built** (Fairy-Stockfish leaf eval, variant-aware protocol, redaction-tested perspective contract, PvE move loop). Remaining: beginner strength calibration. |
-| 9  | Soft Launch             | not started: instrumentation + invite-only entry |
+| 8  | Engine Track            | **PvE built** (`python-dmx-v1.0`: EngineV2 with `MiniXiangqiRules`, variant-aware protocol, redaction-tested perspective contract, PvE move loop). |
+| 9  | Soft Launch             | ready for deep-link rollout behind base runtime/render flags; public-entry flag stays off |
 | 10 | Public Launch           | not started: gated behind Mistboard's own M1 pre-distribution gates |
 
 Deferred (not on the launch ladder): DMX **rated pool / lobby ranking** (casual
@@ -284,20 +285,24 @@ Gate:
 
 ### 8. Engine Track: PvE built (2026-06-04/05)
 
-Engine support landed after live PvP stabilized. A Fairy-Stockfish leaf eval
-backs DMX PvE through the variant-aware engine protocol.
+Engine support landed after live PvP stabilized. DMX PvE is served by the
+first-party Misty/EngineV2 path registered as `python-dmx-v1.0`. That worker
+uses `MiniXiangqiRules` and the variant-aware engine protocol; Fairy-Stockfish is
+only the optional Mini Xiangqi leaf evaluator when the binary is available, with
+a material leaf fallback otherwise.
 
 Deliverables:
 
-- ~~random/legal baseline~~ / ~~capture-seeking baseline~~, superseded by a
-  Fairy-Stockfish opponent (provisioned on engine-worker, commit `27b12a6`),
+- ~~random/legal baseline~~ / ~~capture-seeking baseline~~, superseded by the
+  first-party `python-dmx-v1.0` engine-worker path,
 - **done**: Mini Xiangqi extension to the hidden-information engine protocol
   (`gameSpecId`, `shrouded`, mini piece letters; `f23b4b2`), engine registry +
   variant-aware worker spawn (`ded93a1`), request builder (`3abefe1`), PvE
   runtime move loop (`10f8b90`), engine-seat reservation lifecycle (`28c81b6`,
   `e28dcf6`, `785247b`),
-- **remaining**: beginner engine calibration (tune Fairy-Stockfish down to an
-  onboarding-appropriate strength),
+- **done**: DMX-specific worker spawn (`--game dark-mini-xiangqi`) and boot
+  warmup path, without exposing the DMX engine in the generic dark-chess PvE
+  picker,
 - self-play mining: deferred (perspective contract is tested; mining is not on
   the launch ladder).
 
@@ -305,7 +310,8 @@ Gate:
 
 - **met**: engine requests never include hidden truth outside the engine's
   legal perspective (redaction test in `3abefe1`),
-- **remaining**: beginner play strength is stable enough for onboarding.
+- **met for soft launch**: current `python-dmx-v1.0` strength is acceptable for
+  plumbing validation; strength tuning can continue after real soft-launch data.
 
 ### 9. Soft Launch
 
@@ -330,10 +336,12 @@ fun?". The funnel is queue -> match -> start -> finish, sliceable by game spec:
 
 Deliverables:
 
-- hidden or invite-only entry point,
-- direct PvP only,
-- the system-health funnel above (DMX inherits all of it now; remaining wiring is
-  the invite-only entry, not more events).
+- deep-link entry behind the base runtime/render flags
+  (`/?play=friend&gameSpecId=dark-mini-xiangqi`, plus PvE/lobby equivalents),
+- PvP and PvE enabled through the DMX room route,
+- public discovery still gated by `VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED`,
+- the system-health funnel above (DMX inherits all of it now; no additional
+  instrumentation is required before soft launch).
 
 **Deferred to post-soft-launch (game-quality, only pays off at volume):** average
 ply count, resignation/repeat-play rates read as fun-signals, and cannon/blocker
