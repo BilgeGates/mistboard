@@ -8,6 +8,7 @@ import './styles.css';
 import './site-shell.css';
 import type { GameEvent, PlayerView } from '@mistboard/game';
 import {
+  handleDarkMiniXiangqiReplayKeyboard,
   isDarkMiniXiangqiLiveRoom,
   tickDarkMiniXiangqiClocks,
   tickDarkMiniXiangqiCountdowns,
@@ -149,7 +150,7 @@ export function bootstrapLiveRoom(): void {
   // ── Start ───────────────────────────────────────────────────────────────────
 
   if (!connOverride) connectSocket();
-  window.addEventListener('keydown', handleReplayKeyboard);
+  window.addEventListener('keydown', handleLiveReplayKeyboard);
   // The xiangqi board renders pieces as inline SVG, so a piece-set change needs a
   // re-render (the chess board picks up its set via CSS and does not).
   window.addEventListener(xiangqiAppearanceChangedEvent, () => render());
@@ -185,4 +186,12 @@ export function bootstrapLiveRoom(): void {
   });
 
   render();
+}
+
+function handleLiveReplayKeyboard(event: KeyboardEvent): void {
+  if (isDarkMiniXiangqiLiveRoom()) {
+    handleDarkMiniXiangqiReplayKeyboard(event);
+    return;
+  }
+  handleReplayKeyboard(event);
 }

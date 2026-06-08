@@ -53,7 +53,6 @@ let selectedSquare: MiniXiangqiSquare | null = null;
 // past a small threshold) commits on drop and suppresses the trailing click.
 let dragFrom: MiniXiangqiSquare | null = null;
 let dragGhost: HTMLDivElement | null = null;
-const dragMoved = false;
 let suppressNextClick = false;
 let playAgainStatus: 'idle' | 'creating' | 'failed' = 'idle';
 // Previous active clock color across full clock renders, used to flash the seated
@@ -551,6 +550,37 @@ function renderReplayShell(refs: LiveRefs): void {
       renderDarkMiniXiangqiRoom(refs, renderCallbacks);
     };
   }
+}
+
+export function handleDarkMiniXiangqiReplayKeyboard(event: KeyboardEvent): void {
+  if (event.defaultPrevented || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey)
+    return;
+  if (isEditableKeyboardTarget(event.target)) return;
+
+  const action = replayActionForKey(event.key);
+  if (!action || replayControlDisabled(action)) return;
+
+  event.preventDefault();
+  handleReplayControl(action);
+  if (lastRefs) renderDarkMiniXiangqiRoom(lastRefs, renderCallbacks);
+}
+
+function replayActionForKey(key: string): string | null {
+  if (key === 'ArrowLeft') return 'prev';
+  if (key === 'ArrowRight') return 'next';
+  if (key === 'ArrowUp') return 'first';
+  if (key === 'ArrowDown') return 'latest';
+  return null;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  );
 }
 
 function renderActionStatus(

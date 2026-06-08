@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  handleDarkMiniXiangqiReplayKeyboard,
   isDarkMiniXiangqiLiveRoom,
   renderDarkMiniXiangqiRoom,
   resetDarkMiniXiangqiReplayState,
@@ -416,6 +417,61 @@ describe('Dark Mini Xiangqi replay scrubber', () => {
     clickReplay(refs, 'first');
     expect(refs.replayMeta.textContent).toBe('Replay · ply 0 of 3');
   });
+
+  it('navigates live replay snapshots from arrow keys', () => {
+    const refs = refsFixture();
+    const frames: MiniView[] = [
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d1: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d1'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'red' },
+        moveNumber: 1,
+      },
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d2: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d2'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'black' },
+        moveNumber: 1,
+        lastMove: { from: 'd1', to: 'd2' },
+      },
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { d3: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['d3'],
+        legalMoves: [],
+        status: { type: 'playing', turn: 'red' },
+        moveNumber: 2,
+        lastMove: { from: 'd2', to: 'd3' },
+      },
+      {
+        id: 'g',
+        perspective: 'red',
+        board: { e7: { piece: { color: 'red', role: 'general' }, shrouded: false } },
+        visibleSquares: ['e7', 'd7', 'e6'],
+        legalMoves: [],
+        status: { type: 'finished', winner: 'red', reason: 'general-captured' },
+        moveNumber: 2,
+        lastMove: { from: 'd3', to: 'e7' },
+      },
+    ];
+    for (const frame of frames) feed(refs, frame);
+
+    handleDarkMiniXiangqiReplayKeyboard(replayKey('ArrowUp'));
+    expect(refs.replayMeta.textContent).toBe('Replay · ply 0 of 3');
+    handleDarkMiniXiangqiReplayKeyboard(replayKey('ArrowDown'));
+    expect(refs.replayMeta.textContent).toBe('Live · ply 3 of 3');
+    handleDarkMiniXiangqiReplayKeyboard(replayKey('ArrowLeft'));
+    expect(refs.replayMeta.textContent).toBe('Replay · ply 2 of 3');
+    handleDarkMiniXiangqiReplayKeyboard(replayKey('ArrowRight'));
+    expect(refs.replayMeta.textContent).toBe('Live · ply 3 of 3');
+  });
 });
 
 function viewFixture(): MiniView {
@@ -476,4 +532,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tagName: K): HTMLElementTagNa
 
 function clickEvent(): MouseEvent {
   return new MouseEvent('click', { bubbles: true });
+}
+
+function replayKey(key: string): KeyboardEvent {
+  return new KeyboardEvent('keydown', { key, cancelable: true });
 }
