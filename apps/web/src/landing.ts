@@ -449,7 +449,7 @@ function buildLandingStage(
   const about = document.createElement('h1');
   about.className = 'landing-about';
   about.textContent =
-    'Play dark chess (fog of war) and other timeless games, free in your browser.';
+    'Play dark chess (fog of war) and other original games, free in your browser.';
   leftRail.append(buildLandingAnnouncements(), about);
 
   // ── Center (wide): the fog board hero, with article cards stacked beneath. ──
