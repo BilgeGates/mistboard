@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchPlayableEnginesOnce, loadPlayableEnginesWithRetry } from './landing.js';
+import {
+  fetchPlayableEnginesOnce,
+  landingRoomClientKindForUrl,
+  loadPlayableEnginesWithRetry,
+} from './landing.js';
 
 const ROSTER = [
   { id: 'python-v2-v1.0', name: 'Misty 1.0', familyName: 'Misty', kind: 'container' },
@@ -8,7 +12,9 @@ const ROSTER = [
 describe('playable engines loading', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     vi.useRealTimers();
+    window.history.replaceState(null, '', '/');
   });
 
   it('returns null on a non-ok response', async () => {
@@ -72,6 +78,14 @@ describe('playable engines loading', () => {
     expect(await promise).toBeNull();
     // initial attempt + one per backoff delay (4 delays) = 5 fetches
     expect(fetchSpy).toHaveBeenCalledTimes(5);
+  });
+
+  it('routes Crossroads rooms to the isolated live client during landing transitions', () => {
+    vi.stubEnv('VITE_DUAL_CHESS_ENABLED', 'true');
+    window.history.replaceState(null, '', '/');
+
+    expect(landingRoomClientKindForUrl('/room/dchess_created')).toBe('crossroads');
+    expect(landingRoomClientKindForUrl('/room/dark_created')).toBe('standard');
   });
 });
 

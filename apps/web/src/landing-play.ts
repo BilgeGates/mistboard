@@ -3,6 +3,7 @@ import {
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
+  DUAL_CHESS_SPEC_ID,
   gameSpecForId,
   TIME_CONTROLS,
   type TimeControlId,
@@ -13,7 +14,11 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
-import { darkMiniXiangqiEnabled, darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
+import {
+  darkMiniXiangqiEnabled,
+  darkMiniXiangqiPublicEntryEnabled,
+  dualChessEnabled,
+} from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isVariantEnabled } from './variants.js';
 import { ENGINE_OFFER_AFTER_MS, shouldOfferEngine } from './web-utils.js';
@@ -37,7 +42,8 @@ type LandingPlayMode = 'lobby' | 'pvp' | 'pve';
 type LandingGameSpecId =
   | typeof DARK_CHESS_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
-  | typeof DARK_XIANGQI_SPEC_ID;
+  | typeof DARK_XIANGQI_SPEC_ID
+  | typeof DUAL_CHESS_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -48,11 +54,13 @@ type LandingTimePreset = {
 };
 type LandingColorPreference = 'white' | 'red' | 'black' | 'random';
 type LandingGameSpecCapabilities = {
-  blackGlyph: string;
   firstColor: Extract<LandingColorPreference, 'red' | 'white'>;
   firstGlyph: string;
   firstLabel: 'Red' | 'White';
   glyphClass?: string;
+  secondColor: Extract<LandingColorPreference, 'black' | 'red'>;
+  secondGlyph: string;
+  secondLabel: 'Black' | 'Red';
   supportsRated: boolean;
   supportsStartFormat: boolean;
   supportsTimeControl: boolean;
@@ -105,10 +113,14 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
 
 // Which time-control presets the picker offers, per variant. Dark chess and DMX
 // are scoped to bullet + blitz: 5+5 is hidden because dark/fog games are
-// low-calc and decisive, and fewer TCs merge players into fewer pools. Full Dark
-// Xiangqi keeps its prior single option until it has a live runtime. Used for PvE
-// AND PvP/lobby alike.
+// low-calc and decisive, and fewer TCs merge players into fewer pools.
+// Crossroads gets 5+5 because it is perfect-information and PvP-only today. Full
+// Dark Xiangqi keeps its prior single option until it has a live runtime. Used
+// for PvE AND PvP/lobby alike.
 function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<LandingTimePresetId> {
+  if (gameSpecId === DUAL_CHESS_SPEC_ID) {
+    return new Set<LandingTimePresetId>(['1m1', '3m2', '5m5']);
+  }
   return gameSpecId === DARK_CHESS_SPEC_ID || gameSpecId === DARK_MINI_XIANGQI_SPEC_ID
     ? new Set<LandingTimePresetId>(['1m1', '3m2'])
     : new Set<LandingTimePresetId>(['3m2']);
@@ -116,7 +128,9 @@ function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<Landin
 // Dark chess is always offered; DMX appears in normal entry points only after
 // its public-entry flag is on. Direct soft-launch deep links can still select it
 // when the render/capability flag is on.
-function enabledLandingVariantGameSpecs(): { gameSpecId: LandingGameSpecId; label: string }[] {
+function enabledLandingVariantGameSpecs(
+  mode: LandingPlayMode,
+): { gameSpecId: LandingGameSpecId; label: string }[] {
   const specs: { gameSpecId: LandingGameSpecId; label: string }[] = [
     { gameSpecId: DARK_CHESS_SPEC_ID, label: gameSpecForId(DARK_CHESS_SPEC_ID).publicName },
   ];
@@ -129,50 +143,82 @@ function enabledLandingVariantGameSpecs(): { gameSpecId: LandingGameSpecId; labe
       label: gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID).publicName,
     });
   }
+  // Crossroads live rooms are PvP-only today. The bot/onboarding surface lives at
+  // /crossroads-chess, not in the live-room engine-seat flow.
+  if (mode === 'pvp' && dualChessEnabled()) {
+    specs.push({
+      gameSpecId: DUAL_CHESS_SPEC_ID,
+      label: gameSpecForId(DUAL_CHESS_SPEC_ID).publicName,
+    });
+  }
   return specs;
 }
 
 function parseLandingGameSpecId(value: string): LandingGameSpecId {
   if (value === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
   if (value === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
+  if (value === DUAL_CHESS_SPEC_ID) return DUAL_CHESS_SPEC_ID;
   return DARK_CHESS_SPEC_ID;
 }
 
-function deepLinkInitialVariant(variant: string | null): LandingGameSpecId | undefined {
+function deepLinkInitialVariant(
+  variant: string | null,
+  mode: LandingPlayMode,
+): LandingGameSpecId | undefined {
   // Dark Xiangqi (9x10) is intentionally omitted — it has no playable runtime,
   // so it must not be reachable from the play menu or a deep link.
   if (variant === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiEnabled()) {
     return DARK_MINI_XIANGQI_SPEC_ID;
   }
+  if (variant === DUAL_CHESS_SPEC_ID && mode === 'pvp' && dualChessEnabled()) {
+    return DUAL_CHESS_SPEC_ID;
+  }
   return undefined;
 }
 const LANDING_GAME_SPEC_CAPABILITIES: Record<LandingGameSpecId, LandingGameSpecCapabilities> = {
   [DARK_CHESS_SPEC_ID]: {
-    blackGlyph: '♚',
     firstColor: 'white',
     firstGlyph: '♚',
     firstLabel: 'White',
+    secondColor: 'black',
+    secondGlyph: '♚',
+    secondLabel: 'Black',
     supportsRated: true,
     supportsStartFormat: true,
     supportsTimeControl: true,
   },
   [DARK_XIANGQI_SPEC_ID]: {
-    blackGlyph: '將',
     firstColor: 'red',
     firstGlyph: '帥',
     firstLabel: 'Red',
     glyphClass: 'xiangqi',
+    secondColor: 'black',
+    secondGlyph: '將',
+    secondLabel: 'Black',
     supportsRated: false,
     supportsStartFormat: false,
     supportsTimeControl: true,
   },
   [DARK_MINI_XIANGQI_SPEC_ID]: {
-    blackGlyph: '將',
     firstColor: 'red',
     firstGlyph: '帥',
     firstLabel: 'Red',
     glyphClass: 'xiangqi',
+    secondColor: 'black',
+    secondGlyph: '將',
+    secondLabel: 'Black',
     supportsRated: true,
+    supportsStartFormat: false,
+    supportsTimeControl: true,
+  },
+  [DUAL_CHESS_SPEC_ID]: {
+    firstColor: 'white',
+    firstGlyph: '♔',
+    firstLabel: 'White',
+    secondColor: 'black',
+    secondGlyph: '♚',
+    secondLabel: 'Black',
+    supportsRated: false,
     supportsStartFormat: false,
     supportsTimeControl: true,
   },
@@ -495,6 +541,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         engineId: defaultEngineId,
         initialGameSpecId: deepLinkInitialVariant(
           params.get('gameSpecId') ?? params.get('variant'),
+          'lobby',
         ),
         mode: 'lobby',
         title: 'Find opponent',
@@ -505,6 +552,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
       openLandingSetupDialog({
         initialGameSpecId: deepLinkInitialVariant(
           params.get('gameSpecId') ?? params.get('variant'),
+          'pvp',
         ),
         mode: 'pvp',
         title: 'Challenge a friend',
@@ -518,6 +566,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         engines: availableEngines,
         initialGameSpecId: deepLinkInitialVariant(
           params.get('gameSpecId') ?? params.get('variant'),
+          'pve',
         ),
         mode: 'pve',
         title: 'Play the engine',
@@ -545,6 +594,23 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     choice.mode === 'pve' || choice.ratedDisabled ? false : (storedPreference.rated ?? true);
   let selectedGameSpecId: LandingGameSpecId =
     choice.initialGameSpecId ?? storedPreference.gameSpecId ?? DARK_CHESS_SPEC_ID;
+  const publicVariantOptions = enabledLandingVariantGameSpecs(choice.mode);
+  const softLinkedHiddenVariant =
+    choice.initialGameSpecId &&
+    !publicVariantOptions.some((option) => option.gameSpecId === choice.initialGameSpecId)
+      ? choice.initialGameSpecId
+      : undefined;
+  const variantOptions = softLinkedHiddenVariant
+    ? [
+        {
+          gameSpecId: softLinkedHiddenVariant,
+          label: gameSpecForId(softLinkedHiddenVariant).publicName,
+        },
+      ]
+    : publicVariantOptions;
+  if (!variantOptions.some((option) => option.gameSpecId === selectedGameSpecId)) {
+    selectedGameSpecId = DARK_CHESS_SPEC_ID;
+  }
   let selectedPreset: LandingTimePresetId = storedPreference.timePresetId ?? '3m2';
   let selectedEngineId = storedPreference.engineId ?? choice.engineId;
   let preferredColor: LandingColorPreference =
@@ -583,13 +649,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantSection.append(setupSectionLabel('Variant'));
 
   // The picker appears only when a second public-entry variant exists beyond
-  // chess. DMX can still be selected by a soft-launch deep link when its render
-  // flag is on; in that case this section renders a static variant label.
-  const variantSelectable =
-    (choice.mode === 'pvp' || choice.mode === 'lobby' || choice.mode === 'pve') &&
-    darkMiniXiangqiPublicEntryEnabled();
+  // chess. The option set is mode-aware: Crossroads is live-room PvP only today.
+  const variantSelectable = variantOptions.length > 1;
   if (variantSelectable) {
-    const variantOptions = enabledLandingVariantGameSpecs();
     const gameSpecSelect = document.createElement('select');
     gameSpecSelect.className = 'landing-variant-select landing-engine-select';
     gameSpecSelect.setAttribute('aria-label', 'Variant');
@@ -794,8 +856,15 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     if (!capabilities.supportsRated) {
       rated = false;
     }
-    if (capabilities.firstColor === 'red' && preferredColor === 'white') preferredColor = 'red';
-    if (capabilities.firstColor === 'white' && preferredColor === 'red') preferredColor = 'white';
+    if (preferredColor === 'white' && capabilities.firstColor !== 'white') {
+      preferredColor = capabilities.firstColor;
+    }
+    if (preferredColor === 'red' && capabilities.secondColor !== 'red') {
+      preferredColor = capabilities.firstColor === 'red' ? 'red' : capabilities.secondColor;
+    }
+    if (preferredColor === 'black' && capabilities.secondColor !== 'black') {
+      preferredColor = capabilities.secondColor;
+    }
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
     if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
     // The PvE engine picker lists chess engines; DMX serves a single dedicated
@@ -993,6 +1062,7 @@ function normalizeStoredGameSpecId(value: unknown): LandingGameSpecId | undefine
   if (value === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiPublicEntryEnabled()) {
     return DARK_MINI_XIANGQI_SPEC_ID;
   }
+  if (value === DUAL_CHESS_SPEC_ID && dualChessEnabled()) return DUAL_CHESS_SPEC_ID;
   return undefined;
 }
 
@@ -1036,14 +1106,15 @@ function buildColorPreferenceSection(
     const gameSpecId = getGameSpecId();
     const capabilities = landingGameSpecCapabilities(gameSpecId);
     const firstValue: LandingColorPreference = capabilities.firstColor;
+    const secondValue: LandingColorPreference = capabilities.secondColor;
     const current = get();
     updateColorOptionButton(firstButton, firstValue, capabilities.firstLabel, gameSpecId);
     updateColorOptionButton(randomButton, 'random', 'Random', gameSpecId);
-    updateColorOptionButton(blackButton, 'black', 'Black', gameSpecId);
+    updateColorOptionButton(blackButton, secondValue, capabilities.secondLabel, gameSpecId);
     for (const [button, value] of [
       [firstButton, firstValue],
       [randomButton, 'random'],
-      [blackButton, 'black'],
+      [blackButton, secondValue],
     ] as const) {
       const selected = current === value;
       button.classList.toggle('selected', selected);
@@ -1060,7 +1131,7 @@ function buildColorPreferenceSection(
     sync();
   });
   blackButton.addEventListener('click', () => {
-    set('black');
+    set(landingGameSpecCapabilities(getGameSpecId()).secondColor);
     sync();
   });
 
@@ -1121,12 +1192,14 @@ function colorGlyphNodes(
     first.className = capabilities.firstColor;
     first.textContent = capabilities.firstGlyph;
     const second = document.createElement('span');
-    second.className = 'black';
-    second.textContent = capabilities.blackGlyph;
+    second.className = capabilities.secondColor;
+    second.textContent = capabilities.secondGlyph;
     return [first, second];
   }
   return [
-    document.createTextNode(value === 'black' ? capabilities.blackGlyph : capabilities.firstGlyph),
+    document.createTextNode(
+      value === capabilities.secondColor ? capabilities.secondGlyph : capabilities.firstGlyph,
+    ),
   ];
 }
 
@@ -1253,6 +1326,18 @@ function roomCreationRequestBody(
   engineId?: string,
 ): Record<string, unknown> {
   const gameSpecId = roomCreationGameSpecId(setup);
+  if (setup.gameSpecId === DUAL_CHESS_SPEC_ID) {
+    return {
+      mode: 'pvp',
+      gameSpecId,
+      timeControl: setup.timeControl,
+      rated: false,
+      preferredColor:
+        setup.preferredColor === 'red' || setup.preferredColor === 'black'
+          ? 'red'
+          : setup.preferredColor,
+    };
+  }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
     return {
       // DMX supports PvE (the engine id is defaulted server-side, so none is
@@ -1286,7 +1371,9 @@ function roomCreationGameSpecId(
   | typeof DARK_CHESS_SPEC_ID
   | typeof DARK_DRAFT960_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
-  | typeof DARK_XIANGQI_SPEC_ID {
+  | typeof DARK_XIANGQI_SPEC_ID
+  | typeof DUAL_CHESS_SPEC_ID {
+  if (setup.gameSpecId === DUAL_CHESS_SPEC_ID) return DUAL_CHESS_SPEC_ID;
   if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
   return setup.startFormat === 'draft960' ? DARK_DRAFT960_SPEC_ID : DARK_CHESS_SPEC_ID;

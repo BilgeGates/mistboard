@@ -71,6 +71,40 @@ describe('profile game rows', () => {
     expect(row.textContent).toContain('Red');
   });
 
+  it('renders Crossroads Chess rows with white/red outcome and review route', () => {
+    const row = buildProfileGameRow(
+      game({
+        roomId: 'dchess_profile',
+        variant: 'dual-chess',
+        result: 'red-wins',
+        participants: [
+          {
+            color: 'white',
+            displayName: 'White Player',
+            subjectType: 'user',
+            subjectId: 'white-user',
+            visibility: 'private',
+          },
+          {
+            color: 'red',
+            displayName: 'Red Player',
+            subjectType: 'user',
+            subjectId: 'red-user',
+            visibility: 'private',
+          },
+        ],
+        playerColor: 'red',
+      }),
+    );
+
+    const link = row.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/crossroads-chess/game/dchess_profile');
+    expect(row.textContent).toContain('Win');
+    expect(row.textContent).toContain('vs White Player');
+    expect(row.textContent).toContain('Crossroads Chess');
+    expect(row.textContent).toContain('Red');
+  });
+
   it('keeps chess profile rows on the chess game route', () => {
     const row = buildProfileGameRow(game());
     expect(row.querySelector('a')?.getAttribute('href')).toBe('/game/room_1');

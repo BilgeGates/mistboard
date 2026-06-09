@@ -63,6 +63,7 @@ const page = params.get('page');
 const gameRoomId = gameRoomIdFromPath(path);
 const darkXiangqiGameRoomId = darkXiangqiGameRoomIdFromPath(path);
 const darkMiniXiangqiGameRoomId = darkMiniXiangqiGameRoomIdFromPath(path);
+const crossroadsChessGameRoomId = crossroadsChessGameRoomIdFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
 const wantsSource = path === '/source' || page === 'source';
@@ -107,17 +108,15 @@ const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
-// Perfect-information Dual Chess play surface, gated by VITE_DUAL_CHESS_ENABLED
+// Perfect-information Crossroads Chess play surface, gated by VITE_DUAL_CHESS_ENABLED
 // (always on in dev). Hidden behind the flag in prod until the M1 launch gate.
-const wantsDualChessPlay = dualChessEnabled() && path === '/dual-chess-play';
-// Perfect-information Dual Chess live room (/room/dchess_*, or ?room=dchess_* in
+const wantsDualChessPlay =
+  dualChessEnabled() && (path === '/crossroads-chess' || path === '/dual-chess-play');
+// Perfect-information Crossroads Chess live room (/room/dchess_*, or ?room=dchess_* in
 // dev). Routed to its own isolated client *before* the shared live-room shell so
 // it never touches the fog-critical live.ts monolith.
 const dualChessLiveRoomCandidate = liveRoomId ?? (wantsLive ? params.get('room') : null);
-const wantsDualChessRoom =
-  dualChessEnabled() &&
-  dualChessLiveRoomCandidate !== null &&
-  dualChessLiveRoomCandidate.startsWith('dchess_');
+const wantsDualChessRoom = dualChessEnabled() && dualChessLiveRoomCandidate?.startsWith('dchess_');
 
 if (replaySample) {
   setTitle('Replay');
@@ -132,7 +131,7 @@ if (replaySample) {
     ),
   );
 } else if (wantsDualChessRoom) {
-  setTitle('Dual Chess');
+  setTitle('Crossroads Chess');
   void mountOrReport(() =>
     import('./live-dual-chess.js').then(({ bootstrapDualChessLiveRoom }) =>
       bootstrapDualChessLiveRoom(),
@@ -155,6 +154,13 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./dark-mini-xiangqi-postgame.js').then(({ mountDarkMiniXiangqiPostgame }) =>
       mountDarkMiniXiangqiPostgame(appRoot, darkMiniXiangqiGameRoomId),
+    ),
+  );
+} else if (crossroadsChessGameRoomId && dualChessEnabled()) {
+  setTitle('Crossroads Chess');
+  void mountOrReport(() =>
+    import('./dual-chess-postgame.js').then(({ mountDualChessPostgame }) =>
+      mountDualChessPostgame(appRoot, crossroadsChessGameRoomId),
     ),
   );
 } else if (gameRoomId) {
@@ -234,7 +240,7 @@ if (replaySample) {
     ),
   );
 } else if (wantsDualChessPlay) {
-  setTitle('Dual Chess');
+  setTitle('Crossroads Chess');
   void mountOrReport(() =>
     import('./dual-chess-play.js').then(({ mountDualChessPlay }) => mountDualChessPlay(appRoot)),
   );
@@ -392,6 +398,11 @@ function darkXiangqiGameRoomIdFromPath(value: string): string | null {
 
 function darkMiniXiangqiGameRoomIdFromPath(value: string): string | null {
   const match = value.match(/^\/dark-mini-xiangqi\/game\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function crossroadsChessGameRoomIdFromPath(value: string): string | null {
+  const match = value.match(/^\/crossroads-chess\/game\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
 }
 

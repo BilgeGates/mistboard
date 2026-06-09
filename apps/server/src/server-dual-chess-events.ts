@@ -124,6 +124,8 @@ export function buildDualChessGameSummary(room: DualChessEventRoom): persistence
     corpusId: null,
     rated: false,
     visibility: 'private',
+    initialMs: room.projection.timeControl?.initialMs ?? null,
+    incrementMs: room.projection.timeControl?.incrementMs ?? null,
     participants: [dualChessParticipant('white', room), dualChessParticipant('red', room)],
   };
 }

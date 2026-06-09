@@ -829,6 +829,13 @@
   color: var(--site-text);
 }
 
+:root[data-effective-theme="dark"] .landing-engine-select {
+  background-color: var(--site-panel-soft);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5l4 4 4-4' fill='none' stroke='%23d8e2d6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
 :root[data-effective-theme="dark"] .landing-start-option.selected {
   border-color: var(--site-accent);
   background: var(--site-accent-soft);
@@ -979,11 +986,7 @@
    drop shadows (which vanish against a near-black page). Give the homepage
    panels a faint catch-light on the top edge plus a deeper, larger blur. */
 :root[data-effective-theme="dark"]
-  :is(
-    .landing-play-panel,
-    .landing-announcements,
-    .landing-announcement-card
-  ) {
+  :is(.landing-play-panel, .landing-announcements, .landing-announcement-card) {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 12px 32px rgba(0, 0, 0, 0.55);

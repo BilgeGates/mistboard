@@ -1,4 +1,4 @@
-// Perfect-information Dual Chess play page.
+// Perfect-information Crossroads Chess play page.
 //   - Opponent: hot-seat (both sides) or vs Computer (Fairy-Stockfish, server-side).
 //   - vs Computer: pick your side (White/Red) and a difficulty (FSF Skill Level).
 // No fog — this is the "learn in the clear" mode. Bot moves come from
@@ -47,7 +47,7 @@ export function mountDualChessPlay(container: HTMLElement): void {
   page.className = 'dual-play-page';
   page.innerHTML = `
     <div class="dual-play-head">
-      <h1>Dual Chess</h1>
+      <h1>Crossroads Chess</h1>
       <div class="dual-play-tagline">Perfect information · learn the pieces in the clear</div>
     </div>
     <div class="dual-play-layout">
@@ -93,7 +93,7 @@ export function mountDualChessPlay(container: HTMLElement): void {
       if (!res.ok) {
         statusEl.textContent =
           res.status === 404
-            ? 'Live Dual Chess is not enabled on this server.'
+            ? 'Live Crossroads Chess is not enabled on this server.'
             : 'Could not create a live room.';
         return;
       }

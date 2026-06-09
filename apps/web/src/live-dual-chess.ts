@@ -1,4 +1,4 @@
-// Live multiplayer room client for perfect-information Dual Chess (中西象棋).
+// Live multiplayer room client for perfect-information Crossroads Chess (中西象棋).
 //
 // Deliberately a self-contained sibling of the shared chess/DMX live room
 // (apps/web/src/live.ts), NOT woven into it. Perfect-information is the lighter
@@ -13,21 +13,28 @@
 
 import type {
   DualChessColor,
+  DualChessGameState,
   DualChessMove,
   DualChessPlayerView,
   DualChessSquare,
 } from '@mistboard/game';
+import {
+  applyDualChessOpenMove,
+  createInitialDualChessState,
+  getDualChessOpenView,
+} from '@mistboard/game';
 import './live-dual-chess.css';
 import { renderDualChessBoardSvg } from './dual-chess-render.js';
+import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
 import { roomIdFromPath } from './live-room-bootstrap.js';
 import {
   clearSeatTokenForRoom,
   clientIdForRoom,
+  type LiveRefs,
   resolveWebSocketBaseUrl,
   seatTokenForRoom,
   writeSeatTokenForRoom,
 } from './live-state.js';
-import { buildNav } from './site-shell.js';
 
 // ── Wire shapes (the subset this client consumes) ───────────────────────────
 
@@ -68,6 +75,7 @@ type DualLiveFrame = {
 type DualServerMessage = DualLiveFrame | { type: 'pong'; at: number; serverAt?: number };
 
 type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'displaced' | 'rejected';
+type ReplaySnapshot = { ply: number; view: DualChessPlayerView };
 
 // ── Module state ─────────────────────────────────────────────────────────────
 
@@ -81,6 +89,8 @@ const state = {
   seats: {} as Partial<Record<DualChessColor, string>>,
   connectedSeats: { white: false, red: false } as Record<DualChessColor, boolean>,
   moves: [] as DualMovePlayed[],
+  replayHistory: [] as ReplaySnapshot[],
+  replayPly: null as number | null,
   selected: null as DualChessSquare | null,
   connection: 'connecting' as ConnectionState,
   closeReason: '',
@@ -90,8 +100,8 @@ let socket: WebSocket | null = null;
 let reconnectTimer: number | null = null;
 let reconnectAttempt = 0;
 let lastSeq: number | null = null;
+let refs: LiveRefs | null = null;
 let boardHost: HTMLElement | null = null;
-let sideHost: HTMLElement | null = null;
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
@@ -118,27 +128,16 @@ export function bootstrapDualChessLiveRoom(): void {
   socketParams.set('client', clientIdForRoom(room));
   state.socketUrl = `${resolveWebSocketBaseUrl()}?${socketParams}`;
 
-  app.before(buildNav());
-  const page = document.createElement('main');
-  page.className = 'dual-live-page';
-  page.innerHTML = `
-    <div class="dual-live-head">
-      <h1>Dual Chess</h1>
-      <div class="dual-live-tagline">Perfect information · live</div>
-    </div>
-    <div class="dual-live-layout">
-      <div class="dual-live-board" data-board></div>
-      <aside class="dual-live-side" data-side></aside>
-    </div>`;
-  app.replaceChildren(page);
-  boardHost = page.querySelector<HTMLElement>('[data-board]');
-  sideHost = page.querySelector<HTMLElement>('[data-side]');
+  refs = createLiveLayout(app, { debugRequested: false });
+  setLiveLayoutGameSpec(app, 'dual-chess');
+  boardHost = refs.board;
 
   boardHost?.addEventListener('click', onBoardClick);
 
   connect();
   window.setInterval(() => send({ type: 'ping', at: Date.now() }), 5_000);
   window.setInterval(tickClocks, 250);
+  document.addEventListener('keydown', handleReplayKeyboard);
   renderAll();
 }
 
@@ -155,7 +154,7 @@ function connect(): void {
     socket = null;
   }
   state.connection = state.clientId ? 'reconnecting' : 'connecting';
-  renderSide();
+  renderAll();
 
   const token = seatTokenForRoom(state.room);
   const next = token
@@ -167,7 +166,7 @@ function connect(): void {
     if (socket !== next) return;
     reconnectAttempt = 0;
     state.connection = 'connected';
-    renderSide();
+    renderAll();
   });
   next.addEventListener('close', (event) => {
     if (socket !== next) return;
@@ -175,23 +174,23 @@ function connect(): void {
     if (event.code === 4000 && event.reason === 'duplicate session') {
       state.connection = 'displaced';
       socket = null;
-      renderSide();
+      renderAll();
       return;
     }
     if (event.code === 1008) {
       state.connection = 'rejected';
       socket = null;
-      renderSide();
+      renderAll();
       return;
     }
     state.connection = 'reconnecting';
-    renderSide();
+    renderAll();
     scheduleReconnect();
   });
   next.addEventListener('error', () => {
     if (socket !== next) return;
     state.connection = 'reconnecting';
-    renderSide();
+    renderAll();
   });
 }
 
@@ -223,10 +222,12 @@ function onMessage(event: MessageEvent<string>): void {
     }
     applyFrame(message);
     state.moves = movesFromEvents(message.events ?? []);
+    rebuildReplayHistory();
     lastSeq = null;
   } else if (message.type === 'snapshot') {
     applyFrame(message);
     state.moves = movesFromEvents(message.events ?? []);
+    rebuildReplayHistory();
     lastSeq = null;
   } else if (message.type === 'event-appended') {
     // Gap detection: a missed delta means resync from a fresh snapshot.
@@ -236,6 +237,7 @@ function onMessage(event: MessageEvent<string>): void {
     }
     applyFrame(message);
     if (message.event?.type === 'move-played') state.moves.push(message.event as DualMovePlayed);
+    rebuildReplayHistory();
     if (message.seq !== undefined) lastSeq = message.seq;
   }
   renderAll();
@@ -260,8 +262,9 @@ function movesFromEvents(events: DualLiveEvent[]): DualMovePlayed[] {
 // ── Interaction ──────────────────────────────────────────────────────────────
 
 function onBoardClick(event: MouseEvent): void {
-  const view = state.view;
+  const view = liveView();
   if (!view) return;
+  if (!isReplayLive()) return;
   if (!iAmPlayer() || !isMyTurn()) return;
   const target = (event.target as HTMLElement | null)?.closest('[data-square]');
   if (!target) return;
@@ -293,7 +296,7 @@ function onBoardClick(event: MouseEvent): void {
 }
 
 function legalTargets(from: DualChessSquare): DualChessSquare[] {
-  const view = state.view;
+  const view = liveView();
   if (!view) return [];
   return view.legalMoves.filter((move) => move.from === from).map((move) => move.to);
 }
@@ -303,7 +306,7 @@ function iAmPlayer(): boolean {
 }
 
 function isMyTurn(): boolean {
-  const view = state.view;
+  const view = liveView();
   return (
     !!view &&
     view.status.type === 'playing' &&
@@ -315,38 +318,140 @@ function isMyTurn(): boolean {
 // ── Rendering ────────────────────────────────────────────────────────────────
 
 function renderAll(): void {
+  if (!refs) return;
+  resetSharedPanels(refs);
+  renderMeta(refs);
   renderBoard();
-  renderSide();
+  renderClocks(refs);
+  renderMoves(refs);
+  renderActionStatus(refs);
+  renderGameControls(refs);
+  renderRoomActions(refs);
 }
 
 function renderBoard(): void {
-  if (!boardHost || !state.view) return;
+  if (!refs || !boardHost) return;
+  const view = displayedView();
+  refs.boardStatus.hidden = view !== null;
+  boardHost.className = 'board dual-live-board';
+  boardHost.setAttribute('aria-label', 'Crossroads Chess board');
+  if (!view) {
+    boardHost.replaceChildren();
+    return;
+  }
   const targets = state.selected ? legalTargets(state.selected) : [];
-  boardHost.innerHTML = renderDualChessBoardSvg(state.view, {
-    perspective: state.view.perspective,
+  boardHost.innerHTML = renderDualChessBoardSvg(view, {
+    perspective: view.perspective,
     showFog: false,
-    interactive: iAmPlayer(),
+    interactive: isReplayLive() && iAmPlayer(),
     selected: state.selected,
     targets,
-    lastMove: state.view.lastMove ?? null,
+    lastMove: view.lastMove ?? null,
   });
 }
 
-function renderSide(): void {
-  if (!sideHost) return;
-  sideHost.innerHTML = [
-    clockMarkup('top'),
-    `<div class="dual-live-status">${statusText()}</div>`,
-    `<div class="dual-live-conn">${connectionText()}</div>`,
-    movesMarkup(),
-    actionsMarkup(),
-    clockMarkup('bottom'),
-  ].join('');
+function resetSharedPanels(liveRefs: LiveRefs): void {
+  liveRefs.offerSection.hidden = true;
+  liveRefs.selectionSection.hidden = true;
+  liveRefs.devViewsSection.hidden = true;
+  liveRefs.draftPicker.hidden = true;
+  liveRefs.promotion.hidden = true;
+  liveRefs.boardPaused.hidden = true;
+  liveRefs.capturesTop.replaceChildren();
+  liveRefs.capturesBottom.replaceChildren();
+  liveRefs.clockNote.hidden = true;
+  liveRefs.clockNote.textContent = '';
+}
 
-  const resign = sideHost.querySelector<HTMLButtonElement>('[data-action="resign"]');
-  resign?.addEventListener('click', () => send({ type: 'resign' }));
-  const abort = sideHost.querySelector<HTMLButtonElement>('[data-action="abort"]');
-  abort?.addEventListener('click', () => send({ type: 'abort' }));
+function renderMeta(liveRefs: LiveRefs): void {
+  liveRefs.gameInfo.replaceChildren(
+    infoItem('Variant', 'Crossroads Chess'),
+    infoItem('Mode', 'Casual'),
+    infoItem('Seat', seatLabel()),
+    infoItem('Connection', connectionText()),
+  );
+}
+
+function renderRoomActions(liveRefs: LiveRefs): void {
+  liveRefs.roomActions.replaceChildren();
+  const row = document.createElement('div');
+  row.className = 'room-actions-row';
+  const view = state.view;
+
+  if (view?.status.type === 'finished') {
+    const review = roomLink('Review game', dualChessReviewUrl(state.room));
+    review.className = 'primary';
+    row.append(review, roomLink('New game', '/crossroads-chess'), roomLink('Home', '/'));
+    liveRefs.roomActions.append(row);
+    return;
+  }
+  if (view?.status.type === 'aborted') {
+    row.append(roomLink('Home', '/'));
+    liveRefs.roomActions.append(row);
+    return;
+  }
+
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.textContent = 'Copy invite';
+  copy.addEventListener('click', () => {
+    navigator.clipboard
+      ?.writeText(window.location.href)
+      .then(() => {
+        copy.textContent = 'Link copied!';
+        window.setTimeout(() => {
+          copy.textContent = 'Copy invite';
+        }, 2000);
+      })
+      .catch(() => {});
+  });
+  row.append(copy);
+  liveRefs.roomActions.append(row);
+}
+
+function renderActionStatus(liveRefs: LiveRefs): void {
+  liveRefs.actionStatus.replaceChildren();
+  liveRefs.actionSection.hidden = false;
+
+  if (state.view?.status.type === 'playing' && iAmPlayer() && state.connection === 'connected') {
+    liveRefs.actionSection.hidden = true;
+    return;
+  }
+
+  const notice = document.createElement('div');
+  notice.className = `action-notice ${actionTone()}`;
+  notice.append(noticeTitle(actionTitle()), noticeBody(actionBody()));
+  liveRefs.actionStatus.append(notice);
+}
+
+function renderGameControls(liveRefs: LiveRefs): void {
+  liveRefs.gameControls.replaceChildren();
+  liveRefs.gameControlsSection.hidden = true;
+  const view = state.view;
+  if (!view || view.status.type !== 'playing' || !iAmPlayer()) return;
+
+  if (view.moveNumber < 2) {
+    const children: HTMLElement[] = [];
+    if (view.status.turn === state.seat) {
+      const abort = document.createElement('button');
+      abort.type = 'button';
+      abort.className = 'danger';
+      abort.textContent = 'Abort';
+      abort.addEventListener('click', () => send({ type: 'abort' }));
+      children.push(abort);
+    }
+    liveRefs.gameControls.replaceChildren(...children);
+    liveRefs.gameControlsSection.hidden = children.length === 0;
+    return;
+  }
+
+  const resign = document.createElement('button');
+  resign.type = 'button';
+  resign.className = 'danger';
+  resign.textContent = 'Resign';
+  resign.addEventListener('click', () => send({ type: 'resign' }));
+  liveRefs.gameControls.append(resign);
+  liveRefs.gameControlsSection.hidden = false;
 }
 
 // Which color sits at the top vs bottom of the board for this viewer.
@@ -357,16 +462,40 @@ function topColor(): DualChessColor {
   return bottomColor() === 'white' ? 'red' : 'white';
 }
 
-function clockMarkup(slot: 'top' | 'bottom'): string {
-  if (!state.clock) return '';
-  const color = slot === 'top' ? topColor() : bottomColor();
+function renderClocks(liveRefs: LiveRefs): void {
+  liveRefs.clockTop.replaceChildren();
+  liveRefs.clockBottom.replaceChildren();
+  if (!state.clock) return;
+  renderClockSlot(liveRefs.clockTop, topColor());
+  renderClockSlot(liveRefs.clockBottom, bottomColor());
+}
+
+function renderClockSlot(container: HTMLElement, color: DualChessColor): void {
+  if (!state.clock) return;
   const ms = clockRemainingMs(color);
   const active = state.clock.activeColor === color && state.view?.status.type === 'playing';
   const connected = state.connectedSeats[color];
-  return `<div class="dual-live-clock ${active ? 'is-active' : ''}" data-clock="${color}">
-      <span class="dual-live-clock-name">${color === 'white' ? 'White' : 'Red'}${connected ? '' : ' (away)'}</span>
-      <span class="dual-live-clock-time" data-clock-time="${color}">${formatClock(ms)}</span>
-    </div>`;
+  const playerLine = document.createElement('span');
+  playerLine.className = active ? 'clock-player-line active' : 'clock-player-line';
+  playerLine.append(presenceDot(connected));
+  const name = document.createElement('span');
+  name.className = 'clock-name';
+  name.textContent = color === state.seat ? 'You' : capitalize(color);
+  playerLine.append(name);
+  const toMove = document.createElement('span');
+  toMove.className = 'clock-to-move';
+  toMove.textContent = 'to move';
+  toMove.setAttribute('aria-hidden', active ? 'false' : 'true');
+  playerLine.append(toMove);
+
+  const row = document.createElement('div');
+  row.className = active ? 'clock-time-row active' : 'clock-time-row';
+  row.dataset.color = color;
+  const time = document.createElement('strong');
+  time.dataset.clockTime = color;
+  time.textContent = formatClock(ms);
+  row.append(time);
+  container.append(playerLine, row);
 }
 
 function statusText(): string {
@@ -375,19 +504,55 @@ function statusText(): string {
   const status = view.status;
   if (status.type === 'finished') {
     const winner = status.winner ? (status.winner === 'white' ? 'White' : 'Red') : null;
-    const reason = status.reason ? ` (${status.reason})` : '';
-    return winner ? `${winner} wins${reason}` : `Draw${reason}`;
+    const reason = dualChessEndReasonLabel(status.reason);
+    return winner ? `${winner} wins by ${reason}` : `Draw by ${reason}`;
   }
-  if (status.type === 'aborted') return 'Game aborted';
+  if (status.type === 'aborted') return `Game aborted: ${abortReasonLabel(status.reason)}`;
   const turn = status.turn === 'white' ? 'White' : 'Red';
-  const mine = status.turn === state.seat ? ' — your move' : '';
+  const mine = status.turn === state.seat ? ', your move' : '';
   return `${turn} to move${mine}`;
+}
+
+function dualChessEndReasonLabel(reason: string): string {
+  switch (reason) {
+    case 'race':
+      return 'the Race';
+    case 'checkmate':
+      return 'checkmate';
+    case 'stalemate':
+      return 'stalemate';
+    case 'repetition':
+      return 'repetition';
+    case 'progress-clock':
+      return 'no progress';
+    case 'timeout':
+      return 'timeout';
+    case 'resignation':
+      return 'resignation';
+    case 'abandonment':
+      return 'disconnect';
+    case 'king-captured':
+      return 'king capture';
+    default:
+      return 'game end';
+  }
+}
+
+function abortReasonLabel(reason: string): string {
+  switch (reason) {
+    case 'pregame-timeout':
+      return 'pregame timeout';
+    case 'user-abort':
+      return 'aborted by player';
+    default:
+      return 'aborted';
+  }
 }
 
 function connectionText(): string {
   switch (state.connection) {
     case 'connected':
-      return state.seat && state.seat !== 'spectator' ? `You are ${state.seat}` : 'Spectating';
+      return state.seat && state.seat !== 'spectator' ? 'Connected' : 'Spectating';
     case 'connecting':
       return 'Connecting…';
     case 'reconnecting':
@@ -399,28 +564,205 @@ function connectionText(): string {
   }
 }
 
-function movesMarkup(): string {
-  if (state.moves.length === 0) return '<div class="dual-live-moves"></div>';
-  const rows: string[] = [];
-  for (let i = 0; i < state.moves.length; i += 2) {
-    const n = i / 2 + 1;
-    const white = uci(state.moves[i]!.move);
-    const red = state.moves[i + 1] ? uci(state.moves[i + 1]!.move) : '';
-    rows.push(`<li><span class="dual-live-movenum">${n}.</span> ${white} ${red}</li>`);
-  }
-  return `<ol class="dual-live-moves">${rows.join('')}</ol>`;
+function seatLabel(): string {
+  if (state.seat === 'white' || state.seat === 'red') return capitalize(state.seat);
+  return 'Spectator';
 }
 
-function actionsMarkup(): string {
-  const view = state.view;
-  if (!view || !iAmPlayer() || view.status.type !== 'playing')
-    return '<div class="dual-live-actions"></div>';
-  // Abort during the pregame (before both sides have moved once); resign after.
-  const button =
-    view.moveNumber < 2
-      ? `<button type="button" class="dual-live-btn" data-action="abort">Abort</button>`
-      : `<button type="button" class="dual-live-btn" data-action="resign">Resign</button>`;
-  return `<div class="dual-live-actions">${button}</div>`;
+function actionTone(): 'danger' | 'default' | 'pending' | 'success' {
+  if (state.connection === 'rejected' || state.connection === 'displaced') return 'danger';
+  if (!state.view || state.connection !== 'connected') return 'pending';
+  if (state.view.status.type === 'playing' && state.view.status.turn === state.seat) {
+    return 'success';
+  }
+  return 'default';
+}
+
+function actionTitle(): string {
+  if (state.connection === 'rejected') return 'Room unavailable';
+  if (state.connection === 'displaced') return 'Session moved';
+  if (!state.view) return 'Connecting';
+  if (state.view.status.type === 'finished') return 'Game finished';
+  if (state.view.status.type === 'aborted') return 'Game aborted';
+  if (state.view.status.turn === state.seat) return 'Your move';
+  return `${capitalize(state.view.status.turn)} to move`;
+}
+
+function actionBody(): string {
+  if (state.connection === 'rejected') return 'This Crossroads Chess room is not active.';
+  if (state.connection === 'displaced') return 'Another tab reclaimed this seat.';
+  if (!state.view) return 'Opening the room socket.';
+  if (state.view.status.type === 'finished' || state.view.status.type === 'aborted') {
+    return statusText();
+  }
+  if (state.seat === 'spectator') return 'Watching the full board.';
+  if (state.view.status.turn === state.seat) {
+    return 'Select one of your pieces, then choose a destination.';
+  }
+  return 'Waiting for the opponent.';
+}
+
+function renderMoves(liveRefs: LiveRefs): void {
+  liveRefs.moveList.replaceChildren();
+  const currentPly = currentReplayPly();
+  const maxPly = maxReplayPly();
+  liveRefs.replayMeta.textContent =
+    state.moves.length === 0
+      ? 'Live'
+      : isReplayLive()
+        ? `Live · ply ${maxPly} of ${maxPly}`
+        : `Replay · ply ${currentPly} of ${maxPly}`;
+  for (const button of liveRefs.replayControls) {
+    const action = button.dataset.replay ?? '';
+    button.disabled = replayControlDisabled(action);
+    button.onclick = () => {
+      handleReplayControl(action);
+      renderAll();
+    };
+  }
+  if (state.moves.length === 0) {
+    const row = document.createElement('li');
+    row.className = 'move-row';
+    const empty = document.createElement('span');
+    empty.className = 'move-empty';
+    empty.textContent = 'No moves yet';
+    row.append(empty);
+    liveRefs.moveList.append(row);
+    return;
+  }
+  for (let i = 0; i < state.moves.length; i += 2) {
+    const row = document.createElement('li');
+    row.className = 'move-row';
+    const n = document.createElement('span');
+    n.className = 'move-number';
+    n.textContent = `${i / 2 + 1}.`;
+    const white = document.createElement('span');
+    white.className = currentPly === i + 1 ? 'move-visible active' : 'move-visible';
+    white.textContent = uci(state.moves[i]!.move);
+    const red = document.createElement('span');
+    red.className =
+      currentPly === i + 2 && state.moves[i + 1]
+        ? 'move-visible active'
+        : state.moves[i + 1]
+          ? 'move-visible'
+          : 'move-empty';
+    red.textContent = state.moves[i + 1] ? uci(state.moves[i + 1]!.move) : '';
+    row.append(n, white, red);
+    liveRefs.moveList.append(row);
+  }
+}
+
+function rebuildReplayHistory(): void {
+  const perspective = liveView()?.perspective ?? (state.seat === 'red' ? 'red' : 'white');
+  let nextState: DualChessGameState = createInitialDualChessState(state.room);
+  const history: ReplaySnapshot[] = [
+    { ply: 0, view: getDualChessOpenView(nextState, perspective) },
+  ];
+  state.moves.forEach((event, index) => {
+    nextState = applyDualChessOpenMove(nextState, event.move);
+    history.push({ ply: index + 1, view: getDualChessOpenView(nextState, perspective) });
+  });
+  state.replayHistory = history;
+  if (state.replayPly !== null) {
+    state.replayPly = Math.max(0, Math.min(state.replayPly, maxReplayPly()));
+  }
+}
+
+function displayedView(): DualChessPlayerView | null {
+  if (isReplayLive()) return liveView();
+  return (
+    state.replayHistory.find((snapshot) => snapshot.ply === state.replayPly)?.view ?? liveView()
+  );
+}
+
+function liveView(): DualChessPlayerView | null {
+  return state.view;
+}
+
+function isReplayLive(): boolean {
+  return state.replayPly === null;
+}
+
+function currentReplayPly(): number {
+  return state.replayPly ?? maxReplayPly();
+}
+
+function maxReplayPly(): number {
+  return Math.max(0, state.replayHistory.length - 1, state.moves.length);
+}
+
+function replayControlDisabled(action: string): boolean {
+  const current = currentReplayPly();
+  const max = maxReplayPly();
+  if (max === 0) return true;
+  if (action === 'first' || action === 'prev') return current <= 0;
+  if (action === 'next') return isReplayLive() || current >= max;
+  if (action === 'latest') return isReplayLive();
+  return true;
+}
+
+function handleReplayControl(action: string): void {
+  const current = currentReplayPly();
+  const max = maxReplayPly();
+  if (action === 'first') {
+    state.replayPly = 0;
+  } else if (action === 'prev') {
+    state.replayPly = Math.max(0, current - 1);
+  } else if (action === 'next') {
+    state.replayPly = Math.min(max, current + 1);
+  } else if (action === 'latest') {
+    state.replayPly = null;
+  }
+  state.selected = null;
+}
+
+function handleReplayKeyboard(event: KeyboardEvent): void {
+  if (event.defaultPrevented || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) {
+    return;
+  }
+  if (isEditableKeyboardTarget(event.target)) return;
+  const action = replayActionForKey(event.key);
+  if (!action || replayControlDisabled(action)) return;
+  event.preventDefault();
+  handleReplayControl(action);
+  renderAll();
+}
+
+function replayActionForKey(key: string): string | null {
+  if (key === 'ArrowLeft') return 'prev';
+  if (key === 'ArrowRight') return 'next';
+  if (key === 'ArrowUp') return 'first';
+  if (key === 'ArrowDown') return 'latest';
+  return null;
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  );
+}
+
+export function dualChessTerminalActionsMarkup(
+  roomId: string,
+  statusType: 'finished' | 'aborted',
+): string {
+  const review =
+    statusType === 'finished'
+      ? `<a class="dual-live-btn" href="${dualChessReviewUrl(roomId)}">Review game</a>`
+      : '';
+  const newGame =
+    statusType === 'finished'
+      ? '<a class="dual-live-btn" href="/crossroads-chess">New game</a>'
+      : '';
+  return `<div class="dual-live-actions">${review}${newGame}<a class="dual-live-btn" href="/">Home</a></div>`;
+}
+
+export function dualChessReviewUrl(roomId: string): string {
+  return `/crossroads-chess/game/${encodeURIComponent(roomId)}`;
 }
 
 // ── Clocks ───────────────────────────────────────────────────────────────────
@@ -434,9 +776,11 @@ function clockRemainingMs(color: DualChessColor): number {
 }
 
 function tickClocks(): void {
-  if (!sideHost || !state.clock || state.view?.status.type !== 'playing') return;
+  if (!refs || !state.clock || state.view?.status.type !== 'playing') return;
   for (const color of ['white', 'red'] as DualChessColor[]) {
-    const node = sideHost.querySelector<HTMLElement>(`[data-clock-time="${color}"]`);
+    const node = refs.board
+      .closest('#app')
+      ?.querySelector<HTMLElement>(`[data-clock-time="${color}"]`);
     if (node) node.textContent = formatClock(clockRemainingMs(color));
   }
 }
@@ -450,4 +794,45 @@ function formatClock(ms: number): string {
 
 function uci(move: DualChessMove): string {
   return `${move.from}${move.to}${move.promotion ? 'Q' : ''}`;
+}
+
+function infoItem(label: string, value: string): HTMLDivElement {
+  const item = document.createElement('div');
+  const key = document.createElement('span');
+  const val = document.createElement('strong');
+  key.textContent = label;
+  val.textContent = value;
+  item.append(key, val);
+  return item;
+}
+
+function noticeTitle(text: string): HTMLElement {
+  const el = document.createElement('strong');
+  el.textContent = text;
+  return el;
+}
+
+function noticeBody(text: string): HTMLElement {
+  const el = document.createElement('span');
+  el.textContent = text;
+  return el;
+}
+
+function presenceDot(connected: boolean): HTMLSpanElement {
+  const dot = document.createElement('span');
+  dot.className = `presence-dot ${connected ? 'is-online' : 'is-offline'}`;
+  dot.setAttribute('aria-label', connected ? 'Connected' : 'Disconnected');
+  dot.title = connected ? 'Connected' : 'Disconnected';
+  return dot;
+}
+
+function roomLink(label: string, href: string): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.href = href;
+  link.textContent = label;
+  return link;
+}
+
+function capitalize(value: string): string {
+  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

@@ -3,7 +3,9 @@ import type { IncomingMessage } from 'node:http';
 import test from 'node:test';
 import {
   type DualChessColor,
+  type DualChessGameState,
   type DualChessMove,
+  type DualChessPiece,
   getDualChessOpenLegalMoves,
 } from '@mistboard/game';
 import type { WebSocket } from 'ws';
@@ -114,6 +116,46 @@ test('Dual Chess WebSocket handler plays a full sequence of legal moves over the
     // Two full move pairs played → back to White on turn, moveNumber 3.
     assert.deepEqual(room.projection.state.status, { type: 'playing', turn: 'white' });
     assert.equal(room.projection.state.moveNumber, 3);
+    clearDualChessRuntimeTimers(room);
+  });
+});
+
+test('Dual Chess WebSocket handler preserves forced promotion metadata', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dchess_promotion');
+    const white = new FakeSocket();
+    const red = new FakeSocket();
+    await connect(room, white, 'white-client');
+    await connect(room, red, 'red-client');
+    room.projection.state = stateWith({
+      a1: p('red', 'king'),
+      c7: p('white', 'pawn'),
+      e1: p('white', 'king'),
+    });
+    white.messages.length = 0;
+    red.messages.length = 0;
+
+    white.emit('message', JSON.stringify({ type: 'move', from: 'c7', to: 'c8' }));
+    await room.pendingWrites;
+    await Promise.resolve();
+
+    const event = room.events.at(-1);
+    assert.equal(event?.type, 'move-played');
+    if (event?.type === 'move-played') {
+      assert.deepEqual(event.move, { from: 'c7', to: 'c8', promotion: 'queen' });
+    }
+    const whiteFrame = white.messages.at(-1) as Record<string, unknown>;
+    const redFrame = red.messages.at(-1) as Record<string, unknown>;
+    assert.deepEqual((whiteFrame.event as Record<string, unknown>).move, {
+      from: 'c7',
+      to: 'c8',
+      promotion: 'queen',
+    });
+    assert.deepEqual((redFrame.event as Record<string, unknown>).move, {
+      from: 'c7',
+      to: 'c8',
+      promotion: 'queen',
+    });
     clearDualChessRuntimeTimers(room);
   });
 });
@@ -343,6 +385,24 @@ function liveRoom(roomId: string): DualChessLiveRoom {
   assert.equal(created.ok, true);
   if (!created.ok) throw new Error('flagged Dual Chess room creation failed');
   return created.room as DualChessLiveRoom;
+}
+
+function p(color: DualChessColor, role: DualChessPiece['role']): DualChessPiece {
+  return { color, role };
+}
+
+function stateWith(
+  board: DualChessGameState['board'],
+  turn: DualChessColor = 'white',
+): DualChessGameState {
+  return {
+    id: 'test-dual-chess',
+    board,
+    status: { type: 'playing', turn },
+    moveNumber: 3,
+    progressClock: 0,
+    positionCounts: {},
+  };
 }
 
 async function withFlag(fn: () => Promise<void>): Promise<void> {

@@ -309,6 +309,11 @@
     max-width: none;
   }
 
+  .game-replay.replay-meta-header .replay-layout-crossroads {
+    grid-template-columns: minmax(0, min(100%, 640px));
+    justify-content: center;
+  }
+
   .game-replay.replay-meta-header .replay-pane {
     gap: 2px;
   }

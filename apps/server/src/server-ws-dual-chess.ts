@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import { type DualChessMove, isDualChessOpenLegalMove } from '@mistboard/game';
+import { type DualChessMove, getDualChessOpenLegalMoves } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
 import {
@@ -178,13 +178,16 @@ async function handleDualChessMessage(
   if (!(room.projection.seats.white && room.projection.seats.red)) return;
   if (room.projection.state.status.turn !== client.seat) return;
   const move: DualChessMove = { from: message.from, to: message.to };
-  if (!isDualChessOpenLegalMove(room.projection.state, move)) return;
+  const canonicalMove = getDualChessOpenLegalMoves(room.projection.state).find(
+    (legalMove) => legalMove.from === move.from && legalMove.to === move.to,
+  );
+  if (!canonicalMove) return;
   await appendAndBroadcast(room, client, {
     type: 'move-played',
     at: Date.now(),
     roomId: room.id,
     color: client.seat,
-    move,
+    move: canonicalMove,
   });
 }
 

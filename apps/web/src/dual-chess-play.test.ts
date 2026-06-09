@@ -13,11 +13,12 @@ function clickButton(root: HTMLElement, label: string): void {
     ?.click();
 }
 
-describe('Dual Chess hot-seat controller', () => {
+describe('Crossroads Chess hot-seat controller', () => {
   it('mounts, selects a piece, plays a move and passes the turn', () => {
     const root = document.createElement('div');
     mountDualChessPlay(root);
 
+    expect(root.querySelector('h1')?.textContent).toBe('Crossroads Chess');
     expect(root.querySelector('.dual-play-status')?.textContent).toBe('White to move');
     // 48 click targets (one per square) and the control buttons: the Opponent
     // toggle (2) + New game, Flip board, Play a friend (live).
@@ -44,7 +45,7 @@ describe('Dual Chess hot-seat controller', () => {
   });
 });
 
-describe('Dual Chess vs Computer', () => {
+describe('Crossroads Chess vs Computer', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });

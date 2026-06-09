@@ -128,7 +128,7 @@ test('future composites are composed from rule modules', () => {
   assert.equal(darkOmega.board, 'omega-10x10-plus-corners');
 });
 
-test('Dual Chess is two specs sharing one family/board, split on visibility', () => {
+test('Crossroads Chess is two specs sharing one family/board, split on visibility', () => {
   const open = gameSpecForId('dual-chess');
   const dark = gameSpecForId('dark-dual-chess');
 
@@ -138,11 +138,13 @@ test('Dual Chess is two specs sharing one family/board, split on visibility', ()
     assert.equal(spec.movement, 'dual-chess');
     assert.equal(spec.objective, 'royal-capture-or-race');
     assert.equal(spec.setup, 'dual-standard');
-    // Not live yet: hidden + future until the renderer + live stack land.
     assert.equal(spec.publicSurface, 'hidden');
-    assert.equal(spec.runtimeStatus, 'future');
   }
+  assert.equal(open.runtimeStatus, 'dev-spike');
+  assert.equal(dark.runtimeStatus, 'future');
   // The split: perfect-info onboarding vs the real fog mode, on separate pools.
+  assert.equal(open.publicName, 'Crossroads Chess');
+  assert.equal(dark.publicName, 'Dark Crossroads Chess');
   assert.equal(open.visibility, 'open');
   assert.equal(dark.visibility, 'dark');
   assert.equal(open.ratingPoolBase, 'dual_chess_open');

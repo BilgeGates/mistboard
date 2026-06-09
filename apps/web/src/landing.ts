@@ -5,6 +5,7 @@ import './game-route.css';
 import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
 import { buildContact } from './contact.js';
+import { dualChessEnabled } from './feature-flags.js';
 import type { FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
@@ -18,6 +19,7 @@ import {
   setRoomNavigator,
 } from './landing-play.js';
 import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js';
+import { roomIdFromPath } from './live-room-bootstrap.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
@@ -238,20 +240,44 @@ async function transitionToRoom(
   // Load the live room chunk while the landing is still on screen (no blank
   // flash), then dispose the landing and swap the room in place. Same-document
   // navigation preserves the click's sticky user activation.
+  const clientKind = landingRoomClientKindForUrl(url);
+  if (clientKind === 'crossroads') {
+    const liveModule = await import('./live-dual-chess.js').catch((err) => {
+      console.warn('live room chunk failed to load; falling back to full reload', err);
+      return null;
+    });
+    if (liveModule === null) {
+      window.location.href = url;
+      return;
+    }
+    prepareRoomTransition(root, url, teardownLanding);
+    liveModule.bootstrapDualChessLiveRoom();
+    return;
+  }
   const liveModule = await import('./live.js').catch((err) => {
     console.warn('live room chunk failed to load; falling back to full reload', err);
     return null;
   });
-  if (!liveModule) {
+  if (liveModule === null) {
     window.location.href = url;
     return;
   }
+  prepareRoomTransition(root, url, teardownLanding);
+  liveModule.bootstrapLiveRoom();
+}
+
+export function landingRoomClientKindForUrl(url: string): 'crossroads' | 'standard' {
+  const next = new URL(url, window.location.href);
+  const roomId = roomIdFromPath(next.pathname) ?? next.searchParams.get('room');
+  return dualChessEnabled() && roomId?.startsWith('dchess_') ? 'crossroads' : 'standard';
+}
+
+function prepareRoomTransition(root: HTMLElement, url: string, teardownLanding: () => void): void {
   teardownLanding();
   window.history.pushState(null, '', url);
   root.classList.remove('landing-page', 'game-route');
   root.replaceChildren();
   window.addEventListener('popstate', reloadOnPopState);
-  liveModule.bootstrapLiveRoom();
 }
 
 // After an in-place landing -> room swap, Back/Forward changes the URL without a

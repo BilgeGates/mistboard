@@ -16,7 +16,7 @@ export function darkMiniXiangqiPublicEntryEnabled(): boolean {
   );
 }
 
-// Perfect-information Dual Chess play surface. Always on in dev for convenience;
+// Perfect-information Crossroads Chess play surface. Always on in dev for convenience;
 // in prod/staging it is hidden unless the build opts in.
 export function dualChessEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_DUAL_CHESS_ENABLED === 'true';

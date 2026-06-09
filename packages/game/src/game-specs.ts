@@ -17,14 +17,14 @@ export type MovementRulesId =
   | 'seirawan'
   | 'dual-chess';
 // 'royal-capture-or-race': capture/checkmate the royal OR race it to the enemy
-// home rank (the Dual Chess "Try"). Open mode keeps checkmate, dark switches to
+// home rank (the Crossroads Chess "Try"). Open mode keeps checkmate, dark switches to
 // king-capture; the visibility axis + rules module resolve which.
 export type ObjectiveRulesId =
   | 'king-capture'
   | 'general-capture'
   | 'suicide'
   | 'royal-capture-or-race';
-// 'open' = perfect-information (the Dual Chess onboarding mode); every other spec
+// 'open' = perfect-information (the Crossroads Chess onboarding mode); every other spec
 // is 'dark' (fog of war).
 export type VisibilityRulesId = 'dark' | 'open';
 export type SetupRulesId =
@@ -270,12 +270,12 @@ export const GAME_SPECS: readonly GameSpec[] = [
     runtimeStatus: 'future',
   },
   {
-    // Dual Chess (中西象棋): a 6x8 chess x xiangqi fusion. Two modes share one
+    // Crossroads Chess (中西象棋): a 6x8 chess x xiangqi fusion. Two modes share one
     // family/board/movement and split on the visibility axis. Perfect-info is the
     // onboarding ladder (keeps checkmate); dark is the real mode (king-capture).
-    // Rules engine: packages/game/src/variants-dual-chess.ts. Not yet live.
+    // Rules engine: packages/game/src/variants-dual-chess.ts.
     id: DUAL_CHESS_SPEC_ID,
-    publicName: 'Dual Chess',
+    publicName: 'Crossroads Chess',
     family: 'dual-chess',
     board: 'dual-6x8',
     movement: 'dual-chess',
@@ -286,11 +286,11 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'dual_chess_open',
     publicSurface: 'hidden',
-    runtimeStatus: 'future',
+    runtimeStatus: 'dev-spike',
   },
   {
     id: DARK_DUAL_CHESS_SPEC_ID,
-    publicName: 'Dark Dual Chess',
+    publicName: 'Dark Crossroads Chess',
     family: 'dual-chess',
     board: 'dual-6x8',
     movement: 'dual-chess',

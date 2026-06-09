@@ -1,7 +1,7 @@
 // Unlisted admin game browser (/database). A faceted, shareable alternative to
 // poking the production Postgres with SQL: filter completed games, read a live
 // win-rate / termination / length summary for the current slice, and click
-// through to the existing /game/:id replay. Admin-gated by the
+// through to the variant's review route. Admin-gated by the
 // /api/admin/games/query endpoint (open in local dev). No nav entry.
 import './database.css';
 import { findTimeControl } from '@mistboard/game';
@@ -387,7 +387,10 @@ function buildResults(data: QueryResponse, onApply: (next: Filters) => void): HT
 function buildGameRow(game: GameRow): HTMLElement {
   const link = document.createElement('a');
   link.className = 'database-row';
-  link.href = `/game/${encodeURIComponent(game.roomId)}`;
+  link.href =
+    game.variant === 'dual-chess'
+      ? `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`
+      : `/game/${encodeURIComponent(game.roomId)}`;
 
   const tag = document.createElement('span');
   const tone = resultTone(game.result);
@@ -553,6 +556,7 @@ function variantLabel(variant: string): string {
   if (variant === 'fog' || variant === 'dark-chess') return 'Dark Chess';
   if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960')
     return 'Dark Draft960';
+  if (variant === 'dual-chess') return 'Crossroads Chess';
   if (variant === 'dark-xiangqi') return 'Dark Xiangqi';
   if (variant === 'dark-mini-xiangqi') return 'Dark Mini Xiangqi';
   return variant;

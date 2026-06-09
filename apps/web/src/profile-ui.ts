@@ -114,6 +114,7 @@ function profileSideLabel(game: FeaturedGame): string {
 }
 
 function profileGameSpecLabel(game: FeaturedGame): string {
+  if (game.variant === 'dual-chess') return 'Crossroads Chess';
   if (game.variant === 'dark-mini-xiangqi') return 'Dark Mini Xiangqi';
   if (game.variant === 'dark-xiangqi') return 'Dark Xiangqi';
   if (
@@ -152,13 +153,17 @@ function opponentColor(
   game: FeaturedGame,
   color: FeaturedGame['playerColor'],
 ): 'white' | 'black' | 'red' {
-  if (color === 'red') return 'black';
+  if (color === 'red') return game.variant === 'dual-chess' ? 'white' : 'black';
+  if (color === 'white' && game.variant === 'dual-chess') return 'red';
   if (color === 'black' && isXiangqiVariant(game)) return 'red';
   if (color === 'black') return 'white';
   return 'black';
 }
 
 function profileGameHref(game: FeaturedGame): string {
+  if (game.variant === 'dual-chess') {
+    return `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`;
+  }
   if (game.variant === 'dark-mini-xiangqi') {
     return `/dark-mini-xiangqi/game/${encodeURIComponent(game.roomId)}`;
   }

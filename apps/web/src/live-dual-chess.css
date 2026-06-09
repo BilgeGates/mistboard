@@ -1,139 +1,29 @@
-.dual-live-page {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 28px 16px 48px;
+.live-route--dual-chess .board-panel {
+  grid-template-columns: minmax(220px, 300px) minmax(0, min(58vh, 520px)) minmax(220px, 300px);
 }
 
-.dual-live-head {
-  text-align: center;
-  margin-bottom: 20px;
+.live-route--dual-chess .board-shell {
+  width: min(100%, 58vh, 520px);
 }
 
-.dual-live-head h1 {
-  margin: 0;
-  font-size: 26px;
-}
-
-.dual-live-tagline {
-  color: var(--muted, #888);
-  font-size: 14px;
-  margin-top: 4px;
-}
-
-.dual-live-layout {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-  justify-content: center;
-  flex-wrap: wrap;
+.live-route--dual-chess .board-stage {
+  aspect-ratio: 6 / 8;
 }
 
 .dual-live-board {
-  width: 360px;
-  flex: 0 0 auto;
+  aspect-ratio: 6 / 8;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .dual-live-board svg {
-  width: 100%;
-  height: auto;
   display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.dual-live-side {
-  width: 240px;
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.dual-live-status {
-  font-size: 18px;
-  font-weight: 600;
-  min-height: 1.4em;
-}
-
-.dual-live-conn {
-  font-size: 12px;
-  color: var(--muted, #888);
-}
-
-.dual-live-clock {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 6px 10px;
-  border: 1px solid rgba(128, 128, 128, 0.25);
-  border-radius: 6px;
-  font-variant-numeric: tabular-nums;
-}
-
-.dual-live-clock.is-active {
-  border-color: rgba(255, 205, 80, 0.7);
-  background: rgba(255, 205, 80, 0.08);
-}
-
-.dual-live-clock-name {
-  font-size: 12px;
-  color: var(--muted, #888);
-}
-
-.dual-live-clock-time {
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.dual-live-moves {
-  margin: 0;
-  padding: 8px 10px;
-  list-style: none;
-  max-height: 220px;
-  overflow-y: auto;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  border: 1px solid rgba(128, 128, 128, 0.18);
-  border-radius: 6px;
-}
-
-.dual-live-moves:empty {
-  display: none;
-}
-
-.dual-live-movenum {
-  color: var(--muted, #888);
-  margin-right: 4px;
-}
-
-.dual-live-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.dual-live-actions:empty {
-  display: none;
-}
-
-.dual-live-btn {
-  padding: 5px 11px;
-  cursor: pointer;
-  border: 1px solid rgba(128, 128, 128, 0.4);
-  border-radius: 5px;
-  background: transparent;
-  color: inherit;
-  font-size: 13px;
-}
-
-.dual-live-btn:hover {
-  border-color: rgba(128, 128, 128, 0.7);
-}
-
-@media (max-width: 620px) {
-  .dual-live-layout {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .dual-live-side {
-    width: 360px;
-  }
+.room-actions-row {
+  display: grid;
+  gap: 10px;
 }

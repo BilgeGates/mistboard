@@ -49,6 +49,8 @@ export function timeControlLabelForGame(game: FeaturedGame): string | null {
 
 export function reviewUrlForGame(game: FeaturedGame): string | null {
   if (game.corpusId === 'replay-samples') return null;
+  if (game.variant === 'dual-chess')
+    return `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`;
   return `/game/${encodeURIComponent(game.roomId)}`;
 }
 
