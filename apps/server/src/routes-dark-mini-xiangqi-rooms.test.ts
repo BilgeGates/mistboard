@@ -5,6 +5,7 @@ import { DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
 import type { DarkMiniXiangqiRuntimeRoom } from './dark-mini-xiangqi-runtime.js';
 import type { UserAccount } from './persistence.js';
 import {
+  darkMiniXiangqiPveHumanColor,
   handleDarkMiniXiangqiCreate,
   requestsDarkMiniXiangqi,
 } from './routes/dark-mini-xiangqi-rooms.js';
@@ -148,6 +149,14 @@ test('Dark Mini Xiangqi room route creates a rated PvP room for a signed-in play
   }
 });
 
+test('Dark Mini Xiangqi PvE color selection honors random and explicit black', () => {
+  assert.equal(darkMiniXiangqiPveHumanColor(undefined), 'red');
+  assert.equal(darkMiniXiangqiPveHumanColor('red'), 'red');
+  assert.equal(darkMiniXiangqiPveHumanColor('black'), 'black');
+  assert.equal(darkMiniXiangqiPveHumanColor('random', 0), 'red');
+  assert.equal(darkMiniXiangqiPveHumanColor('random', 255), 'black');
+});
+
 test('Dark Mini Xiangqi PvE route seats the engine opposite the human and echoes mode pve', async () => {
   const before = process.env[darkMiniXiangqiFlag];
   process.env[darkMiniXiangqiFlag] = 'true';
@@ -180,6 +189,40 @@ test('Dark Mini Xiangqi PvE route seats the engine opposite the human and echoes
     });
     assert.equal(response.status, 201);
     assert.equal(responseJson(response).mode, 'pve');
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Mini Xiangqi PvE route seats the engine opposite explicit human black', async () => {
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    let requestedEngine: unknown;
+    let reservedColor: string | undefined;
+    const response = captureResponse();
+    await handleDarkMiniXiangqiCreate(
+      testContext({
+        reserveLiveEngineSeat: async (_engineId, color) => {
+          reservedColor = color;
+          return 'reservation-black';
+        },
+        createDarkMiniXiangqiRoom: async (_timeControl, _creatorPreference, engine) => {
+          requestedEngine = engine;
+          return { ok: true, room: darkMiniXiangqiRoom('dmxq_pve_black') };
+        },
+      }),
+      response,
+      { gameSpecId: DARK_MINI_XIANGQI_SPEC_ID, mode: 'pve', preferredColor: 'black' },
+    );
+
+    assert.equal(reservedColor, 'white');
+    assert.deepEqual(requestedEngine, {
+      engineId: 'python-dmx-v1.0',
+      seat: 'red',
+      reservationId: 'reservation-black',
+    });
+    assert.equal(response.status, 201);
   } finally {
     restoreFlag(before);
   }

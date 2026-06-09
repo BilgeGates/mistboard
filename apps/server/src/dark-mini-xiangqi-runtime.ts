@@ -491,6 +491,7 @@ export function darkMiniXiangqiSnapshotPayload(
   room: DarkMiniXiangqiRuntimeRoom,
   client: DarkMiniXiangqiSnapshotClient,
 ) {
+  const pveEngineId = darkMiniXiangqiPveEngineId(room);
   const state = getDarkMiniXiangqiClientView(
     room.projection.state,
     client,
@@ -504,6 +505,8 @@ export function darkMiniXiangqiSnapshotPayload(
     clients: room.clients.size,
     seat: client.seat,
     solo: client.solo,
+    mode: pveEngineId ? ('pve' as const) : ('pvp' as const),
+    pveEngineId,
     rated: room.rated,
     abortDeadline: room.abortDeadline,
     // Only the present winning seat (opposite the forfeiting seat) learns the
@@ -526,6 +529,14 @@ export function darkMiniXiangqiSnapshotPayload(
       finalizedRoomId: room.rematch.finalizedRoomId ?? null,
     },
   };
+}
+
+function darkMiniXiangqiPveEngineId(room: DarkMiniXiangqiRuntimeRoom): string | null {
+  for (const seat of ['red', 'black'] as const) {
+    const clientId = room.projection.seats[seat];
+    if (isDarkMiniXiangqiEngineClientId(clientId)) return clientId ?? null;
+  }
+  return null;
 }
 
 export function darkMiniXiangqiEventsForClient(

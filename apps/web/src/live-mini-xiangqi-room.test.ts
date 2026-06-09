@@ -29,11 +29,15 @@ describe('Dark Mini Xiangqi live room', () => {
     liveState.connectionState = 'connected';
     liveState.closeReason = '';
     liveState.room = 'dmxq_test';
+    liveState.roomMode = 'pvp';
+    liveState.pveEngineId = null;
     liveState.seat = 'red';
     liveState.events = [];
     liveState.state = viewFixture() as never;
     liveState.abortDeadline = null;
     liveState.forfeitDeadline = null;
+    liveState.rematch = { offers: {}, finalizedRoomId: null };
+    liveState.timeControl = null;
     resetDarkMiniXiangqiReplayState();
   });
 
@@ -43,9 +47,13 @@ describe('Dark Mini Xiangqi live room', () => {
     document.body.classList.remove('live-route--mini-xiangqi');
     liveState.gameSpecId = null;
     liveState.connectionState = 'connecting';
+    liveState.roomMode = 'pvp';
+    liveState.pveEngineId = null;
     liveState.seat = 'spectator';
     liveState.events = [];
     liveState.state = null;
+    liveState.rematch = { offers: {}, finalizedRoomId: null };
+    liveState.timeControl = null;
     resetDarkMiniXiangqiReplayState();
   });
 
@@ -247,6 +255,45 @@ describe('Dark Mini Xiangqi live room', () => {
       .find((b) => b.textContent === 'Accept')
       ?.dispatchEvent(clickEvent());
     expect(sendSocket).toHaveBeenCalledWith({ type: 'rematch:offer' });
+  });
+
+  it('offers play again, not rematch, after a finished PvE game', () => {
+    const fetchMock = vi.fn((_: string, _init?: RequestInit) =>
+      Promise.resolve({
+        ok: false,
+        status: 503,
+      } as Response),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const sendSocket = vi.fn(() => true);
+    const refs = refsFixture();
+    liveState.roomMode = 'pve';
+    liveState.pveEngineId = 'python-dmx-v1.0';
+    liveState.seat = 'red';
+    liveState.timeControl = { initialMs: 60_000, incrementMs: 1_000 };
+    liveState.rematch = { offers: {}, finalizedRoomId: null };
+    liveState.state = {
+      ...viewFixture(),
+      status: { type: 'finished', winner: 'red', reason: 'resignation' },
+      legalMoves: [],
+    } as never;
+
+    renderDarkMiniXiangqiRoom(refs, { reconnectNow: () => {}, sendSocket });
+    const labels = [...refs.roomActions.querySelectorAll('button')].map((b) => b.textContent);
+    expect(labels).toContain('Play again');
+    expect(labels).not.toContain('Rematch');
+
+    refs.roomActions
+      .querySelector<HTMLButtonElement>('button')
+      ?.dispatchEvent(clickEvent());
+    expect(sendSocket).not.toHaveBeenCalled();
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      mode: 'pve',
+      gameSpecId: 'dark-mini-xiangqi',
+      preferredColor: 'black',
+      engineId: 'python-dmx-v1.0',
+      timeControl: { initialMs: 60_000, incrementMs: 1_000 },
+    });
   });
 
   it('offers no play-again after an abort — only Home (parity with dark chess)', () => {

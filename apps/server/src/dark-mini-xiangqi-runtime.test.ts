@@ -150,6 +150,35 @@ test('Dark Mini Xiangqi runtime applies seat events and filters snapshots by rec
   }
 });
 
+test('Dark Mini Xiangqi snapshots identify PvE rooms by engine-held seats', () => {
+  const before = process.env[darkMiniXiangqiKey];
+  process.env[darkMiniXiangqiKey] = 'true';
+  try {
+    const result = createDarkMiniXiangqiRuntimeRoom('dmxq_pve');
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const { room } = result;
+
+    appendDarkMiniXiangqiRuntimeEvent(room, {
+      type: 'seat-assigned',
+      at: 101,
+      roomId: room.id,
+      clientId: 'python-dmx-v1.0',
+      seat: 'black',
+    });
+
+    const redSnapshot = darkMiniXiangqiSnapshotPayload(room, {
+      id: 'red-client',
+      seat: 'red',
+      solo: false,
+    });
+    assert.equal(redSnapshot.mode, 'pve');
+    assert.equal(redSnapshot.pveEngineId, 'python-dmx-v1.0');
+  } finally {
+    restoreEnv(darkMiniXiangqiKey, before);
+  }
+});
+
 test('Dark Mini Xiangqi runtime hides opponent move events and lastMove coordinates', () => {
   const before = process.env[darkMiniXiangqiKey];
   process.env[darkMiniXiangqiKey] = 'true';

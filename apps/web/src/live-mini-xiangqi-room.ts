@@ -342,13 +342,17 @@ function renderRoomActions(refs: LiveRefs): void {
   if (view?.status.type === 'finished' || view?.status.type === 'aborted') {
     // Only finished games have a postgame review (the endpoint 404s otherwise).
     if (view.status.type === 'finished') row.append(reviewLink());
-    // Finished games offer a mutual-confirm rematch with colors swapped (same as
-    // dark chess); a non-seated viewer of a finished game gets an instant new
+    // Finished PvP games offer a mutual-confirm rematch with colors swapped
+    // (same as dark chess); PvE and non-seated finished games get an instant new
     // room. Aborted games offer NO play-again — parity with dark chess. The old
     // instant-new-room button after an abort created a fresh solo room where the
     // mover could play before the opponent joined, and the opponent got no cue.
     const seat = liveState.seat;
-    if (view.status.type === 'finished' && (seat === 'red' || seat === 'black')) {
+    if (
+      view.status.type === 'finished' &&
+      liveState.roomMode === 'pvp' &&
+      (seat === 'red' || seat === 'black')
+    ) {
       const theirSeat = seat === 'red' ? 'black' : 'red';
       row.append(rematchControls(seat, theirSeat, renderCallbacks.sendSocket));
     } else if (view.status.type === 'finished') {
@@ -421,12 +425,7 @@ async function createPlayAgainRoom(refs: LiveRefs): Promise<void> {
     const response = await fetch('/api/rooms', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        mode: 'pvp',
-        gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
-        preferredColor: 'random',
-        ...(liveState.timeControl ? { timeControl: liveState.timeControl } : {}),
-      }),
+      body: JSON.stringify(buildPlayAgainRoomRequestBody()),
     });
     if (!response.ok) throw new Error(`play-again failed: ${response.status}`);
     const data = (await response.json()) as { url?: string };
@@ -437,6 +436,23 @@ async function createPlayAgainRoom(refs: LiveRefs): Promise<void> {
     playAgainStatus = 'failed';
     renderRoomActions(refs);
   }
+}
+
+function buildPlayAgainRoomRequestBody(): Record<string, unknown> {
+  const mode = liveState.roomMode === 'pve' ? 'pve' : 'pvp';
+  const preferredColor =
+    mode === 'pve' && (liveState.seat === 'red' || liveState.seat === 'black')
+      ? liveState.seat === 'red'
+        ? 'black'
+        : 'red'
+      : 'random';
+  return {
+    mode,
+    gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
+    preferredColor,
+    ...(mode === 'pve' && liveState.pveEngineId ? { engineId: liveState.pveEngineId } : {}),
+    ...(liveState.timeControl ? { timeControl: liveState.timeControl } : {}),
+  };
 }
 
 function renderGameControls(

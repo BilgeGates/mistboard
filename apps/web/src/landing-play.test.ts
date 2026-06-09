@@ -246,6 +246,47 @@ describe('landing play panel', () => {
     expect(window.location.search).toBe('');
   });
 
+  it('sends selected Dark Mini Xiangqi engine colors from the setup modal', async () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_color' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    setRoomNavigator(() => {});
+    const panel = buildLandingPlayPanel([
+      { id: 'python-v2-v1.0', name: 'Misty', familyName: 'Misty', kind: 'fog-chess' },
+    ]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+    selectModalVariant('dark-mini-xiangqi');
+    clickModalColor('Black');
+    clickModalButton('Start game');
+    await flushPromises();
+    expect(roomPostBody(fetchSpy)).toMatchObject({
+      mode: 'pve',
+      gameSpecId: 'dark-mini-xiangqi',
+      preferredColor: 'black',
+    });
+
+    document.querySelector('.landing-setup-overlay')?.remove();
+    fetchSpy.mockClear();
+
+    openPlaySetup(panel, 'Play the engine');
+    selectModalVariant('dark-mini-xiangqi');
+    clickModalColor('Random');
+    clickModalButton('Start game');
+    await flushPromises();
+    expect(roomPostBody(fetchSpy)).toMatchObject({
+      mode: 'pve',
+      gameSpecId: 'dark-mini-xiangqi',
+      preferredColor: 'random',
+    });
+  });
+
   it('keeps the old engine deep-link alias working', () => {
     window.history.replaceState(null, '', '/?play=engine');
 
@@ -388,6 +429,13 @@ function clickModalColor(label: string): void {
   [...document.querySelectorAll<HTMLButtonElement>('.landing-color-option')]
     .find((button) => button.querySelector('.landing-color-label')?.textContent === label)
     ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function selectModalVariant(gameSpecId: string): void {
+  const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
+  expect(variantSelect).not.toBeNull();
+  variantSelect!.value = gameSpecId;
+  variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function selectedModalTimeControl(): string | undefined {

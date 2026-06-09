@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import { DARK_MINI_XIANGQI_SPEC_ID } from '@mistboard/game';
 import {
@@ -73,9 +74,9 @@ export async function handleDarkMiniXiangqiCreate(
       writeJson(response, 400, { error: 'invalid_engine' });
       return;
     }
-    // The engine takes the opposite of the human's preferred color (human red by
-    // default). Pre-seated at creation; the human takes the only empty seat.
-    const humanColor: 'red' | 'black' = preferredColor === 'black' ? 'black' : 'red';
+    // The engine takes the opposite of the human's preferred color. Pre-seated at
+    // creation; the human takes the only empty seat.
+    const humanColor = darkMiniXiangqiPveHumanColor(preferredColor);
     const engineSeat: 'red' | 'black' = humanColor === 'red' ? 'black' : 'red';
     // Hold an engine-service seat (the global cap). Released on game end; the
     // engine service 409s every turn without it. red = the protocol white slot.
@@ -140,4 +141,13 @@ function parseDarkMiniXiangqiPreferredColor(
 ): 'red' | 'black' | 'random' | undefined {
   if (value === 'red' || value === 'black' || value === 'random') return value;
   return undefined;
+}
+
+export function darkMiniXiangqiPveHumanColor(
+  preferredColor: 'red' | 'black' | 'random' | undefined,
+  randomByte = randomBytes(1)[0]!,
+): 'red' | 'black' {
+  if (preferredColor === 'black') return 'black';
+  if (preferredColor === 'random') return randomByte < 128 ? 'red' : 'black';
+  return 'red';
 }
