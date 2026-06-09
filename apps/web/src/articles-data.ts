@@ -4431,11 +4431,21 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Dark Mini Xiangqi is an experimental launch candidate, not yet a public game mode. Play and invite links will appear here soon.',
+              'Dark Mini Xiangqi is open for alpha play. You can play Misty, create an invite, or find an opponent from the homepage play panel by choosing Dark Mini Xiangqi in the Variant row.',
           },
           {
             kind: 'cta',
             buttons: [
+              {
+                label: 'Play Misty',
+                href: '/?play=engine&gameSpecId=dark-mini-xiangqi',
+                emphasis: 'primary',
+              },
+              {
+                label: 'Create invite',
+                href: '/?play=friend&gameSpecId=dark-mini-xiangqi',
+                emphasis: 'secondary',
+              },
               { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
             ],
           } as ArticleBlock,

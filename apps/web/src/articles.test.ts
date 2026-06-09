@@ -25,4 +25,23 @@ describe('article public listing gates', () => {
     expect(buildRulesIndex().textContent).toContain('Dark Mini Xiangqi');
     expect(buildRulesIndex().textContent).toContain('Mini Xiangqi');
   });
+
+  it('describes Dark Mini Xiangqi as playable alpha with play CTAs', () => {
+    const page = buildArticlePage('dark-mini-xiangqi');
+    const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
+      href: link.getAttribute('href'),
+      text: link.textContent,
+    }));
+
+    expect(page.textContent).toContain('Dark Mini Xiangqi is open for alpha play');
+    expect(page.textContent).not.toContain('not yet a public game mode');
+    expect(links).toContainEqual({
+      href: '/?play=engine&gameSpecId=dark-mini-xiangqi',
+      text: 'Play Misty',
+    });
+    expect(links).toContainEqual({
+      href: '/?play=friend&gameSpecId=dark-mini-xiangqi',
+      text: 'Create invite',
+    });
+  });
 });

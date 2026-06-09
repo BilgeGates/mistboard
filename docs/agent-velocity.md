@@ -134,6 +134,7 @@ pushed SHA. Then dispatch the `Prod Smoke` workflow with `full=true` and
 npm run prod:wait-revision -- --expect-revision <sha>
 npm run prod:smoke -- --expect-revision <sha>
 npm run prod:smoke:engines
+npm run prod:smoke:dmx
 ```
 
 The wait requires consecutive ready checks by default. This avoids releasing

@@ -380,6 +380,7 @@ function runSmoke({ deployRequired, headRevision }) {
 
   if (options.smoke === 'full') {
     runTimed('prod engine smoke', npmCommand('prod:smoke:engines', baseArgs()));
+    runTimed('prod DMX smoke', npmCommand('prod:smoke:dmx', baseArgs()));
   }
 }
 

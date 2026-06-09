@@ -79,8 +79,10 @@ const ZH_HANS: Record<string, string> = {
   'A complete game under fog': '一盘迷雾下的完整对局',
   'To see the whole army work under Fog of War, step through a game where Mistboard’s engine, Misty 1.0, plays both sides. Each ply is shown three ways: what Red can see, the server’s true board, and what Black can see.':
     '想看全部子力在战争迷雾下协同作战，可以逐步重演一盘由 Mistboard 引擎 Misty 1.0 执双方对弈的棋局。每一手都以三种方式呈现：红方所见、服务器上的真实棋盘，以及黑方所见。',
-  'Dark Mini Xiangqi is an experimental launch candidate, not yet a public game mode. Play and invite links will appear here soon.':
-    '迷雾迷你象棋是一个实验性的候选上线模式，目前还不是公开的对弈模式。对弈与邀请链接稍后会出现在这里。',
+  'Dark Mini Xiangqi is open for alpha play. You can play Misty, create an invite, or find an opponent from the homepage play panel by choosing Dark Mini Xiangqi in the Variant row.':
+    '迷雾迷你象棋现已开放 Alpha 对弈。你可以在首页对弈面板的“Variant”一行选择迷雾迷你象棋，然后对战 Misty、创建邀请，或寻找对手。',
+  'Play Misty': '对战 Misty',
+  'Create invite': '创建邀请',
 
   // -- Shogi4 (4x4 Shogi) --
   'Shogi4 (4×4 Shogi) Rules': 'Shogi4（4×4 将棋）规则',
@@ -515,8 +517,10 @@ const ZH_HANT: Record<string, string> = {
   'A complete game under fog': '一盤迷霧下的完整對局',
   'To see the whole army work under Fog of War, step through a game where Mistboard’s engine, Misty 1.0, plays both sides. Each ply is shown three ways: what Red can see, the server’s true board, and what Black can see.':
     '想看全部子力在戰爭迷霧下協同作戰，可以逐步重演一盤由 Mistboard 引擎 Misty 1.0 執雙方對弈的棋局。每一手都以三種方式呈現：紅方所見、伺服器上的真實棋盤，以及黑方所見。',
-  'Dark Mini Xiangqi is an experimental launch candidate, not yet a public game mode. Play and invite links will appear here soon.':
-    '迷霧迷你象棋是一個實驗性的候選上線模式，目前還不是公開的對弈模式。對弈與邀請連結稍後會出現在這裡。',
+  'Dark Mini Xiangqi is open for alpha play. You can play Misty, create an invite, or find an opponent from the homepage play panel by choosing Dark Mini Xiangqi in the Variant row.':
+    '迷霧迷你象棋現已開放 Alpha 對弈。你可以在首頁對弈面板的「Variant」一行選擇迷霧迷你象棋，然後對戰 Misty、建立邀請，或尋找對手。',
+  'Play Misty': '對戰 Misty',
+  'Create invite': '建立邀請',
 
   // -- Shogi4 (4x4 Shogi) --
   'Shogi4 (4×4 Shogi) Rules': 'Shogi4（4×4 將棋）規則',

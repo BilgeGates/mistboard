@@ -1,10 +1,9 @@
 # Dark Mini Xiangqi Rules
 
-_Last updated: 2026-05-30_
+_Last updated: 2026-06-09_
 
-Status: experimental launch candidate. Dark Mini Xiangqi is being tested as a
-compact hidden-information Xiangqi variant, but it is not a public Mistboard
-game mode yet.
+Status: alpha public game mode. Dark Mini Xiangqi is live on Mistboard as a
+compact hidden-information Xiangqi variant.
 
 Dark Mini Xiangqi is Mini Xiangqi played with Fog of War. Each player sees all
 of their own pieces and only the enemy pieces their army can see. The board is
@@ -32,8 +31,6 @@ Initial setup:
 
 - Back rank: chariot, cannon, horse, general, horse, cannon, chariot.
 - Soldiers: one rank ahead on files `a`, `c`, `d`, `e`, and `g`.
-
-Diagram to add before publication: initial 7x7 setup.
 
 ## How Pieces Move
 
@@ -117,8 +114,6 @@ revealing the screen's identity or the empty gap behind it.
 Horses follow the same privacy principle. If a horse leg is blocked, the blocked
 leg square appears occupied but unidentified, and the destinations behind that
 leg stay hidden.
-
-Diagram to add before publication: cannon screen and revealed target.
 
 ## Winning And Draws
 
