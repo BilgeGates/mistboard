@@ -473,6 +473,7 @@ async function createDarkMiniXiangqiRoom(
       darkMiniXiangqiRooms,
       darkXiangqiRooms,
       isPersistenceEnabled: persistence.isInitialized,
+      recordGameStart: persistence.recordGameStart,
       recordPersistenceError: recordDarkMiniXiangqiPersistenceError,
     },
     timeControl,

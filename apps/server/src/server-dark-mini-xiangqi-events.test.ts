@@ -158,12 +158,14 @@ test('Dark Mini Xiangqi game summary records PvE engine participants', () => {
 
   assert.equal(summary.mode, 'pve');
   assert.equal(summary.result, 'red-wins');
+  assert.equal(summary.visibility, 'public');
+  assert.equal(summary.participants?.[0]?.visibility, 'public');
   assert.deepEqual(summary.participants?.[1], {
     color: 'black',
     displayName: 'Misty (Dark Mini Xiangqi)',
     subjectType: 'engine-version',
     subjectId: 'python-dmx-v1.0',
-    visibility: 'private',
+    visibility: 'public',
   });
 });
 

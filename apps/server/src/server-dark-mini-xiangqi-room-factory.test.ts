@@ -66,6 +66,46 @@ test('Dark Mini Xiangqi live room factory persists the room-created event when e
   }
 });
 
+test('Dark Mini Xiangqi live room factory records public running summaries for PvE', async () => {
+  const before = process.env[darkMiniXiangqiFlag];
+  process.env[darkMiniXiangqiFlag] = 'true';
+  try {
+    const persisted: Array<{ roomId: string; seq: number; type: string }> = [];
+    const starts: Array<{
+      roomId: string;
+      summary: Parameters<DarkMiniXiangqiLiveRoomFactoryContext['recordGameStart']>[1];
+    }> = [];
+    const result = await createDarkMiniXiangqiLiveRoom(
+      testContext({
+        appendRoomEvent: async (roomId, seq, event) => {
+          persisted.push({ roomId, seq, type: event.type });
+        },
+        createRoomId: () => 'dmxq_pve_start',
+        persistenceEnabled: true,
+        recordGameStart: async (roomId, summary) => {
+          starts.push({ roomId, summary });
+        },
+      }),
+      undefined,
+      undefined,
+      { engineId: 'python-dmx-v1.0', seat: 'black', reservationId: 'reservation-1' },
+    );
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(persisted, [
+      { roomId: 'dmxq_pve_start', seq: 0, type: 'room-created' },
+      { roomId: 'dmxq_pve_start', seq: 1, type: 'seat-assigned' },
+    ]);
+    assert.equal(starts.length, 1);
+    assert.equal(starts[0]?.roomId, 'dmxq_pve_start');
+    assert.equal(starts[0]?.summary.variant, 'dark-mini-xiangqi');
+    assert.equal(starts[0]?.summary.mode, 'pve');
+    assert.equal(starts[0]?.summary.visibility, 'public');
+  } finally {
+    restoreFlag(before);
+  }
+});
+
 test('Dark Mini Xiangqi live room factory fails closed on persistence errors', async () => {
   const before = process.env[darkMiniXiangqiFlag];
   process.env[darkMiniXiangqiFlag] = 'true';
@@ -144,6 +184,7 @@ function testContext(
     darkMiniXiangqiRoomIds?: string[];
     darkXiangqiRoomIds?: string[];
     persistenceEnabled?: boolean;
+    recordGameStart?: DarkMiniXiangqiLiveRoomFactoryContext['recordGameStart'];
     recordPersistenceError?: DarkMiniXiangqiLiveRoomFactoryContext['recordPersistenceError'];
   } = {},
 ): DarkMiniXiangqiLiveRoomFactoryContext {
@@ -158,6 +199,7 @@ function testContext(
     darkMiniXiangqiRooms,
     darkXiangqiRooms: new Map((overrides.darkXiangqiRoomIds ?? []).map((roomId) => [roomId, {}])),
     isPersistenceEnabled: () => overrides.persistenceEnabled ?? false,
+    recordGameStart: overrides.recordGameStart ?? (async () => {}),
     recordPersistenceError:
       overrides.recordPersistenceError ??
       (() => {

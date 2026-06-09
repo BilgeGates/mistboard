@@ -118,9 +118,11 @@ export function buildDarkMiniXiangqiGameSummary(
   const firstAt = room.events[0]?.at ?? Date.now();
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
   const engineSeat = darkMiniXiangqiEngineSeat(room);
+  const mode = engineSeat ? 'pve' : 'pvp';
+  const visibility: persistence.GameVisibility = mode === 'pve' ? 'public' : 'private';
   const participants = [
-    darkMiniXiangqiParticipant('red', room),
-    darkMiniXiangqiParticipant('black', room),
+    darkMiniXiangqiParticipant('red', room, visibility),
+    darkMiniXiangqiParticipant('black', room, visibility),
   ];
   const rated =
     room.rated &&
@@ -128,7 +130,7 @@ export function buildDarkMiniXiangqiGameSummary(
     participants.every((participant) => participant.subjectType === 'user');
   return {
     variant: DARK_MINI_XIANGQI_SPEC_ID,
-    mode: engineSeat ? 'pve' : 'pvp',
+    mode,
     result: darkMiniXiangqiResult(status.winner),
     termination: darkMiniXiangqiTermination(status.reason),
     plyCount: moveEvents.length,
@@ -142,7 +144,7 @@ export function buildDarkMiniXiangqiGameSummary(
     initialMs: room.projection.timeControl?.initialMs ?? null,
     incrementMs: room.projection.timeControl?.incrementMs ?? null,
     rated,
-    visibility: 'private',
+    visibility,
     participants,
   };
 }
@@ -201,6 +203,7 @@ function darkMiniXiangqiTermination(reason: MiniXiangqiGameEndReason): persisten
 function darkMiniXiangqiParticipant(
   color: MiniXiangqiColor,
   room: DarkMiniXiangqiEventRoom,
+  visibility: persistence.GameVisibility,
 ): persistence.GameParticipant {
   const seatedClientId = room.projection.seats[color];
   if (seatedClientId && isDarkMiniXiangqiEngineClientId(seatedClientId)) {
@@ -209,7 +212,7 @@ function darkMiniXiangqiParticipant(
       displayName: engineVersionDisplayName(seatedClientId),
       subjectType: 'engine-version',
       subjectId: seatedClientId,
-      visibility: 'private',
+      visibility,
     };
   }
   const token = room.seatTokens[color];
@@ -219,7 +222,7 @@ function darkMiniXiangqiParticipant(
       displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
       subjectType: 'user',
       subjectId: token.userId,
-      visibility: 'private',
+      visibility,
     };
   }
   return {
@@ -227,7 +230,7 @@ function darkMiniXiangqiParticipant(
     displayName: 'Guest',
     subjectType: 'guest',
     subjectId: null,
-    visibility: 'private',
+    visibility,
   };
 }
 

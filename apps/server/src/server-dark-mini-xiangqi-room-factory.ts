@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { MiniXiangqiColor, RoomTimeControl } from '@mistboard/game';
+import {
+  DARK_MINI_XIANGQI_SPEC_ID,
+  type MiniXiangqiColor,
+  type RoomTimeControl,
+} from '@mistboard/game';
 import {
   appendDarkMiniXiangqiRuntimeEvent,
   createDarkMiniXiangqiRuntimeRoom,
@@ -8,6 +12,7 @@ import {
   type DarkMiniXiangqiEvent,
   type DarkMiniXiangqiRuntimeRoom,
 } from './dark-mini-xiangqi-runtime.js';
+import type * as persistence from './persistence.js';
 
 /** PvE: seat an engine in `seat` at creation (its clientId is the engine id),
  * holding the given engine-service seat reservation for the game. */
@@ -31,6 +36,7 @@ export type DarkMiniXiangqiLiveRoomFactoryContext = {
   appendRoomEvent(roomId: string, seq: number, event: DarkMiniXiangqiEvent): Promise<void>;
   createRoomId?: () => string;
   isPersistenceEnabled(): boolean;
+  recordGameStart(roomId: string, summary: persistence.RunningGameSummary): Promise<void>;
   recordPersistenceError(roomId: string, seq: number, eventType: string, err: Error): void;
 };
 
@@ -79,6 +85,19 @@ export async function createDarkMiniXiangqiLiveRoom(
           writingEventType = event.type;
           await ctx.appendRoomEvent(roomId, seq, event);
         }
+        writingSeq = room.events.length;
+        writingEventType = 'game-start';
+        await ctx.recordGameStart(roomId, {
+          variant: DARK_MINI_XIANGQI_SPEC_ID,
+          mode: engine ? 'pve' : 'pvp',
+          startedAt: new Date(room.events[0]?.at ?? Date.now()),
+          whiteClient: null,
+          blackClient: null,
+          whiteName: null,
+          blackName: null,
+          corpusId: null,
+          visibility: engine ? 'public' : 'private',
+        });
       } catch (err) {
         ctx.recordPersistenceError(roomId, writingSeq, writingEventType, err as Error);
         return { ok: false, error: 'persistence_failure' };

@@ -142,7 +142,7 @@ definePersistenceTests('game lists', () => {
               type: 'room-created',
               at: now.getTime(),
               roomId,
-              variant: 'dark-chess',
+              variant: roomId.startsWith('watch-dmx') ? 'dark-mini-xiangqi' : 'dark-chess',
               offer: [],
             },
           ],
@@ -180,6 +180,10 @@ definePersistenceTests('game lists', () => {
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('watch-pve-link', 'dark-chess', 'white-wins', 'resignation', 12, $2, $2,
             'human', 'engine', NULL, NULL, 'pve', 'completed', 'link'),
+           ('watch-dmx-pve', 'dark-mini-xiangqi', 'red-wins', 'general-captured', 12, $2, $2,
+            'human', 'python-dmx-v1.0', NULL, NULL, 'pve', 'completed', 'public'),
+           ('watch-dmx-private-pvp', 'dark-mini-xiangqi', 'red-wins', 'general-captured', 40, $1, $1,
+            'red', 'black', NULL, NULL, 'pvp', 'completed', 'private'),
            ('watch-xiangqi', 'dark-xiangqi', 'white-wins', 'resignation', 40, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('watch-eve', 'dark-chess', 'white-wins', 'resignation', 28, $3, $3,
@@ -215,6 +219,8 @@ definePersistenceTests('game lists', () => {
             'white', 'black', NULL, NULL, 'pvp', 'running', 'public'),
            ('sealed-link-pve', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'human', 'engine', NULL, NULL, 'pve', 'running', 'link'),
+           ('sealed-dmx-pve', 'dark-mini-xiangqi', NULL, NULL, 0, $1, NULL,
+            'human', 'python-dmx-v1.0', NULL, NULL, 'pve', 'running', 'public'),
            ('sealed-unlisted-eve', 'dark-chess', NULL, NULL, 0, $1, NULL,
             'engine-white', 'engine-black', NULL, NULL, 'eve', 'running', 'unlisted'),
            ('sealed-prestart', 'dark-chess', NULL, NULL, 0, $1, NULL,
@@ -236,6 +242,8 @@ definePersistenceTests('game lists', () => {
       for (const roomId of [
         'watch-pvp-newest',
         'watch-pve-link',
+        'watch-dmx-pve',
+        'watch-dmx-private-pvp',
         'watch-xiangqi',
         'watch-eve',
         'watch-old',
@@ -288,6 +296,20 @@ definePersistenceTests('game lists', () => {
           [roomId, event.type, event],
         );
       }
+      for (const roomId of ['watch-dmx-pve', 'watch-dmx-private-pvp']) {
+        const event = {
+          type: 'move-played',
+          at: now.getTime() + 1,
+          roomId,
+          color: 'red',
+          move: { from: 'd1', to: 'd7' },
+        } as const;
+        await client.query(
+          `INSERT INTO events (room_id, seq, type, payload)
+           VALUES ($1, 1, $2, $3)`,
+          [roomId, event.type, event],
+        );
+      }
       const shortTimeoutEvent: GameEvent = {
         type: 'clock-expired',
         at: now.getTime() + 1,
@@ -327,6 +349,17 @@ definePersistenceTests('game lists', () => {
             roomId: 'sealed-link-pve',
             color: 'black',
             move: { from: 'e7', to: 'e5' },
+          },
+        },
+        {
+          roomId: 'sealed-dmx-pve',
+          seq: 0,
+          event: {
+            type: 'move-played',
+            at: activeSealedAt,
+            roomId: 'sealed-dmx-pve',
+            color: 'white',
+            move: { from: 'd1', to: 'd2' },
           },
         },
         {
@@ -455,6 +488,23 @@ definePersistenceTests('game lists', () => {
         variants: ['dark-chess', 'draft960'],
       }),
       3,
+    );
+    const dmxUnlocked = await listWatchUnlockedGames({
+      limit: 10,
+      now,
+      variants: ['dark-mini-xiangqi'],
+    });
+    assert.deepEqual(
+      dmxUnlocked.map((game) => game.roomId),
+      ['watch-dmx-pve'],
+    );
+    assert.equal(
+      await countWatchSealedGames({
+        activeWindowMs: 2 * 60 * 60_000,
+        now,
+        variants: ['dark-mini-xiangqi'],
+      }),
+      1,
     );
   });
 
