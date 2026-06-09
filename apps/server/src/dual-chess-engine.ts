@@ -31,7 +31,11 @@ export function fairyStockfishPath(): string {
     const dev = resolve(home, 'projects', 'tools', 'fairy-stockfish', 'src', 'stockfish');
     if (existsSync(dev)) return dev;
   }
-  for (const candidate of ['/usr/local/bin/fairy-stockfish', '/usr/bin/fairy-stockfish']) {
+  for (const candidate of [
+    resolve(process.cwd(), 'bin', 'fairy-stockfish'),
+    '/usr/local/bin/fairy-stockfish',
+    '/usr/bin/fairy-stockfish',
+  ]) {
     if (existsSync(candidate)) return candidate;
   }
   throw new Error('Fairy-Stockfish binary not found. Set MISTBOARD_FSF_PATH.');
