@@ -214,6 +214,49 @@ describe('landing play panel', () => {
     expect(window.location.search).toBe('');
   });
 
+  it('uses gameSpecId to deep-link Dark Mini Xiangqi engine play', async () => {
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
+    vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dmxq_engine' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    setRoomNavigator(() => {});
+    window.history.replaceState(null, '', '/?play=computer&gameSpecId=dark-mini-xiangqi');
+
+    maybeOpenPlayDeepLink([
+      { id: 'python-v2-v1.0', name: 'Misty', familyName: 'Misty', kind: 'fog-chess' },
+    ]);
+    expect(document.querySelector<HTMLSelectElement>('.landing-variant-select')?.value).toBe(
+      'dark-mini-xiangqi',
+    );
+    document
+      .querySelector<HTMLButtonElement>('.landing-setup-start')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toMatchObject({
+      mode: 'pve',
+      gameSpecId: 'dark-mini-xiangqi',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      preferredColor: 'random',
+    });
+    expect(window.location.search).toBe('');
+  });
+
+  it('keeps the old engine deep-link alias working', () => {
+    window.history.replaceState(null, '', '/?play=engine');
+
+    maybeOpenPlayDeepLink([]);
+
+    expect(document.querySelector('.landing-setup-dialog')?.textContent).toContain(
+      'Play the engine',
+    );
+    expect(window.location.search).toBe('');
+  });
+
   it('allows a soft-launch Dark Mini Xiangqi deep link without public picker entry', async () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
@@ -374,6 +417,15 @@ function lobbyPostBody(fetchSpy: ReturnType<typeof vi.fn>): Record<string, unkno
   const call = fetchSpy.mock.calls.find(
     ([input, init]) =>
       String(input) === '/api/lobby' && (init as RequestInit | undefined)?.method === 'POST',
+  );
+  expect(call).toBeDefined();
+  return JSON.parse(String((call?.[1] as RequestInit).body)) as Record<string, unknown>;
+}
+
+function roomPostBody(fetchSpy: ReturnType<typeof vi.fn>): Record<string, unknown> {
+  const call = fetchSpy.mock.calls.find(
+    ([input, init]) =>
+      String(input) === '/api/rooms' && (init as RequestInit | undefined)?.method === 'POST',
   );
   expect(call).toBeDefined();
   return JSON.parse(String((call?.[1] as RequestInit).body)) as Record<string, unknown>;

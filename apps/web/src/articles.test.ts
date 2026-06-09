@@ -36,12 +36,29 @@ describe('article public listing gates', () => {
     expect(page.textContent).toContain('Dark Mini Xiangqi is open for alpha play');
     expect(page.textContent).not.toContain('not yet a public game mode');
     expect(links).toContainEqual({
-      href: '/?play=engine&gameSpecId=dark-mini-xiangqi',
+      href: '/?play=computer&gameSpecId=dark-mini-xiangqi',
       text: 'Play Misty',
     });
     expect(links).toContainEqual({
       href: '/?play=friend&gameSpecId=dark-mini-xiangqi',
       text: 'Create invite',
+    });
+  });
+
+  it('links the Dark Chess rules CTA to engine play', () => {
+    const page = buildArticlePage('dark-chess');
+    const links = [...page.querySelectorAll<HTMLAnchorElement>('a')].map((link) => ({
+      href: link.getAttribute('href'),
+      text: link.textContent,
+    }));
+
+    expect(links).toContainEqual({
+      href: '/?play=computer',
+      text: 'Play Misty',
+    });
+    expect(links).not.toContainEqual({
+      href: '/?play=lobby',
+      text: 'Play dark chess',
     });
   });
 });

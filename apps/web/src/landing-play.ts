@@ -511,10 +511,14 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         ratedDisabled: true,
       });
       break;
+    case 'engine':
     case 'computer':
       openLandingSetupDialog({
         engineId: defaultEngineId,
         engines: availableEngines,
+        initialGameSpecId: deepLinkInitialVariant(
+          params.get('gameSpecId') ?? params.get('variant'),
+        ),
         mode: 'pve',
         title: 'Play the engine',
       });

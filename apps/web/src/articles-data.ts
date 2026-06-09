@@ -3510,7 +3510,7 @@ export const articles: Article[] = [
           {
             kind: 'cta',
             buttons: [
-              { label: 'Play dark chess', href: '/?play=lobby', emphasis: 'primary' },
+              { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
             ],
           } as ArticleBlock,
           {
@@ -3788,7 +3788,7 @@ export const articles: Article[] = [
             kind: 'cta',
             buttons: [
               { label: 'Read the rules', href: '/rules/dark-chess', emphasis: 'secondary' },
-              { label: 'Play dark chess', href: '/?play=lobby', emphasis: 'primary' },
+              { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
             ],
           } as ArticleBlock,
         ],
@@ -4438,7 +4438,7 @@ export const articles: Article[] = [
             buttons: [
               {
                 label: 'Play Misty',
-                href: '/?play=engine&gameSpecId=dark-mini-xiangqi',
+                href: '/?play=computer&gameSpecId=dark-mini-xiangqi',
                 emphasis: 'primary',
               },
               {
@@ -4861,9 +4861,9 @@ export const articles: Article[] = [
       },
       relatedClosing({
         heading: 'Where to next',
-        lead: 'Play a dark chess game, or read the rules article for the player-facing version of the same visibility model.',
+        lead: 'Play Misty in dark chess, or read the rules article for the player-facing version of the same visibility model.',
         links: [
-          { label: 'Play dark chess', href: '/?play=lobby', emphasis: 'primary' },
+          { label: 'Play Misty', href: '/?play=computer', emphasis: 'primary' },
           { label: 'Read Dark Chess Rules', href: '/rules/dark-chess', emphasis: 'secondary' },
           { label: 'All articles', href: '/articles', emphasis: 'secondary' },
         ],
