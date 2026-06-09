@@ -140,7 +140,7 @@ function renderPostgame(root: HTMLElement, postgame: DualChessPostgameResponse):
   const flipBtn = headerAction('Flip');
   flipBtn.setAttribute('aria-label', 'Flip board');
   flipBtn.title = 'Flip board (f)';
-  const playAgain = headerLink('Play again', '/crossroads-chess');
+  const playAgain = headerAction('Play again');
   const home = headerLink('Home', '/');
   header.actions.append(flipBtn, playAgain, home);
 
@@ -197,6 +197,22 @@ function renderPostgame(root: HTMLElement, postgame: DualChessPostgameResponse):
   };
   flipBtn.onclick = flip;
 
+  let playAgainBusy = false;
+  playAgain.onclick = () => {
+    if (playAgainBusy) return;
+    playAgainBusy = true;
+    playAgain.disabled = true;
+    playAgain.textContent = 'Creating';
+    void createCrossroadsPlayAgainRoom(postgame)
+      .then((url) => window.location.assign(url))
+      .catch((err) => {
+        console.warn(err);
+        playAgainBusy = false;
+        playAgain.disabled = false;
+        playAgain.textContent = 'Try play again';
+      });
+  };
+
   document.addEventListener(
     'keydown',
     (event) => {
@@ -234,9 +250,9 @@ function renderPostgame(root: HTMLElement, postgame: DualChessPostgameResponse):
   sync();
 }
 
-function resultChipKind(result: string): 'white' | 'black' | 'draw' {
+function resultChipKind(result: string): 'white' | 'red' | 'draw' {
   if (result === 'white-wins') return 'white';
-  if (result === 'red-wins') return 'black';
+  if (result === 'red-wins') return 'red';
   return 'draw';
 }
 
@@ -278,6 +294,30 @@ function appendHeaderMeta(container: HTMLElement, items: HTMLElement[]): void {
     }
     container.append(item);
   });
+}
+
+export async function createCrossroadsPlayAgainRoom(
+  postgame: Pick<DualChessPostgameResponse, 'game' | 'state'>,
+): Promise<string> {
+  const response = await fetch('/api/rooms', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'pvp',
+      gameSpecId: 'dual-chess',
+      timeControl: postgame.game.timeControl ?? postgame.state.timeControl ?? defaultTimeControl(),
+      rated: false,
+      preferredColor: 'random',
+    }),
+  });
+  if (!response.ok) throw new Error('crossroads_play_again_failed');
+  const body = (await response.json()) as { url?: unknown };
+  if (typeof body.url !== 'string') throw new Error('crossroads_play_again_missing_url');
+  return body.url;
+}
+
+function defaultTimeControl(): DualChessTimeControl {
+  return { initialMs: 180_000, incrementMs: 2_000 };
 }
 
 export function renderMoveRows(

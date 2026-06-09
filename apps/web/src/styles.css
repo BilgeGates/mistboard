@@ -2870,6 +2870,18 @@ a.replay-game-id:focus-visible {
   border: 1px solid #1f2521;
 }
 
+.replay-game-header-result-red {
+  background: #c83d32;
+  color: #fff9f5;
+  border: 1px solid #a72c24;
+}
+
+:root[data-effective-theme="dark"] .replay-game-header-result-red {
+  border-color: color-mix(in srgb, #d04b40 64%, var(--site-border));
+  background: color-mix(in srgb, #d04b40 72%, var(--site-panel));
+  color: #fff8f2;
+}
+
 .replay-game-header-result-draw {
   background: #ecede9;
   color: #4d5450;

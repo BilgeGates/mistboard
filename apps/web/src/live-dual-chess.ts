@@ -393,6 +393,7 @@ function renderRoomActions(liveRefs: LiveRefs): void {
 
   const copy = document.createElement('button');
   copy.type = 'button';
+  if (waitingForOpponent()) copy.className = 'primary';
   copy.textContent = 'Copy invite';
   copy.addEventListener('click', () => {
     navigator.clipboard
@@ -413,7 +414,13 @@ function renderActionStatus(liveRefs: LiveRefs): void {
   liveRefs.actionStatus.replaceChildren();
   liveRefs.actionSection.hidden = false;
 
-  if (state.view?.status.type === 'playing' && iAmPlayer() && state.connection === 'connected') {
+  if (
+    state.view?.status.type === 'playing' &&
+    iAmPlayer() &&
+    state.connection === 'connected' &&
+    isReplayLive() &&
+    !waitingForOpponent()
+  ) {
     liveRefs.actionSection.hidden = true;
     return;
   }
@@ -582,6 +589,8 @@ function actionTitle(): string {
   if (state.connection === 'rejected') return 'Room unavailable';
   if (state.connection === 'displaced') return 'Session moved';
   if (!state.view) return 'Connecting';
+  if (!isReplayLive()) return 'Viewing replay';
+  if (waitingForOpponent()) return 'Invite opponent';
   if (state.view.status.type === 'finished') return 'Game finished';
   if (state.view.status.type === 'aborted') return 'Game aborted';
   if (state.view.status.turn === state.seat) return 'Your move';
@@ -592,6 +601,8 @@ function actionBody(): string {
   if (state.connection === 'rejected') return 'This Crossroads Chess room is not active.';
   if (state.connection === 'displaced') return 'Another tab reclaimed this seat.';
   if (!state.view) return 'Opening the room socket.';
+  if (!isReplayLive()) return 'Return to latest before making a move.';
+  if (waitingForOpponent()) return 'Copy the invite link and send it to your opponent.';
   if (state.view.status.type === 'finished' || state.view.status.type === 'aborted') {
     return statusText();
   }
@@ -600,6 +611,22 @@ function actionBody(): string {
     return 'Select one of your pieces, then choose a destination.';
   }
   return 'Waiting for the opponent.';
+}
+
+function waitingForOpponent(): boolean {
+  const opponent = opponentColor();
+  return (
+    state.connection === 'connected' &&
+    state.view?.status.type === 'playing' &&
+    opponent !== null &&
+    state.connectedSeats[opponent] !== true
+  );
+}
+
+function opponentColor(): DualChessColor | null {
+  if (state.seat === 'white') return 'red';
+  if (state.seat === 'red') return 'white';
+  return null;
 }
 
 function renderMoves(liveRefs: LiveRefs): void {
@@ -636,20 +663,36 @@ function renderMoves(liveRefs: LiveRefs): void {
     const n = document.createElement('span');
     n.className = 'move-number';
     n.textContent = `${i / 2 + 1}.`;
-    const white = document.createElement('span');
-    white.className = currentPly === i + 1 ? 'move-visible active' : 'move-visible';
-    white.textContent = uci(state.moves[i]!.move);
-    const red = document.createElement('span');
-    red.className =
-      currentPly === i + 2 && state.moves[i + 1]
-        ? 'move-visible active'
-        : state.moves[i + 1]
-          ? 'move-visible'
-          : 'move-empty';
-    red.textContent = state.moves[i + 1] ? uci(state.moves[i + 1]!.move) : '';
-    row.append(n, white, red);
+    row.append(
+      n,
+      liveMoveCell(state.moves[i], i + 1, currentPly),
+      liveMoveCell(state.moves[i + 1], i + 2, currentPly),
+    );
     liveRefs.moveList.append(row);
   }
+}
+
+function liveMoveCell(
+  move: DualMovePlayed | undefined,
+  ply: number,
+  currentPly: number,
+): HTMLElement {
+  if (!move) {
+    const empty = document.createElement('span');
+    empty.className = 'move-empty';
+    return empty;
+  }
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = currentPly === ply ? 'active' : '';
+  button.textContent = uci(move.move);
+  button.title = `${capitalize(move.color)} move ${Math.ceil(ply / 2)}`;
+  button.addEventListener('click', () => {
+    state.replayPly = ply === maxReplayPly() ? null : ply;
+    state.selected = null;
+    renderAll();
+  });
+  return button;
 }
 
 function rebuildReplayHistory(): void {

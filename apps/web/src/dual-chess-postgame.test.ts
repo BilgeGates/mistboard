@@ -8,7 +8,12 @@ import {
   type DualChessSquare,
 } from '@mistboard/game';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { dualChessPostgameApiUrl, mountDualChessPostgame } from './dual-chess-postgame.js';
+import {
+  createCrossroadsPlayAgainRoom,
+  type DualChessPostgameResponse,
+  dualChessPostgameApiUrl,
+  mountDualChessPostgame,
+} from './dual-chess-postgame.js';
 
 describe('Crossroads Chess postgame page', () => {
   beforeEach(() => {
@@ -52,9 +57,50 @@ describe('Crossroads Chess postgame page', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     expect(root.textContent).toContain('ply 1 of 1');
   });
+
+  it('renders red wins with Crossroads copy instead of black-side copy', async () => {
+    const fixture = postgameFixture();
+    fixture.game.result = 'red-wins';
+    fixture.state.status = {
+      type: 'finished',
+      winner: 'red',
+      reason: 'resignation',
+    };
+    const fetchSpy = vi.fn(async () => jsonResponse(fixture));
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    mountDualChessPostgame(root, 'dchess_red_win');
+    await flushPromises();
+
+    expect(root.textContent).toContain('Red wins');
+    expect(root.querySelector('.replay-game-header-result-red')?.textContent).toBe('Red wins');
+    expect(root.textContent).not.toContain('Black wins');
+  });
+
+  it('creates a new live Crossroads room from the review time control', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse({ url: '/room/dchess_next' }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const fixture = postgameFixture();
+    fixture.game.timeControl = { initialMs: 300_000, incrementMs: 5_000 };
+
+    await expect(createCrossroadsPlayAgainRoom(fixture)).resolves.toBe('/room/dchess_next');
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'pvp',
+        gameSpecId: 'dual-chess',
+        timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+        rated: false,
+        preferredColor: 'random',
+      }),
+    });
+  });
 });
 
-function postgameFixture() {
+function postgameFixture(): DualChessPostgameResponse {
   const initial = createInitialDualChessBoard();
   const moved = movePiece(initial, 'a2', 'a3');
   const move: DualChessMove = { from: 'a2', to: 'a3' };
