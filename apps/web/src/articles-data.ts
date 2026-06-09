@@ -160,6 +160,7 @@ export type CtaButton = {
 export type CtaBlock = {
   kind: 'cta';
   buttons: CtaButton[];
+  layout?: 'single-row';
 };
 
 // Raw inline SVG — for hand-coded diagrams (timelines, axis plots, family
@@ -296,12 +297,13 @@ function relatedClosing(opts: {
   heading: string;
   lead: string;
   links: CtaButton[];
+  layout?: CtaBlock['layout'];
 }): ArticleSection {
   return {
     heading: opts.heading,
     blocks: [
       { kind: 'paragraph', text: opts.lead },
-      { kind: 'cta', buttons: opts.links },
+      { kind: 'cta', buttons: opts.links, layout: opts.layout },
     ],
   };
 }
@@ -4521,7 +4523,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              '**Bishop:** moves any number of squares diagonally. Because diagonals stay on one color, each bishop stays on light squares or dark squares for the whole game.',
+              '**Bishop:** moves any number of squares diagonally. Both bishops are dark-square bishops: they start on dark squares and remain on dark squares for the whole game.',
           },
           {
             kind: 'raw-svg',
@@ -4573,7 +4575,6 @@ export const articles: Article[] = [
             svg: renderDualChessRow([
               {
                 fen: '6/5P/6/6/6/6/6/6',
-                moveDots: ['f8'],
                 arrows: [{ from: 'f7', to: 'f8' }],
                 label: 'PROMOTE',
               },
@@ -4691,7 +4692,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'The king is also a runner. Move your king onto the enemy back rank, the far row of the board, and you win at once. Because a king can never step onto a square where it could be captured, reaching the far rank means reaching it safely. White wins by landing the king on the eighth rank, Red by landing on the first.',
+              'The king is also a runner. Move your king onto an enemy back-rank square that is not protected by the enemy, and you win at once. White wins by landing the king on the eighth rank, Red by landing on the first.',
           },
           {
             kind: 'raw-svg',
@@ -4717,7 +4718,7 @@ export const articles: Article[] = [
           {
             kind: 'paragraph',
             text:
-              'Stalemate is a loss for the player with no legal move. Threefold repetition is also a loss, charged to the side that forces the repetition. The fifty-move rule can still draw a game after a long run with no capture and no pawn move.',
+              'By design, Crossroads Chess has a very low draw rate and games are meant to be fought out. Stalemate is a loss for the player with no legal move. Threefold repetition is also a loss, charged to the side that forces the repetition. Only the fifty-move rule can draw a game, after a long run with no capture and no pawn move.',
           },
         ],
       },
@@ -4755,11 +4756,12 @@ export const articles: Article[] = [
       relatedClosing({
         heading: 'Where to next',
         lead: 'Start a local game, or read the rules of the two games Crossroads Chess borrows from.',
+        layout: 'single-row',
         links: [
-          { label: 'Play Crossroads Chess', href: '/dual-chess-play', emphasis: 'primary' },
-          { label: 'Read Chess Rules', href: '/rules/chess', emphasis: 'secondary' },
-          { label: 'Read Xiangqi Rules', href: '/rules/xiangqi', emphasis: 'secondary' },
-          { label: 'All rules', href: '/rules', emphasis: 'secondary' },
+          { label: 'Play Crossroads Chess', href: '/crossroads-chess', emphasis: 'primary' },
+          { label: 'Chess rules', href: '/rules/chess', emphasis: 'secondary' },
+          { label: 'Xiangqi rules', href: '/rules/xiangqi', emphasis: 'secondary' },
+          { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
         ],
       }),
     ],

@@ -725,6 +725,22 @@
   background: #f9f9f9;
 }
 
+.article-cta-row-single-row {
+  width: max-content;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  margin-inline: auto;
+  padding-bottom: 2px;
+}
+
+.article-cta-row-single-row .article-cta {
+  flex: 0 0 auto;
+  padding-inline: 14px;
+  white-space: nowrap;
+}
+
 .article-interactive-target {
   width: 100%;
 }

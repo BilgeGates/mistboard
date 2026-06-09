@@ -986,6 +986,7 @@ function renderCodeBlock(block: CodeBlock): HTMLElement {
 function renderCtaBlock(block: CtaBlock): HTMLElement {
   const row = document.createElement('div');
   row.className = 'article-cta-row';
+  if (block.layout) row.classList.add(`article-cta-row-${block.layout}`);
   for (const btn of block.buttons) {
     const a = document.createElement('a');
     a.className = `article-cta article-cta-${btn.emphasis ?? 'primary'}`;
