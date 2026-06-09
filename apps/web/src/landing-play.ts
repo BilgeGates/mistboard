@@ -103,13 +103,13 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   incrementMs: tc.incrementMs,
 }));
 
-// Which time-control presets the picker offers, per variant. Dark chess is scoped
-// to bullet + blitz (mirrors the server allowlist in routes/lib.ts): 5+5 is hidden
-// because dark chess is low-calc and decisive, and fewer TCs merge players into
-// fewer pools. Xiangqi variants keep 3+2 only (their prior single option — no
-// engine-readiness change there). Used for PvE AND PvP/lobby alike.
+// Which time-control presets the picker offers, per variant. Dark chess and DMX
+// are scoped to bullet + blitz: 5+5 is hidden because dark/fog games are
+// low-calc and decisive, and fewer TCs merge players into fewer pools. Full Dark
+// Xiangqi keeps its prior single option until it has a live runtime. Used for PvE
+// AND PvP/lobby alike.
 function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<LandingTimePresetId> {
-  return gameSpecId === DARK_CHESS_SPEC_ID
+  return gameSpecId === DARK_CHESS_SPEC_ID || gameSpecId === DARK_MINI_XIANGQI_SPEC_ID
     ? new Set<LandingTimePresetId>(['1m1', '3m2'])
     : new Set<LandingTimePresetId>(['3m2']);
 }

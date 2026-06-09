@@ -163,6 +163,7 @@ describe('landing play panel', () => {
       .querySelector('.landing-time-presets')
       ?.closest('.landing-setup-section') as HTMLElement | null;
     expect(timeSection?.hidden).toBe(false);
+    clickModalButton('1 + 1');
     const createButton = [...document.querySelectorAll('button')].find(
       (candidate) => candidate.textContent === 'Create room',
     );
@@ -174,7 +175,7 @@ describe('landing play panel', () => {
     expect(JSON.parse(String(roomCall?.[1]?.body))).toEqual({
       mode: 'pvp',
       gameSpecId: 'dark-mini-xiangqi',
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      timeControl: { initialMs: 60_000, incrementMs: 1_000 },
       rated: false,
       preferredColor: 'random',
     });

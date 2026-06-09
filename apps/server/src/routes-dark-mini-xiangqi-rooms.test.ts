@@ -332,11 +332,11 @@ test('Dark Mini Xiangqi room route forwards a valid time control and echoes it',
       {
         gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
         mode: 'pvp',
-        timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+        timeControl: { initialMs: 60_000, incrementMs: 1_000 },
       },
     );
 
-    assert.deepEqual(requestedTimeControl, { initialMs: 180_000, incrementMs: 2_000 });
+    assert.deepEqual(requestedTimeControl, { initialMs: 60_000, incrementMs: 1_000 });
     assert.equal(response.status, 201);
     assert.deepEqual(responseJson(response), {
       roomId: 'dmxq_timed',
@@ -345,7 +345,7 @@ test('Dark Mini Xiangqi room route forwards a valid time control and echoes it',
       gameSpecId: DARK_MINI_XIANGQI_SPEC_ID,
       rated: false,
       region: 'global',
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      timeControl: { initialMs: 60_000, incrementMs: 1_000 },
     });
   } finally {
     restoreFlag(before);
