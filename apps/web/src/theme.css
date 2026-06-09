@@ -513,6 +513,7 @@
     .landing-games-list .landing-game-row,
     .watch-status,
     .watch-empty,
+    .watch-channel-rail,
     .watch-queue,
     .watch-queue-heading,
     .watch-queue-review,
@@ -553,6 +554,7 @@
     .landing-games-heading,
     .landing-games-list .landing-game-row strong,
     .watch-header h1,
+    .watch-status strong,
     .watch-empty h2,
     .watch-queue-heading h2,
     .article-title,
@@ -589,7 +591,11 @@
     .watch-header p,
     .watch-eyebrow,
     .watch-status-label,
+    .watch-status-hint,
+    .watch-channel-rail h2,
+    .watch-channel-count,
     .watch-queue-count,
+    .watch-queue-scope,
     .watch-queue-empty,
     .watch-queue-meta,
     .article-meta,
@@ -626,6 +632,22 @@
   ) {
   border-color: color-mix(in srgb, var(--site-accent) 44%, var(--site-border));
   background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+}
+
+:root[data-effective-theme="dark"] .watch-channel-rail h2 {
+  border-bottom-color: var(--site-border-soft);
+}
+
+:root[data-effective-theme="dark"] .watch-channel-count {
+  border-color: var(--site-border);
+  background: var(--site-panel);
+  color: var(--site-muted);
+}
+
+:root[data-effective-theme="dark"] .watch-channel-list a.active .watch-channel-count {
+  border-color: color-mix(in srgb, var(--site-accent) 44%, var(--site-border));
+  background: color-mix(in srgb, var(--site-accent) 12%, var(--site-panel));
   color: var(--site-accent-strong);
 }
 

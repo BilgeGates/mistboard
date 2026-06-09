@@ -108,7 +108,6 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
         ? new Set(previousFeed.unlocked.map((game) => game.roomId))
         : null;
     mergeWatchMetadata(metadataByRoomId, nextFeed);
-    renderWatchTitle(watch.titleRoot, nextFeed);
     renderWatchChannelList(watch.channelRoot, nextFeed);
     renderWatchStatus(watch.statusRoot, nextFeed);
 
@@ -213,7 +212,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   };
 
   const switchWatchGame = async (roomId: string, urlMode: 'push' | 'replace'): Promise<void> => {
-    if (!currentFeed || !currentFeed.unlocked.some((game) => game.roomId === roomId)) return;
+    if (!currentFeed?.unlocked.some((game) => game.roomId === roomId)) return;
     if (roomId === activeRoomId) {
       syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
       return;
@@ -365,7 +364,6 @@ function buildWatchSection(feed: WatchFeed | null): {
   replayRoot: HTMLElement;
   queueRoot: HTMLElement;
   statusRoot: HTMLElement;
-  titleRoot: HTMLHeadingElement;
 } {
   const section = document.createElement('main');
   section.className = 'watch-shell';
@@ -375,26 +373,24 @@ function buildWatchSection(feed: WatchFeed | null): {
 
   const copy = document.createElement('div');
   copy.className = 'watch-header-copy';
-  const eyebrow = document.createElement('span');
-  eyebrow.className = 'watch-eyebrow';
-  eyebrow.textContent = 'Mistboard TV';
   const title = document.createElement('h1');
-  renderWatchTitle(title, feed);
-  const description = document.createElement('p');
-  description.textContent =
-    'Games stay sealed while they are being played. Finished games unlock here, with older replays filling quiet windows.';
-  copy.append(eyebrow, title, description);
-  const channelRoot = document.createElement('nav');
-  channelRoot.className = 'watch-channel-list';
-  channelRoot.setAttribute('aria-label', 'Watch channels');
-  renderWatchChannelList(channelRoot, feed);
-  copy.append(channelRoot);
+  title.textContent = 'Mistboard TV';
+  copy.append(title);
 
   const status = document.createElement('div');
   status.className = 'watch-status';
   renderWatchStatus(status, feed);
 
   header.append(copy, status);
+
+  const channelRail = document.createElement('aside');
+  channelRail.className = 'watch-channel-rail';
+  const channelHeading = document.createElement('h2');
+  channelHeading.textContent = 'Variants';
+  const channelRoot = document.createElement('nav');
+  channelRoot.className = 'watch-channel-list';
+  channelRoot.setAttribute('aria-label', 'Watch channels');
+  channelRail.append(channelHeading, channelRoot);
 
   const replayRoot = document.createElement('div');
   replayRoot.className = 'watch-replay';
@@ -404,14 +400,11 @@ function buildWatchSection(feed: WatchFeed | null): {
 
   const stage = document.createElement('div');
   stage.className = 'watch-stage';
-  stage.append(replayRoot, queueRoot);
+  stage.append(channelRail, replayRoot, queueRoot);
+  renderWatchChannelList(channelRoot, feed);
 
   section.append(header, stage);
-  return { el: section, channelRoot, replayRoot, queueRoot, statusRoot: status, titleRoot: title };
-}
-
-function renderWatchTitle(root: HTMLHeadingElement, feed: WatchFeed | null): void {
-  root.textContent = feed ? `${activeWatchChannelLabel(feed)} replays` : 'Recent replays';
+  return { el: section, channelRoot, replayRoot, queueRoot, statusRoot: status };
 }
 
 function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
@@ -421,27 +414,39 @@ function renderWatchStatus(root: HTMLElement, feed: WatchFeed | null): void {
   sealed.textContent = feed ? String(feed.sealedCount) : 'n/a';
   const sealedLabel = document.createElement('span');
   sealedLabel.className = 'watch-status-label';
-  sealedLabel.textContent = 'sealed in progress';
+  sealedLabel.textContent =
+    feed && watchFeedIsDark(feed) ? 'dark games sealed' : 'games in progress';
   const hint = document.createElement('span');
   hint.className = 'watch-status-hint';
-  hint.textContent = feed ? 'unlock after completion' : 'feed unavailable';
+  hint.textContent = feed
+    ? watchFeedIsDark(feed)
+      ? 'unlock after completion'
+      : 'available while live'
+    : 'feed unavailable';
   root.append(sealed, sealedLabel, hint);
-}
-
-function activeWatchChannelLabel(feed: WatchFeed): string {
-  return feed.channels.find((channel) => channel.id === feed.activeChannel)?.label ?? 'Recent';
 }
 
 function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void {
   root.replaceChildren();
   root.hidden = !feed || feed.channels.length <= 1;
+  const rail = root.closest<HTMLElement>('.watch-channel-rail');
+  if (rail) rail.hidden = root.hidden;
+  const stage = root.closest<HTMLElement>('.watch-stage');
+  stage?.classList.toggle('has-channel-rail', !root.hidden);
   if (!feed || feed.channels.length <= 1) return;
 
   for (const channel of feed.channels) {
     const link = document.createElement('a');
     link.className = 'watch-channel-link';
     link.href = `/watch?channel=${encodeURIComponent(channel.id)}`;
-    link.textContent = `${channel.label} (${channel.unlockedCount})`;
+    link.setAttribute('aria-label', `${channel.label} (${channel.unlockedCount})`);
+    const label = document.createElement('span');
+    label.className = 'watch-channel-name';
+    label.textContent = channel.label;
+    const count = document.createElement('span');
+    count.className = 'watch-channel-count';
+    count.textContent = String(channel.unlockedCount);
+    link.append(label, count);
     if (channel.id === feed.activeChannel) {
       link.classList.add('active');
       link.setAttribute('aria-current', 'page');
@@ -456,12 +461,20 @@ function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void 
   const empty = document.createElement('section');
   empty.className = 'watch-empty';
   const title = document.createElement('h2');
-  title.textContent = feed ? 'No unlocked replays yet' : 'Replay feed unavailable';
+  title.textContent = feed
+    ? watchFeedIsDark(feed)
+      ? 'No unlocked dark replays yet'
+      : 'No replays yet'
+    : 'Replay feed unavailable';
   const body = document.createElement('p');
   body.textContent = feed
     ? feed.sealedCount > 0
-      ? 'Games are being played, but they stay hidden until completion.'
-      : 'Start a game and it can become the next replay after it finishes.'
+      ? watchFeedIsDark(feed)
+        ? 'Dark games are being played, but they stay hidden until completion.'
+        : 'Games are being played now.'
+      : watchFeedIsDark(feed)
+        ? 'Start a dark game and it can become the next replay after it finishes.'
+        : 'Start a game and it can become the next replay after it finishes.'
     : 'The watch feed needs persistence, so it is not available in this runtime.';
 
   const actions = document.createElement('div');
@@ -492,7 +505,7 @@ function renderWatchQueue(
   const headingCopy = document.createElement('div');
   headingCopy.className = 'watch-queue-heading-copy';
   const title = document.createElement('h2');
-  title.textContent = 'Unlocked replays';
+  title.textContent = feed && watchFeedIsDark(feed) ? 'Unlocked dark replays' : 'Recent replays';
   const unlockedCount = document.createElement('span');
   unlockedCount.className = 'watch-queue-count';
   unlockedCount.textContent = feed ? `${feed.unlocked.length} shown` : 'offline';
@@ -538,7 +551,7 @@ function renderWatchQueue(
 
     const matchup = document.createElement('span');
     matchup.className = 'watch-queue-matchup';
-    const matchupLabel = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
+    const matchupLabel = watchQueueMatchupLabel(game);
     matchup.textContent = matchupLabel;
     matchup.title = matchupLabel;
 
@@ -596,8 +609,25 @@ function watchQueueGameHref(feed: WatchFeed, roomId: string): string {
   return `/watch?${params.toString()}`;
 }
 
-function formatWatchScope(feed: WatchFeed): string {
-  return `latest replays · up to ${feed.unlockLimit}`;
+export function watchFeedIsDark(feed: Pick<WatchFeed, 'activeChannel' | 'channels'>): boolean {
+  const channel = feed.channels.find((candidate) => candidate.id === feed.activeChannel);
+  if (!channel) return false;
+  return channel.id.includes('dark') || channel.gameSpecIds.some((id) => id.includes('dark'));
+}
+
+export function watchQueueMatchupLabel(game: FeaturedGame): string {
+  const firstColor = game.participants?.some((participant) => participant.color === 'red')
+    ? 'red'
+    : 'white';
+  return `${displayParticipantName(game, firstColor)} vs ${displayParticipantName(game, 'black')}`;
+}
+
+export function formatWatchScope(
+  feed: Pick<WatchFeed, 'activeChannel' | 'channels' | 'unlockLimit'>,
+): string {
+  return watchFeedIsDark(feed)
+    ? `dark variants · latest ${feed.unlockLimit}`
+    : `latest ${feed.unlockLimit}`;
 }
 
 function formatEndedAge(endedAt: string | undefined, nowIso: string): string | null {
@@ -613,8 +643,9 @@ function formatEndedAge(endedAt: string | undefined, nowIso: string): string | n
   return `${hours}h ago`;
 }
 
-function resultLabel(result: string): string {
+export function resultLabel(result: string): string {
   if (result === 'white-wins') return 'White wins';
   if (result === 'black-wins') return 'Black wins';
+  if (result === 'red-wins') return 'Red wins';
   return 'Draw';
 }
