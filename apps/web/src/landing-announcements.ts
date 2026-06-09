@@ -13,7 +13,8 @@ export function buildLandingAnnouncements(): HTMLElement {
   heading.textContent = 'Announcements';
   panel.append(heading);
 
-  if (announcements.length === 0) {
+  const entries = announcements();
+  if (entries.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'landing-announcements-empty';
     empty.textContent = 'Nothing new yet.';
@@ -24,7 +25,7 @@ export function buildLandingAnnouncements(): HTMLElement {
   const list = document.createElement('ol');
   list.className = 'landing-announcements-list';
 
-  const ordered = [...announcements].sort((a, b) => {
+  const ordered = [...entries].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (b.pinned && !a.pinned) return 1;
     return b.date.localeCompare(a.date);
