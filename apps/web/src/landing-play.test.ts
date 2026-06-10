@@ -216,6 +216,20 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/dchess_home');
   });
 
+  it('links the homepage play panel to the Crossroads Chess hub behind its flag', () => {
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+
+    const panel = buildLandingPlayPanel([]);
+
+    const link = panel.querySelector<HTMLAnchorElement>('.landing-play-action-crossroads');
+    expect(link?.textContent).toBe('Crossroads Chess');
+    expect(link?.getAttribute('href')).toBe('/crossroads-chess');
+  });
+
   it('keeps 5+5 hidden for fog variants in the setup modal', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');

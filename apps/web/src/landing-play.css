@@ -19,6 +19,7 @@
   line-height: 1.1;
   padding: 9px 12px;
   text-align: left;
+  text-decoration: none;
   transition:
     background 120ms ease,
     border-color 120ms ease,
@@ -36,10 +37,7 @@
   transform: translateY(-1px);
 }
 
-/* Green-fill emphasis for whichever CTA is the recommended action right now.
-   Applied to "Find opponent" when players are online and to "Play the engine"
-   at cold start (empty lobby) — toggled by the live-stats poll, emphasis only,
-   never a reorder. */
+/* Green-fill emphasis for the recommended homepage CTA. */
 .landing-play-action-primary {
   background: var(--site-accent);
   border-color: var(--site-accent);

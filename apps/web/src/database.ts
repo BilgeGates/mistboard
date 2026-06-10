@@ -402,7 +402,7 @@ function buildGameRow(game: GameRow): HTMLElement {
 
   const players = document.createElement('div');
   players.className = 'database-row-players';
-  players.textContent = `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, 'black')}`;
+  players.textContent = databaseMatchupLabel(game);
   body.append(players);
 
   const meta = document.createElement('div');
@@ -419,6 +419,11 @@ function buildGameRow(game: GameRow): HTMLElement {
 
   link.append(body);
   return link;
+}
+
+export function databaseMatchupLabel(game: FeaturedGame): string {
+  const secondSeat = isCrossroadsChessVariant(game.variant) ? 'red' : 'black';
+  return `${displayParticipantName(game, 'white')} vs ${displayParticipantName(game, secondSeat)}`;
 }
 
 function buildPager(data: QueryResponse, onApply: (next: Filters) => void): HTMLElement | null {
