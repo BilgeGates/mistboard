@@ -361,31 +361,30 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   back.textContent = article.kind === 'rules' ? '← All rules' : '← All articles';
   breadcrumb.append(back);
 
+  // Centered header block (lichess ublog grammar): fluid regular-weight
+  // title, one quiet meta row (kind chip, dates, status), summary as lede.
+  const header = document.createElement('header');
+  header.className = 'article-header';
+
   const heading = document.createElement('h1');
-  heading.className = 'site-section-heading article-title';
+  heading.className = 'article-title';
   heading.textContent = article.title;
+  header.append(heading);
 
-  main.append(breadcrumb, heading);
-
+  const metaRow = document.createElement('p');
+  metaRow.className = 'article-meta-row';
+  const kindChip = document.createElement('span');
+  kindChip.className = 'article-chip';
+  kindChip.textContent = article.kind === 'rules' ? 'Rules' : 'Article';
+  metaRow.append(kindChip);
   const showStatusBadge = article.status === 'outline' || article.status === 'draft';
-  const showSummaryOnPage = article.showSummaryOnPage ?? true;
-  if (showStatusBadge || showSummaryOnPage) {
-    const meta = document.createElement('p');
-    meta.className = 'article-meta';
-    if (showStatusBadge) {
-      const badge = document.createElement('span');
-      badge.className = `article-status-badge article-status-${article.status}`;
-      badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
-      meta.append(badge);
-      if (showSummaryOnPage) meta.append(' · ');
-    }
-    if (showSummaryOnPage) meta.append(document.createTextNode(article.summary));
-    main.append(meta);
+  if (showStatusBadge) {
+    const badge = document.createElement('span');
+    badge.className = `article-status-badge article-status-${article.status}`;
+    badge.textContent = article.status.charAt(0).toUpperCase() + article.status.slice(1);
+    metaRow.append(badge);
   }
-
   if (article.publishedAt) {
-    const dates = document.createElement('p');
-    dates.className = 'article-dates';
     const fmt = (iso: string): string => {
       // YYYY-MM-DD → "Month D, YYYY"
       const d = new Date(`${iso}T00:00:00Z`);
@@ -396,13 +395,25 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
         timeZone: 'UTC',
       });
     };
-    const published = fmt(article.publishedAt);
-    dates.textContent = `Published ${published}`;
+    const dates = document.createElement('span');
+    dates.className = 'article-meta-dates';
+    dates.textContent = `Published ${fmt(article.publishedAt)}`;
     if (article.updatedAt && article.updatedAt !== article.publishedAt) {
       dates.textContent += ` · Updated ${fmt(article.updatedAt)}`;
     }
-    main.append(dates);
+    metaRow.append(dates);
   }
+  header.append(metaRow);
+
+  const showSummaryOnPage = article.showSummaryOnPage ?? true;
+  if (showSummaryOnPage) {
+    const lede = document.createElement('p');
+    lede.className = 'article-lede';
+    lede.textContent = article.summary;
+    header.append(lede);
+  }
+
+  main.append(breadcrumb, header);
 
   if (article.intro && article.intro.length > 0) {
     const intro = document.createElement('div');

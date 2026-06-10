@@ -263,21 +263,50 @@
   text-decoration: underline;
 }
 
+/* Centered header block (lichess ublog grammar): fluid regular-weight
+   title, quiet meta row, summary as lede. The body below stays left-set. */
+.article-header {
+  text-align: center;
+  margin: 4px 0 30px;
+}
+
 .article-title {
-  margin-bottom: 12px;
+  font-size: clamp(28px, 5vw, 38px);
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--site-heading);
+  margin: 0 0 14px;
 }
 
-.article-meta {
-  color: var(--site-text);
-  line-height: 1.55;
-  font-size: 15px;
-  margin: 0 0 6px;
-}
-
-.article-dates {
+.article-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 14px;
   color: var(--site-muted);
   font-size: 13px;
-  margin: 0 0 28px;
+}
+
+.article-chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 99px;
+  background: var(--site-zebra);
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.article-lede {
+  margin: 0 auto;
+  max-width: 580px;
+  color: var(--site-text);
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .article-intro {
@@ -985,7 +1014,7 @@
 }
 
 @media (max-width: 600px) {
-  .article-meta,
+  .article-lede,
   .article-paragraph {
     font-size: 17px;
     line-height: 1.72;
@@ -996,7 +1025,6 @@
     line-height: 1.72;
   }
 
-  .article-dates,
   .article-figure-caption,
   .stepper-narrative {
     font-size: 15px;
