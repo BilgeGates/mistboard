@@ -15,6 +15,51 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VARIANT = 'dualchess';
+export const CROSSROADS_CHESS_DEFAULT_ENGINE_ID = 'fairy-stockfish-crossroads-strong';
+
+export type CrossroadsChessEngineTier = {
+  id: string;
+  name: string;
+  movetimeMs: number;
+  skill: number;
+};
+
+const CROSSROADS_CHESS_ENGINE_TIERS = [
+  {
+    id: 'fairy-stockfish-crossroads-amateur',
+    name: 'Amateur',
+    skill: 2,
+    movetimeMs: 150,
+  },
+  {
+    id: CROSSROADS_CHESS_DEFAULT_ENGINE_ID,
+    name: 'Strong',
+    skill: 8,
+    movetimeMs: 300,
+  },
+  {
+    id: 'fairy-stockfish-crossroads-very-strong',
+    name: 'Very Strong',
+    skill: 16,
+    movetimeMs: 600,
+  },
+] as const satisfies readonly CrossroadsChessEngineTier[];
+
+export const CROSSROADS_CHESS_PLAYABLE_ENGINES: readonly CrossroadsChessEngineTier[] =
+  CROSSROADS_CHESS_ENGINE_TIERS;
+
+const CROSSROADS_CHESS_ENGINE_BY_ID: ReadonlyMap<string, CrossroadsChessEngineTier> = new Map(
+  CROSSROADS_CHESS_ENGINE_TIERS.map((engine) => [engine.id, engine]),
+);
+const DEFAULT_MAX_CONCURRENT_FSF = 2;
+const DEFAULT_FSF_QUEUE_TIMEOUT_MS = 5_000;
+
+let activeFsfProcesses = 0;
+const fsfQueue: Array<{
+  reject(err: Error): void;
+  resolve(): void;
+  timer: ReturnType<typeof setTimeout>;
+}> = [];
 
 // Resolve the FSF binary: explicit env override, else the known dev location.
 export function fairyStockfishPath(): string {
@@ -61,6 +106,39 @@ export function crossroadsChessVariantIniPath(): string {
  * written to the engine's stdin.
  */
 export type CrossroadsChessEngineOptions = { movetimeMs?: number; skill?: number };
+
+export function crossroadsChessEngineTierFor(
+  engineId: string | undefined,
+): CrossroadsChessEngineTier | null {
+  if (!engineId) return null;
+  return CROSSROADS_CHESS_ENGINE_BY_ID.get(engineId) ?? null;
+}
+
+export function crossroadsChessEngineDisplayName(engineId: string): string {
+  return crossroadsChessEngineTierFor(engineId)?.name ?? engineId;
+}
+
+export function isCrossroadsChessEngineClientId(clientId: string | undefined): boolean {
+  return crossroadsChessEngineTierFor(clientId) !== null;
+}
+
+export async function crossroadsChessLiveEngineMove(
+  engineId: string,
+  moves: string[],
+  opts: { movetimeMs?: number } = {},
+): Promise<string | null> {
+  const tier = crossroadsChessEngineTierFor(engineId);
+  if (!tier) throw new Error(`unknown Crossroads Chess engine: ${engineId}`);
+  const release = await acquireFsfSlot();
+  try {
+    return await crossroadsChessEngineMove(moves, {
+      skill: tier.skill,
+      movetimeMs: opts.movetimeMs ?? tier.movetimeMs,
+    });
+  } finally {
+    release();
+  }
+}
 
 export function crossroadsChessEngineMove(
   moves: string[],
@@ -124,4 +202,53 @@ export function crossroadsChessEngineMove(
     ];
     child.stdin.write(`${commands.join('\n')}\n`);
   });
+}
+
+function acquireFsfSlot(): Promise<() => void> {
+  if (activeFsfProcesses < maxConcurrentFsfProcesses()) {
+    activeFsfProcesses += 1;
+    return Promise.resolve(releaseFsfSlot);
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const idx = fsfQueue.findIndex((entry) => entry.reject === reject);
+      if (idx >= 0) fsfQueue.splice(idx, 1);
+      reject(new Error('fsf concurrency queue timed out'));
+    }, fsfQueueTimeoutMs());
+    timer.unref();
+    fsfQueue.push({
+      reject,
+      resolve: () => {
+        clearTimeout(timer);
+        activeFsfProcesses += 1;
+        resolve(releaseFsfSlot);
+      },
+      timer,
+    });
+  });
+}
+
+function releaseFsfSlot(): void {
+  activeFsfProcesses = Math.max(0, activeFsfProcesses - 1);
+  const next = fsfQueue.shift();
+  if (next) next.resolve();
+}
+
+function maxConcurrentFsfProcesses(): number {
+  return boundedEnvInt('MISTBOARD_CROSSROADS_FSF_MAX_PROCESSES', DEFAULT_MAX_CONCURRENT_FSF, 1, 8);
+}
+
+function fsfQueueTimeoutMs(): number {
+  return boundedEnvInt(
+    'MISTBOARD_CROSSROADS_FSF_QUEUE_TIMEOUT_MS',
+    DEFAULT_FSF_QUEUE_TIMEOUT_MS,
+    100,
+    30_000,
+  );
+}
+
+function boundedEnvInt(name: string, fallback: number, min: number, max: number): number {
+  const value = Number.parseInt(process.env[name] ?? '', 10);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, value));
 }

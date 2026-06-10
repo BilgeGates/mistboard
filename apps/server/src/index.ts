@@ -86,7 +86,10 @@ import {
   isAllowedWebSocketRequest,
   type WebSocketConnectionContext,
 } from './server-ws-connection.js';
-import { sendCrossroadsChessPayload } from './server-ws-crossroads-chess.js';
+import {
+  clearCrossroadsChessRuntimeTimers,
+  sendCrossroadsChessPayload,
+} from './server-ws-crossroads-chess.js';
 import { sendDarkMiniXiangqiPayload } from './server-ws-dark-mini-xiangqi.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 
@@ -402,6 +405,9 @@ export async function stopServer(): Promise<void> {
   for (const room of darkXiangqiRooms.values()) {
     clearDarkXiangqiRuntimeTimers(room);
   }
+  for (const room of crossroadsChessRooms.values()) {
+    clearCrossroadsChessRuntimeTimers(room);
+  }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
   closeRoomClients(darkXiangqiRooms.values());
@@ -582,6 +588,7 @@ function darkMiniXiangqiSeatTokenStatesFromPersistence(
 async function createCrossroadsChessRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: CrossroadsChessCreatorPreference,
+  engine?: { engineId: string; seat: 'white' | 'red' },
 ): Promise<
   | { ok: true; room: CrossroadsChessRuntimeRoom }
   | { ok: false; error: 'crossroads_chess_disabled' | 'persistence_failure' | 'room_id_collision' }
@@ -594,10 +601,12 @@ async function createCrossroadsChessRoom(
       darkXiangqiRooms,
       crossroadsChessRooms,
       isPersistenceEnabled: persistence.isInitialized,
+      recordGameStart: persistence.recordGameStart,
       recordPersistenceError: recordCrossroadsChessPersistenceError,
     },
     timeControl,
     creatorPreference,
+    engine,
   );
 }
 
@@ -979,10 +988,14 @@ async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
   for (const room of darkXiangqiRooms.values()) {
     clearDarkXiangqiRuntimeTimers(room);
   }
+  for (const room of crossroadsChessRooms.values()) {
+    clearCrossroadsChessRuntimeTimers(room);
+  }
   roomLifecycle.stopSweeps();
   closeRoomClients(rooms.values());
   closeRoomClients(darkXiangqiRooms.values());
   closeDarkMiniXiangqiClients(darkMiniXiangqiRooms.values());
+  closeCrossroadsChessClients(crossroadsChessRooms.values());
 
   let exitCode = 0;
   try {

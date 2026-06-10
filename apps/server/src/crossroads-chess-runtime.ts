@@ -150,6 +150,7 @@ export type CrossroadsChessRuntimeRoom = {
   abortDeadline: number | null;
   abortPhase: 'white-1' | 'red-1' | null;
   clockTimer: ReturnType<typeof setTimeout> | null;
+  engineTimer: ReturnType<typeof setTimeout> | null;
   forfeitTimer: ReturnType<typeof setTimeout> | null;
   forfeitDeadline: number | null;
   forfeitSeat: CrossroadsChessColor | null;
@@ -325,6 +326,7 @@ export function createCrossroadsChessRuntimeRoomFromEvents(
       abortDeadline: null,
       abortPhase: null,
       clockTimer: null,
+      engineTimer: null,
       forfeitTimer: null,
       forfeitDeadline: null,
       forfeitSeat: null,

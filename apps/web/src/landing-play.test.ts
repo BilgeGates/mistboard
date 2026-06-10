@@ -221,6 +221,45 @@ describe('landing play panel', () => {
     expect(window.location.pathname).toBe('/room/dchess_home');
   });
 
+  it('creates a Crossroads Chess engine room with the selected Fairy-Stockfish tier', async () => {
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dchess_engine' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([
+      { id: 'python-v2-v1.0', name: 'Misty', familyName: 'Misty', kind: 'fog-chess' },
+    ]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play the engine');
+    selectModalVariant('crossroads-chess');
+    const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
+    expect(engineSelect).not.toBeNull();
+    expect([...engineSelect!.options].map((option) => [option.value, option.textContent])).toEqual([
+      ['fairy-stockfish-crossroads-amateur', 'Amateur'],
+      ['fairy-stockfish-crossroads-strong', 'Strong'],
+      ['fairy-stockfish-crossroads-very-strong', 'Very Strong'],
+    ]);
+    expect(engineSelect!.value).toBe('fairy-stockfish-crossroads-strong');
+    selectModalEngine('fairy-stockfish-crossroads-very-strong');
+    clickModalColor('Black');
+    clickModalButton('Start game');
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toEqual({
+      mode: 'pve',
+      gameSpecId: 'crossroads-chess',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      rated: false,
+      preferredColor: 'black',
+      engineId: 'fairy-stockfish-crossroads-very-strong',
+    });
+    expect(window.location.pathname).toBe('/room/dchess_engine');
+  });
+
   it('shows a specific error when Crossroads room creation is disabled server-side', async () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
@@ -278,7 +317,7 @@ describe('landing play panel', () => {
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
   });
 
-  it('keeps Crossroads Chess out of engine and lobby entry points for now', () => {
+  it('offers Crossroads Chess for engine play, but keeps it out of lobby entry points', () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
@@ -290,7 +329,7 @@ describe('landing play panel', () => {
     openPlaySetup(panel, 'Play the engine');
     let variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
     let options = variantSelect ? [...variantSelect.options].map((option) => option.value) : [];
-    expect(options).not.toContain('crossroads-chess');
+    expect(options).toContain('crossroads-chess');
     document.querySelector('.landing-setup-overlay')?.remove();
 
     openPlaySetup(panel, 'Find opponent');
@@ -554,6 +593,13 @@ function selectModalVariant(gameSpecId: string): void {
   expect(variantSelect).not.toBeNull();
   variantSelect!.value = gameSpecId;
   variantSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function selectModalEngine(engineId: string): void {
+  const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
+  expect(engineSelect).not.toBeNull();
+  engineSelect!.value = engineId;
+  engineSelect!.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function selectedModalTimeControl(): string | undefined {

@@ -105,6 +105,27 @@ type RoomCreationFailure = {
 };
 
 const ENGINE_SEAT_RETRY_MS = 3_000;
+const CROSSROADS_CHESS_DEFAULT_ENGINE_ID = 'fairy-stockfish-crossroads-strong';
+const CROSSROADS_CHESS_ENGINE_OPTIONS: PlayableEngine[] = [
+  {
+    id: 'fairy-stockfish-crossroads-amateur',
+    name: 'Amateur',
+    familyName: 'Fairy-Stockfish Crossroads',
+    kind: 'container',
+  },
+  {
+    id: CROSSROADS_CHESS_DEFAULT_ENGINE_ID,
+    name: 'Strong',
+    familyName: 'Fairy-Stockfish Crossroads',
+    kind: 'container',
+  },
+  {
+    id: 'fairy-stockfish-crossroads-very-strong',
+    name: 'Very Strong',
+    familyName: 'Fairy-Stockfish Crossroads',
+    kind: 'container',
+  },
+];
 const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
   id: tc.id,
   label: tc.label,
@@ -115,7 +136,7 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
 // Which time-control presets the picker offers, per variant. Dark chess and DMX
 // are scoped to bullet + blitz: 5+5 is hidden because dark/fog games are
 // low-calc and decisive, and fewer TCs merge players into fewer pools.
-// Crossroads gets 5+5 because it is perfect-information and PvP-only today. Full
+// Crossroads gets 5+5 because it is perfect-information. Full
 // Dark Xiangqi keeps its prior single option until it has a live runtime. Used
 // for PvE AND PvP/lobby alike.
 function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<LandingTimePresetId> {
@@ -144,9 +165,7 @@ function enabledLandingVariantGameSpecs(
       label: gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID).publicName,
     });
   }
-  // Crossroads live rooms are PvP-only today. The bot/onboarding surface lives at
-  // /crossroads-chess, not in the live-room engine-seat flow.
-  if (mode === 'pvp' && crossroadsChessEnabled()) {
+  if (mode !== 'lobby' && crossroadsChessEnabled()) {
     specs.push({
       gameSpecId: CROSSROADS_CHESS_SPEC_ID,
       label: gameSpecForId(CROSSROADS_CHESS_SPEC_ID).publicName,
@@ -174,7 +193,7 @@ function deepLinkInitialVariant(
   }
   if (
     (variant === CROSSROADS_CHESS_SPEC_ID || variant === DUAL_CHESS_SPEC_ID) &&
-    mode === 'pvp' &&
+    mode !== 'lobby' &&
     crossroadsChessEnabled()
   ) {
     return CROSSROADS_CHESS_SPEC_ID;
@@ -661,7 +680,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   variantSection.append(setupSectionLabel('Variant'));
 
   // The picker appears only when a second public-entry variant exists beyond
-  // chess. The option set is mode-aware: Crossroads is live-room PvP only today.
+  // chess. The option set is mode-aware: Crossroads is not in public lobby yet.
   const variantSelectable = variantOptions.length > 1;
   if (variantSelectable) {
     const gameSpecSelect = document.createElement('select');
@@ -879,9 +898,12 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     }
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
     if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
-    // The PvE engine picker lists chess engines; DMX serves a single dedicated
-    // engine (defaulted server-side), so hide it when DMX is the chosen variant.
-    if (engineSection) engineSection.hidden = selectedGameSpecId !== DARK_CHESS_SPEC_ID;
+    if (engineSection) {
+      engineSection.sync(selectedGameSpecId, selectedEngineId);
+      engineSection.section.hidden =
+        selectedGameSpecId !== DARK_CHESS_SPEC_ID &&
+        selectedGameSpecId !== CROSSROADS_CHESS_SPEC_ID;
+    }
     timeSection.hidden = !capabilities.supportsTimeControl;
     syncTimeControls(); // re-scope the preset picker to the selected variant
     syncVariantControls();
@@ -891,7 +913,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 
   actions.append(startButton, backButton);
   dialog.append(header, variantSection);
-  if (engineSection) dialog.append(engineSection);
+  if (engineSection) dialog.append(engineSection.section);
   dialog.append(timeSection);
   if (colorSection) dialog.append(colorSection);
   if (ratingSection) dialog.append(ratingSection);
@@ -909,49 +931,65 @@ function buildEngineSetupSection(
   engines: PlayableEngine[],
   selectedEngineId: string | undefined,
   onSelect: (engineId: string) => void,
-): HTMLElement {
+): {
+  section: HTMLElement;
+  sync(gameSpecId: LandingGameSpecId, selectedEngineId: string | undefined): void;
+} {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
   section.append(setupSectionLabel('Engine'));
+  const body = document.createElement('div');
+  section.append(body);
 
-  const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
+  const sync = (gameSpecId: LandingGameSpecId, currentEngineId: string | undefined) => {
+    body.replaceChildren();
+    const availableEngines =
+      gameSpecId === CROSSROADS_CHESS_SPEC_ID
+        ? CROSSROADS_CHESS_ENGINE_OPTIONS
+        : engines.length > 0
+          ? engines
+          : fallbackPlayableEngines();
+    const selected =
+      currentEngineId && availableEngines.some((engine) => engine.id === currentEngineId)
+        ? currentEngineId
+        : defaultEngineIdForGameSpec(gameSpecId, availableEngines);
+    if (selected) onSelect(selected);
 
-  // Streamlined release: a single player-facing engine (Misty). Show it as a
-  // static, versioned label rather than a one-option dropdown. The <select>
-  // only appears when multiple engines are available (local dev via
-  // MISTBOARD_EXTRA_PLAYABLE_ENGINES).
-  if (availableEngines.length <= 1) {
-    const only = availableEngines[0];
-    if (only) onSelect(only.id);
-    // Reuse the single-variant static style for visual parity with the Variant row.
-    const label = document.createElement('div');
-    label.className = 'landing-variant-control';
-    label.textContent = only?.name ?? 'Misty';
-    section.append(label);
-    return section;
-  }
+    // Streamlined release: a single player-facing dark-chess engine (Misty).
+    // Show it as a static label; Crossroads has three strengths, so it renders a
+    // real select.
+    if (availableEngines.length <= 1) {
+      const label = document.createElement('div');
+      label.className = 'landing-variant-control';
+      label.textContent = availableEngines[0]?.name ?? 'Misty';
+      body.append(label);
+      return;
+    }
 
-  const select = document.createElement('select');
-  select.className = 'landing-engine-select';
-  select.setAttribute('aria-label', 'Engine');
+    const select = document.createElement('select');
+    select.className = 'landing-engine-select';
+    select.setAttribute('aria-label', 'Engine');
+    for (const engine of availableEngines) {
+      const option = document.createElement('option');
+      option.value = engine.id;
+      option.textContent = engine.name;
+      select.append(option);
+    }
+    select.value = selected;
+    select.addEventListener('change', () => onSelect(select.value));
+    body.append(select);
+  };
 
-  for (const engine of availableEngines) {
-    const option = document.createElement('option');
-    option.value = engine.id;
-    option.textContent = engine.name;
-    select.append(option);
-  }
+  sync(DARK_CHESS_SPEC_ID, selectedEngineId);
+  return { section, sync };
+}
 
-  const fallbackEngineId = availableEngines[0]?.id;
-  select.value =
-    selectedEngineId && availableEngines.some((engine) => engine.id === selectedEngineId)
-      ? selectedEngineId
-      : (fallbackEngineId ?? '');
-  if (select.value) onSelect(select.value);
-  select.addEventListener('change', () => onSelect(select.value));
-
-  section.append(select);
-  return section;
+function defaultEngineIdForGameSpec(
+  gameSpecId: LandingGameSpecId,
+  availableEngines: readonly PlayableEngine[],
+): string {
+  if (gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_DEFAULT_ENGINE_ID;
+  return availableEngines[0]?.id ?? '';
 }
 
 function buildRatedToggleSection(
@@ -1344,11 +1382,12 @@ function roomCreationRequestBody(
   const gameSpecId = roomCreationGameSpecId(setup);
   if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) {
     return {
-      mode: 'pvp',
+      mode,
       gameSpecId,
       timeControl: setup.timeControl,
       rated: false,
       preferredColor: setup.preferredColor === 'red' ? 'black' : setup.preferredColor,
+      ...(mode === 'pve' && engineId ? { engineId } : {}),
     };
   }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {

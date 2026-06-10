@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'node:http';
 import { type CrossroadsChessMove, getCrossroadsChessOpenLegalMoves } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
+import { isCrossroadsChessEngineClientId } from './crossroads-chess-engine.js';
 import {
   type CrossroadsChessClientEvent,
   type CrossroadsChessEvent,
@@ -11,6 +12,10 @@ import {
   isCrossroadsChessSquare,
 } from './crossroads-chess-runtime.js';
 import { wsCounters } from './obs.js';
+import {
+  type CrossroadsChessEngineContext,
+  scheduleCrossroadsChessEngineMove,
+} from './server-crossroads-chess-engine.js';
 import {
   appendCrossroadsChessEvent,
   appendCrossroadsChessSeatAssigned,
@@ -57,6 +62,7 @@ const crossroadsChessLifecycleCtx: CrossroadsChessLifecycleContext<CrossroadsChe
     appendCrossroadsChessEvent(room, event, crossroadsChessEventWriterCtx),
   broadcastEventAppended: broadcastCrossroadsChessEventAppended,
 };
+const crossroadsChessEngineCtx: CrossroadsChessEngineContext = crossroadsChessLifecycleCtx;
 
 crossroadsChessEventWriterCtx = {
   scheduleLifecycleTimers: (room) =>
@@ -134,6 +140,7 @@ export async function handleCrossroadsChessWebSocketConnection(
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
   broadcastCrossroadsChessSnapshot(room);
+  scheduleCrossroadsChessEngineMove(crossroadsChessEngineCtx, room);
   maybeReplayCrossroadsChessRematchRedirect(ctx.crossroadsChessRematch, room, client);
 
   socket.on('message', (raw) => {
@@ -269,6 +276,7 @@ async function appendAndBroadcast(
     return;
   }
   broadcastCrossroadsChessEventAppended(room, event, seq);
+  scheduleCrossroadsChessEngineMove(crossroadsChessEngineCtx, room);
 }
 
 // Perfect-information: every client gets the same event (no per-seat redaction).
@@ -321,11 +329,35 @@ export function crossroadsChessTransportSnapshotPayload(
   room: CrossroadsChessLiveRoom,
   client: CrossroadsChessLiveClient,
 ) {
-  return crossroadsChessSnapshotPayload(room, { id: client.id, seat: client.seat, solo: false });
+  const snapshot = crossroadsChessSnapshotPayload(room, {
+    id: client.id,
+    seat: client.seat,
+    solo: false,
+  });
+  const engineSeat = crossroadsChessEngineSeat(room);
+  if (engineSeat === null) return { ...snapshot, roomMode: 'pvp' as const };
+  return {
+    ...snapshot,
+    connectedSeats: { ...snapshot.connectedSeats, [engineSeat.seat]: true },
+    pveEngineId: engineSeat.engineId,
+    roomMode: 'pve' as const,
+  };
 }
 
 function parseClientId(value: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   return trimmed.length > 0 && trimmed.length <= 128 ? trimmed : null;
+}
+
+function crossroadsChessEngineSeat(
+  room: CrossroadsChessLiveRoom,
+): { engineId: string; seat: 'white' | 'red' } | null {
+  for (const seat of ['white', 'red'] as const) {
+    const clientId = room.projection.seats[seat];
+    if (clientId && isCrossroadsChessEngineClientId(clientId)) {
+      return { engineId: clientId, seat };
+    }
+  }
+  return null;
 }

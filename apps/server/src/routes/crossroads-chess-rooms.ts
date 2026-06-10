@@ -1,5 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import { CROSSROADS_CHESS_SPEC_ID, maybeGameSpecForId } from '@mistboard/game';
+import {
+  CROSSROADS_CHESS_DEFAULT_ENGINE_ID,
+  isCrossroadsChessEngineClientId,
+} from './../crossroads-chess-engine.js';
 import { crossroadsChessEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
 import type { HttpApiContext } from './lib.js';
@@ -12,8 +17,8 @@ export function requestsCrossroadsChess(body: Record<string, unknown>): boolean 
   );
 }
 
-// Create a perfect-information Crossroads Chess live room. PvP only (no in-room engine),
-// flag-gated, not rated.
+// Create a perfect-information Crossroads Chess live room. Supports PvP and
+// server-owned Fairy-Stockfish PvE, flag-gated, not rated.
 export async function handleCrossroadsChessCreate(
   ctx: HttpApiContext,
   response: ServerResponse,
@@ -23,7 +28,8 @@ export async function handleCrossroadsChessCreate(
     writeJson(response, 404, { error: 'crossroads_chess_disabled' });
     return;
   }
-  if (body.mode !== 'pvp' || body.rated === true) {
+  const mode = parseCrossroadsChessRoomMode(body);
+  if (mode === null || body.rated === true) {
     writeJson(response, 501, { error: 'crossroads_chess_unsupported_surface' });
     return;
   }
@@ -43,7 +49,25 @@ export async function handleCrossroadsChessCreate(
     return;
   }
 
-  const created = await ctx.createCrossroadsChessRoom(timeControl ?? undefined, preferredColor);
+  let engine: { engineId: string; seat: 'white' | 'red' } | undefined;
+  if (mode === 'pve') {
+    const engineId =
+      typeof body.engineId === 'string' && body.engineId.length > 0
+        ? body.engineId
+        : CROSSROADS_CHESS_DEFAULT_ENGINE_ID;
+    if (!isCrossroadsChessEngineClientId(engineId)) {
+      writeJson(response, 400, { error: 'invalid_engine' });
+      return;
+    }
+    const humanColor = crossroadsChessPveHumanColor(preferredColor);
+    engine = { engineId, seat: humanColor === 'white' ? 'red' : 'white' };
+  }
+
+  const created = await ctx.createCrossroadsChessRoom(
+    timeControl ?? undefined,
+    preferredColor,
+    engine,
+  );
   if (!created.ok) {
     const status =
       created.error === 'crossroads_chess_disabled'
@@ -57,11 +81,16 @@ export async function handleCrossroadsChessCreate(
   writeJson(response, 201, {
     roomId: created.room.id,
     url: `/room/${encodeURIComponent(created.room.id)}`,
-    mode: 'pvp',
+    mode,
     gameSpecId: created.room.gameSpecId,
     region: 'global',
     ...(timeControl ? { timeControl } : {}),
   });
+}
+
+function parseCrossroadsChessRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
+  if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
+  return null;
 }
 
 function parseCrossroadsChessPreferredColor(
@@ -70,4 +99,13 @@ function parseCrossroadsChessPreferredColor(
   if (value === 'white' || value === 'red' || value === 'random') return value;
   if (value === 'black') return 'red';
   return undefined;
+}
+
+export function crossroadsChessPveHumanColor(
+  preferredColor: 'white' | 'red' | 'random' | undefined,
+  randomByte = randomBytes(1)[0]!,
+): 'white' | 'red' {
+  if (preferredColor === 'red') return 'red';
+  if (preferredColor === 'random') return randomByte < 128 ? 'white' : 'red';
+  return 'white';
 }

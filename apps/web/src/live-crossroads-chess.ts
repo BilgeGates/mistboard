@@ -72,6 +72,8 @@ type DualLiveFrame = {
   forfeitDeadline?: number | null;
   timeControl?: { initialMs: number; incrementMs: number } | null;
   rematch?: CrossroadsLiveRematch;
+  pveEngineId?: string;
+  roomMode?: 'pvp' | 'pve';
   clients?: number;
   events?: DualLiveEvent[];
   event?: DualLiveEvent;
@@ -112,6 +114,8 @@ const state = {
   connection: 'connecting' as ConnectionState,
   closeReason: '',
   playAgainStatus: 'idle' as 'idle' | 'creating' | 'failed',
+  pveEngineId: null as string | null,
+  roomMode: 'pvp' as 'pvp' | 'pve',
   rematch: {
     offers: {} as Partial<Record<CrossroadsChessColor, boolean>>,
     finalizedRoomId: null as string | null,
@@ -286,6 +290,8 @@ function applyFrame(frame: DualLiveFrame): void {
   state.view = frame.state;
   state.clock = frame.clock ?? null;
   state.timeControl = frame.timeControl ?? state.timeControl;
+  state.roomMode = frame.roomMode ?? state.roomMode;
+  state.pveEngineId = frame.pveEngineId ?? state.pveEngineId;
   if (frame.rematch) {
     state.rematch = { ...frame.rematch, declined: state.rematch.declined };
   }
@@ -444,7 +450,9 @@ function renderRoomActions(liveRefs: LiveRefs): void {
     const review = roomLink('Review game', crossroadsChessReviewUrl(state.room));
     review.className = 'primary';
     row.append(review);
-    if (isCrossroadsChessColor(state.seat)) {
+    if (state.roomMode === 'pve') {
+      row.append(playAgainButton());
+    } else if (isCrossroadsChessColor(state.seat)) {
       row.append(rematchControls(state.seat));
     } else {
       row.append(playAgainButton());
@@ -541,7 +549,11 @@ function playAgainButton(): HTMLButtonElement {
         ? 'Try play again'
         : 'Play again';
   button.addEventListener('click', () => {
-    void createCrossroadsLivePlayAgainRoom(state.timeControl)
+    void createCrossroadsLivePlayAgainRoom(state.timeControl, {
+      mode: state.roomMode,
+      pveEngineId: state.pveEngineId,
+      seat: state.seat,
+    })
       .then((url) => {
         window.location.assign(url);
       })
@@ -630,11 +642,12 @@ function disabledButton(label: string): HTMLButtonElement {
 
 export async function createCrossroadsLivePlayAgainRoom(
   timeControl: CrossroadsChessLiveTimeControl | null,
+  options: CrossroadsLivePlayAgainOptions = {},
 ): Promise<string> {
   const response = await fetch('/api/rooms', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(crossroadsLivePlayAgainRequestBody(timeControl)),
+    body: JSON.stringify(crossroadsLivePlayAgainRequestBody(timeControl, options)),
   });
   if (!response.ok) throw new Error('crossroads_live_play_again_failed');
   const body = (await response.json()) as { url?: unknown };
@@ -642,21 +655,37 @@ export async function createCrossroadsLivePlayAgainRoom(
   return body.url;
 }
 
+type CrossroadsLivePlayAgainOptions = {
+  mode?: 'pvp' | 'pve';
+  pveEngineId?: string | null;
+  seat?: CrossroadsChessColor | 'spectator' | null;
+};
+
 export function crossroadsLivePlayAgainRequestBody(
   timeControl: CrossroadsChessLiveTimeControl | null,
+  options: CrossroadsLivePlayAgainOptions = {},
 ): {
-  mode: 'pvp';
+  mode: 'pvp' | 'pve';
   gameSpecId: 'crossroads-chess';
   timeControl: CrossroadsChessLiveTimeControl;
   rated: false;
-  preferredColor: 'random';
+  preferredColor: 'white' | 'red' | 'random';
+  engineId?: string;
 } {
+  const mode = options.mode === 'pve' ? 'pve' : 'pvp';
+  const preferredColor =
+    mode === 'pve' && options.seat === 'white'
+      ? 'red'
+      : mode === 'pve' && options.seat === 'red'
+        ? 'white'
+        : 'random';
   return {
-    mode: 'pvp',
+    mode,
     gameSpecId: 'crossroads-chess',
     timeControl: timeControl ?? defaultTimeControl(),
     rated: false,
-    preferredColor: 'random',
+    preferredColor,
+    ...(mode === 'pve' && options.pveEngineId ? { engineId: options.pveEngineId } : {}),
   };
 }
 

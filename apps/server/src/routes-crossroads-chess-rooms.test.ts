@@ -58,3 +58,59 @@ test('Crossroads room creation accepts black as the dark-chess picker alias for 
   assert.equal(response.status, 201);
   assert.equal(creatorPreference, 'red');
 });
+
+test('Crossroads PvE creation seats a known FSF engine opposite the requested side', async () => {
+  process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
+  let engine: { engineId: string; seat: 'white' | 'red' } | undefined;
+  const ctx = {
+    createCrossroadsChessRoom: async (_timeControl, _preference, requestedEngine) => {
+      engine = requestedEngine;
+      return {
+        ok: true,
+        room: {
+          id: 'dchess_engine',
+          gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+        } as CrossroadsChessRuntimeRoom,
+      };
+    },
+    databaseRequired: false,
+    drainDeadlineMs: () => null,
+    isDraining: () => false,
+  } satisfies Partial<HttpApiContext>;
+  const response = captureResponse();
+
+  await handleCrossroadsChessCreate(ctx as HttpApiContext, response, {
+    mode: 'pve',
+    gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+    engineId: 'fairy-stockfish-crossroads-very-strong',
+    preferredColor: 'black',
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal(JSON.parse(response.body).mode, 'pve');
+  assert.deepEqual(engine, {
+    engineId: 'fairy-stockfish-crossroads-very-strong',
+    seat: 'white',
+  });
+});
+
+test('Crossroads PvE creation rejects unknown engine ids', async () => {
+  process.env.MISTBOARD_CROSSROADS_CHESS_ENABLED = 'true';
+  const response = captureResponse();
+  await handleCrossroadsChessCreate(
+    {
+      databaseRequired: false,
+      drainDeadlineMs: () => null,
+      isDraining: () => false,
+    } as HttpApiContext,
+    response,
+    {
+      mode: 'pve',
+      gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+      engineId: 'python-v2-v1.0',
+    },
+  );
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(JSON.parse(response.body), { error: 'invalid_engine' });
+});

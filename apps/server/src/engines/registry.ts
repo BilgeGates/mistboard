@@ -300,9 +300,49 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   },
 };
 
+const CROSSROADS_CHESS_ENGINES: Record<string, EngineDefinition> = {
+  'fairy-stockfish-crossroads-amateur': {
+    id: 'fairy-stockfish-crossroads-amateur',
+    engineId: 'fairy-stockfish-crossroads',
+    engineName: 'Fairy-Stockfish Crossroads',
+    name: 'Amateur',
+    kind: 'container',
+    gameSpecId: 'crossroads-chess',
+    configHash: 'fsf-crossroads-amateur',
+    playSignature: 'fsf-crossroads-amateur',
+    config: { kind: 'fairy-stockfish', skill: 2, movetime_ms: 150 },
+    notes: 'Crossroads Chess Fairy-Stockfish tier capped for production-safe amateur play.',
+  },
+  'fairy-stockfish-crossroads-strong': {
+    id: 'fairy-stockfish-crossroads-strong',
+    engineId: 'fairy-stockfish-crossroads',
+    engineName: 'Fairy-Stockfish Crossroads',
+    name: 'Strong',
+    kind: 'container',
+    gameSpecId: 'crossroads-chess',
+    configHash: 'fsf-crossroads-strong',
+    playSignature: 'fsf-crossroads-strong',
+    config: { kind: 'fairy-stockfish', skill: 8, movetime_ms: 300 },
+    notes: 'Default Crossroads Chess Fairy-Stockfish tier capped for production-safe play.',
+  },
+  'fairy-stockfish-crossroads-very-strong': {
+    id: 'fairy-stockfish-crossroads-very-strong',
+    engineId: 'fairy-stockfish-crossroads',
+    engineName: 'Fairy-Stockfish Crossroads',
+    name: 'Very Strong',
+    kind: 'container',
+    gameSpecId: 'crossroads-chess',
+    configHash: 'fsf-crossroads-very-strong',
+    playSignature: 'fsf-crossroads-very-strong',
+    config: { kind: 'fairy-stockfish', skill: 16, movetime_ms: 600 },
+    notes: 'Top Crossroads Chess Fairy-Stockfish tier capped below unlimited engine search.',
+  },
+};
+
 const KNOWN_ENGINES: Record<string, EngineDefinition> = {
   ...BUILTIN_ENGINES,
   ...PYTHON_ENGINES,
+  ...CROSSROADS_CHESS_ENGINES,
 };
 
 export function latestBuiltinEngineIds(): { white: string; black: string } {

@@ -1,4 +1,5 @@
 import type { CrossroadsChessColor } from '@mistboard/game';
+import { isCrossroadsChessEngineClientId } from './crossroads-chess-engine.js';
 import {
   type CrossroadsChessEvent,
   type CrossroadsChessRuntimeRoom,
@@ -31,6 +32,7 @@ type CrossroadsChessAbortPhase = 'white-1' | 'red-1';
 export function clearCrossroadsChessRuntimeTimers(room: CrossroadsChessLifecycleRoom): void {
   clearCrossroadsChessAbortTimer(room);
   clearCrossroadsChessClockTimer(room);
+  clearCrossroadsChessEngineTimer(room);
   clearCrossroadsChessForfeitTimer(room);
 }
 
@@ -42,6 +44,11 @@ export function clearCrossroadsChessAbortTimer(room: CrossroadsChessLifecycleRoo
 export function clearCrossroadsChessClockTimer(room: CrossroadsChessLifecycleRoom): void {
   if (room.clockTimer) clearTimeout(room.clockTimer);
   room.clockTimer = null;
+}
+
+export function clearCrossroadsChessEngineTimer(room: CrossroadsChessLifecycleRoom): void {
+  if (room.engineTimer) clearTimeout(room.engineTimer);
+  room.engineTimer = null;
 }
 
 export function clearCrossroadsChessForfeitTimer(room: CrossroadsChessLifecycleRoom): void {
@@ -73,6 +80,11 @@ export function crossroadsChessForfeitingSeat(
   const { status, moveNumber } = room.projection.state;
   if (status.type !== 'playing' || moveNumber < 2) return null;
   const connected = crossroadsChessConnectedSeats(room.clients);
+  for (const color of ['white', 'red'] as const) {
+    if (isCrossroadsChessEngineClientId(room.projection.seats[color])) {
+      connected[color] = true;
+    }
+  }
   if (connected.white && !connected.red) return 'red';
   if (!connected.white && connected.red) return 'white';
   return null;

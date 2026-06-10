@@ -83,6 +83,7 @@ type ServerHttpHandlerOptions = {
   createCrossroadsChessRoom(
     timeControl?: RoomTimeControl,
     creatorPreference?: CrossroadsChessCreatorPreference,
+    engine?: { engineId: string; seat: 'white' | 'red' },
   ): Promise<
     | { ok: true; room: CrossroadsChessRuntimeRoom }
     | {

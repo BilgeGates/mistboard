@@ -9,13 +9,17 @@ import {
   getCrossroadsChessOpenLegalMoves,
 } from '@mistboard/game';
 import type { WebSocket } from 'ws';
-import { createCrossroadsChessRuntimeRoom } from './crossroads-chess-runtime.js';
+import {
+  appendCrossroadsChessRuntimeEvent,
+  createCrossroadsChessRuntimeRoom,
+} from './crossroads-chess-runtime.js';
 import { mintCrossroadsChessSeatToken } from './server-crossroads-chess-seat-session.js';
 import {
   type CrossroadsChessLiveRoom,
   type CrossroadsChessWebSocketContext,
   clearCrossroadsChessRuntimeTimers,
   handleCrossroadsChessWebSocketConnection,
+  scheduleCrossroadsChessLifecycleTimers,
 } from './server-ws-crossroads-chess.js';
 
 const crossroadsChessFlag = 'MISTBOARD_CROSSROADS_CHESS_ENABLED';
@@ -359,6 +363,58 @@ test('Crossroads Chess WebSocket handler arms a forfeit timer when a seat discon
     red.emit('close');
 
     assert.equal(room.forfeitSeat, 'red');
+    assert.notEqual(room.forfeitTimer, null);
+    clearCrossroadsChessRuntimeTimers(room);
+  });
+});
+
+test('Crossroads Chess WebSocket handler treats an engine seat as connected for forfeits', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dchess_forfeit_engine');
+    appendCrossroadsChessRuntimeEvent(room, {
+      type: 'seat-assigned',
+      at: 1,
+      roomId: room.id,
+      clientId: 'fairy-stockfish-crossroads-strong',
+      seat: 'red',
+    });
+    const white = new FakeSocket();
+    await connect(room, white, 'white-client');
+    const hello = white.messages[0] as Record<string, unknown>;
+    assert.equal(hello.roomMode, 'pve');
+    assert.equal(hello.pveEngineId, 'fairy-stockfish-crossroads-strong');
+    assert.deepEqual(hello.connectedSeats, { white: true, red: true });
+
+    const whiteMove = getCrossroadsChessOpenLegalMoves(room.projection.state).find(
+      (move) => !move.promotion,
+    );
+    assert.ok(whiteMove, 'expected a white legal move');
+    appendCrossroadsChessRuntimeEvent(room, {
+      type: 'move-played',
+      at: 2,
+      roomId: room.id,
+      color: 'white',
+      move: whiteMove,
+    });
+    const redMove = getCrossroadsChessOpenLegalMoves(room.projection.state).find(
+      (move) => !move.promotion,
+    );
+    assert.ok(redMove, 'expected a red legal move');
+    appendCrossroadsChessRuntimeEvent(room, {
+      type: 'move-played',
+      at: 3,
+      roomId: room.id,
+      color: 'red',
+      move: redMove,
+    });
+
+    scheduleCrossroadsChessLifecycleTimers(room);
+    assert.equal(room.forfeitSeat, null);
+    assert.equal(room.forfeitTimer, null);
+
+    white.emit('close');
+
+    assert.equal(room.forfeitSeat, 'white');
     assert.notEqual(room.forfeitTimer, null);
     clearCrossroadsChessRuntimeTimers(room);
   });

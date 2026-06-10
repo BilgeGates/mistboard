@@ -68,6 +68,25 @@ test('the forfeiting seat is the disconnected side once the game is live', () =>
   assert.equal(crossroadsChessForfeitingSeat(room), null);
 });
 
+test('Crossroads lifecycle treats an engine seat as connected for disconnect forfeits', () => {
+  const room = seatedRoom();
+  appendCrossroadsChessRuntimeEvent(room, {
+    type: 'seat-assigned',
+    at: 1_500,
+    roomId: room.id,
+    clientId: 'fairy-stockfish-crossroads-strong',
+    seat: 'white',
+  });
+  move(room, 'white', 'd2', 'd4', 2_000);
+  move(room, 'red', 'c7', 'c5', 3_000);
+
+  room.clients.add({ seat: 'red', displaced: false });
+  assert.equal(crossroadsChessForfeitingSeat(room), null);
+
+  room.clients.clear();
+  assert.equal(crossroadsChessForfeitingSeat(room), 'red');
+});
+
 test('connectedSeats ignores displaced clients', () => {
   assert.deepEqual(
     crossroadsChessConnectedSeats([

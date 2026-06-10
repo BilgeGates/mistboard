@@ -4,6 +4,10 @@ import {
   type CrossroadsChessGameEndReason,
 } from '@mistboard/game';
 import {
+  crossroadsChessEngineDisplayName,
+  isCrossroadsChessEngineClientId,
+} from './crossroads-chess-engine.js';
+import {
   appendCrossroadsChessRuntimeEvent,
   type CrossroadsChessEvent,
   type CrossroadsChessRuntimeRoom,
@@ -111,9 +115,11 @@ export function buildCrossroadsChessGameSummary(
   const moveEvents = room.events.filter((event) => event.type === 'move-played');
   const firstAt = room.events[0]?.at ?? Date.now();
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
+  const mode: persistence.GameMode = crossroadsChessEngineSeat(room) ? 'pve' : 'pvp';
+  const visibility: persistence.GameVisibility = mode === 'pve' ? 'public' : 'private';
   return {
     variant: CROSSROADS_CHESS_SPEC_ID,
-    mode: 'pvp',
+    mode,
     result: crossroadsChessResult(status.winner),
     termination: crossroadsChessTermination(status.reason),
     plyCount: moveEvents.length,
@@ -125,12 +131,12 @@ export function buildCrossroadsChessGameSummary(
     blackName: null,
     corpusId: null,
     rated: false,
-    visibility: 'private',
+    visibility,
     initialMs: room.projection.timeControl?.initialMs ?? null,
     incrementMs: room.projection.timeControl?.incrementMs ?? null,
     participants: [
-      crossroadsChessParticipant('white', room),
-      crossroadsChessParticipant('red', room),
+      crossroadsChessParticipant('white', room, visibility),
+      crossroadsChessParticipant('red', room, visibility),
     ],
   };
 }
@@ -191,7 +197,18 @@ function crossroadsChessTermination(
 function crossroadsChessParticipant(
   color: CrossroadsChessColor,
   room: CrossroadsChessEventRoom,
+  visibility: persistence.GameVisibility,
 ): persistence.GameParticipant {
+  const seatedClientId = room.projection.seats[color];
+  if (seatedClientId && isCrossroadsChessEngineClientId(seatedClientId)) {
+    return {
+      color,
+      displayName: crossroadsChessEngineDisplayName(seatedClientId),
+      subjectType: 'engine-version',
+      subjectId: seatedClientId,
+      visibility,
+    };
+  }
   const token = room.seatTokens[color];
   if (token?.userId) {
     return {
@@ -199,16 +216,23 @@ function crossroadsChessParticipant(
       displayName: token.userDisplayName ?? token.userHandle ?? 'Player',
       subjectType: 'user',
       subjectId: token.userId,
-      visibility: 'private',
+      visibility,
     };
   }
   return {
     color,
-    displayName: color === 'white' ? 'White' : 'Red',
+    displayName: 'Guest',
     subjectType: 'guest',
     subjectId: null,
-    visibility: 'private',
+    visibility,
   };
+}
+
+function crossroadsChessEngineSeat(room: CrossroadsChessEventRoom): CrossroadsChessColor | null {
+  for (const color of ['white', 'red'] as const) {
+    if (isCrossroadsChessEngineClientId(room.projection.seats[color])) return color;
+  }
+  return null;
 }
 
 export function persistenceRecordForCrossroadsChessSeatToken(

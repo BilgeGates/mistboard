@@ -43,6 +43,26 @@ describe('Crossroads Chess live room terminal actions', () => {
     });
   });
 
+  it('creates PvE play-again room requests with the same engine and swapped color', () => {
+    expect(
+      crossroadsLivePlayAgainRequestBody(
+        { initialMs: 60_000, incrementMs: 1_000 },
+        {
+          mode: 'pve',
+          pveEngineId: 'fairy-stockfish-crossroads-very-strong',
+          seat: 'white',
+        },
+      ),
+    ).toEqual({
+      mode: 'pve',
+      gameSpecId: 'crossroads-chess',
+      timeControl: { initialMs: 60_000, incrementMs: 1_000 },
+      rated: false,
+      preferredColor: 'red',
+      engineId: 'fairy-stockfish-crossroads-very-strong',
+    });
+  });
+
   it('falls back to 5+5 when a finished live room had no time control', () => {
     expect(crossroadsLivePlayAgainRequestBody(null).timeControl).toEqual({
       initialMs: 300_000,
