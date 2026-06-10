@@ -8,6 +8,7 @@ import { buildContact } from './contact.js';
 import { crossroadsChessEnabled } from './feature-flags.js';
 import type { FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
+import { buildLandingActivity } from './landing-activity.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
 import {
   buildLandingPlayPanel,
@@ -477,6 +478,12 @@ function buildLandingStage(
   about.textContent =
     'Play dark chess (fog of war) and other original games, free in your browser.';
   leftRail.append(buildLandingAnnouncements(), about);
+  // Activity box arrives async (two API fetches) and may not render at all
+  // (no persistence, API down), so it slots in above the about line on
+  // success instead of reserving space.
+  void buildLandingActivity().then((activity) => {
+    if (activity) leftRail.insertBefore(activity, about);
+  });
 
   // ── Center (wide): the fog board hero, with article cards stacked beneath. ──
   const centerColumn = document.createElement('div');
