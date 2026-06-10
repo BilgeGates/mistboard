@@ -114,7 +114,7 @@ function profileSideLabel(game: FeaturedGame): string {
 }
 
 function profileGameSpecLabel(game: FeaturedGame): string {
-  if (game.variant === 'dual-chess') return 'Crossroads Chess';
+  if (isCrossroadsChessVariant(game)) return 'Crossroads Chess';
   if (game.variant === 'dark-mini-xiangqi') return 'Dark Mini Xiangqi';
   if (game.variant === 'dark-xiangqi') return 'Dark Xiangqi';
   if (
@@ -153,15 +153,15 @@ function opponentColor(
   game: FeaturedGame,
   color: FeaturedGame['playerColor'],
 ): 'white' | 'black' | 'red' {
-  if (color === 'red') return game.variant === 'dual-chess' ? 'white' : 'black';
-  if (color === 'white' && game.variant === 'dual-chess') return 'red';
+  if (color === 'red') return isCrossroadsChessVariant(game) ? 'white' : 'black';
+  if (color === 'white' && isCrossroadsChessVariant(game)) return 'red';
   if (color === 'black' && isXiangqiVariant(game)) return 'red';
   if (color === 'black') return 'white';
   return 'black';
 }
 
 function profileGameHref(game: FeaturedGame): string {
-  if (game.variant === 'dual-chess') {
+  if (isCrossroadsChessVariant(game)) {
     return `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`;
   }
   if (game.variant === 'dark-mini-xiangqi') {
@@ -175,4 +175,8 @@ function profileGameHref(game: FeaturedGame): string {
 
 function isXiangqiVariant(game: FeaturedGame): boolean {
   return game.variant === 'dark-mini-xiangqi' || game.variant === 'dark-xiangqi';
+}
+
+function isCrossroadsChessVariant(game: FeaturedGame): boolean {
+  return game.variant === 'crossroads-chess' || game.variant === 'dual-chess';
 }

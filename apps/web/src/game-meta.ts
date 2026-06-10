@@ -49,9 +49,13 @@ export function timeControlLabelForGame(game: FeaturedGame): string | null {
 
 export function reviewUrlForGame(game: FeaturedGame): string | null {
   if (game.corpusId === 'replay-samples') return null;
-  if (game.variant === 'dual-chess')
+  if (isCrossroadsChessVariant(game.variant))
     return `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`;
   return `/game/${encodeURIComponent(game.roomId)}`;
+}
+
+function isCrossroadsChessVariant(variant: string): boolean {
+  return variant === 'crossroads-chess' || variant === 'dual-chess';
 }
 
 // Append the post-game rating change to a player's name on the game page, e.g.

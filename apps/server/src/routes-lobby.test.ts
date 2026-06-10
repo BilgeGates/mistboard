@@ -67,7 +67,7 @@ function testContext(overrides: Partial<HttpApiContext> = {}): {
     createDarkXiangqiRoom: async () => {
       throw new Error('unexpected Dark Xiangqi room creation');
     },
-    createDualChessRoom: async () => ({ ok: false, error: 'dual_chess_disabled' }),
+    createCrossroadsChessRoom: async () => ({ ok: false, error: 'crossroads_chess_disabled' }),
     createRoom: async (...args) => {
       chessCalls.push(args);
       chessRoomSeq += 1;

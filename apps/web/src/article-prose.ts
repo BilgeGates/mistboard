@@ -42,7 +42,7 @@ const BLOCK_PROSE: {
   'xq-replay': caption,
   'mxq-replay': caption,
   'chess-replay': caption,
-  'dual-replay': caption,
+  'crossroads-replay': caption,
   code: caption,
 };
 
@@ -53,10 +53,12 @@ function blockProse(block: ArticleBlock, path: string): Prose[] {
 
 function sectionProse(section: ArticleSection, path: string): Prose[] {
   const out: Prose[] = [{ path: `${path}.heading`, text: section.heading }];
-  (section.paragraphs ?? []).forEach((p, i) =>
-    out.push({ path: `${path}.paragraphs[${i}]`, text: p }),
-  );
-  (section.blocks ?? []).forEach((b, i) => out.push(...blockProse(b, `${path}.blocks[${i}]`)));
+  (section.paragraphs ?? []).forEach((p, i) => {
+    out.push({ path: `${path}.paragraphs[${i}]`, text: p });
+  });
+  (section.blocks ?? []).forEach((b, i) => {
+    out.push(...blockProse(b, `${path}.blocks[${i}]`));
+  });
   return out;
 }
 
@@ -67,8 +69,14 @@ export function articleProse(article: Article): Prose[] {
     { path: 'title', text: article.title },
     { path: 'summary', text: article.summary },
   ];
-  (article.tldr ?? []).forEach((t, i) => out.push({ path: `tldr[${i}]`, text: t }));
-  (article.intro ?? []).forEach((b, i) => out.push(...blockProse(b, `intro[${i}]`)));
-  article.sections.forEach((s, i) => out.push(...sectionProse(s, `sections[${i}]`)));
+  (article.tldr ?? []).forEach((t, i) => {
+    out.push({ path: `tldr[${i}]`, text: t });
+  });
+  (article.intro ?? []).forEach((b, i) => {
+    out.push(...blockProse(b, `intro[${i}]`));
+  });
+  article.sections.forEach((s, i) => {
+    out.push(...sectionProse(s, `sections[${i}]`));
+  });
   return out;
 }

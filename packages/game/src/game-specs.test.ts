@@ -129,15 +129,15 @@ test('future composites are composed from rule modules', () => {
 });
 
 test('Crossroads Chess is two specs sharing one family/board, split on visibility', () => {
-  const open = gameSpecForId('dual-chess');
-  const dark = gameSpecForId('dark-dual-chess');
+  const open = gameSpecForId('crossroads-chess');
+  const dark = gameSpecForId('dark-crossroads-chess');
 
   for (const spec of [open, dark]) {
-    assert.equal(spec.family, 'dual-chess');
-    assert.equal(spec.board, 'dual-6x8');
-    assert.equal(spec.movement, 'dual-chess');
+    assert.equal(spec.family, 'crossroads-chess');
+    assert.equal(spec.board, 'crossroads-6x8');
+    assert.equal(spec.movement, 'crossroads-chess');
     assert.equal(spec.objective, 'royal-capture-or-race');
-    assert.equal(spec.setup, 'dual-standard');
+    assert.equal(spec.setup, 'crossroads-standard');
     assert.equal(spec.publicSurface, 'hidden');
   }
   assert.equal(open.runtimeStatus, 'dev-spike');
@@ -147,8 +147,8 @@ test('Crossroads Chess is two specs sharing one family/board, split on visibilit
   assert.equal(dark.publicName, 'Dark Crossroads Chess');
   assert.equal(open.visibility, 'open');
   assert.equal(dark.visibility, 'dark');
-  assert.equal(open.ratingPoolBase, 'dual_chess_open');
-  assert.equal(dark.ratingPoolBase, 'dual_chess');
+  assert.equal(open.ratingPoolBase, 'crossroads_chess_open');
+  assert.equal(dark.ratingPoolBase, 'crossroads_chess');
 });
 
 test('game spec ids are unique and discoverable', () => {

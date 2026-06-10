@@ -81,7 +81,7 @@ describe('playable engines loading', () => {
   });
 
   it('routes Crossroads rooms to the isolated live client during landing transitions', () => {
-    vi.stubEnv('VITE_DUAL_CHESS_ENABLED', 'true');
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     window.history.replaceState(null, '', '/');
 
     expect(landingRoomClientKindForUrl('/room/dchess_created')).toBe('crossroads');

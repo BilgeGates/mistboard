@@ -5,7 +5,7 @@ import './game-route.css';
 import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
 import { buildContact } from './contact.js';
-import { dualChessEnabled } from './feature-flags.js';
+import { crossroadsChessEnabled } from './feature-flags.js';
 import type { FeaturedGame } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
@@ -242,7 +242,7 @@ async function transitionToRoom(
   // navigation preserves the click's sticky user activation.
   const clientKind = landingRoomClientKindForUrl(url);
   if (clientKind === 'crossroads') {
-    const liveModule = await import('./live-dual-chess.js').catch((err) => {
+    const liveModule = await import('./live-crossroads-chess.js').catch((err) => {
       console.warn('live room chunk failed to load; falling back to full reload', err);
       return null;
     });
@@ -251,7 +251,7 @@ async function transitionToRoom(
       return;
     }
     prepareRoomTransition(root, url, teardownLanding);
-    liveModule.bootstrapDualChessLiveRoom();
+    liveModule.bootstrapCrossroadsChessLiveRoom();
     return;
   }
   const liveModule = await import('./live.js').catch((err) => {
@@ -269,7 +269,7 @@ async function transitionToRoom(
 export function landingRoomClientKindForUrl(url: string): 'crossroads' | 'standard' {
   const next = new URL(url, window.location.href);
   const roomId = roomIdFromPath(next.pathname) ?? next.searchParams.get('room');
-  return dualChessEnabled() && roomId?.startsWith('dchess_') ? 'crossroads' : 'standard';
+  return crossroadsChessEnabled() && roomId?.startsWith('dchess_') ? 'crossroads' : 'standard';
 }
 
 function prepareRoomTransition(root: HTMLElement, url: string, teardownLanding: () => void): void {

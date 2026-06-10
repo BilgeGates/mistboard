@@ -96,6 +96,7 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/xiangqi-demo' ||
     normalized === '/crossroads-chess' ||
     normalized.startsWith('/crossroads-chess/game/') ||
+    normalized === '/crossroads-chess-play' ||
     normalized === '/dual-chess-play' ||
     normalized === '/articles' ||
     normalized === '/zh-hans/articles' ||

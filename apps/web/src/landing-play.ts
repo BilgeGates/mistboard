@@ -1,4 +1,5 @@
 import {
+  CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
@@ -15,9 +16,9 @@ import {
   track,
 } from './analytics.js';
 import {
+  crossroadsChessEnabled,
   darkMiniXiangqiEnabled,
   darkMiniXiangqiPublicEntryEnabled,
-  dualChessEnabled,
 } from './feature-flags.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isVariantEnabled } from './variants.js';
@@ -43,7 +44,7 @@ type LandingGameSpecId =
   | typeof DARK_CHESS_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
-  | typeof DUAL_CHESS_SPEC_ID;
+  | typeof CROSSROADS_CHESS_SPEC_ID;
 type LandingStartFormat = 'standard' | 'draft960';
 type LandingTimePresetId = TimeControlId;
 type LandingTimePreset = {
@@ -118,7 +119,7 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
 // Dark Xiangqi keeps its prior single option until it has a live runtime. Used
 // for PvE AND PvP/lobby alike.
 function allowedTimePresetIds(gameSpecId: LandingGameSpecId): ReadonlySet<LandingTimePresetId> {
-  if (gameSpecId === DUAL_CHESS_SPEC_ID) {
+  if (gameSpecId === CROSSROADS_CHESS_SPEC_ID) {
     return new Set<LandingTimePresetId>(['1m1', '3m2', '5m5']);
   }
   return gameSpecId === DARK_CHESS_SPEC_ID || gameSpecId === DARK_MINI_XIANGQI_SPEC_ID
@@ -145,10 +146,10 @@ function enabledLandingVariantGameSpecs(
   }
   // Crossroads live rooms are PvP-only today. The bot/onboarding surface lives at
   // /crossroads-chess, not in the live-room engine-seat flow.
-  if (mode === 'pvp' && dualChessEnabled()) {
+  if (mode === 'pvp' && crossroadsChessEnabled()) {
     specs.push({
-      gameSpecId: DUAL_CHESS_SPEC_ID,
-      label: gameSpecForId(DUAL_CHESS_SPEC_ID).publicName,
+      gameSpecId: CROSSROADS_CHESS_SPEC_ID,
+      label: gameSpecForId(CROSSROADS_CHESS_SPEC_ID).publicName,
     });
   }
   return specs;
@@ -157,7 +158,8 @@ function enabledLandingVariantGameSpecs(
 function parseLandingGameSpecId(value: string): LandingGameSpecId {
   if (value === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
   if (value === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
-  if (value === DUAL_CHESS_SPEC_ID) return DUAL_CHESS_SPEC_ID;
+  if (value === CROSSROADS_CHESS_SPEC_ID || value === DUAL_CHESS_SPEC_ID)
+    return CROSSROADS_CHESS_SPEC_ID;
   return DARK_CHESS_SPEC_ID;
 }
 
@@ -170,8 +172,12 @@ function deepLinkInitialVariant(
   if (variant === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiEnabled()) {
     return DARK_MINI_XIANGQI_SPEC_ID;
   }
-  if (variant === DUAL_CHESS_SPEC_ID && mode === 'pvp' && dualChessEnabled()) {
-    return DUAL_CHESS_SPEC_ID;
+  if (
+    (variant === CROSSROADS_CHESS_SPEC_ID || variant === DUAL_CHESS_SPEC_ID) &&
+    mode === 'pvp' &&
+    crossroadsChessEnabled()
+  ) {
+    return CROSSROADS_CHESS_SPEC_ID;
   }
   return undefined;
 }
@@ -211,7 +217,7 @@ const LANDING_GAME_SPEC_CAPABILITIES: Record<LandingGameSpecId, LandingGameSpecC
     supportsStartFormat: false,
     supportsTimeControl: true,
   },
-  [DUAL_CHESS_SPEC_ID]: {
+  [CROSSROADS_CHESS_SPEC_ID]: {
     firstColor: 'white',
     firstGlyph: '♔',
     firstLabel: 'White',
@@ -1062,7 +1068,11 @@ function normalizeStoredGameSpecId(value: unknown): LandingGameSpecId | undefine
   if (value === DARK_MINI_XIANGQI_SPEC_ID && darkMiniXiangqiPublicEntryEnabled()) {
     return DARK_MINI_XIANGQI_SPEC_ID;
   }
-  if (value === DUAL_CHESS_SPEC_ID && dualChessEnabled()) return DUAL_CHESS_SPEC_ID;
+  if (
+    (value === CROSSROADS_CHESS_SPEC_ID || value === DUAL_CHESS_SPEC_ID) &&
+    crossroadsChessEnabled()
+  )
+    return CROSSROADS_CHESS_SPEC_ID;
   return undefined;
 }
 
@@ -1326,7 +1336,7 @@ function roomCreationRequestBody(
   engineId?: string,
 ): Record<string, unknown> {
   const gameSpecId = roomCreationGameSpecId(setup);
-  if (setup.gameSpecId === DUAL_CHESS_SPEC_ID) {
+  if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) {
     return {
       mode: 'pvp',
       gameSpecId,
@@ -1372,8 +1382,8 @@ function roomCreationGameSpecId(
   | typeof DARK_DRAFT960_SPEC_ID
   | typeof DARK_MINI_XIANGQI_SPEC_ID
   | typeof DARK_XIANGQI_SPEC_ID
-  | typeof DUAL_CHESS_SPEC_ID {
-  if (setup.gameSpecId === DUAL_CHESS_SPEC_ID) return DUAL_CHESS_SPEC_ID;
+  | typeof CROSSROADS_CHESS_SPEC_ID {
+  if (setup.gameSpecId === CROSSROADS_CHESS_SPEC_ID) return CROSSROADS_CHESS_SPEC_ID;
   if (setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) return DARK_MINI_XIANGQI_SPEC_ID;
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID) return DARK_XIANGQI_SPEC_ID;
   return setup.startFormat === 'draft960' ? DARK_DRAFT960_SPEC_ID : DARK_CHESS_SPEC_ID;

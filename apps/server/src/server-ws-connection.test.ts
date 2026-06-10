@@ -156,7 +156,7 @@ function resolverContext(options: {
       options.miniRoom ? [[options.miniRoom.id, options.miniRoom]] : [],
     ),
     darkXiangqiRooms: rooms,
-    dualChessRooms: new Map(),
+    crossroadsChessRooms: new Map(),
     getOrLoadDarkMiniXiangqiRoom: async () => {
       ctx.loadCalls += 1;
       return options.loadMiniRoom ?? null;
@@ -165,7 +165,7 @@ function resolverContext(options: {
       ctx.loadCalls += 1;
       return options.loadRoom ?? null;
     },
-    getOrLoadDualChessRoom: async () => null,
+    getOrLoadCrossroadsChessRoom: async () => null,
     loadCalls: 0,
   };
   return ctx;

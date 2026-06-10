@@ -51,9 +51,9 @@ import {
 import articleSnapshotFog from './article-snapshot-fog.json' with { type: 'json' };
 import articleSnapshotFogBlack from './article-snapshot-fog-black.json' with { type: 'json' };
 import type { ChessReplaySpec } from './chess-replay.js';
-import { DUAL_START_FEN, renderDualChessBoard, renderDualChessRow } from './dual-chess-diagram.js';
-import type { DualReplaySpec } from './dual-chess-replay.js';
-import { DUAL_CHESS_SAMPLE_GAME } from './dual-chess-sample-game.js';
+import { DUAL_START_FEN, renderCrossroadsChessBoard, renderCrossroadsChessRow } from './crossroads-chess-diagram.js';
+import type { DualReplaySpec } from './crossroads-chess-replay.js';
+import { CROSSROADS_CHESS_SAMPLE_GAME } from './crossroads-chess-sample-game.js';
 import type { MiniXiangqiReplaySpec } from './mini-xiangqi-replay.js';
 import {
   DEFAULT_XIANGQI_PIECE_SET,
@@ -137,7 +137,7 @@ export type ChessReplayBlock = {
 // Crossroads Chess analogue: a 6x8 board stepped through a UCI move list, each
 // position replayed through the real kernel and rendered by the live renderer.
 export type DualReplayBlock = {
-  kind: 'dual-replay';
+  kind: 'crossroads-replay';
   spec: DualReplaySpec;
   caption?: string;
 };
@@ -4456,7 +4456,7 @@ export const articles: Article[] = [
     ],
   },
   {
-    slug: 'dual-chess',
+    slug: 'crossroads-chess',
     kind: 'rules',
     title: 'Crossroads Chess Rules',
     summary:
@@ -4465,7 +4465,7 @@ export const articles: Article[] = [
     showInIndex: false,
     status: 'draft',
     audience: 'Mistboard readers who know chess or xiangqi and want the Crossroads Chess rules.',
-    thumbnail: { kind: 'svg', svg: renderDualChessBoard({ fen: DUAL_START_FEN }) },
+    thumbnail: { kind: 'svg', svg: renderCrossroadsChessBoard({ fen: DUAL_START_FEN }) },
     intro: [
       {
         kind: 'paragraph',
@@ -4489,7 +4489,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessBoard({ fen: DUAL_START_FEN }),
+            svg: renderCrossroadsChessBoard({ fen: DUAL_START_FEN }),
             caption: 'The starting position. White moves up the board, Red moves down.',
           } as ArticleBlock,
           {
@@ -4515,7 +4515,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessBoard({
+            svg: renderCrossroadsChessBoard({
               fen: '6/6/6/6/2K3/6/6/6',
               moveDots: ['b5', 'c5', 'd5', 'b4', 'd4', 'b3', 'c3', 'd3'],
             }),
@@ -4527,7 +4527,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessBoard({
+            svg: renderCrossroadsChessBoard({
               fen: '6/6/6/6/2B3/6/6/6',
               moveDots: ['a6', 'b5', 'd5', 'e6', 'f7', 'a2', 'b3', 'd3', 'e2', 'f1'],
             }),
@@ -4539,7 +4539,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessBoard({
+            svg: renderCrossroadsChessBoard({
               fen: '6/6/6/6/2N3/6/6/6',
               moveDots: ['a5', 'b6', 'd6', 'e5', 'a3', 'b2', 'd2', 'e3'],
             }),
@@ -4551,7 +4551,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessRow([
+            svg: renderCrossroadsChessRow([
               {
                 fen: '6/6/6/6/6/2n1o1/3P2/6',
                 moveDots: ['d3', 'd4'],
@@ -4572,7 +4572,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessRow([
+            svg: renderCrossroadsChessRow([
               {
                 fen: '6/5P/6/6/6/6/6/6',
                 arrows: [{ from: 'f7', to: 'f8' }],
@@ -4611,7 +4611,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessBoard({
+            svg: renderCrossroadsChessBoard({
               fen: '6/6/6/6/2V3/6/6/6',
               moveDots: ['c8', 'c7', 'c6', 'c5', 'c3', 'c2', 'c1', 'a4', 'b4', 'd4', 'e4', 'f4'],
             }),
@@ -4623,7 +4623,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessRow([
+            svg: renderCrossroadsChessRow([
               {
                 fen: '6/6/6/6/2C3/6/6/6',
                 moveDots: ['c8', 'c7', 'c6', 'c5', 'c3', 'c2', 'c1', 'a4', 'b4', 'd4', 'e4', 'f4'],
@@ -4645,7 +4645,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessRow([
+            svg: renderCrossroadsChessRow([
               {
                 fen: '6/6/6/6/2H3/6/6/6',
                 moveDots: ['a5', 'b6', 'd6', 'e5', 'a3', 'b2', 'd2', 'e3'],
@@ -4667,7 +4667,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessRow([
+            svg: renderCrossroadsChessRow([
               { fen: '6/6/6/6/6/2O3/6/6', moveDots: ['c4'], label: 'BEFORE THE RIVER' },
               { fen: '6/6/2O3/6/6/6/6/6', moveDots: ['c7', 'b6', 'd6'], label: 'AFTER CROSSING' },
             ]),
@@ -4696,7 +4696,7 @@ export const articles: Article[] = [
           },
           {
             kind: 'raw-svg',
-            svg: renderDualChessRow([
+            svg: renderCrossroadsChessRow([
               {
                 fen: '2vV2/4Ko/kC4/2O3/p5/O5/5P/6',
                 arrows: [{ from: 'e7', to: 'e8' }],
@@ -4731,13 +4731,13 @@ export const articles: Article[] = [
               'The replay below is a Fairy-Stockfish self-play game showing the pieces in motion. The sides trade down through the middlegame, then White wins the race by marching the king to the eighth rank.',
           },
           {
-            kind: 'dual-replay',
+            kind: 'crossroads-replay',
             spec: {
-              white: DUAL_CHESS_SAMPLE_GAME.white,
-              red: DUAL_CHESS_SAMPLE_GAME.red,
-              event: DUAL_CHESS_SAMPLE_GAME.event,
-              resultText: DUAL_CHESS_SAMPLE_GAME.result,
-              moves: DUAL_CHESS_SAMPLE_GAME.moves,
+              white: CROSSROADS_CHESS_SAMPLE_GAME.white,
+              red: CROSSROADS_CHESS_SAMPLE_GAME.red,
+              event: CROSSROADS_CHESS_SAMPLE_GAME.event,
+              resultText: CROSSROADS_CHESS_SAMPLE_GAME.result,
+              moves: CROSSROADS_CHESS_SAMPLE_GAME.moves,
             },
             caption: 'Fairy-Stockfish self-play on the canonical 6 by 8 setup. White wins the race.',
           } as ArticleBlock,

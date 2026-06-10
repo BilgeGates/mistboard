@@ -4,7 +4,11 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
-import { darkMiniXiangqiEnabled, darkXiangqiEnabled, dualChessEnabled } from './feature-flags.js';
+import {
+  crossroadsChessEnabled,
+  darkMiniXiangqiEnabled,
+  darkXiangqiEnabled,
+} from './feature-flags.js';
 import { setRatedModeEnabled } from './rated-flag.js';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 import { initializeThemeSettings } from './theme.js';
@@ -108,15 +112,19 @@ const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
-// Perfect-information Crossroads Chess play surface, gated by VITE_DUAL_CHESS_ENABLED
+// Perfect-information Crossroads Chess play surface, gated by VITE_CROSSROADS_CHESS_ENABLED
 // (always on in dev). Hidden behind the flag in prod until the M1 launch gate.
-const wantsDualChessPlay =
-  dualChessEnabled() && (path === '/crossroads-chess' || path === '/dual-chess-play');
+const wantsCrossroadsChessPlay =
+  crossroadsChessEnabled() &&
+  (path === '/crossroads-chess' ||
+    path === '/crossroads-chess-play' ||
+    path === '/dual-chess-play');
 // Perfect-information Crossroads Chess live room (/room/dchess_*, or ?room=dchess_* in
 // dev). Routed to its own isolated client *before* the shared live-room shell so
 // it never touches the fog-critical live.ts monolith.
-const dualChessLiveRoomCandidate = liveRoomId ?? (wantsLive ? params.get('room') : null);
-const wantsDualChessRoom = dualChessEnabled() && dualChessLiveRoomCandidate?.startsWith('dchess_');
+const crossroadsChessLiveRoomCandidate = liveRoomId ?? (wantsLive ? params.get('room') : null);
+const wantsCrossroadsChessRoom =
+  crossroadsChessEnabled() && crossroadsChessLiveRoomCandidate?.startsWith('dchess_');
 
 if (replaySample) {
   setTitle('Replay');
@@ -130,11 +138,11 @@ if (replaySample) {
       mountReplay(appRoot, replaySample, replayOpts).then(() => undefined),
     ),
   );
-} else if (wantsDualChessRoom) {
+} else if (wantsCrossroadsChessRoom) {
   setTitle('Crossroads Chess');
   void mountOrReport(() =>
-    import('./live-dual-chess.js').then(({ bootstrapDualChessLiveRoom }) =>
-      bootstrapDualChessLiveRoom(),
+    import('./live-crossroads-chess.js').then(({ bootstrapCrossroadsChessLiveRoom }) =>
+      bootstrapCrossroadsChessLiveRoom(),
     ),
   );
 } else if (liveRoomId || wantsLive) {
@@ -156,11 +164,11 @@ if (replaySample) {
       mountDarkMiniXiangqiPostgame(appRoot, darkMiniXiangqiGameRoomId),
     ),
   );
-} else if (crossroadsChessGameRoomId && dualChessEnabled()) {
+} else if (crossroadsChessGameRoomId && crossroadsChessEnabled()) {
   setTitle('Crossroads Chess');
   void mountOrReport(() =>
-    import('./dual-chess-postgame.js').then(({ mountDualChessPostgame }) =>
-      mountDualChessPostgame(appRoot, crossroadsChessGameRoomId),
+    import('./crossroads-chess-postgame.js').then(({ mountCrossroadsChessPostgame }) =>
+      mountCrossroadsChessPostgame(appRoot, crossroadsChessGameRoomId),
     ),
   );
 } else if (gameRoomId) {
@@ -239,10 +247,12 @@ if (replaySample) {
       mountVariantMarksLab(appRoot),
     ),
   );
-} else if (wantsDualChessPlay) {
+} else if (wantsCrossroadsChessPlay) {
   setTitle('Crossroads Chess');
   void mountOrReport(() =>
-    import('./dual-chess-play.js').then(({ mountDualChessPlay }) => mountDualChessPlay(appRoot)),
+    import('./crossroads-chess-play.js').then(({ mountCrossroadsChessPlay }) =>
+      mountCrossroadsChessPlay(appRoot),
+    ),
   );
 } else if (wantsLegacyPlay) {
   window.history.replaceState(null, '', '/');

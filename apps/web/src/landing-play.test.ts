@@ -183,7 +183,7 @@ describe('landing play panel', () => {
   });
 
   it('creates a timed Crossroads Chess room from the flagged challenge variant', async () => {
-    vi.stubEnv('VITE_DUAL_CHESS_ENABLED', 'true');
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/dchess_home' });
@@ -196,8 +196,8 @@ describe('landing play panel', () => {
     openPlaySetup(panel, 'Challenge a friend');
     const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
     expect(variantSelect).not.toBeNull();
-    expect([...variantSelect!.options].map((option) => option.value)).toContain('dual-chess');
-    selectModalVariant('dual-chess');
+    expect([...variantSelect!.options].map((option) => option.value)).toContain('crossroads-chess');
+    selectModalVariant('crossroads-chess');
     expect(document.body.textContent).toContain('Black');
     expect(document.body.textContent).not.toContain('Red');
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
@@ -208,7 +208,7 @@ describe('landing play panel', () => {
 
     expect(roomPostBody(fetchSpy)).toEqual({
       mode: 'pvp',
-      gameSpecId: 'dual-chess',
+      gameSpecId: 'crossroads-chess',
       timeControl: { initialMs: 300_000, incrementMs: 5_000 },
       rated: false,
       preferredColor: 'red',
@@ -234,7 +234,7 @@ describe('landing play panel', () => {
   });
 
   it('keeps Crossroads Chess out of engine and lobby entry points for now', () => {
-    vi.stubEnv('VITE_DUAL_CHESS_ENABLED', 'true');
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
@@ -245,13 +245,13 @@ describe('landing play panel', () => {
     openPlaySetup(panel, 'Play the engine');
     let variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
     let options = variantSelect ? [...variantSelect.options].map((option) => option.value) : [];
-    expect(options).not.toContain('dual-chess');
+    expect(options).not.toContain('crossroads-chess');
     document.querySelector('.landing-setup-overlay')?.remove();
 
     openPlaySetup(panel, 'Find opponent');
     variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
     options = variantSelect ? [...variantSelect.options].map((option) => option.value) : [];
-    expect(options).not.toContain('dual-chess');
+    expect(options).not.toContain('crossroads-chess');
   });
 
   it('keeps Dark Mini Xiangqi hidden from public entry unless its public-entry flag is enabled', () => {

@@ -7,9 +7,9 @@ import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import { InternalEngineClientError } from './../internal-engine-client.js';
 import { engineCounters, logger } from './../obs.js';
 import * as persistence from './../persistence.js';
+import { handleCrossroadsChessCreate, requestsCrossroadsChess } from './crossroads-chess-rooms.js';
 import { handleDarkMiniXiangqiCreate, requestsDarkMiniXiangqi } from './dark-mini-xiangqi-rooms.js';
 import { handleDarkXiangqiCreate, requestsDarkXiangqi } from './dark-xiangqi-rooms.js';
-import { handleDualChessCreate, requestsDualChess } from './dual-chess-rooms.js';
 import {
   type HttpApiContext,
   isAllowedTimeControl,
@@ -39,8 +39,8 @@ export async function tryHandle(
       await handleDarkXiangqiCreate(ctx, response, body);
       return true;
     }
-    if (requestsDualChess(body)) {
-      await handleDualChessCreate(ctx, response, body);
+    if (requestsCrossroadsChess(body)) {
+      await handleCrossroadsChessCreate(ctx, response, body);
       return true;
     }
     const gameSpecGate = gateGameSpecRequest({

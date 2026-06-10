@@ -75,7 +75,7 @@ describe('profile game rows', () => {
     const row = buildProfileGameRow(
       game({
         roomId: 'dchess_profile',
-        variant: 'dual-chess',
+        variant: 'crossroads-chess',
         result: 'red-wins',
         participants: [
           {

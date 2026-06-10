@@ -1,6 +1,6 @@
 // Generic descriptor-driven renderer for cell-based ("checkered square") boards.
 //
-// This is the Layer-2 platform down-payment: chess (8x8) and Dual Chess (6x8 +
+// This is the Layer-2 platform down-payment: chess (8x8) and Crossroads Chess (6x8 +
 // river) are the same board MODEL — pieces sit on squares, squares alternate
 // light/dark — differing only in data (dimensions, an optional river strip,
 // palette, and how a piece glyph is drawn). This core owns the model: geometry
@@ -45,7 +45,7 @@ export type GridBoardDescriptor = {
   cell: number;
   strips?: readonly GridStrip[];
   palette: GridPalette;
-  // Layout knobs — defaults match the Dual Chess board so it is a drop-in.
+  // Layout knobs — defaults match the Crossroads Chess board so it is a drop-in.
   framePad?: number;
   pad?: number;
   frameRadius?: number;
@@ -117,10 +117,7 @@ function stripOffsetForRow(strips: readonly GridStrip[], row: number): number {
   return offset;
 }
 
-export function createGridGeometry(
-  descriptor: GridBoardDescriptor,
-  flip: boolean,
-): GridGeometry {
+export function createGridGeometry(descriptor: GridBoardDescriptor, flip: boolean): GridGeometry {
   const { files, ranks, cell } = descriptor;
   const strips = descriptor.strips ?? [];
   const fileToCol = (file: number): number => (flip ? files - 1 - file : file);
@@ -156,7 +153,7 @@ export function renderGridBoardSvg(
   const boardRadius = descriptor.boardRadius ?? 5;
   const boardEdgeWidth = descriptor.boardEdgeWidth ?? 1.5;
 
-  // ── Furniture + interaction layers (in dual-chess draw order) ──────────────
+  // ── Furniture + interaction layers (in crossroads-chess draw order) ──────────────
 
   const gridLayer = (): string => {
     const parts: string[] = [];
@@ -209,7 +206,9 @@ export function renderGridBoardSvg(
     const leftFile = layers.flip ? files - 1 : 0;
     for (let rank = 1; rank <= ranks; rank += 1) {
       const { x, y } = geom.topLeft(leftFile, rank);
-      parts.push(`<text x="${x + 3}" y="${y + 11}" font-size="9" fill="${palette.coord}">${rank}</text>`);
+      parts.push(
+        `<text x="${x + 3}" y="${y + 11}" font-size="9" fill="${palette.coord}">${rank}</text>`,
+      );
     }
     return parts.join('');
   };

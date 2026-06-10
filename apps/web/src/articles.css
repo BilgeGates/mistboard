@@ -458,24 +458,24 @@
 /* Crossroads Chess diagrams (chess x xiangqi on a 6x8 board). The board is
    portrait, so cap the single-board width tighter than the square diagrams;
    pairs and the replay board fill the column. Natural width rides on
-   --dual-svg-width. */
-.article-figure > .dual-article-svg,
-.raw-svg-stepper-frame-dual > .dual-article-svg {
+   --crossroads-svg-width. */
+.article-figure > .crossroads-article-svg,
+.raw-svg-stepper-frame-crossroads > .crossroads-article-svg {
   display: block;
   height: auto;
   margin-inline: auto;
 }
-.dual-article-svg[data-dual-layout="single"] {
-  width: min(var(--dual-svg-width, 316px), 70%);
+.crossroads-article-svg[data-crossroads-layout="single"] {
+  width: min(var(--crossroads-svg-width, 316px), 70%);
 }
-.dual-article-svg[data-dual-layout="wide"] {
-  width: min(var(--dual-svg-width, 642px), 100%);
+.crossroads-article-svg[data-crossroads-layout="wide"] {
+  width: min(var(--crossroads-svg-width, 642px), 100%);
 }
 @media (max-width: 640px) {
-  .dual-article-svg[data-dual-layout="single"] {
-    width: min(var(--dual-svg-width, 316px), 86%);
+  .crossroads-article-svg[data-crossroads-layout="single"] {
+    width: min(var(--crossroads-svg-width, 316px), 86%);
   }
-  .dual-article-svg[data-dual-layout="wide"] {
+  .crossroads-article-svg[data-crossroads-layout="wide"] {
     width: 100%;
   }
 }

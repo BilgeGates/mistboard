@@ -387,10 +387,9 @@ function buildResults(data: QueryResponse, onApply: (next: Filters) => void): HT
 function buildGameRow(game: GameRow): HTMLElement {
   const link = document.createElement('a');
   link.className = 'database-row';
-  link.href =
-    game.variant === 'dual-chess'
-      ? `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`
-      : `/game/${encodeURIComponent(game.roomId)}`;
+  link.href = isCrossroadsChessVariant(game.variant)
+    ? `/crossroads-chess/game/${encodeURIComponent(game.roomId)}`
+    : `/game/${encodeURIComponent(game.roomId)}`;
 
   const tag = document.createElement('span');
   const tone = resultTone(game.result);
@@ -556,10 +555,14 @@ function variantLabel(variant: string): string {
   if (variant === 'fog' || variant === 'dark-chess') return 'Dark Chess';
   if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960')
     return 'Dark Draft960';
-  if (variant === 'dual-chess') return 'Crossroads Chess';
+  if (isCrossroadsChessVariant(variant)) return 'Crossroads Chess';
   if (variant === 'dark-xiangqi') return 'Dark Xiangqi';
   if (variant === 'dark-mini-xiangqi') return 'Dark Mini Xiangqi';
   return variant;
+}
+
+function isCrossroadsChessVariant(variant: string): boolean {
+  return variant === 'crossroads-chess' || variant === 'dual-chess';
 }
 
 function terminationLabel(termination: string): string {

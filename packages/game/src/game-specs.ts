@@ -1,13 +1,13 @@
 import type { VariantId } from './types.js';
 
-export type GameFamilyId = 'chess' | 'xiangqi' | 'shogi' | 'omega-chess' | 'dual-chess';
+export type GameFamilyId = 'chess' | 'xiangqi' | 'shogi' | 'omega-chess' | 'crossroads-chess';
 export type BoardGeometryId =
   | 'chess-8x8'
   | 'xiangqi-7x7'
   | 'xiangqi-9x10'
   | 'shogi-9x9'
   | 'omega-10x10-plus-corners'
-  | 'dual-6x8';
+  | 'crossroads-6x8';
 export type MovementRulesId =
   | 'orthodox-chess'
   | 'mini-xiangqi'
@@ -15,7 +15,7 @@ export type MovementRulesId =
   | 'shogi'
   | 'omega'
   | 'seirawan'
-  | 'dual-chess';
+  | 'crossroads-chess';
 // 'royal-capture-or-race': capture/checkmate the royal OR race it to the enemy
 // home rank (the Crossroads Chess "Try"). Open mode keeps checkmate, dark switches to
 // king-capture; the visibility axis + rules module resolve which.
@@ -32,7 +32,7 @@ export type SetupRulesId =
   | 'draft960'
   | 'mini-standard'
   | 'double-fischer-random'
-  | 'dual-standard';
+  | 'crossroads-standard';
 export type ReserveRulesId = 'none' | 'crazyhouse' | 'shogi-hands' | 'seirawan-gating';
 export type DropPolicyId = 'none' | 'any-legal-square' | 'seen-squares-only' | 'seirawan-gating';
 export type GameSpecSurface = 'hidden' | 'beta' | 'casual' | 'rated';
@@ -50,8 +50,8 @@ export type RatingPoolBaseId =
   | 'dark_xiangqi'
   | 'dark_shogi'
   | 'dark_omega'
-  | 'dual_chess'
-  | 'dual_chess_open';
+  | 'crossroads_chess'
+  | 'crossroads_chess_open';
 
 export type GameSpecId =
   | 'dark-chess'
@@ -65,9 +65,9 @@ export type GameSpecId =
   | 'dark-xiangqi'
   | 'dark-shogi'
   | 'dark-omega'
-  | 'dual-chess'
-  | 'dark-dual-chess';
-export type GameSpecAliasId = 'fog-draft960';
+  | 'crossroads-chess'
+  | 'dark-crossroads-chess';
+export type GameSpecAliasId = 'fog-draft960' | 'dual-chess' | 'dark-dual-chess';
 export type GameSpecLookupId = GameSpecId | GameSpecAliasId;
 
 export type GameSpec = {
@@ -98,8 +98,12 @@ export const FOG_DRAFT960_SPEC_ID = DARK_DRAFT960_SPEC_ID;
 export const DARK_MINI_XIANGQI_SPEC_ID = 'dark-mini-xiangqi' satisfies GameSpecId;
 export const DARK_XIANGQI_SPEC_ID = 'dark-xiangqi' satisfies GameSpecId;
 export const DARK_SHOGI_SPEC_ID = 'dark-shogi' satisfies GameSpecId;
-export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecId;
-export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecId;
+export const CROSSROADS_CHESS_SPEC_ID = 'crossroads-chess' satisfies GameSpecId;
+export const DARK_CROSSROADS_CHESS_SPEC_ID = 'dark-crossroads-chess' satisfies GameSpecId;
+// Compatibility aliases for records and links created before the Crossroads
+// rename. New code should use CROSSROADS_CHESS_SPEC_ID.
+export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecAliasId;
+export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAliasId;
 
 export const GAME_SPECS: readonly GameSpec[] = [
   {
@@ -273,33 +277,33 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // Crossroads Chess (中西象棋): a 6x8 chess x xiangqi fusion. Two modes share one
     // family/board/movement and split on the visibility axis. Perfect-info is the
     // onboarding ladder (keeps checkmate); dark is the real mode (king-capture).
-    // Rules engine: packages/game/src/variants-dual-chess.ts.
-    id: DUAL_CHESS_SPEC_ID,
+    // Rules engine: packages/game/src/variants-crossroads-chess.ts.
+    id: CROSSROADS_CHESS_SPEC_ID,
     publicName: 'Crossroads Chess',
-    family: 'dual-chess',
-    board: 'dual-6x8',
-    movement: 'dual-chess',
+    family: 'crossroads-chess',
+    board: 'crossroads-6x8',
+    movement: 'crossroads-chess',
     objective: 'royal-capture-or-race',
     visibility: 'open',
-    setup: 'dual-standard',
+    setup: 'crossroads-standard',
     reserves: 'none',
     dropPolicy: 'none',
-    ratingPoolBase: 'dual_chess_open',
+    ratingPoolBase: 'crossroads_chess_open',
     publicSurface: 'hidden',
     runtimeStatus: 'dev-spike',
   },
   {
-    id: DARK_DUAL_CHESS_SPEC_ID,
+    id: DARK_CROSSROADS_CHESS_SPEC_ID,
     publicName: 'Dark Crossroads Chess',
-    family: 'dual-chess',
-    board: 'dual-6x8',
-    movement: 'dual-chess',
+    family: 'crossroads-chess',
+    board: 'crossroads-6x8',
+    movement: 'crossroads-chess',
     objective: 'royal-capture-or-race',
     visibility: 'dark',
-    setup: 'dual-standard',
+    setup: 'crossroads-standard',
     reserves: 'none',
     dropPolicy: 'none',
-    ratingPoolBase: 'dual_chess',
+    ratingPoolBase: 'crossroads_chess',
     publicSurface: 'hidden',
     runtimeStatus: 'future',
   },
@@ -309,6 +313,8 @@ const gameSpecsById = new Map<GameSpecId, GameSpec>(GAME_SPECS.map((spec) => [sp
 const gameSpecIds = new Set<string>(GAME_SPECS.map((spec) => spec.id));
 const gameSpecAliases = new Map<GameSpecAliasId, GameSpecId>([
   ['fog-draft960', DARK_DRAFT960_SPEC_ID],
+  ['dual-chess', CROSSROADS_CHESS_SPEC_ID],
+  ['dark-dual-chess', DARK_CROSSROADS_CHESS_SPEC_ID],
 ]);
 
 export function isGameSpecId(value: string | null | undefined): value is GameSpecId {

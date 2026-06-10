@@ -4,12 +4,19 @@ import type { VariantId } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { currentAccountUser } from './account-session.js';
 import {
+  type CrossroadsChessRuntimeRoom,
+  isCrossroadsChessRoomId,
+} from './crossroads-chess-runtime.js';
+import {
   type DarkMiniXiangqiRuntimeRoom,
   isDarkMiniXiangqiRoomId,
 } from './dark-mini-xiangqi-runtime.js';
 import { isDarkXiangqiRoomId } from './dark-xiangqi-runtime.js';
-import { type DualChessRuntimeRoom, isDualChessRoomId } from './dual-chess-runtime.js';
-import { darkMiniXiangqiEnabled, darkXiangqiEnabled, dualChessEnabled } from './feature-flags.js';
+import {
+  crossroadsChessEnabled,
+  darkMiniXiangqiEnabled,
+  darkXiangqiEnabled,
+} from './feature-flags.js';
 import { gateGameSpecRequest } from './game-spec-request-gate.js';
 import { parseHiddenDraft960, parseVariantId } from './http-api.js';
 import { logger, wsCounters } from './obs.js';
@@ -47,6 +54,10 @@ import {
 import { assignSeat, displaceOlderSeatClients } from './server-seat-session.js';
 import type { Client, Room, SeatAssignment } from './server-types.js';
 import {
+  type CrossroadsChessLiveRoom,
+  handleCrossroadsChessWebSocketConnection,
+} from './server-ws-crossroads-chess.js';
+import {
   type DarkMiniXiangqiLiveRoom,
   handleDarkMiniXiangqiWebSocketConnection,
 } from './server-ws-dark-mini-xiangqi.js';
@@ -54,10 +65,6 @@ import {
   type DarkXiangqiLiveRoom,
   handleDarkXiangqiWebSocketConnection,
 } from './server-ws-dark-xiangqi.js';
-import {
-  type DualChessLiveRoom,
-  handleDualChessWebSocketConnection,
-} from './server-ws-dual-chess.js';
 import { isKnownClientMessageType, parseClientMessage } from './server-ws-messages.js';
 
 export type WebSocketConnectionContext = {
@@ -70,11 +77,11 @@ export type WebSocketConnectionContext = {
   clearPendingVacate: (room: Room, seat: Client['seat']) => void;
   darkMiniXiangqiRooms: Map<string, DarkMiniXiangqiRuntimeRoom>;
   darkXiangqiRooms: Map<string, DarkXiangqiLiveRoom>;
-  dualChessRooms: Map<string, DualChessRuntimeRoom>;
+  crossroadsChessRooms: Map<string, CrossroadsChessRuntimeRoom>;
   enableRandomEngine: (room: Room) => Promise<void>;
   getOrLoadDarkMiniXiangqiRoom: (roomId: string) => Promise<DarkMiniXiangqiRuntimeRoom | null>;
   getOrLoadDarkXiangqiRoom: (roomId: string) => Promise<DarkXiangqiLiveRoom | null>;
-  getOrLoadDualChessRoom: (roomId: string) => Promise<DualChessRuntimeRoom | null>;
+  getOrLoadCrossroadsChessRoom: (roomId: string) => Promise<CrossroadsChessRuntimeRoom | null>;
   getOrCreateRoom: (roomId: string, variant: VariantId, hiddenDraft960?: boolean) => Promise<Room>;
   handleAbort: (room: Room, client: Client) => Promise<void>;
   handleResign: (room: Room, client: Client) => Promise<void>;
@@ -94,23 +101,23 @@ export type WebSocketRuntimeResolverContext = Pick<
   WebSocketConnectionContext,
   | 'darkMiniXiangqiRooms'
   | 'darkXiangqiRooms'
-  | 'dualChessRooms'
+  | 'crossroadsChessRooms'
   | 'getOrLoadDarkMiniXiangqiRoom'
   | 'getOrLoadDarkXiangqiRoom'
-  | 'getOrLoadDualChessRoom'
+  | 'getOrLoadCrossroadsChessRoom'
 >;
 
 export type WebSocketLiveRuntime =
   | { kind: 'chess' }
   | { kind: 'dark-mini-xiangqi'; room: DarkMiniXiangqiLiveRoom }
   | { kind: 'dark-xiangqi'; room: DarkXiangqiLiveRoom }
-  | { kind: 'dual-chess'; room: DualChessLiveRoom }
+  | { kind: 'crossroads-chess'; room: CrossroadsChessLiveRoom }
   | { kind: 'dark-xiangqi-unavailable'; reason: 'game spec disabled' | 'room unavailable' }
   | {
       kind: 'dark-mini-xiangqi-unavailable';
       reason: 'game spec disabled' | 'room unavailable';
     }
-  | { kind: 'dual-chess-unavailable'; reason: 'game spec disabled' | 'room unavailable' };
+  | { kind: 'crossroads-chess-unavailable'; reason: 'game spec disabled' | 'room unavailable' };
 
 export function isAllowedWebSocketRequest(request: IncomingMessage): boolean {
   return isAllowedWebSocketOrigin(request.headers.origin, request.headers.host);
@@ -129,9 +136,12 @@ export async function resolveWebSocketLiveRuntime(
       room: existingDarkMiniXiangqiRoom as DarkMiniXiangqiLiveRoom,
     };
   }
-  const existingDualChessRoom = ctx.dualChessRooms.get(roomId);
-  if (existingDualChessRoom) {
-    return { kind: 'dual-chess', room: existingDualChessRoom as DualChessLiveRoom };
+  const existingCrossroadsChessRoom = ctx.crossroadsChessRooms.get(roomId);
+  if (existingCrossroadsChessRoom) {
+    return {
+      kind: 'crossroads-chess',
+      room: existingCrossroadsChessRoom as CrossroadsChessLiveRoom,
+    };
   }
   if (isDarkMiniXiangqiRoomId(roomId)) {
     if (!darkMiniXiangqiEnabled()) {
@@ -146,15 +156,18 @@ export async function resolveWebSocketLiveRuntime(
     }
     return { kind: 'dark-mini-xiangqi-unavailable', reason: 'room unavailable' };
   }
-  if (isDualChessRoomId(roomId)) {
-    if (!dualChessEnabled()) {
-      return { kind: 'dual-chess-unavailable', reason: 'game spec disabled' };
+  if (isCrossroadsChessRoomId(roomId)) {
+    if (!crossroadsChessEnabled()) {
+      return { kind: 'crossroads-chess-unavailable', reason: 'game spec disabled' };
     }
-    const hydratedDualChessRoom = await ctx.getOrLoadDualChessRoom(roomId);
-    if (hydratedDualChessRoom) {
-      return { kind: 'dual-chess', room: hydratedDualChessRoom as DualChessLiveRoom };
+    const hydratedCrossroadsChessRoom = await ctx.getOrLoadCrossroadsChessRoom(roomId);
+    if (hydratedCrossroadsChessRoom) {
+      return {
+        kind: 'crossroads-chess',
+        room: hydratedCrossroadsChessRoom as CrossroadsChessLiveRoom,
+      };
     }
-    return { kind: 'dual-chess-unavailable', reason: 'room unavailable' };
+    return { kind: 'crossroads-chess-unavailable', reason: 'room unavailable' };
   }
   if (!isDarkXiangqiRoomId(roomId)) return { kind: 'chess' };
   if (!darkXiangqiEnabled())
@@ -180,8 +193,8 @@ export async function handleWebSocketConnection(
     await handleDarkMiniXiangqiWebSocketConnection(ctx, socket, request, runtime.room);
     return;
   }
-  if (runtime.kind === 'dual-chess') {
-    await handleDualChessWebSocketConnection(ctx, socket, request, runtime.room);
+  if (runtime.kind === 'crossroads-chess') {
+    await handleCrossroadsChessWebSocketConnection(ctx, socket, request, runtime.room);
     return;
   }
   if (runtime.kind === 'dark-xiangqi-unavailable') {
@@ -192,7 +205,7 @@ export async function handleWebSocketConnection(
     socket.close(1008, runtime.reason);
     return;
   }
-  if (runtime.kind === 'dual-chess-unavailable') {
+  if (runtime.kind === 'crossroads-chess-unavailable') {
     socket.close(1008, runtime.reason);
     return;
   }

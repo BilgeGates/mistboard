@@ -5,7 +5,7 @@ import { escapeHtml } from './web-utils.js';
 export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | null): void {
   target.classList.toggle('live-route--xiangqi', gameSpecId === 'dark-xiangqi');
   target.classList.toggle('live-route--mini-xiangqi', gameSpecId === 'dark-mini-xiangqi');
-  target.classList.toggle('live-route--dual-chess', gameSpecId === 'dual-chess');
+  target.classList.toggle('live-route--crossroads-chess', gameSpecId === 'crossroads-chess');
 }
 
 // Static room chrome only. Live game decisions stay in live-render.ts.

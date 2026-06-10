@@ -2,6 +2,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RoomTimeControl, VariantId } from '@mistboard/game';
 import serveHandler from 'serve-handler';
 import type {
+  CrossroadsChessCreatorPreference,
+  CrossroadsChessRuntimeRoom,
+} from './crossroads-chess-runtime.js';
+import type {
   DarkMiniXiangqiCreatorPreference,
   DarkMiniXiangqiRuntimeRoom,
 } from './dark-mini-xiangqi-runtime.js';
@@ -9,7 +13,6 @@ import type {
   DarkXiangqiCreatorPreference,
   DarkXiangqiRuntimeRoom,
 } from './dark-xiangqi-runtime.js';
-import type { DualChessCreatorPreference, DualChessRuntimeRoom } from './dual-chess-runtime.js';
 import { type HttpApiContext, handleApiRequest } from './http-api.js';
 import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
@@ -77,12 +80,15 @@ type ServerHttpHandlerOptions = {
         error: 'dark_mini_xiangqi_disabled' | 'persistence_failure' | 'room_id_collision';
       }
   >;
-  createDualChessRoom(
+  createCrossroadsChessRoom(
     timeControl?: RoomTimeControl,
-    creatorPreference?: DualChessCreatorPreference,
+    creatorPreference?: CrossroadsChessCreatorPreference,
   ): Promise<
-    | { ok: true; room: DualChessRuntimeRoom }
-    | { ok: false; error: 'dual_chess_disabled' | 'persistence_failure' | 'room_id_collision' }
+    | { ok: true; room: CrossroadsChessRuntimeRoom }
+    | {
+        ok: false;
+        error: 'crossroads_chess_disabled' | 'persistence_failure' | 'room_id_collision';
+      }
   >;
   reserveLiveEngineSeat(engineId: string, color: 'white' | 'black'): Promise<string | null>;
   releaseLiveEngineReservation(reservationId: string, reason: string): void;
@@ -329,7 +335,7 @@ function buildApiContext(options: ServerHttpHandlerOptions): HttpApiContext {
     createRoom: options.createRoom,
     createDarkXiangqiRoom: options.createDarkXiangqiRoom,
     createDarkMiniXiangqiRoom: options.createDarkMiniXiangqiRoom,
-    createDualChessRoom: options.createDualChessRoom,
+    createCrossroadsChessRoom: options.createCrossroadsChessRoom,
     reserveLiveEngineSeat: options.reserveLiveEngineSeat,
     releaseLiveEngineReservation: options.releaseLiveEngineReservation,
     abandonRoom: options.abandonRoom,

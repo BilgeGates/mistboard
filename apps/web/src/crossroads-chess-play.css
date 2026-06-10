@@ -1,0 +1,135 @@
+.crossroads-play-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 16px 48px;
+}
+
+.crossroads-play-head {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.crossroads-play-head h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.crossroads-play-tagline {
+  color: var(--muted, #888);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.crossroads-play-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.crossroads-play-board {
+  width: 360px;
+  flex: 0 0 auto;
+}
+
+.crossroads-play-board svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.crossroads-play-side {
+  width: 240px;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.crossroads-play-status {
+  font-size: 18px;
+  font-weight: 600;
+  min-height: 1.4em;
+}
+
+.crossroads-play-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.crossroads-play-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.crossroads-play-row > .crossroads-play-label {
+  font-size: 12px;
+  color: var(--muted, #888);
+  min-width: 58px;
+  text-align: right;
+}
+
+.crossroads-play-btn {
+  padding: 5px 11px;
+  cursor: pointer;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+
+.crossroads-play-btn:hover {
+  border-color: rgba(128, 128, 128, 0.7);
+}
+
+.crossroads-play-btn.is-active {
+  background: #3f86c4;
+  color: #fff;
+  border-color: #3f86c4;
+}
+
+.crossroads-play-moves {
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 6px;
+  padding: 8px 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.crossroads-play-moves-empty {
+  color: var(--muted, #888);
+}
+
+.crossroads-play-move-row {
+  display: flex;
+  gap: 10px;
+  padding: 1px 0;
+}
+
+.crossroads-play-move-row > .num {
+  color: var(--muted, #888);
+  min-width: 22px;
+}
+
+.crossroads-play-move-row > .ply {
+  min-width: 56px;
+}
+
+.crossroads-play-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 620px) {
+  .crossroads-play-board,
+  .crossroads-play-side {
+    width: min(92vw, 360px);
+  }
+}
