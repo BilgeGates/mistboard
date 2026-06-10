@@ -13,7 +13,7 @@
   flex: 1 1 200px;
   padding: 14px 16px;
   border: 1px solid var(--site-border, rgba(255, 255, 255, 0.1));
-  border-radius: 10px;
+  border-radius: var(--site-radius);
   background: var(--site-panel, rgba(255, 255, 255, 0.02));
 }
 

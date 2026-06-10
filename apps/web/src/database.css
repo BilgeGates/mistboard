@@ -20,7 +20,7 @@
   align-items: end;
   padding: 1rem;
   border: 1px solid var(--site-border);
-  border-radius: 10px;
+  border-radius: var(--site-radius);
   background: var(--site-panel);
 }
 
@@ -42,7 +42,7 @@
   width: 100%;
   padding: 0.4rem 0.5rem;
   border: 1px solid var(--site-border);
-  border-radius: 7px;
+  border-radius: var(--site-radius);
   background: var(--site-bg);
   color: var(--site-text);
   font-size: 0.88rem;
@@ -64,7 +64,7 @@
 .database-btn {
   padding: 0.45rem 1rem;
   border: 1px solid var(--site-border);
-  border-radius: 7px;
+  border-radius: var(--site-radius);
   background: var(--site-panel-soft);
   color: var(--site-text);
   font-size: 0.85rem;
@@ -106,7 +106,7 @@
   display: flex;
   width: 100%;
   height: 16px;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   overflow: hidden;
   border: 1px solid var(--site-border);
   background: var(--site-panel);
@@ -192,7 +192,7 @@
   gap: 0.75rem;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--site-border);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: var(--site-panel);
   text-decoration: none;
   color: var(--site-text);
@@ -208,7 +208,7 @@
   width: 52px;
   text-align: center;
   padding: 0.2rem 0;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;

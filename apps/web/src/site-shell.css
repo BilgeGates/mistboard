@@ -26,7 +26,7 @@
   width: 28px;
   height: 28px;
   flex: 0 0 auto;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
 }
 
 .site-nav-links,
@@ -48,7 +48,7 @@
 
 .site-nav-link {
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   font-size: 14px;
   color: var(--site-muted);
   text-decoration: none;
@@ -117,7 +117,7 @@
   padding: 6px;
   background: var(--site-panel);
   border: 1px solid var(--site-border);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   box-shadow: 0 14px 26px rgba(29, 37, 34, 0.14);
 }
 

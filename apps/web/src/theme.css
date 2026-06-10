@@ -73,7 +73,7 @@
   -webkit-appearance: none;
   min-width: 108px;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background-color: rgba(127, 127, 127, 0.12);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -96,7 +96,7 @@
   align-items: center;
   gap: 6px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: transparent;
   color: var(--site-muted);
   cursor: pointer;
@@ -134,7 +134,7 @@
   width: min(280px, calc(100vw - 28px));
   gap: 12px;
   border: 1px solid var(--site-border);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: color-mix(in srgb, var(--site-panel) 96%, transparent);
   box-shadow: 0 18px 44px var(--site-shadow);
   padding: 12px;
@@ -184,7 +184,7 @@
   gap: 12px;
   width: 100%;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: transparent;
   color: var(--site-text);
   cursor: pointer;
@@ -266,7 +266,7 @@
   min-height: 34px;
   width: 100%;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: var(--site-panel);
   color: var(--site-text);
   font: inherit;
@@ -284,7 +284,7 @@
   min-width: 0;
   min-height: 34px;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: var(--site-panel);
   color: var(--site-muted);
   cursor: pointer;
@@ -322,7 +322,7 @@
   height: 36px;
   padding: 0;
   border: 2px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: transparent;
   cursor: pointer;
   overflow: hidden;

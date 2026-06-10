@@ -29,7 +29,7 @@
   gap: 20px;
   padding: 18px 20px;
   border: 1px solid var(--site-border-soft);
-  border-radius: 10px;
+  border-radius: var(--site-radius);
   background: var(--site-panel);
   color: inherit;
   text-decoration: none;
@@ -50,7 +50,7 @@
   flex: 0 0 auto;
   width: 132px;
   height: 132px;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   overflow: hidden;
   background: var(--site-panel-soft);
   box-shadow: inset 0 0 0 1px rgba(29, 37, 34, 0.06);
@@ -216,7 +216,7 @@
   padding: 16px 20px;
   border-left: 3px solid var(--site-accent);
   background: var(--site-accent-soft);
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--site-radius-sm) var(--site-radius-sm) 0;
 }
 
 .article-tldr-heading {
@@ -360,7 +360,7 @@
   padding: 14px 16px;
   background: var(--site-panel-soft);
   border: 1px solid var(--site-border-soft);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
 }
 
 .article-toc-title {
@@ -625,7 +625,7 @@
   font-size: 14px;
   text-align: center;
   border: 1px dashed var(--site-border-soft);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
 }
 
 .article-figure-interactive {
@@ -642,7 +642,7 @@
   padding: 16px 18px;
   background: #0f1419;
   color: #e6edf3;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
@@ -692,7 +692,7 @@
 .article-cta {
   display: inline-block;
   padding: 10px 20px;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   text-decoration: none;
   font-weight: 600;
   font-size: 15px;

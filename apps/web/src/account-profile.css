@@ -359,7 +359,7 @@
   min-height: 64px;
   padding: 10px 12px;
   border: 1px solid var(--site-border-soft);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: var(--site-panel);
 }
 
@@ -417,7 +417,7 @@
   .profile-ratings-variant {
     min-height: 0;
     margin-top: 8px;
-    border-radius: 6px;
+    border-radius: var(--site-radius-sm);
   }
 
   .profile-ratings-grid > .profile-ratings-variant:first-of-type {
@@ -715,7 +715,7 @@
   margin: 0 0 18px;
   padding: 14px 16px;
   border: 1px solid var(--site-border);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: var(--site-panel-soft);
 }
 
@@ -838,7 +838,7 @@
 
 .leaderboard-panel {
   border: 1px solid var(--site-border);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   overflow: hidden;
   background: var(--site-panel);
 }

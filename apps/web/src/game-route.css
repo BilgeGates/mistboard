@@ -133,7 +133,7 @@
     gap: 8px;
     padding: 10px;
     border: 1px solid #d3d9d2;
-    border-radius: 8px;
+    border-radius: var(--site-radius);
     background: #f7f5ef;
   }
 

@@ -34,7 +34,7 @@
 .topbar a {
   color: var(--site-on-accent);
   background: var(--site-accent);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   padding: 10px 14px;
   text-decoration: none;
 }
@@ -632,7 +632,7 @@
   gap: 6px;
   justify-items: center;
   padding: 16px 28px;
-  border-radius: 12px;
+  border-radius: var(--site-radius);
   border: 1px solid rgba(20, 29, 25, 0.18);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 18px 48px rgba(20, 29, 25, 0.24);
@@ -831,7 +831,7 @@
   align-content: start;
   min-height: 112px;
   border: 1px solid #d3d9d2;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   color: #3f4a44;
   padding: 10px 12px;
@@ -853,7 +853,7 @@
   justify-self: start;
   margin-top: 4px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: transparent;
   color: #1f6f5b;
   cursor: pointer;
@@ -948,7 +948,7 @@
   min-height: 44px;
   padding: 7px 12px;
   border: 1px solid #dde2dc;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #ffffff;
 }
 
@@ -1086,7 +1086,7 @@
   gap: 8px;
   background: transparent;
   border: 2px solid rgba(200, 212, 204, 0.12);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   padding: 8px 8px 10px;
   cursor: pointer;
   transition:
@@ -1151,7 +1151,7 @@
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: linear-gradient(to bottom, var(--site-metal-top), var(--site-metal-bottom));
   color: var(--site-text);
   padding: 9px 10px;
@@ -1184,7 +1184,7 @@
 
 .confirm-dialog {
   border: 1px solid #bdc8bf;
-  border-radius: 10px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   color: #1d2522;
   padding: 22px 22px 18px;
@@ -1221,7 +1221,7 @@
   min-height: 36px;
   padding: 6px 14px;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #1d2522;
   font: inherit;
@@ -1363,7 +1363,7 @@
 .share-room button {
   min-height: 38px;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #1d2522;
 }
@@ -1392,7 +1392,7 @@
   width: 100%;
   min-height: 38px;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #1d2522;
   padding: 9px 10px;
@@ -1546,7 +1546,7 @@
   gap: 4px;
   width: 100%;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #1d2522;
   padding: 12px;
@@ -1609,7 +1609,7 @@
 .bid-controls button {
   min-height: 38px;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #1d2522;
 }
@@ -1638,7 +1638,7 @@
   grid-template-columns: none;
   min-height: 34px;
   border: 1px solid #d3d9d2;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #5f6b66;
   padding: 8px 10px;
@@ -1673,7 +1673,7 @@
 .replay-controls button,
 .move-list button {
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: var(--site-panel);
   color: var(--site-text);
   cursor: pointer;
@@ -1712,7 +1712,7 @@
   grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   min-height: 32px;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
 }
 
 .move-row:nth-child(odd) {
@@ -2085,7 +2085,7 @@ a.replay-game-id:focus-visible {
 .replay-game-meta-details > a {
   min-height: 38px;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #1d2522;
   display: inline-flex;
@@ -2233,7 +2233,7 @@ a.replay-game-id:focus-visible {
 .replay-clock-row {
   min-height: 30px;
   border: 1px solid #c4c8c2;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #ebefee;
   color: #2e332f;
 }
@@ -2338,7 +2338,7 @@ a.replay-game-id:focus-visible {
 .replay-compact .replay-pane > .replay-clock-row,
 .replay-compact .replay-pane-clock-slot .replay-clock-row {
   grid-template-columns: 112px auto minmax(0, 1fr);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   padding: 6px 10px;
 }
 
@@ -2387,7 +2387,7 @@ a.replay-game-id:focus-visible {
 .replay-button {
   font: inherit;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   border: 1px solid #c4c8c2;
   background: #ebefee;
   cursor: pointer;
@@ -2432,7 +2432,7 @@ a.replay-game-id:focus-visible {
 .engine-review-panel {
   background: #151916;
   border: 1px solid #2a3329;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   color: #d3d8d2;
   display: flex;
   flex-direction: column;
@@ -2539,7 +2539,7 @@ a.replay-game-id:focus-visible {
 .landing-setup-back {
   min-height: 38px;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: var(--site-text);
   cursor: pointer;
@@ -2578,7 +2578,7 @@ a.replay-game-id:focus-visible {
   font: inherit;
   font-weight: 600;
   padding: 10px 18px;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   cursor: pointer;
   border: 1px solid transparent;
   text-decoration: none;
@@ -2630,7 +2630,7 @@ a.replay-game-id:focus-visible {
   max-width: 240px;
   min-height: 42px;
   border: 1px solid #c9c0ad;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   color: #1f2521;
   padding: 0 12px;
@@ -2647,7 +2647,7 @@ a.replay-game-id:focus-visible {
   width: 100%;
   border: 1px solid rgba(255, 253, 246, 0.24);
   background: rgba(252, 251, 247, 0.98);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   overflow: hidden;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,
@@ -2749,7 +2749,7 @@ a.replay-game-id:focus-visible {
 .analysis-tool-togglebar button {
   min-height: 30px;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #1d2522;
   cursor: pointer;
@@ -2775,7 +2775,7 @@ a.replay-game-id:focus-visible {
   gap: 20px;
   padding: 16px 20px;
   border: 1px solid #e2e0d6;
-  border-radius: 10px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
@@ -2794,7 +2794,7 @@ a.replay-game-id:focus-visible {
 .replay-game-header-cell .replay-clock-row {
   width: 100%;
   min-height: 42px;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   padding: 8px 14px;
   grid-template-columns: minmax(0, 1fr) auto;
   border-color: #e2e0d6;
@@ -2945,7 +2945,7 @@ a.replay-game-id:focus-visible {
   gap: 6px;
   min-height: 32px;
   padding: 6px 14px;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -3001,7 +3001,7 @@ a.replay-game-id:focus-visible {
  * feel like one review object rather than three independent cards. */
 .replay-meta-header .replay-layout {
   padding: 14px;
-  border-radius: 10px;
+  border-radius: var(--site-radius);
   background: #faf8f1;
   border: 1px solid #ece8d8;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);

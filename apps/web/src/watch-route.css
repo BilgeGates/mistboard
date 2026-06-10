@@ -43,7 +43,7 @@
 .watch-channel-rail {
   min-width: 0;
   border: 1px solid var(--site-border-soft);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: var(--site-panel);
   color: var(--site-text);
   padding: 10px;
@@ -95,7 +95,7 @@
 .watch-channel-list a {
   min-height: 36px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: transparent;
   color: var(--site-muted);
   padding: 7px 8px;
@@ -162,7 +162,7 @@
   justify-self: end;
   width: 100%;
   border: 1px solid var(--site-border-soft);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #fffdf8;
   padding: 10px 12px;
   display: grid;
@@ -195,7 +195,7 @@
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--site-border-soft);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   overflow: hidden;
 }
@@ -234,7 +234,7 @@
 .watch-empty-actions a {
   min-height: 38px;
   border: 1px solid color-mix(in srgb, var(--site-accent) 45%, transparent);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: var(--site-accent-soft);
   color: var(--site-accent-strong);
   display: inline-flex;
@@ -255,7 +255,7 @@
 .watch-queue {
   min-width: 0;
   border: 1px solid var(--site-border-soft);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   display: flex;
   flex-direction: column;
@@ -400,7 +400,7 @@
   align-self: flex-start;
   margin: 0 12px 11px;
   border: 1px solid color-mix(in srgb, #7b6650 28%, transparent);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #fffdf8;
   padding: 5px 7px;
   color: #6f5132;
@@ -496,7 +496,7 @@
   margin: 8px 12px 0;
   padding: 8px 12px;
   gap: 12px;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
 }
 
 .watch-replay .replay-game-header-cell {

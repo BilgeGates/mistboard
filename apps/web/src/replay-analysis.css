@@ -4,7 +4,7 @@
 .belief-panel {
   margin-top: 0;
   border: 1px solid #2b3640;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #14191d;
   color: #d6dde0;
   display: flex;
@@ -542,7 +542,7 @@
 .annot-panel {
   margin-top: 0;
   border: 1px solid #2a3329;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #161a16;
   color: #d3d8d2;
   font-size: 13px;

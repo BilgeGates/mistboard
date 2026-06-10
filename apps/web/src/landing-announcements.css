@@ -7,7 +7,7 @@
   min-width: 0;
   padding: clamp(16px, 1.6vw, 22px);
   border: 1px solid rgba(29, 37, 34, 0.1);
-  border-radius: 12px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.86),
@@ -45,7 +45,7 @@
 .landing-announcement-card {
   display: flex;
   border: 1px solid rgba(29, 37, 34, 0.1);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #fafaf7;
   transition:
     border-color 120ms ease,

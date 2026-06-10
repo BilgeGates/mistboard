@@ -47,7 +47,7 @@
   aspect-ratio: 16 / 9;
   background: #1f2521;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   box-shadow: 0 1px 3px rgba(29, 37, 34, 0.08);
   transition:
     box-shadow 0.15s,
@@ -127,7 +127,7 @@
   color: #3f4742;
   text-decoration: none;
   padding: 6px 10px 6px 4px;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   margin-bottom: 14px;
   transition:
     background 0.15s,
@@ -144,7 +144,7 @@
   aspect-ratio: 16 / 9;
   width: 100%;
   background: #000000;
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   overflow: hidden;
   box-shadow: 0 6px 18px rgba(29, 37, 34, 0.18);
 }

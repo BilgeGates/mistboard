@@ -8,7 +8,7 @@
   width: 100%;
   min-height: 46px;
   border: 1.5px solid var(--site-accent);
-  border-radius: 7px;
+  border-radius: var(--site-radius);
   /* Lichess-style "metal" rest state; theme-flipping tokens cover dark mode. */
   background: linear-gradient(to bottom, var(--site-metal-top), var(--site-metal-bottom));
   color: var(--site-text);
@@ -78,7 +78,7 @@
   min-width: 0;
   padding: clamp(12px, 1.2vw, 16px);
   border: 1px solid rgba(29, 37, 34, 0.1);
-  border-radius: 10px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   box-shadow: 0 4px 14px rgba(29, 37, 34, 0.06);
 }
@@ -123,7 +123,7 @@
   gap: 8px;
   padding: 10px 12px;
   border: 1px solid var(--site-border, #2a2f37);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: var(--site-surface-muted, rgba(255, 255, 255, 0.03));
 }
 
@@ -168,7 +168,7 @@
   min-width: 0;
   margin-top: 2px;
   border: 1px solid var(--site-border-soft);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: #fbfcfa;
   padding: 10px;
 }
@@ -232,7 +232,7 @@
 .landing-lobby-request-row button {
   min-height: 32px;
   border: 1px solid #629924;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: #416b18;
   cursor: pointer;
@@ -271,7 +271,7 @@
   overflow: auto;
   padding: 24px;
   border: 1px solid color-mix(in srgb, var(--site-accent) 22%, transparent);
-  border-radius: 10px;
+  border-radius: var(--site-radius);
   background: #ffffff;
   box-shadow: 0 26px 70px rgba(10, 15, 13, 0.34);
 }
@@ -293,7 +293,7 @@
   width: 34px;
   height: 34px;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: var(--site-text);
   cursor: pointer;
@@ -320,7 +320,7 @@
   display: flex;
   align-items: center;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #f9faf7;
   color: var(--site-text);
   font-size: 14px;
@@ -442,7 +442,7 @@
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   color: var(--site-text);
   font: inherit;
   padding: 7px 8px;
@@ -453,7 +453,7 @@
 .landing-setup-back {
   min-height: 38px;
   border: 1px solid #bdc8bf;
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: #ffffff;
   color: var(--site-text);
   cursor: pointer;
@@ -496,7 +496,7 @@
   gap: 8px;
   padding: 10px;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   background: var(--site-accent-soft);
   animation: landing-engine-offer-in 150ms ease-out;
 }
@@ -620,7 +620,7 @@
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--site-border);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   /* Replace the browser-default arrow (which sits flush at the far edge) with a
      custom chevron inset a controlled amount from the right. */
   appearance: none;

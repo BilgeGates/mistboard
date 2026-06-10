@@ -31,7 +31,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--site-border, #bdc8bf);
-  border-radius: 6px;
+  border-radius: var(--site-radius-sm);
   padding: 7px 12px;
   color: var(--site-text, #1d2522);
   text-decoration: none;
@@ -78,7 +78,7 @@
 
 .crossroads-play-section {
   border: 1px solid var(--site-border, #bdc8bf);
-  border-radius: 8px;
+  border-radius: var(--site-radius);
   background: var(--site-panel, #ffffff);
   padding: 14px;
 }
@@ -121,7 +121,7 @@
 
 .crossroads-play-btn {
   border: 1px solid rgba(128, 128, 128, 0.4);
-  border-radius: 5px;
+  border-radius: var(--site-radius-sm);
   background: transparent;
   color: var(--site-text, #1d2522);
   cursor: pointer;
