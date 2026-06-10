@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
@@ -48,6 +49,20 @@ test('bucketForGame maps Dark Mini Xiangqi through its own rating pool', () => {
   );
 });
 
+test('bucketForGame maps Crossroads Chess through its own open rating pool', () => {
+  assert.deepEqual(
+    bucketForGame({
+      variant: CROSSROADS_CHESS_SPEC_ID,
+      initialMs: 300_000,
+      incrementMs: 5_000,
+    }),
+    {
+      variant: gameSpecForId(CROSSROADS_CHESS_SPEC_ID).ratingPoolBase,
+      timeClass: 'rapid',
+    },
+  );
+});
+
 test('parseRatingVariant keeps legacy leaderboard API params stable', () => {
   assert.equal(parseRatingVariant('fog'), 'fog');
   assert.equal(parseRatingVariant('dark-chess'), 'fog');
@@ -56,6 +71,8 @@ test('parseRatingVariant keeps legacy leaderboard API params stable', () => {
   assert.equal(parseRatingVariant('dark-draft960'), 'fog_draft960');
   assert.equal(parseRatingVariant('dark-mini-xiangqi'), 'dark_mini_xiangqi');
   assert.equal(parseRatingVariant('dark_mini_xiangqi'), 'dark_mini_xiangqi');
+  assert.equal(parseRatingVariant('crossroads-chess'), 'crossroads_chess_open');
+  assert.equal(parseRatingVariant('crossroads_chess_open'), 'crossroads_chess_open');
   assert.equal(parseRatingVariant('dark-xiangqi'), null);
   assert.equal(parseRatingVariant('dark-shogi'), null);
 });

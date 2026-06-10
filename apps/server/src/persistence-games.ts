@@ -1,5 +1,6 @@
 import {
   type Color,
+  CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   TIME_CONTROLS,
   type TimeClass,
@@ -1006,7 +1007,7 @@ export async function recordGameEnd(roomId: string, summary: GameSummary): Promi
           roomId,
           whiteParticipant.subjectId,
           blackParticipant.subjectId,
-          ratedResultForGame(summary.result),
+          ratedResultForGame(summary.result, summary.variant),
           bucket,
           colors,
         );
@@ -1025,12 +1026,13 @@ function ratedParticipantColorsForVariant(variant: string): {
   white: RatedParticipantColor;
   black: RatedParticipantColor;
 } {
-  return variant === DARK_MINI_XIANGQI_SPEC_ID
-    ? { white: 'red', black: 'black' }
-    : { white: 'white', black: 'black' };
+  if (variant === DARK_MINI_XIANGQI_SPEC_ID) return { white: 'red', black: 'black' };
+  if (variant === CROSSROADS_CHESS_SPEC_ID) return { white: 'white', black: 'red' };
+  return { white: 'white', black: 'black' };
 }
 
-function ratedResultForGame(result: GameResult): RatedResult {
+function ratedResultForGame(result: GameResult, variant: string): RatedResult {
+  if (variant === CROSSROADS_CHESS_SPEC_ID && result === 'red-wins') return 'black-wins';
   if (result === 'red-wins') return 'white-wins';
   if (result === 'white-wins' || result === 'black-wins' || result === 'draw') return result;
   return 'draw';

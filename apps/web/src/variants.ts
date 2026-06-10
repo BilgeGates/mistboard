@@ -9,6 +9,7 @@
 // registry doesn't substitute for that, it just centralizes the UI surface.
 
 import {
+  CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
@@ -16,14 +17,11 @@ import {
   gameSpecForId,
   type RatingPoolBaseId,
 } from '@mistboard/game';
-import {
-  darkMiniXiangqiEnabled,
-  darkMiniXiangqiPublicEntryEnabled,
-} from './feature-flags.js';
+import { darkMiniXiangqiEnabled, darkMiniXiangqiPublicEntryEnabled } from './feature-flags.js';
 
 export type RatingVariantId = Extract<
   RatingPoolBaseId,
-  'fog' | 'fog_draft960' | 'dark_mini_xiangqi'
+  'fog' | 'fog_draft960' | 'dark_mini_xiangqi' | 'crossroads_chess_open'
 >;
 
 export interface VariantDef {
@@ -46,6 +44,7 @@ const darkMiniPublicEntryEnabled = darkMiniXiangqiPublicEntryEnabled();
 const darkChessSpec = gameSpecForId(DARK_CHESS_SPEC_ID);
 const draft960Spec = gameSpecForId(DARK_DRAFT960_SPEC_ID);
 const darkMiniXiangqiSpec = gameSpecForId(DARK_MINI_XIANGQI_SPEC_ID);
+const crossroadsChessSpec = gameSpecForId(CROSSROADS_CHESS_SPEC_ID);
 
 export const VARIANTS: VariantDef[] = [
   {
@@ -78,6 +77,15 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: darkMiniPublicEntryEnabled,
     onProfile: darkMiniEnabled,
   },
+  {
+    id: currentRatingVariantForSpec(CROSSROADS_CHESS_SPEC_ID),
+    gameSpecId: crossroadsChessSpec.id,
+    apiParam: CROSSROADS_CHESS_SPEC_ID,
+    label: crossroadsChessSpec.publicName,
+    enabled: false,
+    onLeaderboard: false,
+    onProfile: true,
+  },
 ];
 
 /** Variants shown on public rating surfaces (leaderboard + profile grid). */
@@ -97,13 +105,15 @@ function currentRatingVariantForSpec(
   id:
     | typeof DARK_CHESS_SPEC_ID
     | typeof DARK_DRAFT960_SPEC_ID
-    | typeof DARK_MINI_XIANGQI_SPEC_ID,
+    | typeof DARK_MINI_XIANGQI_SPEC_ID
+    | typeof CROSSROADS_CHESS_SPEC_ID,
 ): RatingVariantId {
   const ratingPool = gameSpecForId(id).ratingPoolBase;
   if (
     ratingPool === 'fog' ||
     ratingPool === 'fog_draft960' ||
-    ratingPool === 'dark_mini_xiangqi'
+    ratingPool === 'dark_mini_xiangqi' ||
+    ratingPool === 'crossroads_chess_open'
   )
     return ratingPool;
   throw new Error(`game spec ${id} is not a current web rating variant`);

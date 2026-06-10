@@ -44,6 +44,7 @@ describe('web variant launch registry', () => {
     expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
       DARK_CHESS_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
+      CROSSROADS_CHESS_SPEC_ID,
     ]);
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([DARK_CHESS_SPEC_ID]);
     vi.unstubAllEnvs();
@@ -81,7 +82,7 @@ describe('web variant launch registry', () => {
     expect(profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(DARK_XIANGQI_SPEC_ID);
   });
 
-  it('keeps Crossroads out of rating buckets while it is casual-only', async () => {
+  it('shows Crossroads on profile buckets while keeping it off lobby and leaderboard', async () => {
     vi.resetModules();
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     const flagged = await import('./variants.js');
@@ -92,7 +93,7 @@ describe('web variant launch registry', () => {
     expect(flagged.leaderboardVariants.map((v) => v.gameSpecId)).not.toContain(
       CROSSROADS_CHESS_SPEC_ID,
     );
-    expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).not.toContain(
+    expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toContain(
       CROSSROADS_CHESS_SPEC_ID,
     );
 
@@ -112,6 +113,7 @@ describe('web variant launch registry', () => {
       [DARK_CHESS_SPEC_ID, 'fog'],
       [DARK_DRAFT960_SPEC_ID, 'dark-draft960'],
       [DARK_MINI_XIANGQI_SPEC_ID, 'dark-mini-xiangqi'],
+      [CROSSROADS_CHESS_SPEC_ID, 'crossroads-chess'],
     ]);
   });
 });

@@ -6,7 +6,7 @@ import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { leaderboardVariants, profileRatingVariants } from './variants.js';
 
-type ProfileRatingVariant = 'fog' | 'fog_draft960' | 'dark_mini_xiangqi';
+type ProfileRatingVariant = 'fog' | 'fog_draft960' | 'dark_mini_xiangqi' | 'crossroads_chess_open';
 type ProfileRatingTimeClass = 'bullet' | 'blitz' | 'rapid';
 type ProfileBucketRating = {
   variant: ProfileRatingVariant;
@@ -68,6 +68,7 @@ const PROFILE_VARIANT_LABEL: Record<ProfileRatingVariant, string> = {
   fog: 'Dark Chess',
   fog_draft960: 'Dark Draft960',
   dark_mini_xiangqi: 'Dark Mini Xiangqi',
+  crossroads_chess_open: 'Crossroads Chess',
 };
 
 // Profile rating grid is subject-scoped: render-capable soft-launch variants can

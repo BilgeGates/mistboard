@@ -204,6 +204,92 @@ definePersistenceTests('ratings', () => {
     }
   });
 
+  test('rated Crossroads Chess PvP game rates white and red users in the Crossroads bucket', async () => {
+    const now = new Date();
+    await createUser({
+      id: 'user_crossroads_white',
+      email: 'crossroads-white@example.com',
+      emailVerifiedAt: now,
+      handle: 'crossroads-white',
+      displayName: 'Crossroads White',
+      now,
+    });
+    await createUser({
+      id: 'user_crossroads_red',
+      email: 'crossroads-red@example.com',
+      emailVerifiedAt: now,
+      handle: 'crossroads-red',
+      displayName: 'Crossroads Red',
+      now,
+    });
+
+    await recordGameEnd('rated-crossroads-1', {
+      variant: 'crossroads-chess',
+      mode: 'pvp',
+      rated: true,
+      result: 'red-wins',
+      termination: 'king-captured',
+      plyCount: 17,
+      startedAt: now,
+      endedAt: now,
+      initialMs: 300_000,
+      incrementMs: 5_000,
+      whiteClient: null,
+      blackClient: null,
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+      participants: [
+        {
+          color: 'white',
+          displayName: 'Crossroads White',
+          subjectType: 'user',
+          subjectId: 'user_crossroads_white',
+          visibility: 'public',
+        },
+        {
+          color: 'red',
+          displayName: 'Crossroads Red',
+          subjectType: 'user',
+          subjectId: 'user_crossroads_red',
+          visibility: 'public',
+        },
+      ],
+      visibility: 'public',
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query<{
+        user_id: string;
+        elo_rating: number;
+        games_played: number;
+      }>(
+        `SELECT user_id, elo_rating, games_played
+         FROM user_ratings WHERE variant = 'crossroads_chess_open' AND time_class = 'rapid'`,
+      );
+      assert.equal(rows.length, 2, 'both Crossroads players got a rating row');
+      const white = rows.find((r) => r.user_id === 'user_crossroads_white')!;
+      const red = rows.find((r) => r.user_id === 'user_crossroads_red')!;
+      assert.ok(red.elo_rating > 1500, `red rating ${red.elo_rating}`);
+      assert.ok(white.elo_rating < 1500, `white rating ${white.elo_rating}`);
+      assert.equal(red.games_played, 1);
+
+      const { rows: parts } = await client.query<{
+        elo_before: number;
+        elo_after: number;
+      }>(
+        `SELECT elo_before, elo_after FROM game_participants
+         WHERE game_id = 'rated-crossroads-1' AND color = 'red'`,
+      );
+      assert.equal(parts[0]!.elo_before, 1500);
+      assert.ok(parts[0]!.elo_after > 1500);
+    } finally {
+      await client.end();
+    }
+  });
+
   test('rated game rates on a forfeit (abandonment) termination', async () => {
     // Rating is termination-independent: any completed rated PvP game rates.
     // Forfeit (abandonment) is a real win, so it must move ratings like any other.
@@ -475,6 +561,70 @@ definePersistenceTests('ratings', () => {
       profile?.ratings.some((rating) => rating.variant === 'fog'),
       false,
     );
+  });
+
+  test('getUserProfileByHandle shows viewer-owned private Crossroads Chess activity bucket', async () => {
+    const now = new Date('2026-05-08T11:00:00.000Z');
+    await createUser({
+      id: 'user_crossroads_profile',
+      email: 'crossroads-profile@example.com',
+      emailVerifiedAt: now,
+      handle: 'crossroads-profile',
+      displayName: 'Crossroads Profile',
+      profileVisibility: 'public',
+      now,
+    });
+    await recordGameEnd('profile-crossroads-game', {
+      variant: 'crossroads-chess',
+      mode: 'pvp',
+      result: 'white-wins',
+      termination: 'king-captured',
+      plyCount: 12,
+      startedAt: now,
+      endedAt: new Date(now.getTime() + 60_000),
+      whiteClient: null,
+      blackClient: null,
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+      rated: false,
+      visibility: 'private',
+      initialMs: 300_000,
+      incrementMs: 5_000,
+      participants: [
+        {
+          color: 'white',
+          displayName: 'Crossroads Profile',
+          subjectType: 'user',
+          subjectId: 'user_crossroads_profile',
+          visibility: 'private',
+        },
+        {
+          color: 'red',
+          displayName: 'Guest',
+          subjectType: 'guest',
+          subjectId: null,
+          visibility: 'private',
+        },
+      ],
+    });
+
+    const publicProfile = await getUserProfileByHandle('crossroads-profile', null);
+    assert.equal(publicProfile?.gamesTotal, 0, 'private Crossroads game is hidden publicly');
+
+    const viewerProfile = await getUserProfileByHandle(
+      'crossroads-profile',
+      'user_crossroads_profile',
+    );
+    assert.equal(viewerProfile?.gamesTotal, 1);
+    assert.equal(viewerProfile?.games[0]?.roomId, 'profile-crossroads-game');
+    const crossroadsRating = viewerProfile?.ratings.find(
+      (rating) => rating.variant === 'crossroads_chess_open',
+    );
+    assert.equal(crossroadsRating?.timeClass, 'rapid');
+    assert.equal(crossroadsRating?.eloRating, null);
+    assert.equal(crossroadsRating?.ratedGamesPlayed, 0);
+    assert.equal(crossroadsRating?.totalGamesPlayed, 1);
   });
 
   test('getUserGamesPage paginates a user games newest-first with a stable total', async () => {
