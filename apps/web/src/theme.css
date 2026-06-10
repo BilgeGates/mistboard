@@ -490,7 +490,6 @@
     .clocks div,
     .info-notice,
     .landing-play-panel,
-    .landing-announcements,
     .landing-announcement-card,
     .landing-lobby-requests,
     .landing-lobby-request-row,
@@ -523,7 +522,6 @@
 :root[data-effective-theme="dark"]
   :is(
     .landing-play-action-label,
-    .landing-announcements-heading,
     .landing-announcement-headline,
     .landing-games-list .landing-game-row strong,
     .watch-header h1,

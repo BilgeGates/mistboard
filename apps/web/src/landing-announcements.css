@@ -1,43 +1,19 @@
+/* Transparent stack: spotlight chips + the News site-box sit directly on the
+   rail, lichess-style, instead of inside one announcements panel. */
 .landing-announcements {
   grid-area: announcements;
   display: flex;
   flex-direction: column;
   align-self: stretch;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  padding: clamp(16px, 1.6vw, 22px);
-  border: 1px solid rgba(29, 37, 34, 0.1);
-  border-radius: var(--site-radius);
-  background: var(--site-panel);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.86),
-    0 14px 36px rgba(29, 37, 34, 0.08);
 }
 
-.landing-announcements-heading {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--site-muted);
-}
-
-.landing-announcements-empty {
-  margin: 0;
-  color: var(--site-muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.landing-announcements-list {
+.landing-spotlights {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  /* Single column: the announcements panel lives in the narrow left rail now,
-     so cards shrink to the rail width instead of forcing a 260px minimum that
-     overflows it. */
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
@@ -46,7 +22,7 @@
   display: flex;
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: var(--site-radius);
-  background: var(--site-panel-soft);
+  background: var(--site-panel);
   transition:
     border-color 120ms ease,
     background 120ms ease,
@@ -54,8 +30,8 @@
 }
 
 .landing-announcement-card.is-pinned {
-  background: var(--site-bg);
-  border-color: rgba(29, 37, 34, 0.16);
+  background: var(--site-accent-soft);
+  border-color: color-mix(in srgb, var(--site-accent) 30%, var(--site-border-soft));
 }
 
 .landing-announcement-card-inner {
@@ -181,31 +157,3 @@ a.landing-announcement-card-inner:focus-visible {
   transition: transform 120ms ease;
 }
 
-.landing-announcements-more {
-  display: inline-flex;
-  align-self: flex-start;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--site-accent-strong, #185947);
-  text-decoration: none;
-}
-
-.landing-announcements-more:hover .landing-announcements-more-arrow {
-  transform: translateX(2px);
-}
-
-.landing-announcements-more-arrow {
-  display: inline-block;
-  transition: transform 120ms ease;
-}
-
-@media (max-width: 600px) {
-  /* Announcement cards carry their own context (status / article tag, date,
-     title) — the section heading is redundant weight on a narrow viewport. */
-  .landing-announcements-heading {
-    display: none;
-  }
-}

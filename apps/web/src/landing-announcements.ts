@@ -2,28 +2,21 @@ import './landing-announcements.css';
 import { type Announcement, announcements } from './announcements.js';
 import { renderArticleThumbnail } from './articles.js';
 import { findArticle } from './articles-data.js';
+import { buildSiteBox } from './site-box.js';
+
+// The rail splits announcements lichess-style: pinned/release entries render
+// as spotlight chips (the existing card treatment), everything else collapses
+// into a dated News feed box.
+const MAX_SPOTLIGHTS = 2;
+const MAX_FEED_ROWS = 5;
 
 export function buildLandingAnnouncements(): HTMLElement {
   const panel = document.createElement('aside');
   panel.className = 'landing-announcements';
   panel.setAttribute('aria-label', 'Announcements');
 
-  const heading = document.createElement('h2');
-  heading.className = 'landing-announcements-heading';
-  heading.textContent = 'Announcements';
-  panel.append(heading);
-
   const entries = announcements();
-  if (entries.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'landing-announcements-empty';
-    empty.textContent = 'Nothing new yet.';
-    panel.append(empty);
-    return panel;
-  }
-
-  const list = document.createElement('ol');
-  list.className = 'landing-announcements-list';
+  if (entries.length === 0) return panel;
 
   const ordered = [...entries].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
@@ -31,31 +24,55 @@ export function buildLandingAnnouncements(): HTMLElement {
     return b.date.localeCompare(a.date);
   });
 
-  const MAX_VISIBLE = 3;
-  const visible = ordered.slice(0, MAX_VISIBLE);
-  const overflow = ordered.length - visible.length;
+  const spotlights = ordered
+    .filter((entry) => entry.pinned || entry.kind === 'release')
+    .slice(0, MAX_SPOTLIGHTS);
+  const spotlightSet = new Set(spotlights);
+  const feed = ordered.filter((entry) => !spotlightSet.has(entry)).slice(0, MAX_FEED_ROWS);
 
-  for (const entry of visible) {
-    list.append(renderAnnouncementCard(entry));
+  if (spotlights.length > 0) {
+    const list = document.createElement('ol');
+    list.className = 'landing-spotlights';
+    for (const entry of spotlights) {
+      list.append(renderAnnouncementCard(entry));
+    }
+    panel.append(list);
   }
 
-  panel.append(list);
-
-  if (overflow > 0) {
-    const more = document.createElement('a');
-    more.className = 'landing-announcements-more';
-    more.href = '/articles';
-    const label = document.createElement('span');
-    label.textContent = 'View all announcements';
-    const arrow = document.createElement('span');
-    arrow.className = 'landing-announcements-more-arrow';
-    arrow.setAttribute('aria-hidden', 'true');
-    arrow.textContent = '→';
-    more.append(label, arrow);
-    panel.append(more);
+  if (feed.length > 0) {
+    const news = buildSiteBox({ title: 'News', href: '/articles', className: 'landing-news' });
+    for (const entry of feed) {
+      news.body.append(renderFeedRow(entry));
+    }
+    panel.append(news.box);
   }
 
   return panel;
+}
+
+function renderFeedRow(entry: Announcement): HTMLElement {
+  const row = document.createElement(entry.href ? 'a' : 'div');
+  row.className = 'site-box-row landing-news-row';
+  if (entry.href && row instanceof HTMLAnchorElement) {
+    row.href = entry.href;
+    if (/^https?:/.test(entry.href)) {
+      row.target = '_blank';
+      row.rel = 'noopener noreferrer';
+    }
+  }
+
+  const date = document.createElement('time');
+  date.className = 'site-box-row-meta';
+  date.dateTime = entry.date;
+  date.textContent = formatAnnouncementDate(entry.date);
+
+  const label = document.createElement('span');
+  label.className = 'site-box-row-label';
+  label.textContent = entry.headline;
+  label.title = entry.headline;
+
+  row.append(date, label);
+  return row;
 }
 
 function renderAnnouncementCard(entry: Announcement): HTMLElement {
