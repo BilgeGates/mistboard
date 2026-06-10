@@ -34,7 +34,7 @@ describe('site appearance preference', () => {
     expect(document.documentElement.dataset.siteTheme).toBe('dark');
     expect(document.documentElement.dataset.effectiveTheme).toBe('dark');
     expect(document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content).toBe(
-      '#101512',
+      '#121615',
     );
   });
 

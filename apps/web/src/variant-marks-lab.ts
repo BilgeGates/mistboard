@@ -253,8 +253,8 @@ function installVariantMarksLabStyles(): void {
 
     .variant-mark-scale-group.dark {
       background: #1d2522;
-      color: #f4f1ea;
-      --site-text: #f4f1ea;
+      color: #ebefee;
+      --site-text: #ebefee;
       --variant-mark-bg: #1d2522;
     }
 

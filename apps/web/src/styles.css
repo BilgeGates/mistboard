@@ -2228,7 +2228,7 @@ a.replay-game-id:focus-visible {
   min-height: 30px;
   border: 1px solid #c4c8c2;
   border-radius: 8px;
-  background: #f4f1ea;
+  background: #ebefee;
   color: #2e332f;
 }
 
@@ -2383,7 +2383,7 @@ a.replay-game-id:focus-visible {
   padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid #c4c8c2;
-  background: #f4f1ea;
+  background: #ebefee;
   cursor: pointer;
   min-width: 44px;
 }
@@ -2585,7 +2585,7 @@ a.replay-game-id:focus-visible {
 
 .landing-cta-primary {
   background: #2e332f;
-  color: #f4f1ea;
+  color: #ebefee;
 }
 
 .landing-cta-primary:hover:not(:disabled),
@@ -2595,7 +2595,7 @@ a.replay-game-id:focus-visible {
 
 .landing-cta-primary:disabled {
   background: #c4c8c2;
-  color: #f4f1ea;
+  color: #ebefee;
   cursor: not-allowed;
 }
 

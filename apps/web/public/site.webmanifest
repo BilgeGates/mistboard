@@ -4,7 +4,7 @@
   "description": "Dark chess with server-enforced hidden information.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f4f1ea",
+  "background_color": "#ebefee",
   "theme_color": "#1f2521",
   "icons": [
     {

@@ -853,7 +853,7 @@ function resolveSiteTheme(theme: SiteTheme): 'light' | 'dark' {
 function updateThemeColorMeta(theme: 'light' | 'dark'): void {
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (!meta) return;
-  meta.content = theme === 'dark' ? '#101512' : '#f4f1ea';
+  meta.content = theme === 'dark' ? '#121615' : '#ebefee';
 }
 
 function normalizeSiteTheme(value: string | null): SiteTheme {

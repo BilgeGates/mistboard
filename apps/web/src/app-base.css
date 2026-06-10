@@ -28,27 +28,36 @@
   src: url("/fonts/noto-sans-latin-800.woff2") format("woff2");
 }
 
+/* Site palette. Lightness/saturation ladder mirrors lichess's theme structure
+   (page < box < raised, zebra between) with the hue translated to a cool mist
+   grey-green instead of their warm hue-37. Boards stay classic. */
 :root {
   color-scheme: light;
-  --site-bg: #f4f1ea;
-  --site-bg-soft: #ece8df;
-  --site-text: #1d2522;
-  --site-heading: #1f2521;
-  --site-muted: #5f6b66;
+  --site-bg: hsl(168, 10%, 93%);
+  --site-bg-soft: hsl(168, 10%, 89%);
+  --site-text: hsl(168, 3%, 30%);
+  --site-heading: hsl(168, 8%, 19%);
+  --site-muted: hsl(168, 2%, 47%);
   --site-panel: #ffffff;
-  --site-panel-soft: #f8f7f3;
-  --site-border: #bdc8bf;
-  --site-border-soft: #d3d9d2;
+  --site-panel-soft: hsl(168, 12%, 96.5%);
+  --site-border: hsl(168, 5%, 84%);
+  --site-border-soft: hsl(168, 5%, 89%);
   --site-accent: #1f6f5b;
   --site-accent-strong: #185947;
   --site-accent-soft: #eef8f2;
   --site-on-accent: #ffffff;
+  --site-link: hsl(209, 77%, 46%);
   --site-focus: rgba(31, 111, 91, 0.22);
-  --site-shadow: rgba(29, 37, 34, 0.18);
-  --site-hover: #eeeeee;
+  --site-shadow: rgba(29, 37, 34, 0.15);
+  --site-hover: hsl(168, 6%, 88%);
   --site-nav-bg: var(--site-bg);
   --site-nav-border: transparent;
-  --site-stage-bg: linear-gradient(180deg, #f4f1ea 0, #f4f1ea 460px, #f8f7f3 100%);
+  --site-stage-bg: linear-gradient(
+    180deg,
+    hsl(168, 10%, 93%) 0,
+    hsl(168, 10%, 93%) 460px,
+    hsl(168, 12%, 96.5%) 100%
+  );
   --site-warning-bg: #fff4d6;
   --site-warning-border: #e6c870;
   --site-warning-text: #5a3d05;
@@ -225,28 +234,34 @@
 
 :root[data-effective-theme="dark"] {
   color-scheme: dark;
-  --site-bg: #0e1310;
-  --site-bg-soft: #141a16;
-  --site-text: #e8ede6;
-  --site-heading: #f5f7f0;
-  --site-muted: #a6b1aa;
-  --site-panel: #232d27;
-  --site-panel-soft: #2c372f;
-  --site-border: #44554b;
-  --site-border-soft: #2f3b32;
-  --site-accent: #72c29f;
-  --site-accent-strong: #9ad7ba;
-  --site-accent-soft: #193127;
-  --site-on-accent: #0f1712;
-  --site-focus: rgba(114, 194, 159, 0.28);
+  --site-bg: hsl(168, 10%, 8%);
+  --site-bg-soft: hsl(168, 11%, 13%);
+  --site-text: hsl(0, 0%, 73%);
+  --site-heading: hsl(0, 0%, 82%);
+  --site-muted: hsl(0, 0%, 58%);
+  --site-panel: hsl(168, 7%, 14%);
+  --site-panel-soft: hsl(168, 5%, 19%);
+  --site-border: hsl(168, 4%, 25%);
+  --site-border-soft: hsl(168, 4%, 21%);
+  --site-accent: hsl(160, 45%, 42%);
+  --site-accent-strong: hsl(158, 42%, 60%);
+  --site-accent-soft: hsl(165, 22%, 15%);
+  --site-on-accent: #ffffff;
+  --site-link: hsl(209, 79%, 56%);
+  --site-focus: hsla(160, 45%, 50%, 0.28);
   --site-shadow: rgba(0, 0, 0, 0.42);
-  --site-hover: #253027;
+  --site-hover: hsl(168, 6%, 22%);
   --site-nav-bg: var(--site-bg);
   --site-nav-border: transparent;
-  --site-stage-bg: linear-gradient(180deg, #0e1310 0, #141a16 460px, #0e1310 100%);
-  --site-warning-bg: #2f2411;
-  --site-warning-border: #725b22;
-  --site-warning-text: #f0cf82;
+  --site-stage-bg: linear-gradient(
+    180deg,
+    hsl(168, 10%, 8%) 0,
+    hsl(168, 11%, 13%) 460px,
+    hsl(168, 10%, 8%) 100%
+  );
+  --site-warning-bg: hsl(37, 45%, 13%);
+  --site-warning-border: hsl(37, 55%, 30%);
+  --site-warning-text: hsl(37, 70%, 70%);
   --belief-opp-rgb: 225 132 122;
   --belief-own-rgb: 116 179 213;
 }
