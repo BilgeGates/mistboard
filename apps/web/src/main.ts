@@ -112,13 +112,6 @@ const wantsXiangqiDemo = darkXiangqiEnabled() && path === '/xiangqi-demo';
 const wantsPixelLab = import.meta.env.DEV && path === '/pixel-lab';
 // Hidden DEV-only identity lab for candidate variant marks. No nav entry.
 const wantsVariantMarksLab = import.meta.env.DEV && path === '/variant-marks';
-// Perfect-information Crossroads Chess play surface, gated by VITE_CROSSROADS_CHESS_ENABLED
-// (always on in dev). Hidden behind the flag in prod until the M1 launch gate.
-const wantsCrossroadsChessPlay =
-  crossroadsChessEnabled() &&
-  (path === '/crossroads-chess' ||
-    path === '/crossroads-chess-play' ||
-    path === '/dual-chess-play');
 // Perfect-information Crossroads Chess live room (/room/dchess_*, or ?room=dchess_* in
 // dev). Routed to its own isolated client *before* the shared live-room shell so
 // it never touches the fog-critical live.ts monolith.
@@ -245,13 +238,6 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./variant-marks-lab.js').then(({ mountVariantMarksLab }) =>
       mountVariantMarksLab(appRoot),
-    ),
-  );
-} else if (wantsCrossroadsChessPlay) {
-  setTitle('Crossroads Chess');
-  void mountOrReport(() =>
-    import('./crossroads-chess-play.js').then(({ mountCrossroadsChessPlay }) =>
-      mountCrossroadsChessPlay(appRoot),
     ),
   );
 } else if (wantsLegacyPlay) {

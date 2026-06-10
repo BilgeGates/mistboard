@@ -244,7 +244,7 @@ describe('landing play panel', () => {
     );
   });
 
-  it('links the homepage play panel to the Crossroads Chess hub behind its flag', () => {
+  it('keeps Crossroads Chess inside the friend-room variant picker, not as a hub link', () => {
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
@@ -252,10 +252,13 @@ describe('landing play panel', () => {
     );
 
     const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
 
-    const link = panel.querySelector<HTMLAnchorElement>('.landing-play-action-crossroads');
-    expect(link?.textContent).toBe('Crossroads Chess');
-    expect(link?.getAttribute('href')).toBe('/crossroads-chess');
+    expect(panel.querySelector<HTMLAnchorElement>('.landing-play-action-crossroads')).toBeNull();
+
+    openPlaySetup(panel, 'Challenge a friend');
+    const variantSelect = document.querySelector<HTMLSelectElement>('.landing-variant-select');
+    expect([...variantSelect!.options].map((option) => option.value)).toContain('crossroads-chess');
   });
 
   it('keeps 5+5 hidden for fog variants in the setup modal', () => {

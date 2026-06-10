@@ -343,6 +343,12 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/zh-hant/rules/dark-chess'), true);
 });
 
+test('isClientRoute does not expose standalone Crossroads Chess play routes', () => {
+  assert.equal(isClientRoute('/crossroads-chess'), false);
+  assert.equal(isClientRoute('/crossroads-chess-play'), false);
+  assert.equal(isClientRoute('/dual-chess-play'), false);
+});
+
 test('isClientRoute rejects unknown paths', () => {
   assert.equal(isClientRoute('/does-not-exist'), false);
   assert.equal(isClientRoute('/api/games/recent'), false);

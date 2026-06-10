@@ -277,9 +277,6 @@ export function buildLandingPlayPanel(
   const lobbyButton = landingPlayAction('Find opponent', 'lobby');
   const challengeButton = landingPlayAction('Challenge a friend', 'friend');
   const engineButton = landingPlayAction('Play the engine', 'computer');
-  const crossroadsLink = crossroadsChessEnabled()
-    ? landingPlayLink('Crossroads Chess', 'crossroads', '/crossroads-chess')
-    : null;
 
   lobbyButton.addEventListener('click', () => {
     openLandingSetupDialog({
@@ -306,11 +303,9 @@ export function buildLandingPlayPanel(
   });
 
   // Engine-led order: "Play the engine" leads because it's the always-available,
-  // differentiated action with no human-liquidity dependency. Crossroads gets a
-  // direct hub link while it uses a separate trainer/review surface; lobby
-  // matchmaking stays last. Order is static and so is the emphasis.
+  // differentiated action with no human-liquidity dependency. Crossroads lives
+  // in the friend-room variant picker instead of a separate homepage route.
   panel.append(engineButton);
-  if (crossroadsLink) panel.append(crossroadsLink);
   panel.append(challengeButton, lobbyButton);
 
   // The always-available engine permanently carries the primary (green) CTA. We
@@ -380,13 +375,12 @@ function startLiveStatsPolling(stats: HTMLElement): void {
 // Lucide icons (ISC), inlined and unified to a single spec: 24-grid, 2px round
 // stroke, outline-only. Consistency is what makes the row read as a designed set
 // rather than ad-hoc glyphs. swords = matchmaking/versus, link =
-// link-based challenge, bot = engine, route = Crossroads hub.
-type LandingPlayIcon = 'computer' | 'crossroads' | 'friend' | 'lobby';
+// link-based challenge, bot = engine.
+type LandingPlayIcon = 'computer' | 'friend' | 'lobby';
 const LANDING_PLAY_ICON_SVG: Record<LandingPlayIcon, string> = {
   lobby: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></svg>`,
   friend: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
   computer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`,
-  crossroads: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>`,
 };
 
 function landingPlayAction(label: string, icon: LandingPlayIcon): HTMLButtonElement {
@@ -395,14 +389,6 @@ function landingPlayAction(label: string, icon: LandingPlayIcon): HTMLButtonElem
   button.className = `landing-play-action landing-play-action-${icon}`;
   appendLandingActionContent(button, label, icon);
   return button;
-}
-
-function landingPlayLink(label: string, icon: LandingPlayIcon, href: string): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.className = `landing-play-action landing-play-action-${icon}`;
-  link.href = href;
-  appendLandingActionContent(link, label, icon);
-  return link;
 }
 
 function appendLandingActionContent(

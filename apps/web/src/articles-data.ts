@@ -4758,7 +4758,11 @@ export const articles: Article[] = [
         lead: 'Start a local game, or read the rules of the two games Crossroads Chess borrows from.',
         layout: 'single-row',
         links: [
-          { label: 'Play Crossroads Chess', href: '/crossroads-chess', emphasis: 'primary' },
+          {
+            label: 'Play Crossroads Chess',
+            href: '/?play=friend&gameSpecId=crossroads-chess',
+            emphasis: 'primary',
+          },
           { label: 'Chess rules', href: '/rules/chess', emphasis: 'secondary' },
           { label: 'Xiangqi rules', href: '/rules/xiangqi', emphasis: 'secondary' },
           { label: 'Back to all rules', href: '/rules', emphasis: 'secondary' },
