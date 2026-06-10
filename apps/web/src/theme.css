@@ -513,11 +513,6 @@
     .watch-queue,
     .watch-queue-heading,
     .watch-queue-review,
-    .article-tldr,
-    .article-toc-sticky,
-    .article-figure,
-    .article-interactive-placeholder,
-    .article-cta-secondary,
     .app-error-panel pre
   ) {
   border-color: var(--site-border);
@@ -552,12 +547,7 @@
     .watch-header h1,
     .watch-status strong,
     .watch-empty h2,
-    .watch-queue-heading h2,
-    .article-title,
-    .article-section-heading,
-    .article-sub-heading,
-    .article-tldr-heading,
-    .article-toc-title
+    .watch-queue-heading h2
   ) {
   color: var(--site-heading);
 }
@@ -597,7 +587,6 @@
     .article-meta,
     .article-dates,
     .article-figure-caption,
-    .article-paragraph,
     .article-toc-nav a
   ) {
   color: var(--site-muted);
@@ -660,41 +649,8 @@
   color: var(--site-heading);
 }
 
-:root[data-effective-theme="dark"] .article-tldr {
-  border-left-color: var(--site-accent-strong);
-  background: color-mix(in srgb, var(--site-accent) 10%, var(--site-panel));
-  color: var(--site-text);
-}
-
-:root[data-effective-theme="dark"] .article-tldr-list {
-  color: var(--site-text);
-}
-
-:root[data-effective-theme="dark"] :is(.article-paragraph code, .article-tldr-list code) {
-  border-color: var(--site-border);
-  background: color-mix(in srgb, var(--site-panel-soft) 72%, var(--site-bg));
-  color: var(--site-heading);
-}
-
-/* Inline article links default to near-black body text, distinguished only by
-   the underline. Mirror that relationship in dark mode (heading color, not
-   accent) so links read as the strongest text against the muted prose. */
-:root[data-effective-theme="dark"] .article-paragraph a {
-  color: var(--site-heading);
-  text-decoration-color: color-mix(in srgb, var(--site-muted) 70%, transparent);
-}
-
-:root[data-effective-theme="dark"] .article-paragraph a:hover {
-  text-decoration-color: var(--site-heading);
-}
-
-:root[data-effective-theme="dark"] .article-breadcrumb a {
-  color: var(--site-muted);
-}
-
-:root[data-effective-theme="dark"] .article-breadcrumb a:hover {
-  color: var(--site-text);
-}
+/* Article prose, callouts, code chips, links, and breadcrumbs are fully
+   token-based in articles.css and flip per theme on their own. */
 
 :root[data-effective-theme="dark"]
   :is(
