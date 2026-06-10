@@ -45,6 +45,7 @@ type DualLiveClock = {
   remainingMs: Record<CrossroadsChessColor, number>;
   runningSince: number | null;
 };
+type CrossroadsChessLiveTimeControl = { initialMs: number; incrementMs: number };
 
 type DualMovePlayed = {
   type: 'move-played';
@@ -86,6 +87,7 @@ const state = {
   seat: null as CrossroadsChessColor | 'spectator' | null,
   view: null as CrossroadsChessPlayerView | null,
   clock: null as DualLiveClock | null,
+  timeControl: null as CrossroadsChessLiveTimeControl | null,
   seats: {} as Partial<Record<CrossroadsChessColor, string>>,
   connectedSeats: { white: false, red: false } as Record<CrossroadsChessColor, boolean>,
   moves: [] as DualMovePlayed[],
@@ -94,6 +96,7 @@ const state = {
   selected: null as CrossroadsChessSquare | null,
   connection: 'connecting' as ConnectionState,
   closeReason: '',
+  playAgainStatus: 'idle' as 'idle' | 'creating' | 'failed',
 };
 
 let socket: WebSocket | null = null;
@@ -112,6 +115,7 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
   const params = new URLSearchParams(window.location.search);
   const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'dchess_dev';
   state.room = room;
+  state.playAgainStatus = 'idle';
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -248,6 +252,7 @@ function applyFrame(frame: DualLiveFrame): void {
   state.seat = frame.seat;
   state.view = frame.state;
   state.clock = frame.clock ?? null;
+  state.timeControl = frame.timeControl ?? state.timeControl;
   state.seats = frame.seats ?? state.seats;
   if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
   // A fresh frame supersedes the local selection only when the game state moved
@@ -381,7 +386,7 @@ function renderRoomActions(liveRefs: LiveRefs): void {
   if (view?.status.type === 'finished') {
     const review = roomLink('Review game', crossroadsChessReviewUrl(state.room));
     review.className = 'primary';
-    row.append(review, roomLink('New game', '/crossroads-chess'), roomLink('Home', '/'));
+    row.append(review, playAgainButton(), roomLink('Home', '/'));
     liveRefs.roomActions.append(row);
     return;
   }
@@ -459,6 +464,69 @@ function renderGameControls(liveRefs: LiveRefs): void {
   resign.addEventListener('click', () => send({ type: 'resign' }));
   liveRefs.gameControls.append(resign);
   liveRefs.gameControlsSection.hidden = false;
+}
+
+function playAgainButton(): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = state.playAgainStatus === 'failed' ? 'danger' : '';
+  button.disabled = state.playAgainStatus === 'creating';
+  button.textContent =
+    state.playAgainStatus === 'creating'
+      ? 'Creating'
+      : state.playAgainStatus === 'failed'
+        ? 'Try play again'
+        : 'Play again';
+  button.addEventListener('click', () => {
+    void createCrossroadsLivePlayAgainRoom(state.timeControl)
+      .then((url) => {
+        window.location.assign(url);
+      })
+      .catch((err) => {
+        console.warn(err);
+        state.playAgainStatus = 'failed';
+        renderAll();
+      });
+    state.playAgainStatus = 'creating';
+    renderAll();
+  });
+  return button;
+}
+
+export async function createCrossroadsLivePlayAgainRoom(
+  timeControl: CrossroadsChessLiveTimeControl | null,
+): Promise<string> {
+  const response = await fetch('/api/rooms', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(crossroadsLivePlayAgainRequestBody(timeControl)),
+  });
+  if (!response.ok) throw new Error('crossroads_live_play_again_failed');
+  const body = (await response.json()) as { url?: unknown };
+  if (typeof body.url !== 'string') throw new Error('crossroads_live_play_again_missing_url');
+  return body.url;
+}
+
+export function crossroadsLivePlayAgainRequestBody(
+  timeControl: CrossroadsChessLiveTimeControl | null,
+): {
+  mode: 'pvp';
+  gameSpecId: 'crossroads-chess';
+  timeControl: CrossroadsChessLiveTimeControl;
+  rated: false;
+  preferredColor: 'random';
+} {
+  return {
+    mode: 'pvp',
+    gameSpecId: 'crossroads-chess',
+    timeControl: timeControl ?? defaultTimeControl(),
+    rated: false,
+    preferredColor: 'random',
+  };
+}
+
+function defaultTimeControl(): CrossroadsChessLiveTimeControl {
+  return { initialMs: 180_000, incrementMs: 2_000 };
 }
 
 // Which color sits at the top vs bottom of the board for this viewer.
@@ -797,11 +865,9 @@ export function crossroadsChessTerminalActionsMarkup(
     statusType === 'finished'
       ? `<a class="crossroads-live-btn" href="${crossroadsChessReviewUrl(roomId)}">Review game</a>`
       : '';
-  const newGame =
-    statusType === 'finished'
-      ? '<a class="crossroads-live-btn" href="/crossroads-chess">New game</a>'
-      : '';
-  return `<div class="crossroads-live-actions">${review}${newGame}<a class="crossroads-live-btn" href="/">Home</a></div>`;
+  const playAgain =
+    statusType === 'finished' ? '<button class="crossroads-live-btn">Play again</button>' : '';
+  return `<div class="crossroads-live-actions">${review}${playAgain}<a class="crossroads-live-btn" href="/">Home</a></div>`;
 }
 
 export function crossroadsChessReviewUrl(roomId: string): string {
