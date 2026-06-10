@@ -10,8 +10,10 @@ import {
 } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import { createCrossroadsChessRuntimeRoom } from './crossroads-chess-runtime.js';
+import { mintCrossroadsChessSeatToken } from './server-crossroads-chess-seat-session.js';
 import {
   type CrossroadsChessLiveRoom,
+  type CrossroadsChessWebSocketContext,
   clearCrossroadsChessRuntimeTimers,
   handleCrossroadsChessWebSocketConnection,
 } from './server-ws-crossroads-chess.js';
@@ -201,6 +203,59 @@ test('Crossroads Chess WebSocket handler ends the game when a seat resigns after
   });
 });
 
+test('Crossroads Chess WebSocket handler finalizes mutual rematches with swapped seats', async () => {
+  await withFlag(async () => {
+    const room = liveRoom('dchess_rematch');
+    const white = new FakeSocket();
+    const red = new FakeSocket();
+    await connect(room, white, 'white-client');
+    await connect(room, red, 'red-client');
+
+    await playNextMove(room, white, red);
+    await playNextMove(room, white, red);
+    white.emit('message', JSON.stringify({ type: 'resign' }));
+    await room.pendingWrites;
+    await Promise.resolve();
+    assert.equal(room.projection.state.status.type, 'finished');
+
+    white.messages.length = 0;
+    red.messages.length = 0;
+    white.emit('message', JSON.stringify({ type: 'rematch:offer' }));
+    await Promise.resolve();
+    assert.equal(room.rematch.offers.white !== undefined, true);
+    assert.equal(
+      [...room.clients].find((client) => client.seat === 'white')?.seatTokenHash,
+      room.seatTokens.white?.tokenHash,
+    );
+    assert.equal(
+      white.messages.some((message) => (message as { type?: string }).type === 'rematch:redirect'),
+      false,
+    );
+
+    red.emit('message', JSON.stringify({ type: 'rematch:offer' }));
+    await flushAsyncMessage();
+
+    assert.equal(room.rematch.finalizedRoomId, 'dchess_rematch_next');
+    const whiteRedirect = white.messages.find(
+      (message) => (message as { type?: string }).type === 'rematch:redirect',
+    ) as { seat?: string; seatToken?: string; url?: string } | undefined;
+    const redRedirect = red.messages.find(
+      (message) => (message as { type?: string }).type === 'rematch:redirect',
+    ) as { seat?: string; seatToken?: string; url?: string } | undefined;
+    assert.deepEqual(room.rematch.pendingRedirects?.white?.seat, 'red');
+    assert.deepEqual(room.rematch.pendingRedirects?.red?.seat, 'white');
+    assert.ok(whiteRedirect, JSON.stringify(white.messages));
+    assert.ok(redRedirect, JSON.stringify(red.messages));
+    assert.equal(whiteRedirect?.seat, 'red');
+    assert.equal(typeof whiteRedirect?.seatToken, 'string');
+    assert.equal(whiteRedirect?.url, '/room/dchess_rematch_next');
+    assert.equal(redRedirect?.seat, 'white');
+    assert.equal(typeof redRedirect?.seatToken, 'string');
+    assert.equal(redRedirect?.url, '/room/dchess_rematch_next');
+    clearCrossroadsChessRuntimeTimers(room);
+  });
+});
+
 test('Crossroads Chess WebSocket handler ignores resignation before both sides have moved', async () => {
   await withFlag(async () => {
     const room = liveRoom('dchess_resign_early');
@@ -327,8 +382,18 @@ test('Crossroads Chess WebSocket handler does not arm a forfeit timer during the
 
 // ── Harness ──────────────────────────────────────────────────────────────────
 
-function context() {
-  return { wsMessageLimit: 20, wsMessageWindowMs: 1000 };
+function context(): CrossroadsChessWebSocketContext {
+  return {
+    crossroadsChessRematch: {
+      send: (client, payload) => client.socket.send(JSON.stringify(payload)),
+      buildRoomUrl: (roomId: string) => `/room/${roomId}`,
+      createRoom: async () => ({ ok: true as const, room: liveRoom('dchess_rematch_next') }),
+      issueSeatToken: async (room, seat, identity) =>
+        mintCrossroadsChessSeatToken(room, seat, identity),
+    },
+    wsMessageLimit: 20,
+    wsMessageWindowMs: 1000,
+  };
 }
 
 function turnOf(room: CrossroadsChessLiveRoom): CrossroadsChessColor {
@@ -366,6 +431,11 @@ async function playNextMove(
   await room.pendingWrites;
   await Promise.resolve();
   return move;
+}
+
+async function flushAsyncMessage(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 function request(roomId: string, clientId: string, seatToken?: string): IncomingMessage {

@@ -27,6 +27,14 @@ import type {
   CrossroadsChessLiveRoom,
 } from './server-crossroads-chess-live-room.js';
 import {
+  type CrossroadsChessRematchContext,
+  cancelCrossroadsChessRematch,
+  declineCrossroadsChessRematch,
+  finalizeCrossroadsChessRematchIfReady,
+  maybeReplayCrossroadsChessRematchRedirect,
+  offerCrossroadsChessRematch,
+} from './server-crossroads-chess-rematch.js';
+import {
   assignCrossroadsChessSeat,
   displaceOlderCrossroadsChessSeatClients,
   rollbackCrossroadsChessSeatAssignment,
@@ -37,6 +45,7 @@ import { parseClientMessage } from './server-ws-messages.js';
 export type { CrossroadsChessLiveClient, CrossroadsChessLiveRoom };
 
 export type CrossroadsChessWebSocketContext = {
+  crossroadsChessRematch: CrossroadsChessRematchContext;
   wsMessageLimit: number;
   wsMessageWindowMs: number;
 };
@@ -125,6 +134,7 @@ export async function handleCrossroadsChessWebSocketConnection(
     ...(assignment.seatToken ? { seatToken: assignment.seatToken } : {}),
   });
   broadcastCrossroadsChessSnapshot(room);
+  maybeReplayCrossroadsChessRematchRedirect(ctx.crossroadsChessRematch, room, client);
 
   socket.on('message', (raw) => {
     if (
@@ -138,7 +148,7 @@ export async function handleCrossroadsChessWebSocketConnection(
       socket.close(1008, 'rate limit');
       return;
     }
-    void handleCrossroadsChessMessage(room, client, raw.toString());
+    void handleCrossroadsChessMessage(ctx, room, client, raw.toString());
   });
 
   socket.on('close', () => {
@@ -151,6 +161,7 @@ export async function handleCrossroadsChessWebSocketConnection(
 }
 
 async function handleCrossroadsChessMessage(
+  ctx: CrossroadsChessWebSocketContext,
   room: CrossroadsChessLiveRoom,
   client: CrossroadsChessLiveClient,
   raw: string,
@@ -179,6 +190,19 @@ async function handleCrossroadsChessMessage(
   }
   if (message.type === 'abort') {
     await handleCrossroadsChessAbort(room, client);
+    return;
+  }
+  if (message.type === 'rematch:offer') {
+    offerCrossroadsChessRematch(ctx.crossroadsChessRematch, room, client);
+    await finalizeCrossroadsChessRematchIfReady(ctx.crossroadsChessRematch, room);
+    return;
+  }
+  if (message.type === 'rematch:cancel') {
+    cancelCrossroadsChessRematch(ctx.crossroadsChessRematch, room, client);
+    return;
+  }
+  if (message.type === 'rematch:decline') {
+    declineCrossroadsChessRematch(ctx.crossroadsChessRematch, room, client);
     return;
   }
   if (message.type !== 'move') return;

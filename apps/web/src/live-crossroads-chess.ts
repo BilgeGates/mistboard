@@ -54,6 +54,10 @@ type DualMovePlayed = {
   ply?: number;
 };
 type DualLiveEvent = DualMovePlayed | { type: string };
+type CrossroadsLiveRematch = {
+  offers: Partial<Record<CrossroadsChessColor, boolean>>;
+  finalizedRoomId: string | null;
+};
 
 type DualLiveFrame = {
   type: 'hello' | 'snapshot' | 'event-appended';
@@ -67,13 +71,24 @@ type DualLiveFrame = {
   abortDeadline?: number | null;
   forfeitDeadline?: number | null;
   timeControl?: { initialMs: number; incrementMs: number } | null;
+  rematch?: CrossroadsLiveRematch;
   clients?: number;
   events?: DualLiveEvent[];
   event?: DualLiveEvent;
   seq?: number;
 };
 
-type DualServerMessage = DualLiveFrame | { type: 'pong'; at: number; serverAt?: number };
+type DualServerMessage =
+  | DualLiveFrame
+  | { type: 'pong'; at: number; serverAt?: number }
+  | ({ type: 'rematch:state' } & CrossroadsLiveRematch)
+  | {
+      type: 'rematch:redirect';
+      url: string;
+      roomId: string;
+      seat: CrossroadsChessColor;
+      seatToken: string;
+    };
 
 type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'displaced' | 'rejected';
 type ReplaySnapshot = { ply: number; view: CrossroadsChessPlayerView };
@@ -97,6 +112,12 @@ const state = {
   connection: 'connecting' as ConnectionState,
   closeReason: '',
   playAgainStatus: 'idle' as 'idle' | 'creating' | 'failed',
+  rematch: {
+    offers: {} as Partial<Record<CrossroadsChessColor, boolean>>,
+    finalizedRoomId: null as string | null,
+    declined: false,
+  },
+  rematchCancelIntent: false,
 };
 
 let socket: WebSocket | null = null;
@@ -116,6 +137,8 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
   const room = roomIdFromPath(window.location.pathname) ?? params.get('room') ?? 'dchess_dev';
   state.room = room;
   state.playAgainStatus = 'idle';
+  state.rematch = { offers: {}, finalizedRoomId: null, declined: false };
+  state.rematchCancelIntent = false;
 
   if (params.get('reset') === '1') {
     clearSeatTokenForRoom(room);
@@ -218,6 +241,16 @@ function send(payload: unknown): boolean {
 function onMessage(event: MessageEvent<string>): void {
   const message = JSON.parse(event.data) as DualServerMessage;
   if (message.type === 'pong') return;
+  if (message.type === 'rematch:state') {
+    applyRematchState(message);
+    renderAll();
+    return;
+  }
+  if (message.type === 'rematch:redirect') {
+    writeSeatTokenForRoom(message.roomId, { seat: message.seat, token: message.seatToken });
+    window.location.assign(message.url);
+    return;
+  }
 
   if (message.type === 'hello') {
     state.clientId = message.clientId ?? state.clientId;
@@ -253,11 +286,34 @@ function applyFrame(frame: DualLiveFrame): void {
   state.view = frame.state;
   state.clock = frame.clock ?? null;
   state.timeControl = frame.timeControl ?? state.timeControl;
+  if (frame.rematch) {
+    state.rematch = { ...frame.rematch, declined: state.rematch.declined };
+  }
   state.seats = frame.seats ?? state.seats;
   if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
   // A fresh frame supersedes the local selection only when the game state moved
   // on (someone played); keep the selection otherwise so a re-render mid-pick
   // doesn't drop it.
+}
+
+function applyRematchState(message: CrossroadsLiveRematch): void {
+  const mySeat = state.seat;
+  const hadMyOffer = isCrossroadsChessColor(mySeat) && Boolean(state.rematch.offers[mySeat]);
+  const stillMyOffer = isCrossroadsChessColor(mySeat) && Boolean(message.offers[mySeat]);
+  const anyOffer = Boolean(message.offers.white || message.offers.red);
+  const iCancelled = state.rematchCancelIntent;
+  state.rematchCancelIntent = false;
+  const declined =
+    hadMyOffer && !stillMyOffer && !message.finalizedRoomId && !iCancelled
+      ? true
+      : anyOffer
+        ? false
+        : state.rematch.declined;
+  state.rematch = {
+    offers: message.offers,
+    finalizedRoomId: message.finalizedRoomId,
+    declined,
+  };
 }
 
 function movesFromEvents(events: DualLiveEvent[]): DualMovePlayed[] {
@@ -386,7 +442,13 @@ function renderRoomActions(liveRefs: LiveRefs): void {
   if (view?.status.type === 'finished') {
     const review = roomLink('Review game', crossroadsChessReviewUrl(state.room));
     review.className = 'primary';
-    row.append(review, playAgainButton(), roomLink('Home', '/'));
+    row.append(review);
+    if (isCrossroadsChessColor(state.seat)) {
+      row.append(rematchControls(state.seat));
+    } else {
+      row.append(playAgainButton());
+    }
+    row.append(roomLink('Home', '/'));
     liveRefs.roomActions.append(row);
     return;
   }
@@ -490,6 +552,78 @@ function playAgainButton(): HTMLButtonElement {
     state.playAgainStatus = 'creating';
     renderAll();
   });
+  return button;
+}
+
+function rematchControls(mySeat: CrossroadsChessColor): HTMLElement {
+  const theirSeat = mySeat === 'white' ? 'red' : 'white';
+  const iOffered = Boolean(state.rematch.offers[mySeat]);
+  const theyOffered = Boolean(state.rematch.offers[theirSeat]);
+
+  const block = document.createElement('div');
+  block.className = 'room-rematch';
+
+  if (iOffered && theyOffered) {
+    block.append(rematchButtonRow(disabledButton('Starting rematch...')));
+    return block;
+  }
+  if (iOffered) {
+    block.append(
+      rematchNote('Waiting for opponent...'),
+      rematchButtonRow(
+        actionButton('Cancel rematch', () => {
+          state.rematchCancelIntent = true;
+          send({ type: 'rematch:cancel' });
+        }),
+      ),
+    );
+    return block;
+  }
+  if (theyOffered) {
+    block.append(
+      rematchNote('Your opponent wants a rematch'),
+      rematchButtonRow(
+        actionButton('Decline', () => send({ type: 'rematch:decline' })),
+        actionButton('Accept', () => send({ type: 'rematch:offer' }), 'primary'),
+      ),
+    );
+    return block;
+  }
+  if (state.rematch.declined) {
+    block.append(rematchNote('Your opponent declined the rematch.'));
+  }
+  block.append(rematchButtonRow(actionButton('Rematch', () => send({ type: 'rematch:offer' }))));
+  return block;
+}
+
+function rematchNote(text: string): HTMLElement {
+  const p = document.createElement('p');
+  p.className = 'room-rematch-note';
+  p.textContent = text;
+  return p;
+}
+
+function rematchButtonRow(...buttons: HTMLElement[]): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'room-rematch-buttons';
+  row.append(...buttons);
+  return row;
+}
+
+function actionButton(label: string, onClick: () => void, variant?: 'primary'): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  if (variant) button.className = variant;
+  button.textContent = label;
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+function disabledButton(label: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.disabled = true;
+  button.textContent = label;
   return button;
 }
 
@@ -944,4 +1078,8 @@ function roomLink(label: string, href: string): HTMLAnchorElement {
 
 function capitalize(value: string): string {
   return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
+}
+
+function isCrossroadsChessColor(value: unknown): value is CrossroadsChessColor {
+  return value === 'white' || value === 'red';
 }

@@ -50,8 +50,13 @@ import {
   selectEngineDraftStart,
 } from './room-manager.js';
 import { loadServerRuntimeConfig, serverConfig } from './server-config.js';
-import { recordCrossroadsChessPersistenceError } from './server-crossroads-chess-events.js';
+import {
+  persistenceRecordForCrossroadsChessSeatToken,
+  recordCrossroadsChessPersistenceError,
+} from './server-crossroads-chess-events.js';
+import type { CrossroadsChessRematchContext } from './server-crossroads-chess-rematch.js';
 import { createCrossroadsChessLiveRoom } from './server-crossroads-chess-room-factory.js';
+import { mintCrossroadsChessSeatToken } from './server-crossroads-chess-seat-session.js';
 import { persistenceRecordForDarkMiniXiangqiSeatToken } from './server-dark-mini-xiangqi-events.js';
 import type { DarkMiniXiangqiRematchContext } from './server-dark-mini-xiangqi-rematch.js';
 import { createDarkMiniXiangqiLiveRoom } from './server-dark-mini-xiangqi-room-factory.js';
@@ -81,6 +86,7 @@ import {
   isAllowedWebSocketRequest,
   type WebSocketConnectionContext,
 } from './server-ws-connection.js';
+import { sendCrossroadsChessPayload } from './server-ws-crossroads-chess.js';
 import { sendDarkMiniXiangqiPayload } from './server-ws-dark-mini-xiangqi.js';
 import type { DarkXiangqiLiveRoom } from './server-ws-dark-xiangqi.js';
 
@@ -228,10 +234,27 @@ const darkMiniXiangqiRematchCtx: DarkMiniXiangqiRematchContext = {
   },
 };
 
+const crossroadsChessRematchCtx: CrossroadsChessRematchContext = {
+  send: (client, payload) => sendCrossroadsChessPayload(client, payload),
+  createRoom: (timeControl) => createCrossroadsChessRoom(timeControl),
+  buildRoomUrl: (roomId) => `/room/${encodeURIComponent(roomId)}`,
+  issueSeatToken: async (room, seat, identity) => {
+    const minted = mintCrossroadsChessSeatToken(room, seat, identity);
+    if (persistence.isInitialized()) {
+      await persistence.upsertRoomSeatToken(
+        room.id,
+        persistenceRecordForCrossroadsChessSeatToken(minted.state),
+      );
+    }
+    return minted;
+  },
+};
+
 const wsConnectionCtx: WebSocketConnectionContext = {
   roomMgrCtx,
   rematchOrch,
   darkMiniXiangqiRematch: darkMiniXiangqiRematchCtx,
+  crossroadsChessRematch: crossroadsChessRematchCtx,
   defaultRoomRegion,
   wsMessageLimit,
   wsMessageWindowMs,

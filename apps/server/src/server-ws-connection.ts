@@ -55,6 +55,7 @@ import { assignSeat, displaceOlderSeatClients } from './server-seat-session.js';
 import type { Client, Room, SeatAssignment } from './server-types.js';
 import {
   type CrossroadsChessLiveRoom,
+  type CrossroadsChessWebSocketContext,
   handleCrossroadsChessWebSocketConnection,
 } from './server-ws-crossroads-chess.js';
 import {
@@ -71,6 +72,7 @@ export type WebSocketConnectionContext = {
   roomMgrCtx: RoomManagerContext;
   rematchOrch: RematchOrchestrator;
   darkMiniXiangqiRematch: DarkMiniXiangqiRematchContext;
+  crossroadsChessRematch: CrossroadsChessWebSocketContext['crossroadsChessRematch'];
   defaultRoomRegion: string;
   wsMessageLimit: number;
   wsMessageWindowMs: number;
