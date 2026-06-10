@@ -17,8 +17,16 @@ describe('landing announcements', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED', 'true');
 
     const panel = buildLandingAnnouncements();
+    const row = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-row')].find((r) =>
+      r.textContent?.includes('Dark Mini Xiangqi'),
+    );
 
-    expect(panel.textContent).toContain('Dark Mini Xiangqi');
-    expect(panel.textContent).toContain('Read rules');
+    expect(row).toBeDefined();
+    expect(row?.getAttribute('href')).toBe('/rules/dark-mini-xiangqi');
+  });
+
+  it('links the News box header to /news', () => {
+    const top = buildLandingAnnouncements().querySelector<HTMLAnchorElement>('a.site-box-top');
+    expect(top?.getAttribute('href')).toBe('/news');
   });
 });

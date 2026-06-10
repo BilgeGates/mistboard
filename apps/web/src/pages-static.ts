@@ -68,6 +68,13 @@ export function mountNotFound(root: HTMLElement): void {
   root.append(buildNav(), buildNotFound());
 }
 
+export async function mountNews(root: HTMLElement): Promise<void> {
+  root.replaceChildren();
+  root.classList.add('landing-page', 'news-route');
+  const { buildNewsPage } = await import('./news-page.js');
+  root.append(buildNav(), buildNewsPage());
+}
+
 export async function mountArticlesIndex(
   root: HTMLElement,
   lang?: import('./article-i18n.js').ArticleLang | null,

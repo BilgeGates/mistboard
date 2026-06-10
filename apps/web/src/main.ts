@@ -87,6 +87,7 @@ const wantsArticlesIndex =
   path === '/zh-hans/articles' ||
   path === '/zh-hant/articles' ||
   page === 'articles';
+const wantsNews = path === '/news' || page === 'news';
 const wantsLegacyPlay = path === '/play' || page === 'play';
 const wantsWatch = path === '/watch' || page === 'watch';
 const wantsLeaderboard = path === '/leaderboard' || page === 'leaderboard';
@@ -252,6 +253,9 @@ if (replaySample) {
       mountArticle(appRoot, articleSlug, articleLang),
     ),
   );
+} else if (wantsNews) {
+  setTitle('News');
+  void mountOrReport(() => import('./pages-static.js').then(({ mountNews }) => mountNews(appRoot)));
 } else if (wantsArticlesIndex) {
   setTitle(articleLang ? '文章' : 'Articles');
   void mountOrReport(() =>

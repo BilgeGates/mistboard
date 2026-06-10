@@ -1,0 +1,72 @@
+/* /news: dated feed of all announcements. */
+
+.news-page-intro {
+  margin: 0 0 24px;
+  color: var(--site-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.news-page-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.news-page-entry {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 12px;
+  border-radius: var(--site-radius-sm);
+}
+
+.news-page-entry:nth-child(even) {
+  background: var(--site-zebra);
+}
+
+.news-page-date {
+  color: var(--site-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.news-page-headline {
+  display: block;
+  margin: 0;
+  color: var(--site-heading);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+a.news-page-headline {
+  text-decoration: none;
+  color: var(--site-link);
+}
+
+a.news-page-headline:hover {
+  text-decoration: underline;
+}
+
+.news-page-text {
+  margin: 2px 0 0;
+  color: var(--site-text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.news-page-empty {
+  color: var(--site-muted);
+}
+
+@media (max-width: 540px) {
+  .news-page-entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}
