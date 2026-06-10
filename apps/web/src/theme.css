@@ -488,7 +488,6 @@
   :is(
     .action-notice,
     .clocks div,
-    .game-controls button,
     .confirm-dialog,
     .confirm-dialog-actions button,
     .share-room input,
@@ -500,9 +499,6 @@
     .bid-controls input,
     .bid-controls button,
     .info-notice,
-    .replay-controls button,
-    .move-list button,
-    .landing-play-action,
     .landing-play-panel,
     .landing-announcements,
     .landing-announcement-card,
@@ -658,14 +654,8 @@
   color: #e7c078;
 }
 
-/* Non-selected queue rows carry a hardcoded white surface + near-black matchup
-   text from watch-route.css. The dark theme only restyles the .active row, so
-   every other row stays light. Let them show the panel and lift the text. */
-:root[data-effective-theme="dark"] .watch-queue-item {
-  background: transparent;
-  border-bottom-color: var(--site-border-soft);
-}
-
+/* Queue rows are token-based (panel + zebra) in watch-route.css now; only the
+   matchup text still needs a dark lift. */
 :root[data-effective-theme="dark"] .watch-queue-matchup {
   color: var(--site-heading);
 }

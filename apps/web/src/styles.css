@@ -1150,10 +1150,10 @@
   display: block;
   width: 100%;
   min-height: 38px;
-  border: 1px solid #bdc8bf;
+  border: 1px solid var(--site-border);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1d2522;
+  background: linear-gradient(to bottom, var(--site-metal-top), var(--site-metal-bottom));
+  color: var(--site-text);
   padding: 9px 10px;
   cursor: pointer;
   font: inherit;
@@ -1162,8 +1162,13 @@
 
 .game-controls button:hover:not(:disabled),
 .game-controls button:focus-visible {
-  border-color: #1f6f5b;
-  outline: 3px solid rgba(31, 111, 91, 0.18);
+  border-color: var(--site-accent);
+  background: linear-gradient(
+    to bottom,
+    var(--site-metal-top-hover),
+    var(--site-metal-bottom-hover)
+  );
+  outline: 3px solid var(--site-focus);
 }
 
 .game-controls button.danger {
@@ -1667,15 +1672,16 @@
 
 .replay-controls button,
 .move-list button {
-  border: 1px solid #bdc8bf;
+  border: 1px solid var(--site-border);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1d2522;
+  background: var(--site-panel);
+  color: var(--site-text);
   cursor: pointer;
 }
 
 .replay-controls button {
   height: 36px;
+  background: linear-gradient(to bottom, var(--site-metal-top), var(--site-metal-bottom));
 }
 
 .replay-controls button:disabled {

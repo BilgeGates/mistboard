@@ -315,11 +315,16 @@
   overflow: auto;
 }
 
+/* Lichess-style zebra rows carry the rhythm; no per-row borders. Tokens flip
+   for dark mode, so this needs no theme.css override. */
 .watch-queue-item {
-  border-bottom: 1px solid #edf0eb;
-  background: #ffffff;
+  background: var(--site-panel);
   display: flex;
   flex-direction: column;
+}
+
+.watch-queue-item:nth-child(even) {
+  background: var(--site-zebra);
 }
 
 .watch-queue-item:hover,
@@ -330,10 +335,6 @@
 
 .watch-queue-item.is-new {
   animation: watch-queue-enter 420ms ease-out both;
-}
-
-.watch-queue-item:last-child {
-  border-bottom: 0;
 }
 
 .watch-queue-row {

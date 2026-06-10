@@ -47,6 +47,12 @@
   --site-accent-soft: #eef8f2;
   --site-on-accent: #ffffff;
   --site-link: hsl(209, 77%, 46%);
+  --site-metal-top: hsl(0, 0%, 96%);
+  --site-metal-bottom: hsl(0, 0%, 93%);
+  --site-metal-top-hover: hsl(0, 0%, 98%);
+  --site-metal-bottom-hover: hsl(0, 0%, 95%);
+  --site-zebra: hsl(168, 12%, 96.5%);
+  --site-zebra2: hsl(168, 12%, 92%);
   --site-focus: rgba(31, 111, 91, 0.22);
   --site-shadow: rgba(29, 37, 34, 0.15);
   --site-hover: hsl(168, 6%, 88%);
@@ -248,6 +254,12 @@
   --site-accent-soft: hsl(165, 22%, 15%);
   --site-on-accent: #ffffff;
   --site-link: hsl(209, 79%, 56%);
+  --site-metal-top: hsl(168, 7%, 22%);
+  --site-metal-bottom: hsl(168, 5%, 19%);
+  --site-metal-top-hover: hsl(168, 7%, 25%);
+  --site-metal-bottom-hover: hsl(168, 5%, 22%);
+  --site-zebra: hsl(168, 5%, 19%);
+  --site-zebra2: hsl(168, 5%, 24%);
   --site-focus: hsla(160, 45%, 50%, 0.28);
   --site-shadow: rgba(0, 0, 0, 0.42);
   --site-hover: hsl(168, 6%, 22%);
@@ -393,15 +405,17 @@ body:has(
 }
 
 .site-section {
-  padding: 64px 16px;
+  padding: 40px 16px 56px;
   max-width: 760px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
 }
 
+/* Lichess-style page titles: large and regular weight, not bold. */
 .site-section-heading {
-  font-size: 28px;
+  font-size: 30px;
+  font-weight: 400;
   margin: 0 0 16px;
   color: var(--site-heading);
   letter-spacing: 0;

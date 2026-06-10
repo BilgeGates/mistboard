@@ -762,9 +762,13 @@
   border-bottom: 2px solid var(--site-border);
 }
 
+/* Lichess-style zebra rows: striping carries the row rhythm, no per-row borders. */
 .leaderboard-table tbody tr {
-  border-bottom: 1px solid var(--site-border-soft);
   transition: background 80ms ease;
+}
+
+.leaderboard-table tbody tr:nth-child(even) {
+  background: var(--site-zebra);
 }
 
 .leaderboard-table tbody tr:hover {
@@ -863,8 +867,8 @@
 .leaderboard-panel-title {
   margin: 0;
   color: var(--site-heading);
-  font-size: 21px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 400;
   line-height: 1.05;
 }
 
