@@ -145,8 +145,10 @@ function renderPostgame(root: HTMLElement, postgame: CrossroadsChessPostgameResp
   flipBtn.setAttribute('aria-label', 'Flip board');
   flipBtn.title = 'Flip board (f)';
   const playAgain = headerAction('Play again');
+  const download = headerLink('Download JSON', exportJsonUrl(postgame.game.roomId));
+  download.setAttribute('download', `mistboard-${postgame.game.roomId}.json`);
   const home = headerLink('Home', '/');
-  header.actions.append(flipBtn, playAgain, home);
+  header.actions.append(flipBtn, playAgain, download, home);
 
   const layout = document.createElement('div');
   layout.className = 'replay-layout replay-layout-crossroads';
@@ -291,6 +293,10 @@ function headerLink(label: string, href: string): HTMLAnchorElement {
   link.href = href;
   link.textContent = label;
   return link;
+}
+
+function exportJsonUrl(roomId: string): string {
+  return `/api/crossroads-chess/games/${encodeURIComponent(roomId)}/export.json`;
 }
 
 function appendHeaderMeta(container: HTMLElement, items: HTMLElement[]): void {

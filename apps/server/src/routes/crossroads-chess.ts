@@ -76,6 +76,31 @@ export async function tryHandle(
   response: ServerResponse,
   pathname: string,
 ): Promise<boolean> {
+  const exportMatch = pathname.match(
+    /^\/api\/(?:crossroads-chess|dual-chess)\/games\/([^/]+)\/export\.json$/,
+  );
+  if (exportMatch) {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!crossroadsChessEnabled()) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    if (!requirePersistence(response)) return true;
+
+    const roomId = decodeURIComponent(exportMatch[1]!);
+    const payload = await crossroadsChessPostgameForApi(roomId);
+    if (!payload) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    response.writeHead(200, {
+      'content-type': 'application/json; charset=utf-8',
+      'content-disposition': `inline; filename="mistboard-${roomId}.json"`,
+    });
+    response.end(JSON.stringify(payload));
+    return true;
+  }
+
   const postgameMatch = pathname.match(/^\/api\/(?:crossroads-chess|dual-chess)\/games\/([^/]+)$/);
   if (postgameMatch) {
     if (!requireMethod(request, response, 'GET')) return true;

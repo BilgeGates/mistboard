@@ -48,6 +48,11 @@ describe('Crossroads Chess postgame page', () => {
     expect(root.textContent).toContain('Guest');
     expect(root.textContent).toContain('3:00+2');
     expect(root.textContent).toContain('Casual');
+    const download = root.querySelector<HTMLAnchorElement>(
+      'a[href="/api/crossroads-chess/games/dchess_postgame/export.json"]',
+    );
+    expect(download?.textContent).toBe('Download JSON');
+    expect(download?.getAttribute('download')).toBe('mistboard-dchess_postgame.json');
     expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1a2-a3');
     expect(root.textContent).toContain('ply 1 of 1');
     expect(root.querySelectorAll('.crossroads-live-svg')).toHaveLength(1);
