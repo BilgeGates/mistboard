@@ -11,14 +11,14 @@ reflects current implemented behavior or future planning.
 | [`rules-edge-cases.md`](rules-edge-cases.md) | Subtle rule-risk areas: hidden occupancy inference, pawn diagonals, en passant visibility, castling under fog, no-check king semantics, terminal reveal boundaries. Regression target list is here. |
 | [`dark-xiangqi-rules.md`](dark-xiangqi-rules.md) | Working ruleset for the Dark Xiangqi development spike: no-check xiangqi geometry, general capture, cannon target visibility, no-capture draw. |
 | [`dark-xiangqi-live-integration-plan.md`](dark-xiangqi-live-integration-plan.md) | Flag-gated live-runtime integration plan for Dark Xiangqi: runtime boundary, unsupported surfaces, implementation slices, and regression matrix. |
-| [`dark-mini-xiangqi-runtime-design.md`](dark-mini-xiangqi-runtime-design.md) | Hidden Dark Mini Xiangqi runtime direction: adapter boundary, fail-closed flagging, current skeleton, and implementation slices. |
+| [`dark-mini-xiangqi-rules.md`](dark-mini-xiangqi-rules.md) | Public rules article source for Dark Mini Xiangqi: 7x7 board, no-check general-capture play, cannon/horse fog visibility, and relationship to full Dark Xiangqi. |
+| [`dark-mini-xiangqi-plan.md`](dark-mini-xiangqi-plan.md) | Dark Mini Xiangqi launch/integration record: separate `GameSpec`, rules/fog decisions, live-runtime milestones, engine/PvE, and public-alpha status. |
+| [`dark-mini-xiangqi-runtime-design.md`](dark-mini-xiangqi-runtime-design.md) | Dark Mini Xiangqi runtime design note: adapter boundary, fail-closed flagging, and implementation slices. The initial hidden-runtime wording is historical; current DMX is public alpha. |
 
 ## Planning — future game specs
 
 | File | Contents |
 |------|----------|
-| [`dark-mini-xiangqi-rules.md`](dark-mini-xiangqi-rules.md) | Draft public rules article for Dark Mini Xiangqi: 7x7 board, no-check general-capture play, cannon/horse fog visibility, and relationship to full Dark Xiangqi. |
-| [`dark-mini-xiangqi-plan.md`](dark-mini-xiangqi-plan.md) | Candidate launch plan for Dark Mini Xiangqi: separate `GameSpec`, rules/fog decisions, live-runtime milestones, UX gates, and engine deferrals. |
 | [`dark-shogi-rules.md`](dark-shogi-rules.md) | Candidate Dark Shogi ruleset: king capture, fog visibility, Lao Tzu-style drops, hidden opponent hands, promotion redaction, and replay safety boundaries. |
 
 ## Planning — engine and research track

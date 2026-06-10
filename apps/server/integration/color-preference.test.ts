@@ -5,8 +5,8 @@
 //   - PvP challenge (creator-then-invitee): first connection is assigned the
 //     creator's preferred seat; the second arrival gets the other side.
 //
-// Random preference is not asserted (it's a coinflip); the white/black cases
-// are sufficient to lock the deterministic contract.
+// Random preference is sampled with bounded retries so "always white" regressions
+// fail without making a single room creation deterministic.
 
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
@@ -71,6 +71,30 @@ test('PvE preferredColor=black seats the human as black', async () => {
   assert.equal(human.seat, 'black');
 });
 
+test('PvE preferredColor=random can seat the human as either color', async () => {
+  const seenHumanSeats = new Set<string>();
+  for (let attempt = 0; attempt < 24 && seenHumanSeats.size < 2; attempt += 1) {
+    const { roomId } = await createRoom({
+      mode: 'pve',
+      variant: 'dark-chess',
+      engineId: 'builtin-random-legal',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      preferredColor: 'random',
+    });
+    const room = serverInstance.rooms.get(roomId);
+    assert.ok(room, 'created room should be present in the test server');
+    const engineSeat =
+      room.projection.seats.white === 'builtin-random-legal'
+        ? 'white'
+        : room.projection.seats.black === 'builtin-random-legal'
+          ? 'black'
+          : null;
+    assert.ok(engineSeat, 'engine should be pre-seated in PvE rooms');
+    seenHumanSeats.add(engineSeat === 'white' ? 'black' : 'white');
+  }
+  assert.deepEqual([...seenHumanSeats].sort(), ['black', 'white']);
+});
+
 // ── PvP challenge (creator + invitee on a shared room URL) ───────────────────
 
 test('PvP preferredColor=white assigns creator white, invitee black', async () => {
@@ -97,6 +121,23 @@ test('PvP preferredColor=black assigns creator black, invitee white', async () =
   const invitee = await connectClient({ url: serverInstance.url, room: roomId });
   assert.equal(creator.seat, 'black');
   assert.equal(invitee.seat, 'white');
+});
+
+test('PvP preferredColor=random can seat the creator as either color', async () => {
+  const seenCreatorSeats = new Set<string>();
+  for (let attempt = 0; attempt < 24 && seenCreatorSeats.size < 2; attempt += 1) {
+    const { roomId } = await createRoom({
+      mode: 'pvp',
+      variant: 'dark-chess',
+      preferredColor: 'random',
+      rated: false,
+    });
+    const creator = await connectClient({ url: serverInstance.url, room: roomId });
+    assert.ok(creator.seat === 'white' || creator.seat === 'black');
+    seenCreatorSeats.add(creator.seat);
+    await creator.disconnect();
+  }
+  assert.deepEqual([...seenCreatorSeats].sort(), ['black', 'white']);
 });
 
 // ── Default behavior unchanged when preferredColor is omitted ────────────────

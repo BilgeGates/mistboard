@@ -73,3 +73,10 @@ apps/web/public/pixel-lab-assets/
 # Local scratch dir: mobile-test screenshots (scripts/mobile-loop.mjs) and
 # other dev-loop output (e.g. web-port.txt). Never part of the repo.
 tmp/
+apps/server/.engine-bakeoff-deploy-nonce
+
+# Private distribution pipeline and generated media output. This repo is public,
+# so keep campaign tooling, generated PNG/MP4/JSON batches, and local storyboards
+# out of git unless the distribution track is intentionally opened later.
+distribution-artifacts/
+scripts/distribution/

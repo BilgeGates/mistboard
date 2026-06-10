@@ -1,6 +1,6 @@
 # Roadmap
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-09_
 
 ## Product Pillars
 
@@ -27,6 +27,9 @@ information, ranked integrity, and a serious engine track.
 ## In Progress
 
 - [ ] **M1 — Pre-distribution gates.** Definition of done before any outreach. Checklist below.
+- [ ] **DMX/MX public-alpha distribution experiment.** Dark Mini Xiangqi is live
+  for casual PvP/PvE/lobby play. The active next step is content, localization,
+  and Asia-readiness evidence, not rated ladder or tournament scope.
 
 ## Planned
 
@@ -60,10 +63,52 @@ information, ranked integrity, and a serious engine track.
   (Obscuro replication track, post-M5); do not conflate with the M1-bar empty-lobby
   engine. Free PvP stays free; analysis is the wedge. See
   `docs-private/differentiation-thesis.md` and the monetization roadmap.
-- [ ] **Future hidden-information variants.** Current game-spec taxonomy and
-  hidden Dark Xiangqi spike prove the platform can represent non-chess families,
-  but they are not launch-surface commitments. Keep new families hidden or
-  dev-only until the dark-chess M1-M3 loop is healthy.
+- [ ] **Variant pipeline (sequenced 2026-06-10; liquidity-amended same day).**
+  Three demand experiments, staggered, none taking the flagship's homepage
+  slot before M1-M3. **Liquidity posture: player counts are expected to be
+  low; PvE and (later) correspondence are the liquidity strategy, not PvP
+  matchmaking. A working PvE bot is a launch gate for every variant in this
+  queue.**
+  1. **DMX public alpha** (running) — tests "dark ports of niche traditional
+     games," PvE-led. The telemetry read is a plumbing + repeat-use check
+     (funnel completes, anyone returns), NOT a demand verdict — DMX has no
+     existing community to draw from; the real demand tests are Crossroads
+     (designed variants) and jieqi (existing underserved community).
+  2. **Crossroads Chess public test (variant #3)** — tests "invented designer
+     variants." Build is done; remaining is launch-ladder only: lobby entry,
+     casual-only at launch (no rated migration/calibration), watch visibility
+     policy, mobile pass. FSF PvE bot already live. Staggered after DMX's
+     first telemetry read.
+  3. **Variant-tenant extraction (Layer 3)** — in the post-launch quiet
+     window, BEFORE any new variant stack. The rule-of-three trigger fired
+     2026-06-10 (four live stacks exist: dark chess, DMX, Dark Xiangqi,
+     Crossroads). Extract the `VariantTenant` interface from the four real
+     stacks behind hidden-info regression tests; target: new variant ≈ 5
+     files, zero shared-infrastructure edits.
+  4. **Correspondence on the generic room** — the second liquidity
+     multiplier: days-per-move drops the co-presence requirement, thickening
+     EVERY pool instead of adding thin ones. Built once on the tenant
+     contract (a `clockPolicy` variation + scheduler + notifications), so
+     all variants and all future tenants get async play free. Settle the
+     open forks before building: account-required (lean yes — notifications
+     need an address), notification channel (email first), forfeit-under-fog
+     semantics. Hidden-info games suit async unusually well (belief
+     reasoning rewards thinking time; Kriegspiel was played by mail for a
+     century).
+  5. **New tenants, in order:** Kriegspiel (cheapest content, zero new
+     primitives, stresses the visibility axis) → jieqi (demand bet; design
+     the server-authoritative randomness primitive: shuffle seed in canonical
+     state, reveal events, replay determinism, redaction of unrevealed
+     identities) → banqi and dark Crossroads ride the tenant + randomness
+     work. Each launches with a PvE bot AND correspondence from day one.
+  6. **Engine scope:** Misty stays on dark chess (Obscuro replication A5-A7).
+     Kriegspiel launches with a weak sampled-belief bot (Misty-strength
+     Kriegspiel is a research project, not a launch gate); jieqi/banqi are
+     stochastic perfect-info games under common rules (no private info) and
+     need MCTS-over-chance bots, not Misty — confirm via rule canonicalization
+     (the capture-reveal detail decides the engine family).
+  New families beyond this queue are not launch-surface commitments by
+  default; they need the same privacy, UX, and distribution evidence.
 
 ## Deferred / Parked
 
@@ -74,12 +119,39 @@ information, ranked integrity, and a serious engine track.
 - SSR exploration — server-rendered nav/pages to eliminate auth-state flash and unlock SEO for /articles + /@/handle. Current mitigation is the `mb_signed_in` localStorage hint in `account-nav.ts`. Likely trigger: wanting articles/profiles to rank in search.
 - Dark Xiangqi public launch — hidden/dev-only while the standard dark-chess
   launch gates remain open.
-- Variant generalization (live-room tenant) — adding a variant is ~40 files
-  today, ~30 of them identical live-room plumbing. The shared descriptor-driven
-  board renderer has landed (`packages/board-render`); collapsing the per-variant
-  live stack into one variant-tenant contract is deferred until ~3 variants
-  justify the interface (rule-of-three; an earlier registry-first attempt was
-  premature).
+- Variant generalization (live-room tenant) — **promoted 2026-06-10** into
+  the Planned variant pipeline (step 3): the rule-of-three trigger fired with
+  four live stacks. History and the layer model live in the variant
+  generalization track doc; an earlier registry-first attempt was premature.
+- Hidden-identity / hidden-info game candidates (researched 2026-06-10) —
+  the chosen trio (Kriegspiel → jieqi → banqi) is **sequenced in the Planned
+  variant pipeline** (step 4); per-game research record below. All three
+  verified underserved on the web. Rejected in the same review: Phantom Go
+  (Go's dead-stone/scoring agreement assumes a shared board and has no
+  hidden-info protocol; full Go rules for speculative demand) and liar's
+  dice / word-deduction / Penultima (off-brand). Do not re-pitch without new
+  evidence.
+  - **Kriegspiel** (1899; see only your own pieces, umpire announcements) —
+    cheapest build (a visibility-function variant of existing dark chess +
+    umpire messages from the event log). Only live venue is ICC "wild 16"
+    (paid, decayed) plus hobby sites. Strong positioning synergy as the
+    historic ancestor of dark chess.
+  - **Banqi (暗棋)** — half xiangqi board (4×8), all pieces shuffled
+    face-down; flip or move each turn, capture by rank hierarchy, win by
+    elimination. Casual, chance-heavy, big in Taiwan/HK; the AI literature's
+    "Chinese Dark Chess" (Computer Olympiad engine tracks). Strongest "dark
+    chess" name overlap. Served almost entirely by ad-supported mobile apps.
+  - **Jieqi (揭棋)** — full 9×10 xiangqi rules; non-general pieces shuffled
+    face-down on standard points, first move as the starting square's piece
+    type, then revealed. Win by mating the general. Deeper game, popular in
+    Guangdong (Vietnamese cờ úp is the cousin). Better architectural fit
+    (xiangqi rules + general-capture). Rule canonicalization needed (regional
+    and per-app variation). Both add hidden *identity* + server-authoritative
+    randomness to the platform's information axes; both align with zh i18n.
+  - **Luzhanqi** (Chinese military chess, Stratego cousin) — weakest case:
+    zh audience is on mobile apps, western itch is served by the official
+    Stratego app (Stratego itself is IP-locked). Largest engine-research
+    synergy (imperfect-info family). Park unless the others prove out.
 
 ---
 

@@ -1,7 +1,10 @@
 # Dark Mini Xiangqi Runtime Design
 
-Status: implementation note for the hidden Dark Mini Xiangqi spike. Dark Mini
-Xiangqi is not a public Mistboard game mode.
+Status: historical implementation note for the hidden Dark Mini Xiangqi spike.
+Dark Mini Xiangqi is now public alpha; use
+[`dark-mini-xiangqi-plan.md`](dark-mini-xiangqi-plan.md) for current launch
+status. This file remains useful for the runtime-boundary decisions that got
+the spike into production.
 
 Dark Mini Xiangqi should use the same platform boundary that Dark Xiangqi
 proved: the server owns canonical truth, clients receive only recipient-scoped

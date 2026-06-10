@@ -1,6 +1,6 @@
 # Status
 
-_Last updated: 2026-06-01_
+_Last updated: 2026-06-09_
 
 **State:** active
 **Launched:** https://mistboard.com
@@ -26,6 +26,8 @@ Recent shipped work:
 - WS integration harness + Postgres-backed integration test for `recordGameEnd`
 - Game-spec taxonomy for current and future hidden-information variants
 - Hidden Dark Xiangqi live-room/postgame/review spike behind explicit flags
+- Dark Mini Xiangqi public alpha: PvP/PvE/lobby entry, rules, postgame/replay,
+  and public PvE watch channel
 - Public platform activity stats and watch/replay polish
 - Homepage hero showcase: PvP-first with an engine-vs-engine fallback
 - Unlisted admin engine tracker: `/engines` version roster + `/engine/:id` per-engine profile (PvE-first record, sourced from `game_participants`)
@@ -37,6 +39,8 @@ Still open against M1:
 - Record PostHog funnel verification from real traffic
 - Record article mobile pass evidence (TOC, stepper, board composition)
 - Confirm the current playable engine clears the M1 beginner bar
+- Turn the DMX/MX alpha into a measured content and regional-access track,
+  without pulling rated or tournament obligations forward
 
 Moved out of M1:
 - Draft960 lobby and Draft960 rated work are M4. The Draft960 article exists,
@@ -56,11 +60,12 @@ Release confidence work now active:
 
 ## What's Next
 
-M1 gates → M2 soft launch (200 casual standard 3+2 games) → M3 Elo calibration + standard rated flip + hard launch → M4 Draft960 rated flip → M5+ public engine protocol and benchmark track.
+M1 gates → M2 soft launch (200 casual standard 3+2 games) → M3 Elo calibration + standard rated flip + hard launch → M4 Draft960 rated flip → M5+ public engine protocol and benchmark track. DMX/MX runs as a parallel public-alpha distribution experiment: content first, regional readiness second, rated later.
 
 ## Risk
 
-Scope creep on variant-lab or engine work before M1 gates clear.
+Scope creep on variant-lab, DMX regionalization, or engine work before the
+active gates have evidence.
 
 ## Blockers
 

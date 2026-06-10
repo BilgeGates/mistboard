@@ -8,7 +8,7 @@ import {
   miniXiangqiCoordOf,
   miniXiangqiSquareOf,
 } from '@mistboard/game';
-import { readStoredXiangqiPieceSet } from './theme.js';
+import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { xiangqiFogRegion } from './xiangqi-fog.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 

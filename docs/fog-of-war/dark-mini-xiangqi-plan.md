@@ -1,18 +1,16 @@
 # Dark Mini Xiangqi Plan
 
-_Last updated: 2026-06-08_
+_Last updated: 2026-06-09_
 
-Status: **implemented and at full Dark-chess parity, but hidden behind a flag.**
-Dark Mini Xiangqi (DMX) is a real `GameSpec` with a working PvP live runtime,
-private replay/postgame, family-aware appearance, variant-aware lobby, and a
-Misty/EngineV2-backed PvE engine. It is **not yet a public Mistboard game
-mode**: production must explicitly opt in with `MISTBOARD_DARK_MINI_XIANGQI_ENABLED`
-and `VITE_DARK_MINI_XIANGQI_ENABLED`; normal public entry points remain hidden
-unless `VITE_DARK_MINI_XIANGQI_PUBLIC_ENTRY_ENABLED` is also set. What remains is
-the launch ladder, not the build: deep-link soft launch, public exposure, and a
-rated pool (still deferred).
+Status: **public alpha, casual-only.** Dark Mini Xiangqi (DMX) is a real
+`GameSpec` with a working PvP live runtime, replay/postgame, family-aware
+appearance, variant-aware lobby, a Misty/EngineV2-backed PvE engine, public
+rules, public entry, and a watch channel for public PvE games. Production still
+uses explicit runtime/render/public-entry flags, but the launch ladder has moved
+from build integration to distribution, content mining, regional access, and
+future rated-gate decisions.
 
-### Milestone status (2026-06-06)
+### Milestone status (2026-06-09)
 
 | #  | Milestone               | Status |
 |----|-------------------------|--------|
@@ -24,12 +22,13 @@ rated pool (still deferred).
 | 6  | Private Replay/Postgame | done |
 | 7  | UX Hardening            | done (W1–W6 + post-W6 polish, parity with Dark chess) |
 | 8  | Engine Track            | **PvE built** (`python-dmx-v1.0`: EngineV2 with `MiniXiangqiRules`, variant-aware protocol, redaction-tested perspective contract, PvE move loop). |
-| 9  | Soft Launch             | ready for deep-link rollout behind base runtime/render flags; public-entry flag stays off |
-| 10 | Public Launch           | not started: gated behind Mistboard's own M1 pre-distribution gates |
+| 9  | Soft Launch             | done: public entry, PvP/PvE/lobby, analytics, and rules/article surfaces are live |
+| 10 | Public Launch           | alpha: public casual play is live; broader distribution, regional readiness, and rated ladder are separate gates |
 
 Deferred (not on the launch ladder): DMX **rated pool / lobby ranking** (casual
 PvP only today; `dark_mini_xiangqi` rating base exists in the spec but is not
-wired to a ladder).
+wired to a ladder). Distribution/content planning is tracked privately so public
+docs stay contributor-safe.
 
 ## Purpose
 

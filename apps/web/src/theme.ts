@@ -3,16 +3,23 @@ import type { GameFamilyId } from '@mistboard/game';
 import { darkMiniXiangqiEnabled, darkXiangqiEnabled } from './feature-flags.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import {
-  DEFAULT_XIANGQI_PIECE_SET,
+  readStoredXiangqiBoardTheme,
+  readStoredXiangqiPieceSet,
+  writeStoredXiangqiBoardTheme,
+  writeStoredXiangqiPieceSet,
+  type XiangqiBoardTheme,
+} from './xiangqi-appearance-storage.js';
+import {
   XIANGQI_PIECE_SETS,
   type XiangqiPieceSet,
   xiangqiPreviewGlyph,
 } from './xiangqi-piece-sets.js';
 
+export { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
+
 type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
 type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
 type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';
-type XiangqiBoardTheme = 'tournament' | 'blue' | 'mono';
 export type SiteTheme = 'system' | 'light' | 'dark';
 // The appearance "family" is the GameSpec family (chess-family games share board
 // themes + piece sets; likewise for xiangqi). Driven by gameSpecForId(id).family.
@@ -22,8 +29,6 @@ const siteThemeStorageKey = 'mistboard.siteTheme';
 const boardStorageKey = 'mistboard.boardTheme';
 const fogStorageKey = 'mistboard.fogTheme';
 const pieceSetStorageKey = 'mistboard.pieceSet';
-const xiangqiBoardStorageKey = 'mistboard.xiangqiBoardTheme';
-const xiangqiPieceSetStorageKey = 'mistboard.xiangqiPieceSet';
 const soundVolumeStorageKey = 'mistboard.soundVolume';
 const soundMutedStorageKey = 'mistboard.soundMuted';
 export const soundSettingsChangedEvent = 'mistboard:sound-settings-changed';
@@ -36,8 +41,6 @@ const defaultSiteTheme: SiteTheme = 'system';
 const defaultTheme: BoardTheme = 'green';
 const defaultFogTheme: FogTheme = 'solid';
 const defaultPieceSet: PieceSet = 'cburnett';
-const defaultXiangqiBoardTheme: XiangqiBoardTheme = 'tournament';
-const defaultXiangqiPieceSet: XiangqiPieceSet = DEFAULT_XIANGQI_PIECE_SET;
 const defaultSoundVolume = 0.7;
 let cachedSoundVolume = defaultSoundVolume;
 let cachedSoundMuted = false;
@@ -749,38 +752,6 @@ function writeStoredPieceSet(pieceSet: PieceSet): void {
   }
 }
 
-function readStoredXiangqiBoardTheme(): XiangqiBoardTheme {
-  try {
-    return normalizeXiangqiBoardTheme(window.localStorage.getItem(xiangqiBoardStorageKey));
-  } catch {
-    return defaultXiangqiBoardTheme;
-  }
-}
-
-function writeStoredXiangqiBoardTheme(theme: XiangqiBoardTheme): void {
-  try {
-    window.localStorage.setItem(xiangqiBoardStorageKey, theme);
-  } catch {
-    // The data attribute still updates for the current page.
-  }
-}
-
-export function readStoredXiangqiPieceSet(): XiangqiPieceSet {
-  try {
-    return normalizeXiangqiPieceSet(window.localStorage.getItem(xiangqiPieceSetStorageKey));
-  } catch {
-    return defaultXiangqiPieceSet;
-  }
-}
-
-function writeStoredXiangqiPieceSet(pieceSet: XiangqiPieceSet): void {
-  try {
-    window.localStorage.setItem(xiangqiPieceSetStorageKey, pieceSet);
-  } catch {
-    // The data attribute still updates for the current page.
-  }
-}
-
 function dispatchXiangqiAppearanceChanged(): void {
   window.dispatchEvent(new Event(xiangqiAppearanceChangedEvent));
 }
@@ -873,18 +844,6 @@ function normalizeFogTheme(value: string | null): FogTheme {
 
 function normalizePieceSet(value: string | null): PieceSet {
   return pieceSets.some((set) => set.id === value) ? (value as PieceSet) : defaultPieceSet;
-}
-
-function normalizeXiangqiBoardTheme(value: string | null): XiangqiBoardTheme {
-  return xiangqiBoardThemes.some((theme) => theme.id === value)
-    ? (value as XiangqiBoardTheme)
-    : defaultXiangqiBoardTheme;
-}
-
-function normalizeXiangqiPieceSet(value: string | null): XiangqiPieceSet {
-  return xiangqiPieceSets.some((set) => set.id === value)
-    ? (value as XiangqiPieceSet)
-    : defaultXiangqiPieceSet;
 }
 
 function normalizeVolume(value: string | number | null): number {
