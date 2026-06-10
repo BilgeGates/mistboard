@@ -1,55 +1,101 @@
 .crossroads-play-page {
-  max-width: 760px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 28px 16px 48px;
+  padding: 22px clamp(14px, 2.5vw, 30px) 46px;
 }
 
 .crossroads-play-head {
-  text-align: center;
-  margin-bottom: 20px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
 }
 
 .crossroads-play-head h1 {
   margin: 0;
-  font-size: 26px;
+  color: var(--site-heading, #17231d);
+  font-size: 30px;
+  line-height: 1;
 }
 
 .crossroads-play-tagline {
-  color: var(--muted, #888);
+  color: var(--site-muted, #5a6960);
   font-size: 14px;
-  margin-top: 4px;
+  margin-top: 6px;
+}
+
+.crossroads-play-review-link {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--site-border, #bdc8bf);
+  border-radius: 6px;
+  padding: 7px 12px;
+  color: var(--site-text, #1d2522);
+  text-decoration: none;
+}
+
+.crossroads-play-review-link:hover,
+.crossroads-play-review-link:focus-visible {
+  border-color: var(--site-accent, #1f6f5b);
+  outline: 3px solid rgba(31, 111, 91, 0.18);
 }
 
 .crossroads-play-layout {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, min(62vh, 510px)) minmax(280px, 330px);
+  gap: clamp(18px, 3vw, 32px);
+  align-items: start;
   justify-content: center;
-  flex-wrap: wrap;
+}
+
+.crossroads-play-board-panel {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
 }
 
 .crossroads-play-board {
-  width: 360px;
-  flex: 0 0 auto;
+  width: min(100%, 62vh, 510px);
+  aspect-ratio: 6 / 8;
+  min-width: 0;
 }
 
 .crossroads-play-board svg {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
 }
 
 .crossroads-play-side {
-  width: 240px;
-  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  min-width: 0;
+}
+
+.crossroads-play-section {
+  border: 1px solid var(--site-border, #bdc8bf);
+  border-radius: 8px;
+  background: var(--site-panel, #ffffff);
+  padding: 14px;
+}
+
+.crossroads-play-section h2 {
+  margin: 0 0 10px;
+  color: var(--site-heading, #17231d);
+  font-size: 12px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .crossroads-play-status {
+  color: var(--site-heading, #17231d);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   min-height: 1.4em;
 }
 
@@ -63,24 +109,26 @@
   display: flex;
   gap: 6px;
   align-items: center;
+  min-width: 0;
 }
 
 .crossroads-play-row > .crossroads-play-label {
   font-size: 12px;
-  color: var(--muted, #888);
+  color: var(--site-muted, #5a6960);
   min-width: 58px;
   text-align: right;
 }
 
 .crossroads-play-btn {
-  padding: 5px 11px;
-  cursor: pointer;
   border: 1px solid rgba(128, 128, 128, 0.4);
   border-radius: 5px;
   background: transparent;
-  color: inherit;
+  color: var(--site-text, #1d2522);
+  cursor: pointer;
   font: inherit;
   font-size: 13px;
+  min-height: 34px;
+  padding: 6px 11px;
 }
 
 .crossroads-play-btn:hover {
@@ -93,10 +141,18 @@
   border-color: #3f86c4;
 }
 
+.crossroads-play-btn.is-primary {
+  border-color: var(--site-accent, #1f6f5b);
+  background: var(--site-accent, #1f6f5b);
+  color: var(--site-on-accent, #ffffff);
+}
+
+.crossroads-play-btn.is-primary:hover,
+.crossroads-play-btn.is-primary:focus-visible {
+  background: #185947;
+}
+
 .crossroads-play-moves {
-  border: 1px solid rgba(128, 128, 128, 0.25);
-  border-radius: 6px;
-  padding: 8px 10px;
   max-height: 220px;
   overflow-y: auto;
   font-size: 13px;
@@ -104,7 +160,7 @@
 }
 
 .crossroads-play-moves-empty {
-  color: var(--muted, #888);
+  color: var(--site-muted, #5a6960);
 }
 
 .crossroads-play-move-row {
@@ -114,7 +170,7 @@
 }
 
 .crossroads-play-move-row > .num {
-  color: var(--muted, #888);
+  color: var(--site-muted, #5a6960);
   min-width: 22px;
 }
 
@@ -123,13 +179,22 @@
 }
 
 .crossroads-play-actions {
-  display: flex;
+  display: grid;
   gap: 8px;
 }
 
 @media (max-width: 620px) {
+  .crossroads-play-head,
+  .crossroads-play-layout {
+    display: grid;
+  }
+
+  .crossroads-play-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .crossroads-play-board,
   .crossroads-play-side {
-    width: min(92vw, 360px);
+    width: min(92vw, 380px);
   }
 }

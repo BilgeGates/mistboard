@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type CrossroadsChessPostgameResponse,
   createCrossroadsPlayAgainRoom,
+  crossroadsChessInitialPlyFromSearch,
   crossroadsChessPostgameApiUrl,
   mountCrossroadsChessPostgame,
 } from './crossroads-chess-postgame.js';
@@ -30,6 +31,14 @@ describe('Crossroads Chess postgame page', () => {
     expect(crossroadsChessPostgameApiUrl('dchess room')).toBe(
       '/api/crossroads-chess/games/dchess%20room',
     );
+  });
+
+  it('parses initial replay ply links', () => {
+    expect(crossroadsChessInitialPlyFromSearch('?ply=0')).toBe(0);
+    expect(crossroadsChessInitialPlyFromSearch('?ply=12')).toBe(12);
+    expect(crossroadsChessInitialPlyFromSearch('?ply=-1')).toBeNull();
+    expect(crossroadsChessInitialPlyFromSearch('?ply=1.5')).toBeNull();
+    expect(crossroadsChessInitialPlyFromSearch('?move=1')).toBeNull();
   });
 
   it('renders the review board with move scrubbing and flip control', async () => {
@@ -63,6 +72,23 @@ describe('Crossroads Chess postgame page', () => {
     expect(root.textContent).toContain('ply 0 of 1');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     expect(root.textContent).toContain('ply 1 of 1');
+  });
+
+  it('opens the review page at the ply from the query string and keeps controls linkable', async () => {
+    window.history.replaceState(null, '', '/crossroads-chess/game/dchess_postgame?ply=0');
+    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    mountCrossroadsChessPostgame(root, 'dchess_postgame');
+    await flushPromises();
+
+    expect(root.textContent).toContain('ply 0 of 1');
+    root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
+    expect(root.textContent).toContain('ply 1 of 1');
+    expect(window.location.search).toBe('');
+    root.querySelector<HTMLButtonElement>('[aria-label="Previous move"]')?.click();
+    expect(window.location.search).toBe('?ply=0');
   });
 
   it('renders red wins with Crossroads copy instead of black-side copy', async () => {
@@ -104,6 +130,21 @@ describe('Crossroads Chess postgame page', () => {
         preferredColor: 'random',
       }),
     });
+  });
+
+  it('creates a new live Crossroads room with 5+5 when the review has no time control', async () => {
+    const fetchSpy = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ url: '/room/dchess_next' }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const fixture = postgameFixture();
+    delete fixture.game.timeControl;
+    delete fixture.state.timeControl;
+
+    await expect(createCrossroadsPlayAgainRoom(fixture)).resolves.toBe('/room/dchess_next');
+
+    const request = JSON.parse(fetchSpy.mock.calls[0]?.[1]?.body as string);
+    expect(request.timeControl).toEqual({ initialMs: 300_000, incrementMs: 5_000 });
   });
 });
 

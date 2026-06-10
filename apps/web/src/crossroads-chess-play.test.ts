@@ -14,6 +14,10 @@ function clickButton(root: HTMLElement, label: string): void {
 }
 
 describe('Crossroads Chess hot-seat controller', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('mounts, selects a piece, plays a move and passes the turn', () => {
     const root = document.createElement('div');
     mountCrossroadsChessPlay(root);
@@ -21,7 +25,7 @@ describe('Crossroads Chess hot-seat controller', () => {
     expect(root.querySelector('h1')?.textContent).toBe('Crossroads Chess');
     expect(root.querySelector('.crossroads-play-status')?.textContent).toBe('White to move');
     // 48 click targets (one per square) and the control buttons: the Opponent
-    // toggle (2) + New game, Flip board, Play a friend (live).
+    // toggle (2) + New game, Flip board, Play a friend 5+5.
     expect(root.querySelectorAll('[data-square]').length).toBe(48);
     expect(root.querySelectorAll('.crossroads-play-btn').length).toBe(5);
 
@@ -42,6 +46,26 @@ describe('Crossroads Chess hot-seat controller', () => {
     );
     reset?.click();
     expect(root.querySelector('.crossroads-play-status')?.textContent).toBe('White to move');
+  });
+
+  it('creates live friend rooms with the Crossroads 5+5 time control', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const root = document.createElement('div');
+
+    mountCrossroadsChessPlay(root);
+    clickButton(root, 'Play a friend 5+5');
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        gameSpecId: 'crossroads-chess',
+        mode: 'pvp',
+        timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+      }),
+    });
   });
 });
 

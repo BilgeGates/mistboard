@@ -3,6 +3,7 @@ import {
   crossroadsChessReviewUrl,
   crossroadsChessTerminalActionsMarkup,
   crossroadsLivePlayAgainRequestBody,
+  crossroadsLiveTimeControlLabel,
 } from './live-crossroads-chess.js';
 
 describe('Crossroads Chess live room terminal actions', () => {
@@ -42,10 +43,16 @@ describe('Crossroads Chess live room terminal actions', () => {
     });
   });
 
-  it('falls back to 3+2 when a finished live room had no time control', () => {
+  it('falls back to 5+5 when a finished live room had no time control', () => {
     expect(crossroadsLivePlayAgainRequestBody(null).timeControl).toEqual({
-      initialMs: 180_000,
-      incrementMs: 2_000,
+      initialMs: 300_000,
+      incrementMs: 5_000,
     });
+  });
+
+  it('formats Crossroads room time controls for the live metadata panel', () => {
+    expect(crossroadsLiveTimeControlLabel({ initialMs: 300_000, incrementMs: 5_000 })).toBe('5+5');
+    expect(crossroadsLiveTimeControlLabel({ initialMs: 300_000, incrementMs: 0 })).toBe('5+0');
+    expect(crossroadsLiveTimeControlLabel(null)).toBeNull();
   });
 });

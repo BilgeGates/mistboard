@@ -68,5 +68,6 @@ function parseCrossroadsChessPreferredColor(
   value: unknown,
 ): 'white' | 'red' | 'random' | undefined {
   if (value === 'white' || value === 'red' || value === 'random') return value;
+  if (value === 'black') return 'red';
   return undefined;
 }

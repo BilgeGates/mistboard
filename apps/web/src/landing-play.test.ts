@@ -198,6 +198,11 @@ describe('landing play panel', () => {
     expect(variantSelect).not.toBeNull();
     expect([...variantSelect!.options].map((option) => option.value)).toContain('crossroads-chess');
     selectModalVariant('crossroads-chess');
+    expect(modalColorOptions()).toEqual([
+      { label: 'White', glyph: '♔', classes: 'landing-color-glyph white' },
+      { label: 'Random', glyph: '♔♚', classes: 'landing-color-glyph random' },
+      { label: 'Black', glyph: '♚', classes: 'landing-color-glyph black' },
+    ]);
     expect(document.body.textContent).toContain('Black');
     expect(document.body.textContent).not.toContain('Red');
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
@@ -211,9 +216,32 @@ describe('landing play panel', () => {
       gameSpecId: 'crossroads-chess',
       timeControl: { initialMs: 300_000, incrementMs: 5_000 },
       rated: false,
-      preferredColor: 'red',
+      preferredColor: 'black',
     });
     expect(window.location.pathname).toBe('/room/dchess_home');
+  });
+
+  it('shows a specific error when Crossroads room creation is disabled server-side', async () => {
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') {
+        return jsonResponse({ error: 'crossroads_chess_disabled' }, { status: 404 });
+      }
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    selectModalVariant('crossroads-chess');
+    clickModalButton('Create room');
+    await flushPromises();
+
+    expect(document.querySelector('.landing-setup-status')?.textContent).toBe(
+      'Crossroads Chess live rooms are not enabled on this server.',
+    );
   });
 
   it('links the homepage play panel to the Crossroads Chess hub behind its flag', () => {
@@ -541,6 +569,16 @@ function selectedModalColor(): string | undefined {
   return document
     .querySelector<HTMLButtonElement>('.landing-color-option.selected .landing-color-label')
     ?.textContent?.trim();
+}
+
+function modalColorOptions(): Array<{ label: string; glyph: string; classes: string }> {
+  return [...document.querySelectorAll<HTMLButtonElement>('.landing-color-option')].map(
+    (button) => ({
+      label: button.querySelector('.landing-color-label')?.textContent?.trim() ?? '',
+      glyph: button.querySelector('.landing-color-glyph')?.textContent?.trim() ?? '',
+      classes: button.querySelector('.landing-color-glyph')?.className ?? '',
+    }),
+  );
 }
 
 function lobbyFetchSpy(): ReturnType<typeof vi.fn> {

@@ -1362,10 +1362,7 @@ function roomCreationRequestBody(
       gameSpecId,
       timeControl: setup.timeControl,
       rated: false,
-      preferredColor:
-        setup.preferredColor === 'red' || setup.preferredColor === 'black'
-          ? 'red'
-          : setup.preferredColor,
+      preferredColor: setup.preferredColor === 'red' ? 'black' : setup.preferredColor,
     };
   }
   if (setup.gameSpecId === DARK_XIANGQI_SPEC_ID || setup.gameSpecId === DARK_MINI_XIANGQI_SPEC_ID) {
@@ -1424,6 +1421,18 @@ function roomCreationError(status: number, failure: RoomCreationFailure): Error 
 }
 
 function roomCreationStatusText(err: unknown, mode: 'pvp' | 'pve'): string {
+  if (err instanceof Error && err.name === 'crossroads_chess_disabled') {
+    return 'Crossroads Chess live rooms are not enabled on this server.';
+  }
+  if (err instanceof Error && err.name === 'crossroads_chess_unsupported_surface') {
+    return 'Crossroads Chess rooms are only available for casual friend games.';
+  }
+  if (err instanceof Error && err.name === 'invalid_time_control') {
+    return 'That time control is not available. Try another one.';
+  }
+  if (err instanceof Error && err.name === 'persistence_disabled') {
+    return 'Room storage is not available on this server.';
+  }
   if (mode === 'pve' && err instanceof Error && err.name === 'engine_unavailable') {
     return 'The engine service is unavailable. Try again soon.';
   }

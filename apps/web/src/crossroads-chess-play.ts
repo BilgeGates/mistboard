@@ -28,6 +28,8 @@ const DIFFICULTY: Record<Difficulty, { skill: number; movetime: number }> = {
   hard: { skill: 14, movetime: 700 },
 };
 
+const CROSSROADS_LIVE_TIME_CONTROL = { initialMs: 300_000, incrementMs: 5_000 } as const;
+
 export function mountCrossroadsChessPlay(container: HTMLElement): void {
   let opponent: Opponent = 'human';
   let humanSide: CrossroadsChessColor = 'white';
@@ -40,26 +42,36 @@ export function mountCrossroadsChessPlay(container: HTMLElement): void {
   let botThinking = false;
   let engineError: string | null = null;
 
-  // Site nav above the app root (matches the other prelaunch surfaces).
-  if (container.parentNode) container.before(buildNav());
-
   const page = document.createElement('main');
   page.className = 'crossroads-play-page';
   page.innerHTML = `
-    <div class="crossroads-play-head">
-      <h1>Crossroads Chess</h1>
-      <div class="crossroads-play-tagline">Perfect information · learn the pieces in the clear</div>
-    </div>
+    <header class="crossroads-play-head">
+      <div>
+        <h1>Crossroads Chess</h1>
+        <div class="crossroads-play-tagline">Perfect information · learn the pieces in the clear</div>
+      </div>
+      <a class="crossroads-play-review-link" href="/rules/crossroads-chess">Rules</a>
+    </header>
     <div class="crossroads-play-layout">
-      <div class="crossroads-play-board" data-board></div>
+      <section class="crossroads-play-board-panel" aria-label="Crossroads Chess board">
+        <div class="crossroads-play-board" data-board></div>
+      </section>
       <aside class="crossroads-play-side">
-        <div class="crossroads-play-status" data-status></div>
-        <div class="crossroads-play-setup" data-setup></div>
-        <div class="crossroads-play-moves" data-moves></div>
+        <section class="crossroads-play-section">
+          <div class="crossroads-play-status" data-status></div>
+        </section>
+        <section class="crossroads-play-section">
+          <h2>Setup</h2>
+          <div class="crossroads-play-setup" data-setup></div>
+        </section>
+        <section class="crossroads-play-section">
+          <h2>Moves</h2>
+          <div class="crossroads-play-moves" data-moves></div>
+        </section>
         <div class="crossroads-play-actions" data-actions></div>
       </aside>
     </div>`;
-  container.append(page);
+  container.replaceChildren(buildNav(), page);
 
   const boardHost = page.querySelector<HTMLElement>('[data-board]')!;
   const statusEl = page.querySelector<HTMLElement>('[data-status]')!;
@@ -67,13 +79,15 @@ export function mountCrossroadsChessPlay(container: HTMLElement): void {
   const movesEl = page.querySelector<HTMLElement>('[data-moves]')!;
   const actionsEl = page.querySelector<HTMLElement>('[data-actions]')!;
 
+  const liveRoomButton = button('Play a friend 5+5', () => void createLiveRoom());
+  liveRoomButton.classList.add('is-primary');
   actionsEl.append(
+    liveRoomButton,
     button('New game', () => startGame()),
     button('Flip board', () => {
       perspective = perspective === 'white' ? 'red' : 'white';
       render();
     }),
-    button('Play a friend (live)', () => void createLiveRoom()),
   );
 
   // Create a live PvP room and walk into it. The friend joins by opening the same
@@ -87,7 +101,7 @@ export function mountCrossroadsChessPlay(container: HTMLElement): void {
         body: JSON.stringify({
           gameSpecId: CROSSROADS_CHESS_SPEC_ID,
           mode: 'pvp',
-          timeControl: { initialMs: 300_000, incrementMs: 3_000 },
+          timeControl: CROSSROADS_LIVE_TIME_CONTROL,
         }),
       });
       if (!res.ok) {
@@ -301,9 +315,9 @@ function statusText(state: CrossroadsChessGameState): string {
   const who = winner ? capitalize(winner) : null;
   switch (reason) {
     case 'checkmate':
-      return `Checkmate — ${who} wins`;
+      return `Checkmate: ${who} wins`;
     case 'stalemate':
-      return `Stalemate — ${who} wins`;
+      return `Stalemate: ${who} wins`;
     case 'race':
       return `${who} wins the race (Try)`;
     case 'repetition':

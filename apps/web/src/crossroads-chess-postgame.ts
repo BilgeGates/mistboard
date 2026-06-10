@@ -73,7 +73,11 @@ export function mountCrossroadsChessPostgame(root: HTMLElement, roomId: string):
   void loadCrossroadsChessPostgame(roomId)
     .then((result) => {
       if (result.ok) {
-        renderPostgame(root, result.postgame);
+        renderPostgame(
+          root,
+          result.postgame,
+          crossroadsChessInitialPlyFromSearch(window.location.search),
+        );
         return;
       }
       renderError(root, errorTitle(result.status), errorBody(result));
@@ -107,7 +111,11 @@ export function crossroadsChessPostgameApiUrl(roomId: string): string {
   return url.pathname;
 }
 
-function renderPostgame(root: HTMLElement, postgame: CrossroadsChessPostgameResponse): void {
+function renderPostgame(
+  root: HTMLElement,
+  postgame: CrossroadsChessPostgameResponse,
+  initialPly: number | null = null,
+): void {
   const priorAbort = postgameAbortControllers.get(root);
   if (priorAbort) priorAbort.abort();
   const abortController = new AbortController();
@@ -175,11 +183,12 @@ function renderPostgame(root: HTMLElement, postgame: CrossroadsChessPostgameResp
       !!entry.color,
   );
   const maxPly = postgameReplayMaxPly(postgame);
-  let currentPly = maxPly;
+  let currentPly = initialPly === null ? maxPly : clampPly(initialPly, maxPly);
   let boardOrientation: CrossroadsChessColor = 'white';
 
-  const jump = (ply: number) => {
-    currentPly = Math.max(0, Math.min(maxPly, ply));
+  const jump = (ply: number, options: { replaceUrl?: boolean } = {}) => {
+    currentPly = clampPly(ply, maxPly);
+    if (options.replaceUrl !== false) replaceReviewPlyInUrl(currentPly, maxPly);
     sync();
   };
   const sync = () => {
@@ -333,7 +342,27 @@ export async function createCrossroadsPlayAgainRoom(
 }
 
 function defaultTimeControl(): CrossroadsChessTimeControl {
-  return { initialMs: 180_000, incrementMs: 2_000 };
+  return { initialMs: 300_000, incrementMs: 5_000 };
+}
+
+export function crossroadsChessInitialPlyFromSearch(search: string): number | null {
+  const raw = new URLSearchParams(search).get('ply');
+  if (raw === null || !/^\d+$/.test(raw)) return null;
+  return Number.parseInt(raw, 10);
+}
+
+function clampPly(ply: number, maxPly: number): number {
+  return Math.max(0, Math.min(maxPly, ply));
+}
+
+function replaceReviewPlyInUrl(ply: number, maxPly: number): void {
+  const url = new URL(window.location.href);
+  if (ply >= maxPly) {
+    url.searchParams.delete('ply');
+  } else {
+    url.searchParams.set('ply', String(ply));
+  }
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
 export function renderMoveRows(

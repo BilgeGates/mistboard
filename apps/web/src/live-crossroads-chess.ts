@@ -425,8 +425,9 @@ function resetSharedPanels(liveRefs: LiveRefs): void {
 }
 
 function renderMeta(liveRefs: LiveRefs): void {
+  const timeLabel = crossroadsLiveTimeControlLabel(state.timeControl);
   liveRefs.gameInfo.replaceChildren(
-    infoItem('Variant', 'Crossroads Chess'),
+    infoItem('Variant', timeLabel ? `Crossroads Chess · ${timeLabel}` : 'Crossroads Chess'),
     infoItem('Mode', 'Casual'),
     infoItem('Seat', seatLabel()),
     infoItem('Connection', connectionText()),
@@ -660,7 +661,16 @@ export function crossroadsLivePlayAgainRequestBody(
 }
 
 function defaultTimeControl(): CrossroadsChessLiveTimeControl {
-  return { initialMs: 180_000, incrementMs: 2_000 };
+  return { initialMs: 300_000, incrementMs: 5_000 };
+}
+
+export function crossroadsLiveTimeControlLabel(
+  timeControl: CrossroadsChessLiveTimeControl | null,
+): string | null {
+  if (!timeControl) return null;
+  const minutes = Math.round(timeControl.initialMs / 60_000);
+  const incrementSeconds = Math.round(timeControl.incrementMs / 1000);
+  return incrementSeconds > 0 ? `${minutes}+${incrementSeconds}` : `${minutes}+0`;
 }
 
 // Which color sits at the top vs bottom of the board for this viewer.
