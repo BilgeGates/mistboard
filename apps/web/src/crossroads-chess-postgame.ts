@@ -123,9 +123,10 @@ function renderPostgame(
   const signal = abortController.signal;
 
   const shell = document.createElement('main');
-  shell.className = 'game-shell';
+  shell.className = 'game-shell crossroads-postgame-shell';
   const page = document.createElement('div');
-  page.className = 'game-replay replay-page replay-meta-header analysis-tools-collapsed';
+  page.className =
+    'game-replay replay-page replay-meta-header analysis-tools-collapsed crossroads-postgame-page';
 
   const header = createGameHeaderStrip();
   header.title.textContent = 'Crossroads Chess';
@@ -146,8 +147,10 @@ function renderPostgame(
   rated.textContent = postgame.game.rated ? 'Rated' : 'Casual';
   appendHeaderMeta(header.meta, [plies, clock, rated]);
 
-  header.whiteCell.append(seatCell(postgame.game.whiteName ?? 'Guest', 'White'));
-  header.blackCell.append(seatCell(postgame.game.redName ?? 'Guest', 'Red'));
+  const whiteSeat = seatCell(postgame.game.whiteName ?? 'Guest', 'White');
+  const redSeat = seatCell(postgame.game.redName ?? 'Guest', 'Red');
+  header.whiteCell.append(whiteSeat.el);
+  header.blackCell.append(redSeat.el);
 
   const flipBtn = headerAction('Flip');
   flipBtn.setAttribute('aria-label', 'Flip board');
@@ -161,6 +164,9 @@ function renderPostgame(
   const layout = document.createElement('div');
   layout.className = 'replay-layout replay-layout-crossroads';
   const pane = createPane('Full board', 'truth', false);
+  pane.boardEl.classList.add('crossroads-postgame-board');
+  pane.boardEl.style.width = '46vh';
+  pane.boardEl.style.maxWidth = '560px';
   layout.append(pane.el);
 
   const movesPanel = createReplayMovesPanel();
@@ -193,14 +199,19 @@ function renderPostgame(
   };
   const sync = () => {
     const view = postgameViewAtPly(postgame, boardOrientation, currentPly) ?? postgame.view;
-    pane.boardEl.innerHTML = renderCrossroadsChessBoardSvg(view, {
-      perspective: boardOrientation,
-      showFog: false,
-    });
-    movesPanel.meta.textContent =
-      moves.length === 0
-        ? 'No moves'
-        : `Move ${Math.ceil(currentPly / 2)} · ply ${currentPly} of ${maxPly}`;
+    const status = currentPly >= maxPly ? postgame.state.status : view.status;
+    pane.boardEl.innerHTML = sizedCrossroadsBoardSvg(
+      renderCrossroadsChessBoardSvg(view, {
+        perspective: boardOrientation,
+        showFog: false,
+      }),
+    );
+    pane.nameEl.textContent = `${capitalize(boardOrientation)} orientation`;
+    pane.statusEl.textContent = statusLabel(status);
+    const clockAtPly = postgameClockAtPly(postgame, currentPly);
+    syncSeatClock(whiteSeat, 'white', status, clockAtPly);
+    syncSeatClock(redSeat, 'red', status, clockAtPly);
+    movesPanel.meta.textContent = replayMetaText(moves.length, currentPly, maxPly, clockAtPly);
     movesPanel.controls.first.disabled = currentPly <= 0;
     movesPanel.controls.prev.disabled = currentPly <= 0;
     movesPanel.controls.next.disabled = currentPly >= maxPly;
@@ -277,15 +288,26 @@ function resultChipKind(result: string): 'white' | 'red' | 'draw' {
   return 'draw';
 }
 
-function seatCell(name: string, side: string): HTMLElement {
+function sizedCrossroadsBoardSvg(svg: string): string {
+  return svg.replace(/^<svg\b/, '<svg style="display:block;width:100%;height:auto"');
+}
+
+type SeatCell = {
+  el: HTMLDivElement;
+  timeEl: HTMLSpanElement;
+};
+
+function seatCell(name: string, side: string): SeatCell {
   const row = document.createElement('div');
   row.className = 'replay-clock-row';
   const label = document.createElement('span');
   label.className = 'replay-clock-side';
   label.textContent = name;
   label.title = side;
-  row.append(label);
-  return row;
+  const time = document.createElement('span');
+  time.className = 'replay-clock-time';
+  row.append(label, time);
+  return { el: row, timeEl: time };
 }
 
 function headerAction(label: string): HTMLButtonElement {
@@ -372,7 +394,13 @@ export function renderMoveRows(
   onJump: (ply: number) => void,
 ): void {
   list.replaceChildren();
-  if (moves.length === 0) return;
+  if (moves.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'move-row move-empty';
+    empty.textContent = 'No moves';
+    list.append(empty);
+    return;
+  }
   const byPly = new Map<number, { move: CrossroadsChessMove; color: CrossroadsChessColor }>();
   for (const move of moves) byPly.set(move.ply, move);
   const maxPly = Math.max(...moves.map((move) => move.ply));
@@ -390,6 +418,7 @@ export function renderMoveRows(
     );
     list.append(row);
   }
+  scrollActiveMoveIntoView(list);
 }
 
 function moveCell(
@@ -408,8 +437,23 @@ function moveCell(
   button.type = 'button';
   button.className = `${cell}-ply${activePly === ply ? ' active' : ''}`;
   button.textContent = moveLabel(entry.move);
+  button.title = `${capitalize(cell === 'white' ? 'white' : 'red')} ply ${ply}: ${moveLabel(
+    entry.move,
+  )}`;
   button.onclick = () => onJump(ply);
   return button;
+}
+
+function scrollActiveMoveIntoView(list: HTMLOListElement): void {
+  window.requestAnimationFrame(() => {
+    const active = list.querySelector<HTMLButtonElement>('button.active');
+    if (!active) return;
+    const listRect = list.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    const centeredDelta =
+      activeRect.top - listRect.top - (list.clientHeight - activeRect.height) / 2;
+    list.scrollTo({ top: Math.max(0, list.scrollTop + centeredDelta), behavior: 'auto' });
+  });
 }
 
 export function postgameReplayMaxPly(postgame: CrossroadsChessPostgameResponse): number {
@@ -430,6 +474,48 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
+}
+
+function replayMetaText(
+  moveCount: number,
+  currentPly: number,
+  maxPly: number,
+  clockAtPly: Record<CrossroadsChessColor, number> | null,
+): string {
+  if (moveCount === 0) return 'No moves';
+  const base = `Move ${Math.ceil(currentPly / 2)} · ply ${currentPly} of ${maxPly}`;
+  if (!clockAtPly) return base;
+  return `${base} · White ${clockLabel(clockAtPly.white)} · Red ${clockLabel(clockAtPly.red)}`;
+}
+
+function postgameClockAtPly(
+  postgame: CrossroadsChessPostgameResponse,
+  ply: number,
+): Record<CrossroadsChessColor, number> | null {
+  const clocks = postgame.clocks;
+  if (!clocks || clocks.length === 0) return null;
+  for (let index = Math.min(ply, clocks.length - 1); index >= 0; index -= 1) {
+    const clock = clocks[index];
+    if (clock) return clock;
+  }
+  return null;
+}
+
+function syncSeatClock(
+  seat: SeatCell,
+  color: CrossroadsChessColor,
+  status: CrossroadsChessGameStatus,
+  clockAtPly: Record<CrossroadsChessColor, number> | null,
+): void {
+  seat.el.classList.toggle('active', status.type === 'playing' && status.turn === color);
+  seat.timeEl.textContent = clockAtPly ? clockLabel(clockAtPly[color]) : '';
+}
+
+function statusLabel(status: CrossroadsChessGameStatus): string {
+  if (status.type === 'playing') return `${capitalize(status.turn)} to move`;
+  if (status.type === 'aborted') return `Aborted by ${labelize(status.reason)}`;
+  if (status.winner === null) return `Draw by ${labelize(status.reason)}`;
+  return `${capitalize(status.winner)} won by ${labelize(status.reason)}`;
 }
 
 function loadingView(): HTMLElement {

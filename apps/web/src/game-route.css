@@ -66,6 +66,30 @@
   min-height: 0;
 }
 
+.crossroads-postgame-shell {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.crossroads-postgame-page {
+  row-gap: 6px;
+}
+
+.game-replay .crossroads-postgame-board {
+  aspect-ratio: 332 / 443;
+  width: min(100%, 46vh, 560px);
+  max-width: min(100%, 560px);
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.game-replay .crossroads-postgame-board .crossroads-live-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* In header mode the player names live in the header strip, so the per-pane
    name row is always empty. visibility:hidden still reserves ~18px above the
    top captures; collapse it instead. */
@@ -310,8 +334,28 @@
   }
 
   .game-replay.replay-meta-header .replay-layout-crossroads {
-    grid-template-columns: minmax(0, min(100%, 640px));
+    grid-template-columns: minmax(0, min(100%, 560px));
     justify-content: center;
+  }
+
+  .game-replay.replay-meta-header .replay-layout.replay-layout-crossroads {
+    padding: 4px;
+  }
+
+  .game-replay.crossroads-postgame-page.replay-meta-header .replay-game-header {
+    padding: 6px 12px;
+    gap: 8px;
+  }
+
+  .game-replay.crossroads-postgame-page.replay-meta-header
+    .replay-game-header-cell
+    .replay-clock-row {
+    min-height: 28px;
+    padding: 4px 9px;
+  }
+
+  .game-replay.crossroads-postgame-page.replay-meta-header .replay-moves-panel .move-list {
+    height: clamp(130px, 24vh, 240px);
   }
 
   .game-replay.replay-meta-header .replay-pane {

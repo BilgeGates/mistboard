@@ -57,6 +57,9 @@ describe('Crossroads Chess postgame page', () => {
     expect(root.textContent).toContain('Guest');
     expect(root.textContent).toContain('3:00+2');
     expect(root.textContent).toContain('Casual');
+    expect(root.textContent).toContain('White 2:58');
+    expect(root.textContent).toContain('Red 3:00');
+    expect(root.textContent).toContain('White won by Resignation');
     const download = root.querySelector<HTMLAnchorElement>(
       'a[href="/api/crossroads-chess/games/dchess_postgame/export.json"]',
     );
@@ -65,11 +68,26 @@ describe('Crossroads Chess postgame page', () => {
     expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1a2-a3');
     expect(root.textContent).toContain('ply 1 of 1');
     expect(root.querySelectorAll('.crossroads-live-svg')).toHaveLength(1);
+    expect(root.querySelector('.crossroads-postgame-board .crossroads-live-svg')).not.toBeNull();
+    expect(root.querySelector<HTMLElement>('.crossroads-postgame-board')?.style.width).toBe('46vh');
+    expect(root.querySelector<HTMLElement>('.crossroads-postgame-board')?.style.maxWidth).toBe(
+      '560px',
+    );
+    expect(
+      root.querySelector<SVGElement>('.crossroads-postgame-board .crossroads-live-svg')?.style
+        .width,
+    ).toBe('100%');
+    expect(
+      root.querySelector<SVGElement>('.crossroads-postgame-board .crossroads-live-svg')?.style
+        .height,
+    ).toBe('auto');
 
     root.querySelector<HTMLButtonElement>('[aria-label="Flip board"]')?.click();
     expect(root.querySelectorAll('.crossroads-live-svg')).toHaveLength(1);
     root.querySelector<HTMLButtonElement>('[aria-label="Previous move"]')?.click();
     expect(root.textContent).toContain('ply 0 of 1');
+    expect(root.textContent).toContain('White to move');
+    expect(root.textContent).toContain('White 3:00');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
     expect(root.textContent).toContain('ply 1 of 1');
   });
@@ -157,6 +175,8 @@ function postgameFixture(): CrossroadsChessPostgameResponse {
     winner: 'white' as const,
     reason: 'resignation' as const,
   };
+  const startStatus = { type: 'playing' as const, turn: 'white' as const };
+  const afterMoveStatus = { type: 'playing' as const, turn: 'red' as const };
   return {
     game: {
       roomId: 'dchess_postgame',
@@ -181,6 +201,10 @@ function postgameFixture(): CrossroadsChessPostgameResponse {
       { type: 'move-played', at: 2, color: 'white', move, ply: 1 },
       { type: 'seat-resigned', at: 3, color: 'red', winner: 'white' },
     ],
+    clocks: [
+      { white: 180_000, red: 180_000 },
+      { white: 178_000, red: 180_000 },
+    ],
     view: openView('dchess_truth', 'white', moved, move, status),
     views: {
       white: openView('dchess_white', 'white', moved, move, status),
@@ -189,12 +213,12 @@ function postgameFixture(): CrossroadsChessPostgameResponse {
     },
     history: {
       white: [
-        { ply: 0, view: openView('dchess_white_0', 'white', initial, undefined, status) },
-        { ply: 1, view: openView('dchess_white_1', 'white', moved, move, status) },
+        { ply: 0, view: openView('dchess_white_0', 'white', initial, undefined, startStatus) },
+        { ply: 1, view: openView('dchess_white_1', 'white', moved, move, afterMoveStatus) },
       ],
       red: [
-        { ply: 0, view: openView('dchess_red_0', 'red', initial, undefined, status) },
-        { ply: 1, view: openView('dchess_red_1', 'red', moved, move, status) },
+        { ply: 0, view: openView('dchess_red_0', 'red', initial, undefined, startStatus) },
+        { ply: 1, view: openView('dchess_red_1', 'red', moved, move, afterMoveStatus) },
       ],
     },
   };
