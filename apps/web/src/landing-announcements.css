@@ -8,7 +8,7 @@
   padding: clamp(16px, 1.6vw, 22px);
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: var(--site-radius);
-  background: #ffffff;
+  background: var(--site-panel);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.86),
     0 14px 36px rgba(29, 37, 34, 0.08);
@@ -46,7 +46,7 @@
   display: flex;
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: var(--site-radius);
-  background: #fafaf7;
+  background: var(--site-panel-soft);
   transition:
     border-color 120ms ease,
     background 120ms ease,
@@ -54,7 +54,7 @@
 }
 
 .landing-announcement-card.is-pinned {
-  background: #f3f5f0;
+  background: var(--site-bg);
   border-color: rgba(29, 37, 34, 0.16);
 }
 
@@ -102,7 +102,7 @@ a.landing-announcement-card-inner:focus-visible {
 
 .landing-announcement-card.is-clickable:hover {
   border-color: rgba(29, 37, 34, 0.24);
-  background: #ffffff;
+  background: var(--site-panel);
 }
 
 .landing-announcement-card.is-clickable:hover .landing-announcement-cta-arrow {
@@ -132,8 +132,8 @@ a.landing-announcement-card-inner:focus-visible {
 }
 
 .landing-announcement-kind.kind-status {
-  background: #fdf2dc;
-  color: #7a4f10;
+  background: var(--site-warning-bg);
+  color: var(--site-warning-text);
   border-color: rgba(122, 79, 16, 0.22);
 }
 

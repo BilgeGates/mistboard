@@ -163,7 +163,7 @@
   width: 100%;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
-  background: #fffdf8;
+  background: var(--site-panel);
   padding: 10px 12px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -177,13 +177,13 @@
 
 .watch-status strong {
   grid-row: span 2;
-  color: #262b28;
+  color: var(--site-heading);
   font-size: 26px;
   line-height: 1;
 }
 
 .watch-status-label {
-  color: #5d6963;
+  color: var(--site-muted);
 }
 
 .watch-status-hint {
@@ -196,7 +196,7 @@
   min-height: 0;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
-  background: #ffffff;
+  background: var(--site-panel);
   overflow: hidden;
 }
 
@@ -249,14 +249,14 @@
 .watch-empty-actions a:hover,
 .watch-empty-actions a:focus-visible {
   border-color: var(--site-accent);
-  background: #ffffff;
+  background: var(--site-panel);
 }
 
 .watch-queue {
   min-width: 0;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
-  background: #ffffff;
+  background: var(--site-panel);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -269,7 +269,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #fffdf8;
+  background: var(--site-panel);
 }
 
 .watch-queue-heading-copy {
@@ -281,7 +281,7 @@
 
 .watch-queue-heading h2 {
   margin: 0;
-  color: #262b28;
+  color: var(--site-heading);
   font-size: 14px;
   line-height: 1.2;
 }
@@ -349,7 +349,7 @@
 
 .watch-queue-matchup {
   min-width: 0;
-  color: #242a27;
+  color: var(--site-heading);
   font-size: 13px;
   font-weight: 800;
   line-height: 1.2;

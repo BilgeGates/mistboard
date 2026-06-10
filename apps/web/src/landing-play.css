@@ -42,12 +42,12 @@
 .landing-play-action-primary {
   background: var(--site-accent);
   border-color: var(--site-accent);
-  color: #ffffff;
+  color: var(--site-on-accent);
   box-shadow: 0 1px 3px rgba(27, 31, 27, 0.12);
 }
 
 .landing-play-action-primary .landing-play-icon {
-  color: #ffffff;
+  color: var(--site-on-accent);
 }
 
 .landing-play-action-primary:hover:not(:disabled),
@@ -79,7 +79,7 @@
   padding: clamp(12px, 1.2vw, 16px);
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: var(--site-radius);
-  background: #ffffff;
+  background: var(--site-panel);
   box-shadow: 0 4px 14px rgba(29, 37, 34, 0.06);
 }
 
@@ -141,18 +141,18 @@
 .landing-play-engine-prompt-action {
   align-self: flex-start;
   padding: 6px 12px;
-  border: 1px solid #629924;
+  border: 1px solid var(--site-accent);
   border-radius: 4px;
-  background: #629924;
-  color: #ffffff;
+  background: var(--site-accent);
+  color: var(--site-on-accent);
   font: inherit;
   font-size: 13px;
   cursor: pointer;
 }
 
 .landing-play-engine-prompt-action:hover:not(:disabled) {
-  background: #6fab2a;
-  border-color: #6fab2a;
+  background: var(--site-accent-strong);
+  border-color: var(--site-accent-strong);
 }
 
 .landing-play-engine-prompt-action:disabled {
@@ -169,7 +169,7 @@
   margin-top: 2px;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
-  background: #fbfcfa;
+  background: var(--site-panel);
   padding: 10px;
 }
 
@@ -231,10 +231,10 @@
 
 .landing-lobby-request-row button {
   min-height: 32px;
-  border: 1px solid #629924;
+  border: 1px solid var(--site-accent);
   border-radius: var(--site-radius-sm);
-  background: #ffffff;
-  color: #416b18;
+  background: var(--site-panel);
+  color: var(--site-accent-strong);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -245,7 +245,7 @@
 .landing-lobby-request-row button:hover:not(:disabled),
 .landing-lobby-request-row button:focus-visible {
   background: var(--site-accent-soft);
-  outline: 2px solid rgba(98, 153, 36, 0.2);
+  outline: 2px solid var(--site-focus);
 }
 
 .landing-lobby-request-row button:disabled {
@@ -272,7 +272,7 @@
   padding: 24px;
   border: 1px solid color-mix(in srgb, var(--site-accent) 22%, transparent);
   border-radius: var(--site-radius);
-  background: #ffffff;
+  background: var(--site-panel);
   box-shadow: 0 26px 70px rgba(10, 15, 13, 0.34);
 }
 
@@ -294,7 +294,7 @@
   height: 34px;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
-  background: #ffffff;
+  background: var(--site-panel);
   color: var(--site-text);
   cursor: pointer;
   font: inherit;
@@ -321,7 +321,7 @@
   align-items: center;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
-  background: #f9faf7;
+  background: var(--site-panel-soft);
   color: var(--site-text);
   font-size: 14px;
   font-weight: 760;
@@ -452,9 +452,9 @@
 .landing-setup-start,
 .landing-setup-back {
   min-height: 38px;
-  border: 1px solid #bdc8bf;
+  border: 1px solid var(--site-border);
   border-radius: var(--site-radius-sm);
-  background: #ffffff;
+  background: var(--site-panel);
   color: var(--site-text);
   cursor: pointer;
   font: inherit;
@@ -533,15 +533,15 @@
 }
 
 .landing-setup-start {
-  border-color: #629924;
-  background: #629924;
-  color: #ffffff;
+  border-color: var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
 }
 
 .landing-start-option:disabled {
   cursor: not-allowed;
   border-color: color-mix(in srgb, var(--site-border) 70%, transparent);
-  background: #fafbfa;
+  background: var(--site-panel-soft);
   color: color-mix(in srgb, var(--site-text) 42%, transparent);
 }
 
@@ -588,13 +588,13 @@
 .landing-setup-back:focus-visible,
 .landing-setup-close:hover,
 .landing-setup-close:focus-visible {
-  border-color: #629924;
-  outline: 2px solid rgba(98, 153, 36, 0.22);
+  border-color: var(--site-accent);
+  outline: 2px solid var(--site-focus);
 }
 
 .landing-setup-start:hover:not(:disabled),
 .landing-setup-start:focus-visible {
-  background: #70a82a;
+  background: var(--site-accent-strong);
 }
 
 .landing-setup-start:disabled {
@@ -625,7 +625,7 @@
      custom chevron inset a controlled amount from the right. */
   appearance: none;
   -webkit-appearance: none;
-  background-color: #f9faf7;
+  background-color: var(--site-panel-soft);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5l4 4 4-4' fill='none' stroke='%23556' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;

@@ -488,23 +488,12 @@
   :is(
     .action-notice,
     .clocks div,
-    .confirm-dialog,
-    .confirm-dialog-actions button,
-    .share-room input,
-    .share-room button,
-    .room-actions a,
-    .room-actions button,
-    .start-card,
-    .solo-picks button,
-    .bid-controls input,
-    .bid-controls button,
     .info-notice,
     .landing-play-panel,
     .landing-announcements,
     .landing-announcement-card,
     .landing-lobby-requests,
     .landing-lobby-request-row,
-    .landing-setup-dialog,
     .landing-games,
     .landing-games-list .landing-game-row,
     .watch-status,
@@ -533,21 +522,12 @@
 
 :root[data-effective-theme="dark"]
   :is(
-    .action-notice strong,
-    .game-info strong,
-    .selection-list strong,
-    .clocks strong,
-    .clocks .clock-name,
-    .confirm-dialog-title,
     .landing-play-action-label,
     .landing-announcements-heading,
     .landing-announcement-headline,
-    .landing-games-heading,
     .landing-games-list .landing-game-row strong,
     .watch-header h1,
-    .watch-status strong,
-    .watch-empty h2,
-    .watch-queue-heading h2
+    .watch-empty h2
   ) {
   color: var(--site-heading);
 }
@@ -555,35 +535,11 @@
 :root[data-effective-theme="dark"]
   :is(
     .action-notice,
-    .game-info div,
-    .selection-list div,
     .clocks div,
-    .clocks-pregame-note,
-    .confirm-dialog-body,
-    .share-room-hint,
-    .room-actions-note,
-    .dev-view-card > span,
-    .start-group h3,
-    .starts span,
-    .replay-meta,
-    .move-number,
-    .move-placeholder,
-    .move-empty,
-    .landing-play-anon-note,
-    .landing-play-status,
-    .landing-announcement-body,
-    .landing-announcement-meta,
-    .landing-games-empty,
     .watch-header p,
     .watch-eyebrow,
-    .watch-status-label,
     .watch-status-hint,
-    .watch-channel-rail h2,
-    .watch-channel-count,
-    .watch-queue-count,
     .watch-queue-scope,
-    .watch-queue-empty,
-    .watch-queue-meta,
     .article-meta,
     .article-dates,
     .article-figure-caption,
@@ -643,12 +599,6 @@
   color: #e7c078;
 }
 
-/* Queue rows are token-based (panel + zebra) in watch-route.css now; only the
-   matchup text still needs a dark lift. */
-:root[data-effective-theme="dark"] .watch-queue-matchup {
-  color: var(--site-heading);
-}
-
 /* Article prose, callouts, code chips, links, and breadcrumbs are fully
    token-based in articles.css and flip per theme on their own. */
 
@@ -665,39 +615,17 @@
   color: #e48f89;
 }
 
-:root[data-effective-theme="dark"]
-  :is(
-    .room-actions a.primary,
-    .room-actions button.primary,
-    .landing-setup-start,
-    .article-cta-primary
-  ) {
-  border-color: var(--site-accent);
-  background: var(--site-accent);
-  color: var(--site-on-accent);
-}
-
 :root[data-effective-theme="dark"] .move-row:nth-child(odd) {
   background: color-mix(in srgb, var(--site-panel-soft) 58%, transparent);
 }
 
-:root[data-effective-theme="dark"] .replay-game-id,
-:root[data-effective-theme="dark"] .replay-pane-label,
-:root[data-effective-theme="dark"] .replay-pane-status,
-:root[data-effective-theme="dark"] .replay-clock-side,
-:root[data-effective-theme="dark"] .replay-game-header-result-detail,
-:root[data-effective-theme="dark"] .replay-game-header-meta,
-:root[data-effective-theme="dark"] .landing-game-meta,
 :root[data-effective-theme="dark"] .articles-index-intro,
 :root[data-effective-theme="dark"] .articles-index-card-summary,
 :root[data-effective-theme="dark"] .articles-index-card-dates {
   color: var(--site-muted);
 }
 
-:root[data-effective-theme="dark"] .replay-pane-name,
 :root[data-effective-theme="dark"] .replay-game-meta-card,
-:root[data-effective-theme="dark"] .replay-game-header-title,
-:root[data-effective-theme="dark"] .replay-game-header-cell .replay-clock-time,
 :root[data-effective-theme="dark"] .landing-game-matchup,
 :root[data-effective-theme="dark"] .articles-index-card-title {
   color: var(--site-heading);
@@ -777,10 +705,6 @@
   color: var(--site-muted);
 }
 
-:root[data-effective-theme="dark"] .replay-ply-label {
-  color: var(--site-text);
-}
-
 :root[data-effective-theme="dark"]
   :is(
     .landing-setup-close,
@@ -849,29 +773,6 @@
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
 }
 
-:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-game-id,
-:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-pane-status,
-:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-pane-label,
-:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-clock-side,
-:root[data-effective-theme="dark"]
-  .landing-page
-  #landing-replay.replay-compact
-  .replay-clock-stack-name {
-  color: var(--site-muted);
-}
-
-:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-game-meta-card,
-:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-game-meta-card-compact h2,
-:root[data-effective-theme="dark"]
-  .landing-page
-  #landing-replay
-  .replay-game-meta-card-compact
-  .replay-game-meta-details
-  strong,
-:root[data-effective-theme="dark"] .landing-page #landing-replay .replay-pane-name {
-  color: var(--site-heading);
-}
-
 :root[data-effective-theme="dark"]
   .landing-page
   #landing-replay
@@ -882,15 +783,6 @@
   border-color: var(--site-border);
   background: var(--site-panel);
   color: var(--site-text);
-}
-
-:root[data-effective-theme="dark"]
-  .landing-page
-  #landing-replay
-  .replay-game-meta-card-compact
-  .replay-game-meta-details
-  span {
-  color: var(--site-muted);
 }
 
 :root[data-effective-theme="dark"] .landing-page #landing-replay .replay-clock-row.active {
@@ -965,10 +857,6 @@
   border-color: var(--site-border);
 }
 
-:root[data-effective-theme="dark"] .landing-games-list .landing-game-row {
-  color: var(--site-text);
-}
-
 :root[data-effective-theme="dark"] .landing-games-list a.landing-game-row:hover,
 :root[data-effective-theme="dark"] .landing-games-list a.landing-game-row:focus-visible,
 :root[data-effective-theme="dark"] .landing-games-list .landing-game-row.active {
@@ -994,21 +882,6 @@
 
 :root[data-effective-theme="dark"] .game-replay .replay-game-meta-details strong {
   color: var(--site-heading);
-}
-
-:root[data-effective-theme="dark"] .panel-section h2,
-:root[data-effective-theme="dark"] .game-info strong,
-:root[data-effective-theme="dark"] .selection-list strong,
-:root[data-effective-theme="dark"] .clocks strong,
-:root[data-effective-theme="dark"] .clocks .clock-name {
-  color: var(--site-heading);
-}
-
-:root[data-effective-theme="dark"] .game-info span,
-:root[data-effective-theme="dark"] .selection-list span,
-:root[data-effective-theme="dark"] .clocks span,
-:root[data-effective-theme="dark"] .clocks-pregame-note {
-  color: var(--site-muted);
 }
 
 :root[data-effective-theme="dark"] .clocks .clock-to-move {

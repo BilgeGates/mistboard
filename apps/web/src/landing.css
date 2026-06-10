@@ -139,7 +139,7 @@
   flex-direction: column;
   border: 1px solid rgba(29, 37, 34, 0.1);
   border-radius: var(--site-radius);
-  background: #ffffff;
+  background: var(--site-panel);
   overflow: hidden;
   text-decoration: none;
   color: inherit;
@@ -159,7 +159,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #eef1ec;
+  background: var(--site-panel-soft);
   overflow: hidden;
 }
 
@@ -223,7 +223,7 @@
   padding: 0;
   border: 1px solid rgba(29, 37, 34, 0.12);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
+  background: color-mix(in srgb, var(--site-panel) 94%, transparent);
   box-shadow: 0 4px 12px rgba(29, 37, 34, 0.14);
   color: var(--site-text, #1d2522);
   font-size: 18px;
@@ -243,7 +243,7 @@
 }
 
 .landing-carousel-nav:hover:not(:disabled) {
-  background: #ffffff;
+  background: var(--site-panel);
 }
 
 .landing-carousel-nav:disabled {
@@ -316,7 +316,7 @@
   color: var(--site-accent-strong);
   text-decoration: none;
   border: 1px solid var(--site-accent-soft);
-  background: #ffffff;
+  background: var(--site-panel);
   transition:
     background 120ms ease,
     border-color 120ms ease,
@@ -343,9 +343,9 @@
   gap: 14px;
   min-width: 0;
   padding: clamp(14px, 1.7vw, 20px);
-  border: 1px solid #d7d9d3;
+  border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
-  background: linear-gradient(180deg, #f5f5f1, #eceee8);
+  background: linear-gradient(180deg, var(--site-panel-soft), var(--site-bg));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.82),
     0 16px 38px rgba(34, 39, 36, 0.12);
@@ -378,11 +378,11 @@
 }
 
 .landing-page #landing-replay .replay-game-id {
-  color: #66706a;
+  color: var(--site-muted);
 }
 
 .landing-page #landing-replay .replay-game-meta-card {
-  color: #2f3732;
+  color: var(--site-text);
 }
 
 .landing-page #landing-replay .replay-game-meta-card-compact {
@@ -400,7 +400,7 @@
 
 .landing-page #landing-replay .replay-game-meta-card-compact h2 {
   margin: 0;
-  color: #303731;
+  color: var(--site-heading);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -419,14 +419,14 @@
   align-items: baseline;
   gap: 5px;
   min-width: 0;
-  border: 1px solid #d5d8d1;
+  border: 1px solid var(--site-border-soft);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.7);
   padding: 4px 8px;
 }
 
 .landing-page #landing-replay .replay-game-meta-card-compact .replay-game-meta-details span {
-  color: #68736d;
+  color: var(--site-muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -435,21 +435,21 @@
 
 .landing-page #landing-replay .replay-game-meta-card-compact .replay-game-meta-details strong {
   min-width: 0;
-  color: #26302a;
+  color: var(--site-heading);
   font-size: 12px;
   font-weight: 760;
 }
 
 .landing-page #landing-replay .replay-pane-name {
-  color: #26302a;
+  color: var(--site-heading);
 }
 
 .landing-page #landing-replay .replay-pane-status {
-  color: #68736d;
+  color: var(--site-muted);
 }
 
 .landing-page #landing-replay .replay-pane-label {
-  color: #58645d;
+  color: var(--site-muted);
 }
 
 .landing-page #landing-replay .replay-board.cg-wrap {
@@ -472,19 +472,19 @@
 }
 
 .landing-page #landing-replay .replay-clock-row {
-  border-color: #dde2dc;
-  background: #ffffff;
-  color: #24302a;
+  border-color: var(--site-border-soft);
+  background: var(--site-panel);
+  color: var(--site-text);
 }
 
 .landing-page #landing-replay .replay-clock-side {
-  color: #5d6861;
+  color: var(--site-muted);
 }
 
 /* Restore the active tint over the ID-specificity resting rule above. */
 .landing-page #landing-replay .replay-clock-row.active {
   border-color: #b6d6c8;
-  background: #eef7f1;
+  background: var(--site-accent-soft);
 }
 
 .landing-page #landing-replay.replay-compact {
@@ -577,7 +577,7 @@
   justify-content: center;
   gap: 6px;
   width: 100%;
-  color: #58645d;
+  color: var(--site-muted);
   font-size: 12px;
   font-weight: 720;
   line-height: 1.2;
@@ -587,7 +587,7 @@
 .landing-page #landing-replay.replay-compact .replay-clock-stack-result {
   border-radius: 999px;
   background: rgba(31, 111, 91, 0.1);
-  color: #1f6f5b;
+  color: var(--site-accent);
   font-size: 10px;
   font-weight: 820;
   letter-spacing: 0.06em;
@@ -601,7 +601,7 @@
   .replay-clock-stack-name.result-loss
   .replay-clock-stack-result {
   background: rgba(90, 98, 93, 0.1);
-  color: #6f7771;
+  color: var(--site-muted);
 }
 
 .landing-page
@@ -609,7 +609,7 @@
   .replay-clock-stack-name.result-draw
   .replay-clock-stack-result {
   background: rgba(90, 98, 93, 0.1);
-  color: #59635d;
+  color: var(--site-muted);
 }
 
 .landing-page #landing-replay.replay-compact .replay-clock-side {
@@ -631,18 +631,18 @@
 
 .landing-page #landing-replay.replay-compact .replay-clock-row.result-win {
   border-color: #93c5a9;
-  background: #edf8f1;
-  box-shadow: inset 4px 0 0 #1f6f5b;
+  background: var(--site-accent-soft);
+  box-shadow: inset 4px 0 0 var(--site-accent);
 }
 
 .landing-page #landing-replay.replay-compact .replay-clock-row.result-loss {
-  color: #6f7771;
+  color: var(--site-muted);
   background: rgba(255, 255, 255, 0.72);
 }
 
 .landing-page #landing-replay.replay-compact .replay-clock-row.result-draw {
-  border-color: #c9d2cc;
-  background: #f4f6f2;
+  border-color: var(--site-border-soft);
+  background: var(--site-panel-soft);
 }
 
 .landing-demo .landing-games-heading {

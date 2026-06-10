@@ -9,7 +9,7 @@
 }
 
 .video-index-intro {
-  color: #3f4742;
+  color: var(--site-text);
   line-height: 1.65;
   font-size: 16px;
   margin: 0 0 28px;
@@ -56,7 +56,7 @@
 
 .video-index-card:hover .video-index-card-thumb {
   box-shadow: 0 6px 16px rgba(29, 37, 34, 0.18);
-  outline: 2px solid #629924;
+  outline: 2px solid var(--site-accent);
   outline-offset: 1px;
 }
 
@@ -94,7 +94,7 @@
 
 .video-index-card-summary {
   margin: 8px 2px 0;
-  color: #3f4742;
+  color: var(--site-text);
   line-height: 1.45;
   font-size: 13px;
   display: -webkit-box;
@@ -124,7 +124,7 @@
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #3f4742;
+  color: var(--site-muted);
   text-decoration: none;
   padding: 6px 10px 6px 4px;
   border-radius: var(--site-radius-sm);
@@ -135,8 +135,8 @@
 }
 
 .video-player-back:hover {
-  background: #eef2eb;
-  color: #1f2521;
+  background: var(--site-hover);
+  color: var(--site-text);
 }
 
 .video-player-frame {
@@ -162,21 +162,21 @@
   margin: 22px 0 6px;
   font-size: 24px;
   font-weight: 700;
-  color: #1f2521;
+  color: var(--site-heading);
   letter-spacing: -0.01em;
   line-height: 1.25;
 }
 
 .video-player-meta {
   margin: 0 0 14px;
-  color: #5a635d;
+  color: var(--site-muted);
   font-size: 14px;
   letter-spacing: 0.01em;
 }
 
 .video-player-summary {
   margin: 0 0 18px;
-  color: #3f4742;
+  color: var(--site-text);
   line-height: 1.6;
   font-size: 15px;
   max-width: 640px;
@@ -195,25 +195,25 @@
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #5a635d;
+  color: var(--site-muted);
   padding: 3px 8px;
-  border: 1px solid #d8dad7;
+  border: 1px solid var(--site-border-soft);
   border-radius: 999px;
-  background: #f5f6f4;
+  background: var(--site-panel-soft);
 }
 
 .video-player-external {
   display: inline-block;
   font-size: 13px;
-  color: #5a635d;
+  color: var(--site-muted);
   text-decoration: none;
-  border-bottom: 1px dotted #b6bdb6;
+  border-bottom: 1px dotted var(--site-border);
   padding-bottom: 1px;
 }
 
 .video-player-external:hover {
-  color: #1f2521;
-  border-bottom-color: #629924;
+  color: var(--site-text);
+  border-bottom-color: var(--site-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
